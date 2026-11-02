@@ -229,13 +229,13 @@ pub fn call<'tcx>(
 	let e = match std {
 		Std::HashMap | Std::HashSet => hash(b, coll, call, owner, name, args, out),
 		Std::HashTable => table(b, coll, call, owner, name, args, out),
-		Std::TableEntry => table_entry(b, coll, name, args, call.span),
+		Std::TableEntry => table_entry(b, coll, call, name, args),
 		Std::BTreeMap | Std::BTreeSet => btree(b, coll, call, owner, name, args),
 		Std::VecDeque => deque(b, coll, call, owner, name, args),
 		Std::LinkedList => list(b, coll, call, owner, name, args),
 		Std::BinaryHeap => heap(b, coll, call, owner, name, args),
 		Std::PeekMut if name == "pop" => Some(Expr::rt("peekMutPop", args)),
-		Std::Entry => entry(b, coll, name, args, span),
+		Std::Entry => entry(b, coll, call, name, args),
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
@@ -737,10 +737,11 @@ fn table<'tcx>(
 fn table_entry<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
 	name: &str,
 	args: Vec<Expr>,
-	span: Span,
 ) -> Option<Expr> {
+	let span = call.span;
 	let item = arg(coll, 0);
 	let mut values = args;
 	let e = match name {
@@ -755,9 +756,21 @@ fn table_entry<'tcx>(
 				values,
 			)
 		}
-		"or_insert_with" => Expr::rt("tableOrInsertWith", values),
-		"and_modify" if b.t.needs_place(item) => Expr::rt("tableAndModifyMut", values),
-		"and_modify" => Expr::rt("tableAndModify", values),
+		"or_insert_with" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt("tableOrInsertWith", values)
+		}
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(
+				if b.t.needs_place(item) {
+					"tableAndModifyMut"
+				} else {
+					"tableAndModify"
+				},
+				values,
+			)
+		}
 		// The entry is its item's place.
 		"get_mut" | "into_mut" if b.t.needs_place(item) => values.pop()?,
 		"get" | "get_mut" | "into_mut" => values.pop()?.member("v"),
@@ -1301,8 +1314,8 @@ fn btree<'tcx>(
 
 /// `collect` and `from` into an empty B-tree of type `coll`, from `source`, an iterator of
 /// type `iter`. std's collects into a `Vec` first, reserved as for a `TrustedLen` iterator
-/// if `trusted`, sorts it stably, a set's by `PartialOrd::lt` and a map's by `Ord::cmp`,
-/// unless zero-sized, then builds the tree of each but the last of a run of keys `!=` finds
+/// if `trusted`, sorts it as std's stable sort does, a set's by `PartialOrd::lt` and a
+/// map's by `Ord::cmp`, then builds the tree of each but the last of a run of keys `!=` finds
 /// equal, which drop in order.
 fn btree_collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -1342,17 +1355,18 @@ fn btree_collect<'tcx>(
 		);
 	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
-	let sorts = !b.t.zero_sized(elem);
-	let order = match set {
-		true if sorts && own => test_fn(b, key, "lt", span),
-		true => Expr::undefined(),
-		false => Expr::lit(sorts.to_string()),
-	};
-	let same = match own {
+	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
+	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
+	if set {
+		rest.push(match own && !b.t.zero_sized(elem) {
+			true => test_fn(b, key, "lt", span),
+			false => Expr::undefined(),
+		});
+	}
+	rest.push(match own {
 		true => not_ne_fn(b, key, span),
 		false => Expr::undefined(),
-	};
-	let mut rest = vec![order, same];
+	});
 	rest.extend(entry_droppers(b, coll, span));
 	let f = if set { "btreeCollectKeys" } else { "btreeCollect" };
 	Expr::rt(f, super::iter::tail(vec![target, entries], rest))
@@ -2080,7 +2094,14 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 }
 
 /// A method of an `Entry`, `OccupiedEntry`, or `VacantEntry`.
-fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec<Expr>, span: Span) -> Option<Expr> {
+fn entry<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+) -> Option<Expr> {
+	let span = call.span;
 	let value = arg(coll, 1);
 	let mut values = args;
 	// What these return a `&mut` to is a place where JS would copy it.
@@ -2094,14 +2115,20 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		// A vacant entry's.
 		"insert" if is_vacant(b, coll) => Expr::rt(mutable("entryOrInsert"), values),
 		"insert" => Expr::rt("entryInsert", values),
-		"or_insert_with" | "or_insert_with_key" => Expr::rt(mutable("entryOrInsertWith"), values),
+		"or_insert_with" | "or_insert_with_key" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryOrInsertWith"), values)
+		}
 		"or_default" => {
 			let tcx = b.t.tcx;
 			let default = trait_fn(tcx, "Default", "default");
 			values.push(b.fn_value(default, tcx.mk_args(&[value.into()]), span));
 			Expr::rt(mutable("entryOrInsertWith"), values)
 		}
-		"and_modify" => Expr::rt(mutable("entryAndModify"), values),
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryAndModify"), values)
+		}
 		"key" => Expr::rt("entryKey", values),
 		"into_key" => values.pop()?.member("k"),
 		"get" => Expr::rt("entryGet", values),
@@ -2111,6 +2138,12 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		_ => return None,
 	};
 	Some(e)
+}
+
+/// What drops the closure an entry's `or_insert_with`, `or_insert_with_key`, or `and_modify`
+/// takes last, which std's drops uncalled unless the entry is vacant or occupied as it needs.
+fn uncalled<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Vec<Expr>> {
+	b.t.droppers(call.args.types().last(), call.span)
 }
 
 /// Whether `entry`, an `Entry` of a map or, as `std` says, of a `HashTable`, is its variant

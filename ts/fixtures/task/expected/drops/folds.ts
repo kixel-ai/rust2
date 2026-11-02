@@ -230,7 +230,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			}, (): void => {
 				captured55[Symbol.dispose]();
 			}));
-			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_205, "fold", 12, true), true, undefined, undefined, rt.drop);
+			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_205, "fold", 12, true), 12, true, undefined, undefined, rt.drop);
 			const _217: rt.usize = queue.n;
 			const _220: rt.usize = rt.btreeLen(tree);
 			const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_217, f), (f: rt.Formatter) => rt.usizeDisplay(_220, f)];
@@ -1409,12 +1409,11 @@ export function reducers(log: Log.Log, id: rt.u32): void {
 	const e: Guard.Guard = _69[1];
 	const _77: rt.Iter<Guard.Guard> = rt.iterSlice(held);
 	const captured3 = e;
-	const _80: (a0: Guard.Guard, a1: Guard.Guard) => rt.Ordering = rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
+	const part = option_map$0lq7mno(rt.iterMinBy(_77, rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
 		return rt.cmp(rt.u32Add(Guard.id(a5), Guard.id(captured3)), rt.u32Add(Guard.id(b5), Guard.id(captured3)));
 	}, (): void => {
 		captured3[Symbol.dispose]();
-	});
-	const part = option_map$0lq7mno(rt.dropAfter(_80, () => rt.iterMinBy(_77, _80)), Guard.id);
+	}), undefined, undefined, true), Guard.id);
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part, f, rt.u32Debug)];
 	Log.note(log, rt.fmtFormat(["first ", args4[0]]));
 	rt.dropAll(held);

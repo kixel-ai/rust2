@@ -5,8 +5,8 @@
 //! or anything else encoded into a `byte[]`: little-endian, field by field, as the C
 //! struct holds it, with a buffer as its length (-1 for none) and its bytes, and an array
 //! as its length (-1 for none) and its elements. Bytes Rust returns cross copied when short,
-//! and otherwise as their owner, which a Kotlin `Bytes` lends as a direct `ByteBuffer`
-//! until it frees it.
+//! and otherwise as their owner, which a Kotlin `Bytes` reads through a call each until the
+//! GC collects it.
 
 use std::cell::Cell;
 use std::ffi::{CStr, c_void};
@@ -161,14 +161,14 @@ pub fn array(env: *mut JNIEnv, bytes: &[u8]) -> jbyteArray {
 	}
 }
 
-/// The longest bytes Rust returns that cross copied, freed at once: a lent `ByteBuffer`
-/// costs `NewDirectByteBuffer`'s upcall and a cleaner registration, which copying up to
-/// about this many bytes undercuts.
+/// The longest bytes Rust returns that cross copied, freed at once: a lent buffer costs a
+/// cleaner registration, and a call per read, which copying up to about this many bytes
+/// undercuts.
 const COPIED: usize = 1024;
 
 /// A buffer Rust returned or lent, as Kotlin's `Native.owned` takes it: null for none, a
 /// `byte[]` copy of up to [`COPIED`] bytes, freeing the buffer, or else a `long[]` holding
-/// the owner it lends them through.
+/// the owner it lends them through and their length.
 ///
 /// # Safety
 /// `buf` is a buffer Rust returned or lent, freed by nothing else.
@@ -184,16 +184,25 @@ pub unsafe fn hand(env: *mut JNIEnv, buf: rt::Buf) -> jobject {
 			array
 		};
 	}
+	let len = lent_len(&buf);
 	// SAFETY: the caller's contract.
-	let owner = unsafe { self::owner(buf) };
+	let lent = [unsafe { self::owner(buf) }, len.into()];
 	// SAFETY: `env` is this thread's.
 	unsafe {
-		let array = ((**env).v1_2.NewLongArray)(env, 1);
+		let array = ((**env).v1_2.NewLongArray)(env, 2);
 		if array.is_null() {
 			fail(env, "jni", "a long[] is out of memory");
 		}
-		((**env).v1_2.SetLongArrayRegion)(env, array, 0, 1, &owner);
+		((**env).v1_2.SetLongArrayRegion)(env, array, 0, 2, lent.as_ptr());
 		array
+	}
+}
+
+/// The length of a buffer lent to Kotlin, whose `Bytes` counts in an `Int`.
+fn lent_len(buf: &rt::Buf) -> i32 {
+	match i32::try_from(buf.len) {
+		Ok(len) => len,
+		Err(_) => rt::fail("jni", "a buffer is too long for Bytes"),
 	}
 }
 
@@ -211,22 +220,42 @@ unsafe fn owner(buf: rt::Buf) -> jlong {
 	buf.owner as usize as jlong
 }
 
-/// A direct `ByteBuffer` over the bytes `owner` holds, which it lends until freed.
+/// The bytes `owner` holds from `start`, `len` long, failing loud past their end, which
+/// Kotlin checks first.
 ///
 /// # Safety
 /// `owner` came from [`hand`], and is not yet freed.
-pub unsafe fn buffer(env: *mut JNIEnv, owner: jlong) -> jobject {
-	// SAFETY: the caller's contract.
-	let buf = unsafe { rt::Buf::of_owner(owner as usize as _) };
-	let Ok(len) = jlong::try_from(buf.len) else {
-		rt::fail("jni", "a buffer is too long for a ByteBuffer")
+unsafe fn range<'a>(owner: jlong, start: jint, len: jint) -> &'a [u8] {
+	// SAFETY: the caller's contract; the owner holds the bytes until freed.
+	let bytes = unsafe {
+		let buf = rt::Buf::of_owner(owner as usize as _);
+		std::slice::from_raw_parts(buf.ptr, buf.len)
 	};
-	// SAFETY: `env` is this thread's, and the bytes live until the owner is freed.
-	let buffer = unsafe { ((**env).v1_4.NewDirectByteBuffer)(env, buf.ptr.cast_mut().cast(), len) };
-	if buffer.is_null() {
-		fail(env, "jni", "a ByteBuffer is out of memory");
+	match (usize::try_from(start), usize::try_from(len)) {
+		(Ok(start), Ok(len)) if start <= bytes.len() && len <= bytes.len() - start => &bytes[start..start + len],
+		_ => rt::fail("jni", "a read is past a lent buffer's end"),
 	}
-	buffer
+}
+
+/// The byte at `index` of those `owner` holds.
+///
+/// # Safety
+/// As [`range`].
+pub unsafe fn byte_at(owner: jlong, index: jint) -> jbyte {
+	// SAFETY: the caller's contract.
+	unsafe { range(owner, index, 1)[0] as jbyte }
+}
+
+/// Copy the bytes `owner` holds from `start`, `len` long, into `array` at `at`.
+///
+/// # Safety
+/// As [`range`], and `array` is a live `byte[]`.
+pub unsafe fn copy(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, array: jbyteArray, at: jint) {
+	// SAFETY: the caller's contract; JNI throws if `array` is too short.
+	unsafe {
+		let bytes = range(owner, start, len);
+		((**env).v1_2.SetByteArrayRegion)(env, array, at, len, bytes.as_ptr().cast());
+	}
 }
 
 /// Free the bytes `owner` holds.
@@ -617,7 +646,7 @@ impl Wire for Owned<rt::Buf> {
 	}
 
 	// None as -1, bytes up to [`COPIED`] long as their length and a copy, and longer ones as
-	// [`LENT`] and their owner.
+	// [`LENT`], their owner, and their length.
 	fn write(self, w: &mut Writer) {
 		let buf = self.0;
 		if buf.is_none() {
@@ -630,9 +659,11 @@ impl Wire for Owned<rt::Buf> {
 				buf.free();
 			}
 		} else {
+			let len = lent_len(&buf);
 			w.put(LENT);
 			// SAFETY: a buffer Rust returned or lent, handed over here.
 			w.put(unsafe { owner(buf) });
+			w.put(len);
 		}
 	}
 }

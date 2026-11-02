@@ -147,33 +147,33 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, names2.length & 0xff);
 	} else if (_8 === 2) {
 		const v4: rt.u16[] = rt.vecExact(words.slice(), 2);
-		rt.sliceSort(v4, rt.lt);
+		rt.sliceSort(v4, rt.lt, 2, true);
 		putU16s(out, v4);
 		const v5: rt.u16[] = rt.vecExact(words.slice(), 2);
-		rt.sliceSortBy(v5, (a: rt.u16, b6: rt.u16): rt.Ordering => {
+		rt.sliceSortUnstable(v5, rt.cmpLt((a: rt.u16, b6: rt.u16): rt.Ordering => {
 			return rt.cmp(b6, a);
-		});
+		}), 2, true, true);
 		putU16s(out, v5);
 		const pairs2: [rt.u16, rt.u16][] = rt.iterToArray(rt.iterMap(rt.iterEnumerate(rt.iterSlice(words)), (_216: [rt.usize, rt.u16]): [rt.u16, rt.u16] => {
 			return [rt.u16Rem(_216[1], 5), _216[0] & 0xffff] as [rt.u16, rt.u16];
 		}), undefined, 4, true);
-		rt.sliceSortByKey(pairs2, (p2: [rt.u16, rt.u16]): rt.u16 => {
+		rt.sliceSort(pairs2, rt.keyLt((p2: [rt.u16, rt.u16]): rt.u16 => {
 			return p2[0];
-		}, rt.lt);
+		}, rt.lt), 4, true);
 		for (const _188 of pairs2) {
 			putU16s(out, [_188[0], _188[1]]);
 		}
-		rt.sliceSortByKey(pairs2, (_218: [rt.u16, rt.u16]): [rt.u16, rt.u16, rt.u16] => {
+		rt.sliceSortUnstable(pairs2, rt.keyLt((_218: [rt.u16, rt.u16]): [rt.u16, rt.u16, rt.u16] => {
 			const a2: rt.u16 = _218[0];
 			const b7: rt.u16 = _218[1];
 			return [rt.u16Rem(b7, 3), a2, b7] as [rt.u16, rt.u16, rt.u16];
-		}, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u16, rt.u16], rt.Ordering | undefined>([rt.cmp, rt.cmp, rt.cmp])));
+		}, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u16, rt.u16], rt.Ordering | undefined>([rt.cmp, rt.cmp, rt.cmp]))), 4, true, true);
 		for (const _205 of pairs2) {
 			putU16s(out, [_205[0], _205[1]]);
 		}
-		rt.sliceSortBy(pairs2, (x3: [rt.u16, rt.u16], y: [rt.u16, rt.u16]): rt.Ordering => {
+		rt.sliceSort(pairs2, rt.cmpLt((x3: [rt.u16, rt.u16], y: [rt.u16, rt.u16]): rt.Ordering => {
 			return rt.cmp(y[1], x3[1]);
-		});
+		}), 4, true);
 		for (const _222 of pairs2) {
 			putU16s(out, [_222[0], _222[1]]);
 		}
@@ -184,7 +184,7 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			return undefined;
 		}), undefined, 4, true);
-		rt.sliceSort(options, rt.cmpLt(rt.cmpOption(rt.cmp)));
+		rt.sliceSortUnstable(options, rt.cmpLt(rt.cmpOption(rt.cmp)), 4, true, true);
 		for (const _244 of options) {
 			putU16s(out, [option_mapOr$1llunel(_244, 65535, (o: rt.u16): rt.u16 => {
 				return o;
@@ -194,7 +194,7 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const b8: rt.u8 = _221;
 			return text(rt.byteSliceFrom(Uint8Array.of(b8, rt.u8Div(b8, 16))));
 		}), undefined, 12, true);
-		rt.sliceSort(names3, rt.cmpLt(rt.cmpStr));
+		rt.sliceSort(names3, rt.cmpLt(rt.cmpStr), 12, true);
 		for (const _263 of names3) {
 			fmt_put(out, _263);
 		}
@@ -524,24 +524,24 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteSliceView(rt.byteVecSlice(v9)).sort();
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v9));
 			const v10: rt.ByteVec = rt.byteSliceToByteVec(_109);
-			rt.sliceSortBy(rt.byteSliceView(rt.byteVecSlice(v10)), (a: rt.u8, b3: rt.u8): rt.Ordering => {
+			rt.sliceSort(rt.byteSliceView(rt.byteVecSlice(v10)), rt.cmpLt((a: rt.u8, b3: rt.u8): rt.Ordering => {
 				return rt.cmp(b3, a);
-			});
+			}), 1, true);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v10));
 			const v11: rt.ByteVec = rt.byteSliceToByteVec(_109);
-			rt.sliceSortByKey(rt.byteSliceView(rt.byteVecSlice(v11)), (b4: rt.u8): rt.u8 => {
+			rt.sliceSort(rt.byteSliceView(rt.byteVecSlice(v11)), rt.keyLt((b4: rt.u8): rt.u8 => {
 				return rt.u8Rem(b4, 5);
-			}, rt.lt);
+			}, rt.lt), 1, true);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v11));
 			const v12: rt.ByteVec = rt.byteSliceToByteVec(_109);
-			rt.sliceSortByKey(rt.byteSliceView(rt.byteVecSlice(v12)), (b5: rt.u8): rt.u8 => {
+			rt.sliceSortUnstable(rt.byteSliceView(rt.byteVecSlice(v12)), rt.keyLt((b5: rt.u8): rt.u8 => {
 				return rt.u8WrappingMul(b5, 13);
-			}, rt.lt);
+			}, rt.lt), 1, true, true);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v12));
 			const v13: rt.ByteVec = rt.byteSliceToByteVec(_109);
-			rt.sliceSortBy(rt.byteSliceView(rt.byteVecSlice(v13)), (a2: rt.u8, b6: rt.u8): rt.Ordering => {
+			rt.sliceSortUnstable(rt.byteSliceView(rt.byteVecSlice(v13)), rt.cmpLt((a2: rt.u8, b6: rt.u8): rt.Ordering => {
 				return rt.cmp(b6 ^ 85, a2 ^ 85);
-			});
+			}), 1, true, true);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v13));
 			const v14: rt.ByteVec = rt.byteSliceToByteVec(_109);
 			const part3 = rt.min(v14.length, 1);

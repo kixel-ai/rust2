@@ -1,10 +1,11 @@
 //! std's functions that take a reference and convert, copy, or measure what it points at:
 //! `to_owned`, `clone_into`, and `clone_from` into a local, a field, an element, and a
-//! parameter; `binary_search` over runs of equal elements; `size_of_val` and
-//! `align_of_val`; slices, arrays, and cells of one value, written through; arrays as
-//! slices by `AsRef`, `AsMut`, `Borrow`, and `BorrowMut`; and raw pointers of references.
-//! Each is generic over the value, run for numbers JS copies, strings, `Option`s, arrays
-//! and `Vec`s of bytes and of numbers, a struct, and one that logs its clones and drops.
+//! parameter; `binary_search`, by a closure and by a key, and `partition_point` over runs
+//! of equal elements; `size_of_val` and `align_of_val`; slices, arrays, and cells of one
+//! value, written through; arrays as slices by `AsRef`, `AsMut`, `Borrow`, and
+//! `BorrowMut`; and raw pointers of references. Each is generic over the value, run for
+//! numbers JS copies, strings, `Option`s, arrays and `Vec`s of bytes and of numbers, a
+//! struct, and one that logs its clones and drops.
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::{Cell, RefCell};
@@ -183,6 +184,27 @@ impl Drop for Logged {
 	}
 }
 
+/// Ordered by its id, so a search's keys log their clones and drops.
+impl Ord for Logged {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		self.id.cmp(&other.id)
+	}
+}
+
+impl PartialOrd for Logged {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl PartialEq for Logged {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+impl Eq for Logged {}
+
 impl Value for Logged {
 	fn make(data: &[u8], at: usize) -> Self {
 		Logged {
@@ -241,6 +263,7 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			LOG.with(|log| RefCell::borrow_mut(log).clear());
 			converted::<Logged>(data, out);
 			lent_one::<Logged>(data, out);
+			searched::<Logged>(data, out);
 		}
 	}
 	measured(data, out);
@@ -381,19 +404,39 @@ fn lent_one<T: Value>(data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// `binary_search` of each value `data` makes in a sorted run of them, where equal ones
-/// repeat: `Ok` or `Err` as a byte, then the index.
+/// repeat: `Ok` or `Err` as a byte, then the index. Then the same by a closure that logs
+/// each element it probes, by a key that logs each index it probes, and `partition_point`.
 fn searched<T: Value + Ord>(data: &[u8], out: &mut Vec<u8>) {
 	let mut v: Vec<T> = (0..data.len().min(24)).map(|i| T::make(data, i)).collect();
 	v.sort();
+	let tagged: Vec<(T, u8)> = v.iter().cloned().zip(0..).collect();
 	for n in [0, 1, 2, 3, v.len()] {
 		let s = &v[..n.min(v.len())];
+		let t = &tagged[..s.len()];
 		for i in 0..data.len().min(8) + 1 {
-			let found = s.binary_search(&T::make(data, i * 2 + 1));
-			let (tag, at) = match found {
-				Ok(at) => (1, at),
-				Err(at) => (0, at),
-			};
-			out.extend([tag, at as u8]);
+			let x = T::make(data, i * 2 + 1);
+			let found = [
+				s.binary_search(&x),
+				s.binary_search_by(|e| {
+					e.put(out);
+					e.cmp(&x)
+				}),
+				t.binary_search_by_key(&x, |(e, at)| {
+					out.push(*at);
+					e.clone()
+				}),
+				Ok(s.partition_point(|e| {
+					e.put(out);
+					e < &x
+				})),
+			];
+			for found in found {
+				let (tag, at) = match found {
+					Ok(at) => (1, at),
+					Err(at) => (0, at),
+				};
+				out.extend([tag, at as u8]);
+			}
 		}
 	}
 }

@@ -432,6 +432,22 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		if let Some(f) = self.t.dyn_fn(object) {
 			return self.fn_object(value, from, f.kind);
 		}
+		// A box of a value to write, as a `&dyn Debug` of it is, which owns and drops it.
+		if let Some(tr) = principal(object).and_then(|p| super::fmt::Trait::of(self.t.tcx, p)) {
+			return match pointee.kind() {
+				_ if principal(pointee) == principal(object) => value,
+				_ if pointee.is_trait() || !from.is_box() => unsupported(self),
+				_ if self.t.polymorphic() && pointee.has_param() => Expr::undefined(),
+				_ => {
+					let write = self.fmt_fn(tr, pointee, span);
+					let args = [value, write]
+						.into_iter()
+						.chain(self.t.drop_fn(pointee, span))
+						.collect();
+					Expr::rt("fmtOwned", args)
+				}
+			};
+		}
 		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
 		}

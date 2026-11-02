@@ -1191,20 +1191,24 @@ export function tableOrInsert<T>(e: TableEntry<T>, item: T, f?: (item: T) => voi
 	return e;
 }
 
-/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant. */
-export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T): TableEntry<T> {
-	return e.o ? e : e.fill(make());
-}
-
-/** `Entry::and_modify`: `f` of its item, if occupied. */
-export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void): TableEntry<T> {
-	if (e.o) f(e.v);
+/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant, or else `make` drops by `dropF` uncalled. */
+export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T, dropF?: (f: () => T) => void): TableEntry<T> {
+	if (!e.o) return e.fill(make());
+	dropF?.(make);
 	return e;
 }
 
-/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied. */
-export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void): TableEntry<T> {
+/** `Entry::and_modify`: `f` of its item, if occupied, or else `f` drops by `dropF` uncalled. */
+export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void, dropF?: (f: (item: T) => void) => void): TableEntry<T> {
+	if (e.o) f(e.v);
+	else dropF?.(f);
+	return e;
+}
+
+/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied, as `tableAndModify`. */
+export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void, dropF?: (f: (item: Place<T>) => void) => void): TableEntry<T> {
 	if (e.o) f(e);
+	else dropF?.(f);
 	return e;
 }
 
@@ -2040,14 +2044,14 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
 
 /**
  * `collect` and `from` into `m`, an empty map, of `entries`, which std's collects into a
- * `Vec` first. It sorts them stably by `Ord::cmp` of their keys if `sorts`, as std's sort
- * does all but zero-sized ones, and builds the tree of each but those whose key `same`,
+ * `Vec` first. It sorts them as std's stable sort does by `Ord::cmp` of their keys, of
+ * entries `size` bytes long on wasm32 and `Freeze` if `freeze`, and builds the tree of each but those whose key `same`,
  * `!ne`, finds equal to the next one's, which drop in order. Without `same`, the keys'
  * impls agree, so JS's sort and `Ord` alone build the same tree faster.
  */
-export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts = false, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
+export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else if (sorts) sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1);
+	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2068,17 +2072,18 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts =
  * `collect` and `from` into `m`, an empty set, of `keys`, as `btreeCollect`, but sorted by
  * `less`, their `PartialOrd::lt`, or not at all if zero-sized.
  */
-export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
+export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, freeze: boolean, less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
 	if (same === undefined) {
 		return btreeCollect(
 			m,
 			keys.map((key) => [key, undefined]),
-			true,
+			size,
+			freeze,
 			undefined,
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less);
+	if (less !== undefined) sliceSort(keys, less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
@@ -2466,9 +2471,13 @@ function isHash<K, V>(m: HashMap<K, V> | BTreeMap<K, V>): m is HashMap<K, V> {
 	return "p" in m;
 }
 
-/** `Entry::or_insert_with`: the value there, or else `f()`'s, inserted. */
-export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V): V {
-	if (e.o) return entryGet(e);
+/** `Entry::or_insert_with`: the value there, and `f` drops by `dropF` uncalled, or else `f()`'s, inserted. */
+export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): V {
+	if (e.o) {
+		const value = entryGet(e);
+		dropF?.(f);
+		return value;
+	}
 	const value = f(e.k);
 	fill(e, value);
 	return value;
@@ -2489,15 +2498,17 @@ export function entryOccupied<K, V>(e: Entry<K, V>): boolean {
 	return e.o;
 }
 
-/** `Entry::and_modify` of a value JS copies: `f` of its place, if any. */
-export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void): Entry<K, V> {
+/** `Entry::and_modify` of a value JS copies: `f` of its place, if any, as `entryAndModify`. */
+export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void, dropF?: (f: (value: Place<V>) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGetMut(e));
+	else dropF?.(f);
 	return e;
 }
 
-/** `Entry::and_modify`: `f` of the value there, if any. */
-export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void): Entry<K, V> {
+/** `Entry::and_modify`: `f` of the value there, if any, or else `f` drops by `dropF` uncalled. */
+export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void, dropF?: (f: (value: V) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGet(e));
+	else dropF?.(f);
 	return e;
 }
 
@@ -2522,10 +2533,14 @@ export function entryGetMut<K, V>(e: Entry<K, V>): Place<V> {
 
 /**
  * `Entry::or_insert_with` and `or_insert_with_key` of a value JS copies, and
- * `or_default`: its place, after inserting `f`'s value if the map lacks the key.
+ * `or_default`: its place, after inserting `f`'s value if the map lacks the key, as
+ * `entryOrInsertWith`.
  */
-export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V): Place<V> {
-	return e.o ? entryGetMut(e) : fill(e, f(e.k));
+export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): Place<V> {
+	if (!e.o) return fill(e, f(e.k));
+	const place = entryGetMut(e);
+	dropF?.(f);
+	return place;
 }
 
 /** `Entry::or_insert` and `VacantEntry::insert` of a value JS copies: its place, and `value` drops if one was there. */
