@@ -35,7 +35,7 @@ export function read(self: Storage, len: rt.usize): rt.ByteSlice {
 }
 
 export function drop$ops_Drop(self: Storage): void {
-	rt.rawByteSliceDeref(new rt.RawSlice(self.data, self.capacity), false);
+	new rt.RawSlice(self.data, self.capacity).derefBytes(false);
 }
 
 export { new_ as new };

@@ -453,8 +453,8 @@ pub fn call<'tcx>(
 		false => Expr::rt("rawSliceOf", vec![s]),
 	};
 	let deref = |ty: Ty<'tcx>, p: Expr, shared: bool| match slice_of_bytes(ty) {
-		true => Expr::rt("rawByteSliceDeref", vec![p, Expr::lit(shared.to_string())]),
-		false => Expr::rt("rawSliceDeref", vec![p]),
+		true => p.member("derefBytes").call(vec![Expr::lit(shared.to_string())]),
+		false => p.member("deref").call(Vec::new()),
 	};
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");

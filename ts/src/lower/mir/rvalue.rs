@@ -81,7 +81,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					// length.
 					Pointee::Slice => match place.projection.as_slice() {
 						[rest @ .., mir::ProjectionElem::Deref]
-							if Place::ty_from(place.local, rest, &self.mir.local_decls, tcx).ty.is_raw_ptr() =>
+							if Place::ty_from(place.local, rest, &self.mir.local_decls, tcx)
+								.ty
+								.is_raw_ptr() =>
 						{
 							let base = Place {
 								local: place.local,
@@ -266,10 +268,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
 		};
 		let Some(len) = len.try_to_target_usize(self.tcx) else {
-			return self.err(span, format!("a coercion of `{from}`, of no fixed length, to a pointer to a slice"));
+			return self.err(
+				span,
+				format!("a coercion of `{from}`, of no fixed length, to a pointer to a slice"),
+			);
 		};
 		let first = crate::lower::pointer::cast(self.b, p, array, elem, span);
-		Expr::New(Box::new(Expr::Rt("RawSlice".into())), vec![first, Expr::lit(len.to_string())])
+		Expr::New(
+			Box::new(Expr::Rt("RawSlice".into())),
+			vec![first, Expr::lit(len.to_string())],
+		)
 	}
 
 	pub(super) fn const_int(&self, op: &Operand<'tcx>) -> Option<i128> {

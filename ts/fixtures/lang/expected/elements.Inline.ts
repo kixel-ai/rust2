@@ -102,7 +102,7 @@ export function drop$ops_Drop_Option_tuple2_u8_u8(self: Inline<[rt.u8, rt.u8] | 
 
 export function drop$ops_Drop_sync_Arc_u8(self: Inline<rt.Arc<rt.u8>>): void {
 	const len: rt.usize = self.len;
-	rt.dropAll(rt.rawSliceDeref(new rt.RawSlice(ptr$sync_Arc_u8(self), len)));
+	rt.dropAll(new rt.RawSlice(ptr$sync_Arc_u8(self), len).deref());
 }
 
 //# sourceMappingURL=elements.Inline.ts.map

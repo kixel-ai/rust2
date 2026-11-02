@@ -346,10 +346,32 @@ export function ptrSlice<T>(p: Place<T>, len: number): T[] {
 export class RawSlice<T> {
 	readonly ptr: Place<T>;
 	readonly length: number;
+	/** What the first read through it made, which later reads share while it spans `length`. */
+	#made: T[] | ByteSlice | undefined;
+	/** Whether `#made` is the array itself, which spans more once it grows. */
+	#whole = false;
 
 	constructor(ptr: Place<T>, length: number) {
 		this.ptr = ptr;
 		this.length = length;
+	}
+
+	/** The slice it points at, read through it, which must be there. */
+	deref(): T[] {
+		const made = this.#made as T[] | undefined;
+		if (made !== undefined && (!this.#whole || made.length === this.length)) return made;
+		const slice = ptrSlice(this.ptr, this.length);
+		this.#whole = this.ptr instanceof AtIndex && slice === this.ptr.array;
+		return (this.#made = slice);
+	}
+
+	/** The bytes it points at, read through it, `shared` as `ptrByteSlice` takes it. */
+	derefBytes(this: RawSlice<number>, shared: boolean): ByteSlice {
+		if (this.#made !== undefined) return this.#made as ByteSlice;
+		const made = ptrByteSlice(this.ptr, this.length, shared);
+		// A copy of a byte in no array would miss a later write to the byte.
+		if (this.length === 0 || (this.ptr instanceof AtIndex && this.ptr.array instanceof Uint8Array)) this.#made = made;
+		return made;
 	}
 }
 
@@ -361,16 +383,6 @@ export function rawSliceOf<T>(s: { readonly length: number; [i: number]: T }): R
 /** The raw pointer to the bytes of `s`. */
 export function rawByteSliceOf(s: ByteSlice): RawSlice<number> {
 	return new RawSlice(byteSliceAsPtr(s), s.length);
-}
-
-/** The slice `p` points at, read through it, which must be there. */
-export function rawSliceDeref<T>(p: RawSlice<T>): T[] {
-	return ptrSlice(p.ptr, p.length);
-}
-
-/** The bytes `p` points at, read through it, `shared` as `ptrByteSlice` takes it. */
-export function rawByteSliceDeref(p: RawSlice<number>, shared: boolean): ByteSlice {
-	return ptrByteSlice(p.ptr, p.length, shared);
 }
 
 /**

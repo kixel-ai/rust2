@@ -210,12 +210,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 					// A raw pointer to a slice is where it starts, read through as the slice.
 					if let ty::RawPtr(pointee, _) = ty.kind()
-						&& !glue && !boxed
+						&& !glue
+						&& !boxed
 						&& self.b.t.pointee(*pointee) == crate::lower::pointer::Pointee::Slice
 					{
 						e = match crate::lower::pointer::slice_of_bytes(*pointee) {
-							true => Expr::rt("rawByteSliceDeref", vec![e, Expr::lit("false")]),
-							false => Expr::rt("rawSliceDeref", vec![e]),
+							true => e.member("derefBytes").call(vec![Expr::lit("false")]),
+							false => e.member("deref").call(Vec::new()),
 						};
 					}
 				}
