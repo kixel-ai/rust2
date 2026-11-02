@@ -670,6 +670,21 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put(out, &format!("{sum} "));
 	dropped(out);
+	// A box of the crate's own, which std's `Iterator` for `Box<I>` forwards to: boxed again,
+	// borrowed, read itself, and by an adaptor.
+	let nested: Box<dyn Iterator<Item = u8>> = Box::new(Box::new(Countdown(a % 8)));
+	let mut inner = Box::new(Countdown(b % 8));
+	let lent: &mut dyn Iterator<Item = u8> = &mut inner;
+	let first = lent.next();
+	let second = inner.next();
+	let mapped: Vec<u8> = Box::new(Countdown(b % 8)).map(|x| x ^ 1).collect();
+	put(
+		out,
+		&format!("{:?} {first:?} {second:?} {mapped:?} ", nested.collect::<Vec<_>>()),
+	);
+	dropped(out);
+	drop(inner);
+	dropped(out);
 
 	// Returned through a trait object of the crate's own trait.
 	let split: &dyn Chunks = &Lease(rest.to_vec(), usize::from(b % 4) + 1);

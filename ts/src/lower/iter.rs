@@ -199,6 +199,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
 	let (ty, value) = peel_mut(ty, value);
+	let (ty, value) = unbox_iter(b, ty, value);
 	let (ty, value) = match unbox_ref(tcx, ty) {
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
@@ -406,6 +407,27 @@ pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	(ty, value)
 }
 
+/// `value`, a `ty`, read through each box of an iterator, which std's `Iterator` for `Box<I>`
+/// forwards to and JS holds as itself, and each `&mut` to one, which reads through its
+/// `rt.Place` to a `&mut I`. A box of a trait object is the `rt.Iter` itself.
+pub fn unbox_iter<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> (Ty<'tcx>, Expr) {
+	let tcx = b.t.tcx;
+	let held = |ty: Ty<'tcx>| {
+		ty.boxed_ty()
+			.filter(|held| !held.is_trait() && b.t.iter_item(*held).is_some())
+	};
+	match *ty.kind() {
+		ty::Ref(region, inner, ty::Mutability::Mut) if let Some(held) = held(inner) => {
+			let value = b.t.pointee_value(ty, value);
+			unbox_iter(b, Ty::new_mut_ref(tcx, region, held), value)
+		}
+		_ => match held(ty) {
+			Some(held) => unbox_iter(b, held, value),
+			None => (ty, value),
+		},
+	}
+}
+
 /// Refuse iterating `ty`, an iterator, if a binding stands in for it: it is no `rt.Iter`,
 /// which std's adaptors and `for` take every iterator but the crate's own for.
 fn not_bound<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) {
@@ -535,6 +557,7 @@ pub fn call<'tcx>(
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
 	let (self_ty, recv) = peel_mut(self_ty, values.next()?);
+	let (self_ty, recv) = unbox_iter(b, self_ty, recv);
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);

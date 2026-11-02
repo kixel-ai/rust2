@@ -64,11 +64,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let (iter_ty, recv) = match args[0].node.place() {
 					// Through std's `Iterator` for `&mut I` and `Box<I>`: what the last `&mut`
 					// points at, read through the `rt.Place` of each `&mut` to a `&mut` before it,
-					// or to a box of a trait object, which JS can't write in place.
+					// or to a box, which JS can't write in place.
 					Some(p)
 						if self_ty.is_ref()
 							|| crate::lower::iter::through_mut(self_ty)
-							|| self_ty.boxed_ty().is_some_and(|t| t.is_trait()) =>
+							|| self_ty.boxed_ty().is_some() =>
 					{
 						let value = self.place_expr(tcx.mk_place_deref(p), span, &mut pre);
 						let (last, value) = crate::lower::iter::peel_mut(self_ty, value);
