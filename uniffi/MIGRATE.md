@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `uniffi_macros`: `generate_and_include_scaffolding!` (the `trybuild` feature) resolves a
+  relative path from the calling file, as `include_str!` does, not from rustc's working directory.
+  A trybuild case at `tests/ui/x.rs` names `src/x.udl` as `../../src/x.udl`.
 - `uniffi_bindgen`: a name no longer identifies a type across crates.
   `ComponentInterface::is_name_used_as_error(name)` is now `is_used_as_error(&ty)`,
   `ComponentInterface::get_type(name)` finds only the crate's own types, and
