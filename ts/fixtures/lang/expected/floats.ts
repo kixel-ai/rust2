@@ -270,11 +270,12 @@ export function floats(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
  * `mul_add`, rounded once, of three operands, or of 32 sets made from a seed: any bits,
  * a product's error alone, half the product's last place, where rounding the product
  * first would tie, a product of half `c`'s last place, subnormal sums, products past `f64::MAX` that the sum brings back, and
- * each side of where the runtime's fast path ends.
+ * each side of where the runtime's fast path ends. Each result follows its operands, which
+ * `fma.ts` rounds exactly where native's differs.
  */
 export function mulAdds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	let _53!: [rt.f64, rt.f64, rt.f64];
-	let _103!: rt.f64;
+	let _52!: [rt.f64, rt.f64, rt.f64];
+	let _102!: rt.f64;
 	let ea4!: rt.i64;
 	b0: {
 		if (!(rt.u8Rem(kind, 2) === 0)) {
@@ -294,60 +295,71 @@ export function mulAdds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				const a2: rt.f64 = near(step(rt.place(() => state, (value2) => state = value2)), ea);
 				const b2: rt.f64 = near(step(rt.place(() => state, (value3) => state = value3)), rt.i64Sub(e, ea));
 				const c2: rt.u64 = step(rt.place(() => state, (value4) => state = value4));
-				const _54: rt.u64 = rt.u64Rem(r, 6);
-				if (_54 === 0) {
-					_53 = [rt.f64FromBits(r), rt.f64FromBits(step(rt.place(() => state, (value5) => state = value5))), rt.f64FromBits(c2)] as [rt.f64, rt.f64, rt.f64];
-				} else if (_54 === 1) {
-					_53 = [a2, b2, -(a2 * b2)] as [rt.f64, rt.f64, rt.f64];
-				} else if (_54 === 2) {
+				const _53: rt.u64 = rt.u64Rem(r, 6);
+				if (_53 === 0) {
+					_52 = [rt.f64FromBits(r), rt.f64FromBits(step(rt.place(() => state, (value5) => state = value5))), rt.f64FromBits(c2)] as [rt.f64, rt.f64, rt.f64];
+				} else if (_53 === 1) {
+					_52 = [a2, b2, -(a2 * b2)] as [rt.f64, rt.f64, rt.f64];
+				} else if (_53 === 2) {
 					if (!(rt.u64Shr(r, 63) === 0)) {
 						const c4: rt.f64 = near(c2, e);
-						_53 = [a2, (rt.f64NextUp(Math.abs(c4)) - Math.abs(c4)) * 0.5 / a2, c4] as [rt.f64, rt.f64, rt.f64];
+						_52 = [a2, (rt.f64NextUp(Math.abs(c4)) - Math.abs(c4)) * 0.5 / a2, c4] as [rt.f64, rt.f64, rt.f64];
 					} else {
 						const p: rt.f64 = Math.abs(a2 * b2);
-						const _71: rt.usize = rt.i64Low(pick(24, 5));
-						if (!(_71 < 5)) {
-							rt.panic("index out of bounds: the len is " + 5 + " but the index is " + _71);
+						const _70: rt.usize = rt.i64Low(pick(24, 5));
+						if (!(_70 < 5)) {
+							rt.panic("index out of bounds: the len is " + 5 + " but the index is " + _70);
 						}
-						const half: rt.f64 = [0.5, -0.5, 0.25, -0.75, 1.5][_71];
-						_53 = [a2, b2, (rt.f64NextUp(p) - p) * half] as [rt.f64, rt.f64, rt.f64];
+						const half: rt.f64 = [0.5, -0.5, 0.25, -0.75, 1.5][_70];
+						_52 = [a2, b2, (rt.f64NextUp(p) - p) * half] as [rt.f64, rt.f64, rt.f64];
 					}
-				} else if (_54 === 3) {
+				} else if (_53 === 3) {
 					const ea2: rt.i64 = rt.i64Sub(pick(24, 1000), 500);
 					const e2: rt.i64 = rt.i64Sub(-1000, pick(40, 100));
-					const _98: [rt.f64, rt.f64] = [near(r, ea2), near(c2, rt.i64Sub(e2, ea2))];
-					const a4: rt.f64 = _98[0];
-					const b4: rt.f64 = _98[1];
+					const _97: [rt.f64, rt.f64] = [near(r, ea2), near(c2, rt.i64Sub(e2, ea2))];
+					const a4: rt.f64 = _97[0];
+					const b4: rt.f64 = _97[1];
 					if (!(rt.u64Shr(r, 63) === 0)) {
-						_103 = near(rt.u64Shr(c2, 1), rt.i64Sub(rt.i64Add(e2, pick(48, 60)), 30));
+						_102 = near(rt.u64Shr(c2, 1), rt.i64Sub(rt.i64Add(e2, pick(48, 60)), 30));
 					} else {
-						_103 = -(a4 * b4);
+						_102 = -(a4 * b4);
 					}
-					_53 = [a4, b4, _103] as [rt.f64, rt.f64, rt.f64];
-				} else if (_54 === 4) {
+					_52 = [a4, b4, _102] as [rt.f64, rt.f64, rt.f64];
+				} else if (_53 === 4) {
 					const ea3: rt.i64 = rt.i64Add(990, pick(24, 60));
 					const a5: rt.f64 = near(r, ea3);
 					const b5: rt.f64 = near(c2, rt.i64Sub(rt.i64Add(rt.i64Sub(1023, ea3), pick(40, 4)), 1));
-					_53 = [a5, b5, rt.f64Copysign(near(rt.u64Shr(c2, 1), rt.i64Add(1020, pick(48, 4))), -(a5 * b5))] as [rt.f64, rt.f64, rt.f64];
+					_52 = [a5, b5, rt.f64Copysign(near(rt.u64Shr(c2, 1), rt.i64Add(1020, pick(48, 4))), -(a5 * b5))] as [rt.f64, rt.f64, rt.f64];
 				} else {
 					if (!(rt.u64Shr(r, 63) === 0)) {
 						ea4 = rt.i64Sub(pick(24, 1000), 500);
 					} else {
 						ea4 = rt.i64Add(990, pick(24, 10));
 					}
-					const _162: [rt.f64, rt.f64] = [near(r, ea4), near(c2, rt.i64Sub(rt.i64Sub(rt.i64Add(-968, pick(40, 8)), 4), ea4))];
-					const a6: rt.f64 = _162[0];
-					const b6: rt.f64 = _162[1];
+					const _161: [rt.f64, rt.f64] = [near(r, ea4), near(c2, rt.i64Sub(rt.i64Sub(rt.i64Add(-968, pick(40, 8)), 4), ea4))];
+					const a6: rt.f64 = _161[0];
+					const b6: rt.f64 = _161[1];
 					const p2: rt.f64 = Math.abs(a6 * b6);
-					_53 = [a6, b6, (rt.f64NextUp(p2) - p2) * 0.5] as [rt.f64, rt.f64, rt.f64];
+					_52 = [a6, b6, (rt.f64NextUp(p2) - p2) * 0.5] as [rt.f64, rt.f64, rt.f64];
 				}
-				putF64(out, rt.f64MulAdd(_53[0], _53[1], _53[2]));
+				putMulAdd(out, _52[0], _52[1], _52[2]);
 			}
 		}
 		const _9: [rt.f64, rt.ByteSlice] = take(data);
 		const a: rt.f64 = _9[0];
 		const _12: [rt.f64, rt.ByteSlice] = take(_9[1]);
-		putF64(out, rt.f64MulAdd(a, _12[0], take(_12[1])[0]));
+		putMulAdd(out, a, _12[0], take(_12[1])[0]);
+	}
+}
+
+export function putMulAdd(out: rt.ByteVec, a: rt.f64, b: rt.f64, c: rt.f64): void {
+	const iter: rt.Iter<rt.f64> = rt.iterSlice([a, b, c, rt.f64MulAdd(a, b, c)]);
+	while (true) {
+		const _9: rt.f64 | rt.Done = iter.next();
+		if (_9 === rt.DONE) {
+			break;
+		}
+		putF64(out, _9);
 	}
 }
 

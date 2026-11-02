@@ -8,6 +8,7 @@ import type * as clones_Logged from "./clones.Logged.ts";
 import type * as collections_Picky from "./collections.Picky.ts";
 import type * as Quirky from "./collections.Quirky.ts";
 import type * as collections_Tally from "./collections.Tally.ts";
+import type * as conversions_Logged from "./conversions.Logged.ts";
 import type * as Any from "./core/any.Any.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
@@ -278,6 +279,10 @@ export function copy$array_keys_Hop(v: Hop.Hop[]): Hop.Hop[] {
 	return v.map(copy$keys_Hop);
 }
 
+export function copy$array_lengths_Tagged_u32(v: lengths_Tagged.Tagged<rt.u32>[]): lengths_Tagged.Tagged<rt.u32>[] {
+	return v.slice();
+}
+
 export function copy$array_ptr_array4_u8(v: rt.ByteSlice[]): rt.ByteSlice[] {
 	return v.slice();
 }
@@ -465,6 +470,13 @@ export function copy$mem_MaybeUninit_array_array3_u8(v: Uint8Array[]): Uint8Arra
 	return v.map(copy$mem_MaybeUninit_array_u8);
 }
 
+export function copy$mem_MaybeUninit_array_lengths_Tagged_u32(v: lengths_Tagged.Tagged<rt.u32>[]): lengths_Tagged.Tagged<rt.u32>[] {
+	if (v === undefined) {
+		return v;
+	}
+	return v.slice();
+}
+
 export function copy$mem_MaybeUninit_array_u32(v: rt.u32[]): rt.u32[] {
 	if (v === undefined) {
 		return v;
@@ -493,6 +505,13 @@ export function copy$mem_MaybeUninit_tuple2_array0_array0_u8_tuple2_u8_u8(v: [Ui
 	return [copy$mem_MaybeUninit_array_array0_u8(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
 }
 
+export function copy$mem_MaybeUninit_tuple2_array0_lengths_Tagged_u32_tuple2_u8_u8(v: [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]): [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] {
+	if (v === undefined) {
+		return v;
+	}
+	return [copy$mem_MaybeUninit_array_lengths_Tagged_u32(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
+}
+
 export function copy$mem_MaybeUninit_tuple2_array0_u32_tuple2_u8_u8(v: [rt.u32[], [rt.u8, rt.u8]]): [rt.u32[], [rt.u8, rt.u8]] {
 	if (v === undefined) {
 		return v;
@@ -512,6 +531,13 @@ export function copy$mem_MaybeUninit_tuple2_array17_array17_u8_tuple2_u8_u8(v: [
 		return v;
 	}
 	return [copy$mem_MaybeUninit_array_array17_u8(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
+}
+
+export function copy$mem_MaybeUninit_tuple2_array17_lengths_Tagged_u32_tuple2_u8_u8(v: [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]): [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] {
+	if (v === undefined) {
+		return v;
+	}
+	return [copy$mem_MaybeUninit_array_lengths_Tagged_u32(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
 }
 
 export function copy$mem_MaybeUninit_tuple2_array17_u32_tuple2_u8_u8(v: [rt.u32[], [rt.u8, rt.u8]]): [rt.u32[], [rt.u8, rt.u8]] {
@@ -535,6 +561,13 @@ export function copy$mem_MaybeUninit_tuple2_array1_array1_u8_tuple2_u8_u8(v: [Ui
 	return [copy$mem_MaybeUninit_array_array1_u8(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
 }
 
+export function copy$mem_MaybeUninit_tuple2_array1_lengths_Tagged_u32_tuple2_u8_u8(v: [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]): [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] {
+	if (v === undefined) {
+		return v;
+	}
+	return [copy$mem_MaybeUninit_array_lengths_Tagged_u32(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
+}
+
 export function copy$mem_MaybeUninit_tuple2_array1_u32_tuple2_u8_u8(v: [rt.u32[], [rt.u8, rt.u8]]): [rt.u32[], [rt.u8, rt.u8]] {
 	if (v === undefined) {
 		return v;
@@ -554,6 +587,13 @@ export function copy$mem_MaybeUninit_tuple2_array3_array3_u8_tuple2_u8_u8(v: [Ui
 		return v;
 	}
 	return [copy$mem_MaybeUninit_array_array3_u8(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
+}
+
+export function copy$mem_MaybeUninit_tuple2_array3_lengths_Tagged_u32_tuple2_u8_u8(v: [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]): [lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] {
+	if (v === undefined) {
+		return v;
+	}
+	return [copy$mem_MaybeUninit_array_lengths_Tagged_u32(v[0]), copy$mem_MaybeUninit_tuple2_u8_u8(v[1])];
 }
 
 export function copy$mem_MaybeUninit_tuple2_array3_u32_tuple2_u8_u8(v: [rt.u32[], [rt.u8, rt.u8]]): [rt.u32[], [rt.u8, rt.u8]] {
@@ -1304,6 +1344,10 @@ export function drop$tuple2_cell_Ref_str_cell_RefMut_u32(_1: [rt.RefCell<string>
 
 export function drop$tuple2_cell_Ref_tuple2_u8_ref_str_u8(_1: [rt.RefCell<[rt.u8, string]>, rt.u8]): void {
 	rt.refRelease(_1[0]);
+}
+
+export function drop$tuple2_conversions_Logged_u8(_1: [conversions_Logged.Logged, rt.u8]): void {
+	_1[0][Symbol.dispose]();
 }
 
 export function drop$tuple2_sync_Arc_collections_Picky_u8(_1: [rt.Arc<collections_Picky.Picky>, rt.u8]): void {

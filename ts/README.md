@@ -229,7 +229,9 @@ translate, as do `Display` and `Debug` impls, derived and thiserror's included. 
 runtime ports `core::fmt`, so the text matches native Rust's byte for byte. A placeholder
 becomes a function writing its value, and `fmt::Arguments` an array of literal pieces
 and such functions: `rt.fmtWriteFmt(f, ["code=", (f) => rt.u16Display(code, f)])`. A `&dyn
-Debug` or `&dyn Display` is such a function too. Format specs take every option but `{:p}`:
+Debug` or `&dyn Display` is such a function too, and so is a `Box` of one, `rt.fmtOwned`
+of the value, which drops it as the box drops, and an `Arc` or `Rc` of one, which the last
+pointer drops, as an `Arc` of the crate's own trait object does. Format specs take every option but `{:p}`:
 fill, alignment, `+`, `#`, `0`, `x?` and `X?`, a width and a precision, each also from an
 argument, and `x`, `X`, `o`, `b`, `e`, and `E` for integers, `e` and `E` for floats. An `f64`
 prints std's digits: the shortest that read back as it, the greater of two as close where
@@ -249,9 +251,9 @@ what each holds. `Debug` of a string or `char` escapes by
 std's Unicode tables, which the runtime carries, not the engine's. `Debug` of std's
 collections writes their items in the order each iterates, a hash map's or set's included,
 and of their iterators and `Chars` the items each has left, in std's wrapper; a deque's
-`Iter` and `IterMut`, which write its buffer's two halves, and its `Drain`, which writes its
-counts, are refused; a list's `Iter` and `IterMut` write what is left and its length, as
-std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+`Iter` and `IterMut` write the two slices of its buffer they have left, swapped as std's
+swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
+its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. A caller prints a
 `printable` type as `to_string()` and `format!("{err:?}")`
@@ -423,7 +425,11 @@ calls a key's `Hash`, `Eq`, or `Ord`.
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std
 does, from keys drawn once and the first raised by one for each state, drawn from
-`crypto.getRandomValues` where std asks the OS.
+`crypto.getRandomValues` where std asks the OS. std's `Hash` impls call a crate's own
+`Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
+slice's one `write` included, and std's provided methods it doesn't write itself write
+through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
+hasher, hashes, finishes, then drops the hasher and the value.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
@@ -443,7 +449,7 @@ as its fold ends, before what it wraps, as std's does. A `Vec`'s `drain` leaves 
 what precedes its range until it drops, then drops what it still holds and moves the tail
 back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
 
-A trait object of the crate's own trait, or a dependency's, behind `&`, `&mut`, `Box`, or `Arc`, is an object with
+A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, or `Arc`, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
@@ -455,7 +461,8 @@ same object. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rt.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
-last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s.
+last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. A `dyn Buf`'s object
+holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s and `Arc`'s `downcast` check for: `a instanceof Any.of$dyns_Square ?
@@ -468,8 +475,9 @@ a call calls as it does the closure, and which a box drops as it does the closur
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`, `dyn Future`,
-`dyn Any`, and the function traits, of a generic
+or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `Box`,
+`Arc`, or `Rc`, `dyn Future`,
+`dyn Any`, `dyn Buf`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -530,11 +538,15 @@ of them:
   `split_off`, `try_reclaim`, `try_unsplit`, and `spare_capacity_mut`, which read it.
 - `Buf` and `BufMut` of a `Bytes`, a `BytesMut`, a `&[u8]`, and a `Vec<u8>` map: the
   required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
-  `put_` of an integer or a float, `put_slice`, `put_bytes`, and `put`, whose panics are
+  `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
+  `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of the crate's own `Buf` into a `Vec<u8>` reads it through its methods
   as `bytes` does, and into a `BytesMut` is refused, as `bytes` picks those methods by its
   capacity. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
-  the capacity it asks for, reads it chunk by chunk through its methods.
+  the capacity it asks for, reads it chunk by chunk through its methods. The provided
+  `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
+  `Take`, read its chunk where that holds the integer, and copy it out through
+  `copy_to_slice` where not, as `bytes`' do.
   The impls forwarding through a `&mut` or a `Box` translate from `bytes`' MIR, and the
   `BufMut` methods they don't forward map as the buffer's own, but `put` and `put_bytes`,
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of
@@ -555,9 +567,8 @@ of them:
   buckets, such as `find_bucket_index` and `iter_hash`, is refused, as are
   `get_many_mut`, `extract_if`, and `try_reserve`. hashbrown's `DefaultHashBuilder` and
   `DefaultHasher` are std's `RandomState` and `DefaultHasher`: foldhash's state is seeded
-  at random as std's is, so which hash a key gets is never observable. A crate's own
-  `Hasher`, such as `hashlink`'s default over hashbrown's, is refused
-  ([a crate's own hasher](/quest/m2/ts-model/own-hasher.md)). Nothing of hashbrown
+  at random as std's is, so which hash a key gets is never observable, through
+  `hashlink`'s default too, a crate's own `Hasher` over hashbrown's. Nothing of hashbrown
   translates, so `hashlink`, which keeps its entries in a `HashTable`, translates over the
   runtime's.
 - `rand::rng()` is an `rt.ThreadRng`, whose `random` of an integer or `bool` and
@@ -618,7 +629,8 @@ its Rust impls: `hash$Hash(self, state: rt.Hasher): undefined` and `eq$cmp_Parti
 `HashMap` or `HashSet`, `cmp$cmp_Ord` for a `BTreeMap` or `BTreeSet`, and
 `partialCmp$cmp_PartialOrd` too for a B-tree's `range`. A derived impl's are the same exports.
 Each must agree with the Rust impl: `hash` writes what it writes, through `rt.hash8` to
-`rt.hash128`, `rt.hashStr`, and `rt.hashBytes`, so values `eq` finds equal hash alike, and
+`rt.hash128`, `rt.hashI8` to `rt.hashI128`, `rt.hashUsize`, `rt.hashIsize`, `rt.hashStr`,
+and `rt.hashBytes`, so values `eq` finds equal hash alike, and
 `cmp` orders as it does. A collection finds even a bound value that is a JS primitive by
 these, never by `===`. A missing one fails at its impl, as any missing export does.
 
@@ -782,11 +794,14 @@ they need.
   with the maintainer on 2026-11-01). It holds one, as `cap`, only where an operation
   sets it or a removal reads it, so an insert never reads or writes one, and reading it
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
-  whose length is a power of two. A `Vec`, `VecDeque`, and `BinaryHeap` hold what std
+  whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
+  where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
+  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
-  as through pushes. `clone_from` and `clone_into`, of which std guarantees only the
-  length, leave a clone's capacity, not the allocation std reuses. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
+  as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that
+  reuses its source's buffer, in place or from a boxed slice, whose capacity is its
+  length. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
   writes one. Reading it doubles it while short of the length, from the least std's
   `RawVec` allocates for the element size, which a run of pushes grows std's to. A
@@ -797,10 +812,12 @@ they need.
   undocumented, and matching it would mean porting std's 11-key node layout, measured 1.5x
   slower ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on
   2026-10-30; a map's `IntoIter` still drops in std's order.
-- A slice's `sort` and `sort_unstable` are one stable merge sort of the runtime's own,
-  calling only the comparator, as std permits of an unstable sort: JS's `sort` moves
-  `undefined`, a `None`, to the end without comparing it, and each engine orders its
-  comparisons differently.
+- A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the
+  runtime with the choices std makes by the element's size on wasm32 and whether it is
+  `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
+  elements where std's does: JS's `sort` moves `undefined`, a `None`, to the end without
+  comparing it, and each engine orders its comparisons differently. A byte slice's sorts
+  by its own `Ord` are its typed array's, whose order nothing observes.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
@@ -837,23 +854,23 @@ they need.
 
 ## Not yet
 
-Byte reinterpretation, pointer addresses, pointer arithmetic outside an array of values JS copies, memory from `alloc` other than an array of values JS copies, and unions whose
+Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
+`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
-that drops given to a std function that drops it beside another value that drops, other
-than `for_each` and `fold`, as `reduce` of items that drop does, or keeps it other than in
-an iterator adaptor, and values that drop in some iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
+that drops given to a std function that keeps it other than in an iterator or a
+`poll_fn`, or whose mapping doesn't drop it where std's does, and values that drop in some
+iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
 `rt.None`, as `Iterator::scan` of `Option`s does, an `Option` of an `Option` of `()` or another
 `Option`, an instance of a generic type whose field is an `Option` of a type parameter
 that can be `undefined`, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
-`and_modify` do, one into a `Result`'s payload passed on or kept, `Hasher::write` of bytes, the adaptors
+`and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as `partition`), an
 own `impl Iterator` with `next_back`, `len`, or another provided method of its own,
 a pointer's address (`{:p}`), `write!` with a placeholder into

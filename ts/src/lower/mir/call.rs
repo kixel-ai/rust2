@@ -346,10 +346,33 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return None;
 		}
 		let t = &*self.b.t;
+		// What `IntoIterator::into_iter` lends of a `&mut` to a collection, each element as
+		// its place.
+		let into_places = |ty: Ty<'tcx>| {
+			let ty = crate::lower::iter::unbox_ref(tcx, ty);
+			ty.ref_mutability() == Some(ty::Mutability::Mut)
+				&& match ty.peel_refs().kind() {
+					ty::Slice(_) | ty::Array(..) => true,
+					_ => matches!(
+						t.std_of(ty.peel_refs()),
+						Some(
+							Std::Vec
+								| Std::Option
+								| Std::Result
+								| Std::HashMap
+								| Std::HashTable
+								| Std::BTreeMap
+								| Std::VecDeque
+								| Std::LinkedList
+						)
+					),
+				}
+		};
 		// Mappings that lend an element JS copies as its place, as a map's `get_mut` does, the
 		// item a `Peekable` peeked, the place a `&mut dyn Any` wraps, a `RefCell` key's value,
-		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, or what a write guard
-		// lends its map or its leak.
+		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, what a write guard
+		// lends its map or its leak, or what `zip` makes of the collection it is given by
+		// `into_iter`, as the free `zip` does of either.
 		let lends = match library::key(tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("slice", "get_mut" | "first_mut" | "last_mut" | "iter_mut" | "split_first_mut" | "split_last_mut")
@@ -366,26 +389,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					"RefMut" | "MutexGuard" | "MappedMutexGuard" | "RwLockWriteGuard" | "MappedRwLockWriteGuard",
 					"map" | "filter_map" | "try_map" | "map_split",
 				) => true,
-				("IntoIterator", "into_iter") => gargs.types().next().is_some_and(|ty| {
-					let ty = crate::lower::iter::unbox_ref(tcx, ty);
-					ty.ref_mutability() == Some(ty::Mutability::Mut)
-						&& match ty.peel_refs().kind() {
-							ty::Slice(_) | ty::Array(..) => true,
-							_ => matches!(
-								t.std_of(ty.peel_refs()),
-								Some(
-									Std::Vec
-										| Std::Option
-										| Std::Result
-										| Std::HashMap
-										| Std::HashTable
-										| Std::BTreeMap
-										| Std::VecDeque
-										| Std::LinkedList
-								)
-							),
-						}
-				}),
+				("IntoIterator", "into_iter") => gargs.types().next().is_some_and(into_places),
+				("Iterator", "zip") => gargs.types().nth(1).is_some_and(into_places),
+				("zip", "zip") => gargs.types().take(2).any(into_places),
 				_ => false,
 			},
 			None => false,
@@ -541,9 +547,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
 			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over. A
-			// list's maps, as it clones each element into one of its own nodes.
+			// list's maps, as it clones each element into one of its own nodes, and a deque's,
+			// as it clears itself first and keeps its capacity.
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
-				if !self.b.t.translated(def_id, gargs) && self.b.t.std_of(targ(0)?) != Some(Std::LinkedList) =>
+				if !self.b.t.translated(def_id, gargs)
+					&& !matches!(self.b.t.std_of(targ(0)?), Some(Std::LinkedList | Std::VecDeque)) =>
 			{
 				let ty = targ(0)?;
 				if !ty.is_sized(tcx, self.b.t.typing_env_pub()) {
@@ -565,6 +573,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let clone = self
 					.b
 					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
+				// std's `Vec` keeps the target's buffer, grown if it holds fewer.
+				let clone = match ty.kind() {
+					ty::Adt(_, args) if self.b.t.std_of(ty) == Some(Std::Vec) => {
+						library::vec_cloned_into(self.b, clone, place.0.clone(), args.type_at(0), span)
+					}
+					_ => clone,
+				};
 				let drops = self.b.t.drops(ty);
 				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, out);
 				if drops && let Some(drop) = self.b.t.drop_value(old, ty, span) {

@@ -32,6 +32,7 @@
 
 #![feature(
 	cell_leak,
+	hasher_prefixfree_extras,
 	iter_order_by,
 	mapped_lock_guards,
 	once_cell_try,
@@ -93,11 +94,13 @@ mod pointers;
 mod refs;
 mod results;
 mod returns;
+mod rings;
 mod saturates;
 mod separated;
 mod shapes;
 mod singles;
 mod slices;
+mod sorts;
 mod splits;
 mod statics;
 mod strs;

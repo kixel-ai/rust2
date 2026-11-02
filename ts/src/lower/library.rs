@@ -939,6 +939,29 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 	})
 }
 
+/// Whether the mapping of `owner::name` drops each closure it takes by value where std's
+/// does: a consumer's as its fold ends, before the iterator, or as it finds the iterator
+/// empty, and an entry's if it never calls it.
+fn releases(owner: &str, name: &str) -> bool {
+	matches!(
+		(owner, name),
+		(
+			"Iterator",
+			"for_each"
+				| "fold"
+				| "reduce"
+				| "max_by"
+				| "min_by"
+				| "max_by_key"
+				| "min_by_key"
+				| "is_sorted_by_key"
+				| "eq_by"
+				| "cmp_by"
+				| "partial_cmp_by"
+		) | ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
+	)
+}
+
 /// Whether `owner::name` is a guard's map, filtered, tried, or split, to parts of what it lends.
 pub fn maps_guard(owner: &str, name: &str) -> bool {
 	matches!(
@@ -1098,7 +1121,7 @@ pub fn called_through<'tcx>(
 
 /// The closures `call` calls that own a value that drops, by what its mapping does with
 /// each: kept by the iterator it returns, if `iter::holds_closure`; dropped by the mapping,
-/// if `released`, as `iter::releases` says; dropped as it returns, if `Fn` or `FnMut` call
+/// if `released`, as `releases` says; dropped as it returns, if `Fn` or `FnMut` call
 /// it and nothing else it takes by value drops, or the mapping discards none of it, as then
 /// nothing it drops is ordered against it; dropped where `discarded` says, by the type's
 /// index among the call's type arguments; or else leaked. A closure that `Fn` or `FnMut`
@@ -1153,15 +1176,15 @@ fn called_closures<'tcx>(
 			}
 			continue;
 		}
-		// Its owner drops a borrowed closure, and the mapping a released one.
-		if lent || released {
+		// Its owner drops a borrowed closure.
+		if lent {
 			continue;
 		}
 		let index = call.args[..param.index as usize]
 			.iter()
 			.filter(|a| a.as_type().is_some())
 			.count();
-		let discards = discarded.is_some_and(|d| d.contains(&index));
+		let discards = released || discarded.is_some_and(|d| d.contains(&index));
 		let kept = inputs.iter().enumerate().any(|(j, &t)| j != i && mentions(t));
 		if bound != ty::ClosureKind::FnOnce && !kept && !discards && i < args.len() {
 			let dropping = match discarded {
@@ -1269,7 +1292,7 @@ pub fn call<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 	}
 	let discarded = discards(&owner, &name);
 	let mut args = args;
-	let released = super::iter::releases(&owner, &name);
+	let released = releases(&owner, &name);
 	let closures = called_closures(b, call, discarded, released, &mut args);
 	// What std lends of the `[u8; N]`s it holds, its closures are given and it returns as
 	// slices of them.
@@ -1413,7 +1436,7 @@ fn mapping<'tcx>(
 			if let Some(elem) = box_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
-				return Some(boxed_vec(value, elem));
+				return Some(boxed_vec(b, value, elem, span));
 			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
@@ -1916,6 +1939,23 @@ fn mapping<'tcx>(
 			let cmp = super::collections::cmp_fn(b, elem, false, span);
 			Expr::rt("sliceBinarySearch", vec![s, x, cmp])
 		}
+		// std's same search by the closure's `Ordering`, by `Ord::cmp` of the key it makes
+		// with `b`, or by whether `pred` holds.
+		("slice", "binary_search_by" | "binary_search_by_key" | "partition_point") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
+			match name.as_str() {
+				"binary_search_by" => Expr::rt("sliceBinarySearchBy", values),
+				"partition_point" => Expr::rt("slicePartitionPoint", values),
+				_ => {
+					let key = targ(gargs, 1);
+					values.push(super::collections::cmp_fn(b, key, false, span));
+					let drop = b.t.dropper(key, span);
+					Expr::rt("sliceBinarySearchByKey", super::iter::tail(values, vec![drop]))
+				}
+			}
+		}
 		// Each slot but the last a clone, as `clone_from` makes it, and the last the value;
 		// a `TrivialClone`'s copies, as std specializes `fill` to.
 		("slice", "fill") => {
@@ -1981,22 +2021,20 @@ fn mapping<'tcx>(
 				}
 			}
 		}
-		// Sorted by `PartialOrd::lt`, or by a comparator, or by `lt` of the keys a function makes.
+		// Sorted as std's sorts do, by `PartialOrd::lt`, or by a comparator, or by `lt` of the
+		// keys a function makes.
 		(
 			"slice",
 			"sort" | "sort_unstable" | "sort_by" | "sort_unstable_by" | "sort_by_key" | "sort_unstable_by_key",
 		) => {
 			let elem = targ(gargs, 0);
-			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
-			match name.as_str() {
+			let mut values = args.into_iter();
+			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let less = match name.as_str() {
 				// A typed array sorts its numbers by value, and equal bytes are alike.
-				"sort" | "sort_unstable" if is_u8(elem) => values.remove(0).method("sort", Vec::new()),
-				"sort" | "sort_unstable" => {
-					values.push(super::collections::test_fn(b, targ(gargs, 0), "lt", span));
-					Expr::rt("sliceSort", values)
-				}
-				"sort_by" | "sort_unstable_by" => Expr::rt("sliceSortBy", values),
+				"sort" | "sort_unstable" if is_u8(elem) => return Some(s.method("sort", Vec::new())),
+				"sort" | "sort_unstable" => super::collections::test_fn(b, elem, "lt", span),
+				"sort_by" | "sort_unstable_by" => Expr::rt("cmpLt", vec![values.next()?]),
 				_ => {
 					let key = targ(gargs, 1);
 					if b.t.drops(key) {
@@ -2005,9 +2043,18 @@ fn mapping<'tcx>(
 							format!("`slice::{name}` by `{key}`, which drops, which is not supported yet"),
 						));
 					}
-					values.push(super::collections::test_fn(b, key, "lt", span));
-					Expr::rt("sliceSortByKey", values)
+					let lt = super::collections::test_fn(b, key, "lt", span);
+					Expr::rt("keyLt", vec![values.next()?, lt])
 				}
+			};
+			let mut values = vec![s, less];
+			values.extend(sort_of(b, elem, span));
+			match name.contains("unstable") {
+				true => {
+					values.push(Expr::lit(b.t.is_copy(elem).to_string()));
+					Expr::rt("sliceSortUnstable", values)
+				}
+				false => Expr::rt("sliceSort", values),
 			}
 		}
 		// Whether each element and the next are in order, as `sort` would leave them: by
@@ -2039,7 +2086,7 @@ fn mapping<'tcx>(
 				super::iter::tail(vec![items, compare], vec![Expr::undefined(), drop]),
 			)
 		}
-		("slice", "into_vec") => boxed_vec(args.pop()?, targ(gargs, 0)),
+		("slice", "into_vec") => boxed_vec(b, args.pop()?, targ(gargs, 0), span),
 		("Vec", "into_boxed_slice") => vec_boxed(args.pop()?, targ(gargs, 0)),
 		// `vec![a, b]`'s array once `mir::vec` took the box away. A `Copy` aggregate's operand
 		// may be shared with where it came from, which the vector must not change.
@@ -2124,6 +2171,7 @@ fn mapping<'tcx>(
 		("Vec", "extend_from_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
 		("Vec", "extend_from_slice") => {
 			let mut values = args;
+			values.push(super::iter::size_of(b, targ(gargs, 0), span));
 			let clone = super::collections::clone_fn(b, targ(gargs, 0), span);
 			if !matches!(&clone, Expr::Lit(l) if l == "undefined") {
 				values.push(clone);
@@ -2732,11 +2780,30 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	}
 }
 
-/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it.
-fn boxed_vec(boxed: Expr, elem: Ty<'_>) -> Expr {
+/// `clone`, the `Vec<elem>` that `clone_from` writes over `target`, with the capacity std's
+/// keeps of `target`'s.
+pub(super) fn vec_cloned_into<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	clone: Expr,
+	target: Expr,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecClonedInto", vec![clone, target]),
+		_ => Expr::rt(
+			"vecClonedInto",
+			vec![clone, target, super::iter::size_of(b, elem, span)],
+		),
+	}
+}
+
+/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it, with room
+/// for exactly its elements.
+fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![boxed]),
-		_ => boxed,
+		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
 	}
 }
 
@@ -3153,6 +3220,13 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 		}
 		_ => v,
 	}
+}
+
+/// What std's sorts pick their small sorts, partitions, and scratch by, of an `elem`: its
+/// size on wasm32 and whether it is `Freeze`.
+pub fn sort_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> [Expr; 2] {
+	let freeze = elem.is_freeze(b.t.tcx, b.t.typing_env_pub());
+	[super::iter::size_of(b, elem, span), Expr::lit(freeze.to_string())]
 }
 
 trait MethodCall {

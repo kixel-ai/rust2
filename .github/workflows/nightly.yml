@@ -2,7 +2,7 @@ name: Nightly
 
 # The gates too slow for a pull request. A failure lands on main rather than in
 # review, which is the accepted trade; anything that must block a merge belongs
-# in check.yml.
+# in `just ci`.
 
 permissions:
   contents: read
@@ -17,6 +17,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The land gate's check over every module, catching what a batch's diff-scoped
+  # `just ci` let into main.
+  gate:
+    name: Gate
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Gate
+        run: nix develop --command just gate
+
   moq:
     name: Translate moq-net
     runs-on: ubuntu-24.04-arm
@@ -181,8 +199,9 @@ jobs:
       - name: Clang
         run: nix develop .#clang --command bash -c 'export CC=gcc; just ffi test cpp && just ffi moq-cpp'
 
-  # The C++ header with the compilers the job above lacks, through the same checks, and on
-  # macOS the Swift with Apple's toolchain.
+  # The C++ header with the compilers the job above lacks, through the same checks, the
+  # Python on the platforms the job above lacks, and on macOS the Swift with Apple's
+  # toolchain.
   ffi-cpp:
     name: Export moq-net to C++ (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
@@ -231,6 +250,13 @@ jobs:
 
       - name: Test
         run: just ffi test cpp
+
+      # The Python, on the runner's CPython, which Windows names `python`: its proactor
+      # loop reads wakes through a task rather than a reader callback.
+      - name: Python
+        run: just ffi test python
+        env:
+          PYTHON: ${{ runner.os == 'Windows' && 'python' || 'python3' }}
 
       - name: Export
         run: just ffi moq-cpp

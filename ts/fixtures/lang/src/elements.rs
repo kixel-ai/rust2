@@ -255,7 +255,8 @@ pub fn inline(data: &[u8], out: &mut Vec<u8>) {
 /// Pointers wrapped around wasm32's 32-bit addresses and back, to a value in no array, as
 /// the array of one Rust treats it as, and into a mutable part of an array, measured from
 /// the array, the pointer an empty slice keeps, within a shared part, which JS copies,
-/// memory nothing wrote copied, null and dangling pointers moved by address, and the crate's
+/// a `&mut` into that part, memory nothing wrote copied, null and dangling pointers moved by
+/// address, kept by empty raw slices, and cast from pointers to arrays, and the crate's
 /// functions named as std's.
 pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 	for &n in data {
@@ -295,6 +296,10 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 		unsafe {
 			out.push(at.offset_from(base) as u8);
 			*at += 5;
+			// A `&mut` into the part, measured from the array and moved out of the part.
+			let got: *mut u32 = part.get_mut(0).unwrap();
+			out.push(got.offset_from(base) as u8);
+			out.push(*got.sub(1) as u8);
 			let empty = slice::from_raw_parts(at.add(1), 0);
 			out.push(empty.as_ptr().offset_from(base) as u8);
 			let none = slice::from_raw_parts(bytes.as_ptr().add(2), 0);
@@ -352,7 +357,163 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 				.wrapping_offset(isize::from(n % 3) - 1)
 				.is_null() as u8,
 		);
+		// Empty raw slices from null and dangling pointers, which keep them.
+		out.push((ptr::slice_from_raw_parts(ptr::null::<u32>(), 0) as *const u32).is_null() as u8);
+		out.push((ptr::slice_from_raw_parts(ptr::null::<u8>(), 0) as *const u8).is_null() as u8);
+		let dangling = NonNull::<u16>::dangling().as_ptr();
+		out.push(
+			(ptr::slice_from_raw_parts(dangling, 0) as *const u16)
+				.wrapping_sub(1)
+				.is_null() as u8,
+		);
+		out.push(ptr::slice_from_raw_parts(ptr::null::<u32>(), 0).is_null() as u8);
+		out.push(ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), 0).is_null() as u8);
+		let none = unsafe { slice::from_raw_parts(NonNull::<u8>::dangling().as_ptr(), 0) };
+		out.push(none.as_ptr().wrapping_sub(1).is_null() as u8);
+		out.push(none[0..0].as_ptr().wrapping_sub(1).is_null() as u8);
+		let wide = unsafe { slice::from_raw_parts(NonNull::<u16>::dangling().as_ptr(), 0) };
+		out.push(wide[0..0].as_ptr().wrapping_sub(1).is_null() as u8);
+		out.push(wide.get(0..0).unwrap().as_ptr().wrapping_sub(1).is_null() as u8);
+		// A raw pointer to an array, as one to a slice of it.
+		let unsized_null: *const [u32] = ptr::null::<[u32; 3]>();
+		out.push(unsized_null.is_null() as u8);
+		let row = [u32::from(n), 9, 10];
+		let unsized_lanes: *const [u32] = &raw const row;
+		out.push(unsized_lanes.is_null() as u8);
+		out.push(unsafe { (unsized_lanes as *const u32).add(2).read() } as u8);
+		let off = ptr::null::<u32>().wrapping_add(usize::from(n % 3) + 1);
+		out.push(
+			(ptr::slice_from_raw_parts(off, 0) as *const u32)
+				.wrapping_sub(usize::from(n % 3) + 1)
+				.is_null() as u8,
+		);
+		// Null and dangling pointers to arrays, cast to ones to their first elements.
+		out.push((ptr::null::<[u32; 2]>() as *const u32).is_null() as u8);
+		out.push(
+			(ptr::null_mut::<[u8; 4]>() as *mut u8)
+				.wrapping_add(usize::from(n))
+				.is_null() as u8,
+		);
+		out.push(
+			(NonNull::<[u16; 3]>::dangling().as_ptr() as *mut u16)
+				.wrapping_sub(1)
+				.is_null() as u8,
+		);
 	}
+}
+
+/// Raw pointers to slices, each where it starts and how long it is: read and written
+/// through, whole and in part, of bytes too, made longer than what is there and never
+/// read past it, `NonNull`'s, a boxed slice's, and null's.
+pub fn raw_slices(data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().copied().unwrap_or(0);
+	let mut v: Vec<u32> = data.iter().map(|&b| u32::from(b)).chain([5, 6, 7]).collect();
+	let len = v.len();
+	let p = ptr::slice_from_raw_parts_mut(v.as_mut_ptr(), len);
+	unsafe {
+		(*p)[0] += 1;
+		(*p)[len - 1] = u32::from(n);
+		out.push((&*p).len() as u8);
+		out.push(p.len() as u8);
+		out.push((*p)[1] as u8);
+		let tail = &mut (&mut *p)[1..];
+		tail[0] = 9;
+		out.push((&*p).iter().sum::<u32>() as u8);
+	}
+	emit(&v, out);
+	let mut bytes = data.to_vec();
+	bytes.extend([3, 4]);
+	let b = ptr::slice_from_raw_parts_mut(bytes.as_mut_ptr(), bytes.len());
+	unsafe {
+		(*b)[0] ^= 0xff;
+		out.push((*b)[(&*b).len() - 1]);
+		out.push((&*b)[1..].len() as u8);
+	}
+	out.extend(&bytes);
+	// Longer than its array, which nothing reads past.
+	let short = [u32::from(n), 1];
+	let long = ptr::slice_from_raw_parts(short.as_ptr(), 10);
+	out.push(long.len() as u8);
+	out.push(unsafe { (long as *const u32).add(1).read() } as u8);
+	let nn = NonNull::slice_from_raw_parts(NonNull::new(v.as_mut_ptr()).unwrap(), 2);
+	out.push(nn.len() as u8);
+	unsafe {
+		(*nn.as_ptr())[1] = 11;
+		out.push(nn.as_ref()[1] as u8);
+		out.push(nn.as_ptr().as_mut().map_or(0, |s| s[0]) as u8);
+		let mut whole = nn;
+		whole.as_mut()[0] = 12;
+		let mut two = NonNull::slice_from_raw_parts(NonNull::new(bytes.as_mut_ptr()).unwrap(), 2);
+		two.as_mut()[1] ^= 0x0f;
+		out.push(two.as_ref()[1]);
+	}
+	let null = ptr::slice_from_raw_parts_mut(ptr::null_mut::<u32>(), 0);
+	out.push(NonNull::new(null).is_none() as u8);
+	out.push(unsafe { null.as_ref() }.is_none() as u8);
+	let boxed: Box<[u32]> = vec![u32::from(n), 2, 3].into_boxed_slice();
+	let raw = Box::into_raw(boxed);
+	unsafe { (*raw)[2] = 8 };
+	let back = unsafe { Box::from_raw(raw) };
+	emit(&back, out);
+	let whole: *const [u32] = &raw const short;
+	let of_ref: *const [u32] = &v[1..3];
+	out.push((whole.len() + of_ref.len()) as u8);
+	out.push(unsafe { (*of_ref)[1] } as u8);
+	emit(&v, out);
+	out.extend(&bytes);
+}
+
+/// Empty slices made from pointers into no array, a dangling one and one off null, each
+/// part of which keeps the pointer as Rust's does: after moving back to address 0 it is null.
+pub fn empty_parts(data: &[u8], out: &mut Vec<u8>) {
+	let k = usize::from(data.first().copied().unwrap_or(0) % 4) + 1;
+	let wide = NonNull::<u16>::dangling().as_ptr();
+	let off = ptr::null::<u16>().wrapping_add(k);
+	for (s, back) in [
+		(unsafe { slice::from_raw_parts(wide, 0) }, 1),
+		(unsafe { slice::from_raw_parts(off, 0) }, k),
+	] {
+		let null = |p: *const u16| p.wrapping_sub(back).is_null() as u8;
+		let (front, rest) = s.split_at(0);
+		out.extend([null(front.as_ptr()), null(rest.as_ptr())]);
+		let (front, rest) = s.split_at_checked(0).unwrap();
+		out.extend([null(front.as_ptr()), null(rest.as_ptr())]);
+		out.push(null(s.chunks_exact(2).remainder().as_ptr()));
+		out.push(null(s.rchunks_exact(3).remainder().as_ptr()));
+		out.extend(s.split(|&x| x == 0).map(|part| null(part.as_ptr())));
+		out.extend(s.rsplit(|&x| x == 0).map(|part| null(part.as_ptr())));
+		out.extend(s.splitn(2, |&x| x == 0).map(|part| null(part.as_ptr())));
+		out.push(null(s.first_chunk::<0>().unwrap().as_ptr()));
+		out.push(null(s.last_chunk::<0>().unwrap().as_ptr()));
+		out.push(null(s.get(..).unwrap().as_ptr()));
+		out.push(null(s[..0].as_ptr()));
+		out.push(s.split_first().is_none() as u8);
+		out.push(s.chunks(2).count() as u8);
+	}
+	let byte = NonNull::<u8>::dangling().as_ptr();
+	let s = unsafe { slice::from_raw_parts_mut(byte, 0) };
+	let null = |p: *const u8| p.wrapping_sub(1).is_null() as u8;
+	out.push(null(s.as_ptr()));
+	let (front, rest) = s.split_at_mut(0);
+	out.extend([null(front.as_ptr()), null(rest.as_ptr())]);
+	out.push(null(s[..].as_ptr()));
+	out.push(null(s.split(|&x| x == 0).next().unwrap().as_ptr()));
+	// A raw pointer to an empty slice, its length, and its start.
+	let raw = ptr::slice_from_raw_parts(off, 0);
+	out.push(raw.len() as u8);
+	out.push((raw as *const u16).wrapping_sub(k).is_null() as u8);
+	out.push(null((ptr::slice_from_raw_parts(byte, 0) as *const u8).wrapping_add(0)));
+	// None of a lone byte, at it and past it, shared and mutable.
+	let lone = data.len() as u8;
+	let p = &raw const lone;
+	unsafe {
+		out.push(slice::from_raw_parts(p, 0).as_ptr().offset_from(p) as u8);
+		out.push(slice::from_raw_parts(p.add(1), 0).as_ptr().offset_from(p) as u8);
+	}
+	let mut held = lone;
+	let q = &raw mut held;
+	let r = unsafe { slice::from_raw_parts_mut(q, 0) };
+	out.push(r.len() as u8 + unsafe { r.as_ptr().offset_from(q) } as u8);
 }
 
 /// Functions of the crate's named as std's pointer functions.

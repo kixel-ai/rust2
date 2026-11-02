@@ -171,27 +171,27 @@ export function eq$cmp_PartialEq_usize(self: Tick<rt.usize>, other: Tick<rt.usiz
 }
 
 export function hash$Hash_i128_hash_DefaultHasher(self: Tick<rt.i128>, state: rt.Hasher): void {
-	rt.hash128(self._0, state);
+	rt.hashI128(self._0, state);
 }
 
 export function hash$Hash_i16_hash_DefaultHasher(self: Tick<rt.i16>, state: rt.Hasher): void {
-	rt.hash16(self._0, state);
+	rt.hashI16(self._0, state);
 }
 
 export function hash$Hash_i32_hash_DefaultHasher(self: Tick<rt.i32>, state: rt.Hasher): void {
-	rt.hash32(self._0, state);
+	rt.hashI32(self._0, state);
 }
 
 export function hash$Hash_i64_hash_DefaultHasher(self: Tick<rt.i64>, state: rt.Hasher): void {
-	rt.hash64(self._0, state);
+	rt.hashI64(self._0, state);
 }
 
 export function hash$Hash_i8_hash_DefaultHasher(self: Tick<rt.i8>, state: rt.Hasher): void {
-	rt.hash8(self._0, state);
+	rt.hashI8(self._0, state);
 }
 
 export function hash$Hash_isize_hash_DefaultHasher(self: Tick<rt.isize>, state: rt.Hasher): void {
-	rt.hash32(self._0, state);
+	rt.hashIsize(self._0, state);
 }
 
 export function hash$Hash_u128_hash_DefaultHasher(self: Tick<rt.u128>, state: rt.Hasher): void {
@@ -215,7 +215,7 @@ export function hash$Hash_u8_hash_DefaultHasher(self: Tick<rt.u8>, state: rt.Has
 }
 
 export function hash$Hash_usize_hash_DefaultHasher(self: Tick<rt.usize>, state: rt.Hasher): void {
-	rt.hash32(self._0, state);
+	rt.hashUsize(self._0, state);
 }
 
 export function cmp$cmp_Ord_i128(self: Tick<rt.i128>, other: Tick<rt.i128>): rt.Ordering {

@@ -8,6 +8,7 @@ import * as fmt_Bare from "./fmt.Bare.ts";
 import * as Braced from "./fmt.Braced.ts";
 import * as Capped from "./fmt.Capped.ts";
 import * as Clip from "./fmt.Clip.ts";
+import * as Dropper from "./fmt.Dropper.ts";
 import * as Fails from "./fmt.Fails.ts";
 import * as Hex from "./fmt.Hex.ts";
 import * as Kind from "./fmt.Kind.ts";
@@ -749,7 +750,7 @@ export function collections(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.dequeIter(q), f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))];
 	put(out, rt.fmtFormat([args2[0], "|", rt.fmtSpec({ alternate: true }, args2[0]), "|", rt.fmtSpec({ debugHex: "x" }, args2[0]), "|", rt.fmtSpec({ align: ">", width: 4 }, args2[0])]));
 	const wrapped: rt.VecDeque<Hex.Hex> = rt.dequeWithCapacity(4, 4) as rt.VecDeque<Hex.Hex>;
-	rt.dequeExtend(wrapped, rt.iterSlice([{ _0: 1 }, { _0: 2 }]), undefined, 4, true);
+	rt.dequeExtend(wrapped, rt.iterSlice([{ _0: 1 }, { _0: 2 }]), undefined, true);
 	const _48: Hex.Hex = { _0: rt.u32Mul(at(0) as rt.u32, 4097) };
 	rt.dequePushFront(wrapped, _48);
 	const _57: Hex.Hex = { _0: at(1) as rt.u32 };
@@ -760,14 +761,11 @@ export function collections(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.dequePopBack(wrapped);
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, mid), (f: rt.Formatter) => rt.fmtList(rt.dequeIter(wrapped), f, (value: Hex.Hex, f: rt.Formatter) => Hex.fmt$fmt_Debug(value, f))];
 	put(out, rt.fmtFormat([args6[0], "|", args6[1], "|", rt.fmtSpec({ alternate: true }, args6[1]), "|", rt.fmtSpec({ width: 6 }, args6[1])]));
-	const empty: rt.VecDeque<rt.u8> = rt.dequeNew() as rt.VecDeque<rt.u8>;
-	const units: rt.VecDeque<undefined> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(new rt.Range(0, rt.u8Rem(at(2), 3)), (_2: rt.u8): undefined => {}), undefined, 0, true)) as rt.VecDeque<undefined>;
+	const empty: rt.VecDeque<rt.u8> = rt.dequeNew(1, true) as rt.VecDeque<rt.u8>;
+	const units: rt.VecDeque<undefined> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(new rt.Range(0, rt.u8Rem(at(2), 3)), (_2: rt.u8): undefined => {}), undefined, 0, true), 0) as rt.VecDeque<undefined>;
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.dequeIter(empty), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.dequeIter(units), f, rt.fmtUnit)];
 	put(out, rt.fmtFormat([args8[0], "|", rt.fmtSpec({ alternate: true }, args8[0]), "|", args8[1]]));
-	const _114: rt.VecDeque<fmt_Pair.Pair> = rt.dequeNew() as rt.VecDeque<fmt_Pair.Pair>;
-	const _116: fmt_Pair.Pair[] = [{ _0: at(3), _1: -1 }, { _0: 2, _1: 3 }];
-	const _113: rt.VecDeque<fmt_Pair.Pair>[] = [_114, rt.dequeExtend(rt.dequeNew() as rt.VecDeque<fmt_Pair.Pair>, rt.iterSlice(_116), undefined, 16, true)];
-	const part = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.VecDeque<fmt_Pair.Pair>>, rt.iterSlice(_113), undefined, 16, true);
+	const part = rt.dequeFromArray([rt.dequeNew(16) as rt.VecDeque<fmt_Pair.Pair>, rt.dequeFromArray([{ _0: at(3), _1: -1 }, { _0: 2, _1: 3 }], 16) as rt.VecDeque<fmt_Pair.Pair>], 16) as rt.VecDeque<rt.VecDeque<fmt_Pair.Pair>>;
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.dequeIter(part), f, (value: rt.VecDeque<fmt_Pair.Pair>, f: rt.Formatter) => rt.fmtList(rt.dequeIter(value), f, (value: fmt_Pair.Pair, f: rt.Formatter) => fmt_Pair.fmt$fmt_Debug(value, f)))];
 	put(out, rt.fmtFormat([args10[0], "|", rt.fmtSpec({ alternate: true }, args10[0])]));
 	const _135: rt.Iter<rt.u8 | undefined> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_25: rt.u8): rt.u8 | undefined => {
@@ -786,7 +784,7 @@ export function collections(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		const b2: rt.u8 = _154;
 		rt.dequePushFront(rt.entryOrInsertWith(rt.entry(map, rt.u8Rem(b2, 4)), (): rt.VecDeque<fmt_Pair.Pair> => {
-			return rt.dequeNew() as rt.VecDeque<fmt_Pair.Pair>;
+			return rt.dequeNew(16) as rt.VecDeque<fmt_Pair.Pair>;
 		}), { _0: b2, _1: rt.i64Neg(b2 as rt.i64) });
 	}
 	const _176: rt.BTreeMap<rt.u8, rt.u8> = rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u8>;
@@ -1011,7 +1009,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 16, true)), front, back);
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part3, f, (value: fmt_Pair.Pair, f: rt.Formatter) => fmt_Pair.fmt$fmt_Debug(value, f), ["IntoIter"])];
 	put(out, rt.fmtFormat([args6[0], "|", rt.fmtSpec({ alternate: true }, args6[0])]));
-	const part4 = ends$iters_vec_IntoIter_u8(rt.iterSlice(rt.byteVecView(rt.byteSliceToByteVec(data))), front, back);
+	const part4 = ends$iters_vec_IntoIter_u8(rt.byteVecIntoIter(rt.byteSliceToByteVec(data)), front, back);
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part4, f, rt.u8Debug, ["IntoIter"])];
 	put(out, rt.fmtFormat([rt.fmtSpec({ debugHex: "x" }, args8[0])]));
 	const it4: rt.Iter<Hex.Hex> = ends$iters_vec_Drain_fmt_Hex(rt.vecDrain(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 5), (_23: rt.u8): Hex.Hex => {
@@ -1040,7 +1038,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args16[0]]));
 	const _165: Array<rt.u8 | undefined> = [];
 	const _174: rt.Iter<rt.u8 | undefined> = rt.iterSlice(_165);
-	const _176: rt.Iter<rt.u8> = rt.iterSlice(rt.byteVecView(new rt.ByteVec()));
+	const _176: rt.Iter<rt.u8> = rt.byteVecIntoIter(new rt.ByteVec());
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(_174, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), ["Iter"]), (f: rt.Formatter) => rt.fmtIter(_176, f, rt.u8Debug, ["IntoIter"])];
 	put(out, rt.fmtFormat([args18[0], "|", rt.fmtSpec({ alternate: true }, args18[1])]));
 	const heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.iterToArray(rt.iterSlice(rt.byteSliceView(data)), undefined, 1, true), rt.le, rt.ge, rt.lt);
@@ -1054,10 +1052,10 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(it8, f, rt.u8Debug, [["Drain", "iter"], "Drain"])];
 	put(out, rt.fmtFormat([args24[0], "|", rt.fmtSpec({ alternate: true }, args24[0])]));
 	rt.drop(it8);
-	const part9 = ends$iters_collections_vec_deque_IntoIter_Option_u8(rt.dequeIter(rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_27: rt.u8): rt.u8 | undefined => {
+	const part9 = ends$iters_collections_vec_deque_IntoIter_Option_u8(rt.dequeIntoIter(rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_27: rt.u8): rt.u8 | undefined => {
 		const b4: rt.u8 = _27;
 		return thenSome$0d5am30(rt.u8Rem(b4, 3) !== 0, b4);
-	}), undefined, 2, true)) as rt.VecDeque<rt.u8 | undefined>), front, back);
+	}), undefined, 2, true), 2) as rt.VecDeque<rt.u8 | undefined>), front, back);
 	const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part9, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), ["IntoIter"])];
 	put(out, rt.fmtFormat([args26[0], "|", rt.fmtSpec({ alternate: true }, args26[0])]));
 	const text: string = rt.stringExtendChars("", rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_28: rt.u8): rt.char => {
@@ -2198,6 +2196,106 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	result(out, literals$mut_fmt_Twice(twice, c));
 	result(out, fmt_Twice.writeChar$fmt_Write(twice, 223));
 	put(out, twice._0);
+}
+
+export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _218: boolean = false;
+	const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
+	const dropper: (a0: rt.u8) => Dropper.Dropper = (tag: rt.u8): Dropper.Dropper => {
+		return new Dropper.Dropper(tag, rt.arcClone(log));
+	};
+	const dropped: (a0: rt.ByteVec) => undefined = (out2: rt.ByteVec): undefined => {
+		const _6: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log.value);
+		const taken = _6.value;
+		_6.value = new rt.ByteVec();
+		const tags: rt.ByteVec = taken;
+		rt.refMutRelease(_6);
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(tags), f, rt.u8Debug)];
+		put(out2, rt.fmtFormat([args18[0], " "]));
+	};
+	const shown: rt.Fmt[] = [];
+	const written: rt.Fmt[] = [];
+	const iter: rt.Iter<[rt.usize, rt.u8]> = rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data)));
+	while (true) {
+		const _17: [rt.usize, rt.u8] | rt.Done = iter.next();
+		if (_17 === rt.DONE) {
+			break;
+		}
+		const i: rt.usize = _17[0];
+		const x: rt.u8 = _17[1];
+		const _22: rt.u8 = rt.u8Rem(x, 4);
+		if (_22 === 0) {
+			const _25: rt.Fmt = rt.fmtOwned(dropper(x), (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Debug(value, f), rt.drop);
+			shown.push(_25);
+		} else if (_22 === 1) {
+			const _31: rt.Fmt = rt.fmtOwned([x, i] as [rt.u8, rt.usize], (value: [rt.u8, rt.usize], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.usizeDebug(value[1], f)], f));
+			shown.push(_31);
+		} else if (_22 === 2) {
+			const _35: rt.Fmt = rt.fmtOwned(dropper(x), (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Display(value, f), rt.drop);
+			written.push(_35);
+		} else {
+			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(x, f)];
+			const _41: rt.Fmt = rt.fmtOwned(rt.fmtFormat(["s", args2[0]]), (value: string, f: rt.Formatter) => rt.fmtPad(f, value));
+			written.push(_41);
+		}
+	}
+	for (const _55 of shown) {
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => _55(f)];
+		put(out, rt.fmtFormat([args4[0], " ", rt.fmtSpec({ alternate: true }, args4[0]), " "]));
+	}
+	for (const _74 of written) {
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => _74(f)];
+		put(out, rt.fmtFormat([args6[0], " [", rt.fmtSpec({ align: ">", width: 6 }, args6[0]), "] [", rt.fmtSpec({ align: "^", width: 7 }, args6[0]), "] "]));
+	}
+	const up: rt.Fmt = rt.fmtOwned(data.length, rt.usizeDebug);
+	const args8: rt.Fmt[] = [(f: rt.Formatter) => up(f)];
+	put(out, rt.fmtFormat([args8[0], " "]));
+	rt.dropAll(written);
+	dropped(out);
+	rt.vecTruncate(shown, 1, rt.drop);
+	dropped(out);
+	if (!(data.length >= 2)) {
+		rt.drop(up);
+		rt.dropAll(shown);
+		log[Symbol.dispose]();
+	} else {
+		const _121: rt.Arc<[rt.u8, rt.u8]> = new rt.Arc([data.data[data.start], data.data[data.start + 1]] as [rt.u8, rt.u8]);
+		const shared: rt.Arc<rt.Fmt> = new rt.ArcDyn(_121, rt.fmtOwned(_121.value, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)));
+		const kept: rt.Arc<rt.Fmt> = rt.arcClone(shared);
+		const _135: rt.usize = kept.strong;
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => shared.value(f), (f: rt.Formatter) => rt.usizeDisplay(_135, f)];
+		put(out, rt.fmtFormat([args10[0], " ", args10[1], " "]));
+		const counted: rt.Arc<Dropper.Dropper> = new rt.Arc(dropper(data.data[data.start]));
+		const _149: rt.Arc<Dropper.Dropper> = rt.arcClone(counted);
+		const asDisplay: rt.Arc<rt.Fmt> = new rt.ArcDyn(_149, rt.fmtOwned(_149.value, (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Display(value, f), rt.drop));
+		_218 = true;
+		const asDebug: rt.Arc<rt.Fmt> = new rt.ArcDyn(counted, rt.fmtOwned(counted.value, (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Debug(value, f), rt.drop));
+		const _160: rt.usize = asDebug.strong;
+		const args12: rt.Fmt[] = [(f: rt.Formatter) => asDisplay.value(f), (f: rt.Formatter) => rt.usizeDisplay(_160, f)];
+		put(out, rt.fmtFormat([rt.fmtSpec({ align: "<", width: 5 }, args12[0]), "| ", args12[1], " "]));
+		asDisplay[Symbol.dispose]();
+		dropped(out);
+		if (rt.u8Rem(data.data[data.start + 1], 2) === 0) {
+			_218 = false;
+			asDebug[Symbol.dispose]();
+		} else {
+			const args14: rt.Fmt[] = [(f: rt.Formatter) => asDebug.value(f)];
+			put(out, rt.fmtFormat([args14[0], " "]));
+		}
+		dropped(out);
+		shared[Symbol.dispose]();
+		const _198: rt.usize = kept.strong;
+		const args16: rt.Fmt[] = [(f: rt.Formatter) => kept.value(f), (f: rt.Formatter) => rt.usizeDisplay(_198, f)];
+		put(out, rt.fmtFormat([args16[0], " ", args16[1]]));
+		if (_218) {
+			asDebug[Symbol.dispose]();
+		}
+		_218 = false;
+		kept[Symbol.dispose]();
+		rt.drop(up);
+		rt.dropAll(shown);
+		log[Symbol.dispose]();
+	}
 }
 
 //# sourceMappingURL=fmt.ts.map

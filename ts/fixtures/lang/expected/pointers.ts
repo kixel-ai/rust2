@@ -665,7 +665,7 @@ export function lapsed(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _33: Log.Log = { bytes: rt.byteVecFrom(Uint8Array.of(n, ~n & 0xff)) };
 			const old3 = log;
 			log = _33;
-			rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(old3.bytes)), undefined, true);
+			rt.iterExtendBytes(out, rt.byteVecIntoIter(old3.bytes), undefined, true);
 			const old2: Duo.Duo = rt.replaceIn(pair, { _0: n, _1: n ^ 15 });
 			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(old2._0, old2._1)), undefined, true);
 		} else if (_24 === 2) {
@@ -695,7 +695,7 @@ export function lapsed(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 	}
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(pair._0, pair._1)), undefined, true);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(log.bytes)), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(log.bytes), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(window), undefined, true);
 }
 

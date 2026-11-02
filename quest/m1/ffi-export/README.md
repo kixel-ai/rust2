@@ -57,7 +57,7 @@ than `ctypes`; the others call C natively. moq's packages switch to them in moq'
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
 - [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
 - [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit
-- [Python bindings](/quest/m1/ffi-export/python.md) - a generated CPython extension, skipping the C ABI as Kotlin's JNI does
-- [Go bindings](/quest/m1/ffi-export/go.md) - Go over the C ABI through cgo
-- [Dart bindings](/quest/m1/ffi-export/dart.md) - Dart over the C ABI through `dart:ffi`
-- [A moq checkout per pin](/quest/m1/ffi-export/moq-checkouts.md) - `just ts` and `just ffi` check out their own moq revisions, so both run at once
+- [Dart: calls into a held implementation while the isolate waits](/quest/m1/ffi-export/dart-threads.md) - an implementation Rust kept and calls from another thread runs, or fails loud, while the isolate waits in a call
+- [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
+- [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go
+- [Kotlin: lent bytes freed before native memory piles up](/quest/m1/ffi-export/kotlin-native-memory.md) - reading many large `Bytes` holds a bounded backlog of Rust's memory even when the GC rarely runs

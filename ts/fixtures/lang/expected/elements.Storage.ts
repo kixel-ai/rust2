@@ -19,7 +19,7 @@ export class Storage {
 function new_(capacity: rt.usize): Storage {
 	const boxed: rt.ByteSlice = rt.byteVecSlice(rt.byteVecOf(0, capacity));
 	const capacity2: rt.usize = boxed.length;
-	return new Storage(rt.byteSliceAsPtr({ v: boxed }.v), capacity2);
+	return new Storage(rt.rawByteSliceOf(boxed).ptr, capacity2);
 }
 
 export function write(self: Storage, offset: rt.usize, src: rt.ByteSlice): void {
@@ -35,7 +35,7 @@ export function read(self: Storage, len: rt.usize): rt.ByteSlice {
 }
 
 export function drop$ops_Drop(self: Storage): void {
-	(({ v: rt.ptrByteSlice(self.data, self.capacity, false) }.v));
+	new rt.RawSlice(self.data, self.capacity).derefBytes(false);
 }
 
 export { new_ as new };
