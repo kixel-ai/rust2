@@ -2851,16 +2851,13 @@ pub fn collect<'tcx>(
 		// collects any other into a `Vec` first, whose capacity it keeps.
 		Std::VecDeque => {
 			let item = arg(ty, 0);
-			let bytes = matches!(item.kind(), ty::Uint(ty::UintTy::U8));
 			let path = from
 				.ty_adt_def()
 				.map(|adt| library::std_path(b.t.tcx, adt.did()).join("::"));
-			let whole = match path.as_deref() {
-				Some("collections::vec_deque::into_iter::IntoIter") => true,
-				// A `Vec<u8>`'s reads a view of its bytes, which leaves its capacity behind.
-				Some("vec::into_iter::IntoIter") => !bytes,
-				_ => false,
-			};
+			let whole = matches!(
+				path.as_deref(),
+				Some("collections::vec_deque::into_iter::IntoIter" | "vec::into_iter::IntoIter")
+			);
 			let made = match whole {
 				true => Expr::rt("dequeFromIntoIter", [vec![iter], deque_items(b, item, span)].concat()),
 				false => {

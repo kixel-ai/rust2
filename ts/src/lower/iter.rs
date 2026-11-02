@@ -180,6 +180,10 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 			Std::Vec if places(b, args.type_at(0)) => {
 				Some(Expr::rt("iterSliceMut", vec![library::elements(value, ty)]))
 			}
+			// A `Vec<u8>`'s owned bytes keep its buffer, as a deque collected from them does.
+			Std::Vec if owned && matches!(args.type_at(0).kind(), ty::Uint(ty::UintTy::U8)) => {
+				Some(Expr::rt("byteVecIntoIter", vec![value]))
+			}
 			Std::Vec => {
 				let values = each(b, args.type_at(0), vec![library::elements(value, ty)]);
 				Some(items(Expr::rt("iterSlice", values), args.type_at(0)))

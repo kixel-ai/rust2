@@ -591,12 +591,12 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.remade(k, false);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToByteVec(rt.iterFilter(rt.iterSlice(rt.byteVecView(v)), (_26: rt.u8): boolean => {
+			v = rt.iterToByteVec(rt.iterFilter(rt.byteVecIntoIter(v), (_26: rt.u8): boolean => {
 				return keep2();
 			}), "next");
 			Known.remade(k, false);
 		} else if (_42 === 19) {
-			const it: rt.Iter<rt.u8> = rt.iterSlice(rt.byteVecView(v));
+			const it: rt.Iter<rt.u8> = rt.byteVecIntoIter(v);
 			const _174: rt.u8 = rt.u8Rem(arg, 8);
 			let iterStart: rt.u8 = 0;
 			const iterEnd: rt.u8 = _174;
@@ -628,7 +628,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			rt.byteVecDedup(v);
 			Known.loose(k);
 		} else if (_42 === 23) {
-			const it2: rt.Iter<rt.u8> = rt.iterSlice(rt.byteVecView(v));
+			const it2: rt.Iter<rt.u8> = rt.byteVecIntoIter(v);
 			const _236: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart2: rt.u8 = 0;
 			const iterEnd2: rt.u8 = _236;
@@ -1800,11 +1800,11 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const _37: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.min(n, data.length));
 		rt.byteVecExtendFromSlice(bytes, _37);
 		Known.put(exact, out, bytes.length, bytes.data.length);
-		const odd: rt.ByteVec = rt.iterToByteVec(rt.iterFilter(rt.iterSlice(rt.byteVecView(rt.byteVecFrom(rt.byteVecView(bytes)))), (b5: rt.u8): boolean => {
+		const odd: rt.ByteVec = rt.iterToByteVec(rt.iterFilter(rt.byteVecIntoIter(rt.byteVecFrom(rt.byteVecView(bytes))), (b5: rt.u8): boolean => {
 			return rt.u8Rem(b5, 2) === 1;
 		}), "next");
 		Known.put(loose, out, odd.length, odd.data.length);
-		const wide: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteVecView(bytes)), (a0: rt.u8): rt.u16 => {
+		const wide: rt.u16[] = rt.iterToArray(rt.iterMap(rt.byteVecIntoIter(bytes), (a0: rt.u8): rt.u16 => {
 			return a0 as rt.u16;
 		}), undefined, 2, true);
 		const _64: rt.usize = wide.length;

@@ -354,7 +354,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecPush(out, held.length & 0xff);
 		bounds$ops_RangeInclusive_u64(out, extended);
 		const narrow: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(rt.u64Low(lo) & 0xff, rt.u64Low(hi) & 0xff, rt.u8Step);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(rt.iterToByteVec(rt.iterBorrow(narrow), undefined, true))), undefined, true);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterBorrow(narrow), undefined, true)), undefined, true);
 		rt.byteVecPush(out, rt.rangeInclusiveStart(narrow));
 		rt.byteVecPush(out, rt.rangeInclusiveIsEmpty(narrow) ? 1 : 0);
 		bounds$ops_RangeTo_u64(out, { end: b });

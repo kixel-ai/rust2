@@ -3103,8 +3103,8 @@ export function dequeIntoIter<T>(q: VecDeque<T>, drop?: (item: T) => void): Iter
  */
 export function dequeFromIntoIter<T>(it: Iter<T>, size: number, bytes = false): VecDeque<T> {
 	if (it instanceof DequeIntoIter) return it.q;
-	const v = it as unknown as { s: T[] & Capped; front: number; back: number };
-	const q = dequeWithCapacity<T>(capOf(v.s.length, v.s.cap, size), size, bytes);
+	const v = it as unknown as { s: ArrayLike<T> & Capped; front: number; back: number };
+	const q = dequeWithCapacity<T>(bytes ? v.s.length : capOf(v.s.length, v.s.cap, size), size, bytes);
 	q.n = v.back - v.front;
 	q.h = size === 0 || q.n === 0 ? 0 : v.front;
 	for (let i = 0; i < q.n; i++) q.b[q.h + i] = v.s[v.front + i];

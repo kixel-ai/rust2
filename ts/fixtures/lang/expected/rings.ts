@@ -714,18 +714,15 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 	if (_8 === 3) {
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true), 12) as rt.VecDeque<string>;
 	}
-	if (true) {
-		const v: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
-		rt.vecReserve(v, skip, 12);
-		const it3: rt.Iter<string> = rt.iterSlice(v);
-		let iterStart2: rt.usize = 0;
-		const iterEnd2: rt.usize = skip;
-		while (iterStart2++ < iterEnd2) {
-			rt.iterToOption(it3.next());
-		}
-		return rt.dequeFromIntoIter(it3, 12) as rt.VecDeque<string>;
+	const v: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
+	rt.vecReserve(v, skip, 12);
+	const it3: rt.Iter<string> = rt.iterSlice(v);
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = skip;
+	while (iterStart2++ < iterEnd2) {
+		rt.iterToOption(it3.next());
 	}
-	return q;
+	return rt.dequeFromIntoIter(it3, 12) as rt.VecDeque<string>;
 }
 
 /**
@@ -768,18 +765,15 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 	if (_8 === 3) {
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true), 1101) as rt.VecDeque<Big.Big>;
 	}
-	if (true) {
-		const v: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
-		rt.vecReserve(v, skip, 1101);
-		const it3: rt.Iter<Big.Big> = rt.iterSlice(v);
-		let iterStart2: rt.usize = 0;
-		const iterEnd2: rt.usize = skip;
-		while (iterStart2++ < iterEnd2) {
-			rt.iterToOption(it3.next());
-		}
-		return rt.dequeFromIntoIter(it3, 1101) as rt.VecDeque<Big.Big>;
+	const v: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
+	rt.vecReserve(v, skip, 1101);
+	const it3: rt.Iter<Big.Big> = rt.iterSlice(v);
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = skip;
+	while (iterStart2++ < iterEnd2) {
+		rt.iterToOption(it3.next());
 	}
-	return q;
+	return rt.dequeFromIntoIter(it3, 1101) as rt.VecDeque<Big.Big>;
 }
 
 /**
@@ -822,18 +816,15 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 	if (_8 === 3) {
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true), 4) as rt.VecDeque<rt.u32>;
 	}
-	if (true) {
-		const v: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
-		rt.vecReserve(v, skip, 4);
-		const it3: rt.Iter<rt.u32> = rt.iterSlice(v);
-		let iterStart2: rt.usize = 0;
-		const iterEnd2: rt.usize = skip;
-		while (iterStart2++ < iterEnd2) {
-			rt.iterToOption(it3.next());
-		}
-		return rt.dequeFromIntoIter(it3, 4) as rt.VecDeque<rt.u32>;
+	const v: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
+	rt.vecReserve(v, skip, 4);
+	const it3: rt.Iter<rt.u32> = rt.iterSlice(v);
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = skip;
+	while (iterStart2++ < iterEnd2) {
+		rt.iterToOption(it3.next());
 	}
-	return q;
+	return rt.dequeFromIntoIter(it3, 4) as rt.VecDeque<rt.u32>;
 }
 
 /**
@@ -876,18 +867,15 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 	if (_8 === 3) {
 		return rt.dequeFromVec(rt.byteVecToVec(rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true)), 1, true) as rt.VecDeque<rt.u8>;
 	}
-	if (false) {
-		const v: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
-		rt.byteVecReserve(v, skip);
-		const it3: rt.Iter<rt.u8> = rt.iterSlice(rt.byteVecView(v));
-		let iterStart2: rt.usize = 0;
-		const iterEnd2: rt.usize = skip;
-		while (iterStart2++ < iterEnd2) {
-			rt.iterToOption(it3.next());
-		}
-		return rt.dequeFromVec(rt.iterToArray(it3, "next", 1, true), 1, true) as rt.VecDeque<rt.u8>;
+	const v: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
+	rt.byteVecReserve(v, skip);
+	const it3: rt.Iter<rt.u8> = rt.byteVecIntoIter(v);
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = skip;
+	while (iterStart2++ < iterEnd2) {
+		rt.iterToOption(it3.next());
 	}
-	return q;
+	return rt.dequeFromIntoIter(it3, 1, true) as rt.VecDeque<rt.u8>;
 }
 
 /**
@@ -930,18 +918,15 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 	if (_8 === 3) {
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true), 0) as rt.VecDeque<undefined>;
 	}
-	if (true) {
-		const v: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
-		rt.vecReserve(v, skip, 0);
-		const it3: rt.Iter<undefined> = rt.iterSlice(v);
-		let iterStart2: rt.usize = 0;
-		const iterEnd2: rt.usize = skip;
-		while (iterStart2++ < iterEnd2) {
-			rt.iterToOption(it3.next(), rt.None);
-		}
-		return rt.dequeFromIntoIter(it3, 0) as rt.VecDeque<undefined>;
+	const v: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
+	rt.vecReserve(v, skip, 0);
+	const it3: rt.Iter<undefined> = rt.iterSlice(v);
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = skip;
+	while (iterStart2++ < iterEnd2) {
+		rt.iterToOption(it3.next(), rt.None);
 	}
-	return q;
+	return rt.dequeFromIntoIter(it3, 0) as rt.VecDeque<undefined>;
 }
 
 /** A drain of a range `arg` picks, written as it is read from either end and then dropped. */

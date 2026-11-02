@@ -593,7 +593,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const swapped: rt.ByteVec = new rt.ByteVec();
 	for (const _39 of rt.byteSliceView(data)) {
 		const _45: rt.ByteVec = swap(_39);
-		rt.iterExtendBytes(swapped, rt.iterSlice(rt.byteVecView(_45)), undefined, true);
+		rt.iterExtendBytes(swapped, rt.byteVecIntoIter(_45), undefined, true);
 	}
 	const list: (a0: rt.u8) => undefined = (b6: rt.u8): undefined => {
 		const taken2 = pair[1].listed;
@@ -606,7 +606,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	for (const _57 of rt.byteSliceView(data)) {
 		const _63: rt.ByteVec = option_unwrapOrDefault$0wx44sw(restock(pair[1], _57));
-		rt.iterExtendBytes(swapped, rt.iterSlice(rt.byteVecView(_63)), undefined, true);
+		rt.iterExtendBytes(swapped, rt.byteVecIntoIter(_63), undefined, true);
 	}
 	const taken3 = pair[1].stale;
 	pair[1].stale = new rt.ByteVec();

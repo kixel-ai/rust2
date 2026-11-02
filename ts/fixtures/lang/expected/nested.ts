@@ -441,7 +441,7 @@ export function closures(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}, undefined, rt.None), "next", 2)), (_222: rt.u8 | undefined): rt.u8 => {
 		return code(_222);
 	}), undefined, true);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(seen)), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(seen), undefined, true);
 	let steps: rt.u8 = 0;
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.iterCount(rt.iterSuccessors(undefined, (_223: undefined): undefined | rt.None => {
 		steps = rt.u8Add(steps, 1);
@@ -761,7 +761,7 @@ export function units(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const byPointer: undefined[] = pointed(data, f);
 	const generic: undefined[] = each$unit_nested_units_closure3(data, (_25: rt.u8): undefined => {});
 	const byName: undefined[] = each$unit_nested_ignore(data, ignore as (a0: rt.u8) => undefined);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(each$u8_nested_half(data, half))), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(each$u8_nested_half(data, half)), undefined, true);
 	const methods: undefined[] = madeAll$nested_Unit({}, data);
 	const dynamic: undefined[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), rt.lent(ignore as (a0: rt.u8) => undefined)), undefined, 0, true);
 	const iter: rt.Iter<undefined[]> = rt.iterSlice([units, named, byPointer, generic, byName, methods, dynamic]);

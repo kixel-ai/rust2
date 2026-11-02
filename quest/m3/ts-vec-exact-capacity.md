@@ -13,12 +13,10 @@ Found splitting a deque's slices where std's does
 exact capacity, but one made from a `Vec`, by `From<Vec<T>>` or by `collect`, takes the
 capacity the runtime models for the `Vec`, which holds only std's guarantees (decided
 2026-11-01) and so recomputes from its length after a pop, `truncate`, or `drain`. A
-`Vec<u8>`'s `into_iter` also reads a view of its bytes, which leaves the capacity behind,
-so `collect` into a deque cannot keep std's buffer and head.
+`Vec<u8>` already holds its exact capacity as its buffer's length.
 
 - Record the capacity where a step shrinks the length, and measure its cost on pops with
   the codec's [TS benchmark](/ts/README.md#bench).
-- Carry a `Vec<u8>`'s capacity into its `into_iter`.
 - Needs the maintainer's call against the 2026-11-01 decision.
 
 Public API: the translator's output.

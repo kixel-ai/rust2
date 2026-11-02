@@ -298,6 +298,13 @@ export function iterSlice<T>(s: ArrayLike<T>, drop?: Drop<T>): Iter<T> {
 	return new SliceIter(s, drop);
 }
 
+/** `Vec<u8>::into_iter`: over the vector's whole buffer, whose length is its capacity, which a deque collected from it keeps. */
+export function byteVecIntoIter(v: ByteVec): Iter<number> {
+	const it = new SliceIter(v.data);
+	it.back = v.length;
+	return it;
+}
+
 /** `slice::IterMut` of elements JS copies: the place of each. */
 export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Place<T>> {
 	return new SliceMutIter(s);

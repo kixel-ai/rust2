@@ -8,17 +8,12 @@ use std::fmt::Debug;
 
 /// An item a byte makes, which a write through a `&mut` changes.
 trait Item: Clone + Debug {
-	/// Whether it is a byte, which a deque holds in a `Uint8Array`.
-	const BYTE: bool = false;
-
 	fn make(b: u8) -> Self;
 
 	fn bump(&mut self);
 }
 
 impl Item for u8 {
-	const BYTE: bool = true;
-
 	fn make(b: u8) -> Self {
 		b
 	}
@@ -178,8 +173,6 @@ fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
 			it.collect()
 		}
 		3 => VecDeque::from(q.into_iter().collect::<Vec<T>>()),
-		// A `Vec<u8>`'s iterator reads a view of its bytes, which leaves its capacity behind.
-		_ if T::BYTE => q,
 		_ => {
 			let mut v: Vec<T> = q.into_iter().collect();
 			v.reserve(skip);

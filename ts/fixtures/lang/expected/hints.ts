@@ -1962,7 +1962,7 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_312 === 0) {
 			walk$slice_Iter_u8(rt.iterSlice(rt.byteSliceView(bytes)), steps, out);
 		} else if (_312 === 1) {
-			walk$vec_IntoIter_u8(rt.iterSlice(rt.byteVecView(rt.byteSliceToByteVec(bytes))), steps, out);
+			walk$vec_IntoIter_u8(rt.byteVecIntoIter(rt.byteSliceToByteVec(bytes)), steps, out);
 		} else if (_312 === 2) {
 			walk$array_IntoIter_u8_3(rt.iterSlice(Uint8Array.of(at(3), at(4), at(5))), steps, out);
 		} else if (_312 === 3) {

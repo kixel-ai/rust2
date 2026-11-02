@@ -1008,7 +1008,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 16, true)), front, back);
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part3, f, (value: fmt_Pair.Pair, f: rt.Formatter) => fmt_Pair.fmt$fmt_Debug(value, f), ["IntoIter"])];
 	put(out, rt.fmtFormat([args6[0], "|", rt.fmtSpec({ alternate: true }, args6[0])]));
-	const part4 = ends$iters_vec_IntoIter_u8(rt.iterSlice(rt.byteVecView(rt.byteSliceToByteVec(data))), front, back);
+	const part4 = ends$iters_vec_IntoIter_u8(rt.byteVecIntoIter(rt.byteSliceToByteVec(data)), front, back);
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part4, f, rt.u8Debug, ["IntoIter"])];
 	put(out, rt.fmtFormat([rt.fmtSpec({ debugHex: "x" }, args8[0])]));
 	const it4: rt.Iter<Hex.Hex> = ends$iters_vec_Drain_fmt_Hex(rt.vecDrain(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 5), (_23: rt.u8): Hex.Hex => {
@@ -1037,7 +1037,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args16[0]]));
 	const _165: Array<rt.u8 | undefined> = [];
 	const _174: rt.Iter<rt.u8 | undefined> = rt.iterSlice(_165);
-	const _176: rt.Iter<rt.u8> = rt.iterSlice(rt.byteVecView(new rt.ByteVec()));
+	const _176: rt.Iter<rt.u8> = rt.byteVecIntoIter(new rt.ByteVec());
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(_174, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), ["Iter"]), (f: rt.Formatter) => rt.fmtIter(_176, f, rt.u8Debug, ["IntoIter"])];
 	put(out, rt.fmtFormat([args18[0], "|", rt.fmtSpec({ alternate: true }, args18[1])]));
 	const heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.iterToArray(rt.iterSlice(rt.byteSliceView(data)), undefined, 1, true), rt.le, rt.ge, rt.lt);
