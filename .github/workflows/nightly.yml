@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The land gate's check over every module, catching what a batch's diff-scoped
+  # The full check over every module, catching what a merge group's diff-scoped
   # `just ci` let into main.
   gate:
     name: Gate
