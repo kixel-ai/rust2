@@ -23,9 +23,10 @@ declare -A scope=(
     [sh]='^sh/dispatch\.test\.py$'
     [hooks]='^\.claude/hooks/'
     [uniffi]='^uniffi/'
-    [driver]='^driver/'
-    # Both build on the driver's front end, and its toolchain is ts's.
-    [ffi]='^(ffi|driver)/'
+    # The driver and ffi link ts's toolchain, and both of the others build on
+    # the driver's front end.
+    [driver]='^(driver/|ts/rust-toolchain\.toml$)'
+    [ffi]='^(ffi/|driver/|ts/rust-toolchain\.toml$)'
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.

@@ -80,6 +80,10 @@ class SelectTests(unittest.TestCase):
         self.change("driver/src/lib.rs")
         self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
 
+    def test_the_shared_nightly_selects_each_project_on_it(self):
+        self.change("ts/rust-toolchain.toml")
+        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+
     def test_lint_only_paths_select_only_the_lints(self):
         for path in ("bench/ffi/run.sh", "README.md", ".codex/hooks/direnv.sh", ".claude/settings.json"):
             with self.subTest(path=path):
