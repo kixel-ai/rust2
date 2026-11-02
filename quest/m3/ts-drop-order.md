@@ -14,15 +14,11 @@ drop refusal left ([#139](https://github.com/moq-dev/rust2/pull/139)). `DebugLis
 ranges of bounds that drop, a drain or a B-tree's `range` of a range that drops, a hash
 map's `into_keys` and `into_values`, and the closures `for_each` and `fold` own landed in
 [#307](https://github.com/moq-dev/rust2/pull/307), with the task fixture's `inside` step.
+The closures `reduce`, `max_by`, `min_by`, their `_by_key` forms, `is_sorted_by_key`, and
+a map's entries' `or_insert_with`, `or_insert_with_key`, and `and_modify` own landed in
+[#438](https://github.com/moq-dev/rust2/pull/438), with its `released` step.
 Each left is refused with a span where std's order is one JS's can't follow yet:
 
-- A closure that owns a value that drops given to a std function that takes another
-  value that drops by value, other than `for_each` and `fold` (`iter::releases`), such as
-  `reduce`, `max_by_key`, or `partition` of items that drop; one that keeps it other
-  than in an adaptor; or one that calls it through `FnOnce` other than where `discards`
-  in `library.rs` says, as `or_insert_with` does (`called_closures`). Each consumer whose
-  std folds takes a `release` the way `rt.iterFold` does. The reject fixture's
-  `called_closure` reproduces `or_insert_with`.
 - A `skip` of a `zip` of two `TrustedRandomAccess` iterators of items that drop, as the
   reject fixture's `skipped_zip`: std's `Skip` read by index, as a zip by index or `take`'s
   fold reads it, makes and drops each skipped pair whole, where its `next` skips through
@@ -42,7 +38,7 @@ Each left is refused with a span where std's order is one JS's can't follow yet:
   impls, as `v.into_iter().collect::<BTreeSet<O>>()` of an `O` whose `Ord`, `PartialOrd`,
   or `PartialEq` is its own: one that panics or disagrees with itself leaves equal keys
   in the order [std's sort](/quest/m3/ts-sort-order.md) does, which decides which of them
-  drop.
+  drop. It follows that port of std's sorts, whose plan names it.
 
 Each `rt.Iter` has a `fold` and `rfold` that drop what it holds where std's do, and the
 by-value consumers std folds go through it: build on those rather than `rt.drop`.

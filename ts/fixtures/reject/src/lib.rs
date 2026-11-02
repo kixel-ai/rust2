@@ -297,13 +297,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	set.len()
 }
 
-/// A closure that owns a value that drops, which `or_insert_with` would call but never drop
-/// if the key is there.
-pub fn called_closure(m: &mut std::collections::HashMap<u8, Noisy>) {
-	let b = Noisy(2);
-	m.entry(1).or_insert_with(move || b);
-}
-
 /// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
 /// call but never drop.
 pub fn pattern_closure(s: &str) -> bool {

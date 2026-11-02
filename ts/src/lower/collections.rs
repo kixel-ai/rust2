@@ -229,13 +229,13 @@ pub fn call<'tcx>(
 	let e = match std {
 		Std::HashMap | Std::HashSet => hash(b, coll, call, owner, name, args, out),
 		Std::HashTable => table(b, coll, call, owner, name, args, out),
-		Std::TableEntry => table_entry(b, coll, name, args, call.span),
+		Std::TableEntry => table_entry(b, coll, call, name, args),
 		Std::BTreeMap | Std::BTreeSet => btree(b, coll, call, owner, name, args),
 		Std::VecDeque => deque(b, coll, call, owner, name, args),
 		Std::LinkedList => list(b, coll, call, owner, name, args),
 		Std::BinaryHeap => heap(b, coll, call, owner, name, args),
 		Std::PeekMut if name == "pop" => Some(Expr::rt("peekMutPop", args)),
-		Std::Entry => entry(b, coll, name, args, span),
+		Std::Entry => entry(b, coll, call, name, args),
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
@@ -737,10 +737,11 @@ fn table<'tcx>(
 fn table_entry<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
 	name: &str,
 	args: Vec<Expr>,
-	span: Span,
 ) -> Option<Expr> {
+	let span = call.span;
 	let item = arg(coll, 0);
 	let mut values = args;
 	let e = match name {
@@ -755,9 +756,21 @@ fn table_entry<'tcx>(
 				values,
 			)
 		}
-		"or_insert_with" => Expr::rt("tableOrInsertWith", values),
-		"and_modify" if b.t.needs_place(item) => Expr::rt("tableAndModifyMut", values),
-		"and_modify" => Expr::rt("tableAndModify", values),
+		"or_insert_with" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt("tableOrInsertWith", values)
+		}
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(
+				if b.t.needs_place(item) {
+					"tableAndModifyMut"
+				} else {
+					"tableAndModify"
+				},
+				values,
+			)
+		}
 		// The entry is its item's place.
 		"get_mut" | "into_mut" if b.t.needs_place(item) => values.pop()?,
 		"get" | "get_mut" | "into_mut" => values.pop()?.member("v"),
@@ -2080,7 +2093,14 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 }
 
 /// A method of an `Entry`, `OccupiedEntry`, or `VacantEntry`.
-fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec<Expr>, span: Span) -> Option<Expr> {
+fn entry<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+) -> Option<Expr> {
+	let span = call.span;
 	let value = arg(coll, 1);
 	let mut values = args;
 	// What these return a `&mut` to is a place where JS would copy it.
@@ -2094,14 +2114,20 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		// A vacant entry's.
 		"insert" if is_vacant(b, coll) => Expr::rt(mutable("entryOrInsert"), values),
 		"insert" => Expr::rt("entryInsert", values),
-		"or_insert_with" | "or_insert_with_key" => Expr::rt(mutable("entryOrInsertWith"), values),
+		"or_insert_with" | "or_insert_with_key" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryOrInsertWith"), values)
+		}
 		"or_default" => {
 			let tcx = b.t.tcx;
 			let default = trait_fn(tcx, "Default", "default");
 			values.push(b.fn_value(default, tcx.mk_args(&[value.into()]), span));
 			Expr::rt(mutable("entryOrInsertWith"), values)
 		}
-		"and_modify" => Expr::rt(mutable("entryAndModify"), values),
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryAndModify"), values)
+		}
 		"key" => Expr::rt("entryKey", values),
 		"into_key" => values.pop()?.member("k"),
 		"get" => Expr::rt("entryGet", values),
@@ -2111,6 +2137,12 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		_ => return None,
 	};
 	Some(e)
+}
+
+/// What drops the closure an entry's `or_insert_with`, `or_insert_with_key`, or `and_modify`
+/// takes last, which std's drops uncalled unless the entry is vacant or occupied as it needs.
+fn uncalled<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Vec<Expr>> {
+	b.t.droppers(call.args.types().last(), call.span)
 }
 
 /// Whether `entry`, an `Entry` of a map or, as `std` says, of a `HashTable`, is its variant

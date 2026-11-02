@@ -12,6 +12,7 @@ import { looped, collected, drained, extended, compared as iters_compared } from
 import { run as lists_run } from "./drops/lists.ts";
 import { boxed as objects_boxed, shared, anys, fns } from "./drops/objects.ts";
 import { run as once_run } from "./drops/once.ts";
+import { released as released_released } from "./drops/released.ts";
 import * as Held from "./drops.Held.ts";
 import * as Key from "./drops.Key.ts";
 import * as Named from "./drops.Named.ts";
@@ -1287,6 +1288,14 @@ export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
  */
 export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	inside_inside(log, id, arg);
+}
+
+/**
+ * Run scenario `arg % 7` of where std drops a closure given to a consumer or an entry.
+ * The last panics in a fold.
+ */
+export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	released_released(log, id, arg);
 }
 
 /** Run scenario `arg % 9` of what std's comparisons of iterators drop. */

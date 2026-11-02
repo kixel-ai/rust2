@@ -26,6 +26,7 @@ PRs into `main` get no cloud CI; `just ci` runs the same gate locally.
 PRs land only through `quest land`: queue the reviewed head with `quest merge <pr> <token> --land <sha>` (`/quest-merge` does this).
 The land gate, `quest land serve` on the maintainer's host, takes the longest-queued PR plus up to log₂ n more that merge cleanly, runs `just ci` once on the batch, and lands each PR through GitHub's squash merge.
 A failing batch is ejected together, and a Codex fixer makes mechanical fixes and requeues healthy PRs or hands them back with a comment: read why in the PR, fix the cause, and queue again.
+`just ci` selects only what the diff touches, against the gate's base or `origin/main` locally, so a break can reach `main`; `just gate` runs the full suite, and it and the other optional workflows run nightly on `main`.
 The admin bypass of `main`'s ruleset is for emergencies.
 
 # Reviews
