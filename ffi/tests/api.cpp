@@ -14,6 +14,12 @@
 #include <string>
 #include <thread>
 #include <vector>
+#if __has_include(<version>)
+#include <version>
+#endif
+#ifdef __cpp_lib_span
+#include <span>
+#endif
 
 #include "api.hpp"
 
@@ -163,7 +169,7 @@ int script() {
 	print("name ", c.name(), "\n");
 	std::printf("is d %s\n", yes(c.is("d")));
 	{
-		api::counter copy = c;
+		api::counter copy = c.clone();
 		(void)copy.add(1);
 		std::printf("clone %llu original %llu\n", ull(copy.get()), ull(c.get()));
 	}
@@ -931,12 +937,156 @@ int futures() {
 	return 0;
 }
 
+// Who owns each handle and bytes, beyond the transcript, each checked by an assertion.
+int lifetimes() {
+	// Copies of a type whose clone no call tells apart share one handle: a write through
+	// one shows in the other, as it does between clones of an `Arc`.
+	{
+		std::uint32_t before = api::dropped();
+		api::gauge a = api::gauge::new_(1);
+		api::gauge b = a;
+		b.set(2);
+		check(a.level() == 2, "copies of a shared type see each other's writes");
+		// Moving out of one copy moves out a clone, as Rust moves out of a clone, and
+		// leaves the other copy whole.
+		check(std::move(b).into_level() == 2, "a shared copy moves out its value");
+		check(a.level() == 2 && api::dropped() == before, "moving out of a shared copy leaves the others");
+		{
+			api::gauge c = a;
+			(void)c;
+		}
+		check(api::dropped() == before, "a released copy frees nothing while another holds it");
+		// The last copy moves out the value itself.
+		check(std::move(a).into_level() == 2 && api::dropped() == before + 1, "the last copy moves out the value");
+	}
+
+	// A pending future borrows the value as though it held a copy: once the copy that made
+	// it goes, moving out of the last copy moves out a clone, as Rust moves out of a clone
+	// while a future borrows another.
+	{
+		std::uint32_t before = api::dropped();
+		api::gauge a = api::gauge::new_(4);
+		std::optional<api::gauge> made(a);
+		api::gauge_later_future later = made->later();
+		api::waker waker([]() {});
+		check(!later.poll(waker), "a future pends");
+		made.reset();
+		check(std::move(a).into_level() == 4 && api::dropped() == before, "the last copy moves out a clone while a future borrows it");
+		check(std::move(later).get() == 4 && api::dropped() == before + 1, "a future reads the value it borrows, and frees it once it finishes");
+	}
+
+	// Copies of a type whose clone is a value of its own, such as a lock behind a `Box`,
+	// keep apart: copying is `clone()`, which crosses into Rust, and a write through one
+	// clone never shows in the other.
+	{
+		api::latch a = api::latch::default_();
+		api::latch b = a.clone();
+		check(b.set(1) && !a.get(), "a clone's write stays its own");
+		check(a.set(2) && a.get() == 2u && b.get() == 1u, "each clone holds its own value");
+	}
+
+	// A copy released on one thread while a call runs on another: the call's copy keeps
+	// the handle, and the last copy frees it, once, on whichever thread drops it.
+	{
+		std::uint32_t before = api::dropped();
+		std::optional<api::gauge> mine(api::gauge::new_(7));
+		std::mutex mutex;
+		std::condition_variable cv;
+		bool started = false;
+		bool released = false;
+		bool read = true;
+		std::thread caller([&, theirs = *mine]() {
+			{
+				std::lock_guard<std::mutex> lock(mutex);
+				started = true;
+			}
+			cv.notify_all();
+			for (;;) {
+				bool last;
+				{
+					std::lock_guard<std::mutex> lock(mutex);
+					last = released;
+				}
+				read = read && theirs.level() == 7;
+				if (last) {
+					return;
+				}
+			}
+		});
+		{
+			std::unique_lock<std::mutex> lock(mutex);
+			cv.wait(lock, [&]() { return started; });
+		}
+		mine.reset();
+		{
+			std::lock_guard<std::mutex> lock(mutex);
+			released = true;
+		}
+		caller.join();
+		check(read, "a call races a copy's release unharmed");
+		check(api::dropped() == before + 1, "the last copy frees the value once");
+	}
+
+	// A copy of a lent object lasts only its call, as the lent object does.
+	{
+		api::gauge gauge = api::gauge::new_(3);
+		check(api::watch(gauge, [](const api::gauge &lent) {
+			api::gauge copy = lent;
+			return copy.level();
+		}) == 3, "a copy of a lent object reads it during the call");
+	}
+
+	// Returned bytes own Rust's buffer, so they outlive the object they came from; a view
+	// or span of them lasts only as long as they do.
+	{
+		api::buf payload;
+		{
+			api::message message = api::message::new_(nullptr, "kept");
+			payload = message.payload();
+		}
+		check(payload.str() == "kept", "bytes outlive the object they came from");
+		std::uint32_t before = api::dropped();
+		{
+			api::buf bytes = api::token_bytes(9, 3);
+			check(api::dropped() == before && bytes.size() == 3 && bytes.data()[2] == 9, "bytes hold their owner");
+#ifdef __cpp_lib_span
+			// From C++20, a view is a contiguous range: a span of it, and a view of a span.
+			std::span<const std::uint8_t> span = api::view(bytes);
+			check(span.size() == 3 && span[0] == 9, "a view converts to a span");
+			check(api::len(span) == 3, "a span converts to a view");
+#endif
+		}
+		check(api::dropped() == before + 1, "bytes free their owner");
+	}
+
+	std::printf("lifetimes ok\n");
+	return 0;
+}
+
 // Each breaks a contract, which must abort with a message naming the function.
 int broken(const char *which) {
 	if (std::strcmp(which, "moved") == 0) {
 		api::counter c = api::counter::new_("c", 0);
 		api::label label = std::move(c).into_label(std::nullopt);
 		c.get();
+	} else if (std::strcmp(which, "moved from") == 0) {
+		api::counter c = api::counter::new_("c", 0);
+		api::counter d = std::move(c);
+		c.get();
+	} else if (std::strcmp(which, "shared moved from") == 0) {
+		api::gauge g = api::gauge::new_(0);
+		api::gauge h = std::move(g);
+		std::move(g).into_level();
+	} else if (std::strcmp(which, "shared moved out") == 0) {
+		api::gauge g = api::gauge::new_(0);
+		std::move(g).into_level();
+		std::move(g).into_level();
+	} else if (std::strcmp(which, "lent copied") == 0) {
+		static std::optional<api::gauge> kept;
+		api::watch(api::gauge::new_(0), [](const api::gauge &lent) {
+			kept.emplace(lent);
+			return lent.level();
+		});
 	} else if (std::strcmp(which, "value") == 0) {
 		api::counter c = api::counter::new_("c", 0);
 		c.sub(1).value();
@@ -975,6 +1125,9 @@ int main(int argc, char **argv) {
 #endif
 	if (argc > 1 && std::strcmp(argv[1], "futures") == 0) {
 		return futures();
+	}
+	if (argc > 1 && std::strcmp(argv[1], "lifetimes") == 0) {
+		return lifetimes();
 	}
 	if (argc > 1) {
 		return broken(argv[1]);

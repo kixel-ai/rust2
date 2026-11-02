@@ -39,7 +39,8 @@ pub fn call<'tcx>(
 		None => match (owner, name, self_std, self_ty) {
 			("Default", "default", Some(std), Some(t))
 			| ("Clone", "clone", Some(std), Some(t))
-			| ("Clone", "clone_from", Some(std @ Std::LinkedList), Some(t))
+			| ("Clone", "clone_from", Some(std @ (Std::LinkedList | Std::VecDeque)), Some(t))
+			| ("ToOwned", "clone_into", Some(std @ Std::VecDeque), Some(t))
 			| ("Index" | "IndexMut", "index" | "index_mut", Some(std), Some(t))
 			| ("Extend", "extend", Some(std), Some(t))
 			| ("From", "from", Some(std), Some(t))
@@ -229,13 +230,13 @@ pub fn call<'tcx>(
 	let e = match std {
 		Std::HashMap | Std::HashSet => hash(b, coll, call, owner, name, args, out),
 		Std::HashTable => table(b, coll, call, owner, name, args, out),
-		Std::TableEntry => table_entry(b, coll, name, args, call.span),
+		Std::TableEntry => table_entry(b, coll, call, name, args),
 		Std::BTreeMap | Std::BTreeSet => btree(b, coll, call, owner, name, args),
 		Std::VecDeque => deque(b, coll, call, owner, name, args),
 		Std::LinkedList => list(b, coll, call, owner, name, args),
 		Std::BinaryHeap => heap(b, coll, call, owner, name, args),
 		Std::PeekMut if name == "pop" => Some(Expr::rt("peekMutPop", args)),
-		Std::Entry => entry(b, coll, name, args, span),
+		Std::Entry => entry(b, coll, call, name, args),
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
@@ -287,7 +288,7 @@ pub fn lending(std: Std) -> bool {
 /// indices of the collection's type arguments whose runtime function takes what drops each,
 /// after its own arguments: the key `insert` and `entry` are given if an equal one is there
 /// already, the key `remove` takes out, the value `or_insert` is given if one is, and what
-/// `clear`, `retain`, and `truncate` discard. An iterator, and `extend` and `from`, take
+/// `clear`, `retain`, `truncate`, and a deque's `clone_from` and `clone_into` discard. An iterator, and `extend` and `from`, take
 /// theirs where they map.
 fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 	let map = matches!(std, Std::HashMap | Std::BTreeMap);
@@ -299,7 +300,9 @@ fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 		(_, "or_insert") if std == Std::Entry => &[1],
 		(_, "clear" | "retain" | "retain_mut") if map => &[0, 1],
 		(_, "clear" | "retain" | "retain_mut") if set => &[0],
-		(_, "clear" | "retain" | "retain_mut" | "truncate") if std == Std::VecDeque => &[0],
+		(_, "clear" | "retain" | "retain_mut" | "truncate" | "clone_from" | "clone_into") if std == Std::VecDeque => {
+			&[0]
+		}
 		(_, "clear") if std == Std::LinkedList => &[0],
 		(_, "clear" | "retain") if std == Std::BinaryHeap => &[0],
 		_ => return None,
@@ -737,10 +740,11 @@ fn table<'tcx>(
 fn table_entry<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
 	name: &str,
 	args: Vec<Expr>,
-	span: Span,
 ) -> Option<Expr> {
+	let span = call.span;
 	let item = arg(coll, 0);
 	let mut values = args;
 	let e = match name {
@@ -755,9 +759,21 @@ fn table_entry<'tcx>(
 				values,
 			)
 		}
-		"or_insert_with" => Expr::rt("tableOrInsertWith", values),
-		"and_modify" if b.t.needs_place(item) => Expr::rt("tableAndModifyMut", values),
-		"and_modify" => Expr::rt("tableAndModify", values),
+		"or_insert_with" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt("tableOrInsertWith", values)
+		}
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(
+				if b.t.needs_place(item) {
+					"tableAndModifyMut"
+				} else {
+					"tableAndModify"
+				},
+				values,
+			)
+		}
 		// The entry is its item's place.
 		"get_mut" | "into_mut" if b.t.needs_place(item) => values.pop()?,
 		"get" | "get_mut" | "into_mut" => values.pop()?.member("v"),
@@ -1301,8 +1317,8 @@ fn btree<'tcx>(
 
 /// `collect` and `from` into an empty B-tree of type `coll`, from `source`, an iterator of
 /// type `iter`. std's collects into a `Vec` first, reserved as for a `TrustedLen` iterator
-/// if `trusted`, sorts it stably, a set's by `PartialOrd::lt` and a map's by `Ord::cmp`,
-/// unless zero-sized, then builds the tree of each but the last of a run of keys `!=` finds
+/// if `trusted`, sorts it as std's stable sort does, a set's by `PartialOrd::lt` and a
+/// map's by `Ord::cmp`, then builds the tree of each but the last of a run of keys `!=` finds
 /// equal, which drop in order.
 fn btree_collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -1342,17 +1358,18 @@ fn btree_collect<'tcx>(
 		);
 	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
-	let sorts = !b.t.zero_sized(elem);
-	let order = match set {
-		true if sorts && own => test_fn(b, key, "lt", span),
-		true => Expr::undefined(),
-		false => Expr::lit(sorts.to_string()),
-	};
-	let same = match own {
+	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
+	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
+	if set {
+		rest.push(match own && !b.t.zero_sized(elem) {
+			true => test_fn(b, key, "lt", span),
+			false => Expr::undefined(),
+		});
+	}
+	rest.push(match own {
 		true => not_ne_fn(b, key, span),
 		false => Expr::undefined(),
-	};
-	let mut rest = vec![order, same];
+	});
 	rest.extend(entry_droppers(b, coll, span));
 	let f = if set { "btreeCollectKeys" } else { "btreeCollect" };
 	Expr::rt(f, super::iter::tail(vec![target, entries], rest))
@@ -1417,7 +1434,19 @@ fn btree_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Ex
 
 /// An empty `VecDeque` of type `coll`.
 fn deque_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Expr {
-	empty(b, Expr::rt("dequeNew", vec![]), coll, span)
+	let made = Expr::rt("dequeNew", deque_items(b, arg(coll, 0), span));
+	empty(b, made, coll, span)
+}
+
+/// What a runtime function that makes a `VecDeque` of `item`s is given after its own
+/// arguments: their size, by which std's grows it, and whether they are bytes, which it
+/// holds in a `Uint8Array` its slices view.
+fn deque_items<'tcx>(b: &mut Body<'_, '_, 'tcx>, item: Ty<'tcx>, span: Span) -> Vec<Expr> {
+	let bytes = matches!(item.kind(), ty::Uint(ty::UintTy::U8));
+	super::iter::tail(
+		vec![super::iter::size_of(b, item, span)],
+		vec![Expr::lit(bytes.to_string())],
+	)
 }
 
 /// A method of `VecDeque`, or of a trait it implements.
@@ -1436,17 +1465,14 @@ fn deque<'tcx>(
 	let back = |values: Vec<Expr>| flagged(values, true, none);
 	let e = match (owner, name) {
 		(_, "new") | ("Default", "default") => deque_new(b, coll, span),
-		// What reads or sets a capacity is given the size of the items, by which std's
-		// grows it.
 		(_, "with_capacity") => {
-			values.push(super::iter::size_of(b, item, span));
+			values.extend(deque_items(b, item, span));
 			empty(b, Expr::rt("dequeWithCapacity", values), coll, span)
 		}
 		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
 			}
-			values.push(super::iter::size_of(b, item, span));
 			let f = match name {
 				"capacity" => "dequeCapacity",
 				"reserve" => "dequeReserve",
@@ -1481,6 +1507,13 @@ fn deque<'tcx>(
 		}
 		(_, "iter_mut") if b.t.needs_place(item) => Expr::rt("dequeIterMut", values),
 		(_, "iter" | "iter_mut") => Expr::rt("dequeIter", values),
+		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
+		// bytes are views either way.
+		(_, "as_slices" | "as_mut_slices") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
+			Expr::rt("dequeByteSlices", values)
+		}
+		(_, "as_slices") => Expr::rt("dequeAsSlices", values),
+		(_, "as_mut_slices") => Expr::rt("dequeAsSlices", flagged(values, true, false)),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());
@@ -1489,18 +1522,32 @@ fn deque<'tcx>(
 		}
 		("Index" | "IndexMut", "index" | "index_mut") => Expr::rt("dequeIndex", values),
 		("Clone", "clone") => {
-			values.push(clone_fn(b, item, span));
-			values.push(super::iter::size_of(b, item, span));
-			Expr::rt("dequeClone", values)
+			let clone = clone_fn(b, item, span);
+			Expr::rt("dequeClone", super::iter::tail(values, vec![clone]))
 		}
-		// `From<Vec<T>>` keeps the vector's capacity.
+		// std's clears it, which drops its items, and extends it by clones of the source's,
+		// keeping its capacity; `clone_into` is the target's `clone_from`.
+		("Clone", "clone_from") | ("ToOwned", "clone_into") => {
+			if name == "clone_into" {
+				values.reverse();
+			}
+			values.push(clone_fn(b, item, span));
+			Expr::rt("dequeCloneFrom", values)
+		}
+		// `From<Vec<T>>` keeps the vector's capacity, and `From<[T; N]>` holds exactly `N`.
 		("From", "from") if b.t.std_of(library::targ(call.args, 1)) == Some(Std::Vec) => {
 			let v = values.pop()?;
 			let v = match matches!(item.kind(), ty::Uint(ty::UintTy::U8)) {
 				true => Expr::rt("byteVecToVec", vec![v]),
 				false => v,
 			};
-			empty(b, Expr::rt("dequeFromVec", vec![v]), coll, span)
+			let made = Expr::rt("dequeFromVec", [vec![v], deque_items(b, item, span)].concat());
+			empty(b, made, coll, span)
+		}
+		("From", "from") if library::targ(call.args, 1).is_array() => {
+			let a = values.pop()?;
+			let made = Expr::rt("dequeFromArray", [vec![a], deque_items(b, item, span)].concat());
+			empty(b, made, coll, span)
 		}
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
@@ -1799,7 +1846,13 @@ pub fn extend<'tcx>(
 			)
 		}
 		Std::Vec => Expr::rt("iterExtend", super::iter::tail(vec![target, items], vec_reserve(b))),
-		Std::VecDeque => Expr::rt("dequeExtend", super::iter::tail(vec![target, items], vec_reserve(b))),
+		Std::VecDeque => {
+			let take = super::iter::iter_take(b, iter, trusted, span);
+			Expr::rt(
+				"dequeExtend",
+				super::iter::tail(vec![target, items], vec![take, Expr::lit(trusted.to_string())]),
+			)
+		}
 		// By `for_each`, reserving nothing.
 		Std::LinkedList => {
 			let take = super::iter::iter_take(b, iter, true, span);
@@ -1951,7 +2004,7 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 	let part = match std {
 		Std::Vec if matches!(arg(coll, 0).kind(), ty::Uint(ty::UintTy::U8)) => Expr::rt("byteVecPart", Vec::new()),
 		Std::Vec => Expr::rt("vecPart", super::iter::tail(Vec::new(), size(b))),
-		Std::VecDeque => Expr::rt("dequePart", super::iter::tail(Vec::new(), size(b))),
+		Std::VecDeque => Expr::rt("dequePart", Vec::new()),
 		Std::LinkedList => Expr::rt("listPart", Vec::new()),
 		Std::BinaryHeap => {
 			let le = heap_tests(b, arg(coll, 0), false, span);
@@ -2080,7 +2133,14 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 }
 
 /// A method of an `Entry`, `OccupiedEntry`, or `VacantEntry`.
-fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec<Expr>, span: Span) -> Option<Expr> {
+fn entry<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+) -> Option<Expr> {
+	let span = call.span;
 	let value = arg(coll, 1);
 	let mut values = args;
 	// What these return a `&mut` to is a place where JS would copy it.
@@ -2094,14 +2154,20 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		// A vacant entry's.
 		"insert" if is_vacant(b, coll) => Expr::rt(mutable("entryOrInsert"), values),
 		"insert" => Expr::rt("entryInsert", values),
-		"or_insert_with" | "or_insert_with_key" => Expr::rt(mutable("entryOrInsertWith"), values),
+		"or_insert_with" | "or_insert_with_key" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryOrInsertWith"), values)
+		}
 		"or_default" => {
 			let tcx = b.t.tcx;
 			let default = trait_fn(tcx, "Default", "default");
 			values.push(b.fn_value(default, tcx.mk_args(&[value.into()]), span));
 			Expr::rt(mutable("entryOrInsertWith"), values)
 		}
-		"and_modify" => Expr::rt(mutable("entryAndModify"), values),
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryAndModify"), values)
+		}
 		"key" => Expr::rt("entryKey", values),
 		"into_key" => values.pop()?.member("k"),
 		"get" => Expr::rt("entryGet", values),
@@ -2111,6 +2177,12 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		_ => return None,
 	};
 	Some(e)
+}
+
+/// What drops the closure an entry's `or_insert_with`, `or_insert_with_key`, or `and_modify`
+/// takes last, which std's drops uncalled unless the entry is vacant or occupied as it needs.
+fn uncalled<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Vec<Expr>> {
+	b.t.droppers(call.args.types().last(), call.span)
 }
 
 /// Whether `entry`, an `Entry` of a map or, as `std` says, of a `HashTable`, is its variant
@@ -2950,6 +3022,8 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 		_ => return None,
 	};
 	if !ty.is_ref() {
+		// A deque's is the deque itself, which it pops from.
+		let name = if name == "dequeIter" { "dequeIntoIter" } else { name };
 		let droppers = entry_droppers(b, coll, span);
 		return Some(Expr::rt(name, super::iter::tail(vec![value], droppers)));
 	}
@@ -2988,10 +3062,25 @@ pub fn collect<'tcx>(
 			let target = list_new(b, ty, span);
 			extend(b, ty, arg(ty, 0), target, iter, from, span)?
 		}
-		// std's collects into a `Vec` first, whose capacity it keeps.
+		// std's takes the buffer of a deque's or a `Vec`'s `into_iter` as it is, and
+		// collects any other into a `Vec` first, whose capacity it keeps.
 		Std::VecDeque => {
-			let items = super::iter::to_array(b, iter, from, arg(ty, 0), trusted, span);
-			empty(b, Expr::rt("dequeFromVec", vec![items]), ty, span)
+			let item = arg(ty, 0);
+			let path = from
+				.ty_adt_def()
+				.map(|adt| library::std_path(b.t.tcx, adt.did()).join("::"));
+			let whole = matches!(
+				path.as_deref(),
+				Some("collections::vec_deque::into_iter::IntoIter" | "vec::into_iter::IntoIter")
+			);
+			let made = match whole {
+				true => Expr::rt("dequeFromIntoIter", [vec![iter], deque_items(b, item, span)].concat()),
+				false => {
+					let items = super::iter::to_array(b, iter, from, item, trusted, span);
+					Expr::rt("dequeFromVec", [vec![items], deque_items(b, item, span)].concat())
+				}
+			};
+			empty(b, made, ty, span)
 		}
 		_ => return None,
 	})

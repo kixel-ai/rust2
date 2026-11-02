@@ -25,6 +25,18 @@ fn nan_payloads() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// The lang fixture's `mul_add` allowance rounds exactly and accepts native a last place
+/// off only where the translation is exact, which `fma.ts` checks.
+#[test]
+fn fma_allowance() {
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("fma.ts");
+	let output = Command::new("node")
+		.arg(script)
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// A recursive `OnceLock` init, or `LazyLock` or `LazyCell` force, panics with std's
 /// message, which `once.ts` checks.
 #[test]
@@ -293,4 +305,18 @@ fn unicode() {
 		"{} differs from std's Unicode; rerun with UPDATE_EXPECT=1",
 		path.display()
 	);
+}
+
+/// A pointer the translation can't follow fails where JS keeps apart what Rust's reaches,
+/// which `pointers.ts` checks.
+#[test]
+fn pointers_apart() {
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.join("tests")
+		.join("pointers.ts");
+	let output = Command::new("node")
+		.arg(script)
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }

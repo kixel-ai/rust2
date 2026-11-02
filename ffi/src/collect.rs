@@ -249,6 +249,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 		c.declare();
 		c.define();
 		c.prune();
+		unshare(&mut c.api);
 		c
 	};
 	// Refusing an object no export returns refuses what takes it, which may leave another
@@ -872,6 +873,7 @@ impl<'tcx> Collector<'tcx> {
 							docs,
 							sync,
 							copy,
+							shared: false,
 							lifetimes,
 							methods: Vec::new(),
 							traits: Traits::default(),
@@ -975,6 +977,8 @@ impl<'tcx> Collector<'tcx> {
 			docs: docs.to_string(),
 			sync: true,
 			copy: false,
+			shared: traits.clone
+				&& self.clone_shares(tcx.type_of(def_id).instantiate_identity().skip_norm_wip(), def_id),
 			lifetimes: 0,
 			methods,
 			traits,
@@ -1297,10 +1301,12 @@ impl<'tcx> Collector<'tcx> {
 						if kind == DefKind::Struct {
 							methods.splice(0..0, self.accessors(&site));
 						}
+						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
 						object.args = args;
 						object.methods = methods;
 						object.traits = traits;
+						object.shared = shared && object.sync;
 					}
 					_ => {}
 				}
@@ -2887,6 +2893,75 @@ impl<'tcx> Collector<'tcx> {
 			.must_apply_modulo_regions()
 	}
 
+	/// Whether a clone of the type `ty`, which `def_id` declares, is a value no shared
+	/// borrow can tell apart from the original but by an `Arc`'s or `Rc`'s count, so copies
+	/// may share one: each part of it is reached through an `Arc`, an `Rc`, or a shared
+	/// reference, which a clone shares, or never changes behind `&`. A `Cell` or `Mutex` it owns, even inside a `Box`,
+	/// changes apart in a clone, and a `Drop` or a `Clone` written by hand may count
+	/// clones, so any of them, or a type it cannot see through, keeps clones apart.
+	fn clone_shares(&self, ty: Ty<'tcx>, def_id: DefId) -> bool {
+		let env = TypingEnv::post_analysis(self.tcx, def_id);
+		self.shares(ty, env, &mut Default::default())
+	}
+
+	fn shares(
+		&self,
+		ty: Ty<'tcx>,
+		env: TypingEnv<'tcx>,
+		seen: &mut rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	) -> bool {
+		let tcx = self.tcx;
+		let ty = tcx
+			.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
+			.unwrap_or(ty);
+		match ty.kind() {
+			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str | ty::Never | ty::FnPtr(..) => true,
+			ty::Ref(_, _, ty::Mutability::Not) => true,
+			ty::Array(inner, _) | ty::Slice(inner) => self.shares(*inner, env, seen),
+			ty::Tuple(elements) => elements.iter().all(|e| self.shares(e, env, seen)),
+			// Met again through a type that holds itself: what else it holds decides.
+			ty::Adt(..) if !seen.insert(ty) => true,
+			ty::Adt(adt, args) => {
+				let did = adt.did();
+				let std = |names: &[&str]| {
+					(names.iter()).any(|name| tcx.is_diagnostic_item(rustc_span::Symbol::intern(name), did))
+				};
+				if adt.is_unsafe_cell() || adt.is_union() {
+					false
+				} else if adt.is_phantom_data() || Some(did) == self.bytes || std(&["Arc", "Rc", "ArcWeak", "RcWeak"]) {
+					true
+				} else if adt.is_box()
+					|| tcx.lang_items().string() == Some(did)
+					|| std(&[
+						"Option", "Result", "Vec", "VecDeque", "HashMap", "HashSet", "BTreeMap", "BTreeSet", "Cow",
+					]) {
+					// std's own `Clone`, written by hand, clones each element.
+					args.types().all(|arg| self.shares(arg, env, seen))
+				} else if ["core", "alloc", "std"].contains(&tcx.crate_name(did.krate).as_str())
+					&& tcx.type_is_copy_modulo_regions(env, ty)
+				{
+					// std's `Clone` of a `Copy` type, such as `NonZero`'s, copies it, as std's own
+					// specializations of `Clone` for `Copy` types assume.
+					true
+				} else {
+					let derived = tcx.lang_items().clone_fn().is_some_and(|clone| {
+						ty::Instance::try_resolve(tcx, env, clone, tcx.mk_args(&[ty.into()]))
+							.ok()
+							.flatten()
+							.and_then(|instance| tcx.impl_of_assoc(instance.def_id()))
+							.is_some_and(|imp| tcx.is_automatically_derived(imp))
+					});
+					derived
+						&& tcx.adt_destructor(did).is_none()
+						&& adt
+							.all_fields()
+							.all(|field| self.shares(field.ty(tcx, args).skip_norm_wip(), env, seen))
+				}
+			}
+			_ => false,
+		}
+	}
+
 	fn is_send(&self, ty: Ty<'tcx>, env: TypingEnv<'tcx>) -> bool {
 		let tcx = self.tcx;
 		let Some(send) = tcx.get_diagnostic_item(sym::Send) else {
@@ -3285,6 +3360,45 @@ fn renumber(ty: &mut Type, gone: usize) {
 		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone)),
 		Type::Closure(params, ret) => params.iter_mut().chain([&mut **ret]).for_each(|ty| renumber(ty, gone)),
 		_ => {}
+	}
+}
+
+/// Keep apart the copies of each object an export borrows mutably, as `&mut self` or a
+/// `&mut` parameter, or lends to a closure as one: a write through one copy would show in
+/// the others, as it never does in a clone.
+fn unshare(api: &mut Api) {
+	fn borrowed(ty: &Type, out: &mut Vec<usize>) {
+		match ty {
+			Type::Ref(Mutability::Mut, inner) => {
+				if let Type::Object(i) = inner.base() {
+					out.push(*i);
+				}
+				borrowed(inner, out);
+			}
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => borrowed(inner, out),
+			Type::Tuple(elements) => elements.iter().for_each(|ty| borrowed(ty, out)),
+			Type::Closure(params, ret) => params.iter().chain([&**ret]).for_each(|ty| borrowed(ty, out)),
+			_ => {}
+		}
+	}
+	let mut mutated = Vec::new();
+	let methods = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.callbacks.iter().flat_map(|c| &c.methods))
+		.chain(&api.functions);
+	for f in methods {
+		f.params.iter().for_each(|p| borrowed(&p.ty, &mut mutated));
+	}
+	for (i, object) in api.objects.iter().enumerate() {
+		for f in &object.methods {
+			if f.receiver == Some(Receiver::Mut) {
+				mutated.push(i);
+			}
+			f.params.iter().for_each(|p| borrowed(&p.ty, &mut mutated));
+		}
+	}
+	for i in mutated {
+		api.objects[i].shared = false;
 	}
 }
 

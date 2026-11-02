@@ -63,11 +63,10 @@ class Writer {
 			i32(-1)
 			return
 		}
-		v.read { src ->
-			room(4 + src.remaining())
-			b.putInt(src.remaining())
-			b.put(src)
-		}
+		room(4 + v.size)
+		b.putInt(v.size)
+		v.copyInto(b.array(), b.position())
+		b.position(b.position() + v.size)
 	}
 
 	fun string(v: String?) = bytes(v?.encodeToByteArray())
@@ -163,7 +162,7 @@ class Reader(bytes: ByteArray) {
 	/** Bytes Rust handed over, copied or lent by their owner, or null for none. */
 	fun owned(): Bytes? = when (val n = b.getInt()) {
 		-1 -> null
-		LENT -> Bytes(b.getLong())
+		LENT -> Bytes(Lent(b.getLong()), b.getInt())
 		else -> Bytes(ByteArray(n).also { b.get(it) })
 	}
 
@@ -283,6 +282,15 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 		}
 	}
 
+	/**
+	 * End a lend, closing the handle, which Rust frees next: a call still holding it would
+	 * reach the freed handle, so it throws, as Rust's own check fails once a call borrowed.
+	 */
+	fun end() {
+		close()
+		kotlin.check(state == CLOSED) { "$type: a call still holds it when its lend ends" }
+	}
+
 	// Free it once no hold is left.
 	private fun freed(n: Long) {
 		if (n < HELD && free != null && untrack()) free.drop(raw)
@@ -314,27 +322,37 @@ fun interface Drop {
 	fun drop(raw: Long)
 }
 
-/** Frees bytes Rust handed over, once, at [free] or once the GC collects [buffer]. */
-class Free(buffer: java.nio.ByteBuffer, private val owner: Long) : Cleanup(buffer) {
+/**
+ * Rust's buffer, which [owner] holds, freed once the GC collects this. Each read passes it
+ * to the JNI function reading the buffer, as JNI keeps an argument reachable until the call
+ * returns: a fence on every JVM and Android level, where `Reference.reachabilityFence`
+ * needs API 28.
+ */
+class Lent(internal val owner: Long) {
+	init {
+		Free(this, owner)
+	}
+}
+
+private class Free(lent: Lent, private val owner: Long) : Cleanup(lent) {
 	init {
 		track()
 	}
 
-	fun free() {
-		if (untrack()) __bytes_free(owner)
+	override fun collected() {
+		untrack()
+		__bytes_free(owner)
 	}
-
-	override fun collected() = free()
 }
 
-/** What precedes a lent buffer's owner where an encoded one's length would. */
+/** What precedes a lent buffer's owner and length where an encoded one's length would. */
 const val LENT = -2
 
-/** Bytes a call returned: copied, lent by the owner a `LongArray` holds, or null for none. */
+/** Bytes a call returned: copied, lent by the owner and length a `LongArray` holds, or null for none. */
 fun owned(given: Any?): Bytes? = when (given) {
 	null -> null
 	is ByteArray -> Bytes(given)
-	else -> Bytes((given as kotlin.LongArray)[0])
+	else -> (given as kotlin.LongArray).let { Bytes(Lent(it[0]), it[1].toInt()) }
 }
 
 /** Run [block] with the raw handle of [handle], or 0 for none, held until it returns. */

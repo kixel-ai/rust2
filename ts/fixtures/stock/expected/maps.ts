@@ -12,6 +12,7 @@ import * as LinkedHashMap from "./hashlink/linked_hash_map.LinkedHashMap.ts";
 import * as linked_hash_map_Values from "./hashlink/linked_hash_map.Values.ts";
 import * as ValuesMut from "./hashlink/linked_hash_map.ValuesMut.ts";
 import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
+import * as maps_Counted from "./maps.Counted.ts";
 
 /** A length, capacity, or value, as four bytes. */
 export function put(out: rt.ByteVec, n: rt.usize): void {
@@ -99,7 +100,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.hashLen(set));
 	}
 	const own2: [rt.u16, rt.u32][] = rt.iterToArray(rt.hashIter(own), "next", 8);
-	rt.sliceSort(own2, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+	rt.sliceSort(own2, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
 	for (const _155 of own2) {
 		const k: rt.u16 = _155[0];
 		const v: rt.u32 = _155[1];
@@ -109,7 +110,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const pairs2: [[rt.u8, rt.u8], rt.u32][] = rt.iterToArray(rt.iterMap(rt.hashIter(pairs), (_210: [[rt.u8, rt.u8], rt.u32]): [[rt.u8, rt.u8], rt.u32] => {
 		return [_210[0], _210[1]] as [[rt.u8, rt.u8], rt.u32];
 	}), "next", 8);
-	rt.sliceSort(pairs2, rt.cmpLt(rt.cmpTuple<[[rt.u8, rt.u8], rt.u32], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmp])));
+	rt.sliceSort(pairs2, rt.cmpLt(rt.cmpTuple<[[rt.u8, rt.u8], rt.u32], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmp])), 8, true);
 	for (const _174 of pairs2) {
 		const a: rt.u8 = _174[0][0];
 		const b: rt.u8 = _174[0][1];
@@ -118,7 +119,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, v2 as rt.usize);
 	}
 	const set2: string[] = rt.iterToArray(rt.hashKeys(set), "next", 12);
-	rt.sliceSort(set2, rt.cmpLt(rt.cmpStr));
+	rt.sliceSort(set2, rt.cmpLt(rt.cmpStr), 12, true);
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strsJoin(set2, ",")));
 }
 
@@ -145,8 +146,8 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 	if (dataLen !== 0) {
 		const kind: rt.u8 = dataData[dataStart];
 		let t: rt.HashTable<[rt.u16, rt.u32]> = rt.hashNew() as rt.HashTable<[rt.u16, rt.u32]>;
-		const rehash: (a0: [rt.u16, rt.u32]) => rt.u64 = (e7: [rt.u16, rt.u32]): rt.u64 => {
-			return hash(kind, e7[0]);
+		const rehash: (a0: [rt.u16, rt.u32]) => rt.u64 = (e8: [rt.u16, rt.u32]): rt.u64 => {
+			return hash(kind, e8[0]);
 		};
 		const n: rt.HashTable<rt.u32> = rt.hashWithCapacity(rt.u8Rem(kind, 8) as rt.usize, 234881024) as rt.HashTable<rt.u32>;
 		const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1), 2);
@@ -164,8 +165,8 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			numbers(n, kind, op, key, out);
 			const _38: rt.u8 = rt.u8Rem(op, 9);
 			if (_38 === 0 || _38 === 1) {
-				const _40: rt.Result<rt.TableEntry<[rt.u16, rt.u32]>, rt.TableEntry<[rt.u16, rt.u32]>> = rt.tableFindEntry(t, h, (e18: [rt.u16, rt.u32]): boolean => {
-					return e18[0] === key;
+				const _40: rt.Result<rt.TableEntry<[rt.u16, rt.u32]>, rt.TableEntry<[rt.u16, rt.u32]>> = rt.tableFindEntry(t, h, (e20: [rt.u16, rt.u32]): boolean => {
+					return e20[0] === key;
 				});
 				if (_40.ok) {
 					const e: rt.TableEntry<[rt.u16, rt.u32]> = _40.value;
@@ -177,8 +178,8 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 					put(out, rt.tableInsertUnique(_40.error.t, h, [key, op as rt.u32] as [rt.u16, rt.u32], rehash).v[1] as rt.usize);
 				}
 			} else if (_38 === 2) {
-				const _65: rt.Result<rt.TableEntry<[rt.u16, rt.u32]>, rt.TableEntry<[rt.u16, rt.u32]>> = rt.tableFindEntry(t, h, (e17: [rt.u16, rt.u32]): boolean => {
-					return e17[0] === key;
+				const _65: rt.Result<rt.TableEntry<[rt.u16, rt.u32]>, rt.TableEntry<[rt.u16, rt.u32]>> = rt.tableFindEntry(t, h, (e19: [rt.u16, rt.u32]): boolean => {
+					return e19[0] === key;
 				});
 				if (_65.ok) {
 					const _74: [[rt.u16, rt.u32], rt.TableEntry<[rt.u16, rt.u32]>] = rt.tableRemove(_65.value);
@@ -191,21 +192,21 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 					put(out, 256);
 				}
 			} else if (_38 === 3) {
-				put(out, option_mapOr$0iaogpf(rt.tableFind(t, h, (e15: [rt.u16, rt.u32]): boolean => {
-					return e15[0] === key;
-				}), 256, (e16: [rt.u16, rt.u32]): rt.usize => {
-					return e16[1] as rt.usize;
+				put(out, option_mapOr$0iaogpf(rt.tableFind(t, h, (e17: [rt.u16, rt.u32]): boolean => {
+					return e17[0] === key;
+				}), 256, (e18: [rt.u16, rt.u32]): rt.usize => {
+					return e18[1] as rt.usize;
 				}));
 			} else if (_38 === 4) {
-				const _89: [rt.u16, rt.u32] | undefined = rt.tableFind(t, h, (e14: [rt.u16, rt.u32]): boolean => {
-					return e14[0] === key;
+				const _89: [rt.u16, rt.u32] | undefined = rt.tableFind(t, h, (e16: [rt.u16, rt.u32]): boolean => {
+					return e16[0] === key;
 				});
 				if (_89 !== undefined) {
 					_89[1] = rt.u32Mul(_89[1], 2);
 				}
 			} else if (_38 === 5) {
-				const _96: rt.TableEntry<[rt.u16, rt.u32]> = rt.tableEntry(t, h, (e13: [rt.u16, rt.u32]): boolean => {
-					return e13[0] === key;
+				const _96: rt.TableEntry<[rt.u16, rt.u32]> = rt.tableEntry(t, h, (e15: [rt.u16, rt.u32]): boolean => {
+					return e15[0] === key;
 				}, rehash);
 				if (rt.tableOccupied(_96)) {
 					put(out, _96.v[1] as rt.usize);
@@ -213,31 +214,46 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 					put(out, rt.tableEntryInsert(_96, [key, 1] as [rt.u16, rt.u32]).v[1] as rt.usize);
 				}
 			} else if (_38 === 6) {
-				put(out, rt.tableOrInsert(rt.tableEntry(t, h, (e12: [rt.u16, rt.u32]): boolean => {
-					return e12[0] === key;
-				}, rehash), [key, 3] as [rt.u16, rt.u32]).v[1] as rt.usize);
+				if (!((arg & 16) === 0)) {
+					const drops: rt.Cell<rt.u32> = new rt.Cell(0);
+					const captured = new maps_Counted.Counted(drops);
+					const captured2 = key;
+					const made: () => [rt.u16, rt.u32] = rt.closure((): [rt.u16, rt.u32] => {
+						return [captured2, rt.u32Add(3, captured._0.v)] as [rt.u16, rt.u32];
+					}, (): void => {
+						captured[Symbol.dispose]();
+					});
+					put(out, rt.tableOrInsertWith(rt.tableEntry(t, h, (e14: [rt.u16, rt.u32]): boolean => {
+						return e14[0] === key;
+					}, rehash), rt.once(made), rt.drop).v[1] as rt.usize);
+					put(out, drops.v as rt.usize);
+				} else {
+					put(out, rt.tableOrInsert(rt.tableEntry(t, h, (e13: [rt.u16, rt.u32]): boolean => {
+						return e13[0] === key;
+					}, rehash), [key, 3] as [rt.u16, rt.u32]).v[1] as rt.usize);
+				}
 			} else if (_38 === 7) {
-				rt.tableRetain(t, (e11: [rt.u16, rt.u32]): boolean => {
-					e11[1] = rt.u32Add(e11[1], 1);
-					return rt.u16Rem(e11[0], 3) !== rt.u8Rem(arg, 3) as rt.u16;
+				rt.tableRetain(t, (e12: [rt.u16, rt.u32]): boolean => {
+					e12[1] = rt.u32Add(e12[1], 1);
+					return rt.u16Rem(e12[0], 3) !== rt.u8Rem(arg, 3) as rt.u16;
 				});
 			} else {
-				put(out, rt.iterSum(rt.iterMap(rt.hashValues(t), (e8: [rt.u16, rt.u32]): rt.u32 => {
-					return rt.u32Add(e8[0] as rt.u32, e8[1]);
+				put(out, rt.iterSum(rt.iterMap(rt.hashValues(t), (e9: [rt.u16, rt.u32]): rt.u32 => {
+					return rt.u32Add(e9[0] as rt.u32, e9[1]);
 				}), rt.u32Add, 0) as rt.usize);
 				const copy: rt.HashTable<[rt.u16, rt.u32]> = rt.hashClone(t, undefined, copy$tuple2_u16_u32);
 				const drained: [rt.u16, rt.u32][] = rt.iterToArray(rt.tableDrain(t), "next", 8);
-				rt.sliceSort(drained, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
-				for (const _142 of drained) {
-					const k2: rt.u16 = _142[0];
-					const v2: rt.u32 = _142[1];
+				rt.sliceSort(drained, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
+				for (const _162 of drained) {
+					const k2: rt.u16 = _162[0];
+					const v2: rt.u32 = _162[1];
 					put(out, k2 as rt.usize);
 					put(out, v2 as rt.usize);
 				}
-				put(out, option_mapOr$0iaogpf(rt.tableFind(copy, h, (e9: [rt.u16, rt.u32]): boolean => {
-					return e9[0] === key;
-				}), 256, (e10: [rt.u16, rt.u32]): rt.usize => {
-					return e10[1] as rt.usize;
+				put(out, option_mapOr$0iaogpf(rt.tableFind(copy, h, (e10: [rt.u16, rt.u32]): boolean => {
+					return e10[0] === key;
+				}), 256, (e11: [rt.u16, rt.u32]): rt.usize => {
+					return e11[1] as rt.usize;
 				}));
 				put(out, rt.hashLen(copy));
 				if ((arg & 1) === 1) {
@@ -248,10 +264,10 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rt.byteVecPush(out, rt.hashLen(t) === 0 ? 1 : 0);
 		}
 		const left: [rt.u16, rt.u32][] = rt.iterToArray(rt.hashValues(t), "next", 8);
-		rt.sliceSort(left, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
-		for (const _179 of left) {
-			const k3: rt.u16 = _179[0];
-			const v3: rt.u32 = _179[1];
+		rt.sliceSort(left, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
+		for (const _199 of left) {
+			const k3: rt.u16 = _199[0];
+			const v3: rt.u32 = _199[1];
 			put(out, k3 as rt.usize);
 			put(out, v3 as rt.usize);
 		}
@@ -273,22 +289,31 @@ export function numbers(n: rt.HashTable<rt.u32>, kind: rt.u8, op: rt.u8, key: rt
 	b0: {
 		const _12: rt.u8 = rt.u8Rem(op, 6);
 		if (_12 === 0) {
-			put(out, rt.tableOrInsert(rt.tableAndModifyMut(rt.tableEntry(n, h, ours, rehash), (e8: rt.Place<rt.u32>): undefined => {
-				e8.v = rt.u32Add(e8.v, 1);
-			}), (((key as rt.u32)) << 16) >>> 0).v as rt.usize);
+			const drops: rt.Cell<rt.u32> = new rt.Cell(0);
+			const held: maps_Counted.Counted = new maps_Counted.Counted(drops);
+			const _18: rt.TableEntry<rt.u32> = rt.tableEntry(n, h, ours, rehash);
+			const captured = held;
+			const e: rt.TableEntry<rt.u32> = rt.tableAndModifyMut(_18, rt.closure((e8: rt.Place<rt.u32>): undefined => {
+				e8.v = rt.u32Add(e8.v, rt.u32Add(1, captured._0.v));
+				captured[Symbol.dispose]();
+			}, (): void => {
+				captured[Symbol.dispose]();
+			}), rt.drop);
+			put(out, drops.v as rt.usize);
+			put(out, rt.tableOrInsert(e, (((key as rt.u32)) << 16) >>> 0).v as rt.usize);
 		} else if (_12 === 1) {
-			const _26: rt.Place<rt.u32> | undefined = rt.tableFindMut(n, h, ours);
-			if (_26 === undefined) {
+			const _34: rt.Place<rt.u32> | undefined = rt.tableFindMut(n, h, ours);
+			if (_34 === undefined) {
 				put(out, rt.tableInsertUnique(n, h, (((key as rt.u32)) << 16) >>> 0, rehash).v as rt.usize);
 			} else {
-				_26.v = rt.u32Add(_26.v, 2);
+				_34.v = rt.u32Add(_34.v, 2);
 			}
 		} else if (_12 === 2) {
-			const _38: rt.Result<rt.TableEntry<rt.u32>, rt.TableEntry<rt.u32>> = rt.tableFindEntry(n, h, ours);
-			if (_38.ok) {
-				const e2: rt.TableEntry<rt.u32> = _38.value;
-				const _41: rt.Place<rt.u32> = e2;
-				_41.v = rt.u32Add(_41.v, 3);
+			const _46: rt.Result<rt.TableEntry<rt.u32>, rt.TableEntry<rt.u32>> = rt.tableFindEntry(n, h, ours);
+			if (_46.ok) {
+				const e2: rt.TableEntry<rt.u32> = _46.value;
+				const _49: rt.Place<rt.u32> = e2;
+				_49.v = rt.u32Add(_49.v, 3);
 				const e3: rt.Place<rt.u32> = e2;
 				e3.v = rt.u32Add(e3.v, 4);
 			}
@@ -301,32 +326,32 @@ export function numbers(n: rt.HashTable<rt.u32>, kind: rt.u8, op: rt.u8, key: rt
 			if (_12 === 4) {
 				const iter: rt.Iter<rt.Place<rt.u32>> = rt.hashValuesMut(n);
 				while (true) {
-					const _50: rt.Place<rt.u32> | rt.Done = iter.next();
-					if (_50 === rt.DONE) {
+					const _58: rt.Place<rt.u32> | rt.Done = iter.next();
+					if (_58 === rt.DONE) {
 						break;
 					}
-					_50.v = (_50.v ^ 1) >>> 0;
+					_58.v = (_58.v ^ 1) >>> 0;
 				}
 				const iter2: rt.Iter<rt.Place<rt.u32>> = rt.hashValuesMut(n);
 				while (true) {
-					const _56: rt.Place<rt.u32> | rt.Done = iter2.next();
-					if (_56 === rt.DONE) {
+					const _64: rt.Place<rt.u32> | rt.Done = iter2.next();
+					if (_64 === rt.DONE) {
 						break b0;
 					}
-					_56.v = rt.u32Add(_56.v, 1);
+					_64.v = rt.u32Add(_64.v, 1);
 				}
 			}
-			const _61: rt.TableEntry<rt.u32> = rt.tableEntry(n, h, ours, rehash);
-			if (rt.tableOccupied(_61)) {
-				const _64: rt.Place<rt.u32> = _61;
-				_64.v = rt.u32Add(_64.v, 6);
+			const _69: rt.TableEntry<rt.u32> = rt.tableEntry(n, h, ours, rehash);
+			if (rt.tableOccupied(_69)) {
+				const _72: rt.Place<rt.u32> = _69;
+				_72.v = rt.u32Add(_72.v, 6);
 			}
 		}
 	}
 	const items: rt.u32[] = rt.iterToArray(rt.hashValues(n), "next", 4);
-	rt.sliceSort(items, rt.lt);
-	for (const _77 of items) {
-		put(out, _77 as rt.usize);
+	rt.sliceSort(items, rt.lt, 4, true);
+	for (const _85 of items) {
+		put(out, _85 as rt.usize);
 	}
 }
 

@@ -28,7 +28,7 @@ export function putHint(out: rt.ByteVec, _2: [rt.usize, rt.usize | undefined]): 
  */
 export function putVec(out: rt.ByteVec, v: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(v.length & 0xff, v.data.length & 0xff)), undefined, true);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(v)), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
 }
 
 /**
@@ -107,7 +107,7 @@ export function ends(kind: rt.u8, dataData: Uint8Array, dataStart: number, dataL
 			}
 		}
 		rt.byteVecPush(out, 254);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(log.value)), undefined, true);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(log.value), undefined, true);
 	}
 }
 
@@ -318,7 +318,7 @@ export function fuses(bits: rt.u8, out: rt.ByteVec): void {
 	while (iterStart2++ < iterEnd2) {
 		put(out, rt.iterToOption(lapsed.next()));
 	}
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(rt.iterToByteVec(rt.iterTake(rt.iterFlatten(rt.iterSlice([{ _0: start }, { _0: rt.u8WrappingAdd(start, 1) }]), (value: Flicker.Flicker) => rt.iterFrom(value, (it: Flicker.Flicker) => Flicker.next$iter_Iterator(it), undefined, undefined, (it: Flicker.Flicker) => rt.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it))), true), 5), "next"))), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterTake(rt.iterFlatten(rt.iterSlice([{ _0: start }, { _0: rt.u8WrappingAdd(start, 1) }]), (value: Flicker.Flicker) => rt.iterFrom(value, (it: Flicker.Flicker) => Flicker.next$iter_Iterator(it), undefined, undefined, (it: Flicker.Flicker) => rt.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it))), true), 5), "next")), undefined, true);
 }
 
 //# sourceMappingURL=ends.ts.map

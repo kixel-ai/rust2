@@ -3,6 +3,7 @@
 //! iteration order is unspecified, so only what does not depend on it is written, but a
 //! linked map's order is its own, and written as it is, read from either end.
 
+use std::cell::Cell;
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
 use std::sync::Arc;
@@ -10,6 +11,16 @@ use std::sync::Arc;
 use hashbrown::hash_table::{Entry, HashTable};
 use hashbrown::{HashMap, HashSet};
 use hashlink::LinkedHashMap;
+
+/// Counts its drop in the cell it borrows, so a closure that owns one shows whether it
+/// dropped before it was called, and that it dropped at all.
+struct Counted<'a>(&'a Cell<u32>);
+
+impl Drop for Counted<'_> {
+	fn drop(&mut self) {
+		self.0.set(self.0.get() + 1);
+	}
+}
 
 /// A length, capacity, or value, as four bytes.
 fn put(out: &mut Vec<u8>, n: usize) {
@@ -139,9 +150,21 @@ pub fn table(data: &[u8], out: &mut Vec<u8>) {
 				Entry::Occupied(e) => put(out, e.into_mut().1 as usize),
 				Entry::Vacant(e) => put(out, e.insert((key, 1)).into_mut().1 as usize),
 			},
-			6 => {
+			6 if arg & 16 == 0 => {
 				let e = t.entry(h, |e| e.0 == key, rehash).or_insert((key, 3));
 				put(out, e.get().1 as usize);
+			}
+			// By a closure that owns what drops, called if vacant and else dropped uncalled.
+			6 => {
+				let drops = Cell::new(0);
+				let held = Counted(&drops);
+				let made = move || {
+					let held = &held;
+					(key, 3 + held.0.get())
+				};
+				let e = t.entry(h, |e| e.0 == key, rehash).or_insert_with(made);
+				put(out, e.get().1 as usize);
+				put(out, drops.get() as usize);
 			}
 			7 => t.retain(|e| {
 				e.1 += 1;
@@ -184,7 +207,13 @@ fn numbers(n: &mut HashTable<u32>, kind: u8, op: u8, key: u16, out: &mut Vec<u8>
 	let rehash = |e: &u32| hash(kind, (*e >> 16) as u16);
 	match op % 6 {
 		0 => {
-			let e = n.entry(h, ours, rehash).and_modify(|e| *e += 1);
+			let drops = Cell::new(0);
+			let held = Counted(&drops);
+			let e = n.entry(h, ours, rehash).and_modify(move |e| {
+				let held = &held;
+				*e += 1 + held.0.get();
+			});
+			put(out, drops.get() as usize);
 			put(out, *e.or_insert(u32::from(key) << 16).get() as usize);
 		}
 		1 => match n.find_mut(h, ours) {
