@@ -453,6 +453,15 @@ impl Channel {
 		}
 	}
 
+	/// Sends from another thread, before it returns, so the wake lands from that thread, as
+	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
+	/// object, has to wake from another thread.
+	pub fn send_from_thread(&self, payload: Bytes) {
+		std::thread::scope(|scope| {
+			scope.spawn(|| self.send(payload));
+		});
+	}
+
 	/// The next payload sent, waiting for it.
 	pub async fn recv(&self) -> Bytes {
 		std::future::poll_fn(|cx| {

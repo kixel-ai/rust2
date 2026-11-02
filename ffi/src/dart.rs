@@ -7,7 +7,8 @@
 //! `TrackProducer.appendGroup`. A reserved word takes a trailing `_`. An object is a final
 //! class owning its handle, freed by `close` or a `NativeFinalizer`; a record a final
 //! class; an enum a Dart enum, or with data a sealed class of a final class per variant; a
-//! tuple a record; a trait an interface; a closure a function type; a future a
+//! tuple a record; a trait an abstract class, whose `close` Rust calls once it drops an
+//! implementation; a closure a function type; a future a
 //! `Cancelable`, a `Future` that cancels; an error a thrown exception. The runtime they
 //! share, [`runtime/rt.dart`](../runtime/rt.dart), holds the handles, the stack a call
 //! lowers its values into, and the port the isolate hears Rust through.
@@ -83,7 +84,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		("contract", "", "ffi.Uint64", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		("dart_init", "ffi.Pointer<ffi.Void>", "ffi.Bool", "ffi.Pointer<ffi.Void> p0", "bool"),
-		("dart_home", "ffi.Int64", "ffi.Pointer<ffi.Void>", "int p0", "ffi.Pointer<ffi.Void>"),
+		(
+			"dart_home",
+			"ffi.Int64, ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>",
+			"ffi.Pointer<ffi.Void>",
+			"int p0, ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>> p1",
+			"ffi.Pointer<ffi.Void>",
+		),
 		(
 			"dart_waker",
 			"ffi.Pointer<ffi.Void>, ffi.Int64",
@@ -141,7 +148,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		use std::ffi::c_void;\n\n\
 		use crate::rt;\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_init(data: *const c_void) -> bool {{\n\tunsafe {{ runtime::init(data) }}\n}}\n\n\
-		#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_dart_home(port: i64) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port)).cast()\n}}\n\n\
+		#[unsafe(no_mangle)]\npub extern \"C\" fn {p}_dart_home(port: i64, dropped: unsafe extern \"C\" fn(i64)) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port, dropped)).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_waker(home: *const c_void, token: i64) -> rt::Waker {{\n\truntime::waker(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_relay_free(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_free(relay.cast()) }}\n}}\n\n\
@@ -1265,8 +1272,10 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		let mut relays = Vec::new();
 		let mut trampolines = Vec::new();
+		// `close` is the hook Rust calls once it drops an implementation.
+		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
 		for method in &callback.methods {
-			let member = member(&abi::snake(method.name()), OBJECT);
+			let member = member(&abi::snake(method.name()), &reserved);
 			members.push(member.clone());
 			let params: Vec<String> = (method.params.iter())
 				.map(|p| format!("{} {}", self.dt(&p.ty), param_name(&p.name)))
@@ -1316,10 +1325,13 @@ impl<'a> Gen<'a> {
 		self.helpers.insert(
 			tables.clone(),
 			format!(
-				"final {tables} = _n.tables([\n\t{}\n], [\n\t{}\n]);\n\n",
+				"final {tables} = _n.tables('{rust}', [\n\t{}\n], [\n\t{}\n]);\n\n",
 				relays.join(",\n\t"),
 				trampolines.join(",\n\t")
 			),
+		);
+		body.push(
+			"\t/// Called once Rust drops this implementation, to free what it holds: at once on the\n\t/// isolate's thread, or else from its event loop.\n\tvoid close() {}".to_string(),
 		);
 		let text = format!(
 			"{rust}: implemented in Dart. Rust calls its methods on the isolate's thread: from\n\
@@ -1328,7 +1340,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.types,
-			"{}abstract interface class {name} {{\n{}\n}}\n\n",
+			"{}abstract class {name} {{\n{}\n}}\n\n",
 			docs(text.trim(), ""),
 			body.join("\n\n")
 		);
@@ -1544,7 +1556,7 @@ impl<'a> Gen<'a> {
 					let cb = abi.callback(*i);
 					let v = format!("c{k}_");
 					pre.push(format!(
-						"final {v} = a_<_Callback>();\n_n.give({v}.ref, _tables_{}, {name});",
+						"final {v} = a_<_Callback>();\n_n.give({v}.ref, _tables_{}, {name}, {name}.close);",
 						self.bare(&cb)
 					));
 					args.push(format!("{v}.ref"));

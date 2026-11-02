@@ -1,9 +1,9 @@
 //! The runtime the `dart` feature builds for `dart/<prefix>.dart`: what an isolate needs
 //! of Rust that `dart:ffi` lacks.
 //!
-//! A wake, a dropped waker or implementation, and a call into Dart from another thread
-//! each reach the isolate as an integer posted to its port, which never blocks and which
-//! a port closed with its isolate drops. Dart runs code only on the thread in its isolate,
+//! A wake, a dropped waker, and a call into Dart or an implementation dropped on another
+//! thread each reach the isolate as an integer posted to its port, which never blocks and
+//! which a port closed with its isolate drops. Dart runs code only on the thread in its isolate,
 //! so a call into Dart from any other thread waits for the isolate to run it: from its
 //! event loop, or, while it waits in a call that lends a closure, from that wait, since
 //! such a call runs on a thread of its own.
@@ -93,6 +93,8 @@ pub unsafe fn init(data: *const c_void) -> bool {
 pub struct Home {
 	port: i64,
 	isolate: usize,
+	/// What tells Dart, on its thread, that Rust dropped the implementation of a token.
+	dropped: unsafe extern "C" fn(i64),
 	queue: Mutex<Queue>,
 	ready: Condvar,
 }
@@ -104,13 +106,15 @@ struct Queue {
 	serving: usize,
 }
 
-/// The isolate the calling thread is in, whose port is `port`.
-pub fn home(port: i64) -> &'static Home {
+/// The isolate the calling thread is in, whose port is `port` and which `dropped` tells
+/// of each implementation Rust drops on its thread.
+pub fn home(port: i64, dropped: unsafe extern "C" fn(i64)) -> &'static Home {
 	// SAFETY: a call from Dart.
 	let isolate = unsafe { (api().isolate)() } as usize;
 	Box::leak(Box::new(Home {
 		port,
 		isolate,
+		dropped,
 		queue: Mutex::default(),
 		ready: Condvar::new(),
 	}))
@@ -343,12 +347,20 @@ pub unsafe fn relay_free(relay: *mut Relay) {
 	drop(unsafe { Box::from_raw(relay) });
 }
 
-/// An implementation's `free`: tell the isolate Rust dropped it.
+/// An implementation's `free`: tell the isolate Rust dropped it, at once on its thread, so
+/// its `close` runs before the call that dropped it returns, or else through its port. A
+/// `NativeFinalizer` runs with no current isolate, so a drop it makes posts.
 ///
 /// # Safety
 /// `relay` came from [`relay`], freed once.
 pub unsafe extern "C" fn relay_drop(relay: *mut c_void) {
 	// SAFETY: the caller's contract.
 	let relay = unsafe { Box::from_raw(relay.cast::<Relay>()) };
-	relay.home.post(((relay.token as i64) << 2) | DROP);
+	let token = relay.token as i64;
+	if relay.home.here() {
+		// SAFETY: on the isolate's thread, in a call from Dart.
+		unsafe { (relay.home.dropped)(token) };
+	} else {
+		relay.home.post((token << 2) | DROP);
+	}
 }

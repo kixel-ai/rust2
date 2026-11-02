@@ -385,7 +385,7 @@ final class _Native {
       throw StateError("$_file: the library was built for another major version of Dart's API");
     }
     _port = isolate.RawReceivePort(_receive, _file)..keepIsolateAlive = false;
-    home = _dartHome(_port.sendPort.nativePort);
+    home = _dartHome(_port.sendPort.nativePort, ffi.Pointer.fromFunction<ffi.Void Function(ffi.Int64)>(_dropped));
   }
 
   /// Make sure the contract was checked: only a call that touches nothing else of the
@@ -435,10 +435,11 @@ final class _Native {
     return waker(token);
   }
 
-  /// A trait's two tables, made once: Rust calls through the first, whose `free` tells
-  /// the isolate it dropped an implementation, and whose relays call the second's
+  /// The trait `what`'s two tables, made once: Rust calls through the first, whose `free`
+  /// tells the isolate it dropped an implementation, and whose relays call the second's
   /// trampolines on the isolate's thread.
-  (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) tables(
+  (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, String) tables(
+    String what,
     List<ffi.Pointer<ffi.Void>> relays,
     List<ffi.Pointer<ffi.Void>> trampolines,
   ) {
@@ -450,14 +451,27 @@ final class _Native {
       ptr[i + 1] = relays[i];
       ptr[n + i + 1] = trampolines[i];
     }
-    return (ptr.cast(), (ptr + n).cast());
+    return (ptr.cast(), (ptr + n).cast(), what);
   }
 
-  /// `implementation` given to Rust through `tables`, until Rust drops it.
-  void give(_Callback dst, (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) tables, Object implementation) {
+  /// `implementation` given to Rust through `tables`, until Rust drops it, which calls its
+  /// `close`.
+  void give(
+    _Callback dst,
+    (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, String) tables,
+    Object implementation,
+    void Function() close,
+  ) {
     final token = next();
     lent[token] = implementation;
-    _drops[token] = () => lent.remove(token);
+    _drops[token] = () {
+      lent.remove(token);
+      try {
+        close();
+      } catch (e, s) {
+        abort('${tables.$3}::close', e, s);
+      }
+    };
     dst.vtable = tables.$1;
     dst.data = _dartRelay(home, tables.$2, token);
   }
@@ -606,6 +620,9 @@ final class _Native {
   int i32(int v) =>
       v >= -0x80000000 && v <= 0x7fffffff ? v : throw RangeError.range(v, -0x80000000, 0x7fffffff);
 }
+
+/// What Rust calls on the isolate's thread once it drops an implementation.
+void _dropped(int token) => _n._drops.remove(token)?.call();
 
 /// What frees the owner of bytes lent to a list.
 final _ownerFree = ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(_dartOwnerFree);
