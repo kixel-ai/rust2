@@ -1901,6 +1901,23 @@ fn mapping<'tcx>(
 			let cmp = super::collections::cmp_fn(b, elem, false, span);
 			Expr::rt("sliceBinarySearch", vec![s, x, cmp])
 		}
+		// std's same search by the closure's `Ordering`, by `Ord::cmp` of the key it makes
+		// with `b`, or by whether `pred` holds.
+		("slice", "binary_search_by" | "binary_search_by_key" | "partition_point") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
+			match name.as_str() {
+				"binary_search_by" => Expr::rt("sliceBinarySearchBy", values),
+				"partition_point" => Expr::rt("slicePartitionPoint", values),
+				_ => {
+					let key = targ(gargs, 1);
+					values.push(super::collections::cmp_fn(b, key, false, span));
+					let drop = b.t.dropper(key, span);
+					Expr::rt("sliceBinarySearchByKey", super::iter::tail(values, vec![drop]))
+				}
+			}
+		}
 		// Each slot but the last a clone, as `clone_from` makes it, and the last the value;
 		// a `TrivialClone`'s copies, as std specializes `fill` to.
 		("slice", "fill") => {
