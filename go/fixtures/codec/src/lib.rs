@@ -1,6 +1,6 @@
 //! moq-net's sync codec, as rust2-ts's codec fixture vendors it, translated to Go: its
 //! sources are that fixture's, and only `bench` is this crate's own, the workloads of
-//! that fixture's benchmark that code moq's wire format.
+//! that fixture's benchmark that code moq's wire format and a group's whole stream.
 
 #![allow(dead_code, reason = "a vendored subset of moq-net, which uses the rest")]
 #![allow(

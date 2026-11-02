@@ -29,6 +29,36 @@ fn dependency(krate: &str) -> String {
 	format!("{krate}_export")
 }
 
+/// The Rust spelling of a C type.
+pub fn rs(ty: &Ty) -> String {
+	match ty {
+		Ty::Void => "()".to_string(),
+		Ty::Bool => "bool".to_string(),
+		Ty::Int(int) => int.rust().to_string(),
+		Ty::F32 => "f32".to_string(),
+		Ty::F64 => "f64".to_string(),
+		Ty::Char => "u32".to_string(),
+		Ty::Buf => "rt::Buf".to_string(),
+		Ty::Duration => "rt::Duration".to_string(),
+		Ty::SocketAddr => "rt::SocketAddr".to_string(),
+		Ty::Struct(name) => name.clone(),
+		// A C enum is an `int`.
+		Ty::Enum(_) | Ty::Poll => "i32".to_string(),
+		Ty::Handle { .. } => "*const c_void".to_string(),
+		Ty::Future(_) => "*mut rt::Future".to_string(),
+		Ty::Waker => "rt::Waker".to_string(),
+		Ty::Out(inner) => format!("*mut {}", rs(inner)),
+		Ty::In(inner) => format!("*const {}", rs(inner)),
+		Ty::Fn(params, ret) => {
+			let params: Vec<String> = std::iter::once("*mut c_void".to_string())
+				.chain(params.iter().map(rs))
+				.collect();
+			format!("Option<unsafe extern \"C\" fn({}) -> {}>", params.join(", "), rs(ret))
+		}
+		Ty::Data => "*mut c_void".to_string(),
+	}
+}
+
 /// The crate that builds the C ABI.
 pub struct Crate<'a> {
 	pub abi: &'a Abi<'a>,
@@ -50,7 +80,7 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `go/<prefix>.go`.
+	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
 	pub fn write(&self, out: &Path) -> Result<(), String> {
 		// Cargo unifies in what the configured package enables in each other export.
 		let dependencies: String = (self.exports.iter())
@@ -107,6 +137,8 @@ impl Crate<'_> {
 			kotlin = [\"dep:jni-sys\"]\n\
 			# The CPython extension python/{lib}.py loads.\n\
 			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\"]\n\
+			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
+			dart = []\n\
 			\n\
 			[workspace]\n\
 			{patch}",
@@ -121,6 +153,7 @@ impl Crate<'_> {
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
 		let go = crate::go::generate(self.abi, &self.packages(), contract)?;
+		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
 		let mut generator = Gen {
 			abi: self.abi,
 			packages: self.packages(),
@@ -151,6 +184,9 @@ impl Crate<'_> {
 			&out.join("python").join(format!("{}.py", self.abi.prefix)),
 			&python.python,
 		)?;
+		crate::driver::write(&out.join("src/dart/mod.rs"), &dart.glue)?;
+		crate::driver::write(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME)?;
+		crate::driver::write(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart)?;
 		let swift_dir = out.join("swift");
 		crate::driver::write(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift)?;
 		crate::driver::write(&swift_dir.join("module.modulemap"), &swift.modulemap)?;
@@ -228,40 +264,6 @@ impl Gen<'_> {
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
 			Type::Object(i) => generic(&api.objects[*i].path, api.objects[*i].lifetimes, &api.objects[*i].args),
 			other => unreachable!("no callback or type argument is {other:?}"),
-		}
-	}
-
-	/// The Rust spelling of a C type.
-	fn rs(&self, ty: &Ty) -> String {
-		match ty {
-			Ty::Void => "()".to_string(),
-			Ty::Bool => "bool".to_string(),
-			Ty::Int(int) => int.rust().to_string(),
-			Ty::F32 => "f32".to_string(),
-			Ty::F64 => "f64".to_string(),
-			Ty::Char => "u32".to_string(),
-			Ty::Buf => "rt::Buf".to_string(),
-			Ty::Duration => "rt::Duration".to_string(),
-			Ty::SocketAddr => "rt::SocketAddr".to_string(),
-			Ty::Struct(name) => name.clone(),
-			// A C enum is an `int`.
-			Ty::Enum(_) | Ty::Poll => "i32".to_string(),
-			Ty::Handle { .. } => "*const c_void".to_string(),
-			Ty::Future(_) => "*mut rt::Future".to_string(),
-			Ty::Waker => "rt::Waker".to_string(),
-			Ty::Out(inner) => format!("*mut {}", self.rs(inner)),
-			Ty::In(inner) => format!("*const {}", self.rs(inner)),
-			Ty::Fn(params, ret) => {
-				let params: Vec<String> = std::iter::once("*mut c_void".to_string())
-					.chain(params.iter().map(|p| self.rs(p)))
-					.collect();
-				format!(
-					"Option<unsafe extern \"C\" fn({}) -> {}>",
-					params.join(", "),
-					self.rs(ret)
-				)
-			}
-			Ty::Data => "*mut c_void".to_string(),
 		}
 	}
 
@@ -495,6 +497,7 @@ impl Gen<'_> {
 		self.line("mod rt;\n");
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
+		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
 		self.line("use std::ffi::c_void;\n");
 		// An export may export nothing and only enable features in the others, as a
 		// package standing in for a binding crate does, which cargo would call unused.
@@ -522,7 +525,7 @@ impl Gen<'_> {
 			self.line(format!("pub type {name} = rt::{kind}<{}>;\n", int.rust()));
 		}
 		for (name, elem) in &self.abi.lists.clone() {
-			let c = self.rs(&self.abi.ty(elem));
+			let c = rs(&self.abi.ty(elem));
 			self.line(format!("pub type {name} = rt::List<{c}>;\n"));
 			let free = self
 				.free(&Type::List(Box::new(elem.clone())), "this")
@@ -533,14 +536,14 @@ impl Gen<'_> {
 		}
 		for (name, elements) in &self.abi.tuples.clone() {
 			let fields: String = (elements.iter().enumerate())
-				.map(|(n, ty)| format!("\tpub _{n}: {},\n", self.rs(&self.abi.ty(ty))))
+				.map(|(n, ty)| format!("\tpub _{n}: {},\n", rs(&self.abi.ty(ty))))
 				.collect();
 			self.line(format!(
 				"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n{fields}}}\n"
 			));
 		}
 		for (name, inner) in &self.abi.options.clone() {
-			let value = self.rs(&self.abi.ty(inner));
+			let value = rs(&self.abi.ty(inner));
 			self.line(format!(
 				"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub some: bool,\n\tpub value: {value},\n}}\n"
 			));
@@ -618,7 +621,7 @@ impl Gen<'_> {
 		let lift = self.lift(ty, "unsafe { *this }");
 		let lift_a = self.lift(ty, "unsafe { *a }");
 		let lift_b = self.lift(ty, "unsafe { *b }");
-		let c = self.rs(&self.abi.ty(ty));
+		let c = rs(&self.abi.ty(ty));
 		if traits.eq {
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_eq(a: *const {c}, b: *const {c}) -> bool {{\n\tlet w = \"{name}_eq\";\n\t<{path} as ::std::cmp::PartialEq>::eq(&{lift_a}, &{lift_b})\n}}\n"
@@ -655,7 +658,7 @@ impl Gen<'_> {
 		let ty = Type::Record(i);
 		let mut fields = String::new();
 		for (n, field) in record.fields.iter().enumerate() {
-			let _ = writeln!(fields, "\tpub f{n}: {},", self.rs(&self.abi.ty(&field.ty)));
+			let _ = writeln!(fields, "\tpub f{n}: {},", rs(&self.abi.ty(&field.ty)));
 		}
 		self.line(format!(
 			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n{fields}}}\n"
@@ -754,7 +757,7 @@ impl Gen<'_> {
 				let payload = format!("{name}_{}", abi::snake(&variant.name));
 				let mut fields = String::new();
 				for (k, field) in variant.fields.iter().enumerate() {
-					let _ = writeln!(fields, "\tpub f{k}: {},", self.rs(&self.abi.ty(&field.ty)));
+					let _ = writeln!(fields, "\tpub f{k}: {},", rs(&self.abi.ty(&field.ty)));
 				}
 				self.line(format!(
 					"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {payload} {{\n{fields}}}\n"
@@ -871,9 +874,9 @@ impl Gen<'_> {
 		for method in &callback.methods {
 			let method_name = method.name();
 			let c_params: Vec<String> = std::iter::once("*mut c_void".to_string())
-				.chain(method.params.iter().map(|p| self.rs(&self.abi.ty(&p.ty))))
+				.chain(method.params.iter().map(|p| rs(&self.abi.ty(&p.ty))))
 				.collect();
-			let ret = self.rs(&self.abi.ty(&method.ok));
+			let ret = rs(&self.abi.ty(&method.ok));
 			let _ = writeln!(
 				table,
 				"\tpub {method_name}: Option<unsafe extern \"C\" fn({}) -> {ret}>,",
@@ -1014,7 +1017,7 @@ impl Gen<'_> {
 		let write = |ty: &Type, out: &str, v: &str| {
 			format!(
 				"unsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
-				self.rs(&self.abi.ty(ty)),
+				rs(&self.abi.ty(ty)),
 				self.lower(ty, v)
 			)
 		};
@@ -1045,7 +1048,7 @@ impl Gen<'_> {
 			},
 			Some(err) => format!(
 				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
-				self.rs(&self.abi.ty(err)),
+				rs(&self.abi.ty(err)),
 				self.lower(err, "e")
 			),
 		}
@@ -1064,7 +1067,7 @@ impl Gen<'_> {
 		let receiver_ty = owner.as_ref().zip(function.receiver);
 		if let Some(((_, owner_type), receiver)) = &receiver_ty {
 			let (_, c_ty) = c_params.next().expect("a method takes self");
-			params.push(format!("this: {}", self.rs(c_ty)));
+			params.push(format!("this: {}", rs(c_ty)));
 			match owner_type {
 				Type::Object(i) => {
 					let ty = match receiver {
@@ -1087,10 +1090,10 @@ impl Gen<'_> {
 		}
 		for (n, param) in function.params.iter().enumerate() {
 			let (_, c_ty) = c_params.next().expect("a C parameter for each");
-			params.push(format!("p{n}: {}", self.rs(c_ty)));
+			params.push(format!("p{n}: {}", rs(c_ty)));
 			if let Type::Closure(..) = param.ty {
 				let (_, data) = c_params.next().expect("a lent function's data");
-				params.push(format!("p{n}_data: {}", self.rs(data)));
+				params.push(format!("p{n}_data: {}", rs(data)));
 			}
 			let (stmt, arg) = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
 			stmts.push(stmt);
@@ -1138,7 +1141,7 @@ impl Gen<'_> {
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
-				.map(|(n, ty)| format!("{n}: {}", self.rs(ty)))
+				.map(|(n, ty)| format!("{n}: {}", rs(ty)))
 				.collect();
 			let outs: Vec<String> = Self::outs(function).iter().map(|out| format!("{out}.cast()")).collect();
 			let outs = outs.join(", ");
@@ -1160,10 +1163,10 @@ impl Gen<'_> {
 		}
 		let outs: Vec<String> = export.call.params[params.len()..]
 			.iter()
-			.map(|(n, ty)| format!("{n}: {}", self.rs(ty)))
+			.map(|(n, ty)| format!("{n}: {}", rs(ty)))
 			.collect();
 		params.extend(outs);
-		let ret = self.rs(&export.call.ret);
+		let ret = rs(&export.call.ret);
 		let finish = match function.err {
 			Some(_) => self.finish(function, ("v", "true", "false")),
 			None => self.finish(function, ("", "", "")),

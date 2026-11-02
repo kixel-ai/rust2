@@ -16,9 +16,10 @@ Decided with the maintainer on 2026-11-01, settling
 [#410](https://github.com/moq-dev/rust2/pull/410):
 
 - **Continue as research,** [speed](/quest/m4/go/speed.md) first, then
-  [coverage](/quest/m4/go/coverage.md). If speed cannot bring every `just go bench`
-  workload within 2x of cgo, delete `go/` and this epic, keeping the measurements in the
-  PR that does.
+  [coverage](/quest/m4/go/coverage.md). If speed cannot bring the translated crate
+  within 2x of cgo on a realistic whole-crate workload (a group's stream end to end,
+  decided on 2026-11-02 in [#428](https://github.com/moq-dev/rust2/pull/428)), delete
+  `go/` and this epic, keeping the measurements in the PR that does.
 - **Share rust2-ts's front end piece by piece,** as Go needs each piece, starting with
   the control-flow structuring in `ts/src/lower/mir/cfg.rs`. No shared crate lands ahead
   of a Go use. About a quarter of `ts/src` would serve Go, nearly all of it inside files
@@ -32,6 +33,6 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 
 ## Required
 
-- [Match cgo on the codec](/quest/m4/go/speed.md) - the translated codec within 2x of cgo on `just go bench`
+- [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
 - [Show why a differential test fails](/quest/m4/go/failures.md) - a failing fixture test prints its differences instead of only that it failed
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole

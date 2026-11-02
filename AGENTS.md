@@ -58,8 +58,8 @@ Use the Nix dev shell so tooling matches CI.
 direnv loads it automatically, but if not: `nix develop --command ...`.
 
 ```bash
-just check   # Lint everything, including the quest tree
-just test    # Run the tests
+just check   # Lint what the branch changed, including the quest tree
+just test    # Test what the branch changed
 just ci      # Both, as the land gate runs them; run before every push
 just fix     # Auto-fix formatting
 ```

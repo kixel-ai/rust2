@@ -29,6 +29,7 @@ mod iters;
 mod lists;
 mod objects;
 mod once;
+mod released;
 
 /// A value of a type that drops, with no `[Symbol.dispose]` of its own.
 pub enum Held {
@@ -732,6 +733,12 @@ pub fn rfolded(log: &Log, id: u32, arg: u8) {
 /// range that panics as `String`'s drop it.
 pub fn inside(log: &Log, id: u32, arg: u8) {
 	inside::inside(log, id, arg);
+}
+
+/// Run scenario `arg % 7` of where std drops a closure given to a consumer or an entry.
+/// The last panics in a fold.
+pub fn released(log: &Log, id: u32, arg: u8) {
+	released::released(log, id, arg);
 }
 
 /// Run scenario `arg % 9` of what std's comparisons of iterators drop.

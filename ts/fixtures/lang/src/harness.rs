@@ -297,6 +297,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("elements::empty_parts", |_, data, out| elements::empty_parts(data, out)),
 		("hashes::own", |_, data, out| hashes::own(data, out)),
 		("refs::compared", refs::compared),
+		("fmt::objects", |_, data, out| fmt::objects(data, out)),
 	]
 }
 
