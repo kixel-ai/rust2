@@ -167,6 +167,7 @@ const VERBATIM: &[&str] = &[
 	"Result",
 	"Some",
 	"UpperExp",
+	"alloc",
 	"async fn",
 	"become",
 	"bool",

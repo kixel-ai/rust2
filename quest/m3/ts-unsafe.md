@@ -33,10 +33,12 @@ none of its own `unsafe`.
   with a span; a pointer from elsewhere, such as a field, fails there loudly at run time.
   A pointer to an element JS keeps as an object, such as a tuple or the crate's struct, is
   that object, which knows no array it is in, so arithmetic on one stays refused:
-  hashbrown's buckets and kio's `log.rs` reach it. smallvec's pointer arithmetic
-  translates, but it spills to memory from `alloc::alloc`, which this Plan refuses, so it
-  translates whole only once the maintainer decides how a typed allocation
-  (`Layout::array::<T>`, then a cast to `*mut T`) is modeled or that smallvec is mapped.
+  hashbrown's buckets and kio's `log.rs` reach it.
+- Decided with the maintainer on 2026-11-01, typed allocation: memory from `alloc` for a
+  `Layout::array::<T>(n)`, or an equal layout of `T`'s size and alignment, cast to `*mut T`
+  is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
+  byte allocation stay refused. smallvec spills to it, and `Vec::from_raw_parts` of it is
+  left.
 - Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
@@ -51,6 +53,10 @@ none of its own `unsafe`.
   `set_len` is refused, and a write past the length fails loudly at run time, since the
   JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
+- `offset_from` between byte pointers into two views of one buffer, such as a slice's
+  `as_mut_ptr` and its `iter_mut`'s first element: each is an `rt.AtIndex` into its own
+  `Uint8Array`, so it fails loudly at run time where Rust measures the distance. Comparing
+  by buffer and byte offset closes it.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const

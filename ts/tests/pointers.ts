@@ -54,6 +54,24 @@ unsure(() => {
 });
 assert.equal(vec.length, 1);
 
+// Memory from `alloc`, which JS keeps as values once a cast types it: its bytes, typed as
+// another type of the same size, a pointer past the start of what it holds cast back to
+// bytes, and one to its values passed as if a block.
+const block = rt.alloc({ size: 12, align: 4 });
+unsure(() => block.v);
+const words = rt.allocAs<number>(block, 4, "u32");
+words.v = 0xffffffff;
+assert.equal(rt.allocAs<number>(block, 4, "u32").v, 0xffffffff);
+unsure(() => rt.allocAs(block, 4, "i32"));
+unsure(() => rt.allocBytes(words, 4, "f32"));
+unsure(() => rt.allocBytes(rt.ptrAdd(words, 1), 4, "u32"));
+// Grown, it keeps its values, as many as fit; freed or grown, a pointer to its values is
+// no block.
+unsure(() => rt.dealloc(words));
+unsure(() => rt.realloc(words, 16));
+const grown = rt.realloc(rt.allocBytes(words, 4, "u32"), 18);
+assert.deepEqual(Array.from(grown.array ?? []), [0xffffffff, undefined, undefined, undefined]);
+
 // A dangling pointer read through, written through, or copied from, which Rust leaves
 // undefined, rather than reading `undefined`.
 const dangling: rt.Place<number> = rt.DANGLING;

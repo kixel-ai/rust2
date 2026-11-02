@@ -169,6 +169,10 @@ pub enum Std {
 	RandomState,
 	/// `rt.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rt.Layout`: its size and alignment, never changed once made.
+	Layout,
+	/// `rt.LayoutError`.
+	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -191,6 +195,7 @@ impl Std {
 				| Self::ParseFloatError
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
+				| Self::LayoutError
 		)
 	}
 
@@ -290,6 +295,8 @@ impl Std {
 			.as_slice()
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
+			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -1337,6 +1344,10 @@ fn mapping<'tcx>(
 		Err(args) => args,
 	};
 	let args = match super::pointer::call(b, call, &owner, &name, args, out) {
+		Ok(e) => return e,
+		Err(args) => args,
+	};
+	let args = match super::alloc::call(b, call, &owner, &name, args) {
 		Ok(e) => return e,
 		Err(args) => args,
 	};
@@ -2390,11 +2401,16 @@ fn mapping<'tcx>(
 
 		// Formatting.
 		("hint", "must_use") => args.pop()?,
-		// The size wasm32 lays the type out in, which translation targets.
+		// The size and alignment wasm32 lays the type out in, which translation targets.
 		("mem", "size_of") => {
 			let env = b.t.typing_env_pub();
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.size.bytes().to_string())
+		}
+		("mem", "align_of") => {
+			let env = b.t.typing_env_pub();
+			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
+			Expr::lit(layout.align.abi.bytes().to_string())
 		}
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.
