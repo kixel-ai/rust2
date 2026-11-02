@@ -24,7 +24,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty};
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -509,12 +509,12 @@ impl<'a> Gen<'a> {
 					true => format!("{class}({h}, true)"),
 					false => format!("{class}({h})"),
 				};
-				match ty {
+				match ty.base() {
 					Type::Option(_) => format!("{e}.let {{ h -> if (h == 0L) null else {} }}", wrap("h")),
 					_ => wrap(e),
 				}
 			}
-			Ty::Buf => match (decode(ty), matches!(ty, Type::Option(_)), lent) {
+			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
 				(Some(decode), false, _) => format!("{e}!!.{decode}"),
 				(None, true, true) => e.to_string(),
@@ -573,7 +573,7 @@ impl<'a> Gen<'a> {
 			}
 			Ty::Handle { .. } => {
 				let h = self.fresh("h");
-				let option = matches!(ty, Type::Option(_));
+				let option = matches!(ty.base(), Type::Option(_));
 				arg.open = Some(match option {
 					true => format!("Native.hold({e}?.handle) {{ {h} ->"),
 					false => format!("{e}.handle.hold {{ {h} ->"),
@@ -589,7 +589,8 @@ impl<'a> Gen<'a> {
 				arg.rust_args.push(format!("{p} as usize as _"));
 			}
 			Ty::Buf => {
-				arg.exprs.push(match (string(ty), matches!(ty, Type::Option(_))) {
+				let option = matches!(ty.base(), Type::Option(_));
+				arg.exprs.push(match (string(ty), option) {
 					(true, true) => format!("{e}?.encodeToByteArray()"),
 					(true, false) => format!("{e}.encodeToByteArray()"),
 					(false, _) => e.to_string(),
@@ -1178,10 +1179,8 @@ impl<'a> Gen<'a> {
 		for (n, method) in callback.methods.iter().enumerate() {
 			let member = member(&abi::snake(method.name()), &[]);
 			members.push(format!("fun {member}"));
-			let params: Vec<String> = method
-				.params
-				.iter()
-				.map(|p| format!("{}: {}", kw(&camel(&p.name)), self.kt_param(&p.ty)))
+			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
+				.map(|(p, name)| format!("{name}: {}", self.kt_param(&p.ty)))
 				.collect();
 			let ret = self.kt(&method.ok);
 			body.push(format!(
@@ -1450,9 +1449,9 @@ impl<'a> Gen<'a> {
 		}
 		let mut kt_params = Vec::new();
 		let mut closures = Vec::new();
-		for param in &function.params {
+		let names = locals(&function.params);
+		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			let name = kw(&camel(&param.name));
 			kt_params.push(format!("{name}: {}", self.kt_param(&param.ty)));
 			let trampoline = match (&param.ty, c) {
 				(Type::Closure(..), Ty::Fn(..)) => {
@@ -1463,7 +1462,7 @@ impl<'a> Gen<'a> {
 				}
 				_ => None,
 			};
-			args.push(self.arg(&param.ty, c, &name, &mut n, trampoline.as_deref()));
+			args.push(self.arg(&param.ty, c, name, &mut n, trampoline.as_deref()));
 		}
 		for (param, c, trampoline) in closures {
 			let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, &c) else {
@@ -1661,9 +1660,8 @@ impl<'a> Gen<'a> {
 		}
 
 		let mut text = function.docs.clone();
-		for param in &function.params {
+		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(lent, _) = &param.ty {
-				let name = kw(&camel(&param.name));
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, from any thread."
 				));
@@ -1830,13 +1828,11 @@ fn string(ty: &Type) -> bool {
 /// How Kotlin decodes the buffer of text `ty` crosses as, if it is text: a path, which on
 /// Unix may hold any bytes, throws on those no `String` holds.
 fn decode(ty: &Type) -> Option<&'static str> {
-	match ty {
+	match ty.base() {
 		Type::Option(inner) => decode(inner),
-		ty => match ty.base() {
-			Type::Str | Type::String => Some("decodeToString()"),
-			Type::Path | Type::PathBuf => Some("decodeToString(throwOnInvalidSequence = true)"),
-			_ => None,
-		},
+		Type::Str | Type::String => Some("decodeToString()"),
+		Type::Path | Type::PathBuf => Some("decodeToString(throwOnInvalidSequence = true)"),
+		_ => None,
 	}
 }
 
@@ -2053,6 +2049,14 @@ fn camel(name: &str) -> String {
 		Some(first) => first.to_lowercase().chain(chars).collect(),
 		None => name.to_string(),
 	}
+}
+
+/// The Kotlin names of parameters, in camel case, [`abi::distinct`], and quoted if a
+/// keyword.
+fn locals(params: &[Param]) -> Vec<String> {
+	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+		.map(|name| kw(name))
+		.collect()
 }
 
 /// A field's Kotlin name.

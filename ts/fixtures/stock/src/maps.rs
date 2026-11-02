@@ -5,6 +5,7 @@
 
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
+use std::sync::Arc;
 
 use hashbrown::hash_table::{Entry, HashTable};
 use hashbrown::{HashMap, HashSet};
@@ -343,17 +344,37 @@ pub fn capacity(data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// `hashlink::LinkedHashMap`, by std's hasher, whose order is its own: each step of
-/// `data` and then every entry, from the front.
+/// `hashlink::LinkedHashMap`, by its default hasher, a crate's own that forwards to
+/// hashbrown's, whose order is its own: each step of `data` and then every entry, from the
+/// front. Beside it, one keyed by `Arc<str>` and found by `&str`, as moq's are.
 pub fn linked(data: &[u8], out: &mut Vec<u8>) {
-	let mut m: LinkedHashMap<u16, u32, RandomState> = LinkedHashMap::with_hasher(RandomState::new());
+	const NAMES: [&str; 12] = [
+		"", "a", "b", "ab", "é", "✓", "😀", "a\u{0}", "\u{ff}", "track", "group", "frame",
+	];
+	let mut m: LinkedHashMap<u16, u32> = LinkedHashMap::new();
+	let mut named: LinkedHashMap<Arc<str>, u32> = LinkedHashMap::new();
 	for step in data.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let key = u16::from(arg % 12);
+		let name = NAMES[usize::from(key)];
 		match op % 8 {
-			0 | 1 => put(out, m.insert(key, u32::from(op)).map_or(0x100, |v| v as usize)),
-			2 => put(out, m.remove(&key).map_or(0x100, |v| v as usize)),
-			3 => put(out, m.to_back(&key).map_or(0x100, |v| *v as usize)),
+			0 | 1 => {
+				put(out, m.insert(key, u32::from(op)).map_or(0x100, |v| v as usize));
+				put(
+					out,
+					named
+						.insert(Arc::from(name), u32::from(op))
+						.map_or(0x100, |v| v as usize),
+				);
+			}
+			2 => {
+				put(out, m.remove(&key).map_or(0x100, |v| v as usize));
+				put(out, named.remove(name).map_or(0x100, |v| v as usize));
+			}
+			3 => {
+				put(out, m.to_back(&key).map_or(0x100, |v| *v as usize));
+				put(out, named.to_back(name).map_or(0x100, |v| *v as usize));
+			}
 			4 => match arg & 1 {
 				0 => put(
 					out,
@@ -381,6 +402,10 @@ pub fn linked(data: &[u8], out: &mut Vec<u8>) {
 	}
 	while let Some((k, v)) = m.pop_front() {
 		put(out, usize::from(k));
+		put(out, v as usize);
+	}
+	while let Some((k, v)) = named.pop_front() {
+		out.extend_from_slice(k.as_bytes());
 		put(out, v as usize);
 	}
 }

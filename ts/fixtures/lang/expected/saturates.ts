@@ -7,73 +7,73 @@ import * as saturates_Gauge from "./saturates.Gauge.ts";
 
 export function hashed$i128(v: rt.i128): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash128(v, h);
+	rt.hashI128(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$i16(v: rt.i16): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash16(v, h);
+	rt.hashI16(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$i32(v: rt.i32): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashI32(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$i64(v: rt.i64): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash64(v, h);
+	rt.hashI64(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$i8(v: rt.i8): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash8(v, h);
+	rt.hashI8(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$isize(v: rt.isize): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashIsize(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_i128(v: rt.i128): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash128(v, h);
+	rt.hashI128(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_i16(v: rt.i16): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash16(v, h);
+	rt.hashI16(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_i32(v: rt.i32): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashI32(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_i64(v: rt.i64): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash64(v, h);
+	rt.hashI64(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_i8(v: rt.i8): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash8(v, h);
+	rt.hashI8(v, h);
 	return rt.hashFinish(h);
 }
 
 export function hashed$num_Saturating_isize(v: rt.isize): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashIsize(v, h);
 	return rt.hashFinish(h);
 }
 
@@ -109,7 +109,7 @@ export function hashed$num_Saturating_u8(v: rt.u8): rt.u64 {
 
 export function hashed$num_Saturating_usize(v: rt.usize): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashUsize(v, h);
 	return rt.hashFinish(h);
 }
 
@@ -217,7 +217,7 @@ export function hashed$u8(v: rt.u8): rt.u64 {
 
 export function hashed$usize(v: rt.usize): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hash32(v, h);
+	rt.hashUsize(v, h);
 	return rt.hashFinish(h);
 }
 
@@ -1350,7 +1350,7 @@ export function usizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _271);
 		}
 		const _280: rt.Iter<rt.usize> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.usize> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash32, rt.same)) as rt.HashSet<rt.usize>, _280, undefined, undefined, 234881024);
+		const seen: rt.HashSet<rt.usize> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashUsize, rt.same)) as rt.HashSet<rt.usize>, _280, undefined, undefined, 234881024);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -1555,7 +1555,7 @@ export function i8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.i8> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.i8> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash8, rt.same)) as rt.HashSet<rt.i8>, _295, undefined, undefined, 469762048);
+		const seen: rt.HashSet<rt.i8> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashI8, rt.same)) as rt.HashSet<rt.i8>, _295, undefined, undefined, 469762048);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -1749,7 +1749,7 @@ export function i16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.i16> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.i16> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash16, rt.same)) as rt.HashSet<rt.i16>, _295, undefined, undefined, 469762048);
+		const seen: rt.HashSet<rt.i16> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashI16, rt.same)) as rt.HashSet<rt.i16>, _295, undefined, undefined, 469762048);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -1943,7 +1943,7 @@ export function i32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.i32> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.i32> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash32, rt.same)) as rt.HashSet<rt.i32>, _295, undefined, undefined, 234881024);
+		const seen: rt.HashSet<rt.i32> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashI32, rt.same)) as rt.HashSet<rt.i32>, _295, undefined, undefined, 234881024);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -2137,7 +2137,7 @@ export function i64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.i64> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.i64> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash64, rt.i64Eq)) as rt.HashSet<rt.i64>, _295, undefined, undefined, 117440512);
+		const seen: rt.HashSet<rt.i64> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashI64, rt.i64Eq)) as rt.HashSet<rt.i64>, _295, undefined, undefined, 117440512);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -2331,7 +2331,7 @@ export function i128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.i128> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.i128> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash128, rt.i128Eq)) as rt.HashSet<rt.i128>, _295, undefined, undefined, 58720256);
+		const seen: rt.HashSet<rt.i128> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashI128, rt.i128Eq)) as rt.HashSet<rt.i128>, _295, undefined, undefined, 58720256);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
@@ -2525,7 +2525,7 @@ export function isizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			_20(out, _286);
 		}
 		const _295: rt.Iter<rt.isize> = rt.iterSlice([a, b]);
-		const seen: rt.HashSet<rt.isize> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hash32, rt.same)) as rt.HashSet<rt.isize>, _295, undefined, undefined, 234881024);
+		const seen: rt.HashSet<rt.isize> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashIsize, rt.same)) as rt.HashSet<rt.isize>, _295, undefined, undefined, 234881024);
 		rt.byteVecPush(out, rt.hashContains(seen, c) ? 1 : 0);
 		rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {

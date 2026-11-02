@@ -780,6 +780,26 @@ static int script(void) {
 	uint64_t none = api_worth((api_vec_counter){0}, (api_vec_counter){.ptr = counters.ptr, .len = 0});
 	printf("worth %llu %llu\n", (unsigned long long)worth, (unsigned long long)none);
 	api_vec_counter_free(counters);
+	api_counter *held = api_counter_new(str("h"), 4);
+	api_option_u64 counts[] = {
+		api_held_count((api_option_tuple_counter){.some = true, .value = {._0 = held}}),
+		api_held_count((api_option_tuple_counter){0}),
+	};
+	api_counter_free(held);
+	printf("held");
+	for (size_t i = 0; i < 2; i++) {
+		if (counts[i].some) {
+			printf(" Some(%llu)", (unsigned long long)counts[i].value);
+		} else {
+			printf(" None");
+		}
+	}
+	printf("\n");
+	api_counter *boxed = api_boxed_counter(str("b"));
+	print("boxed Some(\"", api_boxed_name(boxed), "\") ");
+	api_counter_free(boxed);
+	printf("%s %s\n", api_boxed_name(NULL).ptr ? "Some" : "None", api_boxed_counter((api_buf){0}) ? "false" : "true");
+	printf("less %u\n", api_less(5, 2));
 
 	uint32_t row0[] = {1, 2};
 	uint32_t row2[] = {3};

@@ -1090,23 +1090,6 @@ unsafe fn free_now(handle: *mut Handle) {
 	}
 }
 
-unsafe extern "C" fn handle_close(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on an `Object`.
-	unsafe { close(obj.cast()) };
-	none().map_or(null_mut(), Obj::into_ptr)
-}
-
-unsafe extern "C" fn handle_enter(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on a live object.
-	unsafe { Obj::borrowed(obj) }.into_ptr()
-}
-
-unsafe extern "C" fn handle_exit(obj: *mut PyObject, _: *mut *mut PyObject, _: Py_ssize_t) -> *mut PyObject {
-	// SAFETY: Python calls it on an `Object`.
-	unsafe { close(obj.cast()) };
-	none().map_or(null_mut(), Obj::into_ptr)
-}
-
 unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
 	// SAFETY: Python deallocates an `Object` once, holding the GIL; nothing holds it.
 	unsafe {
@@ -1641,13 +1624,6 @@ impl<const N: usize> Methods<N> {
 	}
 }
 
-static OBJECT_METHODS: Methods<4> = Methods(UnsafeCell::new([
-	noargs(c"close", handle_close),
-	noargs(c"__enter__", handle_enter),
-	method(c"__exit__", handle_exit),
-	END,
-]));
-
 static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	method(c"poll", future_poll),
 	noargs(c"claim", future_claim),
@@ -1733,10 +1709,9 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		let base = (Py_TPFLAGS_BASETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION) as u64;
 		add_type(module, &OBJECT, c"Object", size_of::<Handle>(), base, &mut [
 			slot(Py_tp_dealloc, handle_dealloc as *mut c_void),
-			slot(Py_tp_methods, OBJECT_METHODS.ptr().cast()),
 			slot(
 				Py_tp_doc,
-				c"An object owning a Rust value's handle, freed once the last reference to it goes, or sooner by close() or a with block.".as_ptr().cast_mut().cast(),
+				c"An object owning a Rust value's handle, freed once the last reference to it goes.".as_ptr().cast_mut().cast(),
 			),
 			slot(0, null_mut()),
 		])?;

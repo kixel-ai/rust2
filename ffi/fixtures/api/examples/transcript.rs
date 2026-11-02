@@ -447,6 +447,19 @@ fn main() {
 		api_lib::worth(Some(counters), Box::new(boxed)),
 		api_lib::worth(None, Box::default())
 	);
+	println!(
+		"held {:?} {:?}",
+		api_lib::held_count(Some((Counter::new("h", 4),))),
+		api_lib::held_count(None)
+	);
+	let boxed = api_lib::boxed_counter(Box::new(Some("b".to_string())));
+	println!(
+		"boxed {:?} {:?} {}",
+		api_lib::boxed_name(boxed),
+		api_lib::boxed_name(Box::new(None)),
+		api_lib::boxed_counter(Box::new(None)).is_none()
+	);
+	println!("less {}", api_lib::less(5, 2));
 	println!("sums {:?}", api_lib::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
 	let summed = api_lib::summed([Point { x: 1, y: 2 }, Point { x: -4, y: 6 }]);
 	let none = api_lib::summed([]);
