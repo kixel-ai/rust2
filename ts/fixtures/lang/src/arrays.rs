@@ -429,8 +429,8 @@ where
 }
 
 /// Arrays of bytes reached through the iterator std makes of each item: of an `Option`, a
-/// nested one, a `Vec`, a slice, and an array, by `flatten`, `flat_map`, `chain`, `zip`,
-/// `extend`, `from_iter`, and `DebugList::entries`, read from both ends and written through.
+/// nested one, a `Vec`, a slice, and an array, by `flatten`, `flat_map`, `chain`, `zip`
+/// and the free `zip`, `extend`, `from_iter`, and `DebugList::entries`, read from both ends and written through.
 /// Of no bytes, one, and many.
 pub fn flattened(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match kind % 3 {
@@ -497,6 +497,23 @@ fn flattened_n<const N: usize>(data: &[u8], out: &mut Vec<u8>) {
 	for (a, b) in options.iter_mut().flatten().zip(&mut other) {
 		std::mem::swap(a, b);
 	}
+	// The free `zip` takes each side as `IntoIterator`, a `&mut` to a collection lending its places.
+	for (b, a) in std::iter::zip(&other, options.iter().flatten()) {
+		out.extend_from_slice(b);
+		out.extend_from_slice(a);
+	}
+	for (b, a) in std::iter::zip(&mut other, &mut options) {
+		b.rotate_left(N.min(1));
+		*a = a.map(|mut a| {
+			a.fill(b.first().copied().unwrap_or(0x33));
+			a
+		});
+	}
+	let mut sums: Vec<u16> = data.iter().map(|&b| u16::from(b)).collect();
+	for (x, (i, y)) in std::iter::zip(&mut sums, data.iter().enumerate().rev()) {
+		*x = x.wrapping_mul(31) ^ u16::from(*y) << (i % 8);
+	}
+	out.extend(sums.iter().flat_map(|x| x.to_le_bytes()));
 	for a in other.iter_mut().chain(&mut options[3]) {
 		a.fill(0x5a);
 	}
