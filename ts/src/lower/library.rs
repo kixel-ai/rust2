@@ -1438,6 +1438,16 @@ fn mapping<'tcx>(
 			{
 				return Some(boxed_vec(b, value, elem, span));
 			}
+			// An `Arc` or an `Rc` of what a box holds, its trait object included, which it
+			// drops with the last one. A box of a byte array holds a `Uint8Array` of its own.
+			if b.t.std_of(to) == Some(Std::Arc)
+				&& let ty::Adt(adt, args) = from.kind()
+				&& Std::of(tcx, adt.did()) == Some(Std::Box)
+				&& (args.type_at(0).is_trait() || args.type_at(0).is_sized(tcx, b.t.typing_env()))
+				&& !super::byte_array(args.type_at(0))
+			{
+				return Some(Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]));
+			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
 				&& Std::of(tcx, adt.did()) == Some(Std::BinaryHeap)

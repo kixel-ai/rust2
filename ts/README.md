@@ -122,7 +122,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Layout`, `alloc::alloc` | `rt.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rt.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rt.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
-| `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>` | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
+| `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
@@ -450,7 +450,7 @@ as its fold ends, before what it wraps, as std's does. A `Vec`'s `drain` leaves 
 what precedes its range until it drops, then drops what it still holds and moves the tail
 back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
 
-A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, or `Arc`, is an object with
+A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
@@ -462,14 +462,19 @@ same object. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rt.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
-last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. A `dyn Buf`'s object
-holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
+last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. An `Rc` is an `Arc`,
+and a `Pin` the pointer it holds. A `Weak<T>` unsized to a `Weak<dyn Trait>` keeps the
+`Arc<T>` and makes the `rt.ArcDyn` as it upgrades, since the value of `new_cyclic`'s
+`Weak` is not there yet as it unsizes. `Arc::from` or `Rc::from` of a box is an `rt.Arc`
+of what the box is, which drops it with the last clone. A `dyn Buf`'s object holds no
+`chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
-`downcast_mut`, and `Box`'s and `Arc`'s `downcast` check for: `a instanceof Any.of$dyns_Square ?
+`downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof Any.of$dyns_Square ?
 a.v : undefined`. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
-back the `Arc<T>` the object was made from.
+back the `Arc<T>` the object was made from, or, of one made from a box, an `rt.ArcDyn` of
+the value sharing its count.
 
 A `dyn Fn`, `dyn FnMut`, or `dyn FnOnce` is the closure or function it was made of, which
 a call calls as it does the closure, and which a box drops as it does the closure. One
@@ -480,7 +485,7 @@ or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `
 `Box`, `Arc`, or `Rc`, `dyn Future`,
 `dyn Any`, `dyn Buf`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
-as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
+as a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
 
 An `async fn` returns a future without running anything: an instance of a class of its
@@ -858,7 +863,7 @@ they need.
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
 `dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
-behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
+behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
