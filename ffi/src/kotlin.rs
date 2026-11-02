@@ -1272,7 +1272,7 @@ impl<'a> Gen<'a> {
 					let l = format!("l{k}");
 					let lifted = self.lift(ty, c, &format!("p{k}"), true);
 					pre.push(format!("val {l} = {lifted}"));
-					finally.push(format!("{l}.handle.close()"));
+					finally.push(format!("{l}.handle.end()"));
 					args.push(l);
 				}
 				_ => args.push(self.lift(ty, c, &format!("p{k}"), true)),
