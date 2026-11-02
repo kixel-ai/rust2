@@ -3,6 +3,7 @@
 // which nothing translated calls. `differential.ts` runs it beside native Rust's
 // `harness::entry`, from the output directory.
 
+import { mulAddsWithin } from "./fma.ts";
 import * as Fault from "./fmt.Fault.ts";
 import { cases as named, run as harness, op as pick } from "./harness.ts";
 import * as rt from "./rt.ts";
@@ -231,7 +232,7 @@ const mulAdds = (max: number, tiny: number, eps: number, op: number[], bytes: (x
 const floatsMulAdds = mulAdds(Number.MAX_VALUE, 5e-324, 2 ** -52, op("floats::mul_adds"), double);
 const singlesMulAdds = mulAdds(3.4028234663852886e38, 2 ** -149, 2 ** -23, op("singles::mul_adds"), single);
 
-const [floatsAt, singlesAt] = [pick("floats::floats"), pick("singles::singles")];
+const [floatsAt, singlesAt, floatsMulAddsAt] = [pick("floats::floats"), pick("singles::singles"), pick("floats::mul_adds")];
 
 /** How many ULPs from native Rust's each float of `floats`' and `singles`' kind 7 may be, which Rust leaves to libm. */
 const ULPS = 2n;
@@ -240,6 +241,7 @@ export function within(input: Uint8Array, native: Uint8Array, translated: Uint8A
 	// A first byte of 0xff prints a `Fault`, and picks no case.
 	if (input[0] === 0xff) return false;
 	const at = ((input[0] << 8) | input[1]) % count;
+	if (at === floatsMulAddsAt) return mulAddsWithin(native, translated);
 	const width = at === floatsAt ? 8 : at === singlesAt ? 4 : 0;
 	if (width === 0 || input[2] % 10 !== 7 || native.length !== translated.length) return false;
 	const [a, b] = [native, translated].map((v) => new DataView(v.buffer, v.byteOffset, v.length));
