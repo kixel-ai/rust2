@@ -169,6 +169,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			("alloc", "alloc") => library::is_std(self.tcx, def_id).then_some(local),
 			("alloc", "realloc") if library::is_std(self.tcx, def_id) => self.alloc_root(&args[0].node).or(Some(local)),
 			("NonNull", "new" | "new_unchecked" | "as_ptr")
+			| ("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut")
 			| ("Option", "ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked")
 			| ("Result", "unwrap" | "expect" | "unwrap_unchecked")
 			| ("Try", "branch") => self.alloc_root(&args[0].node),

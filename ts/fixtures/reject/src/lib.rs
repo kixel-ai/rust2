@@ -2325,8 +2325,11 @@ pub fn alloc_retyped() -> i32 {
 		let n = (raw as *mut i32).read();
 		let grown = std::alloc::realloc(raw, layout, 8);
 		let m = grown.cast::<i32>().read();
-		std::alloc::dealloc(grown, std::alloc::Layout::array::<u32>(2).unwrap());
-		n + m
+		let words = grown.cast::<u32>();
+		let again = std::alloc::realloc(words.cast::<u8>(), std::alloc::Layout::array::<u32>(2).unwrap(), 12);
+		let k = again.cast::<i32>().read();
+		std::alloc::dealloc(again, std::alloc::Layout::array::<u32>(3).unwrap());
+		n + m + k
 	}
 }
 
