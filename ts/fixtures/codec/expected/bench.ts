@@ -443,7 +443,7 @@ export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	let _37!: rt.u32;
 	const count2: rt.u32 = rt.u64Low(rt.u64Min(takeU64(data)[0], 65536));
 	if (selector === 1) {
-		const q: rt.VecDeque<rt.u32> = rt.dequeNew() as rt.VecDeque<rt.u32>;
+		const q: rt.VecDeque<rt.u32> = rt.dequeNew(4) as rt.VecDeque<rt.u32>;
 		let iterStart: rt.u32 = 0;
 		const iterEnd: rt.u32 = count2;
 		while ((_18 = iterStart++) < iterEnd) {

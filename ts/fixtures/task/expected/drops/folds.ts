@@ -221,7 +221,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 				return g66;
 			}, (): void => {
 				captured54[Symbol.dispose]();
-			})), "next", 8, true)) as rt.VecDeque<Guard.Guard>;
+			})), "next", 8, true), 8) as rt.VecDeque<Guard.Guard>;
 			const _206: rt.Iter<Guard.Guard> = rt.iterSlice(guards(4, 7), rt.drop);
 			_1089 = false;
 			const captured55 = d;

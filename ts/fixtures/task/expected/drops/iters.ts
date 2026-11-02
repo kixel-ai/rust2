@@ -404,7 +404,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	v9.push(_223);
 	const _228: Guard.Guard = guard(20);
 	v9.push(_228);
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeFromVec(rt.iterToArray(rt.iterSlice(v9, rt.drop), "next", 8, true)) as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeFromIntoIter(rt.iterSlice(v9, rt.drop), 8) as rt.VecDeque<Guard.Guard>;
 	const v10: [rt.u32, Guard.Guard][] = [];
 	const _237: [rt.u32, Guard.Guard] = [1, guard(21)];
 	v10.push(_237);
@@ -494,7 +494,7 @@ export function drained(log: Log.Log, id: rt.u32): void {
 	const _63: string = rt.fmtFormat(["set ", args4[0]]);
 	rt.drop(_70);
 	Log.note(log, _63);
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	let iterStart: rt.u32 = 15;
 	const iterEnd: rt.u32 = 20;
 	while ((_80 = iterStart++) < iterEnd) {
@@ -511,7 +511,7 @@ export function drained(log: Log.Log, id: rt.u32): void {
 	Log.note(log, rt.fmtFormat(["drain ", args6[0]]));
 	rt.drop(range);
 	const _113: rt.usize = queue.n;
-	const _119: rt.Iter<Guard.Guard> = rt.dequeIter(queue, rt.drop);
+	const _119: rt.Iter<Guard.Guard> = rt.dequeIntoIter(queue, rt.drop);
 	const _116: rt.u32 = option_mapOr$01ozsk3(rt.iterToOption(_119.next()), 0, (g3: Guard.Guard): rt.u32 => {
 		const _07: rt.u32 = Guard.id(g3);
 		g3[Symbol.dispose]();
@@ -658,7 +658,7 @@ export function extended(log: Log.Log, id: rt.u32): void {
 	const _192: Key.Key = key(16);
 	v7.push(_192);
 	rt.btreeExtendKeys(ordered, rt.iterSlice(v7, rt.drop), false, rt.drop, "fold");
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	const _198: Guard.Guard = guard(18);
 	rt.dequePushBack(queue, _198);
 	const v8: Guard.Guard[] = [];
@@ -666,7 +666,7 @@ export function extended(log: Log.Log, id: rt.u32): void {
 	v8.push(_207);
 	const _212: Guard.Guard = guard(20);
 	v8.push(_212);
-	rt.dequeExtend(queue, rt.iterSlice(v8, rt.drop), "fold", 8, true);
+	rt.dequeExtend(queue, rt.iterSlice(v8, rt.drop), "fold", true);
 	const _221: rt.usize = rt.btreeLen(tree);
 	const _224: rt.usize = rt.btreeLen(ordered);
 	const _227: rt.usize = queue.n;

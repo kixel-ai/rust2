@@ -675,7 +675,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 }
 
 /**
- * A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+ * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
  * as they are, or from a `Vec` it collects.
  */
@@ -687,7 +687,11 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 			const own: rt.VecDeque<string> = rt.dequeWithCapacity(rt.usizeMul(skip, 3), 12) as rt.VecDeque<string>;
 			const _18: string = make$rings_Item_String(arg);
 			rt.dequePushFront(own, _18);
-			rt.dequeCloneFrom(own, q, undefined);
+			if ((arg & 64) === 0) {
+				rt.dequeCloneFrom(own, q, undefined);
+			} else {
+				rt.dequeCloneFrom(own, q, undefined);
+			}
 			return own;
 		}
 		return rt.dequeClone(q);
@@ -725,7 +729,7 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 }
 
 /**
- * A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+ * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
  * as they are, or from a `Vec` it collects.
  */
@@ -737,7 +741,11 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 			const own: rt.VecDeque<Big.Big> = rt.dequeWithCapacity(rt.usizeMul(skip, 3), 1101) as rt.VecDeque<Big.Big>;
 			const _18: Big.Big = Big.make$rings_Item(arg);
 			rt.dequePushFront(own, _18);
-			rt.dequeCloneFrom(own, q, Big.clone$Clone);
+			if ((arg & 64) === 0) {
+				rt.dequeCloneFrom(own, q, Big.clone$Clone);
+			} else {
+				rt.dequeCloneFrom(own, q, Big.clone$Clone);
+			}
 			return own;
 		}
 		return rt.dequeClone(q, Big.clone$Clone);
@@ -775,7 +783,7 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 }
 
 /**
- * A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+ * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
  * as they are, or from a `Vec` it collects.
  */
@@ -787,7 +795,11 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 			const own: rt.VecDeque<rt.u32> = rt.dequeWithCapacity(rt.usizeMul(skip, 3), 4) as rt.VecDeque<rt.u32>;
 			const _18: rt.u32 = make$rings_Item_u32(arg);
 			rt.dequePushFront(own, _18);
-			rt.dequeCloneFrom(own, q, undefined);
+			if ((arg & 64) === 0) {
+				rt.dequeCloneFrom(own, q, undefined);
+			} else {
+				rt.dequeCloneFrom(own, q, undefined);
+			}
 			return own;
 		}
 		return rt.dequeClone(q);
@@ -825,7 +837,7 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 }
 
 /**
- * A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+ * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
  * as they are, or from a `Vec` it collects.
  */
@@ -837,7 +849,11 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 			const own: rt.VecDeque<rt.u8> = rt.dequeWithCapacity(rt.usizeMul(skip, 3), 1, true) as rt.VecDeque<rt.u8>;
 			const _18: rt.u8 = make$rings_Item_u8(arg);
 			rt.dequePushFront(own, _18);
-			rt.dequeCloneFrom(own, q, undefined);
+			if ((arg & 64) === 0) {
+				rt.dequeCloneFrom(own, q, undefined);
+			} else {
+				rt.dequeCloneFrom(own, q, undefined);
+			}
 			return own;
 		}
 		return rt.dequeClone(q);
@@ -875,7 +891,7 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 }
 
 /**
- * A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+ * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
  * as they are, or from a `Vec` it collects.
  */
@@ -887,7 +903,11 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 			const own: rt.VecDeque<undefined> = rt.dequeWithCapacity(rt.usizeMul(skip, 3), 0) as rt.VecDeque<undefined>;
 			make$rings_Item_unit(arg);
 			rt.dequePushFront(own, undefined);
-			rt.dequeCloneFrom(own, q, undefined);
+			if ((arg & 64) === 0) {
+				rt.dequeCloneFrom(own, q, undefined);
+			} else {
+				rt.dequeCloneFrom(own, q, undefined);
+			}
 			return own;
 		}
 		return rt.dequeClone(q);

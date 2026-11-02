@@ -395,7 +395,7 @@ export function ordered(log: Log.Log, id: rt.u32): void {
 	Log.note(log, _185);
 	const _201: Key.Key = key(12);
 	rt.btreeAdd(set, _201, rt.drop);
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	let iterStart: rt.u32 = 20;
 	const iterEnd: rt.u32 = 26;
 	while ((_208 = iterStart++) < iterEnd) {
@@ -928,7 +928,7 @@ export function elements(log: Log.Log, id: rt.u32): void {
 	});
 	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None)];
 	Log.note(log, rt.fmtFormat(["called ", args14[0]]));
-	const q: rt.VecDeque<Guard.Guard | undefined> = rt.dequeNew() as rt.VecDeque<Guard.Guard | undefined>;
+	const q: rt.VecDeque<Guard.Guard | undefined> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard | undefined>;
 	rt.dequePushBack(q, undefined as Guard.Guard | undefined);
 	const _186: Guard.Guard | undefined = guard(4);
 	rt.dequePushBack(q, _186);
