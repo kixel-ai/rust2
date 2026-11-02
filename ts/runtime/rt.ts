@@ -1087,8 +1087,8 @@ export class ByteSlice {
 }
 
 /** The empty byte slices from a null and a dangling pointer, as `NULL_SLICE` and `DANGLING_SLICE`. */
-const NULL_BYTES = /* @__PURE__ */ Object.freeze(new ByteSlice(new Uint8Array(0), 0, 0));
-const DANGLING_BYTES = /* @__PURE__ */ Object.freeze(new ByteSlice(new Uint8Array(0), 0, 0));
+const NULL_BYTES = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ new ByteSlice(/* @__PURE__ */ new Uint8Array(0), 0, 0));
+const DANGLING_BYTES = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ new ByteSlice(/* @__PURE__ */ new Uint8Array(0), 0, 0));
 
 /** All of `bytes` as a slice, as `&[u8; N]` coerces to `&[u8]`. */
 export function byteSliceFrom(bytes: Uint8Array): ByteSlice {
