@@ -14,7 +14,7 @@ import { cells as cells_cells } from "./cells.ts";
 import { chars as chars_chars } from "./chars.ts";
 import { chunks } from "./chunks.ts";
 import { iters as clones_iters } from "./clones.ts";
-import { hashMaps, sets, btreeMaps, deques as collections_deques, vecs as collections_vecs, stores, optionals, setOps, unlikeEqs, ownNes, cellEqs, unlikeCompares, refOrders } from "./collections.ts";
+import { hashMaps, sets, btreeMaps, deques as collections_deques, dequeRanges, vecs as collections_vecs, stores, optionals, setOps, unlikeEqs, ownNes, cellEqs, unlikeCompares, refOrders } from "./collections.ts";
 import { combinators } from "./combinators.ts";
 import { conversions } from "./conversions.ts";
 import { arcs as counts_arcs, clonedArcs, cyclicArcs, uniqueArcs, clonedRcs, cyclicRcs, rcs, uniqueRcs, copies as counts_copies } from "./counts.ts";
@@ -280,7 +280,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["collections::deque_ranges", dequeRanges as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
 /** Run one case. */

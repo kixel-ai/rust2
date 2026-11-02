@@ -1007,7 +1007,7 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		| ["collections", "linked_list", "IntoIter"]
 		| ["collections", "binary_heap", "IntoIter"] => parts(vec![("v", value(b, arg(0)?))]),
 		// A closure's searcher clones the closure; another holds what it searches for.
-		["str", "iter", "Split" | "MatchIndices"] => match arg(0)?.kind() {
+		["str", "iter", "Split" | "SplitTerminator" | "MatchIndices"] => match arg(0)?.kind() {
 			ty::Closure(..) => parts(vec![("f", value(b, arg(0)?))]),
 			_ => Expr::undefined(),
 		},

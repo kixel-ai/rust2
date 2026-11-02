@@ -1334,6 +1334,11 @@ fn deque<'tcx>(
 		}
 		(_, "iter_mut") if b.t.needs_place(item) => Expr::rt("dequeIterMut", values),
 		(_, "iter" | "iter_mut") => Expr::rt("dequeIter", values),
+		(_, "range") => {
+			let ranged = bounds(b, call, values.pop()?);
+			values.push(ranged.bounds.clone());
+			ranged.after(Expr::rt("dequeRange", values))
+		}
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());

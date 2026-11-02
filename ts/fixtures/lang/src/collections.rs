@@ -712,6 +712,50 @@ pub fn deques(data: &[u8], out: &mut Vec<u8>) {
 	out.push(q[b]);
 }
 
+/// `VecDeque::range` by each form of range, over a ring buffer whose front items wrap past
+/// its end, read from both ends and cloned midway; a range past the length or backwards
+/// panics as std's does.
+pub fn deque_ranges(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (a, b, items) = match data {
+		[a, b, items @ ..] => (*a as usize % 8, *b as usize % 8, items),
+		_ => (0, 0, data),
+	};
+	let mut q: VecDeque<u8> = items.iter().copied().collect();
+	// Pushed before the first item, which starts the buffer, they wrap to its end.
+	for i in 0..kind / 8 % 4 {
+		q.push_front(0xf0 | i);
+	}
+	let mut it = match kind % 8 {
+		0 => q.range(a..b),
+		1 => q.range(a..=b),
+		2 => q.range(..b),
+		3 => q.range(a..),
+		4 => q.range(..),
+		5 => q.range((Bound::Excluded(a), Bound::Included(b))),
+		6 => q.range(..=b),
+		_ => q.range(a..a),
+	};
+	out.push(it.len() as u8);
+	// Each step reads from the back by the kind's high bits, in turn.
+	let mut i = 0;
+	loop {
+		let item = match kind >> (5 + i % 3) & 1 {
+			1 => it.next_back(),
+			_ => it.next(),
+		};
+		let Some(&item) = item else {
+			break;
+		};
+		out.push(item);
+		if i == 1 {
+			out.extend(it.clone().rev());
+		}
+		i += 1;
+	}
+	out.push(0xfd);
+	out.extend(q.range(a.min(q.len())..).rev());
+}
+
 /// A value that counts how far it is cloned from the one `vec!` was given, which
 /// `vec![x; n]` clones for every element but the last, which is `x` itself.
 struct Cloned {
