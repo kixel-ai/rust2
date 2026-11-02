@@ -789,7 +789,10 @@ fn buf_method_mut<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, ty: Ty<'t
 		name: "p".into(),
 		ty: Some(crate::ts::Type::Rt("Place", vec![b.t.ty(ty, call.span)])),
 	};
-	Some(Expr::Lambda(vec![param], Box::new(f.call(vec![Expr::ident("p").member("v")]))))
+	Some(Expr::Lambda(
+		vec![param],
+		Box::new(f.call(vec![Expr::ident("p").member("v")])),
+	))
 }
 
 /// The function value of `Buf`'s method `name` for the buffer `ty`, of the crate `call` is to.
