@@ -621,6 +621,28 @@ const drains = Array.from({ length: 32 * 13 * 13 }, (_, i) => {
 /** `strs::iters` of each kind, on no text, text of each UTF-8 width, and parts between `/`s, empty ones too. */
 const iters = Array.from({ length: 12 }, (_, kind) => [[], [2, 7, 9, 14], [0, 2, 0, 0, 7, 9], [14, 0]].map((data) => Uint8Array.of(...op("strs::iters"), kind, ...data))).flat();
 
+/**
+ * `strs::strs`' splits and `rsplit_once` by `/`, and `strs::slices`' by an empty and a
+ * one-char pattern, on no text, a separator alone, twice, and at either end, read from
+ * either end.
+ */
+const separatorEnds = [[], [0], [0, 0], [0, 2], [2, 0], [0, 2, 0], [0x80, 2, 0], [2, 0x80, 0x80], [0, 0x82, 0x80, 7]];
+const splitEnds = separatorEnds.flatMap((data) => [
+	...[1, 3].map((kind) => Uint8Array.of(...op("strs::strs"), kind, ...data)),
+	...[2, 2 | 8].map((kind) => Uint8Array.of(...op("strs::slices"), kind, ...data)),
+]);
+
+/**
+ * `collections::deque_ranges` of each form of range, over no items and over items whose
+ * front wraps past the buffer's end, at bounds empty, at either end, past it, and backwards.
+ */
+const dequeRangesOp = op("collections::deque_ranges");
+const dequeRanges = [0, 0x18, 0xa8].flatMap((high) =>
+	Array.from({ length: 8 }, (_, form) =>
+		[[0, 0], [0, 3], [2, 2], [1, 4], [5, 5], [3, 1], [6, 7]].flatMap(([a, b]) => [[], [7, 8, 9]].map((items) => Uint8Array.of(...dequeRangesOp, high | form, a, b, ...items))),
+	).flat(),
+);
+
 /** `strs::hinted` of each adaptor and each pair of range lengths, each way, on `aé` alone. */
 const hintedOp = op("strs::hinted");
 const hinted = Array.from({ length: 10 * 7 * 21 }, (_, i) => Uint8Array.of(...hintedOp, i % 10, Math.floor(i / 10) % 7, Math.floor(i / 70)));
@@ -919,4 +941,4 @@ const sortCases = [
 	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::btrees"), i % 20, Math.floor(i / 20), 2, 9)),
 ];
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases];
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...splitEnds, ...dequeRanges, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases];
