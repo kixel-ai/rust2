@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- C++ objects own their handle through `std::unique_ptr`, or `std::shared_ptr` where
+  copies may share one value. A `Clone` type whose copies may not, such as moq's
+  producers and consumers, no longer copies: `T copy = t;` is `T copy = t.clone();`, and
+  a braced list of such objects, which copies them, is built with `push_back` instead.
+  Such a type with a method named `clone` takes a `rename`. A copy of a type that shares,
+  such as moq's `path`, `timestamp`, and `url`, shares the handle rather than cloning in
+  Rust, and a copy of one a closure lends, kept past the call, aborts. So do `Arc`- and
+  `Rc`-backed types, such as moq's stats `registry`: an `Arc::strong_count` of what one
+  holds counts one for all its C++ copies, not one per copy.
 - Swift's and Python's objects have no `close()`, and Python's are no context managers:
   an object's handle is freed once its last reference goes, in Swift's `deinit` or
   CPython's deallocation, so no reference can outlive it. Drop the reference instead of
@@ -22,6 +31,10 @@
   name the Swift uses, such as `Data`, takes a `rename`.
 - Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
   with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
+- Every export writes `dart/<prefix>.dart`, and its crate has a `dart` feature whose glue
+  claims the C names starting `<prefix>_dart_`. An item that clashes with one, or whose
+  Dart name clashes with another's or with a name the Dart's runtime declares, such as
+  `Cancelable`, `Cancelled`, or `SocketAddr`, takes a `rename`.
 - Kotlin returns bytes as a `Bytes`, not a `ByteArray`, read through `size`, `get`,
   `slice`, `copyInto`, and `toByteArray()`. It has no `buffer` and no `close()`, so no
   `ByteBuffer` over Rust's memory outlives it: drop `use { }` and read `bytes.buffer`'s
