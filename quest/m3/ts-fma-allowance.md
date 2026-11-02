@@ -11,5 +11,7 @@ translation is the exactly rounded one and native is a last place from it
 
 Once [rust-lang/compiler-builtins#1358](https://github.com/rust-lang/compiler-builtins/pull/1358)
 ships in the compiler-builtins that the pinned nightly in `ts/rust-toolchain.toml`
-builds, delete `fma.ts`, its test `ts/tests/fma.ts`, and `within`'s call to it, so
-any difference fails again, and delete this quest.
+builds, delete `fma.ts` and every use of it: `caller.ts`'s import and `within`'s
+call, its copy in `ts/tests/fixtures.rs`'s `lang_differential`, and its test
+`ts/tests/fma.ts` with `fma_allowance` in `ts/tests/runtime.rs`, so any difference
+fails again, and delete this quest.

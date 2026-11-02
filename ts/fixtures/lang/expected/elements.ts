@@ -413,8 +413,8 @@ export function rawSlices(data: rt.ByteSlice, out: rt.ByteVec): void {
  * part of which keeps the pointer as Rust's does: after moving back to address 0 it is null.
  */
 export function emptyParts(data: rt.ByteSlice, out: rt.ByteVec): void {
-	const _130: (a0: rt.Place<rt.u8>) => rt.u8 = (p: rt.Place<rt.u8>): rt.u8 => {
-		return rt.ptrWrappingAdd(p, -1, 1, 1) === rt.NULL ? 1 : 0;
+	const _130: (a0: rt.Place<rt.u8>) => rt.u8 = (p2: rt.Place<rt.u8>): rt.u8 => {
+		return rt.ptrWrappingAdd(p2, -1, 1, 1) === rt.NULL ? 1 : 0;
 	};
 	const k: rt.usize = rt.usizeAdd(rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0), 4) as rt.usize, 1);
 	const wide: rt.Place<rt.u16> = rt.DANGLING;
@@ -426,8 +426,8 @@ export function emptyParts(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 		const back: rt.usize = _23[1];
-		const null_: (a0: rt.Place<rt.u16>) => rt.u8 = (p2: rt.Place<rt.u16>): rt.u8 => {
-			return rt.ptrWrappingAdd(p2, -back, 2, 2) === rt.NULL ? 1 : 0;
+		const null_: (a0: rt.Place<rt.u16>) => rt.u8 = (p3: rt.Place<rt.u16>): rt.u8 => {
+			return rt.ptrWrappingAdd(p3, -back, 2, 2) === rt.NULL ? 1 : 0;
 		};
 		const _32: [rt.u16[], rt.u16[]] = rt.sliceSplitAt(_23[0], 0);
 		const part = rt.sliceAsPtr(_32[0]);
@@ -489,6 +489,14 @@ export function emptyParts(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, rt.ptrWrappingAdd(raw.ptr, -k, 2, 2) === rt.NULL ? 1 : 0);
 	const part22 = rt.ptrWrappingAdd(new rt.RawSlice(byte, 0).ptr, 0, 1, 1);
 	rt.byteVecPush(out, _130(part22));
+	let lone: rt.u8 = data.length & 0xff;
+	const p: rt.Place<rt.u8> = rt.place(() => lone, (value) => lone = value);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(rt.byteSliceAsPtr(rt.ptrByteSlice(p, 0, true)), p) & 0xff);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(rt.byteSliceAsPtr(rt.ptrByteSlice(rt.ptrAdd(p, 1), 0, true)), p) & 0xff);
+	let held: rt.u8 = lone;
+	const q: rt.Place<rt.u8> = rt.place(() => held, (value2) => held = value2);
+	const r: rt.ByteSlice = rt.ptrByteSlice(q, 0, false);
+	rt.byteVecPush(out, rt.u8Add(r.length & 0xff, rt.ptrOffsetFrom(rt.byteSliceAsPtr(r), q) & 0xff));
 }
 
 export function emit(values: rt.u32[], out: rt.ByteVec): void {

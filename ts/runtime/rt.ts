@@ -398,7 +398,8 @@ export function rawByteSliceOf(s: ByteSlice): RawSlice<number> {
  * no array of bytes may be a copy of them, since nothing writes them while it lives.
  */
 export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): ByteSlice {
-	if (len === 0 && !(p instanceof AtIndex)) {
+	// None from a pointer into no array of bytes, such as a lone byte's, keeps it.
+	if (len === 0 && !(p instanceof AtIndex && p.array instanceof Uint8Array)) {
 		const none = new Uint8Array(0);
 		EMPTY.set(none, p);
 		return new ByteSlice(none, 0, 0);

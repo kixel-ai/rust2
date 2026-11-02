@@ -102,7 +102,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			| ("NonNull", "slice_from_raw_parts") => {
 				let o = self.origin(arg(0)?)?;
 				let byte = matches!(pointee.kind(), ty::Uint(ty::UintTy::U8));
-				if byte && name != "from_raw_parts" && matches!(o.array, Array::Lone(_)) {
+				let none = self.const_int(arg(1)?) == Some(0);
+				if byte && name != "from_raw_parts" && !none && matches!(o.array, Array::Lone(_)) {
 					return Some("a raw or mutable slice of a byte in no array of bytes".into());
 				}
 				// A raw pointer to a slice reads nothing until a read through it.
@@ -265,9 +266,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let elem = match (owner.as_str(), name.as_str(), container.kind()) {
 			("raw", "from_raw_parts" | "from_raw_parts_mut", _) => {
 				let o = self.origin(&args[0].node)?;
-				// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can share it.
+				// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can
+				// share it, unless empty, which keeps the pointer.
+				let len = self.const_int(&args[1].node);
 				return match (byte(container), o.array) {
-					(true, Array::Lone(_)) => copy(self.const_int(&args[1].node)),
+					(true, Array::Lone(_)) if len != Some(0) => copy(len),
 					_ => Some(o),
 				};
 			}

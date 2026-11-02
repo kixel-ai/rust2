@@ -503,6 +503,17 @@ pub fn empty_parts(data: &[u8], out: &mut Vec<u8>) {
 	out.push(raw.len() as u8);
 	out.push((raw as *const u16).wrapping_sub(k).is_null() as u8);
 	out.push(null((ptr::slice_from_raw_parts(byte, 0) as *const u8).wrapping_add(0)));
+	// None of a lone byte, at it and past it, shared and mutable.
+	let lone = data.len() as u8;
+	let p = &raw const lone;
+	unsafe {
+		out.push(slice::from_raw_parts(p, 0).as_ptr().offset_from(p) as u8);
+		out.push(slice::from_raw_parts(p.add(1), 0).as_ptr().offset_from(p) as u8);
+	}
+	let mut held = lone;
+	let q = &raw mut held;
+	let r = unsafe { slice::from_raw_parts_mut(q, 0) };
+	out.push(r.len() as u8 + unsafe { r.as_ptr().offset_from(q) } as u8);
 }
 
 /// Functions of the crate's named as std's pointer functions.
