@@ -41,4 +41,6 @@ generic std gap is planned here even when moq never calls it.
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
 - [No unused import in an export's generated crate](/quest/m3/ffi-unused-c-void.md) - the crate rust2-ffi generates builds without warnings when no export uses `void *`
+- [Kotlin: bytes compare by content](/quest/m3/ffi-kotlin-bytes-equality.md) - `Bytes` and records holding it compare and hash by their bytes
+- [C++: a move out of a shared copy while its future pends](/quest/m3/ffi-cpp-shared-future.md) - the last shared copy moves out by a clone even while a destroyed copy's future pends
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
