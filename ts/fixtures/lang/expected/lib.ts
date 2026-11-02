@@ -8,6 +8,7 @@ import type * as clones_Logged from "./clones.Logged.ts";
 import type * as collections_Picky from "./collections.Picky.ts";
 import type * as Quirky from "./collections.Quirky.ts";
 import type * as collections_Tally from "./collections.Tally.ts";
+import type * as conversions_Logged from "./conversions.Logged.ts";
 import type * as Any from "./core/any.Any.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
@@ -1285,6 +1286,10 @@ export function drop$tuple2_cell_Ref_str_cell_RefMut_u32(_1: [rt.RefCell<string>
 
 export function drop$tuple2_cell_Ref_tuple2_u8_ref_str_u8(_1: [rt.RefCell<[rt.u8, string]>, rt.u8]): void {
 	rt.refRelease(_1[0]);
+}
+
+export function drop$tuple2_conversions_Logged_u8(_1: [conversions_Logged.Logged, rt.u8]): void {
+	_1[0][Symbol.dispose]();
 }
 
 export function drop$tuple2_sync_Arc_collections_Picky_u8(_1: [rt.Arc<collections_Picky.Picky>, rt.u8]): void {
