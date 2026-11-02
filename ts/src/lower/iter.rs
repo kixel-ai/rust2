@@ -364,6 +364,12 @@ pub fn call<'tcx>(
 			return Some(Expr::rt("iterOnce", tail(args, vec![dropper])));
 		}
 		["iter", "sources", "empty", "empty"] => return Some(Expr::rt("iterEmpty", Vec::new())),
+		// `a.into_iter().zip(b)`, as std's is.
+		["iter", "adapters", "zip", "zip"] => {
+			let [a, other] = <[Expr; 2]>::try_from(args).ok()?;
+			let a = into_iter(b, targ(0)?, a, span)?;
+			return zip(b, a, targ(1)?, other, b.t.sig(call.def_id, gargs).output(), span);
+		}
 		// A closure that owns a value that drops is refused as any std mapping refuses one
 		// it calls but never drops.
 		// Each takes its closure's `None` last, where that is `rt.None`.
@@ -657,22 +663,7 @@ pub fn call<'tcx>(
 			let other = into_iter(b, targ(1)?, rest.into_iter().next()?, span)?;
 			method(name, vec![other])
 		}
-		"zip" => {
-			let other_ty = targ(1)?;
-			let other = into_iter(b, other_ty, rest.into_iter().next()?, span)?;
-			let zip = b.t.sig(call.def_id, gargs).output();
-			let ty::Adt(_, sides) = zip.kind() else {
-				return None;
-			};
-			let (a, other_iter) = (sides.type_at(0), sides.type_at(1));
-			let other_item = b.t.iter_item(other_iter)?;
-			let droppers = vec![
-				zip_trusted(b, a, other_iter, span),
-				b.t.dropper(item, span),
-				b.t.dropper(other_item, span),
-			];
-			method(name, tail(vec![other], droppers))
-		}
+		"zip" => zip(b, recv, targ(1)?, rest.into_iter().next()?, b.t.sig(call.def_id, gargs).output(), span),
 		// `flat_map::<U, F>`, of the source mapped by `F`, which drops as the source does.
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
@@ -1126,6 +1117,30 @@ fn flattens<'tcx>(b: &mut Body<'_, '_, 'tcx>, inner: Ty<'tcx>, span: Span) {
 			format!("a `flatten` of `{inner}`, which drops what it may hold once it ends, which is not supported yet"),
 		);
 	}
+}
+
+/// `rt.iterZip` of `a`, an iterator, and `other`, of type `other_ty`, into `zip`, the `Zip`
+/// of their iterators.
+fn zip<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	a: Expr,
+	other_ty: Ty<'tcx>,
+	other: Expr,
+	zip: Ty<'tcx>,
+	span: Span,
+) -> Option<Expr> {
+	let other = into_iter(b, other_ty, other, span)?;
+	let ty::Adt(_, sides) = zip.kind() else {
+		return None;
+	};
+	let (a_iter, other_iter) = (sides.type_at(0), sides.type_at(1));
+	let (item, other_item) = (b.t.iter_item(a_iter)?, b.t.iter_item(other_iter)?);
+	let droppers = vec![
+		zip_trusted(b, a_iter, other_iter, span),
+		b.t.dropper(item, span),
+		b.t.dropper(other_item, span),
+	];
+	Some(Expr::rt("iterZip", tail(vec![a, other], droppers)))
 }
 
 /// `rt.Trusted`, how std's `Zip` of `a` and `b` reads them, by the traits it specializes
