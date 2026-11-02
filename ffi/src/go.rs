@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty};
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 
@@ -1129,7 +1129,7 @@ impl<'a> Gen<'a> {
 		for method in &callback.methods {
 			let member = pascal(&abi::snake(method.name()));
 			members.push(member.clone());
-			let names = locals(method.params.iter().map(|p| p.name.as_str()));
+			let names = locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
 				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
 				.collect();
@@ -1391,7 +1391,7 @@ impl<'a> Gen<'a> {
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
 		}
-		let names = locals(function.params.iter().map(|p| p.name.as_str()));
+		let names = locals(&function.params);
 		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			if let Type::Closure(..) = param.ty {
@@ -1803,23 +1803,9 @@ fn local(name: &str) -> String {
 	}
 }
 
-/// The Go names of parameters, each [`local`], distinct even where Rust's differ only in
-/// underscores: a later one takes the lowest free number after it.
-fn locals<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<String> {
-	let names: Vec<String> = names.into_iter().map(local).collect();
-	let mut taken: BTreeSet<String> = BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
+/// The Go names of parameters, each [`local`], [`abi::distinct`].
+fn locals(params: &[Param]) -> Vec<String> {
+	abi::distinct(params.iter().map(|p| local(&p.name)))
 }
 
 /// A C field as cgo names it: one Go reads as a keyword takes a leading `_`.

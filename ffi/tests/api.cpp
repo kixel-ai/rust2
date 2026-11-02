@@ -640,6 +640,22 @@ int script() {
 	boxed.push_back(std::move(counters[1]));
 	auto worth = api::worth(std::move(some), std::move(boxed));
 	std::printf("worth %llu %llu\n", ull(worth), ull(api::worth(std::nullopt, {})));
+	std::optional<std::uint64_t> counts[] = {
+		api::held_count(std::tuple{api::counter::new_("h", 4)}),
+		api::held_count(std::nullopt),
+	};
+	std::printf("held");
+	for (auto count : counts) {
+		if (count) {
+			std::printf(" Some(%llu)", ull(*count));
+		} else {
+			std::printf(" None");
+		}
+	}
+	std::printf("\n");
+	print("boxed Some(\"", *api::boxed_name(api::boxed_counter("b")), "\") ");
+	std::printf("%s %s\n", api::boxed_name(std::nullopt) ? "Some" : "None", api::boxed_counter(std::nullopt) ? "false" : "true");
+	std::printf("less %u\n", api::less(5, 2));
 
 	auto sums = api::sums({{1, 2}, {}, {3}});
 	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
