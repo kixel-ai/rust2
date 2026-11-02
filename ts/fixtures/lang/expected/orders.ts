@@ -1233,7 +1233,7 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const apart: Apart.Apart[] = rt.vecFromElem({}, short.length, undefined);
 	const _180: rt.Iter<Apart.Apart> = rt.iterSlice(apart);
-	const set2: rt.BTreeSet<Apart.Apart> = rt.btreeCollectKeys(rt.btreeNew(Apart.cmp$cmp_Ord) as rt.BTreeSet<Apart.Apart>, rt.iterToArray(_180, undefined, 0, true), 0, true, Apart.lt$cmp_PartialOrd, Apart.eq$cmp_PartialEq);
+	const set2: rt.BTreeSet<Apart.Apart> = rt.btreeCollectKeys(rt.btreeNew(Apart.cmp$cmp_Ord) as rt.BTreeSet<Apart.Apart>, rt.iterToArray(_180, undefined, 0, true), 0, true, undefined, Apart.eq$cmp_PartialEq);
 	const _185: rt.Iter<[Apart.Apart, undefined]> = rt.iterMap(rt.iterSlice(apart), (_210: Apart.Apart): [Apart.Apart, undefined] => {
 		return [{}, undefined] as [Apart.Apart, undefined];
 	});
