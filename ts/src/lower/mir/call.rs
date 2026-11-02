@@ -367,7 +367,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// item a `Peekable` peeked, the place a `&mut dyn Any` wraps, a `RefCell` key's value,
 		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, what a write guard
 		// lends its map or its leak, or what `zip` makes of the collection it is given by
-		// `into_iter`.
+		// `into_iter`, as the free `zip` does of either.
 		let lends = match library::key(tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("slice", "get_mut" | "first_mut" | "last_mut" | "iter_mut" | "split_first_mut" | "split_last_mut")
@@ -386,6 +386,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				) => true,
 				("IntoIterator", "into_iter") => gargs.types().next().is_some_and(into_places),
 				("Iterator", "zip") => gargs.types().nth(1).is_some_and(into_places),
+				("zip", "zip") => gargs.types().take(2).any(into_places),
 				_ => false,
 			},
 			None => false,

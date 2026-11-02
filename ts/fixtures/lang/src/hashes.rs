@@ -1,9 +1,10 @@
 //! What `Hash` writes of std's types and the crate's into a `DefaultHasher` keyed as
 //! `DefaultHasher::new` keys it, whose values must be native's byte for byte, and
 //! `RandomState`, whose keys are random on both sides: its case prints only what holds
-//! whatever they are, such as one state hashing equal values alike, and never a hash.
+//! whatever they are, such as one state hashing equal values alike, and never a hash. A
+//! `Hasher` of the crate's own logs each call `Hash` makes of it.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::cmp::Reverse;
 use std::hash::{BuildHasher, DefaultHasher, Hash, Hasher, RandomState};
 use std::num::NonZero;
@@ -139,12 +140,12 @@ pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			digest(&Nibble(n as u8), out);
 		}
 		_ => {
-			// Writes of each width, which fill and split the hasher's 8-byte tail, and
+			// Writes of each width and of bytes, which fill and split the hasher's 8-byte tail, and
 			// `finish` between them, which leaves the hasher as it was.
 			let mut h = DefaultHasher::new();
 			for (i, &b) in data.iter().enumerate() {
 				let v = w(i, 16);
-				match b % 13 {
+				match b % 14 {
 					0 => h.write_u8(v as u8),
 					1 => h.write_u16(v as u16),
 					2 => h.write_u32(v as u32),
@@ -157,6 +158,7 @@ pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					9 => h.write_i64(v as i64),
 					10 => h.write_i128(v as i128),
 					11 => h.write_isize(v as isize),
+					12 => h.write(&data[i..]),
 					_ => out.extend_from_slice(&h.finish().to_le_bytes()),
 				}
 			}
@@ -250,4 +252,255 @@ pub fn bytes(data: &[u8], out: &mut Vec<u8>) {
 		out.push((state.hash_one((pair, 1u8)) == state.hash_one((&w[..2], 1u8))) as u8);
 	}
 	out.push((state.hash_one(empty) == state.hash_one(Vec::<u8>::new())) as u8);
+}
+
+/// Log a call of `tag`'s method, given `bytes`, as its tag, their count, and them.
+fn record(log: &RefCell<Vec<u8>>, tag: u8, bytes: &[u8]) {
+	let mut log = log.borrow_mut();
+	log.push(tag);
+	log.push(bytes.len() as u8);
+	log.extend_from_slice(bytes);
+}
+
+/// A `Hasher` of the crate's own that writes every method itself, logging each call, and
+/// its drop, as `finish` returns what it logged so far.
+struct Full<'a>(&'a RefCell<Vec<u8>>);
+
+impl Hasher for Full<'_> {
+	fn finish(&self) -> u64 {
+		record(self.0, b'f', &[]);
+		self.0.borrow().len() as u64 * 0x9e37_79b9_7f4a_7c15
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		record(self.0, b'w', bytes);
+	}
+
+	fn write_u8(&mut self, i: u8) {
+		record(self.0, 1, &i.to_le_bytes());
+	}
+
+	fn write_u16(&mut self, i: u16) {
+		record(self.0, 2, &i.to_le_bytes());
+	}
+
+	fn write_u32(&mut self, i: u32) {
+		record(self.0, 3, &i.to_le_bytes());
+	}
+
+	fn write_u64(&mut self, i: u64) {
+		record(self.0, 4, &i.to_le_bytes());
+	}
+
+	fn write_u128(&mut self, i: u128) {
+		record(self.0, 5, &i.to_le_bytes());
+	}
+
+	fn write_usize(&mut self, i: usize) {
+		record(self.0, 6, &i.to_le_bytes());
+	}
+
+	fn write_i8(&mut self, i: i8) {
+		record(self.0, 7, &i.to_le_bytes());
+	}
+
+	fn write_i16(&mut self, i: i16) {
+		record(self.0, 8, &i.to_le_bytes());
+	}
+
+	fn write_i32(&mut self, i: i32) {
+		record(self.0, 9, &i.to_le_bytes());
+	}
+
+	fn write_i64(&mut self, i: i64) {
+		record(self.0, 10, &i.to_le_bytes());
+	}
+
+	fn write_i128(&mut self, i: i128) {
+		record(self.0, 11, &i.to_le_bytes());
+	}
+
+	fn write_isize(&mut self, i: isize) {
+		record(self.0, 12, &i.to_le_bytes());
+	}
+
+	fn write_length_prefix(&mut self, len: usize) {
+		record(self.0, b'p', &len.to_le_bytes());
+	}
+
+	fn write_str(&mut self, s: &str) {
+		record(self.0, b's', s.as_bytes());
+	}
+}
+
+impl Drop for Full<'_> {
+	fn drop(&mut self) {
+		record(self.0, b'd', &[]);
+	}
+}
+
+/// A `Hasher` of the crate's own that writes only `write` and `finish`, so every other
+/// method is std's, which writes through them.
+struct Bare<'a>(&'a RefCell<Vec<u8>>);
+
+impl Hasher for Bare<'_> {
+	fn finish(&self) -> u64 {
+		self.0.borrow().len() as u64
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		record(self.0, b'w', bytes);
+	}
+}
+
+/// A `Hasher` of the crate's own that writes some of the unsigned methods, through which
+/// std's signed ones, length prefix, and `write_str` write.
+struct Partial<'a>(&'a RefCell<Vec<u8>>);
+
+impl Hasher for Partial<'_> {
+	fn finish(&self) -> u64 {
+		self.0.borrow().len() as u64
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		record(self.0, b'w', bytes);
+	}
+
+	fn write_u8(&mut self, i: u8) {
+		record(self.0, 1, &[i]);
+	}
+
+	fn write_u64(&mut self, i: u64) {
+		record(self.0, 4, &i.to_le_bytes());
+	}
+
+	fn write_usize(&mut self, i: usize) {
+		record(self.0, 6, &i.to_le_bytes());
+	}
+}
+
+/// What builds a [`Full`], logging that it did.
+struct Build<'a>(&'a RefCell<Vec<u8>>);
+
+impl<'a> BuildHasher for Build<'a> {
+	type Hasher = Full<'a>;
+
+	fn build_hasher(&self) -> Full<'a> {
+		record(self.0, b'b', &[]);
+		Full(self.0)
+	}
+}
+
+/// A value whose `Hash` calls a method std provides of the hasher, and logs its drop.
+struct Logged<'a>(i16, &'a RefCell<Vec<u8>>);
+
+impl Hash for Logged<'_> {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		state.write_i16(self.0);
+		state.write_length_prefix(2);
+	}
+}
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		record(self.1, b'D', &[]);
+	}
+}
+
+/// Hash values of std's types and the crate's, made of `data`, into `h`.
+fn hash_into<H: Hasher>(h: &mut H, data: &[u8]) {
+	let w = |at: usize, n: usize| wide(data, at, n);
+	let (a, b) = (w(0, 16), w(3, 8) as u64);
+	(a as u8).hash(h);
+	(a as u16).hash(h);
+	(a as u32).hash(h);
+	b.hash(h);
+	(b >> (data.len() % 64)).hash(h);
+	a.hash(h);
+	(a as i8).hash(h);
+	(a as i16).hash(h);
+	(a as i32).hash(h);
+	(b as i64).hash(h);
+	((b as i64) >> 11).hash(h);
+	(a as i128).hash(h);
+	((a as i128) >> 70).hash(h);
+	(a as usize).hash(h);
+	(a as isize).hash(h);
+	(a & 1 == 1).hash(h);
+	char::from_u32(a as u32 & 0x1fffff).unwrap_or('\u{10ffff}').hash(h);
+	let text = std::str::from_utf8(data).unwrap_or("é ✓ 😀");
+	text.hash(h);
+	text.to_string().hash(h);
+	().hash(h);
+	(text, a as u8, Some(b)).hash(h);
+	None::<u32>.hash(h);
+	Arc::<str>::from(text).hash(h);
+	data.hash(h);
+	data.to_vec().hash(h);
+	[a as u8, b as u8].hash(h);
+	let words: Vec<u16> = data.iter().map(|&b| b as u16 * 257).collect();
+	words.hash(h);
+	words[words.len() / 2..].hash(h);
+	[b, b << 40, u64::MAX - b].hash(h);
+	[a as i128, -(a as i128)].hash(h);
+	[a as isize, -1].hash(h);
+	[a & 1 == 0, true].hash(h);
+	['é', 'x'].hash(h);
+	[&(a as u16), &3].hash(h);
+	vec![(a as u8, "pair"), (0, "")].hash(h);
+	(a as u8).cmp(&(b as u8)).hash(h);
+	Duration::new(b, a as u32 % 1_000_000_000).hash(h);
+	Reverse(a as u16).hash(h);
+	NonZero::new(a as u32 | 1).hash(h);
+	(a as u8..b as u8).hash(h);
+	(a as u8..=b as u8).hash(h);
+	Packet {
+		id: b,
+		flags: a as u8,
+		name: text.to_string(),
+		tags: words,
+		next: (b % 3 != 0).then_some(b as i32),
+	}
+	.hash(h);
+	Shape::Rect { w: a as i16, h: -1 }.hash(h);
+	[Dir::Up, Dir::Down].hash(h);
+	(Small::Low, Small::High).hash(h);
+	Nibble(a as u8).hash(h);
+	h.write_i32(a as i32);
+	h.write_isize(-(a as isize));
+	h.write_i64(-(b as i64));
+}
+
+/// What `Hash` writes of std's types and the crate's into a `Hasher` of the crate's own,
+/// call by call: one that writes every method itself, one that writes only `write`, and
+/// one that writes some, through which std's others write. Then `BuildHasher::hash_one`
+/// of one, which builds its hasher, hashes, finishes, and drops the hasher, then the value.
+pub fn own(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let mut full = Full(&log);
+	hash_into(&mut full, data);
+	let finish = full.finish();
+	drop(full);
+	let mut bare = Bare(&log);
+	hash_into(&mut bare, data);
+	let mut partial = Partial(&log);
+	hash_into(&mut partial, data);
+	let build = Build(&log);
+	let text = std::str::from_utf8(data).unwrap_or("✓");
+	let n = wide(data, 0, 2) as u16;
+	let hashes = [
+		finish,
+		bare.finish(),
+		partial.finish(),
+		build.hash_one(&n),
+		build.hash_one(text),
+		build.hash_one(&Arc::<str>::from(text)),
+		build.hash_one((n as u8, text)),
+		build.hash_one(Logged(n as i16, &log)),
+		build.hash_one(&Logged(-1, &log)),
+	];
+	for h in hashes {
+		out.extend_from_slice(&h.to_le_bytes());
+	}
+	out.extend_from_slice(&log.into_inner());
 }

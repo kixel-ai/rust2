@@ -32,7 +32,6 @@ roots = [
     "scanned_unit",
     "set_keys",
     "borrowed",
-    "raw_keys",
     "recloned",
     "shared",
     "cow_matched",
