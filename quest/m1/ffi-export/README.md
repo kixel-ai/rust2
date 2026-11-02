@@ -51,6 +51,11 @@ Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 
 than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
 [quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
 
+Decided with the maintainer on 2026-11-02
+([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
+`ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
+
 ## Required
 
 - [moq-clock's C names once it moves into kio](/quest/m1/ffi-export/crates.md) - `moq_now` and `moq_origin` become the clock's, after moq moves it into `kio::clock`
