@@ -94,6 +94,55 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) throws
 	return try result.value!.get()
 }
 
+/// An origin, scoped, published, and polled once by `waiter`, returning its driver and the
+/// wakes counted before the origin, along with every object of it, is released on return.
+func origin(_ waiter: Waiter, _ wakes: Cell<Int>) throws -> (OriginDriver, Int) {
+	// An origin and the driver that runs it, a pair. Its root, which it lends, is returned
+	// as a new handle to a clone.
+	let (origin, driver) = OriginProducer.new(OriginConfig.default())
+	expect(origin.root().asStr() == "", "an origin's root is empty")
+
+	// Scoped beneath a root to patterns, which moq-pattern's own export builds.
+	let patterns = Patterns.new()
+	expect(try patterns.insert(Pattern.subtree("alice")), "a pattern inserts")
+	let scoped = try origin.scope("room", patterns)
+	expect(scoped.root().asStr() == "room", "a scope has its root")
+	expect(try scoped.absolute("alice").asStr() == "room/alice", "a scope's paths are absolute")
+	let allowed = scoped.allowed()
+	expect(allowed.matches("alice/cam"), "a scope allows its patterns")
+	expect(!allowed.matches("bob"), "a scope allows nothing else")
+	let consumer = scoped.consume()
+	expect(try consumer.absolute("bob").asStr() == "room/bob", "a scope's consumer shares its root")
+
+	// A broadcast the origin creates is stamped with its path, which its info lends.
+	do {
+		let publication = try origin.createBroadcast("room/alice")
+		let path = publication.broadcast().info().path
+		expect(path.asStr() == "room/alice", "a broadcast has its path")
+
+		// Paths own their segments, so Swift builds them, and relative ones, from a string.
+		do {
+			_ = try Path.new("/cam/")
+			expect(false, "a path with an empty segment is an error")
+		} catch let e as PathInvalid {
+			expect(e == .emptySegment, "an empty segment is its own error")
+		}
+		let cam = try Path.new("cam")
+		expect(cam.asStr() == "cam", "a path builds from its segments")
+		let joined = try path.join(cam)
+		expect(joined.asStr() == "room/alice/cam", "paths join")
+		expect(joined.stripPrefix(path) == cam, "a path strips its prefix")
+		expect(path.stripPrefix(joined) == nil, "a path strips no longer prefix")
+		expect(try joined.resolve(Relative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
+	}
+
+	_ = try driver.poll(now(), waiter)
+	// A client publishes the origin through moq-net's generic `with_publisher`, at each
+	// type that implements its bound, by reference, so Swift keeps its handle.
+	_ = Client.new().withPublisherProducer(origin)
+	return withExtendedLifetime(origin) { (driver, wakes.value) }
+}
+
 func script() throws {
 	let q = Queue()
 
@@ -157,65 +206,14 @@ func script() throws {
 		expect(try await first.readFrame() == nil, "a finished group reads nil")
 	}
 
-	// An origin and the driver that runs it, a pair. Its root, which it lends, is returned
-	// as a new handle to a clone.
-	let (origin, driver) = OriginProducer.new(OriginConfig.default())
-	expect(origin.root().asStr() == "", "an origin's root is empty")
-
-	// Scoped beneath a root to patterns, which moq-pattern's own export builds.
-	let patterns = Patterns.new()
-	expect(try patterns.insert(Pattern.subtree("alice")), "a pattern inserts")
-	let scoped = try origin.scope("room", patterns)
-	expect(scoped.root().asStr() == "room", "a scope has its root")
-	expect(try scoped.absolute("alice").asStr() == "room/alice", "a scope's paths are absolute")
-	let allowed = scoped.allowed()
-	expect(allowed.matches("alice/cam"), "a scope allows its patterns")
-	expect(!allowed.matches("bob"), "a scope allows nothing else")
-	let consumer = scoped.consume()
-	expect(try consumer.absolute("bob").asStr() == "room/bob", "a scope's consumer shares its root")
-	consumer.close()
-	scoped.close()
-	patterns.close()
-
-	// A broadcast the origin creates is stamped with its path, which its info lends. Each
-	// handle to it is closed, since an open one keeps it, and so the origin, alive.
-	do {
-		let publication = try origin.createBroadcast("room/alice")
-		defer { publication.close() }
-		let created = publication.broadcast()
-		let path = created.info().path
-		created.close()
-		expect(path.asStr() == "room/alice", "a broadcast has its path")
-
-		// Paths own their segments, so Swift builds them, and relative ones, from a string.
-		do {
-			_ = try Path.new("/cam/")
-			expect(false, "a path with an empty segment is an error")
-		} catch let e as PathInvalid {
-			expect(e == .emptySegment, "an empty segment is its own error")
-		}
-		let cam = try Path.new("cam")
-		expect(cam.asStr() == "cam", "a path builds from its segments")
-		let joined = try path.join(cam)
-		expect(joined.asStr() == "room/alice/cam", "paths join")
-		expect(joined.stripPrefix(path) == cam, "a path strips its prefix")
-		expect(path.stripPrefix(joined) == nil, "a path strips no longer prefix")
-		expect(try joined.resolve(Relative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
-	}
-
 	// The driver, polled as a language's event loop would: at the time, and with a waiter
 	// made from the waker and held across polls, since what a poll registers lives only as
-	// long as its waiter. It runs until every owner of the origin is gone.
+	// long as its waiter. It runs until every owner of the origin is gone, which a function
+	// of its own ends by returning.
 	let wakes = Cell(0)
 	let waiter = Waiter.new { wakes.value += 1 }
-	_ = try driver.poll(now(), waiter)
-	// A client publishes the origin through moq-net's generic `with_publisher`, at each
-	// type that implements its bound, by reference, so Swift keeps its handle.
-	Client.new().withPublisherProducer(origin).close()
-	let before = wakes.value
-	origin.close()
-	// The last owner's close wakes the driver, which then finishes, cleanly.
-	expect(wakes.value > before, "the last owner's close wakes the driver")
+	let (driver, before) = try origin(waiter, wakes)
+	expect(wakes.value > before, "the last owner's release wakes the driver")
 	do {
 		_ = try driver.poll(now(), waiter)
 		expect(false, "a driver whose origin is gone finishes")
@@ -272,7 +270,6 @@ func script() throws {
 	// back as JSON text.
 	let on = try Json.parse(#"{"on": true}"#)
 	try status.update(on)
-	on.close()
 	try block {
 		let frame = try await status.consume().recvGroup()?.readFrame()
 		expect(text(frame?.payload) == #"{"on":true}"#, "a subscriber reads the latest value")
@@ -290,7 +287,7 @@ func script() throws {
 	expect(app.value == #"{"v":[1,true]}"#, "the catalog reads its section back as text")
 	// Malformed text fails to parse, and a reserved section is moq-mux's error.
 	do {
-		try Json.parse(#"{"v":"#).close()
+		_ = try Json.parse(#"{"v":"#)
 		expect(false, "malformed JSON fails to parse")
 	} catch let e as StringError {
 		expect(e.error == "EOF while parsing a value at line 1 column 5", "a parse error is serde_json's")
@@ -308,7 +305,7 @@ func script() throws {
 
 	// Session config's foreign types. A URL is parsed from text, failing with why.
 	do {
-		try Url.parse("relay.example").close()
+		_ = try Url.parse("relay.example")
 		expect(false, "a relative URL is an error")
 	} catch let e as StringError {
 		expect(e.error == "relative URL without a base", "a URL's parse error is Rust's")
@@ -318,26 +315,17 @@ func script() throws {
 	let tls = connect.tls
 	tls.setFingerprint(["ab:cd"])
 	connect.setTls(tls)
-	tls.close()
 	connect.setUrl(try Url.parse("https://relay.example:4443/demo"))
 	expect(connect.tls.fingerprint == ["ab:cd"], "a TLS config keeps its fingerprints")
 	let url = connect.url!
-	connect.close()
 	let versions = Versions.default()
-	let tokens = AuthTokens.new([])
-	let dial = tokens.dial(url, versions)
-	let dialed = dial.url
+	let dialed = AuthTokens.new([]).dial(url, versions).url
 	expect(dialed == url, "a dial keeps its URL")
 	expect("\(dialed)" == "https://relay.example:4443/demo", "a URL prints as Rust's")
-	dialed.close()
-	dial.close()
-	tokens.close()
-	url.close()
 	// A `Vec<String>`, as an array.
 	expect(!ALPNS.isEmpty, "a constant slice crosses as an array")
 	let alpns = versions.alpns()
 	expect(!alpns.isEmpty && alpns.allSatisfy { !$0.isEmpty }, "each version has an ALPN")
-	versions.close()
 	// A socket address, crossing in a listener's bind.
 	let loopback: [UInt8] = Array(repeating: 0, count: 15) + [1]
 	let bind = ListenBind.addr(SocketAddr(ip: loopback, port: 4443))
@@ -350,11 +338,9 @@ func script() throws {
 	listen.setPreferredV4(v4)
 	expect(listen.preferredV4 == v4 && listen.preferredV6 == nil, "a listener keeps its preferred IPv4 address")
 	expect(listen.bind == bind, "a listener's config keeps its bind")
-	listen.close()
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
 	let defaults = TlsConnect.default()
 	expect(defaults.root.isEmpty && defaults.fingerprint.isEmpty, "a default TLS config lists none")
-	defaults.close()
 
 	// A session, as moq.c runs it: a server bound to port 0 reads back the port it got and
 	// serves with one call, in a task of its own, and a client dials it with one call and
@@ -403,8 +389,8 @@ func script() throws {
 		let frame = try await subscriber.recvGroup()?.readFrame()
 		expect(text(frame?.payload) == "hello", "a session reads the frame the server serves")
 
-		try await established.close_()
-		try await client.close_()
+		try await established.close()
+		try await client.close()
 		serving.cancel()
 	}
 }

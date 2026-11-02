@@ -5,7 +5,7 @@
 //! is `TrackProducer`, and its method `moq_track_producer_append_group` is
 //! `TrackProducer.appendGroup`. A keyword is quoted in backticks, and a member named as one
 //! Swift gives its type takes a trailing `_`. An object is a final class owning its handle,
-//! freed in `deinit` or sooner by `close`; a record a struct; an enum a Swift enum, with
+//! freed in `deinit`; a record a struct; an enum a Swift enum, with
 //! its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the handles, the arena a call lowers
@@ -820,9 +820,9 @@ impl<'a> Gen<'a> {
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
-		let mut members = vec!["close".to_string(), "handle".to_string()];
+		let mut members = vec!["handle".to_string()];
 		let mut body = vec![format!(
-			"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n\n\t/// Free the handle once no call holds it, rather than once Swift releases this: a\n\t/// call after it traps.\n\tpublic func close() {{\n\t\thandle.close()\n\t}}\n"
+			"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
 		)];
 		let mut protocols = vec!["@unchecked Sendable"];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members, &mut protocols);
@@ -925,7 +925,7 @@ impl<'a> Gen<'a> {
 				let close = self.close(inner, &v);
 				format!("for {v} in {e} {{ {close} }}")
 			}
-			_ => format!("{e}.close()"),
+			_ => format!("{e}.handle.close()"),
 		}
 	}
 
@@ -988,7 +988,7 @@ impl<'a> Gen<'a> {
 				Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
 					let l = format!("l{k}_");
 					body.push(format!("let {l} = {}(lent: {p})", self.sw(object)));
-					body.push(format!("defer {{ {l}.close() }}"));
+					body.push(format!("defer {{ {l}.handle.close() }}"));
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),
@@ -1025,7 +1025,7 @@ impl<'a> Gen<'a> {
 			None => None,
 		};
 		let reserved: &[&str] = match owner_ty {
-			Some(Type::Object(_)) => &["close", "handle", "init", "deinit"],
+			Some(Type::Object(_)) => &["handle", "init", "deinit"],
 			Some(_) => &["init"],
 			None => &[],
 		};
@@ -1057,7 +1057,7 @@ impl<'a> Gen<'a> {
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						arg.after.push("self.close()".to_string());
+						arg.after.push("self.handle.close()".to_string());
 					}
 				}
 				_ => {
