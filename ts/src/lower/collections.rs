@@ -2377,6 +2377,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![cmp_fn(b, inner, partial, span)]),
+		// An `rt.Place` compares by its value, as std's impl on `&mut` does by what it points at.
+		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
+			Expr::rt("cellBy", vec![cmp_fn(b, inner, partial, span)])
+		}
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
 			Expr::rt("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
 		}
@@ -2460,6 +2464,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
+		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::error) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
 			b.fn_value(eq, tcx.mk_args(&[ty.into(), ty.into()]), span)
