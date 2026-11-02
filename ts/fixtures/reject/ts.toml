@@ -41,7 +41,6 @@ roots = [
     "cow_made",
     "lopsided",
     "batched",
-    "called_closure",
     "pattern_closure",
     "parts_summed",
     "ok_passed",

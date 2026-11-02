@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `rt.iterReduce`, `rt.iterMaxBy`, `rt.iterMinBy`, `rt.iterMaxByKey`, and
+  `rt.iterMinByKey` take whether they own their closure, which they drop where std's do,
+  before the `rt.None` they take last, as in `rt.iterReduce(it, f, drops, owns, none)`.
 - `rt.vecCapacity`, `rt.vecReserve`, `rt.vecReserveExact`, and `rt.dequeReserve` are now
   `Vec::capacity`, `reserve`, and `reserve_exact` and `VecDeque::reserve` of a vector, its
   element size in bytes last, as in `rt.vecReserve(v, additional, 4)`, not the arithmetic

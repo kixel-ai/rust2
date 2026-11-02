@@ -504,10 +504,7 @@ pub fn call<'tcx>(
 		// Each owns a closure it is given by value, which drops as its fold ends.
 		"for_each" | "fold" => {
 			let drops = iter_drops(b, self_ty, span);
-			let owns = match b.t.drops(targ(gargs.types().count() - 1)?) {
-				true => Expr::lit("true"),
-				false => Expr::undefined(),
-			};
+			let owns = flag(b.t.drops(targ(gargs.types().count() - 1)?));
 			method(&camel, tail(rest, vec![drops, owns]))
 		}
 		// std's `Sum` and `Product` are of the type or a reference to it: another is the crate's.
@@ -570,14 +567,16 @@ pub fn call<'tcx>(
 		// By the comparator, which `best` calls with the best so far and then the next, as
 		// std's `cmp::max_by` and `min_by` do.
 		"max_by" | "min_by" => {
-			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span)]
+			let owns = flag(b.t.drops(targ(1)?));
+			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span), owns]
 				.into_iter()
 				.chain(none);
 			method(&camel, tail(rest, droppers.collect()))
 		}
 		"reduce" => {
+			let owns = flag(b.t.drops(targ(1)?));
 			let drops = iter_drops(b, self_ty, span);
-			method(name, tail(rest, [drops].into_iter().chain(none).collect()))
+			method(name, tail(rest, [drops, owns].into_iter().chain(none).collect()))
 		}
 		// By the items' `Ord::max` or `min`, or the keys', which test `<` of the next and the
 		// best. Not of places, which the runtime would compare as the objects they are.
@@ -617,8 +616,13 @@ pub fn call<'tcx>(
 				));
 			}
 			let lt = super::collections::test_fn(b, key, "lt", span);
+			let owns = match by_key {
+				true => Some(flag(b.t.drops(targ(2)?))),
+				false => None,
+			};
 			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span)]
 				.into_iter()
+				.chain(owns)
 				.chain(none);
 			method(&camel, tail([rest, vec![lt]].concat(), droppers.collect()))
 		}
@@ -626,24 +630,32 @@ pub fn call<'tcx>(
 		// or by `le` of the keys a function makes, as std's maps to them. Not of places, as
 		// `max` is not.
 		"is_sorted" | "is_sorted_by" | "is_sorted_by_key" => {
-			let (items, compare, each) = match name {
-				"is_sorted_by" => (recv.clone(), rest.into_iter().next()?, item),
+			let drops = drops_iter(b, self_ty, span);
+			let (items, compare, each, drops) = match name {
+				"is_sorted_by" => (recv.clone(), rest.into_iter().next()?, item, drops),
 				_ if b.t.has_place(item) => return None,
-				"is_sorted" => (recv.clone(), super::collections::test_fn(b, item, "le", span), item),
+				"is_sorted" => (
+					recv.clone(),
+					super::collections::test_fn(b, item, "le", span),
+					item,
+					drops,
+				),
 				_ => {
 					let key = targ(2)?;
 					let le = super::collections::test_fn(b, key, "le", span);
-					// The map drops its function as the iterator drops, so one through a reference
-					// or box is lent, as one owned that drops is refused with such an iterator.
+					// std's maps the iterator by its function, which drops after it: one it is lent,
+					// through a box or not, drops with its owner.
 					let (mut f, f_ty) = (rest.into_iter().next()?, targ(1)?);
-					let owned = matches!(f_ty.kind(), ty::Closure(..) | ty::FnDef(..) | ty::FnPtr(..));
-					if !owned && drops_iter(b, self_ty, span) {
+					let (_, lent, _) = library::called_through(b.t, f_ty, None);
+					if lent && drops {
 						f = Expr::rt("lent", vec![f]);
 					}
-					(Expr::rt("iterMap", vec![recv.clone(), f]), le, key)
+					let drops = drops || b.t.drops(f_ty);
+					(Expr::rt("iterMap", vec![recv.clone(), f]), le, key, drops)
 				}
 			};
-			let mut droppers = vec![iter_drops(b, self_ty, span), b.t.dropper(each, span)];
+			let drops = flag(drops);
+			let mut droppers = vec![drops, b.t.dropper(each, span)];
 			if name == "is_sorted_by" {
 				droppers.push(b.t.dropper(targ(1)?, span));
 			}
@@ -866,15 +878,6 @@ fn nth_zips(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> bool {
 		Some("Enumerate" | "Fuse" | "Skip") => nth_zips(tcx, args.type_at(0)),
 		_ => false,
 	}
-}
-
-/// Whether std's `owner::name` takes a closure by value that it drops as its fold ends,
-/// before the iterators, which its mapping drops there too.
-pub(super) fn releases(owner: &str, name: &str) -> bool {
-	matches!(
-		(owner, name),
-		("Iterator", "for_each" | "fold" | "eq_by" | "cmp_by" | "partial_cmp_by")
-	)
 }
 
 /// The function or `Iterator` method named for `ty`, one of std's iterators of zero-sized
@@ -1367,7 +1370,12 @@ pub(super) fn text_items<'tcx>(t: &Translator<'_, 'tcx>, item: Ty<'tcx>) -> Opti
 /// holds, which its `rt.Iter` drops as std's does: `true`, or `undefined` for one that
 /// drops nothing.
 pub(super) fn iter_drops<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
-	match drops_iter(b, ty, span) {
+	flag(drops_iter(b, ty, span))
+}
+
+/// A runtime function's optional flag: `true`, or `undefined` for its default.
+fn flag(on: bool) -> Expr {
+	match on {
 		true => Expr::lit("true"),
 		false => Expr::undefined(),
 	}
