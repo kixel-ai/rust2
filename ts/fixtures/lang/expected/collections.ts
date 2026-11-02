@@ -883,11 +883,11 @@ export function btreeMaps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			const b5: rt.u8 = _2;
 			return [{ _0: b5 }, b5] as [collections_Nibble.Nibble, rt.u8];
 		});
-		const collected: rt.BTreeMap<collections_Nibble.Nibble, rt.u8> = rt.btreeCollect(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeMap<collections_Nibble.Nibble, rt.u8>, rt.iterToArray(_430, undefined, 2, true), true, collections_Nibble.eq$cmp_PartialEq);
+		const collected: rt.BTreeMap<collections_Nibble.Nibble, rt.u8> = rt.btreeCollect(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeMap<collections_Nibble.Nibble, rt.u8>, rt.iterToArray(_430, undefined, 2, true), 2, true, collections_Nibble.eq$cmp_PartialEq);
 		const _433: rt.Iter<collections_Nibble.Nibble> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_216: rt.u8): collections_Nibble.Nibble => {
 			return { _0: _216 };
 		});
-		const keys: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_433, undefined, 1, true), rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
+		const keys: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_433, undefined, 1, true), 1, true, rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
 		const _437: rt.Iter<collections_Nibble.Nibble> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_219: rt.u8): collections_Nibble.Nibble => {
 			return { _0: _219 ^ 48 };
 		});
@@ -1312,9 +1312,9 @@ export function sorted$collections_OptionMap_Option_String_collections_HashMap_u
 	const all: [rt.u8, string | undefined][] = rt.iterToArray(rt.iterMap(rt.hashIter(self), (_2: [rt.u8, string | undefined]): [rt.u8, string | undefined] => {
 		return [_2[0], option_clone$14nprly(_2[1])] as [rt.u8, string | undefined];
 	}), "next", 16);
-	rt.sliceSortByKey(all, (_22: [rt.u8, string | undefined]): rt.u8 => {
+	rt.sliceSort(all, rt.keyLt((_22: [rt.u8, string | undefined]): rt.u8 => {
 		return _22[0];
-	}, rt.lt);
+	}, rt.lt), 16, true);
 	return all;
 }
 
@@ -1322,9 +1322,9 @@ export function sorted$collections_OptionMap_Option_u8_collections_HashMap_u8_Op
 	const all: [rt.u8, rt.u8 | undefined][] = rt.iterToArray(rt.iterMap(rt.hashIter(self), (_2: [rt.u8, rt.u8 | undefined]): [rt.u8, rt.u8 | undefined] => {
 		return [_2[0], _2[1]] as [rt.u8, rt.u8 | undefined];
 	}), "next", 3);
-	rt.sliceSortByKey(all, (_22: [rt.u8, rt.u8 | undefined]): rt.u8 => {
+	rt.sliceSort(all, rt.keyLt((_22: [rt.u8, rt.u8 | undefined]): rt.u8 => {
 		return _22[0];
-	}, rt.lt);
+	}, rt.lt), 3, true);
 	return all;
 }
 
@@ -1334,9 +1334,9 @@ export function sorted$collections_OptionMap_unit_collections_HashMap_u8_unit(se
 		_2[1];
 		return [_5, undefined] as [rt.u8, undefined];
 	}), "next", 1);
-	rt.sliceSortByKey(all, (_22: [rt.u8, undefined]): rt.u8 => {
+	rt.sliceSort(all, rt.keyLt((_22: [rt.u8, undefined]): rt.u8 => {
 		return _22[0];
-	}, rt.lt);
+	}, rt.lt), 1, true);
 	return all;
 }
 
@@ -1649,7 +1649,7 @@ export function optionals(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "])));
 		}
 		const all: [[rt.u8, boolean], rt.u8 | undefined][] = rt.iterToArray(rt.hashIter(map), "next", 4);
-		rt.sliceSort(all, rt.cmpLt(rt.cmpTuple<[[rt.u8, boolean], rt.u8 | undefined], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, boolean], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmpOption(rt.cmp)])));
+		rt.sliceSort(all, rt.cmpLt(rt.cmpTuple<[[rt.u8, boolean], rt.u8 | undefined], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, boolean], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmpOption(rt.cmp)])), 4, true);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(all, f, (value: [[rt.u8, boolean], rt.u8 | undefined], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0][0], f), (f: rt.Formatter) => rt.fmtBool(value[0][1], f)], f), (f: rt.Formatter) => rt.fmtOption(value[1], f, rt.u8Debug)], f))];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args4[0]])));
 	}
@@ -2033,11 +2033,11 @@ export function setOpsOf$collections_Nibble(left: rt.ByteSlice, right: rt.ByteSl
 	const _7: rt.Iter<collections_Nibble.Nibble> = rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), (_2: rt.u8): collections_Nibble.Nibble => {
 		return make(_2);
 	});
-	const a: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_7, undefined, 1, true), rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
+	const a: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_7, undefined, 1, true), 1, true, rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
 	const _12: rt.Iter<collections_Nibble.Nibble> = rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), (_22: rt.u8): collections_Nibble.Nibble => {
 		return make(_22);
 	});
-	const b: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_12, undefined, 1, true), rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
+	const b: rt.BTreeSet<collections_Nibble.Nibble> = rt.btreeCollectKeys(rt.btreeNew(collections_Nibble.cmp$cmp_Ord) as rt.BTreeSet<collections_Nibble.Nibble>, rt.iterToArray(_12, undefined, 1, true), 1, true, rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), collections_Nibble.eq$cmp_PartialEq);
 	const iter: rt.Iter<[rt.BTreeSet<collections_Nibble.Nibble>, rt.BTreeSet<collections_Nibble.Nibble>]> = rt.iterSlice([[a, b] as [rt.BTreeSet<collections_Nibble.Nibble>, rt.BTreeSet<collections_Nibble.Nibble>], [b, a] as [rt.BTreeSet<collections_Nibble.Nibble>, rt.BTreeSet<collections_Nibble.Nibble>]]);
 	while (true) {
 		const _25: [rt.BTreeSet<collections_Nibble.Nibble>, rt.BTreeSet<collections_Nibble.Nibble>] | rt.Done = iter.next();
@@ -3505,31 +3505,31 @@ export function putHints$u8_collections_hash_set_Union_u8_hash_RandomState(items
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$Option_u8(items: Array<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	rt.sliceSort(items, rt.cmpLt(rt.cmpOption(rt.cmp)));
+	rt.sliceSort(items, rt.cmpLt(rt.cmpOption(rt.cmp)), 4, true);
 	putAll$Option_u8_vec_IntoIter_ref_Option_u8(rt.iterSlice(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$array2_u8(items: rt.ByteSlice[], put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	rt.sliceSort(items, rt.cmpLt(rt.cmpBytes));
+	rt.sliceSort(items, rt.cmpLt(rt.cmpBytes), 4, true);
 	putAll$array2_u8_vec_IntoIter_ref_array2_u8(rt.iterSlice(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$cmp_Reverse_Option_u8(items: Array<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	rt.sliceSort(items, rt.cmpLt(rt.cmpReverse(rt.cmpOption(rt.cmp))));
+	rt.sliceSort(items, rt.cmpLt(rt.cmpReverse(rt.cmpOption(rt.cmp))), 4, true);
 	putAll$cmp_Reverse_Option_u8_vec_IntoIter_ref_cmp_Reverse_Option_u8(rt.iterSlice(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$collections_Nibble(items: collections_Nibble.Nibble[], put: (a0: collections_Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	rt.sliceSort(items, rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(items, rt.cmpLt(collections_Nibble.partialCmp$cmp_PartialOrd), 4, true);
 	putAll$collections_Nibble_vec_IntoIter_ref_collections_Nibble(rt.iterSlice(items), put, out);
 }
 
 /** [`put_all`] of `items` in order. */
 export function putSorted$u8(items: rt.u8[], put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	rt.sliceSort(items, rt.lt);
+	rt.sliceSort(items, rt.lt, 4, true);
 	putAll$u8_vec_IntoIter_ref_u8(rt.iterSlice(items), put, out);
 }
 
@@ -5236,7 +5236,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	const _1431: [ByRef.ByRef[], rt.ByteVec] = [rt.iterToArray(rt.iterSlice(byRef), undefined, 4, true), out];
 	const xs: ByRef.ByRef[] = _1431[0];
 	const sorted: ByRef.ByRef[] = rt.vecExact(xs.slice(), 4);
-	rt.sliceSort(sorted, rt.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref));
+	rt.sliceSort(sorted, rt.cmpLt(ByRef.partialCmp$cmp_PartialOrd_ref), 4, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(sorted), (x4: ByRef.ByRef): rt.u8 => {
 		return x4._0 & 0xff;
 	}), undefined, true);
@@ -5285,7 +5285,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	const _1541: [ByVal.ByVal[], rt.ByteVec] = [rt.iterToArray(rt.iterSlice(byVal), undefined, 4, true), out];
 	const xs2: ByVal.ByVal[] = _1541[0];
 	const sorted2: ByVal.ByVal[] = rt.vecExact(xs2.slice(), 4);
-	rt.sliceSort(sorted2, rt.cmpLt(ByVal.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(sorted2, rt.cmpLt(ByVal.partialCmp$cmp_PartialOrd), 4, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(sorted2), (x10: ByVal.ByVal): rt.u8 => {
 		return x10._0 & 0xff;
 	}), undefined, true);
@@ -5334,7 +5334,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	const _1651: [Mixed.Mixed[], rt.ByteVec] = [rt.iterToArray(rt.iterSlice(mixed), undefined, 4, true), out];
 	const xs3: Mixed.Mixed[] = _1651[0];
 	const sorted3: Mixed.Mixed[] = rt.vecExact(xs3.slice(), 4);
-	rt.sliceSort(sorted3, rt.cmpLt(Mixed.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(sorted3, rt.cmpLt(Mixed.partialCmp$cmp_PartialOrd), 4, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(sorted3), (x16: Mixed.Mixed): rt.u8 => {
 		return x16._0 & 0xff;
 	}), undefined, true);

@@ -2016,22 +2016,20 @@ fn mapping<'tcx>(
 				}
 			}
 		}
-		// Sorted by `PartialOrd::lt`, or by a comparator, or by `lt` of the keys a function makes.
+		// Sorted as std's sorts do, by `PartialOrd::lt`, or by a comparator, or by `lt` of the
+		// keys a function makes.
 		(
 			"slice",
 			"sort" | "sort_unstable" | "sort_by" | "sort_unstable_by" | "sort_by_key" | "sort_unstable_by_key",
 		) => {
 			let elem = targ(gargs, 0);
-			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
-			match name.as_str() {
+			let mut values = args.into_iter();
+			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let less = match name.as_str() {
 				// A typed array sorts its numbers by value, and equal bytes are alike.
-				"sort" | "sort_unstable" if is_u8(elem) => values.remove(0).method("sort", Vec::new()),
-				"sort" | "sort_unstable" => {
-					values.push(super::collections::test_fn(b, targ(gargs, 0), "lt", span));
-					Expr::rt("sliceSort", values)
-				}
-				"sort_by" | "sort_unstable_by" => Expr::rt("sliceSortBy", values),
+				"sort" | "sort_unstable" if is_u8(elem) => return Some(s.method("sort", Vec::new())),
+				"sort" | "sort_unstable" => super::collections::test_fn(b, elem, "lt", span),
+				"sort_by" | "sort_unstable_by" => Expr::rt("cmpLt", vec![values.next()?]),
 				_ => {
 					let key = targ(gargs, 1);
 					if b.t.drops(key) {
@@ -2040,9 +2038,18 @@ fn mapping<'tcx>(
 							format!("`slice::{name}` by `{key}`, which drops, which is not supported yet"),
 						));
 					}
-					values.push(super::collections::test_fn(b, key, "lt", span));
-					Expr::rt("sliceSortByKey", values)
+					let lt = super::collections::test_fn(b, key, "lt", span);
+					Expr::rt("keyLt", vec![values.next()?, lt])
 				}
+			};
+			let mut values = vec![s, less];
+			values.extend(sort_of(b, elem, span));
+			match name.contains("unstable") {
+				true => {
+					values.push(Expr::lit(b.t.is_copy(elem).to_string()));
+					Expr::rt("sliceSortUnstable", values)
+				}
+				false => Expr::rt("sliceSort", values),
 			}
 		}
 		// Whether each element and the next are in order, as `sort` would leave them: by
@@ -3183,6 +3190,13 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 		}
 		_ => v,
 	}
+}
+
+/// What std's sorts pick their small sorts, partitions, and scratch by, of an `elem`: its
+/// size on wasm32 and whether it is `Freeze`.
+pub fn sort_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> [Expr; 2] {
+	let freeze = elem.is_freeze(b.t.tcx, b.t.typing_env_pub());
+	[super::iter::size_of(b, elem, span), Expr::lit(freeze.to_string())]
 }
 
 trait MethodCall {
