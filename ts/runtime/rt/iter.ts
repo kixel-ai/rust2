@@ -2223,17 +2223,21 @@ class EnumerateIter<T> extends Adaptor<T, [number, T]> {
 		return item === DONE ? DONE : [this.index + this.inner.len(), item];
 	}
 
-	/** std's: its iterator folded, counting each item as it goes, and from the back from its length. */
+	/**
+	 * std's: its iterator folded, counting each item as it goes, and from the back down from
+	 * its length as the fold starts.
+	 */
 	override folded(fold = false): Iter<[number, T]> {
 		const inner = this.inner.folded(fold);
-		if (inner === this.inner) return this;
 		const front = (): [number, T] | Done => {
 			const item = inner.next();
 			return item === DONE ? DONE : [this.index++, item];
 		};
+		let i: number | undefined;
 		const back = (): [number, T] | Done => {
+			i ??= this.index + this.inner.len();
 			const item = inner.nextBack();
-			return item === DONE ? DONE : [this.index + this.inner.len(), item];
+			return item === DONE ? DONE : [--i, item];
 		};
 		return new Folded(front, back);
 	}
@@ -2743,7 +2747,6 @@ class SkipIter<T> extends Adaptor<T, T> {
 	 */
 	override folded(fold = false): Iter<T> {
 		const inner = this.inner.folded(fold);
-		if (inner === this.inner) return this;
 		const front = (): T | Done => {
 			if (this.n > 0) {
 				const n = this.n;
@@ -2837,26 +2840,29 @@ class TakeIter<T> extends Adaptor<T, T> {
 
 	/**
 	 * std's: its iterator folded, counting each item it reads against the limit, and from
-	 * the back, past what it holds beyond the limit by `nth_back`, folded without counting.
+	 * the back, past what it holds beyond the limit by `nth_back` as the fold starts,
+	 * folded without counting.
 	 */
 	override folded(): Iter<T> {
 		const inner = this.inner.folded();
-		if (inner === this.inner) return this;
 		const front = (): T | Done => {
 			if (this.n === 0) return DONE;
 			const item = inner.next();
 			if (item !== DONE) this.n--;
 			return item;
 		};
+		let ended: boolean | undefined;
 		const back = (): T | Done => {
-			if (this.n === 0) return DONE;
-			const len = this.inner.len();
-			if (len > this.n) {
-				const item = this.inner.nthBack(len - this.n - 1, this.drop);
-				if (item === DONE) return DONE;
-				this.drop?.(item);
+			if (ended === undefined) {
+				ended = this.n === 0;
+				const len = ended ? 0 : this.inner.len();
+				if (len > this.n) {
+					const item = this.inner.nthBack(len - this.n - 1, this.drop);
+					if (item === DONE) ended = true;
+					else this.drop?.(item);
+				}
 			}
-			return inner.nextBack();
+			return ended ? DONE : inner.nextBack();
 		};
 		return new Folded(front, back);
 	}
@@ -3136,6 +3142,17 @@ class StepByIter<T> extends Adaptor<T, T> {
 			if (done) return acc;
 		}
 		return foldBy(this, false, acc, f, release);
+	}
+
+	/** std's `try_rfold`: the last item by `next_back`, then each step back by `nth_back`. */
+	override folded(): Iter<T> {
+		let first = true;
+		const back = (): T | Done => {
+			if (!first) return this.inner.nthBack(this.step, this.drop);
+			first = false;
+			return this.nextBack();
+		};
+		return new Folded(() => this.next(), back);
 	}
 
 	/** std's: the last item by `next_back`, then each step back by `nth_back`. */

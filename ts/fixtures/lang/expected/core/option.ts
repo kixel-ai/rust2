@@ -735,6 +735,13 @@ export function map$0gl6wke(self: [rt.usize, string] | undefined, f: (a0: [rt.us
 	return f(self);
 }
 
+export function map$1sj2ls1(self: [rt.usize, rt.u8] | undefined, f: (a0: [rt.usize, rt.u8]) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0a57co2(self: rt.u32 | undefined, f: (a0: rt.u32) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

@@ -163,7 +163,8 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			2 => put(out, run.nth_back(usize::from(step >> 3) % 4)),
 			3 => out.push(run.len() as u8),
 			4 => put_hint(out, run.size_hint()),
-			5 => put(out, (&mut run).rev().next()),
+			5 if step & 8 == 0 => put(out, (&mut run).rev().next()),
+			5 => put(out, (&mut run).next_back()),
 			6 => out.push((&mut run).len() as u8),
 			_ => put(out, run.nth(usize::from(step >> 3) % 4)),
 		}
@@ -205,7 +206,19 @@ fn consumed<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(mut it: I, pi
 		5 => out.extend(it.take(k).rev()),
 		6 => out.extend(it.step_by(k.max(1)).rev()),
 		7 => put(out, it.rposition(|b| b % 3 == 0).map(|i| i as u8)),
-		8 => put(out, it.skip(k % 4).rfind(|b| b % 3 == 0)),
+		// `rfind` folds from the back, through each adaptor that reads the length as it starts.
+		8 => put(
+			out,
+			match k % 4 {
+				0 => it.skip(k / 4).rfind(|b| b % 3 == 0),
+				1 => it.take(k / 4).rfind(|b| b % 3 == 0),
+				2 => it
+					.enumerate()
+					.rfind(|&(i, b)| (i as u8 + b) % 3 == 0)
+					.map(|(i, b)| i as u8 ^ b),
+				_ => it.step_by(k / 4 + 1).rfind(|b| b % 3 == 0),
+			},
+		),
 		9 => put(out, it.rev().last()),
 		10 => out.extend(it.map(|b| b ^ 0x55).rev().take(k)),
 		11 => {
