@@ -256,8 +256,8 @@ pub fn inline(data: &[u8], out: &mut Vec<u8>) {
 /// the array of one Rust treats it as, and into a mutable part of an array, measured from
 /// the array, the pointer an empty slice keeps, within a shared part, which JS copies,
 /// a `&mut` into that part, memory nothing wrote copied, null and dangling pointers moved by
-/// address, kept by empty raw slices, and cast from pointers to arrays, and the crate's
-/// functions named as std's.
+/// address, kept by empty raw slices, and cast from pointers to arrays, the crate's
+/// functions named as std's, and byte pointers into one buffer through its views.
 pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 	for &n in data {
 		let bytes = [n, 1, 2, 3];
@@ -400,6 +400,23 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 				.is_null() as u8,
 		);
 	}
+	// Byte pointers into one buffer through different views of it: a subslice's own, its
+	// iterator's elements', and its parts'.
+	let mut bytes = [data.first().copied().unwrap_or(0), 1, 2, 3, 4, 5];
+	let s = &mut bytes[1..];
+	let base = s.as_mut_ptr();
+	let first: *mut u8 = s.iter_mut().next().unwrap();
+	let last: *mut u8 = s.iter_mut().last().unwrap();
+	let (_, tail) = s.split_at_mut(2);
+	let part = tail.as_mut_ptr();
+	unsafe {
+		out.push(first.offset_from(base) as u8);
+		out.push(last.offset_from(base) as u8);
+		out.push(base.offset_from(last) as u8);
+		out.push(part.offset_from(first) as u8);
+		*last.offset(part.offset_from(last)) ^= 0xff;
+	}
+	out.extend(bytes);
 }
 
 /// Raw pointers to slices, each where it starts and how long it is: read and written

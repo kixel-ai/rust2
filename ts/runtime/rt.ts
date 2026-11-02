@@ -293,13 +293,17 @@ export function ptrWrappingAdd<T>(p: Place<T>, n: number, size: number, align: n
 	return new AtIndex(e.array, wrapIndex(e.index, n | 0, size));
 }
 
-/** `p.offset_from(origin)`: how many elements `p` is past `origin`, in the same array. */
+/** `p.offset_from(origin)`: how many elements `p` is past `origin`, in the same array or byte buffer. */
 export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 	// Equal addresses are none apart, in no allocation as in one.
 	if (p === origin || (p instanceof Address && origin instanceof Address && p.addr === origin.addr)) return 0;
 	const [a, b] = [elemOf(p), elemOf(origin)];
-	if (a.array !== b.array) throw new Error("rust2-ts: `offset_from` of pointers JS keeps in different arrays");
-	return a.index - b.index;
+	if (a.array === b.array) return a.index - b.index;
+	// Views of one buffer's bytes, such as a slice's and its iterator's, are one array.
+	if (a.array instanceof Uint8Array && b.array instanceof Uint8Array && a.array.buffer === b.array.buffer) {
+		return a.array.byteOffset + a.index - (b.array.byteOffset + b.index);
+	}
+	throw new Error("rust2-ts: `offset_from` of pointers JS keeps in different arrays");
 }
 
 /**
