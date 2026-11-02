@@ -40,6 +40,7 @@ pub fn call<'tcx>(
 			("Default", "default", Some(std), Some(t))
 			| ("Clone", "clone", Some(std), Some(t))
 			| ("Clone", "clone_from", Some(std @ (Std::LinkedList | Std::VecDeque)), Some(t))
+			| ("ToOwned", "clone_into", Some(std @ Std::VecDeque), Some(t))
 			| ("Index" | "IndexMut", "index" | "index_mut", Some(std), Some(t))
 			| ("Extend", "extend", Some(std), Some(t))
 			| ("From", "from", Some(std), Some(t))
@@ -268,7 +269,7 @@ pub fn lending(std: Std) -> bool {
 /// indices of the collection's type arguments whose runtime function takes what drops each,
 /// after its own arguments: the key `insert` and `entry` are given if an equal one is there
 /// already, the key `remove` takes out, the value `or_insert` is given if one is, and what
-/// `clear`, `retain`, `truncate`, and a deque's `clone_from` discard. An iterator, and `extend` and `from`, take
+/// `clear`, `retain`, `truncate`, and a deque's `clone_from` and `clone_into` discard. An iterator, and `extend` and `from`, take
 /// theirs where they map.
 fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 	let map = matches!(std, Std::HashMap | Std::BTreeMap);
@@ -280,7 +281,9 @@ fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 		(_, "or_insert") if std == Std::Entry => &[1],
 		(_, "clear" | "retain" | "retain_mut") if map => &[0, 1],
 		(_, "clear" | "retain" | "retain_mut") if set => &[0],
-		(_, "clear" | "retain" | "retain_mut" | "truncate" | "clone_from") if std == Std::VecDeque => &[0],
+		(_, "clear" | "retain" | "retain_mut" | "truncate" | "clone_from" | "clone_into") if std == Std::VecDeque => {
+			&[0]
+		}
 		(_, "clear") if std == Std::LinkedList => &[0],
 		(_, "clear" | "retain") if std == Std::BinaryHeap => &[0],
 		_ => return None,
@@ -1362,8 +1365,11 @@ fn deque<'tcx>(
 			Expr::rt("dequeClone", super::iter::tail(values, vec![clone]))
 		}
 		// std's clears it, which drops its items, and extends it by clones of the source's,
-		// keeping its capacity.
-		("Clone", "clone_from") => {
+		// keeping its capacity; `clone_into` is the target's `clone_from`.
+		("Clone", "clone_from") | ("ToOwned", "clone_into") => {
+			if name == "clone_into" {
+				values.reverse();
+			}
 			values.push(clone_fn(b, item, span));
 			Expr::rt("dequeCloneFrom", values)
 		}

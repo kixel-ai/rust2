@@ -147,7 +147,7 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A deque made anew from `q`: a clone, or one with room of its own cloned from it,
+/// A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
 /// collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
 /// as they are, or from a `Vec` it collects.
 fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
@@ -157,7 +157,10 @@ fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
 		0 => {
 			let mut own = VecDeque::with_capacity(skip * 3);
 			own.push_front(T::make(arg));
-			own.clone_from(&q);
+			match arg & 0x40 {
+				0 => own.clone_from(&q),
+				_ => q.clone_into(&mut own),
+			}
 			own
 		}
 		1 => {
