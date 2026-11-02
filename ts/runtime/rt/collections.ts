@@ -3035,6 +3035,12 @@ export function dequeIter<T>(q: VecDeque<T>): Iter<T> {
 	return dequeSlices(q, false, 0, q.n) as Iter<T>;
 }
 
+/** `range`: `iter` of the items within `r`, split as std's `slice_ranges` splits them, which panics as std's does past the length. */
+export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>): Iter<T> {
+	const [start, end] = boundsRange(r, q.n);
+	return dequeSlices(q, false, start, end) as Iter<T>;
+}
+
 /** `iter_mut` of items JS copies: the place of each. */
 export function dequeIterMut<T>(q: VecDeque<T>): Iter<Place<T>> {
 	return dequeSlices(q, true, 0, q.n) as Iter<Place<T>>;
