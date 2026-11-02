@@ -30,7 +30,7 @@ import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as
 import { ints, strings, derived, written as fmt_written, counts as fmt_counts, rounding, panics as fmt_panics, wrapped as fmt_wrapped, collections, enums, iters as fmt_iters, writes as fmt_writes } from "./fmt.ts";
 import { folds } from "./folds.ts";
 import { methods, runs } from "./generics.ts";
-import { values as hashes_values, random, bytes as hashes_bytes } from "./hashes.ts";
+import { values as hashes_values, random, bytes as hashes_bytes, own as hashes_own } from "./hashes.ts";
 import { hints, reserves } from "./hints.ts";
 import { holds } from "./holds.ts";
 import { u8Op, u16Op, u32Op, u64Op, u128Op, usizeOp, i8Op, i16Op, i32Op, i64Op, i128Op, isizeOp, i8Neg, i16Neg, i32Neg, i64Neg, i128Neg, isizeNeg, cast as ints_cast, convert, parses as ints_parses, widenings } from "./ints.ts";
@@ -278,6 +278,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data96, out97);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2197: rt.u8, data97: rt.ByteSlice, out98: rt.ByteVec): undefined => {
 		leaks(data97, out98);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
+		hashes_own(data98, out99);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

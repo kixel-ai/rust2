@@ -1,6 +1,6 @@
 # Census of `reject-fixture`
 
-- Refusals: 231
+- Refusals: 230
 - Function instances: 293
 - Generic functions no instance reached, lowered over their type parameters: 13
 
@@ -45,7 +45,6 @@
 | 1 | `_` is not supported: its field `_` is `_`, typed `_`, whose `Pending` would be `rt.OuterPending` as `_` | fixtures/reject/src/lib.rs:502:2 |
 | 1 | `_` of `_` by `_`, which is not supported yet | fixtures/reject/src/lib.rs:253:6 |
 | 1 | `_` of `_`, which is not supported yet | fixtures/reject/src/lib.rs:538:4 |
-| 1 | `_`, which is not supported yet | fixtures/reject/src/lib.rs:261:9 |
 | 1 | `_`, which reads a capacity that depends on whether the other handles of its storage dropped, which is not supported | fixtures/reject/src/lib.rs:383:6 |
 | 1 | `clone_from` of `_`, whose items' `clone_from` is their own, which is not supported yet | fixtures/reject/src/lib.rs:2118:4 |
 | 1 | `collect` of `_`, which sorts by `_`'s own `Ord`, of entries that drop, which is not supported yet | fixtures/reject/src/lib.rs:955:22 |
@@ -188,7 +187,6 @@ The type or module each refused type or path belongs to.
 | 1 | `FusedIterator` | fixtures/reject/src/lib.rs:193:1 |
 | 1 | `Fused` | fixtures/reject/src/lib.rs:728:70 |
 | 1 | `HashMap` | fixtures/reject/src/lib.rs:253:6 |
-| 1 | `Hasher` | fixtures/reject/src/lib.rs:261:9 |
 | 1 | `Hits` | fixtures/reject/src/lib.rs:720:21 |
 | 1 | `InField` | fixtures/reject/src/lib.rs:1318:9 |
 | 1 | `InGeneric` | fixtures/reject/src/lib.rs:1322:9 |
@@ -297,7 +295,6 @@ The type or module each refused type or path belongs to.
 | 1 | `_` with a mutable reference to a value JS copies, which its mapping would copy | `std::iter::once` | fixtures/reject/src/lib.rs:1235:22 |
 | 1 | `_` with a mutable reference to a value JS copies, which its mapping would copy | `std::str::from_utf8_mut` | fixtures/reject/src/lib.rs:1642:20 |
 | 1 | `_` with a mutable reference to a value JS copies, which its mapping would copy | `std::str::get_unchecked_mut` | fixtures/reject/src/lib.rs:1637:13 |
-| 1 | `_`, which is not supported yet | `Hasher::write` | fixtures/reject/src/lib.rs:261:9 |
 | 1 | `_`, which reads a capacity that depends on whether the other handles of its storage dropped, which is not supported | `BytesMut::capacity` | fixtures/reject/src/lib.rs:383:6 |
 | 1 | `clone_from` of `_`, whose items' `clone_from` is their own, which is not supported yet | `std::collections::LinkedList` | fixtures/reject/src/lib.rs:2118:4 |
 | 1 | `collect` of `_`, which sorts by `_`'s own `Ord`, of entries that drop, which is not supported yet | `std::collections::BTreeMap`, `std::cell::Cell` | fixtures/reject/src/lib.rs:955:22 |
@@ -818,12 +815,6 @@ The type or module each refused type or path belongs to.
 <details><summary>`_` of `_`, which is not supported yet (1)</summary>
 
 - fixtures/reject/src/lib.rs:538:4: `std::any::Any::type_id` of `dyn std::any::Any`, which is not supported yet
-
-</details>
-
-<details><summary>`_`, which is not supported yet (1)</summary>
-
-- fixtures/reject/src/lib.rs:261:9: `Hasher::write`, which is not supported yet
 
 </details>
 

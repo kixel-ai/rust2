@@ -2,13 +2,14 @@
 
 import * as rt from "../rt.ts";
 import { drop$hashlink_linked_hash_map_DropFilteredValues_u16_u32 as lib_drop$hashlink_linked_hash_map_DropFilteredValues_u16_u32 } from "../lib.ts";
-import { asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32, dropValueNodes$u16_u32, dropFreeNodes$u16_u32, hashNode$hash_RandomState_u16_u32 } from "../hashlink/linked_hash_map.ts";
+import { asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32, dropValueNodes$sync_Arc_str_u32, dropValueNodes$u16_u32, dropFreeNodes$sync_Arc_str_u32, dropFreeNodes$u16_u32, hashNode$hashlink_DefaultHashBuilder_sync_Arc_str_u32, hashNode$hashlink_DefaultHashBuilder_u16_u32 } from "../hashlink/linked_hash_map.ts";
 import * as DropFilteredValues from "../hashlink/linked_hash_map.DropFilteredValues.ts";
 import * as Node from "../hashlink/linked_hash_map.Node.ts";
 import * as RawEntryBuilderMut from "../hashlink/linked_hash_map.RawEntryBuilderMut.ts";
 import type * as RawEntryMut from "../hashlink/linked_hash_map.RawEntryMut.ts";
 import * as RawOccupiedEntryMut from "../hashlink/linked_hash_map.RawOccupiedEntryMut.ts";
 import * as RawVacantEntryMut from "../hashlink/linked_hash_map.RawVacantEntryMut.ts";
+import * as DefaultHashBuilder from "../hashlink.DefaultHashBuilder.ts";
 
 /**
  * A version of `HashMap` that has a user controllable order for its entries.
@@ -41,35 +42,49 @@ export class LinkedHashMap<K, V, S> {
 	}
 }
 
-export function withHasher$u16_u32_hash_RandomState(hashBuilder: rt.RandomState): LinkedHashMap<rt.u16, rt.u32, rt.RandomState> {
-	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.u16, rt.u32>>, hashBuilder, undefined, undefined);
+export function new$sync_Arc_str_u32_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
+	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.Arc<string>, rt.u32>>, _1, undefined, undefined);
 }
 
-export function len$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): rt.usize {
+export function new$u16_u32_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
+	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.u16, rt.u32>>, _1, undefined, undefined);
+}
+
+export function len$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
 	return rt.hashLen(self.table);
 }
 
-export function isEmpty$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): boolean {
-	return len$u16_u32_hash_RandomState(self) === 0;
+export function len$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
+	return rt.hashLen(self.table);
 }
 
-export function front$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): [rt.u16, rt.u32] | undefined {
-	if (!isEmpty$u16_u32_hash_RandomState(self)) {
+export function isEmpty$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): boolean {
+	return len$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self) === 0;
+}
+
+export function isEmpty$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): boolean {
+	return len$u16_u32_hashlink_DefaultHashBuilder(self) === 0;
+}
+
+export function front$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.u16, rt.u32] | undefined {
+	if (!isEmpty$u16_u32_hashlink_DefaultHashBuilder(self)) {
 		const _9: [rt.u16, rt.u32] = Node.entryRef$u16_u32(asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values).links.at0 as Node.Node<rt.u16, rt.u32>);
 		return [_9[0], _9[1]] as [rt.u16, rt.u32];
 	}
 	return undefined;
 }
 
-export function back$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): [rt.u16, rt.u32] | undefined {
-	if (!isEmpty$u16_u32_hash_RandomState(self)) {
+export function back$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.u16, rt.u32] | undefined {
+	if (!isEmpty$u16_u32_hashlink_DefaultHashBuilder(self)) {
 		const _10: [rt.u16, rt.u32] = Node.entryRef$u16_u32(asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values).links.at4);
 		return [_10[0], _10[1]] as [rt.u16, rt.u32];
 	}
 	return undefined;
 }
 
-export function retain$u16_u32_hash_RandomState_maps_linked_closure8(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>, f: (a0: rt.u16, a1: rt.Place<rt.u32>) => boolean): void {
+export function retain$u16_u32_hashlink_DefaultHashBuilder_maps_linked_closure11(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, f: (a0: rt.u16, a1: rt.Place<rt.u32>) => boolean): void {
 	const free: Node.Node<rt.u16, rt.u32> | undefined = self.free;
 	const dropFilteredValues: DropFilteredValues.DropFilteredValues<rt.u16, rt.u32> = new DropFilteredValues.DropFilteredValues(rt.place(() => self.free, (value) => self.free = value), free);
 	rt.tableRetainMut(self.table, (_2: rt.Place<Node.Node<rt.u16, rt.u32>>): boolean => {
@@ -84,7 +99,7 @@ export function retain$u16_u32_hash_RandomState_maps_linked_closure8(self: Linke
 	lib_drop$hashlink_linked_hash_map_DropFilteredValues_u16_u32(dropFilteredValues);
 }
 
-export function capacity$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): rt.usize {
+export function capacity$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
 	return rt.hashCapacity(self.table);
 }
 
@@ -94,14 +109,42 @@ export function capacity$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt
  * Returns the previously set value, if one existed prior to this call.  After this call,
  * calling `LinkedHashMap::back` will return a reference to this key / value pair.
  */
-export function insert$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>, k: rt.u16, v: rt.u32): rt.u32 | undefined {
-	const _4: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromKey$u16_u32_hash_RandomState_u16(rawEntryMut$u16_u32_hash_RandomState(self), k);
+export function insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.Arc<string>, v: rt.u32): rt.u32 | undefined {
+	let _0!: rt.u32 | undefined;
+	let _16: boolean = false;
+	_16 = true;
+	const _4: RawEntryMut.RawEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$sync_Arc_str_u32_hashlink_DefaultHashBuilder_sync_Arc_str(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_4.tag === "Occupied") {
-		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState> = _4._0;
-		RawOccupiedEntryMut.toBack$u16_u32_hash_RandomState(occupied);
-		return RawOccupiedEntryMut.replaceValue$u16_u32_hash_RandomState(occupied, v);
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toBack$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied);
+		_0 = RawOccupiedEntryMut.replaceValue$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied, v);
+	} else {
+		const vacant: RawVacantEntryMut.RawVacantEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		_16 = false;
+		RawVacantEntryMut.insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(vacant, k, v);
+		_0 = undefined;
 	}
-	RawVacantEntryMut.insert$u16_u32_hash_RandomState(_4._0, k, v);
+	if (_16) {
+		k[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
+}
+
+/**
+ * Inserts the given key / value pair at the *back* of the internal linked list.
+ *
+ * Returns the previously set value, if one existed prior to this call.  After this call,
+ * calling `LinkedHashMap::back` will return a reference to this key / value pair.
+ */
+export function insert$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.u16, v: rt.u32): rt.u32 | undefined {
+	const _4: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$u16_u32_hashlink_DefaultHashBuilder_u16(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), k);
+	if (_4.tag === "Occupied") {
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toBack$u16_u32_hashlink_DefaultHashBuilder(occupied);
+		return RawOccupiedEntryMut.replaceValue$u16_u32_hashlink_DefaultHashBuilder(occupied, v);
+	}
+	RawVacantEntryMut.insert$u16_u32_hashlink_DefaultHashBuilder(_4._0, k, v);
 	return undefined;
 }
 
@@ -111,49 +154,73 @@ export function insert$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u
  * Returns the previously set value, if one existed prior to this call.  After this call,
  * calling `LinkedHashMap::front` will return a reference to this key / value pair.
  */
-export function insertFront$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>, k: rt.u16, v: rt.u32): rt.u32 | undefined {
-	const _4: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromKey$u16_u32_hash_RandomState_u16(rawEntryMut$u16_u32_hash_RandomState(self), k);
+export function insertFront$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.u16, v: rt.u32): rt.u32 | undefined {
+	const _4: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$u16_u32_hashlink_DefaultHashBuilder_u16(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_4.tag === "Occupied") {
-		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState> = _4._0;
-		RawOccupiedEntryMut.toFront$u16_u32_hash_RandomState(occupied);
-		return RawOccupiedEntryMut.replaceValue$u16_u32_hash_RandomState(occupied, v);
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toFront$u16_u32_hashlink_DefaultHashBuilder(occupied);
+		return RawOccupiedEntryMut.replaceValue$u16_u32_hashlink_DefaultHashBuilder(occupied, v);
 	}
-	RawOccupiedEntryMut.toFront$u16_u32_hash_RandomState(RawVacantEntryMut.insertEntry$u16_u32_hash_RandomState(_4._0, k, v));
+	RawOccupiedEntryMut.toFront$u16_u32_hashlink_DefaultHashBuilder(RawVacantEntryMut.insertEntry$u16_u32_hashlink_DefaultHashBuilder(_4._0, k, v));
 	return undefined;
 }
 
-export function remove$u16_u32_hash_RandomState_u16(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>, k: rt.u16): rt.u32 | undefined {
-	const _3: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromKey$u16_u32_hash_RandomState_u16(rawEntryMut$u16_u32_hash_RandomState(self), k);
+export function remove$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: string): rt.u32 | undefined {
+	const _3: RawEntryMut.RawEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_3.tag === "Occupied") {
-		return RawOccupiedEntryMut.remove$u16_u32_hash_RandomState(_3._0);
+		return RawOccupiedEntryMut.remove$sync_Arc_str_u32_hashlink_DefaultHashBuilder(_3._0);
 	}
 	return undefined;
 }
 
-export function popFront$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): [rt.u16, rt.u32] | undefined {
-	if (!isEmpty$u16_u32_hash_RandomState(self)) {
-		const front: Node.Node<rt.u16, rt.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values).links.at0 as Node.Node<rt.u16, rt.u32>;
-		const hash: rt.u64 = hashNode$hash_RandomState_u16_u32(self.hashBuilder, front);
-		const _9: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromHash$u16_u32_hash_RandomState_hashlink_LinkedHashMap_K_V_S_pop_front_closure0_u16_u32_hash_RandomState(rawEntryMut$u16_u32_hash_RandomState(self), hash, (k: rt.u16): boolean => {
-			return k === Node.keyRef$u16_u32(front);
+export function remove$u16_u32_hashlink_DefaultHashBuilder_u16(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.u16): rt.u32 | undefined {
+	const _3: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$u16_u32_hashlink_DefaultHashBuilder_u16(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), k);
+	if (_3.tag === "Occupied") {
+		return RawOccupiedEntryMut.remove$u16_u32_hashlink_DefaultHashBuilder(_3._0);
+	}
+	return undefined;
+}
+
+export function popFront$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.Arc<string>, rt.u32] | undefined {
+	if (!isEmpty$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self)) {
+		const front: Node.Node<rt.Arc<string>, rt.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32(self.values).links.at0 as Node.Node<rt.Arc<string>, rt.u32>;
+		const hash: rt.u64 = hashNode$hashlink_DefaultHashBuilder_sync_Arc_str_u32(self.hashBuilder, front);
+		const _9: RawEntryMut.RawEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromHash$sync_Arc_str_u32_hashlink_DefaultHashBuilder_hashlink_LinkedHashMap_K_V_S_pop_front_closure0_sync_Arc_str_u32_hashlink_DefaultHashBuilder(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), hash, (k: rt.Arc<string>): boolean => {
+			const _3: rt.Arc<string> = Node.keyRef$sync_Arc_str_u32(front);
+			return rt.eqArc(rt.same, true)(k, _3);
 		});
 		if (_9.tag === "Occupied") {
-			return RawOccupiedEntryMut.removeEntry$u16_u32_hash_RandomState(_9._0);
+			return RawOccupiedEntryMut.removeEntry$sync_Arc_str_u32_hashlink_DefaultHashBuilder(_9._0);
 		}
 		return undefined;
 	}
 	return undefined;
 }
 
-export function popBack$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): [rt.u16, rt.u32] | undefined {
-	if (!isEmpty$u16_u32_hash_RandomState(self)) {
+export function popFront$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.u16, rt.u32] | undefined {
+	if (!isEmpty$u16_u32_hashlink_DefaultHashBuilder(self)) {
+		const front: Node.Node<rt.u16, rt.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values).links.at0 as Node.Node<rt.u16, rt.u32>;
+		const hash: rt.u64 = hashNode$hashlink_DefaultHashBuilder_u16_u32(self.hashBuilder, front);
+		const _9: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromHash$u16_u32_hashlink_DefaultHashBuilder_hashlink_LinkedHashMap_K_V_S_pop_front_closure0_u16_u32_hashlink_DefaultHashBuilder(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), hash, (k: rt.u16): boolean => {
+			return k === Node.keyRef$u16_u32(front);
+		});
+		if (_9.tag === "Occupied") {
+			return RawOccupiedEntryMut.removeEntry$u16_u32_hashlink_DefaultHashBuilder(_9._0);
+		}
+		return undefined;
+	}
+	return undefined;
+}
+
+export function popBack$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.u16, rt.u32] | undefined {
+	if (!isEmpty$u16_u32_hashlink_DefaultHashBuilder(self)) {
 		const back: Node.Node<rt.u16, rt.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values).links.at4;
-		const hash: rt.u64 = hashNode$hash_RandomState_u16_u32(self.hashBuilder, back);
-		const _9: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromHash$u16_u32_hash_RandomState_hashlink_LinkedHashMap_K_V_S_pop_back_closure0_u16_u32_hash_RandomState(rawEntryMut$u16_u32_hash_RandomState(self), hash, (k: rt.u16): boolean => {
+		const hash: rt.u64 = hashNode$hashlink_DefaultHashBuilder_u16_u32(self.hashBuilder, back);
+		const _9: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromHash$u16_u32_hashlink_DefaultHashBuilder_hashlink_LinkedHashMap_K_V_S_pop_back_closure0_u16_u32_hashlink_DefaultHashBuilder(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), hash, (k: rt.u16): boolean => {
 			return k === Node.keyRef$u16_u32(back);
 		});
 		if (_9.tag === "Occupied") {
-			return RawOccupiedEntryMut.removeEntry$u16_u32_hash_RandomState(_9._0);
+			return RawOccupiedEntryMut.removeEntry$u16_u32_hashlink_DefaultHashBuilder(_9._0);
 		}
 		return undefined;
 	}
@@ -164,21 +231,48 @@ export function popBack$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.
  * If an entry with this key exists, move it to the back of the list and return a reference to
  * the value.
  */
-export function toBack$u16_u32_hash_RandomState_u16(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>, k: rt.u16): rt.Place<rt.u32> | undefined {
-	const _3: RawEntryMut.RawEntryMut<rt.u16, rt.u32, rt.RandomState> = RawEntryBuilderMut.fromKey$u16_u32_hash_RandomState_u16(rawEntryMut$u16_u32_hash_RandomState(self), k);
+export function toBack$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: string): rt.Place<rt.u32> | undefined {
+	const _3: RawEntryMut.RawEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_3.tag === "Occupied") {
-		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState> = _3._0;
-		RawOccupiedEntryMut.toBack$u16_u32_hash_RandomState(occupied);
-		return RawOccupiedEntryMut.intoMut$u16_u32_hash_RandomState(occupied);
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _3._0;
+		RawOccupiedEntryMut.toBack$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied);
+		return RawOccupiedEntryMut.intoMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(occupied);
 	}
 	return undefined;
 }
 
-export function rawEntryMut$u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): RawEntryBuilderMut.RawEntryBuilderMut<rt.u16, rt.u32, rt.RandomState> {
+/**
+ * If an entry with this key exists, move it to the back of the list and return a reference to
+ * the value.
+ */
+export function toBack$u16_u32_hashlink_DefaultHashBuilder_u16(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.u16): rt.Place<rt.u32> | undefined {
+	const _3: RawEntryMut.RawEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$u16_u32_hashlink_DefaultHashBuilder_u16(rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self), k);
+	if (_3.tag === "Occupied") {
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = _3._0;
+		RawOccupiedEntryMut.toBack$u16_u32_hashlink_DefaultHashBuilder(occupied);
+		return RawOccupiedEntryMut.intoMut$u16_u32_hashlink_DefaultHashBuilder(occupied);
+	}
+	return undefined;
+}
+
+export function rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
 	return { map: self };
 }
 
-export function drop$ops_Drop_u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): void {
+export function rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
+	return { map: self };
+}
+
+export function drop$ops_Drop_sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
+	if (self.values !== undefined) {
+		const values: Node.Node<rt.Arc<string>, rt.u32> = self.values;
+		dropValueNodes$sync_Arc_str_u32(values);
+		values;
+	}
+	dropFreeNodes$sync_Arc_str_u32(self.free);
+}
+
+export function drop$ops_Drop_u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
 	if (self.values !== undefined) {
 		const values: Node.Node<rt.u16, rt.u32> = self.values;
 		dropValueNodes$u16_u32(values);
