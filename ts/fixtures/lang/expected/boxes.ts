@@ -21,7 +21,7 @@ export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
 
 export function hash$boxed_Box_slice_u16(value: rt.u16[]): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashSlice(rt.hash16)(value, h);
+	rt.hashInts(2)(value, h);
 	return rt.hashFinish(h);
 }
 
@@ -39,7 +39,7 @@ export function hash$boxed_Box_str(value: string): rt.u64 {
 
 export function hash$slice_u16(value: rt.u16[]): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashSlice(rt.hash16)(value, h);
+	rt.hashInts(2)(value, h);
 	return rt.hashFinish(h);
 }
 

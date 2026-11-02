@@ -288,6 +288,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::maps", capacity::maps),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("hashes::own", |_, data, out| hashes::own(data, out)),
 		("refs::compared", refs::compared),
 		("rings::slices", rings::slices),
 	]

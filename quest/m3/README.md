@@ -45,3 +45,5 @@ generic std gap is planned here even when moq never calls it.
 - [Kotlin: bytes compare by content](/quest/m3/ffi-kotlin-bytes-equality.md) - `Bytes` and records holding it compare and hash by their bytes
 - [C++: a move out of a shared copy while its future pends](/quest/m3/ffi-cpp-shared-future.md) - the last shared copy moves out by a clone even while a destroyed copy's future pends
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
+- [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
+- [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - an enum `Hasher`, whose `&mut` is a place, hashes as a struct one does

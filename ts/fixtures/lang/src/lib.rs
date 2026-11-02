@@ -29,6 +29,7 @@
 
 #![feature(
 	cell_leak,
+	hasher_prefixfree_extras,
 	iter_order_by,
 	mapped_lock_guards,
 	once_cell_try,
