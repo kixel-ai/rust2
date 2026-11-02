@@ -475,6 +475,24 @@ const leaks = [[0x00, 0x01, 0x02, 0xf1, 0xf2, 0x04, 0x05, 0x03, 0x06], [0xe3], [
 	Uint8Array.of(...op("borrows::leaks"), 0, ...bytes),
 );
 
+/**
+ * `refs::compared` of a split and the bytes either side of it, whose remainders by 3 and 5
+ * make the bytes and floats: sides that are equal, empty, or a prefix of the other, and
+ * floats with a NaN before, after, or where they differ, and a `-0.0` against `0.0`.
+ */
+const placeCompares = [
+	[2, 1, 2, 1, 2],
+	[0],
+	[0, 1],
+	[1, 1, 1, 2],
+	[2, 1, 2, 1],
+	[2, 0, 3, 0, 3],
+	[2, 0, 3, 1, 3],
+	[1, 3, 3, 1],
+	[2, 3, 0, 3, 1],
+	[1, 4, 0],
+].map(([split, ...data]) => Uint8Array.of(...op("refs::compared"), split, ...data));
+
 /** `locks::rwlocks` scripts: `get_mut` and `into_inner` among writes and reads. */
 const rwlocks = [[6, 7, 0, 6, 2, 14, 15, 1]].map((bytes) => Uint8Array.of(...op("locks::rwlocks"), 0, ...bytes));
 
@@ -875,4 +893,4 @@ const endsCases = [0x00, 0x03, 0x0f, 0x15, 0x27, 0x36, 0x2f].flatMap((shape) =>
 	),
 );
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...endsCases];
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...endsCases];

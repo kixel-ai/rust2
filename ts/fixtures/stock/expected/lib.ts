@@ -6,6 +6,7 @@ import * as DropFilteredValues from "./hashlink/linked_hash_map.DropFilteredValu
 import * as linked_hash_map_IntoIter from "./hashlink/linked_hash_map.IntoIter.ts";
 import * as LinkedHashMap from "./hashlink/linked_hash_map.LinkedHashMap.ts";
 import * as Remainder$drop_value_nodes from "./hashlink/linked_hash_map.Remainder$drop_value_nodes.ts";
+import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
 
 export function copy$mem_MaybeUninit_tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u16, rt.u32] {
 	if (v === undefined) {
@@ -14,8 +15,20 @@ export function copy$mem_MaybeUninit_tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u1
 	return [v[0], v[1]];
 }
 
+export function copy$tuple2_sync_Arc_str_u32(v: [rt.Arc<string>, rt.u32]): [rt.Arc<string>, rt.u32] {
+	return [v[0], v[1]];
+}
+
 export function copy$tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u16, rt.u32] {
 	return [v[0], v[1]];
+}
+
+export function drop$hashlink_LinkedHashMap_sync_Arc_str_u32(_1: LinkedHashMap.LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
+	LinkedHashMap.drop$ops_Drop_sync_Arc_str_u32_hashlink_DefaultHashBuilder(_1);
+}
+
+export function drop$hashlink_LinkedHashMap_u16_u32(_1: LinkedHashMap.LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
+	LinkedHashMap.drop$ops_Drop_u16_u32_hashlink_DefaultHashBuilder(_1);
 }
 
 export function drop$hashlink_LinkedHashMap_u16_u32_hash_RandomState(_1: LinkedHashMap.LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): void {
@@ -34,8 +47,16 @@ export function drop$hashlink_linked_hash_map_IntoIter_u16_u32(_1: linked_hash_m
 	linked_hash_map_IntoIter.drop$ops_Drop_u16_u32(_1);
 }
 
+export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_sync_Arc_str_u32(_1: Remainder$drop_value_nodes.Remainder<rt.Arc<string>, rt.u32>): void {
+	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_sync_Arc_str_u32(_1);
+}
+
 export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_u16_u32(_1: Remainder$drop_value_nodes.Remainder<rt.u16, rt.u32>): void {
 	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_u16_u32(_1);
+}
+
+export function drop$tuple2_sync_Arc_str_u32(_1: [rt.Arc<string>, rt.u32]): void {
+	_1[0][Symbol.dispose]();
 }
 
 //# sourceMappingURL=lib.ts.map

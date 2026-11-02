@@ -287,10 +287,10 @@ function in-process, so a call is one crossing, which releases the GIL while Rus
   snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a
   member Python gives every such class, or a method named as a field takes a trailing `_`.
   Constructors such as `new` stay static methods: `Counter.new(1)`.
-- **Objects** are classes owning their handle, freed once their last reference goes, or
-  sooner by `close()` or a `with` block once no call holds it; a call after it raises
-  `ValueError`. A `self` method, or passing the object by value, closes it once the call
-  returns. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
+- **Objects** are classes owning their handle, freed once their last reference goes,
+  which a call holds until it returns, so there is no `close()`. A `self` method, or
+  passing the object by value, moves its value out and closes it once the call returns,
+  after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
   property, and its setter a method, `set_first(value)`, since setting an object moves it
   in and closes it, which an assignment would hide.
 - **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
@@ -342,9 +342,10 @@ in either language mode.
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
   `init`, takes a trailing `_`. Parameters have no labels, so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
-- **Objects** are final classes owning their handle, freed in `deinit`, or sooner by
-  `close()` once no call holds it; a call after it traps. A `self` method, or passing the
-  object by value, closes it once the call returns. `Clone` is `clone()`, and `PartialEq`
+- **Objects** are final classes owning their handle, freed in `deinit`, which a call
+  holds off until it returns, so there is no `close()`. A `self` method, or passing the
+  object by value, moves its value out and closes it once the call returns, after which a
+  call traps. `Clone` is `clone()`, and `PartialEq`
   is `==`. A field is a computed property, and its setter a function, `setFirst(value)`,
   since setting an object moves it in and closes its handle, which an assignment would
   hide. An object is `Sendable`, since Rust checks each borrow at run time.

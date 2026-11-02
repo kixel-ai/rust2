@@ -22,7 +22,7 @@ export function eq$cmp_PartialEq(self: Rank, other: Rank): boolean {
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Rank, state: rt.Hasher): void {
-	rt.hash32({ Low: 0, Mid: 1, High: 2 }[self.tag], state);
+	rt.hashIsize({ Low: 0, Mid: 1, High: 2 }[self.tag], state);
 	if (self.tag === "Mid") {
 		rt.hash8(self._0, state);
 	} else if (self.tag === "High") {
