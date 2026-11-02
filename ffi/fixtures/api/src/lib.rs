@@ -562,6 +562,19 @@ impl Stamp {
 	}
 }
 
+/// A stamp and a count: a record holding an object, whose method reads it.
+pub struct Stamped {
+	pub at: Stamp,
+	pub count: u32,
+}
+
+impl Stamped {
+	/// Whole seconds at the stamp, plus the count.
+	pub fn total(&self) -> u64 {
+		self.at.secs() + u64::from(self.count)
+	}
+}
+
 /// A message: an object, since one field is private, whose `pub` fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -1527,4 +1540,23 @@ pub fn nexts(
 ) -> (std::net::SocketAddrV4, std::net::SocketAddrV6) {
 	v6.set_port(v6.port() + 1);
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
+}
+
+/// Why [`refuse`] refused, which Rust returns only boxed.
+#[derive(Debug)]
+pub struct Refusal {
+	reason: String,
+}
+
+impl fmt::Display for Refusal {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "refused: {}", self.reason)
+	}
+}
+
+/// Always refuses, for `reason`.
+pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
+	Err(Box::new(Refusal {
+		reason: reason.to_string(),
+	}))
 }

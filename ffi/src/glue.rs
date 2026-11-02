@@ -84,7 +84,7 @@ impl Crate<'_> {
 	/// `kotlin/<prefix>.kt`, whose JNI functions the crate's `kotlin` feature builds,
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
-	/// `dart/<prefix>.dart`, whose glue its `dart` feature builds.
+	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
 	pub fn write(&self, out: &Path) -> Result<(), String> {
 		// Cargo unifies in what the configured package enables in each other export.
 		let dependencies: String = (self.exports.iter())
@@ -156,6 +156,7 @@ impl Crate<'_> {
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
+		let go = crate::go::generate(self.abi, &self.packages(), contract)?;
 		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
 		let mut generator = Gen {
 			abi: self.abi,
@@ -196,7 +197,8 @@ impl Crate<'_> {
 		crate::driver::write(
 			&swift_dir.join(format!("{}_atomics.h", self.abi.prefix)),
 			&swift.atomics,
-		)
+		)?;
+		crate::driver::write(&out.join("go").join(format!("{}.go", self.abi.prefix)), &go)
 	}
 }
 

@@ -297,10 +297,11 @@
               typescript
               bun
               esbuild
-              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, and run
-              # its generated Python and Dart.
+              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run its
+              # generated Python and Dart, and build its generated Go through cgo.
               kotlin
               python3
+              go
               dart
             ];
             # ... and its generated Swift, where nixpkgs builds Swift: not on aarch64-linux.
