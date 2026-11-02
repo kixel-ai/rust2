@@ -186,17 +186,17 @@ export function asSlice$u32(self: Spill<rt.u32>): rt.u32[] {
 }
 
 export function drop$ops_Drop_Option_tuple2_u8_u16(self: Spill<[rt.u8, rt.u16] | undefined>): void {
-	{ v: rt.ptrSlice(self.ptr as rt.Place<[rt.u8, rt.u16] | undefined>, self.len) };
+	new rt.RawSlice(self.ptr as rt.Place<[rt.u8, rt.u16] | undefined>, self.len);
 	deallocate$Option_tuple2_u8_u16(self.ptr as rt.Place<[rt.u8, rt.u16] | undefined>, self.cap);
 }
 
 export function drop$ops_Drop_sync_Arc_u8(self: Spill<rt.Arc<rt.u8>>): void {
-	rt.dropAll({ v: rt.ptrSlice(self.ptr as rt.Place<rt.Arc<rt.u8>>, self.len) }.v);
+	rt.dropAll(new rt.RawSlice(self.ptr as rt.Place<rt.Arc<rt.u8>>, self.len).deref());
 	deallocate$sync_Arc_u8(self.ptr as rt.Place<rt.Arc<rt.u8>>, self.cap);
 }
 
 export function drop$ops_Drop_u32(self: Spill<rt.u32>): void {
-	{ v: rt.ptrSlice(self.ptr as rt.Place<rt.u32>, self.len) };
+	new rt.RawSlice(self.ptr as rt.Place<rt.u32>, self.len);
 	deallocate$u32(self.ptr as rt.Place<rt.u32>, self.cap);
 }
 
