@@ -119,6 +119,10 @@ pub struct Object {
 	/// Whether it is `Copy`: taken by value, it is copied out of its handle, as Rust
 	/// copies it, rather than moved out.
 	pub copy: bool,
+	/// Whether copies of its handle may share one value, since no call tells that apart
+	/// from `Clone`: it is `Clone` and `Sync`, its clone owns no state that changes
+	/// behind `&` or counts clones, and no export borrows it mutably.
+	pub shared: bool,
 	/// How many lifetime parameters it has, each `'static` in the export.
 	pub lifetimes: usize,
 	pub methods: Vec<Function>,

@@ -30,14 +30,6 @@ an error, never a crash or undefined behavior.
 - **Go**: settled in [#411](https://github.com/moq-dev/rust2/pull/411): objects keep `Close`,
   with every later call returning an error, and bytes are a GC-owned `Bytes` with no raw
   slice, read through methods and copied by `Copy()`.
-- **C++**: an object owns its handle through `std::unique_ptr` with a deleter calling
-  `<obj>_free`, and a `Clone` type through `std::shared_ptr`, so a copy shares one Rust handle
-  without crossing into Rust. Sharing must not differ from the crate's `clone`: a type whose
-  `clone` makes an independent value, which a `&mut self` method or interior mutability can
-  then tell apart, keeps an explicit `clone()` that crosses. The header keeps C++17; where C++20's `std::span` is available,
-  `view` converts to `std::span<const std::uint8_t>`, the standard's non-owning view of
-  contiguous bytes. A dangling reference stays C++'s own undefined behavior.
 - **C**: out of scope; its `_free` follows C's norms.
 
-Public API: breaking for Swift, Python, Kotlin bytes, and C++ ownership; each gets a
-`MIGRATE.md` entry.
+Public API: breaking for Swift, Python, and Kotlin bytes; each gets a `MIGRATE.md` entry.

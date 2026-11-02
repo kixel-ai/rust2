@@ -5,8 +5,9 @@
 //! is `moq::track`, and a method is its C name without its type's (`moq_track_close` is
 //! `moq::track::close`). C names are unique, so these are too, once a keyword, or a member
 //! named as its class or a field, takes a trailing `_`; so does a parameter named as a
-//! member or as anything in the namespace, which it would hide. An object is a move-only class
-//! owning its handle, copyable if `Clone`; a record a struct; an enum an `enum class`, or
+//! member or as anything in the namespace, which it would hide. An object is a class owning
+//! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
+//! call tells apart, a `std::shared_ptr` its copies share; a record a struct; an enum an `enum class`, or
 //! for one with data a `std::variant` of a struct per variant, with its methods free
 //! functions; a closure lent for the call a template parameter. The runtime they share,
 //! [`runtime/rt.hpp`](../runtime/rt.hpp), holds the bytes, results, wakers, and futures.
@@ -246,13 +247,13 @@ impl<'a> Header<'a> {
 			Type::List(inner) => {
 				let x = format!("x{}_", lists(inner));
 				format!(
-					"a_.list<::{}>({e}, [&](const auto &{x}) {{ return {}; }})",
+					"a_.list<::{}>({e}, [&](auto &{x}) {{ return {}; }})",
 					abi.list(inner),
 					self.lower(inner, &x)
 				)
 			}
 			Type::Option(inner) => match inner.base() {
-				Type::Object(_) => format!("({e} ? {d}::access::raw(*{e}) : nullptr)"),
+				Type::Object(_) => format!("({e} ? {} : nullptr)", self.lower(inner, &format!("*{e}"))),
 				base @ Type::List(elem) => format!(
 					"({e} ? {} : ::{}{{}})",
 					self.lower(base, &format!("(*{e})")),
@@ -266,6 +267,7 @@ impl<'a> Header<'a> {
 					format!("({e} ? ::{c}{{true, {value}}} : ::{c}{{}})")
 				}
 			},
+			Type::Ref(_, inner) if matches!(inner.base(), Type::Object(_)) => format!("{d}::access::raw({e})"),
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
 			Type::Record(_) | Type::Enum(_) if self.arena(ty) => format!("{d}::lower({e}, a_)"),
 			Type::Record(_) => format!("{d}::lower({e})"),
@@ -273,7 +275,9 @@ impl<'a> Header<'a> {
 				true => format!("static_cast<::{}>({e})", abi.enumeration(*i)),
 				false => format!("{d}::lower({e})"),
 			},
-			Type::Object(_) => format!("{d}::access::raw({e})"),
+			// A `Copy` value is copied out, and any other moved out.
+			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
+			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
 			Type::Closure(..) => unreachable!("a closure lowers to its trampoline"),
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
@@ -594,30 +598,33 @@ impl<'a> Header<'a> {
 		let name = self.name(&c);
 		let t = object.traits;
 		let text = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
+		let d = self.d();
+		// Copies share a handle only where no call tells that apart from a clone.
+		let handle = match object.shared {
+			true => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone>"),
+			false => format!("{d}::unique<::{c}, &::{c}_free>"),
+		};
 		let mut body = vec![
-			format!("\t::{c} *raw_;\n"),
-			format!("\texplicit {name}(::{c} *raw) noexcept : raw_(raw) {{}}\n"),
-			format!("\tfriend struct {}::access;\n", self.d()),
+			format!("\t{handle} raw_;\n"),
+			format!("\texplicit {name}(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {{}}\n"),
+			format!("\tfriend struct {d}::access;\n"),
 			"public:".to_string(),
-			format!(
-				"\t{name}({name} &&other) noexcept : raw_(::std::exchange(other.raw_, nullptr)) {{}}\n\t{name} &operator=({name} &&other) noexcept {{\n\t\t::std::swap(raw_, other.raw_);\n\t\treturn *this;\n\t}}\n\t~{name}() {{\n\t\t::{c}_free(raw_);\n\t}}"
-			),
 		];
-		if t.clone {
+		let mut members = Vec::new();
+		if t.clone && !object.shared {
 			body.push(format!(
-				"\t{name}(const {name} &other) : raw_(::{c}_clone(other.raw_)) {{}}\n\t{name} &operator=(const {name} &other) {{\n\t\tif (this != &other) {{\n\t\t\t*this = {name}(other);\n\t\t}}\n\t\treturn *this;\n\t}}"
+				"\t/// A clone of its own, through Rust's `Clone`: copies may not share one value,\n\t/// as a call could tell them apart from clones.\n\t{name} clone() const;"
 			));
-		} else {
-			body.push(format!(
-				"\t{name}(const {name} &) = delete;\n\t{name} &operator=(const {name} &) = delete;"
+			members.push("clone".to_string());
+			self.def(format!(
+				"inline {name} {name}::clone() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
 			));
 		}
 		if t.eq {
 			body.push(format!(
-				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_, b.raw_);\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
+				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
 			));
 		}
-		let mut members = Vec::new();
 		self.traits(&name, &c, t, None, &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -652,7 +659,7 @@ impl<'a> Header<'a> {
 		let d = self.d();
 		let object = value.is_none();
 		let (this, lower) = match value {
-			None => ("raw_", String::new()),
+			None => ("raw_.get()", String::new()),
 			Some(ty) => (
 				"&c_self_",
 				format!("{}\tauto c_self_ = {};\n", self.scope([ty]), self.lower(ty, "*this")),
@@ -1077,7 +1084,11 @@ impl<'a> Header<'a> {
 		if receiver.is_some() {
 			let (_, ty) = c_params.next().expect("a method has its receiver");
 			match (ty, free) {
-				(Ty::Handle { .. }, _) => args.push("raw_".to_string()),
+				// Moved out of, as a handle taken by value is.
+				(Ty::Handle { name, .. }, _) if receiver == Some(Receiver::Owned) && !copy(abi, name) => {
+					args.push("raw_.own()".to_string())
+				}
+				(Ty::Handle { .. }, _) => args.push("raw_.get()".to_string()),
 				(_, false) => {
 					let ty = record(abi, owner_c.as_deref().expect("a member method has its record"));
 					prelude.push(format!("auto c_self_ = {};", self.lower(&ty, "*this")));

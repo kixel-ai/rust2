@@ -674,6 +674,67 @@ impl Tally {
 
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+/// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
+/// tells apart from the original, so copies may share one handle.
+#[derive(Clone)]
+pub struct Gauge {
+	level: Arc<Level>,
+}
+
+/// What a gauge's clones share, whose drop counts in [`dropped`], as a token's does.
+struct Level(std::sync::atomic::AtomicU64);
+
+impl Drop for Level {
+	fn drop(&mut self) {
+		DROPPED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+impl Gauge {
+	pub fn new(level: u64) -> Self {
+		Self {
+			level: Arc::new(Level(level.into())),
+		}
+	}
+
+	/// Set the level each clone reads.
+	pub fn set(&self, level: u64) {
+		self.level.0.store(level, std::sync::atomic::Ordering::Relaxed);
+	}
+
+	pub fn level(&self) -> u64 {
+		self.level.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// The level, moving this clone out, which leaves the others.
+	pub fn into_level(self) -> u64 {
+		self.level()
+	}
+}
+
+/// The gauge lent shared to `watch` for the call.
+pub fn watch(gauge: &Gauge, watch: impl FnOnce(&Gauge) -> u64) -> u64 {
+	watch(gauge)
+}
+
+/// A value set once, through `&self`: its lock sits behind a `Box`, so the type is `Freeze`,
+/// yet each clone copies it into a lock of its own, which the clone then sets apart.
+#[derive(Clone, Default)]
+pub struct Latch {
+	value: Box<std::sync::OnceLock<u32>>,
+}
+
+impl Latch {
+	/// Set the value, unless it was set.
+	pub fn set(&self, value: u32) -> bool {
+		self.value.set(value).is_ok()
+	}
+
+	pub fn get(&self) -> Option<u32> {
+		self.value.get().copied()
+	}
+}
+
 /// A token: every field is `pub`, but its `Drop` must run when C frees it, so it is an
 /// object rather than a record.
 #[derive(Clone)]

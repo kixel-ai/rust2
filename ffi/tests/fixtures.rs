@@ -184,7 +184,7 @@ fn api_c() {
 }
 
 /// The C++ header at each standard, with exceptions and RTTI on and off between them,
-/// runs the same script, then checks its futures' semantics.
+/// runs the same script, then checks its futures' semantics and who owns each handle.
 #[test]
 fn api_cpp() {
 	let api = api();
@@ -204,8 +204,11 @@ fn api_cpp() {
 			"the C++{standard} transcript differs from the native one"
 		);
 		run(Command::new(&exe).arg("futures"));
+		run(Command::new(&exe).arg("lifetimes"));
 		for (case, message) in [
 			("moved", "api_counter_get: a handle's value was moved out"),
+			("moved from", "api_counter_get: a handle is null"),
+			("lent copied", "a lent object was copied past its call"),
 			("value", "value() of a result that holds an error"),
 			(
 				"finished",
