@@ -371,6 +371,17 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 		let none = unsafe { slice::from_raw_parts(NonNull::<u8>::dangling().as_ptr(), 0) };
 		out.push(none.as_ptr().wrapping_sub(1).is_null() as u8);
 		out.push(none[0..0].as_ptr().wrapping_sub(1).is_null() as u8);
+		let wide = unsafe { slice::from_raw_parts(NonNull::<u16>::dangling().as_ptr(), 0) };
+		out.push(wide[0..0].as_ptr().wrapping_sub(1).is_null() as u8);
+		out.push(wide.get(0..0).unwrap().as_ptr().wrapping_sub(1).is_null() as u8);
+		// A raw pointer to an array, as one to a slice of it.
+		let unsized_null: *const [u32] = ptr::null::<[u32; 3]>();
+		out.push(unsized_null.is_null() as u8);
+		let row = [u32::from(n), 9, 10];
+		let unsized_lanes: *const [u32] = &raw const row;
+		out.push(unsized_lanes.is_null() as u8);
+		out.push(unsafe { (*unsized_lanes)[1] } as u8);
+		out.push(unsafe { (unsized_lanes as *const u32).add(2).read() } as u8);
 		let off = ptr::null::<u32>().wrapping_add(usize::from(n % 3) + 1);
 		out.push(
 			(ptr::slice_from_raw_parts(off, 0) as *const u32)

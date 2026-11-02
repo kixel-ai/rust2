@@ -514,7 +514,8 @@ export function rangeCheck(length: number, start: number, end: number): void {
 /** `&s[start..end]`, with `end` defaulting to the length. */
 export function sliceRange<T>(s: T[], start: number, end: number = s.length): T[] {
 	rangeCheck(s.length, start, end);
-	return s.slice(start, end);
+	// An empty slice's part is it, which keeps the pointer it was made from.
+	return s.length === 0 ? s : s.slice(start, end);
 }
 
 /**
@@ -603,7 +604,7 @@ export function sliceRangeMut<T>(s: T[], start: number, end: number = s.length):
 
 /** `get` of `start..end`: the part, or `undefined` unless it is within the slice. */
 export function sliceGetRange<T>(s: T[], start: number, end: number = s.length): T[] | undefined {
-	return start <= end && end <= s.length ? s.slice(start, end) : undefined;
+	return start <= end && end <= s.length ? (s.length === 0 ? s : s.slice(start, end)) : undefined;
 }
 
 /** `get_mut` of `start..end`: the runtime's view of it, or `undefined` as `sliceGetRange`. */

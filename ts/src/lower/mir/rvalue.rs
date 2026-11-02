@@ -342,6 +342,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => self.err(span, format!("a coercion to `{to}`")),
 					}
 				}
+				// A raw pointer to a slice is an `rt.Place` of it; one to an array is the array.
+				PointerCoercion::Unsize
+					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| t.is_slice()) =>
+				{
+					let value = self.operand(op, span, out);
+					Expr::Object(vec![(Key::Name("v".into()), value)])
+				}
 				PointerCoercion::Unsize
 				| PointerCoercion::ReifyFnPointer(_)
 				| PointerCoercion::ClosureFnPointer(_)
