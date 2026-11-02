@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `rt.iterReduce`, `rt.iterMaxBy`, `rt.iterMinBy`, `rt.iterMaxByKey`, and
+  `rt.iterMinByKey` take whether they own their closure, which they drop where std's do,
+  before the `rt.None` they take last, as in `rt.iterReduce(it, f, drops, owns, none)`.
 - `rt.Hasher` has `Hasher`'s methods, `write`, `u8` to `isize`, `prefix`
   (`write_length_prefix`), and `str`, and `ints`, an integer slice's `hash_slice`, in
   place of `word`. A binding's `hash$Hash` writes a signed or pointer-sized integer
