@@ -453,6 +453,15 @@ impl Channel {
 		}
 	}
 
+	/// Sends from another thread, before it returns, so the wake lands from that thread, as
+	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
+	/// object, has to wake from another thread.
+	pub fn send_from_thread(&self, payload: Bytes) {
+		std::thread::scope(|scope| {
+			scope.spawn(|| self.send(payload));
+		});
+	}
+
 	/// The next payload sent, waiting for it.
 	pub async fn recv(&self) -> Bytes {
 		std::future::poll_fn(|cx| {
@@ -597,6 +606,26 @@ pub trait Log: Send + Sync {
 /// Each line to `log` as a type parameter takes it, returning how many it kept.
 pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
+}
+
+/// [`emit`] on another thread, which the call waits on.
+pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
+	on_thread(&log, &lines)
+}
+
+/// [`emit_from_thread`] before it returns its future, and again once polled.
+pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
+	let eager = on_thread(&*log, &lines);
+	async move { eager + on_thread(&*log, &lines) }
+}
+
+fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
+	std::thread::scope(|scope| {
+		scope
+			.spawn(|| lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32)
+			.join()
+			.expect("the thread finishes")
+	})
 }
 
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
@@ -1368,6 +1397,11 @@ pub fn stray() -> std::path::PathBuf {
 #[cfg(unix)]
 pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
+}
+
+/// The Unicode scalar after `c`, if any.
+pub fn next_char(c: char) -> Option<char> {
+	char::from_u32(c as u32 + 1)
 }
 
 /// `duration` plus `by`, unless past [`Duration::MAX`]: Rust's seconds are a `u64`.
