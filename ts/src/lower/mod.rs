@@ -1305,7 +1305,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::ThreadRng,
 				) => Some(ObjectKind::Class),
 				// A place, unless a pointer to what it holds is that object.
-				Some(library::Std::MaybeUninit) => match self.pointee(args.type_at(0)) {
+				Some(library::Std::MaybeUninit | library::Std::ManuallyDrop) => match self.pointee(args.type_at(0)) {
 					pointer::Pointee::Object | pointer::Pointee::Bytes => self.object_kind(args.type_at(0)),
 					pointer::Pointee::Place | pointer::Pointee::Slice => None,
 				},
@@ -1708,7 +1708,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::RangeFull => Type::Builtin("undefined"),
 				library::Std::Argument => Type::Rt("Fmt", vec![]),
 				library::Std::NonNull => self.pointer_ty(args.type_at(0), span),
-				library::Std::MaybeUninit => self.ty(args.type_at(0), span),
+				library::Std::MaybeUninit | library::Std::ManuallyDrop => self.ty(args.type_at(0), span),
 				library::Std::Peekable => {
 					let item = self.iter_item(Ty::new_adt(tcx, adt, args));
 					Type::Rt("Peekable", vec![self.item_ty(item, span)])
@@ -1989,7 +1989,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::NonZero
 					| library::Std::Wrapping
 					| library::Std::Saturating
-					| library::Std::PoisonError,
+					| library::Std::PoisonError
+					| library::Std::ManuallyDrop,
 				) => self.erases_to(args.type_at(0)),
 				// `undefined` while it holds nothing.
 				Some(library::Std::MaybeUninit) => Erased {

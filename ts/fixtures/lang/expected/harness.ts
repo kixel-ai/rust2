@@ -43,6 +43,7 @@ import { lengths } from "./lengths.ts";
 import { lists as lists_lists } from "./lists.ts";
 import { locals } from "./locals.ts";
 import { locks, relock, rwlocks, mapped, mutexMapped, printed as locks_printed, downgraded } from "./locks.ts";
+import { arcs as manual_arcs } from "./manual.ts";
 import { u8s as methods_u8s, u16s as methods_u16s, u32s as methods_u32s, u64s as methods_u64s, u128s as methods_u128s, usizes as methods_usizes, i8s as methods_i8s, i16s as methods_i16s, i32s as methods_i32s, i64s as methods_i64s, i128s as methods_i128s, isizes as methods_isizes } from "./methods.ts";
 import { nested as nested_nested } from "./nested.ts";
 import { objects as objects_objects } from "./objects.ts";
@@ -300,18 +301,20 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		layouts(data105, out106);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["heap::remnants", (_2206: rt.u8, data106: rt.ByteSlice, out107: rt.ByteVec): undefined => {
 		remnants(data106, out107);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::raw_slices", (_2207: rt.u8, data107: rt.ByteSlice, out108: rt.ByteVec): undefined => {
-		rawSlices(data107, out108);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::empty_parts", (_2208: rt.u8, data108: rt.ByteSlice, out109: rt.ByteVec): undefined => {
-		emptyParts(data108, out109);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2209: rt.u8, data109: rt.ByteSlice, out110: rt.ByteVec): undefined => {
-		hashes_own(data109, out110);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["manual::arcs", (_2207: rt.u8, data107: rt.ByteSlice, out108: rt.ByteVec): undefined => {
+		manual_arcs(data107, out108);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::raw_slices", (_2208: rt.u8, data108: rt.ByteSlice, out109: rt.ByteVec): undefined => {
+		rawSlices(data108, out109);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::empty_parts", (_2209: rt.u8, data109: rt.ByteSlice, out110: rt.ByteVec): undefined => {
+		emptyParts(data109, out110);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2210: rt.u8, data110: rt.ByteSlice, out111: rt.ByteVec): undefined => {
+		hashes_own(data110, out111);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::compared", (a0160: rt.u8, a1160: rt.ByteSlice, a2160: rt.ByteVec): undefined => {
 		compared(a0160, a1160.data, a1160.start, a1160.length, a2160);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["rings::slices", (a0161: rt.u8, a1161: rt.ByteSlice, a2161: rt.ByteVec): undefined => {
 		rings_slices(a0161, a1161.data, a1161.start, a1161.length, a2161);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2210: rt.u8, data110: rt.ByteSlice, out111: rt.ByteVec): undefined => {
-		fmt_objects(data110, out111);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2211: rt.u8, data111: rt.ByteSlice, out112: rt.ByteVec): undefined => {
+		fmt_objects(data111, out112);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::sorts", (a0162: rt.u8, a1162: rt.ByteSlice, a2162: rt.ByteVec): undefined => {
 		sorts(a0162, a1162.data, a1162.start, a1162.length, a2162);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0164: rt.u8, a1164: rt.ByteSlice, a2164: rt.ByteVec): undefined => {
