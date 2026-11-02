@@ -34,17 +34,39 @@ calls:
   15%.
 
 Folding each temporary assigned once and read once into its reader, as rust2-ts does,
-cut decoding's time 35 to 55% and left encoding about where it was: a 2-byte QUIC varint
-decodes in about 88 ns, still 17 to 108 times cgo on every decode. The profile of what is
-left is led by 16-byte moves copying `DecodeError`'s fields in and out of the frame.
+cut decoding's time 35 to 55% and left encoding about where it was: every decode is
+still 17 to 108 times cgo, encodes 2 to 6 times, and groups 0.4 to 2.9 times.
 
-Measure each step on the benchmark before the next:
+What is left is enums crossing calls through memory. Go keeps a local of over four words
+in memory and returns a result of over nine on the stack, so each `Option`, `Result`, and
+`ControlFlow` a call returns is stored to its caller's frame, zeroed there first when it
+holds a pointer, and copied out. Hand edits of the translated 2-byte QUIC varint decode,
+where cgo takes 1.0 to 1.2 ns, measure each lever, as means of three runs on a shared host:
 
-1. Lay an enum's variants out so a value is about Rust's size, e.g. a pointer to a cold
-   variant's fields.
-2. Lower the blocks to structured control flow. rust2-ts's `cfg` structuring
-   (`ts/src/lower/mir/cfg.rs`) builds TypeScript statements only at its edges: make it
-   generic over the statement and condition types, in a crate both translators share, as
-   the first piece of a shared front end.
+| The translation, with | ns |
+| --- | --- |
+| folding, as it is now | 88 |
+| `Result::Err` behind a pointer | 59, but decoding in 3-byte reads is 2.4 times slower, as each `?` allocates the error anew |
+| a non-`Copy` enum's variant of over two words behind a pointer, `DecodeError` 96 to 56 bytes | 88 |
+| structured control flow, so Go inlines `?`'s helpers | 73 |
+| that, and `DecodeError` 40 bytes | 67 |
+| each `Result` returned as Go results, its error by pointer, and the helpers inlined | 6.7, and 4.3 for 1 byte |
+
+So laying out variants and structuring control flow, this plan's next steps, leave
+every decode past 10 times cgo. Splitting an enum into its parts, Go variables for a
+local and Go results for a return, as rust2-ts's `Slotted` hands back a `Result`'s parts,
+reaches about what idiomatic Go does: a loop parsing as quic-go's `quicvarint.Parse`
+does decodes the same varints in 3.6 to 9.7 ns, itself 3 to 8 times cgo. Within 2x of
+cgo on the varint workloads is past what hand-written Go reaches.
+
+Open, for the maintainer:
+
+1. **Change the bar and split enums (recommended):** within 2x of idiomatic Go, or of
+   cgo on calls a Go user makes one at a time, where cgo pays its crossing each time.
+   Then split enums into their parts, on control flow structured by rust2-ts's `cfg`
+   (`ts/src/lower/mir/cfg.rs`) made generic over its statements in a crate both share.
+2. **Keep the bar, and drop the translator,** as the epic records: delete `go/` and the
+   epic, keeping these measurements in the PR that does.
+3. **Keep the bar and split enums anyway,** expecting 3 to 5 times cgo at best on varints.
 
 Public API: none.
