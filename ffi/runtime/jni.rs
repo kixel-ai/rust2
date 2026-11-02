@@ -166,9 +166,31 @@ pub fn array(env: *mut JNIEnv, bytes: &[u8]) -> jbyteArray {
 /// undercuts.
 const COPIED: usize = 1024;
 
+/// The most bytes lent to Kotlin at once, freed or not. The GC sees none of them, so a
+/// program making little garbage of its own would never collect the `Bytes` holding them;
+/// past this, bytes cross copied into Kotlin's heap, whose garbage the GC does see.
+const LENT_MAX: usize = 64 << 20;
+
+/// The bytes lent to Kotlin and not yet freed.
+static LENT_BYTES: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether `len` bytes cross lent rather than copied: longer than [`COPIED`], and within
+/// [`LENT_MAX`], which they then count against until freed. A call racing another past
+/// the limit may copy where it could have lent, never the reverse.
+fn lends(len: usize) -> bool {
+	if len <= COPIED {
+		return false;
+	}
+	if LENT_BYTES.fetch_add(len, Ordering::Relaxed) + len <= LENT_MAX {
+		return true;
+	}
+	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
+	false
+}
+
 /// A buffer Rust returned or lent, as Kotlin's `Native.owned` takes it: null for none, a
-/// `byte[]` copy of up to [`COPIED`] bytes, freeing the buffer, or else a `long[]` holding
-/// the owner it lends them through and their length.
+/// `byte[]` copy, freeing the buffer, or where it [`lends`] a `long[]` holding the owner it
+/// lends them through and their length.
 ///
 /// # Safety
 /// `buf` is a buffer Rust returned or lent, freed by nothing else.
@@ -176,7 +198,7 @@ pub unsafe fn hand(env: *mut JNIEnv, buf: rt::Buf) -> jobject {
 	if buf.is_none() {
 		return std::ptr::null_mut();
 	}
-	if buf.len <= COPIED {
+	if !lends(buf.len) {
 		// SAFETY: the caller's contract.
 		return unsafe {
 			let array = array(env, buf.bytes("jni"));
@@ -198,7 +220,7 @@ pub unsafe fn hand(env: *mut JNIEnv, buf: rt::Buf) -> jobject {
 	}
 }
 
-/// The length of a buffer lent to Kotlin, whose `Bytes` counts in an `Int`.
+/// The length of a buffer handed to Kotlin, whose `Bytes` counts in an `Int`.
 fn lent_len(buf: &rt::Buf) -> i32 {
 	match i32::try_from(buf.len) {
 		Ok(len) => len,
@@ -264,7 +286,11 @@ pub unsafe fn copy(env: *mut JNIEnv, owner: jlong, start: jint, len: jint, array
 /// `owner` came from [`hand`], and is freed once.
 pub unsafe fn free_bytes(owner: jlong) {
 	// SAFETY: the caller's contract.
-	unsafe { rt::Buf::of_owner(owner as usize as _).free() }
+	let buf = unsafe { rt::Buf::of_owner(owner as usize as _) };
+	let len = buf.len;
+	// SAFETY: the caller's contract.
+	unsafe { buf.free() };
+	LENT_BYTES.fetch_sub(len, Ordering::Relaxed);
 }
 
 /// A buffer Rust returned as a `byte[]`, or null for none, freeing it.
@@ -645,25 +671,27 @@ impl Wire for Owned<rt::Buf> {
 		rt::fail("jni", "Kotlin passes bytes, never their owner")
 	}
 
-	// None as -1, bytes up to [`COPIED`] long as their length and a copy, and longer ones as
-	// [`LENT`], their owner, and their length.
+	// None as -1, bytes it [`lends`] as [`LENT`], their owner, and their length, and others
+	// as their length and a copy.
 	fn write(self, w: &mut Writer) {
 		let buf = self.0;
 		if buf.is_none() {
 			w.put(-1i32);
-		} else if buf.len <= COPIED {
-			w.put(buf.len as i32);
+			return;
+		}
+		let len = lent_len(&buf);
+		if lends(buf.len) {
+			w.put(LENT);
+			// SAFETY: a buffer Rust returned or lent, handed over here.
+			w.put(unsafe { owner(buf) });
+			w.put(len);
+		} else {
+			w.put(len);
 			// SAFETY: a buffer Rust returned or lent, freed here once copied.
 			unsafe {
 				w.0.extend_from_slice(buf.bytes("jni"));
 				buf.free();
 			}
-		} else {
-			let len = lent_len(&buf);
-			w.put(LENT);
-			// SAFETY: a buffer Rust returned or lent, handed over here.
-			w.put(unsafe { owner(buf) });
-			w.put(len);
 		}
 	}
 }
