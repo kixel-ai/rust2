@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecWithCapacity, type Capped, capOf, capReserve, capSet, Err, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capOf, capReserve, capSet, Err, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, lt as wideLt, type Step } from "./int.ts";
@@ -41,7 +41,7 @@ const USIZE_MAX = 0xffffffff;
 type Drop<T> = (value: T) => void;
 
 /** `a + b`, saturating at `usize::MAX` as std's size hints do. */
-function satAdd(a: number, b: number): number {
+export function satAdd(a: number, b: number): number {
 	return Math.min(a + b, USIZE_MAX);
 }
 
@@ -256,7 +256,7 @@ abstract class Calling<S, T, F> extends Adaptor<S, T> {
 }
 
 /** An adaptor folded, whose `next` and `nextBack` are `front` and `back`, which share its state. */
-class Folded<T> extends Iter<T> {
+export class Folded<T> extends Iter<T> {
 	readonly front: () => T | Done;
 	readonly back: () => T | Done;
 
@@ -296,6 +296,13 @@ export function iterFromOption<T>(option: T | undefined | None, none?: None): T 
 /** `slice::Iter`, and with what drops each item, what iterating a `Vec` or array by value makes. */
 export function iterSlice<T>(s: ArrayLike<T>, drop?: Drop<T>): Iter<T> {
 	return new SliceIter(s, drop);
+}
+
+/** `Vec<u8>::into_iter`: over the vector's whole buffer, whose length is its capacity, which a deque collected from it keeps. */
+export function byteVecIntoIter(v: ByteVec): Iter<number> {
+	const it = new SliceIter(v.data);
+	it.back = v.length;
+	return it;
 }
 
 /** `slice::IterMut` of elements JS copies: the place of each. */
@@ -471,7 +478,7 @@ function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: bool
 }
 
 function sliceCopy<T>(s: T[], start: number, end: number): T[] {
-	return s.slice(start, end);
+	return slicePart(s, start, end);
 }
 
 function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
@@ -564,11 +571,11 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  */
 export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): T[] {
 	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
-	joinedLength(parts, sep, size);
-	const v: T[] = [];
+	// std's makes one with room for exactly them.
+	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
 	for (let i = 0; i < parts.length; i++) {
-		if (i > 0 && sep !== undefined) vecExtendFromSlice(v, sep, clone);
-		vecExtendFromSlice(v, parts[i], clone);
+		if (i > 0 && sep !== undefined) vecExtendFromSlice(v, sep, size, clone);
+		vecExtendFromSlice(v, parts[i], size, clone);
 	}
 	return v;
 }
@@ -940,12 +947,16 @@ export function iterPosition<T>(it: Iter<T>, f: (item: T) => boolean): number | 
 	return undefined;
 }
 
-/** `Iterator::reduce`: the first item by `next`, folded with the rest by `f`. */
-export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops?: boolean): T | undefined;
-export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops: boolean | undefined, none: None): T | None;
-export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops = false, none?: None): T | undefined | None {
+/**
+ * `Iterator::reduce`: the first item by `next`, folded with the rest by `f`. If it `owns`
+ * `f`, `f` drops as `iterFold`'s does, or before `it` if `it` is empty.
+ */
+export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops?: boolean, owns?: boolean): T | undefined;
+export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops: boolean | undefined, owns: boolean | undefined, none: None): T | None;
+export function iterReduce<T>(it: Iter<T>, f: (acc: T, item: T) => T, drops = false, owns = false, none?: None): T | undefined | None {
 	const first = it.next();
-	if (first !== DONE) return iterFold(it, first, f, drops);
+	if (first !== DONE) return iterFold(it, first, f, drops, owns);
+	if (owns) dispose(f);
 	if (drops) dispose(it);
 	return none;
 }
@@ -1000,32 +1011,41 @@ export function iterMin<T>(it: Iter<T>, lt: Lt<T>, drops = false, drop?: Drop<T>
 	return iterToOption(best(it, (item: T) => item, lt, true, drops, drop), none);
 }
 
-/** `max_by_key`, by `lt` of the keys, as `iterMax`, each item's key taken once. */
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>): T | undefined;
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, none: None): T | None;
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(best(it, f, lt, false, drops, drop), none);
+/**
+ * `max_by_key`, by `lt` of the keys, as `iterMax`, each item's key taken once. If it
+ * `owns` `f`, `f` drops as std's `map` of the iterator by it does: as the fold ends, or
+ * after `it` if `it` is empty.
+ */
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
+	return iterToOption(best(it, f, lt, false, drops, drop, owns ? () => dispose(f) : undefined, true), none);
 }
 
-/** `min_by_key`, by `lt` of the keys, as `iterMin`, each item's key taken once. */
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>): T | undefined;
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, none: None): T | None;
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(best(it, f, lt, true, drops, drop), none);
+/** `min_by_key`, by `lt` of the keys, as `iterMaxByKey`. */
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
+	return iterToOption(best(it, f, lt, true, drops, drop, owns ? () => dispose(f) : undefined, true), none);
 }
 
-/** `max_by`, by `compare`, as `iterMax`: the last of the greatest. */
-export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops?: boolean, drop?: Drop<T>): T | undefined;
-export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops: boolean | undefined, drop: Drop<T> | undefined, none: None): T | None;
-export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops = false, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(best(it, (item: T) => item, byCompare(compare), false, drops, drop), none);
+/**
+ * `max_by`, by `compare`, as `iterMax`: the last of the greatest. If it `owns` `compare`, `compare`
+ * drops as `iterReduce`'s `f` does.
+ */
+export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
+export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
+export function iterMaxBy<T>(it: Iter<T>, compare: Compare<T>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
+	const release = owns ? () => dispose(compare) : undefined;
+	return iterToOption(best(it, (item: T) => item, byCompare(compare), false, drops, drop, release), none);
 }
 
-/** `min_by`, by `compare`, as `iterMin`: the first of the least. */
-export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops?: boolean, drop?: Drop<T>): T | undefined;
-export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops: boolean | undefined, drop: Drop<T> | undefined, none: None): T | None;
-export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops = false, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(best(it, (item: T) => item, byCompare(compare), true, drops, drop), none);
+/** `min_by`, by `compare`, as `iterMin`: the first of the least, and as `iterMaxBy`. */
+export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
+export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
+export function iterMinBy<T>(it: Iter<T>, compare: Compare<T>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
+	const release = owns ? () => dispose(compare) : undefined;
+	return iterToOption(best(it, (item: T) => item, byCompare(compare), true, drops, drop, release), none);
 }
 
 /** A `PartialOrd::lt`. */
@@ -1045,31 +1065,50 @@ function byCompare<T>(compare: Compare<T>): Lt<T> {
 /**
  * The item of the greatest key, the last of equal ones, or of the least if `least`, the
  * first, as std's `reduce` by `Ord::max` or `min` keeps it: the first by `next`, and the
- * rest by `fold`, each tested for `lt` the best's and dropped as it loses.
+ * rest by `fold`, each tested for `lt` the best's and dropped as it loses. `release` drops
+ * the closure std's reduces by as the fold ends, or if `it` is empty, before `it`, or
+ * after it if `keyed`, as the `map` std's `_by_key` forms reduce drops its function.
  */
-function best<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, least: boolean, drops: boolean, drop?: Drop<T>): T | Done {
+function best<T, K>(
+	it: Iter<T>,
+	f: (item: T) => K,
+	lt: Lt<K>,
+	least: boolean,
+	drops: boolean,
+	drop?: Drop<T>,
+	release?: () => void,
+	keyed = false,
+): T | Done {
 	if (!drops && drop === undefined) {
 		let best = it.next();
-		if (best === DONE) return DONE;
-		let key = f(best);
-		const folded = it.folded(true);
-		for (let item = folded.next(); item !== DONE; item = folded.next()) {
-			const k = f(item);
-			if (least ? lt(k, key) : !lt(k, key)) [best, key] = [item, k];
+		if (best !== DONE) {
+			let key = f(best);
+			const folded = it.folded(true);
+			for (let item = folded.next(); item !== DONE; item = folded.next()) {
+				const k = f(item);
+				if (least ? lt(k, key) : !lt(k, key)) [best, key] = [item, k];
+			}
 		}
+		release?.();
 		return best;
 	}
 	const first = it.next();
 	if (first === DONE) {
+		if (!keyed) release?.();
 		dispose(it);
+		if (keyed) release?.();
 		return DONE;
 	}
-	const [, item] = it.fold<[K, T]>([f(first), first], (best, item) => {
-		const k = f(item);
-		const wins = least ? lt(k, best[0]) : !lt(k, best[0]);
-		drop?.(wins ? best[1] : item);
-		return wins ? [k, item] : best;
-	});
+	const [, item] = it.fold<[K, T]>(
+		[f(first), first],
+		(best, item) => {
+			const k = f(item);
+			const wins = least ? lt(k, best[0]) : !lt(k, best[0]);
+			drop?.(wins ? best[1] : item);
+			return wins ? [k, item] : best;
+		},
+		release,
+	);
 	return item;
 }
 
@@ -1214,8 +1253,36 @@ export function iterGe<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Orderi
 	return order !== undefined && order >= 0;
 }
 
-/** `collect` into a `Vec`, as `iterExtend` of an empty one. */
-export function iterToArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): T[] {
+/**
+ * The capacity std's `collect` of `it` into a `Vec` of `size`-byte elements keeps of the
+ * `Vec` of `src`-byte ones it writes in place of, read before it reads `it`: through
+ * adaptors, all of its bytes, and of that `Vec`'s own `into_iter`, its buffer while unread
+ * at the front or at least half full, and else room reserved for what is left.
+ */
+function keptCapacity(it: Iter<unknown>, src: number, size: number): number | undefined {
+	let from: Iter<unknown> | undefined = it;
+	while (from !== undefined && !(from instanceof SliceIter)) {
+		// std's `SourceIter` reads through each adaptor to the iterator it wraps, a zip's first.
+		const wraps = from as unknown as { inner?: Iter<unknown>; a?: Iter<unknown>; outer?: Iter<unknown> };
+		from = wraps.inner ?? wraps.a ?? wraps.outer;
+	}
+	if (from === undefined) return undefined;
+	const s = from.s as ArrayLike<unknown> & Capped;
+	const cap = s instanceof Uint8Array ? s.length : vecCapacity(s as unknown[] & Capped, src);
+	if (from !== it) return Math.floor((cap * src) / size);
+	const left = from.back - from.front;
+	return from.front === 0 || left >= Math.floor(cap / 2) ? cap : capReserve(0, 0, left, size);
+}
+
+/** `collect` into a `Vec`, as `iterExtend` of an empty one, in place of a `Vec` of `src`-byte elements if given. */
+export function iterToArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false, src?: number): T[] {
+	const kept = src === undefined || size === undefined ? undefined : keptCapacity(it, src, size);
+	const out = toArray(it, take, size, trusted);
+	if (kept !== undefined) capHold(out, kept, size!);
+	return out;
+}
+
+function toArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): T[] {
 	if (size !== undefined && !trusted) {
 		const out: T[] = [];
 		let cap = capOf(0, undefined, size);
@@ -1238,8 +1305,16 @@ export function iterToArray<T>(it: Iter<T>, take?: Take, size?: number, trusted 
 	return out;
 }
 
-/** `collect` into a `Vec<u8>`, as `iterExtendBytes` of an empty one. */
-export function iterToByteVec(it: Iter<number>, take?: Take, trusted = false): ByteVec {
+/** `collect` into a `Vec<u8>`, as `iterExtendBytes` of an empty one, in place of a `Vec` of `src`-byte elements if given. */
+export function iterToByteVec(it: Iter<number>, take?: Take, trusted = false, src?: number): ByteVec {
+	const kept = src === undefined ? undefined : keptCapacity(it, src, 1);
+	const out = toByteVec(it, take, trusted);
+	if (kept !== undefined && kept > out.data.length) byteVecReserveExact(out, kept - out.length);
+	else if (kept !== undefined && kept < out.data.length) byteVecShrinkTo(out, kept);
+	return out;
+}
+
+function toByteVec(it: Iter<number>, take?: Take, trusted = false): ByteVec {
 	// Its own loops: through `iterExtendBytes`, JavaScriptCore took 1.9x as long.
 	if (!trusted) {
 		const out = new ByteVec();
@@ -1504,11 +1579,12 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 		return Array.prototype.slice.call(this.s, this.front, this.back);
 	}
 
-	/** std's: what it has left, each cloned in order by `h.v` into storage of its own, or else shared. */
+	/** std's: what it has left, each cloned in order by `h.v` into storage of its own, of exactly their capacity, or else shared. */
 	override clone(h?: Clones): Iter<T> {
 		if (h?.v !== undefined) {
-			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[];
+			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[] & Capped;
 			for (let i = 0; i < items.length; i++) items[i] = cloned(items[i], h.v);
+			items.cap = items.length;
 			return new SliceIter(items, this.drop);
 		}
 		const it = new SliceIter(this.s, this.drop);

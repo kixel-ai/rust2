@@ -6,7 +6,7 @@ import * as cows_Named from "./cows.Named.ts";
 import * as cows_Run from "./cows.Run.ts";
 import * as cows_Tally from "./cows.Tally.ts";
 import { put as fmt_put } from "./fmt.ts";
-import { text } from "./strs.ts";
+import { text as strs_text } from "./strs.ts";
 
 /** `to_mut` of a `Result`'s payload, which the store rebuilds the `Result` around. */
 export function exclaimed(r: rt.Result<string, rt.u8>): rt.Result<string, rt.u8> {
@@ -25,7 +25,7 @@ export function cow(s: string, owned: boolean): string {
 
 export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let r!: rt.Result<string, rt.u8>;
-	const s: string = text(data);
+	const s: string = strs_text(data);
 	const owned: boolean = (kind & 128) !== 0;
 	const first: string = option_unwrapOr$1iemzn8(rt.iterToOption(rt.strSplit(s, "/").next()), "");
 	const _14: rt.u8 = rt.u8Rem(kind, 6);
@@ -176,7 +176,7 @@ export function hashed$Vec_u8(v: rt.ByteVec): rt.u64 {
 
 export function hashed$borrow_Cow_slice_u16(v: rt.Cow<rt.u16>): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashCow(rt.hashSlice(rt.hash16))(v, h);
+	rt.hashCow(rt.hashInts(2))(v, h);
 	return rt.hashFinish(h);
 }
 
@@ -188,7 +188,7 @@ export function hashed$borrow_Cow_slice_u8(v: rt.ByteCow): rt.u64 {
 
 export function hashed$slice_u16(v: rt.u16[]): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashSlice(rt.hash16)(v, h);
+	rt.hashInts(2)(v, h);
 	return rt.hashFinish(h);
 }
 

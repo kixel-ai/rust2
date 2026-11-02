@@ -110,48 +110,47 @@ def origin(loop):
 	expect(origin.root().as_str() == "", "an origin's root is empty")
 
 	# Scoped beneath a root to patterns, which moq-pattern's own export builds.
-	with moq.Patterns.new() as patterns:
-		expect(patterns.insert(moq.Pattern.subtree("alice")), "a pattern inserts")
-		with origin.scope("room", patterns) as scoped:
-			expect(scoped.root().as_str() == "room", "a scope has its root")
-			expect(scoped.absolute("alice").as_str() == "room/alice", "a scope's paths are absolute")
-			allowed = scoped.allowed()
-			expect(allowed.matches("alice/cam"), "a scope allows its patterns")
-			expect(not allowed.matches("bob"), "a scope allows nothing else")
-			with scoped.consume() as consumer:
-				expect(consumer.absolute("bob").as_str() == "room/bob", "a scope's consumer shares its root")
+	patterns = moq.Patterns.new()
+	expect(patterns.insert(moq.Pattern.subtree("alice")), "a pattern inserts")
+	scoped = origin.scope("room", patterns)
+	expect(scoped.root().as_str() == "room", "a scope has its root")
+	expect(scoped.absolute("alice").as_str() == "room/alice", "a scope's paths are absolute")
+	allowed = scoped.allowed()
+	expect(allowed.matches("alice/cam"), "a scope allows its patterns")
+	expect(not allowed.matches("bob"), "a scope allows nothing else")
+	consumer = scoped.consume()
+	expect(consumer.absolute("bob").as_str() == "room/bob", "a scope's consumer shares its root")
 
-	# A broadcast the origin creates is stamped with its path, which its info lends. Each
-	# object of it is closed, since an open one keeps it, and so the origin, alive.
-	with origin.create_broadcast("room/alice") as publication:
-		with publication.broadcast() as broadcast:
-			path = broadcast.info().path
+	# A broadcast the origin creates is stamped with its path, which its info lends.
+	publication = origin.create_broadcast("room/alice")
+	path = publication.broadcast().info().path
+	expect(path.as_str() == "room/alice", "a broadcast has its path")
 
-		expect(path.as_str() == "room/alice", "a broadcast has its path")
-
-		# Paths own their segments, so Python builds them, and relative ones, from a string.
-		try:
-			moq.Path.new("/cam/")
-			expect(False, "a path with an empty segment is an error")
-		except moq.PathInvalidException as e:
-			expect(e.error == moq.PathInvalid.EMPTY_SEGMENT, "an empty segment is its own error")
-		cam = moq.Path.new("cam")
-		expect(cam.as_str() == "cam", "a path builds from its segments")
-		joined = path.join(cam)
-		expect(joined.as_str() == "room/alice/cam", "paths join")
-		expect(joined.strip_prefix(path) == cam, "a path strips its prefix")
-		expect(path.strip_prefix(joined) is None, "a path strips no longer prefix")
-		expect(joined.resolve(moq.Relative.new("../bob")).as_str() == "room/bob", "a relative path resolves")
+	# Paths own their segments, so Python builds them, and relative ones, from a string.
+	try:
+		moq.Path.new("/cam/")
+		expect(False, "a path with an empty segment is an error")
+	except moq.PathInvalidException as e:
+		expect(e.error == moq.PathInvalid.EMPTY_SEGMENT, "an empty segment is its own error")
+	cam = moq.Path.new("cam")
+	expect(cam.as_str() == "cam", "a path builds from its segments")
+	joined = path.join(cam)
+	expect(joined.as_str() == "room/alice/cam", "paths join")
+	expect(joined.strip_prefix(path) == cam, "a path strips its prefix")
+	expect(path.strip_prefix(joined) is None, "a path strips no longer prefix")
+	expect(joined.resolve(moq.Relative.new("../bob")).as_str() == "room/bob", "a relative path resolves")
+	# Each object of the origin is released, since a live one keeps it alive.
+	del scoped, consumer, publication
 
 	# The driver, run on asyncio's loop until every owner of the origin is gone.
 	driving = loop.create_task(drive(driver))
 	step(loop)
 	# A client publishes the origin through moq-net's generic `with_publisher`, at each
 	# type that implements its bound, by reference, so Python keeps its object.
-	moq.Client.new().with_publisher_producer(origin).close()
+	moq.Client.new().with_publisher_producer(origin)
 	expect(not driving.done(), "a driver runs while its origin has an owner")
-	origin.close()
-	# The last owner's close wakes the driver, which then finishes, cleanly.
+	del origin
+	# The last owner's release wakes the driver, which then finishes, cleanly.
 	try:
 		loop.run_until_complete(asyncio.wait_for(driving, 5))
 		expect(False, "a driver whose origin is gone finishes")
@@ -210,8 +209,7 @@ def catalog(loop):
 	expect(producer.is_claimed_json_config("status"), "the JSON snapshot claims its name")
 	# A value Python parses is published as the track's latest, which a subscriber reads
 	# back as JSON text.
-	with moq.Json.parse('{"on": true}') as on:
-		status.update(on)
+	status.update(moq.Json.parse('{"on": true}'))
 
 	async def latest():
 		group = await status.consume().recv_group()
@@ -238,13 +236,12 @@ def catalog(loop):
 	expect(app == '{"v":[1,true]}', "the catalog reads its section back as text")
 	# Malformed text fails to parse, and a reserved section is moq-mux's error.
 	try:
-		moq.Json.parse('{"v":').close()
+		moq.Json.parse('{"v":')
 		expect(False, "malformed JSON fails to parse")
 	except moq.StringException as e:
 		expect(e.error == "EOF while parsing a value at line 1 column 5", "a parse error is serde_json's")
 	try:
-		with moq.CatalogHangExtra.default() as hang:
-			hang.set("json", moq.Json.parse("1"))
+		moq.CatalogHangExtra.default().set("json", moq.Json.parse("1"))
 		expect(False, "a reserved section is an error")
 	except moq.MuxErrorException as e:
 		expect(str(e) == "reserved catalog section: json", "a reserved section is moq-mux's error")
@@ -257,44 +254,40 @@ def config():
 
 	# Session config's foreign types. A URL is parsed from text, failing with why.
 	try:
-		moq.Url.parse("relay.example").close()
+		moq.Url.parse("relay.example")
 		expect(False, "a relative URL is an error")
 	except moq.StringException as e:
 		expect(str(e) == "relative URL without a base", "a URL's parse error is Rust's")
 	# A session's config, its URL and pinned fingerprints set as Rust assigns them.
 	connect = moq.ConnectConfig.default()
-	with connect.tls as tls:
-		tls.set_fingerprint(["ab:cd"])
-		connect.set_tls(tls)
+	tls = connect.tls
+	tls.set_fingerprint(["ab:cd"])
+	connect.set_tls(tls)
 	connect.set_url(moq.Url.parse("https://relay.example:4443/demo"))
-	with connect.tls as tls:
-		expect(tls.fingerprint == ["ab:cd"], "a TLS config keeps its fingerprints")
+	expect(connect.tls.fingerprint == ["ab:cd"], "a TLS config keeps its fingerprints")
 	url = connect.url
-	connect.close()
 	versions = moq.Versions.default()
-	with moq.AuthTokens.new([]) as tokens, tokens.dial(url, versions) as dial, dial.url as dialed:
-		expect(dialed == url, "a dial keeps its URL")
-		expect(str(dialed) == "https://relay.example:4443/demo", "a URL prints as Rust's")
-	url.close()
+	dialed = moq.AuthTokens.new([]).dial(url, versions).url
+	expect(dialed == url, "a dial keeps its URL")
+	expect(str(dialed) == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	# A `Vec<String>`, as a list.
 	expect(len(moq.ALPNS) > 0, "a constant slice crosses as a list")
 	alpns = versions.alpns()
 	expect(len(alpns) > 0 and all(alpns), "each version has an ALPN")
-	versions.close()
 	# A socket address, crossing in a listener's bind.
 	bind = moq.ListenBind.Addr(("::1", 4443, 0, 0))
 	expect(str(bind) == "[::1]:4443", "an IPv6 bind prints as Rust's")
 	v4 = moq.ListenBind.Addr(("127.0.0.1", 0))
 	expect(str(v4) == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
-	with moq.ListenConfig.default() as listen:
-		listen.set_bind(bind)
-		# The preferred address of each family, which takes only that family.
-		listen.set_preferred_v4(v4._0)
-		expect(listen.preferred_v4 == v4._0 and listen.preferred_v6 is None, "a listener keeps its preferred IPv4 address")
-		expect(listen.bind == bind, "a listener's config keeps its bind")
+	listen = moq.ListenConfig.default()
+	listen.set_bind(bind)
+	# The preferred address of each family, which takes only that family.
+	listen.set_preferred_v4(v4._0)
+	expect(listen.preferred_v4 == v4._0 and listen.preferred_v6 is None, "a listener keeps its preferred IPv4 address")
+	expect(listen.bind == bind, "a listener's config keeps its bind")
 	# TLS files, as OS paths, and fingerprints, as strings: none by default.
-	with moq.TlsConnect.default() as tls:
-		expect(tls.root == [] and tls.fingerprint == [], "a default TLS config lists none")
+	tls = moq.TlsConnect.default()
+	expect(tls.root == [] and tls.fingerprint == [], "a default TLS config lists none")
 
 
 async def session():
@@ -342,8 +335,8 @@ async def session():
 	frame = None if group is None else await group.read_frame()
 	expect(frame is not None and text(frame.payload) == "hello", "a session reads the frame the server serves")
 
-	await established.close_()
-	await client.close_()
+	await established.close()
+	await client.close()
 	serving.cancel()
 	try:
 		await serving

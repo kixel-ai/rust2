@@ -194,7 +194,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 				return g68;
 			}, (): void => {
 				captured56[Symbol.dispose]();
-			})), "next", 8, true);
+			})), "next", 8, true, 8);
 			const _176: rt.Iter<Guard.Guard> = rt.iterSlice(guards(4, 7), rt.drop);
 			_1089 = false;
 			const captured57 = d;
@@ -221,7 +221,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 				return g66;
 			}, (): void => {
 				captured54[Symbol.dispose]();
-			})), "next", 8, true)) as rt.VecDeque<Guard.Guard>;
+			})), "next", 8, true, 8), 8) as rt.VecDeque<Guard.Guard>;
 			const _206: rt.Iter<Guard.Guard> = rt.iterSlice(guards(4, 7), rt.drop);
 			_1089 = false;
 			const captured55 = d;
@@ -230,7 +230,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			}, (): void => {
 				captured55[Symbol.dispose]();
 			}));
-			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_205, "fold", 12, true), true, undefined, undefined, rt.drop);
+			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_205, "fold", 12, true), 12, true, undefined, undefined, rt.drop);
 			const _217: rt.usize = queue.n;
 			const _220: rt.usize = rt.btreeLen(tree);
 			const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_217, f), (f: rt.Formatter) => rt.usizeDisplay(_220, f)];
@@ -1409,12 +1409,11 @@ export function reducers(log: Log.Log, id: rt.u32): void {
 	const e: Guard.Guard = _69[1];
 	const _77: rt.Iter<Guard.Guard> = rt.iterSlice(held);
 	const captured3 = e;
-	const _80: (a0: Guard.Guard, a1: Guard.Guard) => rt.Ordering = rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
+	const part = option_map$0lq7mno(rt.iterMinBy(_77, rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
 		return rt.cmp(rt.u32Add(Guard.id(a5), Guard.id(captured3)), rt.u32Add(Guard.id(b5), Guard.id(captured3)));
 	}, (): void => {
 		captured3[Symbol.dispose]();
-	});
-	const part = option_map$0lq7mno(rt.dropAfter(_80, () => rt.iterMinBy(_77, _80)), Guard.id);
+	}), undefined, undefined, true), Guard.id);
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part, f, rt.u32Debug)];
 	Log.note(log, rt.fmtFormat(["first ", args4[0]]));
 	rt.dropAll(held);
@@ -1474,7 +1473,7 @@ export function closures(log: Log.Log, id: rt.u32): void {
 			g3[Symbol.dispose]();
 			return _06;
 		});
-	}), "next", 8);
+	}), "next", 8, false, 8);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug))];
 	Log.note(log, rt.fmtFormat(["kept ", args2[0]]));
 	const part3 = rt.iterFold(rt.iterFilterMap(rt.iterSlice(guards(1, 7), rt.drop), pick, rt.None), 0, (n3: rt.u32, o2: Guard.Guard | undefined): rt.u32 => {
@@ -1729,7 +1728,7 @@ export function zips(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return rt.u32Sub(rt.u32Add(x2, Guard.id(captured3)), captured4);
 		}, (): void => {
 			captured3[Symbol.dispose]();
-		})), "next", 4, true);
+		})), "next", 4, true, 4);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.fmtOption(at, f, rt.usizeDebug), (f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.usizeDisplay(skipped, f), (f: rt.Formatter) => rt.fmtList(kept, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["no coerce ", args8[0], " ", args8[1], " ", args8[2], " ", args8[3], " ", args8[4]]));
 	} else if (arg === 4) {

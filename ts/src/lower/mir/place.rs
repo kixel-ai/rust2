@@ -62,6 +62,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The JS expression of `place`, read without a copy.
 	pub fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
+		if let Some(why) = self.alloc_bytes(place) {
+			return self.err(span, why);
+		}
 		// A local held as its parts reads them, as far as they go.
 		if self.scalars.contains_key(&place.local) {
 			let (e, n) = self.scalar_place(place, span);
@@ -204,8 +207,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let glue =
 						matches!(self.env, Env::Shim) && place.local.as_u32() == 1 && pty.ty == decls[place.local].ty;
 					// A box's pointer is the box, which is its contents.
-					if self.b.t.place_pointee(ty).is_some() && !glue && !self.box_pointer(place.local) {
+					let boxed = self.box_pointer(place.local);
+					if self.b.t.place_pointee(ty).is_some() && !glue && !boxed {
 						e = e.member("v");
+					}
+					// A raw pointer to a slice is where it starts, read through as the slice.
+					if let ty::RawPtr(pointee, _) = ty.kind()
+						&& !glue
+						&& !boxed
+						&& self.b.t.pointee(*pointee) == crate::lower::pointer::Pointee::Slice
+					{
+						e = match crate::lower::pointer::slice_of_bytes(*pointee) {
+							true => e.member("derefBytes").call(vec![Expr::lit("false")]),
+							false => e.member("deref").call(Vec::new()),
+						};
 					}
 				}
 				ProjectionElem::Field(field, _) => {
@@ -708,6 +723,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
 		let mut out = Vec::new();
+		if let Some(why) = self.alloc_bytes(place) {
+			out.push(StmtKind::Expr(self.err(span, why)).at(None));
+			return out;
+		}
 		// A raw pointer to a value of no bytes may dangle, and a write through it writes nothing.
 		if let [.., ProjectionElem::Deref] = place.projection.as_slice()
 			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))

@@ -96,10 +96,11 @@ pub fn maps<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> bool {
 	}
 	let name = tcx.item_name(did);
 	let ty = instance.args.type_at(0);
+	let get = Get::of(name.as_str());
 	match mapped_self(tcx, ty) {
-		true => BUF.contains(&name.as_str()) || BUF_MUT.contains(&name.as_str()),
+		true => BUF.contains(&name.as_str()) || BUF_MUT.contains(&name.as_str()) || get.is_some_and(|g| g.fallible),
 		false if Buffer::through(tcx, ty).is_some() => BUF_MUT.contains(&name.as_str()),
-		false => name.as_str() == "copy_to_bytes",
+		false => name.as_str() == "copy_to_bytes" || get.is_some(),
 	}
 }
 
@@ -376,6 +377,14 @@ fn bytes<'tcx>(
 		_ => {}
 	}
 	let ty = targ(call.args, 0);
+	// What its MIR reads through a pointer cast: any buffer's `try_get_*` of a fixed size,
+	// and its `get_*` of one the mapping doesn't name.
+	if owner == "Buf"
+		&& let Some(get) = Get::of(name)
+		&& (get.fallible || Buffer::of(tcx, ty).is_none())
+	{
+		return provided_get(b, call, ty, get, args);
+	}
 	if owner == "BufMut"
 		&& let Some(buffer) = Buffer::through(tcx, ty)
 	{
@@ -711,6 +720,79 @@ fn provided_copy_to_bytes<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, a
 		buf_method(b, call, ty, "advance")?,
 	);
 	Some(Expr::rt("bufCopyToBytes", vec![this, len, remaining, chunk, advance]))
+}
+
+/// A provided `get_*` or `try_get_*` of `Buf` of an integer of a fixed size.
+#[derive(Clone, Copy)]
+struct Get {
+	/// `try_get_*`, which gives a `TryGetError` where `get_*` panics.
+	fallible: bool,
+	le: bool,
+}
+
+impl Get {
+	fn of(name: &str) -> Option<Self> {
+		let (fallible, rest) = match name.strip_prefix("try_get_") {
+			Some(rest) => (true, rest),
+			None => (false, name.strip_prefix("get_")?),
+		};
+		let (int, le) = scalar(rest);
+		["u16", "i16", "u32", "i32", "u64", "i64", "u128", "i128"]
+			.contains(&int)
+			.then_some(Self { fallible, le })
+	}
+}
+
+/// `get` of the buffer `ty` as `bytes` provides it: `rt.bufGet` or `rt.bufTryGet` of its own
+/// methods, which read its chunk where it holds the integer, or else copy it out.
+fn provided_get<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	ty: Ty<'tcx>,
+	get: Get,
+	args: Vec<Expr>,
+) -> Option<Expr> {
+	let this = args.into_iter().next()?;
+	let int = Int::of(match get.fallible {
+		true => {
+			let ty::Adt(_, result) = b.t.sig(call.def_id, call.args).output().kind() else {
+				return None;
+			};
+			result.type_at(0)
+		}
+		false => b.t.sig(call.def_id, call.args).output(),
+	})?;
+	let mut values = vec![
+		this,
+		Expr::lit((int.bits / 8).to_string()),
+		Expr::lit(get.le.to_string()),
+		int.func("fromBeBytes"),
+	];
+	for name in ["remaining", "chunk", "advance", "copy_to_slice"] {
+		values.push(buf_method_mut(b, call, ty, name)?);
+	}
+	let f = match get.fallible {
+		true => "bufTryGet",
+		false => "bufGet",
+	};
+	Some(Expr::rt(f, values))
+}
+
+/// `Buf`'s method `name` for `ty`, taking the buffer as a `&mut` to it is: through the
+/// `rt.Place` of one JS copies for a `&self` method.
+fn buf_method_mut<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, ty: Ty<'tcx>, name: &str) -> Option<Expr> {
+	let f = buf_method(b, call, ty, name)?;
+	if !b.t.needs_place(ty) || matches!(name, "advance" | "copy_to_slice") {
+		return Some(f);
+	}
+	let param = crate::ts::Param {
+		name: "p".into(),
+		ty: Some(crate::ts::Type::Rt("Place", vec![b.t.ty(ty, call.span)])),
+	};
+	Some(Expr::Lambda(
+		vec![param],
+		Box::new(f.call(vec![Expr::ident("p").member("v")])),
+	))
 }
 
 /// The function value of `Buf`'s method `name` for the buffer `ty`, of the crate `call` is to.

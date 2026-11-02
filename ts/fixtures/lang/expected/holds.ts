@@ -123,7 +123,7 @@ export function indexed(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _31: rt.u8 = rt.u8WrappingAdd(v.data[at], i2 & 0xff);
 		v.data[at] = _31;
 	}
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(v)), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
 }
 
 /**

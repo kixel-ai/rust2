@@ -3,6 +3,34 @@
 import * as rt from "../rt.ts";
 import type * as TryGetError from "../bytes.TryGetError.ts";
 
+export function map$0c3nzkx(self: rt.Result<rt.i64, TryGetError.TryGetError>, op: (a0: rt.i64) => rt.u128): rt.Result<rt.u128, TryGetError.TryGetError> {
+	if (self.ok) {
+		return rt.Ok(op(self.value));
+	}
+	return self as rt.Result<rt.u128, TryGetError.TryGetError>;
+}
+
+export function map$0hs8st9(self: rt.Result<rt.u16, TryGetError.TryGetError>, _: (a0: rt.u16) => rt.u128): rt.Result<rt.u128, TryGetError.TryGetError> {
+	if (self.ok) {
+		return rt.Ok(self.value as rt.u128);
+	}
+	return self as rt.Result<rt.u128, TryGetError.TryGetError>;
+}
+
+export function map$01kzrm1(self: rt.Result<rt.u8, TryGetError.TryGetError>, _: (a0: rt.u8) => rt.u128): rt.Result<rt.u128, TryGetError.TryGetError> {
+	if (self.ok) {
+		return rt.Ok(self.value as rt.u128);
+	}
+	return self as rt.Result<rt.u128, TryGetError.TryGetError>;
+}
+
+export function unwrapOrElse$1wp5sd9(self: rt.Result<rt.u64, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => rt.u64): rt.u64 {
+	if (self.ok) {
+		return self.value;
+	}
+	return op(self.error);
+}
+
 export function unwrapOrElse$0s2lrc9(self: rt.Result<undefined, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => undefined): void {
 	if (!self.ok) {
 		op(self.error);

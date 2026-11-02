@@ -673,6 +673,9 @@ impl<'a> Abi<'a> {
 			let name = self.object(i);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
 			self.claim(format!("{name}_free"), what.clone(), object.span);
+			if object.shared {
+				self.claim(format!("{name}_borrowed"), what.clone(), object.span);
+			}
 			self.claim_traits(&name, &what, object.span, object.traits, false);
 			self.claim(name.clone(), what, object.span);
 			let owner = Ty::Handle { name, constant: false };
@@ -885,6 +888,25 @@ pub fn snake(name: &str) -> String {
 		}
 	}
 	out
+}
+
+/// A language's names of parameters made distinct where Rust's differ only in what its
+/// case drops, such as underscores: a later one takes the lowest free number after it.
+pub fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
+	let names: Vec<String> = names.into_iter().collect();
+	let mut taken = std::collections::BTreeSet::new();
+	(names.iter())
+		.map(|name| {
+			let mut unique = name.clone();
+			let mut n = 2;
+			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
+				unique = format!("{name}{n}");
+				n += 1;
+			}
+			taken.insert(unique.clone());
+			unique
+		})
+		.collect()
 }
 
 /// A name that C or C++, which includes the header, would read as a keyword, with `_`

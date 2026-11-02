@@ -5,8 +5,12 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::OnceLock;
 
 const TARGET: &str = "wasm32-unknown-unknown";
+
+/// The native side's profile, from `Cargo.toml`.
+const PROFILE: &str = "differential";
 
 fn manifest_dir() -> PathBuf {
 	PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -161,6 +165,8 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 			package,
 			"--target",
 			TARGET,
+			"--profile",
+			PROFILE,
 			"--target-dir",
 		])
 		.arg(&target_dir)
@@ -173,10 +179,13 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 	assert!(status.success(), "building {package} for {TARGET} failed");
 	let wasm = target_dir
 		.join(TARGET)
-		.join("debug")
+		.join(PROFILE)
 		.join(format!("{}.wasm", package.replace('-', "_")));
 	std::fs::write(out.join("package.json"), "{ \"type\": \"module\" }\n").unwrap();
+	// One thread: the cases run one at a time, and V8's background compilers and
+	// collectors would spend more CPU than they save.
 	let output = Command::new("node")
+		.arg("--single-threaded")
 		.arg(manifest_dir().join("tests").join("differential.ts"))
 		.arg(&wasm)
 		.arg(out.join(entry))
@@ -284,50 +293,44 @@ fn shake(out: &Path) {
 /// text and order, though translation reaches it in another order.
 #[test]
 fn source_order() {
-	added_root(
-		"codec",
-		r#"roots = ["harness::run", "bench::run"]"#,
-		r#"roots = ["harness::run"]"#,
-		// First, so that translation reaches what both share in another order.
-		r#"roots = ["bench::run", "harness::run"]"#,
-	);
+	let roots = r#"roots = ["harness::run", "bench::run"]"#;
+	let base = rooted("codec", roots, "base", r#"roots = ["harness::run"]"#);
+	// First, so that translation reaches what both share in another order.
+	let added = r#"roots = ["bench::run", "harness::run"]"#;
+	kept(&base, &rooted("codec", roots, "added", added), added);
 }
 
 /// Adding a root that reaches another instance of a generic function, or another trait's
 /// impl of a method, renames nothing the old roots reach.
 #[test]
 fn stable_names() {
+	// `lang`'s own roots, so its translation is the base.
 	let roots = r#"roots = ["harness::run", "harness::op", "fmt::Fault"]"#;
-	added_root(
-		"lang",
-		roots,
-		roots,
-		r#"roots = ["fmt::added", "harness::run", "harness::op", "fmt::Fault"]"#,
-	);
+	let added = r#"roots = ["fmt::added", "harness::run", "harness::op", "fmt::Fault"]"#;
+	kept(&sources(lang_out()), &rooted("lang", roots, "added", added), added);
 }
 
-/// Translate fixture `name` with its config's `roots` line replaced by `base`, then by
-/// `added`, and check that every line of the first output stays, in order, in the second.
-fn added_root(name: &str, roots: &str, base: &str, added: &str) {
+/// Translate fixture `name` into `file` with its config's `roots` line replaced by `with`.
+fn rooted(name: &str, roots: &str, file: &str, with: &str) -> Vec<(PathBuf, String)> {
 	let config = std::fs::read_to_string(fixture(name).join("ts.toml")).unwrap();
 	assert!(config.contains(roots), "{name}'s roots changed: update this test");
 	let dir = scratch().join(name).join("order");
 	std::fs::create_dir_all(&dir).unwrap();
-	let run = |file: &str, with: &str| {
-		let path = dir.join(format!("{file}.toml"));
-		std::fs::write(&path, config.replace(roots, with)).unwrap();
-		let out = dir.join(file);
-		let output = driver(name, &path, &["--out".as_ref(), out.as_ref()], "order");
-		assert!(
-			output.status.success(),
-			"translating {name} with {with} failed:\n{}",
-			String::from_utf8_lossy(&output.stderr)
-		);
-		sources(&out)
-	};
-	let base = run("base", base);
-	let more = run("added", added);
-	for (rel, text) in &base {
+	let path = dir.join(format!("{file}.toml"));
+	std::fs::write(&path, config.replace(roots, with)).unwrap();
+	let out = dir.join(file);
+	let output = driver(name, &path, &["--out".as_ref(), out.as_ref()], "order");
+	assert!(
+		output.status.success(),
+		"translating {name} with {with} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	sources(&out)
+}
+
+/// Check that every line of `base` stays, in order, in `more`, its translation once `added`.
+fn kept(base: &[(PathBuf, String)], more: &[(PathBuf, String)], added: &str) {
+	for (rel, text) in base {
 		let more = more.iter().find(|(r, _)| r == rel).map(|(_, text)| text);
 		let more = more.unwrap_or_else(|| panic!("{} is gone once {added}", rel.display()));
 		let mut rest = lines(more).into_iter();
@@ -358,15 +361,22 @@ fn lines(text: &str) -> Vec<String> {
 
 #[test]
 fn lang() {
-	let out = translated("lang");
-	snapshot("lang", &out);
-	lang_differential(&out);
+	let out = lang_out();
+	snapshot("lang", out);
+	lang_differential(out);
+}
+
+/// `lang`'s translation, which `stable_names` shares rather than translating it again.
+fn lang_out() -> &'static Path {
+	static OUT: OnceLock<PathBuf> = OnceLock::new();
+	OUT.get_or_init(|| translated("lang"))
 }
 
 fn lang_differential(out: &Path) {
-	// Hand-written callers, type-checked against the output they call: one runs it, and
-	// one mixes integer types, which `tsc` must refuse.
-	for file in ["caller.ts", "brands.ts"] {
+	// Hand-written callers, type-checked against the output they call: one runs it, with
+	// the one difference from native it accepts, and one mixes integer types, which `tsc`
+	// must refuse.
+	for file in ["caller.ts", "fma.ts", "brands.ts"] {
 		std::fs::copy(manifest_dir().join("fixtures/lang").join(file), out.join(file)).unwrap();
 	}
 	typecheck(out);
@@ -630,7 +640,7 @@ fn sysroot() {
 
 /// Selects the fixture's own getrandom backend, which `rand::rng()` seeds from natively:
 /// wasm32 has no OS to read. Only getrandom's flags change, so nothing else rebuilds.
-const GETRANDOM: &str = r#"profile.dev.package.getrandom.rustflags=["--cfg", 'getrandom_backend="custom"']"#;
+const GETRANDOM: &str = r#"profile.differential.package.getrandom.rustflags=["--cfg", 'getrandom_backend="custom"']"#;
 
 /// `bytes`, `rand`, and `tracing`, which translation maps without a binding or config:
 /// it picks getrandom's backend itself, as a browser's binary would.

@@ -314,13 +314,14 @@ pub fn floats(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 /// `mul_add`, rounded once, of three operands, or of 32 sets made from a seed: any bits,
 /// a product's error alone, half the product's last place, where rounding the product
 /// first would tie, a product of half `c`'s last place, subnormal sums, products past `f64::MAX` that the sum brings back, and
-/// each side of where the runtime's fast path ends.
+/// each side of where the runtime's fast path ends. Each result follows its operands, which
+/// `fma.ts` rounds exactly where native's differs.
 pub fn mul_adds(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	if kind % 2 == 0 {
 		let (a, rest) = take(data);
 		let (b, rest) = take(rest);
 		let (c, _) = take(rest);
-		put_f64(out, a.mul_add(b, c));
+		put_mul_add(out, a, b, c);
 		return;
 	}
 	let mut state = take_bits(data).0 | 1;
@@ -378,7 +379,13 @@ pub fn mul_adds(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				(a, b, (p.next_up() - p) * 0.5)
 			}
 		};
-		put_f64(out, a.mul_add(b, c));
+		put_mul_add(out, a, b, c);
+	}
+}
+
+fn put_mul_add(out: &mut Vec<u8>, a: f64, b: f64, c: f64) {
+	for x in [a, b, c, a.mul_add(b, c)] {
+		put_f64(out, x);
 	}
 }
 
