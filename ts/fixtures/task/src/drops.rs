@@ -25,6 +25,7 @@ macro_rules! list {
 mod closures;
 mod flattened;
 mod folds;
+mod indexed;
 mod inside;
 mod iters;
 mod lists;
@@ -739,6 +740,11 @@ pub fn inside(log: &Log, id: u32, arg: u8) {
 /// once they end.
 pub fn flattened(log: &Log, id: u32, arg: u8) {
 	flattened::flattened(log, id, arg);
+}
+
+/// Run scenario `arg % 9` of what std drops of a zip it reads by index.
+pub fn indexed(log: &Log, id: u32, arg: u8) {
+	indexed::indexed(log, id, arg);
 }
 
 /// Run scenario `arg % 9` of what std's comparisons of iterators drop.

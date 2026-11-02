@@ -57,7 +57,10 @@ pub(super) fn flattened(log: &Log, id: u32, arg: u8) {
 			log.note(format!("any {}", it.any(|g| g.id() == id + 99)));
 			drop(it);
 			log.note(format!("all {}", firsts(log, id, 40).all(|g| g.id() != id + 43)));
-			log.note(format!("position {:?}", firsts(log, id, 60).position(|g| g.id() == id + 63)));
+			log.note(format!(
+				"position {:?}",
+				firsts(log, id, 60).position(|g| g.id() == id + 63)
+			));
 		}
 		3 => {
 			// Adaptors whose `next` is their source's `find`.
@@ -112,9 +115,15 @@ pub(super) fn flattened(log: &Log, id: u32, arg: u8) {
 			log.note(format!("map find {:?}", it.find(|&n| n == 4)));
 			drop(it);
 			let mut it = firsts(log, id, 20).enumerate();
-			log.note(format!("enumerate {:?}", it.find(|(i, _)| *i == 1).map(|(i, g)| (i, g.id() - id))));
+			log.note(format!(
+				"enumerate {:?}",
+				it.find(|(i, _)| *i == 1).map(|(i, g)| (i, g.id() - id))
+			));
 			drop(it);
-			log.note(format!("take {}", firsts(log, id, 40).take(2).fold(0, |n, g| n + g.id() - id)));
+			log.note(format!(
+				"take {}",
+				firsts(log, id, 40).take(2).fold(0, |n, g| n + g.id() - id)
+			));
 			let mut it = firsts(log, id, 60).chain(firsts(log, id, 80));
 			log.note(format!("chain {:?}", id_of(it.find(|g| g.id() == id + 81))));
 			drop(it);
@@ -135,7 +144,10 @@ pub(super) fn flattened(log: &Log, id: u32, arg: u8) {
 			let all: Vec<Guard> = firsts(log, id, 1).collect();
 			log.note(format!("collect {}", all.len()));
 			drop(all);
-			log.note(format!("max {:?}", id_of(firsts(log, id, 20).max_by_key(|g| g.id() % 3))));
+			log.note(format!(
+				"max {:?}",
+				id_of(firsts(log, id, 20).max_by_key(|g| g.id() % 3))
+			));
 			log.note(format!("sum {}", firsts(log, id, 40).map(|g| g.id() - id).sum::<u32>()));
 		}
 		_ => {

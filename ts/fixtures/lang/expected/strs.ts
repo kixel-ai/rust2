@@ -1452,7 +1452,7 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		_48.v = rt.stringExtendChars(_48.v, _49);
 	} else if (_38 === 3) {
 		const _61: rt.Place<string> = rt.place(() => t, (value11) => t = value11);
-		const _62: rt.Iter<rt.char> = rt.iterTake(rt.iterMap(new rt.Range(0, n), f), m as rt.usize);
+		const _62: rt.Iter<rt.char> = rt.iterTake(rt.iterMap(new rt.Range(0, n), f), m as rt.usize, undefined, true);
 		_61.v = rt.stringExtendChars(_61.v, _62);
 	} else if (_38 === 4) {
 		const _66: rt.Place<string> = rt.place(() => t, (value10) => t = value10);

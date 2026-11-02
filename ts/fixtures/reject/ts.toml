@@ -25,8 +25,6 @@ roots = [
     "place_bounds",
     "hinted",
     "fused",
-    "skipped_zip",
-    "zip_in_place",
     "replace_pinned_ref",
     "copied_closure",
     "scanned_unit",

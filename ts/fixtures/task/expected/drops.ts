@@ -8,6 +8,7 @@ import { ok$0rngk0g, err$126l6wy, asRef$01pd5k9, mapOr$1hlk3iq as result_mapOr$1
 import { scoped, discarded, iterated } from "./drops/closures.ts";
 import { flattened as flattened_flattened } from "./drops/flattened.ts";
 import { folded as folds_folded, rfolded as folds_rfolded } from "./drops/folds.ts";
+import { indexed as indexed_indexed } from "./drops/indexed.ts";
 import { inside as inside_inside } from "./drops/inside.ts";
 import { looped, collected, drained, extended, compared as iters_compared } from "./drops/iters.ts";
 import { run as lists_run } from "./drops/lists.ts";
@@ -1296,6 +1297,11 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
  */
 export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	flattened_flattened(log, id, arg);
+}
+
+/** Run scenario `arg % 9` of what std drops of a zip it reads by index. */
+export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	indexed_indexed(log, id, arg);
 }
 
 /** Run scenario `arg % 9` of what std's comparisons of iterators drop. */

@@ -196,19 +196,6 @@ pub fn fused() -> usize {
 	Fused.fuse().count()
 }
 
-/// A `skip` of a zip std reads by index, which a zip by index drops a pair at a time.
-pub fn skipped_zip(v: &[u8]) -> usize {
-	let pairs = v.iter().map(|&n| Noisy(n)).zip(v.iter().map(|&n| Noisy(!n)));
-	pairs.skip(1).zip(0..2).count()
-}
-
-/// A zip collected in place, which std reads by index and drops with what its closure owns.
-pub fn zip_in_place(v: Vec<u8>) -> Vec<u8> {
-	let n = Noisy(1);
-	let owned = v.into_iter().map(move |x| x ^ (&n).0);
-	owned.zip(0..2u8).map(|(x, y)| x ^ y).collect()
-}
-
 /// A pinned reference is its referent in JS: replacing it would change what it points at.
 pub fn replace_pinned_ref<'a>(dst: &mut std::pin::Pin<&'a mut Noisy>, src: std::pin::Pin<&'a mut Noisy>) {
 	*dst = src;
