@@ -1,14 +1,16 @@
-//! One function instance's MIR as a Go function: each local a variable, each block a
-//! label, and each terminator a `goto`, a `return`, or a panic, as the MIR has them. A
-//! panic is Go's, with native Rust's message, and runs no cleanup, as `panic = "abort"`
-//! doesn't: the MIR's cleanup blocks are left out.
+//! One function instance's MIR as a Go function: each local a variable, but a temporary
+//! folded into its reader (`fold`), each block a label, and each terminator a `goto`, a
+//! `return`, or a panic, as the MIR has them. A panic is Go's, with native Rust's
+//! message, and runs no cleanup, as `panic = "abort"` doesn't: the MIR's cleanup blocks
+//! are left out.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use rustc_hir::def::DefKind;
+use rustc_middle::mir::visit::Visitor;
 use rustc_middle::mir::{
-	self, AggregateKind, AssertKind, BasicBlock, BinOp, CastKind, Local, Operand, Place, PlaceElem, Rvalue,
+	self, AggregateKind, AssertKind, BasicBlock, BinOp, CastKind, Local, Location, Operand, Place, PlaceElem, Rvalue,
 	StatementKind, TerminatorKind, UnOp,
 };
 use rustc_middle::ty::adjustment::PointerCoercion;
@@ -17,6 +19,7 @@ use rustc_middle::ty::{self, EarlyBinder, Instance, InstanceKind, Ty, TyCtxt};
 use rustc_span::Span;
 
 use super::Translator;
+use super::fold::{self, Does, Effect, Held, Pending, Temps};
 use super::library::{self, Mapped};
 use super::names;
 use super::ty::variant_field;
@@ -37,6 +40,10 @@ pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reache
 		targets: HashSet::new(),
 		succ: Vec::new(),
 		sites: Vec::new(),
+		temps: Temps::new(&mir),
+		held: Held::default(),
+		fold_ok: true,
+		carry: false,
 		ok: true,
 	};
 	let text = fx.function(&name, instance);
@@ -85,6 +92,14 @@ pub struct Fx<'a, 'tcx> {
 	targets: HashSet<BasicBlock>,
 	/// The blocks the block being translated goes to.
 	succ: Vec<BasicBlock>,
+	temps: Temps,
+	held: Held,
+	/// Whether the operand being lowered may fold in a temporary: false where Go would
+	/// evaluate it twice, late, or not at all.
+	fold_ok: bool,
+	/// Whether the terminator being translated goes on to a block only it goes to, which
+	/// a call's result can wait into.
+	carry: bool,
 	ok: bool,
 }
 
@@ -161,6 +176,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		// Only the blocks the translation goes to, from the first: no cleanup, and no block
 		// of a left-out event.
 		let mut blocks = std::collections::BTreeMap::new();
+		// What each block only one other goes to is given, held back.
+		let mut carried: HashMap<BasicBlock, Vec<Pending>> = HashMap::new();
 		let mut stack = vec![mir::START_BLOCK];
 		while let Some(bb) = stack.pop() {
 			if blocks.contains_key(&bb) {
@@ -169,21 +186,65 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			let data = &mir.basic_blocks[bb];
 			let mut text = String::new();
 			let before = self.succ.len();
-			for stmt in &data.statements {
+			self.held.pending = carried.remove(&bb).unwrap_or_default();
+			for (i, stmt) in data.statements.iter().enumerate() {
 				if self.in_site(stmt.source_info.span).is_none() {
-					self.statement(stmt, &mut text);
+					self.statement(
+						stmt,
+						Location {
+							block: bb,
+							statement_index: i,
+						},
+						&mut text,
+					);
 				}
 			}
 			let term = data.terminator();
 			match self.in_site(term.source_info.span) {
-				Some(site) => match self.site_exit(bb, site) {
-					Some(exit) => self.goto(exit, &mut text),
-					None => {
-						self.err(site, "a `tracing` event whose expansion has no single exit");
+				Some(site) => {
+					self.begin(&fold::Access::default(), Effect::default(), true, &mut text);
+					match self.site_exit(bb, site) {
+						Some(exit) => self.goto(exit, &mut text),
+						None => {
+							self.err(site, "a `tracing` event whose expansion has no single exit");
+						}
 					}
-				},
-				None => self.terminator(term, &mut text),
+				}
+				None => {
+					let to = fold::carried(mir, bb, term);
+					let acc = self.temps.access(|v| v.visit_terminator(term, mir.terminator_loc(bb)));
+					let effect = match term.kind {
+						TerminatorKind::Call { .. } => Effect {
+							writes: true,
+							panics: true,
+						},
+						TerminatorKind::Assert { .. } => Effect {
+							writes: false,
+							panics: true,
+						},
+						_ => Effect::default(),
+					};
+					self.begin(&acc, effect, to.is_none(), &mut text);
+					self.carry = to.is_some();
+					let mut tail = String::new();
+					let result = self.terminator(term, &mut tail);
+					self.carry = false;
+					let mut does = self.end(&mut text);
+					text.push_str(&tail);
+					if let Some((local, expr)) = result {
+						does.join(&acc.does());
+						does.effect = true;
+						self.held.pending.push(Pending { local, expr, does });
+					}
+					if let Some(to) = to {
+						carried.insert(to, std::mem::take(&mut self.held.pending));
+					}
+				}
 			}
+			assert!(
+				self.held.pending.is_empty(),
+				"a temporary held past the end of its block"
+			);
 			blocks.insert(bb, text);
 			stack.extend(self.succ.drain(before..));
 		}
@@ -294,18 +355,73 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	fn statement(&mut self, stmt: &mir::Statement<'tcx>, out: &mut String) {
+	/// Before a statement that reads and writes as `acc` and does `effect`: emit what it
+	/// can't fold in nor leave held back, as [`Held::begin`] decides.
+	fn begin(&mut self, acc: &fold::Access, effect: Effect, ends: bool, out: &mut String) {
+		self.held.begin(acc, effect, ends, out);
+		self.mentioned.extend(self.held.emitted.drain(..));
+	}
+
+	/// After the statement: emit what it read but did not fold in, before it, and give
+	/// what it folded in does.
+	fn end(&mut self, out: &mut String) -> Does {
+		let does = self.held.end(out);
+		for local in self.held.emitted.drain(..) {
+			self.mentioned.insert(local);
+			self.used.insert(local);
+		}
+		does
+	}
+
+	/// The local `place` assigns `rvalue` to, if it is a temporary to hold back. A Go
+	/// constant is not, as Go would fold it into its reader's arithmetic, refusing an
+	/// overflow Rust wraps, nor a trait object, which can be `nil`.
+	fn holds(&self, place: Place<'tcx>, rvalue: &Rvalue<'tcx>) -> Option<Local> {
+		let local = place.as_local().filter(|l| self.temps.foldable.contains(l))?;
+		let constant = match rvalue {
+			Rvalue::Use(Operand::Constant(_), _) => true,
+			Rvalue::Discriminant(place) => {
+				!matches!(place.ty(self.mir, self.tcx).ty.kind(), ty::Adt(adt, _) if adt.is_enum())
+			}
+			Rvalue::Cast(CastKind::PointerCoercion(PointerCoercion::Unsize, _), _, to) => {
+				matches!(to.builtin_deref(true).map(|t| t.kind()), Some(ty::Dynamic(..)))
+			}
+			_ => false,
+		};
+		(!constant).then_some(local)
+	}
+
+	fn statement(&mut self, stmt: &mir::Statement<'tcx>, loc: Location, out: &mut String) {
 		let span = stmt.source_info.span;
 		match &stmt.kind {
 			StatementKind::Assign(assign) => {
 				let (place, rvalue) = &**assign;
+				let acc = self.temps.access(|v| v.visit_statement(stmt, loc));
+				self.begin(&acc, Effect::default(), false, out);
 				let ty = place.ty(self.mir, self.tcx).ty;
 				let value = self.rvalue(rvalue, ty, span);
-				let dest = self.dest(*place, span);
-				writeln!(out, "\t{dest} = {value}").unwrap();
+				match self.holds(*place, rvalue) {
+					Some(local) => {
+						let mut does = self.end(out);
+						does.join(&acc.does());
+						self.held.pending.push(Pending {
+							local,
+							expr: value,
+							does,
+						});
+					}
+					None => {
+						let dest = self.dest(*place, span);
+						self.end(out);
+						writeln!(out, "\t{dest} = {value}").unwrap();
+					}
+				}
 			}
 			StatementKind::SetDiscriminant { place, variant_index } => {
+				let acc = self.temps.access(|v| v.visit_statement(stmt, loc));
+				self.begin(&acc, Effect::default(), false, out);
 				let place = self.place(**place, span);
+				self.end(out);
 				let ty::Adt(adt, _) = place.ty.kind() else {
 					self.err(span, "a discriminant of a type that is no enum");
 					return;
@@ -343,9 +459,16 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// A place's Go expression.
 	pub fn place(&mut self, place: Place<'tcx>, span: Span) -> GoPlace<'tcx> {
-		self.used.insert(place.local);
-		self.mentioned.insert(place.local);
-		let mut expr = Self::local_name(place.local);
+		let mut expr = match self.held.take(place.local, self.fold_ok) {
+			fold::Take::Folded(expr) => expr,
+			// Read as its variable once the statement has assigned it.
+			fold::Take::Refused => Self::local_name(place.local),
+			fold::Take::Var => {
+				self.used.insert(place.local);
+				self.mentioned.insert(place.local);
+				Self::local_name(place.local)
+			}
+		};
 		let mut pty = mir::PlaceTy::from_ty(self.mir.local_decls[place.local].ty);
 		for elem in place.projection.iter() {
 			let base = pty.ty;
@@ -480,7 +603,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			Rvalue::Use(op, _) => self.operand(op, span),
 			Rvalue::CopyForDeref(place) => self.place(*place, span).expr,
 			Rvalue::Repeat(op, _) => {
+				// Read once per element, in a function literal.
+				self.fold_ok = false;
 				let v = self.operand(op, span);
+				self.fold_ok = true;
 				let go = self.ty(dest_ty, span);
 				format!("func() (a {go}) {{ for i := range a {{ a[i] = {v} }}; return }}()")
 			}
@@ -633,7 +759,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	fn cast(&mut self, kind: CastKind, op: &Operand<'tcx>, to: Ty<'tcx>, span: Span) -> String {
 		let from = self.operand_ty(op);
+		// A trait object reads the value when it formats, in a function literal.
+		self.fold_ok = !matches!(to.builtin_deref(true).map(|t| t.kind()), Some(ty::Dynamic(..)));
 		let v = self.runtime(op, span);
+		self.fold_ok = true;
 		let go = self.ty(to, span);
 		match kind {
 			CastKind::IntToInt => match from.kind() {
@@ -808,7 +937,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut String) {
+	/// Translate a terminator, giving a call's result if it is held back instead.
+	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut String) -> Option<(Local, String)> {
 		let span = term.source_info.span;
 		match &term.kind {
 			TerminatorKind::Goto { target, .. } => self.goto(*target, out),
@@ -826,7 +956,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					self.goto(t, out);
 					writeln!(out, "\t}}").unwrap();
 					self.goto(zero, out);
-					return;
+					return None;
 				}
 				writeln!(out, "\tswitch {v} {{").unwrap();
 				for (value, target) in targets.iter() {
@@ -869,12 +999,13 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			} => {
 				let args: Vec<&Operand<'tcx>> = args.iter().map(|a| &a.node).collect();
 				let start = out.len();
-				self.call(func, &args, *destination, *fn_span, out);
+				let held = self.call(func, &args, *destination, *fn_span, out);
 				match target {
 					Some(target) => self.goto(*target, out),
 					None if out[start..].trim_start().starts_with("panic(") => {}
 					None => writeln!(out, "\tpanic(\"unreachable\")").unwrap(),
 				}
+				return held;
 			}
 			TerminatorKind::Assert {
 				cond,
@@ -895,6 +1026,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				self.err(span, format!("the terminator `{:?}`", kind.name()));
 			}
 		}
+		None
 	}
 
 	fn goto(&mut self, target: BasicBlock, out: &mut String) {
@@ -905,6 +1037,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// The panic of a failed assertion, with native Rust's message.
 	fn assert_message(&mut self, msg: &AssertKind<Operand<'tcx>>, span: Span) -> String {
+		// Evaluated only on failure.
+		self.fold_ok = false;
+		let text = self.assert_text(msg, span);
+		self.fold_ok = true;
+		text
+	}
+
+	fn assert_text(&mut self, msg: &AssertKind<Operand<'tcx>>, span: Span) -> String {
 		let text = match msg {
 			AssertKind::BoundsCheck { len, index } => {
 				let len = self.operand(len, span);
@@ -929,9 +1069,21 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		format!("rustPanic({text:?})")
 	}
 
-	fn call(&mut self, func: &Operand<'tcx>, args: &[&Operand<'tcx>], dest: Place<'tcx>, span: Span, out: &mut String) {
+	/// Translate a call, giving its result if it is held back instead of assigned.
+	fn call(
+		&mut self,
+		func: &Operand<'tcx>,
+		args: &[&Operand<'tcx>],
+		dest: Place<'tcx>,
+		span: Span,
+		out: &mut String,
+	) -> Option<(Local, String)> {
 		let tcx = self.tcx;
 		let dest_ty = dest.ty(self.mir, tcx).ty;
+		// Held back into the block only this call goes to.
+		let held = dest
+			.as_local()
+			.filter(|l| self.carry && self.temps.foldable.contains(l) && !Translator::no_value(dest_ty));
 		let func_ty = self.operand_ty(func);
 		let (callee, spread) = match *func_ty.kind() {
 			ty::FnDef(def_id, gargs) => {
@@ -942,31 +1094,42 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 							span,
 							format!("a call of `{}` that does not resolve", tcx.def_path_str(def_id)),
 						);
-						return;
+						return None;
 					}
 				};
-				if let Some(text) = library::call(self, instance, args, dest_ty, span) {
+				// A binding may use an argument twice, late, or not at all.
+				self.fold_ok = false;
+				let bound = library::call(self, instance, args, dest_ty, span);
+				self.fold_ok = true;
+				if let Some(text) = bound {
 					let text = match text {
 						library::Bound::Expr(e) if Translator::no_value(dest_ty) => e,
+						// Not a scalar, which may be a Go constant.
+						library::Bound::Expr(e)
+							if let Some(local) = held
+								&& !dest_ty.is_scalar() =>
+						{
+							return Some((local, e));
+						}
 						library::Bound::Expr(e) => format!("{} = {e}", self.dest(dest, span)),
 						library::Bound::Stmt(s) => s,
 					};
 					writeln!(out, "\t{text}").unwrap();
-					return;
+					return None;
 				}
 				match instance.def {
 					InstanceKind::Intrinsic(_) => {
 						let name = tcx.item_name(instance.def_id());
 						self.err(span, format!("the intrinsic `{name}`"));
-						return;
+						return None;
 					}
 					InstanceKind::Virtual(..) => {
 						self.err(span, "a call through a trait object");
-						return;
+						return None;
 					}
 					InstanceKind::Item(_) if !tcx.is_mir_available(instance.def_id()) => {
 						self.err(span, format!("`{instance}`, which has no MIR and no binding"));
-						return;
+						return None;
 					}
 					_ => {}
 				}
@@ -976,23 +1139,29 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			ty::FnPtr(..) => (self.operand(func, span), false),
 			_ => {
 				self.err(span, format!("a call of `{func_ty}`"));
-				return;
+				return None;
 			}
 		};
 		let mut values = Vec::new();
 		for (i, arg) in args.iter().enumerate() {
-			let v = self.operand(arg, span);
 			if spread && i + 1 == args.len() {
+				// Spread into its fields, each a read of it.
+				self.fold_ok = false;
+				let v = self.operand(arg, span);
+				self.fold_ok = true;
 				let ty::Tuple(tys) = self.operand_ty(arg).kind() else {
 					self.err(span, "a rust-call whose last argument is no tuple");
-					return;
+					return None;
 				};
 				values.extend((0..tys.len()).map(|f| format!("{v}.F{f}")));
 			} else {
-				values.push(v);
+				values.push(self.operand(arg, span));
 			}
 		}
 		let call = format!("{callee}({})", values.join(", "));
+		if let Some(local) = held {
+			return Some((local, call));
+		}
 		match Translator::no_value(dest_ty) {
 			true => writeln!(out, "\t{call}").unwrap(),
 			false => {
@@ -1000,6 +1169,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				writeln!(out, "\t{dest} = {call}").unwrap()
 			}
 		}
+		None
 	}
 }
 
