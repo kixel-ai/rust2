@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run `just check`, `just test`, or `just ci` over the modules the branch changed
-# since BASE: the argument, then the land gate's QUEST_LAND_BASE, then origin/main.
+# since BASE: the queue's explicit argument, the fixer's QUEST_LAND_BASE, or origin/main.
 # --all runs every module. --query prints the selected modules instead.
 set -euo pipefail
 

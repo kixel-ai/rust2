@@ -398,13 +398,6 @@ impl Reading for u8 {
 	}
 }
 
-/// A `Weak` of a trait object, which would need an object made of a value that may be
-/// gone.
-pub fn weak_object(n: std::sync::Weak<u8>) -> Option<u8> {
-	let r: std::sync::Weak<dyn Reading> = n;
-	r.upgrade().map(|r| r.read())
-}
-
 pub trait Scaled<T> {
 	fn scale(&self, by: T) -> T;
 }
@@ -480,6 +473,12 @@ impl Keyed for u8 {
 pub fn any_upcast(k: &dyn Keyed) -> bool {
 	let any: &dyn std::any::Any = k;
 	any.is::<u8>()
+}
+
+/// The same upcast of a `Weak`.
+pub fn weak_any_upcast(k: std::rc::Weak<dyn Keyed>) -> bool {
+	let any: std::rc::Weak<dyn std::any::Any> = k;
+	any.upgrade().is_some_and(|a| a.is::<u8>())
 }
 
 /// A `TypeId`, which no value stands for yet.

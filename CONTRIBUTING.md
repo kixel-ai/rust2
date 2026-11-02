@@ -1,6 +1,6 @@
 # Commits
 
-PRs into `main` land as squash commits through the land gate, so the PR title becomes the commit subject.
+PRs into `main` land as squash commits through GitHub's merge queue, so the PR title becomes the commit subject.
 
 - Use conventional-commit subjects (`feat(ts): ...`, `fix: ...`, `chore: ...`, `docs: ...`).
 - AI commit attribution goes in a `Co-Authored-By:` trailer, not the commit body.
@@ -22,12 +22,13 @@ Open a draft PR while working, run `just ci` before every push, and mark the PR 
 
 # Landing
 
-PRs into `main` get no cloud CI; `just ci` runs the same gate locally.
-PRs land only through `quest land`: queue the reviewed head with `quest merge <pr> <token> --land <sha>` (`/quest-merge` does this).
-The land gate, `quest land serve` on the maintainer's host, takes the longest-queued PR plus up to log₂ n more that merge cleanly, runs `just ci` once on the batch, and lands each PR through GitHub's squash merge.
-A failing batch is ejected together, and a Codex fixer makes mechanical fixes and requeues healthy PRs or hands them back with a comment: read why in the PR, fix the cause, and queue again.
-`just ci` selects only what the diff touches, against the gate's base or `origin/main` locally, so a break can reach `main`; `just gate` runs the full suite, and it and the other optional workflows run nightly on `main`.
+PRs land on `main` through GitHub's merge queue, one PR at a time, as squash commits.
+Queue the reviewed head with `quest merge <pr> --land <sha>` (`/quest-merge` does this).
+The required `Queue` check skips on pull requests; the merge group runs `just ci` against the merge group's base on the self-hosted runner.
+The host's `quest land watch` daemon runs the Codex fixer when the queue drops a PR for a failed build or a conflict, and re-enqueues healthy heads at the back of the queue.
+A fix that needs a maintainer decision is handed back with a diagnosis on the PR.
 The admin bypass of `main`'s ruleset is for emergencies.
+`just ci` selects what the diff touches; `just gate` runs the full suite nightly.
 
 # Reviews
 

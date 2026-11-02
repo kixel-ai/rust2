@@ -3,10 +3,7 @@ name: Check
 permissions:
   contents: read
 
-# PRs land through the host land gate (`quest land serve` on the maintainer's
-# host), which runs `just ci` once over each batch. This workflow stays for a
-# manual run of every module on a hosted runner, whose shallow checkout has no
-# base to select against.
+# Queue runs the changed modules; this manual job checks every module.
 on:
   workflow_dispatch:
 

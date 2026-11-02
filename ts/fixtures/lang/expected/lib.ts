@@ -16,6 +16,9 @@ import type * as counts_Noisy from "./counts.Noisy.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 import type * as durations_Window from "./durations.Window.ts";
+import type * as dyns_Noisy from "./dyns.Noisy.ts";
+import type * as Square from "./dyns.Square.ts";
+import type * as Tri from "./dyns.Tri.ts";
 import * as Inline from "./elements.Inline.ts";
 import type * as Couple from "./fields.Couple.ts";
 import type * as Either from "./generics.Either.ts";
@@ -923,6 +926,30 @@ export function drop$Option_cell_Ref_borrows_Tagged(_1: rt.RefCell<borrows_Tagge
 	}
 }
 
+export function drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_1: rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_Rc_dyns_Square_Rc_dyn_Any(_1: rt.Result<rt.Arc<Square.Square>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_Rc_dyns_Tri_Rc_dyn_Any(_1: rt.Result<rt.Arc<Tri.Tri>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
 export function drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally(_1: rt.Result<rt.Result<rt.Mutex<rt.u64>, rt.Mutex<rt.u64>>, rt.Mutex<locks_Tally.Tally>>): void {
 	if (_1.ok) {
 		drop$Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64(_1.value);
@@ -1046,6 +1073,14 @@ export function drop$Result_cell_Ref_u32_tuple2_cell_Ref_borrows_Parts_unit(_1: 
 }
 
 export function drop$Result_results_Logged_results_Logged(_1: rt.Result<results_Logged.Logged, results_Logged.Logged>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_sync_Arc_u32_sync_Arc_dyn_Any_marker_Sync_marker_Send(_1: rt.Result<rt.Arc<rt.u32>, rt.Arc<Any.Any>>): void {
 	if (_1.ok) {
 		_1.value[Symbol.dispose]();
 	} else {

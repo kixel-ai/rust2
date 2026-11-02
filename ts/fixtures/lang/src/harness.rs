@@ -308,6 +308,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("sorts::sorts", sorts::sorts),
 		("sorts::disorders", sorts::disorders),
 		("sorts::btrees", sorts::btrees),
+		("dyns::pointers", |_, data, out| dyns::pointers(data, out)),
 	]
 }
 

@@ -557,6 +557,7 @@ fun broken(which: String) {
 // Rust's bytes only the GC, once no Bytes reaching them is reachable. Rust's bytes up to
 // 1 KiB cross copied, freed at the call, and longer ones lent.
 fun owned() {
+	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
@@ -698,6 +699,29 @@ fun raced() {
 	collecting.set(false)
 	collector.join()
 	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// At most 64 MiB of Rust's bytes are lent at once, freed or not, since the GC sees none of
+// them: past that, bytes cross copied, freed at the call, until the GC frees what was lent.
+// First, so no bytes an earlier step lent count against it.
+fun budgeted() {
+	val before = dropped()
+	lentToBudget(before)
+	collected(before + 65u, "the GC frees bytes lent up to the budget")
+	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == before + 65u, "bytes cross lent again once the GC frees them")
+	collected(before + 66u, "the GC frees bytes lent once the budget is free")
+}
+
+// In its own frame, so nothing on the caller's keeps them reachable.
+fun lentToBudget(before: UInt) {
+	val mib = 1 shl 20
+	val held = List(64) { tokenBytes(1u, mib.toUInt()) }
+	check(dropped() == before, "64 MiB of Rust's bytes cross lent")
+	val copied = tokenBytes(2u, mib.toUInt())
+	check(dropped() == before + 1u, "bytes past 64 MiB lent cross copied, freed at the call")
+	check(copied.size == mib && copied[0] == 2.toByte() && copied[mib - 1] == 2.toByte() && held[63][mib - 1] == 1.toByte(), "bytes past the budget read as lent ones do")
+	val carried = nextPacket(Packet(1u, Bytes(ByteArray(2048) { 4 }))).payload
+	check(carried.size == 2048 && carried.toByteArray().all { it == 4.toByte() }, "a record's bytes past the budget cross copied")
 }
 
 // Bytes compare and hash by their contents wherever each keeps them, Kotlin's or Rust's,
