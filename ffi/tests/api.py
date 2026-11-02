@@ -441,6 +441,10 @@ def script():
 			check(False, "a counter moved in is closed")
 		except ValueError:
 			pass
+	held = [api.held_count((api.Counter.new("h", 4),)), api.held_count(None)]
+	print("held " + " ".join("None" if n is None else f"Some({n})" for n in held))
+	print(f'boxed Some("{api.boxed_name(api.boxed_counter("b"))}") {api.boxed_name(None)} {str(api.boxed_counter(None) is None).lower()}')
+	print(f"less {api.less(5, 2)}")
 	print(f"sums {api.sums([[1, 2], [], [3]])}")
 	summed = api.summed([api.Point(1, 2), api.Point(-4, 6)])
 	none_summed = api.summed([])
