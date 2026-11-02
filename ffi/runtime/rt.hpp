@@ -152,7 +152,7 @@ public:
 // The handle of an object whose copies share it, since its clone is a value no call
 // tells apart from the original but by an `Arc`'s or `Rc`'s count, which counts one for
 // every copy. The last copy frees it, on whichever thread drops it.
-template <class R, void (*Free)(R *), R *(*Clone)(const R *)>
+template <class R, void (*Free)(R *), R *(*Clone)(const R *), bool (*Borrowed)(const R *)>
 class shared {
 	::std::shared_ptr<R> ptr_;
 
@@ -166,8 +166,10 @@ public:
 	}
 	// The handle for a call that moves the value out, held by this copy alone: a clone's
 	// while another copy shares it, as Rust would move a clone out and leave the copy be.
+	// A pending future made from a copy holds no copy here, but borrows the value in Rust,
+	// as though it held one.
 	R *own() {
-		if (ptr_.use_count() > 1) {
+		if (ptr_.use_count() > 1 || Borrowed(ptr_.get())) {
 			*this = shared(Clone(ptr_.get()));
 		}
 		return ptr_.get();
