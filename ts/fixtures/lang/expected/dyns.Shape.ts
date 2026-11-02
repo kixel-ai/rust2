@@ -3,6 +3,8 @@
 import * as rt from "./rt.ts";
 import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32 as dyns_tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32 } from "./dyns.ts";
 import * as Hits from "./dyns.Hits.ts";
+import * as Looped from "./dyns.Looped.ts";
+import * as dyns_Noisy from "./dyns.Noisy.ts";
 import * as Square from "./dyns.Square.ts";
 import * as Tri from "./dyns.Tri.ts";
 
@@ -38,6 +40,78 @@ export class of$dyns_Hits {
 
 	tally$Shape(a: rt.Place<rt.u32>): void {
 		return Hits.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Looped {
+	v: Looped.Looped;
+
+	constructor(v: Looped.Looped) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	area$Shape(): rt.u32 {
+		return Looped.area$dyns_Shape(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Looped.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Looped.intoArea$dyns_Shape(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Looped.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Looped.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Looped.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Noisy {
+	v: dyns_Noisy.Noisy;
+
+	constructor(v: dyns_Noisy.Noisy) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	area$Shape(): rt.u32 {
+		return dyns_Noisy.area$dyns_Shape(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return dyns_Noisy.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return dyns_Noisy.intoArea$dyns_Shape(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return dyns_Noisy.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return dyns_Noisy.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return dyns_Noisy.tally$dyns_Shape(this.v, a);
 	}
 }
 

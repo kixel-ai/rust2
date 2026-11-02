@@ -339,6 +339,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn cast(&mut self, kind: CastKind, op: &Operand<'tcx>, to: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		let from = op.ty(&self.mir.local_decls, tcx);
+		// A `Pin` is the pointer it holds, which unsizes as it does.
+		let (from, to) = match kind {
+			CastKind::PointerCoercion(PointerCoercion::Unsize, _) => unpinned(tcx, from, to),
+			_ => (from, to),
+		};
 		match kind {
 			CastKind::IntToInt | CastKind::IntToFloat | CastKind::FloatToInt | CastKind::FloatToFloat => {
 				let value = self.operand(op, span, out);
@@ -357,6 +362,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				PointerCoercion::Unsize if let Some((pointee, object)) = arc_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
 					self.arc_object(value, pointee, object, span, out)
+				}
+				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
+					let value = self.operand(op, span, out);
+					self.weak_object(value, pointee, object, span, out)
 				}
 				// A future, as the `rt.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
@@ -462,6 +471,32 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(arc) => Expr::New(Box::new(Expr::Rt("ArcDyn".into())), vec![arc, value]),
 			None => value,
 		}
+	}
+
+	/// `weak`, a `Weak` of `pointee` unsized to one of the trait object `object`: `rt.weakDyn`
+	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
+	/// upcast, which `arc_object` checks.
+	fn weak_object(
+		&mut self,
+		weak: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		if pointee.is_trait() {
+			return self.arc_object(weak, pointee, object, span, out);
+		}
+		let name = self.b.fresh("arc");
+		let mut body = Vec::new();
+		let arc = self.arc_object(Expr::ident(name.clone()), pointee, object, span, &mut body);
+		body.push(StmtKind::Return(Some(arc)).at(None));
+		let param = crate::ts::Param {
+			name,
+			ty: Some(crate::ts::Type::Rt("Arc", vec![self.b.t.ty(pointee, span)])),
+		};
+		let ret = crate::ts::Type::Rt("Arc", vec![self.b.t.ty(object, span)]);
+		Expr::rt("weakDyn", vec![weak, Expr::Arrow(vec![param], ret, body)])
 	}
 
 	/// A discriminant as its number, of a whole `next` result if `next`.
@@ -1030,6 +1065,25 @@ fn arc_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(
 	};
 	let object = to_args.type_at(0);
 	(Std::of(tcx, adt.did()) == Some(Std::Arc) && object.is_trait()).then(|| (from_args.type_at(0), object))
+}
+
+/// What a `Weak` unsized to a `Weak` of a trait object points at, and that object.
+fn weak_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
+	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
+		return None;
+	};
+	let object = to_args.type_at(0);
+	(Std::of(tcx, adt.did()) == Some(Std::Weak) && object.is_trait()).then(|| (from_args.type_at(0), object))
+}
+
+/// `from` and `to`, each the pointer the `Pin` it is holds, if both are pins.
+fn unpinned<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> (Ty<'tcx>, Ty<'tcx>) {
+	match (from.kind(), to.kind()) {
+		(ty::Adt(a, a_args), ty::Adt(b, b_args)) if a.did() == b.did() && Std::of(tcx, a.did()) == Some(Std::Pin) => {
+			(a_args.type_at(0), b_args.type_at(0))
+		}
+		_ => (from, to),
+	}
 }
 
 /// Whether evaluating `rvalue` can do or throw anything.
