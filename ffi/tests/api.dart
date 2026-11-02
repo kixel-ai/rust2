@@ -433,6 +433,13 @@ Future<void> script() async {
   for (final counter in counters) {
     closed(counter.get, 'Counter', 'a counter moved in is closed');
   }
+  final held = [api.heldCount((api.Counter('h', 4),)), api.heldCount(null)];
+  print('held ${held.map((n) => n == null ? 'None' : 'Some($n)').join(' ')}');
+  print(
+    'boxed Some("${api.boxedName(api.boxedCounter('b'))}") '
+    '${api.boxedName(null) == null ? 'None' : 'Some'} ${api.boxedCounter(null) == null}',
+  );
+  print('less ${api.less(5, 2)}');
   print(
     'sums ${api.sums([
       [1, 2],

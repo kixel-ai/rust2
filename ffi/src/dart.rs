@@ -1658,9 +1658,9 @@ impl<'a> Gen<'a> {
 		}
 		let mut params = Vec::new();
 		let mut serve = false;
-		for (k, param) in function.params.iter().enumerate() {
+		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			let name = param_name(&param.name);
 			params.push(format!("{} {name}", self.dt(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name));
