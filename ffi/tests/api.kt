@@ -600,6 +600,7 @@ fun owned() {
 	collected(before + 4u, "the GC frees bytes once no slice reaches them")
 
 	raced()
+	compared()
 }
 
 // Every read of [bytes], each of which is [value].
@@ -697,6 +698,36 @@ fun raced() {
 	collecting.set(false)
 	collector.join()
 	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// Bytes compare and hash by their contents wherever each keeps them, Kotlin's or Rust's,
+// copied or lent, whole or sliced, and so do records holding them, as map keys too.
+fun compared() {
+	val body = ByteArray(2050) { (it * 7).toByte() }
+	// Rust's whole are lent, its 1000 copied; the middle two differ by a shift.
+	val ranges = listOf(0 to 2050, 1 to 1001, 2 to 1002, 5 to 5)
+	val forms = ranges.map { (from, until) ->
+		listOf(
+			Bytes(body.copyOfRange(from, until)),
+			Bytes(body).slice(from, until),
+			nextPacket(Packet(1u, Bytes(body.copyOfRange(from, until)))).payload,
+			nextPacket(Packet(1u, Bytes(body))).payload.slice(from, until),
+		)
+	}
+	val keys = HashMap<Packet, Int>()
+	forms.forEachIndexed { i, same -> keys[Packet(1u, same[0])] = i }
+	val all = forms.flatMapIndexed { i, same -> same.map { i to it } }
+	for ((i, a) in all) {
+		for ((j, b) in all) {
+			check((a == b) == (i == j) && (Packet(1u, a) == Packet(1u, b)) == (i == j), "bytes ${ranges[i]} and ${ranges[j]} compare by content")
+			if (i == j) check(a.hashCode() == b.hashCode() && Packet(1u, a).hashCode() == Packet(1u, b).hashCode(), "bytes ${ranges[i]} hash by content")
+		}
+		check(keys[Packet(1u, a)] == i, "a record holding bytes ${ranges[i]} finds its key")
+	}
+	check(all.map { it.second }.toSet().size == ranges.size, "a set holds bytes once per content")
+	val last = Bytes(body.copyOf().also { it[body.size - 1]++ })
+	check(last != forms[0][3] && forms[0][3] != last, "bytes differing in their last byte differ")
+	check(!forms[0][3].equals(body), "bytes differ from a ByteArray")
 }
 
 // Collect until Rust's values dropped count [n], and none past it.
