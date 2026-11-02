@@ -1092,6 +1092,13 @@ export function mapOr$1w5qtj7(self: undefined | rt.None, default_: rt.u8, f: (a0
 	return f(self);
 }
 
+export function mapOr$0grxkdu(self: rt.u32[] | undefined, default_: rt.u32, f: (a0: rt.u32[]) => rt.u32): rt.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$1giiemz(self: rt.Place<rt.u32> | undefined, default_: rt.u32, f: (a0: rt.Place<rt.u32>) => rt.u32): rt.u32 {
 	if (self === undefined) {
 		return default_;

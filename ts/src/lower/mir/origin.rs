@@ -105,6 +105,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				if byte && name != "from_raw_parts" && matches!(o.array, Array::Lone(_)) {
 					return Some("a raw or mutable slice of a byte in no array of bytes".into());
 				}
+				// A raw pointer to a slice reads nothing until a read through it.
+				if owner != "raw" {
+					return None;
+				}
 				out(o, Some(self.const_int(arg(1)?)?), "a slice")
 			}
 			(

@@ -77,6 +77,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match self.b.t.pointee(pointee) {
 					Pointee::Object => self.place_expr(*place, span, out),
+					// `&raw mut *p` of a raw pointer is `p`; of a reference, the slice's start and
+					// length.
+					Pointee::Slice => match place.projection.as_slice() {
+						[rest @ .., mir::ProjectionElem::Deref]
+							if Place::ty_from(place.local, rest, &self.mir.local_decls, tcx).ty.is_raw_ptr() =>
+						{
+							let base = Place {
+								local: place.local,
+								projection: tcx.mk_place_elems(rest),
+							};
+							self.place_expr(base, span, out)
+						}
+						_ => {
+							let value = self.place_expr(*place, span, out);
+							match crate::lower::pointer::slice_of_bytes(pointee) {
+								true => Expr::rt("rawByteSliceOf", vec![value]),
+								false => Expr::rt("rawSliceOf", vec![value]),
+							}
+						}
+					},
 					// A slice of all of an array's bytes, as a borrow of it is.
 					Pointee::Bytes => {
 						let value = self.place_expr(*place, span, out);
@@ -236,6 +256,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The integer an operand has, if it is a constant one, a named `const` included.
+	/// `p`, a raw pointer to an array, `from`, as one to a slice of all of it: its first
+	/// element's pointer and the array's length.
+	fn raw_unsize(&mut self, p: Expr, from: Ty<'tcx>, span: Span) -> Expr {
+		let Some(array) = from.builtin_deref(true) else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let ty::Array(elem, len) = *array.kind() else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let Some(len) = len.try_to_target_usize(self.tcx) else {
+			return self.err(span, format!("a coercion of `{from}`, of no fixed length, to a pointer to a slice"));
+		};
+		let first = crate::lower::pointer::cast(self.b, p, array, elem, span);
+		Expr::New(Box::new(Expr::Rt("RawSlice".into())), vec![first, Expr::lit(len.to_string())])
+	}
+
 	pub(super) fn const_int(&self, op: &Operand<'tcx>) -> Option<i128> {
 		let Operand::Constant(c) = op else {
 			return None;
@@ -332,22 +368,18 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let value = self.operand(op, span, out);
 							match crate::lower::bytes_ref(from) {
 								true => value,
-								// A raw pointer to a slice is an `rt.Place` of one, which one to an array is not.
-								false if from.is_raw_ptr() => {
-									self.err(span, format!("a coercion of `{from}` to `{to}`, a pointer to a slice"))
-								}
+								false if from.is_raw_ptr() => self.raw_unsize(value, from, span),
 								false => Expr::rt("byteSliceFrom", vec![value]),
 							}
 						}
 						_ => self.err(span, format!("a coercion to `{to}`")),
 					}
 				}
-				// A raw pointer to a slice is an `rt.Place` of it; one to an array is the array.
 				PointerCoercion::Unsize
 					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| t.is_slice()) =>
 				{
 					let value = self.operand(op, span, out);
-					Expr::Object(vec![(Key::Name("v".into()), value)])
+					self.raw_unsize(value, from, span)
 				}
 				PointerCoercion::Unsize
 				| PointerCoercion::ReifyFnPointer(_)

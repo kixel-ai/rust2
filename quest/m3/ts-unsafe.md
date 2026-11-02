@@ -37,6 +37,9 @@ none of its own `unsafe`.
   translates, but it spills to memory from `alloc::alloc`, which this Plan refuses, so it
   translates whole only once the maintainer decides how a typed allocation
   (`Layout::array::<T>`, then a cast to `*mut T`) is modeled or that smallvec is mapped.
+- Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
+  first element's pointer and its length, read through only where Rust reads, and an empty
+  slice from a pointer into no array keeps that pointer through every part of it.
 - `ManuallyDrop<T>` as `T` with its drop skipped, as `MaybeUninit` is: crossbeam-epoch's
   `Local` reaches it, though crossbeam's tagged pointers stay refused.
 - A union over a type parameter, whose layout has no fixed offsets until an instance
@@ -48,11 +51,6 @@ none of its own `unsafe`.
   `set_len` is refused, and a write past the length fails loudly at run time, since the
   JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
-- `ptr::slice_from_raw_parts` past what the array holds, which Rust allows until the
-  slice is read: the runtime makes the slice at once, so it fails there loudly. Deferring
-  the check needs a raw slice pointer kept as its pointer and length.
-- An element read through a dereferenced raw slice pointer, `(*p)[i]` for a `*const [T]`:
-  the place's `v` is skipped, so the output fails `tsc` at translation.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const

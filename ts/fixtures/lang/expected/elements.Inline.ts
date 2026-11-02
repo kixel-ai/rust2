@@ -97,12 +97,12 @@ export function remove$sync_Arc_u8(self: Inline<rt.Arc<rt.u8>>, at: rt.usize): r
 
 export function drop$ops_Drop_Option_tuple2_u8_u8(self: Inline<[rt.u8, rt.u8] | undefined>): void {
 	const len: rt.usize = self.len;
-	{ v: rt.ptrSlice(ptr$Option_tuple2_u8_u8(self), len) };
+	new rt.RawSlice(ptr$Option_tuple2_u8_u8(self), len);
 }
 
 export function drop$ops_Drop_sync_Arc_u8(self: Inline<rt.Arc<rt.u8>>): void {
 	const len: rt.usize = self.len;
-	rt.dropAll({ v: rt.ptrSlice(ptr$sync_Arc_u8(self), len) }.v);
+	rt.dropAll(rt.rawSliceDeref(new rt.RawSlice(ptr$sync_Arc_u8(self), len)));
 }
 
 //# sourceMappingURL=elements.Inline.ts.map

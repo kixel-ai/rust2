@@ -325,7 +325,7 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
  */
 const EMPTY = /* @__PURE__ */ new WeakMap<object, Place<unknown>>();
 
-/** `slice::from_raw_parts` and `ptr::slice_from_raw_parts` of `len` elements from `p`. */
+/** `slice::from_raw_parts` of `len` elements from `p`. */
 export function ptrSlice<T>(p: Place<T>, len: number): T[] {
 	// None from a pointer into no array, such as null's or a dangling one's, keeps it.
 	if (len === 0 && !(p instanceof AtIndex)) {
@@ -340,9 +340,42 @@ export function ptrSlice<T>(p: Place<T>, len: number): T[] {
 }
 
 /**
- * `slice::from_raw_parts` and `ptr::slice_from_raw_parts` of `len` bytes from `p`. Only a
- * `shared` reference to bytes in no array of bytes may be a copy of them, since nothing
- * writes them while it lives.
+ * A raw pointer to a slice, `*const [T]`, `*mut [T]`, or `NonNull<[T]>`: where its first
+ * element is and how many it spans, which nothing checks until a read through it, as in Rust.
+ */
+export class RawSlice<T> {
+	readonly ptr: Place<T>;
+	readonly length: number;
+
+	constructor(ptr: Place<T>, length: number) {
+		this.ptr = ptr;
+		this.length = length;
+	}
+}
+
+/** The raw pointer to `s`, a slice, a `[T; N]`, or a `Vec`'s storage. */
+export function rawSliceOf<T>(s: { readonly length: number; [i: number]: T }): RawSlice<T> {
+	return new RawSlice(sliceAsPtr(s), s.length);
+}
+
+/** The raw pointer to the bytes of `s`. */
+export function rawByteSliceOf(s: ByteSlice): RawSlice<number> {
+	return new RawSlice(byteSliceAsPtr(s), s.length);
+}
+
+/** The slice `p` points at, read through it, which must be there. */
+export function rawSliceDeref<T>(p: RawSlice<T>): T[] {
+	return ptrSlice(p.ptr, p.length);
+}
+
+/** The bytes `p` points at, read through it, `shared` as `ptrByteSlice` takes it. */
+export function rawByteSliceDeref(p: RawSlice<number>, shared: boolean): ByteSlice {
+	return ptrByteSlice(p.ptr, p.length, shared);
+}
+
+/**
+ * `slice::from_raw_parts` of `len` bytes from `p`. Only a `shared` reference to bytes in
+ * no array of bytes may be a copy of them, since nothing writes them while it lives.
  */
 export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): ByteSlice {
 	if (len === 0 && !(p instanceof AtIndex)) {
@@ -514,7 +547,14 @@ export function rangeCheck(length: number, start: number, end: number): void {
 /** `&s[start..end]`, with `end` defaulting to the length. */
 export function sliceRange<T>(s: T[], start: number, end: number = s.length): T[] {
 	rangeCheck(s.length, start, end);
-	// An empty slice's part is it, which keeps the pointer it was made from.
+	return slicePart(s, start, end);
+}
+
+/**
+ * Elements `start` to `end` of `s`, a copy as a shared part is, or of an empty slice the
+ * slice itself, which keeps the pointer it was made from as Rust's part does.
+ */
+export function slicePart<T>(s: T[], start: number, end: number = s.length): T[] {
 	return s.length === 0 ? s : s.slice(start, end);
 }
 
@@ -604,7 +644,7 @@ export function sliceRangeMut<T>(s: T[], start: number, end: number = s.length):
 
 /** `get` of `start..end`: the part, or `undefined` unless it is within the slice. */
 export function sliceGetRange<T>(s: T[], start: number, end: number = s.length): T[] | undefined {
-	return start <= end && end <= s.length ? (s.length === 0 ? s : s.slice(start, end)) : undefined;
+	return start <= end && end <= s.length ? slicePart(s, start, end) : undefined;
 }
 
 /** `get_mut` of `start..end`: the runtime's view of it, or `undefined` as `sliceGetRange`. */
@@ -614,7 +654,7 @@ export function sliceGetRangeMut<T>(s: T[], start: number, end: number = s.lengt
 
 /** `last_chunk`: the last `n` elements, or `undefined` if fewer. */
 export function sliceLastChunk<T>(s: T[], n: number): T[] | undefined {
-	return n > s.length ? undefined : s.slice(s.length - n);
+	return n > s.length ? undefined : slicePart(s, s.length - n);
 }
 
 /** `last_chunk_mut`: a view of the last `n` elements, or `undefined` if fewer. */
@@ -640,12 +680,12 @@ export function sliceSplitFirst<T>(s: T[]): [T, T[]] | undefined {
 /** `split_at`, panicking past the length. */
 export function sliceSplitAt<T>(s: T[], n: number): [T[], T[]] {
 	if (n > s.length) panic("mid > len");
-	return [s.slice(0, n), s.slice(n)];
+	return [slicePart(s, 0, n), slicePart(s, n)];
 }
 
 /** `split_at_checked`: the halves, or `undefined` past the length. */
 export function sliceSplitAtChecked<T>(s: T[], n: number): [T[], T[]] | undefined {
-	return n > s.length ? undefined : [s.slice(0, n), s.slice(n)];
+	return n > s.length ? undefined : [slicePart(s, 0, n), slicePart(s, n)];
 }
 
 /** `split_at_mut`: views of either half, panicking past the length. */
