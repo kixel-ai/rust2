@@ -1,5 +1,5 @@
-// The runtime every C++ binding shares: bytes, results, wakers, and futures over the C
-// ABI. rust2-ffi copies it into each header, inside the export's namespace, after
+// The runtime every C++ binding shares: handles, bytes, results, wakers, and futures over
+// the C ABI. rust2-ffi copies it into each header, inside the export's namespace, after
 // `detail` names the export's C types. It throws nothing and reads no type information,
 // so it builds with exceptions and RTTI off.
 

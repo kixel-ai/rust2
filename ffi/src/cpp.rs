@@ -7,10 +7,11 @@
 //! named as its class or a field, takes a trailing `_`; so does a parameter named as a
 //! member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
-//! call tells apart, a `std::shared_ptr` its copies share; a record a struct; an enum an `enum class`, or
-//! for one with data a `std::variant` of a struct per variant, with its methods free
-//! functions; a closure lent for the call a template parameter. The runtime they share,
-//! [`runtime/rt.hpp`](../runtime/rt.hpp), holds the bytes, results, wakers, and futures.
+//! call tells apart, a `std::shared_ptr` its copies share; a record a struct; an enum an
+//! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
+//! methods free functions; a closure lent for the call a template parameter. The runtime
+//! they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the handles, bytes, results,
+//! wakers, and futures.
 
 use std::collections::BTreeSet;
 
@@ -613,7 +614,7 @@ impl<'a> Header<'a> {
 		let mut members = Vec::new();
 		if t.clone && !object.shared {
 			body.push(format!(
-				"\t/// A clone of its own, through Rust's `Clone`: copies may not share one value,\n\t/// as a call could tell them apart from clones.\n\t{name} clone() const;"
+				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\t{name} clone() const;"
 			));
 			members.push("clone".to_string());
 			self.def(format!(
