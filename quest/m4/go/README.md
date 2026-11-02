@@ -33,4 +33,5 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 ## Required
 
 - [Match cgo on the codec](/quest/m4/go/speed.md) - the translated codec within 2x of cgo on `just go bench`
+- [Show why a differential test fails](/quest/m4/go/failures.md) - a failing fixture test prints its differences instead of only that it failed
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole

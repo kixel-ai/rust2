@@ -6,6 +6,7 @@
 
 mod body;
 mod consts;
+mod fold;
 mod library;
 mod names;
 mod ty;

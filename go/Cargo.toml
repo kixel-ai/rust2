@@ -31,6 +31,7 @@ codec = { path = "fixtures/codec" }
 fmt = { path = "fixtures/fmt" }
 ints = { path = "fixtures/ints" }
 items = { path = "fixtures/items" }
+order = { path = "fixtures/order" }
 vecs = { path = "fixtures/vecs" }
 
 [lints]
