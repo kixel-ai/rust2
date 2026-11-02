@@ -1379,6 +1379,11 @@ pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }
 
+/// The Unicode scalar after `c`, if any.
+pub fn next_char(c: char) -> Option<char> {
+	char::from_u32(c as u32 + 1)
+}
+
 /// `duration` plus `by`, unless past [`Duration::MAX`]: Rust's seconds are a `u64`.
 pub fn extended(duration: Duration, by: Duration) -> Option<Duration> {
 	duration.checked_add(by)

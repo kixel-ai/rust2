@@ -687,7 +687,7 @@ fn api_dart() {
 		api.transcript,
 		"the Dart transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "closed", "bytes"] {
+	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
 		run(&mut dart_run(&exe, &[case]));
 	}
 	for (case, message) in [

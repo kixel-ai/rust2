@@ -475,11 +475,13 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
   garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
-  not UTF-8 throws a `FormatException`. `Option<T>` is `T?`, a tuple a Dart record, and a
-  `Vec<T>` or `&[T]` a `List<T>`. `Duration` is `Duration`, truncated to the microsecond:
-  a negative one passed in throws an `ArgumentError`, and Rust's longest is Dart's. A
-  socket address is a `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label
-  and scope; one passed in of the wrong family throws an `ArgumentError`.
+  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
+  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
+  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
+  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
+  range a `RangeError`.
 - **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
   implementing `Exception`, and any other in a final class `<T>Exception` holding it as
   `error`, such as `StringException`.

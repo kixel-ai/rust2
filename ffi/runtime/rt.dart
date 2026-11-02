@@ -477,10 +477,13 @@ final class _Native {
   }
 
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.
-  Never abort(String what, Object error, StackTrace stack) {
+  Never abort(String what, Object error, StackTrace stack) => fail('$what: a call into Dart threw $error\n$stack');
+
+  /// Abort the process with `text`.
+  Never fail(String text) {
     final a = _Arena();
     final buf = a<_Buf>();
-    a.string(buf.ref, '$what: a call into Dart threw $error\n$stack');
+    a.string(buf.ref, text);
     _dartAbort(buf.ref);
     throw StateError('unreachable');
   }
@@ -531,13 +534,14 @@ final class _Native {
 
   String? pathOrNull(_Buf buf) => buf.ptr == ffi.nullptr ? null : path(buf);
 
-  /// A path from Rust, copied, which on Unix may hold bytes no `String` holds: those throw.
+  /// A path from Rust, copied, which on Unix may hold bytes no `String` holds: those
+  /// abort, since a throw would leave the rest of a list or record being lifted unfreed.
   String pathLent(_Buf buf) {
     if (buf.len == 0) return '';
     try {
       return const convert.Utf8Decoder(allowMalformed: false).convert(buf.ptr.asTypedList(buf.len));
     } on FormatException {
-      throw const FormatException('a path from Rust is not UTF-8');
+      fail('a path from Rust is not UTF-8');
     }
   }
 
@@ -546,7 +550,8 @@ final class _Native {
   /// A `char`, one Unicode scalar.
   int char(String text) {
     final runes = text.runes;
-    if (runes.length != 1) {
+    // A lone surrogate is one rune, but no Unicode scalar.
+    if (runes.length != 1 || runes.first >= 0xd800 && runes.first <= 0xdfff) {
       throw ArgumentError.value(text, 'char', 'a char is one Unicode scalar');
     }
     return runes.first;
@@ -574,8 +579,11 @@ final class _Native {
   /// A Rust `Duration`, truncated to the microsecond.
   Duration durationOf(_Duration c) {
     final secs = c.secs;
-    // Past Dart's longest, read as `u64`: negative is past `i64`.
-    if (secs < 0 || secs >= 9223372036854) return _longest;
+    // Past Dart's longest, 9223372036854.775807 seconds, read as `u64`: negative is past
+    // `i64`.
+    if (secs < 0 || secs > 9223372036854 || secs == 9223372036854 && c.nanos ~/ 1000 >= 775807) {
+      return _longest;
+    }
     return Duration(microseconds: secs * 1000000 + c.nanos ~/ 1000);
   }
 
@@ -592,10 +600,10 @@ final class _Native {
     for (var i = 0; i < 16; i++) {
       dst.ip[i] = i < ip.length ? ip[i] : 0;
     }
-    dst.port = value.port;
+    dst.port = u16(value.port);
     dst.v6 = v6;
-    dst.flowinfo = value.flowinfo;
-    dst.scope_id = value.scopeId;
+    dst.flowinfo = u32(value.flowinfo);
+    dst.scope_id = u32(value.scopeId);
   }
 
   SocketAddr addrOf(_Addr c) {

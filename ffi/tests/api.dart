@@ -769,6 +769,32 @@ Future<void> lent() async {
 @pragma('vm:never-inline')
 Uint8List subView(int id) => Uint8List.sublistView(api.tokenBytes(id, 65537), 65527);
 
+/// Values at the edges of what Rust takes and returns.
+void bounds() {
+  // A lone surrogate is one rune but no Unicode scalar.
+  check(api.nextChar('a') == 'b' && api.nextChar('\u{1f600}') == '\u{1f601}', 'a char');
+  throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xd800)), 'a low surrogate');
+  throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xdfff)), 'a high surrogate');
+  check(api.nextChar('\u{d7ff}') == null, 'the scalar before the surrogates');
+
+  // Dart's longest Duration is 9223372036854 seconds and 775807 microseconds.
+  for (final us in [9223372036854000000, 9223372036854775806]) {
+    final d = Duration(microseconds: us);
+    check(api.extended(d, Duration.zero) == d, 'a Duration near the longest, $us');
+  }
+  const longest = Duration(microseconds: 0x7fffffffffffffff);
+  check(api.extended(longest, Duration.zero) == longest, 'the longest Duration');
+
+  check(api.ports([api.SocketAddr(InternetAddress('::1'), 65535)]).single == 65535, 'the last port');
+  throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 65536)]), 'a port past u16');
+  throws<RangeError>(() => api.ports([api.SocketAddr(InternetAddress('::1'), 1, scopeId: -1)]), 'a negative scope');
+  throws<RangeError>(
+    () => api.ports([api.SocketAddr(InternetAddress('::1'), 1, flowinfo: 0x100000000)]),
+    'a flow label past u32',
+  );
+  print('ok');
+}
+
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
   switch (which) {
@@ -820,6 +846,8 @@ Future<void> main(List<String> args) async {
       closedObjects();
     case ['bytes']:
       await lent();
+    case ['bounds']:
+      bounds();
     case [final which]:
       broken(which);
     default:
