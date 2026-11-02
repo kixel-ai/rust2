@@ -527,6 +527,7 @@ fn api_python() {
 		("moved", "ValueError: Counter is closed"),
 		("boxed moved", "ValueError: Node is closed"),
 		("lent kept", "ValueError: Counter is closed"),
+		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
 			"lent moved",
 			"api_counter_into_label: a lent handle's value cannot move out",

@@ -282,6 +282,15 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 		}
 	}
 
+	/**
+	 * End a lend, closing the handle, which Rust frees next: a call still holding it would
+	 * reach the freed handle, so it throws, as Rust's own check fails once a call borrowed.
+	 */
+	fun end() {
+		close()
+		kotlin.check(state == CLOSED) { "$type: a call still holds it when its lend ends" }
+	}
+
 	// Free it once no hold is left.
 	private fun freed(n: Long) {
 		if (n < HELD && free != null && untrack()) free.drop(raw)

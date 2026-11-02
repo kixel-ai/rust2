@@ -18,6 +18,7 @@ roots = [
     "drops::folded",
     "drops::rfolded",
     "drops::inside",
+    "drops::released",
     "drops::compared",
     "drops::lists",
     "futures::helpers",
