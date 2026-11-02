@@ -2,7 +2,7 @@
 //! `next` returns an item or `rt.DONE`, and whose adaptors and consumers are runtime
 //! functions taking the iterator first: `rt.iterMap(it, f)`. The crate's own `impl
 //! Iterator` keeps that protocol in its `next`, and joins std's adaptors through
-//! `rt.iterFrom`.
+//! `rt.iterFrom`, with its own `size_hint`, `next_back`, and `len`.
 
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
@@ -51,34 +51,27 @@ impl<'tcx> Translator<'_, 'tcx> {
 /// The crate's own iterator a `ty` is, through any references: its `next`, whose
 /// instance the translation names.
 fn own_next<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Instance<'tcx>> {
-	let tcx = b.t.tcx;
-	let ty = ty.peel_refs();
-	// Over parameters, only a census's instance, which never runs, would call it.
-	if !matches!(ty.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || ty.has_param() || ty.has_aliases() {
-		return None;
-	}
-	let (next, _) = trait_items(tcx)?;
-	Instance::try_resolve(tcx, b.t.typing_env_pub(), next, tcx.mk_args(&[ty.into()])).ok()?
+	own_method(b, ty, "Iterator", "next")
 }
 
+/// The methods of std's iterator traits, by trait, that an iterator of the crate may have
+/// of its own: `rt.iterFrom` calls each where std's adaptors do.
+const OWN: [(&str, &str); 4] = [
+	("Iterator", "next"),
+	("Iterator", "size_hint"),
+	("DoubleEndedIterator", "next_back"),
+	("ExactSizeIterator", "len"),
+];
+
 /// Refuse an `impl Iterator` of the crate, whose `next` is `next_fn`, that std's adaptors
-/// would read other than through `next`: one that overrides `fold`, `nth`, or `size_hint`,
-/// which they call in its place or beside it, that has a `next_back` or `len`, which this
-/// protocol lacks, or that is a `FusedIterator`, which `fuse` reads on past its end.
+/// would read other than through the methods in `OWN`: one whose `Iterator` or
+/// `DoubleEndedIterator` impl overrides another, such as `fold` or `nth_back`, which they
+/// call in its place.
 pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 	let tcx = t.tcx;
 	let Some(imp) = tcx.impl_of_assoc(next_fn) else {
 		return;
 	};
-	for item in tcx.associated_items(imp).in_definition_order() {
-		let name = item.name();
-		if item.is_fn() && name != rustc_span::sym::next {
-			t.err(
-				tcx.def_span(item.def_id),
-				format!("overriding `Iterator::{name}`, which std's adaptors call in place of `next` or beside it"),
-			);
-		}
-	}
 	let ty::Adt(adt, _) = tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind() else {
 		return;
 	};
@@ -89,18 +82,51 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 			continue;
 		}
 		let path = library::std_path(tcx, tcx.impl_trait_id(other));
-		if let Some(name) = path.last().filter(|n| {
-			matches!(
-				n.as_str(),
-				"DoubleEndedIterator" | "ExactSizeIterator" | "FusedIterator"
-			)
-		}) {
-			t.err(
-				tcx.def_span(other),
-				format!("an iterator of the crate implementing `{name}`, which is not supported yet"),
-			);
+		let Some(tr) = path.last().filter(|tr| OWN.iter().any(|(own, _)| own == tr)) else {
+			continue;
+		};
+		for item in tcx.associated_items(other).in_definition_order() {
+			let name = item.name();
+			if item.is_fn() && !OWN.contains(&(tr.as_str(), name.as_str())) {
+				t.err(
+					tcx.def_span(item.def_id),
+					format!("overriding `{tr}::{name}`, which std's adaptors call in place of `next` or beside it"),
+				);
+			}
 		}
 	}
+}
+
+/// The crate's own `tr::name` of an iterator of type `ty`, through any references, if `ty`
+/// is one of the crate's own that overrides it or has it as a required method.
+fn own_method<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, tr: &str, name: &str) -> Option<Instance<'tcx>> {
+	let tcx = b.t.tcx;
+	let ty = ty.peel_refs();
+	// Over parameters, only a census's instance, which never runs, would call it.
+	if !matches!(ty.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || ty.has_param() || ty.has_aliases() {
+		return None;
+	}
+	if !implements(b.t, ty, tr) {
+		return None;
+	}
+	let method = tcx
+		.associated_items(core_trait(tcx, tr)?)
+		.filter_by_name_unhygienic(rustc_span::Symbol::intern(name))
+		.next()?
+		.def_id;
+	let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), method, tcx.mk_args(&[ty.into()])).ok()??;
+	(instance.def_id() != method).then_some(instance)
+}
+
+/// `iter.next_back()` of the crate's own iterator of type `ty`, as the protocol returns it:
+/// an item or `rt.DONE`.
+fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Option<Expr> {
+	let instance = own_method(b, ty, "DoubleEndedIterator", "next_back")?;
+	let item = b.t.iter_item(ty.peel_refs())?;
+	let sym = b.t.instance(instance);
+	let none = b.t.none_arg(item);
+	let option = Expr::Sym(sym).call(vec![iter]);
+	Some(Expr::rt("iterFromOption", [option].into_iter().chain(none).collect()))
 }
 
 /// `iter.next()` by the protocol, for an iterator of type `ty`: an item or `rt.DONE`.
@@ -143,15 +169,34 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 				let param_ty = b.t.ty(ty.peel_refs(), span);
 				let it = "it".to_string();
 				let next = Expr::Sym(sym).call(vec![Expr::ident(&it)]);
-				let param = Param {
-					name: it,
-					ty: Some(param_ty),
+				// Each of its own methods `rt.iterFrom` calls, as a function of the source.
+				let of = |body: Option<Expr>| match body {
+					Some(body) => {
+						let param = Param {
+							name: it.clone(),
+							ty: Some(param_ty.clone()),
+						};
+						Expr::Lambda(vec![param], Box::new(body))
+					}
+					None => Expr::undefined(),
 				};
-				let mut args = vec![value, Expr::Lambda(vec![param], Box::new(next))];
-				if owned && b.t.drops(ty) {
-					args.push(b.t.dropper(ty, span));
-				}
-				Expr::rt("iterFrom", args)
+				let call = |b: &mut Body<'_, '_, 'tcx>, tr: &str, name: &str| {
+					let instance = own_method(b, ty, tr, name)?;
+					Some(Expr::Sym(b.t.instance(instance)).call(vec![Expr::ident(&it)]))
+				};
+				let drop = match owned && b.t.drops(ty) {
+					true => b.t.dropper(ty, span),
+					false => Expr::undefined(),
+				};
+				let own = [
+					call(b, "Iterator", "size_hint"),
+					own_back(b, ty, Expr::ident(&it)),
+					call(b, "ExactSizeIterator", "len"),
+				];
+				Expr::rt(
+					"iterFrom",
+					tail(vec![value, of(Some(next))], [vec![drop], own.map(of).to_vec()].concat()),
+				)
 			}
 			// One borrowed by `&mut`, which std's adaptors may drop once it ends, but which
 			// is its owner's to drop, and which a consumer reads on through the borrow
@@ -445,8 +490,12 @@ pub fn call<'tcx>(
 	if matches!(name, "next" | "next_back" | "nth_back") {
 		let item = match name {
 			"next" => next(b, self_ty, recv),
-			"next_back" => recv.member("nextBack").call(Vec::new()),
+			"next_back" => match own_back(b, self_ty, recv.clone()) {
+				Some(back) => back,
+				None => recv.member("nextBack").call(Vec::new()),
+			},
 			_ => {
+				let recv = into_iter(b, self_ty, recv, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
@@ -844,11 +893,15 @@ pub(super) fn size_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span
 	layout(b, ty, span).map_or_else(|e| e, |(size, _)| Expr::lit(size.to_string()))
 }
 
-/// Whether an iterator of type `ty`, with `held` beside it, drops and is a `FusedIterator`,
-/// which std's `fuse` and `flatten` keep once it ends rather than drop: `true` or `false`.
+/// Whether an iterator of type `ty` is a `FusedIterator`, which std's `fuse` and `flatten`
+/// keep once it ends rather than drop, and read on from: `true` or `false`. Only one that
+/// drops, with `held` beside it, or holds an iterator of the crate's own, which may yield
+/// again past its end, can tell.
 fn fused<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, held: Option<Ty<'tcx>>) -> Expr {
 	let drops = b.t.drops(ty) || held.is_some_and(|held| b.t.drops(held));
-	Expr::lit(match drops && implements(b.t, ty, "FusedIterator") {
+	let own = (ty.walk().filter_map(|arg| arg.as_type()))
+		.any(|t| matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) && b.t.iter_item(t).is_some());
+	Expr::lit(match (drops || own) && implements(b.t, ty, "FusedIterator") {
 		true => "true",
 		false => "false",
 	})

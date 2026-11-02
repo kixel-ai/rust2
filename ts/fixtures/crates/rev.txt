@@ -1,1 +1,0 @@
-an iterator of the crate implementing `DoubleEndedIterator`, which is not supported yet at fixtures/crates/dep/src/lib.rs:81:1

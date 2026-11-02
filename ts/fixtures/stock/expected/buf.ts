@@ -1700,35 +1700,35 @@ export function writes(dataData: Uint8Array, dataStart: number, dataLen: number,
 		while ((_33 = iterStart++) < iterEnd) {
 			const _37: rt.u8 = rt.u8Rem(rt.u8WrappingAdd(dataData[dataStart], _33), 6);
 			if (_37 === 0) {
-				writeAll$Vec_u8(vec, dataData, dataStart + 2, dataLen - 2);
+				writeAll$Vec_u8(vec, dataData, dataStart + 2, dataLen - 2, cap > 0);
 			} else if (_37 === 1) {
-				writeAll$bytes_BytesMut(buf, dataData, dataStart + 2, dataLen - 2);
+				writeAll$bytes_BytesMut(buf, dataData, dataStart + 2, dataLen - 2, cap > 0);
 			} else if (_37 === 2) {
-				let _44: rt.ByteVec = throughVec;
-				writeAll$mut_Vec_u8(rt.place(() => _44, (value4) => _44 = value4), dataData, dataStart + 2, dataLen - 2);
+				let _46: rt.ByteVec = throughVec;
+				writeAll$mut_Vec_u8(rt.place(() => _46, (value4) => _46 = value4), dataData, dataStart + 2, dataLen - 2, cap > 0);
 			} else if (_37 === 3) {
-				let _46: rt.BytesMut = throughBuf;
-				writeAll$mut_bytes_BytesMut(rt.place(() => _46, (value3) => _46 = value3), dataData, dataStart + 2, dataLen - 2);
+				let _49: rt.BytesMut = throughBuf;
+				writeAll$mut_bytes_BytesMut(rt.place(() => _49, (value3) => _49 = value3), dataData, dataStart + 2, dataLen - 2, cap > 0);
 			} else if (_37 === 4) {
-				writeAll$boxed_Box_Vec_u8(rt.place(() => boxedVec, (value2) => boxedVec = value2), dataData, dataStart + 2, dataLen - 2);
+				writeAll$boxed_Box_Vec_u8(rt.place(() => boxedVec, (value2) => boxedVec = value2), dataData, dataStart + 2, dataLen - 2, cap > 0);
 			} else {
-				writeAll$boxed_Box_bytes_BytesMut(rt.place(() => boxedBuf, (value) => boxedBuf = value), dataData, dataStart + 2, dataLen - 2);
+				writeAll$boxed_Box_bytes_BytesMut(rt.place(() => boxedBuf, (value) => boxedBuf = value), dataData, dataStart + 2, dataLen - 2, cap > 0);
 			}
 		}
-		const _51: Pieces.Pieces = Pieces.new(dataData, dataStart + 2, dataLen - 2, rt.usizeDiv(dataLen - 2, 2));
-		rt.byteVecPutBuf(vec, _51, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
-		const _57: rt.ByteVec = throughVec;
-		const _58: Pieces.Pieces = Pieces.new(dataData, dataStart + 2, dataLen - 2, rt.usizeDiv(dataLen - 2, 2));
-		rt.byteVecPutBufChunked(_57, _58, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
+		const _57: Pieces.Pieces = Pieces.new(dataData, dataStart + 2, dataLen - 2, rt.usizeDiv(dataLen - 2, 2));
+		rt.byteVecPutBuf(vec, _57, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
+		const _63: rt.ByteVec = throughVec;
 		const _64: Pieces.Pieces = Pieces.new(dataData, dataStart + 2, dataLen - 2, rt.usizeDiv(dataLen - 2, 2));
-		rt.byteVecPutBufChunked(boxedVec, _64, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
+		rt.byteVecPutBufChunked(_63, _64, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
+		const _70: Pieces.Pieces = Pieces.new(dataData, dataStart + 2, dataLen - 2, rt.usizeDiv(dataLen - 2, 2));
+		rt.byteVecPutBufChunked(boxedVec, _70, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
 		const iter2: rt.Iter<rt.ByteVec> = rt.iterSlice([vec, throughVec, boxedVec]);
 		while (true) {
-			const _75: rt.ByteVec | rt.Done = iter2.next();
-			if (_75 === rt.DONE) {
+			const _81: rt.ByteVec | rt.Done = iter2.next();
+			if (_81 === rt.DONE) {
 				break;
 			}
-			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_75.data.length as rt.u32).reverse()));
+			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_81.data.length as rt.u32).reverse()));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(throughVec));
 		rt.byteVecExtendFromSlice(out, rt.bytesMutView(throughBuf));
@@ -1741,8 +1741,8 @@ export function writes(dataData: Uint8Array, dataStart: number, dataLen: number,
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$Vec_u8(buf: rt.ByteVec, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$Vec_u8(buf: rt.ByteVec, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -1758,70 +1758,74 @@ export function writeAll$Vec_u8(buf: rt.ByteVec, dataData: Uint8Array, dataStart
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			rt.byteVecPutWord(buf, n2, 1, false);
-		} else if (_18 === 1) {
-			rt.byteVecPutWord(buf, (n2 << 24) >> 24, 1, false);
-		} else if (_18 === 2) {
-			rt.byteVecPutWord(buf, rt.u64Low(v) & 0xffff, 2, false);
-		} else if (_18 === 3) {
-			rt.byteVecPutWord(buf, (rt.u64Low(v) << 16) >> 16, 2, true);
-		} else if (_18 === 4) {
-			rt.byteVecPutWord(buf, rt.u64Low(v), 4, false);
-		} else if (_18 === 5) {
-			rt.byteVecPutWord(buf, rt.u64Low(v) | 0, 4, true);
-		} else if (_18 === 6) {
-			rt.byteVecPutBytes(buf, rt.u64ToBeBytes(v), true);
-		} else if (_18 === 7) {
-			rt.byteVecPutBytes(buf, rt.i64ToBeBytes(rt.i64Cast(v)), false);
-		} else if (_18 === 8) {
-			rt.byteVecPutBytes(buf, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			rt.byteVecExtendFromSlice(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				rt.byteVecPutWord(buf, n2, 1, false);
+			} else if (_19 === 1) {
+				rt.byteVecPutWord(buf, (n2 << 24) >> 24, 1, false);
+			} else if (_19 === 2) {
+				rt.byteVecPutWord(buf, rt.u64Low(v) & 0xffff, 2, false);
+			} else if (_19 === 3) {
+				rt.byteVecPutWord(buf, (rt.u64Low(v) << 16) >> 16, 2, true);
+			} else if (_19 === 4) {
+				rt.byteVecPutWord(buf, rt.u64Low(v), 4, false);
+			} else if (_19 === 5) {
+				rt.byteVecPutWord(buf, rt.u64Low(v) | 0, 4, true);
+			} else if (_19 === 6) {
+				rt.byteVecPutBytes(buf, rt.u64ToBeBytes(v), true);
+			} else if (_19 === 7) {
+				rt.byteVecPutBytes(buf, rt.i64ToBeBytes(rt.i64Cast(v)), false);
+			} else if (_19 === 8) {
+				rt.byteVecPutBytes(buf, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				rt.byteVecExtendFromSlice(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.byteVecPutFill(buf, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.byteVecPutFill(buf, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.byteVecExtendFromSlice(buf, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.byteVecExtendFromSlice(buf, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.byteVecExtendFromSlice(buf, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.byteVecPutBytes(buf, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutFill(buf, n2, 4294967295);
+				rt.byteVecPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.byteVecExtendFromSlice(buf, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.byteVecExtendFromSlice(buf, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.byteVecExtendFromSlice(buf, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.byteVecPutBytes(buf, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.byteVecPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_Vec_u8(buf), 7) & 0xff);
-		rt.byteVecPutWord(buf, _70, 1, false);
+		const _71: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_Vec_u8(buf), 7) & 0xff);
+		rt.byteVecPutWord(buf, _71, 1, false);
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$boxed_Box_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$boxed_Box_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -1837,70 +1841,74 @@ export function writeAll$boxed_Box_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: U
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			putU8$bytes_BufMut_boxed_Box_Vec_u8(buf, n2);
-		} else if (_18 === 1) {
-			putI8$bytes_BufMut_boxed_Box_Vec_u8(buf, (n2 << 24) >> 24);
-		} else if (_18 === 2) {
-			putU16$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v) & 0xffff);
-		} else if (_18 === 3) {
-			putI16Le$bytes_BufMut_boxed_Box_Vec_u8(buf, (rt.u64Low(v) << 16) >> 16);
-		} else if (_18 === 4) {
-			putU32$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v));
-		} else if (_18 === 5) {
-			putI32Le$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v) | 0);
-		} else if (_18 === 6) {
-			putU64Le$bytes_BufMut_boxed_Box_Vec_u8(buf, v);
-		} else if (_18 === 7) {
-			putI64$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.i64Cast(v));
-		} else if (_18 === 8) {
-			rt.byteVecPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			putSlice$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				putU8$bytes_BufMut_boxed_Box_Vec_u8(buf, n2);
+			} else if (_19 === 1) {
+				putI8$bytes_BufMut_boxed_Box_Vec_u8(buf, (n2 << 24) >> 24);
+			} else if (_19 === 2) {
+				putU16$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v) & 0xffff);
+			} else if (_19 === 3) {
+				putI16Le$bytes_BufMut_boxed_Box_Vec_u8(buf, (rt.u64Low(v) << 16) >> 16);
+			} else if (_19 === 4) {
+				putU32$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v));
+			} else if (_19 === 5) {
+				putI32Le$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.u64Low(v) | 0);
+			} else if (_19 === 6) {
+				putU64Le$bytes_BufMut_boxed_Box_Vec_u8(buf, v);
+			} else if (_19 === 7) {
+				putI64$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.i64Cast(v));
+			} else if (_19 === 8) {
+				rt.byteVecPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				putSlice$bytes_BufMut_boxed_Box_Vec_u8(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.byteVecPutFillChunked(buf.v, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.byteVecPutChunked(buf.v, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.byteVecPutChunked(buf.v, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.byteVecPutChunked(buf.v, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.byteVecPutBytes(buf.v, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
+				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.byteVecPutChunked(buf.v, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.byteVecPutChunked(buf.v, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.byteVecPutChunked(buf.v, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.byteVecPutBytes(buf.v, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8(buf), 7) & 0xff);
-		putU8$bytes_BufMut_boxed_Box_Vec_u8(buf, _70);
+		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_boxed_Box_Vec_u8(buf, _71);
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$boxed_Box_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$boxed_Box_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -1916,70 +1924,74 @@ export function writeAll$boxed_Box_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, da
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			putU8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, n2);
-		} else if (_18 === 1) {
-			putI8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, (n2 << 24) >> 24);
-		} else if (_18 === 2) {
-			putU16$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v) & 0xffff);
-		} else if (_18 === 3) {
-			putI16Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, (rt.u64Low(v) << 16) >> 16);
-		} else if (_18 === 4) {
-			putU32$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v));
-		} else if (_18 === 5) {
-			putI32Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v) | 0);
-		} else if (_18 === 6) {
-			putU64Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, v);
-		} else if (_18 === 7) {
-			putI64$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.i64Cast(v));
-		} else if (_18 === 8) {
-			rt.bytesMutPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				putU8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, n2);
+			} else if (_19 === 1) {
+				putI8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, (n2 << 24) >> 24);
+			} else if (_19 === 2) {
+				putU16$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v) & 0xffff);
+			} else if (_19 === 3) {
+				putI16Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, (rt.u64Low(v) << 16) >> 16);
+			} else if (_19 === 4) {
+				putU32$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v));
+			} else if (_19 === 5) {
+				putI32Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.u64Low(v) | 0);
+			} else if (_19 === 6) {
+				putU64Le$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, v);
+			} else if (_19 === 7) {
+				putI64$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.i64Cast(v));
+			} else if (_19 === 8) {
+				rt.bytesMutPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.bytesMutPutFillChunked(buf.v, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.bytesMutPutChunked(buf.v, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.bytesMutPutChunked(buf.v, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.bytesMutPutChunked(buf.v, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.bytesMutPutBytes(buf.v, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
+				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.bytesMutPutChunked(buf.v, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.bytesMutPutChunked(buf.v, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.bytesMutPutChunked(buf.v, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.bytesMutPutBytes(buf.v, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut(buf), 7) & 0xff);
-		putU8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, _70);
+		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut(buf), 7) & 0xff);
+		putU8$bytes_BufMut_boxed_Box_bytes_BytesMut(buf, _71);
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$bytes_BytesMut(buf: rt.BytesMut, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$bytes_BytesMut(buf: rt.BytesMut, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -1995,70 +2007,74 @@ export function writeAll$bytes_BytesMut(buf: rt.BytesMut, dataData: Uint8Array, 
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			rt.bytesMutPutWord(buf, n2, 1, false);
-		} else if (_18 === 1) {
-			rt.bytesMutPutWord(buf, (n2 << 24) >> 24, 1, false);
-		} else if (_18 === 2) {
-			rt.bytesMutPutWord(buf, rt.u64Low(v) & 0xffff, 2, false);
-		} else if (_18 === 3) {
-			rt.bytesMutPutWord(buf, (rt.u64Low(v) << 16) >> 16, 2, true);
-		} else if (_18 === 4) {
-			rt.bytesMutPutWord(buf, rt.u64Low(v), 4, false);
-		} else if (_18 === 5) {
-			rt.bytesMutPutWord(buf, rt.u64Low(v) | 0, 4, true);
-		} else if (_18 === 6) {
-			rt.bytesMutPutBytes(buf, rt.u64ToBeBytes(v), true);
-		} else if (_18 === 7) {
-			rt.bytesMutPutBytes(buf, rt.i64ToBeBytes(rt.i64Cast(v)), false);
-		} else if (_18 === 8) {
-			rt.bytesMutPutBytes(buf, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			rt.bytesMutExtend(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				rt.bytesMutPutWord(buf, n2, 1, false);
+			} else if (_19 === 1) {
+				rt.bytesMutPutWord(buf, (n2 << 24) >> 24, 1, false);
+			} else if (_19 === 2) {
+				rt.bytesMutPutWord(buf, rt.u64Low(v) & 0xffff, 2, false);
+			} else if (_19 === 3) {
+				rt.bytesMutPutWord(buf, (rt.u64Low(v) << 16) >> 16, 2, true);
+			} else if (_19 === 4) {
+				rt.bytesMutPutWord(buf, rt.u64Low(v), 4, false);
+			} else if (_19 === 5) {
+				rt.bytesMutPutWord(buf, rt.u64Low(v) | 0, 4, true);
+			} else if (_19 === 6) {
+				rt.bytesMutPutBytes(buf, rt.u64ToBeBytes(v), true);
+			} else if (_19 === 7) {
+				rt.bytesMutPutBytes(buf, rt.i64ToBeBytes(rt.i64Cast(v)), false);
+			} else if (_19 === 8) {
+				rt.bytesMutPutBytes(buf, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				rt.bytesMutExtend(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.bytesMutPutFill(buf, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.bytesMutPutFill(buf, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.bytesMutPutStorage(buf, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.bytesMutExtend(buf, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.bytesMutPutStorage(buf, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.bytesMutPutBytes(buf, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutFill(buf, n2, 4294967295);
+				rt.bytesMutPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.bytesMutPutStorage(buf, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.bytesMutExtend(buf, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.bytesMutPutStorage(buf, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.bytesMutPutBytes(buf, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.bytesMutPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_bytes_BytesMut(buf), 7) & 0xff);
-		rt.bytesMutPutWord(buf, _70, 1, false);
+		const _71: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_bytes_BytesMut(buf), 7) & 0xff);
+		rt.bytesMutPutWord(buf, _71, 1, false);
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$mut_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$mut_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -2074,70 +2090,74 @@ export function writeAll$mut_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Ar
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			putU8$bytes_BufMut_mut_Vec_u8(buf, n2);
-		} else if (_18 === 1) {
-			putI8$bytes_BufMut_mut_Vec_u8(buf, (n2 << 24) >> 24);
-		} else if (_18 === 2) {
-			putU16$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v) & 0xffff);
-		} else if (_18 === 3) {
-			putI16Le$bytes_BufMut_mut_Vec_u8(buf, (rt.u64Low(v) << 16) >> 16);
-		} else if (_18 === 4) {
-			putU32$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v));
-		} else if (_18 === 5) {
-			putI32Le$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v) | 0);
-		} else if (_18 === 6) {
-			putU64Le$bytes_BufMut_mut_Vec_u8(buf, v);
-		} else if (_18 === 7) {
-			putI64$bytes_BufMut_mut_Vec_u8(buf, rt.i64Cast(v));
-		} else if (_18 === 8) {
-			rt.byteVecPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			putSlice$bytes_BufMut_mut_Vec_u8(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				putU8$bytes_BufMut_mut_Vec_u8(buf, n2);
+			} else if (_19 === 1) {
+				putI8$bytes_BufMut_mut_Vec_u8(buf, (n2 << 24) >> 24);
+			} else if (_19 === 2) {
+				putU16$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v) & 0xffff);
+			} else if (_19 === 3) {
+				putI16Le$bytes_BufMut_mut_Vec_u8(buf, (rt.u64Low(v) << 16) >> 16);
+			} else if (_19 === 4) {
+				putU32$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v));
+			} else if (_19 === 5) {
+				putI32Le$bytes_BufMut_mut_Vec_u8(buf, rt.u64Low(v) | 0);
+			} else if (_19 === 6) {
+				putU64Le$bytes_BufMut_mut_Vec_u8(buf, v);
+			} else if (_19 === 7) {
+				putI64$bytes_BufMut_mut_Vec_u8(buf, rt.i64Cast(v));
+			} else if (_19 === 8) {
+				rt.byteVecPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				putSlice$bytes_BufMut_mut_Vec_u8(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.byteVecPutFillChunked(buf.v, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.byteVecPutChunked(buf.v, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.byteVecPutChunked(buf.v, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.byteVecPutChunked(buf.v, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.byteVecPutBytes(buf.v, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
+				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.byteVecPutChunked(buf.v, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.byteVecPutChunked(buf.v, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.byteVecPutChunked(buf.v, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.byteVecPutBytes(buf.v, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_Vec_u8(buf), 7) & 0xff);
-		putU8$bytes_BufMut_mut_Vec_u8(buf, _70);
+		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_Vec_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_Vec_u8(buf, _71);
 	}
 }
 
-/** A write by each pair of `data`'s bytes. */
-export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+/** A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds. */
+export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData: Uint8Array, dataStart: number, dataLen: number, overflow: boolean): void {
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -2153,65 +2173,69 @@ export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData
 		const op2: rt.u8 = op;
 		const n2: rt.u8 = n;
 		const v: rt.u64 = rt.u64Mul(n2 as rt.u64, { hi: 0x1010101, lo: 0x1010101 } as rt.u64);
-		const _18: rt.u8 = rt.u8Rem(op2, 20);
-		if (_18 === 0) {
-			putU8$bytes_BufMut_mut_bytes_BytesMut(buf, n2);
-		} else if (_18 === 1) {
-			putI8$bytes_BufMut_mut_bytes_BytesMut(buf, (n2 << 24) >> 24);
-		} else if (_18 === 2) {
-			putU16$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v) & 0xffff);
-		} else if (_18 === 3) {
-			putI16Le$bytes_BufMut_mut_bytes_BytesMut(buf, (rt.u64Low(v) << 16) >> 16);
-		} else if (_18 === 4) {
-			putU32$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v));
-		} else if (_18 === 5) {
-			putI32Le$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v) | 0);
-		} else if (_18 === 6) {
-			putU64Le$bytes_BufMut_mut_bytes_BytesMut(buf, v);
-		} else if (_18 === 7) {
-			putI64$bytes_BufMut_mut_bytes_BytesMut(buf, rt.i64Cast(v));
-		} else if (_18 === 8) {
-			rt.bytesMutPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
-		} else if (_18 === 9) {
-			const _30: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _30, false);
-		} else if (_18 === 10) {
-			const _33: rt.i64 = rt.i64Cast(v);
-			const _34: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_33), _34, true);
-		} else if (_18 === 11) {
-			putSlice$bytes_BufMut_mut_bytes_BytesMut(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
-		} else if (_18 === 12) {
-			if (!(n2 === 255)) {
+		b2: {
+			const _19: rt.u8 = rt.u8Rem(op2, 20);
+			if (_19 === 0) {
+				putU8$bytes_BufMut_mut_bytes_BytesMut(buf, n2);
+			} else if (_19 === 1) {
+				putI8$bytes_BufMut_mut_bytes_BytesMut(buf, (n2 << 24) >> 24);
+			} else if (_19 === 2) {
+				putU16$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v) & 0xffff);
+			} else if (_19 === 3) {
+				putI16Le$bytes_BufMut_mut_bytes_BytesMut(buf, (rt.u64Low(v) << 16) >> 16);
+			} else if (_19 === 4) {
+				putU32$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v));
+			} else if (_19 === 5) {
+				putI32Le$bytes_BufMut_mut_bytes_BytesMut(buf, rt.u64Low(v) | 0);
+			} else if (_19 === 6) {
+				putU64Le$bytes_BufMut_mut_bytes_BytesMut(buf, v);
+			} else if (_19 === 7) {
+				putI64$bytes_BufMut_mut_bytes_BytesMut(buf, rt.i64Cast(v));
+			} else if (_19 === 8) {
+				rt.bytesMutPutBytes(buf.v, rt.u128ToBeBytes(rt.u128Shl(rt.u128Cast(v), 40)), true);
+			} else if (_19 === 9) {
+				const _31: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _31, false);
+			} else if (_19 === 10) {
+				const _34: rt.i64 = rt.i64Cast(v);
+				const _35: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_34), _35, true);
+			} else if (_19 === 11) {
+				putSlice$bytes_BufMut_mut_bytes_BytesMut(buf, rt.byteSliceFrom(Uint8Array.of(op2, n2)));
+			} else if (_19 === 12) {
+				if (n2 === 255) {
+					if (overflow) {
+						rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
+						break b2;
+					}
+				}
 				rt.bytesMutPutFillChunked(buf.v, n2, rt.usizeRem(n2 as rt.usize, 100));
+			} else if (_19 === 13) {
+				const _45: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+				rt.bytesMutPutChunked(buf.v, _45);
+			} else if (_19 === 14) {
+				const part = rt.usizeRem(n2 as rt.usize, 71);
+				const _48: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
+				rt.bytesMutPutChunked(buf.v, _48);
+			} else if (_19 === 15) {
+				const _55: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
+				rt.bytesMutPutChunked(buf.v, rt.bytesMutView(_55));
+			} else if (_19 === 16) {
+				const _59: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
+				rt.bytesMutPutBytes(buf.v, rt.f32ToBeBytes(_59), false);
+			} else if (_19 === 17) {
+				const _61: rt.i64 = rt.i64Cast(v);
+				const _62: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_61), _62, false);
+			} else if (_19 === 18) {
+				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
+				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
+				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 			}
-		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
-			rt.bytesMutPutChunked(buf.v, _44);
-		} else if (_18 === 14) {
-			const part = rt.usizeRem(n2 as rt.usize, 71);
-			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, part);
-			rt.bytesMutPutChunked(buf.v, _47);
-		} else if (_18 === 15) {
-			const _54: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(3).fill(n2)), 0));
-			rt.bytesMutPutChunked(buf.v, rt.bytesMutView(_54));
-		} else if (_18 === 16) {
-			const _58: rt.f32 = Math.fround(Math.fround(n2) / 3.0);
-			rt.bytesMutPutBytes(buf.v, rt.f32ToBeBytes(_58), false);
-		} else if (_18 === 17) {
-			const _60: rt.i64 = rt.i64Cast(v);
-			const _61: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.i64ToBeBytes(_60), _61, false);
-		} else if (_18 === 18) {
-			const _64: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
-			rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _64, true);
-		} else {
-			rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
 		}
-		const _70: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut(buf), 7) & 0xff);
-		putU8$bytes_BufMut_mut_bytes_BytesMut(buf, _70);
+		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_bytes_BytesMut(buf, _71);
 	}
 }
 

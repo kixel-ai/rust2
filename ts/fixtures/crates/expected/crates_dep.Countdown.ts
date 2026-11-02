@@ -20,6 +20,14 @@ export function next$iter_Iterator(self: Countdown): rt.u8 | rt.Done {
 	return rt.DONE;
 }
 
+export function nextBack$iter_DoubleEndedIterator(self: Countdown): rt.u8 | undefined {
+	if (!(self.next === self.last)) {
+		self.last = rt.u8Add(self.last, 1);
+		return self.last;
+	}
+	return undefined;
+}
+
 export { new_ as new };
 
 //# sourceMappingURL=crates_dep.Countdown.ts.map
