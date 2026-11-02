@@ -1432,7 +1432,7 @@ fn mapping<'tcx>(
 			if let Some(elem) = box_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
-				return Some(boxed_vec(value, elem));
+				return Some(boxed_vec(b, value, elem, span));
 			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
@@ -2082,7 +2082,7 @@ fn mapping<'tcx>(
 				super::iter::tail(vec![items, compare], vec![Expr::undefined(), drop]),
 			)
 		}
-		("slice", "into_vec") => boxed_vec(args.pop()?, targ(gargs, 0)),
+		("slice", "into_vec") => boxed_vec(b, args.pop()?, targ(gargs, 0), span),
 		("Vec", "into_boxed_slice") => vec_boxed(args.pop()?, targ(gargs, 0)),
 		// `vec![a, b]`'s array once `mir::vec` took the box away. A `Copy` aggregate's operand
 		// may be shared with where it came from, which the vector must not change.
@@ -2167,6 +2167,7 @@ fn mapping<'tcx>(
 		("Vec", "extend_from_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
 		("Vec", "extend_from_slice") => {
 			let mut values = args;
+			values.push(super::iter::size_of(b, targ(gargs, 0), span));
 			let clone = super::collections::clone_fn(b, targ(gargs, 0), span);
 			if !matches!(&clone, Expr::Lit(l) if l == "undefined") {
 				values.push(clone);
@@ -2775,11 +2776,30 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	}
 }
 
-/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it.
-fn boxed_vec(boxed: Expr, elem: Ty<'_>) -> Expr {
+/// `clone`, the `Vec<elem>` that `clone_from` writes over `target`, with the capacity std's
+/// keeps of `target`'s.
+pub(super) fn vec_cloned_into<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	clone: Expr,
+	target: Expr,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecClonedInto", vec![clone, target]),
+		_ => Expr::rt(
+			"vecClonedInto",
+			vec![clone, target, super::iter::size_of(b, elem, span)],
+		),
+	}
+}
+
+/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it, with room
+/// for exactly its elements.
+fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![boxed]),
-		_ => boxed,
+		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
 	}
 }
 

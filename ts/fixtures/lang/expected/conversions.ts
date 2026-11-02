@@ -321,12 +321,12 @@ export function cloneFromParam$String(to: rt.Place<string>, from: string): void 
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
 export function cloneFromParam$Vec_u32(to: rt.u32[], from: rt.u32[]): void {
-	rt.replaceIn(to, rt.vecExact(from.slice(), 4));
+	rt.replaceIn(to, rt.vecClonedInto(rt.vecExact(from.slice(), 4), to, 4));
 }
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
 export function cloneFromParam$Vec_u8(to: rt.ByteVec, from: rt.ByteVec): void {
-	rt.replaceIn(to, rt.byteVecFrom(rt.byteVecView(from)));
+	rt.replaceIn(to, rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(from)), to));
 }
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
@@ -391,12 +391,12 @@ export function cloneIntoParam$String(from: string, to: rt.Place<string>): void 
 
 /** `clone_into` through a `&mut` whose place only the caller knows. */
 export function cloneIntoParam$Vec_u32(from: rt.u32[], to: rt.u32[]): void {
-	rt.replaceIn(to, rt.vecExact(from.slice(), 4));
+	rt.replaceIn(to, rt.vecClonedInto(rt.vecExact(from.slice(), 4), to, 4));
 }
 
 /** `clone_into` through a `&mut` whose place only the caller knows. */
 export function cloneIntoParam$Vec_u8(from: rt.ByteVec, to: rt.ByteVec): void {
-	rt.replaceIn(to, rt.byteVecFrom(rt.byteVecView(from)));
+	rt.replaceIn(to, rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(from)), to));
 }
 
 /** `clone_into` through a `&mut` whose place only the caller knows. */
@@ -892,21 +892,23 @@ export function converted$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let a: rt.u32[] = make$conversions_Value_Vec_u32(data, 0);
 	const b: rt.u32[] = make$conversions_Value_Vec_u32(data, 3);
 	const owned: rt.u32[] = rt.vecExact(a.slice(), 4);
-	a = rt.vecExact(b.slice(), 4);
+	a = rt.vecClonedInto(rt.vecExact(b.slice(), 4), a, 4);
 	put$conversions_Value_Vec_u32(owned, out);
 	put$conversions_Value_Vec_u32(a, out);
 	let c: rt.u32[] = make$conversions_Value_Vec_u32(data, 6);
-	c = rt.vecExact(owned.slice(), 4);
+	c = rt.vecClonedInto(rt.vecExact(owned.slice(), 4), c, 4);
 	put$conversions_Value_Vec_u32(c, out);
 	cloneFromParam$Vec_u32(c, b);
 	cloneIntoParam$Vec_u32(owned, a);
 	put$conversions_Value_Vec_u32(c, out);
 	put$conversions_Value_Vec_u32(a, out);
 	const held: conversions_Held.Held<rt.u32[]> = new conversions_Held.Held(make$conversions_Value_Vec_u32(data, 1));
-	held.value = rt.vecExact(c.slice(), 4);
+	held.value = rt.vecClonedInto(rt.vecExact(c.slice(), 4), held.value, 4);
 	const v: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 2), make$conversions_Value_Vec_u32(data, 4)];
-	v[rt.idx(v, 1)] = rt.vecExact(held.value.slice(), 4);
-	v[rt.idx(v, 0)] = rt.vecExact(b.slice(), 4);
+	const at = rt.idx(v, 1);
+	v[at] = rt.vecClonedInto(rt.vecExact(held.value.slice(), 4), v[at], 4);
+	const at2 = rt.idx(v, 0);
+	v[at2] = rt.vecClonedInto(rt.vecExact(b.slice(), 4), v[at2], 4);
 	put$conversions_Value_Vec_u32(held.value, out);
 	put$conversions_Value_Vec_u32(v[rt.idx(v, 0)], out);
 	put$conversions_Value_Vec_u32(v[rt.idx(v, 1)], out);
@@ -914,7 +916,7 @@ export function converted$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, one.length & 0xff);
 	const copied: rt.u32[] = rt.vecExact(one[0].slice(), 4);
 	put$conversions_Value_Vec_u32(one[0], out);
-	a = rt.vecExact(copied.slice(), 4);
+	a = rt.vecClonedInto(rt.vecExact(copied.slice(), 4), a, 4);
 	put$conversions_Value_Vec_u32(copied, out);
 	put$conversions_Value_Vec_u32(a, out);
 	const cell: rt.Cell<rt.u32[]> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
@@ -939,7 +941,7 @@ export function converted$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	_116[0] = _114;
 	const _124: rt.u32[][] = array;
 	rt.idx(_124, 2);
-	_124[2] = rt.vecExact(c.slice(), 4);
+	_124[2] = rt.vecClonedInto(rt.vecExact(c.slice(), 4), _124[2], 4);
 	for (const _134 of array) {
 		put$conversions_Value_Vec_u32(_134, out);
 	}
@@ -953,21 +955,23 @@ export function converted$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let a: rt.ByteVec = make$conversions_Value_Vec_u8(data, 0);
 	const b: rt.ByteVec = make$conversions_Value_Vec_u8(data, 3);
 	const owned: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(a));
-	a = rt.byteVecFrom(rt.byteVecView(b));
+	a = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(b)), a);
 	put$conversions_Value_Vec_u8(owned, out);
 	put$conversions_Value_Vec_u8(a, out);
 	let c: rt.ByteVec = make$conversions_Value_Vec_u8(data, 6);
-	c = rt.byteVecFrom(rt.byteVecView(owned));
+	c = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(owned)), c);
 	put$conversions_Value_Vec_u8(c, out);
 	cloneFromParam$Vec_u8(c, b);
 	cloneIntoParam$Vec_u8(owned, a);
 	put$conversions_Value_Vec_u8(c, out);
 	put$conversions_Value_Vec_u8(a, out);
 	const held: conversions_Held.Held<rt.ByteVec> = new conversions_Held.Held(make$conversions_Value_Vec_u8(data, 1));
-	held.value = rt.byteVecFrom(rt.byteVecView(c));
+	held.value = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(c)), held.value);
 	const v: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 2), make$conversions_Value_Vec_u8(data, 4)];
-	v[rt.idx(v, 1)] = rt.byteVecFrom(rt.byteVecView(held.value));
-	v[rt.idx(v, 0)] = rt.byteVecFrom(rt.byteVecView(b));
+	const at = rt.idx(v, 1);
+	v[at] = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(held.value)), v[at]);
+	const at2 = rt.idx(v, 0);
+	v[at2] = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(b)), v[at2]);
 	put$conversions_Value_Vec_u8(held.value, out);
 	put$conversions_Value_Vec_u8(v[rt.idx(v, 0)], out);
 	put$conversions_Value_Vec_u8(v[rt.idx(v, 1)], out);
@@ -975,7 +979,7 @@ export function converted$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, one.length & 0xff);
 	const copied: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(one[0]));
 	put$conversions_Value_Vec_u8(one[0], out);
-	a = rt.byteVecFrom(rt.byteVecView(copied));
+	a = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(copied)), a);
 	put$conversions_Value_Vec_u8(copied, out);
 	put$conversions_Value_Vec_u8(a, out);
 	const cell: rt.Cell<rt.ByteVec> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
@@ -1000,7 +1004,7 @@ export function converted$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	_116[0] = _114;
 	const _124: rt.ByteVec[] = array;
 	rt.idx(_124, 2);
-	_124[2] = rt.byteVecFrom(rt.byteVecView(c));
+	_124[2] = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(c)), _124[2]);
 	for (const _134 of array) {
 		put$conversions_Value_Vec_u8(_134, out);
 	}
