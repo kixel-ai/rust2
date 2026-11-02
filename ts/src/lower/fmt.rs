@@ -104,7 +104,7 @@ fn formatter() -> Type {
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	/// The formatting trait of a `&dyn Debug` or the like.
 	pub fn fmt_object(&self, ty: Ty<'tcx>) -> Option<Trait> {
-		let ty::Ref(_, inner, rustc_ast::Mutability::Not) = ty.kind() else {
+		let ty::Ref(_, inner, _) = ty.kind() else {
 			return None;
 		};
 		let ty::Dynamic(preds, ..) = inner.kind() else {

@@ -13,7 +13,7 @@ Decided with the maintainer on 2026-10-27: a stock crate translates with no anno
 config, so trait objects move from never to not yet.
 
 - `dyn Debug` and `dyn Display` translate as functions writing their value, behind `&`,
-  `Box`, `Arc`, and `Rc`, `dyn Future`
+  `&mut`, `Box`, `Arc`, and `Rc`, `dyn Future`
   as an `rt.Future`, `dyn Any` as the class a downcast checks for, `dyn Fn*` as the
   closure itself, and the translated crates' traits as an object with the trait's methods.
   Build the rest on those.
