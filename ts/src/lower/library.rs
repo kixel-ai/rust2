@@ -139,6 +139,8 @@ pub enum Std {
 	NonNull,
 	/// What it holds, or nothing yet, as `pointer` has it.
 	MaybeUninit,
+	/// What it holds, which it never drops itself.
+	ManuallyDrop,
 	/// No value: `never`.
 	Infallible,
 	/// `rt.HashMap`, and `rt.HashSet`, a map to `undefined`.
@@ -169,6 +171,10 @@ pub enum Std {
 	RandomState,
 	/// `rt.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rt.Layout`: its size and alignment, never changed once made.
+	Layout,
+	/// `rt.LayoutError`.
+	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -191,6 +197,7 @@ impl Std {
 				| Self::ParseFloatError
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
+				| Self::LayoutError
 		)
 	}
 
@@ -290,6 +297,8 @@ impl Std {
 			.as_slice()
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
+			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -309,6 +318,7 @@ impl Std {
 			["fmt", "rt", "Argument"] => Some(Self::Argument),
 			["ptr", "non_null", "NonNull"] => Some(Self::NonNull),
 			["mem", "maybe_uninit", "MaybeUninit"] => Some(Self::MaybeUninit),
+			["mem", "manually_drop", "ManuallyDrop"] => Some(Self::ManuallyDrop),
 			["future", "poll_fn", "PollFn"] => Some(Self::PollFn),
 			["future", "pending", "Pending"] => Some(Self::Pending),
 			["task", "wake", "RawWakerVTable"] => Some(Self::WakerVTable),
@@ -893,6 +903,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("mem", "replace" | "take" | "swap" | "forget")
 		| ("ptr", "write" | "write_unaligned" | "write_volatile" | "replace")
 		| ("MaybeUninit", "new" | "write" | "assume_init")
+		| ("ManuallyDrop", "new" | "into_inner")
 		| ("Box", "into_raw" | "leak" | "from_raw")
 		| ("hint", "must_use")
 		| ("From", "from")
@@ -1340,6 +1351,10 @@ fn mapping<'tcx>(
 		Ok(e) => return e,
 		Err(args) => args,
 	};
+	let args = match super::alloc::call(b, call, &owner, &name, args) {
+		Ok(e) => return e,
+		Err(args) => args,
+	};
 	let args = match super::time::call(b, call, &owner, &name, args) {
 		Ok(e) => return e,
 		Err(args) => args,
@@ -1599,8 +1614,8 @@ fn mapping<'tcx>(
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
 				}
 				_ if let Some(elem) = box_slice(tcx, ty) => return slice_boxed(b, value, elem, span),
-				// A box is what it holds, cloned.
-				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Box) => {
+				// A box, or a `ManuallyDrop`, is what it holds, cloned.
+				ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::Box | Std::ManuallyDrop)) => {
 					let inner = args.type_at(0);
 					if !inner.is_sized(tcx, b.t.typing_env_pub()) {
 						return None;
@@ -2239,7 +2254,7 @@ fn mapping<'tcx>(
 			match ty.kind() {
 				ty::Adt(adt, vargs) => match Std::of(tcx, adt.did()) {
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
-					Some(Std::String | Std::Box) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop) => v,
 					Some(Std::Cow) if string(tcx, ty) => v,
 					Some(Std::Cow) if let Some(elem) = cow_slice(tcx, ty) => cow_deref(v, elem),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
@@ -2390,11 +2405,16 @@ fn mapping<'tcx>(
 
 		// Formatting.
 		("hint", "must_use") => args.pop()?,
-		// The size wasm32 lays the type out in, which translation targets.
+		// The size and alignment wasm32 lays the type out in, which translation targets.
 		("mem", "size_of") => {
 			let env = b.t.typing_env_pub();
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.size.bytes().to_string())
+		}
+		("mem", "align_of") => {
+			let env = b.t.typing_env_pub();
+			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
+			Expr::lit(layout.align.abi.bytes().to_string())
 		}
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.

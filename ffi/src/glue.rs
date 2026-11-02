@@ -563,6 +563,11 @@ impl Gen<'_> {
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
+			if object.shared {
+				self.line(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
+				));
+			}
 			let borrow = self.shared(i);
 			self.traits(&name, &path, object.traits, |e| {
 				format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")

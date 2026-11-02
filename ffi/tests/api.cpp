@@ -960,6 +960,21 @@ int lifetimes() {
 		check(std::move(a).into_level() == 2 && api::dropped() == before + 1, "the last copy moves out the value");
 	}
 
+	// A pending future borrows the value as though it held a copy: once the copy that made
+	// it goes, moving out of the last copy moves out a clone, as Rust moves out of a clone
+	// while a future borrows another.
+	{
+		std::uint32_t before = api::dropped();
+		api::gauge a = api::gauge::new_(4);
+		std::optional<api::gauge> made(a);
+		api::gauge_later_future later = made->later();
+		api::waker waker([]() {});
+		check(!later.poll(waker), "a future pends");
+		made.reset();
+		check(std::move(a).into_level() == 4 && api::dropped() == before, "the last copy moves out a clone while a future borrows it");
+		check(std::move(later).get() == 4 && api::dropped() == before + 1, "a future reads the value it borrows, and frees it once it finishes");
+	}
+
 	// Copies of a type whose clone is a value of its own, such as a lock behind a `Box`,
 	// keep apart: copying is `clone()`, which crosses into Rust, and a write through one
 	// clone never shows in the other.
@@ -1058,6 +1073,14 @@ int broken(const char *which) {
 		api::counter c = api::counter::new_("c", 0);
 		api::counter d = std::move(c);
 		c.get();
+	} else if (std::strcmp(which, "shared moved from") == 0) {
+		api::gauge g = api::gauge::new_(0);
+		api::gauge h = std::move(g);
+		std::move(g).into_level();
+	} else if (std::strcmp(which, "shared moved out") == 0) {
+		api::gauge g = api::gauge::new_(0);
+		std::move(g).into_level();
+		std::move(g).into_level();
 	} else if (std::strcmp(which, "lent copied") == 0) {
 		static std::optional<api::gauge> kept;
 		api::watch(api::gauge::new_(0), [](const api::gauge &lent) {
