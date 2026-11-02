@@ -301,6 +301,7 @@
               # generated Python and Dart, and build its generated Go through cgo.
               kotlin
               python3
+              # rust2-go's tests build and run its output against native Rust.
               go
               dart
             ];

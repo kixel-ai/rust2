@@ -26,7 +26,8 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A deque's two slices](/quest/m3/ts-deque-slices.md) - `VecDeque::as_slices` and `{:?}` of a deque's `Iter`, `IterMut`, and `Drain` translate, split where std's are
-- [Places through an adaptor's argument](/quest/m3/ts-adaptor-places.md) - `iter.zip(&mut v)` of values JS copies lends places as `for x in &mut v` does
+- [Comparing places](/quest/m3/ts-place-compares.md) - `a.iter_mut().eq(&mut b)` and its orderings compare the values places lend
+- [std::iter::zip](/quest/m3/ts-iter-zip.md) - the free `zip` translates as `Iterator::zip` does
 - [std's sorts call their tests in std's order](/quest/m3/ts-sort-order.md) - `slice::sort` and a B-tree's `collect` call `lt` or `cmp` as std's driftsort does past 16 elements
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
@@ -40,4 +41,5 @@ generic std gap is planned here even when moq never calls it.
 - [Fresh writes through a zip, a copy, and a repeat](/quest/m3/ts-fresh-shapes.md) - zipping a `Vec<[T; N]>`, reading a `T` out of `Zip::next`, and `copied` or `vec![x; n]` over a `Copy` type translate
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
+- [No unused import in an export's generated crate](/quest/m3/ffi-unused-c-void.md) - the crate rust2-ffi generates builds without warnings when no export uses `void *`
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
