@@ -19,11 +19,11 @@ mod uniffi
 default:
     @just --list
 
-# Lint what the branch changed since BASE: the land gate's base, or origin/main locally.
+# Lint what the branch changed since BASE: the merge group's base, or origin/main locally.
 check $BASE="":
     sh/dispatch.sh check "$BASE"
 
-# Run what the land gate runs: lint, then test, what the branch changed since BASE.
+# Run what the merge queue runs: lint, then test, what the branch changed since BASE.
 ci $BASE="":
     sh/dispatch.sh ci "$BASE"
 
