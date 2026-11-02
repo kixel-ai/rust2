@@ -1619,6 +1619,12 @@ export type Fmt = (f: Formatter) => FmtResult;
 /** A type's `Debug` or `Display`, as a function of its values. */
 export type Debug<T> = (value: T, f: Formatter) => FmtResult;
 
+/** `Box<dyn Debug>` or the like of `value`, written by `write`, which drops it by `drop` as it drops. */
+export function fmtOwned<T>(value: T, write: Debug<T>, drop?: (value: T) => void): Fmt {
+	const fmt = (f: Formatter) => write(value, f);
+	return drop === undefined ? fmt : Object.assign(fmt, { [Symbol.dispose]: () => drop(value) });
+}
+
 /** `fmt::Arguments`: literal pieces, and the values written between them. */
 export type Arguments = readonly (string | Fmt)[];
 
