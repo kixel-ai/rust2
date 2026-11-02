@@ -290,6 +290,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
 		("hashes::own", |_, data, out| hashes::own(data, out)),
 		("refs::compared", refs::compared),
+		("dyns::pointers", |_, data, out| dyns::pointers(data, out)),
 	]
 }
 

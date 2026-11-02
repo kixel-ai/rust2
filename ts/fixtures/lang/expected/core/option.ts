@@ -292,6 +292,13 @@ export function map$1j8xzu6(self: rt.u8 | undefined | rt.None, f: (a0: rt.u8 | u
 	return undefined;
 }
 
+export function map$1i542n2(self: rt.Arc<dyns_Shape.Shape> | undefined, f: (a0: rt.Arc<dyns_Shape.Shape>) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1mp7tga(self: rt.i64[] | undefined, f: (a0: rt.i64[]) => rt.usize): rt.usize | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -707,7 +714,7 @@ export function map$155qrdr(self: rt.Arc<defaults_Made.Made> | undefined, f: (a0
 	return f(self);
 }
 
-export function map$1i542n2(self: rt.Arc<dyns_Shape.Shape> | undefined, f: (a0: rt.Arc<dyns_Shape.Shape>) => rt.u32): rt.u32 | undefined {
+export function map$0j05j69(self: rt.Arc<rt.u32> | undefined, f: (a0: rt.Arc<rt.u32>) => rt.u32): rt.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

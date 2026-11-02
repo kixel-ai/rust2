@@ -434,13 +434,6 @@ impl Reading for u8 {
 	}
 }
 
-/// A `Weak` of a trait object, which would need an object made of a value that may be
-/// gone.
-pub fn weak_object(n: std::sync::Weak<u8>) -> Option<u8> {
-	let r: std::sync::Weak<dyn Reading> = n;
-	r.upgrade().map(|r| r.read())
-}
-
 pub trait Scaled<T> {
 	fn scale(&self, by: T) -> T;
 }

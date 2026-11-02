@@ -50,7 +50,6 @@ roots = [
     "bytes_mut_put",
     "bytes_mut_put_through",
     "addr_parsed",
-    "weak_object",
     "generic_object",
     "first_of",
     "tail_read",

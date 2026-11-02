@@ -488,8 +488,8 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	}
 }
 
-/// A call of `dyn Any`'s `is`, `downcast_ref`, or `downcast_mut`, or of `Box`'s or `Arc`'s
-/// `downcast`, each of which checks for the class a coercion wrapped a value of its type
+/// A call of `dyn Any`'s `is`, `downcast_ref`, or `downcast_mut`, or of `Box`'s, `Arc`'s, or
+/// `Rc`'s `downcast`, each of which checks for the class a coercion wrapped a value of its type
 /// in, or its arguments back if it is none of these.
 pub fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -502,7 +502,7 @@ pub fn call<'tcx>(
 	let tcx = b.t.tcx;
 	if !matches!(
 		(owner, name),
-		("dyn Any", "is" | "downcast_ref" | "downcast_mut") | ("Box" | "Arc", "downcast")
+		("dyn Any", "is" | "downcast_ref" | "downcast_mut") | ("Box" | "Arc" | "Rc", "downcast")
 	) {
 		return Err(args);
 	}
@@ -555,7 +555,14 @@ pub fn call<'tcx>(
 			Box::new(Expr::result(false, o.clone())),
 		),
 		// The `Arc` the object was made from, whose count the object shares.
-		_ => Expr::rt("arcDowncast", vec![o, Expr::Sym(value.sym)]),
+		_ => {
+			let held = crate::ts::Param {
+				name: "object".into(),
+				ty: None,
+			};
+			let held = Expr::Lambda(vec![held], Box::new(Expr::ident("object").field(value.v)));
+			Expr::rt("arcDowncast", vec![o, Expr::Sym(value.sym), held])
+		}
 	};
 	Ok(Some(e))
 }

@@ -165,9 +165,17 @@ function arcRoot(arc: Arc<unknown>): Arc<unknown> {
 	return arc instanceof ArcDyn ? arc.arc : arc;
 }
 
-/** `Arc::downcast` of an `Arc<dyn Any>`: the `Arc` it was made from, if its object is a `class`. */
-export function arcDowncast<T, U>(arc: Arc<U>, class_: abstract new (...args: never[]) => unknown): Result<Arc<T>, Arc<U>> {
-	return arc instanceof ArcDyn && arc.value instanceof class_ ? Ok(arc.arc as Arc<T>) : Err(arc);
+/**
+ * `Arc::downcast` of an `Arc<dyn Any>`, if its object is a `class`: the `Arc` it was made
+ * from, or one of what the object holds, by `held`, sharing the count of one made from a box.
+ */
+export function arcDowncast<T, U, C>(
+	arc: Arc<U>,
+	class_: abstract new (...args: never[]) => C,
+	held: (object: C) => T,
+): Result<Arc<T>, Arc<U>> {
+	if (!(arc.value instanceof class_)) return Err(arc);
+	return Ok(arc instanceof ArcDyn ? (arc.arc as Arc<T>) : new ArcDyn(arc, held(arc.value)));
 }
 
 /**
@@ -270,12 +278,18 @@ export function arcNewCyclic<T>(f: (weak: Weak<T>) => T): Arc<T> {
 	return arc;
 }
 
-/** `Weak<T>`, of `arc`, or else dangling, counted in `arc` until it drops. */
+/**
+ * `Weak<T>`, of `arc`, or else dangling, counted in `arc` until it drops. One unsized to a
+ * `Weak<dyn Trait>` keeps the `Arc` it was made from, which `view` makes an `Arc<dyn Trait>`
+ * of as it upgrades, since `Arc::new_cyclic`'s value may not be there yet.
+ */
 export class Weak<T> implements Disposable {
-	readonly arc: Arc<T>;
+	readonly arc: Arc<unknown>;
+	readonly view: ((arc: Arc<never>) => Arc<T>) | undefined;
 
-	constructor(arc: Arc<T> = DANGLING) {
+	constructor(arc: Arc<T> = DANGLING, view?: (arc: Arc<never>) => Arc<T>) {
 		this.arc = arc;
+		this.view = view;
 		arc.weak++;
 	}
 
@@ -284,14 +298,23 @@ export class Weak<T> implements Disposable {
 	}
 }
 
+/** `weak`, a `Weak<T>`, unsized to a `Weak<dyn Trait>` of what `view` makes of its `Arc`. */
+export function weakDyn<T, U>(weak: Weak<T>, view: (arc: Arc<T>) => Arc<U>): Weak<U> {
+	const dyn = new Weak(weak.arc as Arc<U>, view as (arc: Arc<never>) => Arc<U>);
+	weak.arc.weak--;
+	return dyn;
+}
+
 /** `Weak::upgrade`: a new `Arc`, or `undefined` once none is left. */
 export function weakUpgrade<T>(weak: Weak<T>): Arc<T> | undefined {
-	return weak.arc.strong > 0 ? arcClone(weak.arc) : undefined;
+	if (weak.arc.strong === 0) return undefined;
+	const arc = arcClone(weak.arc as Arc<never>);
+	return weak.view === undefined ? arc : weak.view(arc);
 }
 
 /** `Weak::clone`. */
 export function weakClone<T>(weak: Weak<T>): Weak<T> {
-	return new Weak(weak.arc);
+	return new Weak(weak.arc as Arc<T>, weak.view);
 }
 
 /** `Weak::weak_count`: its `Arc`'s, or 0 once no strong one is left, as for a dangling one. */
