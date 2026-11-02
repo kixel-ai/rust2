@@ -15,7 +15,8 @@ ranges of bounds that drop, a drain or a B-tree's `range` of a range that drops,
 map's `into_keys` and `into_values`, and the closures `for_each` and `fold` own landed in
 [#307](https://github.com/moq-dev/rust2/pull/307), with the task fixture's `inside` step.
 A `skip` of a zip std reads by index, a zip collected in place, and a `flatten` whose
-inner iterators hold items once they end landed in #PR, with its `indexed` and
+inner iterators hold items once they end landed in
+[#446](https://github.com/moq-dev/rust2/pull/446), with its `indexed` and
 `flattened` steps.
 Each left is refused with a span where std's order is one JS's can't follow yet:
 
