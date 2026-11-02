@@ -202,6 +202,17 @@ class Bytes private constructor(
 \t/** The bytes, copied. */
 \tfun toByteArray(): ByteArray = array?.copyOfRange(offset, offset + size) ?: copyInto(ByteArray(size))
 
+\t/** Whether [other] holds the same bytes, wherever each keeps them. */
+\toverride fun equals(other: Any?): Boolean =
+\t\tthis === other || other is Bytes && size == other.size && contents() == other.contents()
+
+\t/** A hash of the bytes, as [equals] compares them. */
+\toverride fun hashCode(): Int = contents().hashCode()
+
+\t// The bytes in Kotlin's memory, Rust's copied across in one call.
+\tprivate fun contents(): java.nio.ByteBuffer =
+\t\tjava.nio.ByteBuffer.wrap(array ?: toByteArray(), if (array == null) 0 else offset, size)
+
 \tprivate fun range(startIndex: Int, endIndex: Int) {
 \t\tif (startIndex < 0 || startIndex > endIndex || endIndex > size) {
 \t\t\tthrow kotlin.IndexOutOfBoundsException(\"$startIndex until $endIndex of $size bytes\")

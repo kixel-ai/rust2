@@ -277,7 +277,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
   which JNI keeps reachable until the call returns, and are freed once the GC finds no
   `Bytes` reaching them, slices included. `Bytes(ByteArray)` holds Kotlin's for a record
-  passed in.
+  passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
