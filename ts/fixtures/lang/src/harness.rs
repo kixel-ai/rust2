@@ -288,6 +288,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::maps", capacity::maps),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("dyns::iters", |_, data, out| dyns::iters(data, out)),
 	]
 }
 

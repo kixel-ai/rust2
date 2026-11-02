@@ -24,6 +24,7 @@ import type * as counts_Twin from "../counts.Twin.ts";
 import type * as cycles_Logged from "../cycles.Logged.ts";
 import * as defaults_Made from "../defaults.Made.ts";
 import type * as dyns_Shape from "../dyns.Shape.ts";
+import type * as dyns_Tagged from "../dyns.Tagged.ts";
 import * as edits_Named from "../edits.Named.ts";
 import type * as Ticked from "../generics.Ticked.ts";
 import type * as hints_Unit from "../hints.Unit.ts";
@@ -328,6 +329,13 @@ export function map$0xa0bn7(self: edits_Named.Named | undefined, f: (a0: edits_N
 }
 
 export function map$1u07cey(self: cycles_Logged.Logged | undefined, f: (a0: cycles_Logged.Logged) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$08a6hpg(self: dyns_Tagged.Tagged | undefined, f: (a0: dyns_Tagged.Tagged) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

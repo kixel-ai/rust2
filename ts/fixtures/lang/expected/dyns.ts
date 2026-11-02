@@ -2,8 +2,11 @@
 
 import * as rt from "./rt.ts";
 import * as Any from "./core/any.Any.ts";
-import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1i542n2 as option_map$1i542n2, mapOr$06rr3sb as option_mapOr$06rr3sb } from "./core/option.ts";
+import { thenSome$0d5am30 } from "./core/bool.ts";
+import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$08a6hpg as option_map$08a6hpg, map$1i542n2 as option_map$1i542n2, mapOr$06rr3sb as option_mapOr$06rr3sb } from "./core/option.ts";
 import { ok$0lceojf, map$0zzqmaz as result_map$0zzqmaz } from "./core/result.ts";
+import * as Chunks from "./dyns.Chunks.ts";
+import * as dyns_Countdown from "./dyns.Countdown.ts";
 import * as dyns_Erased from "./dyns.Erased.ts";
 import type * as Hits from "./dyns.Hits.ts";
 import * as Hook from "./dyns.Hook.ts";
@@ -11,6 +14,7 @@ import * as dyns_Named from "./dyns.Named.ts";
 import * as dyns_Shape from "./dyns.Shape.ts";
 import * as Shown from "./dyns.Shown.ts";
 import * as Square from "./dyns.Square.ts";
+import * as dyns_Tagged from "./dyns.Tagged.ts";
 import * as Tri from "./dyns.Tri.ts";
 import { put as fmt_put } from "./fmt.ts";
 
@@ -663,6 +667,159 @@ export function fns(data: rt.ByteSlice, out: rt.ByteVec): void {
 		shared[Symbol.dispose]();
 		hook[Symbol.dispose]();
 		rt.dropAll(fs);
+	}
+}
+
+export const DROPS: rt.LocalKey<rt.RefCell<rt.ByteVec>> = /* @__PURE__ */ new rt.LocalKey(DROPS$init, false);
+
+export function DROPS$init(): rt.RefCell<rt.ByteVec> {
+	return new rt.RefCell(new rt.ByteVec());
+}
+
+/** Puts what dropped since the last call. */
+export function dropped(out: rt.ByteVec): void {
+	const part = rt.localKeyWithBorrowMut(DROPS, (d: rt.ByteVec): rt.ByteVec => {
+		return rt.replaceIn(d, new rt.ByteVec());
+	});
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(part), f, rt.u8Debug)];
+	fmt_put(out, rt.fmtFormat([args2[0], " "]));
+}
+
+/** Each of the vtable's methods, then std's adaptors over the borrow, then by value. */
+export function read(it: rt.Iter<rt.u8>, out: rt.ByteVec): void {
+	const hint: [rt.usize, rt.usize | undefined] = rt.iterBorrow(it).sizeHint();
+	const first: rt.u8 | undefined = rt.iterToOption(it.next());
+	const third: rt.u8 | undefined = rt.iterNth(it, 1);
+	const pair: rt.ByteVec = rt.iterToByteVec(rt.iterTake(rt.iterStepBy(rt.iterBorrow(it), 2), 2), "next");
+	const rest: rt.u32 = rt.iterSum(rt.iterMap(rt.iterBorrow(it), (a0: rt.u8): rt.u32 => {
+		return a0 as rt.u32;
+	}), rt.u32Add, 0);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(hint[0], f), (f: rt.Formatter) => rt.fmtOption(hint[1], f, rt.usizeDebug)], f), (f: rt.Formatter) => rt.fmtOption(first, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(third, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(pair), f, rt.u8Debug), (f: rt.Formatter) => rt.u32Display(rest, f)];
+	fmt_put(out, rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " "]));
+}
+
+/**
+ * The first value at or past `from` that `f` answers, from either end, as moq's model
+ * scans its groups.
+ */
+export function scan$dyns_iters_closure1(map: rt.BTreeMap<rt.u64, rt.u8>, from: rt.u64, rev: boolean, f: (a0: rt.u8) => rt.u8 | undefined): rt.u8 | undefined {
+	const scan: (a0: rt.Iter<[rt.u64, rt.u8]>) => rt.u8 | undefined = (range: rt.Iter<[rt.u64, rt.u8]>): rt.u8 | undefined => {
+		if (!rev) {
+			return rt.iterFindMap(rt.iterMap(rt.iterBorrow(range), (_22: [rt.u64, rt.u8]): rt.u8 => {
+				return _22[1];
+			}), f);
+		}
+		return rt.iterFindMap(rt.iterRev(rt.iterBorrow(range)), (_2: [rt.u64, rt.u8]): rt.u8 | undefined => {
+			return f(_2[1]);
+		});
+	};
+	const part2 = rt.iterDyn(rt.iterBorrow(rt.btreeRange(map, new rt.RangeFrom(from, rt.u64Step))));
+	return scan(part2);
+}
+
+/** The length on either side of an item, and an upcast that reads the rest. */
+export function lens(it: rt.Iter<rt.u8>): string {
+	const before: rt.usize = rt.iterBorrow(it).len();
+	const first: rt.u8 | undefined = rt.iterToOption(it.next());
+	const after: rt.usize = rt.iterBorrow(it).len();
+	const back: rt.u8 | undefined = rt.iterLast(rt.iterBorrow(it));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(before, f), (f: rt.Formatter) => rt.fmtOption(first, f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(after, f), (f: rt.Formatter) => rt.fmtOption(back, f, rt.u8Debug)];
+	return rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3]]);
+}
+
+export function tagged(tags: rt.ByteSlice): dyns_Tagged.Tagged[] {
+	return rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(tags)), (_22: rt.u8): dyns_Tagged.Tagged => {
+		return new dyns_Tagged.Tagged(_22);
+	}), undefined, 1, true);
+}
+
+export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
+	if (data.length >= 2) {
+		const _10: [rt.u8, rt.u8] = [data.data[data.start], data.data[data.start + 1]];
+		const a: rt.u8 = _10[0];
+		const b: rt.u8 = _10[1];
+		read(rt.iterDyn(rt.iterBorrow(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 2))))), out);
+		read(rt.iterDyn(rt.iterBorrow(new rt.Range(a, b))), out);
+		const down: dyns_Countdown.Countdown = new dyns_Countdown.Countdown(rt.u8Rem(a, 16));
+		read(rt.iterDyn(rt.iterFrom(down, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it))), out);
+		dropped(out);
+		down[Symbol.dispose]();
+		dropped(out);
+		const _33: rt.Iter<[rt.u64, rt.u8]> = rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 2)))), (_2: [rt.usize, rt.u8]): [rt.u64, rt.u8] => {
+			return [_2[0] as rt.u64, _2[1]] as [rt.u64, rt.u8];
+		});
+		const map: rt.BTreeMap<rt.u64, rt.u8> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u64, rt.u8>, _33, true, undefined, undefined, undefined, 16, true);
+		const _44: rt.u8 | undefined = scan$dyns_iters_closure1(map, rt.u8Rem(a, 8) as rt.u64, false, (v: rt.u8): rt.u8 | undefined => {
+			return thenSome$0d5am30(rt.u8Rem(v, 2) === 1, v);
+		});
+		const _50: rt.u8 | undefined = scan$dyns_iters_closure1(map, rt.u8Rem(b, 8) as rt.u64, true, (v2: rt.u8): rt.u8 | undefined => {
+			return thenSome$0d5am30(rt.u8Rem(v2, 2) === 1, v2);
+		});
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_44, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_50, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args2[0], " ", args2[1], " "]));
+		const part = lens(rt.iterDyn(rt.iterBorrow(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 2))))));
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part)];
+		fmt_put(out, rt.fmtFormat([args4[0], " "]));
+		const _79: rt.usize = rt.usizeRem(a as rt.usize, rt.usizeAdd(rt.byteSliceRange(data, 2).length, 1));
+		const slice: rt.ByteSlice = rt.byteSliceRange(data, 2);
+		if (_79 > slice.length) {
+			rt.panic("mid > len");
+		}
+		const front: rt.ByteSlice = new rt.ByteSlice(slice.data, slice.start, _79);
+		const back: rt.ByteSlice = new rt.ByteSlice(slice.data, slice.start + _79, slice.length - _79);
+		const boxed: rt.Iter<dyns_Tagged.Tagged> = rt.iterDyn(rt.iterSlice(tagged(front), rt.drop));
+		const ends: [rt.u8 | undefined, rt.u8 | undefined] = [option_map$08a6hpg(rt.iterToOption(boxed.next()), (t: dyns_Tagged.Tagged): rt.u8 => {
+			const _04: rt.u8 = t._0;
+			t[Symbol.dispose]();
+			return _04;
+		}), option_map$08a6hpg(rt.iterToOption(boxed.nextBack()), (t2: dyns_Tagged.Tagged): rt.u8 => {
+			const _05: rt.u8 = t2._0;
+			t2[Symbol.dispose]();
+			return _05;
+		})];
+		const nth: rt.u8 | undefined = option_map$08a6hpg(rt.iterNth(boxed, 1, rt.drop), (t3: dyns_Tagged.Tagged): rt.u8 => {
+			const _06: rt.u8 = t3._0;
+			t3[Symbol.dispose]();
+			return _06;
+		});
+		dropped(out);
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(ends[0], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(ends[1], f, rt.u8Debug)], f), (f: rt.Formatter) => rt.fmtOption(nth, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args6[0], " ", args6[1], " "]));
+		rt.drop(boxed);
+		dropped(out);
+		const last: rt.u8 | undefined = option_map$08a6hpg(rt.ownedLast(rt.iterDyn(rt.iterChain(rt.iterSlice(tagged(front), rt.drop), rt.iterSlice(tagged(back), rt.drop))), rt.drop), (t4: dyns_Tagged.Tagged): rt.u8 => {
+			const _07: rt.u8 = t4._0;
+			t4[Symbol.dispose]();
+			return _07;
+		});
+		dropped(out);
+		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(last, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args8[0], " "]));
+		const part2 = rt.ownedCount(rt.iterDyn(rt.iterChain(rt.iterSlice(tagged(back), rt.drop), rt.iterSlice(tagged(front), rt.drop))), rt.drop);
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
+		fmt_put(out, rt.fmtFormat([args10[0], " "]));
+		dropped(out);
+		const own: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new dyns_Countdown.Countdown(rt.u8Rem(b, 16)), (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop));
+		let sum: rt.u32 = 0;
+		const iter: rt.Iter<rt.u8> = own;
+		while (true) {
+			const _166: rt.u8 | rt.Done = iter.next();
+			if (_166 === rt.DONE) {
+				break;
+			}
+			sum = rt.u32WrappingAdd(sum, _166 as rt.u32);
+		}
+		rt.drop(iter);
+		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(sum, f)];
+		fmt_put(out, rt.fmtFormat([args12[0], " "]));
+		dropped(out);
+		const split: Chunks.Chunks = new Chunks.of$dyns_Lease({ _0: rt.byteSliceToByteVec(rt.byteSliceRange(data, 2)), _1: rt.usizeAdd(rt.u8Rem(b, 4) as rt.usize, 1) });
+		const lens_: rt.usize[] = rt.iterToArray(rt.iterMap(split.chunks$Chunks(), (a0: rt.ByteSlice): rt.usize => {
+			return a0.length;
+		}), "next", 4);
+		const _206: rt.usize = rt.ownedCount(split.chunks$Chunks());
+		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_206, f)];
+		fmt_put(out, rt.fmtFormat([args14[0], " ", args14[1]]));
 	}
 }
 

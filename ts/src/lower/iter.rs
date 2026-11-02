@@ -46,6 +46,23 @@ impl<'tcx> Translator<'_, 'tcx> {
 		tcx.try_normalize_erasing_regions(self.typing_env_pub(), ty::Unnormalized::new_wip(projection))
 			.ok()
 	}
+
+	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`, or
+	/// `dyn ExactSizeIterator`, whose JS value is an `rt.Iter` of its items.
+	pub fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let ty::Dynamic(preds, ..) = ty.kind() else {
+			return None;
+		};
+		let principal = preds.principal_def_id()?;
+		let name = library::std_path(self.tcx, principal).pop()?;
+		if !matches!(
+			name.as_str(),
+			"Iterator" | "DoubleEndedIterator" | "ExactSizeIterator"
+		) {
+			return None;
+		}
+		self.iter_item(ty)
+	}
 }
 
 /// The crate's own iterator a `ty` is, through any references: its `next`, whose
@@ -111,6 +128,39 @@ pub fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr 
 			Expr::Sym(sym).call(vec![iter])
 		}
 		None => iter.member("next").call(Vec::new()),
+	}
+}
+
+impl<'tcx> Body<'_, '_, 'tcx> {
+	/// `value`, a `&`, `&mut`, or `Box` of an iterator unsized to `to`, the same pointer to a
+	/// `dyn Iterator`: an `rt.iterDyn` of the `rt.Iter` it is, which reads it by the methods
+	/// std's vtable has and else by `next`, as std's defaults read a trait object, and drops
+	/// it if the box owned it. An upcast from another is the same `rt.Iter`.
+	pub fn dyn_iter(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+		let tcx = self.t.tcx;
+		let Some(pointee) = from.builtin_deref(true).filter(|_| to.builtin_deref(true).is_some()) else {
+			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
+		};
+		if self.t.dyn_iter(pointee).is_some() {
+			return value;
+		}
+		// Another trait object, whose object has its trait's methods and is no `rt.Iter`.
+		if pointee.is_trait() {
+			return self.err(span, format!("an upcast from `{pointee}` to `{to}`, which is not supported yet"));
+		}
+		// A census over type parameters: only an instance decides what the pointee is.
+		if self.t.polymorphic() && pointee.has_param() {
+			return Expr::undefined();
+		}
+		// What a box owns iterates as itself, and what a reference borrows as a `&mut` does.
+		let ty = match from.is_box() {
+			true => pointee,
+			false => Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, pointee),
+		};
+		match into_iter(self, ty, value, span) {
+			Some(it) => Expr::rt("iterDyn", vec![it]),
+			None => self.err(span, format!("a coercion of `{from}` to `{to}`, which is not supported yet")),
+		}
 	}
 }
 

@@ -8,8 +8,8 @@ pub fn float(a: f16) -> f16 {
 	a * 2.0
 }
 
-pub fn dynamic(f: &mut dyn Iterator<Item = u8>) -> Option<u8> {
-	f.next()
+pub fn dynamic(h: &mut dyn std::hash::Hasher) -> u64 {
+	h.finish()
 }
 
 /// `None` and `Some(None)` would both be `rt.None`, as `Some(Some(None))` is `undefined`.

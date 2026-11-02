@@ -7,8 +7,8 @@ unsupported type `f16` at fixtures/reject/src/lib.rs:7:14
 a scalar constant of type `f16` at fixtures/reject/src/lib.rs:8:2
 arithmetic on `f16` at fixtures/reject/src/lib.rs:8:2
 unsupported type `f16` at fixtures/reject/src/lib.rs:7:25
-`dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:11:16
-`dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:12:4
+`dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:11:16
+`dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:12:4
 `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None` at fixtures/reject/src/lib.rs:17:2
 `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None` at fixtures/reject/src/lib.rs:16:15
 `slice::fill` of `Reused`, whose `clone_from` is its own, which is not supported yet at fixtures/reject/src/lib.rs:21:4

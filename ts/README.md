@@ -123,6 +123,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>` | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
+| `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
@@ -465,9 +466,17 @@ A `dyn Fn`, `dyn FnMut`, or `dyn FnOnce` is the closure or function it was made 
 a call calls as it does the closure, and which a box drops as it does the closure. One
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
-reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`, `dyn Future`,
-`dyn Any`, and the function traits, of a generic
+reference to one is `rt.lent` of it, which never drops it.
+
+A `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` behind `&`,
+`&mut`, or `Box` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
+of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
+such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
+trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
+trait object's does. A box drops the iterator it owns.
+
+A trait object of std's or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`,
+`dyn Future`, `dyn Any`, the function traits, and those iterators', of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -837,7 +846,7 @@ they need.
 
 Byte reinterpretation, pointer arithmetic and addresses, raw allocation, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
+`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Iterator` and its subtraits, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 

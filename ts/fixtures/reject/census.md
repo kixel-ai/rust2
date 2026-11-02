@@ -122,7 +122,7 @@ The type or module each refused type or path belongs to.
 | 2 | `[u8; 3]` | fixtures/reject/src/lib.rs:1726:15 |
 | 2 | `dyn Scaled` | fixtures/reject/src/lib.rs:464:23 |
 | 2 | `dyn std::any::Any` | fixtures/reject/src/lib.rs:532:32 |
-| 2 | `dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:11:16 |
+| 2 | `dyn std::hash::Hasher` | fixtures/reject/src/lib.rs:11:16 |
 | 2 | `slice` | fixtures/reject/src/lib.rs:21:4 |
 | 2 | `std::any::TypeId` | fixtures/reject/src/lib.rs:538:2 |
 | 2 | `std::collections::BTreeSet` | fixtures/reject/src/lib.rs:235:75 |
@@ -266,7 +266,7 @@ The type or module each refused type or path belongs to.
 | 3 | unsupported type `_` | `f16` | fixtures/reject/src/lib.rs:7:14 |
 | 2 | `_` is not supported: its `None` and `Some` would both be `rt.None` | `Option` | fixtures/reject/src/lib.rs:16:15 |
 | 2 | `_` of `_`, whose `None` is `rt.None`, which is not supported yet | `Iterator::scan`, `Option` | fixtures/reject/src/lib.rs:37:4 |
-| 2 | `_`, a trait object of another crate's trait, which is not supported yet | `dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:11:16 |
+| 2 | `_`, a trait object of another crate's trait, which is not supported yet | `dyn std::hash::Hasher` | fixtures/reject/src/lib.rs:11:16 |
 | 2 | `_`, a trait object of the generic trait `_`, which is not supported yet | `dyn Scaled`, `Scaled` | fixtures/reject/src/lib.rs:464:23 |
 | 2 | a raw pointer to `_` in `_`, which the crate may put another object in place of | `std::mem::MaybeUninit`, `Gap` | fixtures/reject/src/lib.rs:922:19 |
 | 2 | a raw pointer to `_` in a variable assigned again while it may point there | `[u8; 4]` | fixtures/reject/src/lib.rs:1733:26 |
@@ -687,8 +687,8 @@ The type or module each refused type or path belongs to.
 
 <details><summary>`_`, a trait object of another crate's trait, which is not supported yet (2)</summary>
 
-- fixtures/reject/src/lib.rs:11:16: `dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet
-- fixtures/reject/src/lib.rs:12:4: `dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet
+- fixtures/reject/src/lib.rs:11:16: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
+- fixtures/reject/src/lib.rs:12:4: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
 
 </details>
 

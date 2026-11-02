@@ -4,9 +4,14 @@
 //! them, `self: Box<Self>`, and an upcast to the supertrait. Behind an `Arc`, the object
 //! shares the count of the `Arc` it was made from. A `dyn Any` downcasts to the type it
 //! was made of, borrowed, boxed, or shared. A `dyn Fn*` of a closure, a function, or a
-//! function pointer calls it, changing what it captured, borrowed, boxed, or shared.
+//! function pointer calls it, changing what it captured, borrowed, boxed, or shared. A
+//! `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` of std's
+//! iterators or the crate's own, borrowed or boxed, reads by its vtable's methods and
+//! folds by `next`, dropping what it owns in std's order.
 
 use std::any::Any;
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::fmt::{self, Debug};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Weak};
@@ -525,4 +530,142 @@ pub fn fns(data: &[u8], out: &mut Vec<u8>) {
 		out,
 		&format!("{} {} {}", shared(a), other(b), Arc::strong_count(&other)),
 	);
+}
+
+thread_local! {
+	static DROPS: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Puts what dropped since the last call.
+fn dropped(out: &mut Vec<u8>) {
+	let tags = DROPS.with_borrow_mut(|d| std::mem::take(d));
+	put(out, &format!("{tags:?} "));
+}
+
+/// Logs its tag as it drops.
+struct Tagged(u8);
+
+impl Drop for Tagged {
+	fn drop(&mut self) {
+		DROPS.with_borrow_mut(|d| d.push(self.0));
+	}
+}
+
+/// The crate's own iterator, counting down, which logs 200 as it drops.
+struct Countdown(u8);
+
+impl Iterator for Countdown {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+}
+
+impl Drop for Countdown {
+	fn drop(&mut self) {
+		DROPS.with_borrow_mut(|d| d.push(200));
+	}
+}
+
+/// Each of the vtable's methods, then std's adaptors over the borrow, then by value.
+fn read(it: &mut dyn Iterator<Item = u8>, out: &mut Vec<u8>) {
+	let hint = it.size_hint();
+	let first = it.next();
+	let third = it.nth(1);
+	let pair: Vec<u8> = (&mut *it).step_by(2).take(2).collect();
+	let rest: u32 = it.map(u32::from).sum();
+	put(out, &format!("{hint:?} {first:?} {third:?} {pair:?} {rest} "));
+}
+
+/// The first value at or past `from` that `f` answers, from either end, as moq's model
+/// scans its groups.
+fn scan<'a>(map: &'a BTreeMap<u64, u8>, from: u64, rev: bool, mut f: impl FnMut(&'a u8) -> Option<u8>) -> Option<u8> {
+	let mut scan = |range: &mut dyn DoubleEndedIterator<Item = (&'a u64, &'a u8)>| match rev {
+		true => range.rev().find_map(|(_, v)| f(v)),
+		false => range.map(|(_, v)| v).find_map(&mut f),
+	};
+	scan(&mut map.range(from..))
+}
+
+/// The length on either side of an item, and an upcast that reads the rest.
+fn lens(it: &mut dyn ExactSizeIterator<Item = &u8>) -> String {
+	let before = it.len();
+	let first = it.next().copied();
+	let after = it.len();
+	let up: &mut dyn Iterator<Item = &u8> = it;
+	let back = up.last().copied();
+	format!("{before} {first:?} {after} {back:?}")
+}
+
+fn tagged(tags: &[u8]) -> Vec<Tagged> {
+	tags.iter().map(|&t| Tagged(t)).collect()
+}
+
+/// Lends its bytes as parts, as moq's transports lend a stream's chunks.
+trait Chunks {
+	fn chunks(&self) -> Box<dyn Iterator<Item = &[u8]> + '_>;
+}
+
+struct Lease(Vec<u8>, usize);
+
+impl Chunks for Lease {
+	fn chunks(&self) -> Box<dyn Iterator<Item = &[u8]> + '_> {
+		Box::new(self.0.chunks(self.1))
+	}
+}
+
+pub fn iters(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, rest @ ..] = data else {
+		return;
+	};
+	let (a, b) = (*a, *b);
+
+	// Borrowed: std's iterators, a range, and the crate's own, which the borrow never drops.
+	read(&mut rest.iter().copied(), out);
+	read(&mut (a..b), out);
+	let mut down = Countdown(a % 16);
+	read(&mut down, out);
+	dropped(out);
+	drop(down);
+	dropped(out);
+	let map: BTreeMap<u64, u8> = rest.iter().enumerate().map(|(i, &x)| (i as u64, x)).collect();
+	let odd = |v: &u8| (v % 2 == 1).then_some(*v);
+	put(
+		out,
+		&format!("{:?} {:?} ", scan(&map, u64::from(a % 8), false, odd), scan(&map, u64::from(b % 8), true, odd)),
+	);
+	put(out, &format!("{} ", lens(&mut rest.iter())));
+
+	// Boxed: what it owns drops as it reads, then the rest as the box drops, in std's order.
+	let (front, back) = rest.split_at(usize::from(a) % (rest.len() + 1));
+	let mut boxed: Box<dyn DoubleEndedIterator<Item = Tagged>> = Box::new(tagged(front).into_iter());
+	let ends = (boxed.next().map(|t| t.0), boxed.next_back().map(|t| t.0));
+	let nth = boxed.nth(1).map(|t| t.0);
+	dropped(out);
+	put(out, &format!("{ends:?} {nth:?} "));
+	drop(boxed);
+	dropped(out);
+	// A chain's own `last` keeps the first half's last until the end; through the box, std's
+	// default reads by `next` instead.
+	let chained: Box<dyn Iterator<Item = Tagged>> = Box::new(tagged(front).into_iter().chain(tagged(back)));
+	let last = chained.last().map(|t| t.0);
+	dropped(out);
+	put(out, &format!("{last:?} "));
+	let counted: Box<dyn Iterator<Item = Tagged>> = Box::new(tagged(back).into_iter().chain(tagged(front)));
+	put(out, &format!("{} ", counted.count()));
+	dropped(out);
+	let own: Box<dyn Iterator<Item = u8>> = Box::new(Countdown(b % 16));
+	let mut sum = 0u32;
+	for x in own {
+		sum = sum.wrapping_add(u32::from(x));
+	}
+	put(out, &format!("{sum} "));
+	dropped(out);
+
+	// Returned through a trait object of the crate's own trait.
+	let split: &dyn Chunks = &Lease(rest.to_vec(), usize::from(b % 4) + 1);
+	let lens: Vec<usize> = split.chunks().map(<[u8]>::len).collect();
+	put(out, &format!("{lens:?} {}", split.chunks().count()));
 }

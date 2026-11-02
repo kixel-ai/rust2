@@ -22,7 +22,7 @@ import { cows, slices as cows_slices, bytes as cows_bytes } from "./cows.ts";
 import { cycles } from "./cycles.ts";
 import { defaults as defaults_defaults } from "./defaults.ts";
 import { durations } from "./durations.ts";
-import { dyns, shared as dyns_shared, anys, fns } from "./dyns.ts";
+import { dyns, shared as dyns_shared, anys, fns, iters as dyns_iters } from "./dyns.ts";
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
 import { eqs } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
@@ -280,6 +280,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::iters", (_2199: rt.u8, data99: rt.ByteSlice, out100: rt.ByteVec): undefined => {
+		dyns_iters(data99, out100);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
