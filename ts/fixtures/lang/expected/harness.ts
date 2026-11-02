@@ -22,7 +22,7 @@ import { cows, slices as cows_slices, bytes as cows_bytes } from "./cows.ts";
 import { cycles } from "./cycles.ts";
 import { defaults as defaults_defaults } from "./defaults.ts";
 import { durations } from "./durations.ts";
-import { dyns, shared as dyns_shared, anys, fns, pointers } from "./dyns.ts";
+import { dyns, shared as dyns_shared, anys, fns } from "./dyns.ts";
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
 import { eqs } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
@@ -291,8 +291,6 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		sorts(a0160, a1160.data, a1160.start, a1160.length, a2160);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0162: rt.u8, a1162: rt.ByteSlice, a2162: rt.ByteVec): undefined => {
 		sorts_btrees(a0162, a1162.data, a1162.start, a1162.length, a2162);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::pointers", (_2201: rt.u8, data101: rt.ByteSlice, out102: rt.ByteVec): undefined => {
-		pointers(data101.data, data101.start, data101.length, out102);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
