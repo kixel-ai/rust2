@@ -366,8 +366,17 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 				.wrapping_sub(1)
 				.is_null() as u8,
 		);
+		out.push(ptr::slice_from_raw_parts(ptr::null::<u32>(), 0).is_null() as u8);
+		out.push(ptr::slice_from_raw_parts_mut(ptr::null_mut::<u8>(), 0).is_null() as u8);
 		let none = unsafe { slice::from_raw_parts(NonNull::<u8>::dangling().as_ptr(), 0) };
 		out.push(none.as_ptr().wrapping_sub(1).is_null() as u8);
+		out.push(none[0..0].as_ptr().wrapping_sub(1).is_null() as u8);
+		let off = ptr::null::<u32>().wrapping_add(usize::from(n % 3) + 1);
+		out.push(
+			(ptr::slice_from_raw_parts(off, 0) as *const u32)
+				.wrapping_sub(usize::from(n % 3) + 1)
+				.is_null() as u8,
+		);
 		// Null and dangling pointers to arrays, cast to ones to their first elements.
 		out.push((ptr::null::<[u32; 2]>() as *const u32).is_null() as u8);
 		out.push(

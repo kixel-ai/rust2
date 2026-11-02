@@ -161,17 +161,18 @@ export type CowOf<T> = Cow<T> | ByteCow;
  * or dangling pointer to an array is one to its first element, at the same address.
  */
 export function sliceAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
-	if (s === NULL || s === NULL_SLICE) return NULL;
-	if (s === DANGLING || s === DANGLING_SLICE) return DANGLING;
+	if (s === NULL) return NULL;
+	if (s === DANGLING) return DANGLING;
 	const view = (s as { [VIEW]?: View<T> })[VIEW];
-	return view ? new AtIndex(view.s, view.start + index) : new AtIndex(s, index);
+	const [array, at] = view ? [view.s, view.start + index] : [s, index];
+	return (EMPTY.get(array) as Place<T> | undefined) ?? new AtIndex(array, at);
 }
 
 /** The pointer to byte `index` of `s`, or `s` if it is null or dangling, as `sliceAsPtr`'s. */
 export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
-	if (s === NULL || s === NULL_BYTES) return NULL;
-	if (s === DANGLING || s === DANGLING_BYTES) return DANGLING;
-	return new AtIndex(s.data, s.start + index);
+	if (s === NULL) return NULL;
+	if (s === DANGLING) return DANGLING;
+	return (EMPTY.get(s.data) as Place<number> | undefined) ?? new AtIndex(s.data, s.start + index);
 }
 
 /** The pointer to the first byte of `v`'s storage. */
@@ -315,16 +316,19 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 }
 
 /**
- * The empty slices from a null and a dangling pointer, which keep the pointer they were
- * made from, as `sliceAsPtr` gives back; `NULL_BYTES` and `DANGLING_BYTES` are their bytes'.
+ * The pointer each empty slice made from a pointer into no array was made from, by the
+ * storage every part of it shares, which `sliceAsPtr` and `byteSliceAsPtr` give back.
  */
-const NULL_SLICE: never[] = /* @__PURE__ */ Object.freeze([]) as never[];
-const DANGLING_SLICE: never[] = /* @__PURE__ */ Object.freeze([]) as never[];
+const EMPTY = /* @__PURE__ */ new WeakMap<object, Place<unknown>>();
 
 /** `slice::from_raw_parts` and `ptr::slice_from_raw_parts` of `len` elements from `p`. */
 export function ptrSlice<T>(p: Place<T>, len: number): T[] {
-	if (len === 0 && p === NULL) return NULL_SLICE;
-	if (len === 0 && p === DANGLING) return DANGLING_SLICE;
+	// None from a pointer into no array, such as null's or a dangling one's, keeps it.
+	if (len === 0 && !(p instanceof AtIndex)) {
+		const none = Object.freeze([]) as unknown as T[];
+		EMPTY.set(none, p);
+		return none;
+	}
 	const at = elemOf(p);
 	at.reach(len);
 	const array = at.array as T[];
@@ -337,8 +341,11 @@ export function ptrSlice<T>(p: Place<T>, len: number): T[] {
  * writes them while it lives.
  */
 export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): ByteSlice {
-	if (len === 0 && p === NULL) return NULL_BYTES;
-	if (len === 0 && p === DANGLING) return DANGLING_BYTES;
+	if (len === 0 && !(p instanceof AtIndex)) {
+		const none = new Uint8Array(0);
+		EMPTY.set(none, p);
+		return new ByteSlice(none, 0, 0);
+	}
 	const at = elemOf(p);
 	at.reach(len);
 	if (at.array instanceof Uint8Array) return new ByteSlice(at.array, at.index, len);
@@ -1085,10 +1092,6 @@ export class ByteSlice {
 		this.length = length;
 	}
 }
-
-/** The empty byte slices from a null and a dangling pointer, as `NULL_SLICE` and `DANGLING_SLICE`. */
-const NULL_BYTES = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ new ByteSlice(/* @__PURE__ */ new Uint8Array(0), 0, 0));
-const DANGLING_BYTES = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ new ByteSlice(/* @__PURE__ */ new Uint8Array(0), 0, 0));
 
 /** All of `bytes` as a slice, as `&[u8; N]` coerces to `&[u8]`. */
 export function byteSliceFrom(bytes: Uint8Array): ByteSlice {

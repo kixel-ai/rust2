@@ -478,6 +478,14 @@ pub fn call<'tcx>(
 		("ptr" | "NonNull", "addr" | "expose_provenance" | "with_addr" | "map_addr" | "without_provenance") => {
 			b.err(span, "a pointer's address, which JS has no counterpart of")
 		}
+		// A raw pointer to a slice is an `rt.Place` of it, null where its data pointer is.
+		("ptr", "is_null") if let ty::Slice(elem) = pointee().kind() => {
+			let f = match elem.kind() {
+				ty::Uint(ty::UintTy::U8) => "byteSliceAsPtr",
+				_ => "sliceAsPtr",
+			};
+			Expr::rt(f, vec![arg().member("v")]).binary("===", Expr::Rt("NULL".into()))
+		}
 		("ptr", "is_null") => arg().binary("===", Expr::Rt("NULL".into())),
 		("NonNull", "as_mut") if bytes(b, pointee()) => to_reference(arg()),
 		// The same pointer, as another type of the same pointee.
