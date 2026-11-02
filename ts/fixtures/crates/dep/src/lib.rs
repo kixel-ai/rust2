@@ -77,7 +77,6 @@ impl Iterator for Countdown {
 	}
 }
 
-#[cfg(feature = "rev")]
 impl DoubleEndedIterator for Countdown {
 	fn next_back(&mut self) -> Option<u8> {
 		if self.next == self.last {

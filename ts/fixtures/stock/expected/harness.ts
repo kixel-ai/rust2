@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { bytesMut, reserves, reads, writes, edits } from "./buf.ts";
 import * as Owner from "./harness.Owner.ts";
-import { map as maps_map, table, capacity, linked } from "./maps.ts";
+import { map as maps_map, table, capacity, linked, linkedIters } from "./maps.ts";
 
 /**
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
@@ -28,7 +28,9 @@ export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefine
 		table(a011.data, a011.start, a011.length, a111);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::capacity", (a012: rt.ByteSlice, a112: rt.ByteVec): undefined => {
 		capacity(a012.data, a012.start, a012.length, a112);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked", linked as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked", linked as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked_iters", (a014: rt.ByteSlice, a114: rt.ByteVec): undefined => {
+		linkedIters(a014.data, a014.start, a014.length, a114);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
 }
 
 /** Run one case. */

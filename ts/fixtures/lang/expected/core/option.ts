@@ -819,6 +819,13 @@ export function map$0cs071d(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8): r
 	return f(self);
 }
 
+export function map$0vbopjd(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.usize): rt.usize | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0at3a41(self: undefined | rt.None, f: (a0: undefined) => rt.u8 | undefined): rt.u8 | undefined | rt.None {
 	if (self === rt.None) {
 		return rt.None;

@@ -864,4 +864,15 @@ const capacityCases = [
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
 ];
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases];
+/**
+ * `ends::ends`: each kind of iterator through every consumer and either end's bits, of
+ * runs empty, short, and long, whose hints are exact, loose, and lying, after none and a
+ * few steps through each of its methods.
+ */
+const endsCases = [0x00, 0x03, 0x0f, 0x15, 0x27, 0x36, 0x2f].flatMap((shape) =>
+	[[], [0x01, 0x00], [0x0a, 0x03], [0x05, 0x06, 0x04, 0x0f]].flatMap((steps) =>
+		Array.from({ length: 4 * 256 }, (_, i) => Uint8Array.of(...op("ends::ends"), i % 4, shape, i >> 2, ...steps)),
+	),
+);
+
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...endsCases];

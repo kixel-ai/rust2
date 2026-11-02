@@ -23,8 +23,6 @@ roots = [
     "keyed",
     "keyed_across",
     "place_bounds",
-    "hinted",
-    "fused",
     "skipped_zip",
     "zip_in_place",
     "replace_pinned_ref",

@@ -24,6 +24,7 @@ import { defaults as defaults_defaults } from "./defaults.ts";
 import { durations } from "./durations.ts";
 import { dyns, shared as dyns_shared, anys, fns } from "./dyns.ts";
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
+import { ends as ends_ends } from "./ends.ts";
 import { eqs } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
 import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as floats_parses } from "./floats.ts";
@@ -280,6 +281,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["ends::ends", (a0159: rt.u8, a1159: rt.ByteSlice, a2159: rt.ByteVec): undefined => {
+		ends_ends(a0159, a1159.data, a1159.start, a1159.length, a2159);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
