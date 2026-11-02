@@ -2321,8 +2321,8 @@ fn mapping<'tcx>(
 		("str", "bytes") => Expr::rt("strBytes", args),
 		("str", "is_char_boundary") => Expr::rt("strIsCharBoundary", args),
 		// Searches by a pattern.
-		("str", "split" | "match_indices" | "contains" | "starts_with" | "ends_with" | "rfind" | "split_once")
-		| ("str", "trim_start_matches" | "trim_end_matches") => {
+		("str", "split" | "split_terminator" | "match_indices" | "contains" | "starts_with" | "ends_with")
+		| ("str", "rfind" | "split_once" | "rsplit_once" | "trim_start_matches" | "trim_end_matches") => {
 			let [s, p] = <[Expr; 2]>::try_from(args).ok()?;
 			Expr::rt_of("str", &super::camel(&name)).call(vec![s, pattern(b.t, targ(gargs, 0), p)?])
 		}
