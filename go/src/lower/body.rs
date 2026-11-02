@@ -871,6 +871,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			true => self.runtime(a, span),
 			false => self.operand(a, span),
 		};
+		// Go's `&&` and `||`, which booleans' operators lower to, may not evaluate it.
+		self.fold_ok = !ty.is_bool();
 		let y = match matches!(
 			op,
 			BinOp::Div | BinOp::Rem | BinOp::Shl | BinOp::Shr | BinOp::ShlUnchecked | BinOp::ShrUnchecked
@@ -878,6 +880,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			true => self.runtime(b, span),
 			false => self.operand(b, span),
 		};
+		self.fold_ok = true;
 		let signed = ty.is_signed();
 		let bits = match ty.is_integral() {
 			true => int_bits(self.tcx, ty),

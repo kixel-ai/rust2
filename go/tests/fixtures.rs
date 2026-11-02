@@ -300,7 +300,7 @@ fn items() {
 /// an overflow check past another would change the output or the panic.
 #[test]
 fn order() {
-	differential("order", order::run, "Run", cases(9, 4, 2_000));
+	differential("order", order::run, "Run", cases(10, 4, 2_000));
 }
 
 /// Constructs outside the subset each fail translation with a span, as

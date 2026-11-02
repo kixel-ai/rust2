@@ -29,7 +29,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 	};
 	let mut a = data.first().copied().unwrap_or(0);
 	let b = data.get(1).copied().unwrap_or(0);
-	match pick % 9 {
+	match pick % 10 {
 		// A call's result, then memory it changed.
 		0 => {
 			let r = bump(&mut a);
@@ -80,6 +80,14 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		},
 		// A checked subtraction whose result a call then reads.
 		7 => vec![nonzero(a - b)],
+		// Calls right of booleans' `&`, `|`, and `<`, which run whatever is on the left.
+		8 => {
+			let and = (a > 9) & (bump(&mut a) > 9);
+			let or = (b > 9) | (bump(&mut a) > 9);
+			#[expect(clippy::bool_comparison, reason = "the comparison Go lowers to `&&`")]
+			let lt = (b > 9) < (nonzero(b) > 9);
+			vec![and as u8, or as u8, lt as u8, a]
+		}
 		// A call that can panic, then one that changes memory.
 		_ => {
 			let r = nonzero(b);

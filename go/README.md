@@ -57,7 +57,7 @@ generic over a constant, such as an array's by-value iterator.
 Rust on the same inputs, failing on any difference in output or panic message:
 `fixtures/codec` is rust2-ts's harness over moq's codec, `fixtures/ints` every
 integer width's arithmetic, overflow, division by zero, and shifts, and `fixtures/order`
-calls, reads, and overflow checks a folded temporary could reorder.
+calls, reads, and overflow checks a folded temporary could reorder or skip.
 
 `just go bench` times the codec's workloads translated against the same crate exported by
 rust2-ffi and called through cgo.
