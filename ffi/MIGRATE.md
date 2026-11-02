@@ -14,13 +14,15 @@
   name the Swift uses, such as `Data`, takes a `rename`.
 - Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
   with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
-- Kotlin returns bytes as a `Bytes`, not a `ByteArray`: Rust's buffer as `bytes.buffer`, a
-  read-only `ByteBuffer`, copied up to 1 KiB and otherwise a direct one lent uncopied
-  until `bytes.close()` frees it. Read it in `use { }`, or copy it out with
-  `toByteArray()`. A record's bytes field is a `Bytes` too: build one to pass in with
-  `Bytes(byteArray)`. Arguments stay `ByteArray`. Kotlin's objects and `Bytes` never
-  closed are freed once the GC collects them, and an exported type named `bytes` clashes
-  with the runtime's `<prefix>_bytes`, which takes a `rename`.
+- Kotlin returns bytes as a `Bytes`, not a `ByteArray`, read through `size`, `get`,
+  `slice`, `copyInto`, and `toByteArray()`. It has no `buffer` and no `close()`, so no
+  `ByteBuffer` over Rust's memory outlives it: drop `use { }` and read `bytes.buffer`'s
+  contents through these instead, such as `bytes.toByteArray()` or `bytes[0]`. Rust's
+  buffer is freed once the GC finds no `Bytes` reaching it, its slices included. A
+  record's bytes field is a `Bytes` too: build one to pass in with `Bytes(byteArray)`.
+  Arguments stay `ByteArray`. Kotlin's objects never closed are freed once the GC
+  collects them, and an exported type named `bytes` clashes with the runtime's
+  `<prefix>_bytes`, which takes a `rename`.
 - A type parameter bounded by serde's `Serialize` or `Deserialize` takes
   `serde_json::Value`, not `String`: C passes a `<prefix>_json` it parses from JSON text
   with `<prefix>_json_parse`, not a buffer, and a generic type at such a parameter is
