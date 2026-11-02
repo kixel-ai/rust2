@@ -2637,10 +2637,10 @@ export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hi
 	} else if (coll === 7) {
 		len = rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmpSlice(rt.cmp)) as rt.BTreeSet<rt.u32[]>, items, true, undefined, "next", 1100));
 	} else if (coll === 8) {
-		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
+		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
 	} else if (coll === 9) {
 		const _41: [rt.u32[], rt.u32][] = [[seed, 0] as [rt.u32[], rt.u32]];
-		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
+		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
 		const _46: rt.Iter<[rt.u32[], rt.u32]> = rt.iterMap(items, (t3: rt.u32[]): [rt.u32[], rt.u32] => {
 			return [t3, 1] as [rt.u32[], rt.u32];
 		});
@@ -2707,10 +2707,10 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 	} else if (coll === 7) {
 		len = rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmpSlice(rt.cmp)) as rt.BTreeSet<rt.u32[]>, items, true, undefined, "next", 1100));
 	} else if (coll === 8) {
-		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
+		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
 	} else if (coll === 9) {
 		const _41: [rt.u32[], rt.u32][] = [[seed, 0] as [rt.u32[], rt.u32]];
-		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
+		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
 		const _46: rt.Iter<[rt.u32[], rt.u32]> = rt.iterMap(items, (t3: rt.u32[]): [rt.u32[], rt.u32] => {
 			return [t3, 1] as [rt.u32[], rt.u32];
 		});
@@ -2777,10 +2777,10 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 	} else if (coll === 7) {
 		len = rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmpSlice(rt.cmp)) as rt.BTreeSet<rt.u32[]>, items, true, undefined, "next", 1100));
 	} else if (coll === 8) {
-		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
+		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
 	} else if (coll === 9) {
 		const _41: [rt.u32[], rt.u32][] = [[seed, 0] as [rt.u32[], rt.u32]];
-		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
+		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
 		const _46: rt.Iter<[rt.u32[], rt.u32]> = rt.iterMap(items, (t3: rt.u32[]): [rt.u32[], rt.u32] => {
 			return [t3, 1] as [rt.u32[], rt.u32];
 		});
@@ -2847,10 +2847,10 @@ export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 	} else if (coll === 7) {
 		len = rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmpSlice(rt.cmp)) as rt.BTreeSet<rt.u32[]>, items, true, undefined, undefined, 1100, true));
 	} else if (coll === 8) {
-		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
+		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
 	} else if (coll === 9) {
 		const _41: [rt.u32[], rt.u32][] = [[seed, 0] as [rt.u32[], rt.u32]];
-		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
+		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
 		const _46: rt.Iter<[rt.u32[], rt.u32]> = rt.iterMap(items, (t3: rt.u32[]): [rt.u32[], rt.u32] => {
 			return [t3, 1] as [rt.u32[], rt.u32];
 		});
@@ -2917,10 +2917,10 @@ export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hint
 	} else if (coll === 7) {
 		len = rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmpSlice(rt.cmp)) as rt.BTreeSet<rt.u32[]>, items, true, undefined, "next", 1100));
 	} else if (coll === 8) {
-		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
+		len = rt.hashLen(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashSet<rt.u32[]>, items, undefined, undefined, 917504));
 	} else if (coll === 9) {
 		const _41: [rt.u32[], rt.u32][] = [[seed, 0] as [rt.u32[], rt.u32]];
-		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashSlice(rt.hash32), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
+		const m: rt.HashMap<rt.u32[], rt.u32> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashInts(4), rt.eqSlice(rt.same))) as rt.HashMap<rt.u32[], rt.u32>, rt.iterSlice(_41), undefined, undefined, undefined, 917504);
 		const _46: rt.Iter<[rt.u32[], rt.u32]> = rt.iterMap(items, (t3: rt.u32[]): [rt.u32[], rt.u32] => {
 			return [t3, 1] as [rt.u32[], rt.u32];
 		});

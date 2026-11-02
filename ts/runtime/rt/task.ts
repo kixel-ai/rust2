@@ -669,8 +669,8 @@ export function cellIn<T extends object>(p: T): Cell<T> {
 }
 
 /**
- * `PartialEq`, `PartialOrd`, or `Ord` of `Cell`s, or `PartialEq` of `OnceCell`s or
- * `OnceLock`s, by `f` of what each holds.
+ * `PartialEq`, `PartialOrd`, or `Ord` of `Cell`s or places, or `PartialEq` of `OnceCell`s
+ * or `OnceLock`s, by `f` of what each holds.
  */
 export function cellBy<T, R>(f: (a: T, b: T) => R): (a: { v: T }, b: { v: T }) => R {
 	return (a, b) => f(a.v, b.v);

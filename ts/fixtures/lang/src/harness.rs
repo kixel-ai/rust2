@@ -289,6 +289,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
 		("collections::deque_ranges", collections::deque_ranges),
+		("hashes::own", |_, data, out| hashes::own(data, out)),
+		("refs::compared", refs::compared),
 	]
 }
 
