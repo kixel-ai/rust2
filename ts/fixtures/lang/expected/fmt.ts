@@ -10,6 +10,7 @@ import * as Capped from "./fmt.Capped.ts";
 import * as Clip from "./fmt.Clip.ts";
 import * as Dropper from "./fmt.Dropper.ts";
 import * as Fails from "./fmt.Fails.ts";
+import * as fmt_Gauge from "./fmt.Gauge.ts";
 import * as Hex from "./fmt.Hex.ts";
 import * as Kind from "./fmt.Kind.ts";
 import * as Manual from "./fmt.Manual.ts";
@@ -2199,7 +2200,7 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 }
 
 export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
-	let _218: boolean = false;
+	let _372: boolean = false;
 	const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
 	const dropper: (a0: rt.u8) => Dropper.Dropper = (tag: rt.u8): Dropper.Dropper => {
 		return new Dropper.Dropper(tag, rt.arcClone(log));
@@ -2210,8 +2211,8 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_6.value = new rt.ByteVec();
 		const tags: rt.ByteVec = taken;
 		rt.refMutRelease(_6);
-		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(tags), f, rt.u8Debug)];
-		put(out2, rt.fmtFormat([args18[0], " "]));
+		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(tags), f, rt.u8Debug)];
+		put(out2, rt.fmtFormat([args32[0], " "]));
 	};
 	const shown: rt.Fmt[] = [];
 	const written: rt.Fmt[] = [];
@@ -2259,7 +2260,8 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.dropAll(shown);
 		log[Symbol.dispose]();
 	} else {
-		const _121: rt.Arc<[rt.u8, rt.u8]> = new rt.Arc([data.data[data.start], data.data[data.start + 1]] as [rt.u8, rt.u8]);
+		const b: rt.u8 = data.data[data.start + 1];
+		const _121: rt.Arc<[rt.u8, rt.u8]> = new rt.Arc([data.data[data.start], b] as [rt.u8, rt.u8]);
 		const shared: rt.Arc<rt.Fmt> = new rt.ArcDyn(_121, rt.fmtOwned(_121.value, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)));
 		const kept: rt.Arc<rt.Fmt> = rt.arcClone(shared);
 		const _135: rt.usize = kept.strong;
@@ -2268,15 +2270,15 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const counted: rt.Arc<Dropper.Dropper> = new rt.Arc(dropper(data.data[data.start]));
 		const _149: rt.Arc<Dropper.Dropper> = rt.arcClone(counted);
 		const asDisplay: rt.Arc<rt.Fmt> = new rt.ArcDyn(_149, rt.fmtOwned(_149.value, (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Display(value, f), rt.drop));
-		_218 = true;
+		_372 = true;
 		const asDebug: rt.Arc<rt.Fmt> = new rt.ArcDyn(counted, rt.fmtOwned(counted.value, (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Debug(value, f), rt.drop));
 		const _160: rt.usize = asDebug.strong;
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => asDisplay.value(f), (f: rt.Formatter) => rt.usizeDisplay(_160, f)];
 		put(out, rt.fmtFormat([rt.fmtSpec({ align: "<", width: 5 }, args12[0]), "| ", args12[1], " "]));
 		asDisplay[Symbol.dispose]();
 		dropped(out);
-		if (rt.u8Rem(data.data[data.start + 1], 2) === 0) {
-			_218 = false;
+		if (rt.u8Rem(b, 2) === 0) {
+			_372 = false;
 			asDebug[Symbol.dispose]();
 		} else {
 			const args14: rt.Fmt[] = [(f: rt.Formatter) => asDebug.value(f)];
@@ -2286,11 +2288,57 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		shared[Symbol.dispose]();
 		const _198: rt.usize = kept.strong;
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => kept.value(f), (f: rt.Formatter) => rt.usizeDisplay(_198, f)];
-		put(out, rt.fmtFormat([args16[0], " ", args16[1]]));
-		if (_218) {
+		put(out, rt.fmtFormat([args16[0], " ", args16[1], " "]));
+		let n: rt.u8 = rt.u8WrappingMul(data.data[data.start], 3);
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(b, f)];
+		let text: string = rt.fmtFormat(["t", args18[0]]);
+		const owned: Dropper.Dropper = dropper(b);
+		const part5 = rt.u8WrappingAdd(b, 1);
+		let boxed: rt.Fmt = rt.fmtOwned(dropper(part5), (value: Dropper.Dropper, f: rt.Formatter) => Dropper.fmt$fmt_Debug(value, f), rt.drop);
+		const cell: rt.Cell<rt.u8> = new rt.Cell(data.data[data.start]);
+		const pair: [fmt_Gauge.Gauge, rt.u8] = [{ _0: cell }, b];
+		const _237: rt.Place<rt.u8> = rt.place(() => n, (value) => n = value);
+		const arg = rt.place(() => text, (value2) => text = value2);
+		const _238: rt.Fmt = (f: rt.Formatter) => rt.fmtStr(arg.v, f);
+		const _240: rt.Fmt = (f: rt.Formatter) => Dropper.fmt$fmt_Debug(owned, f);
+		const arg2 = rt.place(() => boxed, (value3) => boxed = value3);
+		const objects: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Debug(_237.v, f), _238, _240, (f: rt.Formatter) => arg2.v(f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => fmt_Gauge.fmt$fmt_Debug(pair[0], f), (f: rt.Formatter) => rt.u8Debug(pair[1], f)], f)];
+		const iter4: rt.Iter<rt.Place<rt.Fmt>> = rt.iterSliceMut(objects);
+		while (true) {
+			const _251: rt.Place<rt.Fmt> | rt.Done = iter4.next();
+			if (_251 === rt.DONE) {
+				break;
+			}
+			const args20: rt.Fmt[] = [(f: rt.Formatter) => _251.v(f)];
+			put(out, rt.fmtFormat([args20[0], " ", rt.fmtSpec({ alternate: true }, args20[0]), " "]));
+		}
+		const _269: rt.u8 = rt.u8WrappingAdd(cell.v, 1);
+		rt.cellSet(cell, _269);
+		const again: rt.Fmt = objects[rt.idx(objects, 4)];
+		const args22: rt.Fmt[] = [(f: rt.Formatter) => again(f)];
+		put(out, rt.fmtFormat([args22[0], " "]));
+		const args24: rt.Fmt[] = [(f: rt.Formatter) => again(f)];
+		put(out, rt.fmtFormat([args24[0], " "]));
+		n = rt.u8WrappingAdd(n, 1);
+		const _304: rt.Place<rt.u8> = rt.place(() => n, (value4) => n = value4);
+		const part6 = (f: rt.Formatter) => rt.u8Display(_304.v, f);
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => part6(f)];
+		put(out, rt.fmtFormat(["[", rt.fmtSpec({ align: ">", width: 5 }, args26[0]), "] "]));
+		const part7 = (f: rt.Formatter) => Dropper.fmt$fmt_Display(owned, f);
+		const args28: rt.Fmt[] = [(f: rt.Formatter) => part7(f)];
+		put(out, rt.fmtFormat(["[", rt.fmtSpec({ align: "^", width: 6 }, args28[0]), "] "]));
+		text = text + "!";
+		const arg3 = rt.place(() => text, (value5) => text = value5);
+		const part8 = (f: rt.Formatter) => rt.fmtPad(f, arg3.v);
+		const args30: rt.Fmt[] = [(f: rt.Formatter) => part8(f)];
+		put(out, rt.fmtFormat([args30[0], " "]));
+		rt.drop(boxed);
+		dropped(out);
+		owned[Symbol.dispose]();
+		if (_372) {
 			asDebug[Symbol.dispose]();
 		}
-		_218 = false;
+		_372 = false;
 		kept[Symbol.dispose]();
 		rt.drop(up);
 		rt.dropAll(shown);
