@@ -5,8 +5,8 @@ use crate::{
 	args, arrays, ascii, atomics, borrows, bounds, boxes, capacity, captures, cells, chars, chunks, clones,
 	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, errors,
 	fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists, locals,
-	locks, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates, separated, shapes,
-	singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
+	locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates, separated,
+	shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
 /// The native side's entry: [`run`], except that a case starting with 0xff prints a
@@ -296,6 +296,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("heap::spills", |_, data, out| heap::spills(data, out)),
 		("heap::layouts", |_, data, out| heap::layouts(data, out)),
 		("heap::remnants", |_, data, out| heap::remnants(data, out)),
+		("manual::arcs", |_, data, out| manual::arcs(data, out)),
 		("elements::raw_slices", |_, data, out| elements::raw_slices(data, out)),
 		("elements::empty_parts", |_, data, out| elements::empty_parts(data, out)),
 		("hashes::own", |_, data, out| hashes::own(data, out)),

@@ -673,6 +673,9 @@ impl<'a> Abi<'a> {
 			let name = self.object(i);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
 			self.claim(format!("{name}_free"), what.clone(), object.span);
+			if object.shared {
+				self.claim(format!("{name}_borrowed"), what.clone(), object.span);
+			}
 			self.claim_traits(&name, &what, object.span, object.traits, false);
 			self.claim(name.clone(), what, object.span);
 			let owner = Ty::Handle { name, constant: false };

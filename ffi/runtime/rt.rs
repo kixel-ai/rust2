@@ -595,6 +595,17 @@ impl<T> Object<T> {
 		result
 	}
 
+	/// Whether a call or a future borrows the value, so moving it out would abort. A value
+	/// moved out is not, so the move refuses it, naming itself.
+	///
+	/// # Safety
+	/// As [`Self::borrow`].
+	pub unsafe fn borrowed(handle: *const c_void, what: &str) -> bool {
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		!matches!(object.state.load(Ordering::Acquire), 0 | TAKEN)
+	}
+
 	/// Move the value out, leaving the handle to be freed.
 	///
 	/// # Safety

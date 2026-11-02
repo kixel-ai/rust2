@@ -739,6 +739,12 @@ impl Gauge {
 	pub fn into_level(self) -> u64 {
 		self.level()
 	}
+
+	/// The level, read once [`yielded`] finishes: a future borrowing this clone meanwhile.
+	pub async fn later(&self) -> u64 {
+		yielded(0).await;
+		self.level()
+	}
 }
 
 /// The gauge lent shared to `watch` for the call.

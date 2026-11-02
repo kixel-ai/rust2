@@ -604,7 +604,7 @@ impl<'a> Header<'a> {
 		// Copies share a handle only where no call tells that apart from a clone, but by an
 		// `Arc`'s or `Rc`'s count, which counts one for every copy.
 		let handle = match object.shared {
-			true => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone>"),
+			true => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone, &::{c}_borrowed>"),
 			false => format!("{d}::unique<::{c}, &::{c}_free>"),
 		};
 		let mut body = vec![

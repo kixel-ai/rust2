@@ -4,9 +4,8 @@
 
 [rust2-ts](/ts/README.md) translates the `unsafe` operations it can give exact semantics in
 JS, so a dependency using only those translates from source instead of being bound by
-hand. What is left: `ManuallyDrop`, unions over a type parameter, a raw pointer to a
-value JS copies taken through a reference, and pointers into an array of values JS keeps
-as objects.
+hand. What is left: unions over a type parameter, a raw pointer to a value JS copies
+taken through a reference, and pointers into an array of values JS keeps as objects.
 
 ## Plan
 
@@ -42,8 +41,6 @@ none of its own `unsafe`.
 - Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
-- `ManuallyDrop<T>` as `T` with its drop skipped, as `MaybeUninit` is: crossbeam-epoch's
-  `Local` reaches it, though crossbeam's tagged pointers stay refused.
 - A union over a type parameter, whose layout has no fixed offsets until an instance
   fixes them (smallvec's `SmallVecData`): lay out each instance instead of the identity.
 - `&raw const *r` where `r` is a `&T` to a value JS copies or a library object, such as
