@@ -781,6 +781,7 @@ func closed() {
 // bytes checks that Bytes Rust returns read Rust's buffer in place, kept alive by any view
 // or reader of it and freed by the GC once none is reachable.
 func bytes() {
+	budgeted()
 	// Under 2 KiB, copied and Rust's buffer freed at the call; from 2 KiB, lent.
 	before := api.Dropped()
 	small := api.TokenBytes(1, 2047)
@@ -827,6 +828,32 @@ func bytes() {
 	runtime.GC()
 	check(string(payload.Copy()) == body, "bytes an object returned outlive its Close")
 	fmt.Println("bytes ok")
+}
+
+// budgeted checks that at most 64 MiB of Rust's bytes are lent at once, freed or not, since
+// the GC sees none of them: past that, bytes are copied, Rust's freed at the call, until the
+// GC frees what was lent. First, so no bytes an earlier step lent count against it.
+func budgeted() {
+	before := api.Dropped()
+	lentToBudget(before)
+	collected(before+65, "the GC frees bytes lent up to the budget")
+	check(api.TokenBytes(3, 2048).At(2047) == 3 && api.Dropped() == before+65, "bytes are lent again once the GC frees them")
+	collected(before+66, "the GC frees bytes lent once the budget is free")
+}
+
+// lentToBudget lends 64 MiB in a frame of its own, so nothing keeps them reachable after.
+//
+//go:noinline
+func lentToBudget(before uint32) {
+	const mib = 1 << 20
+	held := make([]api.Bytes, 64)
+	for i := range held {
+		held[i] = api.TokenBytes(1, mib)
+	}
+	check(api.Dropped() == before, "64 MiB of Rust's bytes are lent")
+	copied := api.TokenBytes(2, mib)
+	check(api.Dropped() == before+1, "bytes past 64 MiB lent are copied, Rust's freed at the call")
+	check(copied.Len() == mib && copied.At(0) == 2 && copied.At(mib-1) == 2 && held[63].At(mib-1) == 1, "bytes past the budget read as lent ones do")
 }
 
 // subView is a sub-view of returned bytes, whose Bytes nothing else keeps.
