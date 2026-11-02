@@ -210,6 +210,7 @@ fn api_cpp() {
 			("moved", "api_counter_get: a handle's value was moved out"),
 			("moved from", "api_counter_get: a handle is null"),
 			("shared moved from", "api_gauge_into_level: a handle is null"),
+			("shared moved out", "api_gauge_into_level: a handle's value was moved out"),
 			("lent copied", "a lent object was copied past its call"),
 			("value", "value() of a result that holds an error"),
 			(

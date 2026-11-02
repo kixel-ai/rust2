@@ -1077,6 +1077,10 @@ int broken(const char *which) {
 		api::gauge g = api::gauge::new_(0);
 		api::gauge h = std::move(g);
 		std::move(g).into_level();
+	} else if (std::strcmp(which, "shared moved out") == 0) {
+		api::gauge g = api::gauge::new_(0);
+		std::move(g).into_level();
+		std::move(g).into_level();
 	} else if (std::strcmp(which, "lent copied") == 0) {
 		static std::optional<api::gauge> kept;
 		api::watch(api::gauge::new_(0), [](const api::gauge &lent) {
