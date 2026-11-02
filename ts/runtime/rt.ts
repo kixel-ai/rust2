@@ -348,6 +348,8 @@ export class RawSlice<T> {
 	readonly length: number;
 	/** What the first read through it made, which later reads share while it spans `length`. */
 	#made: T[] | ByteSlice | undefined;
+	/** Where `#made` starts in the array beneath it, if anywhere. */
+	#at: AtIndex<T> | undefined;
 	/** Whether `#made` is the array itself, which spans more once it grows. */
 	#whole = false;
 
@@ -359,9 +361,14 @@ export class RawSlice<T> {
 	/** The slice it points at, read through it, which must be there. */
 	deref(): T[] {
 		const made = this.#made as T[] | undefined;
-		if (made !== undefined && (!this.#whole || made.length === this.length)) return made;
+		if (made !== undefined) {
+			// Fails as a new read would once the array has shrunk past it.
+			this.#at?.reach(this.length);
+			if (!this.#whole || made.length === this.length) return made;
+		}
 		const slice = ptrSlice(this.ptr, this.length);
-		this.#whole = this.ptr instanceof AtIndex && slice === this.ptr.array;
+		this.#at = this.ptr instanceof AtIndex ? elemOf(this.ptr) : undefined;
+		this.#whole = slice === this.#at?.array;
 		return (this.#made = slice);
 	}
 
