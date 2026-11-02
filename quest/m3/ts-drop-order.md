@@ -37,8 +37,8 @@ Each left is refused with a span where std's order is one JS's can't follow yet:
 - A B-tree's `collect` of entries that drop, sorted and deduplicated by the crate's own
   impls, as `v.into_iter().collect::<BTreeSet<O>>()` of an `O` whose `Ord`, `PartialOrd`,
   or `PartialEq` is its own: one that panics or disagrees with itself leaves equal keys
-  in the order [std's sort](/quest/m3/ts-sort-order.md) does, which decides which of them
-  drop. It follows that port of std's sorts, whose plan names it.
+  in the order std's sort does, which decides which of them
+  drop.
 
 Each `rt.Iter` has a `fold` and `rfold` that drop what it holds where std's do, and the
 by-value consumers std folds go through it: build on those rather than `rt.drop`.
