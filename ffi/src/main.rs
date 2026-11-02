@@ -25,6 +25,7 @@ mod cli;
 mod collect;
 mod config;
 mod cpp;
+mod dart;
 mod driver;
 mod glue;
 mod ir;
