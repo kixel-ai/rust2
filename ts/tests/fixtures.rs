@@ -307,7 +307,8 @@ fn stable_names() {
 	snapshot("names", &out);
 	typecheck(&out);
 	let added = r#"roots = ["added", "run"]"#;
-	kept(&sources(&out), &rooted("names", r#"roots = ["run"]"#, "added", added), added);
+	let more = rooted("names", r#"roots = ["run"]"#, "added", added);
+	kept(&sources(&out), &more, added);
 }
 
 /// Translate fixture `name` into `file` with its config's `roots` line replaced by `with`.
