@@ -38,7 +38,9 @@ fn put<P>(v: &[Item<P>], out: &mut Vec<u8>) {
 	match v.len() <= 64 {
 		true => out.extend(v.iter().flat_map(|x| x.tag.to_le_bytes())),
 		false => {
-			let tags = v.iter().fold(0u32, |h, x| (h ^ u32::from(x.tag)).wrapping_mul(0x0100_0193));
+			let tags = v
+				.iter()
+				.fold(0u32, |h, x| (h ^ u32::from(x.tag)).wrapping_mul(0x0100_0193));
 			out.extend(tags.to_le_bytes());
 		}
 	}
@@ -83,7 +85,9 @@ struct Held([u8; 2]);
 
 /// Lengths at and past each of std's thresholds: its insertion sorts', its small sorts' and
 /// their networks', its pivots' pseudomedians', and its eager and square-root runs'.
-const LENGTHS: [usize; 20] = [0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097];
+const LENGTHS: [usize; 20] = [
+	0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097,
+];
 
 /// Each sort of items of each kind, of the length `kind` picks, keyed as the first byte of
 /// `data` picks from the rest.
@@ -115,7 +119,10 @@ pub fn sorts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 /// out of place, as the first byte of `data` picks, from the rest.
 fn keys(n: usize, data: &[u8]) -> Vec<u16> {
 	let (pick, seed) = data.split_first().map_or((0, &[][..]), |(&p, s)| (p, s));
-	let mut state = seed.iter().fold(0x9e37_79b9u32, |h, &b| (h ^ u32::from(b)).wrapping_mul(0x0100_0193)) | 1;
+	let mut state = seed
+		.iter()
+		.fold(0x9e37_79b9u32, |h, &b| (h ^ u32::from(b)).wrapping_mul(0x0100_0193))
+		| 1;
 	let mut random = move || {
 		state ^= state << 13;
 		state ^= state >> 17;
