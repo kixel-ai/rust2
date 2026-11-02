@@ -5,7 +5,7 @@ import { copy$tuple2_u16_u32, drop$hashlink_LinkedHashMap_sync_Arc_str_u32 as li
 import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$1787w44 as option_mapOr$1787w44, mapOr$0iaogpf as option_mapOr$0iaogpf, mapOr$1vcgixw as option_mapOr$1vcgixw } from "./core/option.ts";
 import * as LinkedHashMap from "./hashlink/linked_hash_map.LinkedHashMap.ts";
 import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
-import * as Counted from "./maps.Counted.ts";
+import * as maps_Counted from "./maps.Counted.ts";
 
 /** A length, capacity, or value, as four bytes. */
 export function put(out: rt.ByteVec, n: rt.usize): void {
@@ -209,7 +209,7 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			} else if (_38 === 6) {
 				if (!((arg & 16) === 0)) {
 					const drops: rt.Cell<rt.u32> = new rt.Cell(0);
-					const captured = new Counted.Counted(drops);
+					const captured = new maps_Counted.Counted(drops);
 					const captured2 = key;
 					const made: () => [rt.u16, rt.u32] = rt.closure((): [rt.u16, rt.u32] => {
 						return [captured2, rt.u32Add(3, captured._0.v)] as [rt.u16, rt.u32];
@@ -283,7 +283,7 @@ export function numbers(n: rt.HashTable<rt.u32>, kind: rt.u8, op: rt.u8, key: rt
 		const _12: rt.u8 = rt.u8Rem(op, 6);
 		if (_12 === 0) {
 			const drops: rt.Cell<rt.u32> = new rt.Cell(0);
-			const held: Counted.Counted = new Counted.Counted(drops);
+			const held: maps_Counted.Counted = new maps_Counted.Counted(drops);
 			const _18: rt.TableEntry<rt.u32> = rt.tableEntry(n, h, ours, rehash);
 			const captured = held;
 			const e: rt.TableEntry<rt.u32> = rt.tableAndModifyMut(_18, rt.closure((e8: rt.Place<rt.u32>): undefined => {
