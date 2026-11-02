@@ -608,6 +608,11 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+/// [`emit`] on another thread, which the call waits on.
+pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
+	std::thread::scope(|scope| scope.spawn(move || emit(log, lines)).join().expect("the thread finishes"))
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {

@@ -3,10 +3,10 @@
 //!
 //! A wake, a dropped waker, and a call into Dart or an implementation dropped on another
 //! thread each reach the isolate as an integer posted to its port, which never blocks and
-//! which a port closed with its isolate drops. Dart runs code only on the thread in its isolate,
-//! so a call into Dart from any other thread waits for the isolate to run it: from its
-//! event loop, or, while it waits in a call that lends a closure, from that wait, since
-//! such a call runs on a thread of its own.
+//! which a port closed with its isolate drops. Dart runs code only on the thread in its
+//! isolate, so a call into Dart from any other thread waits for the isolate to run it: from
+//! its event loop, or, while it waits in a call that lends a closure or gives an
+//! implementation, from that wait, since such a call runs on a thread of its own.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -101,7 +101,7 @@ pub struct Home {
 
 #[derive(Default)]
 struct Queue {
-	jobs: VecDeque<Arc<Job>>,
+	tasks: VecDeque<Task>,
 	/// How many calls of the isolate's run on a thread of their own while it serves.
 	serving: usize,
 }
@@ -118,6 +118,25 @@ pub fn home(port: i64, dropped: unsafe extern "C" fn(i64)) -> &'static Home {
 		queue: Mutex::default(),
 		ready: Condvar::new(),
 	}))
+}
+
+/// What the isolate runs while it serves.
+enum Task {
+	/// A call into Dart another thread waits on.
+	Call(Arc<Job>),
+	/// An implementation of this token Rust dropped, which nothing waits on, since a
+	/// `NativeFinalizer` may drop it on a thread the garbage collector holds.
+	Drop(i64),
+}
+
+impl Task {
+	/// The message posting it to the isolate's port.
+	fn message(self) -> i64 {
+		match self {
+			Task::Call(job) => job.message(),
+			Task::Drop(token) => (token << 2) | DROP,
+		}
+	}
 }
 
 impl Home {
@@ -160,7 +179,7 @@ impl Home {
 		{
 			let mut queue = self.lock();
 			if queue.serving > 0 {
-				queue.jobs.push_back(job.clone());
+				queue.tasks.push_back(Task::Call(job.clone()));
 				self.ready.notify_all();
 			} else if !self.post(job.clone().message()) {
 				rt::fail(what, "the Dart isolate it calls into has exited");
@@ -174,9 +193,10 @@ impl Home {
 		out.expect("the job ran")
 	}
 
-	/// Run `f`, a call from Dart that lends a closure, on a thread of its own while this
-	/// one, the isolate's, runs each call into Dart until `f` returns. `f`'s thread acts
-	/// as this one does for the handles it borrows, as does this one for each job's.
+	/// Run `f`, a call from Dart that lends a closure or gives an implementation, on a
+	/// thread of its own while this one, the isolate's, runs each call into Dart and each
+	/// drop until `f` returns. `f`'s thread acts as this one does for the handles it
+	/// borrows, as does this one for each job's.
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `f` is a call through the C ABI.
@@ -198,9 +218,13 @@ impl Home {
 			});
 			let mut queue = self.lock();
 			loop {
-				if let Some(job) = queue.jobs.pop_front() {
+				if let Some(task) = queue.tasks.pop_front() {
 					drop(queue);
-					job.run();
+					match task {
+						Task::Call(job) => job.run(),
+						// SAFETY: on the isolate's thread, in a call from Dart.
+						Task::Drop(token) => unsafe { (self.dropped)(token) },
+					}
 					queue = self.lock();
 				} else if done.load(Ordering::Acquire) {
 					break;
@@ -211,8 +235,8 @@ impl Home {
 			queue.serving -= 1;
 			// What no other wait will run goes to the event loop.
 			if queue.serving == 0 {
-				for job in queue.jobs.drain(..) {
-					if !self.post(job.message()) {
+				for task in queue.tasks.drain(..) {
+					if !self.post(task.message()) {
 						rt::fail("dart", "the Dart isolate it calls into has exited");
 					}
 				}
@@ -347,9 +371,10 @@ pub unsafe fn relay_free(relay: *mut Relay) {
 	drop(unsafe { Box::from_raw(relay) });
 }
 
-/// An implementation's `free`: tell the isolate Rust dropped it, at once on its thread, so
-/// its `close` runs before the call that dropped it returns, or else through its port. A
-/// `NativeFinalizer` runs with no current isolate, so a drop it makes posts.
+/// An implementation's `free`: tell the isolate Rust dropped it, so its `close` runs before
+/// the call that dropped it returns, on the isolate's thread or one the call serves, or
+/// else through its port. A `NativeFinalizer` runs with no current isolate, so a drop it
+/// makes never runs Dart at once.
 ///
 /// # Safety
 /// `relay` came from [`relay`], freed once.
@@ -357,10 +382,16 @@ pub unsafe extern "C" fn relay_drop(relay: *mut c_void) {
 	// SAFETY: the caller's contract.
 	let relay = unsafe { Box::from_raw(relay.cast::<Relay>()) };
 	let token = relay.token as i64;
-	if relay.home.here() {
+	let home = relay.home;
+	if home.here() {
 		// SAFETY: on the isolate's thread, in a call from Dart.
-		unsafe { (relay.home.dropped)(token) };
+		return unsafe { (home.dropped)(token) };
+	}
+	let mut queue = home.lock();
+	if queue.serving > 0 {
+		queue.tasks.push_back(Task::Drop(token));
+		home.ready.notify_all();
 	} else {
-		relay.home.post((token << 2) | DROP);
+		home.post(Task::Drop(token).message());
 	}
 }

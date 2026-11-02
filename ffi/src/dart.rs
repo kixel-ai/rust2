@@ -19,7 +19,8 @@
 //! Dart runs code only on its isolate's thread, so Rust reaches Dart from any other through
 //! [`runtime/dart.rs`](../runtime/dart.rs): a waker posts to the isolate's port, and a call
 //! into a closure or a trait's implementation waits for the isolate to run it. A call that
-//! lends a closure runs on a thread of its own, while the isolate's runs those calls.
+//! lends a closure or gives an implementation runs on a thread of its own, while the
+//! isolate's runs those calls.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -1659,6 +1660,9 @@ impl<'a> Gen<'a> {
 						self.bare(&cb)
 					));
 					args.push(format!("{v}.ref"));
+					// Rust may call the implementation from another thread before the call
+					// returns, as it may a closure.
+					serve |= !function.future;
 				}
 				(Type::Waker, _) => args.push(format!("_n.wakerOf({name})")),
 				(ty, c) if Self::scalar(c) => args.push(self.lower(ty, &name)),
@@ -1681,8 +1685,8 @@ impl<'a> Gen<'a> {
 
 		let call_fn = match serve {
 			true => {
-				// A call that lends a closure runs on a thread of its own, while the
-				// isolate's runs each call into Dart.
+				// A call that lends a closure or gives an implementation runs on a thread
+				// of its own, while the isolate's runs each call into Dart.
 				let serve_name = format!("{p}_dart_serve_{bare}");
 				let mut params = vec![Ty::Data];
 				params.extend(export.call.params.iter().map(|(_, ty)| ty.clone()));

@@ -535,6 +535,14 @@ Future<void> futures() async {
   await until(() => wakes == 1, 'a waker woken from another thread calls back');
   channel.clear();
 
+  // An implementation Rust calls from another thread, which the call waits on, runs on the
+  // isolate's thread meanwhile.
+  final threadLog = CountLog();
+  check(api.emitFromThread(threadLog, bytes([1, 2, 3])) == 3, 'a call into Dart from a thread the call joins');
+  check(threadLog.lines == 3, 'each line logged');
+  // Dropped on that thread, so closed from the event loop.
+  await until(() => threadLog.closes == 1, 'an implementation dropped on another thread is closed');
+
   // A wake that lands while the future polls, before it returns pending, as each of
   // `yielded`'s does, is kept: the future polls again rather than waiting for a wake that
   // already happened.

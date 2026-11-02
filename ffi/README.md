@@ -499,10 +499,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - A **waker** is a `void Function()`, which runs on the isolate's event loop.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. A call
-  that lends a closure runs on a thread of its own, acting as the caller's for the handles
-  it borrows, while the isolate's thread runs what Rust calls into Dart. A trait's method
-  that Rust calls from another thread while the isolate waits in any other call
-  deadlocks.
+  that lends a closure or gives an implementation runs on a thread of its own, acting as
+  the caller's for the handles it borrows, while the isolate's thread runs what Rust calls
+  into Dart. An implementation Rust holds and calls from another thread while the isolate
+  waits in any other call deadlocks.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
