@@ -33,12 +33,16 @@ calls:
   one-line `Try::branch` costs 81 against 80, so each `?` is a call. PGO recovers 0 to
   15%.
 
+Folding each temporary assigned once and read once into its reader, as rust2-ts does,
+cut decoding's time 35 to 55% and left encoding about where it was: a 2-byte QUIC varint
+decodes in about 88 ns, still 17 to 108 times cgo on every decode. The profile of what is
+left is led by 16-byte moves copying `DecodeError`'s fields in and out of the frame.
+
 Measure each step on the benchmark before the next:
 
-1. Fold each temporary assigned once and read once into its reader, as rust2-ts does.
-2. Lay an enum's variants out so a value is about Rust's size, e.g. a pointer to a cold
+1. Lay an enum's variants out so a value is about Rust's size, e.g. a pointer to a cold
    variant's fields.
-3. Lower the blocks to structured control flow. rust2-ts's `cfg` structuring
+2. Lower the blocks to structured control flow. rust2-ts's `cfg` structuring
    (`ts/src/lower/mir/cfg.rs`) builds TypeScript statements only at its edges: make it
    generic over the statement and condition types, in a crate both translators share, as
    the first piece of a shared front end.
