@@ -1,10 +1,13 @@
 //! Formatting: `format!` and `write!` with every option, derived and written `Debug` and
-//! `Display`, and panics that format their messages.
+//! `Display`, and panics that format their messages. A `Box`, `Arc`, or `Rc` of a
+//! `dyn Debug` or `dyn Display`, written with options, dropping what it owns as the last
+//! pointer drops.
 
 #![allow(dead_code, reason = "fields only `Debug` reads")]
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use std::ops::{Range, RangeToInclusive};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -1113,4 +1116,85 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	result(out, literals(&mut twice, c));
 	result(out, twice.write_char('ß'));
 	put(out, &twice.0);
+}
+
+/// Logs its tag as it drops, and writes it padded by `Display`.
+struct Dropper {
+	tag: u8,
+	log: Rc<RefCell<Vec<u8>>>,
+}
+
+impl Debug for Dropper {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Dropper")
+			.field("tag", &self.tag)
+			.finish_non_exhaustive()
+	}
+}
+
+impl Display for Dropper {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.pad(&format!("n{}", self.tag))
+	}
+}
+
+impl Drop for Dropper {
+	fn drop(&mut self) {
+		self.log.borrow_mut().push(self.tag);
+	}
+}
+
+pub fn objects(data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let dropper = |tag: u8| Dropper { tag, log: log.clone() };
+	let dropped = |out: &mut Vec<u8>| {
+		let tags = std::mem::take(&mut *log.borrow_mut());
+		put(out, &format!("{tags:?} "));
+	};
+
+	// Boxed, of each kind, written with options, then dropped in order.
+	let mut shown: Vec<Box<dyn Debug>> = Vec::new();
+	let mut written: Vec<Box<dyn Display>> = Vec::new();
+	for (i, &x) in data.iter().enumerate() {
+		match x % 4 {
+			0 => shown.push(Box::new(dropper(x))),
+			1 => shown.push(Box::new((x, i))),
+			2 => written.push(Box::new(dropper(x))),
+			_ => written.push(Box::new(format!("s{x}"))),
+		}
+	}
+	for s in &shown {
+		put(out, &format!("{s:?} {s:#?} "));
+	}
+	for w in &written {
+		put(out, &format!("{w} [{w:>6}] [{w:^7}] "));
+	}
+	let sent: Box<dyn Debug + Send> = Box::new(data.len());
+	let up: Box<dyn Debug> = sent;
+	put(out, &format!("{up:?} "));
+	drop(written);
+	dropped(out);
+	shown.truncate(1);
+	dropped(out);
+
+	// Shared: the value drops with the last pointer, whichever it is.
+	let [a, b, ..] = data else {
+		return;
+	};
+	let shared: Arc<dyn Debug + Send + Sync> = Arc::new((*a, *b));
+	let kept = shared.clone();
+	put(out, &format!("{shared:?} {} ", Arc::strong_count(&kept)));
+	let counted: Rc<Dropper> = Rc::new(dropper(*a));
+	let as_display: Rc<dyn Display> = counted.clone();
+	let as_debug: Rc<dyn Debug> = counted;
+	put(out, &format!("{as_display:<5}| {} ", Rc::strong_count(&as_debug)));
+	drop(as_display);
+	dropped(out);
+	match b % 2 {
+		0 => drop(as_debug),
+		_ => put(out, &format!("{as_debug:?} ")),
+	}
+	dropped(out);
+	drop(shared);
+	put(out, &format!("{kept:?} {}", Arc::strong_count(&kept)));
 }

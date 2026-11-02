@@ -270,6 +270,8 @@ pub struct Translator<'a, 'tcx> {
 	slotted: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, Option<mir::Slotted<'tcx>>>,
 	/// The slot of each `Ok` payload type, which every function returning one shares.
 	slots: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
+	/// The `rt.HasherImpl` of each `Hasher` of the crate's own.
+	pub hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The field of each struct's byte slice field held as its parts that holds its bytes.
 	pub slices: rustc_data_structures::fx::FxHashSet<FieldId>,
 }
@@ -495,6 +497,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			parting: None,
 			slotted: Default::default(),
 			slots: Default::default(),
+			hashers: Default::default(),
 			slices: Default::default(),
 		})
 	}
@@ -1127,7 +1130,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 			})
 			.collect();
-		let identity = ty::GenericArgs::identity_for_item(tcx, did);
 		let item = match &info.repr {
 			AdtRepr::Struct { ctor, fields } => {
 				let variant = adt.non_enum_variant();
@@ -1138,7 +1140,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					match held {
 						StructField::Whole(id) => defined.push(ts::Field {
 							id,
-							ty: self.defined_field_ty(field, identity, span),
+							ty: self.defined_field_ty(field, did, span),
 							doc,
 							init: ts::FieldInit::Ctor,
 						}),
@@ -1199,7 +1201,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						let mut fields = vec![("tag".to_string(), Type::StrLit(v.name.to_string()))];
 						for (i, field) in v.fields.iter().enumerate() {
 							let span = tcx.def_span(field.did);
-							let ty = self.defined_field_ty(field, identity, span);
+							let ty = self.defined_field_ty(field, did, span);
 							fields.push((field_name(field.name.as_str(), i), ty));
 						}
 						Type::Object(fields)
@@ -1792,11 +1794,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		Type::Sym(info.sym, args)
 	}
 
-	/// The TypeScript type of `field` in its type's definition, with `identity` its own
-	/// parameters, noting a field that holds a form only an instance decides for
+	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters,
+	/// noting a field that holds a form only an instance decides for
 	/// [`Self::held_field`].
-	fn defined_field_ty(&mut self, field: &ty::FieldDef, identity: GenericArgsRef<'tcx>, span: Span) -> Type {
-		let ty = self.ty(field.ty(self.tcx, identity).skip_norm_wip(), span);
+	fn defined_field_ty(&mut self, field: &ty::FieldDef, adt: DefId, span: Span) -> Type {
+		let tcx = self.tcx;
+		// A projection it names, such as `<S as BuildHasher>::Hasher` of a known `S`, is the
+		// type it normalizes to.
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
+		let ty = copy::field_ty(tcx, TypingEnv::post_analysis(tcx, adt), field.did, identity);
+		let ty = self.ty(ty, span);
 		let instanced = |t: &Type| matches!(t, Type::Rt("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _));
 		if ty.any(&instanced) {
 			self.instanced_fields

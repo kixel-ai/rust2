@@ -533,21 +533,49 @@ export function sliceContains<T>(s: ArrayLike<T>, x: T, eq: (a: T, b: T) => bool
 }
 
 /**
- * `binary_search`: `Ok` of where an element `cmp` finds equal to `x` is, or else `Err` of
- * where `x` would go, probing as std's does, so a run of equal elements gives std's index.
+ * `binary_search_by`: `Ok` of where an element `f` finds equal is, or else `Err` of where
+ * one would go, calling `f` on the elements std's search probes, in its order, so a run of
+ * equal elements gives std's index.
  */
-export function sliceBinarySearch<T>(s: ArrayLike<T>, x: T, cmp: (a: T, b: T) => Ordering): Result<usize, usize> {
+export function sliceBinarySearchBy<T>(s: ArrayLike<T>, f: (item: T) => Ordering): Result<usize, usize> {
 	let size = s.length;
 	if (size === 0) return Err(0);
 	let base = 0;
 	while (size > 1) {
 		const half = Math.floor(size / 2);
 		const mid = base + half;
-		if (cmp(s[mid]!, x) !== 1) base = mid;
+		if (f(s[mid]!) !== 1) base = mid;
 		size -= half;
 	}
-	const order = cmp(s[base]!, x);
+	const order = f(s[base]!);
 	return order === 0 ? Ok(base) : Err(order === -1 ? base + 1 : base);
+}
+
+/** `binary_search`: by `cmp` of each element it probes with `x`. */
+export function sliceBinarySearch<T>(s: ArrayLike<T>, x: T, cmp: (a: T, b: T) => Ordering): Result<usize, usize> {
+	return sliceBinarySearchBy(s, (item) => cmp(item, x));
+}
+
+/** `binary_search_by_key`: by `cmp` of the key `f` makes of each element it probes with `b`, dropping the key after. */
+export function sliceBinarySearchByKey<T, K>(
+	s: ArrayLike<T>,
+	b: K,
+	f: (item: T) => K,
+	cmp: (a: K, b: K) => Ordering,
+	drop?: (key: K) => void,
+): Result<usize, usize> {
+	return sliceBinarySearchBy(s, (item) => {
+		const key = f(item);
+		const order = cmp(key, b);
+		drop?.(key);
+		return order;
+	});
+}
+
+/** `partition_point`: where the elements `pred` holds for end, by std's search. */
+export function slicePartitionPoint<T>(s: ArrayLike<T>, pred: (item: T) => boolean): usize {
+	const found = sliceBinarySearchBy(s, (item) => (pred(item) ? -1 : 1));
+	return found.ok ? found.value : found.error;
 }
 
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
@@ -1539,6 +1567,12 @@ export type Fmt = (f: Formatter) => FmtResult;
 
 /** A type's `Debug` or `Display`, as a function of its values. */
 export type Debug<T> = (value: T, f: Formatter) => FmtResult;
+
+/** `Box<dyn Debug>` or the like of `value`, written by `write`, which drops it by `drop` as it drops. */
+export function fmtOwned<T>(value: T, write: Debug<T>, drop?: (value: T) => void): Fmt {
+	const fmt = (f: Formatter) => write(value, f);
+	return drop === undefined ? fmt : Object.assign(fmt, { [Symbol.dispose]: () => drop(value) });
+}
 
 /** `fmt::Arguments`: literal pieces, and the values written between them. */
 export type Arguments = readonly (string | Fmt)[];

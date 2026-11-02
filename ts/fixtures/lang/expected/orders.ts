@@ -197,14 +197,13 @@ export function sorted(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), true, rt.drop, rt.drop) ? 1 : 0);
 		const _108: rt.Iter<orders_Item.Item> = items();
 		const captured3 = k;
-		const _110: (a0: orders_Item.Item) => rt.u8 = rt.closure((x4: orders_Item.Item): rt.u8 => {
+		rt.byteVecPush(out, rt.iterIsSortedBy(rt.iterMap(_108, rt.closure((x4: orders_Item.Item): rt.u8 => {
 			const _012: rt.u8 = rt.u8Add(x4.key, captured3.key);
 			x4[Symbol.dispose]();
 			return _012;
 		}, (): void => {
 			captured3[Symbol.dispose]();
-		});
-		rt.byteVecPush(out, rt.dropAfter(_110, () => rt.iterIsSortedBy(rt.iterMap(_108, _110), rt.le)) ? 1 : 0);
+		})), rt.le, true) ? 1 : 0);
 		const captured4 = l;
 		const key: (a0: orders_Item.Item) => rt.u8 = rt.closure((x5: orders_Item.Item): rt.u8 => {
 			const _013: rt.u8 = rt.u8Add(x5.key, captured4.key);
