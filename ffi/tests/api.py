@@ -679,6 +679,26 @@ def broken(which):
 			kept = []
 			api.Registry.new(api.Counter.new("c", 0)).edit(lambda counter: kept.append(counter) or False)
 			kept[0].get()
+		# A thread holds the lent counter while converting an argument, which waits, the GIL
+		# released, until the lend has ended; the call would then reach a freed handle.
+		case "lent held":
+			converting, ended = threading.Event(), threading.Event()
+
+			class Slow:
+				def __index__(self):
+					converting.set()
+					ended.wait()
+					return 1
+
+			def edit(counter):
+				edit.thread = threading.Thread(target=counter.add, args=(Slow(),))
+				edit.thread.start()
+				converting.wait()
+				return False
+
+			api.Registry.new(api.Counter.new("c", 0)).edit(edit)
+			ended.set()
+			edit.thread.join()
 		# An IPv6 address where Rust takes `SocketAddrV4`.
 		case "family":
 			api.nexts(("::", 1, 0, 0), ("::", 1, 0, 0))

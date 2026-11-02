@@ -89,6 +89,16 @@ func (h *handle) close() {
 	}
 }
 
+// end ends a lend, closing the handle, which Rust frees next: a call still holding it
+// would reach the freed handle, so it panics, as Rust's own check fails once a call
+// borrowed.
+func (h *handle) end() {
+	h.close()
+	if h.state.Load() != closed_ {
+		panic(h.name + ": a call still holds it when its lend ends")
+	}
+}
+
 // emptyBuf_ is where a present but empty buffer or array points: C reads a null pointer as
 // None. Aligned for any element.
 var emptyBuf_ [2]uint64

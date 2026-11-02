@@ -975,7 +975,7 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The C function C calls for a closure of type `ty`, lent for a call, taking `lent`
-	/// and returning `ret`: it lends each object as its class, closed once it returns.
+	/// and returning `ret`: it lends each object as its class, ended once it returns.
 	fn trampoline(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> String {
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}_")).collect();
 		let mut body = vec![format!(
@@ -988,7 +988,7 @@ impl<'a> Gen<'a> {
 				Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
 					let l = format!("l{k}_");
 					body.push(format!("let {l} = {}(lent: {p})", self.sw(object)));
-					body.push(format!("defer {{ {l}.close() }}"));
+					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),

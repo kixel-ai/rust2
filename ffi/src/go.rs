@@ -1217,7 +1217,7 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The trampoline C calls for a closure of type `ty`, lent for a call, taking `lent` and
-	/// returning `ret`: it lends each object as its type, closed once it returns.
+	/// returning `ret`: it lends each object as its type, ended once it returns.
 	fn trampoline(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> String {
 		let go = self.go(ty);
 		if let Some(name) = self.closures.get(&go) {
@@ -1234,7 +1234,7 @@ impl<'a> Gen<'a> {
 					let Type::Object(i) = **object else { unreachable!() };
 					let l = format!("l{k}_");
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
-					let _ = writeln!(body, "\tdefer {l}.h.close()");
+					let _ = writeln!(body, "\tdefer {l}.h.end()");
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),
