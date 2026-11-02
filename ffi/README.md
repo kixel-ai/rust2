@@ -501,9 +501,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   other through the isolate's port, and waits for its event loop to run the call. A call
   that lends a closure or gives an implementation, and each poll of its future, runs on a
   thread of its own, acting as the caller's for the handles it borrows, while the
-  isolate's thread runs what Rust calls into Dart. An implementation Rust kept from an
-  earlier call, and calls from another thread while the isolate waits in any other call,
-  deadlocks.
+  isolate's thread runs what Rust calls into Dart. Any other call, a future's `cancel()`
+  included, holds the isolate's thread, so it deadlocks if Rust waits in it on another
+  thread calling an implementation it kept, such as one a method calls from a thread it
+  joins, or one a future's destructor calls.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 
