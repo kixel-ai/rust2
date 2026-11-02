@@ -2066,10 +2066,10 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: n
 
 /**
  * `collect` and `from` into `m`, an empty set, of `keys`, as `btreeCollect`, but sorted by
- * `less`, their `PartialOrd::lt`, given with `same`.
+ * `less`, their `PartialOrd::lt`, or not at all if zero-sized.
  */
 export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, freeze: boolean, less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
-	if (less === undefined || same === undefined) {
+	if (same === undefined) {
 		return btreeCollect(
 			m,
 			keys.map((key) => [key, undefined]),
@@ -2079,7 +2079,7 @@ export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, fre
 			k,
 		);
 	}
-	sliceSort(keys, less, size, freeze);
+	if (less !== undefined) sliceSort(keys, less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;

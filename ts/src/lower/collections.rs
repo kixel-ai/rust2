@@ -1196,9 +1196,9 @@ fn btree_collect<'tcx>(
 	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
-	// A set's sort tests `lt`, and a map's `Ord::cmp`.
+	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
 	if set {
-		rest.push(match own {
+		rest.push(match own && !b.t.zero_sized(elem) {
 			true => test_fn(b, key, "lt", span),
 			false => Expr::undefined(),
 		});
