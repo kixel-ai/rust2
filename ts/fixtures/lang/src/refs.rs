@@ -1005,27 +1005,29 @@ pub fn compared(split: u8, data: &[u8], out: &mut Vec<u8>) {
 	let mut x: Vec<f32> = left.iter().map(few).collect();
 	let mut y: Vec<f32> = right.iter().map(few).collect();
 	let mut one = b.first().copied();
-	out.extend([
-		a.iter_mut().eq(&mut b),
-		a.iter_mut().ne(&mut b),
-		a.iter_mut().lt(&mut b),
-		a.iter_mut().le(&mut b),
-		a.iter_mut().gt(&mut b),
-		a.iter_mut().ge(&mut b),
-		a.iter_mut().eq(b.iter()),
-		a.iter().ne(&mut b),
-		a.iter_mut().chain(&mut one).eq(&mut b),
-		b.iter_mut().lt(a.iter_mut().chain(&mut one)),
-		x.iter_mut().eq(&mut y),
-		x.iter_mut().ne(&mut y),
-		x.iter_mut().lt(&mut y),
-		x.iter_mut().le(&mut y),
-		x.iter_mut().gt(&mut y),
-		x.iter_mut().ge(&mut y),
-		x.iter().eq(&mut y),
-		x.iter_mut().ne(y.iter()),
-	]
-	.map(u8::from));
+	out.extend(
+		[
+			a.iter_mut().eq(&mut b),
+			a.iter_mut().ne(&mut b),
+			a.iter_mut().lt(&mut b),
+			a.iter_mut().le(&mut b),
+			a.iter_mut().gt(&mut b),
+			a.iter_mut().ge(&mut b),
+			a.iter_mut().eq(b.iter()),
+			a.iter().ne(&mut b),
+			a.iter_mut().chain(&mut one).eq(&mut b),
+			b.iter_mut().lt(a.iter_mut().chain(&mut one)),
+			x.iter_mut().eq(&mut y),
+			x.iter_mut().ne(&mut y),
+			x.iter_mut().lt(&mut y),
+			x.iter_mut().le(&mut y),
+			x.iter_mut().gt(&mut y),
+			x.iter_mut().ge(&mut y),
+			x.iter().eq(&mut y),
+			x.iter_mut().ne(y.iter()),
+		]
+		.map(u8::from),
+	);
 	out.extend([
 		a.iter_mut().cmp(&mut b) as i8 as u8,
 		a.iter_mut().zip(left).cmp(b.iter_mut().zip(right)) as i8 as u8,
