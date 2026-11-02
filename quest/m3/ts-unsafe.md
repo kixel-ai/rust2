@@ -50,12 +50,12 @@ none of its own `unsafe`.
   `set_len` is refused, and a write past the length fails loudly at run time, since the
   JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
-- `offset_from` between byte pointers into two views of one buffer, such as a slice's
-  `as_mut_ptr` and its `iter_mut`'s first element: each is an `rt.AtIndex` into its own
-  `Uint8Array`, so it fails loudly at run time where Rust measures the distance. Comparing
-  by buffer and byte offset closes it.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
+- A byte pointer moved past its own `Uint8Array` view into the rest of the buffer, such as
+  a byte vector's spare capacity: it fails loudly at run time, since each view knows only
+  its own range. One shared view per buffer, with each pointer's byte offset into it,
+  closes it. Found by [#455](https://github.com/moq-dev/rust2/pull/455).
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const
   [u8; N])`, which `bytes`' `Buf::get_u16` and wider read a crate's own buffer through
   ([#222](https://github.com/moq-dev/rust2/pull/222)): the bytes keep their type, so

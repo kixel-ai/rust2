@@ -5,7 +5,7 @@
 
 #![allow(dead_code, reason = "fields only `Debug` reads")]
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fmt::{self, Debug, Display};
 use std::ops::{Range, RangeToInclusive};
@@ -1118,6 +1118,15 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	put(out, &twice.0);
 }
 
+/// Writes what its cell holds as it is written.
+struct Gauge<'a>(&'a Cell<u8>);
+
+impl Debug for Gauge<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_tuple("Gauge").field(&self.0.get()).finish()
+	}
+}
+
 /// Logs its tag as it drops, and writes it padded by `Display`.
 struct Dropper {
 	tag: u8,
@@ -1196,5 +1205,36 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	}
 	dropped(out);
 	drop(shared);
-	put(out, &format!("{kept:?} {}", Arc::strong_count(&kept)));
+	put(out, &format!("{kept:?} {} ", Arc::strong_count(&kept)));
+
+	// Mutably borrowed, written as a shared borrow would be, from where the value is: a
+	// number and a string JS copies, the crate's type, a box of one, and a `Cell` set
+	// while borrowed.
+	let mut n = a.wrapping_mul(3);
+	let mut text = format!("t{b}");
+	let mut owned = dropper(*b);
+	let mut boxed: Box<dyn Debug> = Box::new(dropper(b.wrapping_add(1)));
+	let cell = Cell::new(*a);
+	let mut pair = (Gauge(&cell), *b);
+	{
+		let mut objects: Vec<&mut dyn Debug> = vec![&mut n, &mut text, &mut owned, &mut boxed, &mut pair];
+		for o in objects.iter_mut() {
+			put(out, &format!("{o:?} {o:#?} "));
+		}
+		cell.set(cell.get().wrapping_add(1));
+		let again: &mut dyn Debug = &mut *objects[4];
+		put(out, &format!("{again:?} "));
+		let shared: &dyn Debug = again;
+		put(out, &format!("{shared:?} "));
+	}
+	n = n.wrapping_add(1);
+	let shown: &mut dyn Display = &mut n;
+	put(out, &format!("[{shown:>5}] "));
+	let written: &mut dyn Display = &mut owned;
+	put(out, &format!("[{written:^6}] "));
+	text.push('!');
+	let last: &mut dyn Display = &mut text;
+	put(out, &format!("{last} "));
+	drop(boxed);
+	dropped(out);
 }

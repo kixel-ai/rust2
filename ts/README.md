@@ -229,7 +229,8 @@ translate, as do `Display` and `Debug` impls, derived and thiserror's included. 
 runtime ports `core::fmt`, so the text matches native Rust's byte for byte. A placeholder
 becomes a function writing its value, and `fmt::Arguments` an array of literal pieces
 and such functions: `rt.fmtWriteFmt(f, ["code=", (f) => rt.u16Display(code, f)])`. A `&dyn
-Debug` or `&dyn Display` is such a function too, and so is a `Box` of one, `rt.fmtOwned`
+Debug` or `&dyn Display` is such a function too, and so is a `&mut` one, which reads
+through the `rt.Place` of a value JS copies as it writes, a `Box` of one, `rt.fmtOwned`
 of the value, which drops it as the box drops, and an `Arc` or `Rc` of one, which the last
 pointer drops, as an `Arc` of the crate's own trait object does. Format specs take every option but `{:p}`:
 fill, alignment, `+`, `#`, `0`, `x?` and `X?`, a width and a precision, each also from an
@@ -475,8 +476,8 @@ a call calls as it does the closure, and which a box drops as it does the closur
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `Box`,
-`Arc`, or `Rc`, `dyn Future`,
+or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
+`Box`, `Arc`, or `Rc`, `dyn Future`,
 `dyn Any`, `dyn Buf`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
@@ -856,7 +857,7 @@ they need.
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
+`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 

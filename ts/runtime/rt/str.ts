@@ -324,23 +324,31 @@ class Searcher {
 
 /** `str::split`. */
 export function strSplit(s: string, p: Pattern): Iter<string> {
-	return new Split(new Searcher(s, p));
+	return new Split(new Searcher(s, p), true);
+}
+
+/** `str::split_terminator`: `split`, without the empty part after a last match. */
+export function strSplitTerminator(s: string, p: Pattern): Iter<string> {
+	return new Split(new Searcher(s, p), false);
 }
 
 class Split extends Iter<string> {
 	readonly #m: Searcher;
 	#start = 0;
 	#end: number;
+	// Whether an empty last part is yielded, which `nextBack` sets once it has passed it.
+	#trailing: boolean;
 	#finished = false;
 
-	constructor(m: Searcher) {
+	constructor(m: Searcher, trailing: boolean) {
 		super();
 		this.#m = m;
 		this.#end = m.s.length;
+		this.#trailing = trailing;
 	}
 
 	override clone(h?: Clones): Iter<string> {
-		const it = new Split(this.#m.clone(h));
+		const it = new Split(this.#m.clone(h), this.#trailing);
 		it.#start = this.#start;
 		it.#end = this.#end;
 		it.#finished = this.#finished;
@@ -356,11 +364,18 @@ class Split extends Iter<string> {
 			return part;
 		}
 		this.#finished = true;
-		return m.s.slice(this.#start, this.#end);
+		return this.#trailing || this.#start < this.#end ? m.s.slice(this.#start, this.#end) : DONE;
 	}
 
 	override nextBack(): string | Done {
 		if (this.#finished) return DONE;
+		if (!this.#trailing) {
+			// The last part, unless it is empty, as std's does.
+			this.#trailing = true;
+			const part = this.nextBack();
+			if (part !== DONE && part !== "") return part;
+			if (this.#finished) return DONE;
+		}
 		const m = this.#m;
 		if (m.nextMatchBack()) {
 			const part = m.s.slice(m.end, this.#end);
@@ -488,6 +503,12 @@ export function strEndsWith(s: string, p: Pattern): boolean {
 export function strSplitOnce(s: string, p: Pattern): [string, string] | undefined {
 	const m = new Searcher(s, p);
 	return m.nextMatch() ? [s.slice(0, m.start), s.slice(m.end)] : undefined;
+}
+
+/** `str::rsplit_once`: the text before the last match and after it. */
+export function strRsplitOnce(s: string, p: Pattern): [string, string] | undefined {
+	const m = new Searcher(s, p);
+	return m.nextMatchBack() ? [s.slice(0, m.start), s.slice(m.end)] : undefined;
 }
 
 /** `str::is_char_boundary`: whether byte `i` starts a char, or is the end. */
