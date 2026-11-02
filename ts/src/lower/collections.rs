@@ -2846,7 +2846,9 @@ pub fn collect<'tcx>(
 		Std::VecDeque => {
 			let item = arg(ty, 0);
 			let bytes = matches!(item.kind(), ty::Uint(ty::UintTy::U8));
-			let path = from.ty_adt_def().map(|adt| library::std_path(b.t.tcx, adt.did()).join("::"));
+			let path = from
+				.ty_adt_def()
+				.map(|adt| library::std_path(b.t.tcx, adt.did()).join("::"));
 			let whole = match path.as_deref() {
 				Some("collections::vec_deque::into_iter::IntoIter") => true,
 				// A `Vec<u8>`'s reads a view of its bytes, which leaves its capacity behind.

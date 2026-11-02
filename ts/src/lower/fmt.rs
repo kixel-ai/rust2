@@ -496,7 +496,12 @@ fn iter_debug<'tcx>(
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
-		["collections", "vec_deque", "iter" | "iter_mut", name @ ("Iter" | "IterMut")] => {
+		[
+			"collections",
+			"vec_deque",
+			"iter" | "iter_mut",
+			name @ ("Iter" | "IterMut"),
+		] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			let call = vec![value.clone(), f.clone(), debug, Expr::Str((*name).into())];
 			return Some(Expr::rt("fmtDequeIter", call));
