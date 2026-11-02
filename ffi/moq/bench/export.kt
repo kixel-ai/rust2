@@ -54,6 +54,7 @@ fun round(): String {
 	// Reads: each frame written, then read through a suspend fun whose future is ready at
 	// its first poll, so it never suspends.
 	var last: FrameFrame? = null
+	var large: FrameFrame? = null
 	val read = runBlocking {
 		val subscriber = track.consume().use { it.subscribe(null) }
 		val start = System.nanoTime()
@@ -69,24 +70,44 @@ fun round(): String {
 				group.finish()
 			}
 		}
-		perFrame(start).also { subscriber.close() }
+		perFrame(start).also {
+			// A frame long enough that Rust lends its payload rather than copying it.
+			track.appendGroup().use { group ->
+				subscriber.recvGroup()!!.use { reader ->
+					group.writeFrame(at, ByteArray(4096))
+					large = reader.readFrame()!!
+				}
+				group.finish()
+			}
+			subscriber.close()
+		}
 	}
 
-	// Payload reads: the last frame's 100 bytes, lent without a copy, then freed.
+	// Payload reads: the last frame's 100 bytes, copied across, and one of them read.
 	start = System.nanoTime()
 	last!!.use { read ->
 		repeat(GROUPS * FRAMES) {
-			read.payload.use { closed += it.buffer.get(0) }
+			closed += read.payload[0]
 		}
 	}
-	val lent = perFrame(start)
+	val payload = perFrame(start)
+
+	// Lent payload reads: a 4 KiB frame's payload, which Rust lends until the GC frees it,
+	// copied out.
+	start = System.nanoTime()
+	large!!.use { read ->
+		repeat(GROUPS * FRAMES) {
+			closed += read.payload.toByteArray()[0]
+		}
+	}
+	val lentPayload = perFrame(start)
 	at.close()
 	track.close()
 	broadcast.close()
 
 	val bang = if (closed != 0) "!" else ""
-	return "export (Kotlin): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read%s"
-		.format(stamped, reused, call, read, lent, bang)
+	return "export (Kotlin): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read, %.0f ns per 4 KiB payload copied out%s"
+		.format(stamped, reused, call, read, payload, lentPayload, bang)
 }
 
 fun main() {
