@@ -509,6 +509,9 @@ pub fn call<'tcx>(
 		("ptr" | "NonNull", "len") => arg().member("length"),
 		("ptr" | "NonNull", "is_empty") => arg().member("length").binary("===", Expr::lit("0")),
 		("ptr", "is_null") => arg().binary("===", Expr::Rt("NULL".into())),
+		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
+			deref(pointee(), arg(), name == "as_ref")
+		}
 		("NonNull", "as_mut") if bytes(b, pointee()) => to_reference(arg()),
 		// The same pointer, as another type of the same pointee.
 		("ptr", "cast_const" | "cast_mut")
@@ -559,9 +562,6 @@ pub fn call<'tcx>(
 				Box::new(Expr::undefined()),
 				Box::new(deref(pointee(), p, name == "as_ref")),
 			)
-		}
-		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
-			deref(pointee(), arg(), name == "as_ref")
 		}
 		// `Option<&T>`: a shared reference to a value JS copies is the value.
 		("ptr", "as_ref" | "as_mut") => {

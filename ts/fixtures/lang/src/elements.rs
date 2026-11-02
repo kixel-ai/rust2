@@ -422,7 +422,7 @@ pub fn raw_slices(data: &[u8], out: &mut Vec<u8>) {
 	}
 	emit(&v, out);
 	let mut bytes = data.to_vec();
-	bytes.push(3);
+	bytes.extend([3, 4]);
 	let b = ptr::slice_from_raw_parts_mut(bytes.as_mut_ptr(), bytes.len());
 	unsafe {
 		(*b)[0] ^= 0xff;
@@ -441,6 +441,11 @@ pub fn raw_slices(data: &[u8], out: &mut Vec<u8>) {
 		(*nn.as_ptr())[1] = 11;
 		out.push(nn.as_ref()[1] as u8);
 		out.push(nn.as_ptr().as_mut().map_or(0, |s| s[0]) as u8);
+		let mut whole = nn;
+		whole.as_mut()[0] = 12;
+		let mut two = NonNull::slice_from_raw_parts(NonNull::new(bytes.as_mut_ptr()).unwrap(), 2);
+		two.as_mut()[1] ^= 0x0f;
+		out.push(two.as_ref()[1]);
 	}
 	let null = ptr::slice_from_raw_parts_mut(ptr::null_mut::<u32>(), 0);
 	out.push(NonNull::new(null).is_none() as u8);
@@ -454,6 +459,8 @@ pub fn raw_slices(data: &[u8], out: &mut Vec<u8>) {
 	let of_ref: *const [u32] = &v[1..3];
 	out.push((whole.len() + of_ref.len()) as u8);
 	out.push(unsafe { (*of_ref)[1] } as u8);
+	emit(&v, out);
+	out.extend(&bytes);
 }
 
 /// Empty slices made from pointers into no array, a dangling one and one off null, each
