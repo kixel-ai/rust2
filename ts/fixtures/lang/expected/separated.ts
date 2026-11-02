@@ -102,7 +102,7 @@ export function scribblePairs(i: rt.usize, part: separated_Pair.Pair[]): void {
 	if (_11 !== undefined) {
 		Object.assign(_11, { a: _11.b & 0xff, b: i & 0xffff });
 	}
-	rt.sliceSort(part, rt.cmpLt(separated_Pair.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(part, rt.cmpLt(separated_Pair.partialCmp$cmp_PartialOrd), 4, true);
 	const iter: rt.Iter<separated_Pair.Pair[]> = rt.sliceRsplitMut(part, (p: separated_Pair.Pair): boolean => {
 		return rt.u8Rem(p.a, 2) === 0;
 	});

@@ -2059,14 +2059,14 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
 
 /**
  * `collect` and `from` into `m`, an empty map, of `entries`, which std's collects into a
- * `Vec` first. It sorts them stably by `Ord::cmp` of their keys if `sorts`, as std's sort
- * does all but zero-sized ones, and builds the tree of each but those whose key `same`,
+ * `Vec` first. It sorts them as std's stable sort does by `Ord::cmp` of their keys, of
+ * entries `size` bytes long on wasm32 and `Freeze` if `freeze`, and builds the tree of each but those whose key `same`,
  * `!ne`, finds equal to the next one's, which drop in order. Without `same`, the keys'
  * impls agree, so JS's sort and `Ord` alone build the same tree faster.
  */
-export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts = false, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
+export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else if (sorts) sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1);
+	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2087,17 +2087,18 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts =
  * `collect` and `from` into `m`, an empty set, of `keys`, as `btreeCollect`, but sorted by
  * `less`, their `PartialOrd::lt`, or not at all if zero-sized.
  */
-export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
+export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, freeze: boolean, less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
 	if (same === undefined) {
 		return btreeCollect(
 			m,
 			keys.map((key) => [key, undefined]),
-			true,
+			size,
+			freeze,
 			undefined,
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less);
+	if (less !== undefined) sliceSort(keys, less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;

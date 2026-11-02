@@ -93,7 +93,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.hashLen(set));
 	}
 	const own2: [rt.u16, rt.u32][] = rt.iterToArray(rt.hashIter(own), "next", 8);
-	rt.sliceSort(own2, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+	rt.sliceSort(own2, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
 	for (const _155 of own2) {
 		const k: rt.u16 = _155[0];
 		const v: rt.u32 = _155[1];
@@ -103,7 +103,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const pairs2: [[rt.u8, rt.u8], rt.u32][] = rt.iterToArray(rt.iterMap(rt.hashIter(pairs), (_210: [[rt.u8, rt.u8], rt.u32]): [[rt.u8, rt.u8], rt.u32] => {
 		return [_210[0], _210[1]] as [[rt.u8, rt.u8], rt.u32];
 	}), "next", 8);
-	rt.sliceSort(pairs2, rt.cmpLt(rt.cmpTuple<[[rt.u8, rt.u8], rt.u32], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmp])));
+	rt.sliceSort(pairs2, rt.cmpLt(rt.cmpTuple<[[rt.u8, rt.u8], rt.u32], rt.Ordering | undefined>([rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp]), rt.cmp])), 8, true);
 	for (const _174 of pairs2) {
 		const a: rt.u8 = _174[0][0];
 		const b: rt.u8 = _174[0][1];
@@ -112,7 +112,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, v2 as rt.usize);
 	}
 	const set2: string[] = rt.iterToArray(rt.hashKeys(set), "next", 12);
-	rt.sliceSort(set2, rt.cmpLt(rt.cmpStr));
+	rt.sliceSort(set2, rt.cmpLt(rt.cmpStr), 12, true);
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strsJoin(set2, ",")));
 }
 
@@ -236,7 +236,7 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 				}), rt.u32Add, 0) as rt.usize);
 				const copy: rt.HashTable<[rt.u16, rt.u32]> = rt.hashClone(t, undefined, copy$tuple2_u16_u32);
 				const drained: [rt.u16, rt.u32][] = rt.iterToArray(rt.tableDrain(t), "next", 8);
-				rt.sliceSort(drained, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+				rt.sliceSort(drained, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
 				for (const _162 of drained) {
 					const k2: rt.u16 = _162[0];
 					const v2: rt.u32 = _162[1];
@@ -257,7 +257,7 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rt.byteVecPush(out, rt.hashLen(t) === 0 ? 1 : 0);
 		}
 		const left: [rt.u16, rt.u32][] = rt.iterToArray(rt.hashValues(t), "next", 8);
-		rt.sliceSort(left, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+		rt.sliceSort(left, rt.cmpLt(rt.cmpTuple<[rt.u16, rt.u32], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true);
 		for (const _199 of left) {
 			const k3: rt.u16 = _199[0];
 			const v3: rt.u32 = _199[1];
@@ -342,7 +342,7 @@ export function numbers(n: rt.HashTable<rt.u32>, kind: rt.u8, op: rt.u8, key: rt
 		}
 	}
 	const items: rt.u32[] = rt.iterToArray(rt.hashValues(n), "next", 4);
-	rt.sliceSort(items, rt.lt);
+	rt.sliceSort(items, rt.lt, 4, true);
 	for (const _85 of items) {
 		put(out, _85 as rt.usize);
 	}
