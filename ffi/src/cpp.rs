@@ -613,13 +613,14 @@ impl<'a> Header<'a> {
 		];
 		let mut members = Vec::new();
 		if t.clone && !object.shared {
+			let clone = apart("clone", &name);
 			body.push(format!(
-				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\t{name} clone() const;"
+				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\t{name} {clone}() const;"
 			));
-			members.push("clone".to_string());
 			self.def(format!(
-				"inline {name} {name}::clone() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
+				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
 			));
+			members.push(clone);
 		}
 		if t.eq {
 			body.push(format!(
@@ -667,28 +668,31 @@ impl<'a> Header<'a> {
 			),
 		};
 		if t.display {
-			body.push(format!("\t::{ns}::buf to_string() const;"));
-			members.push("to_string".to_string());
+			let member = apart("to_string", name);
+			body.push(format!("\t::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::to_string() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}));\n}}\n"
 			));
+			members.push(member);
 		}
 		if t.debug {
-			body.push(format!("\t::{ns}::buf debug() const;"));
-			members.push("debug".to_string());
+			let member = apart("debug", name);
+			body.push(format!("\t::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::debug() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}));\n}}\n"
 			));
+			members.push(member);
 		}
 		if t.default {
-			body.push(format!("\tstatic {name} default_();"));
-			members.push("default_".to_string());
+			let member = apart("default_", name);
+			body.push(format!("\tstatic {name} {member}();"));
+			members.push(member.clone());
 			let make = match object {
 				true => format!("{d}::access::wrap<{name}>(c_ret_)"),
 				false => format!("{d}::lift(c_ret_)"),
 			};
 			self.def(format!(
-				"inline {name} {name}::default_() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {make};\n}}\n"
+				"inline {name} {name}::{member}() {{\n\tauto c_ret_ = ::{c}_default();\n\treturn {make};\n}}\n"
 			));
 		}
 	}
@@ -1321,6 +1325,15 @@ fn runtime_names() -> impl Iterator<Item = &'static str> {
 		rest.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')).next()
 	});
 	std::iter::once("detail").chain(names)
+}
+
+/// The member `bare` a type's trait exports, in the class `class`, with `_` appended where
+/// it is the class's name, which C++ would read as a constructor.
+fn apart(bare: &str, class: &str) -> String {
+	match bare == class {
+		true => format!("{bare}_"),
+		false => bare.to_string(),
+	}
 }
 
 /// The C++ name of the parameter `rust`, with `_` appended while `taken` holds it or it is
