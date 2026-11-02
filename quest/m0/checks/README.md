@@ -18,7 +18,6 @@ Each child reports its CPU saved, cold and warm, against `origin/main`.
 
 ## Required
 
-- [Checks by the diff](/quest/m0/checks/dispatch.md) - `just ci` runs only the projects a change touches, as moq's `sh/dispatch.sh` does, with a nightly `just gate`
 - [A warm gate](/quest/m0/checks/cache.md) - the land gate builds through mbx, as moq's does
 - [Stable names on a small fixture](/quest/m0/checks/stable-names.md) - `stable_names` runs on a small fixture with generic instances and trait impls
 - [Fixtures that merge](/quest/m0/checks/fixture-layout.md) - `lang` splits by module, and `reject`'s snapshots key by item, not line
