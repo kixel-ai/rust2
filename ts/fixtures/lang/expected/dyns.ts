@@ -676,7 +676,7 @@ export function fns(data: rt.ByteSlice, out: rt.ByteVec): void {
  */
 export function pointers(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
 	let f!: rt.Arc<(a0: rt.u8) => rt.u8>;
-	let _540: boolean = false;
+	let _595: boolean = false;
 	if (dataLen >= 2) {
 		const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
 		const sq: rt.Arc<Square.Square> = new rt.Arc({ side: dataData[dataStart] as rt.u16 });
@@ -766,15 +766,15 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		rt.refRelease(_230);
 		fmt_put(out, _226);
 		const boxes: dyns_Shape.Shape[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(new rt.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rt.u8): dyns_Shape.Shape => {
-			const x: rt.u8 = _2;
-			const _43: rt.u8 = rt.u8Rem(x, 3);
+			const x2: rt.u8 = _2;
+			const _43: rt.u8 = rt.u8Rem(x2, 3);
 			if (_43 === 0) {
-				return new dyns_Shape.of$dyns_Noisy(new dyns_Noisy.Noisy(x, rt.arcClone(log)));
+				return new dyns_Shape.of$dyns_Noisy(new dyns_Noisy.Noisy(x2, rt.arcClone(log)));
 			}
 			if (_43 === 1) {
-				return new dyns_Shape.of$u32(x as rt.u32);
+				return new dyns_Shape.of$u32(x2 as rt.u32);
 			}
-			return new dyns_Shape.of$dyns_Tri({ tag: "Tall", _0: x } as Tri.Tri);
+			return new dyns_Shape.of$dyns_Tri({ tag: "Tall", _0: x2 } as Tri.Tri);
 		}), undefined, 8, true);
 		const rcs: rt.Arc<dyns_Shape.Shape>[] = [];
 		const arcs: rt.Arc<dyns_Shape.Shape>[] = [];
@@ -849,62 +849,98 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		}
 		const any2: rt.Arc<Any.Any> = new rt.Arc(new Any.of$dyns_Noisy(new dyns_Noisy.Noisy(rt.u8WrappingAdd(dataData[dataStart + 1], 1), rt.arcClone(log))));
 		const held: rt.Arc<Any.Any> = rt.arcClone(any2);
-		_540 = true;
-		const _391: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log.value);
-		rt.byteVecClear(_391.value);
-		rt.refMutRelease(_391);
-		const _395: rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>> = rt.arcDowncast(any2, Any.of$dyns_Noisy, (object) => object.v);
-		if (_395.ok) {
-			const n2: rt.Arc<dyns_Noisy.Noisy> = _395.value;
-			const _406: dyns_Noisy.Noisy = n2.value;
-			const _409: rt.usize = n2.strong;
-			const arg2 = _406._0;
-			const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(arg2, f), (f: rt.Formatter) => rt.usizeDisplay(_409, f)];
-			fmt_put(out, rt.fmtFormat([args28[0], " ", args28[1], " "]));
-			_540 = false;
+		_595 = true;
+		b5: {
+			const _388: [rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>>, rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>>] = [rt.arcDowncast(rt.arcClone(any2), Any.of$dyns_Noisy, (object) => object.v), rt.arcDowncast(rt.arcClone(held), Any.of$dyns_Noisy, (object) => object.v)];
+			if (_388[0].ok) {
+				if (_388[1].ok) {
+					const x: rt.Arc<dyns_Noisy.Noisy> = (_388[0] as { ok: true; value: rt.Arc<dyns_Noisy.Noisy> }).value;
+					const y: rt.Arc<dyns_Noisy.Noisy> = (_388[1] as { ok: true; value: rt.Arc<dyns_Noisy.Noisy> }).value;
+					const _403: rt.Arc<dyns_Noisy.Noisy> = rt.arcClone(x);
+					const _402: rt.Arc<Any.Any> = new rt.ArcDyn(_403, new Any.of$dyns_Noisy(_403.value));
+					const _406: rt.Arc<dyns_Noisy.Noisy> = rt.arcClone(y);
+					const _401: [rt.Arc<Any.Any>, rt.Arc<Any.Any>] = [_402, new rt.ArcDyn(_406, new Any.of$dyns_Noisy(_406.value))];
+					const ex: rt.Arc<Any.Any> = _402;
+					const ey: rt.Arc<Any.Any> = _401[1];
+					const _416: boolean = x === y;
+					const _420: boolean = rt.arcPtrEq(ex, ey);
+					const _424: boolean = rt.arcPtrEq(ex, held);
+					const _428: rt.usize = x.strong;
+					const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_416, f), (f: rt.Formatter) => rt.fmtBool(_420, f), (f: rt.Formatter) => rt.fmtBool(_424, f), (f: rt.Formatter) => rt.usizeDisplay(_428, f)];
+					fmt_put(out, rt.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " "]));
+					ey[Symbol.dispose]();
+					ex[Symbol.dispose]();
+					y[Symbol.dispose]();
+					x[Symbol.dispose]();
+					break b5;
+				}
+			}
+			if (_388[0].ok) {
+				(_388[0] as { ok: true; value: rt.Arc<dyns_Noisy.Noisy> }).value[Symbol.dispose]();
+			} else {
+				drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_388[0]);
+			}
+			if (_388[1].ok) {
+				(_388[1] as { ok: true; value: rt.Arc<dyns_Noisy.Noisy> }).value[Symbol.dispose]();
+			} else {
+				drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_388[1]);
+			}
+		}
+		const _440: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log.value);
+		rt.byteVecClear(_440.value);
+		rt.refMutRelease(_440);
+		const _444: rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>> = rt.arcDowncast(any2, Any.of$dyns_Noisy, (object) => object.v);
+		if (_444.ok) {
+			const n2: rt.Arc<dyns_Noisy.Noisy> = _444.value;
+			const _455: dyns_Noisy.Noisy = n2.value;
+			const _458: rt.usize = n2.strong;
+			const arg2 = _455._0;
+			const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(arg2, f), (f: rt.Formatter) => rt.usizeDisplay(_458, f)];
+			fmt_put(out, rt.fmtFormat([args30[0], " ", args30[1], " "]));
+			_595 = false;
 			held[Symbol.dispose]();
-			const _426: rt.usize = n2.strong;
-			const _429: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log.value);
-			const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_426, f), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(_429.value), f, rt.u8Debug)];
-			const _422: string = rt.fmtFormat([args30[0], " ", args30[1], " "]);
-			rt.refRelease(_429);
-			fmt_put(out, _422);
+			const _475: rt.usize = n2.strong;
+			const _478: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log.value);
+			const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_475, f), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(_478.value), f, rt.u8Debug)];
+			const _471: string = rt.fmtFormat([args32[0], " ", args32[1], " "]);
+			rt.refRelease(_478);
+			fmt_put(out, _471);
 			n2[Symbol.dispose]();
 		} else {
 			fmt_put(out, "none ");
 		}
-		if (!_395.ok) {
-			drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_395);
+		if (!_444.ok) {
+			drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_444);
 		}
-		const _446: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log.value);
-		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_446.value), f, rt.u8Debug)];
-		const _442: string = rt.fmtFormat([args32[0], " "]);
-		rt.refRelease(_446);
-		fmt_put(out, _442);
+		const _495: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log.value);
+		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_495.value), f, rt.u8Debug)];
+		const _491: string = rt.fmtFormat([args34[0], " "]);
+		rt.refRelease(_495);
+		fmt_put(out, _491);
 		const part3 = option_map$0j05j69(ok$00p9ap8(rt.arcDowncast(new rt.Arc(new Any.of$u32(dataData[dataStart] as rt.u32)), Any.of$u32, (object) => object.v)), (n3: rt.Arc<rt.u32>): rt.u32 => {
 			const _08: rt.u32 = n3.value;
 			n3[Symbol.dispose]();
 			return _08;
 		});
-		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part3, f, rt.u32Debug)];
-		fmt_put(out, rt.fmtFormat([args34[0], " "]));
-		const _474: rt.Arc<(a0: rt.u8) => rt.u8> = new rt.Arc((x2: rt.u8): rt.u8 => {
-			return rt.u8WrappingAdd(x2, dataData[dataStart]);
+		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part3, f, rt.u32Debug)];
+		fmt_put(out, rt.fmtFormat([args36[0], " "]));
+		const _523: rt.Arc<(a0: rt.u8) => rt.u8> = new rt.Arc((x3: rt.u8): rt.u8 => {
+			return rt.u8WrappingAdd(x3, dataData[dataStart]);
 		});
-		f = new rt.ArcDyn(_474, _474.value);
-		const g: rt.Arc<(a0: rt.u8) => rt.u8> = new rt.Arc((x3: rt.u8): rt.u8 => {
-			return x3 ^ dataData[dataStart + 1];
+		f = new rt.ArcDyn(_523, _523.value);
+		const g: rt.Arc<(a0: rt.u8) => rt.u8> = new rt.Arc((x4: rt.u8): rt.u8 => {
+			return x4 ^ dataData[dataStart + 1];
 		});
-		const _488: rt.u8 = f.value(dataData[dataStart + 1]);
-		const _494: rt.u8 = g.value(dataData[dataStart]);
-		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_488, f), (f: rt.Formatter) => rt.u8Display(_494, f)];
-		fmt_put(out, rt.fmtFormat([args36[0], " ", args36[1]]));
+		const _537: rt.u8 = f.value(dataData[dataStart + 1]);
+		const _543: rt.u8 = g.value(dataData[dataStart]);
+		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_537, f), (f: rt.Formatter) => rt.u8Display(_543, f)];
+		fmt_put(out, rt.fmtFormat([args38[0], " ", args38[1]]));
 		g[Symbol.dispose]();
 		f[Symbol.dispose]();
-		if (_540) {
+		if (_595) {
 			held[Symbol.dispose]();
 		}
-		_540 = false;
+		_595 = false;
 		looped[Symbol.dispose]();
 		weak4[Symbol.dispose]();
 		again[Symbol.dispose]();

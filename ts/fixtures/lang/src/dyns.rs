@@ -689,6 +689,20 @@ pub fn pointers(data: &[u8], out: &mut Vec<u8>) {
 	let boxed: Box<dyn Any> = Box::new(Noisy(b.wrapping_add(1), log.clone()));
 	let any: Rc<dyn Any> = Rc::from(boxed);
 	let held = any.clone();
+	// Two downcasts of one, and each erased again, are still the one allocation.
+	if let (Ok(x), Ok(y)) = (any.clone().downcast::<Noisy>(), held.clone().downcast::<Noisy>()) {
+		let (ex, ey): (Rc<dyn Any>, Rc<dyn Any>) = (x.clone(), y.clone());
+		put(
+			out,
+			&format!(
+				"{} {} {} {} ",
+				Rc::ptr_eq(&x, &y),
+				Rc::ptr_eq(&ex, &ey),
+				Rc::ptr_eq(&ex, &held),
+				Rc::strong_count(&x),
+			),
+		);
+	}
 	log.borrow_mut().clear();
 	match any.downcast::<Noisy>() {
 		Ok(n) => {

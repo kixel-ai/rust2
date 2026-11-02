@@ -298,7 +298,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
-					self.weak_object(value, pointee, object, span)
+					self.weak_object(value, pointee, object, span, out)
 				}
 				// A future, as the `rt.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
@@ -394,10 +394,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// `weak`, a `Weak` of `pointee` unsized to one of the trait object `object`: `rt.weakDyn`
 	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
-	/// upcast.
-	fn weak_object(&mut self, weak: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span) -> Expr {
+	/// upcast, which `arc_object` checks.
+	fn weak_object(
+		&mut self,
+		weak: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
 		if pointee.is_trait() {
-			return weak;
+			return self.arc_object(weak, pointee, object, span, out);
 		}
 		let name = self.b.fresh("arc");
 		let mut body = Vec::new();

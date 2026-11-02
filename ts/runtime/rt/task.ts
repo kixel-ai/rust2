@@ -162,8 +162,12 @@ export function arcPtrEq<T>(l: Arc<T>, r: Arc<T>): boolean {
 }
 
 function arcRoot(arc: Arc<unknown>): Arc<unknown> {
-	return arc instanceof ArcDyn ? arc.arc : arc;
+	while (arc instanceof ArcDyn) arc = arc.arc;
+	return arc;
 }
+
+/** The `Arc<T>` each `Arc::downcast` of an `Arc<dyn Any>` made from a box gives, which is one allocation. */
+const downcasts = new WeakMap<Arc<unknown>, Arc<unknown>>();
 
 /**
  * `Arc::downcast` of an `Arc<dyn Any>`, if its object is a `class`: the `Arc` it was made
@@ -175,7 +179,13 @@ export function arcDowncast<T, U, C>(
 	held: (object: C) => T,
 ): Result<Arc<T>, Arc<U>> {
 	if (!(arc.value instanceof class_)) return Err(arc);
-	return Ok(arc instanceof ArcDyn ? (arc.arc as Arc<T>) : new ArcDyn(arc, held(arc.value)));
+	if (arc instanceof ArcDyn) return Ok(arc.arc as Arc<T>);
+	let typed = downcasts.get(arc) as Arc<T> | undefined;
+	if (typed === undefined) {
+		typed = new ArcDyn(arc, held(arc.value));
+		downcasts.set(arc, typed);
+	}
+	return Ok(typed);
 }
 
 /**

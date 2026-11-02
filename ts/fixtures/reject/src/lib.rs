@@ -504,6 +504,12 @@ pub fn any_upcast(k: &dyn Keyed) -> bool {
 	any.is::<u8>()
 }
 
+/// The same upcast of a `Weak`.
+pub fn weak_any_upcast(k: std::rc::Weak<dyn Keyed>) -> bool {
+	let any: std::rc::Weak<dyn std::any::Any> = k;
+	any.upgrade().is_some_and(|a| a.is::<u8>())
+}
+
 /// A `TypeId`, which no value stands for yet.
 pub fn any_type_id(a: &dyn std::any::Any) -> bool {
 	a.type_id() == std::any::TypeId::of::<u8>()

@@ -56,6 +56,7 @@ roots = [
     "generic_pending",
     "rebound_reference",
     "any_upcast",
+    "weak_any_upcast",
     "any_type_id",
     "reinterpreted",
     "addressed",
