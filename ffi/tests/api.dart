@@ -542,6 +542,9 @@ Future<void> futures() async {
   check(threadLog.lines == 3, 'each line logged');
   // Dropped on that thread, so closed from the event loop.
   await until(() => threadLog.closes == 1, 'an implementation dropped on another thread is closed');
+  final laterLog = CountLog();
+  check(await api.emitLater(laterLog, bytes([1, 2])) == 4, 'an async call and its poll into Dart from a joined thread');
+  check(laterLog.lines == 4, 'each line logged, eagerly and once polled');
 
   // A wake that lands while the future polls, before it returns pending, as each of
   // `yielded`'s does, is kept: the future polls again rather than waiting for a wake that

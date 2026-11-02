@@ -627,6 +627,27 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The `@Native` binding of a C function by name, parameters, and return.
+	/// The Dart function calling `call` through a thunk that runs it on a thread of its own
+	/// while the isolate's runs each call into Dart, which takes the isolate's home first.
+	fn served(&mut self, call: &Sig) -> String {
+		let name = format!("{}_dart_serve_{}", self.abi.prefix, self.bare(&call.name));
+		let mut params = vec![Ty::Data];
+		params.extend(call.params.iter().map(|(_, ty)| ty.clone()));
+		let decls: Vec<String> = (call.params.iter().enumerate())
+			.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
+			.collect();
+		let args: Vec<String> = (0..call.params.len()).map(|n| format!("p{n}")).collect();
+		let _ = write!(
+			self.glue,
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{}({})) }}\n}}\n\n",
+			decls.concat(),
+			rs(&call.ret),
+			call.name,
+			args.join(", ")
+		);
+		self.native_fn(&name, params, call.ret.clone())
+	}
+
 	fn native_fn(&mut self, name: &str, params: Vec<Ty>, ret: Ty) -> String {
 		let sig = Sig {
 			name: name.to_string(),
@@ -1592,7 +1613,7 @@ impl<'a> Gen<'a> {
 		owner_ty: Option<&Type>,
 	) -> Option<(String, String)> {
 		let abi = self.abi;
-		let p = abi.prefix.clone();
+		let _p = abi.prefix.clone();
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
@@ -1661,8 +1682,8 @@ impl<'a> Gen<'a> {
 					));
 					args.push(format!("{v}.ref"));
 					// Rust may call the implementation from another thread before the call
-					// returns, as it may a closure.
-					serve |= !function.future;
+					// returns, or a poll of its future does, as it may a closure.
+					serve = true;
 				}
 				(Type::Waker, _) => args.push(format!("_n.wakerOf({name})")),
 				(ty, c) if Self::scalar(c) => args.push(self.lower(ty, &name)),
@@ -1683,26 +1704,12 @@ impl<'a> Gen<'a> {
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 		let ok_dt = self.dt(&ok);
 
+		// A call that lends a closure or gives an implementation, and each poll of its
+		// future, runs on a thread of its own, while the isolate's runs each call into Dart.
 		let call_fn = match serve {
 			true => {
-				// A call that lends a closure or gives an implementation runs on a thread
-				// of its own, while the isolate's runs each call into Dart.
-				let serve_name = format!("{p}_dart_serve_{bare}");
-				let mut params = vec![Ty::Data];
-				params.extend(export.call.params.iter().map(|(_, ty)| ty.clone()));
-				let decls: Vec<String> = (export.call.params.iter().enumerate())
-					.map(|(n, (_, ty))| format!(", p{n}: {}", rs(ty)))
-					.collect();
-				let call_args: Vec<String> = (0..export.call.params.len()).map(|n| format!("p{n}")).collect();
-				let _ = write!(
-					self.glue,
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {serve_name}(home: *const c_void{}) -> {} {{\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c_name}({})) }}\n}}\n\n",
-					decls.concat(),
-					rs(&export.call.ret),
-					call_args.join(", ")
-				);
 				args.insert(0, "_n.home".to_string());
-				self.native_fn(&serve_name, params, export.call.ret.clone())
+				self.served(&export.call)
 			}
 			false => self.native(&export.call),
 		};
@@ -1712,11 +1719,17 @@ impl<'a> Gen<'a> {
 		if let Some((_, poll, free)) = &export.future {
 			ret_type = format!("Cancelable<{ok_dt}>");
 			// The poll, which completes the future.
-			let poll_fn = self.native(poll);
+			let mut poll_args = vec!["f".to_string(), "w".to_string()];
+			let poll_fn = match serve {
+				true => {
+					poll_args.insert(0, "_n.home".to_string());
+					self.served(poll)
+				}
+				false => self.native(poll),
+			};
 			let free_fn = self.native(free);
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut stmts: Vec<String> = Vec::new();
-			let mut poll_args = vec!["f".to_string(), "w".to_string()];
 			for (n, ty) in &poll_outs {
 				stmts.push(self.out_decl(n, ty));
 				poll_args.push(format!("o_{n}"));

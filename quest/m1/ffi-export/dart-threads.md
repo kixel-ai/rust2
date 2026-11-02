@@ -9,9 +9,9 @@ fails loud, rather than deadlocking.
 ## Plan
 
 Rust reaches Dart from another thread through the isolate's port, and waits for its event
-loop to run the call. A call that lends a closure or gives an implementation runs on a
-thread of its own while the isolate's runs those calls, through `Home::serve` in
-`ffi/runtime/dart.rs`. Any other call holds the isolate's thread, so a call into Dart it
+loop to run the call. A call that lends a closure or gives an implementation, and each
+poll of its future, runs on a thread of its own while the isolate's runs those calls,
+through `Home::serve` in `ffi/runtime/dart.rs`. Any other call holds the isolate's thread, so a call into Dart it
 waits on, through an implementation Rust kept from an earlier call, never runs. moq gives
 no implementation today.
 

@@ -193,10 +193,10 @@ impl Home {
 		out.expect("the job ran")
 	}
 
-	/// Run `f`, a call from Dart that lends a closure or gives an implementation, on a
-	/// thread of its own while this one, the isolate's, runs each call into Dart and each
-	/// drop until `f` returns. `f`'s thread acts as this one does for the handles it
-	/// borrows, as does this one for each job's.
+	/// Run `f`, a call from Dart that lends a closure or gives an implementation, or a poll
+	/// of its future, on a thread of its own while this one, the isolate's, runs each call
+	/// into Dart and each drop until `f` returns. `f`'s thread acts as this one does for the
+	/// handles it borrows, as does this one for each job's.
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `f` is a call through the C ABI.

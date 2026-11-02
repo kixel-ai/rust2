@@ -610,9 +610,19 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
+	on_thread(&log, &lines)
+}
+
+/// [`emit_from_thread`] before it returns its future, and again once polled.
+pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
+	let eager = on_thread(&*log, &lines);
+	async move { eager + on_thread(&*log, &lines) }
+}
+
+fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	std::thread::scope(|scope| {
 		scope
-			.spawn(move || emit(log, lines))
+			.spawn(|| lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32)
 			.join()
 			.expect("the thread finishes")
 	})
