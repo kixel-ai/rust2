@@ -626,10 +626,9 @@ fn api_go() {
 	);
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
+	run(Command::new(&exe).arg("closed"));
+	run(Command::new(&exe).arg("bytes"));
 	for (case, message) in [
-		("moved", "Counter is closed"),
-		("boxed moved", "Node is closed"),
-		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
 			"api_counter_into_label: a lent handle's value cannot move out",

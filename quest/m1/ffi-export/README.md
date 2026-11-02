@@ -61,3 +61,4 @@ than `ctypes`; the others call C natively. moq's packages switch to them in moq'
 - [Python bindings](/quest/m1/ffi-export/python.md) - a generated CPython extension, skipping the C ABI as Kotlin's JNI does
 - [Dart bindings](/quest/m1/ffi-export/dart.md) - Dart over the C ABI through `dart:ffi`
 - [A moq checkout per pin](/quest/m1/ffi-export/moq-checkouts.md) - `just ts` and `just ffi` check out their own moq revisions, so both run at once
+- [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go

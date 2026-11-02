@@ -36,9 +36,9 @@ func check(err error) {
 }
 
 func round() string {
-	broadcast := moq.NewBroadcastInfo().Produce()
+	broadcast := must(moq.NewBroadcastInfo().Produce())
 	micro := moq.TimescaleMICRO()
-	track := must(broadcast.CreateTrack("bench", moq.TrackInfoDefault().WithTimescale(micro)))
+	track := must(broadcast.CreateTrack("bench", must(moq.TrackInfoDefault().WithTimescale(micro))))
 	micro.Close()
 
 	// A frame of 100 zero bytes, as bench/export.c writes.
@@ -77,7 +77,7 @@ func round() string {
 	closed := 0
 	start = time.Now()
 	for range groups * frames {
-		if track.IsClosed() {
+		if must(track.IsClosed()) {
 			closed++
 		}
 	}
@@ -86,7 +86,7 @@ func round() string {
 	// Reads: each frame written, then read through a call whose future is ready at its
 	// first poll, so it never waits.
 	ctx := context.Background()
-	consumer := track.Consume()
+	consumer := must(track.Consume())
 	subscriber := must(consumer.Subscribe(ctx, nil))
 	consumer.Close()
 	var last *moq.FrameFrame
@@ -108,15 +108,36 @@ func round() string {
 		group.Close()
 	}
 	read := perFrame(start)
+
+	// And one 4 KiB frame.
+	group := must(track.AppendGroup())
+	reader := must(subscriber.RecvGroup(ctx))
+	check(group.WriteFrame(at, make([]byte, 4096)))
+	big := must(reader.ReadFrame(ctx))
+	reader.Close()
+	group.Close()
 	subscriber.Close()
 
-	// Payload reads: the last frame's 100 bytes, copied into Go, and Rust's freed.
-	start = time.Now()
-	for range groups * frames {
-		closed += int(last.Payload()[0])
+	// Payload reads: each frame's bytes, as a Bytes, then copied out of it. 100 B are copied
+	// at the call; 4 KiB are lent without a copy until the GC frees them.
+	lent := func(frame *moq.FrameFrame) float64 {
+		start := time.Now()
+		for range groups * frames {
+			closed += int(must(frame.Payload()).At(0))
+		}
+		return perFrame(start)
 	}
-	payload := perFrame(start)
+	copied := func(frame *moq.FrameFrame) float64 {
+		start := time.Now()
+		for range groups * frames {
+			closed += int(must(frame.Payload()).Copy()[0])
+		}
+		return perFrame(start)
+	}
+	small, smallCopied := lent(last), copied(last)
+	large, largeCopied := lent(big), copied(big)
 	last.Close()
+	big.Close()
 	at.Close()
 	track.Close()
 	broadcast.Close()
@@ -125,8 +146,8 @@ func round() string {
 	if closed != 0 {
 		bang = "!"
 	}
-	return fmt.Sprintf("export (Go): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read%s",
-		stamped, reused, call, read, payload, bang)
+	return fmt.Sprintf("export (Go): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per 100 B payload read (%.0f copied), %.0f per 4 KiB (%.0f copied)%s",
+		stamped, reused, call, read, small, smallCopied, large, largeCopied, bang)
 }
 
 func main() {

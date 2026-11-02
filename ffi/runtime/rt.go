@@ -10,8 +10,25 @@ const (
 	held_   = 2
 )
 
+// ErrClosed is what a call returns, wrapped with the object's type, once an object it takes
+// is closed: by Close, by a call that moved it into Rust, or, for one Rust lent a callback,
+// once that callback returned.
+var ErrClosed = errors.New("closed")
+
+type closedError_ struct {
+	name string
+}
+
+func (e closedError_) Error() string {
+	return e.name + " is closed"
+}
+
+func (e closedError_) Is(target error) bool {
+	return target == ErrClosed
+}
+
 // handle is what an object owns, or is lent for a call: each call holds it, so Close frees
-// it only once no call does, and a call after Close panics.
+// it only once no call does, and a call after Close returns ErrClosed.
 type handle struct {
 	raw   unsafe.Pointer
 	state atomic.Int64
@@ -28,16 +45,22 @@ func newHandle(raw unsafe.Pointer, free func(unsafe.Pointer), name string) *hand
 	return h
 }
 
+// hold is the handle, held until release, or nil once closed.
 func (h *handle) hold() unsafe.Pointer {
 	for {
 		n := h.state.Load()
 		if n&closed_ != 0 {
-			panic(h.name + " is closed")
+			return nil
 		}
 		if h.state.CompareAndSwap(n, n+held_) {
 			return h.raw
 		}
 	}
+}
+
+// closed is the error a call returns once h is closed.
+func (h *handle) closed() error {
+	return closedError_{h.name}
 }
 
 func (h *handle) release() {
@@ -128,15 +151,137 @@ func liftStringOption_(buf cBuf) *string {
 	return &s
 }
 
-// liftBytes_ is bytes Rust returned, copied in one move, then freed.
-func liftBytes_(buf cBuf) []byte {
-	b := make([]byte, int(buf.len))
-	copy(b, view_(buf))
-	cBufFree(buf)
-	return b
+// Bytes is bytes Rust returned, or a record holds. From lendFrom_ bytes they are Rust's
+// buffer, read in place and freed only once the GC finds no Bytes, sub-view, or reader of
+// it, so none reads freed memory; below it, a copy in Go's memory. No
+// method lets Rust's memory out as a []byte but for a call of an io.Writer, which must not
+// keep it. Read and WriteTo consume what they read, as bytes.Buffer's do; the rest leave
+// it. The zero Bytes is empty.
+type Bytes struct {
+	// What frees Rust's buffer once unreachable, or nil for Go's memory or none.
+	owner *bytesOwner_
+	// Nil once empty, since Go's memory may not be pointed past its end.
+	ptr unsafe.Pointer
+	len int
 }
 
-func liftBytesOption_(buf cBuf) *[]byte {
+// bytesOwner_ is what owns a buffer Rust returned, freed once the GC collects it.
+type bytesOwner_ struct {
+	buf cBuf
+}
+
+// NewBytes is b as Bytes, for a record passed in, holding b itself without a copy.
+func NewBytes(b []byte) Bytes {
+	if len(b) == 0 {
+		return Bytes{}
+	}
+	return Bytes{ptr: unsafe.Pointer(unsafe.SliceData(b)), len: len(b)}
+}
+
+// view is what b reads, valid only while b's owner is reachable.
+func (b Bytes) view() []byte {
+	if b.len == 0 {
+		return nil
+	}
+	return unsafe.Slice((*byte)(b.ptr), b.len)
+}
+
+// Len is how many bytes b holds.
+func (b Bytes) Len() int {
+	return b.len
+}
+
+// At is the byte at i, panicking out of range as a slice does.
+func (b Bytes) At(i int) byte {
+	v := b.view()[i]
+	runtime.KeepAlive(b.owner)
+	return v
+}
+
+// Slice is the bytes from i up to j, without a copy, keeping b's buffer alive while
+// reachable; it panics out of range as a slice does.
+func (b Bytes) Slice(i, j int) Bytes {
+	_ = b.view()[i:j]
+	if i == j {
+		return Bytes{}
+	}
+	return Bytes{owner: b.owner, ptr: unsafe.Add(b.ptr, i), len: j - i}
+}
+
+// CopyTo copies b into dst, as copy does, returning how many bytes it copied.
+func (b Bytes) CopyTo(dst []byte) int {
+	n := copy(dst, b.view())
+	runtime.KeepAlive(b.owner)
+	return n
+}
+
+// Copy is a copy of b in Go's memory.
+func (b Bytes) Copy() []byte {
+	v := make([]byte, b.len)
+	copy(v, b.view())
+	runtime.KeepAlive(b.owner)
+	return v
+}
+
+// Read reads into p what b holds, consuming it, and io.EOF once b is empty.
+func (b *Bytes) Read(p []byte) (int, error) {
+	if b.len == 0 {
+		if len(p) == 0 {
+			return 0, nil
+		}
+		return 0, io.EOF
+	}
+	n := copy(p, b.view())
+	runtime.KeepAlive(b.owner)
+	b.consume(n)
+	return n, nil
+}
+
+// WriteTo writes w what b holds, without a copy, consuming what w took.
+func (b *Bytes) WriteTo(w io.Writer) (int64, error) {
+	if b.len == 0 {
+		return 0, nil
+	}
+	n, err := w.Write(b.view())
+	runtime.KeepAlive(b.owner)
+	if n > b.len {
+		panic("an io.Writer wrote more than it was given")
+	}
+	b.consume(n)
+	if err == nil && b.len != 0 {
+		err = io.ErrShortWrite
+	}
+	return int64(n), err
+}
+
+func (b *Bytes) consume(n int) {
+	if n == b.len {
+		*b = Bytes{}
+		return
+	}
+	b.ptr = unsafe.Add(b.ptr, n)
+	b.len -= n
+}
+
+// lendFrom_ is the size from which bytes Rust returns are lent rather than copied: below
+// it, a copy with Rust's buffer freed at once costs less than the cleanup a lent buffer
+// registers, about 700 ns at any size.
+const lendFrom_ = 2048
+
+// liftBytes_ is bytes Rust returned: below lendFrom_ copied, with Rust's buffer freed at
+// once, and otherwise lent in place until the GC frees them.
+func liftBytes_(buf cBuf) Bytes {
+	if buf.len < lendFrom_ {
+		b := NewBytes(append([]byte(nil), view_(buf)...))
+		cBufFree(buf)
+		return b
+	}
+	owner := &bytesOwner_{buf: buf}
+	runtime.AddCleanup(owner, cBufFree, buf)
+	return Bytes{owner: owner, ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
+}
+
+func liftBytesOption_(buf cBuf) *Bytes {
 	if buf.ptr == nil {
 		return nil
 	}
@@ -279,6 +424,11 @@ func unhold_(o owner_) {
 type arena_ struct {
 	pins runtime.Pinner
 	held []owner_
+	// The owners of Rust's buffers C reads.
+	kept []*bytesOwner_
+	// The first object the call takes that was closed, which fails the call before it is
+	// made.
+	err error
 }
 
 func (a *arena_) finish() {
@@ -300,10 +450,18 @@ func (a *arena_) bufString(s string) cBuf {
 	return b
 }
 
-func (a *arena_) bufBytes(v []byte) cBuf {
-	b := bufBytes_(v)
-	a.pin(unsafe.Pointer(b.ptr))
-	return b
+// bufView is the buffer of b, which C reads during the call: Go's memory pinned, and
+// Rust's kept reachable.
+func (a *arena_) bufView(b Bytes) cBuf {
+	if b.len == 0 {
+		return cBuf{ptr: (*C.uint8_t)(emptyPtr_())}
+	}
+	if b.owner == nil {
+		a.pins.Pin(b.ptr)
+	} else {
+		a.kept = append(a.kept, b.owner)
+	}
+	return cBuf{ptr: (*C.uint8_t)(b.ptr), len: C.size_t(b.len)}
 }
 
 func (a *arena_) bufStringOption(s *string) cBuf {
@@ -313,15 +471,23 @@ func (a *arena_) bufStringOption(s *string) cBuf {
 	return a.bufString(*s)
 }
 
-func (a *arena_) bufBytesOption(v *[]byte) cBuf {
-	if v == nil {
+func (a *arena_) bufViewOption(b *Bytes) cBuf {
+	if b == nil {
 		return cBuf{}
 	}
-	return a.bufBytes(*v)
+	return a.bufView(*b)
 }
 
+// hold is o's handle, held until the call returns, or nil, failing the call, once closed.
 func (a *arena_) hold(o owner_) unsafe.Pointer {
-	raw := o.handle_().hold()
+	h := o.handle_()
+	raw := h.hold()
+	if raw == nil {
+		if a.err == nil {
+			a.err = h.closed()
+		}
+		return nil
+	}
 	a.held = append(a.held, o)
 	return raw
 }

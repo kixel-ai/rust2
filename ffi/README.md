@@ -333,8 +333,11 @@ own directory, and links the library through `CGO_LDFLAGS`.
   takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
   package the code uses takes one too.
 - **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
-  holds it, and a call after it panics; one never closed is closed once the GC collects
-  it, through `runtime.AddCleanup`. A `self` method, or passing the object by value, closes
+  holds it, and a second `Close()` does nothing; one never closed is closed once the GC
+  collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its
+  receiver or anywhere in its arguments, returns an error matching `ErrClosed`, even when
+  `Close` races it on another goroutine, so every such call returns an `error`; `String()`
+  and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
   it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `First()`,
   and a setter, `SetFirst(v)`.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
@@ -343,9 +346,15 @@ own directory, and links the library through `CGO_LDFLAGS`.
   interface's. Positional fields are `V0`, `V1`, and so on. `Display` is `String()`,
   `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
   function of the package, `PointDefault()`.
-- **Bytes** passed in are a `[]byte`, and text a `string`, each read in place: Go's memory,
-  pinned where C reads it through other memory. Bytes Rust returns are copied once into a
-  `[]byte`, and text into a `string`, and Rust's freed at the call. A path is a `string`
+- **Bytes** a call takes are a `[]byte`, and text a `string`, each read in place: Go's
+  memory, pinned where C reads it through other memory. Bytes Rust passes a callback are
+  copied into a `[]byte`. Bytes anywhere else, such as those Rust returns or a record
+  holds, are a `Bytes`, made from Go's with `NewBytes`. One of 2 KiB or more from Rust
+  reads its buffer in place through `Len`, `At`, `Slice`, `CopyTo`, `Read`, and
+  `WriteTo`, and frees it once the GC finds no `Bytes` reaching it, so no Go code holds a
+  slice of freed memory; a smaller one is copied, which costs less than the GC's cleanup.
+  `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
+  freed at the call. A path is a `string`
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
   pointer, nil for `None`. A tuple is `Tuple2[A, B]` and so on, but a tuple of one is its
   element, and one returned whole is the function's results. `Duration` is
@@ -427,7 +436,10 @@ It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
 ([quest](/quest/m2/uniffi-swift-arm.md)), and nightly with Apple's on macOS.
 `tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
-checks that bytes cross both ways and that the GC frees an object never closed, and breaks
+checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
+or a reader reaches it and that the GC frees it once none does, that the GC frees an object
+never closed, and that each kind of call meeting a closed object, including one racing
+`Close`, returns `ErrClosed`, and breaks
 each runtime check, which must panic with its message; a Go file from another build must
 fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`

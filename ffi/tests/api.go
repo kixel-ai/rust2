@@ -2,13 +2,16 @@
 // through the generated Go. tests/fixtures.rs compares the transcripts.
 //
 // With an argument, it instead checks the futures' semantics, what closing and the GC
-// free, or breaks a contract, which must fail.
+// free, what a closed object returns, how long returned bytes live, or breaks a contract,
+// which must fail.
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/netip"
 	"os"
@@ -99,6 +102,13 @@ func must[T any](v T, err error) T {
 	return v
 }
 
+// ok fails the test on err, of a call that returns nothing else.
+func ok(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }
@@ -141,8 +151,8 @@ func script() {
 	fmt.Printf("default %d %d\n", d.X, d.Y)
 
 	c := api.NewCounter("c", 5)
-	fmt.Printf("get %d\n", c.Get())
-	fmt.Printf("name %s\n", c.Name())
+	fmt.Printf("get %d\n", must(c.Get()))
+	fmt.Printf("name %s\n", must(c.Name()))
 	fmt.Printf("add ok %d\n", must(c.Add(10)))
 	// An exported error type is returned as itself.
 	var e api.Error
@@ -152,22 +162,23 @@ func script() {
 	_, err = c.Sub(20)
 	check(errors.As(err, &e), "sub returns an api.Error")
 	fmt.Printf("sub err %s %s\n", err, e.GoString())
-	c.Rename("d")
-	fmt.Printf("name %s\n", c.Name())
-	fmt.Printf("is d %t\n", c.Is("d"))
-	cp := c.Clone()
+	ok(c.Rename("d"))
+	fmt.Printf("name %s\n", must(c.Name()))
+	fmt.Printf("is d %t\n", must(c.Is("d")))
+	cp := must(c.Clone())
 	must(cp.Add(1))
-	fmt.Printf("clone %d original %d\n", cp.Get(), c.Get())
+	fmt.Printf("clone %d original %d\n", must(cp.Get()), must(c.Get()))
 	cp.Close()
 	fmt.Printf("debug %s\n", c.GoString())
-	label := c.IntoLabel(&p)
+	label := must(c.IntoLabel(&p))
 	fmt.Printf("label %s\n", label.GoString())
 	fmt.Printf("note %t %t\n", api.HasText(api.Note{Text: ptr("")}), api.HasText(api.NoteDefault()))
 
-	below, above := api.NewCounter("s", 7).Split(5)
-	fmt.Printf("split %s %d %s %d\n", below.Name(), below.Get(), above.Name(), above.Get())
-	one := api.Only(api.NewCounter("o", 3))
-	fmt.Printf("only %s %d\n", one.Name(), one.Get())
+	below, above, err := api.NewCounter("s", 7).Split(5)
+	ok(err)
+	fmt.Printf("split %s %d %s %d\n", must(below.Name()), must(below.Get()), must(above.Name()), must(above.Get()))
+	one := must(api.Only(api.NewCounter("o", 3)))
+	fmt.Printf("only %s %d\n", must(one.Name()), must(one.Get()))
 	w8, w16, w32, w64 := api.Widths(98305)
 	fmt.Printf("widths %d %d %d %d\n", w8, w16, w32, w64)
 	for _, b := range []uint64{2, 0} {
@@ -197,12 +208,12 @@ func script() {
 		return fmt.Sprintf("%s %s %d %d", r.V0, shapes[r.V1], r.V2.X, r.V2.Y)
 	}), "[]"))
 	// Each handle in a tuple moves in, as one taken by value does.
-	board := api.NewBoard([]api.Tuple2[string, *api.Counter]{
+	board := must(api.NewBoard([]api.Tuple2[string, *api.Counter]{
 		{V0: "low", V1: api.NewCounter("l", 1)},
 		{V0: "high", V1: api.NewCounter("h", 9)},
-	})
-	fmt.Printf("ranked %s\n", strings.Trim(list(board.Ranked(), func(r api.Tuple2[string, *api.Counter]) string {
-		return fmt.Sprintf("%s %s %d", r.V0, r.V1.Name(), r.V1.Get())
+	}))
+	fmt.Printf("ranked %s\n", strings.Trim(list(must(board.Ranked()), func(r api.Tuple2[string, *api.Counter]) string {
+		return fmt.Sprintf("%s %s %d", r.V0, must(r.V1.Name()), must(r.V1.Get()))
 	}), "[]"))
 	board.Close()
 	square := api.ShapeSquare
@@ -222,44 +233,44 @@ func script() {
 			fmt.Printf("doubled Some((Some(%d),))\n", **doubled)
 		}
 	}
-	fmt.Printf("lent back %s boxed %s\n", list(api.LentBack([]byte{1, 2}), number), list(api.BoxedTuple([]byte{3}), number))
+	fmt.Printf("lent back %s boxed %s\n", list(api.LentBack(api.NewBytes([]byte{1, 2})).Copy(), number), list(api.BoxedTuple([]byte{3}).Copy(), number))
 	// A borrowed string and an owned one share a tuple struct.
 	check(api.Title(false) == nil, "an informal title is none")
 	fmt.Printf("title Some((%s,)) None named Some((%s,))\n", quoted(*api.Title(true)), quoted(*api.Named("x")))
 
 	// Each lent counter is a new handle to a clone.
-	registry := api.NewRegistry(api.NewCounter("first", 1))
-	fmt.Printf("last %t\n", registry.Last() != nil)
-	registry.Push(api.NewCounter("last", 2))
-	first := registry.First()
+	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
+	fmt.Printf("last %t\n", must(registry.Last()) != nil)
+	ok(registry.Push(api.NewCounter("last", 2)))
+	first := must(registry.First())
 	must(first.Add(10))
-	fmt.Printf("first %d lent %d\n", registry.First().Get(), first.Get())
-	last := registry.Last()
+	fmt.Printf("first %d lent %d\n", must(must(registry.First()).Get()), must(first.Get()))
+	last := must(registry.Last())
 	must(last.Add(10))
-	fmt.Printf("last %d lent %d\n", registry.Last().Get(), last.Get())
+	fmt.Printf("last %d lent %d\n", must(must(registry.Last()).Get()), must(last.Get()))
 	// A closure lent for the call edits the first counter through a handle.
 	by := uint64(5)
-	edited := registry.Edit(func(counter *api.Counter) bool {
+	edited := must(registry.Edit(func(counter *api.Counter) bool {
 		must(counter.Add(by))
-		return counter.Edited() && counter.Get() == 6
-	})
-	fmt.Printf("edit %t %d\n", edited, registry.First().Get())
+		return must(counter.Edited()) && must(counter.Get()) == 6
+	}))
+	fmt.Printf("edit %t %d\n", edited, must(must(registry.First()).Get()))
 	// A setter moves an object in, as assignment does, closing its handle.
-	registry.SetFirst(api.NewCounter("second", 3))
-	fmt.Printf("set first %d %s\n", registry.First().Get(), registry.First().Name())
-	fmt.Printf("walk %d\n", api.Walk(3, func(cursor *api.Cursor) uint64 { return cursor.At() * 2 }))
+	ok(registry.SetFirst(api.NewCounter("second", 3)))
+	fmt.Printf("set first %d %s\n", must(must(registry.First()).Get()), must(must(registry.First()).Name()))
+	fmt.Printf("walk %d\n", api.Walk(3, func(cursor *api.Cursor) uint64 { return must(cursor.At()) * 2 }))
 	fmt.Printf("each %d\n", api.Each(2, func(at uint32) { fmt.Printf("visit %d\n", at) }))
 	fmt.Printf("offset %d\n", api.Offset(func() uint32 { return 7 }, 3))
 	fmt.Printf("shift %d\n", api.Shift(func() uint32 { return 7 }, 4))
 
 	name := api.NameOwned("a")
-	joined := name.Join(api.NameOwned("b"))
-	fmt.Printf("joined %s %s %t\n", joined.AsStr(), joined.GoString(), joined.Equal(name))
-	joined.Rename("c")
-	fmt.Printf("renamed %s\n", joined.AsStr())
-	long := api.Longer(joined, api.NameOwned("dd"))
-	fmt.Printf("longer %s\n", long.AsStr())
-	fmt.Printf("unnamed [%s]\n", api.Unnamed().AsStr())
+	joined := must(name.Join(api.NameOwned("b")))
+	fmt.Printf("joined %s %s %t\n", must(joined.AsStr()), joined.GoString(), must(joined.Equal(name)))
+	ok(joined.Rename("c"))
+	fmt.Printf("renamed %s\n", must(joined.AsStr()))
+	long := must(api.Longer(joined, api.NameOwned("dd")))
+	fmt.Printf("longer %s\n", must(long.AsStr()))
+	fmt.Printf("unnamed [%s]\n", must(api.Unnamed().AsStr()))
 
 	fmt.Printf("total %d\n", api.Total(api.RangeU64{Start: 2, End: 5}))
 	wide := api.Widen(api.RangeU64{Start: 2, End: 5}, 1)
@@ -310,27 +321,27 @@ func script() {
 
 	// A `Copy` handle passed by value is copied, so it stays usable.
 	stamp := api.StampFromMillis(2500)
-	fmt.Printf("secs %d\n", stamp.Secs())
-	fmt.Printf("later %t\n", api.StampFromMillis(3000).Later(stamp))
-	fmt.Printf("secs %d\n", stamp.Secs())
-	message := api.NewMessage(stamp, []byte("body"))
-	fmt.Printf("payload %s\n", message.Payload())
-	fmt.Printf("stamp %s\n", message.Stamp().GoString())
-	fmt.Printf("sent %t\n", message.Sent())
+	fmt.Printf("secs %d\n", must(stamp.Secs()))
+	fmt.Printf("later %t\n", must(api.StampFromMillis(3000).Later(stamp)))
+	fmt.Printf("secs %d\n", must(stamp.Secs()))
+	message := must(api.NewMessage(stamp, []byte("body")))
+	fmt.Printf("payload %s\n", must(message.Payload()).Copy())
+	fmt.Printf("stamp %s\n", must(message.Stamp()).GoString())
+	fmt.Printf("sent %t\n", must(message.Sent()))
 	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	reset := api.StampFromMillis(4000)
-	message.SetStamp(reset)
-	message.SetPayload([]byte("edited"))
-	fmt.Printf("payload %s\n", message.Payload())
-	fmt.Printf("stamp %s\n", message.Stamp().GoString())
-	fmt.Printf("secs %d\n", reset.Secs())
-	message.SetStamp(nil)
-	fmt.Printf("stamp %t\n", message.Stamp() != nil)
+	ok(message.SetStamp(reset))
+	ok(message.SetPayload([]byte("edited")))
+	fmt.Printf("payload %s\n", must(message.Payload()).Copy())
+	fmt.Printf("stamp %s\n", must(message.Stamp()).GoString())
+	fmt.Printf("secs %d\n", must(reset.Secs()))
+	ok(message.SetStamp(nil))
+	fmt.Printf("stamp %t\n", must(message.Stamp()) != nil)
 
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, []byte{1, 2, 3, 4}))
 	logger := api.NewLogger(printLog{})
-	fmt.Printf("write %t\n", logger.Write("hi"))
+	fmt.Printf("write %t\n", must(logger.Write("hi")))
 	logger.Close()
 	fmt.Println("dropped")
 	// Rust calls it on another thread, before the call returns.
@@ -345,7 +356,7 @@ func script() {
 	// The receive waits once its future pends, until the send wakes it.
 	watching := watch(ctx)
 	got := make(chan []byte)
-	go func() { got <- must(channel.Recv(watching)) }()
+	go func() { got <- must(channel.Recv(watching)).Copy() }()
 	<-watching.waiting
 	fmt.Println("recv pending true")
 	channel.Send([]byte("hi"))
@@ -361,29 +372,29 @@ func script() {
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
 	check(errors.Is(channel.SendLater(cancelled, []byte("eager")), context.Canceled), "a cancelled call returns its context's error")
-	fmt.Printf("recv %s\n", must(channel.Recv(ctx)))
+	fmt.Printf("recv %s\n", must(channel.Recv(ctx)).Copy())
 	channel.Send([]byte("sized"))
 	sized, size, err := channel.RecvSized(ctx)
 	check(err == nil, "recv sized")
-	fmt.Printf("sized %s %d\n", sized, size)
+	fmt.Printf("sized %s %d\n", sized.Copy(), size)
 	// The waker moves into Rust, which keeps it until the send wakes it.
 	channel.Notify(func() { wakes++ })
 	channel.Send([]byte("rung"))
 	fmt.Printf("woken %d\n", wakes)
 
-	list1 := api.NewNode(1, nil)
-	list1.Push(2)
-	fmt.Printf("node %d\n", list1.Sum())
+	list1 := must(api.NewNode(1, nil))
+	ok(list1.Push(2))
+	fmt.Printf("node %d\n", must(list1.Sum()))
 
 	tally := api.NewTally()
-	tally.Bump()
-	fmt.Printf("tally %d %t\n", tally.Bump(), tally.Equal(tally))
-	fmt.Printf("both %d\n", api.BumpBoth(tally, tally))
-	fmt.Printf("peek %d\n", api.Peek(tally, func(lent *api.Tally) uint32 { return lent.Bump() }))
+	must(tally.Bump())
+	fmt.Printf("tally %d %t\n", must(tally.Bump()), must(tally.Equal(tally)))
+	fmt.Printf("both %d\n", must(api.BumpBoth(tally, tally)))
+	fmt.Printf("peek %d\n", must(api.Peek(tally, func(lent *api.Tally) uint32 { return must(lent.Bump()) })))
 
-	area := api.Grow(api.NewArea(api.Size{Width: 2, Height: 3}), 1)
-	areaSize := area.Size()
-	fmt.Printf("area %d %d %d\n", areaSize.Width, areaSize.Height, area.Pixels())
+	area := must(api.Grow(api.NewArea(api.Size{Width: 2, Height: 3}), 1))
+	areaSize := must(area.Size())
+	fmt.Printf("area %d %d %d\n", areaSize.Width, areaSize.Height, must(area.Pixels()))
 
 	// Generic types, each at the instances it infers, named by their arguments.
 	pair := api.PairU32{Left: 2, Right: 5}
@@ -399,24 +410,24 @@ func script() {
 	// At its default, named as the type itself.
 	stack := api.NewStack()
 	for i, n := range []string{"a", "b"} {
-		stack.Push(api.NewCounter(n, uint64(i)+1))
+		ok(stack.Push(api.NewCounter(n, uint64(i)+1)))
 	}
-	top := stack.Pop().Get()
-	fmt.Printf("stack %d Some(%d) %t %t\n", stack.Depth(), top, stack.Pop() != nil, stack.Pop() == nil)
+	top := must(must(stack.Pop()).Get())
+	fmt.Printf("stack %d Some(%d) %t %t\n", must(stack.Depth()), top, must(stack.Pop()) != nil, must(stack.Pop()) == nil)
 	// Generic functions and methods, at each implementation of the trait bounding them, by
 	// reference, which leaves Go its handle.
 	fromPoint := api.CounterSeededPoint("p", api.Point{X: -3, Y: 4})
 	fromSize := api.CounterFromSize("s", api.Size{Width: 5, Height: 6})
-	fromCounter := api.CounterSeededCounter("c", fromPoint)
+	fromCounter := must(api.CounterSeededCounter("c", fromPoint))
 	fromPolar := api.CounterSeededPolarPoint("q", api.PolarPoint{Turns: 1, Distance: 2})
-	fmt.Printf("seeded %d %d %d %d past %d seeds %d\n", fromPoint.Get(), fromSize.Get(), fromCounter.Get(), fromPolar.Get(),
-		stack.DepthPastPoint(api.Point{X: 1, Y: 2}), api.SeedsPointSize(api.Size{Width: 2, Height: 3}))
+	fmt.Printf("seeded %d %d %d %d past %d seeds %d\n", must(fromPoint.Get()), must(fromSize.Get()), must(fromCounter.Get()), must(fromPolar.Get()),
+		must(stack.DepthPastPoint(api.Point{X: 1, Y: 2})), api.SeedsPointSize(api.Size{Width: 2, Height: 3}))
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	fmt.Printf("weigh %d\n", api.WeighPoint(api.Point{X: -1, Y: 2}))
 	// Instances that name each other, and one made only by an impl of it.
 	crossed := api.Cross(api.LeftRightU8{Value: api.RightU8{Value: 1}}, api.RightLeftU8{Value: api.LeftU8{Value: 2}})
-	fmt.Printf("cross %d outer %d\n", crossed, api.NewOuterInnerU8(4).Get())
+	fmt.Printf("cross %d outer %d\n", crossed, must(api.NewOuterInnerU8(4).Get()))
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	fmt.Printf("kept %d boxed %d\n", api.KeptPoint(api.Point{X: 1, Y: -2}), api.BOXED().Value)
 	fmt.Printf("keep %d\n", api.KeepPoint(api.Point{X: 1, Y: -2}))
@@ -430,28 +441,28 @@ func script() {
 
 	// Its Drop runs when Go closes the handle, not before.
 	token := api.NewToken(7)
-	fmt.Printf("token %d dropped %d\n", token.Id(), api.Dropped())
+	fmt.Printf("token %d dropped %d\n", must(token.Id()), api.Dropped())
 	token.Close()
 	fmt.Printf("dropped %d\n", api.Dropped())
 
 	// A field and the method of its name, each its own member.
 	retry := api.NewRetry(ptr[uint32](5))
-	limit := retry.LimitSetting()
+	limit := must(retry.LimitSetting())
 	isSome := 0
 	if limit != nil {
 		isSome = 1
 	}
-	fmt.Printf("retry %d %d %d %d\n", isSome, *limit, retry.Limit(), retry.Delay())
+	fmt.Printf("retry %d %d %d %d\n", isSome, *limit, must(retry.Limit()), must(retry.Delay()))
 	// The renamed field's setter, named as its getter.
-	retry.SetLimitSetting(nil)
-	fmt.Printf("retry %d\n", retry.Limit())
-	fmt.Printf("slot %d\n", api.NewSlotU8(200).Value())
+	ok(retry.SetLimitSetting(nil))
+	fmt.Printf("retry %d\n", must(retry.Limit()))
+	fmt.Printf("slot %d\n", must(api.NewSlotU8(200).Value()))
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and slices.
 	base := must(api.UrlParse("https://example.com/a/b"))
-	fmt.Printf("url %s host Some(%s)\n", base, quoted(*api.Host(base)))
-	url := must(api.Resolve(base.Clone(), "c?d"))
-	fmt.Printf("resolve %s %t\n", url, url.Equal(base))
+	fmt.Printf("url %s host Some(%s)\n", base, quoted(*must(api.Host(base))))
+	url := must(api.Resolve(must(base.Clone()), "c?d"))
+	fmt.Printf("resolve %s %t\n", url, must(url.Equal(base)))
 	url.Close()
 	var parse api.StringError
 	_, err = api.UrlParse("no scheme")
@@ -483,42 +494,42 @@ func script() {
 	fmt.Printf("words %d %s\n", len(words), list(words, quoted))
 	fmt.Printf("sentence %s %s\n", api.Sentence(&words), api.Sentence(nil))
 	fmt.Printf("sentence %s|\n", api.Sentence(&[]string{}))
-	fmt.Printf("chunks %s\n", list(api.Chunks([]byte("abcde"), 2), func(b []byte) string { return list(b, number) }))
+	fmt.Printf("chunks %s\n", list(api.Chunks([]byte("abcde"), 2), func(b api.Bytes) string { return list(b.Copy(), number) }))
 	counters := api.Counters([]string{"x", "y"})
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
-		return fmt.Sprintf("%s %d", c.Name(), c.Get())
+		return fmt.Sprintf("%s %d", must(c.Name()), must(c.Get()))
 	}), "[]"))
 	// Each counter moves in, so Go closes it.
-	fmt.Printf("worth %d %d\n", api.Worth(&[]*api.Counter{counters[0]}, []*api.Counter{counters[1]}), api.Worth(nil, nil))
+	fmt.Printf("worth %d %d\n", must(api.Worth(&[]*api.Counter{counters[0]}, []*api.Counter{counters[1]})), must(api.Worth(nil, nil)))
 	fmt.Printf("sums %s\n", list(api.Sums([][]uint32{{1, 2}, {}, {3}}), number))
 	sum := api.Summed([]api.Point{{X: 1, Y: 2}, {X: -4, Y: 6}})
 	none := api.Summed(nil)
 	fmt.Printf("summed %d %d %d %d\n", sum.X, sum.Y, none.X, none.Y)
 	fmt.Printf("longest %d %d\n", api.Longest([]string{"a", "abc"}), api.Longest(nil))
 	doc := must(api.JsonParse(`{"b": [1, 2.5, null], "a": "é"}`))
-	fmt.Printf("json %s\n", api.Encode(doc))
-	fmt.Printf("timed text %s\n", api.TimedText(doc))
-	tagged2 := api.Tagged(doc, "t")
-	fmt.Printf("tagged %s\n", tagged2.ToText())
+	fmt.Printf("json %s\n", must(api.Encode(doc)))
+	fmt.Printf("timed text %s\n", must(api.TimedText(doc)))
+	tagged2 := must(api.Tagged(doc, "t"))
+	fmt.Printf("tagged %s\n", must(tagged2.ToText()))
 	tagged2.Close()
 	_, err = api.JsonParse(`{"a":`)
 	check(errors.As(err, &parse), "parse returns its message")
 	fmt.Printf("json parse err %s\n", err)
-	site := api.NewSite(base)
-	fmt.Printf("site %s %s\n", site.Home(), site.Home())
+	site := must(api.NewSite(base))
+	fmt.Printf("site %s %s\n", must(site.Home()), must(site.Home()))
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	fmt.Printf("shapes %s greetings %s\n", list(api.ShapeALL(), func(s api.Shape) string { return shapes[s] }), list(api.GREETINGS(), quoted))
 	trail := api.NewTrail([]api.Point{{X: 1, Y: 2}, {X: 3, Y: 4}}, []string{"a", "b"})
 	point := func(p api.Point) string { return p.GoString() }
 	labeled := func(l api.Label) string { return l.GoString() }
-	fmt.Printf("trail %s %s\n", list(trail.Points(), point), list(trail.Labels(), labeled))
+	fmt.Printf("trail %s %s\n", list(must(trail.Points()), point), list(must(trail.Labels()), labeled))
 	// Returned iterators, each collected at the call: drained labels are gone after.
-	fmt.Printf("iterated %s %s %s\n", list(trail.Iter(), point), list(trail.Names(), quoted), list(trail.Bytes(), number))
-	fmt.Printf("drained %s then %s\n", list(trail.Drain(), labeled), list(trail.Labels(), labeled))
+	fmt.Printf("iterated %s %s %s\n", list(must(trail.Iter()), point), list(must(trail.Names()), quoted), list(must(trail.Bytes()).Copy(), number))
+	fmt.Printf("drained %s then %s\n", list(must(trail.Drain()), labeled), list(must(trail.Labels()), labeled))
 	trail.Close()
 	fmt.Printf("numbered %s\n", strings.Trim(list(api.Numbered([]string{"p", "q"}), func(c *api.Counter) string {
-		return fmt.Sprintf("%s %d", c.Name(), c.Get())
+		return fmt.Sprintf("%s %d", must(c.Name()), must(c.Get()))
 	}), "[]"))
 	next4, next6 := api.Nexts(v4, v6)
 	fmt.Printf("nexts %s %d %d %s\n", next4.Addr(), next4.Port(), next6.Port(), next6.Addr().Zone())
@@ -531,7 +542,7 @@ func futures() {
 
 	// The send lands from another goroutine's thread while the receive waits.
 	go channel.Send([]byte("blocked"))
-	check(string(must(channel.Recv(ctx))) == "blocked", "recv returns the payload another goroutine sent")
+	check(string(must(channel.Recv(ctx)).Copy()) == "blocked", "recv returns the payload another goroutine sent")
 
 	// A wake that lands while the future polls, before it returns pending, is kept: the
 	// call polls again rather than waiting for a wake that already happened.
@@ -560,7 +571,7 @@ func futures() {
 		cancel()
 		close(gate)
 		check(errors.Is(<-done, context.Canceled), "a receive cancelled after its wake returns its context's error")
-		check(string(must(channel.Recv(ctx))) == "kept", "a cancelled receive loses nothing")
+		check(string(must(channel.Recv(ctx)).Copy()) == "kept", "a cancelled receive loses nothing")
 	}
 
 	// A context done before the call takes nothing, even a payload ready at the first poll.
@@ -570,7 +581,7 @@ func futures() {
 		cancel()
 		_, err := channel.Recv(cancelled)
 		check(errors.Is(err, context.Canceled), "a call with a done context returns its error")
-		check(string(must(channel.Recv(ctx))) == "ready", "a call with a done context takes nothing")
+		check(string(must(channel.Recv(ctx)).Copy()) == "ready", "a call with a done context takes nothing")
 	}
 
 	// A deadline ends a receive that waits for no wake.
@@ -586,9 +597,9 @@ func futures() {
 		other := api.NewChannel()
 		watching := watch(ctx)
 		got := make(chan string)
-		go func() { got <- string(must(other.Recv(watching))) }()
+		go func() { got <- string(must(other.Recv(watching)).Copy()) }()
 		<-watching.waiting
-		sender := other.Clone()
+		sender := must(other.Clone())
 		other.Close()
 		sender.Send([]byte("held"))
 		check(<-got == "held", "a closed handle stays alive in the call waiting on it")
@@ -597,37 +608,28 @@ func futures() {
 	fmt.Println("futures ok")
 }
 
-// owned checks what frees an object or bytes: Close at once, or else the GC once it
-// collects the object. Bytes Rust returns are copied out, so Rust's are freed at the call.
+// owned checks what frees an object: Close at once, or else the GC once it collects the
+// object.
 func owned() {
-	for n := 1023; n <= 1025; n++ {
+	for n := 2047; n <= 2049; n++ {
 		payload := make([]byte, n)
 		for i := range payload {
 			payload[i] = byte(i)
 		}
-		packet := api.NextPacket(api.Packet{Seq: 1, Payload: payload})
-		check(packet.Seq == 2 && string(packet.Payload) == string(payload), fmt.Sprintf("a record's %d bytes cross both ways", n))
+		packet := api.NextPacket(api.Packet{Seq: 1, Payload: api.NewBytes(payload)})
+		check(packet.Seq == 2 && string(packet.Payload.Copy()) == string(payload), fmt.Sprintf("a record's %d bytes cross both ways", n))
 	}
 	before := api.Dropped()
-	bytes := api.TokenBytes(1, 1025)
-	check(api.Dropped() == before+1, "returned bytes free Rust's at the call")
-	check(string(bytes) == strings.Repeat("\x01", 1025), "returned bytes read back")
-
 	token := api.NewToken(2)
 	token.Close()
-	check(api.Dropped() == before+2, "closing frees at once")
+	check(api.Dropped() == before+1, "closing frees at once")
 	token.Close()
-	check(api.Dropped() == before+2, "closing again frees nothing")
+	check(api.Dropped() == before+1, "closing again frees nothing")
 
 	unclosed()
-	deadline := time.Now().Add(10 * time.Second)
-	for api.Dropped() < before+3 {
-		check(time.Now().Before(deadline), "the GC frees what nobody closed")
-		runtime.GC()
-		runtime.Gosched()
-	}
+	collected(before+2, "the GC frees what nobody closed")
 	runtime.GC()
-	check(api.Dropped() == before+3, "the GC frees each once")
+	check(api.Dropped() == before+2, "the GC frees each once")
 	fmt.Println("owned ok")
 }
 
@@ -638,29 +640,193 @@ func unclosed() {
 	api.NewToken(3)
 }
 
+// collected waits for the GC to have dropped Rust's values until dropped counts n.
+func collected(n uint32, what string) {
+	deadline := time.Now().Add(10 * time.Second)
+	for api.Dropped() < n {
+		check(time.Now().Before(deadline), what)
+		runtime.GC()
+		runtime.Gosched()
+	}
+}
+
+// uncollected checks the GC drops nothing of Rust's while what it frees is reachable.
+func uncollected(n uint32, what string) {
+	for range 5 {
+		runtime.GC()
+		runtime.Gosched()
+		time.Sleep(time.Millisecond)
+	}
+	check(api.Dropped() == n, what)
+}
+
+// closed checks that every call taking a closed object returns ErrClosed, however it was
+// closed, and that a second Close does nothing.
+func closed() {
+	ctx := context.Background()
+	isClosed := func(err error, name, what string) {
+		check(errors.Is(err, api.ErrClosed) && err.Error() == name+" is closed", what)
+	}
+
+	// A method, a trait's, and a field's accessors.
+	c := api.NewCounter("c", 1)
+	c.Close()
+	c.Close()
+	_, err := c.Get()
+	isClosed(err, "Counter", "a method of a closed object")
+	_, err = c.Clone()
+	isClosed(err, "Counter", "Clone of a closed object")
+	check(c.GoString() == "Counter is closed", "GoString of a closed object is the error")
+	tally := api.NewTally()
+	tally.Close()
+	_, err = api.NewTally().Equal(tally)
+	isClosed(err, "Tally", "Equal with a closed object")
+	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
+	registry.Close()
+	_, err = registry.First()
+	isClosed(err, "Registry", "a field's getter of a closed object")
+	// A call that fails moves nothing in.
+	second := api.NewCounter("second", 2)
+	isClosed(registry.SetFirst(second), "Registry", "a field's setter of a closed object")
+	check(must(second.Get()) == 2, "a failed call leaves what it would move")
+
+	// An argument, alone, or nested where the call holds it through its arena.
+	_, err = api.BumpBoth(api.NewTally(), tally)
+	isClosed(err, "Tally", "a closed argument")
+	open := api.NewCounter("open", 3)
+	_, err = api.Worth(&[]*api.Counter{open, c}, nil)
+	isClosed(err, "Counter", "a closed object in a list")
+	check(must(open.Get()) == 3, "a failed call leaves the rest of a list")
+
+	// An async call.
+	channel := api.NewChannel()
+	channel.Close()
+	_, err = channel.Recv(ctx)
+	isClosed(err, "Channel", "an async call of a closed object")
+
+	// Closed by a call that moved it, plain or boxed, or once the callback it was lent to
+	// returned.
+	moved := api.NewCounter("m", 0)
+	must(moved.IntoLabel(nil))
+	_, err = moved.Get()
+	isClosed(err, "Counter", "a method of a moved object")
+	tail := must(api.NewNode(1, nil))
+	must(api.NewNode(2, tail))
+	_, err = tail.Sum()
+	isClosed(err, "Node", "a method of a boxed moved object")
+	var kept *api.Counter
+	must(must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
+		kept = counter
+		return false
+	}))
+	_, err = kept.Get()
+	isClosed(err, "Counter", "a method of a lent object kept past its callback")
+
+	// Close racing calls on other goroutines: each call either runs, holding the handle
+	// so Rust's value outlives it, or returns ErrClosed; Rust's is dropped once.
+	before := api.Dropped()
+	token := api.NewToken(5)
+	var wg sync.WaitGroup
+	var ran, failed atomic.Int64
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				id, err := token.Id()
+				if err != nil {
+					isClosed(err, "Token", "a call racing Close")
+					failed.Add(1)
+					return
+				}
+				check(id == 5, "a call racing Close reads the live value")
+				ran.Add(1)
+			}
+		}()
+	}
+	for ran.Load() < 100 {
+		runtime.Gosched()
+	}
+	token.Close()
+	wg.Wait()
+	check(failed.Load() == 8 && api.Dropped() == before+1, "Close racing calls drops Rust's value once")
+	fmt.Println("closed ok")
+}
+
+// bytes checks that Bytes Rust returns read Rust's buffer in place, kept alive by any view
+// or reader of it and freed by the GC once none is reachable.
+func bytes() {
+	// Under 2 KiB, copied and Rust's buffer freed at the call; from 2 KiB, lent.
+	before := api.Dropped()
+	small := api.TokenBytes(1, 2047)
+	check(api.Dropped() == before+1 && small.Len() == 2047 && small.At(2046) == 1, "bytes under 2 KiB are copied and Rust's freed")
+	before++
+	b := api.TokenBytes(1, 2048)
+	check(api.Dropped() == before, "returned bytes from 2 KiB keep Rust's buffer")
+	want := strings.Repeat("\x01", 2048)
+	check(b.Len() == 2048 && b.At(2047) == 1 && string(b.Copy()) == want, "returned bytes read back")
+	dst := make([]byte, 3000)
+	check(b.CopyTo(dst) == 2048 && string(dst[:2048]) == want, "CopyTo copies them all")
+	sub := b.Slice(2023, 2048)
+	check(sub.Len() == 25 && string(sub.Slice(5, 10).Copy()) == "\x01\x01\x01\x01\x01", "a sub-view reads its range")
+	check(b.Slice(3, 3).Len() == 0, "an empty sub-view is empty")
+	var out strings.Builder
+	reader := b
+	n, err := reader.WriteTo(&out)
+	check(err == nil && n == 2048 && out.String() == want && reader.Len() == 0, "WriteTo writes and consumes them")
+	reader = b
+	read, err := io.ReadAll(&reader)
+	check(err == nil && string(read) == want && b.Len() == 2048, "Read reads and consumes a copy of the view only")
+	runtime.KeepAlive(b)
+
+	// Kept alive by a sub-view alone, then freed once nothing reaches it.
+	view := subView(2)
+	uncollected(before+1, "a sub-view keeps Rust's buffer")
+	check(view.Len() == 10 && view.At(9) == 2, "a sub-view reads Rust's buffer after its parent is gone")
+	view = api.Bytes{}
+	collected(before+2, "the GC frees bytes no view reaches")
+
+	// Kept alive by a reader alone.
+	r := bufferedReader(3)
+	uncollected(before+2, "a reader keeps Rust's buffer")
+	all, err := io.ReadAll(r)
+	check(err == nil && len(all) == 2048 && all[2047] == 3, "a reader reads Rust's buffer after the Bytes are gone")
+	r = nil
+	collected(before+3, "the GC frees bytes no reader reaches")
+
+	// Bytes an object returns outlive its Close: no Bytes depends on an object.
+	body := strings.Repeat("b", 2048)
+	message := must(api.NewMessage(api.StampFromMillis(1), []byte(body)))
+	payload := must(message.Payload())
+	message.Close()
+	runtime.GC()
+	check(string(payload.Copy()) == body, "bytes an object returned outlive its Close")
+	fmt.Println("bytes ok")
+}
+
+// subView is a sub-view of returned bytes, whose Bytes nothing else keeps.
+//
+//go:noinline
+func subView(id uint32) api.Bytes {
+	return api.TokenBytes(id, 2048).Slice(2038, 2048)
+}
+
+// bufferedReader is a reader of returned bytes, whose Bytes nothing else keeps.
+//
+//go:noinline
+func bufferedReader(id uint32) io.Reader {
+	b := api.TokenBytes(id, 2048)
+	return bufio.NewReader(&b)
+}
+
 // broken breaks a contract, which must fail with a message naming it.
 func broken(which string) {
 	switch which {
-	case "moved":
-		c := api.NewCounter("c", 0)
-		c.IntoLabel(nil)
-		c.Get()
-	case "boxed moved":
-		tail := api.NewNode(1, nil)
-		api.NewNode(2, tail)
-		tail.Sum()
 	case "lent moved":
-		api.NewRegistry(api.NewCounter("c", 0)).Edit(func(counter *api.Counter) bool {
+		must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 			counter.IntoLabel(nil)
 			return false
 		})
-	case "lent kept":
-		var kept *api.Counter
-		api.NewRegistry(api.NewCounter("c", 0)).Edit(func(counter *api.Counter) bool {
-			kept = counter
-			return false
-		})
-		kept.Get()
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
 		any := netip.MustParseAddrPort("[::]:1")
@@ -692,6 +858,10 @@ func main() {
 		futures()
 	case os.Args[1] == "owned":
 		owned()
+	case os.Args[1] == "closed":
+		closed()
+	case os.Args[1] == "bytes":
+		bytes()
 	default:
 		broken(os.Args[1])
 	}
