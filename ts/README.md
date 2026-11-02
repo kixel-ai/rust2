@@ -250,9 +250,9 @@ what each holds. `Debug` of a string or `char` escapes by
 std's Unicode tables, which the runtime carries, not the engine's. `Debug` of std's
 collections writes their items in the order each iterates, a hash map's or set's included,
 and of their iterators and `Chars` the items each has left, in std's wrapper; a deque's
-`Iter` and `IterMut`, which write its buffer's two halves, and its `Drain`, which writes its
-counts, are refused; a list's `Iter` and `IterMut` write what is left and its length, as
-std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+`Iter` and `IterMut` write the two slices of its buffer they have left, swapped as std's
+swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
+its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. A caller prints a
 `printable` type as `to_string()` and `format!("{err:?}")`
@@ -448,7 +448,7 @@ as its fold ends, before what it wraps, as std's does. A `Vec`'s `drain` leaves 
 what precedes its range until it drops, then drops what it still holds and moves the tail
 back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
 
-A trait object of the crate's own trait, or a dependency's, behind `&`, `&mut`, `Box`, or `Arc`, is an object with
+A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, or `Arc`, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
@@ -460,7 +460,8 @@ same object. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rt.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
-last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s.
+last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. A `dyn Buf`'s object
+holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s and `Arc`'s `downcast` check for: `a instanceof Any.of$dyns_Square ?
@@ -475,7 +476,7 @@ after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it. A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
 `Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, and the function traits, of a generic
+`dyn Any`, `dyn Buf`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -536,11 +537,15 @@ of them:
   `split_off`, `try_reclaim`, `try_unsplit`, and `spare_capacity_mut`, which read it.
 - `Buf` and `BufMut` of a `Bytes`, a `BytesMut`, a `&[u8]`, and a `Vec<u8>` map: the
   required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
-  `put_` of an integer or a float, `put_slice`, `put_bytes`, and `put`, whose panics are
+  `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
+  `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of the crate's own `Buf` into a `Vec<u8>` reads it through its methods
   as `bytes` does, and into a `BytesMut` is refused, as `bytes` picks those methods by its
   capacity. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
-  the capacity it asks for, reads it chunk by chunk through its methods.
+  the capacity it asks for, reads it chunk by chunk through its methods. The provided
+  `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
+  `Take`, read its chunk where that holds the integer, and copy it out through
+  `copy_to_slice` where not, as `bytes`' do.
   The impls forwarding through a `&mut` or a `Box` translate from `bytes`' MIR, and the
   `BufMut` methods they don't forward map as the buffer's own, but `put` and `put_bytes`,
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of
@@ -788,11 +793,14 @@ they need.
   with the maintainer on 2026-11-01). It holds one, as `cap`, only where an operation
   sets it or a removal reads it, so an insert never reads or writes one, and reading it
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
-  whose length is a power of two. A `Vec`, `VecDeque`, and `BinaryHeap` hold what std
+  whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
+  where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
+  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
-  as through pushes. `clone_from` and `clone_into`, of which std guarantees only the
-  length, leave a clone's capacity, not the allocation std reuses. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
+  as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that
+  reuses its source's buffer, in place or from a boxed slice, whose capacity is its
+  length. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
   writes one. Reading it doubles it while short of the length, from the least std's
   `RawVec` allocates for the element size, which a run of pushes grows std's to. A
@@ -847,7 +855,7 @@ they need.
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), raw allocation, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
+`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 

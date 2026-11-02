@@ -94,7 +94,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_4 === 2) {
 		const cs: rt.char[] = rt.iterToArray(rt.iterFilterMap(rt.iterSlice(scalars(data)), (a0: rt.u32): rt.char | undefined => {
 			return rt.charFromU32(a0);
-		}), "next", 4);
+		}), "next", 4, false, 4);
 		const sorted: rt.BTreeSet<rt.char> = rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.char>;
 		const seen: rt.HashSet<rt.char> = rt.hashNew() as rt.HashSet<rt.char>;
 		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(cs));

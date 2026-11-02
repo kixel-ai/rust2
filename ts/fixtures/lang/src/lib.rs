@@ -90,6 +90,7 @@ mod pointers;
 mod refs;
 mod results;
 mod returns;
+mod rings;
 mod saturates;
 mod separated;
 mod shapes;
