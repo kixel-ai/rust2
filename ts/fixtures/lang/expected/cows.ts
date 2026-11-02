@@ -176,7 +176,7 @@ export function hashed$Vec_u8(v: rt.ByteVec): rt.u64 {
 
 export function hashed$borrow_Cow_slice_u16(v: rt.Cow<rt.u16>): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashCow(rt.hashSlice(rt.hash16))(v, h);
+	rt.hashCow(rt.hashInts(2))(v, h);
 	return rt.hashFinish(h);
 }
 
@@ -188,7 +188,7 @@ export function hashed$borrow_Cow_slice_u8(v: rt.ByteCow): rt.u64 {
 
 export function hashed$slice_u16(v: rt.u16[]): rt.u64 {
 	const h: rt.Hasher = rt.hasher();
-	rt.hashSlice(rt.hash16)(v, h);
+	rt.hashInts(2)(v, h);
 	return rt.hashFinish(h);
 }
 
