@@ -284,7 +284,10 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	let (a, b) = (*a, *b);
 
 	// Borrowed, of the crate's and std's errors.
-	put(out, &format!("{} | {} | ", chain(&failure(a, b)), chain(&Leaf { code: a })));
+	put(
+		out,
+		&format!("{} | {} | ", chain(&failure(a, b)), chain(&Leaf { code: a })),
+	);
 	let parse = u8::from_str("x").unwrap_err();
 	put(out, &format!("{} | ", chain(&parse)));
 

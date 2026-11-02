@@ -2419,7 +2419,11 @@ fn mapping<'tcx>(
 			fmt::std_impl(b, tr, targ(gargs, 0), value, f, span, out)?
 		}
 		// `Error`'s own `source`, which a type that has none keeps.
-		("Error", "source") if tcx.trait_of_assoc(call.def_id).is_some_and(|tr| super::dynamic::is_error(tcx, tr)) => {
+		("Error", "source")
+			if tcx
+				.trait_of_assoc(call.def_id)
+				.is_some_and(|tr| super::dynamic::is_error(tcx, tr)) =>
+		{
 			let sig = b.t.sig(call.def_id, gargs);
 			match sig.output().kind() {
 				ty::Adt(_, option) => b.t.none(option.type_at(0)),
