@@ -553,6 +553,19 @@ impl Stamp {
 	}
 }
 
+/// A stamp and a count: a record holding an object, whose method reads it.
+pub struct Stamped {
+	pub at: Stamp,
+	pub count: u32,
+}
+
+impl Stamped {
+	/// Whole seconds at the stamp, plus the count.
+	pub fn total(&self) -> u64 {
+		self.at.secs() + u64::from(self.count)
+	}
+}
+
 /// A message: an object, since one field is private, whose `pub` fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {

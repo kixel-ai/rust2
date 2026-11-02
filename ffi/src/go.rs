@@ -1331,8 +1331,9 @@ impl<'a> Gen<'a> {
 		};
 		let err = function.err.as_ref().map(strip_refs);
 		let mut results: Vec<String> = oks.iter().map(|ty| self.go(ty)).collect();
-		// A call that takes an object returns an error once that object is closed.
-		let closable = matches!(export.call.params.first(), Some((_, Ty::Handle { .. })) if receiver.is_some())
+		// A call that takes an object, as its receiver or held in any value it takes,
+		// returns an error once that object is closed.
+		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.holds(ty))
 			|| function.params.iter().any(|p| self.holds(&p.ty));
 		if function.err.is_some() || function.future || closable {
 			results.push("error".to_string());

@@ -690,6 +690,14 @@ func closed() {
 	isClosed(registry.SetFirst(second), "Registry", "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
+	// A record's method, whose receiver holds an object.
+	stamp := api.StampFromMillis(2500)
+	stamped := api.Stamped{At: stamp, Count: 3}
+	check(must(stamped.Total()) == 5, "a record's method reads the object it holds")
+	stamp.Close()
+	_, err = stamped.Total()
+	isClosed(err, "Stamp", "a record's method whose object is closed")
+
 	// An argument, alone, or nested where the call holds it through its arena.
 	_, err = api.BumpBoth(api.NewTally(), tally)
 	isClosed(err, "Tally", "a closed argument")
