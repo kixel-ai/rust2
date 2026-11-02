@@ -2321,11 +2321,31 @@ fn mapping<'tcx>(
 		("str", "bytes") => Expr::rt("strBytes", args),
 		("str", "is_char_boundary") => Expr::rt("strIsCharBoundary", args),
 		// Searches by a pattern.
-		("str", "split" | "split_terminator" | "match_indices" | "contains" | "starts_with" | "ends_with")
-		| ("str", "rfind" | "split_once" | "rsplit_once" | "trim_start_matches" | "trim_end_matches") => {
+		("str", "split" | "rsplit" | "split_terminator" | "rsplit_terminator" | "split_inclusive")
+		| ("str", "matches" | "rmatches" | "match_indices" | "rmatch_indices" | "split_once" | "rsplit_once")
+		| ("str", "find" | "rfind" | "contains" | "starts_with" | "ends_with" | "strip_prefix" | "strip_suffix")
+		| ("str", "trim_matches" | "trim_start_matches" | "trim_end_matches") => {
 			let [s, p] = <[Expr; 2]>::try_from(args).ok()?;
 			Expr::rt_of("str", &super::camel(&name)).call(vec![s, pattern(b.t, targ(gargs, 0), p)?])
 		}
+		("str", "splitn" | "rsplitn") => {
+			let [s, n, p] = <[Expr; 3]>::try_from(args).ok()?;
+			Expr::rt_of("str", &name).call(vec![s, n, pattern(b.t, targ(gargs, 0), p)?])
+		}
+		// `replacen`'s count follows what replaces each match.
+		("str", "replace" | "replacen") => {
+			let mut args = args.into_iter();
+			let (s, p) = (args.next()?, args.next()?);
+			let rest = args.collect::<Vec<_>>();
+			Expr::rt("strReplace", [vec![s, pattern(b.t, targ(gargs, 0), p)?], rest].concat())
+		}
+		// Searches by whitespace, as std's are by `char::is_whitespace`.
+		("char", "is_whitespace") => Expr::rt("charIsWhitespace", args),
+		("str", "trim" | "trim_start" | "trim_end") => {
+			let f = format!("{}_matches", name);
+			Expr::rt_of("str", &super::camel(&f)).call(vec![args.pop()?, Expr::Rt("charIsWhitespace".into())])
+		}
+		("str", "char_indices" | "lines" | "split_whitespace") => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// A slice of strings concatenated, or joined by a `&str`.
 		("slice", "concat" | "join")
 			if string(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
