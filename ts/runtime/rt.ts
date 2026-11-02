@@ -21,6 +21,7 @@ export * from "./rt/hash.ts";
 export * from "./rt/int.ts";
 export * from "./rt/iter.ts";
 export * from "./rt/rand.ts";
+export * from "./rt/sort.ts";
 export * from "./rt/str.ts";
 export * from "./rt/task.ts";
 export * from "./rt/time.ts";
@@ -657,58 +658,6 @@ export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice): ByteSlice
 
 function copyLengthFail(dst: number, src: number): never {
 	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`);
-}
-
-/** `sort_by` and `sort_unstable_by`: by `cmp`, whether it orders `Less`, as `sliceSort` sorts. */
-export function sliceSortBy<T>(s: { [i: number]: T; length: number }, cmp: (a: T, b: T) => Ordering): void {
-	sliceSort(s, (a, b) => cmp(a, b) === -1);
-}
-
-/** `sort_by_key` and `sort_unstable_by_key`: by `lt` of each element's `key`, as `sliceSort` sorts. */
-export function sliceSortByKey<T, K>(s: { [i: number]: T; length: number }, key: (item: T) => K, lt: (a: K, b: K) => boolean): void {
-	sliceSort(s, (a, b) => lt(key(a), key(b)));
-}
-
-/**
- * `sort` and `sort_unstable`, by `less`, the elements' `lt`, which std's sorts test: a
- * stable merge sort over runs that insertion sorts first. The unstable sorts may order
- * equal elements either way and here keep them in order. It calls only `less`, never
- * JS's `sort`, which moves `undefined`, a `None`, to the end without comparing it, and
- * orders its calls differently in each engine.
- */
-export function sliceSort<T>(s: { [i: number]: T; length: number }, less: (a: T, b: T) => boolean): void {
-	const n = s.length;
-	const RUN = 16;
-	for (let lo = 0; lo < n; lo += RUN) {
-		const hi = Math.min(lo + RUN, n);
-		for (let i = lo + 1; i < hi; i++) {
-			const x = s[i];
-			let j = i;
-			while (j > lo && less(x, s[j - 1])) {
-				s[j] = s[j - 1];
-				j--;
-			}
-			s[j] = x;
-		}
-	}
-	if (n <= RUN) return;
-	const left: T[] = [];
-	for (let width = RUN; width < n; width *= 2) {
-		for (let lo = 0; lo + width < n; lo += 2 * width) {
-			const mid = lo + width;
-			const hi = Math.min(mid + width, n);
-			if (!less(s[mid], s[mid - 1])) continue;
-			// The left run moves aside, and the merge fills `s` from `lo`, never past the
-			// right run's next element.
-			left.length = 0;
-			for (let i = lo; i < mid; i++) left.push(s[i]);
-			let i = 0;
-			let j = mid;
-			let k = lo;
-			while (i < left.length && j < hi) s[k++] = less(s[j], left[i]) ? s[j++] : left[i++];
-			while (i < left.length) s[k++] = left[i++];
-		}
-	}
 }
 
 /**

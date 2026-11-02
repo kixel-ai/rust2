@@ -1154,8 +1154,8 @@ fn btree<'tcx>(
 
 /// `collect` and `from` into an empty B-tree of type `coll`, from `source`, an iterator of
 /// type `iter`. std's collects into a `Vec` first, reserved as for a `TrustedLen` iterator
-/// if `trusted`, sorts it stably, a set's by `PartialOrd::lt` and a map's by `Ord::cmp`,
-/// unless zero-sized, then builds the tree of each but the last of a run of keys `!=` finds
+/// if `trusted`, sorts it as std's stable sort does, a set's by `PartialOrd::lt` and a
+/// map's by `Ord::cmp`, then builds the tree of each but the last of a run of keys `!=` finds
 /// equal, which drop in order.
 fn btree_collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -1195,17 +1195,15 @@ fn btree_collect<'tcx>(
 		);
 	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
-	let sorts = !b.t.zero_sized(elem);
-	let order = match set {
-		true if sorts && own => test_fn(b, key, "lt", span),
-		true => Expr::undefined(),
-		false => Expr::lit(sorts.to_string()),
+	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
+	let (order, same) = match own {
+		true => (test_fn(b, key, "lt", span), not_ne_fn(b, key, span)),
+		false => (Expr::undefined(), Expr::undefined()),
 	};
-	let same = match own {
-		true => not_ne_fn(b, key, span),
-		false => Expr::undefined(),
-	};
-	let mut rest = vec![order, same];
+	if set {
+		rest.push(order);
+	}
+	rest.push(same);
 	rest.extend(entry_droppers(b, coll, span));
 	let f = if set { "btreeCollectKeys" } else { "btreeCollect" };
 	Expr::rt(f, super::iter::tail(vec![target, entries], rest))

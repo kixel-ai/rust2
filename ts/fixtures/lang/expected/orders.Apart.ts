@@ -12,6 +12,11 @@ export function eq$cmp_PartialEq(_self: Apart, _2: Apart): boolean {
 	return false;
 }
 
+export function lt$cmp_PartialOrd(_self: Apart, _2: Apart): boolean {
+	orders_log(Uint8Array.of(60, 0, 0));
+	return false;
+}
+
 export function cmp$cmp_Ord(_self: Apart, _2: Apart): rt.Ordering {
 	orders_log(Uint8Array.of(99, 0, 0));
 	return 0;

@@ -188,7 +188,7 @@ export function scribblePairs(i: rt.usize, chunk: slices_Pair.Pair[]): void {
 	const _30: rt.usize = rt.usizeSub(n, 1);
 	rt.idx(chunk, _30);
 	chunk[_30] = _16;
-	rt.sliceSort(chunk, rt.cmpLt(slices_Pair.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(chunk, rt.cmpLt(slices_Pair.partialCmp$cmp_PartialOrd), 4, true);
 	rt.sliceSwap(chunk, 0, rt.usizeDiv(n, 2));
 }
 
@@ -914,7 +914,7 @@ export function pokePairs(i: rt.usize, s: slices_Pair.Pair[]): void {
 	if (_9 !== undefined) {
 		Object.assign(_9, { a: _9.b & 0xff, b: rt.u16Mul(_9.a as rt.u16, 7) });
 	}
-	rt.sliceSort(s, rt.cmpLt(slices_Pair.partialCmp$cmp_PartialOrd));
+	rt.sliceSort(s, rt.cmpLt(slices_Pair.partialCmp$cmp_PartialOrd), 4, true);
 	if (s.length > 1) {
 		rt.sliceSwap(s, 0, rt.usizeDiv(s.length, 2));
 	}

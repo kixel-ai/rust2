@@ -92,6 +92,7 @@ mod separated;
 mod shapes;
 mod singles;
 mod slices;
+mod sorts;
 mod splits;
 mod statics;
 mod strs;

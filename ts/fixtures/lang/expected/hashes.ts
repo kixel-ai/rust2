@@ -499,10 +499,10 @@ export function random(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const keys: rt.u64[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u64 => {
 		return rt.u64Mul(_2 as rt.u64, 1103823438081);
 	}), undefined, 8, true);
-	rt.sliceSortByKey(keys, (k2: rt.u64): rt.u64 => {
+	rt.sliceSort(keys, rt.keyLt((k2: rt.u64): rt.u64 => {
 		return rt.hashOne(other.state, k2, rt.hash64);
-	}, rt.lt);
-	rt.sliceSort(keys, rt.lt);
+	}, rt.lt), 8, true);
+	rt.sliceSort(keys, rt.lt, 8, true);
 	for (const _127 of keys) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(_127).reverse()));
 	}

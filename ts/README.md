@@ -795,10 +795,12 @@ they need.
   undocumented, and matching it would mean porting std's 11-key node layout, measured 1.5x
   slower ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on
   2026-10-30; a map's `IntoIter` still drops in std's order.
-- A slice's `sort` and `sort_unstable` are one stable merge sort of the runtime's own,
-  calling only the comparator, as std permits of an unstable sort: JS's `sort` moves
-  `undefined`, a `None`, to the end without comparing it, and each engine orders its
-  comparisons differently.
+- A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the
+  runtime with the choices std makes by the element's size on wasm32 and whether it is
+  `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
+  elements where std's does: JS's `sort` moves `undefined`, a `None`, to the end without
+  comparing it, and each engine orders its comparisons differently. A byte slice's sorts
+  by its own `Ord` are its typed array's, whose order nothing observes.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
