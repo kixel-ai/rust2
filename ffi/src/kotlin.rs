@@ -13,9 +13,9 @@
 //! [`runtime/jni.rs`](../runtime/jni.rs), the same on the Rust side.
 //!
 //! A value crosses JNI as a scalar, a handle as a `long`, bytes passed in as a `byte[]`,
-//! bytes returned as their owner, which a `Bytes` lends as a direct `ByteBuffer`, or
-//! encoded into a `byte[]` field by field as its C struct holds it, so each call is one
-//! crossing. An object or `Bytes` never closed is freed once the GC collects it.
+//! bytes returned as their owner, which a `Bytes` reads through a call each, or encoded
+//! into a `byte[]` field by field as its C struct holds it, so each call is one crossing.
+//! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -82,7 +82,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	kotlin.push_str(&g.top);
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_buffer(owner: Long): java.nio.ByteBuffer\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -112,8 +112,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tunsafe {{ rt::unref(node as usize as _) }}\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
-		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1buffer(env: *mut JNIEnv, _: jclass, owner: jlong) -> jobject {{\n\
-		\tunsafe {{ rt::buffer(env, owner) }}\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1get(_: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, index: jint) -> jbyte {{\n\
+		\tunsafe {{ rt::byte_at(owner, index) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1copy(env: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, start: jint, len: jint, destination: jbyteArray, at: jint) {{\n\
+		\tunsafe {{ rt::copy(env, owner, start, len, destination, at) }}\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
@@ -146,41 +150,61 @@ const IMPORTS: &[&str] = &["kotlin.coroutines.resume", "kotlin.time.toDuration"]
 
 /// The bytes Rust returns, copied when short and otherwise lent.
 const BYTES: &str = "/**
- * Bytes Rust returned: up to 1 KiB copied, and longer ones lent without a copy, which
- * [buffer] reads until [close] frees them, after which reading it is undefined. Unclosed,
- * lent ones are freed once the GC collects [buffer], so keep it, not only a slice or
- * duplicate of it, while reading.
+ * Bytes Rust returned, or a record holds, read only through these methods: no view of
+ * Rust's memory escapes, so nothing reads it once freed. Up to 1 KiB from Rust are copied
+ * into Kotlin's memory. Longer ones stay in Rust's buffer, each read a crossing, and are
+ * freed once the GC finds no `Bytes` reaching it, its slices included.
  */
-class Bytes private constructor(buffer: java.nio.ByteBuffer, owner: Long) : AutoCloseable {
-\t/** Bytes Kotlin holds, as a record Rust takes needs, which [close] leaves readable. */
-\tconstructor(bytes: ByteArray) : this(java.nio.ByteBuffer.wrap(bytes), 0L)
+class Bytes private constructor(
+\t// Kotlin's bytes, or null for Rust's.
+\tprivate val array: ByteArray?,
+\t// Rust's buffer, which every slice of it holds.
+\tprivate val lent: Native.Lent?,
+\t// Where these start in [array] or [lent].
+\tprivate val offset: Int,
+\t/** How many bytes these hold. */
+\tval size: Int,
+) {
+\t/** [bytes] held without a copy, as a record passed in takes them. */
+\tconstructor(bytes: ByteArray) : this(bytes, null, 0, bytes.size)
 
-\tinternal constructor(owner: Long) : this(Native.__bytes_buffer(owner), owner)
+\tinternal constructor(lent: Native.Lent, size: Int) : this(null, lent, 0, size)
 
-\t/** The bytes, read-only. */
-\tval buffer: java.nio.ByteBuffer = buffer.asReadOnlyBuffer()
-
-\t// What the GC collects: a view of [buffer] need not keep it reachable, on the JVM or ART.
-\tprivate val free = if (owner == 0L) null else Native.Free(this.buffer, owner)
-
-\tprivate var closed = false
-
-\t/** The bytes, copied. */
-\tfun toByteArray(): ByteArray = read { b -> ByteArray(b.remaining()).also { b.get(it) } }
-
-\t/**
-\t * Run [block] with a view of the bytes from their start, which throws once closed. Locked,
-\t * so this and [buffer] stay reachable, and [close] waits, until it returns.
-\t */
-\tinternal fun <R> read(block: (java.nio.ByteBuffer) -> R): R = synchronized(this) {
-\t\tkotlin.check(!closed) { \"Bytes is closed\" }
-\t\tblock(buffer.duplicate().also { it.clear() })
+\t/** The byte at [index], throwing `IndexOutOfBoundsException` out of range. */
+\toperator fun get(index: Int): Byte {
+\t\tif (index < 0 || index >= size) throw kotlin.IndexOutOfBoundsException(\"index $index of $size bytes\")
+\t\tval array = array ?: return lent!!.let { Native.__bytes_get(it, it.owner, offset + index) }
+\t\treturn array[offset + index]
 \t}
 
-\toverride fun close() {
-\t\tsynchronized(this) {
-\t\t\tclosed = true
-\t\t\tfree?.free()
+\t/** The bytes from [startIndex] until [endIndex], sharing these without a copy. */
+\tfun slice(startIndex: Int, endIndex: Int = size): Bytes {
+\t\trange(startIndex, endIndex)
+\t\treturn Bytes(array, lent, offset + startIndex, endIndex - startIndex)
+\t}
+
+\t/**
+\t * Copy the bytes from [startIndex] until [endIndex] into [destination] at
+\t * [destinationOffset], returning it, as `ByteArray.copyInto` does.
+\t */
+\tfun copyInto(destination: ByteArray, destinationOffset: Int = 0, startIndex: Int = 0, endIndex: Int = size): ByteArray {
+\t\trange(startIndex, endIndex)
+\t\tval n = endIndex - startIndex
+\t\tif (destinationOffset < 0 || destinationOffset > destination.size - n) {
+\t\t\tthrow kotlin.IndexOutOfBoundsException(\"$n bytes at $destinationOffset of ${destination.size}\")
+\t\t}
+\t\tval array = array
+\t\tif (array != null) return array.copyInto(destination, destinationOffset, offset + startIndex, offset + endIndex)
+\t\tif (n > 0) lent!!.let { Native.__bytes_copy(it, it.owner, offset + startIndex, n, destination, destinationOffset) }
+\t\treturn destination
+\t}
+
+\t/** The bytes, copied. */
+\tfun toByteArray(): ByteArray = array?.copyOfRange(offset, offset + size) ?: copyInto(ByteArray(size))
+
+\tprivate fun range(startIndex: Int, endIndex: Int) {
+\t\tif (startIndex < 0 || startIndex > endIndex || endIndex > size) {
+\t\t\tthrow kotlin.IndexOutOfBoundsException(\"$startIndex until $endIndex of $size bytes\")
 \t\t}
 \t}
 }

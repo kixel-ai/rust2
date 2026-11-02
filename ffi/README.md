@@ -271,10 +271,12 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
 - **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, a read-only `ByteBuffer`:
-  up to 1 KiB copied, and longer ones lending Rust's buffer as a direct one until `close()`
-  frees it, or, never closed, until the GC collects that buffer, since a copy undercuts
-  `NewDirectByteBuffer` only that far; `Bytes(ByteArray)` holds Kotlin's for a record
+  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
+  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
+  which JNI keeps reachable until the call returns, and are freed once the GC finds no
+  `Bytes` reaching them, slices included. `Bytes(ByteArray)` holds Kotlin's for a record
   passed in.
   Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
@@ -580,8 +582,10 @@ then it breaks each runtime check, which must abort with its message. `tests/api
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
-runs the script through the Kotlin on the JVM, checks its futures the same way, and breaks
-each runtime check, which must throw or abort with its message. `just ffi android` runs
+runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
+after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
+record they came from, until the GC frees it, and that calls racing `close()` or the GC
+read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
 device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
