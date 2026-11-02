@@ -4,8 +4,9 @@
 
 [rust2-ts](/ts/README.md) translates the `unsafe` operations it can give exact semantics in
 JS, so a dependency using only those translates from source instead of being bound by
-hand. What is left: pointers into a slice or `Vec`, `ManuallyDrop`, unions over a type
-parameter, and a raw pointer to a value JS copies taken through a reference.
+hand. What is left: `ManuallyDrop`, unions over a type parameter, a raw pointer to a
+value JS copies taken through a reference, and pointers into an array of values JS keeps
+as objects.
 
 ## Plan
 
@@ -25,8 +26,20 @@ none of its own `unsafe`.
 - An `unsafe` operation outside the modeled set is refused with its span, as today.
 - Undefined behavior in Rust need not be reproduced, but a translated program never
   silently differs from native where Rust's behavior is defined.
-- Element pointers, `{ array, index }`, with `add`, `offset`, `offset_from`, and
-  `slice::from_raw_parts` over them: smallvec, arrayvec, and moq-net's `frame.rs`.
+- Element pointers into arrays of values JS copies are `rt.AtIndex`, `{ array, index }`,
+  which `add`, `offset`, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` act on.
+  Decided with the maintainer on 2026-11-01: where one body shows a pointer crossing what
+  JS keeps apart (a value in no array, a copied shared subslice), translation refuses it
+  with a span; a pointer from elsewhere, such as a field, fails there loudly at run time.
+  A pointer to an element JS keeps as an object, such as a tuple or the crate's struct, is
+  that object, which knows no array it is in, so arithmetic on one stays refused:
+  hashbrown's buckets and kio's `log.rs` reach it. smallvec's pointer arithmetic
+  translates, but it spills to memory from `alloc::alloc`, which this Plan refuses, so it
+  translates whole only once the maintainer decides how a typed allocation
+  (`Layout::array::<T>`, then a cast to `*mut T`) is modeled or that smallvec is mapped.
+- Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
+  first element's pointer and its length, read through only where Rust reads, and an empty
+  slice from a pointer into no array keeps that pointer through every part of it.
 - `ManuallyDrop<T>` as `T` with its drop skipped, as `MaybeUninit` is: crossbeam-epoch's
   `Local` reaches it, though crossbeam's tagged pointers stay refused.
 - A union over a type parameter, whose layout has no fixed offsets until an instance
@@ -34,6 +47,10 @@ none of its own `unsafe`.
 - `&raw const *r` where `r` is a `&T` to a value JS copies or a library object, such as
   foldhash's seed and arrayvec's `as_ptr`: the reference is the value, not where it is
   kept, so it needs the place the reference came from.
+- A `Vec`'s spare capacity written through `as_mut_ptr` and committed by `set_len`:
+  `set_len` is refused, and a write past the length fails loudly at run time, since the
+  JS array would grow by it. The spare slots need to live outside the array's length
+  until `set_len` takes them.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const
