@@ -46,7 +46,7 @@ run *args:
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
-# Time frame writes through the export, from C, C++, Kotlin, Python, Swift, and Go, and through moq's hand-written rs/moq-c, in the bench shell: nix develop .#bench.
+# Time frame writes through the export, from C, C++, Kotlin, Python, Swift, Go, and Dart, and through moq's hand-written rs/moq-c, in the bench shell: nix develop .#bench.
 bench checkout="": (moq checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -64,6 +64,7 @@ bench checkout="": (moq checkout)
     read -ra native < target/moq-native
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
+    {{ just_executable() }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     swift=true
@@ -82,9 +83,10 @@ bench checkout="": (moq checkout)
         PYTHONPATH="$out/python" python3 -P moq/bench/export.py
         if $swift; then target/bench-export-swift; fi
         target/bench-go/bench
+        dart target/bench-dart/main.dill
     done
 
-# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, and moq/moq.go against it, from the pinned moq revision or a checkout.
+# Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
     #!/usr/bin/env bash
     set -euo pipefail
@@ -107,6 +109,9 @@ moq checkout="": (moq-cpp checkout)
     {{ just_executable() }} go-module moq-go moq/moq.go
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/moq-go && go vet ./... && go run .)
+    # The Dart, through the shared library the dart feature builds.
+    {{ just_executable() }} dart-program moq-dart moq/moq.dart
+    dart --enable-asserts target/moq-dart/main.dill
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
 moq-cpp checkout="": (moq-export checkout)
@@ -168,6 +173,31 @@ go-module dir main:
     cp {{ main }} "$dir/main.go"
     printf 'module moqtest\n\ngo 1.24\n' > "$dir/go.mod"
 
+# Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
+[private]
+dart-program dir main:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=$PWD/target/export/moq
+    dir=target/{{ dir }}
+    rm -rf "$dir"
+    mkdir -p "$dir/.dart_tool"
+    cp {{ main }} "$dir/main.dart"
+    case "{{ os() }}" in
+        macos) lib=libmoq.dylib ;;
+        *) lib=libmoq.so ;;
+    esac
+    case "{{ arch() }}" in
+        aarch64) arch=arm64 ;;
+        *) arch=x64 ;;
+    esac
+    printf '{"configVersion": 2, "packages": [{"name": "moq", "rootUri": "file://%s/dart/", "packageUri": "./"}]}\n' "$out" > "$dir/.dart_tool/package_config.json"
+    printf 'format-version: [1, 0, 0]\nnative-assets:\n  %s_%s:\n    "package:moq/moq.dart": [absolute, "%s"]\n' "{{ os() }}" "$arch" "$out/target/release/$lib" > "$dir/native_assets.yaml"
+    dart analyze --fatal-infos "$dir"
+    sdk=$(dirname "$(dirname "$(realpath "$(command -v dart)")")")
+    "$sdk/bin/dartaotruntime" "$sdk/bin/snapshots/gen_kernel_aot.dart.snapshot" --platform "$sdk/lib/_internal/vm_platform_strong.dill" \
+        --packages "$dir/.dart_tool/package_config.json" --native-assets "$dir/native_assets.yaml" -o "$dir/main.dill" "$dir/main.dart"
+
 # Export moq's crates' C ABI into target/export/moq and build it, with the libraries a program linking it needs besides in target/moq-native.
 [private]
 moq-export checkout="": (standin checkout)
@@ -189,7 +219,8 @@ moq-export checkout="": (standin checkout)
     esac
     cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features python
     mv "$out/target/release/$lib" "$out/python/$lib"
-    cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin 2>&1 | tee target/moq-build.log
+    # The library the C programs link, and the shared one Kotlin and Dart load.
+    cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
 
 # Write target/moq-ffi, an empty library on every crate moq/ffi.toml exports, from the pinned moq revision or a checkout: the check builds with all of them, as moq-ffi's remainder will.

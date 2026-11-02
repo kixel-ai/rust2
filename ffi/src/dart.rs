@@ -4,14 +4,17 @@
 //!
 //! Each name is its C name without the prefix, as Dart spells it: `moq_track_producer` is
 //! `TrackProducer`, and its method `moq_track_producer_append_group` is
-//! `TrackProducer.appendGroup`. A reserved word takes a trailing `_`. An object is a final
-//! class owning its handle, freed by `close` or a `NativeFinalizer`; a record a final
-//! class; an enum a Dart enum, or with data a sealed class of a final class per variant; a
-//! tuple a record; a trait an abstract class, whose `close` Rust calls once it drops an
-//! implementation; a closure a function type; a future a
-//! `Cancelable`, a `Future` that cancels; an error a thrown exception. The runtime they
-//! share, [`runtime/rt.dart`](../runtime/rt.dart), holds the handles, the stack a call
-//! lowers its values into, and the port the isolate hears Rust through.
+//! `TrackProducer.appendGroup`. A reserved word takes a trailing `_`. A type's function
+//! returning it is a constructor, which may share its name with a field: an object's `new`
+//! its unnamed one (`Counter('c', 1)`), and any other a named one (`Position.group`). Its
+//! other functions are static members. An object is a final class owning its
+//! handle, freed by `close` or a `NativeFinalizer`; a record a final class; an enum a Dart
+//! enum, or with data a sealed class of a final class per variant; a tuple a record; a
+//! trait an abstract class, whose `close` Rust calls once it drops an implementation; a
+//! closure a function type; a future a `Cancelable`, a `Future` that cancels; an error a
+//! thrown exception. The runtime they share, [`runtime/rt.dart`](../runtime/rt.dart), holds
+//! the handles, the stack a call lowers its values into, and the port the isolate hears
+//! Rust through.
 //!
 //! Dart runs code only on its isolate's thread, so Rust reaches Dart from any other through
 //! [`runtime/dart.rs`](../runtime/dart.rs): a waker posts to the isolate's port, and a call
@@ -32,8 +35,9 @@ const RUNTIME: &str = include_str!("../runtime/rt.dart");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/dart.rs");
 
 /// Bytes Rust returns up to this long are copied into Dart's memory, and longer ones lent
-/// to it, which costs a finalizer.
-const LEND: usize = 1024;
+/// to it: a lent list's finalizer, and the external size it charges the garbage collector,
+/// cost more than a copy up to about this long.
+const LEND: usize = 64 * 1024;
 
 /// What the generator writes: the Dart, and the Rust glue the crate's `dart` feature builds.
 pub struct Output {
@@ -83,7 +87,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
-		("dart_init", "ffi.Pointer<ffi.Void>", "ffi.Bool", "ffi.Pointer<ffi.Void> p0", "bool"),
+		(
+			"dart_init",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Bool",
+			"ffi.Pointer<ffi.Void> p0",
+			"bool",
+		),
 		(
 			"dart_home",
 			"ffi.Int64, ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>",
@@ -105,12 +115,42 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, int p2",
 			"ffi.Pointer<ffi.Void>",
 		),
-		("dart_relay_free", "ffi.Pointer<ffi.Void>", "ffi.Void", "ffi.Pointer<ffi.Void> p0", "void"),
-		("dart_relay_drop", "ffi.Pointer<ffi.Void>", "ffi.Void", "ffi.Pointer<ffi.Void> p0", "void"),
+		(
+			"dart_relay_free",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0",
+			"void",
+		),
+		(
+			"dart_relay_drop",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0",
+			"void",
+		),
 		("dart_run", "ffi.Int64", "ffi.Void", "int p0", "void"),
-		("dart_owner_free", "ffi.Pointer<ffi.Void>", "ffi.Void", "ffi.Pointer<ffi.Void> p0", "void"),
-		("dart_alloc", "ffi.Size", "ffi.Pointer<ffi.Void>", "int p0", "ffi.Pointer<ffi.Void>"),
-		("dart_free", "ffi.Pointer<ffi.Void>", "ffi.Void", "ffi.Pointer<ffi.Void> p0", "void"),
+		(
+			"dart_owner_free",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0",
+			"void",
+		),
+		(
+			"dart_alloc",
+			"ffi.Size",
+			"ffi.Pointer<ffi.Void>",
+			"int p0",
+			"ffi.Pointer<ffi.Void>",
+		),
+		(
+			"dart_free",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0",
+			"void",
+		),
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
 	] {
 		let local = match name {
@@ -161,7 +201,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{p}_dart_abort\") }})\n}}\n\n{}",
 		g.glue
 	);
-	Ok(Output { dart: dart + "\n", glue })
+	Ok(Output {
+		dart: dart + "\n",
+		glue,
+	})
 }
 
 /// What the runtime and the generated code name unqualified, which an exported item of
@@ -204,8 +247,8 @@ const TAKEN: &[&str] = &[
 /// no type may be.
 const RESERVED: &[&str] = &[
 	"assert", "await", "break", "case", "catch", "class", "const", "continue", "default", "do", "else", "enum",
-	"extends", "false", "final", "finally", "for", "if", "in", "is", "new", "null", "rethrow", "return",
-	"super", "switch", "this", "throw", "true", "try", "var", "void", "while", "with", "yield",
+	"extends", "false", "final", "finally", "for", "if", "in", "is", "new", "null", "rethrow", "return", "super",
+	"switch", "this", "throw", "true", "try", "var", "void", "while", "with", "yield",
 ];
 
 const BUILT_IN: &[&str] = &[
@@ -334,15 +377,28 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// Check that no two members of the type `rust` share a Dart name, static or not.
+	/// Check that no two members of the type `rust` share a Dart name, each `static x`,
+	/// `new x` for a constructor, or else an instance member: Dart's instance and static
+	/// members share one namespace, and its constructors and static members another.
 	fn distinct(&mut self, rust: &str, members: &[String]) {
-		let mut seen = BTreeSet::new();
+		let mut seen = [BTreeSet::new(), BTreeSet::new()];
+		let mut clashes = BTreeSet::new();
 		for member in members {
-			if !seen.insert(member) {
-				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Dart: rename one in the config"
-				));
+			let (spaces, name): (&[usize], &str) = match member.split_once(' ') {
+				Some(("static", name)) => (&[0, 1], name),
+				Some(("new", name)) => (&[1], name),
+				_ => (&[0], member),
+			};
+			for &space in spaces {
+				if !seen[space].insert(name) {
+					clashes.insert(name);
+				}
 			}
+		}
+		for name in clashes {
+			self.errors.push(format!(
+				"two members of `{rust}` are both `{name}` in Dart: rename one in the config"
+			));
 		}
 	}
 
@@ -363,7 +419,9 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
 					let inner = self.dt(inner.base());
-					self.errors.push(format!("`Option<Option<{inner}>>` has no Dart form, which has one null"));
+					self.errors.push(format!(
+						"`Option<Option<{inner}>>` has no Dart form, which has one null"
+					));
 				}
 				format!("{}?", self.dt(inner))
 			}
@@ -426,10 +484,7 @@ impl<'a> Gen<'a> {
 
 	/// Whether `dart:ffi` passes a C type as a Dart scalar, not a struct.
 	fn scalar(ty: &Ty) -> bool {
-		!matches!(
-			ty,
-			Ty::Buf | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker
-		)
+		!matches!(ty, Ty::Buf | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker)
 	}
 
 	/// The class of a C struct, defined once.
@@ -507,8 +562,15 @@ impl<'a> Gen<'a> {
 					abi::escape(&abi::snake(&variant.name))
 				));
 			}
-			let _ = write!(extra, "final class {union} extends ffi.Union {{\n{}}}\n\n", members.concat());
-			let decls = format!("{}\texternal {union} $u;\n", self.field(&Ty::Enum(format!("{name}_tag")), "tag"));
+			let _ = write!(
+				extra,
+				"final class {union} extends ffi.Union {{\n{}}}\n\n",
+				members.concat()
+			);
+			let decls = format!(
+				"{}\texternal {union} $u;\n",
+				self.field(&Ty::Enum(format!("{name}_tag")), "tag")
+			);
 			self.structs.insert(
 				name,
 				format!("final class {class} extends ffi.Struct {{\n{decls}}}\n\n{extra}"),
@@ -518,7 +580,10 @@ impl<'a> Gen<'a> {
 			unreachable!("`{name}` is no struct of the API");
 		}
 		let decls: String = fields.iter().map(|(n, ty)| self.field(ty, n)).collect();
-		self.structs.insert(name, format!("final class {class} extends ffi.Struct {{\n{decls}}}\n\n"));
+		self.structs.insert(
+			name,
+			format!("final class {class} extends ffi.Struct {{\n{decls}}}\n\n"),
+		);
 		class
 	}
 
@@ -627,7 +692,13 @@ impl<'a> Gen<'a> {
 					format!("{w}({e}, {dst}, a_);")
 				}
 			},
-			Type::Record(_) | Type::Enum(_) | Type::List(_) | Type::Tuple(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+			Type::Record(_)
+			| Type::Enum(_)
+			| Type::List(_)
+			| Type::Tuple(_)
+			| Type::Range(_)
+			| Type::Bound(_)
+			| Type::Bounds(_) => {
 				let c = self.c_name(ty.base());
 				let w = self.writer(&c, ty.base());
 				format!("{w}({e}, {dst}, a_);")
@@ -678,7 +749,10 @@ impl<'a> Gen<'a> {
 						let dst = format!("c.$u.${member}.${}", abi::escape(&field.name));
 						body.push(self.write(&field.ty, &e, &dst));
 					}
-					lines.push(format!("if (v is {case}) {{\n\t\t{}\n\t\treturn;\n\t}}", body.join("\n\t\t")));
+					lines.push(format!(
+						"if (v is {case}) {{\n\t\t{}\n\t\treturn;\n\t}}",
+						body.join("\n\t\t")
+					));
 				}
 				lines.join("\n\t")
 			}
@@ -890,7 +964,13 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
-			Type::Record(_) | Type::Enum(_) | Type::List(_) | Type::Tuple(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+			Type::Record(_)
+			| Type::Enum(_)
+			| Type::List(_)
+			| Type::Tuple(_)
+			| Type::Range(_)
+			| Type::Bound(_)
+			| Type::Bounds(_) => {
 				let c = match abi.ty(ty) {
 					Ty::Struct(name) | Ty::Enum(name) => name,
 					other => unreachable!("{other:?} is no value"),
@@ -1007,7 +1087,7 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The members a type's std traits export: `Display` is `toString()`, `Debug`
-	/// `debug()`, `PartialEq` `==`, `Default` a static `default_()`, and `Clone` an
+	/// `debug()`, `PartialEq` `==`, `Default` a constructor `default_()`, and `Clone` an
 	/// object's `clone()`.
 	fn traits(&mut self, ty: &Type, c: &str, t: crate::ir::Traits, body: &mut Vec<String>, members: &mut Vec<String>) {
 		let name = self.dt(ty);
@@ -1062,7 +1142,7 @@ impl<'a> Gen<'a> {
 			));
 		}
 		if t.default {
-			members.push("default_".to_string());
+			members.push("new default_".to_string());
 			let ret = match object {
 				true => Ty::Handle {
 					name: c.to_string(),
@@ -1076,7 +1156,7 @@ impl<'a> Gen<'a> {
 				false => self.lift(ty, &format!("{f}()")),
 			};
 			body.push(format!(
-				"\t/// Rust's `Default`.\n\tstatic {name} default_() {{\n\t\t_n.check();\n\t\treturn {value};\n\t}}\n"
+				"\t/// Rust's `Default`.\n\tfactory {name}.default_() {{\n\t\t_n.check();\n\t\treturn {value};\n\t}}\n"
 			));
 		}
 	}
@@ -1093,7 +1173,14 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Each method of a type, as members of its Dart type.
-	fn methods(&mut self, methods: &[Function], owner: &Ty, ty: &Type, body: &mut Vec<String>, members: &mut Vec<String>) {
+	fn methods(
+		&mut self,
+		methods: &[Function],
+		owner: &Ty,
+		ty: &Type,
+		body: &mut Vec<String>,
+		members: &mut Vec<String>,
+	) {
 		for method in methods {
 			if let Some((code, member)) = self.function(method, Some(owner), Some(ty)) {
 				members.push(member);
@@ -1160,7 +1247,7 @@ impl<'a> Gen<'a> {
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let value = enum_value(&v.name);
-					members.push(value.clone());
+					members.push(format!("static {value}"));
 					format!("\t{value}({})", v.discriminant)
 				})
 				.collect();
@@ -1191,7 +1278,7 @@ impl<'a> Gen<'a> {
 			docs(text.trim(), ""),
 			body.join("\n")
 		);
-		for variant in &e.variants {
+		for (k, variant) in e.variants.iter().enumerate() {
 			let case = variant_class(&name, &variant.name);
 			self.claim(&case, format!("variant `{rust}::{}`", variant.name));
 			let fields: Vec<(String, String)> = (variant.fields.iter())
@@ -1212,7 +1299,7 @@ impl<'a> Gen<'a> {
 			let eq = match e.traits.eq {
 				true => String::new(),
 				false if fields.is_empty() => format!(
-					"\n\t@override\n\tbool operator ==(Object other) => other is {case};\n\n\t@override\n\tint get hashCode => {case}.hashCode;\n"
+					"\n\t@override\n\tbool operator ==(Object other) => other is {case};\n\n\t@override\n\tint get hashCode => {k};\n"
 				),
 				false => String::new(),
 			};
@@ -1349,7 +1436,10 @@ impl<'a> Gen<'a> {
 	/// A static function `name` C calls with `data` and `c_params`, which calls `call`
 	/// with each lifted, and lowers its result of type `ok`, aborting on what it throws.
 	/// Returns the pointer to it as an expression.
-	#[allow(clippy::too_many_arguments)]
+	#[allow(
+		clippy::too_many_arguments,
+		reason = "each is a part of the trampoline its caller assembled"
+	)]
 	fn trampoline_fn(
 		&mut self,
 		name: &str,
@@ -1377,7 +1467,10 @@ impl<'a> Gen<'a> {
 					.map(|(k, l)| format!("final l{k} = {l};"))
 					.collect::<Vec<_>>()
 					.join("\n\t\t"),
-				(0..lent.len()).map(|k| format!("l{k}.close();")).collect::<Vec<_>>().join(" ")
+				(0..lent.len())
+					.map(|k| format!("l{k}.close();"))
+					.collect::<Vec<_>>()
+					.join(" ")
 			),
 		};
 		let exceptional = match ret {
@@ -1457,7 +1550,8 @@ impl<'a> Gen<'a> {
 				}
 				let call = format!("(_n.lent[data.address] as {dt})({})", args.join(", "));
 				let pointer = self.trampoline_fn(&format!("_t{t}"), &c_params, &c_ret, ret, &call, "a closure", &lends);
-				self.helpers.insert(format!("_t{t}_"), format!("final _t{t}_ = {pointer};\n\n"));
+				self.helpers
+					.insert(format!("_t{t}_"), format!("final _t{t}_ = {pointer};\n\n"));
 				t
 			}
 		};
@@ -1490,7 +1584,12 @@ impl<'a> Gen<'a> {
 
 	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one.
-	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Option<(String, String)> {
+	fn function(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+	) -> Option<(String, String)> {
 		let abi = self.abi;
 		let p = abi.prefix.clone();
 		let export = abi.export(function, owner);
@@ -1715,14 +1814,33 @@ impl<'a> Gen<'a> {
 		let is_static = receiver.is_none() && owner.is_some();
 		let stat = if is_static { "static " } else { "" };
 		let code_body = indent(&body.join("\n"));
-		let head = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) if function.params.is_empty() && !function.future && err.is_none() => {
-				format!("{ret_type} get {member}")
+		let (head, member) = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_))
+				if function.params.is_empty() && !function.future && err.is_none() =>
+			{
+				(format!("{ret_type} get {member}"), member)
 			}
 			(Access::Const, None) if function.params.is_empty() && !function.future && err.is_none() => {
-				format!("{stat}{ret_type} get {member}")
+				(format!("{stat}{ret_type} get {member}"), format!("{stat}{member}"))
 			}
-			_ => format!("{stat}{ret_type} {member}({})", params.join(", ")),
+			// A function of a type returning it is a constructor, which, unlike a static
+			// member, may share its name with an instance member, as a Rust function may
+			// with a field. An object's `new` is its unnamed one, which a record's fields
+			// take.
+			_ if is_static && !function.future && Some(&ok) == owner_ty => {
+				if snake == "new" && matches!(owner_ty, Some(Type::Object(_))) {
+					(format!("factory {ret_type}({})", params.join(", ")), "new ".to_string())
+				} else {
+					(
+						format!("factory {ret_type}.{member}({})", params.join(", ")),
+						format!("new {member}"),
+					)
+				}
+			}
+			_ => (
+				format!("{stat}{ret_type} {member}({})", params.join(", ")),
+				format!("{stat}{member}"),
+			),
 		};
 		let code = format!("{}{head} {{\n{code_body}\n}}\n", docs(text.trim(), ""));
 		Some((code, member))

@@ -51,13 +51,9 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::Fn(params, ret) => {
 			let params: Vec<String> = std::iter::once("*mut c_void".to_string())
-				.chain(params.iter().map(|p| rs(p)))
+				.chain(params.iter().map(rs))
 				.collect();
-			format!(
-				"Option<unsafe extern \"C\" fn({}) -> {}>",
-				params.join(", "),
-				rs(ret)
-			)
+			format!("Option<unsafe extern \"C\" fn({}) -> {}>", params.join(", "), rs(ret))
 		}
 		Ty::Data => "*mut c_void".to_string(),
 	}

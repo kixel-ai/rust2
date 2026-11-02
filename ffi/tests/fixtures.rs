@@ -720,7 +720,11 @@ fn api_dart() {
 	std::fs::create_dir_all(&contract).unwrap();
 	std::fs::write(contract.join("api.dart"), mismatched).unwrap();
 	let main = contract.join("main.dart");
-	std::fs::write(&main, "import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n").unwrap();
+	std::fs::write(
+		&main,
+		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
+	)
+	.unwrap();
 	let exe = dart_compile(&contract, &contract, &lib, &main);
 	let output = dart_run(&exe, &[]).output().unwrap();
 	assert!(!output.status.success(), "a mismatched contract did not fail");
@@ -769,17 +773,19 @@ fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf 
 	)
 	.unwrap();
 	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
-	run(Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
-		.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
-		.arg("--platform")
-		.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
-		.arg("--packages")
-		.arg(&config)
-		.arg("--native-assets")
-		.arg(&assets)
-		.arg("-o")
-		.arg(&dill)
-		.arg(main));
+	run(
+		Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
+			.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
+			.arg("--platform")
+			.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
+			.arg("--packages")
+			.arg(&config)
+			.arg("--native-assets")
+			.arg(&assets)
+			.arg("-o")
+			.arg(&dill)
+			.arg(main),
+	);
 	dill
 }
 

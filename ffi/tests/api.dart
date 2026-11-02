@@ -109,7 +109,7 @@ Future<void> script() async {
   final d = api.Point.default_();
   print('default ${d.x} ${d.y}');
 
-  final c = api.Counter.new_('c', 5);
+  final c = api.Counter('c', 5);
   print('get ${c.get()}');
   print('name ${c.name()}');
   print('add ok ${c.add(10)}');
@@ -135,9 +135,9 @@ Future<void> script() async {
   print('label ${label.debug()}');
   print('note ${api.hasText(const api.Note(text: ''))} ${api.hasText(const api.Note(text: null))}');
 
-  final (below, above) = api.Counter.new_('s', 7).split(5);
+  final (below, above) = api.Counter('s', 7).split(5);
   print('split ${below.name()} ${below.get()} ${above.name()} ${above.get()}');
-  final (only,) = api.only(api.Counter.new_('o', 3));
+  final (only,) = api.only(api.Counter('o', 3));
   print('only ${only.name()} ${only.get()}');
   final (w8, w16, w32, w64) = api.widths(98305);
   print('widths $w8 $w16 $w32 $w64');
@@ -160,7 +160,7 @@ Future<void> script() async {
   final statRows = api.rows([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 3)]);
   print('rows ${statRows.map((r) => '${r.$1} ${r.$2.debug()} ${r.$3.x} ${r.$3.y}').join(', ')}');
   // Each handle in a tuple moves in, as one taken by value does.
-  final board = api.Board.new_([('low', api.Counter.new_('l', 1)), ('high', api.Counter.new_('h', 9))]);
+  final board = api.Board([('low', api.Counter('l', 1)), ('high', api.Counter('h', 9))]);
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
   board.close();
@@ -188,9 +188,9 @@ Future<void> script() async {
   );
 
   // Each lent counter is a new handle to a clone.
-  final registry = api.Registry.new_(api.Counter.new_('first', 1));
+  final registry = api.Registry(api.Counter('first', 1));
   print('last ${registry.last() != null}');
-  registry.push(api.Counter.new_('last', 2));
+  registry.push(api.Counter('last', 2));
   final first = registry.first;
   first.add(10);
   print('first ${registry.first.get()} lent ${first.get()}');
@@ -205,7 +205,7 @@ Future<void> script() async {
   });
   print('edit $edited ${registry.first.get()}');
   // A setter moves an object in, as assignment does, closing it.
-  registry.setFirst(api.Counter.new_('second', 3));
+  registry.setFirst(api.Counter('second', 3));
   print('set first ${registry.first.get()} ${registry.first.name()}');
   print('walk ${api.walk(3, (cursor) => cursor.at() * 2)}');
   print('each ${api.each(2, (at) => print('visit $at'))}');
@@ -265,7 +265,7 @@ Future<void> script() async {
   print('secs ${stamp.secs()}');
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
-  final message = api.Message.new_(stamp, utf8.encode('body'));
+  final message = api.Message(stamp, utf8.encode('body'));
   print('payload ${text(message.payload)}');
   print('stamp ${message.stamp!.debug()}');
   print('sent ${message.sent()}');
@@ -280,7 +280,7 @@ Future<void> script() async {
   print('stamp ${message.stamp != null}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
-  final logger = api.Logger.new_(PrintLog());
+  final logger = api.Logger(PrintLog());
   print('write ${logger.write('hi')}');
   logger.close();
   print('dropped');
@@ -292,7 +292,7 @@ Future<void> script() async {
   });
   print('filtered $filtered');
 
-  final channel = api.Channel.new_();
+  final channel = api.Channel();
   var wakes = 0;
   // Polled at the call, it pends, and the wake the send posts resumes it from the event loop.
   Uint8List? got;
@@ -323,17 +323,17 @@ Future<void> script() async {
   await until(() => wakes == 2, 'the send wakes the waker Rust keeps');
   print('woken $wakes');
 
-  final nodes = api.Node.new_(1, null);
+  final nodes = api.Node(1, null);
   nodes.push(2);
   print('node ${nodes.sum()}');
 
-  final tally = api.Tally.new_();
+  final tally = api.Tally();
   tally.bump();
   print('tally ${tally.bump()} ${tally == tally}');
   print('both ${api.bumpBoth(tally, tally)}');
   print('peek ${api.peek(tally, (lent) => lent.bump())}');
 
-  final area = api.grow(api.Area.new_(const api.Size(width: 2, height: 3)), 1);
+  final area = api.grow(api.Area(const api.Size(width: 2, height: 3)), 1);
   final areaSize = area.size();
   print('area ${areaSize.width} ${areaSize.height} ${area.pixels()}');
 
@@ -349,9 +349,9 @@ Future<void> script() async {
   final beside = const api.PairU32(left: 258, right: 9).besideSize(sized.left);
   print('beside ${beside.left} ${beside.debug()}');
   // At its default, named as the type itself.
-  final stack = api.Stack.new_();
+  final stack = api.Stack();
   for (final (i, n) in ['a', 'b'].indexed) {
-    stack.push(api.Counter.new_(n, i + 1));
+    stack.push(api.Counter(n, i + 1));
   }
   final top = stack.pop()!.get();
   print('stack ${stack.depth()} Some($top) ${stack.pop() != null} ${stack.pop() == null}');
@@ -374,7 +374,7 @@ Future<void> script() async {
     const api.LeftRightU8(value: api.RightU8(value: 1)),
     const api.RightLeftU8(value: api.LeftU8(value: 2)),
   );
-  print('cross $cross outer ${api.OuterInnerU8.new_(4).get()}');
+  print('cross $cross outer ${api.OuterInnerU8(4).get()}');
   // A bound that outlives the call takes a value, and an instance only a constant names.
   print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.boxed.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
@@ -387,19 +387,19 @@ Future<void> script() async {
   print('keeps ${api.keeps(PrintLog()).value}');
 
   // Its Drop runs when Dart closes it, not before.
-  final token = api.Token.new_(7);
+  final token = api.Token(7);
   print('token ${token.id} dropped ${api.dropped()}');
   token.close();
   print('dropped ${api.dropped()}');
 
   // A field and the method of its name, each its own member.
-  final retry = api.Retry.new_(5);
+  final retry = api.Retry(5);
   final limit = retry.limitSetting;
   print('retry ${limit == null ? 0 : 1} ${limit ?? 0} ${retry.limit()} ${retry.delay()}');
   // The renamed field's setter, named as its getter.
   retry.setLimitSetting(null);
   print('retry ${retry.limit()}');
-  print('slot ${api.SlotU8.new_(200).value()}');
+  print('slot ${api.SlotU8(200).value()}');
 
   // Foreign types: a URL parsed from text, socket addresses, OS paths, and lists.
   final base = api.Url.parse('https://example.com/a/b');
@@ -455,7 +455,7 @@ Future<void> script() async {
   } on api.StringException catch (e) {
     print('json parse err ${e.error}');
   }
-  final site = api.Site.new_(base);
+  final site = api.Site(base);
   print('site ${site.home} ${site.home}');
 
   // Slices, passed in and returned as clones, and the socket address of each family.
@@ -467,7 +467,7 @@ Future<void> script() async {
         _ => throw ArgumentError(v),
       }).join(', ')}]';
   print('shapes ${debugs(api.Shape.all)} greetings ${quoted(api.greetings)}');
-  final trail = api.Trail.new_([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
+  final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.
   print('iterated ${debugs(trail.iter())} ${quoted(trail.names())} ${trail.bytes()}');
@@ -519,7 +519,7 @@ final class CountLog extends api.Log {
 
 /// The futures' semantics beyond the transcript, each checked by an assertion.
 Future<void> futures() async {
-  final channel = api.Channel.new_();
+  final channel = api.Channel();
 
   // The send lands from another thread while the receive waits, and so does the wake of a
   // waker Rust keeps.
@@ -576,7 +576,7 @@ Future<void> futures() async {
   check(await done == 2, 'a finished future cancelled keeps its value');
 
   // A handle closed while a call awaits on it stays alive until the call ends.
-  final other = api.Channel.new_();
+  final other = api.Channel();
   final held = other.recv();
   final sender = other.clone();
   other.close();
@@ -616,7 +616,7 @@ void pressure() {
 /// What frees an object nobody closed: closing at once, or the garbage collector once it
 /// is unreachable, and only what closing did not free already.
 Future<void> owned() async {
-  for (var n = 1023; n <= 1025; n++) {
+  for (var n = 65535; n <= 65537; n++) {
     final payload = Uint8List.fromList([for (var i = 0; i < n; i++) i % 256]);
     final packet = api.nextPacket(api.Packet(seq: 1, payload: payload));
     check(
@@ -625,7 +625,7 @@ Future<void> owned() async {
     );
   }
   final before = api.dropped();
-  final token = api.Token.new_(1);
+  final token = api.Token(1);
   token.close();
   check(api.dropped() == before + 1, 'closing frees at once');
   token.close();
@@ -649,17 +649,17 @@ Future<void> owned() async {
 
 @pragma('vm:never-inline')
 void unclosed() {
-  api.Token.new_(3);
+  api.Token(3);
 }
 
 @pragma('vm:never-inline')
 void unclosedLogger(api.Log log) {
-  api.Logger.new_(log);
+  api.Logger(log);
 }
 
 /// Each call taking a closed object throws, however it was closed, and moves nothing.
 void closedObjects() {
-  final c = api.Counter.new_('c', 1);
+  final c = api.Counter('c', 1);
   c.close();
   closed(c.get, 'Counter', 'a method of a closed object');
   closed(c.clone, 'Counter', 'clone of a closed object');
@@ -667,40 +667,40 @@ void closedObjects() {
   final url = api.Url.parse('https://example.com');
   url.close();
   closed(url.toString, 'Url', 'toString of a closed object');
-  final tally = api.Tally.new_();
+  final tally = api.Tally();
   tally.close();
-  closed(() => tally == api.Tally.new_(), 'Tally', '== of a closed object');
-  closed(() => api.Tally.new_() == tally, 'Tally', '== with a closed object');
-  final registry = api.Registry.new_(api.Counter.new_('first', 1));
+  closed(() => tally == api.Tally(), 'Tally', '== of a closed object');
+  closed(() => api.Tally() == tally, 'Tally', '== with a closed object');
+  final registry = api.Registry(api.Counter('first', 1));
   registry.close();
   closed(() => registry.first, 'Registry', "a field's getter of a closed object");
-  final second = api.Counter.new_('second', 2);
+  final second = api.Counter('second', 2);
   closed(() => registry.setFirst(second), 'Registry', "a field's setter of a closed object");
   check(second.get() == 2, 'a call that throws moves nothing in');
 
   // An argument, alone, or in a list, beside others the call then moves none of.
-  closed(() => api.bumpBoth(api.Tally.new_(), tally), 'Tally', 'a closed argument');
-  final open = api.Counter.new_('open', 3);
+  closed(() => api.bumpBoth(api.Tally(), tally), 'Tally', 'a closed argument');
+  final open = api.Counter('open', 3);
   closed(() => api.worth([open, c], []), 'Counter', 'a closed object in a list');
   closed(() => api.worth([open], [c]), 'Counter', 'a closed object in a later list');
-  closed(() => api.Board.new_([('open', open), ('closed', c)]), 'Counter', 'a closed object in a tuple');
+  closed(() => api.Board([('open', open), ('closed', c)]), 'Counter', 'a closed object in a tuple');
   check(open.get() == 3, 'a call that throws moves none of its other arguments');
 
   // An async call.
-  final channel = api.Channel.new_();
+  final channel = api.Channel();
   channel.close();
   closed(channel.recv, 'Channel', 'an async call of a closed object');
 
   // Closed by a call that moved it, plain or boxed, or once the closure it was lent to
   // returned.
-  final moved = api.Counter.new_('m', 0);
+  final moved = api.Counter('m', 0);
   moved.intoLabel(null);
   closed(moved.get, 'Counter', 'a method of a moved object');
-  final tail = api.Node.new_(1, null);
-  api.Node.new_(2, tail);
+  final tail = api.Node(1, null);
+  api.Node(2, tail);
   closed(tail.sum, 'Node', 'a method of a boxed moved object');
   late api.Counter kept;
-  api.Registry.new_(api.Counter.new_('c', 0)).edit((counter) {
+  api.Registry(api.Counter('c', 0)).edit((counter) {
     kept = counter;
     return false;
   });
@@ -708,7 +708,7 @@ void closedObjects() {
 
   // Closed while a call holds it, from the closure the call lends, the object stays alive
   // until the call returns, and is freed then.
-  final editing = api.Registry.new_(api.Counter.new_('e', 4));
+  final editing = api.Registry(api.Counter('e', 4));
   final edited = editing.edit((counter) {
     editing.close();
     closed(() => editing.first, 'Registry', 'an object closed in a closure refuses calls');
@@ -723,7 +723,7 @@ void closedObjects() {
     logger.close();
     check(log.closes == 0, 'an object closed during a call it is held by outlives the call');
   });
-  logger = api.Logger.new_(log);
+  logger = api.Logger(log);
   check(logger.write('x'), 'the call holding a closed object returns');
   check(log.closes == 1, 'an object closed during a call it is held by is freed as it returns');
   logger.close();
@@ -731,22 +731,22 @@ void closedObjects() {
   print('closed ok');
 }
 
-/// Returned bytes up to 1024 are copied, and longer ones lend Rust's buffer, read-only,
+/// Returned bytes up to 64 KiB are copied, and longer ones lend Rust's buffer, read-only,
 /// kept alive by any view of it and freed by the garbage collector once none is reachable.
 Future<void> lent() async {
   var before = api.dropped();
-  final small = api.tokenBytes(1, 1024);
-  check(api.dropped() == before + 1, "1024 bytes are copied and Rust's freed at the call");
-  check(small.length == 1024 && small.every((b) => b == 1), 'copied bytes read back');
+  final small = api.tokenBytes(1, 65536);
+  check(api.dropped() == before + 1, "64 KiB are copied and Rust's freed at the call");
+  check(small.length == 65536 && small.every((b) => b == 1), 'copied bytes read back');
   before++;
-  final big = api.tokenBytes(1, 1025);
-  check(api.dropped() == before, "1025 bytes lend Rust's buffer");
-  check(big.length == 1025 && big.every((b) => b == 1), 'lent bytes read back');
+  final big = api.tokenBytes(1, 65537);
+  check(api.dropped() == before, "64 KiB and 1 byte lend Rust's buffer");
+  check(big.length == 65537 && big.every((b) => b == 1), 'lent bytes read back');
   throws<UnsupportedError>(() => big[0] = 2, 'lent bytes are read-only');
   throws<UnsupportedError>(() => Uint8List.sublistView(big, 1)[0] = 2, 'a view of lent bytes is read-only');
 
   // Kept alive by a view alone, through collections that free an old object beside it.
-  final canary = [api.Token.new_(9)];
+  final canary = [api.Token(9)];
   Uint8List? view = subView(2);
   for (var i = 0; i < 3; i++) {
     pressure();
@@ -761,33 +761,33 @@ Future<void> lent() async {
     pressure();
   }
   check(api.dropped() == before + 2, 'the garbage collector frees bytes once');
-  check(big[1024] == 1, 'lent bytes read back while reachable');
+  check(big[65536] == 1, 'lent bytes read back while reachable');
   print('bytes ok');
 }
 
 /// A view of returned bytes, whose list nothing else keeps.
 @pragma('vm:never-inline')
-Uint8List subView(int id) => Uint8List.sublistView(api.tokenBytes(id, 1025), 1015);
+Uint8List subView(int id) => Uint8List.sublistView(api.tokenBytes(id, 65537), 65527);
 
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
   switch (which) {
     case 'moved':
-      final c = api.Counter.new_('c', 0);
+      final c = api.Counter('c', 0);
       c.intoLabel(null);
       c.get();
     case 'boxed moved':
-      final tail = api.Node.new_(1, null);
-      api.Node.new_(2, tail);
+      final tail = api.Node(1, null);
+      api.Node(2, tail);
       tail.sum();
     case 'lent moved':
-      api.Registry.new_(api.Counter.new_('c', 0)).edit((counter) {
+      api.Registry(api.Counter('c', 0)).edit((counter) {
         counter.intoLabel(null);
         return false;
       });
     case 'lent kept':
       late api.Counter kept;
-      api.Registry.new_(api.Counter.new_('c', 0)).edit((counter) {
+      api.Registry(api.Counter('c', 0)).edit((counter) {
         kept = counter;
         return false;
       });

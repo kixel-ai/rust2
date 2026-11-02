@@ -14,6 +14,10 @@
   name the Swift uses, such as `Data`, takes a `rename`.
 - Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
   with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
+- Every export writes `dart/<prefix>.dart`, and its crate has a `dart` feature whose glue
+  claims the C names starting `<prefix>_dart_`. An item that clashes with one, or whose
+  Dart name clashes with another's or with a name the Dart's runtime declares, such as
+  `Cancelable`, `Cancelled`, or `SocketAddr`, takes a `rename`.
 - Kotlin returns bytes as a `Bytes`, not a `ByteArray`: Rust's buffer as `bytes.buffer`, a
   read-only `ByteBuffer`, copied up to 1 KiB and otherwise a direct one lent uncopied
   until `bytes.close()` frees it. Read it in `use { }`, or copy it out with
