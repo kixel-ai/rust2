@@ -205,8 +205,8 @@ export function inline(data: rt.ByteSlice, out: rt.ByteVec): void {
  * the array of one Rust treats it as, and into a mutable part of an array, measured from
  * the array, the pointer an empty slice keeps, within a shared part, which JS copies,
  * a `&mut` into that part, memory nothing wrote copied, null and dangling pointers moved by
- * address, kept by empty raw slices, and cast from pointers to arrays, and the crate's
- * functions named as std's.
+ * address, kept by empty raw slices, and cast from pointers to arrays, the crate's
+ * functions named as std's, and byte pointers into one buffer through its views.
  */
 export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _200!: rt.Result<[rt.u32, rt.u32], rt.u8>;
@@ -318,6 +318,19 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.NULL), n as rt.usize, 1, 1) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.DANGLING), -1, 2, 2) === rt.NULL ? 1 : 0);
 	}
+	const bytes2: Uint8Array = Uint8Array.of(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0), 1, 2, 3, 4, 5);
+	const s: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(bytes2), 1);
+	const base2: rt.Place<rt.u8> = rt.byteSliceAsPtr(s);
+	const first2: rt.Place<rt.u8> = rt.optionUnwrap(rt.iterToOption(rt.iterSliceMut(rt.byteSliceView(s)).next()));
+	const last: rt.Place<rt.u8> = rt.optionUnwrap(rt.iterLast(rt.iterSliceMut(rt.byteSliceView(s))));
+	const part2: rt.Place<rt.u8> = rt.byteSliceAsPtr(rt.byteSliceSplitAt(s, 2)[1]);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(first2, base2) & 0xff);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(last, base2) & 0xff);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(base2, last) & 0xff);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(part2, first2) & 0xff);
+	const _433: rt.Place<rt.u8> = rt.ptrAdd(last, rt.ptrOffsetFrom(part2, last));
+	_433.v = _433.v ^ 255;
+	rt.iterExtendBytes(out, rt.iterSlice(bytes2), undefined, true);
 }
 
 /**
