@@ -461,7 +461,10 @@ fn target_dir(dir: &Path) -> Result<(), String> {
 		return Ok(());
 	}
 	let parent = dir.parent().expect("an absolute target directory has a parent");
-	let name = dir.file_name().expect("a target directory has a name").to_string_lossy();
+	let name = dir
+		.file_name()
+		.expect("a target directory has a name")
+		.to_string_lossy();
 	let temp = parent.join(format!("{name}.rust2-ts-{}", std::process::id()));
 	std::fs::create_dir_all(&temp).map_err(|err| format!("creating {}: {err}", temp.display()))?;
 	write(&temp.join("CACHEDIR.TAG"), CACHEDIR_TAG)?;
