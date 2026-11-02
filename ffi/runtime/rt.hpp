@@ -167,9 +167,9 @@ public:
 	// The handle for a call that moves the value out, held by this copy alone: a clone's
 	// while another copy shares it, as Rust would move a clone out and leave the copy be.
 	// A pending future made from a copy holds no copy here, but borrows the value in Rust,
-	// as though it held one.
+	// as though it held one. A moved-from copy is left for the call to refuse, naming it.
 	R *own() {
-		if (ptr_.use_count() > 1 || Borrowed(ptr_.get())) {
+		if (ptr_.use_count() > 1 || (ptr_ != nullptr && Borrowed(ptr_.get()))) {
 			*this = shared(Clone(ptr_.get()));
 		}
 		return ptr_.get();
