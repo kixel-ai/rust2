@@ -458,6 +458,9 @@ pub fn std_impl<'tcx>(
 			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
 			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
+			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
+			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
+			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rt("bytesDebug", vec![Expr::rt("bytesMutView", vec![value]), f]),
 			_ => return None,
@@ -467,9 +470,8 @@ pub fn std_impl<'tcx>(
 }
 
 /// `Debug` of one of std's iterators that lists the items it has left, as std writes
-/// them, or `None` for another type. A deque's `Iter` and `IterMut` write the two halves of
-/// its ring buffer, which the runtime's deque splits elsewhere than std's, and its `Drain`
-/// its indices, so they stay refused.
+/// them, or `None` for another type. A deque's `Iter` and `IterMut` write the two slices of
+/// its ring buffer they have left, and its `Drain` its counts.
 fn iter_debug<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	did: DefId,
@@ -497,6 +499,20 @@ fn iter_debug<'tcx>(
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		[
+			"collections",
+			"vec_deque",
+			"iter" | "iter_mut",
+			name @ ("Iter" | "IterMut"),
+		] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			let call = vec![value.clone(), f.clone(), debug, Expr::Str((*name).into())];
+			return Some(Expr::rt("fmtDequeIter", call));
+		}
+		["collections", "vec_deque", "drain", "Drain"] => {
+			let len = b.fmt_fn(Trait::Debug, tcx.types.usize, span);
+			return Some(Expr::rt("fmtDequeDrain", vec![value.clone(), f.clone(), len]));
+		}
 		// The list it has left, then its length.
 		["collections", "linked_list", name @ ("Iter" | "IterMut")] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);

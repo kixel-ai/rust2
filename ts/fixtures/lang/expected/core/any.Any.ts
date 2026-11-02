@@ -4,7 +4,7 @@ import * as rt from "../rt.ts";
 import type * as dyns_Noisy from "../dyns.Noisy.ts";
 import type * as Square from "../dyns.Square.ts";
 import type * as Tri from "../dyns.Tri.ts";
-import type * as Fault from "../fmt.Fault.ts";
+import type * as fmt_Fault from "../fmt.Fault.ts";
 
 export type Any = object;
 
@@ -45,9 +45,9 @@ export class of$dyns_Tri {
 }
 
 export class of$fmt_Fault {
-	v: Fault.Fault;
+	v: fmt_Fault.Fault;
 
-	constructor(v: Fault.Fault) {
+	constructor(v: fmt_Fault.Fault) {
 		this.v = v;
 	}
 }
@@ -109,9 +109,9 @@ export class ofPlace$dyns_Tri {
 }
 
 export class ofPlace$fmt_Fault {
-	v: rt.Place<Fault.Fault>;
+	v: rt.Place<fmt_Fault.Fault>;
 
-	constructor(v: rt.Place<Fault.Fault>) {
+	constructor(v: rt.Place<fmt_Fault.Fault>) {
 		this.v = v;
 	}
 }

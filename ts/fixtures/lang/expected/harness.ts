@@ -24,6 +24,7 @@ import { defaults as defaults_defaults } from "./defaults.ts";
 import { durations } from "./durations.ts";
 import { dyns, shared as dyns_shared, anys, fns } from "./dyns.ts";
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
+import { vecs as elements_vecs, arrays as elements_arrays, segments as elements_segments, inline, edges as elements_edges, rawSlices, emptyParts } from "./elements.ts";
 import { eqs } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
 import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as floats_parses } from "./floats.ts";
@@ -31,6 +32,7 @@ import { ints, strings, derived, written as fmt_written, counts as fmt_counts, r
 import { folds } from "./folds.ts";
 import { methods, runs } from "./generics.ts";
 import { values as hashes_values, random, bytes as hashes_bytes, own as hashes_own } from "./hashes.ts";
+import { spills, remnants, layouts } from "./heap.ts";
 import { hints, reserves } from "./hints.ts";
 import { holds } from "./holds.ts";
 import { u8Op, u16Op, u32Op, u64Op, u128Op, usizeOp, i8Op, i16Op, i32Op, i64Op, i128Op, isizeOp, i8Neg, i16Neg, i32Neg, i64Neg, i128Neg, isizeNeg, cast as ints_cast, convert, parses as ints_parses, widenings } from "./ints.ts";
@@ -45,10 +47,11 @@ import { u8s as methods_u8s, u16s as methods_u16s, u32s as methods_u32s, u64s as
 import { nested as nested_nested } from "./nested.ts";
 import { objects as objects_objects } from "./objects.ts";
 import { orders, bytes as orders_bytes, tuples as orders_tuples, held as orders_held, btrees as orders_btrees } from "./orders.ts";
-import { lists as pointers_lists, shared as pointers_shared, places as pointers_places, unchecked, nested as pointers_nested, copies as pointers_copies, sentinels, cells as pointers_cells, rebound as pointers_rebound, lapsed, writers, made as pointers_made, segments, uninitRuns, iteratedRuns, besideWritten, waiters, taken as pointers_taken, bytes as pointers_bytes, loaded, reattached, partWritten, aimed } from "./pointers.ts";
+import { lists as pointers_lists, shared as pointers_shared, places as pointers_places, unchecked, nested as pointers_nested, copies as pointers_copies, sentinels, cells as pointers_cells, rebound as pointers_rebound, lapsed, writers, made as pointers_made, segments as pointers_segments, uninitRuns, iteratedRuns, besideWritten, waiters, taken as pointers_taken, bytes as pointers_bytes, loaded, reattached, partWritten, aimed } from "./pointers.ts";
 import { refs, toRefs, adapted as refs_adapted, compared } from "./refs.ts";
 import { results as results_results } from "./results.ts";
 import { returns } from "./returns.ts";
+import { slices as rings_slices } from "./rings.ts";
 import { u8s as saturates_u8s, u16s as saturates_u16s, u32s as saturates_u32s, u64s as saturates_u64s, u128s as saturates_u128s, usizes as saturates_usizes, i8s as saturates_i8s, i16s as saturates_i16s, i32s as saturates_i32s, i64s as saturates_i64s, i128s as saturates_i128s, isizes as saturates_isizes } from "./saturates.ts";
 import { separated } from "./separated.ts";
 import { copies as shapes_copies, order as shapes_order, discriminants, loops, patterns, uninhabited, closures as shapes_closures, library, flows } from "./shapes.ts";
@@ -226,7 +229,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["cows::slices", cows_slices as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["cows::bytes", cows_bytes as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::u8s", wraps_u8s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::u16s", wraps_u16s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::u32s", wraps_u32s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::u64s", wraps_u64s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::u128s", wraps_u128s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::usizes", wraps_usizes as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::i8s", wraps_i8s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::i16s", wraps_i16s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::i32s", wraps_i32s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::i64s", wraps_i64s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::i128s", wraps_i128s as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["wraps::isizes", wraps_isizes as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::enums", (_2174: rt.u8, data74: rt.ByteSlice, out75: rt.ByteVec): undefined => {
 		enums(data74, out75);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["pointers::segments", (_2175: rt.u8, data75: rt.ByteSlice, out76: rt.ByteVec): undefined => {
-		segments(data75, out76);
+		pointers_segments(data75, out76);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["pointers::uninit_runs", (_2176: rt.u8, data76: rt.ByteSlice, out77: rt.ByteVec): undefined => {
 		uninitRuns(data76, out77);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["pointers::beside_written", (_2177: rt.u8, data77: rt.ByteSlice, out78: rt.ByteVec): undefined => {
@@ -281,16 +284,38 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2199: rt.u8, data99: rt.ByteSlice, out100: rt.ByteVec): undefined => {
-		hashes_own(data99, out100);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::vecs", (_2199: rt.u8, data99: rt.ByteSlice, out100: rt.ByteVec): undefined => {
+		elements_vecs(data99, out100);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::arrays", (_2200: rt.u8, data100: rt.ByteSlice, out101: rt.ByteVec): undefined => {
+		elements_arrays(data100, out101);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::segments", (_2201: rt.u8, data101: rt.ByteSlice, out102: rt.ByteVec): undefined => {
+		elements_segments(data101, out102);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::inline", (_2202: rt.u8, data102: rt.ByteSlice, out103: rt.ByteVec): undefined => {
+		inline(data102, out103);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::edges", (_2203: rt.u8, data103: rt.ByteSlice, out104: rt.ByteVec): undefined => {
+		elements_edges(data103, out104);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["heap::spills", (_2204: rt.u8, data104: rt.ByteSlice, out105: rt.ByteVec): undefined => {
+		spills(data104, out105);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["heap::layouts", (_2205: rt.u8, data105: rt.ByteSlice, out106: rt.ByteVec): undefined => {
+		layouts(data105, out106);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["heap::remnants", (_2206: rt.u8, data106: rt.ByteSlice, out107: rt.ByteVec): undefined => {
+		remnants(data106, out107);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::raw_slices", (_2207: rt.u8, data107: rt.ByteSlice, out108: rt.ByteVec): undefined => {
+		rawSlices(data107, out108);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::empty_parts", (_2208: rt.u8, data108: rt.ByteSlice, out109: rt.ByteVec): undefined => {
+		emptyParts(data108, out109);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2209: rt.u8, data109: rt.ByteSlice, out110: rt.ByteVec): undefined => {
+		hashes_own(data109, out110);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::compared", (a0159: rt.u8, a1159: rt.ByteSlice, a2159: rt.ByteVec): undefined => {
 		compared(a0159, a1159.data, a1159.start, a1159.length, a2159);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2200: rt.u8, data100: rt.ByteSlice, out101: rt.ByteVec): undefined => {
-		fmt_objects(data100, out101);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::sorts", (a0160: rt.u8, a1160: rt.ByteSlice, a2160: rt.ByteVec): undefined => {
-		sorts(a0160, a1160.data, a1160.start, a1160.length, a2160);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0162: rt.u8, a1162: rt.ByteSlice, a2162: rt.ByteVec): undefined => {
-		sorts_btrees(a0162, a1162.data, a1162.start, a1162.length, a2162);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["rings::slices", (a0160: rt.u8, a1160: rt.ByteSlice, a2160: rt.ByteVec): undefined => {
+		rings_slices(a0160, a1160.data, a1160.start, a1160.length, a2160);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2210: rt.u8, data110: rt.ByteSlice, out111: rt.ByteVec): undefined => {
+		fmt_objects(data110, out111);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::sorts", (a0161: rt.u8, a1161: rt.ByteSlice, a2161: rt.ByteVec): undefined => {
+		sorts(a0161, a1161.data, a1161.start, a1161.length, a2161);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0163: rt.u8, a1163: rt.ByteSlice, a2163: rt.ByteVec): undefined => {
+		sorts_btrees(a0163, a1163.data, a1163.start, a1163.length, a2163);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

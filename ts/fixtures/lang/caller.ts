@@ -3,6 +3,7 @@
 // which nothing translated calls. `differential.ts` runs it beside native Rust's
 // `harness::entry`, from the output directory.
 
+import { mulAddsWithin } from "./fma.ts";
 import * as Fault from "./fmt.Fault.ts";
 import { cases as named, run as harness, op as pick } from "./harness.ts";
 import * as rt from "./rt.ts";
@@ -231,7 +232,7 @@ const mulAdds = (max: number, tiny: number, eps: number, op: number[], bytes: (x
 const floatsMulAdds = mulAdds(Number.MAX_VALUE, 5e-324, 2 ** -52, op("floats::mul_adds"), double);
 const singlesMulAdds = mulAdds(3.4028234663852886e38, 2 ** -149, 2 ** -23, op("singles::mul_adds"), single);
 
-const [floatsAt, singlesAt] = [pick("floats::floats"), pick("singles::singles")];
+const [floatsAt, singlesAt, floatsMulAddsAt] = [pick("floats::floats"), pick("singles::singles"), pick("floats::mul_adds")];
 
 /** How many ULPs from native Rust's each float of `floats`' and `singles`' kind 7 may be, which Rust leaves to libm. */
 const ULPS = 2n;
@@ -240,6 +241,7 @@ export function within(input: Uint8Array, native: Uint8Array, translated: Uint8A
 	// A first byte of 0xff prints a `Fault`, and picks no case.
 	if (input[0] === 0xff) return false;
 	const at = ((input[0] << 8) | input[1]) % count;
+	if (at === floatsMulAddsAt) return mulAddsWithin(native, translated);
 	const width = at === floatsAt ? 8 : at === singlesAt ? 4 : 0;
 	if (width === 0 || input[2] % 10 !== 7 || native.length !== translated.length) return false;
 	const [a, b] = [native, translated].map((v) => new DataView(v.buffer, v.byteOffset, v.length));
@@ -866,13 +868,13 @@ const gets = [0, 0x10].flatMap((text) => {
  * it tries.
  */
 const capacityCases = [
-	...[["capacity::vecs", 25], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 29], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) * 4 }, (_, i) => {
 			const [kind, first, step, arg] = [i % 5, (Math.floor(i / 5) % 2) * 0x11, Math.floor(i / 10) % (steps as number), [3, 0xc1, 0xe3, 0x16][Math.floor(i / (10 * (steps as number)))]];
 			return Uint8Array.of(...op(name as string), kind, first, ...[0, 1, 0, 2, 0, 3, 0, 4, 0, 5].map((b, j) => (j % 2 === 0 ? b : b * 41)), step, arg, step, arg ^ 1);
 		}),
 	),
-	...[["capacity::vecs", 25], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 29], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) }, (_, i) => Uint8Array.of(...op(name as string), i % 5, 0, 0, 1, 3 + (Math.floor(i / 5) % 2), 3, Math.floor(i / 10), 0)),
 	),
 	...["capacity::vecs", "capacity::deques", "capacity::heaps"].flatMap((name) =>
@@ -881,6 +883,31 @@ const capacityCases = [
 	...Array.from({ length: 5 }, (_, kind) => Uint8Array.of(...op("capacity::heaps"), kind, 0, 8, 15, 3, 0, 12, 0, 7, 0)),
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
 ];
+
+/**
+ * `rings::slices` of each item type, from a deque made by `new`, `with_capacity` of 5, and
+ * from a `Vec` of 7: pushed at both ends and popped at the front to wrap it, past a few
+ * capacities, then each step by a few arguments, twice.
+ */
+const ringsCases = Array.from({ length: 5 * 3 * 4 * 24 * 3 }, (_, i) => {
+	const [kind, first, wraps, step, arg] = [i % 5, [0, 0x15, 0x1e][Math.floor(i / 5) % 3], [1, 3, 6, 10][Math.floor(i / 15) % 4], Math.floor(i / 60) % 24, [0, 0x5b, 0xe7][Math.floor(i / 1440)]];
+	const wrap = Array.from({ length: wraps }, (_, j) => [j % 3 === 2 ? 4 : 0, j * 3, 6, 0, 4, j]).flat();
+	return Uint8Array.of(...op("rings::slices"), kind, first, ...wrap, step, arg, step, arg ^ 0x25);
+});
+
+/**
+ * `rings::slices` remaking each wrapped deque each way and with a few skips: a clone,
+ * `clone_from`, `clone_into`, its `into_iter` read in part and by `nth`, from a `Vec` as it
+ * is and filtered in place, and a `Vec`'s `into_iter` read in part, collected as it is and
+ * cloned; then pushed at both ends.
+ */
+const remadeCases = [0, 5, 0x2d, 0x37, 0x64, 0x6e, 1, 0x10, 2, 0x11, 3, 0x21, 0x0e, 0x13, 0x45, 0x5f].flatMap((arg) =>
+	Array.from({ length: 5 * 3 * 4 }, (_, i) => {
+		const [kind, first, wraps] = [i % 5, [0, 0x15, 0x1e][Math.floor(i / 5) % 3], [1, 3, 6, 10][Math.floor(i / 15)]];
+		const wrap = Array.from({ length: wraps }, (_, j) => [j % 3 === 2 ? 4 : 0, j * 3, 6, 0, 4, j]).flat();
+		return Uint8Array.of(...op("rings::slices"), kind, first, ...wrap, 22, arg, 0, 9, 4, 9);
+	}),
+);
 
 /**
  * `sorts` cases of each length std's thresholds part, of each run of keys; `disorders`
@@ -892,4 +919,4 @@ const sortCases = [
 	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::btrees"), i % 20, Math.floor(i / 20), 2, 9)),
 ];
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...sortCases];
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases];

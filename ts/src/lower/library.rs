@@ -169,6 +169,10 @@ pub enum Std {
 	RandomState,
 	/// `rt.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rt.Layout`: its size and alignment, never changed once made.
+	Layout,
+	/// `rt.LayoutError`.
+	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -191,6 +195,7 @@ impl Std {
 				| Self::ParseFloatError
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
+				| Self::LayoutError
 		)
 	}
 
@@ -290,6 +295,8 @@ impl Std {
 			.as_slice()
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
+			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -1340,6 +1347,10 @@ fn mapping<'tcx>(
 		Ok(e) => return e,
 		Err(args) => args,
 	};
+	let args = match super::alloc::call(b, call, &owner, &name, args) {
+		Ok(e) => return e,
+		Err(args) => args,
+	};
 	let args = match super::time::call(b, call, &owner, &name, args) {
 		Ok(e) => return e,
 		Err(args) => args,
@@ -1421,7 +1432,7 @@ fn mapping<'tcx>(
 			if let Some(elem) = box_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
-				return Some(boxed_vec(value, elem));
+				return Some(boxed_vec(b, value, elem, span));
 			}
 			// An `Arc` or an `Rc` of what a box holds, its trait object included, which it
 			// drops with the last one. A box of a byte array holds a `Uint8Array` of its own.
@@ -2081,7 +2092,7 @@ fn mapping<'tcx>(
 				super::iter::tail(vec![items, compare], vec![Expr::undefined(), drop]),
 			)
 		}
-		("slice", "into_vec") => boxed_vec(args.pop()?, targ(gargs, 0)),
+		("slice", "into_vec") => boxed_vec(b, args.pop()?, targ(gargs, 0), span),
 		("Vec", "into_boxed_slice") => vec_boxed(args.pop()?, targ(gargs, 0)),
 		// `vec![a, b]`'s array once `mir::vec` took the box away. A `Copy` aggregate's operand
 		// may be shared with where it came from, which the vector must not change.
@@ -2166,6 +2177,7 @@ fn mapping<'tcx>(
 		("Vec", "extend_from_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
 		("Vec", "extend_from_slice") => {
 			let mut values = args;
+			values.push(super::iter::size_of(b, targ(gargs, 0), span));
 			let clone = super::collections::clone_fn(b, targ(gargs, 0), span);
 			if !matches!(&clone, Expr::Lit(l) if l == "undefined") {
 				values.push(clone);
@@ -2399,11 +2411,16 @@ fn mapping<'tcx>(
 
 		// Formatting.
 		("hint", "must_use") => args.pop()?,
-		// The size wasm32 lays the type out in, which translation targets.
+		// The size and alignment wasm32 lays the type out in, which translation targets.
 		("mem", "size_of") => {
 			let env = b.t.typing_env_pub();
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.size.bytes().to_string())
+		}
+		("mem", "align_of") => {
+			let env = b.t.typing_env_pub();
+			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
+			Expr::lit(layout.align.abi.bytes().to_string())
 		}
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.
@@ -2769,11 +2786,30 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	}
 }
 
-/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it.
-fn boxed_vec(boxed: Expr, elem: Ty<'_>) -> Expr {
+/// `clone`, the `Vec<elem>` that `clone_from` writes over `target`, with the capacity std's
+/// keeps of `target`'s.
+pub(super) fn vec_cloned_into<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	clone: Expr,
+	target: Expr,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecClonedInto", vec![clone, target]),
+		_ => Expr::rt(
+			"vecClonedInto",
+			vec![clone, target, super::iter::size_of(b, elem, span)],
+		),
+	}
+}
+
+/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it, with room
+/// for exactly its elements.
+fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![boxed]),
-		_ => boxed,
+		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
 	}
 }
 

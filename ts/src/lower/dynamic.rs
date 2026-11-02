@@ -110,7 +110,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return Some(object.clone());
 		}
 		// A trait of a crate translated from source is as the crate's own.
-		if !self.own(principal) && !is_any(tcx, principal) {
+		if !self.own(principal) && !is_any(tcx, principal) && !is_buf(tcx, principal) {
 			self.unrepresented(
 				span,
 				format!("`{ty}`, a trait object of another crate's trait, which is not supported yet"),
@@ -150,6 +150,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 		// `Any`'s object is its class, which a downcast checks for, so it needs no method.
 		for &tr in traits.iter().filter(|&&tr| !is_any(tcx, tr)) {
 			for &def_id in tcx.own_existential_vtable_entries(tr) {
+				// `Buf::chunks_vectored`, whose `IoSlice` has no JS value.
+				if is_buf(tcx, tr) && tcx.item_name(def_id).as_str() == "chunks_vectored" {
+					continue;
+				}
 				let name = format!("{}${}", super::camel(tcx.item_name(def_id).as_str()), tcx.item_name(tr));
 				if methods.iter().any(|m: &Method| m.name == name) {
 					self.err(span, format!("`{ty}`, whose traits have two methods named `{name}`"));
@@ -349,6 +353,14 @@ impl<'tcx> Translator<'_, 'tcx> {
 /// Whether `def_id` is std's `Any`.
 fn is_any(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 	tcx.is_diagnostic_item(rustc_span::Symbol::intern("Any"), def_id)
+}
+
+/// Whether `def_id` is `bytes`' `Buf`, whose provided methods translate from its MIR for
+/// a buffer the mapping doesn't name.
+fn is_buf(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+	super::stock::is_stock(tcx, def_id)
+		&& tcx.crate_name(def_id.krate).as_str() == "bytes"
+		&& tcx.item_name(def_id).as_str() == "Buf"
 }
 
 /// Whether `ty` is a `dyn Any`.
