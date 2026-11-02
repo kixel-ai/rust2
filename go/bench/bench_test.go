@@ -20,37 +20,50 @@ type workload struct {
 
 func u64(v uint64) []uint8 { return binary.BigEndian.AppendUint64(nil, v) }
 
-// workloads are ts/bench/workloads.ts's that code moq's wire format: each encode, and a
-// decode of what it wrote.
+// workloads are ts/bench/workloads.ts's that code moq's wire format, and a group's whole
+// stream: each encode, and a decode of what it wrote.
 func workloads() []workload {
 	var out []workload
-	pair := func(name string, items int, op, selector uint8, params ...uint64) []uint8 {
+	input := func(op, selector uint8, params ...uint64) []uint8 {
 		input := []uint8{op, selector}
 		for _, p := range params {
 			input = append(input, u64(p)...)
 		}
+		return input
+	}
+	pair := func(name string, items int, input []uint8) []uint8 {
 		wire := codec.BenchRun(input)
 		name = strings.Replace(name, "%", fmt.Sprintf("%dB", len(wire)/items), 1)
 		out = append(out, workload{name + "/encode", items, input})
-		out = append(out, workload{name + "/decode", items, append([]uint8{op + 1, selector}, wire...)})
+		out = append(out, workload{name + "/decode", items, append([]uint8{input[0] + 1, input[1]}, wire...)})
 		return wire
 	}
 	const run = 1024
 	for _, v := range []uint64{1<<6 - 1, 1<<14 - 1, 1<<30 - 1, 1<<53 - 1} {
-		pair("varint/quic/%", run, 0, 0, run, v)
+		pair("varint/quic/%", run, input(0, 0, run, v))
 	}
 	for _, v := range []uint64{1<<7 - 1, 1<<14 - 1, 1<<28 - 1, 1<<53 - 1} {
-		pair("varint/leading-ones/%", run, 0, 1, run, v)
+		pair("varint/leading-ones/%", run, input(0, 1, run, v))
+	}
+	// The payloads each stream's frames take from.
+	payload := make([]uint8, 60_000)
+	for i := range payload {
+		payload[i] = uint8(i)
 	}
 	for _, v := range []struct {
 		name     string
 		selector uint8
 	}{{"lite-06", 5}, {"lite-07", 6}} {
-		video := pair("frames/video/"+v.name, 60, 2, v.selector, 60, 33_333, 60_000, 8_000, 10, 17_000)
-		input := append(append([]uint8{7, v.selector}, u64(3)...), video...)
-		out = append(out, workload{"frames/video/" + v.name + "/3B-reads/decode", 60, input})
-		pair("frames/audio/"+v.name, 50, 2, v.selector, 50, 20_000, 160, 160, 0, 0)
-		pair("group/"+v.name, 1, 4, v.selector, 3, 1_234)
+		video := []uint64{60, 33_333, 60_000, 8_000, 10, 17_000}
+		audio := []uint64{50, 20_000, 160, 160, 0, 0}
+		wire := pair("frames/video/"+v.name, 60, input(2, v.selector, video...))
+		reads := append(input(7, v.selector, 3), wire...)
+		out = append(out, workload{"frames/video/" + v.name + "/3B-reads/decode", 60, reads})
+		pair("frames/audio/"+v.name, 50, input(2, v.selector, audio...))
+		pair("group/"+v.name, 1, input(4, v.selector, 3, 1_234))
+		// A group's stream end to end, header, frames, and payloads, as moq's consumer runs it.
+		pair("stream/video/"+v.name, 1, append(input(8, v.selector, append([]uint64{3, 1_234}, video...)...), payload...))
+		pair("stream/audio/"+v.name, 1, append(input(8, v.selector, append([]uint64{3, 1_234}, audio...)...), payload...))
 	}
 	return out
 }
