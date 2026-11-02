@@ -538,9 +538,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
 			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over. A
-			// list's maps, as it clones each element into one of its own nodes.
+			// list's maps, as it clones each element into one of its own nodes, and a deque's,
+			// as it clears itself first and keeps its capacity.
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
-				if !self.b.t.translated(def_id, gargs) && self.b.t.std_of(targ(0)?) != Some(Std::LinkedList) =>
+				if !self.b.t.translated(def_id, gargs)
+					&& !matches!(self.b.t.std_of(targ(0)?), Some(Std::LinkedList | Std::VecDeque)) =>
 			{
 				let ty = targ(0)?;
 				if !ty.is_sized(tcx, self.b.t.typing_env_pub()) {

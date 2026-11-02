@@ -247,9 +247,9 @@ what each holds. `Debug` of a string or `char` escapes by
 std's Unicode tables, which the runtime carries, not the engine's. `Debug` of std's
 collections writes their items in the order each iterates, a hash map's or set's included,
 and of their iterators and `Chars` the items each has left, in std's wrapper; a deque's
-`Iter` and `IterMut`, which write its buffer's two halves, and its `Drain`, which writes its
-counts, are refused; a list's `Iter` and `IterMut` write what is left and its length, as
-std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+`Iter` and `IterMut` write the two slices of its buffer they have left, swapped as std's
+swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
+its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. A caller prints a
 `printable` type as `to_string()` and `format!("{err:?}")`
@@ -780,7 +780,9 @@ they need.
   with the maintainer on 2026-11-01). It holds one, as `cap`, only where an operation
   sets it or a removal reads it, so an insert never reads or writes one, and reading it
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
-  whose length is a power of two. A `Vec`, `VecDeque`, and `BinaryHeap` hold what std
+  whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
+  where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
+  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
   as through pushes. `clone_from` and `clone_into`, of which std guarantees only the

@@ -88,7 +88,7 @@ export function ones(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), (_211: rt.u8): [rt.u8] => {
 		return [_211] as [rt.u8];
 	});
-	rt.iterExtendBytes(out, rt.dequeIter(rt.tupleExtendOne([rt.dequeNew() as rt.VecDeque<rt.u8>] as [rt.VecDeque<rt.u8>], _28, (c4, items4) => rt.dequeExtend(c4, items4, "next", 1))[0]), undefined, true);
+	rt.iterExtendBytes(out, rt.dequeIntoIter(rt.tupleExtendOne([rt.dequeNew(1, true) as rt.VecDeque<rt.u8>] as [rt.VecDeque<rt.u8>], _28, (c4, items4) => rt.dequeExtend(c4, items4, "next"))[0]), undefined, true);
 	const _34: rt.Iter<[rt.u8]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_212: rt.u8): [rt.u8] => {
 		return [rt.u8Rem(_212, 16)] as [rt.u8];
 	});
@@ -157,7 +157,7 @@ export function pairs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const b3: rt.u8 = _27;
 		return [b3, rt.u16Mul(b3 as rt.u16, 3)] as [rt.u8, rt.u16];
 	});
-	const _22: [rt.BinaryHeap<rt.u8>, rt.VecDeque<rt.u16>] = rt.tupleExtend([rt.heapNew() as rt.BinaryHeap<rt.u8>, rt.dequeNew() as rt.VecDeque<rt.u16>] as [rt.BinaryHeap<rt.u8>, rt.VecDeque<rt.u16>], _23, [rt.heapPart(rt.le, 1), rt.dequePart(2)]);
+	const _22: [rt.BinaryHeap<rt.u8>, rt.VecDeque<rt.u16>] = rt.tupleExtend([rt.heapNew() as rt.BinaryHeap<rt.u8>, rt.dequeNew(2) as rt.VecDeque<rt.u16>] as [rt.BinaryHeap<rt.u8>, rt.VecDeque<rt.u16>], _23, [rt.heapPart(rt.le, 1), rt.dequePart()]);
 	const heap: rt.BinaryHeap<rt.u8> = _22[0];
 	const q: rt.VecDeque<rt.u16> = _22[1];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(rt.byteVecFromVec(heap.d))), undefined, true);
@@ -174,13 +174,13 @@ export function pairs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const b6: rt.u8 = _212;
 		return [b6 as rt.u16, b6] as [rt.u16, rt.u8];
 	});
-	const _38: [rt.u16[], rt.VecDeque<rt.u8>] = rt.tupleExtend([[], rt.dequeNew() as rt.VecDeque<rt.u8>] as [rt.u16[], rt.VecDeque<rt.u8>], _39, [rt.vecPart(2), rt.dequePart(1)]);
+	const _38: [rt.u16[], rt.VecDeque<rt.u8>] = rt.tupleExtend([[], rt.dequeNew(1, true) as rt.VecDeque<rt.u8>] as [rt.u16[], rt.VecDeque<rt.u8>], _39, [rt.vecPart(2), rt.dequePart()]);
 	const v4: rt.u16[] = _38[0];
 	const q2: rt.VecDeque<rt.u8> = _38[1];
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v4), (n2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n2).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
-	rt.iterExtendBytes(out, rt.dequeIter(q2), undefined, true);
+	rt.iterExtendBytes(out, rt.dequeIntoIter(q2), undefined, true);
 }
 
 /** Triples, of mixed collections, and tuples of collections within one. */
@@ -189,7 +189,7 @@ export function triples(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const b: rt.u8 = _2;
 		return [b, (((b as rt.u16)) << 8) & 0xffff, rt.u8Add(97, rt.u8Rem(b, 26)) as rt.char] as [rt.u8, rt.u16, rt.char];
 	});
-	const _6: [rt.ByteVec, rt.VecDeque<rt.u16>, string] = rt.tupleExtend([new rt.ByteVec(), rt.dequeNew() as rt.VecDeque<rt.u16>, ""] as [rt.ByteVec, rt.VecDeque<rt.u16>, string], _7, [rt.byteVecPart(), rt.dequePart(2), rt.STRING_CHARS_PART]);
+	const _6: [rt.ByteVec, rt.VecDeque<rt.u16>, string] = rt.tupleExtend([new rt.ByteVec(), rt.dequeNew(2) as rt.VecDeque<rt.u16>, ""] as [rt.ByteVec, rt.VecDeque<rt.u16>, string], _7, [rt.byteVecPart(), rt.dequePart(), rt.STRING_CHARS_PART]);
 	const v: rt.ByteVec = _6[0];
 	const q: rt.VecDeque<rt.u16> = _6[1];
 	const s: string = _6[2];
@@ -254,7 +254,7 @@ export function twelves(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _28: [rt.u8, [rt.char]] = [b ^ 51, [rt.u8Add(65, rt.u8Rem(b, 26)) as rt.char] as [rt.char]];
 		return [b, _12, _152, _5[_8], _162, b, _172, _202, _222, _262, undefined, _28] as [rt.u8, rt.u16, rt.char, string, rt.u8, rt.u8, [rt.u8, rt.u8], rt.u8, [rt.u8, rt.u16], rt.u8, undefined, [rt.u8, [rt.char]]];
 	});
-	const _15: [rt.ByteVec, rt.u16[], string, string, rt.VecDeque<rt.u8>, rt.BinaryHeap<rt.u8>, rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>, rt.BTreeMap<rt.u8, rt.u16>, rt.BTreeSet<rt.u8>, undefined, [rt.ByteVec, [string]]] = rt.tupleExtend([new rt.ByteVec(), [], "", "", rt.dequeNew() as rt.VecDeque<rt.u8>, rt.heapNew() as rt.BinaryHeap<rt.u8>, rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, rt.hashNew() as rt.HashSet<rt.u8>, rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u8>, undefined, [new rt.ByteVec(), [""]]] as [rt.ByteVec, rt.u16[], string, string, rt.VecDeque<rt.u8>, rt.BinaryHeap<rt.u8>, rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>, rt.BTreeMap<rt.u8, rt.u16>, rt.BTreeSet<rt.u8>, undefined, [rt.ByteVec, [string]]], _16, [rt.byteVecPart(), rt.vecPart(2), rt.STRING_CHARS_PART, rt.STRING_PART, rt.dequePart(1), rt.heapPart(rt.le, 1), rt.hashPart(undefined, undefined, 469762048), rt.hashKeysPart(undefined, 469762048), rt.btreePart(), rt.btreeKeysPart(), rt.UNIT_PART, rt.tuplePart([rt.byteVecPart(), rt.tuplePart([rt.STRING_CHARS_PART])])]);
+	const _15: [rt.ByteVec, rt.u16[], string, string, rt.VecDeque<rt.u8>, rt.BinaryHeap<rt.u8>, rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>, rt.BTreeMap<rt.u8, rt.u16>, rt.BTreeSet<rt.u8>, undefined, [rt.ByteVec, [string]]] = rt.tupleExtend([new rt.ByteVec(), [], "", "", rt.dequeNew(1, true) as rt.VecDeque<rt.u8>, rt.heapNew() as rt.BinaryHeap<rt.u8>, rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, rt.hashNew() as rt.HashSet<rt.u8>, rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u8>, undefined, [new rt.ByteVec(), [""]]] as [rt.ByteVec, rt.u16[], string, string, rt.VecDeque<rt.u8>, rt.BinaryHeap<rt.u8>, rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>, rt.BTreeMap<rt.u8, rt.u16>, rt.BTreeSet<rt.u8>, undefined, [rt.ByteVec, [string]]], _16, [rt.byteVecPart(), rt.vecPart(2), rt.STRING_CHARS_PART, rt.STRING_PART, rt.dequePart(), rt.heapPart(rt.le, 1), rt.hashPart(undefined, undefined, 469762048), rt.hashKeysPart(undefined, 469762048), rt.btreePart(), rt.btreeKeysPart(), rt.UNIT_PART, rt.tuplePart([rt.byteVecPart(), rt.tuplePart([rt.STRING_CHARS_PART])])]);
 	const bytes: rt.ByteVec = _15[0];
 	const wide: rt.u16[] = _15[1];
 	const chars: string = _15[2];
@@ -273,7 +273,7 @@ export function twelves(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(chars), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(texts), undefined, true);
-	rt.iterExtendBytes(out, rt.dequeIter(q), undefined, true);
+	rt.iterExtendBytes(out, rt.dequeIntoIter(q), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(rt.byteVecFromVec(heap.d))), undefined, true);
 	entries(map, out);
 	sorted(set, out);
@@ -293,12 +293,12 @@ export function twelves(data: rt.ByteSlice, out: rt.ByteVec): void {
  * and a map or set keeps an equal key already there.
  */
 export function extended(data: rt.ByteSlice, out: rt.ByteVec): void {
-	const t: [rt.ByteVec, string, rt.BTreeMap<rt.u8, rt.u16>, rt.VecDeque<rt.u16>, rt.HashSet<rt.u8>] = [rt.byteVecFrom(Uint8Array.of(9, 8)), "pre", rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, rt.iterSlice([[3, 30] as [rt.u8, rt.u16]]), true, undefined, undefined, undefined, 4, true), rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.u16>, rt.iterSlice([1]), undefined, 2, true), rt.hashExtendKeys(rt.hashNew() as rt.HashSet<rt.u8>, rt.iterSlice(Uint8Array.of(5)), undefined, undefined, 469762048)];
+	const t: [rt.ByteVec, string, rt.BTreeMap<rt.u8, rt.u16>, rt.VecDeque<rt.u16>, rt.HashSet<rt.u8>] = [rt.byteVecFrom(Uint8Array.of(9, 8)), "pre", rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, rt.iterSlice([[3, 30] as [rt.u8, rt.u16]]), true, undefined, undefined, undefined, 4, true), rt.dequeFromArray([1], 2) as rt.VecDeque<rt.u16>, rt.hashExtendKeys(rt.hashNew() as rt.HashSet<rt.u8>, rt.iterSlice(Uint8Array.of(5)), undefined, undefined, 469762048)];
 	const _16: rt.Iter<[rt.u8, rt.char, [rt.u8, rt.u16], rt.u16, rt.u8]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [rt.u8, rt.char, [rt.u8, rt.u16], rt.u16, rt.u8] => {
 		const b: rt.u8 = _2;
 		return [b, b as rt.char, [rt.u8Rem(b, 8), b as rt.u16] as [rt.u8, rt.u16], b as rt.u16, rt.u8Rem(b, 16)] as [rt.u8, rt.char, [rt.u8, rt.u16], rt.u16, rt.u8];
 	});
-	rt.tupleExtend(t, _16, [rt.byteVecPart(), rt.STRING_CHARS_PART, rt.btreePart(), rt.dequePart(2), rt.hashKeysPart(undefined, 469762048)]);
+	rt.tupleExtend(t, _16, [rt.byteVecPart(), rt.STRING_CHARS_PART, rt.btreePart(), rt.dequePart(), rt.hashKeysPart(undefined, 469762048)]);
 	const v: rt.ByteVec = t[0];
 	const s: string = t[1];
 	const tree: rt.BTreeMap<rt.u8, rt.u16> = t[2];
@@ -501,7 +501,7 @@ export function reserved(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _55: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(items, (i2: rt.u32): [rt.u8, rt.u16] => {
 			return [i2 & 0xff, i2 & 0xffff] as [rt.u8, rt.u16];
 		});
-		const _54: [rt.BTreeSet<rt.u8>, rt.VecDeque<rt.u16>] = rt.tupleExtend([rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u8>, rt.dequeNew() as rt.VecDeque<rt.u16>] as [rt.BTreeSet<rt.u8>, rt.VecDeque<rt.u16>], _55, [rt.btreeKeysPart(), rt.dequePart(2)]);
+		const _54: [rt.BTreeSet<rt.u8>, rt.VecDeque<rt.u16>] = rt.tupleExtend([rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u8>, rt.dequeNew(2) as rt.VecDeque<rt.u16>] as [rt.BTreeSet<rt.u8>, rt.VecDeque<rt.u16>], _55, [rt.btreeKeysPart(), rt.dequePart()]);
 		const tree: rt.BTreeSet<rt.u8> = _54[0];
 		const q: rt.VecDeque<rt.u16> = _54[1];
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.btreeLen(tree) & 0xff, q.n & 0xff)), undefined, true);

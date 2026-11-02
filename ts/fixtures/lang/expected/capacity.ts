@@ -840,104 +840,86 @@ export function dequeSteps$array160_u64(dataData: Uint8Array, dataStart: number,
 	if ((first & 1) === 1) {
 		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 1280) as rt.VecDeque<rt.u64[]>;
 	} else {
-		q = rt.dequeNew() as rt.VecDeque<rt.u64[]>;
+		q = rt.dequeNew(1280) as rt.VecDeque<rt.u64[]>;
 	}
-	const k: Known.Known = Known.new(rt.dequeCapacity(q, 1280));
-	put(out, rt.dequeCapacity(q, 1280));
+	put(out, rt.dequeCapacity(q));
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(_7[1], 2);
 	while (true) {
-		const _27: rt.ByteSlice | rt.Done = iter.next();
-		if (_27 === rt.DONE) {
+		const _24: rt.ByteSlice | rt.Done = iter.next();
+		if (_24 === rt.DONE) {
 			break;
 		}
-		rt.idx(_27, 0);
-		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
-		const op: rt.u8 = _33[0];
-		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 21);
-		if (_42 === 0) {
+		rt.idx(_24, 0);
+		const _30: [rt.u8, rt.u8] = [_24.data[_24.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_24, 1), 0)];
+		const op: rt.u8 = _30[0];
+		const arg: rt.u8 = _30[1];
+		const _39: rt.u8 = rt.u8Rem(op, 21);
+		if (_39 === 0) {
 			rt.dequePushBack(q, copy$array_u64(make(arg)));
-		} else if (_42 === 1) {
+		} else if (_39 === 1) {
 			rt.dequePushFront(q, copy$array_u64(make(arg)));
-		} else if (_42 === 2) {
+		} else if (_39 === 2) {
 			rt.dequePopFront(q);
-			Known.loose(k);
-		} else if (_42 === 3 || _42 === 4) {
+		} else if (_39 === 3 || _39 === 4) {
 			const additional: rt.usize = amount(arg, q.n, size);
 			if (rt.u8Rem(op, 21) === 3) {
-				rt.dequeReserve(q, additional, 1280);
+				rt.dequeReserve(q, additional);
 			} else {
-				rt.dequeReserveExact(q, additional, 1280);
+				rt.dequeReserveExact(q, additional);
 			}
-			Known.reserved(k, q.n, additional);
-		} else if (_42 === 5) {
-			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize, 1280);
-			Known.shrunk(k, q.n, rt.u8Rem(arg, 40) as rt.usize);
-		} else if (_42 === 6) {
-			rt.dequeShrinkTo(q, 0, 1280);
-			Known.shrunk(k, q.n, 0);
-			k.exact = true;
-		} else if (_42 === 7) {
+		} else if (_39 === 5) {
+			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize);
+		} else if (_39 === 6) {
+			rt.dequeShrinkTo(q, 0);
+		} else if (_39 === 7) {
 			rt.dequeTruncate(q, rt.u8Rem(arg, 8) as rt.usize);
-			Known.loose(k);
-		} else if (_42 === 8) {
+		} else if (_39 === 8) {
 			rt.dequeInsert(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)), copy$array_u64(make(arg)));
-		} else if (_42 === 9) {
+		} else if (_39 === 9) {
 			rt.dequeRemove(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)));
-			Known.loose(k);
-		} else if (_42 === 10) {
+		} else if (_39 === 10) {
 			rt.dequeExtend(q, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i: rt.u8): boolean => {
 				return rt.u8Rem(i, 3) !== 0;
-			}), make), "next", 1280);
-		} else if (_42 === 11) {
-			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 1280, true);
-		} else if (_42 === 12) {
+			}), make), "next");
+		} else if (_39 === 11) {
+			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
+		} else if (_39 === 12) {
 			rt.dequeClear(q);
-			Known.loose(k);
-		} else if (_42 === 13) {
+		} else if (_39 === 13) {
 			const keep: () => boolean = alternate();
-			rt.dequeRetain(q, (_28: rt.u64[]): boolean => {
+			rt.dequeRetain(q, (_25: rt.u64[]): boolean => {
 				return keep();
 			});
-			Known.loose(k);
-		} else if (_42 === 14) {
-			rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) });
-			Known.loose(k);
-		} else if (_42 === 15) {
-			q = rt.dequeClone(q, copy$array_u64, 1280);
-			Known.remade(k, true);
-		} else if (_42 === 16) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 1280, true)) as rt.VecDeque<rt.u64[]>;
-			Known.remade(k, false);
-		} else if (_42 === 17) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 1280, true)) as rt.VecDeque<rt.u64[]>;
-			Known.remade(k, false);
-		} else if (_42 === 18) {
+		} else if (_39 === 14) {
+			rt.drop(rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) }));
+		} else if (_39 === 15) {
+			q = rt.dequeClone(q, copy$array_u64);
+		} else if (_39 === 16) {
+			q = rt.dequeFromIntoIter(rt.dequeIntoIter(q), 1280) as rt.VecDeque<rt.u64[]>;
+		} else if (_39 === 17) {
+			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 1280, true), 1280) as rt.VecDeque<rt.u64[]>;
+		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
-			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIter(q), (_26: rt.u64[]): boolean => {
+			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIntoIter(q), (_23: rt.u64[]): boolean => {
 				return keep2();
-			}), "next", 1280)) as rt.VecDeque<rt.u64[]>;
-			Known.remade(k, true);
-		} else if (_42 === 19) {
-			const it: rt.Iter<rt.u64[]> = rt.dequeIter(q);
-			const _173: rt.u8 = rt.u8Rem(arg, 4);
+			}), "next", 1280), 1280) as rt.VecDeque<rt.u64[]>;
+		} else if (_39 === 19) {
+			const it: rt.Iter<rt.u64[]> = rt.dequeIntoIter(q);
+			const _127: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart: rt.u8 = 0;
-			const iterEnd: rt.u8 = _173;
+			const iterEnd: rt.u8 = _127;
 			while (iterStart++ < iterEnd) {
 				rt.iterToOption(it.next());
 			}
-			q = rt.dequeFromVec(rt.iterToArray(it.clone({ v: copy$array_u64 }), undefined, 1280, true)) as rt.VecDeque<rt.u64[]>;
-			Known.remade(k, false);
-			const rest: rt.VecDeque<rt.u64[]> = rt.dequeFromVec(rt.iterToArray(it, undefined, 1280, true)) as rt.VecDeque<rt.u64[]>;
-			Known.put({ exact: false, floor: 0 }, out, rest.n, rt.dequeCapacity(rest, 1280));
+			q = rt.dequeFromIntoIter(it.clone({ v: copy$array_u64 }), 1280) as rt.VecDeque<rt.u64[]>;
+			const rest: rt.VecDeque<rt.u64[]> = rt.dequeFromIntoIter(it, 1280) as rt.VecDeque<rt.u64[]>;
+			put(out, rest.n);
+			put(out, rt.dequeCapacity(rest));
 		} else {
-			const _196: rt.u64[][] = [copy$array_u64(make(arg)), copy$array_u64(make(arg)), copy$array_u64(make(arg))];
-			q = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.u64[]>, rt.iterSlice(_196), undefined, 1280, true);
-			Known.remade(k, false);
+			q = rt.dequeFromArray([copy$array_u64(make(arg)), copy$array_u64(make(arg)), copy$array_u64(make(arg))], 1280) as rt.VecDeque<rt.u64[]>;
 		}
-		const _204: rt.usize = q.n;
-		const _206: rt.usize = rt.dequeCapacity(q, 1280);
-		Known.put(k, out, _204, _206);
+		put(out, q.n);
+		put(out, rt.dequeCapacity(q));
 	}
 }
 
@@ -952,104 +934,86 @@ export function dequeSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number
 	if ((first & 1) === 1) {
 		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 16) as rt.VecDeque<[rt.u64, rt.u8]>;
 	} else {
-		q = rt.dequeNew() as rt.VecDeque<[rt.u64, rt.u8]>;
+		q = rt.dequeNew(16) as rt.VecDeque<[rt.u64, rt.u8]>;
 	}
-	const k: Known.Known = Known.new(rt.dequeCapacity(q, 16));
-	put(out, rt.dequeCapacity(q, 16));
+	put(out, rt.dequeCapacity(q));
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(_7[1], 2);
 	while (true) {
-		const _27: rt.ByteSlice | rt.Done = iter.next();
-		if (_27 === rt.DONE) {
+		const _24: rt.ByteSlice | rt.Done = iter.next();
+		if (_24 === rt.DONE) {
 			break;
 		}
-		rt.idx(_27, 0);
-		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
-		const op: rt.u8 = _33[0];
-		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 21);
-		if (_42 === 0) {
+		rt.idx(_24, 0);
+		const _30: [rt.u8, rt.u8] = [_24.data[_24.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_24, 1), 0)];
+		const op: rt.u8 = _30[0];
+		const arg: rt.u8 = _30[1];
+		const _39: rt.u8 = rt.u8Rem(op, 21);
+		if (_39 === 0) {
 			rt.dequePushBack(q, copy$tuple2_u64_u8(make(arg)));
-		} else if (_42 === 1) {
+		} else if (_39 === 1) {
 			rt.dequePushFront(q, copy$tuple2_u64_u8(make(arg)));
-		} else if (_42 === 2) {
+		} else if (_39 === 2) {
 			rt.dequePopFront(q);
-			Known.loose(k);
-		} else if (_42 === 3 || _42 === 4) {
+		} else if (_39 === 3 || _39 === 4) {
 			const additional: rt.usize = amount(arg, q.n, size);
 			if (rt.u8Rem(op, 21) === 3) {
-				rt.dequeReserve(q, additional, 16);
+				rt.dequeReserve(q, additional);
 			} else {
-				rt.dequeReserveExact(q, additional, 16);
+				rt.dequeReserveExact(q, additional);
 			}
-			Known.reserved(k, q.n, additional);
-		} else if (_42 === 5) {
-			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize, 16);
-			Known.shrunk(k, q.n, rt.u8Rem(arg, 40) as rt.usize);
-		} else if (_42 === 6) {
-			rt.dequeShrinkTo(q, 0, 16);
-			Known.shrunk(k, q.n, 0);
-			k.exact = true;
-		} else if (_42 === 7) {
+		} else if (_39 === 5) {
+			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize);
+		} else if (_39 === 6) {
+			rt.dequeShrinkTo(q, 0);
+		} else if (_39 === 7) {
 			rt.dequeTruncate(q, rt.u8Rem(arg, 8) as rt.usize);
-			Known.loose(k);
-		} else if (_42 === 8) {
+		} else if (_39 === 8) {
 			rt.dequeInsert(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)), copy$tuple2_u64_u8(make(arg)));
-		} else if (_42 === 9) {
+		} else if (_39 === 9) {
 			rt.dequeRemove(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)));
-			Known.loose(k);
-		} else if (_42 === 10) {
+		} else if (_39 === 10) {
 			rt.dequeExtend(q, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i: rt.u8): boolean => {
 				return rt.u8Rem(i, 3) !== 0;
-			}), make), "next", 16);
-		} else if (_42 === 11) {
-			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 16, true);
-		} else if (_42 === 12) {
+			}), make), "next");
+		} else if (_39 === 11) {
+			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
+		} else if (_39 === 12) {
 			rt.dequeClear(q);
-			Known.loose(k);
-		} else if (_42 === 13) {
+		} else if (_39 === 13) {
 			const keep: () => boolean = alternate();
-			rt.dequeRetain(q, (_28: [rt.u64, rt.u8]): boolean => {
+			rt.dequeRetain(q, (_25: [rt.u64, rt.u8]): boolean => {
 				return keep();
 			});
-			Known.loose(k);
-		} else if (_42 === 14) {
-			rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) });
-			Known.loose(k);
-		} else if (_42 === 15) {
-			q = rt.dequeClone(q, copy$tuple2_u64_u8, 16);
-			Known.remade(k, true);
-		} else if (_42 === 16) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 16, true)) as rt.VecDeque<[rt.u64, rt.u8]>;
-			Known.remade(k, false);
-		} else if (_42 === 17) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 16, true)) as rt.VecDeque<[rt.u64, rt.u8]>;
-			Known.remade(k, false);
-		} else if (_42 === 18) {
+		} else if (_39 === 14) {
+			rt.drop(rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) }));
+		} else if (_39 === 15) {
+			q = rt.dequeClone(q, copy$tuple2_u64_u8);
+		} else if (_39 === 16) {
+			q = rt.dequeFromIntoIter(rt.dequeIntoIter(q), 16) as rt.VecDeque<[rt.u64, rt.u8]>;
+		} else if (_39 === 17) {
+			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 16, true), 16) as rt.VecDeque<[rt.u64, rt.u8]>;
+		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
-			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIter(q), (_26: [rt.u64, rt.u8]): boolean => {
+			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIntoIter(q), (_23: [rt.u64, rt.u8]): boolean => {
 				return keep2();
-			}), "next", 16)) as rt.VecDeque<[rt.u64, rt.u8]>;
-			Known.remade(k, true);
-		} else if (_42 === 19) {
-			const it: rt.Iter<[rt.u64, rt.u8]> = rt.dequeIter(q);
-			const _173: rt.u8 = rt.u8Rem(arg, 4);
+			}), "next", 16), 16) as rt.VecDeque<[rt.u64, rt.u8]>;
+		} else if (_39 === 19) {
+			const it: rt.Iter<[rt.u64, rt.u8]> = rt.dequeIntoIter(q);
+			const _127: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart: rt.u8 = 0;
-			const iterEnd: rt.u8 = _173;
+			const iterEnd: rt.u8 = _127;
 			while (iterStart++ < iterEnd) {
 				rt.iterToOption(it.next());
 			}
-			q = rt.dequeFromVec(rt.iterToArray(it.clone({ v: copy$tuple2_u64_u8 }), undefined, 16, true)) as rt.VecDeque<[rt.u64, rt.u8]>;
-			Known.remade(k, false);
-			const rest: rt.VecDeque<[rt.u64, rt.u8]> = rt.dequeFromVec(rt.iterToArray(it, undefined, 16, true)) as rt.VecDeque<[rt.u64, rt.u8]>;
-			Known.put({ exact: false, floor: 0 }, out, rest.n, rt.dequeCapacity(rest, 16));
+			q = rt.dequeFromIntoIter(it.clone({ v: copy$tuple2_u64_u8 }), 16) as rt.VecDeque<[rt.u64, rt.u8]>;
+			const rest: rt.VecDeque<[rt.u64, rt.u8]> = rt.dequeFromIntoIter(it, 16) as rt.VecDeque<[rt.u64, rt.u8]>;
+			put(out, rest.n);
+			put(out, rt.dequeCapacity(rest));
 		} else {
-			const _196: [rt.u64, rt.u8][] = [copy$tuple2_u64_u8(make(arg)), copy$tuple2_u64_u8(make(arg)), copy$tuple2_u64_u8(make(arg))];
-			q = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<[rt.u64, rt.u8]>, rt.iterSlice(_196), undefined, 16, true);
-			Known.remade(k, false);
+			q = rt.dequeFromArray([copy$tuple2_u64_u8(make(arg)), copy$tuple2_u64_u8(make(arg)), copy$tuple2_u64_u8(make(arg))], 16) as rt.VecDeque<[rt.u64, rt.u8]>;
 		}
-		const _204: rt.usize = q.n;
-		const _206: rt.usize = rt.dequeCapacity(q, 16);
-		Known.put(k, out, _204, _206);
+		put(out, q.n);
+		put(out, rt.dequeCapacity(q));
 	}
 }
 
@@ -1064,104 +1028,86 @@ export function dequeSteps$u16(dataData: Uint8Array, dataStart: number, dataLen:
 	if ((first & 1) === 1) {
 		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 2) as rt.VecDeque<rt.u16>;
 	} else {
-		q = rt.dequeNew() as rt.VecDeque<rt.u16>;
+		q = rt.dequeNew(2) as rt.VecDeque<rt.u16>;
 	}
-	const k: Known.Known = Known.new(rt.dequeCapacity(q, 2));
-	put(out, rt.dequeCapacity(q, 2));
+	put(out, rt.dequeCapacity(q));
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(_7[1], 2);
 	while (true) {
-		const _27: rt.ByteSlice | rt.Done = iter.next();
-		if (_27 === rt.DONE) {
+		const _24: rt.ByteSlice | rt.Done = iter.next();
+		if (_24 === rt.DONE) {
 			break;
 		}
-		rt.idx(_27, 0);
-		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
-		const op: rt.u8 = _33[0];
-		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 21);
-		if (_42 === 0) {
+		rt.idx(_24, 0);
+		const _30: [rt.u8, rt.u8] = [_24.data[_24.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_24, 1), 0)];
+		const op: rt.u8 = _30[0];
+		const arg: rt.u8 = _30[1];
+		const _39: rt.u8 = rt.u8Rem(op, 21);
+		if (_39 === 0) {
 			rt.dequePushBack(q, make(arg));
-		} else if (_42 === 1) {
+		} else if (_39 === 1) {
 			rt.dequePushFront(q, make(arg));
-		} else if (_42 === 2) {
+		} else if (_39 === 2) {
 			rt.dequePopFront(q);
-			Known.loose(k);
-		} else if (_42 === 3 || _42 === 4) {
+		} else if (_39 === 3 || _39 === 4) {
 			const additional: rt.usize = amount(arg, q.n, size);
 			if (rt.u8Rem(op, 21) === 3) {
-				rt.dequeReserve(q, additional, 2);
+				rt.dequeReserve(q, additional);
 			} else {
-				rt.dequeReserveExact(q, additional, 2);
+				rt.dequeReserveExact(q, additional);
 			}
-			Known.reserved(k, q.n, additional);
-		} else if (_42 === 5) {
-			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize, 2);
-			Known.shrunk(k, q.n, rt.u8Rem(arg, 40) as rt.usize);
-		} else if (_42 === 6) {
-			rt.dequeShrinkTo(q, 0, 2);
-			Known.shrunk(k, q.n, 0);
-			k.exact = true;
-		} else if (_42 === 7) {
+		} else if (_39 === 5) {
+			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize);
+		} else if (_39 === 6) {
+			rt.dequeShrinkTo(q, 0);
+		} else if (_39 === 7) {
 			rt.dequeTruncate(q, rt.u8Rem(arg, 8) as rt.usize);
-			Known.loose(k);
-		} else if (_42 === 8) {
+		} else if (_39 === 8) {
 			rt.dequeInsert(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)), make(arg));
-		} else if (_42 === 9) {
+		} else if (_39 === 9) {
 			rt.dequeRemove(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)));
-			Known.loose(k);
-		} else if (_42 === 10) {
+		} else if (_39 === 10) {
 			rt.dequeExtend(q, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i: rt.u8): boolean => {
 				return rt.u8Rem(i, 3) !== 0;
-			}), make), "next", 2);
-		} else if (_42 === 11) {
-			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 2, true);
-		} else if (_42 === 12) {
+			}), make), "next");
+		} else if (_39 === 11) {
+			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
+		} else if (_39 === 12) {
 			rt.dequeClear(q);
-			Known.loose(k);
-		} else if (_42 === 13) {
+		} else if (_39 === 13) {
 			const keep: () => boolean = alternate();
-			rt.dequeRetain(q, (_28: rt.u16): boolean => {
+			rt.dequeRetain(q, (_25: rt.u16): boolean => {
 				return keep();
 			});
-			Known.loose(k);
-		} else if (_42 === 14) {
-			rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) });
-			Known.loose(k);
-		} else if (_42 === 15) {
-			q = rt.dequeClone(q, undefined, 2);
-			Known.remade(k, true);
-		} else if (_42 === 16) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 2, true)) as rt.VecDeque<rt.u16>;
-			Known.remade(k, false);
-		} else if (_42 === 17) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 2, true)) as rt.VecDeque<rt.u16>;
-			Known.remade(k, false);
-		} else if (_42 === 18) {
+		} else if (_39 === 14) {
+			rt.drop(rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) }));
+		} else if (_39 === 15) {
+			q = rt.dequeClone(q);
+		} else if (_39 === 16) {
+			q = rt.dequeFromIntoIter(rt.dequeIntoIter(q), 2) as rt.VecDeque<rt.u16>;
+		} else if (_39 === 17) {
+			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 2, true), 2) as rt.VecDeque<rt.u16>;
+		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
-			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIter(q), (_26: rt.u16): boolean => {
+			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIntoIter(q), (_23: rt.u16): boolean => {
 				return keep2();
-			}), "next", 2)) as rt.VecDeque<rt.u16>;
-			Known.remade(k, true);
-		} else if (_42 === 19) {
-			const it: rt.Iter<rt.u16> = rt.dequeIter(q);
-			const _173: rt.u8 = rt.u8Rem(arg, 4);
+			}), "next", 2), 2) as rt.VecDeque<rt.u16>;
+		} else if (_39 === 19) {
+			const it: rt.Iter<rt.u16> = rt.dequeIntoIter(q);
+			const _127: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart: rt.u8 = 0;
-			const iterEnd: rt.u8 = _173;
+			const iterEnd: rt.u8 = _127;
 			while (iterStart++ < iterEnd) {
 				rt.iterToOption(it.next());
 			}
-			q = rt.dequeFromVec(rt.iterToArray(it.clone(), undefined, 2, true)) as rt.VecDeque<rt.u16>;
-			Known.remade(k, false);
-			const rest: rt.VecDeque<rt.u16> = rt.dequeFromVec(rt.iterToArray(it, undefined, 2, true)) as rt.VecDeque<rt.u16>;
-			Known.put({ exact: false, floor: 0 }, out, rest.n, rt.dequeCapacity(rest, 2));
+			q = rt.dequeFromIntoIter(it.clone(), 2) as rt.VecDeque<rt.u16>;
+			const rest: rt.VecDeque<rt.u16> = rt.dequeFromIntoIter(it, 2) as rt.VecDeque<rt.u16>;
+			put(out, rest.n);
+			put(out, rt.dequeCapacity(rest));
 		} else {
-			const _196: rt.u16[] = [make(arg), make(arg), make(arg)];
-			q = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.u16>, rt.iterSlice(_196), undefined, 2, true);
-			Known.remade(k, false);
+			q = rt.dequeFromArray([make(arg), make(arg), make(arg)], 2) as rt.VecDeque<rt.u16>;
 		}
-		const _204: rt.usize = q.n;
-		const _206: rt.usize = rt.dequeCapacity(q, 2);
-		Known.put(k, out, _204, _206);
+		put(out, q.n);
+		put(out, rt.dequeCapacity(q));
 	}
 }
 
@@ -1174,106 +1120,88 @@ export function dequeSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: 
 	});
 	const first: rt.u8 = _7[0];
 	if ((first & 1) === 1) {
-		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 1) as rt.VecDeque<rt.u8>;
+		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 1, true) as rt.VecDeque<rt.u8>;
 	} else {
-		q = rt.dequeNew() as rt.VecDeque<rt.u8>;
+		q = rt.dequeNew(1, true) as rt.VecDeque<rt.u8>;
 	}
-	const k: Known.Known = Known.new(rt.dequeCapacity(q, 1));
-	put(out, rt.dequeCapacity(q, 1));
+	put(out, rt.dequeCapacity(q));
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(_7[1], 2);
 	while (true) {
-		const _27: rt.ByteSlice | rt.Done = iter.next();
-		if (_27 === rt.DONE) {
+		const _24: rt.ByteSlice | rt.Done = iter.next();
+		if (_24 === rt.DONE) {
 			break;
 		}
-		rt.idx(_27, 0);
-		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
-		const op: rt.u8 = _33[0];
-		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 21);
-		if (_42 === 0) {
+		rt.idx(_24, 0);
+		const _30: [rt.u8, rt.u8] = [_24.data[_24.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_24, 1), 0)];
+		const op: rt.u8 = _30[0];
+		const arg: rt.u8 = _30[1];
+		const _39: rt.u8 = rt.u8Rem(op, 21);
+		if (_39 === 0) {
 			rt.dequePushBack(q, make(arg));
-		} else if (_42 === 1) {
+		} else if (_39 === 1) {
 			rt.dequePushFront(q, make(arg));
-		} else if (_42 === 2) {
+		} else if (_39 === 2) {
 			rt.dequePopFront(q);
-			Known.loose(k);
-		} else if (_42 === 3 || _42 === 4) {
+		} else if (_39 === 3 || _39 === 4) {
 			const additional: rt.usize = amount(arg, q.n, size);
 			if (rt.u8Rem(op, 21) === 3) {
-				rt.dequeReserve(q, additional, 1);
+				rt.dequeReserve(q, additional);
 			} else {
-				rt.dequeReserveExact(q, additional, 1);
+				rt.dequeReserveExact(q, additional);
 			}
-			Known.reserved(k, q.n, additional);
-		} else if (_42 === 5) {
-			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize, 1);
-			Known.shrunk(k, q.n, rt.u8Rem(arg, 40) as rt.usize);
-		} else if (_42 === 6) {
-			rt.dequeShrinkTo(q, 0, 1);
-			Known.shrunk(k, q.n, 0);
-			k.exact = true;
-		} else if (_42 === 7) {
+		} else if (_39 === 5) {
+			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize);
+		} else if (_39 === 6) {
+			rt.dequeShrinkTo(q, 0);
+		} else if (_39 === 7) {
 			rt.dequeTruncate(q, rt.u8Rem(arg, 8) as rt.usize);
-			Known.loose(k);
-		} else if (_42 === 8) {
+		} else if (_39 === 8) {
 			rt.dequeInsert(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)), make(arg));
-		} else if (_42 === 9) {
+		} else if (_39 === 9) {
 			rt.dequeRemove(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)));
-			Known.loose(k);
-		} else if (_42 === 10) {
+		} else if (_39 === 10) {
 			rt.dequeExtend(q, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i: rt.u8): boolean => {
 				return rt.u8Rem(i, 3) !== 0;
-			}), make), "next", 1);
-		} else if (_42 === 11) {
-			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 1, true);
-		} else if (_42 === 12) {
+			}), make), "next");
+		} else if (_39 === 11) {
+			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
+		} else if (_39 === 12) {
 			rt.dequeClear(q);
-			Known.loose(k);
-		} else if (_42 === 13) {
+		} else if (_39 === 13) {
 			const keep: () => boolean = alternate();
-			rt.dequeRetain(q, (_28: rt.u8): boolean => {
+			rt.dequeRetain(q, (_25: rt.u8): boolean => {
 				return keep();
 			});
-			Known.loose(k);
-		} else if (_42 === 14) {
-			rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) });
-			Known.loose(k);
-		} else if (_42 === 15) {
-			q = rt.dequeClone(q, undefined, 1);
-			Known.remade(k, true);
-		} else if (_42 === 16) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 1, true)) as rt.VecDeque<rt.u8>;
-			Known.remade(k, false);
-		} else if (_42 === 17) {
-			q = rt.dequeFromVec(rt.byteVecToVec(rt.iterToByteVec(rt.dequeIter(q), undefined, true))) as rt.VecDeque<rt.u8>;
-			Known.remade(k, false);
-		} else if (_42 === 18) {
+		} else if (_39 === 14) {
+			rt.drop(rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) }));
+		} else if (_39 === 15) {
+			q = rt.dequeClone(q);
+		} else if (_39 === 16) {
+			q = rt.dequeFromIntoIter(rt.dequeIntoIter(q), 1, true) as rt.VecDeque<rt.u8>;
+		} else if (_39 === 17) {
+			q = rt.dequeFromVec(rt.byteVecToVec(rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true)), 1, true) as rt.VecDeque<rt.u8>;
+		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
-			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIter(q), (_26: rt.u8): boolean => {
+			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIntoIter(q), (_23: rt.u8): boolean => {
 				return keep2();
-			}), "next", 1)) as rt.VecDeque<rt.u8>;
-			Known.remade(k, true);
-		} else if (_42 === 19) {
-			const it: rt.Iter<rt.u8> = rt.dequeIter(q);
-			const _173: rt.u8 = rt.u8Rem(arg, 4);
+			}), "next", 1), 1, true) as rt.VecDeque<rt.u8>;
+		} else if (_39 === 19) {
+			const it: rt.Iter<rt.u8> = rt.dequeIntoIter(q);
+			const _127: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart: rt.u8 = 0;
-			const iterEnd: rt.u8 = _173;
+			const iterEnd: rt.u8 = _127;
 			while (iterStart++ < iterEnd) {
 				rt.iterToOption(it.next());
 			}
-			q = rt.dequeFromVec(rt.iterToArray(it.clone(), undefined, 1, true)) as rt.VecDeque<rt.u8>;
-			Known.remade(k, false);
-			const rest: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.iterToArray(it, undefined, 1, true)) as rt.VecDeque<rt.u8>;
-			Known.put({ exact: false, floor: 0 }, out, rest.n, rt.dequeCapacity(rest, 1));
+			q = rt.dequeFromIntoIter(it.clone(), 1, true) as rt.VecDeque<rt.u8>;
+			const rest: rt.VecDeque<rt.u8> = rt.dequeFromIntoIter(it, 1, true) as rt.VecDeque<rt.u8>;
+			put(out, rest.n);
+			put(out, rt.dequeCapacity(rest));
 		} else {
-			const _196: Uint8Array = Uint8Array.of(make(arg), make(arg), make(arg));
-			q = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.u8>, rt.iterSlice(_196), undefined, 1, true);
-			Known.remade(k, false);
+			q = rt.dequeFromArray(Uint8Array.of(make(arg), make(arg), make(arg)), 1, true) as rt.VecDeque<rt.u8>;
 		}
-		const _204: rt.usize = q.n;
-		const _206: rt.usize = rt.dequeCapacity(q, 1);
-		Known.put(k, out, _204, _206);
+		put(out, q.n);
+		put(out, rt.dequeCapacity(q));
 	}
 }
 
@@ -1288,113 +1216,96 @@ export function dequeSteps$unit(dataData: Uint8Array, dataStart: number, dataLen
 	if ((first & 1) === 1) {
 		q = rt.dequeWithCapacity(first >> 3 as rt.usize, 0) as rt.VecDeque<undefined>;
 	} else {
-		q = rt.dequeNew() as rt.VecDeque<undefined>;
+		q = rt.dequeNew(0) as rt.VecDeque<undefined>;
 	}
-	const k: Known.Known = Known.new(rt.dequeCapacity(q, 0));
-	put(out, rt.dequeCapacity(q, 0));
+	put(out, rt.dequeCapacity(q));
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(_7[1], 2);
 	while (true) {
-		const _27: rt.ByteSlice | rt.Done = iter.next();
-		if (_27 === rt.DONE) {
+		const _24: rt.ByteSlice | rt.Done = iter.next();
+		if (_24 === rt.DONE) {
 			break;
 		}
-		rt.idx(_27, 0);
-		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
-		const op: rt.u8 = _33[0];
-		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 21);
-		if (_42 === 0) {
-			const _44: rt.VecDeque<undefined> = q;
+		rt.idx(_24, 0);
+		const _30: [rt.u8, rt.u8] = [_24.data[_24.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_24, 1), 0)];
+		const op: rt.u8 = _30[0];
+		const arg: rt.u8 = _30[1];
+		const _39: rt.u8 = rt.u8Rem(op, 21);
+		if (_39 === 0) {
+			const _41: rt.VecDeque<undefined> = q;
 			make(arg);
-			rt.dequePushBack(_44, undefined);
-		} else if (_42 === 1) {
-			const _46: rt.VecDeque<undefined> = q;
+			rt.dequePushBack(_41, undefined);
+		} else if (_39 === 1) {
+			const _43: rt.VecDeque<undefined> = q;
 			make(arg);
-			rt.dequePushFront(_46, undefined);
-		} else if (_42 === 2) {
+			rt.dequePushFront(_43, undefined);
+		} else if (_39 === 2) {
 			rt.dequePopFront(q, rt.None);
-			Known.loose(k);
-		} else if (_42 === 3 || _42 === 4) {
+		} else if (_39 === 3 || _39 === 4) {
 			const additional: rt.usize = amount(arg, q.n, size);
 			if (rt.u8Rem(op, 21) === 3) {
-				rt.dequeReserve(q, additional, 0);
+				rt.dequeReserve(q, additional);
 			} else {
-				rt.dequeReserveExact(q, additional, 0);
+				rt.dequeReserveExact(q, additional);
 			}
-			Known.reserved(k, q.n, additional);
-		} else if (_42 === 5) {
-			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize, 0);
-			Known.shrunk(k, q.n, rt.u8Rem(arg, 40) as rt.usize);
-		} else if (_42 === 6) {
-			rt.dequeShrinkTo(q, 0, 0);
-			Known.shrunk(k, q.n, 0);
-			k.exact = true;
-		} else if (_42 === 7) {
+		} else if (_39 === 5) {
+			rt.dequeShrinkTo(q, rt.u8Rem(arg, 40) as rt.usize);
+		} else if (_39 === 6) {
+			rt.dequeShrinkTo(q, 0);
+		} else if (_39 === 7) {
 			rt.dequeTruncate(q, rt.u8Rem(arg, 8) as rt.usize);
-			Known.loose(k);
-		} else if (_42 === 8) {
-			const _90: rt.VecDeque<undefined> = q;
-			const _91: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
+		} else if (_39 === 8) {
+			const _63: rt.VecDeque<undefined> = q;
+			const _64: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 			make(arg);
-			rt.dequeInsert(_90, _91, undefined);
-		} else if (_42 === 9) {
+			rt.dequeInsert(_63, _64, undefined);
+		} else if (_39 === 9) {
 			rt.dequeRemove(q, rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1)), rt.None);
-			Known.loose(k);
-		} else if (_42 === 10) {
+		} else if (_39 === 10) {
 			rt.dequeExtend(q, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i: rt.u8): boolean => {
 				return rt.u8Rem(i, 3) !== 0;
-			}), make), "next", 0);
-		} else if (_42 === 11) {
-			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 0, true);
-		} else if (_42 === 12) {
+			}), make), "next");
+		} else if (_39 === 11) {
+			rt.dequeExtend(q, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
+		} else if (_39 === 12) {
 			rt.dequeClear(q);
-			Known.loose(k);
-		} else if (_42 === 13) {
+		} else if (_39 === 13) {
 			const keep: () => boolean = alternate();
-			rt.dequeRetain(q, (_28: undefined): boolean => {
+			rt.dequeRetain(q, (_25: undefined): boolean => {
 				return keep();
 			});
-			Known.loose(k);
-		} else if (_42 === 14) {
-			rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) });
-			Known.loose(k);
-		} else if (_42 === 15) {
-			q = rt.dequeClone(q, undefined, 0);
-			Known.remade(k, true);
-		} else if (_42 === 16) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 0, true)) as rt.VecDeque<undefined>;
-			Known.remade(k, false);
-		} else if (_42 === 17) {
-			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIter(q), undefined, 0, true)) as rt.VecDeque<undefined>;
-			Known.remade(k, false);
-		} else if (_42 === 18) {
+		} else if (_39 === 14) {
+			rt.drop(rt.dequeDrain(q, { end: rt.min(q.n, rt.u8Rem(arg, 4) as rt.usize) }));
+		} else if (_39 === 15) {
+			q = rt.dequeClone(q);
+		} else if (_39 === 16) {
+			q = rt.dequeFromIntoIter(rt.dequeIntoIter(q), 0) as rt.VecDeque<undefined>;
+		} else if (_39 === 17) {
+			q = rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true), 0) as rt.VecDeque<undefined>;
+		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
-			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIter(q), (_26: undefined): boolean => {
+			q = rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.dequeIntoIter(q), (_23: undefined): boolean => {
 				return keep2();
-			}), "next", 0)) as rt.VecDeque<undefined>;
-			Known.remade(k, true);
-		} else if (_42 === 19) {
-			const it: rt.Iter<undefined> = rt.dequeIter(q);
-			const _173: rt.u8 = rt.u8Rem(arg, 4);
+			}), "next", 0), 0) as rt.VecDeque<undefined>;
+		} else if (_39 === 19) {
+			const it: rt.Iter<undefined> = rt.dequeIntoIter(q);
+			const _127: rt.u8 = rt.u8Rem(arg, 4);
 			let iterStart: rt.u8 = 0;
-			const iterEnd: rt.u8 = _173;
+			const iterEnd: rt.u8 = _127;
 			while (iterStart++ < iterEnd) {
 				rt.iterToOption(it.next(), rt.None);
 			}
-			q = rt.dequeFromVec(rt.iterToArray(it.clone(), undefined, 0, true)) as rt.VecDeque<undefined>;
-			Known.remade(k, false);
-			const rest: rt.VecDeque<undefined> = rt.dequeFromVec(rt.iterToArray(it, undefined, 0, true)) as rt.VecDeque<undefined>;
-			Known.put({ exact: false, floor: 0 }, out, rest.n, rt.dequeCapacity(rest, 0));
+			q = rt.dequeFromIntoIter(it.clone(), 0) as rt.VecDeque<undefined>;
+			const rest: rt.VecDeque<undefined> = rt.dequeFromIntoIter(it, 0) as rt.VecDeque<undefined>;
+			put(out, rest.n);
+			put(out, rt.dequeCapacity(rest));
 		} else {
 			make(arg);
 			make(arg);
 			make(arg);
-			q = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<undefined>, rt.iterSlice([undefined, undefined, undefined]), undefined, 0, true);
-			Known.remade(k, false);
+			q = rt.dequeFromArray([undefined, undefined, undefined], 0) as rt.VecDeque<undefined>;
 		}
-		const _204: rt.usize = q.n;
-		const _206: rt.usize = rt.dequeCapacity(q, 0);
-		Known.put(k, out, _204, _206);
+		put(out, q.n);
+		put(out, rt.dequeCapacity(q));
 	}
 }
 
@@ -1903,14 +1814,14 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const _71: rt.Iter<[rt.u32, rt.u32]> = rt.iterCopied(rt.iterFilter(rt.iterSlice(pairs2), (_22: [rt.u32, rt.u32]): boolean => {
 			return rt.u32Rem(_22[0], 2) === 0;
 		}), copy$tuple2_u32_u32);
-		const _70: [rt.u32[], rt.VecDeque<rt.u32>] = rt.tupleExtend([[], rt.dequeNew() as rt.VecDeque<rt.u32>] as [rt.u32[], rt.VecDeque<rt.u32>], _71, [rt.vecPart(4), rt.dequePart(4)]);
+		const _70: [rt.u32[], rt.VecDeque<rt.u32>] = rt.tupleExtend([[], rt.dequeNew(4) as rt.VecDeque<rt.u32>] as [rt.u32[], rt.VecDeque<rt.u32>], _71, [rt.vecPart(4), rt.dequePart()]);
 		const a: rt.u32[] = _70[0];
 		const b: rt.VecDeque<rt.u32> = _70[1];
 		const _78: rt.usize = a.length;
 		const _80: rt.usize = rt.vecCapacity(a, 4);
 		Known.put(exact, out, _78, _80);
 		const _84: rt.usize = b.n;
-		const _86: rt.usize = rt.dequeCapacity(b, 4);
+		const _86: rt.usize = rt.dequeCapacity(b);
 		Known.put(exact, out, _84, _86);
 		const _91: rt.Iter<[rt.u8, rt.u32]> = rt.iterMap(rt.iterSlice(pairs2), (_26: [rt.u32, rt.u32]): [rt.u8, rt.u32] => {
 			return [_26[0] & 0xff, _26[1]] as [rt.u8, rt.u32];
@@ -1934,14 +1845,14 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	} else if (_20 === 4) {
 		put(out, rt.vecCapacity(rt.vecWithCapacity(rt.usizeSub(4294967295, n), 8), 8));
 	} else if (_20 === 5) {
-		put(out, rt.dequeCapacity(rt.dequeWithCapacity(rt.usizeAdd(268435456, n), 16) as rt.VecDeque<[rt.u64, rt.u64]>, 16));
+		put(out, rt.dequeCapacity(rt.dequeWithCapacity(rt.usizeAdd(268435456, n), 16) as rt.VecDeque<[rt.u64, rt.u64]>));
 	} else if (_20 === 6) {
 		const bytes2: rt.ByteVec = rt.byteVecWithCapacity(rt.usizeAdd(n, 5));
 		const _138: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.min(n, data.length));
 		rt.byteVecExtendFromSlice(bytes2, _138);
-		const q2: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(bytes2)))) as rt.VecDeque<rt.u8>;
+		const q2: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(bytes2))), 1, true) as rt.VecDeque<rt.u8>;
 		const _147: rt.usize = q2.n;
-		const _149: rt.usize = rt.dequeCapacity(q2, 1);
+		const _149: rt.usize = rt.dequeCapacity(q2);
 		Known.put(loose, out, _147, _149);
 		const heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.byteVecToVec(bytes2), rt.le, rt.ge, rt.lt);
 		const _155: rt.usize = heap.d.length;

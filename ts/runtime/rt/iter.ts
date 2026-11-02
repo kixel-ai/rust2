@@ -41,7 +41,7 @@ const USIZE_MAX = 0xffffffff;
 type Drop<T> = (value: T) => void;
 
 /** `a + b`, saturating at `usize::MAX` as std's size hints do. */
-function satAdd(a: number, b: number): number {
+export function satAdd(a: number, b: number): number {
 	return Math.min(a + b, USIZE_MAX);
 }
 
@@ -256,7 +256,7 @@ abstract class Calling<S, T, F> extends Adaptor<S, T> {
 }
 
 /** An adaptor folded, whose `next` and `nextBack` are `front` and `back`, which share its state. */
-class Folded<T> extends Iter<T> {
+export class Folded<T> extends Iter<T> {
 	readonly front: () => T | Done;
 	readonly back: () => T | Done;
 

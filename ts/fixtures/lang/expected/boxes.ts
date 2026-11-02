@@ -9,7 +9,7 @@ import { then$0ea5h05 } from "./core/bool.ts";
 import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, unwrapOr$11c0we2 as option_unwrapOr$11c0we2, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, asDeref$0w8at8i as option_asDeref$0w8at8i, asDeref$0w2m0zn as option_asDeref$0w2m0zn, asDeref$0avuzwv as option_asDeref$0avuzwv, flatten$08boupk as option_flatten$08boupk } from "./core/option.ts";
 import { map$0nfi04k as result_map$0nfi04k, asDeref$1fldd5d as result_asDeref$1fldd5d, asDeref$04i8i5u as result_asDeref$04i8i5u, unwrapOr$0e4foht as result_unwrapOr$0e4foht, copied$0bbq7yi as result_copied$0bbq7yi } from "./core/result.ts";
 import { put as fmt_put } from "./fmt.ts";
-import { text } from "./strs.ts";
+import { text as strs_text } from "./strs.ts";
 
 /** Puts what was logged since the last flush, after a marker. */
 export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
@@ -410,7 +410,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_634[1]).reverse()), undefined, true);
 		}
 	} else {
-		const s: string = text(data2);
+		const s: string = strs_text(data2);
 		const fromRef4: string = s;
 		const fromString: string = s;
 		const into2: string = s;
@@ -855,11 +855,11 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_113[1]).reverse()), undefined, true);
 		}
 		let s: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data2, 0, half))), (_222: rt.u8): string => {
-			return text(rt.byteSliceFrom(Uint8Array.of(_222)));
+			return strs_text(rt.byteSliceFrom(Uint8Array.of(_222)));
 		}), undefined, 12, true);
 		const t: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data2, half, rt.usizeMul(half, 2)))), (_223: rt.u8): string => {
 			const x11: rt.u8 = _223;
-			return text(rt.byteSliceFrom(Uint8Array.of(x11, x11)));
+			return strs_text(rt.byteSliceFrom(Uint8Array.of(x11, x11)));
 		}), undefined, 12, true);
 		s = rt.boxSliceCloneFrom(s, t);
 		const _138: rt.Place<string> | undefined = rt.sliceFirstMut(s);
@@ -910,7 +910,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.dropAll(m);
 		flush(log.value, out);
 		let t2: string = "ab";
-		t2 = text(data2);
+		t2 = strs_text(data2);
 		fmt_put(out, t2);
 	} else if (_23 === 1) {
 		let a2: rt.ByteSlice = rt.byteSliceFrom(rt.byteSliceToArray(data2));
@@ -942,7 +942,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const v3: rt.ByteVec = rt.byteSliceToByteVec(data2);
 		rt.byteVecPush(v3, 102);
 		bytes(rt.byteVecSlice(v3), out);
-		let s2: string = text(data2);
+		let s2: string = strs_text(data2);
 		s2 = s2 + "#";
 		fmt_put(out, s2);
 		const w2: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_28: rt.u8): rt.u16 => {
@@ -1019,7 +1019,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		drop$Result_boxed_Box_array1_boxes_Logged_boxed_Box_slice_boxes_Logged(r2);
 		flush(log.value, out);
 	} else {
-		const s3: string = text(data2);
+		const s3: string = strs_text(data2);
 		const a6: rt.ByteSlice = rt.stringAsBytes(s3);
 		rt.byteSliceView(a6).reverse();
 		bytes(a6, out);

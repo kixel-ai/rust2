@@ -7145,7 +7145,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		unordered$iter_Copied_collections_hash_set_Difference_u8_hash_RandomState(rt.hashDifference(a4, b5), plan, out);
 		unordered$iter_Copied_collections_hash_set_SymmetricDifference_u8_hash_RandomState(rt.hashSymmetricDifference(a4, b5), plan, out);
 	} else if (_9 === 12) {
-		const q: rt.VecDeque<rt.u8> = rt.dequeNew() as rt.VecDeque<rt.u8>;
+		const q: rt.VecDeque<rt.u8> = rt.dequeNew(1, true) as rt.VecDeque<rt.u8>;
 		for (const b6 of rt.byteSliceView(data)) {
 			if (rt.u8Rem(b6, 2) === 0) {
 				rt.dequePushFront(q, b6);
@@ -7158,7 +7158,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, plan, (x10: rt.u8): rt.u8 => {
 			return x10;
 		}, out);
-		turns$collections_vec_deque_IntoIter_u8_clones_iters_closure139_clones_iters_closure140(rt.dequeIter(rt.dequeClone(q, undefined, 1)), (it8: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		turns$collections_vec_deque_IntoIter_u8_clones_iters_closure139_clones_iters_closure140(rt.dequeIntoIter(rt.dequeClone(q)), (it8: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it8.nextBack());
 		}, plan, (x11: rt.u8): rt.u8 => {
 			return x11;
@@ -7409,9 +7409,9 @@ export function owned(data: rt.ByteSlice, plan: Plan.Plan, out: rt.ByteVec): voi
 		return _04;
 	}, out);
 	flush(log.value, out);
-	turns$collections_vec_deque_IntoIter_clones_Logged_clones_owned_closure5_clones_owned_closure6(rt.dequeIter(rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 4), (_22: rt.u8): clones_Logged.Logged => {
+	turns$collections_vec_deque_IntoIter_clones_Logged_clones_owned_closure5_clones_owned_closure6(rt.dequeIntoIter(rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 4), (_22: rt.u8): clones_Logged.Logged => {
 		return logged(_22 & 112);
-	}), undefined, 8, true)) as rt.VecDeque<clones_Logged.Logged>, rt.drop), (it7: rt.Iter<clones_Logged.Logged>): clones_Logged.Logged | undefined => {
+	}), undefined, 8, true), 8) as rt.VecDeque<clones_Logged.Logged>, rt.drop), (it7: rt.Iter<clones_Logged.Logged>): clones_Logged.Logged | undefined => {
 		return rt.iterToOption(it7.nextBack());
 	}, plan, (x2: clones_Logged.Logged): rt.u8 => {
 		const _07: rt.u8 = clones_Logged.id(x2);

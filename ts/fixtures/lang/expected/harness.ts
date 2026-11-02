@@ -49,6 +49,7 @@ import { lists as pointers_lists, shared as pointers_shared, places as pointers_
 import { refs, toRefs, adapted as refs_adapted } from "./refs.ts";
 import { results as results_results } from "./results.ts";
 import { returns } from "./returns.ts";
+import { slices as rings_slices } from "./rings.ts";
 import { u8s as saturates_u8s, u16s as saturates_u16s, u32s as saturates_u32s, u64s as saturates_u64s, u128s as saturates_u128s, usizes as saturates_usizes, i8s as saturates_i8s, i16s as saturates_i16s, i32s as saturates_i32s, i64s as saturates_i64s, i128s as saturates_i128s, isizes as saturates_isizes } from "./saturates.ts";
 import { separated } from "./separated.ts";
 import { copies as shapes_copies, order as shapes_order, discriminants, loops, patterns, uninhabited, closures as shapes_closures, library, flows } from "./shapes.ts";
@@ -280,6 +281,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["rings::slices", (a0159: rt.u8, a1159: rt.ByteSlice, a2159: rt.ByteVec): undefined => {
+		rings_slices(a0159, a1159.data, a1159.start, a1159.length, a2159);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

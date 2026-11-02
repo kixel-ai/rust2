@@ -929,7 +929,7 @@ export function touch(q: rt.VecDeque<rt.u8>): rt.VecDeque<rt.u8> {
 /** `VecDeque`: a ring buffer, pushed and popped at both ends past its capacity. */
 export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let drained2!: rt.ByteVec;
-	const q: rt.VecDeque<rt.u8> = rt.dequeNew() as rt.VecDeque<rt.u8>;
+	const q: rt.VecDeque<rt.u8> = rt.dequeNew(1, true) as rt.VecDeque<rt.u8>;
 	const pairs: rt.VecDeque<[rt.u8, rt.u8]> = rt.dequeWithCapacity(2, 2) as rt.VecDeque<[rt.u8, rt.u8]>;
 	for (const b of rt.byteSliceView(data)) {
 		const _12: rt.u8 = rt.u8Rem(b, 7);
@@ -957,8 +957,8 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.dequeSwapRemove(q, at, true), 232));
 	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.dequeSwapRemove(q, at), 231));
-	rt.dequeShrinkTo(touch(q), 0, 1);
-	rt.dequeReserve(touch(q), 1, 1);
+	rt.dequeShrinkTo(touch(q), 0);
+	rt.dequeReserve(touch(q), 1);
 	rt.byteVecPush(out, q.n & 0xff);
 	rt.iterExtendBytes(out, rt.iterRev(rt.dequeIter(q)), undefined, true);
 	if (!((q.n === 0))) {
@@ -980,8 +980,8 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, q.n === 0 ? 1 : 0);
 	const tallies: rt.VecDeque<collections_Tally.Tally> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_25: rt.u8): collections_Tally.Tally => {
 		return { n: _25 as rt.u16 };
-	}), undefined, 2, true)) as rt.VecDeque<collections_Tally.Tally>;
-	const copy: rt.VecDeque<collections_Tally.Tally> = rt.dequeClone(tallies, copy$collections_Tally, 2);
+	}), undefined, 2, true), 2) as rt.VecDeque<collections_Tally.Tally>;
+	const copy: rt.VecDeque<collections_Tally.Tally> = rt.dequeClone(tallies, copy$collections_Tally);
 	const _115: collections_Tally.Tally | undefined = rt.dequeEnd(copy);
 	if (_115 !== undefined) {
 		_115.n = _115.n ^ 255;
@@ -993,7 +993,7 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return t3.n & 0xff;
 	}), undefined, true);
 	const _129: rt.Iter<collections_Tally.Tally> = rt.dequeIter(tallies);
-	rt.dequeExtend(copy, rt.iterMap(_129, copy$collections_Tally), undefined, 2, true);
+	rt.dequeExtend(copy, rt.iterMap(_129, copy$collections_Tally), undefined, true);
 	const _131: collections_Tally.Tally | undefined = rt.dequeEnd(copy, true);
 	if (_131 !== undefined) {
 		_131.n = _131.n ^ 255;
@@ -1018,7 +1018,7 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return t7.n & 0xff;
 	}), undefined, true);
 	const _162: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
-	rt.dequeExtend(q, _162, undefined, 1, true);
+	rt.dequeExtend(q, _162, undefined, true);
 	rt.dequeInsert(q, rt.usizeDiv(q.n, 2), 66);
 	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.dequeRemove(q, 1), 233));
 	rt.dequeTruncate(q, 5);
@@ -1026,7 +1026,7 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterRev(rt.dequeIter(q)), undefined, true);
 	const a: rt.usize = rt.usizeRem(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0) as rt.usize, 8);
 	const b2: rt.usize = rt.usizeRem(option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, 1), 0) as rt.usize, 8);
-	const q2: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.iterToArray(rt.iterSlice(rt.byteSliceView(data)), undefined, 1, true)) as rt.VecDeque<rt.u8>;
+	const q2: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.iterToArray(rt.iterSlice(rt.byteSliceView(data)), undefined, 1, true), 1, true) as rt.VecDeque<rt.u8>;
 	const _201: rt.usize = rt.usizeRem(a, 4);
 	if (_201 === 0) {
 		drained2 = rt.iterToByteVec(rt.dequeDrain(q2, new rt.Range(a, b2)), "next");
@@ -1202,7 +1202,7 @@ export function stores(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(changed[0], changed[1], old[0], old[1])));
 	const tally: collections_Tally.Tally = { n: a as rt.u16 };
-	const q: rt.VecDeque<collections_Tally.Tally> = rt.dequeNew() as rt.VecDeque<collections_Tally.Tally>;
+	const q: rt.VecDeque<collections_Tally.Tally> = rt.dequeNew(2) as rt.VecDeque<collections_Tally.Tally>;
 	rt.dequePushBack(q, copy$collections_Tally(tally));
 	rt.dequePushFront(q, copy$collections_Tally(tally));
 	rt.dequeInsert(q, 1, copy$collections_Tally(tally));
@@ -3695,7 +3695,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	}), undefined, 2, true)), undefined, 4, true);
 	putEq(rt.eqSeq(Odd.eq$cmp_PartialEq_ref_collections_Right_ref)(_210, refs), log, out);
 	const half: rt.usize = rt.usizeDiv(data.length, 2);
-	const q: rt.VecDeque<Left.Left> = rt.dequeNew() as rt.VecDeque<Left.Left>;
+	const q: rt.VecDeque<Left.Left> = rt.dequeNew(8) as rt.VecDeque<Left.Left>;
 	const iter: rt.Iter<rt.u8> = rt.iterRev(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 0, half))));
 	while (true) {
 		const _226: rt.u8 | rt.Done = iter.next();
@@ -3736,7 +3736,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	putEq(rt.eqSeq((a32: Left.Left, b30: Right.Right): boolean => {
 		return !Left.ne$cmp_PartialEq_collections_Right(a32, b30);
 	})(q, _295), log, out);
-	const bytes: rt.VecDeque<rt.u8> = rt.dequeNew() as rt.VecDeque<rt.u8>;
+	const bytes: rt.VecDeque<rt.u8> = rt.dequeNew(1, true) as rt.VecDeque<rt.u8>;
 	const iter3: rt.Iter<rt.u8> = rt.iterRev(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 0, half))));
 	while (true) {
 		const _305: rt.u8 | rt.Done = iter3.next();
@@ -3746,7 +3746,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		rt.dequePushFront(bytes, _305);
 	}
 	const _313: rt.ByteSlice = rt.byteSliceRange(data, half);
-	rt.dequeExtend(bytes, rt.iterSlice(rt.byteSliceView(_313)), undefined, 1, true);
+	rt.dequeExtend(bytes, rt.iterSlice(rt.byteSliceView(_313)), undefined, true);
 	const stepped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_27: [rt.usize, rt.u8]): rt.u8 => {
 		return _27[1] ^ (_27[0] === byEq ? 1 : 0);
 	}), undefined, true);
@@ -3756,8 +3756,8 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	putEq(rt.eqSeq(rt.same)(bytes, _334), log, out);
 	const wide: rt.VecDeque<rt.u16> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.dequeIter(bytes), (_28: rt.u8): rt.u16 => {
 		return _28 as rt.u16;
-	}), undefined, 2, true)) as rt.VecDeque<rt.u16>;
-	const wrapped: rt.VecDeque<rt.u16> = rt.dequeNew() as rt.VecDeque<rt.u16>;
+	}), undefined, 2, true), 2) as rt.VecDeque<rt.u16>;
+	const wrapped: rt.VecDeque<rt.u16> = rt.dequeNew(2) as rt.VecDeque<rt.u16>;
 	const iter4: rt.Iter<rt.u8> = rt.iterRev(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(stepped))));
 	while (true) {
 		const _351: rt.u8 | rt.Done = iter4.next();
@@ -3767,7 +3767,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		rt.dequePushFront(wrapped, _351 as rt.u16);
 	}
 	putEq(rt.eqSeq(rt.same)(wide, wrapped), log, out);
-	const _366: rt.VecDeque<rt.u16>[] = [rt.dequeClone(wide, undefined, 2)];
+	const _366: rt.VecDeque<rt.u16>[] = [rt.dequeClone(wide)];
 	const _371: rt.VecDeque<rt.u16>[] = [wrapped];
 	putEq(rt.eqSlice(rt.eqSeq(rt.same))(_366, _371), log, out);
 	const it: rt.Peekable<Left.Left[]> = rt.iterPeekable(rt.iterSlice([lefts(), lefts(), lefts()]));
@@ -3791,7 +3791,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		})(a035, a135);
 	}) !== undefined, log, out);
 	rt.byteVecPush(out, rt.iterCount(it) & 0xff);
-	const it2: rt.Peekable<rt.VecDeque<rt.u8>> = rt.iterPeekable(rt.iterSlice([rt.dequeClone(bytes, undefined, 1), bytes]));
+	const it2: rt.Peekable<rt.VecDeque<rt.u8>> = rt.iterPeekable(rt.iterSlice([rt.dequeClone(bytes), bytes]));
 	const _430: rt.ByteVec = rt.byteSliceToByteVec(data);
 	putEq(rt.peekableNextIfEq(it2, _430, (a037: rt.VecDeque<rt.u8>, a137: rt.ByteVec): boolean => {
 		return rt.eqSeq(rt.same)(a037, a137);
@@ -3808,7 +3808,7 @@ export function unlikeEqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
  */
 export function wrapped$collections_Picky(v: collections_Picky.Picky[]): rt.VecDeque<collections_Picky.Picky> {
 	const half: rt.usize = rt.usizeDiv(v.length, 2);
-	const q: rt.VecDeque<collections_Picky.Picky> = rt.dequeNew() as rt.VecDeque<collections_Picky.Picky>;
+	const q: rt.VecDeque<collections_Picky.Picky> = rt.dequeNew(8) as rt.VecDeque<collections_Picky.Picky>;
 	const iter: rt.Iter<collections_Picky.Picky> = rt.iterRev(rt.iterSlice(rt.sliceRange(v, 0, half)));
 	while (true) {
 		const _12: collections_Picky.Picky | rt.Done = iter.next();
@@ -3819,7 +3819,7 @@ export function wrapped$collections_Picky(v: collections_Picky.Picky[]): rt.VecD
 		rt.dequePushFront(q, _18);
 	}
 	const _21: rt.Iter<collections_Picky.Picky> = rt.iterMap(rt.iterSlice(rt.sliceRange(v, half)), collections_Picky.clone$Clone);
-	rt.dequeExtend(q, _21, undefined, 8, true);
+	rt.dequeExtend(q, _21, undefined, true);
 	return q;
 }
 
@@ -4736,10 +4736,8 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_147, _152, !rt.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_161, _164)], (a022: boolean): rt.u8 => {
 			return a022 ? 1 : 0;
 		})), undefined, true);
-		const _171: ByRef.ByRef[] = [a, b];
-		const _170: rt.VecDeque<ByRef.ByRef> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByRef.ByRef>, rt.iterSlice(_171), undefined, 4, true);
-		const _174: ByRef.ByRef[] = [b, a];
-		const _173: rt.VecDeque<ByRef.ByRef> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByRef.ByRef>, rt.iterSlice(_174), undefined, 4, true);
+		const _170: rt.VecDeque<ByRef.ByRef> = rt.dequeFromArray([a, b], 4) as rt.VecDeque<ByRef.ByRef>;
+		const _173: rt.VecDeque<ByRef.ByRef> = rt.dequeFromArray([b, a], 4) as rt.VecDeque<ByRef.ByRef>;
 		rt.byteVecPush(out, rt.eqSeq(ByRef.eq$cmp_PartialEq_ref)(_170, _173) ? 1 : 0);
 		const _180: ByRef.ByRef = a;
 		const _182: ByRef.ByRef = b;
@@ -4860,10 +4858,8 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_458, _463, !rt.eqSlice(ByRef.eq$cmp_PartialEq_ref)(_472, _475)], (a067: boolean): rt.u8 => {
 			return a067 ? 1 : 0;
 		})), undefined, true);
-		const _482: ByRef.ByRef[] = [a2, b2];
-		const _481: rt.VecDeque<ByRef.ByRef> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByRef.ByRef>, rt.iterSlice(_482), undefined, 4, true);
-		const _485: ByRef.ByRef[] = [b2, a2];
-		const _484: rt.VecDeque<ByRef.ByRef> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByRef.ByRef>, rt.iterSlice(_485), undefined, 4, true);
+		const _481: rt.VecDeque<ByRef.ByRef> = rt.dequeFromArray([a2, b2], 4) as rt.VecDeque<ByRef.ByRef>;
+		const _484: rt.VecDeque<ByRef.ByRef> = rt.dequeFromArray([b2, a2], 4) as rt.VecDeque<ByRef.ByRef>;
 		rt.byteVecPush(out, rt.eqSeq(ByRef.eq$cmp_PartialEq_ref)(_481, _484) ? 1 : 0);
 		const _491: ByRef.ByRef = a2;
 		const _493: ByRef.ByRef = b2;
@@ -4984,10 +4980,8 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_761, _766, !rt.eqSlice(ByVal.eq$cmp_PartialEq)(_775, _778)], (a0112: boolean): rt.u8 => {
 			return a0112 ? 1 : 0;
 		})), undefined, true);
-		const _785: ByVal.ByVal[] = [a3, b3];
-		const _784: rt.VecDeque<ByVal.ByVal> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByVal.ByVal>, rt.iterSlice(_785), undefined, 4, true);
-		const _788: ByVal.ByVal[] = [b3, a3];
-		const _787: rt.VecDeque<ByVal.ByVal> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByVal.ByVal>, rt.iterSlice(_788), undefined, 4, true);
+		const _784: rt.VecDeque<ByVal.ByVal> = rt.dequeFromArray([a3, b3], 4) as rt.VecDeque<ByVal.ByVal>;
+		const _787: rt.VecDeque<ByVal.ByVal> = rt.dequeFromArray([b3, a3], 4) as rt.VecDeque<ByVal.ByVal>;
 		rt.byteVecPush(out, rt.eqSeq(ByVal.eq$cmp_PartialEq)(_784, _787) ? 1 : 0);
 		const _794: ByVal.ByVal = a3;
 		const _796: ByVal.ByVal = b3;
@@ -5108,10 +5102,8 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_1068, _1073, !rt.eqSlice(ByVal.eq$cmp_PartialEq)(_1082, _1085)], (a0157: boolean): rt.u8 => {
 			return a0157 ? 1 : 0;
 		})), undefined, true);
-		const _1092: ByVal.ByVal[] = [a4, b4];
-		const _1091: rt.VecDeque<ByVal.ByVal> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByVal.ByVal>, rt.iterSlice(_1092), undefined, 4, true);
-		const _1095: ByVal.ByVal[] = [b4, a4];
-		const _1094: rt.VecDeque<ByVal.ByVal> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<ByVal.ByVal>, rt.iterSlice(_1095), undefined, 4, true);
+		const _1091: rt.VecDeque<ByVal.ByVal> = rt.dequeFromArray([a4, b4], 4) as rt.VecDeque<ByVal.ByVal>;
+		const _1094: rt.VecDeque<ByVal.ByVal> = rt.dequeFromArray([b4, a4], 4) as rt.VecDeque<ByVal.ByVal>;
 		rt.byteVecPush(out, rt.eqSeq(ByVal.eq$cmp_PartialEq)(_1091, _1094) ? 1 : 0);
 		const _1101: ByVal.ByVal = a4;
 		const _1103: ByVal.ByVal = b4;
@@ -5281,7 +5273,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		return rt.sliceContains(rt.sliceRange(xs, 1), first, ByRef.eq$cmp_PartialEq_ref) ? 1 : 0;
 	})), undefined, true);
 	rt.byteVecPush(out, rt.sliceIsSorted(xs, rt.cmpLe(ByRef.partialCmp$cmp_PartialOrd_ref)) ? 1 : 0);
-	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs.slice(), 4)) as rt.VecDeque<ByRef.ByRef>, xs[rt.idx(xs, rt.usizeDiv(xs.length, 2))], ByRef.eq$cmp_PartialEq_ref) ? 1 : 0);
+	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs.slice(), 4), 4) as rt.VecDeque<ByRef.ByRef>, xs[rt.idx(xs, rt.usizeDiv(xs.length, 2))], ByRef.eq$cmp_PartialEq_ref) ? 1 : 0);
 	const _1541: [ByVal.ByVal[], rt.ByteVec] = [rt.iterToArray(rt.iterSlice(byVal), undefined, 4, true), out];
 	const xs2: ByVal.ByVal[] = _1541[0];
 	const sorted2: ByVal.ByVal[] = rt.vecExact(xs2.slice(), 4);
@@ -5330,7 +5322,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		return rt.sliceContains(rt.sliceRange(xs2, 1), first2, ByVal.eq$cmp_PartialEq) ? 1 : 0;
 	})), undefined, true);
 	rt.byteVecPush(out, rt.sliceIsSorted(xs2, rt.cmpLe(ByVal.partialCmp$cmp_PartialOrd)) ? 1 : 0);
-	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs2.slice(), 4)) as rt.VecDeque<ByVal.ByVal>, xs2[rt.idx(xs2, rt.usizeDiv(xs2.length, 2))], ByVal.eq$cmp_PartialEq) ? 1 : 0);
+	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs2.slice(), 4), 4) as rt.VecDeque<ByVal.ByVal>, xs2[rt.idx(xs2, rt.usizeDiv(xs2.length, 2))], ByVal.eq$cmp_PartialEq) ? 1 : 0);
 	const _1651: [Mixed.Mixed[], rt.ByteVec] = [rt.iterToArray(rt.iterSlice(mixed), undefined, 4, true), out];
 	const xs3: Mixed.Mixed[] = _1651[0];
 	const sorted3: Mixed.Mixed[] = rt.vecExact(xs3.slice(), 4);
@@ -5379,7 +5371,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 		return rt.sliceContains(rt.sliceRange(xs3, 1), first3, Mixed.eq$cmp_PartialEq) ? 1 : 0;
 	})), undefined, true);
 	rt.byteVecPush(out, rt.sliceIsSorted(xs3, rt.cmpLe(Mixed.partialCmp$cmp_PartialOrd)) ? 1 : 0);
-	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs3.slice(), 4)) as rt.VecDeque<Mixed.Mixed>, xs3[rt.idx(xs3, rt.usizeDiv(xs3.length, 2))], Mixed.eq$cmp_PartialEq) ? 1 : 0);
+	rt.byteVecPush(out, rt.dequeContains(rt.dequeFromVec(rt.vecExact(xs3.slice(), 4), 4) as rt.VecDeque<Mixed.Mixed>, xs3[rt.idx(xs3, rt.usizeDiv(xs3.length, 2))], Mixed.eq$cmp_PartialEq) ? 1 : 0);
 }
 
 export function hashed$ref_orders_Option_ref_collections_ByRef(value: ByRef.ByRef | undefined): Uint8Array {

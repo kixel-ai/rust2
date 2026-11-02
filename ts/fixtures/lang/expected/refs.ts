@@ -753,7 +753,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const hash: rt.HashMap<rt.u8, [rt.u8, rt.u8]> = rt.hashNew() as rt.HashMap<rt.u8, [rt.u8, rt.u8]>;
 	const tree: rt.BTreeMap<rt.u8, rt.u32> = rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u32>;
-	const queue: rt.VecDeque<rt.u32> = rt.dequeNew() as rt.VecDeque<rt.u32>;
+	const queue: rt.VecDeque<rt.u32> = rt.dequeNew(4) as rt.VecDeque<rt.u32>;
 	for (const b2 of rt.byteSliceView(data)) {
 		rt.entryOrInsert(rt.entryAndModify(rt.entry(hash, rt.u8Rem(b2, 5)), (x9: [rt.u8, rt.u8]): undefined => {
 			x9[1] = rt.u8WrappingAdd(x9[1], b2);
@@ -1041,7 +1041,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, k3);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(x5)));
 	}
-	const iter36: rt.Iter<rt.u32> = rt.dequeIter(queue);
+	const iter36: rt.Iter<rt.u32> = rt.dequeIntoIter(queue);
 	while (true) {
 		const _590: rt.u32 | rt.Done = iter36.next();
 		if (_590 === rt.DONE) {

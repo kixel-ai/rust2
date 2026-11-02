@@ -1,9 +1,10 @@
 //! The capacity std's `Vec`, `VecDeque`, and `BinaryHeap` hold as each step of a case
 //! grows, shrinks, remakes, or reads one, of elements of each size its growth tells apart:
-//! a byte, at most 1 KiB, past it, and none. std fixes it exactly only through steps its
-//! doubling decides, such as pushes, `with_capacity`, `reserve`, and `shrink_to`; past
-//! any other step, a case checks only what std guarantees. A `HashMap`'s and a
-//! `HashSet`'s it checks only by std's guarantees.
+//! a byte, at most 1 KiB, past it, and none. std fixes a `Vec`'s and a `BinaryHeap`'s
+//! exactly only through steps its doubling decides, such as pushes, `with_capacity`,
+//! `reserve`, and `shrink_to`; past any other step, a case checks only what std
+//! guarantees. A `VecDeque`'s it checks exactly past every step, as where its slices split
+//! depends on it. A `HashMap`'s and a `HashSet`'s it checks only by std's guarantees.
 
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::mem;
@@ -229,75 +230,40 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 		1 => VecDeque::with_capacity(usize::from(first >> 3)),
 		_ => VecDeque::new(),
 	};
-	let mut k = Known::new(q.capacity());
 	put(out, q.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		match op % 21 {
 			0 => q.push_back(make(arg)),
 			1 => q.push_front(make(arg)),
-			2 => {
-				drop(q.pop_front());
-				k.loose();
-			}
+			2 => drop(q.pop_front()),
 			3 | 4 => {
 				let additional = amount(arg, q.len(), size);
 				match op % 21 {
 					3 => q.reserve(additional),
 					_ => q.reserve_exact(additional),
 				}
-				k.reserved(q.len(), additional);
 			}
-			5 => {
-				q.shrink_to(usize::from(arg % 40));
-				k.shrunk(q.len(), usize::from(arg % 40));
-			}
-			6 => {
-				q.shrink_to_fit();
-				k.shrunk(q.len(), 0);
-				k.exact = true;
-			}
-			7 => {
-				q.truncate(usize::from(arg % 8));
-				k.loose();
-			}
+			5 => q.shrink_to(usize::from(arg % 40)),
+			6 => q.shrink_to_fit(),
+			7 => q.truncate(usize::from(arg % 8)),
 			8 => q.insert(usize::from(arg) % (q.len() + 1), make(arg)),
-			9 => {
-				drop(q.remove(usize::from(arg) % (q.len() + 1)));
-				k.loose();
-			}
+			9 => drop(q.remove(usize::from(arg) % (q.len() + 1))),
 			10 => q.extend((0..arg % 24).filter(|i| i % 3 != 0).map(make)),
 			11 => q.extend((0..arg % 24).map(make)),
-			12 => {
-				q.clear();
-				k.loose();
-			}
+			12 => q.clear(),
 			13 => {
 				let mut keep = alternate();
 				q.retain(|_| keep());
-				k.loose();
 			}
-			14 => {
-				drop(q.drain(..q.len().min(usize::from(arg % 4))));
-				k.loose();
-			}
-			15 => {
-				q = q.clone();
-				k.remade(true);
-			}
+			14 => drop(q.drain(..q.len().min(usize::from(arg % 4)))),
+			15 => q = q.clone(),
 			// Its own, and a `Vec`'s in place of one, and one it collects first.
-			16 => {
-				q = q.into_iter().collect();
-				k.remade(false);
-			}
-			17 => {
-				q = VecDeque::from(q.into_iter().collect::<Vec<T>>());
-				k.remade(false);
-			}
+			16 => q = q.into_iter().collect(),
+			17 => q = VecDeque::from(q.into_iter().collect::<Vec<T>>()),
 			18 => {
 				let mut keep = alternate();
 				q = q.into_iter().filter(|_| keep()).collect();
-				k.remade(true);
 			}
 			19 => {
 				let mut it = q.into_iter();
@@ -305,16 +271,14 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 					drop(it.next());
 				}
 				q = it.clone().collect();
-				k.remade(false);
 				let rest = it.collect::<VecDeque<T>>();
-				Known { exact: false, floor: 0 }.put(out, rest.len(), rest.capacity());
+				put(out, rest.len());
+				put(out, rest.capacity());
 			}
-			_ => {
-				q = VecDeque::from([make(arg), make(arg), make(arg)]);
-				k.remade(false);
-			}
+			_ => q = VecDeque::from([make(arg), make(arg), make(arg)]),
 		}
-		k.put(out, q.len(), q.capacity());
+		put(out, q.len());
+		put(out, q.capacity());
 	}
 }
 

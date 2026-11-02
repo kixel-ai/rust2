@@ -2,11 +2,17 @@
 
 ## Unreleased
 
-- `rt.vecCapacity`, `rt.vecReserve`, `rt.vecReserveExact`, and `rt.dequeReserve` are now
-  `Vec::capacity`, `reserve`, and `reserve_exact` and `VecDeque::reserve` of a vector, its
-  element size in bytes last, as in `rt.vecReserve(v, additional, 4)`, not the arithmetic
-  an extend reserved by; `rt.vecPush` and `rt.vecGrow` are gone. `rt.dequeClone` and
-  `rt.heapClone` take the element size after the clone function.
+- `rt.vecCapacity`, `rt.vecReserve`, and `rt.vecReserveExact` are now `Vec::capacity`,
+  `reserve`, and `reserve_exact` of a vector, its element size in bytes last, as in
+  `rt.vecReserve(v, additional, 4)`, not the arithmetic an extend reserved by;
+  `rt.vecPush` and `rt.vecGrow` are gone. `rt.heapClone` takes the element size after the
+  clone function.
+- An `rt.VecDeque` holds std's capacity as its buffer's length and its item size as `s`,
+  and a deque of bytes is a `Uint8Array`: `rt.dequeNew`, `rt.dequeWithCapacity`, and
+  `rt.dequeFromVec` take the item size and whether it holds bytes, as in
+  `rt.dequeNew(4)`, and `rt.dequeCapacity`, `rt.dequeReserve`, `rt.dequeReserveExact`,
+  `rt.dequeShrinkTo`, `rt.dequeClone`, `rt.dequeExtend`, and `rt.dequePart` no longer take
+  it. `rt.dequeIter` no longer takes a dropper: `rt.dequeIntoIter` is `into_iter`.
 - Every translation needs `tsc` 7.0 or later on `PATH`, not only one with bindings: it
   type-checks the output, and fails at the Rust span of each error, where it succeeded
   before.

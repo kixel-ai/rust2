@@ -6,7 +6,7 @@ import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$1j4op5y as option
 import { put as fmt_put } from "./fmt.ts";
 import * as joins_Logged from "./joins.Logged.ts";
 import * as Sentinel from "./joins.Sentinel.ts";
-import { text } from "./strs.ts";
+import { text as strs_text } from "./strs.ts";
 
 /** Puts what was logged since the last flush, after a marker. */
 export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
@@ -187,9 +187,9 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		log[Symbol.dispose]();
 	} else if (_26 === 4) {
 		const owned2: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(parts), (p3: rt.ByteSlice): string => {
-			return text(p3);
+			return strs_text(p3);
 		}), undefined, 12, true);
-		const sep4: string = text(seps);
+		const sep4: string = strs_text(seps);
 		fmt_put(out, rt.strsJoin(owned2, ""));
 		fmt_put(out, rt.strsJoin(owned2, sep4));
 		const borrowed: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(owned2), (a02: string): string => {
@@ -229,14 +229,14 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			if (rt.usizeRem(_214[0], 2) === 0) {
 				return "ab";
 			}
-			return text(_214[1]);
+			return strs_text(_214[1]);
 		}), undefined, 12, true);
 		fmt_put(out, rt.strsJoin(texts, ""));
 		fmt_put(out, rt.strsJoin(texts, "--"));
 	} else {
 		const big: rt.ByteVec = rt.byteVecOf(1, 1 << 16);
 		const wide4: rt.u16[] = rt.vecFromElem(1, 1 << 16, undefined);
-		const text_: string = text(rt.byteVecSlice(big));
+		const text: string = strs_text(rt.byteVecSlice(big));
 		const refs: (a0: rt.usize) => rt.ByteSlice[] = (n: rt.usize): rt.ByteSlice[] => {
 			return rt.vecFromElem(rt.byteSliceRange(rt.byteVecSlice(big), 0), n, undefined);
 		};
@@ -250,9 +250,9 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_512 === 3) {
 			wides(rt.slicesJoin(rt.vecFromElem(rt.sliceRange(wide4, 0), rt.usizeAdd(1 << 14, 1), undefined), 2), out);
 		} else if (_512 === 4) {
-			fmt_put(out, rt.strsJoin(rt.vecFromElem(text_, rt.usizeAdd(1 << 15, 1), undefined), ""));
+			fmt_put(out, rt.strsJoin(rt.vecFromElem(text, rt.usizeAdd(1 << 15, 1), undefined), ""));
 		} else if (_512 === 5) {
-			fmt_put(out, rt.strsJoin(rt.vecFromElem(text_, rt.usizeAdd(1 << 16, 1), undefined), ""));
+			fmt_put(out, rt.strsJoin(rt.vecFromElem(text, rt.usizeAdd(1 << 16, 1), undefined), ""));
 		} else {
 			const sep5: Sentinel.Sentinel[] = rt.iterToArray(rt.iterMap(new rt.Range(0, 1 << 16), (i: rt.i32): Sentinel.Sentinel => {
 				return { _0: (i & 0xff) ^ 90 };

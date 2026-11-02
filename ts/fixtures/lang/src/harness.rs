@@ -5,7 +5,7 @@ use crate::{
 	args, arrays, ascii, atomics, borrows, bounds, boxes, capacity, captures, cells, chars, chunks, clones,
 	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, errors, fields,
 	floats, fmt, folds, generics, hashes, hints, holds, ints, iters, joins, keys, lengths, lists, locals, locks,
-	methods, nested, objects, orders, pointers, refs, results, returns, saturates, separated, shapes, singles, slices,
+	methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates, separated, shapes, singles, slices,
 	splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
@@ -288,6 +288,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::maps", capacity::maps),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("rings::slices", rings::slices),
 	]
 }
 
