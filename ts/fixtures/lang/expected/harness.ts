@@ -27,7 +27,7 @@ import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
 import { eqs } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
 import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as floats_parses } from "./floats.ts";
-import { ints, strings, derived, written as fmt_written, counts as fmt_counts, rounding, panics as fmt_panics, wrapped as fmt_wrapped, collections, enums, iters as fmt_iters, writes as fmt_writes } from "./fmt.ts";
+import { ints, strings, derived, written as fmt_written, counts as fmt_counts, rounding, panics as fmt_panics, wrapped as fmt_wrapped, collections, enums, iters as fmt_iters, writes as fmt_writes, objects as fmt_objects } from "./fmt.ts";
 import { folds } from "./folds.ts";
 import { methods, runs } from "./generics.ts";
 import { values as hashes_values, random, bytes as hashes_bytes } from "./hashes.ts";
@@ -43,7 +43,7 @@ import { locals } from "./locals.ts";
 import { locks, relock, rwlocks, mapped, mutexMapped, printed as locks_printed, downgraded } from "./locks.ts";
 import { u8s as methods_u8s, u16s as methods_u16s, u32s as methods_u32s, u64s as methods_u64s, u128s as methods_u128s, usizes as methods_usizes, i8s as methods_i8s, i16s as methods_i16s, i32s as methods_i32s, i64s as methods_i64s, i128s as methods_i128s, isizes as methods_isizes } from "./methods.ts";
 import { nested as nested_nested } from "./nested.ts";
-import { objects } from "./objects.ts";
+import { objects as objects_objects } from "./objects.ts";
 import { orders, bytes as orders_bytes, tuples as orders_tuples, held as orders_held, btrees } from "./orders.ts";
 import { lists as pointers_lists, shared as pointers_shared, places as pointers_places, unchecked, nested as pointers_nested, copies as pointers_copies, sentinels, cells as pointers_cells, rebound as pointers_rebound, lapsed, writers, made as pointers_made, segments, uninitRuns, iteratedRuns, besideWritten, waiters, taken as pointers_taken, bytes as pointers_bytes, loaded, reattached, partWritten, aimed } from "./pointers.ts";
 import { refs, toRefs, adapted as refs_adapted } from "./refs.ts";
@@ -165,7 +165,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["edits::bytes", edits_bytes as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["arrays::from_fns", (_2147: rt.u8, data47: rt.ByteSlice, out48: rt.ByteVec): undefined => {
 		fromFns(data47, out48);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["collections::optionals", optionals as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["objects::objects", (_2148: rt.u8, data48: rt.ByteSlice, out49: rt.ByteVec): undefined => {
-		objects(data48, out49);
+		objects_objects(data48, out49);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["holds::holds", holds as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::wrapped", (_2149: rt.u8, data49: rt.ByteSlice, out50: rt.ByteVec): undefined => {
 		fmt_wrapped(data49, out50);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::to_refs", (_2150: rt.u8, data50: rt.ByteSlice, out51: rt.ByteVec): undefined => {
@@ -280,6 +280,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data97, out98);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
 		leaks(data98, out99);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2199: rt.u8, data99: rt.ByteSlice, out100: rt.ByteVec): undefined => {
+		fmt_objects(data99, out100);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
