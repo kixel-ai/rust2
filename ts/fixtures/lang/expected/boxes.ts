@@ -265,7 +265,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.u64Eq(hash$boxed_Box_slice_u16(collected2), hash$slice_u16(rt.sliceRange(collected2, 0))) ? 1 : 0);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(collected2, f, rt.u16Debug)];
 		fmt_put(out, rt.fmtFormat([args4[0]]));
-		const v3: rt.u16[] = fromVec2;
+		const v3: rt.u16[] = rt.vecExact(fromVec2, 2);
 		v3.push(5);
 		wides(v3, out);
 		let slot2: rt.u16[] = fromArray2;
@@ -275,7 +275,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const taken = slot2;
 		slot2 = [];
 		wides(taken, out);
-		const it: rt.Iter<rt.u16> = rt.iterSlice(wide);
+		const it: rt.Iter<rt.u16> = rt.iterSlice(rt.vecExact(wide, 2));
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(option_unwrapOr$1j4op5y(rt.iterToOption(it.nextBack()), 0)).reverse()), undefined, true);
 		rt.byteVecPush(out, it.len() & 0xff);
 		rt.iterExtendBytes(out, rt.iterMap(it, (x4: rt.u16): rt.u8 => {
@@ -309,7 +309,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		collected3[0][Symbol.dispose]();
 		collected3[0] = _444;
 		flush(log.value, out);
-		const it2: rt.Iter<boxes_Logged.Logged> = rt.iterSlice(cloned3, rt.drop);
+		const it2: rt.Iter<boxes_Logged.Logged> = rt.iterSlice(rt.vecExact(cloned3, 8), rt.drop);
 		const _454: boxes_Logged.Logged | rt.Done = it2.next();
 		if (_454 !== rt.DONE) {
 			const first: boxes_Logged.Logged = _454;
@@ -321,7 +321,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.drop(it2);
 		flush(log.value, out);
 		rt.drop(back);
-		const v4: boxes_Logged.Logged[] = fromRef3;
+		const v4: boxes_Logged.Logged[] = rt.vecExact(fromRef3, 8);
 		ids(v4, out);
 		rt.dropAll(v4);
 		flush(log.value, out);
@@ -368,7 +368,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.idx(c, 1);
 			return Uint8Array.of(_3, c.data[c.start + 1]);
 		}), undefined, 2, true);
-		const quadsV: Uint8Array[] = quads.map(copy$array_u8);
+		const quadsV: Uint8Array[] = rt.vecExact(quads.map(copy$array_u8), 2);
 		const _554: rt.ByteSlice | undefined = rt.optionMap(rt.sliceFirst(quadsV), rt.byteSliceFrom);
 		if (_554 !== undefined) {
 			_554.data[_554.start] = 119;

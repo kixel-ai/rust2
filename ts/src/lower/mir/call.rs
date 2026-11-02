@@ -565,6 +565,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let clone = self
 					.b
 					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
+				// std's `Vec` keeps the target's buffer, grown if it holds fewer.
+				let clone = match ty.kind() {
+					ty::Adt(_, args) if self.b.t.std_of(ty) == Some(Std::Vec) => {
+						library::vec_cloned_into(self.b, clone, place.0.clone(), args.type_at(0), span)
+					}
+					_ => clone,
+				};
 				let drops = self.b.t.drops(ty);
 				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, out);
 				if drops && let Some(drop) = self.b.t.drop_value(old, ty, span) {

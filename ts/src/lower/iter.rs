@@ -124,8 +124,16 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
 	};
-	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does.
-	let ty = library::box_slice(tcx, ty).map_or(ty, |elem| Ty::new_slice(tcx, elem));
+	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
+	// room for exactly them.
+	let (ty, value) = match library::box_slice(tcx, ty) {
+		Some(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+			let size = size_of(b, elem, span);
+			(Ty::new_slice(tcx, elem), Expr::rt("vecExact", vec![value, size]))
+		}
+		Some(elem) => (Ty::new_slice(tcx, elem), value),
+		None => (ty, value),
+	};
 	let owned = !ty.is_ref();
 	if b.t.iter_item(ty).is_some() {
 		not_bound(b, ty, span);
@@ -1263,11 +1271,14 @@ fn collect<'tcx>(
 	if let Some(elem) = elem {
 		let v = match elem.kind() {
 			ty::Uint(ty::UintTy::U8) => {
-				let (folds, by_index) = collect_folds(b, from, elem, span);
+				let (folds, by_index, src) = collect_folds(b, from, elem, span);
 				let take = iter_take(b, from, folds, span);
 				Expr::rt(
 					"iterToByteVec",
-					tail(vec![iter], vec![take, Expr::lit((trusted || by_index).to_string())]),
+					tail(
+						vec![iter],
+						vec![take, Expr::lit((trusted || by_index).to_string()), src_size(src)],
+					),
 				)
 			}
 			_ => to_array(b, iter, from, elem, trusted, span),
@@ -1446,16 +1457,22 @@ pub(super) fn to_array<'tcx>(
 	trusted: bool,
 	span: Span,
 ) -> Expr {
-	let (folds, by_index) = collect_folds(b, from, elem, span);
+	let (folds, by_index, src) = collect_folds(b, from, elem, span);
 	let take = iter_take(b, from, folds, span);
 	let size = size_of(b, elem, span);
 	Expr::rt(
 		"iterToArray",
 		tail(
 			vec![iter],
-			vec![take, size, Expr::lit((trusted || by_index).to_string())],
+			vec![take, size, Expr::lit((trusted || by_index).to_string()), src_size(src)],
 		),
 	)
+}
+
+/// The size of the elements of the `Vec` a `collect` writes in place of, which the runtime
+/// keeps the capacity of as std's does, or `undefined`.
+fn src_size(src: Option<u64>) -> Expr {
+	src.map_or_else(Expr::undefined, |size| Expr::lit(size.to_string()))
 }
 
 /// Whether std's `collect` of an iterator of type `from` into a `Vec<elem>` folds it, and
@@ -1465,11 +1482,17 @@ pub(super) fn to_array<'tcx>(
 /// `next` reads a side once past the other: that one folds, its length reserved as a
 /// `TrustedLen` one's, and is refused if it holds values that drop, which its `fold` drops
 /// as each fold ends. Elsewhere, it folds a `TrustedLen` one by its own `fold`, which drops
-/// them first, and reads any other by `next`.
-fn collect_folds<'tcx>(b: &mut Body<'_, '_, 'tcx>, from: Ty<'tcx>, elem: Ty<'tcx>, span: Span) -> (bool, bool) {
-	if !in_place(b.t, from, elem) {
-		return (implements(b.t, from, "TrustedLen"), false);
-	}
+/// them first, and reads any other by `next`. Last, the size of the elements of the `Vec`
+/// it writes in place of, if it does.
+fn collect_folds<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	from: Ty<'tcx>,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> (bool, bool, Option<u64>) {
+	let Some(src) = in_place(b.t, from, elem) else {
+		return (implements(b.t, from, "TrustedLen"), false, None);
+	};
 	let zips = from.walk().filter_map(|arg| arg.as_type()).any(|t| {
 		matches!(t.kind(), ty::Adt(adt, _) if library::std_path(b.t.tcx, adt.did()).last().map(String::as_str) == Some("Zip"))
 	});
@@ -1482,20 +1505,20 @@ fn collect_folds<'tcx>(b: &mut Body<'_, '_, 'tcx>, from: Ty<'tcx>, elem: Ty<'tcx
 			),
 		);
 	}
-	(by_index, by_index)
+	(by_index, by_index, Some(src))
 }
 
-/// Whether std's `collect` of an iterator of type `iter` into a `Vec<elem>` writes in place
-/// of the `Vec` its items come from, as its adaptors let it where each item's layout leaves
-/// room.
-fn in_place<'tcx>(t: &Translator<'_, 'tcx>, iter: Ty<'tcx>, elem: Ty<'tcx>) -> bool {
+/// The size of the elements of the `Vec` std's `collect` of an iterator of type `iter` into
+/// a `Vec<elem>` writes in place of, if it does, as its adaptors let it where each item's
+/// layout leaves room.
+fn in_place<'tcx>(t: &Translator<'_, 'tcx>, iter: Ty<'tcx>, elem: Ty<'tcx>) -> Option<u64> {
 	let tcx = t.tcx;
 	let env = t.typing_env_pub();
 	let (Some(steps), Some(source)) = (core_trait(tcx, "InPlaceIterable"), core_trait(tcx, "SourceIter")) else {
-		return false;
+		return None;
 	};
 	if !implements(t, iter, "InPlaceIterable") || !implements(t, iter, "SourceIter") {
-		return false;
+		return None;
 	}
 	let assoc = |tr: DefId, name: &str| {
 		tcx.associated_items(tr)
@@ -1504,18 +1527,16 @@ fn in_place<'tcx>(t: &Translator<'_, 'tcx>, iter: Ty<'tcx>, elem: Ty<'tcx>) -> b
 			.map(|item| item.def_id)
 	};
 	// `<I as SourceIter>::Source`, a `vec::IntoIter` of what it collects in place of.
-	let Some(src) = assoc(source, "Source").and_then(|item| {
+	let src = assoc(source, "Source").and_then(|item| {
 		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [iter]);
 		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
 			.ok()
-	}) else {
-		return false;
-	};
+	})?;
 	let ty::Adt(adt, src_args) = src.kind() else {
-		return false;
+		return None;
 	};
 	if library::std_path(tcx, adt.did()) != ["vec", "into_iter", "IntoIter"] {
-		return false;
+		return None;
 	}
 	// `MERGE_BY` and `EXPAND_BY`: how many source items make how many it collects, if known.
 	let step = |name: &str| -> Option<u128> {
@@ -1525,19 +1546,20 @@ fn in_place<'tcx>(t: &Translator<'_, 'tcx>, iter: Ty<'tcx>, elem: Ty<'tcx>) -> b
 		Some(value.try_to_scalar_int()?.to_bits_unchecked())
 	};
 	let (Some(merge), Some(expand)) = (step("MERGE_BY"), step("EXPAND_BY")) else {
-		return false;
+		return None;
 	};
 	let layout = |ty: Ty<'tcx>| tcx.layout_of(env.as_query_input(ty)).ok();
 	let (Some(from), Some(to)) = (layout(src_args.type_at(0)), layout(elem)) else {
-		return false;
+		return None;
 	};
 	// As std's `in_place_collectible`, where `None`, an overflow, is 0.
-	!from.is_zst()
+	(!from.is_zst()
 		&& !to.is_zst()
 		&& from.align.abi == to.align.abi
 		&& merge > 0
 		&& expand > 0
-		&& u128::from(from.size.bytes()) * merge >= u128::from(to.size.bytes()) * expand
+		&& u128::from(from.size.bytes()) * merge >= u128::from(to.size.bytes()) * expand)
+		.then_some(from.size.bytes())
 }
 
 /// Whether the crate's own `Ord` of `ty` has its own `max` or `min`, by `name`, which

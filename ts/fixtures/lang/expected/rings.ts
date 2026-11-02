@@ -677,7 +677,8 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
- * whose buffers std's takes as they are, or from a `Vec` it collects.
+ * whose buffers std's takes as they are, or from a `Vec` it collects, directly or through
+ * adaptors in place of another.
  */
 export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<string> {
 	let _0!: rt.VecDeque<string>;
@@ -713,11 +714,19 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 		return rt.dequeFromIntoIter(it2, 12) as rt.VecDeque<string>;
 	}
 	if (_8 === 3) {
+		if (!((arg & 32) === 0)) {
+			const v: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
+			let kept: boolean = false;
+			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: string): boolean => {
+				kept = !kept;
+				return kept;
+			}), "next", 12, false, 12), 12) as rt.VecDeque<string>;
+		}
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true), 12) as rt.VecDeque<string>;
 	}
-	const v: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
-	rt.vecReserve(v, skip, 12);
-	const it3: rt.Iter<string> = rt.iterSlice(v);
+	const v2: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
+	rt.vecReserve(v2, skip, 12);
+	const it3: rt.Iter<string> = rt.iterSlice(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -734,7 +743,8 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
- * whose buffers std's takes as they are, or from a `Vec` it collects.
+ * whose buffers std's takes as they are, or from a `Vec` it collects, directly or through
+ * adaptors in place of another.
  */
 export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeque<Big.Big> {
 	let _0!: rt.VecDeque<Big.Big>;
@@ -770,11 +780,19 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 		return rt.dequeFromIntoIter(it2, 1101) as rt.VecDeque<Big.Big>;
 	}
 	if (_8 === 3) {
+		if (!((arg & 32) === 0)) {
+			const v: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
+			let kept: boolean = false;
+			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: Big.Big): boolean => {
+				kept = !kept;
+				return kept;
+			}), "next", 1101, false, 1101), 1101) as rt.VecDeque<Big.Big>;
+		}
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true), 1101) as rt.VecDeque<Big.Big>;
 	}
-	const v: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
-	rt.vecReserve(v, skip, 1101);
-	const it3: rt.Iter<Big.Big> = rt.iterSlice(v);
+	const v2: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
+	rt.vecReserve(v2, skip, 1101);
+	const it3: rt.Iter<Big.Big> = rt.iterSlice(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -791,7 +809,8 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
- * whose buffers std's takes as they are, or from a `Vec` it collects.
+ * whose buffers std's takes as they are, or from a `Vec` it collects, directly or through
+ * adaptors in place of another.
  */
 export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u32> {
 	let _0!: rt.VecDeque<rt.u32>;
@@ -827,11 +846,19 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 		return rt.dequeFromIntoIter(it2, 4) as rt.VecDeque<rt.u32>;
 	}
 	if (_8 === 3) {
+		if (!((arg & 32) === 0)) {
+			const v: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
+			let kept: boolean = false;
+			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: rt.u32): boolean => {
+				kept = !kept;
+				return kept;
+			}), "next", 4, false, 4), 4) as rt.VecDeque<rt.u32>;
+		}
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true), 4) as rt.VecDeque<rt.u32>;
 	}
-	const v: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
-	rt.vecReserve(v, skip, 4);
-	const it3: rt.Iter<rt.u32> = rt.iterSlice(v);
+	const v2: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
+	rt.vecReserve(v2, skip, 4);
+	const it3: rt.Iter<rt.u32> = rt.iterSlice(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -848,7 +875,8 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
- * whose buffers std's takes as they are, or from a `Vec` it collects.
+ * whose buffers std's takes as they are, or from a `Vec` it collects, directly or through
+ * adaptors in place of another.
  */
 export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8> {
 	let _0!: rt.VecDeque<rt.u8>;
@@ -884,11 +912,19 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 		return rt.dequeFromIntoIter(it2, 1, true) as rt.VecDeque<rt.u8>;
 	}
 	if (_8 === 3) {
+		if (!((arg & 32) === 0)) {
+			const v: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
+			let kept: boolean = false;
+			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.byteVecIntoIter(v), (_2: rt.u8): boolean => {
+				kept = !kept;
+				return kept;
+			}), "next", 1, false, 1), 1, true) as rt.VecDeque<rt.u8>;
+		}
 		return rt.dequeFromVec(rt.byteVecToVec(rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true)), 1, true) as rt.VecDeque<rt.u8>;
 	}
-	const v: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
-	rt.byteVecReserve(v, skip);
-	const it3: rt.Iter<rt.u8> = rt.byteVecIntoIter(v);
+	const v2: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
+	rt.byteVecReserve(v2, skip);
+	const it3: rt.Iter<rt.u8> = rt.byteVecIntoIter(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -905,7 +941,8 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
  * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
- * whose buffers std's takes as they are, or from a `Vec` it collects.
+ * whose buffers std's takes as they are, or from a `Vec` it collects, directly or through
+ * adaptors in place of another.
  */
 export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<undefined> {
 	let _0!: rt.VecDeque<undefined>;
@@ -941,11 +978,19 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 		return rt.dequeFromIntoIter(it2, 0) as rt.VecDeque<undefined>;
 	}
 	if (_8 === 3) {
+		if (!((arg & 32) === 0)) {
+			const v: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
+			let kept: boolean = false;
+			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: undefined): boolean => {
+				kept = !kept;
+				return kept;
+			}), "next", 0), 0) as rt.VecDeque<undefined>;
+		}
 		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true), 0) as rt.VecDeque<undefined>;
 	}
-	const v: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
-	rt.vecReserve(v, skip, 0);
-	const it3: rt.Iter<undefined> = rt.iterSlice(v);
+	const v2: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
+	rt.vecReserve(v2, skip, 0);
+	const it3: rt.Iter<undefined> = rt.iterSlice(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {

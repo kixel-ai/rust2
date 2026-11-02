@@ -72,7 +72,7 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	v2.push(_105);
 	const even: Guard.Guard[] = rt.iterToArray(rt.iterFilter(rt.iterSlice(v2, rt.drop), (g4: Guard.Guard): boolean => {
 		return rt.u32Rem(Guard.id(g4), 2) === 0;
-	}, rt.drop), "next", 8);
+	}, rt.drop), "next", 8, false, 8);
 	const part3 = even.length;
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part3, f)];
 	Log.note(log, rt.fmtFormat(["even ", args6[0]]));
@@ -316,7 +316,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	v.push(_18);
 	const _23: Guard.Guard = guard(3);
 	v.push(_23);
-	const same: Guard.Guard[] = rt.iterToArray(rt.iterSlice(v, rt.drop), "next", 8, true);
+	const same: Guard.Guard[] = rt.iterToArray(rt.iterSlice(v, rt.drop), "next", 8, true, 8);
 	const v2: Guard.Guard[] = [];
 	const _33: Guard.Guard = guard(4);
 	v2.push(_33);
@@ -354,7 +354,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 			return rt.Ok(g2);
 		}
 		return rt.Err(g2);
-	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8), lib_drop$Vec_model_Guard);
+	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8, false, 8), lib_drop$Vec_model_Guard);
 	const part = results.ok;
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part, f)];
 	Log.note(log, rt.fmtFormat(["result ", args4[0]]));
@@ -368,7 +368,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	v6.push(_140);
 	const part2 = option_mapOr$0vxyhav(rt.iterCollectOption(rt.iterMap(rt.iterSlice(v6, rt.drop), (g3: Guard.Guard): Guard.Guard | undefined => {
 		return g3;
-	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8), lib_drop$Vec_model_Guard), 0, (v12: Guard.Guard[]): rt.usize => {
+	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8, false, 8), lib_drop$Vec_model_Guard), 0, (v12: Guard.Guard[]): rt.usize => {
 		const _06: rt.usize = v12.length;
 		rt.dropAll(v12);
 		return _06;
@@ -383,7 +383,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	const _172: [rt.u32, Guard.Guard] = [2, guard(18)];
 	v7.push(_172);
 	const _155: rt.Iter<[rt.u32, Guard.Guard]> = rt.iterSlice(v7, lib_drop$tuple2_u32_model_Guard);
-	const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_155, "next", 12, true), 12, true, undefined, undefined, rt.drop);
+	const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_155, "next", 12, true, 12), 12, true, undefined, undefined, rt.drop);
 	const part3 = rt.btreeLen(tree);
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part3, f)];
 	Log.note(log, rt.fmtFormat(["tree ", args8[0]]));
@@ -396,7 +396,7 @@ export function collected(log: Log.Log, id: rt.u32): void {
 		const at = rt.idx(same, 0);
 		_2[Symbol.dispose]();
 		return same[at];
-	}), "next", 4, true).length;
+	}), "next", 4, true, 8).length;
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part4, f)];
 	Log.note(log, rt.fmtFormat(["refs ", args10[0]]));
 	const v9: Guard.Guard[] = [];

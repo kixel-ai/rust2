@@ -866,13 +866,13 @@ const gets = [0, 0x10].flatMap((text) => {
  * it tries.
  */
 const capacityCases = [
-	...[["capacity::vecs", 25], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 29], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) * 4 }, (_, i) => {
 			const [kind, first, step, arg] = [i % 5, (Math.floor(i / 5) % 2) * 0x11, Math.floor(i / 10) % (steps as number), [3, 0xc1, 0xe3, 0x16][Math.floor(i / (10 * (steps as number)))]];
 			return Uint8Array.of(...op(name as string), kind, first, ...[0, 1, 0, 2, 0, 3, 0, 4, 0, 5].map((b, j) => (j % 2 === 0 ? b : b * 41)), step, arg, step, arg ^ 1);
 		}),
 	),
-	...[["capacity::vecs", 25], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 29], ["capacity::deques", 21], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) }, (_, i) => Uint8Array.of(...op(name as string), i % 5, 0, 0, 1, 3 + (Math.floor(i / 5) % 2), 3, Math.floor(i / 10), 0)),
 	),
 	...["capacity::vecs", "capacity::deques", "capacity::heaps"].flatMap((name) =>
@@ -895,10 +895,11 @@ const ringsCases = Array.from({ length: 5 * 3 * 4 * 24 * 3 }, (_, i) => {
 
 /**
  * `rings::slices` remaking each wrapped deque each way and with a few skips: a clone,
- * `clone_from`, `clone_into`, its `into_iter` read in part and by `nth`, from a `Vec`, and
- * a `Vec`'s `into_iter` read in part, collected as it is and cloned; then pushed at both ends.
+ * `clone_from`, `clone_into`, its `into_iter` read in part and by `nth`, from a `Vec` as it
+ * is and filtered in place, and a `Vec`'s `into_iter` read in part, collected as it is and
+ * cloned; then pushed at both ends.
  */
-const remadeCases = [0, 5, 0x2d, 0x37, 0x64, 0x6e, 1, 0x10, 2, 0x11, 3, 0x0e, 0x13, 0x45, 0x5f].flatMap((arg) =>
+const remadeCases = [0, 5, 0x2d, 0x37, 0x64, 0x6e, 1, 0x10, 2, 0x11, 3, 0x21, 0x0e, 0x13, 0x45, 0x5f].flatMap((arg) =>
 	Array.from({ length: 5 * 3 * 4 }, (_, i) => {
 		const [kind, first, wraps] = [i % 5, [0, 0x15, 0x1e][Math.floor(i / 5) % 3], [1, 3, 6, 10][Math.floor(i / 15)]];
 		const wrap = Array.from({ length: wraps }, (_, j) => [j % 3 === 2 ? 4 : 0, j * 3, 6, 0, 4, j]).flat();

@@ -2555,7 +2555,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				} else if (_574 === 4) {
 					rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(z7, (_2205: [rt.u8, rt.u8]): rt.u8 => {
 						return _2205[0] ^ _2205[1];
-					}), undefined, true)), undefined, true);
+					}), undefined, true, 1)), undefined, true);
 				} else if (_574 === 5) {
 					rt.byteVecPush(out, rt.iterFold(z7, 0, (acc4: rt.u8, p14: [rt.u8, rt.u8]): rt.u8 => {
 						return rt.u8WrappingMul(acc4, 3) ^ _573(p14);
@@ -2725,7 +2725,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else if (_751 === 4) {
 				rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(z9, (_2192: [rt.u8, rt.u8]): rt.u8 => {
 					return _2192[0] ^ _2192[1];
-				}), undefined, true)), undefined, true);
+				}), undefined, true, 1)), undefined, true);
 			} else if (_751 === 5) {
 				rt.byteVecPush(out, rt.iterFold(z9, 0, (acc3: rt.u8, p12: [rt.u8, rt.u8]): rt.u8 => {
 					return rt.u8WrappingMul(acc3, 3) ^ _750(p12);

@@ -576,7 +576,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 				return _25 > ((b4 as rt.u32));
 			}), (x3: rt.u32): rt.u32 => {
 				return rt.u32Div(x3, 2);
-			}), "next", 4);
+			}), "next", 4, false, 4);
 		})();
 		return held.length === 0;
 	}) as rt.u32)));

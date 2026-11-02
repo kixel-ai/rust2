@@ -15,8 +15,13 @@ capacity the runtime models for the `Vec`, which holds only std's guarantees (de
 2026-11-01) and so recomputes from its length after a pop, `truncate`, or `drain`. A
 `Vec<u8>` already holds its exact capacity as its buffer's length.
 
-- Record the capacity where a step shrinks the length, and measure its cost on pops with
-  the codec's [TS benchmark](/ts/README.md#bench).
-- Needs the maintainer's call against the 2026-11-01 decision.
+- Recording the capacity on the array where a step shrinks the length (a `peak` each pop
+  raises) was measured on `push/stack`, which pushes onto a `Vec`, popping one every
+  fourth push, then pops it empty: 1.24x in Node, 1.11x in Chrome, 2.3x in Bun, and 2.8x
+  in Firefox, every other workload within noise. The maintainer kept the guarantee-only
+  model on 2026-11-02, accepting that a deque made from a shrunk `Vec` may split
+  differently from std's.
+- Untried: a `Vec` as a wrapper object holding its own length and capacity over its
+  array, measured on the same workload before it is weighed against that decision.
 
 Public API: the translator's output.

@@ -23,6 +23,9 @@
   `rt.vecReserve(v, additional, 4)`, not the arithmetic an extend reserved by;
   `rt.vecPush` and `rt.vecGrow` are gone. `rt.heapClone` takes the element size after the
   clone function.
+- `rt.vecExtendFromSlice` takes the element size in bytes after the slice, as in
+  `rt.vecExtendFromSlice(v, s, 4)`. `rt.iterToArray` and `rt.iterToByteVec` take the
+  source element size of a `collect` that may reuse its source's buffer last.
 - An `rt.VecDeque` holds std's capacity as its buffer's length and its item size as `s`,
   and a deque of bytes is a `Uint8Array`: `rt.dequeNew`, `rt.dequeWithCapacity`, and
   `rt.dequeFromVec` take the item size and whether it holds bytes, as in

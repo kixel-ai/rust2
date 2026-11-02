@@ -250,7 +250,7 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, !rt.eqSlice(edits_Named.eq$cmp_PartialEq)(changed, named2) ? 1 : 0);
 		rt.byteVecPush(out, rt.cmpSlice(edits_Named.partialCmp$cmp_PartialOrd)(changed, named2) === -1 ? 1 : 0);
 		const _435: edits_Named.Named[] = rt.sliceRange(named2, 0, rt.usizeDiv(named2.length, 2));
-		rt.vecExtendFromSlice(changed, _435, edits_Named.clone$Clone);
+		rt.vecExtendFromSlice(changed, _435, 16, edits_Named.clone$Clone);
 		rt.byteVecPush(out, changed.length & 0xff);
 		const nested: rt.u16[][] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_29: rt.u8): rt.u16[] => {
 			const b5: rt.u8 = _29;
@@ -272,7 +272,7 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _491: [rt.u8, rt.u8] = [at(1), at(0)];
 		rt.byteVecPush(out, rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])(_483, _491) === -1 ? 1 : 0);
 		const grown: rt.u16[] = rt.vecExact(words.slice(), 2);
-		rt.vecExtendFromSlice(grown, words);
+		rt.vecExtendFromSlice(grown, words, 2);
 		putU16s(out, grown);
 	} else if (_8 === 5) {
 		let tally: edits_Tally.Tally = { n: at(0), names: [strs_text(data)] };

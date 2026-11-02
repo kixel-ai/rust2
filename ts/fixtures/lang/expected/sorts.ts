@@ -730,7 +730,7 @@ export function btrees(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 	}
 	const keys_: rt.u16[] = keys(rt.min([0, 1, 2, 9, 13, 16, 17, 18, 20, 21, 32, 33, 48, 64, 65, 100, 300, 2000, 4096, 4097][_8], 300), dataData, dataStart, dataLen);
 	const _17: rt.Iter<sorts_Item.Item<undefined>> = rt.iterSlice(items$unit_sorts_btrees_closure0(keys_, (): undefined => {}));
-	put$unit(rt.iterToArray(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(sorts_Item.cmp$cmp_Ord_unit) as rt.BTreeSet<sorts_Item.Item<undefined>>, rt.iterToArray(_17, "next", 4, true), 4, true, sorts_Item.lt$cmp_PartialOrd_unit, sorts_Item.eq$cmp_PartialEq_unit)), undefined, 4, true), out);
+	put$unit(rt.iterToArray(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(sorts_Item.cmp$cmp_Ord_unit) as rt.BTreeSet<sorts_Item.Item<undefined>>, rt.iterToArray(_17, "next", 4, true, 4), 4, true, sorts_Item.lt$cmp_PartialOrd_unit, sorts_Item.eq$cmp_PartialEq_unit)), undefined, 4, true), out);
 	const _27: rt.Iter<[sorts_Item.Item<undefined>, rt.u16]> = rt.iterMap(rt.iterSlice(items$unit_sorts_btrees_closure1(keys_, (): undefined => {})), (x: sorts_Item.Item<undefined>): [sorts_Item.Item<undefined>, rt.u16] => {
 		return [x, x.tag] as [sorts_Item.Item<undefined>, rt.u16];
 	});
