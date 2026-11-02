@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { copy$Option_tuple2_u8_u8, copy$array_Option_tuple2_u8_u8, copy$mem_MaybeUninit_Result_tuple2_u32_u32_u8, drop$elements_Inline_Option_tuple2_u8_u8, drop$elements_Inline_sync_Arc_u8 } from "./lib.ts";
 import { thenSome$03chm1q } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1fmzefe as option_map$1fmzefe, mapOr$1nlkf9b as option_mapOr$1nlkf9b } from "./core/option.ts";
+import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1fmzefe as option_map$1fmzefe, mapOr$0grxkdu as option_mapOr$0grxkdu, mapOr$1nlkf9b as option_mapOr$1nlkf9b } from "./core/option.ts";
 import { offsetFrom } from "./elements/mine/ptr.ts";
 import { fromRawPartsMut } from "./elements/mine/raw.ts";
 import * as Inline from "./elements.Inline.ts";
@@ -75,9 +75,9 @@ export function arrays(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _40: rt.Place<rt.u16> = rt.ptrAdd(rt.ptrAdd(p, 3), -3);
 		_40.v = rt.u16Add(_40.v, 2);
 		rt.byteVecPush(out, rt.ptrOffsetFrom(rt.ptrAdd(p, 4), p) & 0xff);
-		const tail: rt.Place<rt.u16[]> = { v: rt.ptrSlice(rt.ptrAdd(p, i), rt.usizeSub(5, i)) };
-		rt.byteVecPush(out, tail.v.length & 0xff);
-		rt.sliceAsPtr(tail.v).v = 7;
+		const tail: rt.RawSlice<rt.u16> = new rt.RawSlice(rt.ptrAdd(p, i), rt.usizeSub(5, i));
+		rt.byteVecPush(out, tail.deref().length & 0xff);
+		tail.ptr.v = 7;
 		const unit: rt.Place<undefined> = rt.DANGLING_UNIT;
 		n as rt.usize;
 		rt.byteVecPush(out, unit === unit ? 1 : 0);
@@ -204,12 +204,13 @@ export function inline(data: rt.ByteSlice, out: rt.ByteVec): void {
  * Pointers wrapped around wasm32's 32-bit addresses and back, to a value in no array, as
  * the array of one Rust treats it as, and into a mutable part of an array, measured from
  * the array, the pointer an empty slice keeps, within a shared part, which JS copies,
- * memory nothing wrote copied, null and dangling pointers moved by address, and the crate's
+ * a `&mut` into that part, memory nothing wrote copied, null and dangling pointers moved by
+ * address, kept by empty raw slices, and cast from pointers to arrays, and the crate's
  * functions named as std's.
  */
 export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
-	let _189!: rt.Result<[rt.u32, rt.u32], rt.u8>;
-	let _195!: rt.u8;
+	let _200!: rt.Result<[rt.u32, rt.u32], rt.u8>;
+	let _206!: rt.u8;
 	for (const n of rt.byteSliceView(data)) {
 		const bytes: Uint8Array = Uint8Array.of(n, 1, 2, 3);
 		const p: rt.Place<rt.u8> = rt.byteSliceAsPtr(rt.byteSliceFrom(bytes));
@@ -242,6 +243,9 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const at2: rt.Place<rt.u32> = rt.sliceAsPtr(part, 1);
 		rt.byteVecPush(out, rt.ptrOffsetFrom(at2, base) & 0xff);
 		at2.v = rt.u32Add(at2.v, 5);
+		const got: rt.Place<rt.u32> = rt.optionUnwrap(rt.sliceGetMut(part, 0));
+		rt.byteVecPush(out, rt.ptrOffsetFrom(got, base) & 0xff);
+		rt.byteVecPush(out, rt.ptrAdd(got, -1).v & 0xff);
 		rt.byteVecPush(out, rt.ptrOffsetFrom(rt.sliceAsPtr(rt.ptrSlice(rt.ptrAdd(at2, 1), 0)), base) & 0xff);
 		rt.byteVecPush(out, rt.ptrOffsetFrom(rt.byteSliceAsPtr(rt.ptrByteSlice(rt.ptrAdd(rt.byteSliceAsPtr(rt.byteSliceFrom(bytes)), 2), 0, true)), p) & 0xff);
 		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(a), (_2: rt.u32): rt.u8 => {
@@ -251,11 +255,11 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const first: rt.Place<rt.u32> = rt.sliceAsPtr(rt.sliceRange(lanes, 1, 3));
 		rt.byteVecPush(out, rt.ptrAdd(first, 1).v & 0xff);
 		rt.byteVecPush(out, rt.ptrOffsetFrom(rt.ptrAdd(first, 2), first) & 0xff);
-		const _159: rt.u32[] = rt.ptrSlice(rt.ptrAdd(first, 1), 1);
-		rt.idx(_159, 0);
-		rt.byteVecPush(out, _159[0] & 0xff);
-		const _166: [rt.u32, rt.u8] = [n as rt.u32, n];
-		let x: rt.u32 = _166[0];
+		const _170: rt.u32[] = rt.ptrSlice(rt.ptrAdd(first, 1), 1);
+		rt.idx(_170, 0);
+		rt.byteVecPush(out, _170[0] & 0xff);
+		const _177: [rt.u32, rt.u8] = [n as rt.u32, n];
+		let x: rt.u32 = _177[0];
 		let y: rt.u8 = n;
 		rt.byteVecPush(out, offsetFrom(rt.place(() => x, (value3) => x = value3), rt.place(() => x, (value4) => x = value4)) & 0xff);
 		rt.byteVecPush(out, fromRawPartsMut(rt.place(() => y, (value5) => y = value5), 2));
@@ -268,32 +272,231 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return copy$mem_MaybeUninit_Result_tuple2_u32_u32_u8(item);
 		})), rt.sliceAsPtr(dst), 2, copy$mem_MaybeUninit_Result_tuple2_u32_u32_u8);
 		if (!((n & 1) === 0)) {
-			_189 = rt.Err(n);
+			_200 = rt.Err(n);
 		} else {
-			_189 = rt.Ok([x, 1] as [rt.u32, rt.u32]);
+			_200 = rt.Ok([x, 1] as [rt.u32, rt.u32]);
 		}
 		const uninit = rt.place(() => dst[1], (value6) => dst[1] = value6);
-		uninit.v = _189;
+		uninit.v = _200;
 		uninit;
-		const _196: rt.Result<[rt.u32, rt.u32], rt.u8> = dst[1];
-		if (_196.ok) {
-			_195 = rt.u32Add(_196.value[0], _196.value[1]) & 0xff;
+		const _207: rt.Result<[rt.u32, rt.u32], rt.u8> = dst[1];
+		if (_207.ok) {
+			_206 = rt.u32Add(_207.value[0], _207.value[1]) & 0xff;
 		} else {
-			_195 = _196.error;
+			_206 = _207.error;
 		}
-		rt.byteVecPush(out, _195);
+		rt.byteVecPush(out, _206);
 		const null_: rt.Place<rt.u32> = rt.NULL;
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.ptrWrappingAdd(null_, 1, 4, 4), -1, 4, 4) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(null_, n as rt.usize, 4, 4) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(null_, 1 << 30, 4, 4) === rt.NULL ? 1 : 0);
-		const _226: [rt.Place<rt.u32>, rt.Place<rt.u32>] = [rt.ptrWrappingAdd(null_, rt.usizeAdd(n as rt.usize, 1), 4, 4), rt.ptrWrappingAdd(null_, rt.usizeAdd(n as rt.usize, 1), 4, 4)];
-		rt.byteVecPush(out, rt.ptrOffsetFrom(_226[0], _226[1]) & 0xff);
+		const _237: [rt.Place<rt.u32>, rt.Place<rt.u32>] = [rt.ptrWrappingAdd(null_, rt.usizeAdd(n as rt.usize, 1), 4, 4), rt.ptrWrappingAdd(null_, rt.usizeAdd(n as rt.usize, 1), 4, 4)];
+		rt.byteVecPush(out, rt.ptrOffsetFrom(_237[0], _237[1]) & 0xff);
 		const dangling: rt.Place<rt.u16> = rt.DANGLING;
 		rt.byteVecPush(out, rt.ptrWrappingAdd(dangling, -1, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(dangling, 4294967295, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.ptrWrappingAdd(dangling, -((n as rt.usize)), 2, 2), n as rt.usize, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.DANGLING, rt.isizeSub(rt.u8Rem(n, 3) as rt.isize, 1), 8, 8) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(new rt.RawSlice(rt.DANGLING, 0).ptr, -1, 2, 2) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
+		const none2: rt.ByteSlice = rt.ptrByteSlice(rt.DANGLING, 0, true);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(none2), -1, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.byteSliceRange(none2, 0, 0)), -1, 1, 1) === rt.NULL ? 1 : 0);
+		const wide2: rt.u16[] = rt.ptrSlice(rt.DANGLING, 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.sliceRange(wide2, 0, 0)), -1, 2, 2) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.optionUnwrap(rt.sliceGetRange(wide2, 0, 0))), -1, 2, 2) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, new rt.RawSlice(rt.sliceAsPtr(rt.NULL), 3).ptr === rt.NULL ? 1 : 0);
+		const row: rt.u32[] = [n as rt.u32, 9, 10];
+		const unsizedLanes: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.sliceAsPtr(row), 3);
+		rt.byteVecPush(out, unsizedLanes.ptr === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrAdd(unsizedLanes.ptr, 2).v & 0xff);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(new rt.RawSlice(rt.ptrWrappingAdd(rt.NULL, rt.usizeAdd(rt.u8Rem(n, 3) as rt.usize, 1), 4, 4), 0).ptr, -rt.usizeAdd(rt.u8Rem(n, 3) as rt.usize, 1), 4, 4) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.sliceAsPtr(rt.NULL) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.NULL), n as rt.usize, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.DANGLING), -1, 2, 2) === rt.NULL ? 1 : 0);
 	}
+}
+
+/**
+ * Raw pointers to slices, each where it starts and how long it is: read and written
+ * through, whole and in part, of bytes too, made longer than what is there and never
+ * read past it, `NonNull`'s, a boxed slice's, and null's.
+ */
+export function rawSlices(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const n: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
+	const v: rt.u32[] = rt.iterToArray(rt.iterChain(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u32 => {
+		return _2 as rt.u32;
+	}), rt.iterSlice([5, 6, 7])), undefined, 4, true);
+	const len: rt.usize = v.length;
+	const p: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.sliceAsPtr(v), len);
+	rt.idx(p, 0);
+	const _19: rt.u32 = rt.u32Add(p.deref()[0], 1);
+	p.deref()[0] = _19;
+	const _20: rt.u32 = n as rt.u32;
+	const _21: rt.usize = rt.usizeSub(len, 1);
+	rt.idx(p, _21);
+	p.deref()[_21] = _20;
+	rt.byteVecPush(out, p.deref().length & 0xff);
+	rt.byteVecPush(out, p.length & 0xff);
+	rt.idx(p, 1);
+	rt.byteVecPush(out, p.deref()[1] & 0xff);
+	const tail: rt.u32[] = rt.sliceRangeMut(p.deref(), 1);
+	rt.idx(tail, 0);
+	tail[0] = 9;
+	rt.byteVecPush(out, rt.iterSum(rt.iterSlice(p.deref()), rt.u32Add, 0) & 0xff);
+	emit(v, out);
+	const bytes: rt.ByteVec = rt.byteSliceToByteVec(data);
+	rt.iterExtendBytes(bytes, rt.iterSlice(Uint8Array.of(3, 4)), undefined, true);
+	const b: rt.RawSlice<rt.u8> = new rt.RawSlice(rt.byteVecAsPtr(bytes), bytes.length);
+	rt.idx(b, 0);
+	const slice2 = b.derefBytes(false);
+	const slice3 = b.derefBytes(false);
+	slice3.data[slice3.start] = slice2.data[slice2.start] ^ 255;
+	const _67: rt.usize = rt.usizeSub(b.derefBytes(false).length, 1);
+	rt.idx(b, _67);
+	const slice4 = b.derefBytes(false);
+	rt.byteVecPush(out, slice4.data[slice4.start + _67]);
+	rt.byteVecPush(out, rt.byteSliceRange(b.derefBytes(false), 1).length & 0xff);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(bytes)), undefined, true);
+	const short: rt.u32[] = [n as rt.u32, 1];
+	const long: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.sliceAsPtr(short), 10);
+	rt.byteVecPush(out, long.length & 0xff);
+	rt.byteVecPush(out, rt.ptrAdd(long.ptr, 1).v & 0xff);
+	const pointer = rt.sliceAsPtr(v);
+	const nn: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.optionUnwrap(pointer === rt.NULL ? undefined : pointer), 2);
+	rt.byteVecPush(out, nn.length & 0xff);
+	const _103: rt.RawSlice<rt.u32> = nn;
+	rt.idx(_103, 1);
+	_103.deref()[1] = 11;
+	const _110: rt.u32[] = nn.deref();
+	rt.idx(_110, 1);
+	rt.byteVecPush(out, _110[1] & 0xff);
+	const pointer2 = nn;
+	rt.byteVecPush(out, option_mapOr$0grxkdu(pointer2.ptr === rt.NULL ? undefined : pointer2.deref(), 0, (s: rt.u32[]): rt.u32 => {
+		rt.idx(s, 0);
+		return s[0];
+	}) & 0xff);
+	const _121: rt.u32[] = nn.deref();
+	rt.idx(_121, 0);
+	_121[0] = 12;
+	const pointer3 = rt.byteVecAsPtr(bytes);
+	const two: rt.RawSlice<rt.u8> = new rt.RawSlice(rt.optionUnwrap(pointer3 === rt.NULL ? undefined : pointer3), 2);
+	const _132: rt.ByteSlice = two.derefBytes(false);
+	rt.idx(_132, 1);
+	_132.data[_132.start + 1] = _132.data[_132.start + 1] ^ 15;
+	const _140: rt.ByteSlice = two.derefBytes(true);
+	rt.idx(_140, 1);
+	rt.byteVecPush(out, _140.data[_140.start + 1]);
+	const null_: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.NULL, 0);
+	const pointer4 = null_;
+	rt.byteVecPush(out, ((pointer4.ptr === rt.NULL ? undefined : pointer4)) === undefined ? 1 : 0);
+	const pointer5 = null_;
+	rt.byteVecPush(out, ((pointer5.ptr === rt.NULL ? undefined : pointer5.deref())) === undefined ? 1 : 0);
+	const raw: rt.RawSlice<rt.u32> = rt.rawSliceOf([n as rt.u32, 2, 3]);
+	rt.idx(raw, 2);
+	raw.deref()[2] = 8;
+	emit(raw.deref(), out);
+	const whole2: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.sliceAsPtr(short), 2);
+	const ofRef: rt.RawSlice<rt.u32> = rt.rawSliceOf(rt.sliceRange(v, 1, 3));
+	rt.byteVecPush(out, rt.usizeAdd(whole2.length, ofRef.length) & 0xff);
+	rt.idx(ofRef, 1);
+	rt.byteVecPush(out, ofRef.deref()[1] & 0xff);
+	emit(v, out);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(bytes)), undefined, true);
+}
+
+/**
+ * Empty slices made from pointers into no array, a dangling one and one off null, each
+ * part of which keeps the pointer as Rust's does: after moving back to address 0 it is null.
+ */
+export function emptyParts(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const _130: (a0: rt.Place<rt.u8>) => rt.u8 = (p2: rt.Place<rt.u8>): rt.u8 => {
+		return rt.ptrWrappingAdd(p2, -1, 1, 1) === rt.NULL ? 1 : 0;
+	};
+	const k: rt.usize = rt.usizeAdd(rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0), 4) as rt.usize, 1);
+	const wide: rt.Place<rt.u16> = rt.DANGLING;
+	const off: rt.Place<rt.u16> = rt.ptrWrappingAdd(rt.NULL, k, 2, 2);
+	const iter: rt.Iter<[rt.u16[], rt.usize]> = rt.iterSlice([[rt.ptrSlice(wide, 0), 1] as [rt.u16[], rt.usize], [rt.ptrSlice(off, 0), k] as [rt.u16[], rt.usize]]);
+	while (true) {
+		const _23: [rt.u16[], rt.usize] | rt.Done = iter.next();
+		if (_23 === rt.DONE) {
+			break;
+		}
+		const back: rt.usize = _23[1];
+		const null_: (a0: rt.Place<rt.u16>) => rt.u8 = (p3: rt.Place<rt.u16>): rt.u8 => {
+			return rt.ptrWrappingAdd(p3, -back, 2, 2) === rt.NULL ? 1 : 0;
+		};
+		const _32: [rt.u16[], rt.u16[]] = rt.sliceSplitAt(_23[0], 0);
+		const part = rt.sliceAsPtr(_32[0]);
+		const _35: rt.u8 = null_(part);
+		const part2 = rt.sliceAsPtr(_32[1]);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_35, null_(part2))), undefined, true);
+		const _45: [rt.u16[], rt.u16[]] = rt.optionUnwrap(rt.sliceSplitAtChecked(_23[0], 0));
+		const part3 = rt.sliceAsPtr(_45[0]);
+		const _49: rt.u8 = null_(part3);
+		const part4 = rt.sliceAsPtr(_45[1]);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_49, null_(part4))), undefined, true);
+		const part5 = rt.sliceAsPtr(rt.partsRemainder(rt.sliceChunksExact(_23[0], 2)));
+		rt.byteVecPush(out, null_(part5));
+		const part6 = rt.sliceAsPtr(rt.partsRemainder(rt.sliceRchunksExact(_23[0], 3)));
+		rt.byteVecPush(out, null_(part6));
+		rt.iterExtendBytes(out, rt.iterMap(rt.sliceSplit(_23[0], (_2: rt.u16): boolean => {
+			return _2 === 0;
+		}), (part7: rt.u16[]): rt.u8 => {
+			return null_(rt.sliceAsPtr(part7));
+		}), "next");
+		rt.iterExtendBytes(out, rt.iterMap(rt.sliceRsplit(_23[0], (_22: rt.u16): boolean => {
+			return _22 === 0;
+		}), (part9: rt.u16[]): rt.u8 => {
+			return null_(rt.sliceAsPtr(part9));
+		}), "next");
+		rt.iterExtendBytes(out, rt.iterMap(rt.sliceSplitn(_23[0], 2, (_24: rt.u16): boolean => {
+			return _24 === 0;
+		}), (part11: rt.u16[]): rt.u8 => {
+			return null_(rt.sliceAsPtr(part11));
+		}), "next");
+		const part13 = rt.sliceAsPtr(rt.optionUnwrap(rt.sliceGetRange(_23[0], 0, 0)));
+		rt.byteVecPush(out, null_(part13));
+		const part14 = rt.sliceAsPtr(rt.optionUnwrap(rt.sliceLastChunk(_23[0], 0)));
+		rt.byteVecPush(out, null_(part14));
+		const part15 = rt.sliceAsPtr(rt.optionUnwrap(rt.sliceGetRange(_23[0], 0)));
+		rt.byteVecPush(out, null_(part15));
+		const part16 = rt.sliceAsPtr(rt.sliceRange(_23[0], 0, 0));
+		rt.byteVecPush(out, null_(part16));
+		rt.byteVecPush(out, rt.sliceSplitFirst(_23[0]) === undefined ? 1 : 0);
+		rt.byteVecPush(out, rt.iterCount(rt.sliceChunks(_23[0], 2)) & 0xff);
+	}
+	const byte: rt.Place<rt.u8> = rt.DANGLING;
+	const s: rt.ByteSlice = rt.ptrByteSlice(byte, 0, false);
+	const part17 = rt.byteSliceAsPtr(s);
+	rt.byteVecPush(out, _130(part17));
+	const _139: [rt.ByteSlice, rt.ByteSlice] = rt.byteSliceSplitAt(s, 0);
+	const part18 = rt.byteSliceAsPtr(_139[0]);
+	const _142: rt.u8 = _130(part18);
+	const part19 = rt.byteSliceAsPtr(_139[1]);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_142, _130(part19))), undefined, true);
+	const part20 = rt.byteSliceAsPtr(rt.byteSliceRange(s, 0));
+	rt.byteVecPush(out, _130(part20));
+	const part21 = rt.byteSliceAsPtr(rt.optionUnwrap(rt.iterToOption(rt.byteSliceSplit(s, (_25: rt.u8): boolean => {
+		return _25 === 0;
+	}).next())));
+	rt.byteVecPush(out, _130(part21));
+	const raw: rt.RawSlice<rt.u16> = new rt.RawSlice(off, 0);
+	rt.byteVecPush(out, raw.length & 0xff);
+	rt.byteVecPush(out, rt.ptrWrappingAdd(raw.ptr, -k, 2, 2) === rt.NULL ? 1 : 0);
+	const part22 = rt.ptrWrappingAdd(new rt.RawSlice(byte, 0).ptr, 0, 1, 1);
+	rt.byteVecPush(out, _130(part22));
+	let lone: rt.u8 = data.length & 0xff;
+	const p: rt.Place<rt.u8> = rt.place(() => lone, (value) => lone = value);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(rt.byteSliceAsPtr(rt.ptrByteSlice(p, 0, true)), p) & 0xff);
+	rt.byteVecPush(out, rt.ptrOffsetFrom(rt.byteSliceAsPtr(rt.ptrByteSlice(rt.ptrAdd(p, 1), 0, true)), p) & 0xff);
+	let held: rt.u8 = lone;
+	const q: rt.Place<rt.u8> = rt.place(() => held, (value2) => held = value2);
+	const r: rt.ByteSlice = rt.ptrByteSlice(q, 0, false);
+	rt.byteVecPush(out, rt.u8Add(r.length & 0xff, rt.ptrOffsetFrom(rt.byteSliceAsPtr(r), q) & 0xff));
 }
 
 export function emit(values: rt.u32[], out: rt.ByteVec): void {

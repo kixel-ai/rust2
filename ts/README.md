@@ -228,7 +228,9 @@ translate, as do `Display` and `Debug` impls, derived and thiserror's included. 
 runtime ports `core::fmt`, so the text matches native Rust's byte for byte. A placeholder
 becomes a function writing its value, and `fmt::Arguments` an array of literal pieces
 and such functions: `rt.fmtWriteFmt(f, ["code=", (f) => rt.u16Display(code, f)])`. A `&dyn
-Debug` or `&dyn Display` is such a function too. Format specs take every option but `{:p}`:
+Debug` or `&dyn Display` is such a function too, and so is a `Box` of one, `rt.fmtOwned`
+of the value, which drops it as the box drops, and an `Arc` or `Rc` of one, which the last
+pointer drops, as an `Arc` of the crate's own trait object does. Format specs take every option but `{:p}`:
 fill, alignment, `+`, `#`, `0`, `x?` and `X?`, a width and a precision, each also from an
 argument, and `x`, `X`, `o`, `b`, `e`, and `E` for integers, `e` and `E` for floats. An `f64`
 prints std's digits: the shortest that read back as it, the greater of two as close where
@@ -422,7 +424,11 @@ calls a key's `Hash`, `Eq`, or `Ord`.
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std
 does, from keys drawn once and the first raised by one for each state, drawn from
-`crypto.getRandomValues` where std asks the OS.
+`crypto.getRandomValues` where std asks the OS. std's `Hash` impls call a crate's own
+`Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
+slice's one `write` included, and std's provided methods it doesn't write itself write
+through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
+hasher, hashes, finishes, then drops the hasher and the value.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
@@ -467,7 +473,8 @@ a call calls as it does the closure, and which a box drops as it does the closur
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`, `dyn Future`,
+or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `Box`,
+`Arc`, or `Rc`, `dyn Future`,
 `dyn Any`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
@@ -554,9 +561,8 @@ of them:
   buckets, such as `find_bucket_index` and `iter_hash`, is refused, as are
   `get_many_mut`, `extract_if`, and `try_reserve`. hashbrown's `DefaultHashBuilder` and
   `DefaultHasher` are std's `RandomState` and `DefaultHasher`: foldhash's state is seeded
-  at random as std's is, so which hash a key gets is never observable. A crate's own
-  `Hasher`, such as `hashlink`'s default over hashbrown's, is refused
-  ([a crate's own hasher](/quest/m2/ts-model/own-hasher.md)). Nothing of hashbrown
+  at random as std's is, so which hash a key gets is never observable, through
+  `hashlink`'s default too, a crate's own `Hasher` over hashbrown's. Nothing of hashbrown
   translates, so `hashlink`, which keeps its entries in a `HashTable`, translates over the
   runtime's.
 - `rand::rng()` is an `rt.ThreadRng`, whose `random` of an integer or `bool` and
@@ -617,7 +623,8 @@ its Rust impls: `hash$Hash(self, state: rt.Hasher): undefined` and `eq$cmp_Parti
 `HashMap` or `HashSet`, `cmp$cmp_Ord` for a `BTreeMap` or `BTreeSet`, and
 `partialCmp$cmp_PartialOrd` too for a B-tree's `range`. A derived impl's are the same exports.
 Each must agree with the Rust impl: `hash` writes what it writes, through `rt.hash8` to
-`rt.hash128`, `rt.hashStr`, and `rt.hashBytes`, so values `eq` finds equal hash alike, and
+`rt.hash128`, `rt.hashI8` to `rt.hashI128`, `rt.hashUsize`, `rt.hashIsize`, `rt.hashStr`,
+and `rt.hashBytes`, so values `eq` finds equal hash alike, and
 `cmp` orders as it does. A collection finds even a bound value that is a JS primitive by
 these, never by `===`. A missing one fails at its impl, as any missing export does.
 
@@ -796,10 +803,12 @@ they need.
   undocumented, and matching it would mean porting std's 11-key node layout, measured 1.5x
   slower ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on
   2026-10-30; a map's `IntoIter` still drops in std's order.
-- A slice's `sort` and `sort_unstable` are one stable merge sort of the runtime's own,
-  calling only the comparator, as std permits of an unstable sort: JS's `sort` moves
-  `undefined`, a `None`, to the end without comparing it, and each engine orders its
-  comparisons differently.
+- A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the
+  runtime with the choices std makes by the element's size on wasm32 and whether it is
+  `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
+  elements where std's does: JS's `sort` moves `undefined`, a `None`, to the end without
+  comparing it, and each engine orders its comparisons differently. A byte slice's sorts
+  by its own `Ord` are its typed array's, whose order nothing observes.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
@@ -836,23 +845,23 @@ they need.
 
 ## Not yet
 
-Byte reinterpretation, pointer addresses, pointer arithmetic outside an array of values JS copies, memory from `alloc` other than an array of values JS copies, and unions whose
+Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
 `&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
-that drops given to a std function that drops it beside another value that drops, other
-than `for_each` and `fold`, as `reduce` of items that drop does, or keeps it other than in
-an iterator adaptor, and values that drop in some iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
+that drops given to a std function that keeps it other than in an iterator or a
+`poll_fn`, or whose mapping doesn't drop it where std's does, and values that drop in some
+iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
 `rt.None`, as `Iterator::scan` of `Option`s does, an `Option` of an `Option` of `()` or another
 `Option`, an instance of a generic type whose field is an `Option` of a type parameter
 that can be `undefined`, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
-`and_modify` do, one into a `Result`'s payload passed on or kept, `Hasher::write` of bytes, the adaptors
+`and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as `partition`), an
 own `impl Iterator` with `next_back`, `len`, or another provided method of its own,
 a pointer's address (`{:p}`), `write!` with a placeholder into

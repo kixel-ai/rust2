@@ -2,18 +2,48 @@
 
 ## Unreleased
 
+- C++ objects own their handle through `std::unique_ptr`, or `std::shared_ptr` where
+  copies may share one value. A `Clone` type whose copies may not, such as moq's
+  producers and consumers, no longer copies: `T copy = t;` is `T copy = t.clone();`, and
+  a braced list of such objects, which copies them, is built with `push_back` instead.
+  Such a type with a method named `clone` takes a `rename`. A copy of a type that shares,
+  such as moq's `path`, `timestamp`, and `url`, shares the handle rather than cloning in
+  Rust, and a copy of one a closure lends, kept past the call, aborts. So do `Arc`- and
+  `Rc`-backed types, such as moq's stats `registry`: an `Arc::strong_count` of what one
+  holds counts one for all its C++ copies, not one per copy.
+- Swift's and Python's objects have no `close()`, and Python's are no context managers:
+  an object's handle is freed once its last reference goes, in Swift's `deinit` or
+  CPython's deallocation, so no reference can outlive it. Drop the reference instead of
+  calling `close()`, and replace `with obj as x:` with `x = obj`. Where a free must land at
+  a point, such as a driver that finishes once its origin's last owner goes, end the
+  reference there: `del x` in Python, and in Swift a scope or `withExtendedLifetime`,
+  since Swift may release a reference after its last use. A Rust method named `close`
+  keeps its name, not `close_`.
+- Every export writes `python/<prefix>.py`, so an export fails when two items take the same
+  Python name, such as a type `Foo` beside an error type's `FooException`, or when one
+  takes a name the Python's runtime uses unqualified, each starting with `_`: give it
+  another name with a `rename`. The crate it writes has a build script, and a `python`
+  feature that builds the CPython extension the Python loads.
 - Every export writes `swift/<prefix>.swift`, whose runtime claims the C names
   `<prefix>_atomic_load`, `<prefix>_atomic_store`, `<prefix>_atomic_add`,
   `<prefix>_atomic_exchange`, `<prefix>_atomic_cas`, and `<PREFIX>_ATOMICS_H`. An item that
   clashes with one, or whose Swift name clashes with another's or with a standard library
   name the Swift uses, such as `Data`, takes a `rename`.
-- Kotlin returns bytes as a `Bytes`, not a `ByteArray`: Rust's buffer as `bytes.buffer`, a
-  read-only `ByteBuffer`, copied up to 1 KiB and otherwise a direct one lent uncopied
-  until `bytes.close()` frees it. Read it in `use { }`, or copy it out with
-  `toByteArray()`. A record's bytes field is a `Bytes` too: build one to pass in with
-  `Bytes(byteArray)`. Arguments stay `ByteArray`. Kotlin's objects and `Bytes` never
-  closed are freed once the GC collects them, and an exported type named `bytes` clashes
-  with the runtime's `<prefix>_bytes`, which takes a `rename`.
+- Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
+  with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
+- Every export writes `dart/<prefix>.dart`, and its crate has a `dart` feature whose glue
+  claims the C names starting `<prefix>_dart_`. An item that clashes with one, or whose
+  Dart name clashes with another's or with a name the Dart's runtime declares, such as
+  `Cancelable`, `Cancelled`, or `SocketAddr`, takes a `rename`.
+- Kotlin returns bytes as a `Bytes`, not a `ByteArray`, read through `size`, `get`,
+  `slice`, `copyInto`, and `toByteArray()`. It has no `buffer` and no `close()`, so no
+  `ByteBuffer` over Rust's memory outlives it: drop `use { }` and read `bytes.buffer`'s
+  contents through these instead, such as `bytes.toByteArray()` or `bytes[0]`. Rust's
+  buffer is freed once the GC finds no `Bytes` reaching it, its slices included. A
+  record's bytes field is a `Bytes` too: build one to pass in with `Bytes(byteArray)`.
+  Arguments stay `ByteArray`. Kotlin's objects never closed are freed once the GC
+  collects them, and an exported type named `bytes` clashes with the runtime's
+  `<prefix>_bytes`, which takes a `rename`.
 - A type parameter bounded by serde's `Serialize` or `Deserialize` takes
   `serde_json::Value`, not `String`: C passes a `<prefix>_json` it parses from JSON text
   with `<prefix>_json_parse`, not a buffer, and a generic type at such a parameter is

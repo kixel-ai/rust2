@@ -651,10 +651,9 @@ impl Ord for Apart {
 /// `collect` and `from` into B-trees of `Torn` keys whose impls disagree as `kind` picks:
 /// a set's sort tests `lt`, a map's `cmp`, and each keeps the last of each run `!=` finds
 /// equal. Of at most 16 keys, of every byte, and of one key over and over: which keys and
-/// values each keeps, in its order, and each call std makes but of more than 16, which
-/// the runtime's sort makes in an order of its own. Then `extend`, which inserts each, and
-/// the set operators, which build as `collect` does from what they yield, of sets that
-/// `insert` built. Then zero-sized keys, which std's sort leaves as they are.
+/// values each keeps, in its order, and each call std makes. Then `extend`, which inserts
+/// each, and the set operators, which build as `collect` does from what they yield, of
+/// sets that `insert` built. Then zero-sized keys, which std's sort leaves as they are.
 pub fn btrees(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let mode = kind % 5;
 	let keys = |bytes: &[u8]| -> Vec<Torn> { bytes.iter().enumerate().map(|(i, &b)| torn(i, b, mode)).collect() };
@@ -665,7 +664,6 @@ pub fn btrees(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		short.iter().enumerate().map(|(i, _)| torn(i, 5, mode)).collect(),
 	];
 	for keys in runs {
-		let logged = keys.len() <= 16;
 		let set: BTreeSet<Torn> = keys.iter().copied().collect();
 		out.push(set.len() as u8);
 		out.extend(set.iter().map(|k| k.tag));
@@ -685,9 +683,7 @@ pub fn btrees(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		// std's own types order and compare as what they hold does.
 		let chunks: BTreeSet<Vec<Torn>> = keys.chunks(2).map(<[Torn]>::to_vec).collect();
 		out.extend(chunks.iter().flat_map(|c| c.iter().map(|k| k.tag)));
-		if logged {
-			flush(out);
-		}
+		flush(out);
 		// `insert` of each, whose searches call `cmp` in the order of the runtime's tree.
 		let mut extended = BTreeSet::new();
 		extended.extend(keys.iter().copied());
@@ -702,9 +698,7 @@ pub fn btrees(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		LOG.with_borrow_mut(Vec::clear);
 		out.extend((&left | &right).iter().map(|k| k.tag));
 		out.extend((&left ^ &right).iter().map(|k| k.tag));
-		if logged {
-			flush(out);
-		}
+		flush(out);
 		out.extend((&left & &right).iter().map(|k| k.tag));
 		out.extend((&left - &right).iter().map(|k| k.tag));
 		LOG.with_borrow_mut(Vec::clear);

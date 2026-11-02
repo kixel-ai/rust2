@@ -253,21 +253,6 @@ pub fn borrowed(map: &std::collections::HashMap<Id, u8>) -> bool {
 	map.contains_key(&1)
 }
 
-#[derive(PartialEq, Eq)]
-pub struct Raw(pub u8);
-
-impl std::hash::Hash for Raw {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		state.write(&[self.0]);
-	}
-}
-
-/// A `Hash` that writes bytes, which the runtime's hasher does not take.
-pub fn raw_keys() -> usize {
-	let map: std::collections::HashMap<Raw, u8> = std::collections::HashMap::new();
-	map.len()
-}
-
 /// `max` drops the operand it doesn't return, which the runtime's leaves undropped.
 pub fn widest(a: std::sync::Arc<str>, b: std::sync::Arc<str>) -> std::sync::Arc<str> {
 	a.max(b)
@@ -310,13 +295,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	let mut set = std::collections::HashSet::new();
 	set.insert(v);
 	set.len()
-}
-
-/// A closure that owns a value that drops, which `or_insert_with` would call but never drop
-/// if the key is there.
-pub fn called_closure(m: &mut std::collections::HashMap<u8, Noisy>) {
-	let b = Noisy(2);
-	m.entry(1).or_insert_with(move || b);
 }
 
 /// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
@@ -2177,7 +2155,9 @@ pub fn element_to_array(v: &[u32]) -> u32 {
 	unsafe { (*(v.as_ptr() as *const [u32; 2]))[1] }
 }
 
+/// A struct holding an array.
 pub struct Lanes {
+	/// The array a pointer points into.
 	pub lanes: [u32; 3],
 }
 
@@ -2198,13 +2178,23 @@ pub struct Halves {
 	pub high: u32,
 }
 
+/// Two arrays in one allocation, which JS keeps apart.
+#[repr(C)]
+pub struct Rows {
+	/// The first.
+	pub top: [u32; 2],
+	/// The second.
+	pub bottom: [u32; 2],
+}
+
 /// `offset_from` of pointers the body shows JS keeps in different arrays: two made apart
-/// of one variable, two of a struct's fields, one into a shared subslice, a copy, against
-/// one into what it was taken of, and one into a shared slice of a byte, also a copy,
-/// against the byte's.
-pub fn pointers_apart(n: u32, h: Halves, byte: u8) -> isize {
+/// of one variable, two of a struct's fields, into two of its array fields, into two rows
+/// of a nested array, one into a shared subslice, a copy, against one into what it was
+/// taken of, and one into a shared slice of a byte, also a copy, against the byte's.
+pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	let a = &raw const n;
 	let b = &raw const n;
+	let grid = [[n; 2]; 2];
 	let lanes = [n; 4];
 	let part = &lanes[1..3];
 	let at = &raw const byte;
@@ -2212,6 +2202,8 @@ pub fn pointers_apart(n: u32, h: Halves, byte: u8) -> isize {
 		let bytes = std::slice::from_raw_parts(at, 1);
 		a.offset_from(b)
 			+ (&raw const h.high).offset_from(&raw const h.low)
+			+ r.bottom.as_ptr().offset_from(r.top.as_ptr())
+			+ grid[1].as_ptr().offset_from(grid[0].as_ptr())
 			+ part.as_ptr().offset_from(lanes.as_ptr())
 			+ bytes.as_ptr().offset_from(at)
 	}
@@ -2326,4 +2318,98 @@ pub fn bytes_as_values(bytes: [u8; 4]) -> u32 {
 /// Memory from `alloc_zeroed`, whose zeroed bytes JS can't type.
 pub fn zeroed() -> u32 {
 	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
+}
+
+/// The tags of the first of two slots, each written whole as `fill` beside a pair of
+/// tags, then changed through a pointer to them.
+macro_rules! tagged_slots {
+	($slots:ident) => {{
+		let tags = unsafe { &raw mut $slots[0].assume_init_mut().1 };
+		unsafe {
+			(*tags).0 ^= 1;
+			(*tags).0
+		}
+	}};
+}
+
+#[derive(Clone, Copy)]
+pub struct Cloned(pub u8);
+
+/// Slots of a type parameter's values written whole through an iterator zipped with
+/// clones of them: std's code calls the crate's `Clone`, so the writes fill nothing fresh.
+pub fn cloned_slots(fill: [Cloned; 2]) -> u8 {
+	kept_slots(fill)
+}
+
+fn kept_slots<T: Clone>(fill: [T; 2]) -> u8 {
+	let mut slots: [std::mem::MaybeUninit<([T; 2], (u8, u8))>; 2] = [const { std::mem::MaybeUninit::uninit() }; 2];
+	for (slot, value) in slots.iter_mut().zip(fill.iter().cloned()) {
+		slot.write(([value.clone(), value], (0, 1)));
+	}
+	tagged_slots!(slots)
+}
+
+pub struct Dropped(pub Noisy);
+
+/// [`cloned_slots`] zipped with a vector's values, which std's iterator drops through
+/// the crate's `Drop` of a field.
+pub fn dropped_slots(fill: Vec<Dropped>) -> u8 {
+	moved_slots(fill)
+}
+
+fn moved_slots<T>(fill: Vec<T>) -> u8 {
+	let mut slots: [std::mem::MaybeUninit<(T, (u8, u8))>; 2] = [const { std::mem::MaybeUninit::uninit() }; 2];
+	for (slot, value) in slots.iter_mut().zip(fill) {
+		slot.write((value, (0, 1)));
+	}
+	tagged_slots!(slots)
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Greatest(pub u8);
+
+/// A slot written whole through the greatest of a type parameter's values, which std
+/// finds through the crate's `Ord`.
+pub fn ranked_slots(fill: [Greatest; 2]) -> u8 {
+	greatest_slot(fill)
+}
+
+fn greatest_slot<T: Ord + Copy>(fill: [T; 2]) -> u8 {
+	let mut slots: [([T; 2], (u8, u8)); 2] = [(fill, (0, 0)); 2];
+	let Some(top) = slots.iter_mut().max() else {
+		return 0;
+	};
+	*top = (fill, (1, 2));
+	let tags = &raw mut top.1;
+	unsafe {
+		(*tags).0 ^= 1;
+		(*tags).0
+	}
+}
+
+/// What a type parameter's value does to a slot of it.
+pub trait Touch: Sized {
+	fn touch(&self, slot: &mut std::mem::MaybeUninit<([Self; 2], (u8, u8))>);
+}
+
+#[derive(Clone, Copy)]
+pub struct Touched(pub u8);
+
+impl Touch for Touched {
+	fn touch(&self, _: &mut std::mem::MaybeUninit<([Self; 2], (u8, u8))>) {}
+}
+
+/// [`cloned_slots`] where each slot is first given to the crate's own trait, through
+/// the type parameter's bound.
+pub fn touched_slots(fill: [Touched; 2]) -> u8 {
+	given_slots(fill)
+}
+
+fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
+	let mut slots: [std::mem::MaybeUninit<([T; 2], (u8, u8))>; 2] = [const { std::mem::MaybeUninit::uninit() }; 2];
+	for (slot, at) in slots.iter_mut().zip(0u8..) {
+		fill[0].touch(slot);
+		slot.write((fill, (at, !at)));
+	}
+	tagged_slots!(slots)
 }

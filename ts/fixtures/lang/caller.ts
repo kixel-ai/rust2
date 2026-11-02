@@ -3,6 +3,7 @@
 // which nothing translated calls. `differential.ts` runs it beside native Rust's
 // `harness::entry`, from the output directory.
 
+import { mulAddsWithin } from "./fma.ts";
 import * as Fault from "./fmt.Fault.ts";
 import { cases as named, run as harness, op as pick } from "./harness.ts";
 import * as rt from "./rt.ts";
@@ -231,7 +232,7 @@ const mulAdds = (max: number, tiny: number, eps: number, op: number[], bytes: (x
 const floatsMulAdds = mulAdds(Number.MAX_VALUE, 5e-324, 2 ** -52, op("floats::mul_adds"), double);
 const singlesMulAdds = mulAdds(3.4028234663852886e38, 2 ** -149, 2 ** -23, op("singles::mul_adds"), single);
 
-const [floatsAt, singlesAt] = [pick("floats::floats"), pick("singles::singles")];
+const [floatsAt, singlesAt, floatsMulAddsAt] = [pick("floats::floats"), pick("singles::singles"), pick("floats::mul_adds")];
 
 /** How many ULPs from native Rust's each float of `floats`' and `singles`' kind 7 may be, which Rust leaves to libm. */
 const ULPS = 2n;
@@ -240,6 +241,7 @@ export function within(input: Uint8Array, native: Uint8Array, translated: Uint8A
 	// A first byte of 0xff prints a `Fault`, and picks no case.
 	if (input[0] === 0xff) return false;
 	const at = ((input[0] << 8) | input[1]) % count;
+	if (at === floatsMulAddsAt) return mulAddsWithin(native, translated);
 	const width = at === floatsAt ? 8 : at === singlesAt ? 4 : 0;
 	if (width === 0 || input[2] % 10 !== 7 || native.length !== translated.length) return false;
 	const [a, b] = [native, translated].map((v) => new DataView(v.buffer, v.byteOffset, v.length));
@@ -474,6 +476,24 @@ const downgrades = [[0x00, 0x01, 0x11, 0x02, 0xf2, 0xe2, 0x03, 0x04, 0x13, 0x05]
 const leaks = [[0x00, 0x01, 0x02, 0xf1, 0xf2, 0x04, 0x05, 0x03, 0x06], [0xe3], [0x00, 0xf3]].map((bytes) =>
 	Uint8Array.of(...op("borrows::leaks"), 0, ...bytes),
 );
+
+/**
+ * `refs::compared` of a split and the bytes either side of it, whose remainders by 3 and 5
+ * make the bytes and floats: sides that are equal, empty, or a prefix of the other, and
+ * floats with a NaN before, after, or where they differ, and a `-0.0` against `0.0`.
+ */
+const placeCompares = [
+	[2, 1, 2, 1, 2],
+	[0],
+	[0, 1],
+	[1, 1, 1, 2],
+	[2, 1, 2, 1],
+	[2, 0, 3, 0, 3],
+	[2, 0, 3, 1, 3],
+	[1, 3, 3, 1],
+	[2, 3, 0, 3, 1],
+	[1, 4, 0],
+].map(([split, ...data]) => Uint8Array.of(...op("refs::compared"), split, ...data));
 
 /** `locks::rwlocks` scripts: `get_mut` and `into_inner` among writes and reads. */
 const rwlocks = [[6, 7, 0, 6, 2, 14, 15, 1]].map((bytes) => Uint8Array.of(...op("locks::rwlocks"), 0, ...bytes));
@@ -864,4 +884,14 @@ const capacityCases = [
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
 ];
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases];
+/**
+ * `sorts` cases of each length std's thresholds part, of each run of keys; `disorders`
+ * cases of each length, kind of item, and sort; and `btrees` cases of each length.
+ */
+const sortCases = [
+	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::sorts"), i % 20, Math.floor(i / 20), 7, 1, 3)),
+	...Array.from({ length: 160 }, (_, kind) => Uint8Array.of(...op("sorts::disorders"), kind, kind % 5, 0x5a, 0xc3, 0x0f, 7)),
+	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::btrees"), i % 20, Math.floor(i / 20), 2, 9)),
+];
+
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...sortCases];

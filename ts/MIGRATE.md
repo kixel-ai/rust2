@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- `rt.sliceSort` is the stable sorts and takes the element's size in bytes on wasm32 and
+  whether it is `Freeze` after the test, as in `rt.sliceSort(v, rt.lt, 4, true)`;
+  `rt.sliceSortUnstable` is the unstable ones and takes whether it is `Copy` too.
+  `rt.sliceSortBy` and `rt.sliceSortByKey` are gone: sort by `rt.cmpLt(cmp)` or
+  `rt.keyLt(key, lt)`. `rt.btreeCollect` takes the entry's size and whether it is
+  `Freeze` in place of whether it sorts, and `rt.btreeCollectKeys` takes the key's before
+  its test.
+- `rt.iterReduce`, `rt.iterMaxBy`, `rt.iterMinBy`, `rt.iterMaxByKey`, and
+  `rt.iterMinByKey` take whether they own their closure, which they drop where std's do,
+  before the `rt.None` they take last, as in `rt.iterReduce(it, f, drops, owns, none)`.
+- `rt.Hasher` has `Hasher`'s methods, `write`, `u8` to `isize`, `prefix`
+  (`write_length_prefix`), and `str`, and `ints`, an integer slice's `hash_slice`, in
+  place of `word`. A binding's `hash$Hash` writes a signed or pointer-sized integer
+  through `rt.hashI8` to `rt.hashI128`, `rt.hashUsize`, or `rt.hashIsize`, as its Rust
+  impl calls `write_i8` and the rest. `rt.hashOne` takes the hasher it hashes into, as in
+  `rt.hashOne(rt.buildHasher(state), value, hash)`.
 - `rt.vecCapacity`, `rt.vecReserve`, `rt.vecReserveExact`, and `rt.dequeReserve` are now
   `Vec::capacity`, `reserve`, and `reserve_exact` and `VecDeque::reserve` of a vector, its
   element size in bytes last, as in `rt.vecReserve(v, additional, 4)`, not the arithmetic

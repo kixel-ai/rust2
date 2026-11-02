@@ -314,6 +314,13 @@ export function map$0po44cb(self: undefined[] | undefined, f: (a0: undefined[]) 
 	return f(self);
 }
 
+export function map$0p6o7wa(self: Uint8Array | undefined, f: (a0: Uint8Array) => Uint8Array): Uint8Array | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1iekgsb(self: bounds_Item.Item | undefined, f: (a0: bounds_Item.Item) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -1081,6 +1088,13 @@ export function mapOr$0cqaybi(self: locals_Noisy.Noisy | undefined, default_: rt
 
 export function mapOr$1w5qtj7(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
 	if (self === rt.None) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0grxkdu(self: rt.u32[] | undefined, default_: rt.u32, f: (a0: rt.u32[]) => rt.u32): rt.u32 {
+	if (self === undefined) {
 		return default_;
 	}
 	return f(self);

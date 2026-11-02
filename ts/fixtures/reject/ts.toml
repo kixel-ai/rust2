@@ -32,7 +32,6 @@ roots = [
     "scanned_unit",
     "set_keys",
     "borrowed",
-    "raw_keys",
     "recloned",
     "shared",
     "cow_matched",
@@ -41,7 +40,6 @@ roots = [
     "cow_made",
     "lopsided",
     "batched",
-    "called_closure",
     "pattern_closure",
     "parts_summed",
     "ok_passed",
@@ -185,5 +183,9 @@ roots = [
     "key_celled",
     "bytes_as_values",
     "zeroed",
+    "cloned_slots",
+    "dropped_slots",
+    "ranked_slots",
+    "touched_slots",
 ]
 printable = ["Meters"]

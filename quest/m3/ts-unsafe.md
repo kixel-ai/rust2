@@ -39,6 +39,9 @@ none of its own `unsafe`.
   is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
   byte allocation stay refused. smallvec spills to it, and `Vec::from_raw_parts` of it is
   left.
+- Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
+  first element's pointer and its length, read through only where Rust reads, and an empty
+  slice from a pointer into no array keeps that pointer through every part of it.
 - `ManuallyDrop<T>` as `T` with its drop skipped, as `MaybeUninit` is: crossbeam-epoch's
   `Local` reaches it, though crossbeam's tagged pointers stay refused.
 - A union over a type parameter, whose layout has no fixed offsets until an instance
@@ -46,6 +49,10 @@ none of its own `unsafe`.
 - `&raw const *r` where `r` is a `&T` to a value JS copies or a library object, such as
   foldhash's seed and arrayvec's `as_ptr`: the reference is the value, not where it is
   kept, so it needs the place the reference came from.
+- A `Vec`'s spare capacity written through `as_mut_ptr` and committed by `set_len`:
+  `set_len` is refused, and a write past the length fails loudly at run time, since the
+  JS array would grow by it. The spare slots need to live outside the array's length
+  until `set_len` takes them.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const
