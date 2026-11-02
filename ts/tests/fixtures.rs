@@ -5,7 +5,6 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::OnceLock;
 
 const TARGET: &str = "wasm32-unknown-unknown";
 
@@ -304,10 +303,11 @@ fn source_order() {
 /// impl of a method, renames nothing the old roots reach.
 #[test]
 fn stable_names() {
-	// `lang`'s own roots, so its translation is the base.
-	let roots = r#"roots = ["harness::run", "harness::op", "fmt::Fault"]"#;
-	let added = r#"roots = ["fmt::added", "harness::run", "harness::op", "fmt::Fault"]"#;
-	kept(&sources(lang_out()), &rooted("lang", roots, "added", added), added);
+	let out = translated("names");
+	snapshot("names", &out);
+	typecheck(&out);
+	let added = r#"roots = ["added", "run"]"#;
+	kept(&sources(&out), &rooted("names", r#"roots = ["run"]"#, "added", added), added);
 }
 
 /// Translate fixture `name` into `file` with its config's `roots` line replaced by `with`.
@@ -361,15 +361,9 @@ fn lines(text: &str) -> Vec<String> {
 
 #[test]
 fn lang() {
-	let out = lang_out();
-	snapshot("lang", out);
-	lang_differential(out);
-}
-
-/// `lang`'s translation, which `stable_names` shares rather than translating it again.
-fn lang_out() -> &'static Path {
-	static OUT: OnceLock<PathBuf> = OnceLock::new();
-	OUT.get_or_init(|| translated("lang"))
+	let out = translated("lang");
+	snapshot("lang", &out);
+	lang_differential(&out);
 }
 
 fn lang_differential(out: &Path) {

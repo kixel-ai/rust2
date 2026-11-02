@@ -941,6 +941,11 @@ built natively for wasm32 and run beside its translation on the same inputs by
   with products of those values at 128 bits, 128-bit quotients by divisors below 2^32,
   and their halves joined back.
   `brands.ts`, another caller, mixes integer types where `tsc` must refuse them.
+- `names` is translated from `run`, then with `added` as its first root, which reaches
+  another instance of what `run` reaches one of, each sorting before it: a generic method's,
+  a closure's, an impl's of another trait, a std function's that merges with `run`'s, and
+  an impl's over a deeper `&mut`, beside a trait object's module named as a type's that
+  `run` imports. Every line of the first must stay, in order.
 - `share` holds a `Copy` aggregate whose only write in the crate makes it copied, where
   `lang`'s other writes into the same type would hide a write the analysis misses: a
   byte array overwritten whole through a type parameter, or, under its features, by std
