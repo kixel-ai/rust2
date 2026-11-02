@@ -231,8 +231,10 @@ a byte of memory from `alloc`, which JS keeps as the values a cast of its pointe
 a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2310:15
 a cast from a pointer to `u8` to one to `Halves`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2311:16
 a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2313:15
-unsupported call to `std::alloc::alloc_zeroed` at fixtures/reject/src/lib.rs:2320:13
-a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2320:12
+unsupported call to `std::alloc::alloc_zeroed` at fixtures/reject/src/lib.rs:2333:13
+a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2333:12
+memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2324:7
+memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2325:11
 overriding `Iterator::fold`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:125:2
 an iterator of the crate implementing `DoubleEndedIterator`, which is not supported yet at fixtures/reject/src/lib.rs:145:1
 overriding `Iterator::size_hint`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:173:2
@@ -248,7 +250,7 @@ a raw pointer to `std::cell::UnsafeCell<u16>` in `InField`, which the crate may 
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InGeneric`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1300:9
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InWritten`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1304:9
 a reference to `std::option::Option<Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there at fixtures/reject/src/lib.rs:2086:13
-a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
-a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
-a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2383:13
-a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
+a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2340:23
+a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2340:23
+a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2396:13
+a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2340:23

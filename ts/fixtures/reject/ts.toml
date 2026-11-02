@@ -183,6 +183,7 @@ roots = [
     "key_celled",
     "bytes_as_values",
     "zeroed",
+    "alloc_retyped",
     "cloned_slots",
     "dropped_slots",
     "ranked_slots",

@@ -2315,6 +2315,19 @@ pub fn bytes_as_values(bytes: [u8; 4]) -> u32 {
 	}
 }
 
+/// Memory from `alloc` cast to pointers to two types, which reads one's bytes as the
+/// other's.
+pub fn alloc_retyped() -> i32 {
+	let layout = std::alloc::Layout::new::<u32>();
+	unsafe {
+		let raw = std::alloc::alloc(layout);
+		raw.cast::<u32>().write(u32::MAX);
+		let n = (raw as *mut i32).read();
+		std::alloc::dealloc(raw, layout);
+		n
+	}
+}
+
 /// Memory from `alloc_zeroed`, whose zeroed bytes JS can't type.
 pub fn zeroed() -> u32 {
 	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
