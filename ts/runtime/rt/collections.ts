@@ -15,14 +15,15 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, capShrink, Err, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capOf, capReserve, capReserveExact, capSet, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
-import { type Limbs, lt, type u64 } from "./int.ts";
+import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
 	type Clones,
 	DONE,
 	type Done,
 	exactHint,
+	Folded,
 	Iter,
 	iterChain,
 	iterEmpty,
@@ -34,6 +35,7 @@ import {
 	rangeInclusiveEndBound,
 	rangeInclusiveStartBound,
 	type SizeHint,
+	satAdd,
 	type Take,
 	capNext,
 	trustedUpper,
@@ -358,26 +360,41 @@ export function eqArc<T>(eq: (a: T, b: T) => boolean, ident = false): (a: Arc<T>
 }
 
 /** A value as its own clone. */
-function itself<T>(value: T): T {
+export function itself<T>(value: T): T {
 	return value;
 }
 
-/** The place of index `i` of `a`. */
+/** The place of element `index` of `array`, which a raw pointer into it is too. */
 export class AtIndex<T> implements Place<T> {
-	private readonly a: { [i: number]: T };
-	private readonly i: number;
+	readonly array: { [i: number]: T };
+	readonly index: number;
 
-	constructor(a: { [i: number]: T }, i: number) {
-		this.a = a;
-		this.i = i;
+	constructor(array: { [i: number]: T }, index: number) {
+		this.array = array;
+		this.index = index;
 	}
 
 	get v(): T {
-		return this.a[this.i];
+		this.reach(1);
+		return this.array[this.index];
 	}
 
 	set v(value: T) {
-		this.a[this.i] = value;
+		this.reach(1);
+		this.array[this.index] = value;
+	}
+
+	/**
+	 * Fails where `n` elements from here run past either end of the array, which JS
+	 * doesn't keep Rust's memory around: a JS array grows by a write past its end, where a
+	 * `Vec`'s length stays until `set_len`, and a shared subslice is a copy, which a
+	 * pointer moved past it would read nothing of.
+	 */
+	reach(n: number): void {
+		const length = (this.array as ArrayLike<T>).length;
+		if (this.index < 0 || this.index + n > length) {
+			throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
+		}
 	}
 }
 
@@ -967,11 +984,11 @@ function extending<C, T>(c: C, items: Iter<T>, add: (item: T) => void, take?: Ta
 }
 
 /**
- * `extending` a `Vec` or `VecDeque` holding `len`, which with elements `size` bytes each
- * reserves as `iterExtend` does, into the capacity `at` holds: a `trusted` iterator up
- * front, and any other by `next`, a `deque`'s at its first item too.
+ * `extending` a `Vec` holding `len`, which with elements `size` bytes each reserves as
+ * `iterExtend` does, into the capacity `at` holds: a `trusted` iterator up front, and any
+ * other by `next`.
  */
-function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, at: object & Capped = {}, deque = false): C {
+function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, at: object & Capped = {}): C {
 	if (size === undefined) return extending(c, items, add, take);
 	let cap = capOf(len, at.cap, size);
 	if (trusted) {
@@ -979,8 +996,7 @@ function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) =>
 		return extending(c, items, add, take);
 	}
 	for (let item = items.next(); item !== DONE; item = items.next()) {
-		if (deque || len === cap) cap = capNext(items, len, cap, size);
-		deque = false;
+		if (len === cap) cap = capNext(items, len, cap, size);
 		add(item);
 		len++;
 	}
@@ -1191,20 +1207,24 @@ export function tableOrInsert<T>(e: TableEntry<T>, item: T, f?: (item: T) => voi
 	return e;
 }
 
-/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant. */
-export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T): TableEntry<T> {
-	return e.o ? e : e.fill(make());
-}
-
-/** `Entry::and_modify`: `f` of its item, if occupied. */
-export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void): TableEntry<T> {
-	if (e.o) f(e.v);
+/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant, or else `make` drops by `dropF` uncalled. */
+export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T, dropF?: (f: () => T) => void): TableEntry<T> {
+	if (!e.o) return e.fill(make());
+	dropF?.(make);
 	return e;
 }
 
-/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied. */
-export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void): TableEntry<T> {
+/** `Entry::and_modify`: `f` of its item, if occupied, or else `f` drops by `dropF` uncalled. */
+export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void, dropF?: (f: (item: T) => void) => void): TableEntry<T> {
+	if (e.o) f(e.v);
+	else dropF?.(f);
+	return e;
+}
+
+/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied, as `tableAndModify`. */
+export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void, dropF?: (f: (item: Place<T>) => void) => void): TableEntry<T> {
 	if (e.o) f(e);
+	else dropF?.(f);
 	return e;
 }
 
@@ -2040,14 +2060,14 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
 
 /**
  * `collect` and `from` into `m`, an empty map, of `entries`, which std's collects into a
- * `Vec` first. It sorts them stably by `Ord::cmp` of their keys if `sorts`, as std's sort
- * does all but zero-sized ones, and builds the tree of each but those whose key `same`,
+ * `Vec` first. It sorts them as std's stable sort does by `Ord::cmp` of their keys, of
+ * entries `size` bytes long on wasm32 and `Freeze` if `freeze`, and builds the tree of each but those whose key `same`,
  * `!ne`, finds equal to the next one's, which drop in order. Without `same`, the keys'
  * impls agree, so JS's sort and `Ord` alone build the same tree faster.
  */
-export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts = false, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
+export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else if (sorts) sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1);
+	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2068,17 +2088,18 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts =
  * `collect` and `from` into `m`, an empty set, of `keys`, as `btreeCollect`, but sorted by
  * `less`, their `PartialOrd::lt`, or not at all if zero-sized.
  */
-export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
+export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, freeze: boolean, less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
 	if (same === undefined) {
 		return btreeCollect(
 			m,
 			keys.map((key) => [key, undefined]),
-			true,
+			size,
+			freeze,
 			undefined,
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less);
+	if (less !== undefined) sliceSort(keys, less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
@@ -2466,9 +2487,13 @@ function isHash<K, V>(m: HashMap<K, V> | BTreeMap<K, V>): m is HashMap<K, V> {
 	return "p" in m;
 }
 
-/** `Entry::or_insert_with`: the value there, or else `f()`'s, inserted. */
-export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V): V {
-	if (e.o) return entryGet(e);
+/** `Entry::or_insert_with`: the value there, and `f` drops by `dropF` uncalled, or else `f()`'s, inserted. */
+export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): V {
+	if (e.o) {
+		const value = entryGet(e);
+		dropF?.(f);
+		return value;
+	}
 	const value = f(e.k);
 	fill(e, value);
 	return value;
@@ -2489,15 +2514,17 @@ export function entryOccupied<K, V>(e: Entry<K, V>): boolean {
 	return e.o;
 }
 
-/** `Entry::and_modify` of a value JS copies: `f` of its place, if any. */
-export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void): Entry<K, V> {
+/** `Entry::and_modify` of a value JS copies: `f` of its place, if any, as `entryAndModify`. */
+export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void, dropF?: (f: (value: Place<V>) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGetMut(e));
+	else dropF?.(f);
 	return e;
 }
 
-/** `Entry::and_modify`: `f` of the value there, if any. */
-export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void): Entry<K, V> {
+/** `Entry::and_modify`: `f` of the value there, if any, or else `f` drops by `dropF` uncalled. */
+export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void, dropF?: (f: (value: V) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGet(e));
+	else dropF?.(f);
 	return e;
 }
 
@@ -2522,10 +2549,14 @@ export function entryGetMut<K, V>(e: Entry<K, V>): Place<V> {
 
 /**
  * `Entry::or_insert_with` and `or_insert_with_key` of a value JS copies, and
- * `or_default`: its place, after inserting `f`'s value if the map lacks the key.
+ * `or_default`: its place, after inserting `f`'s value if the map lacks the key, as
+ * `entryOrInsertWith`.
  */
-export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V): Place<V> {
-	return e.o ? entryGetMut(e) : fill(e, f(e.k));
+export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): Place<V> {
+	if (!e.o) return fill(e, f(e.k));
+	const place = entryGetMut(e);
+	dropF?.(f);
+	return place;
 }
 
 /** `Entry::or_insert` and `VacantEntry::insert` of a value JS copies: its place, and `value` drops if one was there. */
@@ -2572,69 +2603,140 @@ export function btreeFirstEntry<K, V>(m: BTreeMap<K, V>, last = false): Entry<K,
 
 // VecDeque
 
+/** `usize::MAX` on wasm32, the capacity of a deque of zero-sized items. */
+const USIZE_MAX = 0xffffffff;
+
 /**
- * `VecDeque<T>`: a ring buffer of `b.length` slots, a power of two, holding `n` items
- * from `h` on, wrapping past the end, and the capacity an operation set, as a `Vec`'s.
+ * `VecDeque<T>`: a ring buffer of `b.length` slots, std's capacity, holding `n` items of
+ * `s` bytes each from `h` on, wrapping past the end. Each step places them where std's
+ * does, which `as_slices` shows: a deque of bytes is a `Uint8Array`, which its slices view,
+ * and one of zero-sized items has `usize::MAX` slots, as std's.
  */
-export interface VecDeque<T> extends Capped {
+export interface VecDeque<T> {
 	b: (T | undefined)[];
 	h: number;
 	n: number;
+	s: number;
 }
 
-/** `VecDeque::new`. */
-export function dequeNew<T>(): VecDeque<T> {
-	return { b: [], h: 0, n: 0 };
+/** `cap` empty slots, bytes if `bytes`. */
+function slots<T>(cap: number, bytes: boolean): (T | undefined)[] {
+	return bytes ? (new Uint8Array(cap) as unknown as T[]) : new Array<T | undefined>(cap);
+}
+
+/** Whether `q` holds bytes in a `Uint8Array`. */
+function holdsBytes<T>(q: VecDeque<T>): boolean {
+	return q.b instanceof Uint8Array;
+}
+
+/** `VecDeque::new` of `size`-byte items, held as bytes if `bytes`. */
+export function dequeNew<T>(size: number, bytes = false): VecDeque<T> {
+	return { b: slots(size === 0 ? USIZE_MAX : 0, bytes), h: 0, n: 0, s: size };
 }
 
 /** `VecDeque::with_capacity` of `size`-byte items, which panics past what it may hold. */
-export function dequeWithCapacity<T>(n: number, size: number): VecDeque<T> {
+export function dequeWithCapacity<T>(n: number, size: number, bytes = false): VecDeque<T> {
 	if (n > vecMax(size)) panic("capacity overflow");
-	const q = dequeNew<T>();
-	capSet(q, 0, n, size);
+	const q = dequeNew<T>(size, bytes);
+	if (size !== 0) q.b = slots(n, bytes);
 	return q;
 }
 
 /** A deque of `v`'s items, with its capacity, as std's `From<Vec<T>>` keeps it. */
-export function dequeFromVec<T>(v: T[] & Capped): VecDeque<T> {
-	const q = dequeNew<T>();
-	for (const item of v) dequePushBack(q, item);
-	if (v.cap !== undefined) q.cap = v.cap;
+export function dequeFromVec<T>(v: T[] & Capped, size: number, bytes = false): VecDeque<T> {
+	const q = dequeWithCapacity<T>(capOf(v.length, v.cap, size), size, bytes);
+	for (let i = 0; i < v.length; i++) q.b[i] = v[i];
+	q.n = v.length;
 	return q;
 }
 
-/** `VecDeque::capacity` of `size`-byte items. */
-export function dequeCapacity<T>(q: VecDeque<T>, size: number): number {
-	return capOf(q.n, q.cap, size);
+/** A deque of `a`'s items, with room for exactly them, as std's `From<[T; N]>` makes it. */
+export function dequeFromArray<T>(a: ArrayLike<T>, size: number, bytes = false): VecDeque<T> {
+	const q = dequeWithCapacity<T>(a.length, size, bytes);
+	for (let i = 0; i < a.length; i++) q.b[i] = a[i];
+	q.n = a.length;
+	return q;
 }
 
-/** `VecDeque::reserve` of `size`-byte items. */
-export function dequeReserve<T>(q: VecDeque<T>, additional: number, size: number): void {
-	capHold(q, capReserve(q.n, dequeCapacity(q, size), additional, size), size);
+/** `VecDeque::capacity`. */
+export function dequeCapacity<T>(q: VecDeque<T>): number {
+	return q.b.length;
 }
 
-/** `VecDeque::reserve_exact` of `size`-byte items. */
-export function dequeReserveExact<T>(q: VecDeque<T>, additional: number, size: number): void {
-	capHold(q, capReserveExact(q.n, dequeCapacity(q, size), additional, size), size);
+/** `VecDeque::reserve`. */
+export function dequeReserve<T>(q: VecDeque<T>, additional: number): void {
+	regrow(q, capReserve(q.n, q.b.length, additional, q.s));
 }
 
-/** `VecDeque::shrink_to` of `size`-byte items, and `shrink_to_fit` of 0. */
-export function dequeShrinkTo<T>(q: VecDeque<T>, min: number, size: number): void {
-	capSet(q, q.n, capShrink(q.n, dequeCapacity(q, size), min), size);
+/** `VecDeque::reserve_exact`. */
+export function dequeReserveExact<T>(q: VecDeque<T>, additional: number): void {
+	regrow(q, capReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/**
+ * `VecDeque::shrink_to`, and `shrink_to_fit` of 0: the items moved within the slots kept
+ * as std's moves them, the head to the front if the tail is past them, or else the part
+ * past them to the front, or the wrapped head to their end.
+ */
+export function dequeShrinkTo<T>(q: VecDeque<T>, min: number): void {
+	const cap = q.b.length;
+	const target = Math.max(min, q.n);
+	if (q.s === 0 || cap <= target) return;
+	const end = q.h + q.n;
+	const tailOutside = end > target && end <= cap;
+	let h = q.h;
+	if (q.n === 0 || (q.h >= target && tailOutside)) h = 0;
+	else if (!tailOutside && q.h > cap - q.n) h = target - (cap - q.h);
+	place(q, target, h);
+}
+
+/**
+ * The slot `n` past slot `j`, as std's `wrap_index` of a `usize` sum: past `usize::MAX`,
+ * which only zero-sized items' `usize::MAX` slots reach, it wraps first.
+ */
+function wrap<T>(q: VecDeque<T>, j: number): number {
+	if (j < q.b.length) return j;
+	return j > USIZE_MAX ? j - USIZE_MAX - 1 : j - q.b.length;
 }
 
 /** The slot of item `i`. */
 function at<T>(q: VecDeque<T>, i: number): number {
-	return (q.h + i) & (q.b.length - 1);
+	return wrap(q, q.h + i);
 }
 
-/** Room for one more item. */
-function grow<T>(q: VecDeque<T>): void {
-	if (q.n < q.b.length) return;
-	const b = new Array(Math.max(4, q.b.length * 2));
-	for (let i = 0; i < q.n; i++) b[i] = q.b[at(q, i)];
+/** The slot before `q`'s head, as std's `wrap_sub` finds it. */
+function before<T>(q: VecDeque<T>): number {
+	return wrap(q, q.h - 1 + q.b.length);
+}
+
+/**
+ * `q` grown to `cap` slots, if more: the items moved as std's `handle_capacity_increase`
+ * moves them, the wrapped tail after the old end if it is shorter and fits, or else the
+ * head to the new end.
+ */
+function regrow<T>(q: VecDeque<T>, cap: number): void {
+	const old = q.b.length;
+	if (cap <= old) return;
+	let h = q.h;
+	if (h > old - q.n) {
+		const head = old - h;
+		const tail = q.n - head;
+		if (head <= tail || cap - old < tail) h = cap - head;
+	}
+	place(q, cap, h);
+}
+
+/** `q`'s items moved, in order, to `cap` new slots from `h` on. */
+function place<T>(q: VecDeque<T>, cap: number, h: number): void {
+	const b = slots<T>(cap, holdsBytes(q));
+	for (let i = 0, j = h; i < q.n; i++, j = j + 1 === cap ? 0 : j + 1) b[j] = q.b[at(q, i)];
 	q.b = b;
-	q.h = 0;
+	q.h = h;
+}
+
+/** Room for one more item, grown as std's `grow_one`. */
+function grow<T>(q: VecDeque<T>): void {
+	if (q.n === q.b.length) regrow(q, capReserve(q.n, q.n, 1, q.s));
 }
 
 export function dequePushBack<T>(q: VecDeque<T>, item: T): void {
@@ -2644,7 +2746,7 @@ export function dequePushBack<T>(q: VecDeque<T>, item: T): void {
 
 export function dequePushFront<T>(q: VecDeque<T>, item: T): void {
 	grow(q);
-	q.h = (q.h - 1) & (q.b.length - 1);
+	q.h = before(q);
 	q.b[q.h] = item;
 	q.n++;
 }
@@ -2715,13 +2817,16 @@ export function dequeDrop<T>(q: VecDeque<T>, f: (item: T) => void): void {
 	dropAll(items, f);
 }
 
-/** `clear`, which leaves the deque empty and then drops each item, front to back. */
+/** `clear`, which leaves the deque empty, its head at the front, and then drops each item, front to back. */
 export function dequeClear<T>(q: VecDeque<T>, f?: (item: T) => void): void {
-	const old: VecDeque<T> = { b: q.b, h: q.h, n: q.n };
-	q.b = [];
+	const items: T[] = [];
+	for (let i = 0; i < q.n; i++) {
+		items.push(q.b[at(q, i)] as T);
+		q.b[at(q, i)] = undefined;
+	}
 	q.h = 0;
 	q.n = 0;
-	if (f !== undefined) dequeDrop(old, f);
+	if (f !== undefined) dropAll(items, f);
 }
 
 /** `truncate`: the first `len` items, if there are more, and then each other drops in order. */
@@ -2781,139 +2886,348 @@ export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back = false, none
 	return (back ? dequePopBack(q) : dequePopFront(q)) as T;
 }
 
-/** `remove`: the item at `i`, with those after it moved up, or else `none`. */
+/** `remove`: the item at `i`, with the shorter side moved over its slot, as std's, or else `none`. */
 export function dequeRemove<T>(q: VecDeque<T>, i: number): T | undefined;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none: None): T | None;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none?: None): T | None | undefined {
 	if (i >= q.n) return none;
 	const item = q.b[at(q, i)] as T;
-	for (let j = i; j + 1 < q.n; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
-	dequePopBack(q);
+	if (q.n - i - 1 < i) {
+		for (let j = i; j + 1 < q.n; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
+		q.b[at(q, q.n - 1)] = undefined;
+	} else {
+		for (let j = i; j > 0; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
+		q.b[q.h] = undefined;
+		q.h = at(q, 1);
+	}
+	q.n--;
 	return item;
 }
 
-/** `insert`: `item` at `i`, with those from `i` on moved down. */
+/** `insert`: `item` at `i`, with the shorter side moved to make room, as std's. */
 export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
 	if (i > q.n) panic("index out of bounds");
-	dequePushBack(q, item);
-	for (let j = q.n - 1; j > i; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
+	grow(q);
+	if (q.n - i < i) {
+		for (let j = q.n; j > i; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
+	} else {
+		q.h = before(q);
+		for (let j = 0; j < i; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
+	}
 	q.b[at(q, i)] = item;
+	q.n++;
 }
 
 /**
- * An iterator of a deque's items from index `front` up to `back`, which drops those it
- * still holds by `drop` as it drops, if it owns them, as a `drain` does.
+ * Where the first of the two slices of `q`'s items `start..end` ends, as std's
+ * `slice_ranges` splits them at the end of its slots.
  */
-class DequeIter<T> extends Iter<T> implements Disposable {
-	private readonly q: VecDeque<T>;
-	private front: number;
-	private back: number;
-	private readonly drop: ((item: T) => void) | undefined;
+function firstEnd<T>(q: VecDeque<T>, start: number, end: number): number {
+	return start === end ? end : Math.min(end, start + q.b.length - at(q, start));
+}
 
-	constructor(q: VecDeque<T>, front: number, back: number, drop?: (item: T) => void) {
+/**
+ * A deque's `Iter`, or `IterMut` lending each item's place if `lend`: the items at `f1..e1`,
+ * then `f2..e2`, the two slices std's walks, which it swaps as one ends, as std's does.
+ */
+class DequeIter<T> extends Iter<T | Place<T>> {
+	private readonly q: VecDeque<T>;
+	private readonly lend: boolean;
+	private f1: number;
+	private e1: number;
+	private f2: number;
+	private e2: number;
+
+	constructor(q: VecDeque<T>, lend: boolean, f1: number, e1: number, f2: number, e2: number) {
 		super();
 		this.q = q;
-		this.front = front;
-		this.back = back;
-		this.drop = drop;
+		this.lend = lend;
+		this.f1 = f1;
+		this.e1 = e1;
+		this.f2 = f2;
+		this.e2 = e2;
 	}
 
-	next(): T | Done {
-		return this.front < this.back ? (this.q.b[at(this.q, this.front++)] as T) : DONE;
+	/** Item `i`, or its place. */
+	private item(i: number): T | Place<T> {
+		return this.lend ? new AtIndex(this.q.b as T[], at(this.q, i)) : (this.q.b[at(this.q, i)] as T);
+	}
+
+	/** The two slices, swapped, as std's once the one it reads from ends. */
+	private swap(): void {
+		[this.f1, this.e1, this.f2, this.e2] = [this.f2, this.e2, this.f1, this.e1];
+	}
+
+	/** The items each slice has left, as `as_slices` gives them. */
+	slices(): [T[], T[]] {
+		const items = (f: number, e: number) => {
+			const out: T[] = [];
+			for (let i = f; i < e; i++) out.push(this.q.b[at(this.q, i)] as T);
+			return out;
+		};
+		return [items(this.f1, this.e1), items(this.f2, this.e2)];
+	}
+
+	next(): T | Place<T> | Done {
+		if (this.f1 === this.e1) this.swap();
+		return this.f1 < this.e1 ? this.item(this.f1++) : DONE;
+	}
+
+	override nextBack(): T | Place<T> | Done {
+		if (this.f2 === this.e2) this.swap();
+		return this.f2 < this.e2 ? this.item(--this.e2) : DONE;
+	}
+
+	override advanceBy(n: number): number {
+		const k = Math.min(n, this.e1 - this.f1);
+		this.f1 += k;
+		if (k === n) return 0;
+		this.swap();
+		const rest = Math.min(n - k, this.e1 - this.f1);
+		this.f1 += rest;
+		return n - k - rest;
+	}
+
+	override advanceBackBy(n: number): number {
+		const k = Math.min(n, this.e2 - this.f2);
+		this.e2 -= k;
+		if (k === n) return 0;
+		this.swap();
+		const rest = Math.min(n - k, this.e2 - this.f2);
+		this.e2 -= rest;
+		return n - k - rest;
+	}
+
+	/** std's `try_fold`, which reads the first slice and then the second, swapping neither, and `try_rfold` the second and then the first. */
+	override folded(): Iter<T | Place<T>> {
+		return new Folded(
+			() => (this.f1 < this.e1 ? this.item(this.f1++) : this.f2 < this.e2 ? this.item(this.f2++) : DONE),
+			() => (this.f2 < this.e2 ? this.item(--this.e2) : this.f1 < this.e1 ? this.item(--this.e1) : DONE),
+		);
 	}
 
 	override remaining(): Iterable<T> {
-		return new DequeIter(this.q, this.front, this.back);
+		const [a, b] = this.slices();
+		return a.concat(b);
 	}
 
-	/** std's: where it is, or of `into_iter`, what it has left, each cloned in order by `h.v`. */
-	override clone(h?: Clones): Iter<T> {
-		if (h?.v === undefined) return new DequeIter(this.q, this.front, this.back, this.drop);
-		const clone = h.v as (item: T) => T;
-		const items: T[] = [];
-		for (let i = this.front; i < this.back; i++) items.push(clone(this.q.b[at(this.q, i)] as T));
-		return iterSlice(items, this.drop);
-	}
-
-	override nextBack(): T | Done {
-		return this.front < this.back ? (this.q.b[at(this.q, --this.back)] as T) : DONE;
+	override clone(): Iter<T | Place<T>> {
+		return new DequeIter(this.q, this.lend, this.f1, this.e1, this.f2, this.e2);
 	}
 
 	override len(): number {
-		return this.back - this.front;
+		return this.e1 - this.f1 + (this.e2 - this.f2);
 	}
 
 	override sizeHint(): SizeHint {
 		return exactHint(this.len());
 	}
-
-	[Symbol.dispose](): void {
-		if (this.drop === undefined) return;
-		const items: T[] = [];
-		while (this.front < this.back) items.push(this.q.b[at(this.q, this.front++)] as T);
-		dropAll(items, this.drop);
-	}
 }
 
-/**
- * `iter` and `iter_mut`, and with what drops each item, `into_iter`, whose `last`,
- * `count`, and skips are a `Vec`'s.
- */
-export function dequeIter<T>(q: VecDeque<T>, drop?: (item: T) => void): Iter<T> {
-	if (drop === undefined) return new DequeIter(q, 0, q.n);
-	const items: T[] = [];
-	for (let i = 0; i < q.n; i++) items.push(q.b[at(q, i)] as T);
-	return iterSlice(items, drop);
+/** A deque's `Iter` over its items `start..end`, split where `as_slices` splits them, or with `lend`, its `IterMut`. */
+function dequeSlices<T>(q: VecDeque<T>, lend: boolean, start: number, end: number): DequeIter<T> {
+	const mid = firstEnd(q, start, end);
+	return new DequeIter(q, lend, start, mid, mid, end);
 }
 
-/** `range`: `iter` of the items within `r`, which panics as std's does past the length. */
+/** `iter` and `iter_mut`. */
+export function dequeIter<T>(q: VecDeque<T>): Iter<T> {
+	return dequeSlices(q, false, 0, q.n) as Iter<T>;
+}
+
+/** `range`: `iter` of the items within `r`, split as std's `slice_ranges` splits them, which panics as std's does past the length. */
 export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>): Iter<T> {
 	const [start, end] = boundsRange(r, q.n);
-	return new DequeIter(q, start, end);
+	return dequeSlices(q, false, start, end) as Iter<T>;
 }
 
 /** `iter_mut` of items JS copies: the place of each. */
 export function dequeIterMut<T>(q: VecDeque<T>): Iter<Place<T>> {
-	return new DequePlaces(q);
+	return dequeSlices(q, true, 0, q.n) as Iter<Place<T>>;
 }
 
-/** A deque's `iter_mut` of items JS copies, which lends each as its place. */
-class DequePlaces<T> extends Iter<Place<T>> {
-	private readonly q: VecDeque<T>;
-	private front = 0;
-	private back: number;
+/** `Debug` of a deque's `Iter` or `IterMut`, `name`: the two slices it has left. */
+export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, name: string): FmtResult {
+	const [a, b] = (it as DequeIter<T>).slices();
+	return fmtDebugTupleFields(f, name, [(f) => fmtList(a, f, debug), (f) => fmtList(b, f, debug)]);
+}
 
-	constructor(q: VecDeque<T>) {
+/** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
+export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
+	const p = at(q, 0);
+	const n = firstEnd(q, 0, q.n);
+	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
+	return [part(p, p + n), part(0, q.n - n)];
+}
+
+/** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */
+export function dequeByteSlices(q: VecDeque<number>): [ByteSlice, ByteSlice] {
+	const n = firstEnd(q, 0, q.n);
+	const b = q.b as unknown as Uint8Array;
+	return [new ByteSlice(b, at(q, 0), n), new ByteSlice(b, 0, q.n - n)];
+}
+
+/**
+ * `into_iter`: the deque itself, popping each item from either end, which drops those it
+ * still holds by `drop` as it drops, and which `collect` into a deque gives back as it is.
+ */
+class DequeIntoIter<T> extends Iter<T> implements Disposable {
+	readonly q: VecDeque<T>;
+	private readonly drop: ((item: T) => void) | undefined;
+
+	constructor(q: VecDeque<T>, drop?: (item: T) => void) {
 		super();
 		this.q = q;
-		this.back = q.n;
+		this.drop = drop;
 	}
 
-	next(): Place<T> | Done {
-		return this.front < this.back ? new AtIndex(this.q.b as T[], at(this.q, this.front++)) : DONE;
+	next(): T | Done {
+		return this.q.n === 0 ? DONE : (dequePopFront(this.q) as T);
 	}
 
-	override nextBack(): Place<T> | Done {
-		return this.front < this.back ? new AtIndex(this.q.b as T[], at(this.q, --this.back)) : DONE;
+	override nextBack(): T | Done {
+		return this.q.n === 0 ? DONE : (dequePopBack(this.q) as T);
+	}
+
+	/** std's: the first `n` drained, or all cleared, either of which drops them in order. */
+	override advanceBy(n: number): number {
+		const len = this.q.n;
+		if (len < n) dequeClear(this.q, this.drop);
+		else new DequeDrain(this.q, 0, n, this.drop)[Symbol.dispose]();
+		return Math.max(n - len, 0);
+	}
+
+	/** std's: the last `n` truncated, or all cleared. */
+	override advanceBackBy(n: number): number {
+		const len = this.q.n;
+		if (len < n) dequeClear(this.q, this.drop);
+		else dequeTruncate(this.q, len - n, this.drop);
+		return Math.max(n - len, 0);
+	}
+
+	override remaining(): Iterable<T> {
+		return dequeIter(this.q) as Iterable<T>;
+	}
+
+	/** std's: a clone of the deque, each item cloned in order by `h.v`. */
+	override clone(h?: Clones): Iter<T> {
+		return new DequeIntoIter(dequeClone(this.q, h?.v as ((item: T) => T) | undefined), this.drop);
 	}
 
 	override len(): number {
-		return this.back - this.front;
+		return this.q.n;
 	}
 
 	override sizeHint(): SizeHint {
-		return exactHint(this.len());
+		return exactHint(this.q.n);
+	}
+
+	[Symbol.dispose](): void {
+		if (this.drop !== undefined) dequeClear(this.q, this.drop);
 	}
 }
 
-/** `drain`: the items within `r`, taken out at once, which drop by `drop` as `dequeIter`'s. */
+/** `into_iter`, whose items drop by `drop` with it. */
+export function dequeIntoIter<T>(q: VecDeque<T>, drop?: (item: T) => void): Iter<T> {
+	return new DequeIntoIter(q, drop);
+}
+
+/**
+ * `collect` into a deque of `size`-byte items, of bytes if `bytes`, from `it`, a deque's
+ * `into_iter` or a `Vec`'s, which std's gives the buffer of as it is: a deque's, or a
+ * `Vec`'s with its head where its front was read to.
+ */
+export function dequeFromIntoIter<T>(it: Iter<T>, size: number, bytes = false): VecDeque<T> {
+	if (it instanceof DequeIntoIter) return it.q;
+	const v = it as unknown as { s: ArrayLike<T> & Capped; front: number; back: number };
+	const q = dequeWithCapacity<T>(bytes ? v.s.length : capOf(v.s.length, v.s.cap, size), size, bytes);
+	q.n = v.back - v.front;
+	q.h = size === 0 || q.n === 0 ? 0 : v.front;
+	for (let i = 0; i < q.n; i++) q.b[q.h + i] = v.s[v.front + i];
+	return q;
+}
+
+/**
+ * `drain`: the items within `r`, which the deque gives up its length past the start of as
+ * std's does, so one never dropped leaks the rest. Those it still holds as it drops each
+ * drop by `drop`, front to back, and then the shorter of the items before and after the
+ * range moves next to the other.
+ */
 export function dequeDrain<T>(q: VecDeque<T>, r: Bounds<number>, drop?: (item: T) => void): Iter<T> {
 	const [start, end] = boundsRange(r, q.n);
-	const taken: VecDeque<T> = { b: [], h: 0, n: 0 };
-	for (let i = start; i < end; i++) dequePushBack(taken, q.b[at(q, i)] as T);
-	for (let i = end; i < q.n; i++) q.b[at(q, i - (end - start))] = q.b[at(q, i)];
-	dequeTruncate(q, q.n - (end - start));
-	return new DequeIter(taken, 0, taken.n, drop);
+	return new DequeDrain(q, start, end - start, drop);
+}
+
+/** A deque's drain, with std's counts: `idx` the next item's index, and `rest` of the range left, std's `remaining`. */
+class DequeDrain<T> extends Iter<T> implements Disposable {
+	private readonly q: VecDeque<T>;
+	readonly drainLen: number;
+	idx: number;
+	readonly tailLen: number;
+	rest: number;
+	private readonly drop: ((item: T) => void) | undefined;
+	private joined = false;
+
+	constructor(q: VecDeque<T>, start: number, drainLen: number, drop?: (item: T) => void) {
+		super();
+		this.q = q;
+		this.drainLen = drainLen;
+		this.idx = start;
+		this.tailLen = q.n - start - drainLen;
+		this.rest = drainLen;
+		this.drop = drop;
+		q.n = start;
+	}
+
+	next(): T | Done {
+		if (this.rest === 0) return DONE;
+		this.rest--;
+		return this.q.b[at(this.q, this.idx++)] as T;
+	}
+
+	override nextBack(): T | Done {
+		if (this.rest === 0) return DONE;
+		return this.q.b[at(this.q, this.idx + --this.rest)] as T;
+	}
+
+	override len(): number {
+		return this.rest;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.rest);
+	}
+
+	[Symbol.dispose](): void {
+		if (this.joined) return;
+		this.joined = true;
+		const q = this.q;
+		const items: T[] = [];
+		for (; this.rest > 0; this.rest--) items.push(q.b[at(q, this.idx++)] as T);
+		if (this.drop !== undefined) dropAll(items, this.drop);
+		const head = q.n;
+		const tail = this.tailLen;
+		const gap = this.drainLen;
+		q.n = head + tail;
+		if (q.s === 0) return;
+		// The shorter side moves next to the other, and the slots it leaves are cleared.
+		if (head < tail) {
+			for (let i = head - 1; i >= 0; i--) q.b[at(q, i + gap)] = q.b[at(q, i)];
+			for (let i = 0; i < gap; i++) q.b[at(q, i)] = undefined;
+		} else {
+			for (let i = 0; i < tail; i++) q.b[at(q, head + i)] = q.b[at(q, head + gap + i)];
+			for (let i = 0; i < gap; i++) q.b[at(q, q.n + i)] = undefined;
+		}
+		if (q.n === 0) q.h = 0;
+		else if (head < tail) q.h = at(q, gap);
+	}
+}
+
+/** `Debug` of a deque's `Drain`: its counts, each by `debug`, as std's tuple of them. */
+export function fmtDequeDrain(it: Iter<unknown>, f: Formatter, debug: Debug<usize>): FmtResult {
+	const d = it as unknown as DequeDrain<unknown>;
+	const counts = [d.drainLen, d.idx, d.tailLen, d.rest];
+	return fmtDebugTupleFields(f, "Drain", counts.map((n) => (f: Formatter) => debug(n, f)));
 }
 
 /** `slice::range`: the start and end of `r` within `n` elements, panicking as std's does. */
@@ -3098,16 +3412,36 @@ class ByteVecDrain extends Iter<number> implements Disposable {
  * `extend`, and `collect` into a deque through `dequeNew`, which takes `items` as `take`
  * says and reserves as `iterExtend` does.
  */
-export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, size?: number, trusted = false): VecDeque<T> {
-	return vecExtending(q, q.n, items, (item) => dequePushBack(q, item), take, size, trusted, q, true);
+export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, trusted = false): VecDeque<T> {
+	if (trusted) {
+		dequeReserve(q, trustedUpper(items));
+		return extending(q, items, (item) => dequePushBack(q, item), take);
+	}
+	// std's reserves for the lower bound past each item it reads into a full deque, and the first.
+	for (let item = items.next(), first = true; item !== DONE; item = items.next(), first = false) {
+		if (first || q.n === q.b.length) dequeReserve(q, satAdd(items.sizeHint()[0], 1));
+		q.b[at(q, q.n++)] = item;
+	}
+	if (take !== undefined) dispose(items);
+	return q;
 }
 
-/** `clone` of `size`-byte items, with each through its `Clone`, or as itself without one, with room for exactly them. */
-export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself, size: number): VecDeque<T> {
-	const out = dequeNew<T>();
-	for (let i = 0; i < q.n; i++) dequePushBack(out, item(q.b[at(q, i)] as T));
-	capSet(out, out.n, out.n, size);
+/** `clone`, with each item through its `Clone`, or as itself without one, with room for exactly them. */
+export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): VecDeque<T> {
+	const out = dequeWithCapacity<T>(q.n, q.s, holdsBytes(q));
+	for (let i = 0; i < q.n; i++) out.b[i] = item(q.b[at(q, i)] as T);
+	out.n = q.n;
 	return out;
+}
+
+/**
+ * `clone_from`: `q` cleared, which drops its items in order, then a clone of each of `src`'s
+ * in its room, as std's `extend` reserves for them.
+ */
+export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): void {
+	dequeClear(q, drop);
+	dequeReserve(q, src.n);
+	for (let i = 0; i < src.n; i++) q.b[at(q, q.n++)] = item(src.b[at(src, i)] as T);
 }
 
 // LinkedList
@@ -3766,9 +4100,9 @@ export function byteVecPart(): Part<ByteVec, number> {
 	return vectorPart(byteVecPush, byteVecReserve);
 }
 
-/** A `VecDeque` of `size`-byte elements, which pushes each at the back. */
-export function dequePart<T>(size?: number): Part<VecDeque<T>, T> {
-	return vectorPart(dequePushBack, size === undefined ? undefined : (q, additional) => dequeReserve(q, additional, size));
+/** A `VecDeque`, which pushes each at the back. */
+export function dequePart<T>(): Part<VecDeque<T>, T> {
+	return vectorPart(dequePushBack, dequeReserve);
 }
 
 /** A `LinkedList`, which pushes each at the back, and never reserves. */

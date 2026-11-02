@@ -10,6 +10,7 @@
 //! Library calls go through the mappings in `library`, which take their arguments
 //! lowered: a `Body` holds the names, and its translator everything else.
 
+mod alloc;
 mod call;
 mod cfg;
 pub mod coroutine;
@@ -18,6 +19,7 @@ pub mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
+mod origin;
 mod place;
 mod rvalue;
 mod scalar;

@@ -297,13 +297,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	set.len()
 }
 
-/// A closure that owns a value that drops, which `or_insert_with` would call but never drop
-/// if the key is there.
-pub fn called_closure(m: &mut std::collections::HashMap<u8, Noisy>) {
-	let b = Noisy(2);
-	m.entry(1).or_insert_with(move || b);
-}
-
 /// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
 /// call but never drop.
 pub fn pattern_closure(s: &str) -> bool {
@@ -545,7 +538,7 @@ pub fn addressed(n: u32) -> usize {
 	(&raw const n).addr()
 }
 
-/// Memory from the allocator, which has no JS object to point at.
+/// Memory from the allocator as bytes, which JS keeps only as values a cast types it as.
 pub fn allocated() -> u8 {
 	let layout = std::alloc::Layout::new::<u8>();
 	unsafe {
@@ -1685,8 +1678,8 @@ pub fn swapped_in_loop(n: u32) -> u32 {
 }
 
 /// Pointer operations on arrays of bytes that read the address or other bytes than the
-/// array's: comparing addresses only, copying, offsetting, casting to another pointee,
-/// hashing, and ordering.
+/// array's: comparing addresses only, copying, offsetting, hashing, and ordering, beside
+/// pointers to their first bytes.
 pub fn byte_pointer_ops(mut a: [u8; 4], b: [u8; 4]) -> u64 {
 	use std::hash::{Hash, Hasher};
 	let p: *mut [u8; 4] = &mut a;
@@ -2138,6 +2131,108 @@ pub fn mapped_closure(add: u8) -> u8 {
 	f(1)
 }
 
+/// Pointers into arrays whose elements JS keeps as objects: a pointer to one is the
+/// object, which knows no array it is in.
+pub fn object_elements(v: &mut Vec<(u8, u8)>, a: [(u8, u8); 2]) -> u8 {
+	let p = v.as_mut_ptr();
+	unsafe {
+		let q = p.add(1);
+		std::ptr::copy(p, q, 1);
+		let s = std::slice::from_raw_parts(p, 2);
+		let first = (&raw const a).cast::<(u8, u8)>();
+		(*q).0 + s[1].1 + (*first).0 + q.offset_from(p) as u8
+	}
+}
+
+/// Pointers to values of no bytes, which std's `offset_from` panics on, and a slice of
+/// them from one, which has no array to be a view of.
+pub fn unit_elements(p: *const ()) -> usize {
+	unsafe { p.offset_from(p) as usize + std::slice::from_raw_parts(p, 3).len() }
+}
+
+/// A pointer to an element cast to one to an array of elements from it.
+pub fn element_to_array(v: &[u32]) -> u32 {
+	unsafe { (*(v.as_ptr() as *const [u32; 2]))[1] }
+}
+
+/// A struct holding an array.
+pub struct Lanes {
+	/// The array a pointer points into.
+	pub lanes: [u32; 3],
+}
+
+/// Pointers to elements of arrays that a later assignment gives another JS array, which a
+/// pointer into the first would not see: a variable's, and a struct's field.
+pub fn elements_replaced(n: u32, l: &mut Lanes) -> u32 {
+	let mut a = [n; 3];
+	let p = &raw mut a[1];
+	a = [0; 3];
+	let q = &raw mut l.lanes[2];
+	l.lanes = [1; 3];
+	unsafe { *p + *q + a[0] }
+}
+
+#[repr(C)]
+pub struct Halves {
+	pub low: u32,
+	pub high: u32,
+}
+
+/// Two arrays in one allocation, which JS keeps apart.
+#[repr(C)]
+pub struct Rows {
+	/// The first.
+	pub top: [u32; 2],
+	/// The second.
+	pub bottom: [u32; 2],
+}
+
+/// `offset_from` of pointers the body shows JS keeps in different arrays: two made apart
+/// of one variable, two of a struct's fields, into two of its array fields, into two rows
+/// of a nested array, one into a shared subslice, a copy, against one into what it was
+/// taken of, and one into a shared slice of a byte, also a copy, against the byte's.
+pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
+	let a = &raw const n;
+	let b = &raw const n;
+	let grid = [[n; 2]; 2];
+	let lanes = [n; 4];
+	let part = &lanes[1..3];
+	let at = &raw const byte;
+	unsafe {
+		let bytes = std::slice::from_raw_parts(at, 1);
+		a.offset_from(b)
+			+ (&raw const h.high).offset_from(&raw const h.low)
+			+ r.bottom.as_ptr().offset_from(r.top.as_ptr())
+			+ grid[1].as_ptr().offset_from(grid[0].as_ptr())
+			+ part.as_ptr().offset_from(lanes.as_ptr())
+			+ bytes.as_ptr().offset_from(at)
+	}
+}
+
+/// A raw and a mutable slice of a byte in no array, which no `Uint8Array` can share.
+pub fn lone_byte_slices(mut b: u8) -> u8 {
+	let raw = std::ptr::slice_from_raw_parts_mut(&raw mut b, 1);
+	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
+	s[0] = 1;
+	unsafe { (*raw)[0] }
+}
+
+/// Pointers, slices, and copies the body shows reach out of an array of one or a copied
+/// subslice, where Rust's reach the rest of what holds them.
+pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
+	let part = &lanes[1..3];
+	let mut to = [0u32; 3];
+	unsafe {
+		std::ptr::copy_nonoverlapping(part.as_ptr(), to.as_mut_ptr(), 3);
+		let tail = lanes.get_unchecked(2..);
+		*part.as_ptr().sub(1)
+			+ std::slice::from_raw_parts(&raw const h.low, 2)[1]
+			+ *(&raw const h.high).sub(1)
+			+ *tail.as_ptr().offset(-2)
+			+ to[0]
+	}
+}
+
 /// A slice of one `u8`'s place, which no `rt.ByteSlice` views.
 pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
@@ -2201,6 +2296,46 @@ pub fn lazy_assigned(c: &mut std::sync::LazyLock<u32>) -> u32 {
 pub fn key_celled(key: &'static mut std::thread::LocalKey<u32>, next: std::thread::LocalKey<u32>) -> u32 {
 	std::cell::Cell::from_mut(key).set(next);
 	key.with(|v| *v)
+}
+
+/// Casts between pointers to bytes and to values outside memory from `alloc`, which read
+/// the bytes of one type as another: of an array's bytes to `u32`s, of memory from
+/// `alloc` to the crate's struct, which JS keeps as an object, and of a pointer to values
+/// to one to their bytes, read rather than freed; and a byte of memory from `alloc` written
+/// by `ptr::write`.
+pub fn bytes_as_values(bytes: [u8; 4]) -> u32 {
+	let layout = std::alloc::Layout::new::<Halves>();
+	unsafe {
+		std::ptr::write(std::alloc::alloc(layout), 2);
+		let words = bytes.as_ptr() as *const u32;
+		let halves = std::alloc::alloc(layout) as *mut Halves;
+		let n = 7u32;
+		let byte = *((&raw const n) as *const u8);
+		*words + (*halves).low + u32::from(byte)
+	}
+}
+
+/// Memory from `alloc` cast to pointers to two types, which reads one's bytes as the
+/// other's, also once `realloc` grows it.
+pub fn alloc_retyped() -> i32 {
+	let layout = std::alloc::Layout::new::<u32>();
+	unsafe {
+		let raw = std::alloc::alloc(layout);
+		raw.cast::<u32>().write(u32::MAX);
+		let n = (raw as *mut i32).read();
+		let grown = std::alloc::realloc(raw, layout, 8);
+		let m = grown.cast::<i32>().read();
+		let words = grown.cast::<u32>();
+		let again = std::alloc::realloc(words.cast::<u8>(), std::alloc::Layout::array::<u32>(2).unwrap(), 12);
+		let k = again.cast::<i32>().read();
+		std::alloc::dealloc(again, std::alloc::Layout::array::<u32>(3).unwrap());
+		n + m + k
+	}
+}
+
+/// Memory from `alloc_zeroed`, whose zeroed bytes JS can't type.
+pub fn zeroed() -> u32 {
+	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
 }
 
 /// The tags of the first of two slots, each written whole as `fill` beside a pair of

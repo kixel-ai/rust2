@@ -26,6 +26,7 @@ import * as defaults_Made from "../defaults.Made.ts";
 import type * as dyns_Shape from "../dyns.Shape.ts";
 import * as edits_Named from "../edits.Named.ts";
 import type * as Ticked from "../generics.Ticked.ts";
+import type * as heap_Fault from "../heap.Fault.ts";
 import type * as hints_Unit from "../hints.Unit.ts";
 import type * as Badge from "../iters.Badge.ts";
 import type * as Quarter from "../iters.Quarter.ts";
@@ -650,6 +651,13 @@ export function map$12l9avg(self: rt.u8 | undefined, f: (a0: rt.u8) => Ticked.Ti
 	return f(self);
 }
 
+export function map$1fmzefe(self: rt.u8 | undefined, f: (a0: rt.u8) => [rt.u8, rt.u8]): [rt.u8, rt.u8] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1qp1ym6(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u32): rt.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -799,13 +807,6 @@ export function map$0of9gds(self: rt.u8 | undefined, f: (a0: rt.u8) => Badge.Bad
 }
 
 export function map$1pb5zw8(self: rt.u8 | undefined, f: (a0: rt.u8) => [rt.u16, rt.u8]): [rt.u16, rt.u8] | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return f(self);
-}
-
-export function map$1fmzefe(self: rt.u8 | undefined, f: (a0: rt.u8) => [rt.u8, rt.u8]): [rt.u8, rt.u8] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -1087,6 +1088,13 @@ export function mapOr$0cqaybi(self: locals_Noisy.Noisy | undefined, default_: rt
 
 export function mapOr$1w5qtj7(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
 	if (self === rt.None) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0grxkdu(self: rt.u32[] | undefined, default_: rt.u32, f: (a0: rt.u32[]) => rt.u32): rt.u32 {
+	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
@@ -1463,6 +1471,13 @@ export function mapOr$0f73bb7(self: [rt.u8, [rt.usize, rt.ByteSlice]] | undefine
 	return f(self);
 }
 
+export function mapOr$0hi5qhf(self: [rt.u8, rt.u16] | undefined, default_: rt.u8, f: (a0: [rt.u8, rt.u16]) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$16umieg(self: [rt.usize, string] | undefined, default_: rt.usize, f: (a0: [rt.usize, string]) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
@@ -1512,6 +1527,13 @@ export function mapOr$1m2xzon(self: rt.u8 | undefined, default_: boolean, f: (a0
 	return f(self);
 }
 
+export function mapOr$1qo6t0j(self: rt.u8 | undefined, default_: rt.u32, _: (a0: rt.u8) => rt.u32): rt.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self as rt.u32;
+}
+
 export function mapOr$18ph0j9(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
 	if (self === rt.None) {
 		return default_;
@@ -1548,6 +1570,13 @@ export function okOr$07zal2e(self: rt.u32[] | undefined, err: rt.u8): rt.Result<
 }
 
 export function okOr$1b6nkwr(self: rt.char | undefined, err: rt.u8): rt.Result<rt.char, rt.u8> {
+	if (self === undefined) {
+		return rt.Err(err);
+	}
+	return rt.Ok(self);
+}
+
+export function okOr$1rxv64q(self: rt.Place<rt.u8> | undefined, err: heap_Fault.Fault): rt.Result<rt.Place<rt.u8>, heap_Fault.Fault> {
 	if (self === undefined) {
 		return rt.Err(err);
 	}
@@ -1613,6 +1642,13 @@ export function okOr$1vxk0yk(self: rt.u8 | undefined, err: rt.u8): rt.Result<rt.
 export function okOr$0g9lvh7(self: rt.u8 | undefined, _: undefined): rt.Result<rt.u8, undefined> {
 	if (self === undefined) {
 		return rt.ERR;
+	}
+	return rt.Ok(self);
+}
+
+export function okOr$169x1m6(self: rt.usize | undefined, err: heap_Fault.Fault): rt.Result<rt.usize, heap_Fault.Fault> {
+	if (self === undefined) {
+		return rt.Err(err);
 	}
 	return rt.Ok(self);
 }

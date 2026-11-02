@@ -10,7 +10,7 @@ growing native heap behind it.
 ## Plan
 
 Found by [#432](https://github.com/moq-dev/rust2/pull/432), which made bytes over 1 KiB
-GC-owned under [the lifetimes quest](/quest/m1/ffi-export/lifetimes.md): Rust's buffer is
+GC-owned: Rust's buffer is
 freed by a cleaner once the GC collects its `Native.Lent`, and the JVM does not see the
 buffer's size. A scratch loop returning a fresh Rust buffer per call measured 1.6 to 13 µs
 per lent `Bytes` from 1025 B to 16 KiB, against 0.15 to 3.4 µs with every size copied, as
@@ -28,7 +28,3 @@ the numbers support. Options to weigh:
 
 No `close()` comes back: a free while a slice is live is what the lifetimes quest removed.
 Go's `Bytes` has the same shape (`runtime.AddCleanup`); note whether its fix applies there.
-
-## Required
-
-- [Lifetimes with no undefined behavior](/quest/m1/ffi-export/lifetimes.md) - #432's GC-owned Kotlin bytes land first

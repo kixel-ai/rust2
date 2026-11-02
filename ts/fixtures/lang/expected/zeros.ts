@@ -294,7 +294,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.iterCount(rt.iterEmpty() as rt.Iter<rt.u8>) & 0xff);
 	} else if (_7 === 1) {
 		const sorted: zeros_Tagged.Tagged<string>[] = rt.vecExact(tags.map(zeros_Tagged.clone$Clone_String), 1);
-		rt.sliceSort(sorted, rt.cmpLt(zeros_Tagged.partialCmp$cmp_PartialOrd_String));
+		rt.sliceSort(sorted, rt.cmpLt(zeros_Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
 		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(sorted), (t3: zeros_Tagged.Tagged<string>): rt.u8 => {
 			return t3.n;
 		}), undefined, true);

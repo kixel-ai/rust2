@@ -187,7 +187,7 @@ export function refill(v: rt.Arc<rt.u8>[], bytes: rt.ByteVec, with_: rt.Arc<rt.u
 }
 
 export function requeue(q: rt.VecDeque<rt.u8>, map: rt.HashMap<rt.u8, rt.u8>, n: rt.u8): rt.usize {
-	const old: rt.VecDeque<rt.u8> = rt.replaceIn(q, rt.dequeFromVec(rt.iterToArray(new rt.Range(0, rt.u8Rem(n, 5)), undefined, 1, true)) as rt.VecDeque<rt.u8>);
+	const old: rt.VecDeque<rt.u8> = rt.replaceIn(q, rt.dequeFromVec(rt.iterToArray(new rt.Range(0, rt.u8Rem(n, 5)), undefined, 1, true), 1, true) as rt.VecDeque<rt.u8>);
 	Object.assign(map, rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, rt.iterSlice([[n, n] as [rt.u8, rt.u8]]), undefined, undefined, undefined, 469762048));
 	return old.n;
 }
@@ -392,7 +392,7 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const keys: [rt.u8, rt.u8][] = rt.iterToArray(rt.iterMap(rt.hashIter(sets), (_22: [rt.u8, rt.BTreeSet<rt.u8>]): [rt.u8, rt.u8] => {
 		return [_22[0], rt.btreeLen(_22[1]) & 0xff] as [rt.u8, rt.u8];
 	}), "next", 2);
-	rt.sliceSort(keys, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+	rt.sliceSort(keys, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 2, true);
 	for (const _394 of keys) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(_394[0], _394[1])));
 	}
@@ -442,8 +442,7 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(bytes));
 	counts(out, [one, two], w.held);
 	counts(out, [one, two], other);
-	const _515: Uint8Array = Uint8Array.of(by);
-	const q: rt.VecDeque<rt.u8> = rt.dequeExtend(rt.dequeNew() as rt.VecDeque<rt.u8>, rt.iterSlice(_515), undefined, 1, true);
+	const q: rt.VecDeque<rt.u8> = rt.dequeFromArray(Uint8Array.of(by), 1, true) as rt.VecDeque<rt.u8>;
 	const map: rt.HashMap<rt.u8, rt.u8> = rt.hashNew() as rt.HashMap<rt.u8, rt.u8>;
 	for (const _519 of rt.byteSliceView(data)) {
 		rt.byteVecPush(out, requeue(q, map, _519) & 0xff);

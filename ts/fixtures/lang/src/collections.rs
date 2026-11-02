@@ -713,8 +713,9 @@ pub fn deques(data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// `VecDeque::range` by each form of range, over a ring buffer whose front items wrap past
-/// its end, read from both ends and cloned midway; a range past the length or backwards
-/// panics as std's does.
+/// its end, read from both ends and cloned midway, with `{:?}` of what is left after each
+/// step, which shows the two slices std's splits it into; a range past the length or
+/// backwards panics as std's does.
 pub fn deque_ranges(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let (a, b, items) = match data {
 		[a, b, items @ ..] => (*a as usize % 8, *b as usize % 8, items),
@@ -736,6 +737,7 @@ pub fn deque_ranges(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		_ => q.range(a..a),
 	};
 	out.push(it.len() as u8);
+	out.extend_from_slice(format!("{it:?}").as_bytes());
 	// Each step reads from the back by the kind's high bits, in turn.
 	let mut i = 0;
 	loop {
@@ -747,6 +749,7 @@ pub fn deque_ranges(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			break;
 		};
 		out.push(item);
+		out.extend_from_slice(format!("{it:?}").as_bytes());
 		if i == 1 {
 			out.extend(it.clone().rev());
 		}
