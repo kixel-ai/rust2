@@ -610,7 +610,12 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 
 /// [`emit`] on another thread, which the call waits on.
 pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
-	std::thread::scope(|scope| scope.spawn(move || emit(log, lines)).join().expect("the thread finishes"))
+	std::thread::scope(|scope| {
+		scope
+			.spawn(move || emit(log, lines))
+			.join()
+			.expect("the thread finishes")
+	})
 }
 
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
