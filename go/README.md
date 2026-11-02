@@ -60,4 +60,5 @@ integer width's arithmetic, overflow, division by zero, and shifts, and `fixture
 calls, reads, and overflow checks a folded temporary could reorder or skip.
 
 `just go bench` times the codec's workloads translated against the same crate exported by
-rust2-ffi and called through cgo.
+rust2-ffi and called through cgo: per-call varints and frame headers, and `stream/`, a
+group's whole stream, the bar the translation is held to.
