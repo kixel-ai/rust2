@@ -485,6 +485,9 @@ func script() {
 	print("counters \(counters.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
 	// Each counter moves in, so Swift closes it.
 	print("worth \(worth([counters[0]], [counters[1]])) \(worth(nil, []))")
+	print("held \([heldCount(Counter.new("h", 4)), heldCount(nil)].map { $0.map { "Some(\($0))" } ?? "None" }.joined(separator: " "))")
+	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
+	print("less \(less(5, 2))")
 	print("sums \(sums([[1, 2], [], [3]]))")
 	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
 	let noneSum = summed([])

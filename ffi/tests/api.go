@@ -501,6 +501,23 @@ func script() {
 	}), "[]"))
 	// Each counter moves in, so Go closes it.
 	fmt.Printf("worth %d %d\n", must(api.Worth(&[]*api.Counter{counters[0]}, []*api.Counter{counters[1]})), must(api.Worth(nil, nil)))
+	held := api.NewCounter("h", 4)
+	fmt.Print("held")
+	for _, n := range []*uint64{must(api.HeldCount(&held)), must(api.HeldCount(nil))} {
+		if n == nil {
+			fmt.Print(" None")
+		} else {
+			fmt.Printf(" Some(%d)", *n)
+		}
+	}
+	fmt.Println()
+	b := "b"
+	unnamed := "None"
+	if s := must(api.BoxedName(nil)); s != nil {
+		unnamed = *s
+	}
+	fmt.Printf("boxed Some(%q) %s %t\n", *must(api.BoxedName(api.BoxedCounter(&b))), unnamed, api.BoxedCounter(nil) == nil)
+	fmt.Printf("less %d\n", api.Less(5, 2))
 	fmt.Printf("sums %s\n", list(api.Sums([][]uint32{{1, 2}, {}, {3}}), number))
 	sum := api.Summed([]api.Point{{X: 1, Y: 2}, {X: -4, Y: 6}})
 	none := api.Summed(nil)
