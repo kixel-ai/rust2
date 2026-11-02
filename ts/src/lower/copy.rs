@@ -51,7 +51,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Saturating,
 				) => (false, args.types().collect()),
 				Some(Std::Bound) => (true, args.types().collect()),
-				Some(Std::MaybeUninit) => return self.changes(args.type_at(0)),
+				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
 					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
@@ -160,6 +160,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// An array's copy is the same at every length, so its name has none: `array_u8`.
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
+			// The copy of what it holds.
+			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => {
+				return self.shim(args.type_at(0), span);
+			}
 			ty::Array(elem, _) => (Ty::new_array(tcx, *elem, 0), true),
 			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::MaybeUninit) => match args.type_at(0).kind() {
 				ty::Array(elem, _) => (Ty::new_maybe_uninit(tcx, Ty::new_array(tcx, *elem, 0)), true),
@@ -551,12 +555,12 @@ impl<'tcx> Types<'tcx> {
 	}
 }
 
-/// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` as what it holds, and an
-/// array as a slice of its element.
+/// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` or `ManuallyDrop` as what
+/// it holds, and an array as a slice of its element.
 fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	let mut ty = tcx.erase_and_anonymize_regions(ty);
 	while let ty::Adt(adt, args) = ty.kind()
-		&& Std::of(tcx, adt.did()) == Some(Std::MaybeUninit)
+		&& matches!(Std::of(tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
 	{
 		ty = args.type_at(0);
 	}
@@ -896,14 +900,15 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a `ty` may be kept as a JS object that a pointer to it is: a tuple, an
-	/// array, a struct or union of a crate that translates, or a `MaybeUninit` of one; or
-	/// an `UnsafeCell`'s `rt.Cell`, which the pointer `get` gives is or holds.
+	/// array, a struct or union of a crate that translates, or a `MaybeUninit` or
+	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rt.Cell`, which the pointer `get`
+	/// gives is or holds.
 	fn inline(&self, ty: Ty<'tcx>) -> bool {
 		match ty.kind() {
 			ty::Tuple(tys) => !tys.is_empty(),
 			ty::Array(..) | ty::Param(_) | ty::Alias(..) => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				Some(Std::MaybeUninit) => self.inline(args.type_at(0)),
+				Some(Std::MaybeUninit | Std::ManuallyDrop) => self.inline(args.type_at(0)),
 				Some(Std::Cell) => self.tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell),
 				Some(_) => false,
 				None => !adt.is_enum() && (self.own)(adt.did()),

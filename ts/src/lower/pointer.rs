@@ -1,4 +1,4 @@
-//! Raw pointers, `NonNull`, and `MaybeUninit`.
+//! Raw pointers, `NonNull`, `MaybeUninit`, and `ManuallyDrop`.
 //!
 //! A raw pointer is what a `&mut` to its pointee is where JS keeps the pointee where Rust
 //! does: the object, a tuple's or array's or the crate's own struct's, or the
@@ -25,9 +25,9 @@
 //! leaves it be.
 //!
 //! A `MaybeUninit<T>` is a `T`: `undefined` where JS copies a `T` and it holds none yet,
-//! or an object whose parts hold none yet where a pointer to it is the object. An
-//! `UnsafeCell<T>` is an `rt.Cell`, which is the place a pointer to `T` is, or else holds
-//! the object it is.
+//! or an object whose parts hold none yet where a pointer to it is the object. A
+//! `ManuallyDrop<T>` is a `T` that nothing drops but its own `drop`. An `UnsafeCell<T>` is
+//! an `rt.Cell`, which is the place a pointer to `T` is, or else holds the object it is.
 
 use rustc_middle::ty::{self, Ty, TypeVisitableExt};
 use rustc_span::Span;
@@ -105,11 +105,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// What a `MaybeUninit` holds, through any number of them, or `ty` itself.
+	/// What a `MaybeUninit` or `ManuallyDrop` holds, through any number of them, or `ty`
+	/// itself: JS keeps each as what it holds.
 	pub fn uninit_inner(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		let mut ty = ty;
 		while let ty::Adt(adt, args) = ty.kind()
-			&& Std::of(self.tcx, adt.did()) == Some(Std::MaybeUninit)
+			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
 		{
 			ty = args.type_at(0);
 		}
@@ -159,7 +160,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Tuple(tys) => tys.iter().all(|t| self.empty(t)),
 			ty::Array(elem, _) => self.empty(*elem),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				Some(Std::MaybeUninit) => self.empty(args.type_at(0)),
+				Some(Std::MaybeUninit | Std::ManuallyDrop) => self.empty(args.type_at(0)),
 				Some(_) => false,
 				None => adt.is_struct() && adt.all_fields().all(|f| self.empty(self.field_ty(f.did, args))),
 			},
@@ -257,8 +258,8 @@ pub fn from_reference<'tcx>(
 }
 
 /// What the value std's `def_id` returns points at, if it is a raw pointer, `NonNull`,
-/// `MaybeUninit`, `UnsafeCell`, or `Box` function that runs none of the crate's code and
-/// keeps what it is given nowhere but in what it returns.
+/// `MaybeUninit`, `ManuallyDrop`, `UnsafeCell`, or `Box` function that runs none of the
+/// crate's code and keeps what it is given nowhere but in what it returns.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Derives {
 	/// Where its first argument points, as a whole.
@@ -287,11 +288,13 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		)
 		| ("NonNull", "dangling" | "add" | "sub" | "offset" | "write")
 		| ("MaybeUninit", "new" | "uninit" | "assume_init")
+		| ("ManuallyDrop", "new" | "into_inner")
 		| ("UnsafeCell", "new" | "get" | "raw_get" | "get_mut" | "into_inner")
 		| ("Box", "new") => Some(Derives::Other),
 		("ptr", "read" | "read_unaligned" | "read_volatile")
 		| ("NonNull", "read")
-		| ("MaybeUninit", "assume_init_read") => Some(Derives::Loaded),
+		| ("MaybeUninit", "assume_init_read")
+		| ("ManuallyDrop", "take") => Some(Derives::Loaded),
 		_ => None,
 	}
 }
@@ -343,6 +346,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 		Some((owner, name)) if matches!(
 			(owner.as_str(), name.as_str()),
 			("MaybeUninit", "as_mut_ptr" | "write" | "assume_init_mut" | "assume_init_drop")
+				| ("ManuallyDrop", "drop" | "take")
 				| ("UnsafeCell", "get_mut")
 				| ("NonNull" | "ptr", "as_mut")
 				| ("Box", "leak")
@@ -370,6 +374,7 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 				"null" | "null_mut" | "dangling" | "dangling_mut" | "is_null" | "as_ref" | "as_mut" | "cast" | "cast_const"
 					| "cast_mut" | "eq" | "read" | "read_unaligned" | "read_volatile" | "drop_in_place"
 			) | ("Box", "into_raw" | "leak" | "from_raw")
+				| ("ManuallyDrop", "new" | "into_inner" | "drop" | "take")
 				| ("UnsafeCell", "new" | "get" | "get_mut" | "into_inner")
 		) || owner == "Atomic" && super::library::is_std(tcx, def_id)
 	);
@@ -377,10 +382,11 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 }
 
 /// Whether std's `def_id` of `args` is one a mapping takes the `rt.Place` a `&mut` is for,
-/// rather than what it points at: a `MaybeUninit`'s, which it points into, an `Arc`'s that
-/// `make_mut` replaces, a `String`'s that a drain edits as it drops, a `Result`'s whose
-/// payload JS copies, which `iter_mut` lends as a place that writes the whole `Result`,
-/// and a well-known crate's, such as a `Bytes` that `Buf::advance` moves past its front.
+/// rather than what it points at: a `MaybeUninit`'s or a `ManuallyDrop`'s, which it points
+/// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
+/// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
+/// whole `Result`, and a well-known crate's, such as a `Bytes` that `Buf::advance` moves
+/// past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
@@ -388,7 +394,7 @@ fn takes_place<'tcx>(
 ) -> bool {
 	matches!(
 		super::library::key(t.tcx, def_id),
-		Some((owner, name)) if owner == "MaybeUninit"
+		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop")
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
@@ -413,9 +419,9 @@ pub fn pointees<'tcx>(
 		.collect()
 }
 
-/// A call of std's raw pointer, `NonNull`, `MaybeUninit`, `UnsafeCell`, or `Box` functions
-/// that make or take a raw pointer: its mapping, `None` if it has none, or its arguments
-/// back if it is no such call.
+/// A call of std's raw pointer, `NonNull`, `MaybeUninit`, `ManuallyDrop`, `UnsafeCell`, or
+/// `Box` functions that make or take a raw pointer or what one points at: its mapping,
+/// `None` if it has none, or its arguments back if it is no such call.
 pub fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
@@ -484,6 +490,7 @@ pub fn call<'tcx>(
 		("ptr", "cast_const" | "cast_mut")
 		| ("NonNull", "as_ptr" | "new_unchecked" | "cast_const" | "cast_mut")
 		| ("MaybeUninit", "new" | "assume_init" | "assume_init_mut")
+		| ("ManuallyDrop", "new" | "into_inner")
 		| ("NonNull", "as_mut")
 		| ("Clone", "clone")
 			if owner != "Clone" || pointer_self(b, call).is_some() =>
@@ -619,13 +626,22 @@ pub fn call<'tcx>(
 		}
 		// A shared reference to a value JS copies is the value.
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
-		("MaybeUninit", "assume_init_drop") => {
+		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
 			let p = arg();
 			let value = match kind(b, pointee()) {
 				Some(Pointee::Place) => p.member("v"),
 				_ => p,
 			};
 			b.t.drop_value(value, pointee(), span).unwrap_or_else(Expr::undefined)
+		}
+		// What it holds, which it leaves for nothing to read or drop again.
+		("ManuallyDrop", "take") => {
+			let p = arg();
+			let value = match kind(b, pointee()) {
+				Some(Pointee::Place) => p.member("v"),
+				_ => p,
+			};
+			b.t.snapshot(value, pointee(), span)
 		}
 		// An `rt.Cell`, which is the place a pointer to a value JS copies is, and holds the
 		// object a pointer to any other is.

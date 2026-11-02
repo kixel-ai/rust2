@@ -416,6 +416,14 @@ export function copy$locals_Twin(v: locals_Twin.Twin): locals_Twin.Twin {
 	return { _0: v._0, _1: v._1 };
 }
 
+export function copy$mem_ManuallyDrop_array2_u8(v: Uint8Array): Uint8Array {
+	return copy$array_u8(v);
+}
+
+export function copy$mem_ManuallyDrop_tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
+	return copy$tuple2_u8_u16(v);
+}
+
 export function copy$mem_MaybeUninit_Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8, rt.u8] | undefined {
 	if (v === undefined) {
 		return v;

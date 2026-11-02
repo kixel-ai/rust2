@@ -728,11 +728,14 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		})
 	}
 
-	/// `ty`, or what it holds if JS keeps that as it: a `MaybeUninit`'s payload.
+	/// `ty`, or what it holds if JS keeps that as it: a `MaybeUninit`'s or a
+	/// `ManuallyDrop`'s payload.
 	fn peel(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
 		while let ty::Adt(adt, args) = ty.kind()
-			&& Std::of(self.t.tcx, adt.did()) == Some(Std::MaybeUninit)
-		{
+			&& matches!(
+				Std::of(self.t.tcx, adt.did()),
+				Some(Std::MaybeUninit | Std::ManuallyDrop)
+			) {
 			ty = args.type_at(0);
 		}
 		ty

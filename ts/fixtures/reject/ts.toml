@@ -185,5 +185,6 @@ roots = [
     "key_celled",
     "bytes_as_values",
     "zeroed",
+    "manual_impls",
 ]
 printable = ["Meters"]

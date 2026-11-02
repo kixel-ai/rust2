@@ -234,6 +234,9 @@ a cast from a pointer to `u8` to one to `Halves`, which reads the bytes of one t
 a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2321:15
 unsupported call to `std::alloc::alloc_zeroed` at fixtures/reject/src/lib.rs:2328:13
 a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2328:12
+unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq` at fixtures/reject/src/lib.rs:2334:25
+a constant of type `std::mem::ManuallyDrop<u32>` at fixtures/reject/src/lib.rs:2334:34
+unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt` at fixtures/reject/src/lib.rs:2334:11
 overriding `Iterator::fold`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:125:2
 an iterator of the crate implementing `DoubleEndedIterator`, which is not supported yet at fixtures/reject/src/lib.rs:145:1
 overriding `Iterator::size_hint`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:173:2

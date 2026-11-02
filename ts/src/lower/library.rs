@@ -139,6 +139,8 @@ pub enum Std {
 	NonNull,
 	/// What it holds, or nothing yet, as `pointer` has it.
 	MaybeUninit,
+	/// What it holds, which it never drops itself.
+	ManuallyDrop,
 	/// No value: `never`.
 	Infallible,
 	/// `rt.HashMap`, and `rt.HashSet`, a map to `undefined`.
@@ -316,6 +318,7 @@ impl Std {
 			["fmt", "rt", "Argument"] => Some(Self::Argument),
 			["ptr", "non_null", "NonNull"] => Some(Self::NonNull),
 			["mem", "maybe_uninit", "MaybeUninit"] => Some(Self::MaybeUninit),
+			["mem", "manually_drop", "ManuallyDrop"] => Some(Self::ManuallyDrop),
 			["future", "poll_fn", "PollFn"] => Some(Self::PollFn),
 			["future", "pending", "Pending"] => Some(Self::Pending),
 			["task", "wake", "RawWakerVTable"] => Some(Self::WakerVTable),
@@ -900,6 +903,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("mem", "replace" | "take" | "swap" | "forget")
 		| ("ptr", "write" | "write_unaligned" | "write_volatile" | "replace")
 		| ("MaybeUninit", "new" | "write" | "assume_init")
+		| ("ManuallyDrop", "new" | "into_inner")
 		| ("Box", "into_raw" | "leak" | "from_raw")
 		| ("hint", "must_use")
 		| ("From", "from")
@@ -1587,8 +1591,8 @@ fn mapping<'tcx>(
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
 				}
 				_ if let Some(elem) = box_slice(tcx, ty) => return slice_boxed(b, value, elem, span),
-				// A box is what it holds, cloned.
-				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Box) => {
+				// A box, or a `ManuallyDrop`, is what it holds, cloned.
+				ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::Box | Std::ManuallyDrop)) => {
 					let inner = args.type_at(0);
 					if !inner.is_sized(tcx, b.t.typing_env_pub()) {
 						return None;
@@ -2202,7 +2206,7 @@ fn mapping<'tcx>(
 			match ty.kind() {
 				ty::Adt(adt, vargs) => match Std::of(tcx, adt.did()) {
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
-					Some(Std::String | Std::Box) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop) => v,
 					Some(Std::Cow) if string(tcx, ty) => v,
 					Some(Std::Cow) if let Some(elem) = cow_slice(tcx, ty) => cow_deref(v, elem),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
