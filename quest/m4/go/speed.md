@@ -1,47 +1,62 @@
-# [L] Match cgo on the codec
+# [L] Match cgo on the crate
 
 ## Goal
 
-Every `just go bench` workload, translated, runs within 2x of the same crate called
-through cgo, and the differential tests still pass. If it cannot, the translator is
-dropped, as [the epic](/quest/m4/go/README.md) records.
+The translated crate, on `just go bench`'s whole-crate workloads (`stream/`: a group's
+stream encoded and decoded end to end, header, frames, and payloads, as moq's consumer
+runs it), runs within 2x of the same crate called through cgo, and the differential
+tests still pass. If it cannot, the translator is dropped, as
+[the epic](/quest/m4/go/README.md) records. The per-call workloads, varints and frame
+headers, are diagnostics, not the bar.
 
 ## Plan
 
-The spike measured the translation 2 to 113 times slower, decoding a 2-byte QUIC varint in
-143 to 185 ns where cgo takes 1.0 to 1.6 ns. Neither the heap nor the collector explains
-it:
+Decided with the maintainer on 2026-11-02, settling
+[moq-dev/rust2#428](https://github.com/moq-dev/rust2/pull/428): the 2x bar is for the
+whole crate on a realistic workload, not an encode or decode micro benchmark. Even
+hand-written Go, a loop parsing as quic-go's `quicvarint.Parse` does, decodes varints
+3 to 8 times slower than cgo, so the old per-call bar measured Go against Rust rather
+than the translation.
 
-- **No allocation in the loop:** a decode of 1,024 varints makes 2 allocations, 24 bytes,
-  to cgo's 1. `go build -gcflags=-m=2` finds nothing on the decode path escaping but the
-  constant `"unreachable"` panic strings, which are static, and the output's `append`.
-- **No collector:** `mallocgc`, the mark workers, and write barriers take 2% of the
-  profile.
+Where the bar stands, as means of three runs alternating with a hand edit of step 1, in
+µs per group on a host at load 35 to 45 of 32 cores, so absolute times are inflated:
 
-The time is the translated code moving memory. In the decode path's own time, 58% is
-copies of large structs and 23% is zeroing stack slots, leaving 19% for the work and the
-calls:
+| Workload | Go | cgo | Ratio | With step 1 | Ratio |
+| --- | --- | --- | --- | --- | --- |
+| `stream/video/lite-06/encode` | 4,263 | 1,259 | 3.4x | 1,229 | 1.6x |
+| `stream/video/lite-06/decode` | 4,425 | 853 | 5.2x | 1,110 | 1.6x |
+| `stream/audio/lite-06/encode` | 55 | 14 | 4.0x | 24 | 1.9x |
+| `stream/audio/lite-06/decode` | 75 | 13 | 6.0x | 40 | 3.4x |
+| `stream/video/lite-07/encode` | 3,315 | 895 | 3.7x | 1,083 | 1.6x |
+| `stream/video/lite-07/decode` | 3,417 | 969 | 3.5x | 1,184 | 1.8x |
+| `stream/audio/lite-07/encode` | 61 | 13 | 4.5x | 21 | 2.0x |
+| `stream/audio/lite-07/decode` | 79 | 11 | 7.0x | 36 | 3.3x |
 
-- **An enum holds every variant's fields** side by side, where Rust overlaps them:
-  `DecodeError` is 96 bytes and `Result<(u64, &[u8]), DecodeError>` 136. Each
-  `Option`, `Result`, and `ControlFlow` on the path carries a `DecodeError`, and each is
-  copied in and out of every call by value.
-- **Every MIR local is a Go variable** declared at the top. Go zeroes each one that
-  holds a pointer at entry, so `read_quic` reserves a 1,488-byte frame. 240 of its 980
-  instructions zero 16 bytes each. A varint passes about 3.7 KB of frames.
-- **Blocks are labels and `goto`**, which Go's inliner costs past its budget: a
-  one-line `Try::branch` costs 81 against 80, so each `?` is a call. PGO recovers 0 to
-  15%.
+A video group is 60 frames, 577 KB; an audio group is 50 frames of 160 bytes. Measure
+each step on these before the next.
 
-Folding each temporary assigned once and read once into its reader, as rust2-ts does,
-cut decoding's time 35 to 55% and left encoding about where it was: every decode is
-still 17 to 108 times cgo, encodes 2 to 6 times, and groups 0.4 to 2.9 times.
+1. **Grow a `Vec` as Rust does.** Half of a video stream's time is `runtime.memmove`
+   in `append`, which grows a slice past 256 elements by about 1.25x where Rust's `Vec`
+   doubles, so Go copies the output several times more. Translation refuses
+   `Vec::capacity`, so the growth is not observable: a runtime `push` and `extend` that
+   grow by `slices.Grow(s, max(n, cap(s)))` match Rust's amortized doubling.
+2. **Structure control flow on a crate shared with rust2-ts.** Labels and `goto` put a
+   function past Go's inlining budget: a one-line `Try::branch` costs 81 against 80, so
+   each `?` is a call. Move rust2-ts's `cfg` (`ts/src/lower/mir/cfg.rs`) into a crate both
+   translators use, generic over their statements, as the epic decides. rust2-ts's output
+   must not change: its lang and reject snapshots stay put.
+3. **Split enums into their parts:** a Go variable per part for a local, and Go results
+   for a return, as rust2-ts's `Slotted` (`ts/src/lower/mir/scalar.rs`) hands back a
+   `Result`'s parts. An audio stream's remaining gap is mostly its frame headers, which
+   the per-call `frames/` workloads measure at 17 to 32 times cgo.
 
-What is left is enums crossing calls through memory. Go keeps a local of over four words
-in memory and returns a result of over nine on the stack, so each `Option`, `Result`, and
+The cost step 3 removes is Go's register ABI. Go keeps a local of over four words in
+memory and returns a result of over nine on the stack, so each `Option`, `Result`, and
 `ControlFlow` a call returns is stored to its caller's frame, zeroed there first when it
-holds a pointer, and copied out. Hand edits of the translated 2-byte QUIC varint decode,
-where cgo takes 1.0 to 1.2 ns, measure each lever, as means of three runs on a shared host:
+holds a pointer, and copied out. An enum holds every variant's fields side by side,
+where Rust overlaps them: `DecodeError` is 96 bytes, and `Result<(u64, &[u8]),
+DecodeError>` 136. Hand edits of the translated 2-byte QUIC varint decode, where cgo
+takes 1.0 to 1.2 ns, measure each lever:
 
 | The translation, with | ns |
 | --- | --- |
@@ -52,21 +67,6 @@ where cgo takes 1.0 to 1.2 ns, measure each lever, as means of three runs on a s
 | that, and `DecodeError` 40 bytes | 67 |
 | each `Result` returned as Go results, its error by pointer, and the helpers inlined | 6.7, and 4.3 for 1 byte |
 
-So laying out variants and structuring control flow, this plan's next steps, leave
-every decode past 10 times cgo. Splitting an enum into its parts, Go variables for a
-local and Go results for a return, as rust2-ts's `Slotted` hands back a `Result`'s parts,
-reaches about what idiomatic Go does: a loop parsing as quic-go's `quicvarint.Parse`
-does decodes the same varints in 3.6 to 9.7 ns, itself 3 to 8 times cgo. Within 2x of
-cgo on the varint workloads is past what hand-written Go reaches.
-
-Open, for the maintainer:
-
-1. **Change the bar and split enums (recommended):** within 2x of idiomatic Go, or of
-   cgo on calls a Go user makes one at a time, where cgo pays its crossing each time.
-   Then split enums into their parts, on control flow structured by rust2-ts's `cfg`
-   (`ts/src/lower/mir/cfg.rs`) made generic over its statements in a crate both share.
-2. **Keep the bar, and drop the translator,** as the epic records: delete `go/` and the
-   epic, keeping these measurements in the PR that does.
-3. **Keep the bar and split enums anyway,** expecting 3 to 5 times cgo at best on varints.
+Laying variants out behind pointers is no lever, so it is not a step.
 
 Public API: none.
