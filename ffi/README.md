@@ -443,7 +443,11 @@ own directory, and links the library through `CGO_LDFLAGS`.
   slice of freed memory; a smaller one is copied, which costs less than the GC's cleanup.
   The GC sees none of Rust's buffers, so at most 64 MiB are lent at once, freed or not;
   past that, larger ones are copied too, and that garbage in Go's heap runs the GC, which
-  frees them. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
+  frees them. On glibc, each thread's malloc arena keeps what is freed into it for that
+  thread to reuse, and a goroutine moves between threads, so reading lent bytes at full
+  speed can hold up to 64 MiB of RSS per thread the reads ran on. A global allocator that
+  returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
+  the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
   pointer, nil for `None`. A tuple is `Tuple2[A, B]` and so on, but a tuple of one is its

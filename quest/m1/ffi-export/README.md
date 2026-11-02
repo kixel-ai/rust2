@@ -60,4 +60,3 @@ than `ctypes`; the others call C natively. moq's packages switch to them in moq'
 - [Dart: calls into a held implementation while the isolate waits](/quest/m1/ffi-export/dart-threads.md) - an implementation Rust kept and calls from another thread runs, or fails loud, while the isolate waits in a call
 - [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
 - [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go
-- [Lent bytes freed off the calling thread return their memory](/quest/m1/ffi-export/freed-rss.md) - a Go program reading many large `Bytes` holds RSS near its lent backlog, not what glibc's arenas keep after the GC frees them
