@@ -2177,7 +2177,9 @@ pub fn element_to_array(v: &[u32]) -> u32 {
 	unsafe { (*(v.as_ptr() as *const [u32; 2]))[1] }
 }
 
+/// A struct holding an array.
 pub struct Lanes {
+	/// The array a pointer points into.
 	pub lanes: [u32; 3],
 }
 
@@ -2198,13 +2200,23 @@ pub struct Halves {
 	pub high: u32,
 }
 
+/// Two arrays in one allocation, which JS keeps apart.
+#[repr(C)]
+pub struct Rows {
+	/// The first.
+	pub top: [u32; 2],
+	/// The second.
+	pub bottom: [u32; 2],
+}
+
 /// `offset_from` of pointers the body shows JS keeps in different arrays: two made apart
-/// of one variable, two of a struct's fields, one into a shared subslice, a copy, against
-/// one into what it was taken of, and one into a shared slice of a byte, also a copy,
-/// against the byte's.
-pub fn pointers_apart(n: u32, h: Halves, byte: u8) -> isize {
+/// of one variable, two of a struct's fields, into two of its array fields, into two rows
+/// of a nested array, one into a shared subslice, a copy, against one into what it was
+/// taken of, and one into a shared slice of a byte, also a copy, against the byte's.
+pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	let a = &raw const n;
 	let b = &raw const n;
+	let grid = [[n; 2]; 2];
 	let lanes = [n; 4];
 	let part = &lanes[1..3];
 	let at = &raw const byte;
@@ -2212,6 +2224,8 @@ pub fn pointers_apart(n: u32, h: Halves, byte: u8) -> isize {
 		let bytes = std::slice::from_raw_parts(at, 1);
 		a.offset_from(b)
 			+ (&raw const h.high).offset_from(&raw const h.low)
+			+ r.bottom.as_ptr().offset_from(r.top.as_ptr())
+			+ grid[1].as_ptr().offset_from(grid[0].as_ptr())
 			+ part.as_ptr().offset_from(lanes.as_ptr())
 			+ bytes.as_ptr().offset_from(at)
 	}

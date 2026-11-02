@@ -53,3 +53,14 @@ unsure(() => {
 	rt.ptrAdd(rt.sliceAsPtr(vec), 1).v = 8;
 });
 assert.equal(vec.length, 1);
+
+// A dangling pointer read through, written through, or copied from, which Rust leaves
+// undefined, rather than reading `undefined`.
+const dangling: rt.Place<number> = rt.DANGLING;
+unsure(() => rt.ptrAdd(dangling, 1).v);
+unsure(() => {
+	rt.ptrAdd(dangling, 1).v = 1;
+});
+unsure(() => rt.ptrCopy(dangling, rt.sliceAsPtr(vec), 1));
+unsure(() => rt.ptrSlice(dangling, 1));
+assert.equal(vec[0], 7);

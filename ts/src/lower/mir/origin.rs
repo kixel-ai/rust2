@@ -15,23 +15,23 @@ use crate::lower::pointer::Pointee;
 
 /// The array JS keeps what a pointer points at in.
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Array {
+enum Array<'tcx> {
 	/// An array of one, around the place a `&raw` here took, which each `&raw` makes anew.
 	Lone(Location),
 	/// A shared slice JS copies, of values it copies or of a byte in no array, made by the
 	/// call ending this block, with its length if the body fixes it.
 	Copy(BasicBlock, Option<i128>),
-	/// The array of a variable of this body's own, or of a field of one.
-	Owned,
+	/// The array of a variable of this body's own, or of a field of one, at this place.
+	Owned(mir::Place<'tcx>),
 }
 
-impl Array {
+impl<'tcx> Array<'tcx> {
 	/// How many elements the array holds, if the body shows it.
 	fn len(self) -> Option<i128> {
 		match self {
 			Array::Lone(_) => Some(1),
 			Array::Copy(_, len) => len,
-			Array::Owned => None,
+			Array::Owned(_) => None,
 		}
 	}
 
@@ -40,15 +40,15 @@ impl Array {
 		match self {
 			Array::Lone(_) => "a value in no array",
 			Array::Copy(..) => "a shared slice JS copies",
-			Array::Owned => "an array of this body's own",
+			Array::Owned(_) => "an array of this body's own",
 		}
 	}
 }
 
 /// Where a pointer points: into which array, at which index if the body fixes it.
 #[derive(Clone, Copy)]
-struct Origin {
-	array: Array,
+struct Origin<'tcx> {
+	array: Array<'tcx>,
 	index: Option<i128>,
 }
 
@@ -72,7 +72,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
-		let out = |o: Origin, n: Option<i128>, what: &str| {
+		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
 			let index = o.index?;
 			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
 			(index < 0 || past).then(|| {
@@ -85,11 +85,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match (owner.as_str(), name.as_str()) {
 			("ptr" | "NonNull", "offset_from" | "offset_from_unsigned") => {
 				let (a, b) = (self.origin(arg(0)?)?, self.origin(arg(1)?)?);
-				let apart = match (a.array, b.array) {
-					(Array::Owned, Array::Owned) => false,
-					(a, b) => a != b,
-				};
-				apart.then(|| {
+				self.apart(a.array, b.array).then(|| {
 					format!(
 						"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
 						a.array.what(),
@@ -130,8 +126,38 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
+	/// Whether JS keeps `a` and `b` in different arrays. Arrays of different variables are;
+	/// of one variable's, those at different fields or constant indices are, where Rust's
+	/// are one allocation.
+	fn apart(&self, a: Array<'tcx>, b: Array<'tcx>) -> bool {
+		let (Array::Owned(a), Array::Owned(b)) = (a, b) else {
+			return a != b;
+		};
+		let index = |elem: ProjectionElem<Local, ty::Ty<'tcx>>| match elem {
+			ProjectionElem::ConstantIndex {
+				offset,
+				from_end: false,
+				..
+			} => Some(i128::from(offset)),
+			ProjectionElem::Index(local) => match self.def_rvalue(self.traced(&Operand::Copy(local.into()))?)? {
+				Rvalue::Use(op, _) => self.const_int(op),
+				_ => None,
+			},
+			_ => None,
+		};
+		a.local != b.local
+			|| a.projection
+				.iter()
+				.zip(b.projection)
+				.find(|(x, y)| x != y)
+				.is_some_and(|pair| match pair {
+					(ProjectionElem::Field(x, _), ProjectionElem::Field(y, _)) => x != y,
+					(x, y) => index(x).zip(index(y)).is_some_and(|(x, y)| x != y),
+				})
+	}
+
 	/// Where the pointer `op` points, if the body shows it.
-	fn origin(&self, op: &Operand<'tcx>) -> Option<Origin> {
+	fn origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
 		let local = self.traced(op)?;
 		if let Some((bb, i)) = self.def_at[local] {
 			let rvalue = self.def_rvalue(local)?;
@@ -148,12 +174,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						// `&raw mut *p` is `p`.
 						[ProjectionElem::Deref] => self.origin(&Operand::Copy(mir::Place::from(place.local))),
 						[.., ProjectionElem::Deref] => None,
-						[.., ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. }] => {
-							(!place.projection.contains(&ProjectionElem::Deref)).then_some(Origin {
-								array: Array::Owned,
-								index: None,
-							})
-						}
+						[
+							array @ ..,
+							ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
+						] => (!place.projection.contains(&ProjectionElem::Deref)).then(|| Origin {
+							array: Array::Owned(mir::Place {
+								local: place.local,
+								projection: self.tcx.mk_place_elems(array),
+							}),
+							index: None,
+						}),
 						_ => Some(Origin {
 							array: Array::Lone(Location {
 								block: bb,
@@ -179,7 +209,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// `o` moved by the offset `op` as `add`, `sub`, or `offset` moves it.
-	fn moved(&self, o: Origin, name: &str, op: &Operand<'tcx>) -> Origin {
+	fn moved(&self, o: Origin<'tcx>, name: &str, op: &Operand<'tcx>) -> Origin<'tcx> {
 		let n = self.const_int(op).map(|n| match name {
 			"sub" => -n,
 			_ => n,
@@ -191,7 +221,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Where the slice or `Vec`, or reference to one, `op` starts.
-	fn start(&self, op: &Operand<'tcx>) -> Option<Origin> {
+	fn start(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
 		let local = self.traced(op)?;
 		if self.def_at[local].is_some() {
 			return match self.def_rvalue(local)? {
@@ -207,7 +237,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							} =>
 					{
 						Some(Origin {
-							array: Array::Owned,
+							array: Array::Owned(*place),
 							index: Some(0),
 						})
 					}

@@ -835,7 +835,7 @@ they need.
 
 ## Not yet
 
-Byte reinterpretation, pointer addresses, pointer arithmetic outside an array of values JS copies, raw allocation, and unions whose
+Byte reinterpretation, pointer addresses, pointer arithmetic outside an array of values JS copies (other than wrapping arithmetic on a null or dangling pointer), raw allocation, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
 `&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to

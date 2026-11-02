@@ -204,8 +204,8 @@ export function inline(data: rt.ByteSlice, out: rt.ByteVec): void {
  * Pointers wrapped around wasm32's 32-bit addresses and back, to a value in no array, as
  * the array of one Rust treats it as, and into a mutable part of an array, measured from
  * the array, the pointer an empty slice keeps, within a shared part, which JS copies,
- * memory nothing wrote copied, null and dangling pointers moved by address, and the crate's
- * functions named as std's.
+ * memory nothing wrote copied, null and dangling pointers moved by address and cast from
+ * pointers to arrays, and the crate's functions named as std's.
  */
 export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _189!: rt.Result<[rt.u32, rt.u32], rt.u8>;
@@ -293,6 +293,9 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.ptrWrappingAdd(dangling, 4294967295, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.ptrWrappingAdd(dangling, -((n as rt.usize)), 2, 2), n as rt.usize, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.DANGLING, rt.isizeSub(rt.u8Rem(n, 3) as rt.isize, 1), 8, 8) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.sliceAsPtr(rt.NULL) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.NULL), n as rt.usize, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.DANGLING), -1, 2, 2) === rt.NULL ? 1 : 0);
 	}
 }
 

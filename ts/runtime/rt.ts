@@ -156,14 +156,21 @@ export type VecOf<T> = T[] | ByteVec;
 /** A generic type's `Cow<[T]>`: the `Cow`, or the `ByteCow` of a `Cow<[u8]>`. */
 export type CowOf<T> = Cow<T> | ByteCow;
 
-/** The pointer to element `index` of `s`, a slice, a `[T; N]`, or a `Vec`'s storage. */
+/**
+ * The pointer to element `index` of `s`, a slice, a `[T; N]`, or a `Vec`'s storage. A null
+ * or dangling pointer to an array is one to its first element, at the same address.
+ */
 export function sliceAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
+	if (s === NULL) return NULL;
+	if (s === DANGLING) return DANGLING;
 	const view = (s as { [VIEW]?: View<T> })[VIEW];
 	return view ? new AtIndex(view.s, view.start + index) : new AtIndex(s, index);
 }
 
-/** The pointer to byte `index` of `s`. */
+/** The pointer to byte `index` of `s`, or `s` if it is null or dangling, as `sliceAsPtr`'s. */
 export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
+	if (s === NULL) return NULL;
+	if (s === DANGLING) return DANGLING;
 	return new AtIndex(s.data, s.start + index);
 }
 
@@ -226,11 +233,12 @@ class Lone<T> implements ProxyHandler<T[]> {
 
 /**
  * Where `p` points, as an element of an array: its own, or for a pointer to a value in no
- * array, element 0 of an array of one that reads and writes it, as Rust treats one.
+ * array, element 0 of an array of one that reads and writes it, as Rust treats one. Null
+ * and dangling pointers point into an array of none, so any access through them fails.
  */
 function elemOf<T>(p: Place<T>): AtIndex<T> {
 	if (p instanceof AtIndex) return p;
-	if (p === NULL) return new AtIndex([] as T[], 0);
+	if (p === NULL || p === DANGLING) return new AtIndex([] as T[], 0);
 	let lone = LONE.get(p) as T[] | undefined;
 	if (!lone) {
 		lone = new Proxy(new Array<T>(1), new Lone(p));

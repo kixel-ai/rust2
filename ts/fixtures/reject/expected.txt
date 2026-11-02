@@ -206,29 +206,31 @@ a pointer into an array of `(u8, u8)`, which JS keeps as an object that knows no
 `offset_from` of pointers to `()`, which has no bytes at fixtures/reject/src/lib.rs:2172:13
 a slice of `()`, which has no bytes, from a pointer at fixtures/reject/src/lib.rs:2172:39
 a cast from a pointer to `u32` to one to `[u32; 2]`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2177:13
-a raw pointer to `[u32; 3]` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2188:10
-a raw pointer to `[u32; 3]` in `Lanes`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2190:10
-`offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2213:5
-`offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2214:26
-`offset_from` between a pointer into a shared slice JS copies and one into an array of this body's own, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2215:20
-`offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2216:21
-a raw or mutable slice of a byte in no array of bytes at fixtures/reject/src/lib.rs:2222:12
-a raw or mutable slice of a byte in no array of bytes at fixtures/reject/src/lib.rs:2223:19
-a copy reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2234:3
-a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2236:18
-a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2237:6
-a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2238:27
-a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2239:21
-a slice of one byte's place, which a byte slice can view only in an array of bytes at fixtures/reject/src/lib.rs:2246:2
-a slice or a cell of a mutable reference to `Reused` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2252:2
-`Clone::clone_from` of `std::vec::Vec<Reused>`, whose `clone_from` is its own, which is not supported yet at fixtures/reject/src/lib.rs:2257:4
-unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>` at fixtures/reject/src/lib.rs:2262:2
-a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2268:10
-a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2276:10
-a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2284:10
-a slice or a cell of a mutable reference to `std::cell::LazyCell<u32>` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2294:3
-an assignment through a reference to `std::sync::LazyLock<u32>` at fixtures/reject/src/lib.rs:2299:2
-a slice or a cell of a mutable reference to `std::thread::LocalKey<u32>` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2305:2
+a raw pointer to `[u32; 3]` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2190:10
+a raw pointer to `[u32; 3]` in `Lanes`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2192:10
+`offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2225:5
+`offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2226:26
+`offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2227:24
+`offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2228:23
+`offset_from` between a pointer into a shared slice JS copies and one into an array of this body's own, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2229:20
+`offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays at fixtures/reject/src/lib.rs:2230:21
+a raw or mutable slice of a byte in no array of bytes at fixtures/reject/src/lib.rs:2236:12
+a raw or mutable slice of a byte in no array of bytes at fixtures/reject/src/lib.rs:2237:19
+a copy reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2248:3
+a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2250:18
+a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2251:6
+a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2252:27
+a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust at fixtures/reject/src/lib.rs:2253:21
+a slice of one byte's place, which a byte slice can view only in an array of bytes at fixtures/reject/src/lib.rs:2260:2
+a slice or a cell of a mutable reference to `Reused` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2266:2
+`Clone::clone_from` of `std::vec::Vec<Reused>`, whose `clone_from` is its own, which is not supported yet at fixtures/reject/src/lib.rs:2271:4
+unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>` at fixtures/reject/src/lib.rs:2276:2
+a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2282:10
+a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2290:10
+a raw pointer to `(u32, u32)` in a variable assigned again while it may point there at fixtures/reject/src/lib.rs:2298:10
+a slice or a cell of a mutable reference to `std::cell::LazyCell<u32>` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2308:3
+an assignment through a reference to `std::sync::LazyLock<u32>` at fixtures/reject/src/lib.rs:2313:2
+a slice or a cell of a mutable reference to `std::thread::LocalKey<u32>` that names no place, which a whole write would replace only there at fixtures/reject/src/lib.rs:2319:2
 overriding `Iterator::fold`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:125:2
 an iterator of the crate implementing `DoubleEndedIterator`, which is not supported yet at fixtures/reject/src/lib.rs:145:1
 overriding `Iterator::size_hint`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:173:2
@@ -245,7 +247,7 @@ a raw pointer to `std::cell::UnsafeCell<u16>` in `InField`, which the crate may 
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InGeneric`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1322:9
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InWritten`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1326:9
 a reference to `std::option::Option<Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there at fixtures/reject/src/lib.rs:2108:13
-a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2313:23
-a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2313:23
-a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2369:13
-a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2313:23
+a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
+a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
+a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2383:13
+a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2327:23
