@@ -9,12 +9,14 @@ import type * as collections_Picky from "./collections.Picky.ts";
 import type * as Quirky from "./collections.Quirky.ts";
 import type * as collections_Tally from "./collections.Tally.ts";
 import type * as Any from "./core/any.Any.ts";
+import type * as error_Error from "./core/error.Error.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
 import type * as counts_Noisy from "./counts.Noisy.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 import type * as durations_Window from "./durations.Window.ts";
+import type * as Failure from "./errors.Failure.ts";
 import type * as Couple from "./fields.Couple.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
@@ -1130,6 +1132,12 @@ export function drop$Result_tuple2_usize_u8_sync_Arc_dyn_Any_marker_Sync_marker_
 	}
 }
 
+export function drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send(_1: rt.Result<rt.u8, error_Error.Error>): void {
+	if (!_1.ok) {
+		rt.drop(_1.error);
+	}
+}
+
 export function drop$Vec_Rc_counts_Noisy(value: rt.Arc<counts_Noisy.Noisy>[]): void {
 	rt.dropAll(value);
 }
@@ -1160,6 +1168,12 @@ export function drop$cell_RefCell_Vec_Rc_counts_RcReleasing(value: rt.RefCell<rt
 
 export function drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing(value: rt.RefCell<rt.Arc<ArcReleasing.ArcReleasing>[]>): void {
 	rt.dropAll(value.value);
+}
+
+export function drop$errors_Failure(_1: Failure.Failure): void {
+	if (_1.tag === "Wrapped") {
+		_1._0[Symbol.dispose]();
+	}
 }
 
 export function drop$generics_Run_generics_Ticked(_1: generics_Run.Run<Ticked.Ticked>): void {

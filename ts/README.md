@@ -121,6 +121,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>` | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
+| `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
@@ -465,9 +466,16 @@ A `dyn Fn`, `dyn FnMut`, or `dyn FnOnce` is the closure or function it was made 
 a call calls as it does the closure, and which a box drops as it does the closure. One
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
-reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`, `dyn Future`,
-`dyn Any`, and the function traits, of a generic
+reference to one is `rt.lent` of it, which never drops it.
+
+A `dyn Error` is such an object of `source` and its supertraits' `Debug` and `Display`,
+`Error.of$errors_Leaf` from `core/error.Error.ts`, whose `source` is `None` for a type
+that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` converts by,
+makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
+is `From` a string, which boxes std's own private error type.
+
+A trait object of std's or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`,
+`dyn Future`, `dyn Any`, `dyn Error`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -837,8 +845,8 @@ they need.
 
 Byte reinterpretation, pointer arithmetic and addresses, raw allocation, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, and the translated crates' traits'
-behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
+`&dyn Debug`, `&dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, and the translated crates' traits'
+behind `&`, `&mut`, `Box`, or `Arc` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn bytes::Buf`, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value

@@ -1400,6 +1400,14 @@ fn mapping<'tcx>(
 			{
 				return Some(boxed_vec(value, elem));
 			}
+			// An error, boxed as a `dyn Error`, which `?` converts it by. One of a string boxes
+			// std's own private error type.
+			if let Some(object) = to.boxed_ty()
+				&& super::dynamic::is_error_object(tcx, object)
+				&& !string(tcx, from.peel_refs())
+			{
+				return Some(b.object_of(value, Ty::new_box(tcx, from), to, span));
+			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
 				&& Std::of(tcx, adt.did()) == Some(Std::BinaryHeap)
@@ -2409,6 +2417,14 @@ fn mapping<'tcx>(
 			let tr = fmt::Trait::of(tcx, tcx.trait_of_assoc(call.def_id)?)?;
 			let [value, f] = <[Expr; 2]>::try_from(args).ok()?;
 			fmt::std_impl(b, tr, targ(gargs, 0), value, f, span, out)?
+		}
+		// `Error`'s own `source`, which a type that has none keeps.
+		("Error", "source") if tcx.trait_of_assoc(call.def_id).is_some_and(|tr| super::dynamic::is_error(tcx, tr)) => {
+			let sig = b.t.sig(call.def_id, gargs);
+			match sig.output().kind() {
+				ty::Adt(_, option) => b.t.none(option.type_at(0)),
+				_ => return None,
+			}
 		}
 		("ToString", "to_string") => {
 			let ty = targ(gargs, 0);
