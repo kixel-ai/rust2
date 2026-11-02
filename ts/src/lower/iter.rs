@@ -663,7 +663,14 @@ pub fn call<'tcx>(
 			let other = into_iter(b, targ(1)?, rest.into_iter().next()?, span)?;
 			method(name, vec![other])
 		}
-		"zip" => zip(b, recv, targ(1)?, rest.into_iter().next()?, b.t.sig(call.def_id, gargs).output(), span),
+		"zip" => zip(
+			b,
+			recv,
+			targ(1)?,
+			rest.into_iter().next()?,
+			b.t.sig(call.def_id, gargs).output(),
+			span,
+		),
 		// `flat_map::<U, F>`, of the source mapped by `F`, which drops as the source does.
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
