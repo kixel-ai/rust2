@@ -58,6 +58,7 @@ export interface Fixture<V> {
 		folded(log: Log, id: number, arg: number): void;
 		rfolded(log: Log, id: number, arg: number): void;
 		inside(log: Log, id: number, arg: number): void;
+		flattened(log: Log, id: number, arg: number): void;
 		compared(log: Log, id: number, arg: number): void;
 		lists(log: Log, id: number, arg: number): void;
 	};
@@ -322,6 +323,7 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 		},
 	],
 	["inside", (r, arg) => r.f.drops.inside(r.log, 1000 * r.exec.tasks.length, arg)],
+	["flattened", (r, arg) => r.f.drops.flattened(r.log, 1000 * r.exec.tasks.length, arg)],
 	["compared", (r, arg) => r.f.drops.compared(r.log, 1000 * r.exec.tasks.length, arg)],
 	[
 		"wakers",
@@ -426,6 +428,8 @@ export const cases: Uint8Array[] = [
 	...Array.from({ length: 9 }, (_, arg) => script(["rfolded", arg])),
 	// Where std drops values inside its iterators and formatting.
 	...[...Array.from({ length: 10 }, (_, arg) => arg), 19, 29].map((arg) => script(["inside", arg])),
+	// What a `flatten` drops of inner iterators that hold items once they end.
+	...Array.from({ length: 10 }, (_, arg) => script(["flattened", arg])),
 	// What std's comparisons of iterators drop.
 	...Array.from({ length: 9 }, (_, arg) => script(["compared", arg])),
 	// What a `LinkedList` drops, and when.

@@ -23,6 +23,7 @@ macro_rules! list {
 }
 
 mod closures;
+mod flattened;
 mod folds;
 mod inside;
 mod iters;
@@ -732,6 +733,12 @@ pub fn rfolded(log: &Log, id: u32, arg: u8) {
 /// range that panics as `String`'s drop it.
 pub fn inside(log: &Log, id: u32, arg: u8) {
 	inside::inside(log, id, arg);
+}
+
+/// Run scenario `arg % 10` of what a `flatten` drops of inner iterators that hold items
+/// once they end.
+pub fn flattened(log: &Log, id: u32, arg: u8) {
+	flattened::flattened(log, id, arg);
 }
 
 /// Run scenario `arg % 9` of what std's comparisons of iterators drop.

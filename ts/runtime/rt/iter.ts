@@ -2784,13 +2784,21 @@ class TakeIter<T> extends Adaptor<T, T> {
 		return n - advanced;
 	}
 
+	/** Its fold's view, where its iterator's is that iterator itself. */
+	private view: Folded<T> | undefined;
+
 	/**
 	 * std's: its iterator folded, counting each item it reads against the limit, and from
-	 * the back, past what it holds beyond the limit by `nth_back`, folded without counting.
+	 * the back, past what it holds beyond the limit by `nth_back`, folded without counting,
+	 * where `next_back` reads past it by one `nth_back` of its own.
 	 */
 	override folded(): Iter<T> {
 		const inner = this.inner.folded();
-		if (inner === this.inner) return this;
+		if (inner === this.inner) return (this.view ??= this.foldedBy(inner));
+		return this.foldedBy(inner);
+	}
+
+	private foldedBy(inner: Iter<T>): Folded<T> {
 		const front = (): T | Done => {
 			if (this.n === 0) return DONE;
 			const item = inner.next();

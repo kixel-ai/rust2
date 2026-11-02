@@ -676,7 +676,6 @@ pub fn call<'tcx>(
 		// `flat_map::<U, F>`, of the source mapped by `F`, which drops as the source does.
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
-			flattens(b, inner, span);
 			let into = into_fn(b, targ(1)?, span)?.unwrap_or_else(Expr::undefined);
 			let fused = fused(b, self_ty, Some(targ(2)?));
 			let size = array_size(b, targ(1)?);
@@ -685,7 +684,6 @@ pub fn call<'tcx>(
 		}
 		"flatten" => {
 			let inner = iter_of(b.t, item)?;
-			flattens(b, inner, span);
 			let into = into_fn(b, item, span)?.unwrap_or_else(Expr::undefined);
 			let fused = fused(b, self_ty, None);
 			let size = array_size(b, item);
@@ -1094,38 +1092,6 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 					| "RSplitNMut"
 			]
 	)
-}
-
-/// Refuse a `flatten` or `flat_map` of `inner` iterators that drop and may hold what drops
-/// once they end: std's `try_fold` drops each such one only as it reads the next, where
-/// `next` drops it as it ends. What std's collections', `Option`'s, and `Result`'s
-/// `into_iter` make holds nothing then.
-fn flattens<'tcx>(b: &mut Body<'_, '_, 'tcx>, inner: Ty<'tcx>, span: Span) {
-	if !b.t.drops(inner) {
-		return;
-	}
-	let path = std_iter_path(b.t.tcx, inner).unwrap_or_default();
-	let path: Vec<&str> = path.iter().map(String::as_str).collect();
-	let empties = matches!(
-		path.as_slice(),
-		["vec", "into_iter", "IntoIter"]
-			| ["array", "iter", "IntoIter"]
-			| ["option", "IntoIter"]
-			| ["result", "IntoIter"]
-			| ["iter", "sources", "once", "Once"]
-			| ["collections", "hash", "map", "IntoIter" | "IntoKeys" | "IntoValues"]
-			| ["collections", "hash", "set", "IntoIter"]
-			| ["collections", "btree", "map", "IntoIter" | "IntoKeys" | "IntoValues"]
-			| ["collections", "btree", "set", "IntoIter"]
-			| ["collections", "vec_deque", "into_iter", "IntoIter"]
-			| ["collections", "linked_list", "IntoIter"]
-	);
-	if !empties {
-		b.t.err(
-			span,
-			format!("a `flatten` of `{inner}`, which drops what it may hold once it ends, which is not supported yet"),
-		);
-	}
 }
 
 /// `rt.Trusted`, how std's `Zip` of `a` and `b` reads them, by the traits it specializes
