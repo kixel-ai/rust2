@@ -1170,8 +1170,8 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.btreeLen(rt.btreeCollectKeys(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.iterToArray(rt.iterSlice([]), undefined, 3, true), 3, true, Torn.lt$cmp_PartialOrd, (a7: Torn.Torn, b8: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a7, b8);
 		})) & 0xff);
-		const _91: rt.Iter<Torn.Torn[]> = rt.iterMap(rt.sliceChunks(keys2, 2), (a019: Torn.Torn[]): Torn.Torn[] => {
-			return rt.vecExact(a019.slice(), 3);
+		const _91: rt.Iter<Torn.Torn[]> = rt.iterMap(rt.sliceChunks(keys2, 2), (a017: Torn.Torn[]): Torn.Torn[] => {
+			return rt.vecExact(a017.slice(), 3);
 		});
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(rt.cmpSlice(Torn.cmp$cmp_Ord)) as rt.BTreeSet<Torn.Torn[]>, rt.iterToArray(_91, undefined, 12, true), 12, true, rt.cmpLt(rt.cmpSlice(Torn.partialCmp$cmp_PartialOrd)), rt.eqSlice((a8: Torn.Torn, b9: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a8, b9);
@@ -1203,8 +1203,8 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.btreeExtendKeys(left, _138);
 		const _142: rt.Iter<Torn.Torn> = rt.iterSlice(_129[1]);
 		rt.btreeExtendKeys(right, _142);
-		rt.localKeyWithBorrowMut(LOG, (a027: rt.ByteVec): undefined => {
-			rt.byteVecClear(a027);
+		rt.localKeyWithBorrowMut(LOG, (a025: rt.ByteVec): undefined => {
+			rt.byteVecClear(a025);
 		});
 		rt.iterExtendBytes(out, rt.iterMap(rt.btreeKeys(rt.btreeFromSorted(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.btreeUnion(left, right), (a9: Torn.Torn, b10: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a9, b10);
@@ -1227,8 +1227,8 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		})), (k11: Torn.Torn): rt.u8 => {
 			return k11.tag;
 		}), undefined, true);
-		rt.localKeyWithBorrowMut(LOG, (a036: rt.ByteVec): undefined => {
-			rt.byteVecClear(a036);
+		rt.localKeyWithBorrowMut(LOG, (a034: rt.ByteVec): undefined => {
+			rt.byteVecClear(a034);
 		});
 	}
 	const apart: Apart.Apart[] = rt.vecFromElem({}, short.length, undefined);
