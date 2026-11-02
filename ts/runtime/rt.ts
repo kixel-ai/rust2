@@ -165,14 +165,18 @@ export function sliceAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
 	if (s === DANGLING) return DANGLING;
 	const view = (s as { [VIEW]?: View<T> })[VIEW];
 	const [array, at] = view ? [view.s, view.start + index] : [s, index];
-	return (EMPTY.get(array) as Place<T> | undefined) ?? new AtIndex(array, at);
+	// Null's is `null`, which `??` would pass over.
+	const from = EMPTY.get(array) as Place<T> | undefined;
+	return from !== undefined ? from : new AtIndex(array, at);
 }
 
 /** The pointer to byte `index` of `s`, or `s` if it is null or dangling, as `sliceAsPtr`'s. */
 export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
 	if (s === NULL) return NULL;
 	if (s === DANGLING) return DANGLING;
-	return (EMPTY.get(s.data) as Place<number> | undefined) ?? new AtIndex(s.data, s.start + index);
+	const from = EMPTY.get(s.data) as Place<number> | undefined;
+	if (from !== undefined) return from;
+	return new AtIndex(s.data, s.start + index);
 }
 
 /** The pointer to the first byte of `v`'s storage. */
