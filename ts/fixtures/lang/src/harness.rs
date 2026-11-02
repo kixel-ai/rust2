@@ -273,6 +273,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("results::results", results::results),
 		("fields::fields", fields::fields),
 		("strs::gets", strs::gets),
+		("refs::adapted", |_, data, out| refs::adapted(data, out)),
 		("borrows::maps", |_, data, out| borrows::maps(data, out)),
 		("locks::mapped", |_, data, out| locks::mapped(data, out)),
 		("boxes::impls", boxes::impls),
@@ -287,6 +288,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::maps", capacity::maps),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("hashes::own", |_, data, out| hashes::own(data, out)),
+		("refs::compared", refs::compared),
 	]
 }
 

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "hooks", "uniffi", "driver", "ffi", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "hooks", "uniffi", "driver", "ffi", "go", "ts"]
 
 
 class SelectTests(unittest.TestCase):
@@ -48,17 +48,17 @@ class SelectTests(unittest.TestCase):
         self.git("commit", "-qm", "change")
         return self.git("rev-parse", "HEAD")
 
-    def query(self, base=""):
+    def query(self, *base):
         return subprocess.run(
-            ["bash", "sh/dispatch.sh", "ci", base, "--query"],
+            ["bash", "sh/dispatch.sh", "ci", *base, "--query"],
             cwd=self.repo,
             env=self.env,
             text=True,
             capture_output=True,
         )
 
-    def select(self, base=""):
-        result = self.query(base)
+    def select(self, *base):
+        result = self.query(*base)
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout.split()
 
@@ -66,6 +66,8 @@ class SelectTests(unittest.TestCase):
         for paths, expected in (
             (["ts/src/lib.rs"], ["lint", "ts"]),
             (["ffi/src/lib.rs"], ["lint", "ffi"]),
+            (["go/src/lib.rs"], ["lint", "go"]),
+            (["ts/fixtures/codec/src/lib.rs"], ["lint", "go", "ts"]),
             (["uniffi/uniffi_core/src/lib.rs"], ["lint", "uniffi"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "sh"]),
@@ -78,11 +80,11 @@ class SelectTests(unittest.TestCase):
 
     def test_the_driver_selects_its_dependents(self):
         self.change("driver/src/lib.rs")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select(), ["lint", "driver", "ffi", "go", "ts"])
 
     def test_the_shared_nightly_selects_each_project_on_it(self):
         self.change("ts/rust-toolchain.toml")
-        self.assertEqual(self.select(), ["lint", "driver", "ffi", "ts"])
+        self.assertEqual(self.select(), ["lint", "driver", "ffi", "go", "ts"])
 
     def test_lint_only_paths_select_only_the_lints(self):
         for path in ("bench/ffi/run.sh", "README.md", ".codex/hooks/direnv.sh", ".claude/settings.json"):
@@ -95,6 +97,7 @@ class SelectTests(unittest.TestCase):
 
     def test_empty_diff_keeps_the_lints(self):
         self.assertEqual(self.select(), ["lint"])
+        self.assertEqual(self.select(""), ["lint"])
 
     def test_shared_inputs_select_everything(self):
         for path in (
@@ -107,7 +110,7 @@ class SelectTests(unittest.TestCase):
             ".github/workflows/nightly.yml",
             "sh/dispatch.sh",
             # An unmapped project runs everything until the map claims it.
-            "go/main.go",
+            "next/src/lib.rs",
         ):
             with self.subTest(path=path):
                 self.change(path)

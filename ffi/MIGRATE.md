@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Swift's and Python's objects have no `close()`, and Python's are no context managers:
+  an object's handle is freed once its last reference goes, in Swift's `deinit` or
+  CPython's deallocation, so no reference can outlive it. Drop the reference instead of
+  calling `close()`, and replace `with obj as x:` with `x = obj`. Where a free must land at
+  a point, such as a driver that finishes once its origin's last owner goes, end the
+  reference there: `del x` in Python, and in Swift a scope or `withExtendedLifetime`,
+  since Swift may release a reference after its last use. A Rust method named `close`
+  keeps its name, not `close_`.
 - Every export writes `python/<prefix>.py`, so an export fails when two items take the same
   Python name, such as a type `Foo` beside an error type's `FooException`, or when one
   takes a name the Python's runtime uses unqualified, each starting with `_`: give it
@@ -12,6 +20,8 @@
   `<prefix>_atomic_exchange`, `<prefix>_atomic_cas`, and `<PREFIX>_ATOMICS_H`. An item that
   clashes with one, or whose Swift name clashes with another's or with a standard library
   name the Swift uses, such as `Data`, takes a `rename`.
+- Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
+  with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
 - Kotlin returns bytes as a `Bytes`, not a `ByteArray`: Rust's buffer as `bytes.buffer`, a
   read-only `ByteBuffer`, copied up to 1 KiB and otherwise a direct one lent uncopied
   until `bytes.close()` frees it. Read it in `use { }`, or copy it out with

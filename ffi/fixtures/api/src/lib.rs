@@ -553,6 +553,19 @@ impl Stamp {
 	}
 }
 
+/// A stamp and a count: a record holding an object, whose method reads it.
+pub struct Stamped {
+	pub at: Stamp,
+	pub count: u32,
+}
+
+impl Stamped {
+	/// Whole seconds at the stamp, plus the count.
+	pub fn total(&self) -> u64 {
+		self.at.secs() + u64::from(self.count)
+	}
+}
+
 /// A message: an object, since one field is private, whose `pub` fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -1396,6 +1409,28 @@ pub fn worth(some: Option<Vec<Counter>>, boxed: Box<Vec<Counter>>) -> u64 {
 	some.into_iter().flatten().chain(*boxed).map(|c| c.get()).sum()
 }
 
+/// The counter's value, unless none: an object's option in a tuple of one.
+pub fn held_count(held: Option<(Counter,)>) -> Option<u64> {
+	held.map(|(counter,)| counter.get())
+}
+
+/// A counter at 1 named `name`, unless none: options behind a `Box`, of text in and of an
+/// object out.
+pub fn boxed_counter(name: Box<Option<String>>) -> Box<Option<Counter>> {
+	Box::new(name.map(|name| Counter::new(&name, 1)))
+}
+
+/// The counter's name, unless none: options behind a `Box`, of an object in and of text out.
+pub fn boxed_name(boxed: Box<Option<Counter>>) -> Box<Option<String>> {
+	Box::new(boxed.map(|counter| counter.name))
+}
+
+/// `value` less `_value`, wrapping: two parameters whose names differ only in an
+/// underscore.
+pub fn less(value: u32, _value: u32) -> u32 {
+	value.wrapping_sub(_value)
+}
+
 /// Each row's sum.
 pub fn sums(rows: Vec<Vec<u32>>) -> Vec<u32> {
 	rows.iter().map(|row| row.iter().sum()).collect()
@@ -1518,4 +1553,23 @@ pub fn nexts(
 ) -> (std::net::SocketAddrV4, std::net::SocketAddrV6) {
 	v6.set_port(v6.port() + 1);
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
+}
+
+/// Why [`refuse`] refused, which Rust returns only boxed.
+#[derive(Debug)]
+pub struct Refusal {
+	reason: String,
+}
+
+impl fmt::Display for Refusal {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "refused: {}", self.reason)
+	}
+}
+
+/// Always refuses, for `reason`.
+pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
+	Err(Box::new(Refusal {
+		reason: reason.to_string(),
+	}))
 }

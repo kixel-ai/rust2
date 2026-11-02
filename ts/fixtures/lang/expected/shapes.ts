@@ -19,7 +19,7 @@ import type * as Mark from "./shapes.Mark.ts";
 import * as Meters from "./shapes.Meters.ts";
 import * as Moved from "./shapes.Moved.ts";
 import type * as Mover from "./shapes.Mover.ts";
-import type * as Partial from "./shapes.Partial.ts";
+import type * as shapes_Partial from "./shapes.Partial.ts";
 import type * as shapes_Parts from "./shapes.Parts.ts";
 import * as Point from "./shapes.Point.ts";
 import * as shapes_Shape from "./shapes.Shape.ts";
@@ -2184,7 +2184,7 @@ export function uninhabited(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, calls);
 	[counted(rt.place(() => calls, (value7) => calls = value7), a), [counted(rt.place(() => calls, (value8) => calls = value8), b)] as [rt.Result<rt.u8, never>]] as [rt.Result<rt.u8, never>, [rt.Result<rt.u8, never>]];
 	rt.byteVecPush(out, calls);
-	const pair: [rt.Result<rt.u8, never>, Partial.Partial] = [counted(rt.place(() => calls, (value9) => calls = value9), a), { tag: "Real", _0: b } as Partial.Partial];
+	const pair: [rt.Result<rt.u8, never>, shapes_Partial.Partial] = [counted(rt.place(() => calls, (value9) => calls = value9), a), { tag: "Real", _0: b } as shapes_Partial.Partial];
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of((pair[0] as { ok: true; value: rt.u8 }).value, (pair[1] as { tag: "Real"; _0: rt.u8 })._0)));
 	const held: shapes_Parts.Parts = { left: rt.Ok(a), right: thenSome$0ztng9q(rt.u8Rem(b, 2) === 0, rt.Ok((((b as rt.u16)) << 4) & 0xffff)) };
 	const l: rt.u8 = (held.left as { ok: true; value: rt.u8 }).value;
@@ -2194,7 +2194,7 @@ export function uninhabited(data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes((right as { ok: true; value: rt.u16 }).value)));
 	}
-	const _93: [Partial.Partial, rt.Result<rt.u8, never>] = [{ tag: "Real", _0: a } as Partial.Partial, held.left];
+	const _93: [shapes_Partial.Partial, rt.Result<rt.u8, never>] = [{ tag: "Real", _0: a } as shapes_Partial.Partial, held.left];
 	rt.byteVecPush(out, (_93[0] as { tag: "Real"; _0: rt.u8 })._0 ^ (_93[1] as { ok: true; value: rt.u8 }).value);
 	const _101: [rt.Result<rt.u8, never>, rt.u8 | undefined] = [counted(rt.place(() => calls, (value10) => calls = value10), a), rt.byteSliceGet(data, 2)];
 	if (_101[1] !== undefined) {

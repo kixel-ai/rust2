@@ -8,6 +8,10 @@ usage="usage: sh/dispatch.sh check|test|ci [BASE|--all] [--query]"
 action=${1:-}
 base=${2:-}
 query=${3:-}
+# BASE is optional before --query.
+if [[ "$base" == --query && $# -eq 2 ]]; then
+    base='' query=--query
+fi
 if [[ $# -gt 3 || ! "$action" =~ ^(check|test|ci)$ || (-n "$query" && "$query" != --query) ]]; then
     echo "$usage" >&2
     exit 2
@@ -27,10 +31,12 @@ declare -A scope=(
     # the driver's front end.
     [driver]='^(driver/|ts/rust-toolchain\.toml$)'
     [ffi]='^(ffi/|driver/|ts/rust-toolchain\.toml$)'
+    # go's codec fixture includes ts's codec sources.
+    [go]='^(go/|driver/|ts/rust-toolchain\.toml$|ts/fixtures/codec/)'
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
-modules=(lint quest sh hooks uniffi driver ffi ts)
+modules=(lint quest sh hooks uniffi driver ffi go ts)
 
 # Paths that only the repository-wide lints read.
 lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|gitattributes|gitignore|taplo\.toml)$)'
@@ -97,12 +103,14 @@ check_uniffi() {
 }
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
+check_go() { just go check; }
 check_ts() { just ts check; }
 test_sh() { python3 -I sh/dispatch.test.py; }
 test_hooks() { bash .claude/hooks/direnv.test.sh; }
 test_uniffi() { just uniffi test; }
 test_driver() { just driver test; }
 test_ffi() { just ffi test; }
+test_go() { just go test; }
 test_ts() { just ts test; }
 
 # Every check runs before any test, so a lint fails before the test builds.

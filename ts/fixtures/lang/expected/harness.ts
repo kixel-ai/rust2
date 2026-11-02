@@ -30,7 +30,7 @@ import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as
 import { ints, strings, derived, written as fmt_written, counts as fmt_counts, rounding, panics as fmt_panics, wrapped as fmt_wrapped, collections, enums, iters as fmt_iters, writes as fmt_writes } from "./fmt.ts";
 import { folds } from "./folds.ts";
 import { methods, runs } from "./generics.ts";
-import { values as hashes_values, random, bytes as hashes_bytes } from "./hashes.ts";
+import { values as hashes_values, random, bytes as hashes_bytes, own as hashes_own } from "./hashes.ts";
 import { hints, reserves } from "./hints.ts";
 import { holds } from "./holds.ts";
 import { u8Op, u16Op, u32Op, u64Op, u128Op, usizeOp, i8Op, i16Op, i32Op, i64Op, i128Op, isizeOp, i8Neg, i16Neg, i32Neg, i64Neg, i128Neg, isizeNeg, cast as ints_cast, convert, parses as ints_parses, widenings } from "./ints.ts";
@@ -46,7 +46,7 @@ import { nested as nested_nested } from "./nested.ts";
 import { objects } from "./objects.ts";
 import { orders, bytes as orders_bytes, tuples as orders_tuples, held as orders_held, btrees } from "./orders.ts";
 import { lists as pointers_lists, shared as pointers_shared, places as pointers_places, unchecked, nested as pointers_nested, copies as pointers_copies, sentinels, cells as pointers_cells, rebound as pointers_rebound, lapsed, writers, made as pointers_made, segments, uninitRuns, iteratedRuns, besideWritten, waiters, taken as pointers_taken, bytes as pointers_bytes, loaded, reattached, partWritten, aimed } from "./pointers.ts";
-import { refs, toRefs } from "./refs.ts";
+import { refs, toRefs, adapted as refs_adapted, compared } from "./refs.ts";
 import { results as results_results } from "./results.ts";
 import { returns } from "./returns.ts";
 import { u8s as saturates_u8s, u16s as saturates_u16s, u32s as saturates_u32s, u64s as saturates_u64s, u128s as saturates_u128s, usizes as saturates_usizes, i8s as saturates_i8s, i16s as saturates_i16s, i32s as saturates_i32s, i64s as saturates_i64s, i128s as saturates_i128s, isizes as saturates_isizes } from "./saturates.ts";
@@ -258,26 +258,32 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		runs(data89, out90);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::guards", (_2190: rt.u8, data90: rt.ByteSlice, out91: rt.ByteVec): undefined => {
 		guards(data90, out91);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["results::results", results_results as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fields::fields", fields_fields as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["strs::gets", gets as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::maps", (_2191: rt.u8, data91: rt.ByteSlice, out92: rt.ByteVec): undefined => {
-		borrows_maps(data91, out92);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::mapped", (_2192: rt.u8, data92: rt.ByteSlice, out93: rt.ByteVec): undefined => {
-		mapped(data92, out93);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["boxes::impls", boxes_impls as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["conversions::conversions", conversions as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::tries", (_2193: rt.u8, data93: rt.ByteSlice, out94: rt.ByteVec): undefined => {
-		tries(data93, out94);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::mutex_mapped", (_2194: rt.u8, data94: rt.ByteSlice, out95: rt.ByteVec): undefined => {
-		mutexMapped(data94, out95);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::printed", (_2195: rt.u8, data95: rt.ByteSlice, out96: rt.ByteVec): undefined => {
-		locks_printed(data95, out96);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["results::results", results_results as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fields::fields", fields_fields as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["strs::gets", gets as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::adapted", (_2191: rt.u8, data91: rt.ByteSlice, out92: rt.ByteVec): undefined => {
+		refs_adapted(data91, out92);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::maps", (_2192: rt.u8, data92: rt.ByteSlice, out93: rt.ByteVec): undefined => {
+		borrows_maps(data92, out93);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::mapped", (_2193: rt.u8, data93: rt.ByteSlice, out94: rt.ByteVec): undefined => {
+		mapped(data93, out94);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["boxes::impls", boxes_impls as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["conversions::conversions", conversions as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::tries", (_2194: rt.u8, data94: rt.ByteSlice, out95: rt.ByteVec): undefined => {
+		tries(data94, out95);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::mutex_mapped", (_2195: rt.u8, data95: rt.ByteSlice, out96: rt.ByteVec): undefined => {
+		mutexMapped(data95, out96);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::printed", (_2196: rt.u8, data96: rt.ByteSlice, out97: rt.ByteVec): undefined => {
+		locks_printed(data96, out97);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::vecs", (a0154: rt.u8, a1154: rt.ByteSlice, a2154: rt.ByteVec): undefined => {
 		capacity_vecs(a0154, a1154.data, a1154.start, a1154.length, a2154);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::deques", (a0155: rt.u8, a1155: rt.ByteSlice, a2155: rt.ByteVec): undefined => {
 		capacity_deques(a0155, a1155.data, a1155.start, a1155.length, a2155);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::heaps", (a0156: rt.u8, a1156: rt.ByteSlice, a2156: rt.ByteVec): undefined => {
 		capacity_heaps(a0156, a1156.data, a1156.start, a1156.length, a2156);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::collects", collects as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::maps", capacity_maps as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::downgraded", (_2196: rt.u8, data96: rt.ByteSlice, out97: rt.ByteVec): undefined => {
-		downgraded(data96, out97);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2197: rt.u8, data97: rt.ByteSlice, out98: rt.ByteVec): undefined => {
-		leaks(data97, out98);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::collects", collects as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["capacity::maps", capacity_maps as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::downgraded", (_2197: rt.u8, data97: rt.ByteSlice, out98: rt.ByteVec): undefined => {
+		downgraded(data97, out98);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::leaks", (_2198: rt.u8, data98: rt.ByteSlice, out99: rt.ByteVec): undefined => {
+		leaks(data98, out99);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::own", (_2199: rt.u8, data99: rt.ByteSlice, out100: rt.ByteVec): undefined => {
+		hashes_own(data99, out100);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::compared", (a0159: rt.u8, a1159: rt.ByteSlice, a2159: rt.ByteVec): undefined => {
+		compared(a0159, a1159.data, a1159.start, a1159.length, a2159);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

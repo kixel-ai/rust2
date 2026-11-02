@@ -18,7 +18,7 @@ Each child reports its CPU saved, cold and warm, against `origin/main`.
 
 ## Required
 
-- [A cheaper differential](/quest/m0/checks/differential.md) - fixtures' wasm builds at opt-level 1 under single-threaded Node, and `stable_names` reuses `lang`'s translation
 - [A warm gate](/quest/m0/checks/cache.md) - the land gate builds through mbx, as moq's does
 - [Stable names on a small fixture](/quest/m0/checks/stable-names.md) - `stable_names` runs on a small fixture with generic instances and trait impls
 - [Fixtures that merge](/quest/m0/checks/fixture-layout.md) - `lang` splits by module, and `reject`'s snapshots key by item, not line
+- [The stock fixture's target dir race](/quest/m0/checks/stock-cachedir.md) - the `stock` fixture never fails creating its target dir

@@ -935,3 +935,105 @@ pub fn to_refs(data: &[u8], out: &mut Vec<u8>) {
 	out.push(call_twice(Box::new(&mut counted)));
 	out.push(call_twice(Box::new(&mut &mut counted)));
 }
+
+/// `Ok` for an even byte, else `Err`.
+fn parity(b: u8) -> Result<u8, u8> {
+	if b % 2 == 0 { Ok(b) } else { Err(b) }
+}
+
+/// A `&mut` to a `Vec`, an `Option`, or a `Result` of bytes that an adaptor is given,
+/// beside items of no places, lends each element as its place to write through. One a
+/// consumer is given compares as values.
+pub fn adapted(data: &[u8], out: &mut Vec<u8>) {
+	let mut v = data.to_vec();
+	let mut opt = data.first().copied();
+	let mut res = parity(data.get(1).copied().unwrap_or(4));
+	for (&b, x) in data.iter().rev().zip(&mut v) {
+		*x = x.wrapping_add(b).rotate_left(1);
+	}
+	for (i, x) in (1u8..).zip(&mut opt) {
+		*x ^= i << 6;
+	}
+	for (i, x) in (3u8..).zip(&mut res) {
+		*x = x.wrapping_mul(i);
+	}
+	for ((x, y), z) in v.iter().zip(&mut opt).zip(&mut res) {
+		std::mem::swap(y, z);
+		*z ^= *x;
+	}
+	for x in None.into_iter().chain(&mut v).chain(&mut opt).chain(&mut res) {
+		*x = x.wrapping_add(5);
+	}
+	out.extend(&v);
+	out.extend(opt);
+	out.extend(res.iter().chain(res.as_ref().err()));
+	let copy = v.clone();
+	let mut other = opt.map(|x| x ^ 1);
+	let all = [
+		copy.iter().eq(&mut v),
+		copy.iter().ne(&mut v),
+		copy.iter().skip(1).eq(&mut v),
+		opt.iter().eq(&mut other),
+		res.iter().eq(&mut opt),
+		data.iter().ne(&mut res),
+	];
+	out.extend(all.map(u8::from));
+}
+
+/// A float of few values, so that prefixes agree often: a NaN, which orders as nothing, and
+/// a `-0.0`, equal to `0.0`.
+fn few(b: &u8) -> f32 {
+	match b % 5 {
+		3 => f32::NAN,
+		4 => -0.0,
+		n => f32::from(n),
+	}
+}
+
+/// What `partial_cmp` answered, as its `Ordering`'s byte, or 9 for `None`.
+fn order(o: Option<std::cmp::Ordering>) -> u8 {
+	o.map_or(9, |o| o as i8 as u8)
+}
+
+/// Iterators of `&mut` to values JS copies compare by the values they lend, against places
+/// or values and in tuples beside values, over sides split at `split`: of lengths that
+/// differ and prefixes that agree.
+pub fn compared(split: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (left, right) = data.split_at(usize::from(split) % (data.len() + 1));
+	let mut a: Vec<u8> = left.iter().map(|b| b % 3).collect();
+	let mut b: Vec<u8> = right.iter().map(|b| b % 3).collect();
+	let mut x: Vec<f32> = left.iter().map(few).collect();
+	let mut y: Vec<f32> = right.iter().map(few).collect();
+	let mut one = b.first().copied();
+	out.extend(
+		[
+			a.iter_mut().eq(&mut b),
+			a.iter_mut().ne(&mut b),
+			a.iter_mut().lt(&mut b),
+			a.iter_mut().le(&mut b),
+			a.iter_mut().gt(&mut b),
+			a.iter_mut().ge(&mut b),
+			a.iter_mut().eq(b.iter()),
+			a.iter().ne(&mut b),
+			a.iter_mut().chain(&mut one).eq(&mut b),
+			b.iter_mut().lt(a.iter_mut().chain(&mut one)),
+			x.iter_mut().eq(&mut y),
+			x.iter_mut().ne(&mut y),
+			x.iter_mut().lt(&mut y),
+			x.iter_mut().le(&mut y),
+			x.iter_mut().gt(&mut y),
+			x.iter_mut().ge(&mut y),
+			x.iter().eq(&mut y),
+			x.iter_mut().ne(y.iter()),
+		]
+		.map(u8::from),
+	);
+	out.extend([
+		a.iter_mut().cmp(&mut b) as i8 as u8,
+		a.iter_mut().zip(left).cmp(b.iter_mut().zip(right)) as i8 as u8,
+		a.iter_mut().map(Some).cmp(b.iter_mut().map(Some)) as i8 as u8,
+		order(a.iter_mut().partial_cmp(&mut b)),
+		order(x.iter_mut().partial_cmp(&mut y)),
+		order(x.iter_mut().zip(&a).partial_cmp(y.iter_mut().zip(&b))),
+	]);
+}
