@@ -8,7 +8,9 @@
   a braced list of such objects, which copies them, is built with `push_back` instead.
   Such a type with a method named `clone` takes a `rename`. A copy of a type that shares,
   such as moq's `path`, `timestamp`, and `url`, shares the handle rather than cloning in
-  Rust, and a copy of one a closure lends, kept past the call, aborts.
+  Rust, and a copy of one a closure lends, kept past the call, aborts. So do `Arc`- and
+  `Rc`-backed types, such as moq's stats `registry`: an `Arc::strong_count` of what one
+  holds counts one for all its C++ copies, not one per copy.
 - Every export writes `python/<prefix>.py`, so an export fails when two items take the same
   Python name, such as a type `Foo` beside an error type's `FooException`, or when one
   takes a name the Python's runtime uses unqualified, each starting with `_`: give it

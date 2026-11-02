@@ -205,8 +205,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   copy whole, as Rust leaves a clone. A call on a moved-from object, or one a call moved
   the value out of, aborts; a dangling reference to an object is C++'s own undefined
   behavior.
-- **Sharing** stands in for `clone` only where no call can tell the two apart, which the
-  exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
+- **Sharing** stands in for `clone` where no call can tell the two apart but by counting
+  an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
   would contend for; borrowed mutably by no export, through `&mut self`, a `&mut`
   parameter, or a closure lent one; and its clone owns no state that changes behind `&`.
@@ -215,8 +215,9 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `Drop` of its own, and hold only such values. So a `Mutex`, `OnceLock`, or atomic it
   owns, even behind a `Box`, keeps copies apart, as does a raw pointer, or a `Clone` or
   `Drop` written by hand, which may count clones. std's `Clone` of a `Copy` type copies
-  it. Sharing still shows in a count of an `Arc`'s clones, such as `Arc::strong_count`,
-  which counts one per shared handle. Of moq's types, `path`, `timestamp`, and `url`
+  it. The one difference: every C++ copy of a shared object is one Rust value, so
+  `Arc::strong_count`, `Rc::strong_count`, or a weak count of what it holds counts one for
+  all of them, where Rust's clones would count one each. Of moq's types, `path`, `timestamp`, and `url`
   share, and its producers and consumers, whose `Clone` counts them, cross.
 - **Records** are structs, and **enums** an `enum class`, or for one with data a
   `std::variant` of a struct per variant, `<enum>_<variant>`. An enum's methods and

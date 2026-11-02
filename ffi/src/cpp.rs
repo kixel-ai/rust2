@@ -7,7 +7,8 @@
 //! named as its class or a field, takes a trailing `_`; so does a parameter named as a
 //! member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
-//! call tells apart, a `std::shared_ptr` its copies share; a record a struct; an enum an
+//! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
+//! share; a record a struct; an enum an
 //! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
 //! methods free functions; a closure lent for the call a template parameter. The runtime
 //! they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the handles, bytes, results,
@@ -600,7 +601,8 @@ impl<'a> Header<'a> {
 		let t = object.traits;
 		let text = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 		let d = self.d();
-		// Copies share a handle only where no call tells that apart from a clone.
+		// Copies share a handle only where no call tells that apart from a clone, but by an
+		// `Arc`'s or `Rc`'s count, which counts one for every copy.
 		let handle = match object.shared {
 			true => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone>"),
 			false => format!("{d}::unique<::{c}, &::{c}_free>"),

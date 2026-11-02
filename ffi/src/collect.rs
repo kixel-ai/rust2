@@ -2894,9 +2894,9 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Whether a clone of the type `ty`, which `def_id` declares, is a value no shared
-	/// borrow can tell apart from the original, so copies may share one: each part of it
-	/// is reached through an `Arc`, an `Rc`, or a shared reference, which a clone shares,
-	/// or never changes behind `&`. A `Cell` or `Mutex` it owns, even inside a `Box`,
+	/// borrow can tell apart from the original but by an `Arc`'s or `Rc`'s count, so copies
+	/// may share one: each part of it is reached through an `Arc`, an `Rc`, or a shared
+	/// reference, which a clone shares, or never changes behind `&`. A `Cell` or `Mutex` it owns, even inside a `Box`,
 	/// changes apart in a clone, and a `Drop` or a `Clone` written by hand may count
 	/// clones, so any of them, or a type it cannot see through, keeps clones apart.
 	fn clone_shares(&self, ty: Ty<'tcx>, def_id: DefId) -> bool {

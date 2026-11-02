@@ -150,7 +150,8 @@ public:
 };
 
 // The handle of an object whose copies share it, since its clone is a value no call
-// tells apart from the original. The last copy frees it, on whichever thread drops it.
+// tells apart from the original but by an `Arc`'s or `Rc`'s count, which counts one for
+// every copy. The last copy frees it, on whichever thread drops it.
 template <class R, void (*Free)(R *), R *(*Clone)(const R *)>
 class shared {
 	::std::shared_ptr<R> ptr_;

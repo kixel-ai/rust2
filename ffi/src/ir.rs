@@ -120,7 +120,7 @@ pub struct Object {
 	/// copies it, rather than moved out.
 	pub copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
-	/// from `Clone`: it is `Clone` and `Sync`, its clone owns no state that changes
+	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
 	/// behind `&` or counts clones, and no export borrows it mutably.
 	pub shared: bool,
 	/// How many lifetime parameters it has, each `'static` in the export.
