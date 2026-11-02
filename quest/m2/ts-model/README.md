@@ -49,4 +49,3 @@ Public API: the translator's output for moq-net's model.
 
 ## Required
 
-- [The std calls moq's main added to the model](/quest/m2/ts-model/main-std.md) - `VecDeque::range`, and `str::rsplit_once` and `split_terminator` by a `char`, translate

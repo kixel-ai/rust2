@@ -1043,6 +1043,91 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, rt.dequeIndex(q2, b2));
 }
 
+/**
+ * `VecDeque::range` by each form of range, over a ring buffer whose front items wrap past
+ * its end, read from both ends and cloned midway, with `{:?}` of what is left after each
+ * step, which shows the two slices std's splits it into; a range past the length or
+ * backwards panics as std's does.
+ */
+export function dequeRanges(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _31!: rt.u8;
+	let it!: rt.Iter<rt.u8>;
+	let item!: rt.u8 | undefined;
+	let _7_0!: rt.usize;
+	let _7_1!: rt.usize;
+	let _7_2Data!: Uint8Array;
+	let _7_2Start!: number;
+	let _7_2Len!: number;
+	if (!(data.length >= 2)) {
+		_7_0 = 0;
+		_7_1 = 0;
+		_7_2Data = data.data;
+		_7_2Start = data.start;
+		_7_2Len = data.length;
+	} else {
+		const _13: rt.usize = rt.usizeRem(data.data[data.start] as rt.usize, 8);
+		const _17: rt.usize = rt.usizeRem(data.data[data.start + 1] as rt.usize, 8);
+		_7_0 = _13;
+		_7_1 = _17;
+		_7_2Data = data.data;
+		_7_2Start = data.start + 2;
+		_7_2Len = data.length - 2;
+	}
+	const a: rt.usize = _7_0;
+	const b: rt.usize = _7_1;
+	const q: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.iterToArray(rt.iterSlice(rt.byteSliceView(new rt.ByteSlice(_7_2Data, _7_2Start, _7_2Len))), undefined, 1, true), 1, true) as rt.VecDeque<rt.u8>;
+	const _26: rt.u8 = rt.u8Rem(rt.u8Div(kind, 8), 4);
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _26;
+	while ((_31 = iterStart++) < iterEnd) {
+		rt.dequePushFront(q, 240 | _31);
+	}
+	const _39: rt.u8 = rt.u8Rem(kind, 8);
+	if (_39 === 0) {
+		it = rt.dequeRange(q, new rt.Range(a, b));
+	} else if (_39 === 1) {
+		const _44: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(a, b, rt.usizeStep);
+		it = rt.dequeRange(q, _44);
+	} else if (_39 === 2) {
+		it = rt.dequeRange(q, { end: b });
+	} else if (_39 === 3) {
+		it = rt.dequeRange(q, new rt.RangeFrom(a, rt.usizeStep));
+	} else if (_39 === 4) {
+		it = rt.dequeRange(q, undefined);
+	} else if (_39 === 5) {
+		it = rt.dequeRange(q, [{ tag: "Excluded", _0: a } as rt.RangeBound<rt.usize>, { tag: "Included", _0: b } as rt.RangeBound<rt.usize>] as [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>]);
+	} else if (_39 === 6) {
+		it = rt.dequeRange(q, { end: b, inclusive: true });
+	} else {
+		it = rt.dequeRange(q, new rt.Range(a, a));
+	}
+	rt.byteVecPush(out, it.len() & 0xff);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDequeIter(it, f, rt.u8Debug, "Iter")];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+	let i2: rt.i32 = 0;
+	while (true) {
+		if ((rt.u8Shr(kind, rt.i32Add(5, rt.i32Rem(i2, 3))) & 1) === 1) {
+			item = rt.iterToOption(it.nextBack());
+		} else {
+			item = rt.iterToOption(it.next());
+		}
+		if (item !== undefined) {
+			rt.byteVecPush(out, item);
+			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDequeIter(it, f, rt.u8Debug, "Iter")];
+			rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args4[0]])));
+			if (i2 === 1) {
+				rt.iterExtendBytes(out, rt.iterRev(it.clone()), undefined, true);
+			}
+			i2 = rt.i32Add(i2, 1);
+		} else {
+			rt.byteVecPush(out, 253);
+			const _117: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.min(a, q.n), rt.usizeStep);
+			rt.iterExtendBytes(out, rt.iterRev(rt.dequeRange(q, _117)), undefined, true);
+			return;
+		}
+	}
+}
+
 /** `vec![a, b]` and `vec![x; n]`, of bytes, numbers, `Copy` tuples, and types that clone. */
 export function vecs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let name!: string;

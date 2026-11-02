@@ -109,6 +109,21 @@ pub fn strs(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			out.push(i as u8);
 			put(out, s.split(sep).next().unwrap_or("none"));
+			// `split_terminator`, which drops an empty last part, from both ends.
+			let mut parts = s.split_terminator(sep);
+			let mut i = 0;
+			loop {
+				let part = match from_back(data, i) {
+					true => parts.next_back(),
+					false => parts.next(),
+				};
+				let Some(part) = part else {
+					break;
+				};
+				put(out, part);
+				i += 1;
+			}
+			out.push(i as u8);
 		}
 		2 => {
 			// `split` by a predicate, which sees each char once, in the order it is read.
@@ -138,6 +153,13 @@ pub fn strs(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			put(out, s.trim_start_matches(sep).trim_end_matches(sep));
 			out.push(s.starts_with(sep) as u8);
 			put_offset(out, s.rfind(sep));
+			match s.rsplit_once(sep) {
+				Some((head, tail)) => {
+					put(out, head);
+					put(out, tail);
+				}
+				None => out.push(0xfd),
+			}
 		}
 		4 => {
 			// Trimmed, tested, and found by a predicate.
@@ -275,6 +297,13 @@ pub fn slices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.push(s.contains('/') as u8);
 			out.push(s.contains(|c: char| c.is_ascii_digit()) as u8);
 			put_offset(out, s.rfind(p.as_str()));
+			match s.rsplit_once(p.as_str()) {
+				Some((head, tail)) => {
+					put(out, head);
+					put(out, tail);
+				}
+				None => out.push(0xfd),
+			}
 		}
 		3 => {
 			// A path and each parent of it, as moq-net's discovery walks them.
