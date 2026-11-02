@@ -368,6 +368,12 @@ pub fn call<'tcx>(
 			return Some(Expr::rt("iterOnce", tail(args, vec![dropper])));
 		}
 		["iter", "sources", "empty", "empty"] => return Some(Expr::rt("iterEmpty", Vec::new())),
+		// `a.into_iter().zip(b)`, as std's is.
+		["iter", "adapters", "zip", "zip"] => {
+			let [a, other] = <[Expr; 2]>::try_from(args).ok()?;
+			let a = into_iter(b, targ(0)?, a, span)?;
+			return zip(b, a, targ(1)?, other, b.t.sig(call.def_id, gargs).output(), span);
+		}
 		// A closure that owns a value that drops is refused as any std mapping refuses one
 		// it calls but never drops.
 		// Each takes its closure's `None` last, where that is `rt.None`.
@@ -508,10 +514,7 @@ pub fn call<'tcx>(
 		// Each owns a closure it is given by value, which drops as its fold ends.
 		"for_each" | "fold" => {
 			let drops = iter_drops(b, self_ty, span);
-			let owns = match b.t.drops(targ(gargs.types().count() - 1)?) {
-				true => Expr::lit("true"),
-				false => Expr::undefined(),
-			};
+			let owns = flag(b.t.drops(targ(gargs.types().count() - 1)?));
 			method(&camel, tail(rest, vec![drops, owns]))
 		}
 		// std's `Sum` and `Product` are of the type or a reference to it: another is the crate's.
@@ -574,14 +577,16 @@ pub fn call<'tcx>(
 		// By the comparator, which `best` calls with the best so far and then the next, as
 		// std's `cmp::max_by` and `min_by` do.
 		"max_by" | "min_by" => {
-			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span)]
+			let owns = flag(b.t.drops(targ(1)?));
+			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span), owns]
 				.into_iter()
 				.chain(none);
 			method(&camel, tail(rest, droppers.collect()))
 		}
 		"reduce" => {
+			let owns = flag(b.t.drops(targ(1)?));
 			let drops = iter_drops(b, self_ty, span);
-			method(name, tail(rest, [drops].into_iter().chain(none).collect()))
+			method(name, tail(rest, [drops, owns].into_iter().chain(none).collect()))
 		}
 		// By the items' `Ord::max` or `min`, or the keys', which test `<` of the next and the
 		// best. Not of places, which the runtime would compare as the objects they are.
@@ -621,8 +626,13 @@ pub fn call<'tcx>(
 				));
 			}
 			let lt = super::collections::test_fn(b, key, "lt", span);
+			let owns = match by_key {
+				true => Some(flag(b.t.drops(targ(2)?))),
+				false => None,
+			};
 			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span)]
 				.into_iter()
+				.chain(owns)
 				.chain(none);
 			method(&camel, tail([rest, vec![lt]].concat(), droppers.collect()))
 		}
@@ -630,24 +640,32 @@ pub fn call<'tcx>(
 		// or by `le` of the keys a function makes, as std's maps to them. Not of places, as
 		// `max` is not.
 		"is_sorted" | "is_sorted_by" | "is_sorted_by_key" => {
-			let (items, compare, each) = match name {
-				"is_sorted_by" => (recv.clone(), rest.into_iter().next()?, item),
+			let drops = drops_iter(b, self_ty, span);
+			let (items, compare, each, drops) = match name {
+				"is_sorted_by" => (recv.clone(), rest.into_iter().next()?, item, drops),
 				_ if b.t.has_place(item) => return None,
-				"is_sorted" => (recv.clone(), super::collections::test_fn(b, item, "le", span), item),
+				"is_sorted" => (
+					recv.clone(),
+					super::collections::test_fn(b, item, "le", span),
+					item,
+					drops,
+				),
 				_ => {
 					let key = targ(2)?;
 					let le = super::collections::test_fn(b, key, "le", span);
-					// The map drops its function as the iterator drops, so one through a reference
-					// or box is lent, as one owned that drops is refused with such an iterator.
+					// std's maps the iterator by its function, which drops after it: one it is lent,
+					// through a box or not, drops with its owner.
 					let (mut f, f_ty) = (rest.into_iter().next()?, targ(1)?);
-					let owned = matches!(f_ty.kind(), ty::Closure(..) | ty::FnDef(..) | ty::FnPtr(..));
-					if !owned && drops_iter(b, self_ty, span) {
+					let (_, lent, _) = library::called_through(b.t, f_ty, None);
+					if lent && drops {
 						f = Expr::rt("lent", vec![f]);
 					}
-					(Expr::rt("iterMap", vec![recv.clone(), f]), le, key)
+					let drops = drops || b.t.drops(f_ty);
+					(Expr::rt("iterMap", vec![recv.clone(), f]), le, key, drops)
 				}
 			};
-			let mut droppers = vec![iter_drops(b, self_ty, span), b.t.dropper(each, span)];
+			let drops = flag(drops);
+			let mut droppers = vec![drops, b.t.dropper(each, span)];
 			if name == "is_sorted_by" {
 				droppers.push(b.t.dropper(targ(1)?, span));
 			}
@@ -661,22 +679,14 @@ pub fn call<'tcx>(
 			let other = into_iter(b, targ(1)?, rest.into_iter().next()?, span)?;
 			method(name, vec![other])
 		}
-		"zip" => {
-			let other_ty = targ(1)?;
-			let other = into_iter(b, other_ty, rest.into_iter().next()?, span)?;
-			let zip = b.t.sig(call.def_id, gargs).output();
-			let ty::Adt(_, sides) = zip.kind() else {
-				return None;
-			};
-			let (a, other_iter) = (sides.type_at(0), sides.type_at(1));
-			let other_item = b.t.iter_item(other_iter)?;
-			let droppers = vec![
-				zip_trusted(b, a, other_iter, span),
-				b.t.dropper(item, span),
-				b.t.dropper(other_item, span),
-			];
-			method(name, tail(vec![other], droppers))
-		}
+		"zip" => zip(
+			b,
+			recv,
+			targ(1)?,
+			rest.into_iter().next()?,
+			b.t.sig(call.def_id, gargs).output(),
+			span,
+		),
 		// `flat_map::<U, F>`, of the source mapped by `F`, which drops as the source does.
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
@@ -870,15 +880,6 @@ fn nth_zips(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> bool {
 		Some("Enumerate" | "Fuse" | "Skip") => nth_zips(tcx, args.type_at(0)),
 		_ => false,
 	}
-}
-
-/// Whether std's `owner::name` takes a closure by value that it drops as its fold ends,
-/// before the iterators, which its mapping drops there too.
-pub(super) fn releases(owner: &str, name: &str) -> bool {
-	matches!(
-		(owner, name),
-		("Iterator", "for_each" | "fold" | "eq_by" | "cmp_by" | "partial_cmp_by")
-	)
 }
 
 /// The function or `Iterator` method named for `ty`, one of std's iterators of zero-sized
@@ -1137,6 +1138,30 @@ fn flattens<'tcx>(b: &mut Body<'_, '_, 'tcx>, inner: Ty<'tcx>, span: Span) {
 	}
 }
 
+/// `rt.iterZip` of `a`, an iterator, and `other`, of type `other_ty`, into `zip`, the `Zip`
+/// of their iterators.
+fn zip<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	a: Expr,
+	other_ty: Ty<'tcx>,
+	other: Expr,
+	zip: Ty<'tcx>,
+	span: Span,
+) -> Option<Expr> {
+	let other = into_iter(b, other_ty, other, span)?;
+	let ty::Adt(_, sides) = zip.kind() else {
+		return None;
+	};
+	let (a_iter, other_iter) = (sides.type_at(0), sides.type_at(1));
+	let (item, other_item) = (b.t.iter_item(a_iter)?, b.t.iter_item(other_iter)?);
+	let droppers = vec![
+		zip_trusted(b, a_iter, other_iter, span),
+		b.t.dropper(item, span),
+		b.t.dropper(other_item, span),
+	];
+	Some(Expr::rt("iterZip", tail(vec![a, other], droppers)))
+}
+
 /// `rt.Trusted`, how std's `Zip` of `a` and `b` reads them, by the traits it specializes
 /// on: by index if both are `TrustedRandomAccess`, as whether each may have side effects,
 /// and folded by its size hint if both are `TrustedLen`, or `TrustedRandomAccessNoCoerce`,
@@ -1376,7 +1401,12 @@ pub(super) fn text_items<'tcx>(t: &Translator<'_, 'tcx>, item: Ty<'tcx>) -> Opti
 /// holds, which its `rt.Iter` drops as std's does: `true`, or `undefined` for one that
 /// drops nothing.
 pub(super) fn iter_drops<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
-	match drops_iter(b, ty, span) {
+	flag(drops_iter(b, ty, span))
+}
+
+/// A runtime function's optional flag: `true`, or `undefined` for its default.
+fn flag(on: bool) -> Expr {
+	match on {
 		true => Expr::lit("true"),
 		false => Expr::undefined(),
 	}

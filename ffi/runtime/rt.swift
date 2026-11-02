@@ -276,6 +276,16 @@ extension Native {
 			}
 		}
 
+		/// End a lend, closing the handle, which Rust frees next: a call still holding it
+		/// would reach the freed handle, so it traps, as Rust's own check does once a call
+		/// borrowed.
+		func end() {
+			close()
+			if load(state) != Handle.closed {
+				fatalError("\(type): a call still holds it when its lend ends")
+			}
+		}
+
 		/// Close it, for its owner's `deinit`, when no call can hold it.
 		func drop() {
 			close()

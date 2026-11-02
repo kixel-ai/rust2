@@ -376,11 +376,11 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		return rt.u32Rem(rt.u32Mul(i, 40503), 1 << 16);
 	}), undefined, 4, true);
 	if (selector === 0) {
-		rt.sliceSort(v, rt.lt);
+		rt.sliceSort(v, rt.lt, 4, true);
 	} else if (selector === 1) {
-		rt.sliceSortByKey(v, (_212: rt.u32): rt.u32 => {
+		rt.sliceSort(v, rt.keyLt((_212: rt.u32): rt.u32 => {
 			return rt.u32Rem(_212, 1024);
-		}, rt.lt);
+		}, rt.lt), 4, true);
 	} else if (selector === 2) {
 		v = [rt.optionUnwrap(rt.iterMax(rt.iterSlice(v), rt.lt)), rt.optionUnwrap(rt.iterMin(rt.iterSlice(v), rt.lt))];
 	} else if (selector === 3) {

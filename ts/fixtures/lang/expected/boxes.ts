@@ -255,7 +255,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.intRotateLeft(_26, 3, 16, false);
 		}), undefined, 2, true);
 		const cloned2: rt.u16[] = collected2.slice();
-		rt.sliceSort(cloned2, rt.lt);
+		rt.sliceSortUnstable(cloned2, rt.lt, 2, true, true);
 		wides(cloned2, out);
 		wides(collected2, out);
 		const empty2: rt.u16[] = [];
@@ -948,7 +948,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const w2: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_28: rt.u8): rt.u16 => {
 			return rt.u16Add(_28 as rt.u16, 1);
 		}), undefined, 2, true);
-		rt.sliceSort(w2, rt.lt);
+		rt.sliceSortUnstable(w2, rt.lt, 2, true, true);
 		wides(w2, out);
 		const l2: boxes_Logged.Logged[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_214: rt.u8): boxes_Logged.Logged => {
 			return logged(_214);

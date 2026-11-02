@@ -392,7 +392,7 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const keys: [rt.u8, rt.u8][] = rt.iterToArray(rt.iterMap(rt.hashIter(sets), (_22: [rt.u8, rt.BTreeSet<rt.u8>]): [rt.u8, rt.u8] => {
 		return [_22[0], rt.btreeLen(_22[1]) & 0xff] as [rt.u8, rt.u8];
 	}), "next", 2);
-	rt.sliceSort(keys, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
+	rt.sliceSort(keys, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 2, true);
 	for (const _394 of keys) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(_394[0], _394[1])));
 	}

@@ -906,4 +906,14 @@ const remadeCases = [0, 5, 0x2d, 0x37, 0x64, 0x6e, 1, 0x10, 2, 0x11, 3, 0x0e, 0x
 	}),
 );
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases];
+/**
+ * `sorts` cases of each length std's thresholds part, of each run of keys; `disorders`
+ * cases of each length, kind of item, and sort; and `btrees` cases of each length.
+ */
+const sortCases = [
+	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::sorts"), i % 20, Math.floor(i / 20), 7, 1, 3)),
+	...Array.from({ length: 160 }, (_, kind) => Uint8Array.of(...op("sorts::disorders"), kind, kind % 5, 0x5a, 0xc3, 0x0f, 7)),
+	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::btrees"), i % 20, Math.floor(i / 20), 2, 9)),
+];
+
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases];
