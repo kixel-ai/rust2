@@ -240,21 +240,6 @@ pub fn borrowed(map: &std::collections::HashMap<Id, u8>) -> bool {
 	map.contains_key(&1)
 }
 
-#[derive(PartialEq, Eq)]
-pub struct Raw(pub u8);
-
-impl std::hash::Hash for Raw {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		state.write(&[self.0]);
-	}
-}
-
-/// A `Hash` that writes bytes, which the runtime's hasher does not take.
-pub fn raw_keys() -> usize {
-	let map: std::collections::HashMap<Raw, u8> = std::collections::HashMap::new();
-	map.len()
-}
-
 /// `max` drops the operand it doesn't return, which the runtime's leaves undropped.
 pub fn widest(a: std::sync::Arc<str>, b: std::sync::Arc<str>) -> std::sync::Arc<str> {
 	a.max(b)

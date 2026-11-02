@@ -5,7 +5,7 @@
 //! is `TrackProducer`, and its method `moq_track_producer_append_group` is
 //! `TrackProducer.appendGroup`. A keyword is quoted in backticks, and a member named as one
 //! Swift gives its type takes a trailing `_`. An object is a final class owning its handle,
-//! freed in `deinit` or sooner by `close`; a record a struct; an enum a Swift enum, with
+//! freed in `deinit`; a record a struct; an enum a Swift enum, with
 //! its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the handles, the arena a call lowers
@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty};
-use crate::ir::{Access, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -820,9 +820,9 @@ impl<'a> Gen<'a> {
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
-		let mut members = vec!["close".to_string(), "handle".to_string()];
+		let mut members = vec!["handle".to_string()];
 		let mut body = vec![format!(
-			"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n\n\t/// Free the handle once no call holds it, rather than once Swift releases this: a\n\t/// call after it traps.\n\tpublic func close() {{\n\t\thandle.close()\n\t}}\n"
+			"\tlet handle: Native.Handle\n\n\tinit(raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, {c}_free, \"{name}\")\n\t}}\n\n\tinit(lent raw: OpaquePointer?) {{\n\t\thandle = Native.Handle(raw, nil, \"{name}\")\n\t}}\n\n\tdeinit {{\n\t\thandle.drop()\n\t}}\n"
 		)];
 		let mut protocols = vec!["@unchecked Sendable"];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members, &mut protocols);
@@ -855,8 +855,8 @@ impl<'a> Gen<'a> {
 		for method in &callback.methods {
 			let member = member(&abi::snake(method.name()), &[]);
 			members.push(full(false, &member, method.params.iter().map(|_| "_".to_string())));
-			let params: Vec<String> = (method.params.iter())
-				.map(|p| format!("_ {}: {}", kw(&camel(&p.name)), self.sw(&p.ty)))
+			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
+				.map(|(p, name)| format!("_ {name}: {}", self.sw(&p.ty)))
 				.collect();
 			let ret = match method.ok {
 				Type::Unit => String::new(),
@@ -925,7 +925,7 @@ impl<'a> Gen<'a> {
 				let close = self.close(inner, &v);
 				format!("for {v} in {e} {{ {close} }}")
 			}
-			_ => format!("{e}.close()"),
+			_ => format!("{e}.handle.close()"),
 		}
 	}
 
@@ -952,14 +952,14 @@ impl<'a> Gen<'a> {
 			}
 			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
 			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
-			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty, Type::Option(inner) if Abi::is_buf(inner)) => {
+			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
 				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
 				arg.exprs.push(b);
 			}
 			(ty, Ty::Handle { .. }) => {
 				let h = format!("h{k}_");
-				let open = match ty {
+				let open = match ty.base() {
 					Type::Option(_) => format!("{tr}Native.with({e}?.handle) {{ {h} in"),
 					_ => format!("{tr}{e}.handle.with {{ {h} in"),
 				};
@@ -988,7 +988,7 @@ impl<'a> Gen<'a> {
 				Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
 					let l = format!("l{k}_");
 					body.push(format!("let {l} = {}(lent: {p})", self.sw(object)));
-					body.push(format!("defer {{ {l}.close() }}"));
+					body.push(format!("defer {{ {l}.handle.close() }}"));
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),
@@ -1025,7 +1025,7 @@ impl<'a> Gen<'a> {
 			None => None,
 		};
 		let reserved: &[&str] = match owner_ty {
-			Some(Type::Object(_)) => &["close", "handle", "init", "deinit"],
+			Some(Type::Object(_)) => &["handle", "init", "deinit"],
 			Some(_) => &["init"],
 			None => &[],
 		};
@@ -1057,7 +1057,7 @@ impl<'a> Gen<'a> {
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						arg.after.push("self.close()".to_string());
+						arg.after.push("self.handle.close()".to_string());
 					}
 				}
 				_ => {
@@ -1069,14 +1069,14 @@ impl<'a> Gen<'a> {
 			args.push(arg);
 		}
 		let mut params = Vec::new();
-		for (k, param) in function.params.iter().enumerate() {
+		let names = locals(&function.params);
+		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			if let Type::Closure(..) = param.ty {
 				c_params.next().expect("a closure has its data");
 			}
-			let name = kw(&camel(&param.name));
 			params.push(format!("_ {name}: {}", self.sw(&param.ty)));
-			let (arg, needs) = self.arg(&param.ty, c, &name, k, tr);
+			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
 			arena |= needs;
 			args.push(arg);
 		}
@@ -1194,17 +1194,16 @@ impl<'a> Gen<'a> {
 		}
 
 		let mut text = function.docs.clone();
-		for param in &function.params {
+		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(lent, _) = &param.ty {
-				let name = kw(&camel(&param.name));
 				text.push_str(&format!(
 					"\n\nRust calls `{}` only during the call, from any thread.",
-					unquote(&name)
+					unquote(name)
 				));
 				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of `{}`: keep none past it.",
-						unquote(&name)
+						unquote(name)
 					));
 				}
 			}
@@ -1381,6 +1380,14 @@ fn pascal(name: &str) -> String {
 				None => String::new(),
 			}
 		})
+		.collect()
+}
+
+/// The Swift names of parameters, in camel case, [`abi::distinct`], and quoted if a
+/// keyword.
+fn locals(params: &[Param]) -> Vec<String> {
+	(abi::distinct(params.iter().map(|p| camel(&p.name))).iter())
+		.map(|name| kw(name))
 		.collect()
 }
 
