@@ -290,6 +290,10 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	);
 	let parse = u8::from_str("x").unwrap_err();
 	put(out, &format!("{} | ", chain(&parse)));
+	// A box and a reference are errors too, whose `source` is what they point at's.
+	let held = Box::new(failure(a, b));
+	let lent = &*held;
+	put(out, &format!("{} | {} | ", chain(&held), chain(&lent)));
 
 	// Through the crate's trait, boxed, and upcast to `dyn Error`.
 	let coded: Box<dyn Coded> = Box::new(failure(b, a));
@@ -308,5 +312,15 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 	drop(results);
-	put(out, &format!("| {}", DROPPED.get()));
+	put(out, &format!("| {} ", DROPPED.get()));
+
+	// A box of a reference drops nothing; the leaf drops with its owner.
+	DROPPED.set(0);
+	let leaf = Leaf { code: b };
+	let borrowed: Box<dyn Error + '_> = (&leaf).into();
+	put(out, &format!("{} ", chain(&*borrowed)));
+	drop(borrowed);
+	put(out, &format!("{} ", DROPPED.get()));
+	drop(leaf);
+	put(out, &format!("{}", DROPPED.get()));
 }

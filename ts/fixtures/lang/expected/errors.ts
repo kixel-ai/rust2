@@ -613,37 +613,57 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		const part = chain(new error_Error.of$num_ParseIntError(rt.resultUnwrapErr(num_fromStr$1hq0zfa("x"), rt.u8Debug)));
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part)];
 		fmt_put(out, rt.fmtFormat([args4[0], " | "]));
+		const held: Failure.Failure = failure(a, b);
+		const _64: string = chain(new error_Error.of$boxed_Box_errors_Failure(held));
+		const _68: string = chain(new error_Error.of$ref_errors_Failure(held));
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, _64), (f: rt.Formatter) => rt.fmtPad(f, _68)];
+		fmt_put(out, rt.fmtFormat([args6[0], " | ", args6[1], " | "]));
 		const coded: Coded.Coded = new Coded.of$errors_Failure(failure(b, a));
 		const up: error_Error.Error = coded;
-		const _66: rt.u8 = coded.code$Coded();
-		const _69: string = chain(up);
-		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_66, f), (f: rt.Formatter) => rt.fmtPad(f, _69)];
-		fmt_put(out, rt.fmtFormat([args6[0], " ", args6[1], " | "]));
+		const _89: rt.u8 = coded.code$Coded();
+		const _92: string = chain(up);
+		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_89, f), (f: rt.Formatter) => rt.fmtPad(f, _92)];
+		fmt_put(out, rt.fmtFormat([args8[0], " ", args8[1], " | "]));
 		const boxed: Transported.Transported = new Transported.Transported(coded);
-		const _84: string = chain(new error_Error.of$errors_Transported(boxed));
-		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, _84), (f: rt.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
-		fmt_put(out, rt.fmtFormat([args8[0], " ", rt.fmtSpec({ alternate: true }, args8[1]), " | "]));
+		const _107: string = chain(new error_Error.of$errors_Transported(boxed));
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, _107), (f: rt.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
+		fmt_put(out, rt.fmtFormat([args10[0], " ", rt.fmtSpec({ alternate: true }, args10[1]), " | "]));
 		local_set$0st49po(DROPPED, 0);
 		const results: rt.Result<rt.u8, error_Error.Error>[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(new rt.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rt.u8): rt.Result<rt.u8, error_Error.Error> => {
 			const n: rt.u8 = _2;
 			return checked(rt.u8WrappingAdd(a, n), n);
 		}), undefined, 8, true);
-		for (const _104 of results) {
-			if (_104.ok) {
-				const arg = _104.value;
-				const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(arg, f)];
-				fmt_put(out, rt.fmtFormat([args10[0], " "]));
-			} else {
-				const part2 = chain(_104.error);
-				const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part2)];
+		for (const _127 of results) {
+			if (_127.ok) {
+				const arg = _127.value;
+				const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(arg, f)];
 				fmt_put(out, rt.fmtFormat([args12[0], " "]));
+			} else {
+				const part2 = chain(_127.error);
+				const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part2)];
+				fmt_put(out, rt.fmtFormat([args14[0], " "]));
 			}
 		}
 		rt.dropAll(results, drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send);
 		const part3 = local_get$1ei2eoj(DROPPED);
-		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
-		fmt_put(out, rt.fmtFormat(["| ", args14[0]]));
+		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
+		fmt_put(out, rt.fmtFormat(["| ", args16[0], " "]));
+		local_set$0st49po(DROPPED, 0);
+		const leaf: Leaf.Leaf = new Leaf.Leaf(b);
+		const borrowed: error_Error.Error = new error_Error.of$ref_errors_Leaf(leaf);
+		const part4 = chain(borrowed);
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part4)];
+		fmt_put(out, rt.fmtFormat([args18[0], " "]));
+		rt.drop(borrowed);
+		const part5 = local_get$1ei2eoj(DROPPED);
+		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part5, f)];
+		fmt_put(out, rt.fmtFormat([args20[0], " "]));
+		leaf[Symbol.dispose]();
+		const part6 = local_get$1ei2eoj(DROPPED);
+		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part6, f)];
+		fmt_put(out, rt.fmtFormat([args22[0]]));
 		boxed[Symbol.dispose]();
+		drop$errors_Failure(held);
 	}
 }
 

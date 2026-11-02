@@ -1402,11 +1402,12 @@ fn mapping<'tcx>(
 			}
 			// An error, boxed as a `dyn Error`, which `?` converts it by. One of a string boxes
 			// std's own private error type.
+			let error = targ(gargs, 1);
 			if let Some(object) = to.boxed_ty()
 				&& super::dynamic::is_error_object(tcx, object)
-				&& !string(tcx, from.peel_refs())
+				&& !string(tcx, error.peel_refs())
 			{
-				return Some(b.object_of(value, Ty::new_box(tcx, from), to, span));
+				return Some(b.object_of(value, Ty::new_box(tcx, error), to, span));
 			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
@@ -2418,12 +2419,21 @@ fn mapping<'tcx>(
 			let [value, f] = <[Expr; 2]>::try_from(args).ok()?;
 			fmt::std_impl(b, tr, targ(gargs, 0), value, f, span, out)?
 		}
-		// `Error`'s own `source`, which a type that has none keeps.
+		// `Error`'s own `source`, which a type that has none keeps, and std's for a reference
+		// or a box, which asks what it points at, its JS value.
 		("Error", "source")
 			if tcx
 				.trait_of_assoc(call.def_id)
 				.is_some_and(|tr| super::dynamic::is_error(tcx, tr)) =>
 		{
+			let self_ty = targ(gargs, 0);
+			if let Some(inner) = self_ty.builtin_deref(true).filter(|_| !self_ty.is_raw_ptr()) {
+				return Some(b.call_def(call.def_id, tcx.mk_args(&[inner.into()]), args, span, out));
+			}
+			let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, gargs).ok()??;
+			if instance.def_id() != call.def_id {
+				return None;
+			}
 			let sig = b.t.sig(call.def_id, gargs);
 			match sig.output().kind() {
 				ty::Adt(_, option) => b.t.none(option.type_at(0)),

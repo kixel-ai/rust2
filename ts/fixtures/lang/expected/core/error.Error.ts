@@ -9,6 +9,30 @@ import * as Transported from "../errors.Transported.ts";
 export type Error =
 	| { source$Error: () => Error | undefined; fmt$Display: (a0: rt.Formatter) => rt.Result<undefined, rt.FmtError>; fmt$Debug: (a0: rt.Formatter) => rt.Result<undefined, rt.FmtError> };
 
+export class of$boxed_Box_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
 export class of$errors_Failure {
 	v: Failure.Failure;
 
@@ -94,6 +118,46 @@ export class of$num_ParseIntError {
 
 	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 		return rt.fmtParseIntErrorDisplay(this.v, a);
+	}
+
+	source$Error(): Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$ref_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$ref_errors_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Display(this.v, a);
 	}
 
 	source$Error(): Error | undefined {
