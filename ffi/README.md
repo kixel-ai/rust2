@@ -195,23 +195,47 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `moq::track_producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
-- **Objects** are classes owning their handle, move-only unless `Clone`, whose copy
-  clones. `&self` methods are `const`, and `self` methods are `&&`, so a call that moves
-  the value out reads `std::move(c).into_label()`. A handle taken by value is moved into,
-  by a parameter taken by value.
+- **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
+  calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
+  Rust for a value of its own. A type whose copies may share one value, by the rule below,
+  owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
+  into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
+  `const`, and `self` methods are `&&`, so a call that moves the value out reads
+  `std::move(c).into_label()`. A handle taken by value is moved into, by a parameter taken
+  by value; moving out of a shared copy another copy holds moves out a clone, leaving that
+  copy whole, as Rust leaves a clone. A call on a moved-from object, or one a call moved
+  the value out of, aborts; a dangling reference to an object is C++'s own undefined
+  behavior.
+- **Sharing** stands in for `clone` where no call can tell the two apart but by counting
+  an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
+  since one that is not is borrowed on one thread at a time, which copies on two threads
+  would contend for; borrowed mutably by no export, through `&mut self`, a `&mut`
+  parameter, or a closure lent one; and its clone owns no state that changes behind `&`.
+  For that last, what a field reaches through an `Arc`, an `Rc`, or a shared reference,
+  the clone shares, and any other field must clone by a derived `Clone` or std's, with no
+  `Drop` of its own, and hold only such values. So a `Mutex`, `OnceLock`, or atomic it
+  owns, even behind a `Box`, keeps copies apart, as does a raw pointer, or a `Clone` or
+  `Drop` written by hand, which may count clones. std's `Clone` of a `Copy` type copies
+  it. The one difference: every C++ copy of a shared object is one Rust value, so
+  `Arc::strong_count`, `Rc::strong_count`, or a weak count of what it holds counts one for
+  all of them, where Rust's clones would count one each. Of moq's types, `path`, `timestamp`, and `url`
+  share, and its producers and consumers, whose `Clone` counts them, cross.
 - **Records** are structs, and **enums** an `enum class`, or for one with data a
   `std::variant` of a struct per variant, `<enum>_<variant>`. An enum's methods and
   traits are free functions taking it first. `PartialEq` is `==`, `Display` `to_string()`,
   `Debug` `debug()`, and `Default` `default_()`.
 - **Bytes** are passed as a `view`, which any contiguous bytes convert to, and returned as
-  a `buf`, which owns Rust's buffer without a copy. A `Vec<T>` is a `std::vector`, of
+  a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
+  from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
+  lives only as long as the bytes it views, and a `view` lent to a callback only for the
+  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
   Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it aborts.
+  its class for that call: moving out of it, or keeping a copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning

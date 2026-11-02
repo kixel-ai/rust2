@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- C++ objects own their handle through `std::unique_ptr`, or `std::shared_ptr` where
+  copies may share one value. A `Clone` type whose copies may not, such as moq's
+  producers and consumers, no longer copies: `T copy = t;` is `T copy = t.clone();`, and
+  a braced list of such objects, which copies them, is built with `push_back` instead.
+  Such a type with a method named `clone` takes a `rename`. A copy of a type that shares,
+  such as moq's `path`, `timestamp`, and `url`, shares the handle rather than cloning in
+  Rust, and a copy of one a closure lends, kept past the call, aborts. So do `Arc`- and
+  `Rc`-backed types, such as moq's stats `registry`: an `Arc::strong_count` of what one
+  holds counts one for all its C++ copies, not one per copy.
 - Swift's and Python's objects have no `close()`, and Python's are no context managers:
   an object's handle is freed once its last reference goes, in Swift's `deinit` or
   CPython's deallocation, so no reference can outlive it. Drop the reference instead of
