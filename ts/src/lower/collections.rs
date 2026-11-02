@@ -1507,6 +1507,11 @@ fn deque<'tcx>(
 		}
 		(_, "iter_mut") if b.t.needs_place(item) => Expr::rt("dequeIterMut", values),
 		(_, "iter" | "iter_mut") => Expr::rt("dequeIter", values),
+		(_, "range") => {
+			let ranged = bounds(b, call, values.pop()?);
+			values.push(ranged.bounds.clone());
+			ranged.after(Expr::rt("dequeRange", values))
+		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
 		(_, "as_slices" | "as_mut_slices") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
