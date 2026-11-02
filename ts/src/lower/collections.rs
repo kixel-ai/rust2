@@ -1196,14 +1196,17 @@ fn btree_collect<'tcx>(
 	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
-	let (order, same) = match own {
-		true => (test_fn(b, key, "lt", span), not_ne_fn(b, key, span)),
-		false => (Expr::undefined(), Expr::undefined()),
-	};
+	// A set's sort tests `lt`, and a map's `Ord::cmp`.
 	if set {
-		rest.push(order);
+		rest.push(match own {
+			true => test_fn(b, key, "lt", span),
+			false => Expr::undefined(),
+		});
 	}
-	rest.push(same);
+	rest.push(match own {
+		true => not_ne_fn(b, key, span),
+		false => Expr::undefined(),
+	});
 	rest.extend(entry_droppers(b, coll, span));
 	let f = if set { "btreeCollectKeys" } else { "btreeCollect" };
 	Expr::rt(f, super::iter::tail(vec![target, entries], rest))
