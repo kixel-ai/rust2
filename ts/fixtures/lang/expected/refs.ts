@@ -4,7 +4,7 @@ import * as rt from "./rt.ts";
 import { copy$Option_tuple2_u8_u8, copy$array_u32 } from "./lib.ts";
 import { madeOut$u8 } from "./cells.ts";
 import { thenSome$0xksuo2, then$0ozmvid } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$0x6fy3l as option_unwrapOr$0x6fy3l, unwrapOr$11c0we2 as option_unwrapOr$11c0we2, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, map$1k7m6zz as option_map$1k7m6zz, map$1fmzefe as option_map$1fmzefe, map$0cs071d as option_map$0cs071d, mapOr$1xztl8h as option_mapOr$1xztl8h, mapOr$0lcrgk1 as option_mapOr$0lcrgk1, mapOr$1giiemz as option_mapOr$1giiemz, mapOr$1surhce as option_mapOr$1surhce, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$1m2xzon as option_mapOr$1m2xzon, andThen$101gy6h as option_andThen$101gy6h, filter$033ccod, or$1loyskh as option_or$1loyskh } from "./core/option.ts";
+import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$0x6fy3l as option_unwrapOr$0x6fy3l, unwrapOr$11c0we2 as option_unwrapOr$11c0we2, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, map$1k7m6zz as option_map$1k7m6zz, map$1fmzefe as option_map$1fmzefe, map$0cs071d as option_map$0cs071d, mapOr$1xztl8h as option_mapOr$1xztl8h, mapOr$0lcrgk1 as option_mapOr$0lcrgk1, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$1giiemz as option_mapOr$1giiemz, mapOr$1surhce as option_mapOr$1surhce, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$1m2xzon as option_mapOr$1m2xzon, andThen$101gy6h as option_andThen$101gy6h, filter$033ccod, or$1loyskh as option_or$1loyskh } from "./core/option.ts";
 import { err$1nqzzwu, asRef$0ssaoss } from "./core/result.ts";
 import * as Counts from "./refs.Counts.ts";
 import * as Cursor from "./refs.Cursor.ts";
@@ -1465,6 +1465,68 @@ export function adapted(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}, true)], (a07: boolean): rt.u8 => {
 		return a07 ? 1 : 0;
 	})), undefined, true);
+}
+
+/**
+ * A float of few values, so that prefixes agree often: a NaN, which orders as nothing, and
+ * a `-0.0`, equal to `0.0`.
+ */
+export function few(b: rt.u8): rt.f32 {
+	const n: rt.u8 = rt.u8Rem(b, 5);
+	if (n === 3) {
+		return NaN;
+	}
+	if (n === 4) {
+		return -0.0;
+	}
+	return Math.fround(n);
+}
+
+/** What `partial_cmp` answered, as its `Ordering`'s byte, or 9 for `None`. */
+export function order(o: rt.Ordering | undefined): rt.u8 {
+	return option_mapOr$1e4a1e0(o, 9, (o2: rt.Ordering): rt.u8 => {
+		return o2 & 0xff;
+	});
+}
+
+/**
+ * Iterators of `&mut` to values JS copies compare by the values they lend, against places
+ * or values and in tuples beside values, over sides split at `split`: of lengths that
+ * differ and prefixes that agree.
+ */
+export function compared(split: rt.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
+	const mid: number = rt.usizeRem(split as rt.usize, rt.usizeAdd(dataLen, 1));
+	if (mid > dataLen) {
+		rt.panic("mid > len");
+	}
+	const left: rt.ByteSlice = new rt.ByteSlice(dataData, dataStart, mid);
+	const right: rt.ByteSlice = new rt.ByteSlice(dataData, dataStart + mid, dataLen - mid);
+	const a: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), (b2: rt.u8): rt.u8 => {
+		return rt.u8Rem(b2, 3);
+	}), undefined, true);
+	const b: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), (b3: rt.u8): rt.u8 => {
+		return rt.u8Rem(b3, 3);
+	}), undefined, true);
+	const x: rt.f32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), few), undefined, 4, true);
+	const y: rt.f32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), few), undefined, 4, true);
+	let one: rt.u8 | undefined = rt.byteSliceFirst(rt.byteVecSlice(b));
+	const _74: boolean = rt.iterEq(rt.iterChain(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterOption(rt.optionAsMut(rt.place(() => one, (value) => one = value)))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true), !rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true), rt.iterLt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterLe(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterGt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterGe(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(b))), (a03: rt.Place<rt.u8>, a1: rt.u8): boolean => {
+		return a03.v === a1;
+	}, true), !rt.iterEq(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), (a04: rt.u8, a12: rt.Place<rt.u8>): boolean => {
+		return a04 === a12.v;
+	}, true), _74, rt.iterLt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(b))), rt.iterChain(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterOption(rt.optionAsMut(rt.place(() => one, (value2) => one = value2)))), rt.cellBy(rt.cmp)), rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true), !rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true), rt.iterLt(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterLe(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterGt(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterGe(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterEq(rt.iterSlice(x), rt.iterSliceMut(y), (a05: rt.f32, a13: rt.Place<rt.f32>): boolean => {
+		return a05 === a13.v;
+	}, true), !rt.iterEq(rt.iterSliceMut(x), rt.iterSlice(y), (a06: rt.Place<rt.f32>, a14: rt.f32): boolean => {
+		return a06.v === a14;
+	}, true)], (a07: boolean): rt.u8 => {
+		return a07 ? 1 : 0;
+	})), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)) & 0xff, rt.iterCmp(rt.iterZip(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSlice(rt.byteSliceView(left)), [false, false]), rt.iterZip(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(b))), rt.iterSlice(rt.byteSliceView(right)), [false, false]), rt.cmpTuple<[rt.Place<rt.u8>, rt.u8], rt.Ordering>([rt.cellBy(rt.cmp), rt.cmp])) & 0xff, rt.iterCmp(rt.iterMap(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), (a08: rt.Place<rt.u8>): rt.Place<rt.u8> | undefined => {
+		return a08;
+	}), rt.iterMap(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(b))), (a09: rt.Place<rt.u8>): rt.Place<rt.u8> | undefined => {
+		return a09;
+	}), rt.cmpOption(rt.cellBy(rt.cmp))) & 0xff, order(rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp))), order(rt.iterCmp(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp))), order(rt.iterCmp(rt.iterZip(rt.iterSliceMut(x), rt.iterSlice(rt.byteVecView(a)), [false, false]), rt.iterZip(rt.iterSliceMut(y), rt.iterSlice(rt.byteVecView(b)), [false, false]), rt.cmpTuple<[rt.Place<rt.f32>, rt.u8], rt.Ordering | undefined>([rt.cellBy(rt.f32PartialCmp), rt.cmp]))))), undefined, true);
 }
 
 //# sourceMappingURL=refs.ts.map

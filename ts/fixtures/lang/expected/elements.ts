@@ -300,7 +300,12 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.sliceAsPtr({ v: rt.ptrSlice(rt.NULL, 0) }.v) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.byteSliceAsPtr({ v: rt.ptrByteSlice(rt.NULL, 0, false) }.v) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr({ v: rt.ptrSlice(rt.DANGLING, 0) }.v), -1, 2, 2) === rt.NULL ? 1 : 0);
-		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.ptrByteSlice(rt.DANGLING, 0, true)), -1, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.sliceAsPtr({ v: rt.ptrSlice(rt.NULL, 0) }.v) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.byteSliceAsPtr({ v: rt.ptrByteSlice(rt.NULL, 0, false) }.v) === rt.NULL ? 1 : 0);
+		const none2: rt.ByteSlice = rt.ptrByteSlice(rt.DANGLING, 0, true);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(none2), -1, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.byteSliceRange(none2, 0, 0)), -1, 1, 1) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr({ v: rt.ptrSlice(rt.ptrWrappingAdd(rt.NULL, rt.usizeAdd(rt.u8Rem(n, 3) as rt.usize, 1), 4, 4), 0) }.v), -rt.usizeAdd(rt.u8Rem(n, 3) as rt.usize, 1), 4, 4) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.sliceAsPtr(rt.NULL) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.byteSliceAsPtr(rt.NULL), n as rt.usize, 1, 1) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.sliceAsPtr(rt.DANGLING), -1, 2, 2) === rt.NULL ? 1 : 0);
