@@ -253,21 +253,6 @@ pub fn borrowed(map: &std::collections::HashMap<Id, u8>) -> bool {
 	map.contains_key(&1)
 }
 
-#[derive(PartialEq, Eq)]
-pub struct Raw(pub u8);
-
-impl std::hash::Hash for Raw {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-		state.write(&[self.0]);
-	}
-}
-
-/// A `Hash` that writes bytes, which the runtime's hasher does not take.
-pub fn raw_keys() -> usize {
-	let map: std::collections::HashMap<Raw, u8> = std::collections::HashMap::new();
-	map.len()
-}
-
 /// `max` drops the operand it doesn't return, which the runtime's leaves undropped.
 pub fn widest(a: std::sync::Arc<str>, b: std::sync::Arc<str>) -> std::sync::Arc<str> {
 	a.max(b)
@@ -310,13 +295,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	let mut set = std::collections::HashSet::new();
 	set.insert(v);
 	set.len()
-}
-
-/// A closure that owns a value that drops, which `or_insert_with` would call but never drop
-/// if the key is there.
-pub fn called_closure(m: &mut std::collections::HashMap<u8, Noisy>) {
-	let b = Noisy(2);
-	m.entry(1).or_insert_with(move || b);
 }
 
 /// A closure that owns a value that drops, given as a `Pattern`, which `contains` would

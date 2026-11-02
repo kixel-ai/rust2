@@ -200,7 +200,7 @@ pub struct Scope {
 	arrays: Vec<Box<dyn std::any::Any>>,
 	held: Vec<Obj>,
 	moved: Vec<*mut Handle>,
-	/// The objects Rust lends a callback, closed once it returns.
+	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and waker nodes given to Rust, taken back unless the call
 	/// happens.
@@ -243,7 +243,7 @@ impl Drop for Scope {
 		}
 		for lent in self.lent.drain(..) {
 			// SAFETY: an object [`lent`] made.
-			unsafe { close(lent.ptr().cast()) };
+			unsafe { end(lent.ptr().cast()) };
 		}
 		for held in self.held.drain(..) {
 			// SAFETY: a handle this scope holds.
@@ -976,7 +976,7 @@ pub fn object_opt(raw: *const c_void, index: usize, free: unsafe extern "C" fn(*
 }
 
 /// An object of the class registered at `index` for a handle Rust lends a callback,
-/// closed once the scope `s` of the call ends.
+/// ended once the scope `s` of the call ends.
 pub fn lent(raw: *const c_void, index: usize, s: &mut Scope) -> R<Obj> {
 	let obj = handle(raw, index, None)?;
 	// SAFETY: the GIL is held, and `obj` is live.
@@ -1062,6 +1062,22 @@ pub unsafe fn close(handle: *mut Handle) {
 	}
 }
 
+/// End a lend, closing its handle, which Rust frees next: a call still holding it would
+/// reach the freed handle, so it fails loud, as Rust's own check does once a call borrowed.
+///
+/// # Safety
+/// `handle` is live, and one [`lent`] made.
+unsafe fn end(handle: *mut Handle) {
+	// SAFETY: the caller's contract, and the GIL is held.
+	unsafe {
+		if (*handle).holds != 0 {
+			let name = type_name(Py_TYPE(handle.cast()).cast());
+			rt::fail(&name, "a call still holds it when its lend ends");
+		}
+		close(handle);
+	}
+}
+
 /// # Safety
 /// `handle` is live and held by no call.
 unsafe fn free_now(handle: *mut Handle) {
@@ -1072,23 +1088,6 @@ unsafe fn free_now(handle: *mut Handle) {
 			call(|| free(raw));
 		}
 	}
-}
-
-unsafe extern "C" fn handle_close(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on an `Object`.
-	unsafe { close(obj.cast()) };
-	none().map_or(null_mut(), Obj::into_ptr)
-}
-
-unsafe extern "C" fn handle_enter(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	// SAFETY: Python calls it on a live object.
-	unsafe { Obj::borrowed(obj) }.into_ptr()
-}
-
-unsafe extern "C" fn handle_exit(obj: *mut PyObject, _: *mut *mut PyObject, _: Py_ssize_t) -> *mut PyObject {
-	// SAFETY: Python calls it on an `Object`.
-	unsafe { close(obj.cast()) };
-	none().map_or(null_mut(), Obj::into_ptr)
 }
 
 unsafe extern "C" fn handle_dealloc(obj: *mut PyObject) {
@@ -1625,13 +1624,6 @@ impl<const N: usize> Methods<N> {
 	}
 }
 
-static OBJECT_METHODS: Methods<4> = Methods(UnsafeCell::new([
-	noargs(c"close", handle_close),
-	noargs(c"__enter__", handle_enter),
-	method(c"__exit__", handle_exit),
-	END,
-]));
-
 static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	method(c"poll", future_poll),
 	noargs(c"claim", future_claim),
@@ -1717,10 +1709,9 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 		let base = (Py_TPFLAGS_BASETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION) as u64;
 		add_type(module, &OBJECT, c"Object", size_of::<Handle>(), base, &mut [
 			slot(Py_tp_dealloc, handle_dealloc as *mut c_void),
-			slot(Py_tp_methods, OBJECT_METHODS.ptr().cast()),
 			slot(
 				Py_tp_doc,
-				c"An object owning a Rust value's handle, freed once the last reference to it goes, or sooner by close() or a with block.".as_ptr().cast_mut().cast(),
+				c"An object owning a Rust value's handle, freed once the last reference to it goes.".as_ptr().cast_mut().cast(),
 			),
 			slot(0, null_mut()),
 		])?;

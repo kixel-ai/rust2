@@ -211,8 +211,9 @@ extension Native {
 		return try UnsafeBufferPointer(start: ptr, count: len).map(lift)
 	}
 
-	/// A handle an object owns, or is lent for a call: each call holds it, so `close`
-	/// frees it only once no call does, and a call after `close` traps.
+	/// A handle an object owns, or is lent for a call: each call holds it, so `close`,
+	/// once a call moves its value out or a lend ends, frees it only once no call does, and
+	/// a call after `close` traps.
 	struct Handle {
 		let raw: OpaquePointer?
 		/// The holds, one for the owner until closed and one per call, shifted past a bit
@@ -272,6 +273,16 @@ extension Native {
 					return
 				}
 				n = seen
+			}
+		}
+
+		/// End a lend, closing the handle, which Rust frees next: a call still holding it
+		/// would reach the freed handle, so it traps, as Rust's own check does once a call
+		/// borrowed.
+		func end() {
+			close()
+			if load(state) != Handle.closed {
+				fatalError("\(type): a call still holds it when its lend ends")
 			}
 		}
 

@@ -18,6 +18,11 @@ hand-written Go, a loop parsing as quic-go's `quicvarint.Parse` does, decodes va
 3 to 8 times slower than cgo, so the old per-call bar measured Go against Rust rather
 than the translation.
 
+Folding each temporary assigned once and read once into its reader, as rust2-ts does,
+cut decoding's time 35 to 55% and left encoding about where it was: a 2-byte QUIC varint
+decodes in about 88 ns, still 17 to 108 times cgo on every decode. The profile of what is
+left is led by 16-byte moves copying `DecodeError`'s fields in and out of the frame.
+
 Where the bar stands, as means of three runs alternating with a hand edit of step 1, in
 µs per group on a host at load 35 to 45 of 32 cores, so absolute times are inflated:
 

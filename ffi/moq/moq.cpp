@@ -204,8 +204,15 @@ int main() {
 	{
 		auto publication = origin.create_broadcast("room/alice");
 		CHECK(publication);
-		moq::path path = publication->broadcast().info().path();
+		moq::broadcast_producer producer = publication->broadcast();
+		moq::path path = producer.info().path();
 		CHECK(is(path.as_str(), "room/alice"));
+		// A path's clone is a value no call tells apart, so its copies share one handle,
+		// while a producer's clone counts producers, so it crosses into Rust.
+		moq::path shared = path;
+		CHECK(shared == path);
+		moq::broadcast_producer cloned = producer.clone();
+		CHECK(is(cloned.info().path().as_str(), "room/alice"));
 
 		// Paths own their segments, so C++ builds them, and relative ones, from a string.
 		auto empty = moq::path::new_("/cam/");
@@ -412,7 +419,7 @@ int main() {
 		CHECK(client);
 		moq::origin_producer incoming = moq::origin_spawn();
 		moq::origin_consumer remote = incoming.consume();
-		auto connection = moq::tokio_client(*client).with_reconnect(false).consume(std::move(incoming));
+		auto connection = client->clone().with_reconnect(false).consume(std::move(incoming));
 		CHECK(connection);
 		auto established = std::move(*connection).established().get();
 		CHECK(established);

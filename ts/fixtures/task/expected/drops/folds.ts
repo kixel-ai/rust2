@@ -1409,12 +1409,11 @@ export function reducers(log: Log.Log, id: rt.u32): void {
 	const e: Guard.Guard = _69[1];
 	const _77: rt.Iter<Guard.Guard> = rt.iterSlice(held);
 	const captured3 = e;
-	const _80: (a0: Guard.Guard, a1: Guard.Guard) => rt.Ordering = rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
+	const part = option_map$0lq7mno(rt.iterMinBy(_77, rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
 		return rt.cmp(rt.u32Add(Guard.id(a5), Guard.id(captured3)), rt.u32Add(Guard.id(b5), Guard.id(captured3)));
 	}, (): void => {
 		captured3[Symbol.dispose]();
-	});
-	const part = option_map$0lq7mno(rt.dropAfter(_80, () => rt.iterMinBy(_77, _80)), Guard.id);
+	}), undefined, undefined, true), Guard.id);
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part, f, rt.u32Debug)];
 	Log.note(log, rt.fmtFormat(["first ", args4[0]]));
 	rt.dropAll(held);

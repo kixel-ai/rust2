@@ -55,12 +55,18 @@ pub fn call<'tcx>(
 			}
 			("Hash", "hash", ..) if let Some(t) = self_ty => {
 				let t = peel(b, t);
-				// Only into `DefaultHasher`, whose state the runtime's functions write.
-				let hasher = call.args.types().nth(1).filter(|&h| b.t.std_of(h) == Some(Std::Hasher));
-				let (true, Some(hasher)) = (std_key(b, t), hasher) else {
+				// Into `DefaultHasher`, whose state the runtime's functions write, or the crate's
+				// own, which they write through its methods.
+				let hasher = library::targ(call.args, 1);
+				let own = own_hasher(b, hasher);
+				if !std_key(b, t) || !(own || b.t.std_of(hasher) == Some(Std::Hasher)) {
 					return Err(args);
-				};
+				}
 				let f = hash_fn(b, t, hasher, span);
+				let mut args = args;
+				if own && let Some(state) = args.pop() {
+					args.push(own_state(b, hasher, state, span));
+				}
 				return Ok(Some(f.call(args)));
 			}
 			// `Ord`'s defaults, of a std type or the crate's, which compare by `PartialOrd`'s `<`,
@@ -156,7 +162,20 @@ pub fn call<'tcx>(
 				return Ok(value);
 			}
 			("Hasher", _, Some(Std::Hasher), _) => return Ok(Some(hasher_call(b, name, args, span, out))),
+			// A method std provides of the crate's own `Hasher`, which writes through the others.
+			("Hasher", _, None, Some(h)) if own_hasher(b, h) => {
+				let mut values = args;
+				let state = values.remove(0);
+				values.insert(0, own_state(b, h, state, span));
+				return Ok(Some(hasher_call(b, name, values, span, out)));
+			}
 			("BuildHasher", _, Some(Std::RandomState), Some(t)) => (Std::RandomState, t.peel_refs()),
+			("BuildHasher", "hash_one", None, Some(s))
+				if let Some(h) = built_hasher(b, s)
+					&& own_hasher(b, h) =>
+			{
+				return Ok(Some(own_hash_one(b, call, s, h, args, out)));
+			}
 			// The discriminant derived `Hash` and `Ord` read of an enum.
 			("intrinsics", "discriminant_value", ..) if let Some(t) = self_ty => {
 				let value = args.pop();
@@ -210,13 +229,13 @@ pub fn call<'tcx>(
 	let e = match std {
 		Std::HashMap | Std::HashSet => hash(b, coll, call, owner, name, args, out),
 		Std::HashTable => table(b, coll, call, owner, name, args, out),
-		Std::TableEntry => table_entry(b, coll, name, args, call.span),
+		Std::TableEntry => table_entry(b, coll, call, name, args),
 		Std::BTreeMap | Std::BTreeSet => btree(b, coll, call, owner, name, args),
 		Std::VecDeque => deque(b, coll, call, owner, name, args),
 		Std::LinkedList => list(b, coll, call, owner, name, args),
 		Std::BinaryHeap => heap(b, coll, call, owner, name, args),
 		Std::PeekMut if name == "pop" => Some(Expr::rt("peekMutPop", args)),
-		Std::Entry => entry(b, coll, name, args, span),
+		Std::Entry => entry(b, coll, call, name, args),
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
@@ -718,10 +737,11 @@ fn table<'tcx>(
 fn table_entry<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
 	name: &str,
 	args: Vec<Expr>,
-	span: Span,
 ) -> Option<Expr> {
+	let span = call.span;
 	let item = arg(coll, 0);
 	let mut values = args;
 	let e = match name {
@@ -736,9 +756,21 @@ fn table_entry<'tcx>(
 				values,
 			)
 		}
-		"or_insert_with" => Expr::rt("tableOrInsertWith", values),
-		"and_modify" if b.t.needs_place(item) => Expr::rt("tableAndModifyMut", values),
-		"and_modify" => Expr::rt("tableAndModify", values),
+		"or_insert_with" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt("tableOrInsertWith", values)
+		}
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(
+				if b.t.needs_place(item) {
+					"tableAndModifyMut"
+				} else {
+					"tableAndModify"
+				},
+				values,
+			)
+		}
 		// The entry is its item's place.
 		"get_mut" | "into_mut" if b.t.needs_place(item) => values.pop()?,
 		"get" | "get_mut" | "into_mut" => values.pop()?.member("v"),
@@ -1013,18 +1045,146 @@ fn hasher_ty<'tcx>(b: &Body<'_, '_, 'tcx>, coll: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let state = args
 		.types()
 		.nth(if b.t.std_of(coll) == Some(Std::HashSet) { 1 } else { 2 })?;
-	built_hasher(b, state)
+	built_hasher(b, state).filter(|&hasher| b.t.std_of(hasher) == Some(Std::Hasher))
 }
 
-/// The `Hasher` a `BuildHasher` of type `state` builds, if it is `DefaultHasher`.
+/// The `Hasher` a `BuildHasher` of type `state` builds.
 fn built_hasher<'tcx>(b: &Body<'_, '_, 'tcx>, state: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let tcx = b.t.tcx;
 	let hasher = trait_fn(tcx, "BuildHasher", "Hasher");
 	let projection = Ty::new_projection(tcx, ty::IsRigid::No, hasher, [state]);
+	tcx.try_normalize_erasing_regions(b.t.typing_env_pub(), ty::Unnormalized::new_wip(projection))
+		.ok()
+}
+
+/// The function `item` of `Hasher`, which has no diagnostic name: the trait beside `Hash`.
+fn hasher_fn(tcx: ty::TyCtxt<'_>, item: &str) -> DefId {
+	let hash = tcx.get_diagnostic_item(rustc_span::sym::Hash).expect("a trait of std");
 	let hasher = tcx
-		.try_normalize_erasing_regions(b.t.typing_env_pub(), ty::Unnormalized::new_wip(projection))
-		.ok()?;
-	(b.t.std_of(hasher) == Some(Std::Hasher)).then_some(hasher)
+		.module_children(tcx.parent(hash))
+		.iter()
+		.find(|child| {
+			child.ident.as_str() == "Hasher"
+				&& child
+					.res
+					.opt_def_id()
+					.is_some_and(|d| tcx.def_kind(d) == rustc_hir::def::DefKind::Trait)
+		})
+		.and_then(|child| child.res.opt_def_id())
+		.expect("a trait of std");
+	trait_fn_of(tcx, hasher, item)
+}
+
+/// Whether `h` is a `Hasher` of the crate's own, whose impl translates.
+fn own_hasher<'tcx>(b: &Body<'_, '_, 'tcx>, h: Ty<'tcx>) -> bool {
+	let tcx = b.t.tcx;
+	b.t.translated(hasher_fn(tcx, "finish"), tcx.mk_args(&[h.into()]))
+}
+
+/// Each key of `rt.HasherImpl`, and the `Hasher` method it holds.
+const HASHER_METHODS: [(&str, &str); 16] = [
+	("write", "write"),
+	("finish", "finish"),
+	("u8", "write_u8"),
+	("u16", "write_u16"),
+	("u32", "write_u32"),
+	("u64", "write_u64"),
+	("u128", "write_u128"),
+	("usize", "write_usize"),
+	("i8", "write_i8"),
+	("i16", "write_i16"),
+	("i32", "write_i32"),
+	("i64", "write_i64"),
+	("i128", "write_i128"),
+	("isize", "write_isize"),
+	("prefix", "write_length_prefix"),
+	("str", "write_str"),
+];
+
+/// `state`, the `&mut` to `h`, a `Hasher` of the crate's own, as the runtime's `Hash`
+/// functions write into it: an `rt.OwnHasher` of it.
+fn own_state<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, state: Expr, span: Span) -> Expr {
+	if b.t.needs_place(h) {
+		return b.err(
+			span,
+			format!("hashing into `{h}`, a `Hasher` JS copies, which is not supported yet"),
+		);
+	}
+	let methods = hasher_impl(b, h, span);
+	Expr::New(Box::new(Expr::Rt("OwnHasher".into())), vec![state, methods])
+}
+
+/// The methods of `h`, a `Hasher` of the crate's own, as an `rt.HasherImpl`: `write`,
+/// `finish`, and those of std's provided ones its impl writes, a module-level value beside
+/// its `finish`, made once.
+fn hasher_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, span: Span) -> Expr {
+	if let Some(&sym) = b.t.hashers.get(&h) {
+		return Expr::Sym(sym);
+	}
+	let tcx = b.t.tcx;
+	let args = tcx.mk_args(&[h.into()]);
+	let mut methods = Vec::new();
+	for (key, item) in HASHER_METHODS {
+		let f = hasher_fn(tcx, item);
+		if matches!(item, "write" | "finish") || b.t.translated(f, args) {
+			methods.push((crate::ts::Key::Name(key.into()), b.fn_value(f, args, span)));
+		}
+	}
+	let finish = Instance::expect_resolve(tcx, b.t.typing_env_pub(), hasher_fn(tcx, "finish"), args, span);
+	let finish = b.t.instance(finish);
+	let finish = &b.t.program.syms[finish];
+	let sym = b.t.program.sym(crate::program::Symbol {
+		module: finish.module.clone(),
+		base: "hasher".into(),
+		suffix: finish.suffix.clone(),
+		owner: None,
+		kind: crate::program::SymKind::Value,
+		order: finish.order,
+		span,
+		instance: String::new(),
+		name: String::new(),
+		alias: None,
+	});
+	let state = b.t.ty(Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h), span);
+	b.t.program.items.push(crate::ts::Item::Value {
+		sym,
+		ty: Type::Rt("HasherImpl", vec![state]),
+		value: Expr::Object(methods),
+		doc: Some(format!(
+			"The methods of `{h}`'s impl, which the runtime's hashing calls."
+		)),
+	});
+	b.t.hashers.insert(h, sym);
+	Expr::Sym(sym)
+}
+
+/// `BuildHasher::hash_one` of `s`, whose impl builds `h`, a `Hasher` of the crate's own:
+/// `build_hasher`, then `Hash::hash` into it and `finish`, then the hasher and the value
+/// it takes drop, as std's locals do.
+fn own_hash_one<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	s: Ty<'tcx>,
+	h: Ty<'tcx>,
+	args: Vec<Expr>,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let (tcx, span) = (b.t.tcx, call.span);
+	let Ok([state, value]) = <[Expr; 2]>::try_from(args) else {
+		unreachable!("hash_one takes a state and a value")
+	};
+	let value_ty = library::targ(call.args, 1);
+	let build = trait_fn(tcx, "BuildHasher", "build_hasher");
+	let built = b.call_def(build, tcx.mk_args(&[s.into()]), vec![state], span, out);
+	let hasher = own_state(b, h, built, span);
+	let mut values = vec![hasher, value, hash_fn(b, value_ty, h, span)];
+	let drops = [b.t.drop_fn(value_ty, span), b.t.drop_fn(h, span)];
+	if let [value_drop, Some(hasher_drop)] = drops {
+		values.extend([value_drop.unwrap_or_else(Expr::undefined), hasher_drop]);
+	} else if let [Some(value_drop), None] = drops {
+		values.push(value_drop);
+	}
+	Expr::rt("hashOne", values)
 }
 
 /// A method of `BTreeMap` or `BTreeSet`, or of a trait they implement.
@@ -1933,7 +2093,14 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 }
 
 /// A method of an `Entry`, `OccupiedEntry`, or `VacantEntry`.
-fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec<Expr>, span: Span) -> Option<Expr> {
+fn entry<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	call: &Call<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+) -> Option<Expr> {
+	let span = call.span;
 	let value = arg(coll, 1);
 	let mut values = args;
 	// What these return a `&mut` to is a place where JS would copy it.
@@ -1947,14 +2114,20 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		// A vacant entry's.
 		"insert" if is_vacant(b, coll) => Expr::rt(mutable("entryOrInsert"), values),
 		"insert" => Expr::rt("entryInsert", values),
-		"or_insert_with" | "or_insert_with_key" => Expr::rt(mutable("entryOrInsertWith"), values),
+		"or_insert_with" | "or_insert_with_key" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryOrInsertWith"), values)
+		}
 		"or_default" => {
 			let tcx = b.t.tcx;
 			let default = trait_fn(tcx, "Default", "default");
 			values.push(b.fn_value(default, tcx.mk_args(&[value.into()]), span));
 			Expr::rt(mutable("entryOrInsertWith"), values)
 		}
-		"and_modify" => Expr::rt(mutable("entryAndModify"), values),
+		"and_modify" => {
+			values.extend(uncalled(b, call)?);
+			Expr::rt(mutable("entryAndModify"), values)
+		}
 		"key" => Expr::rt("entryKey", values),
 		"into_key" => values.pop()?.member("k"),
 		"get" => Expr::rt("entryGet", values),
@@ -1964,6 +2137,12 @@ fn entry<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, args: Vec
 		_ => return None,
 	};
 	Some(e)
+}
+
+/// What drops the closure an entry's `or_insert_with`, `or_insert_with_key`, or `and_modify`
+/// takes last, which std's drops uncalled unless the entry is vacant or occupied as it needs.
+fn uncalled<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Option<Vec<Expr>> {
+	b.t.droppers(call.args.types().last(), call.span)
 }
 
 /// Whether `entry`, an `Entry` of a map or, as `std` says, of a `HashTable`, is its variant
@@ -2033,7 +2212,8 @@ fn random_state<'tcx>(
 		("hash_one", Some(state)) if let Some(value) = values.next() => {
 			let hasher = built_hasher(b, ty).expect("a RandomState builds a DefaultHasher");
 			let value_ty = library::targ(call.args, 1);
-			let mut args = vec![state, value, hash_fn(b, value_ty, hasher, span)];
+			let built = Expr::rt("buildHasher", vec![state]);
+			let mut args = vec![built, value, hash_fn(b, value_ty, hasher, span)];
 			args.extend(b.t.drop_fn(value_ty, span));
 			Expr::rt("hashOne", args)
 		}
@@ -2053,22 +2233,35 @@ fn hasher_call(b: &mut Body<'_, '_, '_>, name: &str, args: Vec<Expr>, span: Span
 		*state = b.spill(saved, "state", out);
 	}
 	let swapped = |values: Vec<Expr>| values.into_iter().rev().collect::<Vec<_>>();
-	let bits = match name {
+	let f = match name {
 		"finish" => return Expr::rt("hashFinish", values),
-		"write_str" => return Expr::rt("hashStr", swapped(values)),
-		"write_u8" | "write_i8" => 8,
-		"write_u16" | "write_i16" => 16,
-		"write_u32" | "write_i32" | "write_usize" | "write_isize" | "write_length_prefix" => 32,
-		"write_u64" | "write_i64" => 64,
-		"write_u128" | "write_i128" => 128,
+		"write" => "hashWrite",
+		"write_str" => "hashStr",
+		"write_length_prefix" => "hashPrefix",
+		_ if let Some(f) = name.strip_prefix("write_").and_then(hash_int) => f,
 		_ => return b.err(span, format!("`Hasher::{name}`, which is not supported yet")),
 	};
-	hash_int(bits).call(swapped(values))
+	Expr::rt(f, swapped(values))
 }
 
-/// `Hash::hash` of an integer of `bits`, which writes its bytes, `usize`'s 32 as on wasm32.
-fn hash_int(bits: u32) -> Expr {
-	Expr::Rt(format!("hash{bits}"))
+/// The runtime's `Hash::hash` of the integer type `rt` names, which calls its `Hasher`
+/// method: `hash16` of a `u16`, `hashI16` of an `i16`.
+fn hash_int(rt: &str) -> Option<&'static str> {
+	Some(match rt {
+		"u8" => "hash8",
+		"u16" => "hash16",
+		"u32" => "hash32",
+		"u64" => "hash64",
+		"u128" => "hash128",
+		"usize" => "hashUsize",
+		"i8" => "hashI8",
+		"i16" => "hashI16",
+		"i32" => "hashI32",
+		"i64" => "hashI64",
+		"i128" => "hashI128",
+		"isize" => "hashIsize",
+		_ => return None,
+	})
 }
 
 /// The discriminant of `value`, an enum of the crate, as `discriminant_value` reads it.
@@ -2377,6 +2570,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![cmp_fn(b, inner, partial, span)]),
+		// An `rt.Place` compares by its value, as std's impl on `&mut` does by what it points at.
+		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
+			Expr::rt("cellBy", vec![cmp_fn(b, inner, partial, span)])
+		}
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
 			Expr::rt("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
 		}
@@ -2460,6 +2657,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
+		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::error) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
 			b.fn_value(eq, tcx.mk_args(&[ty.into(), ty.into()]), span)
@@ -2646,11 +2844,15 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 		// What std writes of each: a `bool` as a byte, a `char` as its `u32`.
 		ty::Bool => Expr::Rt("hash8".into()),
 		ty::Char => Expr::Rt("hash32".into()),
-		ty::Int(_) | ty::Uint(_) => hash_int(Int::of(ty).expect("an integer").bits),
+		ty::Int(_) | ty::Uint(_) => Expr::Rt(
+			hash_int(Int::of(ty).expect("an integer").rt())
+				.expect("an integer")
+				.into(),
+		),
 		ty::Str => Expr::Rt("hashStr".into()),
 		ty::Adt(..) if library::string(tcx, ty) => Expr::Rt("hashStr".into()),
 		// Its derived `Hash` writes its `i8` discriminant.
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("hash8".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("hashI8".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationHash".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rt("hashNothing".into()),
 		ty::Tuple(tys) => {
@@ -2677,6 +2879,11 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 					format!("hashing `{ty}` through `{elem}`'s own `Hash::hash_slice`, which is not supported yet");
 				return b.err(span, msg);
 			}
+			// An integer's `hash_slice` writes the bytes of all of them at once.
+			if let Some(int) = Int::of(elem) {
+				let size = if int.pointer { 4 } else { int.bits / 8 };
+				return Expr::rt("hashInts", vec![Expr::lit(size.to_string())]);
+			}
 			Expr::rt("hashSlice", vec![hash_fn(b, elem, hasher, span)])
 		}
 		// Its length, then each item's, never by `hash_slice`.
@@ -2685,7 +2892,14 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 		_ if bytes(b, ty) => Expr::Rt("hashBytes".into()),
 		_ if by_own(b, ty) => {
 			let hash = trait_fn(tcx, "Hash", "hash");
-			b.fn_value(hash, tcx.mk_args(&[ty.into(), hasher.into()]), span)
+			let args = tcx.mk_args(&[ty.into(), hasher.into()]);
+			let f = b.fn_value(hash, args, span);
+			// A translated one takes the `&mut` to the crate's own hasher, which the runtime's
+			// functions wrap; a binding's export takes the `rt.Hasher`.
+			match own_hasher(b, hasher) && !b.t.binds(hash, args) {
+				true => Expr::rt("hashOwn", vec![f]),
+				false => f,
+			}
 		}
 		_ if raw_pointee(tcx, ty).is_some() => b.err(
 			span,

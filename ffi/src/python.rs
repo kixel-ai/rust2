@@ -6,7 +6,7 @@
 //! is `moq.TrackProducer`, and its method `moq_track_producer_append_group` is
 //! `TrackProducer.append_group`. A keyword, or a member Python gives every such class,
 //! takes a trailing `_`. An object is a class owning its handle, freed once its last
-//! reference goes or sooner by `close`; a record a dataclass; an enum an `Enum`, or for
+//! reference goes; a record a dataclass; an enum an `Enum`, or for
 //! one with data a class with a dataclass per variant; a trait an abstract class; a
 //! closure any callable; a future an awaitable; an error an exception. The runtime they
 //! share, [`runtime/rt.py`](../runtime/rt.py), holds the awaitable and the queue an event
@@ -923,10 +923,9 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		// What `Object` gives every object.
-		self.methods(&object.methods, (&ty, &owner, &rust), &[], &["close"], &mut body);
+		self.methods(&object.methods, (&ty, &owner, &rust), &[], &[], &mut body);
 		let text = format!(
-			"{rust}\n\n{}\n\nIts handle is freed once its last reference goes, or sooner by `close()` or a `with` block, after which a call raises.",
+			"{rust}\n\n{}\n\nIts handle is freed once its last reference goes. A call after one that moved its value out raises.",
 			object.docs
 		);
 		let _ = write!(

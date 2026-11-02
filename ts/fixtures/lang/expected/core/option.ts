@@ -313,6 +313,13 @@ export function map$0po44cb(self: undefined[] | undefined, f: (a0: undefined[]) 
 	return f(self);
 }
 
+export function map$0p6o7wa(self: Uint8Array | undefined, f: (a0: Uint8Array) => Uint8Array): Uint8Array | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1iekgsb(self: bounds_Item.Item | undefined, f: (a0: bounds_Item.Item) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
