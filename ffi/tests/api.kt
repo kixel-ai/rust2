@@ -356,6 +356,9 @@ fun script() {
 	for (counter in counters) {
 		check(runCatching { counter.get() }.exceptionOrNull() is IllegalStateException, "a counter moved in is closed")
 	}
+	println("held ${listOf(heldCount(Tuple1(Counter.new("h", 4u))), heldCount(null)).joinToString(" ") { if (it == null) "None" else "Some($it)" }}")
+	println("boxed ${boxedName(boxedCounter("b"))?.let { "Some(\"$it\")" }} ${boxedName(null) ?: "None"} ${boxedCounter(null) == null}")
+	println("less ${less(5u, 2u)}")
 	println("sums ${sums(listOf(listOf(1u, 2u), emptyList(), listOf(3u)))}")
 	val summed = summed(listOf(Point(1, 2), Point(-4, 6)))
 	val noneSummed = summed(emptyList())

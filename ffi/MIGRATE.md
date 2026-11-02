@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Swift's and Python's objects have no `close()`, and Python's are no context managers:
+  an object's handle is freed once its last reference goes, in Swift's `deinit` or
+  CPython's deallocation, so no reference can outlive it. Drop the reference instead of
+  calling `close()`, and replace `with obj as x:` with `x = obj`. Where a free must land at
+  a point, such as a driver that finishes once its origin's last owner goes, end the
+  reference there: `del x` in Python, and in Swift a scope or `withExtendedLifetime`,
+  since Swift may release a reference after its last use. A Rust method named `close`
+  keeps its name, not `close_`.
 - Every export writes `python/<prefix>.py`, so an export fails when two items take the same
   Python name, such as a type `Foo` beside an error type's `FooException`, or when one
   takes a name the Python's runtime uses unqualified, each starting with `_`: give it

@@ -23,7 +23,7 @@ export function eq$cmp_PartialEq(self: Run, other: Run): boolean {
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Run, state: rt.Hasher): void {
-	rt.hashCow(rt.hashSlice(rt.hash16))(self.words, state);
+	rt.hashCow(rt.hashInts(2))(self.words, state);
 }
 
 /** A `Cow<[T]>` in a field, with each derived impl reading it. */
