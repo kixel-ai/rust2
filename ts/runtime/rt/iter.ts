@@ -1503,11 +1503,12 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 		return Array.prototype.slice.call(this.s, this.front, this.back);
 	}
 
-	/** std's: what it has left, each cloned in order by `h.v` into storage of its own, or else shared. */
+	/** std's: what it has left, each cloned in order by `h.v` into storage of its own, of exactly their capacity, or else shared. */
 	override clone(h?: Clones): Iter<T> {
 		if (h?.v !== undefined) {
-			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[];
+			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[] & Capped;
 			for (let i = 0; i < items.length; i++) items[i] = cloned(items[i], h.v);
+			items.cap = items.length;
 			return new SliceIter(items, this.drop);
 		}
 		const it = new SliceIter(this.s, this.drop);

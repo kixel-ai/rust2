@@ -1001,9 +1001,14 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 			"set",
 			"Iter" | "Range" | "Difference" | "Intersection" | "Union" | "SymmetricDifference",
 		] => Expr::undefined(),
+		// std's copies what a `Vec`'s has left into a buffer of its own, even of items that
+		// clone as themselves, which a deque collected from it takes.
+		["vec", "into_iter", "IntoIter"] => match value(b, arg(0)?) {
+			v if undefined(&v) => parts(vec![("v", Expr::Rt("itself".into()))]),
+			v => parts(vec![("v", v)]),
+		},
 		// Those that own their items, each cloned.
-		["vec", "into_iter", "IntoIter"]
-		| ["array", "iter", "IntoIter"]
+		["array", "iter", "IntoIter"]
 		| ["option", "IntoIter"]
 		| ["result", "IntoIter"]
 		| ["iter", "sources", "once", "Once"]

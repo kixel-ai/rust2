@@ -676,10 +676,11 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
- * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
- * as they are, or from a `Vec` it collects.
+ * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+ * whose buffers std's takes as they are, or from a `Vec` it collects.
  */
 export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<string> {
+	let _0!: rt.VecDeque<string>;
 	const skip: rt.usize = rt.usizeRem(rt.u8Div(arg, 5) as rt.usize, 4);
 	const _8: rt.u8 = rt.u8Rem(arg, 5);
 	if (_8 === 0) {
@@ -722,15 +723,21 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 	while (iterStart2++ < iterEnd2) {
 		rt.iterToOption(it3.next());
 	}
-	return rt.dequeFromIntoIter(it3, 12) as rt.VecDeque<string>;
+	if ((arg & 64) === 0) {
+		_0 = rt.dequeFromIntoIter(it3, 12) as rt.VecDeque<string>;
+	} else {
+		_0 = rt.dequeFromIntoIter(it3.clone({ v: rt.itself }), 12) as rt.VecDeque<string>;
+	}
+	return _0;
 }
 
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
- * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
- * as they are, or from a `Vec` it collects.
+ * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+ * whose buffers std's takes as they are, or from a `Vec` it collects.
  */
 export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeque<Big.Big> {
+	let _0!: rt.VecDeque<Big.Big>;
 	const skip: rt.usize = rt.usizeRem(rt.u8Div(arg, 5) as rt.usize, 4);
 	const _8: rt.u8 = rt.u8Rem(arg, 5);
 	if (_8 === 0) {
@@ -773,15 +780,21 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 	while (iterStart2++ < iterEnd2) {
 		rt.iterToOption(it3.next());
 	}
-	return rt.dequeFromIntoIter(it3, 1101) as rt.VecDeque<Big.Big>;
+	if ((arg & 64) === 0) {
+		_0 = rt.dequeFromIntoIter(it3, 1101) as rt.VecDeque<Big.Big>;
+	} else {
+		_0 = rt.dequeFromIntoIter(it3.clone({ v: Big.clone$Clone }), 1101) as rt.VecDeque<Big.Big>;
+	}
+	return _0;
 }
 
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
- * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
- * as they are, or from a `Vec` it collects.
+ * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+ * whose buffers std's takes as they are, or from a `Vec` it collects.
  */
 export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u32> {
+	let _0!: rt.VecDeque<rt.u32>;
 	const skip: rt.usize = rt.usizeRem(rt.u8Div(arg, 5) as rt.usize, 4);
 	const _8: rt.u8 = rt.u8Rem(arg, 5);
 	if (_8 === 0) {
@@ -824,15 +837,21 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 	while (iterStart2++ < iterEnd2) {
 		rt.iterToOption(it3.next());
 	}
-	return rt.dequeFromIntoIter(it3, 4) as rt.VecDeque<rt.u32>;
+	if ((arg & 64) === 0) {
+		_0 = rt.dequeFromIntoIter(it3, 4) as rt.VecDeque<rt.u32>;
+	} else {
+		_0 = rt.dequeFromIntoIter(it3.clone({ v: rt.itself }), 4) as rt.VecDeque<rt.u32>;
+	}
+	return _0;
 }
 
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
- * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
- * as they are, or from a `Vec` it collects.
+ * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+ * whose buffers std's takes as they are, or from a `Vec` it collects.
  */
 export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8> {
+	let _0!: rt.VecDeque<rt.u8>;
 	const skip: rt.usize = rt.usizeRem(rt.u8Div(arg, 5) as rt.usize, 4);
 	const _8: rt.u8 = rt.u8Rem(arg, 5);
 	if (_8 === 0) {
@@ -875,15 +894,21 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 	while (iterStart2++ < iterEnd2) {
 		rt.iterToOption(it3.next());
 	}
-	return rt.dequeFromIntoIter(it3, 1, true) as rt.VecDeque<rt.u8>;
+	if ((arg & 64) === 0) {
+		_0 = rt.dequeFromIntoIter(it3, 1, true) as rt.VecDeque<rt.u8>;
+	} else {
+		_0 = rt.dequeFromIntoIter(it3.clone({ v: rt.itself }), 1, true) as rt.VecDeque<rt.u8>;
+	}
+	return _0;
 }
 
 /**
  * A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
- * collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
- * as they are, or from a `Vec` it collects.
+ * collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+ * whose buffers std's takes as they are, or from a `Vec` it collects.
  */
 export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<undefined> {
+	let _0!: rt.VecDeque<undefined>;
 	const skip: rt.usize = rt.usizeRem(rt.u8Div(arg, 5) as rt.usize, 4);
 	const _8: rt.u8 = rt.u8Rem(arg, 5);
 	if (_8 === 0) {
@@ -926,7 +951,12 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 	while (iterStart2++ < iterEnd2) {
 		rt.iterToOption(it3.next(), rt.None);
 	}
-	return rt.dequeFromIntoIter(it3, 0) as rt.VecDeque<undefined>;
+	if ((arg & 64) === 0) {
+		_0 = rt.dequeFromIntoIter(it3, 0) as rt.VecDeque<undefined>;
+	} else {
+		_0 = rt.dequeFromIntoIter(it3.clone({ v: rt.itself }), 0) as rt.VecDeque<undefined>;
+	}
+	return _0;
 }
 
 /** A drain of a range `arg` picks, written as it is read from either end and then dropped. */

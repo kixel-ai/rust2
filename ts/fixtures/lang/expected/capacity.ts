@@ -491,7 +491,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			while (iterStart2++ < iterEnd2) {
 				rt.iterToOption(it2.next());
 			}
-			v = rt.iterToArray(it2.clone(), "next", 2, true);
+			v = rt.iterToArray(it2.clone({ v: rt.itself }), "next", 2, true);
 			Known.remade(k, true);
 			const rest: rt.u16[] = rt.iterToArray(it2, "next", 2, true);
 			Known.put({ exact: false, floor: 0 }, out, rest.length, rt.vecCapacity(rest, 2));
@@ -635,7 +635,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			while (iterStart2++ < iterEnd2) {
 				rt.iterToOption(it2.next());
 			}
-			v = rt.iterToByteVec(it2.clone(), "next", true);
+			v = rt.iterToByteVec(it2.clone({ v: rt.itself }), "next", true);
 			Known.remade(k, true);
 			const rest: rt.ByteVec = rt.iterToByteVec(it2, "next", true);
 			Known.put({ exact: false, floor: 0 }, out, rest.length, rest.data.length);
@@ -787,7 +787,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			while (iterStart2++ < iterEnd2) {
 				rt.iterToOption(it2.next(), rt.None);
 			}
-			v = rt.iterToArray(it2.clone(), undefined, 0, true);
+			v = rt.iterToArray(it2.clone({ v: rt.itself }), undefined, 0, true);
 			Known.remade(k, true);
 			const rest: undefined[] = rt.iterToArray(it2, undefined, 0, true);
 			Known.put({ exact: false, floor: 0 }, out, rest.length, rt.vecCapacity(rest, 0));

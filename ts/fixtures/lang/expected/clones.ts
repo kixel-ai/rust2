@@ -2533,7 +2533,7 @@ export function turns$iter_Flatten_iter_Map_slice_Chunks_u8_clones_iters_closure
 			rt.byteVecPush(out, put(_32));
 		}
 	}
-	const other: rt.Iter<rt.u8> = it.clone();
+	const other: rt.Iter<rt.u8> = it.clone({ o: { v: rt.itself } });
 	rt.iterExtendBytes(out, rt.iterSlice(_44(it)), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(_44(other)), undefined, true);
 	let ended: boolean = false;
@@ -6547,7 +6547,7 @@ export function turns$vec_IntoIter_u8_clones_iters_closure18_clones_iters_closur
 			rt.byteVecPush(out, put(_32));
 		}
 	}
-	const other: rt.Iter<rt.u8> = it.clone();
+	const other: rt.Iter<rt.u8> = it.clone({ v: rt.itself });
 	rt.iterExtendBytes(out, rt.iterSlice(_44(it)), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(_44(other)), undefined, true);
 	let ended: boolean = false;

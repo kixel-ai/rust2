@@ -360,7 +360,7 @@ export function eqArc<T>(eq: (a: T, b: T) => boolean, ident = false): (a: Arc<T>
 }
 
 /** A value as its own clone. */
-function itself<T>(value: T): T {
+export function itself<T>(value: T): T {
 	return value;
 }
 

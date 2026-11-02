@@ -143,8 +143,8 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// A deque made anew from `q`: a clone, or one with room of its own cloned into from it,
-/// collected from its own `into_iter` or a `Vec`'s read in part, whose buffers std's takes
-/// as they are, or from a `Vec` it collects.
+/// collected from its own `into_iter` or a `Vec`'s read in part, or that one's clone,
+/// whose buffers std's takes as they are, or from a `Vec` it collects.
 fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
 	let skip = usize::from(arg / 5) % 4;
 	match arg % 5 {
@@ -180,7 +180,11 @@ fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
 			for _ in 0..skip {
 				drop(it.next());
 			}
-			it.collect()
+			// A clone holds what is left in a buffer of its own.
+			match arg & 0x40 {
+				0 => it.collect(),
+				_ => it.clone().collect(),
+			}
 		}
 	}
 }
