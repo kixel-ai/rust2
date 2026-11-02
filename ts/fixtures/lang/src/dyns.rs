@@ -634,7 +634,11 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	let odd = |v: &u8| (v % 2 == 1).then_some(*v);
 	put(
 		out,
-		&format!("{:?} {:?} ", scan(&map, u64::from(a % 8), false, odd), scan(&map, u64::from(b % 8), true, odd)),
+		&format!(
+			"{:?} {:?} ",
+			scan(&map, u64::from(a % 8), false, odd),
+			scan(&map, u64::from(b % 8), true, odd)
+		),
 	);
 	put(out, &format!("{} ", lens(&mut rest.iter())));
 

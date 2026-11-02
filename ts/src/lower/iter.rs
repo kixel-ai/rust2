@@ -55,10 +55,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		};
 		let principal = preds.principal_def_id()?;
 		let name = library::std_path(self.tcx, principal).pop()?;
-		if !matches!(
-			name.as_str(),
-			"Iterator" | "DoubleEndedIterator" | "ExactSizeIterator"
-		) {
+		if !matches!(name.as_str(), "Iterator" | "DoubleEndedIterator" | "ExactSizeIterator") {
 			return None;
 		}
 		self.iter_item(ty)
@@ -146,7 +143,10 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		}
 		// Another trait object, whose object has its trait's methods and is no `rt.Iter`.
 		if pointee.is_trait() {
-			return self.err(span, format!("an upcast from `{pointee}` to `{to}`, which is not supported yet"));
+			return self.err(
+				span,
+				format!("an upcast from `{pointee}` to `{to}`, which is not supported yet"),
+			);
 		}
 		// A census over type parameters: only an instance decides what the pointee is.
 		if self.t.polymorphic() && pointee.has_param() {
@@ -159,7 +159,10 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		};
 		match into_iter(self, ty, value, span) {
 			Some(it) => Expr::rt("iterDyn", vec![it]),
-			None => self.err(span, format!("a coercion of `{from}` to `{to}`, which is not supported yet")),
+			None => self.err(
+				span,
+				format!("a coercion of `{from}` to `{to}`, which is not supported yet"),
+			),
 		}
 	}
 }
