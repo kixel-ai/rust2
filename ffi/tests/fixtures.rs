@@ -1,8 +1,8 @@
 //! The api fixture is exported, built as a static library, and driven from C by
 //! `tests/api.c`, from C++ by `tests/api.cpp`, from Kotlin by `tests/api.kt` on the JVM
 //! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
-//! `tests/api.swift`, and from Go by `tests/api.go`, whose transcripts must match the
-//! fixture's own script run natively.
+//! `tests/api.swift`, from Go by `tests/api.go`, and from Dart by `tests/api.dart`, whose
+//! transcripts must match the fixture's own script run natively.
 //! The reject fixture's export must fail at each item it cannot export.
 
 use std::env::consts::EXE_SUFFIX;
@@ -54,7 +54,7 @@ fn export(name: &str, out: &Path, cargo: &[&str]) -> Output {
 struct Api {
 	/// The export.
 	out: PathBuf,
-	/// Where cargo built the static library and the JNI library.
+	/// Where cargo built the static library and the shared one Kotlin and Dart load.
 	lib: PathBuf,
 	/// What a program linking the static library links besides, as rustc prints it.
 	native: Vec<String>,
@@ -106,7 +106,8 @@ fn api() -> &'static Api {
 			out.join("python").join(PYTHON_LIB),
 		)
 		.unwrap();
-		let built = build("kotlin");
+		// The shared library Kotlin and Dart load.
+		let built = build("kotlin,dart");
 		let native = String::from_utf8_lossy(&built.stderr)
 			.lines()
 			.find_map(|line| line.strip_prefix("note: native-static-libs: "))
@@ -184,7 +185,7 @@ fn api_c() {
 }
 
 /// The C++ header at each standard, with exceptions and RTTI on and off between them,
-/// runs the same script, then checks its futures' semantics.
+/// runs the same script, then checks its futures' semantics and who owns each handle.
 #[test]
 fn api_cpp() {
 	let api = api();
@@ -204,8 +205,11 @@ fn api_cpp() {
 			"the C++{standard} transcript differs from the native one"
 		);
 		run(Command::new(&exe).arg("futures"));
+		run(Command::new(&exe).arg("lifetimes"));
 		for (case, message) in [
 			("moved", "api_counter_get: a handle's value was moved out"),
+			("moved from", "api_counter_get: a handle is null"),
+			("lent copied", "a lent object was copied past its call"),
 			("value", "value() of a result that holds an error"),
 			(
 				"finished",
@@ -665,6 +669,152 @@ fn api_swift() {
 		stderr.contains("api.swift and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// The generated Dart, analyzed with no issue, runs `tests/api.dart`'s script, which prints
+/// the native transcript, then its futures, what closing and the garbage collector free,
+/// and each contract it fails loud on, and a Dart file of another contract fails to load.
+#[test]
+fn api_dart() {
+	let api = api();
+	let dir = scratch().join("api").join("dart");
+	let _ = std::fs::remove_dir_all(&dir);
+	std::fs::create_dir_all(&dir).unwrap();
+	let generated = api.out.join("dart");
+	run(Command::new("dart").args(["analyze", "--fatal-infos"]).arg(&generated));
+	let lib = api.lib.join(PYTHON_LIB);
+	let exe = dart_compile(&dir, &generated, &lib, &manifest_dir().join("tests").join("api.dart"));
+	let dart = run(&mut dart_run(&exe, &[]));
+	assert_eq!(
+		String::from_utf8_lossy(&dart.stdout),
+		api.transcript,
+		"the Dart transcript differs from the native one"
+	);
+	for case in ["futures", "owned", "closed", "bytes", "bounds"] {
+		run(&mut dart_run(&exe, &[case]));
+	}
+	for (case, message) in [
+		("moved", "Bad state: Counter is closed"),
+		("boxed moved", "Bad state: Node is closed"),
+		("lent kept", "Bad state: Counter is closed"),
+		(
+			"lent moved",
+			"api_counter_into_label: a lent handle's value cannot move out",
+		),
+		("callback threw", "api_fixture::Log::log: a call into Dart threw"),
+		("family", "an IPv6 address has no Rust SocketAddrV4"),
+		("stray", "a path from Rust is not UTF-8"),
+		("lent stray", "a path from Rust is not UTF-8"),
+	] {
+		let output = dart_run(&exe, &[case]).output().unwrap();
+		assert!(!output.status.success(), "Dart {case} did not fail");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "Dart {case} printed {stderr}");
+	}
+
+	// The same Dart, with another contract than the library's in place of its own, refuses
+	// it at the first call.
+	let source = std::fs::read_to_string(generated.join("api.dart")).unwrap();
+	let at = source.find("_contract() == 0x").expect("the Dart checks its contract") + "_contract() == 0x".len();
+	let mut mismatched = source.clone();
+	let digit = if &source[at..at + 1] == "0" { "1" } else { "0" };
+	mismatched.replace_range(at..at + 1, digit);
+	let contract = dir.join("contract");
+	std::fs::create_dir_all(&contract).unwrap();
+	std::fs::write(contract.join("api.dart"), mismatched).unwrap();
+	let main = contract.join("main.dart");
+	std::fs::write(
+		&main,
+		"import 'package:api/api.dart' as api;\n\nvoid main() => api.dropped();\n",
+	)
+	.unwrap();
+	let exe = dart_compile(&contract, &contract, &lib, &main);
+	let output = dart_run(&exe, &[]).output().unwrap();
+	assert!(!output.status.success(), "a mismatched contract did not fail");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("api.dart and the library are from different builds"),
+		"a mismatched contract printed {stderr}"
+	);
+}
+
+/// `main` compiled into a kernel snapshot in `dir`, importing the generated Dart in
+/// `package` as `package:api/api.dart`, whose native asset is the shared library `lib`: as
+/// a package's build hook would bundle it, which `dart compile` has no flag for.
+fn dart_compile(dir: &Path, package: &Path, lib: &Path, main: &Path) -> PathBuf {
+	let sdk = std::fs::canonicalize(which("dart"))
+		.unwrap()
+		.parent()
+		.and_then(Path::parent)
+		.expect("dart is in the SDK's bin")
+		.to_path_buf();
+	let config = dir.join("package_config.json");
+	let root = url(package);
+	std::fs::write(
+		&config,
+		format!(
+			"{{\"configVersion\": 2, \"packages\": [{{\"name\": \"api\", \"rootUri\": \"{root}/\", \"packageUri\": \"./\"}}]}}\n"
+		),
+	)
+	.unwrap();
+	let os = match std::env::consts::OS {
+		"macos" => "macos",
+		"windows" => "windows",
+		_ => "linux",
+	};
+	let arch = match std::env::consts::ARCH {
+		"aarch64" => "arm64",
+		_ => "x64",
+	};
+	let assets = dir.join("native_assets.yaml");
+	std::fs::write(
+		&assets,
+		format!(
+			"format-version: [1, 0, 0]\nnative-assets:\n  {os}_{arch}:\n    \"package:api/api.dart\": [absolute, {:?}]\n",
+			lib.display().to_string()
+		),
+	)
+	.unwrap();
+	let dill = dir.join(format!("{}.dill", main.file_stem().unwrap().to_string_lossy()));
+	run(
+		Command::new(sdk.join("bin").join(format!("dartaotruntime{EXE_SUFFIX}")))
+			.arg(sdk.join("bin/snapshots/gen_kernel_aot.dart.snapshot"))
+			.arg("--platform")
+			.arg(sdk.join("lib/_internal/vm_platform_strong.dill"))
+			.arg("--packages")
+			.arg(&config)
+			.arg("--native-assets")
+			.arg(&assets)
+			.arg("-o")
+			.arg(&dill)
+			.arg(main),
+	);
+	dill
+}
+
+/// The Dart VM running a kernel snapshot, with asserts on.
+fn dart_run(dill: &Path, args: &[&str]) -> Command {
+	let mut cmd = Command::new("dart");
+	cmd.arg("--enable-asserts").arg(dill).args(args);
+	cmd
+}
+
+/// A program on `PATH`.
+fn which(name: &str) -> PathBuf {
+	let path = std::env::var_os("PATH").expect("PATH is set");
+	std::env::split_paths(&path)
+		.map(|dir| dir.join(format!("{name}{EXE_SUFFIX}")))
+		.find(|p| p.is_file())
+		.unwrap_or_else(|| panic!("{name} is not on PATH"))
+}
+
+/// A directory's `file:` URL.
+fn url(dir: &Path) -> String {
+	let path = dir.display().to_string().replace('\\', "/");
+	match path.starts_with('/') {
+		true => format!("file://{path}"),
+		false => format!("file:///{path}"),
+	}
 }
 
 /// swiftc, with warnings as errors, finding the C header's module in `module`, at this

@@ -36,13 +36,6 @@ an error, never a crash or undefined behavior.
   still holds must fail loud, as Rust's own check does for a call already inside Rust.
   Reproduce it deterministically first, such as through a test hook between the binding's
   hold and the C call.
-- **C++**: an object owns its handle through `std::unique_ptr` with a deleter calling
-  `<obj>_free`, and a `Clone` type through `std::shared_ptr`, so a copy shares one Rust handle
-  without crossing into Rust. Sharing must not differ from the crate's `clone`: a type whose
-  `clone` makes an independent value, which a `&mut self` method or interior mutability can
-  then tell apart, keeps an explicit `clone()` that crosses. The header keeps C++17; where C++20's `std::span` is available,
-  `view` converts to `std::span<const std::uint8_t>`, the standard's non-owning view of
-  contiguous bytes. A dangling reference stays C++'s own undefined behavior.
 - **C**: out of scope; its `_free` follows C's norms.
 
-Public API: breaking for Kotlin bytes and C++ ownership; each gets a `MIGRATE.md` entry.
+Public API: breaking for Kotlin bytes; it gets a `MIGRATE.md` entry.
