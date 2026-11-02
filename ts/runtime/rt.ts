@@ -161,16 +161,16 @@ export type CowOf<T> = Cow<T> | ByteCow;
  * or dangling pointer to an array is one to its first element, at the same address.
  */
 export function sliceAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
-	if (s === NULL) return NULL;
-	if (s === DANGLING) return DANGLING;
+	if (s === NULL || s === NULL_SLICE) return NULL;
+	if (s === DANGLING || s === DANGLING_SLICE) return DANGLING;
 	const view = (s as { [VIEW]?: View<T> })[VIEW];
 	return view ? new AtIndex(view.s, view.start + index) : new AtIndex(s, index);
 }
 
 /** The pointer to byte `index` of `s`, or `s` if it is null or dangling, as `sliceAsPtr`'s. */
 export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
-	if (s === NULL) return NULL;
-	if (s === DANGLING) return DANGLING;
+	if (s === NULL || s === NULL_BYTES) return NULL;
+	if (s === DANGLING || s === DANGLING_BYTES) return DANGLING;
 	return new AtIndex(s.data, s.start + index);
 }
 
@@ -237,7 +237,11 @@ class Lone<T> implements ProxyHandler<T[]> {
  * and dangling pointers point into an array of none, so any access through them fails.
  */
 function elemOf<T>(p: Place<T>): AtIndex<T> {
-	if (p instanceof AtIndex) return p;
+	if (p instanceof AtIndex) {
+		// A pointer into a mutable part of an array points into the array.
+		const view = (p.array as { [VIEW]?: View<T> })[VIEW];
+		return view ? new AtIndex(view.s, view.start + p.index) : p;
+	}
 	if (p === NULL || p === DANGLING) return new AtIndex([] as T[], 0);
 	let lone = LONE.get(p) as T[] | undefined;
 	if (!lone) {
@@ -310,10 +314,17 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 	for (let i = 0; i < n; i++) to.array[to.index + i] = copy && values[i] !== undefined ? copy(values[i]) : values[i];
 }
 
+/**
+ * The empty slices from a null and a dangling pointer, which keep the pointer they were
+ * made from, as `sliceAsPtr` gives back; `NULL_BYTES` and `DANGLING_BYTES` are their bytes'.
+ */
+const NULL_SLICE: never[] = /* @__PURE__ */ Object.freeze([]) as never[];
+const DANGLING_SLICE: never[] = /* @__PURE__ */ Object.freeze([]) as never[];
+
 /** `slice::from_raw_parts` and `ptr::slice_from_raw_parts` of `len` elements from `p`. */
 export function ptrSlice<T>(p: Place<T>, len: number): T[] {
-	// One of none from a dangling pointer points nowhere.
-	if (len === 0 && (p === NULL || p === DANGLING)) return [];
+	if (len === 0 && p === NULL) return NULL_SLICE;
+	if (len === 0 && p === DANGLING) return DANGLING_SLICE;
 	const at = elemOf(p);
 	at.reach(len);
 	const array = at.array as T[];
@@ -326,7 +337,8 @@ export function ptrSlice<T>(p: Place<T>, len: number): T[] {
  * writes them while it lives.
  */
 export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): ByteSlice {
-	if (len === 0 && (p === NULL || p === DANGLING)) return new ByteSlice(new Uint8Array(0), 0, 0);
+	if (len === 0 && p === NULL) return NULL_BYTES;
+	if (len === 0 && p === DANGLING) return DANGLING_BYTES;
 	const at = elemOf(p);
 	at.reach(len);
 	if (at.array instanceof Uint8Array) return new ByteSlice(at.array, at.index, len);
@@ -1073,6 +1085,10 @@ export class ByteSlice {
 		this.length = length;
 	}
 }
+
+/** The empty byte slices from a null and a dangling pointer, as `NULL_SLICE` and `DANGLING_SLICE`. */
+const NULL_BYTES = /* @__PURE__ */ Object.freeze(new ByteSlice(new Uint8Array(0), 0, 0));
+const DANGLING_BYTES = /* @__PURE__ */ Object.freeze(new ByteSlice(new Uint8Array(0), 0, 0));
 
 /** All of `bytes` as a slice, as `&[u8; N]` coerces to `&[u8]`. */
 export function byteSliceFrom(bytes: Uint8Array): ByteSlice {

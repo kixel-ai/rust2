@@ -48,6 +48,9 @@ none of its own `unsafe`.
   `set_len` is refused, and a write past the length fails loudly at run time, since the
   JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
+- `ptr::slice_from_raw_parts` past what the array holds, which Rust allows until the
+  slice is read: the runtime makes the slice at once, so it fails there loudly. Deferring
+  the check needs a raw slice pointer kept as its pointer and length.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
 - A slice's pointer cast to an array's of its length, `*(s as *const [u8] as *const

@@ -255,8 +255,9 @@ pub fn inline(data: &[u8], out: &mut Vec<u8>) {
 /// Pointers wrapped around wasm32's 32-bit addresses and back, to a value in no array, as
 /// the array of one Rust treats it as, and into a mutable part of an array, measured from
 /// the array, the pointer an empty slice keeps, within a shared part, which JS copies,
-/// memory nothing wrote copied, null and dangling pointers moved by address and cast from
-/// pointers to arrays, and the crate's functions named as std's.
+/// a `&mut` into that part, memory nothing wrote copied, null and dangling pointers moved by
+/// address, kept by empty raw slices, and cast from pointers to arrays, and the crate's
+/// functions named as std's.
 pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 	for &n in data {
 		let bytes = [n, 1, 2, 3];
@@ -295,6 +296,10 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 		unsafe {
 			out.push(at.offset_from(base) as u8);
 			*at += 5;
+			// A `&mut` into the part, measured from the array and moved out of the part.
+			let got: *mut u32 = part.get_mut(0).unwrap();
+			out.push(got.offset_from(base) as u8);
+			out.push(*got.sub(1) as u8);
 			let empty = slice::from_raw_parts(at.add(1), 0);
 			out.push(empty.as_ptr().offset_from(base) as u8);
 			let none = slice::from_raw_parts(bytes.as_ptr().add(2), 0);
@@ -352,6 +357,17 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 				.wrapping_offset(isize::from(n % 3) - 1)
 				.is_null() as u8,
 		);
+		// Empty raw slices from null and dangling pointers, which keep them.
+		out.push((ptr::slice_from_raw_parts(ptr::null::<u32>(), 0) as *const u32).is_null() as u8);
+		out.push((ptr::slice_from_raw_parts(ptr::null::<u8>(), 0) as *const u8).is_null() as u8);
+		let dangling = NonNull::<u16>::dangling().as_ptr();
+		out.push(
+			(ptr::slice_from_raw_parts(dangling, 0) as *const u16)
+				.wrapping_sub(1)
+				.is_null() as u8,
+		);
+		let none = unsafe { slice::from_raw_parts(NonNull::<u8>::dangling().as_ptr(), 0) };
+		out.push(none.as_ptr().wrapping_sub(1).is_null() as u8);
 		// Null and dangling pointers to arrays, cast to ones to their first elements.
 		out.push((ptr::null::<[u32; 2]>() as *const u32).is_null() as u8);
 		out.push(
