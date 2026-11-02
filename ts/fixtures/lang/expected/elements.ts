@@ -117,7 +117,7 @@ export function segments(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const one: rt.Place<rt.u8> = rt.sliceAsPtr(a, 2);
 	one.v = one.v ^ 15;
 	rt.byteVecPush(out, one.v);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(v)), undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
 	segment[Symbol.dispose]();
 }
 
