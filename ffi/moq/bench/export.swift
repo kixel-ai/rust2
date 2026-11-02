@@ -45,10 +45,8 @@ func round() throws -> String {
 			let at = try Timestamp.fromMicros(micros)
 			micros += 1
 			try group.writeFrame(at, frame)
-			at.close()
 		}
 		try group.finish()
-		group.close()
 	}
 	let stamped = perFrame(start)
 
@@ -61,7 +59,6 @@ func round() throws -> String {
 			try group.writeFrame(at, frame)
 		}
 		try group.finish()
-		group.close()
 	}
 	let reused = perFrame(start)
 
@@ -85,14 +82,10 @@ func round() throws -> String {
 			for _ in 0..<frames {
 				try group.writeFrame(at, frame)
 				let read = try await reader.readFrame()!
-				last?.close()
 				last = read
 			}
-			reader.close()
 			try group.finish()
-			group.close()
 		}
-		subscriber.close()
 		return (perFrame(start), last!)
 	}
 
@@ -102,10 +95,6 @@ func round() throws -> String {
 		closed += Int(last.payload[0])
 	}
 	let lent = perFrame(start)
-	last.close()
-	at.close()
-	track.close()
-	broadcast.close()
 
 	let bang = closed != 0 ? "!" : ""
 	return String(

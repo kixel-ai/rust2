@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `rt.Hasher` has `Hasher`'s methods, `write`, `u8` to `isize`, `prefix`
+  (`write_length_prefix`), and `str`, and `ints`, an integer slice's `hash_slice`, in
+  place of `word`. A binding's `hash$Hash` writes a signed or pointer-sized integer
+  through `rt.hashI8` to `rt.hashI128`, `rt.hashUsize`, or `rt.hashIsize`, as its Rust
+  impl calls `write_i8` and the rest. `rt.hashOne` takes the hasher it hashes into, as in
+  `rt.hashOne(rt.buildHasher(state), value, hash)`.
 - `rt.vecCapacity`, `rt.vecReserve`, `rt.vecReserveExact`, and `rt.dequeReserve` are now
   `Vec::capacity`, `reserve`, and `reserve_exact` and `VecDeque::reserve` of a vector, its
   element size in bytes last, as in `rt.vecReserve(v, additional, 4)`, not the arithmetic
