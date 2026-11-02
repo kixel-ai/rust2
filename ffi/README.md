@@ -29,8 +29,9 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
-Swift, over the C header as a clang module, and `go/<prefix>.go` holds it in Go, over the C
-ABI through cgo.
+Swift, over the C header as a clang module, `go/<prefix>.go` holds it in Go, over the C
+ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
+`dart:ffi` and what the crate builds with `--features dart`.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
@@ -460,6 +461,78 @@ own directory, and links the library through `CGO_LDFLAGS`.
 - **The contract** is checked when the package loads, before any other call: a Go file and
   a library from different builds panic.
 
+## Dart
+
+`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
+`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
+the shared library the crate builds with `--features dart` as the package's native asset:
+the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+
+- **Names** are the C names without the prefix: a type in Pascal case and a member in
+  camel case, so `moq_track_producer` is `TrackProducer`, and its method
+  `moq_track_producer_append_group` is `TrackProducer.appendGroup`. A function of a type
+  that returns it is a constructor, which may share its name with a field: an object's
+  `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
+  (`Position.group`). A type's other functions are static members. A reserved word takes
+  a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
+  with a name the runtime declares, fails the export: give it a `rename`.
+- **Objects** are final classes owning their handle. `close()` frees it once no call
+  holds it, and a second does nothing; one never closed is freed once the garbage
+  collector finds it unreachable, through a `NativeFinalizer`. Any call that meets a
+  closed object, as its receiver or anywhere in its arguments, throws a `StateError`
+  before Rust sees it, and moves none of the call's other arguments. An isolate cannot
+  send an object to another, so no `close()` races a call. A `self` method, or passing the
+  object by value, closes it once the call returns. `Clone` is `clone()`, and a `pub`
+  field a getter and a setter.
+- **Records** are final classes with a named, required parameter per field, and
+  positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
+  with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
+  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
+  through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
+  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. A plain enum's `==` is Dart's, by its value.
+- **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
+  range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
+  A `char` is a `String` of one Unicode scalar.
+- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
+  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+  manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
+  unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
+  reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
+  garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
+  returns is copied into a `String`. A path is a `String`, and one Rust returns that is
+  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
+  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
+  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
+  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
+  range a `RangeError`.
+- **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
+  implementing `Exception`, and any other in a final class `<T>Exception` holding it as
+  `error`, such as `StringException`.
+- **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
+  thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
+- **Closures** lent for a call are Dart functions, which Rust calls only during the call,
+  on the isolate's thread. An object it lends lives only for that call of the closure.
+- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it.
+  The call polls it once, and makes a waker only if that poll pends. A wake, from any
+  thread, posts to the isolate's port, and its event loop polls again, so a wake never
+  polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
+  future unless it finished, which cancels it in Rust and loses nothing: the next call
+  takes what it would have, and it completes with `Cancelled`. A pending future keeps
+  the isolate alive, as a timer does.
+- A **waker** is a `void Function()`, which runs on the isolate's event loop.
+- **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
+  other through the isolate's port, and waits for its event loop to run the call. A call
+  that lends a closure or gives an implementation, and each poll of its future, runs on a
+  thread of its own, acting as the caller's for the handles it borrows, while the
+  isolate's thread runs what Rust calls into Dart. Any other call, a future's `cancel()`
+  included, holds the isolate's thread, so it deadlocks if Rust waits in it on another
+  thread calling an implementation it kept, such as one a method calls from a thread it
+  joins, or one a future's destructor calls.
+- **The contract** is checked at the first call, before any other: a Dart file and a
+  library from different builds throw a `StateError`.
+
 ## IR
 
 [`src/ir.rs`](src/ir.rs) is the API as each generator reads it, with no language decided:
@@ -469,14 +542,16 @@ its Rust path, its span, and its docs. A type is in the exact form Rust takes or
 borrow where Rust borrows. [`src/abi.rs`](src/abi.rs) decides the C ABI from it once,
 names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
 [`src/kotlin.rs`](src/kotlin.rs), [`src/python.rs`](src/python.rs),
-[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), and [`src/glue.rs`](src/glue.rs)
+[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), [`src/dart.rs`](src/dart.rs), and
+[`src/glue.rs`](src/glue.rs)
 agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
 Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
 [`runtime/python.rs`](runtime/python.rs), the one the Swift includes
-[`runtime/rt.swift`](runtime/rt.swift), and the one the Go includes
-[`runtime/rt.go`](runtime/rt.go).
+[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
+[`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
+[`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
 ## Census
 
@@ -489,13 +564,13 @@ refusal, which is a bug in the exporter's inference rather than in the crate.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, and Go
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, and moq/moq.go
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, and Dart
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, and Go, and moq's rs/moq-c
+nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
 ```
 
 The `api` fixture covers each rule once, and names the `dep` fixture's types, which
@@ -540,8 +615,10 @@ RTTI, as OBS builds it, serving on an executor's thread and blocking on each rea
 `moq/moq.kt` through the Kotlin, serving in a coroutine and suspending on each read,
 `moq/moq.py` through the Python, running the origin's driver and the server as asyncio
 tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a task and
-awaiting each read, and `moq/moq.go` through the Go, running the origin's driver on a
-goroutine of its own and serving on another, each read blocking under a context.
+awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
+goroutine of its own and serving on another, each read blocking under a context, and
+`moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
+on each wake and at its deadline's `Timer`, and awaiting each read.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`

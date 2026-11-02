@@ -227,7 +227,9 @@ translate, as do `Display` and `Debug` impls, derived and thiserror's included. 
 runtime ports `core::fmt`, so the text matches native Rust's byte for byte. A placeholder
 becomes a function writing its value, and `fmt::Arguments` an array of literal pieces
 and such functions: `rt.fmtWriteFmt(f, ["code=", (f) => rt.u16Display(code, f)])`. A `&dyn
-Debug` or `&dyn Display` is such a function too. Format specs take every option but `{:p}`:
+Debug` or `&dyn Display` is such a function too, and so is a `Box` of one, `rt.fmtOwned`
+of the value, which drops it as the box drops, and an `Arc` or `Rc` of one, which the last
+pointer drops, as an `Arc` of the crate's own trait object does. Format specs take every option but `{:p}`:
 fill, alignment, `+`, `#`, `0`, `x?` and `X?`, a width and a precision, each also from an
 argument, and `x`, `X`, `o`, `b`, `e`, and `E` for integers, `e` and `E` for floats. An `f64`
 prints std's digits: the shortest that read back as it, the greater of two as close where
@@ -470,7 +472,8 @@ a call calls as it does the closure, and which a box drops as it does the closur
 that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which drops it
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it. A trait object of std's
-or a mapped crate's trait other than `&dyn Debug`, `&dyn Display`, `dyn Future`,
+or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `Box`,
+`Arc`, or `Rc`, `dyn Future`,
 `dyn Any`, and the function traits, of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a `Weak` or a struct's last field, is refused, and so are an upcast to `dyn Any` and
