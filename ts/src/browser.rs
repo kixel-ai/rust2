@@ -62,12 +62,7 @@ pub fn root(manifest: &Path, package: &str, dir: &Path, cargo: &[String]) -> Res
 		));
 	};
 	let workspace = rust2_driver::cargo::workspace_root(Some(manifest))?;
-	// Cargo cleans only a target directory it made, which it tags as a cache, as it
-	// would here had it run first.
-	if !dir.exists() {
-		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
-		write(&dir.join("CACHEDIR.TAG"), CACHEDIR_TAG)?;
-	}
+	target_dir(dir)?;
 	let dir = dir.join("browser").join(package);
 	std::fs::create_dir_all(&dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
 	if config_overrides_all(manifest, &args)? {
@@ -457,6 +452,31 @@ fn absolute(value: &mut toml::Value, dir: &Path) {
 	}
 }
 
+/// Make the target directory `dir` if it is missing, as cargo would had it run first: cargo
+/// cleans only a directory it tagged as a cache. The tag goes in a directory beside it,
+/// renamed into place, as cargo makes one, since a cargo sharing `dir` may be making it at
+/// once: its rename replaces an empty directory, and a tag written into that fails.
+fn target_dir(dir: &Path) -> Result<(), String> {
+	if dir.is_dir() {
+		return Ok(());
+	}
+	let parent = dir.parent().expect("an absolute target directory has a parent");
+	let name = dir.file_name().expect("a target directory has a name").to_string_lossy();
+	let temp = parent.join(format!("{name}.rust2-ts-{}", std::process::id()));
+	std::fs::create_dir_all(&temp).map_err(|err| format!("creating {}: {err}", temp.display()))?;
+	write(&temp.join("CACHEDIR.TAG"), CACHEDIR_TAG)?;
+	let renamed = std::fs::rename(&temp, dir);
+	if renamed.is_err() {
+		let _ = std::fs::remove_dir_all(&temp);
+	}
+	match renamed {
+		// Another made it first.
+		Err(_) if dir.is_dir() => Ok(()),
+		Err(err) => Err(format!("renaming {} to {}: {err}", temp.display(), dir.display())),
+		Ok(()) => Ok(()),
+	}
+}
+
 fn write(path: &Path, text: &str) -> Result<(), String> {
 	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
 }
@@ -464,6 +484,40 @@ fn write(path: &Path, text: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// Made while a cargo makes it too, by renaming a tagged directory of its own into place,
+	/// the target directory is always made and tagged.
+	#[test]
+	fn makes_the_target_dir_beside_cargo() {
+		let root = std::env::temp_dir().join(format!("rust2-ts-target-dir-{}", std::process::id()));
+		let dir = root.join("build");
+		for round in 0..2_000 {
+			let _ = std::fs::remove_dir_all(&root);
+			std::fs::create_dir_all(&root).unwrap();
+			let barrier = std::sync::Barrier::new(2);
+			std::thread::scope(|s| {
+				s.spawn(|| {
+					barrier.wait();
+					// What cargo-util's `create_dir_all_excluded_from_backups_atomic` does.
+					let temp = root.join(format!("build.cargo{round}"));
+					std::fs::create_dir(&temp).unwrap();
+					std::fs::write(temp.join("CACHEDIR.TAG"), CACHEDIR_TAG).unwrap();
+					if std::fs::rename(&temp, &dir).is_err() {
+						assert!(dir.is_dir());
+						std::fs::remove_dir_all(&temp).unwrap();
+					}
+				});
+				barrier.wait();
+				// Each round starts a little later against cargo's rename.
+				for _ in 0..(round % 64) * 50 {
+					std::hint::spin_loop();
+				}
+				assert_eq!(target_dir(&dir), Ok(()), "round {round}");
+			});
+			assert!(dir.join("CACHEDIR.TAG").is_file(), "round {round} left it untagged");
+		}
+		std::fs::remove_dir_all(&root).unwrap();
+	}
 
 	#[test]
 	fn takes_the_features_apart() {
