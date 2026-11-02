@@ -173,7 +173,6 @@ func script() {
 	let copy = c.clone()
 	_ = try! copy.add(1)
 	print("clone \(copy.get()) original \(c.get())")
-	copy.close()
 	print("debug \(debug(c))")
 	let label = c.intoLabel(p)
 	print("label \(debug(label))")
@@ -213,7 +212,6 @@ func script() {
 	let board = Board.new([("low", Counter.new("l", 1)), ("high", Counter.new("h", 9))])
 	let ranked = board.ranked()
 	print("ranked \(ranked.map { "\($0.0) \($0.1.name()) \($0.1.get())" }.joined(separator: ", "))")
-	board.close()
 	let span = Span(bounds: (2, 10), named: ("s", .square))
 	let (lowerHalf, upperHalf) = halves(span)
 	print("halves \(lowerHalf.0) \(lowerHalf.1) \(upperHalf.0) \(upperHalf.1) \(debug(span))")
@@ -334,9 +332,10 @@ func script() {
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Data([1, 2, 3, 4]))
 	print("kept \(kept)")
-	let logger = Logger.new(PrintLog())
-	print("write \(logger.write("hi"))")
-	logger.close()
+	do {
+		let logger = Logger.new(PrintLog())
+		print("write \(logger.write("hi"))")
+	}
 	print("dropped")
 	// Rust calls it on another thread, before the call returns.
 	let threshold: UInt8 = 2
@@ -439,10 +438,11 @@ func script() {
 	let keptLog = keeps(PrintLog())
 	print("keeps \(keptLog.value)")
 
-	// Its Drop runs when Swift closes the handle, not before.
-	let token = Token.new(7)
-	print("token \(token.id) dropped \(dropped())")
-	token.close()
+	// Its Drop runs when Swift releases the last reference, not before.
+	do {
+		let token = Token.new(7)
+		withExtendedLifetime(token) { print("token \(token.id) dropped \(dropped())") }
+	}
 	print("dropped \(dropped())")
 
 	// A field and the method of its name, each its own member.
@@ -459,9 +459,8 @@ func script() {
 	print("url \(base) host \(host(base).map { "Some(\"\($0)\")" } ?? "None")")
 	let url = try! resolve(base.clone(), "c?d")
 	print("resolve \(url) \(url == base)")
-	url.close()
 	do {
-		try Url.parse("no scheme").close()
+		_ = try Url.parse("no scheme")
 	} catch let e as StringError {
 		print("parse err \(e.error)")
 	} catch {
@@ -498,9 +497,8 @@ func script() {
 	print("timed text \(timedText(doc))")
 	let tagged = tagged(doc, "t")
 	print("tagged \(tagged.toText())")
-	tagged.close()
 	do {
-		try Json.parse("{\"a\":").close()
+		_ = try Json.parse("{\"a\":")
 	} catch let e as StringError {
 		print("json parse err \(e.error)")
 	} catch {
@@ -516,7 +514,6 @@ func script() {
 	// Returned iterators, each collected at the call: drained labels are gone after.
 	print("iterated \(trail.iter()) \(trail.names()) \(Array(trail.bytes()))")
 	print("drained \(trail.drain()) then \(trail.labels())")
-	trail.close()
 	let numbered = numbered(["p", "q"])
 	print("numbered \(numbered.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
 	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
@@ -623,24 +620,24 @@ func futures() {
 		check(threw.value, "cancelling a waiting receive resumes it, throwing")
 	}
 
-	// A handle closed while a call awaits on it stays alive until the call ends.
+	// An object whose last reference goes while a call awaits on it stays alive until the
+	// call ends.
 	do {
-		let other = Channel.new()
+		let other = Cell<Channel?>(Channel.new())
+		let sender = other.value!.clone()
 		let got = Cell<String?>(nil)
-		q.launch { got.value = text(try await other.recv()) }
+		q.launch { got.value = text(try await other.value!.recv()) }
 		q.drain()
-		let sender = other.clone()
-		other.close()
+		other.value = nil
 		sender.send(Data("held".utf8))
 		q.drain()
-		check(got.value == "held", "a closed handle stays alive in the call awaiting on it")
-		sender.close()
+		check(got.value == "held", "the call awaiting on an object holds it")
 	}
 	print("futures ok")
 }
 
-// What frees an object or bytes nobody closed: Swift's release of the last reference, at
-// once. Returned bytes lend Rust's buffer until released.
+// What frees an object or bytes: Swift's release of the last reference, at once. Returned
+// bytes lend Rust's buffer until it and every slice of it are released.
 func owned() {
 	for n in 1023...1025 {
 		let payload = Data((0..<n).map { UInt8(truncatingIfNeeded: $0) })
@@ -659,18 +656,13 @@ func owned() {
 		check(token.id == 2, "a token reads back")
 	}
 	check(dropped() == before + 2, "releasing an object frees its handle")
-	closed()
-	check(dropped() == before + 3, "releasing a closed object frees nothing again")
+	do {
+		let part = tokenBytes(3, 1025).dropFirst()
+		check(dropped() == before + 2, "a slice keeps Rust's buffer")
+		check(part == Data(repeating: 3, count: 1024), "a slice outlives the bytes it was cut from")
+	}
+	check(dropped() == before + 3, "releasing the last slice frees Rust's buffer")
 	print("owned ok")
-}
-
-func closed() {
-	let before = dropped()
-	let token = Token.new(3)
-	token.close()
-	check(dropped() == before + 1, "closing frees at once")
-	token.close()
-	check(dropped() == before + 1, "closing again frees nothing")
 }
 
 /// Holds a lent counter past the call it was lent for.

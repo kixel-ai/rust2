@@ -52,7 +52,7 @@ bench checkout="": (moq checkout)
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
-    [ -n "$src" ] || src=../ts/target/moq
+    [ -n "$src" ] || src=target/moq
     out=target/export/moq
     # moq-c's header is written to its build script's output directory.
     moqc=$(cd "$src" && cargo build --locked --quiet --release --package moq-c --message-format=json \
@@ -199,8 +199,8 @@ standin checkout="":
     set -euo pipefail
     src="{{ checkout }}"
     if [ -z "$src" ]; then
-        (cd ../ts && just moq-pin {{ moq_rev }})
-        src=../ts/target/moq
+        {{ just_executable() }} moq-pin
+        src=target/moq
     fi
     src=$(realpath "$src")
     # Cargo on Windows reads a path as Windows writes it, not as Git Bash does.
@@ -226,3 +226,10 @@ standin checkout="":
     done > "$dir/src/lib.rs"
     # moq's lockfile pins what moq's own builds use.
     cp "$src/Cargo.lock" "$dir/Cargo.lock"
+
+# Check out the pinned moq revision in target/moq, apart from `just ts`'s so each builds its own pin, copying the objects its clone already has.
+[private]
+moq-pin:
+    [ -d target/moq/.git ] || git clone --quiet --filter=blob:none --reference-if-able ../ts/target/moq --dissociate https://github.com/moq-dev/moq target/moq
+    GIT_NO_LAZY_FETCH=1 git -C target/moq cat-file -e {{ moq_rev }}^{commit} 2> /dev/null || git -C target/moq fetch --quiet origin {{ moq_rev }}
+    git -C target/moq checkout --quiet --detach {{ moq_rev }}

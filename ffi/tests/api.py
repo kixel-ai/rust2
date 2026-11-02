@@ -125,9 +125,9 @@ def script():
 	c.rename("d")
 	print(f"name {c.name()}")
 	print(f"is d {flag(c.is_('d'))}")
-	with c.clone() as copy:
-		copy.add(1)
-		print(f"clone {copy.get()} original {c.get()}")
+	copy = c.clone()
+	copy.add(1)
+	print(f"clone {copy.get()} original {c.get()}")
 	print(f"debug {c!r}")
 	label = c.into_label(p)
 	print(f"label {label!r}")
@@ -154,9 +154,9 @@ def script():
 	stat_rows = api.rows([api.Point(1, 2), api.Point(3, 3)])
 	print("rows " + ", ".join(f"{name} {shape!r} {p.x} {p.y}" for name, shape, p in stat_rows))
 	# Each handle in a tuple moves in, as one taken by value does.
-	with api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))]) as board:
-		ranked = board.ranked()
-		print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
+	ranked = board.ranked()
+	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
 	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
 	lower_half, upper_half = api.halves(span)
 	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
@@ -273,8 +273,9 @@ def script():
 	print(f"stamp {flag(message.stamp is not None)}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
-	with api.Logger.new(PrintLog()) as logger:
-		print(f"write {flag(logger.write('hi'))}")
+	logger = api.Logger.new(PrintLog())
+	print(f"write {flag(logger.write('hi'))}")
+	del logger
 	print("dropped")
 	# Rust calls it on another thread, before the call returns.
 	threshold = 2
@@ -391,10 +392,10 @@ def script():
 	print(f"wrapped {api.kept_wrap_u32(api.WrapU32(4))}")
 	print(f"keeps {api.keeps(PrintLog()).value}")
 
-	# Its Drop runs when Python closes it, not before.
+	# Its Drop runs when its last reference goes, not before.
 	token = api.Token.new(7)
 	print(f"token {token.id} dropped {api.dropped()}")
-	token.close()
+	del token
 	print(f"dropped {api.dropped()}")
 
 	# A field and the method of its name, each its own member.
@@ -411,10 +412,10 @@ def script():
 	host = api.host(base)
 	host = "None" if host is None else f'Some("{host}")'
 	print(f"url {base} host {host}")
-	with api.resolve(base.clone(), "c?d") as url:
-		print(f"resolve {url} {flag(url == base)}")
+	url = api.resolve(base.clone(), "c?d")
+	print(f"resolve {url} {flag(url == base)}")
 	try:
-		api.Url.parse("no scheme").close()
+		api.Url.parse("no scheme")
 	except api.StringException as e:
 		print(f"parse err {e.error}")
 	v4 = ("127.0.0.1", 8080)
@@ -452,23 +453,22 @@ def script():
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
 	print(f"timed text {api.timed_text(doc)}")
-	with api.tagged(doc, "t") as tagged:
-		print(f"tagged {tagged.to_text()}")
+	tagged = api.tagged(doc, "t")
+	print(f"tagged {tagged.to_text()}")
 	try:
-		api.Json.parse('{"a":').close()
+		api.Json.parse('{"a":')
 	except api.StringException as e:
 		print(f"json parse err {e.error}")
 	site = api.Site.new(base)
-	with site.home as a, site.home as b:
-		print(f"site {a} {b}")
+	print(f"site {site.home} {site.home}")
 
 	# Slices, passed in and returned as clones, and the socket address of each family.
 	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
-	with api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"]) as trail:
-		print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
-		# Returned iterators, each collected at the call: drained labels are gone after.
-		print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
-		print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
+	trail = api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"])
+	print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
+	# Returned iterators, each collected at the call: drained labels are gone after.
+	print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
+	print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
 	numbered = api.numbered(["p", "q"])
 	print("numbered " + ", ".join(f"{c.name()} {c.get()}" for c in numbered))
 	next4, next6 = api.nexts(v4, v6)
@@ -529,22 +529,16 @@ def futures():
 	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))
 	check(text(payload) == "kept", "a cancelled receive loses nothing")
 
-	# A handle closed while a call awaits on it is freed once the call ends.
+	# An object whose last reference goes while a call awaits on it is freed once the
+	# call ends.
 	other = api.Channel.new()
-	got = None
-
-	async def held():
-		nonlocal got
-		got = text(await other.recv())
-
-	task = loop.create_task(held())
-	step(loop)
 	sender = other.clone()
-	other.close()
+	task = loop.create_task(other.recv())
+	step(loop)
+	del other
 	sender.send(b"held")
-	loop.run_until_complete(asyncio.wait_for(task, 5))
-	check(got == "held", "a closed object stays held by the call awaiting on it")
-	sender.close()
+	got = loop.run_until_complete(asyncio.wait_for(task, 5))
+	check(text(got) == "held", "the call awaiting on an object holds it")
 
 	# An awaitable from Rust is awaited once, as a coroutine is.
 	later = channel.send_later(b"once")
@@ -590,9 +584,8 @@ def futures():
 
 
 def owned():
-	"""What frees an object or bytes nobody closed: its last reference going, or the
-	cycle collector, and only what closing did not free already. Rust's bytes cross lent,
-	until released."""
+	"""What frees an object or bytes: its last reference going, or the cycle collector.
+	Rust's bytes cross lent, until they and every view of them are released."""
 	for n in range(1023, 1026):
 		payload = bytes(i % 256 for i in range(n))
 		packet = api.next_packet(api.Packet(1, payload))
@@ -614,22 +607,27 @@ def owned():
 			pass
 
 	before = api.dropped()
-	api.Token.new(1).close()
-	api.token_bytes(2, 1025).release()
-	check(api.dropped() == before + 2, "closing frees at once")
-	unclosed()
-	check(api.dropped() == before + 4, "the last reference going frees what nobody closed")
+	api.Token.new(3)
+	api.token_bytes(4, 1025)
+	check(api.dropped() == before + 2, "the last reference going frees at once")
+
+	# A view kept past what it was read from keeps Rust's buffer.
+	part = api.token_bytes(7, 1025)[1:]
+	packet = api.next_packet(api.Packet(1, bytes(range(256)) * 5))
+	payload = packet.payload
+	del packet
+	check(api.dropped() == before + 2, "a view keeps Rust's buffer")
+	check(bytes(part) == bytes([7]) * 1024, "a slice outlives the bytes it was cut from")
+	check(bytes(payload) == bytes(range(256)) * 5, "bytes outlive their record")
+	del part
+	check(api.dropped() == before + 3, "the last view going frees Rust's buffer")
+
 	cycle = [api.Token.new(5), api.token_bytes(6, 1)]
 	cycle.append(cycle)
 	del cycle
 	gc.collect()
-	check(api.dropped() == before + 6, "the cycle collector frees what a cycle held")
+	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
 	print("owned ok")
-
-
-def unclosed():
-	api.Token.new(3)
-	api.token_bytes(4, 1025)
 
 
 def values():
