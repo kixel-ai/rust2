@@ -17,7 +17,7 @@
 //! slices, the order, equality, and
 //! hashes of bytes, ranges of `Bound`s and of the crate's own `RangeBounds`, the equality
 //! of `Result`s and std's errors, inclusive ranges read through each adaptor, iterators'
-//! size hints, the capacity overflows collections reserving by them panic with, the
+//! size hints, the crate's own iterators read from the back and by their length, the capacity overflows collections reserving by them panic with, the
 //! capacity of a `Vec`, `VecDeque`, and `BinaryHeap` as each grows and shrinks, pointers
 //! into arrays moved, measured, and copied between, memory from `alloc` typed by a cast of
 //! its pointer, grown, shrunk, and freed, and the `Layout`s it is laid out by, values
@@ -66,6 +66,7 @@ mod durations;
 mod dyns;
 mod edits;
 mod elements;
+mod ends;
 mod errors;
 mod fields;
 mod floats;

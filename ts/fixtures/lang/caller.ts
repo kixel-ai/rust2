@@ -907,6 +907,17 @@ const capacityCases = [
 ];
 
 /**
+ * `ends::ends`: each kind of iterator through every consumer and either end's bits, of
+ * runs empty, short, and long, whose hints are exact, loose, and lying, after none and a
+ * few steps through each of its methods.
+ */
+const endsCases = [0x00, 0x03, 0x0f, 0x15, 0x27, 0x36, 0x2f].flatMap((shape) =>
+	[[], [0x01, 0x00], [0x0a, 0x0d, 0x03], [0x05, 0x06, 0x04, 0x0f]].flatMap((steps) =>
+		Array.from({ length: 4 * 256 }, (_, i) => Uint8Array.of(...op("ends::ends"), i % 4, shape, i >> 2, ...steps)),
+	),
+);
+
+/**
  * `rings::slices` of each item type, from a deque made by `new`, `with_capacity` of 5, and
  * from a `Vec` of 7: pushed at both ends and popped at the front to wrap it, past a few
  * capacities, then each step by a few arguments, twice.
@@ -941,4 +952,4 @@ const sortCases = [
 	...Array.from({ length: 20 * 5 }, (_, i) => Uint8Array.of(...op("sorts::btrees"), i % 20, Math.floor(i / 20), 2, 9)),
 ];
 
-export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...splitEnds, ...dequeRanges, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases];
+export const cases: Uint8Array[] = [...loops, ...durations, ...ints(), ...utf8, ...floats, ...formats, ...parsed, ...singlesCases, ...singlesFormats, ...singlesParsed, ...dyns, ...cells, ...shared, ...locks, ...guards, ...maps, ...mappedLocks, ...relocks, ...tries, ...mutexMaps, ...printed, ...downgrades, ...leaks, ...placeCompares, ...rwlocks, ...onces, ...bounds, ...unsafeCells, ...edits, ...subslices, ...consumers, ...closures, ...elements, ...ranges, ...reducers, ...sliceEdits, ...drains, ...iters, ...splitEnds, ...dequeRanges, ...hinted, ...peekedOthers, ...hints, ...reserves, ...setOps, ...zeros, ...writes, ...floatsMulAdds, ...singlesMulAdds, ...unlikeEqs, ...ownNes, ...rangeFroms, ...compares, ...unlikeCompares, ...rangeMethods, ...wraps(), ...refOrders, ...saturates(), ...methods(), ...separated, ...asciiCases, ...gets, ...capacityCases, ...ringsCases, ...remadeCases, ...sortCases, ...endsCases];

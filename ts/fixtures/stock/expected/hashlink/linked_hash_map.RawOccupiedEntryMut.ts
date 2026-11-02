@@ -25,6 +25,11 @@ export function intoKeyValue$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: 
 	return [rt.place(() => _7[0], (value) => _7[0] = value), rt.place(() => _7[1], (value2) => _7[1] = value2)] as [rt.Place<rt.Arc<string>>, rt.Place<rt.u32>];
 }
 
+export function intoKeyValue$u16_u32_hash_RandomState(self: RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState>): [rt.Place<rt.u16>, rt.Place<rt.u32>] {
+	const _7: [rt.u16, rt.u32] = Node.entryMut$u16_u32(self.entry.v);
+	return [rt.place(() => _7[0], (value) => _7[0] = value), rt.place(() => _7[1], (value2) => _7[1] = value2)] as [rt.Place<rt.u16>, rt.Place<rt.u32>];
+}
+
 export function intoKeyValue$u16_u32_hashlink_DefaultHashBuilder(self: RawOccupiedEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.Place<rt.u16>, rt.Place<rt.u32>] {
 	const _7: [rt.u16, rt.u32] = Node.entryMut$u16_u32(self.entry.v);
 	return [rt.place(() => _7[0], (value) => _7[0] = value), rt.place(() => _7[1], (value2) => _7[1] = value2)] as [rt.Place<rt.u16>, rt.Place<rt.u32>];
@@ -34,6 +39,12 @@ export function toBack$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: RawOcc
 	const node: Node.Node<rt.Arc<string>, rt.u32> = self.entry.v;
 	detachNode$sync_Arc_str_u32(node);
 	attachBefore$sync_Arc_str_u32(node, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32(self.values.v));
+}
+
+export function toBack$u16_u32_hash_RandomState(self: RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState>): void {
+	const node: Node.Node<rt.u16, rt.u32> = self.entry.v;
+	detachNode$u16_u32(node);
+	attachBefore$u16_u32(node, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.values.v));
 }
 
 export function toBack$u16_u32_hashlink_DefaultHashBuilder(self: RawOccupiedEntryMut<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
@@ -50,6 +61,13 @@ export function toFront$u16_u32_hashlink_DefaultHashBuilder(self: RawOccupiedEnt
 
 export function replaceValue$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: RawOccupiedEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, value: rt.u32): rt.u32 {
 	const _7: [rt.Arc<string>, rt.u32] = Node.entryMut$sync_Arc_str_u32(self.entry.v);
+	const old = _7[1];
+	_7[1] = value;
+	return old;
+}
+
+export function replaceValue$u16_u32_hash_RandomState(self: RawOccupiedEntryMut<rt.u16, rt.u32, rt.RandomState>, value: rt.u32): rt.u32 {
+	const _7: [rt.u16, rt.u32] = Node.entryMut$u16_u32(self.entry.v);
 	const old = _7[1];
 	_7[1] = value;
 	return old;

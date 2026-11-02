@@ -33,6 +33,7 @@ generic std gap is planned here even when moq never calls it.
 - [A closure that drops given to a string's edit or search](/quest/m3/ts-string-closures.md) - `String::retain` and `str`'s searches by a closure that owns a value that drops translate
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
+- [Folds from the back, and a crate's own folds](/quest/m3/ts-iter-back-folds.md) - `rfold` and `try_rfold` translate, and so does a crate's iterator that overrides `fold` or `nth_back`
 - [A comparison of two constants](/quest/m3/ts-constant-compares.md) - `size_of::<T>() == 1` in a generic function translates to TypeScript `tsc` accepts
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number

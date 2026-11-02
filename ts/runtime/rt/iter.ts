@@ -60,6 +60,19 @@ export function exactHint(n: number): SizeHint {
 	return [n, n];
 }
 
+/**
+ * std's default `ExactSizeIterator::len` of `it`: its size hint's lower bound, which
+ * panics unless the upper bound is the same.
+ */
+function hintLen(it: Iter<unknown>): number {
+	const [lower, upper] = it.sizeHint();
+	if (upper !== lower) {
+		const left = upper === undefined ? "None" : `Some(${upper})`;
+		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`);
+	}
+	return lower;
+}
+
 /** std's hint of an adaptor that may yield fewer than `it`, and no more: none at least, and `it`'s upper bound. */
 function fewer(it: Iter<unknown>): SizeHint {
 	return [0, it.sizeHint()[1]];
@@ -529,9 +542,13 @@ export function iterSuccessors<T>(first: T | undefined | None, succ: (item: T) =
 	return new SuccessorsIter(first, succ, drop, none);
 }
 
-/** An `impl Iterator` of the translated crate, which `next` calls the `next` of, and `drop` drops. */
-export function iterFrom<S, T>(source: S, next: (source: S) => T | Done, drop?: Drop<S>): Iter<T> {
-	return new FromNext(source, next, drop);
+/**
+ * An `impl Iterator` of the translated crate, which `next` calls the `next` of, and `drop`
+ * drops. `hint`, `back`, and `len` call its own `size_hint`, `next_back`, and `len`, where
+ * it has them.
+ */
+export function iterFrom<S, T>(source: S, next: (source: S) => T | Done, drop?: Drop<S>, hint?: (source: S) => SizeHint, back?: (source: S) => T | Done, len?: (source: S) => number): Iter<T> {
+	return new FromNext(source, next, drop, hint, back, len);
 }
 
 /** An iterator borrowed by `&mut`, which std's adaptors take as one: its items, but never it to drop. */
@@ -1901,26 +1918,49 @@ class OptionIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/** An iterator whose `next` is a function of its source, which `drop` drops. */
+/**
+ * An iterator whose `next` is a function of its source, which `drop` drops, as are its
+ * `size_hint`, `next_back`, and `len` where it has them.
+ */
 class FromNext<S, T> extends Iter<T> implements Disposable {
 	private readonly source: S;
 	private readonly step: (source: S) => T | Done;
 	private drop: Drop<S> | undefined;
+	private readonly hint: ((source: S) => SizeHint) | undefined;
+	private readonly back: ((source: S) => T | Done) | undefined;
+	private readonly exact: ((source: S) => number) | undefined;
 
-	constructor(source: S, step: (source: S) => T | Done, drop?: Drop<S>) {
+	constructor(source: S, step: (source: S) => T | Done, drop?: Drop<S>, hint?: (source: S) => SizeHint, back?: (source: S) => T | Done, exact?: (source: S) => number) {
 		super();
 		this.source = source;
 		this.step = step;
 		this.drop = drop;
+		this.hint = hint;
+		this.back = back;
+		this.exact = exact;
 	}
 
 	next(): T | Done {
 		return this.step(this.source);
 	}
 
+	/** Only an iterator with its own `next_back` is read from the back. */
+	override nextBack(): T | Done {
+		return (this.back as (source: S) => T | Done)(this.source);
+	}
+
+	override sizeHint(): SizeHint {
+		return this.hint === undefined ? super.sizeHint() : this.hint(this.source);
+	}
+
+	/** Its own, or std's, of its size hint. */
+	override len(): number {
+		return this.exact === undefined ? hintLen(this) : this.exact(this.source);
+	}
+
 	/** Its source cloned by `h.v`, as the crate's own `Clone` of it. */
 	override clone(h?: Clones): Iter<T> {
-		return new FromNext(cloned(this.source, h?.v), this.step, this.drop);
+		return new FromNext(cloned(this.source, h?.v), this.step, this.drop, this.hint, this.back, this.exact);
 	}
 
 	[Symbol.dispose](): void {
@@ -2259,17 +2299,21 @@ class EnumerateIter<T> extends Adaptor<T, [number, T]> {
 		return item === DONE ? DONE : [this.index + this.inner.len(), item];
 	}
 
-	/** std's: its iterator folded, counting each item as it goes, and from the back from its length. */
+	/**
+	 * std's: its iterator folded, counting each item as it goes, and from the back down from
+	 * its length as the fold starts.
+	 */
 	override folded(fold = false): Iter<[number, T]> {
 		const inner = this.inner.folded(fold);
-		if (inner === this.inner) return this;
 		const front = (): [number, T] | Done => {
 			const item = inner.next();
 			return item === DONE ? DONE : [this.index++, item];
 		};
+		let i: number | undefined;
 		const back = (): [number, T] | Done => {
+			i ??= this.index + this.inner.len();
 			const item = inner.nextBack();
-			return item === DONE ? DONE : [this.index + this.inner.len(), item];
+			return item === DONE ? DONE : [--i, item];
 		};
 		return new Folded(front, back);
 	}
@@ -2490,8 +2534,9 @@ class ZipIter<A, B> extends Iter<[A, B]> implements Disposable {
 		return [a, b];
 	}
 
+	/** std's, of its size hint. */
 	override len(): number {
-		return Math.min(this.a.len(), this.b.len());
+		return hintLen(this);
 	}
 
 	/** std's: the shorter side's, where either knows its upper bound. */
@@ -2733,8 +2778,9 @@ class SkipIter<T> extends Adaptor<T, T> {
 		return this.len() > 0 ? this.inner.nextBack() : DONE;
 	}
 
+	/** std's, of its size hint. */
 	override len(): number {
-		return Math.max(this.inner.len() - this.n, 0);
+		return hintLen(this);
 	}
 
 	/** std's: what it skips and `n` more in one step, and the rest of `n` if that saturated a `usize`. */
@@ -2772,11 +2818,11 @@ class SkipIter<T> extends Adaptor<T, T> {
 
 	/**
 	 * std's: past what it skips by `nth`, one short of where `next` reads, then its iterator
-	 * folded, and from the back, its iterator folded down to what it skips.
+	 * folded, and from the back, its iterator folded down to what it skips, by its length
+	 * as the fold starts.
 	 */
 	override folded(fold = false): Iter<T> {
 		const inner = this.inner.folded(fold);
-		if (inner === this.inner) return this;
 		const front = (): T | Done => {
 			if (this.n > 0) {
 				const n = this.n;
@@ -2787,7 +2833,14 @@ class SkipIter<T> extends Adaptor<T, T> {
 			}
 			return inner.next();
 		};
-		return new Folded(front, () => (this.len() > 0 ? inner.nextBack() : DONE));
+		let left: number | undefined;
+		const back = (): T | Done => {
+			left ??= this.len();
+			if (left === 0) return DONE;
+			left--;
+			return inner.nextBack();
+		};
+		return new Folded(front, back);
 	}
 
 	/** std's: past what it skips by `nth`, and then its iterator's own. */
@@ -2849,8 +2902,9 @@ class TakeIter<T> extends Adaptor<T, T> {
 		return this.inner.nthBack(Math.max(this.inner.len() - n, 0), this.drop);
 	}
 
+	/** std's, of its size hint. */
 	override len(): number {
-		return Math.min(this.inner.len(), this.n);
+		return hintLen(this);
 	}
 
 	override advanceBy(n: number, drop?: Drop<T>): number {
@@ -2862,26 +2916,29 @@ class TakeIter<T> extends Adaptor<T, T> {
 
 	/**
 	 * std's: its iterator folded, counting each item it reads against the limit, and from
-	 * the back, past what it holds beyond the limit by `nth_back`, folded without counting.
+	 * the back, past what it holds beyond the limit by `nth_back` as the fold starts,
+	 * folded without counting.
 	 */
 	override folded(): Iter<T> {
 		const inner = this.inner.folded();
-		if (inner === this.inner) return this;
 		const front = (): T | Done => {
 			if (this.n === 0) return DONE;
 			const item = inner.next();
 			if (item !== DONE) this.n--;
 			return item;
 		};
+		let ended: boolean | undefined;
 		const back = (): T | Done => {
-			if (this.n === 0) return DONE;
-			const len = this.inner.len();
-			if (len > this.n) {
-				const item = this.inner.nthBack(len - this.n - 1, this.drop);
-				if (item === DONE) return DONE;
-				this.drop?.(item);
+			if (ended === undefined) {
+				ended = this.n === 0;
+				const len = ended ? 0 : this.inner.len();
+				if (len > this.n) {
+					const item = this.inner.nthBack(len - this.n - 1, this.drop);
+					if (item === DONE) ended = true;
+					else this.drop?.(item);
+				}
 			}
-			return inner.nextBack();
+			return ended ? DONE : inner.nextBack();
 		};
 		return new Folded(front, back);
 	}
@@ -3098,8 +3155,9 @@ class StepByIter<T> extends Adaptor<T, T> {
 		return this.firstTake ? (rem === 0 ? this.step : rem - 1) : rem;
 	}
 
+	/** std's, of its size hint. */
 	override len(): number {
-		return this.size(this.inner.len());
+		return hintLen(this);
 	}
 
 	override sizeHint(): SizeHint {
@@ -3160,6 +3218,17 @@ class StepByIter<T> extends Adaptor<T, T> {
 			if (done) return acc;
 		}
 		return foldBy(this, false, acc, f, release);
+	}
+
+	/** std's `try_rfold`: the last item by `next_back`, then each step back by `nth_back`. */
+	override folded(): Iter<T> {
+		let first = true;
+		const back = (): T | Done => {
+			if (!first) return this.inner.nthBack(this.step, this.drop);
+			first = false;
+			return this.nextBack();
+		};
+		return new Folded(() => this.next(), back);
 	}
 
 	/** std's: the last item by `next_back`, then each step back by `nth_back`. */
@@ -3735,9 +3804,9 @@ export class Peekable<T> extends Adaptor<T, T> {
 		return peeked;
 	}
 
+	/** std's, of its size hint. */
 	override len(): number {
-		if (!this.peeked) return this.inner.len();
-		return this.item === DONE ? 0 : this.inner.len() + 1;
+		return hintLen(this);
 	}
 
 	override [Symbol.dispose](): void {
