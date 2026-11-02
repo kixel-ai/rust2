@@ -491,6 +491,13 @@ export function copy$mem_MaybeUninit_array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
 
+export function copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
+	if (v === undefined) {
+		return v;
+	}
+	return [v[0], v[1]];
+}
+
 export function copy$mem_MaybeUninit_tuple2_array0_array0_u8_tuple2_u8_u8(v: [Uint8Array[], [rt.u8, rt.u8]]): [Uint8Array[], [rt.u8, rt.u8]] {
 	if (v === undefined) {
 		return v;

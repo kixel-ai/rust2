@@ -2338,6 +2338,12 @@ pub fn zeroed() -> u32 {
 	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
 }
 
+/// `ManuallyDrop`'s impls beyond holding a value: compared, formatted, and a constant.
+pub fn manual_impls(a: std::mem::ManuallyDrop<u32>, b: std::mem::ManuallyDrop<u32>) -> String {
+	const HELD: std::mem::ManuallyDrop<u32> = std::mem::ManuallyDrop::new(3);
+	format!("{a:?} {} {}", a == b, *HELD)
+}
+
 /// The tags of the first of two slots, each written whole as `fill` beside a pair of
 /// tags, then changed through a pointer to them.
 macro_rules! tagged_slots {
