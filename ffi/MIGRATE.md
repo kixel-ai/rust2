@@ -41,9 +41,11 @@
   contents through these instead, such as `bytes.toByteArray()` or `bytes[0]`. Rust's
   buffer is freed once the GC finds no `Bytes` reaching it, its slices included. A
   record's bytes field is a `Bytes` too: build one to pass in with `Bytes(byteArray)`.
-  Arguments stay `ByteArray`. Kotlin's objects never closed are freed once the GC
-  collects them, and an exported type named `bytes` clashes with the runtime's
-  `<prefix>_bytes`, which takes a `rename`.
+  A `Bytes` equals and hashes by its contents, where a `ByteArray` did by identity, so a
+  record holding bytes equals one holding the same, and keys a map by them; compare with
+  `===` for identity. Arguments stay `ByteArray`. Kotlin's objects never closed are freed
+  once the GC collects them, and an exported type named `bytes` clashes with the
+  runtime's `<prefix>_bytes`, which takes a `rename`.
 - A type parameter bounded by serde's `Serialize` or `Deserialize` takes
   `serde_json::Value`, not `String`: C passes a `<prefix>_json` it parses from JSON text
   with `<prefix>_json_parse`, not a buffer, and a generic type at such a parameter is
