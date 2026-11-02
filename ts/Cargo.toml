@@ -40,6 +40,13 @@ toml = "1.1.8"
 [lints]
 workspace = true
 
+# The differential tests' native side: optimized, since V8 runs a debug build's wasm several
+# times slower, with dev's overflow checks and debug assertions, so its panics match the
+# translation's.
+[profile.differential]
+inherits = "dev"
+opt-level = 1
+
 # The size-optimized profile moq's WASM shipped with: the benchmark's WASM route.
 [profile.wasm-release]
 inherits = "release"
