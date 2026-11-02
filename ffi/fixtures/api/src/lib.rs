@@ -195,6 +195,20 @@ pub fn divide(a: u64, b: u64) -> Result<(u64, u64), Error> {
 	}
 }
 
+/// The unit corner, borrowed for good, failing unless `unit`: a borrowed tuple returns as
+/// one value, not an out per element.
+pub fn corner(unit: bool) -> Result<&'static (u32, u32), Error> {
+	match unit {
+		true => Ok(&(1, 1)),
+		false => Err(Error::Overflow),
+	}
+}
+
+/// [`corner`]'s, from a future.
+pub async fn corner_later() -> &'static (u32, u32) {
+	&(1, 1)
+}
+
 /// `n` narrowed as [`widths`] does, unless 0: a tuple inside an `Option` is a struct.
 pub fn spread(n: u64) -> Option<(u8, i16, u32, u64)> {
 	(n != 0).then(|| widths(n))
@@ -539,6 +553,19 @@ impl Stamp {
 	}
 }
 
+/// A stamp and a count: a record holding an object, whose method reads it.
+pub struct Stamped {
+	pub at: Stamp,
+	pub count: u32,
+}
+
+impl Stamped {
+	/// Whole seconds at the stamp, plus the count.
+	pub fn total(&self) -> u64 {
+		self.at.secs() + u64::from(self.count)
+	}
+}
+
 /// A message: an object, since one field is private, whose `pub` fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
@@ -579,6 +606,12 @@ pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> 
 		let kept = scope.spawn(move || lines.iter().filter(|&&n| keep(n, &format!("line {n}"))).count());
 		kept.join().expect("the thread finishes") as u32
 	})
+}
+
+/// Logs a line once polled, returning whether it was kept: the future holds `log` until it
+/// is dropped.
+pub fn log_later(log: Box<dyn Log>) -> impl Future<Output = bool> + use<> {
+	async move { log.log(0, "later") }
 }
 
 /// Holds a foreign implementation as a trait object, dropping it with itself.
@@ -1313,6 +1346,11 @@ pub fn ports(addrs: Vec<std::net::SocketAddr>) -> Vec<u16> {
 	addrs.iter().map(std::net::SocketAddr::port).collect()
 }
 
+/// `ttl` doubled, saturating, so `Duration::MAX` stays forever.
+pub fn doubled_ttl(ttl: Duration) -> Duration {
+	ttl.saturating_mul(2)
+}
+
 /// `name` in `dir`.
 pub fn file(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
 	dir.join(name)
@@ -1493,4 +1531,23 @@ pub fn nexts(
 ) -> (std::net::SocketAddrV4, std::net::SocketAddrV6) {
 	v6.set_port(v6.port() + 1);
 	(std::net::SocketAddrV4::new(*v4.ip(), v4.port() + 1), v6)
+}
+
+/// Why [`refuse`] refused, which Rust returns only boxed.
+#[derive(Debug)]
+pub struct Refusal {
+	reason: String,
+}
+
+impl fmt::Display for Refusal {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "refused: {}", self.reason)
+	}
+}
+
+/// Always refuses, for `reason`.
+pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
+	Err(Box::new(Refusal {
+		reason: reason.to_string(),
+	}))
 }

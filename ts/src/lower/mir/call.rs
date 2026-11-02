@@ -341,10 +341,33 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return None;
 		}
 		let t = &*self.b.t;
+		// What `IntoIterator::into_iter` lends of a `&mut` to a collection, each element as
+		// its place.
+		let into_places = |ty: Ty<'tcx>| {
+			let ty = crate::lower::iter::unbox_ref(tcx, ty);
+			ty.ref_mutability() == Some(ty::Mutability::Mut)
+				&& match ty.peel_refs().kind() {
+					ty::Slice(_) | ty::Array(..) => true,
+					_ => matches!(
+						t.std_of(ty.peel_refs()),
+						Some(
+							Std::Vec
+								| Std::Option
+								| Std::Result
+								| Std::HashMap
+								| Std::HashTable
+								| Std::BTreeMap
+								| Std::VecDeque
+								| Std::LinkedList
+						)
+					),
+				}
+		};
 		// Mappings that lend an element JS copies as its place, as a map's `get_mut` does, the
 		// item a `Peekable` peeked, the place a `&mut dyn Any` wraps, a `RefCell` key's value,
-		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, or what a write guard
-		// lends its map or its leak.
+		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, what a write guard
+		// lends its map or its leak, or what `zip` makes of the collection it is given by
+		// `into_iter`.
 		let lends = match library::key(tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("slice", "get_mut" | "first_mut" | "last_mut" | "iter_mut" | "split_first_mut" | "split_last_mut")
@@ -361,26 +384,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					"RefMut" | "MutexGuard" | "MappedMutexGuard" | "RwLockWriteGuard" | "MappedRwLockWriteGuard",
 					"map" | "filter_map" | "try_map" | "map_split",
 				) => true,
-				("IntoIterator", "into_iter") => gargs.types().next().is_some_and(|ty| {
-					let ty = crate::lower::iter::unbox_ref(tcx, ty);
-					ty.ref_mutability() == Some(ty::Mutability::Mut)
-						&& match ty.peel_refs().kind() {
-							ty::Slice(_) | ty::Array(..) => true,
-							_ => matches!(
-								t.std_of(ty.peel_refs()),
-								Some(
-									Std::Vec
-										| Std::Option
-										| Std::Result
-										| Std::HashMap
-										| Std::HashTable
-										| Std::BTreeMap
-										| Std::VecDeque
-										| Std::LinkedList
-								)
-							),
-						}
-				}),
+				("IntoIterator", "into_iter") => gargs.types().next().is_some_and(into_places),
+				("Iterator", "zip") => gargs.types().nth(1).is_some_and(into_places),
 				_ => false,
 			},
 			None => false,
@@ -517,6 +522,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let old = self.swap_out(a, targ(0)?, c.0.clone(), Some("swapped"), span, out);
 				self.set_borrowed(&c, old, span, out);
+				done(Expr::undefined(), false)
+			}
+			// What `clone_from` leaves where the `&mut` borrows a boxed slice or text.
+			("Clone", "clone_from")
+				if targ(0).is_some_and(|t| {
+					library::box_slice(tcx, t).is_some() || t.boxed_ty().is_some_and(|t| t.is_str())
+				}) =>
+			{
+				let place = self.borrowed_place(&args[0].node, span, out)?;
+				let source = self.operand(&args[1].node, span, out);
+				let value = match library::box_slice(tcx, targ(0)?) {
+					Some(elem) => library::box_slice_clone_from(self.b, place.0.clone(), source, elem, span)?,
+					None => source,
+				};
+				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and

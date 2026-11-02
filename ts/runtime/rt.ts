@@ -808,6 +808,24 @@ export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((val
 	}
 }
 
+/** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
+export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void): T[] {
+	if (dst.length === src.length) {
+		sliceCloneFromSlice(dst, src, clone, drop);
+		return dst;
+	}
+	const v = clone === undefined ? src.slice() : src.map(clone);
+	if (drop !== undefined) for (const item of dst) drop(item);
+	return v;
+}
+
+/** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
+export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice): ByteSlice {
+	if (dst.length !== src.length) return byteSliceFrom(byteSliceToArray(src));
+	byteSliceCopyFromSlice(dst, src);
+	return dst;
+}
+
 function copyLengthFail(dst: number, src: number): never {
 	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`);
 }
@@ -1528,10 +1546,13 @@ function realloc(v: ByteVec, cap: number): void {
 	v.data = data;
 }
 
-/** The bytes of `v` as a `Vec<number>`, with its capacity, as a deque or heap takes it. */
+/**
+ * The bytes of `v` as a `Vec<number>`, with its capacity, as a deque or heap takes it:
+ * held, as `reserve` may have asked for it, though its length gives it now.
+ */
 export function byteVecToVec(v: ByteVec): number[] {
 	const out = Array.from(byteVecView(v));
-	capSet(out, out.length, v.data.length, 1);
+	capHold(out, v.data.length, 1);
 	return out;
 }
 

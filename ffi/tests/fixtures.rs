@@ -1,7 +1,8 @@
 //! The api fixture is exported, built as a static library, and driven from C by
 //! `tests/api.c`, from C++ by `tests/api.cpp`, from Kotlin by `tests/api.kt` on the JVM
-//! and, shrunk by R8, on Android, and from Swift by `tests/api.swift`, whose transcripts must
-//! match the fixture's own script run natively.
+//! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
+//! `tests/api.swift`, and from Go by `tests/api.go`, whose transcripts must match the
+//! fixture's own script run natively.
 //! The reject fixture's export must fail at each item it cannot export.
 
 use std::env::consts::EXE_SUFFIX;
@@ -85,16 +86,27 @@ fn api() -> &'static Api {
 		// The workspace's lockfile pins what the export depends on.
 		std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 		let target = scratch().join("api").join("glue");
-		let built = run(cargo()
-			.arg("build")
-			.arg("--quiet")
-			.arg("--manifest-path")
-			.arg(out.join("Cargo.toml"))
-			.arg("--target-dir")
-			.arg(&target)
-			.args(["--features", "kotlin"])
-			// Glue the exporter writes builds without warnings.
-			.env("RUSTFLAGS", "-D warnings --print=native-static-libs"));
+		let build = |feature: &str| {
+			run(cargo()
+				.arg("build")
+				.arg("--quiet")
+				.arg("--manifest-path")
+				.arg(out.join("Cargo.toml"))
+				.arg("--target-dir")
+				.arg(&target)
+				.args(["--features", feature])
+				// Glue the exporter writes builds without warnings.
+				.env("RUSTFLAGS", "-D warnings --print=native-static-libs"))
+		};
+		// The CPython extension's symbols would leave the C programs' links undefined, so
+		// it builds apart, before the library they link, and moves beside the Python.
+		build("python");
+		std::fs::rename(
+			target.join("debug").join(PYTHON_LIB),
+			out.join("python").join(PYTHON_LIB),
+		)
+		.unwrap();
+		let built = build("kotlin");
 		let native = String::from_utf8_lossy(&built.stderr)
 			.lines()
 			.find_map(|line| line.strip_prefix("note: native-static-libs: "))
@@ -474,6 +486,82 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	}
 }
 
+/// The library `python/api.py` loads from beside itself.
+const PYTHON_LIB: &str = match (cfg!(windows), cfg!(target_os = "macos")) {
+	(true, _) => "api.dll",
+	(_, true) => "libapi.dylib",
+	_ => "libapi.so",
+};
+
+/// `tests/api.py`'s script, run by `PYTHON` or `python3`, prints the native transcript; then
+/// its futures, what frees what nobody closed, the values Python's types bound, and each
+/// contract it fails loud on.
+#[test]
+fn api_python() {
+	let api = api();
+	let python = |dir: &Path, args: &[&str]| {
+		let mut cmd = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()));
+		// `-P` keeps `tests/` off the path, where `api.py` is this script; dev mode and
+		// warnings as errors fail on what the runtime only warns of.
+		cmd.args(["-P", "-X", "dev", "-W", "error"])
+			.arg(manifest_dir().join("tests").join("api.py"))
+			.args(args)
+			.env("PYTHONPATH", dir);
+		cmd
+	};
+	let dir = api.out.join("python");
+	let py = run(&mut python(&dir, &[]));
+	assert_eq!(
+		String::from_utf8_lossy(&py.stdout),
+		api.transcript,
+		"the Python transcript differs from the native one"
+	);
+	for case in ["futures", "owned", "values"] {
+		run(&mut python(&dir, &[case]));
+	}
+	for (case, message) in [
+		("moved", "ValueError: Counter is closed"),
+		("boxed moved", "ValueError: Node is closed"),
+		("lent kept", "ValueError: Counter is closed"),
+		(
+			"lent moved",
+			"api_counter_into_label: a lent handle's value cannot move out",
+		),
+		("callback threw", "api_fixture::Log::log: a call into Python raised"),
+		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
+	] {
+		let output = python(&dir, &[case]).output().unwrap();
+		assert!(!output.status.success(), "Python {case} did not fail");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "Python {case} printed {stderr}");
+	}
+
+	// The same Python, with another contract than the library's in place of its own,
+	// refuses to load it.
+	let mismatched = scratch().join("api").join("python-mismatched");
+	let _ = std::fs::remove_dir_all(&mismatched);
+	std::fs::create_dir_all(&mismatched).unwrap();
+	std::fs::copy(dir.join(PYTHON_LIB), mismatched.join(PYTHON_LIB)).unwrap();
+	let source = std::fs::read_to_string(dir.join("api.py")).unwrap();
+	let at = source
+		.find("_n.contract() != 0x")
+		.expect("the Python checks its contract")
+		+ 19;
+	let flipped = match &source[at..at + 1] {
+		"0" => "1",
+		_ => "0",
+	};
+	let source = format!("{}{flipped}{}", &source[..at], &source[at + 1..]);
+	std::fs::write(mismatched.join("api.py"), source).unwrap();
+	let output = python(&mismatched, &[]).output().unwrap();
+	assert!(!output.status.success(), "a mismatched contract did not fail");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("api.py and the library are from different builds"),
+		"a mismatched contract printed {stderr}"
+	);
+}
+
 /// The contract a Kotlin file checks its library against.
 fn kotlin_contract(kotlin: &Path) -> u64 {
 	let kotlin = std::fs::read_to_string(kotlin).unwrap();
@@ -591,6 +679,100 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 		cmd.arg("-target").arg(format!("{arch}-apple-macos{macos}"));
 	}
 	cmd.args(["-warnings-as-errors", "-I"]).arg(module);
+	cmd
+}
+
+/// The generated Go, vetted and built through cgo against the static library, runs
+/// `tests/api.go`'s script, its futures, and what closing and the GC free, then fails loud
+/// on each broken contract and on a library of another contract.
+#[test]
+fn api_go() {
+	let api = api();
+	// A module of the generated package beside the header, as the export lays them out,
+	// and the test.
+	let module = scratch().join("api").join("go");
+	let _ = std::fs::remove_dir_all(&module);
+	let package = module.join("api");
+	std::fs::create_dir_all(&package).unwrap();
+	std::fs::create_dir_all(module.join("include")).unwrap();
+	std::fs::copy(api.out.join("go").join("api.go"), package.join("api.go")).unwrap();
+	std::fs::copy(
+		api.out.join("include").join("api.h"),
+		module.join("include").join("api.h"),
+	)
+	.unwrap();
+	std::fs::copy(manifest_dir().join("tests").join("api.go"), module.join("main.go")).unwrap();
+	std::fs::write(module.join("go.mod"), "module apitest\n\ngo 1.24\n").unwrap();
+	let exe = module.join(format!("api-test{EXE_SUFFIX}"));
+	run(&mut go(&module, api, &["vet", "./..."]));
+	run(go(&module, api, &["build", "-o"]).arg(&exe));
+	let output = run(&mut Command::new(&exe));
+	assert_eq!(
+		String::from_utf8_lossy(&output.stdout),
+		api.transcript,
+		"the Go transcript differs from the native one"
+	);
+	run(Command::new(&exe).arg("futures"));
+	run(Command::new(&exe).arg("owned"));
+	run(Command::new(&exe).arg("closed"));
+	run(Command::new(&exe).arg("bytes"));
+	for (case, message) in [
+		(
+			"lent moved",
+			"api_counter_into_label: a lent handle's value cannot move out",
+		),
+		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("text", "api_greet: a string is not UTF-8"),
+		("callback panicked", "a log failed"),
+		("duration", "a Rust Duration past time.Duration's longest"),
+	] {
+		let output = Command::new(&exe).arg(case).output().unwrap();
+		assert!(!output.status.success(), "Go {case} did not fail");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "Go {case} printed {stderr}");
+	}
+
+	// The same package, with another contract than the library's in place of its own,
+	// refuses it when it loads.
+	let generated = std::fs::read_to_string(package.join("api.go")).unwrap();
+	let at = generated
+		.find("api_contract() != 0x")
+		.expect("the Go checks its contract")
+		+ "api_contract() != 0x".len();
+	let mut mismatched = generated.clone();
+	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
+	mismatched.replace_range(at..at + 1, digit);
+	std::fs::write(package.join("api.go"), mismatched).unwrap();
+	std::fs::write(
+		module.join("main.go"),
+		"package main\n\nimport \"apitest/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
+	)
+	.unwrap();
+	run(go(&module, api, &["build", "-o"]).arg(&exe));
+	let output = Command::new(&exe).output().unwrap();
+	assert!(!output.status.success(), "a mismatched contract did not fail");
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		stderr.contains("api.go and the library are from different builds"),
+		"a mismatched contract printed {stderr}"
+	);
+}
+
+/// The go command in `module`, linking cgo against the api fixture's static library.
+fn go(module: &Path, api: &Api, args: &[&str]) -> Command {
+	let mut ldflags = api.staticlib().into_os_string();
+	for lib in &api.native {
+		ldflags.push(" ");
+		ldflags.push(lib);
+	}
+	let mut cmd = Command::new("go");
+	cmd.args(args)
+		.current_dir(module)
+		.env("CGO_ENABLED", "1")
+		.env("CGO_LDFLAGS", ldflags)
+		// The module is no checkout of its own, and must build with the Go on PATH.
+		.env("GOFLAGS", "-buildvcs=false")
+		.env("GOTOOLCHAIN", "local");
 	cmd
 }
 
