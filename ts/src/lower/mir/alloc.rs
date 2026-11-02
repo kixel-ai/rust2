@@ -144,7 +144,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		self.alloc_root(op).is_some()
 	}
 
-	/// The local `alloc` or `realloc` returned the pointer `op` into, as the body shows.
+	/// The local `alloc` returned the pointer `op` into, as the body shows, or `realloc`
+	/// did, which keeps the type of the memory it grows when that is in the body too.
 	fn alloc_root(&self, op: &Operand<'tcx>) -> Option<Local> {
 		let local = self.traced(op)?;
 		if self.def_at[local].is_some() {
@@ -165,7 +166,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (def_id, _, args) = self.def_call(local)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
-			("alloc", "alloc" | "realloc") => library::is_std(self.tcx, def_id).then_some(local),
+			("alloc", "alloc") => library::is_std(self.tcx, def_id).then_some(local),
+			("alloc", "realloc") if library::is_std(self.tcx, def_id) => self.alloc_root(&args[0].node).or(Some(local)),
 			("NonNull", "new" | "new_unchecked" | "as_ptr")
 			| ("Option", "ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked")
 			| ("Result", "unwrap" | "expect" | "unwrap_unchecked")

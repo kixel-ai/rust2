@@ -2316,15 +2316,17 @@ pub fn bytes_as_values(bytes: [u8; 4]) -> u32 {
 }
 
 /// Memory from `alloc` cast to pointers to two types, which reads one's bytes as the
-/// other's.
+/// other's, also once `realloc` grows it.
 pub fn alloc_retyped() -> i32 {
 	let layout = std::alloc::Layout::new::<u32>();
 	unsafe {
 		let raw = std::alloc::alloc(layout);
 		raw.cast::<u32>().write(u32::MAX);
 		let n = (raw as *mut i32).read();
-		std::alloc::dealloc(raw, layout);
-		n
+		let grown = std::alloc::realloc(raw, layout, 8);
+		let m = grown.cast::<i32>().read();
+		std::alloc::dealloc(grown, std::alloc::Layout::array::<u32>(2).unwrap());
+		n + m
 	}
 }
 
