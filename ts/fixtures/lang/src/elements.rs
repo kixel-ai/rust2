@@ -380,7 +380,6 @@ pub fn edges(data: &[u8], out: &mut Vec<u8>) {
 		let row = [u32::from(n), 9, 10];
 		let unsized_lanes: *const [u32] = &raw const row;
 		out.push(unsized_lanes.is_null() as u8);
-		out.push(unsafe { (*unsized_lanes)[1] } as u8);
 		out.push(unsafe { (unsized_lanes as *const u32).add(2).read() } as u8);
 		let off = ptr::null::<u32>().wrapping_add(usize::from(n % 3) + 1);
 		out.push(
