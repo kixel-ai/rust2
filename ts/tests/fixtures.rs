@@ -373,9 +373,10 @@ fn lang_out() -> &'static Path {
 }
 
 fn lang_differential(out: &Path) {
-	// Hand-written callers, type-checked against the output they call: one runs it, and
-	// one mixes integer types, which `tsc` must refuse.
-	for file in ["caller.ts", "brands.ts"] {
+	// Hand-written callers, type-checked against the output they call: one runs it, with
+	// the one difference from native it accepts, and one mixes integer types, which `tsc`
+	// must refuse.
+	for file in ["caller.ts", "fma.ts", "brands.ts"] {
 		std::fs::copy(manifest_dir().join("fixtures/lang").join(file), out.join(file)).unwrap();
 	}
 	typecheck(out);

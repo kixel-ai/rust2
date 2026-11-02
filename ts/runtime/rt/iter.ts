@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecWithCapacity, type Capped, capOf, capReserve, capSet, Err, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecWithCapacity, type Capped, capOf, capReserve, capSet, Err, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, lt as wideLt, type Step } from "./int.ts";
@@ -471,7 +471,7 @@ function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: bool
 }
 
 function sliceCopy<T>(s: T[], start: number, end: number): T[] {
-	return s.slice(start, end);
+	return slicePart(s, start, end);
 }
 
 function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
