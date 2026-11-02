@@ -408,20 +408,23 @@ pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 }
 
 /// `value`, a `ty`, read through each box of an iterator, which std's `Iterator` for `Box<I>`
-/// forwards to and JS holds as itself, and each `&mut` to one, which reads through its
-/// `rt.Place` to a `&mut I`. A box of a trait object is the `rt.Iter` itself.
+/// forwards to and JS holds as itself, and a `&mut` to one, which reads through its
+/// `rt.Place` once to a `&mut I`. A box of a trait object is the `rt.Iter` itself.
 pub fn unbox_iter<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> (Ty<'tcx>, Expr) {
 	let tcx = b.t.tcx;
 	let held = |ty: Ty<'tcx>| ty.boxed_ty().filter(|held| b.t.iter_item(*held).is_some());
-	match *ty.kind() {
-		ty::Ref(region, inner, ty::Mutability::Mut) if let Some(held) = held(inner) => {
-			let value = b.t.pointee_value(ty, value);
-			unbox_iter(b, Ty::new_mut_ref(tcx, region, held), value)
+	let unboxed = |mut ty: Ty<'tcx>, trait_box: bool| {
+		while let Some(inner) = held(ty).filter(|inner| trait_box || !inner.is_trait()) {
+			ty = inner;
 		}
-		_ => match held(ty).filter(|held| !held.is_trait()) {
-			Some(held) => unbox_iter(b, held, value),
-			None => (ty, value),
-		},
+		ty
+	};
+	match *ty.kind() {
+		ty::Ref(region, inner, ty::Mutability::Mut) if held(inner).is_some() => {
+			let value = b.t.pointee_value(ty, value);
+			(Ty::new_mut_ref(tcx, region, unboxed(inner, true)), value)
+		}
+		_ => (unboxed(ty, false), value),
 	}
 }
 

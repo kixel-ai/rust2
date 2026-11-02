@@ -822,13 +822,16 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const second: rt.u8 | undefined = rt.iterToOption(dyns_Countdown.next$iter_Iterator(inner));
 		const erased: rt.Iter<rt.u8> = rt.iterDyn(new rt.Range(rt.u8Rem(a, 4), rt.u8Rem(b, 8)));
 		const third: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(erased)).next());
+		const doubled: dyns_Countdown.Countdown = new dyns_Countdown.Countdown(rt.u8Rem(a, 8));
+		const fourth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterFrom(doubled, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it))).next());
 		const mapped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterFrom(new dyns_Countdown.Countdown(rt.u8Rem(b, 8)), (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop), (x3: rt.u8): rt.u8 => {
 			return x3 ^ 1;
 		}), "next");
-		const _225: rt.ByteVec = rt.iterToByteVec(nested, "next");
-		const _227: rt.usize = rt.ownedCount(erased);
-		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_225), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(first, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(second, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(third, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(mapped), f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(_227, f)];
-		fmt_put(out, rt.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " "]));
+		const _233: rt.ByteVec = rt.iterToByteVec(nested, "next");
+		const _235: rt.usize = rt.ownedCount(erased);
+		const _238: rt.usize = rt.ownedCount(rt.iterFrom(doubled, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop));
+		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_233), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(first, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(second, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(third, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(fourth, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(mapped), f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(_235, f), (f: rt.Formatter) => rt.usizeDisplay(_238, f)];
+		fmt_put(out, rt.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " ", args14[6], " ", args14[7], " "]));
 		dropped(out);
 		inner[Symbol.dispose]();
 		dropped(out);
@@ -836,8 +839,8 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const lens_: rt.usize[] = rt.iterToArray(rt.iterMap(split.chunks$Chunks(), (a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		}), "next", 4);
-		const _266: rt.usize = rt.ownedCount(split.chunks$Chunks());
-		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_266, f)];
+		const _280: rt.usize = rt.ownedCount(split.chunks$Chunks());
+		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_280, f)];
 		fmt_put(out, rt.fmtFormat([args16[0], " ", args16[1]]));
 	}
 }
