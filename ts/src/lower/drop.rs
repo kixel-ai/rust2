@@ -76,11 +76,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Entry) => args.types().next().is_some_and(|k| self.drops(k)),
 				// The items of the `Vec` it owns.
 				Some(Std::Cow) => library::cow_slice(tcx, ty).is_some_and(|elem| self.drops(elem)),
-				// A `Vec`'s drain moves the vector's tail back as it drops, and a `String`'s takes
-				// the drained text out of it.
+				// A `Vec`'s drain moves the vector's tail back as it drops, a deque's joins the
+				// items before and after the range, and a `String`'s takes the drained text out
+				// of it.
 				None if {
 					let path = library::std_path(tcx, adt.did());
-					path == ["vec", "drain", "Drain"] || path == ["string", "Drain"]
+					path == ["vec", "drain", "Drain"]
+						|| path == ["collections", "vec_deque", "drain", "Drain"]
+						|| path == ["string", "Drain"]
 				} =>
 				{
 					true
@@ -257,6 +260,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// Each is its contents in JS.
 				Some(
 					Std::Option
+					| Std::ManuallyDrop
 					| Std::Box
 					| Std::Mutex
 					| Std::RefCell
