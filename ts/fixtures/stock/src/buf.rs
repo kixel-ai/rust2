@@ -372,12 +372,12 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	// Each first in turn, so each one's panic is reached.
 	for i in 0..6 {
 		match first.wrapping_add(i) % 6 {
-			0 => write_all(&mut vec, data),
-			1 => write_all(&mut buf, data),
-			2 => write_all(&mut &mut through_vec, data),
-			3 => write_all(&mut &mut through_buf, data),
-			4 => write_all(&mut boxed_vec, data),
-			_ => write_all(&mut boxed_buf, data),
+			0 => write_all(&mut vec, data, cap > 0),
+			1 => write_all(&mut buf, data, cap > 0),
+			2 => write_all(&mut &mut through_vec, data, cap > 0),
+			3 => write_all(&mut &mut through_buf, data, cap > 0),
+			4 => write_all(&mut boxed_vec, data, cap > 0),
+			_ => write_all(&mut boxed_buf, data, cap > 0),
 		}
 	}
 	// A buffer of the crate's own, in chunks as long as the room `chunk_mut` gives.
@@ -397,8 +397,8 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(&vec);
 }
 
-/// A write by each pair of `data`'s bytes.
-fn write_all<B: BufMut>(buf: &mut B, data: &[u8]) {
+/// A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds.
+fn write_all<B: BufMut>(buf: &mut B, data: &[u8], overflow: bool) {
 	let mut data = data;
 	while let [op, n, rest @ ..] = data {
 		data = rest;
@@ -418,8 +418,9 @@ fn write_all<B: BufMut>(buf: &mut B, data: &[u8]) {
 			10 => buf.put_int_le(v as i64, n as usize % 10),
 			11 => buf.put_slice(&[op, n]),
 			// Past what a vector holds, which panics as `Vec` does directly, and as
-			// `remaining_mut` says through a `&mut`.
-			12 if n == 0xff => buf.put_bytes(n, usize::MAX),
+			// `remaining_mut` says through a `&mut`. Not from zero capacity, where a `put`
+			// of a `Bytes` takes its storage, which `rt.BytesMut` refuses to reserve past.
+			12 if n == 0xff && overflow => buf.put_bytes(n, usize::MAX),
 			12 => buf.put_bytes(n, n as usize % 100),
 			13 => buf.put(Bytes::from_static(b"put")),
 			14 => buf.put(&[op; 70][..usize::from(n) % 71]),

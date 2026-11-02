@@ -131,7 +131,7 @@ pub fn folds() -> usize {
 	Folds.map(|b| b + 1).count()
 }
 
-/// An iterator with a `next_back`, which an adaptor over it would need.
+/// An iterator whose `nth_back` std's adaptors would call in place of its `next_back`.
 pub struct Backs;
 
 impl Iterator for Backs {
@@ -146,10 +146,14 @@ impl DoubleEndedIterator for Backs {
 	fn next_back(&mut self) -> Option<u8> {
 		None
 	}
+
+	fn nth_back(&mut self, _n: usize) -> Option<u8> {
+		Some(0)
+	}
 }
 
 pub fn backs() -> usize {
-	Backs.rev().count()
+	Backs.rev().skip(1).count()
 }
 
 /// JS compares objects by identity, not by `PartialOrd`.
@@ -160,41 +164,8 @@ pub fn keyed(range: std::ops::Range<Key>) -> bool {
 	range.contains(&Key(2))
 }
 
-/// An iterator whose `size_hint` std's `collect` calls beside its `next`.
-pub struct Hinted;
-
-impl Iterator for Hinted {
-	type Item = u8;
-
-	fn next(&mut self) -> Option<u8> {
-		None
-	}
-
-	fn size_hint(&self) -> (usize, Option<usize>) {
-		(0, Some(0))
-	}
-}
-
-pub fn hinted() -> Vec<u8> {
-	Hinted.collect()
-}
-
-/// An iterator that `fuse` reads on past its end, since it says it stays ended.
-pub struct Fused;
-
-impl Iterator for Fused {
-	type Item = u8;
-
-	fn next(&mut self) -> Option<u8> {
-		None
-	}
-}
-
-impl std::iter::FusedIterator for Fused {}
-
-pub fn fused() -> usize {
-	Fused.fuse().count()
-}
+/// A type of no bytes.
+pub struct Bare;
 
 /// A `skip` of a zip std reads by index, which a zip by index drops a pair at a time.
 pub fn skipped_zip(v: &[u8]) -> usize {
@@ -701,7 +672,7 @@ pub fn cell_field_replaced(n: u32) -> u32 {
 
 /// Pointers to places of no bytes, which Rust may put anywhere, `()`'s refused as made.
 pub fn units_compared() -> bool {
-	let (a, b, c, d) = ((), (), Fused, Fused);
+	let (a, b, c, d) = ((), (), Bare, Bare);
 	std::ptr::eq(&raw const a, std::ptr::NonNull::from(&b).as_ptr()) && std::ptr::eq(&raw const c, &raw const d)
 }
 

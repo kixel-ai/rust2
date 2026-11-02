@@ -280,7 +280,8 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
 moves read steps in place, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
-std's adaptors through `rt.iterFrom`. A caller calls `next()` for one item, or iterates
+std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, and `len` where std's adaptors
+call them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -888,7 +889,8 @@ another type it borrows as through the crate's own `Borrow`, a `&mut` to a value
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as `partition`), an
-own `impl Iterator` with `next_back`, `len`, or another provided method of its own,
+own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
+`size_hint` and `len`, such as `fold` or `nth_back`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes

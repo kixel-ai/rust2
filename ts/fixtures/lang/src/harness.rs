@@ -3,10 +3,10 @@
 
 use crate::{
 	args, arrays, ascii, atomics, borrows, bounds, boxes, capacity, captures, cells, chars, chunks, clones,
-	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, errors,
-	fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists, locals,
-	locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates, separated,
-	shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
+	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, ends,
+	errors, fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists,
+	locals, locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates,
+	separated, shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
 /// The native side's entry: [`run`], except that a case starting with 0xff prints a
@@ -289,6 +289,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
 		("collections::deque_ranges", collections::deque_ranges),
+		("ends::ends", ends::ends),
 		("elements::vecs", |_, data, out| elements::vecs(data, out)),
 		("elements::arrays", |_, data, out| elements::arrays(data, out)),
 		("elements::segments", |_, data, out| elements::segments(data, out)),

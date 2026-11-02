@@ -1,7 +1,7 @@
 //! `hashbrown`'s tables, which translation maps to the runtime's map as it maps std's, and
 //! `hashlink`'s, which translate from their source over a `HashTable`. A hash table's
 //! iteration order is unspecified, so only what does not depend on it is written, but a
-//! linked map's order is its own, and written as it is.
+//! linked map's order is its own, and written as it is, read from either end.
 
 use std::cell::Cell;
 use std::collections::hash_map::RandomState;
@@ -436,5 +436,74 @@ pub fn linked(data: &[u8], out: &mut Vec<u8>) {
 	while let Some((k, v)) = named.pop_front() {
 		out.extend_from_slice(k.as_bytes());
 		put(out, v as usize);
+	}
+}
+
+/// `it` read by each byte of `steps` from the front or the back, by `next`, `next_back`,
+/// `nth`, or `nth_back`, each item by `f` and then its size hint, and then the rest from
+/// the back.
+fn ends<I: DoubleEndedIterator>(mut it: I, steps: &[u8], out: &mut Vec<u8>, f: impl Fn(I::Item) -> usize) {
+	for &step in steps.iter().take(6) {
+		let n = usize::from(step >> 2) % 3;
+		let item = match step % 4 {
+			0 => it.next(),
+			1 => it.next_back(),
+			2 => it.nth(n),
+			_ => it.nth_back(n),
+		};
+		put(out, item.map_or(0x100, &f));
+		let (lower, upper) = it.size_hint();
+		put(out, lower);
+		put(out, upper.unwrap_or(0x100));
+	}
+	for item in it.rev() {
+		put(out, f(item));
+	}
+}
+
+/// `hashlink::LinkedHashMap`'s iterators, of up to 11 entries in the order `data`'s first
+/// byte inserts them, each read from either end and through std's adaptors.
+pub fn linked_iters(data: &[u8], out: &mut Vec<u8>) {
+	let [len, pick, steps @ ..] = data else {
+		return;
+	};
+	let mut m: LinkedHashMap<u16, u32, RandomState> = LinkedHashMap::with_hasher(RandomState::new());
+	for i in 0..u16::from(len % 12) {
+		m.insert((i * 5 + u16::from(len >> 4)) % 12, u32::from(i) * 3);
+	}
+	let k = usize::from(pick >> 3);
+	let entry = |(k, v): (&u16, &u32)| usize::from(*k) * 0x1000 + *v as usize;
+	match pick % 8 {
+		0 => ends(m.iter(), steps, out, entry),
+		1 => {
+			ends(m.iter_mut(), steps, out, |(k, v)| {
+				*v += 100;
+				usize::from(*k)
+			});
+			m.iter().for_each(|e| put(out, entry(e)));
+		}
+		2 => ends(m.keys(), steps, out, |k| usize::from(*k)),
+		3 => ends(m.values(), steps, out, |v| *v as usize),
+		4 => ends(m.into_iter(), steps, out, |(k, v)| usize::from(k) * 0x1000 + v as usize),
+		5 => {
+			ends(m.drain(), steps, out, |(k, v)| usize::from(k) * 0x1000 + v as usize);
+			put(out, m.len());
+		}
+		6 => {
+			let mut it = m.values_mut();
+			put(out, it.nth_back(k % 4).map_or(0x100, |v| *v as usize));
+			put(out, it.len());
+			it.rev().for_each(|v| *v += 1);
+			m.values().for_each(|v| put(out, *v as usize));
+		}
+		_ => {
+			let mut it = m.iter();
+			put(out, it.next().map_or(0x100, entry));
+			put(out, it.len());
+			let rest: Vec<usize> = it.rev().skip(k % 4).map(entry).collect();
+			put(out, rest.capacity());
+			rest.into_iter().for_each(|e| put(out, e));
+			put(out, m.keys().rposition(|k| k % 2 == 0).unwrap_or(0x100));
+		}
 	}
 }
