@@ -2,11 +2,18 @@
 
 ## Unreleased
 
+- Every export writes `python/<prefix>.py`, so an export fails when two items take the same
+  Python name, such as a type `Foo` beside an error type's `FooException`, or when one
+  takes a name the Python's runtime uses unqualified, each starting with `_`: give it
+  another name with a `rename`. The crate it writes has a build script, and a `python`
+  feature that builds the CPython extension the Python loads.
 - Every export writes `swift/<prefix>.swift`, whose runtime claims the C names
   `<prefix>_atomic_load`, `<prefix>_atomic_store`, `<prefix>_atomic_add`,
   `<prefix>_atomic_exchange`, `<prefix>_atomic_cas`, and `<PREFIX>_ATOMICS_H`. An item that
   clashes with one, or whose Swift name clashes with another's or with a standard library
   name the Swift uses, such as `Data`, takes a `rename`.
+- Every export writes `go/<prefix>.go`. An item whose Go name clashes with another's, or
+  with `Bound`, `Bytes`, `NewBytes`, `ErrClosed`, or a `Tuple<N>` the Go declares, takes a `rename`.
 - Kotlin returns bytes as a `Bytes`, not a `ByteArray`: Rust's buffer as `bytes.buffer`, a
   read-only `ByteBuffer`, copied up to 1 KiB and otherwise a direct one lent uncopied
   until `bytes.close()` frees it. Read it in `use { }`, or copy it out with

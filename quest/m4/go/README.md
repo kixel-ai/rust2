@@ -3,7 +3,7 @@
 ## Goal
 
 [rust2-go](/go/README.md) translates moq-net to pure Go, with no cgo, close enough to the
-exporter's [cgo bindings](/quest/m1/ffi-export/go.md) in speed that Go users can take it
+exporter's [cgo bindings](/ffi/README.md#go) in speed that Go users can take it
 in their place: `go get` installs it and it cross-compiles.
 
 ## Plan
