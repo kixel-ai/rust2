@@ -10,7 +10,9 @@
   such as moq's `path`, `timestamp`, and `url`, shares the handle rather than cloning in
   Rust, and a copy of one a closure lends, kept past the call, aborts. So do `Arc`- and
   `Rc`-backed types, such as moq's stats `registry`: an `Arc::strong_count` of what one
-  holds counts one for all its C++ copies, not one per copy.
+  holds counts one for all its C++ copies, not one per copy. A type whose copies share
+  has `<object>_borrowed` in the C header, which C++ asks before it moves out of the last
+  copy, so a method named `borrowed` on one takes a `rename`.
 - Swift's and Python's objects have no `close()`, and Python's are no context managers:
   an object's handle is freed once its last reference goes, in Swift's `deinit` or
   CPython's deallocation, so no reference can outlive it. Drop the reference instead of

@@ -126,7 +126,9 @@ refused, and the census counts why.
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
   there is no Rust caller to return an error to. A setter borrows as `&mut T` and takes
   its value as `T`, so it writes the value the handle holds, or the one Rust lent it,
-  while a getter's copy is C's own: a nested field is got, set, and set back.
+  while a getter's copy is C's own: a nested field is got, set, and set back. A type
+  whose C++ copies share one value has `_borrowed`, true while a call or future borrows
+  it, so moving it out would abort.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -202,10 +204,10 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
   `const`, and `self` methods are `&&`, so a call that moves the value out reads
   `std::move(c).into_label()`. A handle taken by value is moved into, by a parameter taken
-  by value; moving out of a shared copy another copy holds moves out a clone, leaving that
-  copy whole, as Rust leaves a clone. A call on a moved-from object, or one a call moved
-  the value out of, aborts; a dangling reference to an object is C++'s own undefined
-  behavior.
+  by value; moving out of a shared copy another copy holds, or a pending future borrows,
+  moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
+  moved-from object, or one a call moved the value out of, aborts; a dangling reference
+  to an object is C++'s own undefined behavior.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads

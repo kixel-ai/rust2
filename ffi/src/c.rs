@@ -212,6 +212,9 @@ impl Header<'_> {
 			let docs = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 			self.line(comment(docs.trim(), "").trim_end());
 			self.line(format!("void {name}_free({name} *self);"));
+			if object.shared {
+				self.line(format!("bool {name}_borrowed(const {name} *self);"));
+			}
 			let t = object.traits;
 			if t.clone {
 				self.line(format!("{name} *{name}_clone(const {name} *self);"));

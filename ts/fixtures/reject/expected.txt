@@ -233,6 +233,9 @@ a cast from a pointer to `u8` to one to `Halves`, which reads the bytes of one t
 a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2313:15
 unsupported call to `std::alloc::alloc_zeroed` at fixtures/reject/src/lib.rs:2338:13
 a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2338:12
+unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq` at fixtures/reject/src/lib.rs:2344:25
+a constant of type `std::mem::ManuallyDrop<u32>` at fixtures/reject/src/lib.rs:2344:34
+unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt` at fixtures/reject/src/lib.rs:2344:11
 memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2324:7
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2325:11
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2327:17
@@ -253,7 +256,7 @@ a raw pointer to `std::cell::UnsafeCell<u16>` in `InField`, which the crate may 
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InGeneric`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1300:9
 a raw pointer to `std::cell::UnsafeCell<u16>` in `InWritten`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1304:9
 a reference to `std::option::Option<Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there at fixtures/reject/src/lib.rs:2086:13
-a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2345:23
-a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2345:23
-a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2401:13
-a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2345:23
+a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2351:23
+a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2351:23
+a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2407:13
+a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2351:23
