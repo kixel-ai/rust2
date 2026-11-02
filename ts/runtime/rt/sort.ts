@@ -352,12 +352,13 @@ function smallSortGeneral<T>(c: Sort<T>, lo: number, hi: number): void {
 		buf[0] = s[lo];
 		buf[half] = s[lo + half];
 	}
-	for (const at of [0, half]) {
-		const want = at === 0 ? half : n - half;
-		for (let i = sorted; i < want; i++) {
-			buf[at + i] = s[lo + at + i];
-			insertTail(buf, at, at + i, less);
-		}
+	for (let i = sorted; i < half; i++) {
+		buf[i] = s[lo + i];
+		insertTail(buf, 0, i, less);
+	}
+	for (let i = sorted; i < n - half; i++) {
+		buf[half + i] = s[lo + half + i];
+		insertTail(buf, half, half + i, less);
 	}
 	bidirectionalMerge(buf, 0, n, s, lo, less);
 }
