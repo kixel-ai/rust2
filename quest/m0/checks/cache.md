@@ -18,4 +18,9 @@ installed one. What remains is the host: kixelated/nixos's `rust2` land instance
 configures an mbx cache, as its `moq-pro` instance does with `mbxCheck`. Check it by
 reading a gate run's log for mbx's cache summary.
 
+Through mbx 1.29.1, `uniffi_uitests` fails: the diagnostics of rustc runs that trybuild's
+nested cargo starts through mbx's wrapper keep the `${target}` placeholder mbx stores paths
+under, so trybuild cannot match its snapshots. `MBX_DISABLE=1` passes. Get it fixed in mbx
+(jdx/mr-boxington), or decide with the maintainer to keep that test off mbx meanwhile.
+
 Public API: none.
