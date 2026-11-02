@@ -50,6 +50,7 @@ import { lists as pointers_lists, shared as pointers_shared, places as pointers_
 import { refs, toRefs, adapted as refs_adapted, compared } from "./refs.ts";
 import { results as results_results } from "./results.ts";
 import { returns } from "./returns.ts";
+import { slices as rings_slices } from "./rings.ts";
 import { u8s as saturates_u8s, u16s as saturates_u16s, u32s as saturates_u32s, u64s as saturates_u64s, u128s as saturates_u128s, usizes as saturates_usizes, i8s as saturates_i8s, i16s as saturates_i16s, i32s as saturates_i32s, i64s as saturates_i64s, i128s as saturates_i128s, isizes as saturates_isizes } from "./saturates.ts";
 import { separated } from "./separated.ts";
 import { copies as shapes_copies, order as shapes_order, discriminants, loops, patterns, uninhabited, closures as shapes_closures, library, flows } from "./shapes.ts";
@@ -300,12 +301,14 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		hashes_own(data106, out107);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::compared", (a0159: rt.u8, a1159: rt.ByteSlice, a2159: rt.ByteVec): undefined => {
 		compared(a0159, a1159.data, a1159.start, a1159.length, a2159);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["rings::slices", (a0160: rt.u8, a1160: rt.ByteSlice, a2160: rt.ByteVec): undefined => {
+		rings_slices(a0160, a1160.data, a1160.start, a1160.length, a2160);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::objects", (_2207: rt.u8, data107: rt.ByteSlice, out108: rt.ByteVec): undefined => {
 		fmt_objects(data107, out108);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::sorts", (a0160: rt.u8, a1160: rt.ByteSlice, a2160: rt.ByteVec): undefined => {
-		sorts(a0160, a1160.data, a1160.start, a1160.length, a2160);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0162: rt.u8, a1162: rt.ByteSlice, a2162: rt.ByteVec): undefined => {
-		sorts_btrees(a0162, a1162.data, a1162.start, a1162.length, a2162);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::sorts", (a0161: rt.u8, a1161: rt.ByteSlice, a2161: rt.ByteVec): undefined => {
+		sorts(a0161, a1161.data, a1161.start, a1161.length, a2161);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a0163: rt.u8, a1163: rt.ByteSlice, a2163: rt.ByteVec): undefined => {
+		sorts_btrees(a0163, a1163.data, a1163.start, a1163.length, a2163);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

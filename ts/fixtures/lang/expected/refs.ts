@@ -576,7 +576,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 				return _25 > ((b4 as rt.u32));
 			}), (x3: rt.u32): rt.u32 => {
 				return rt.u32Div(x3, 2);
-			}), "next", 4);
+			}), "next", 4, false, 4);
 		})();
 		return held.length === 0;
 	}) as rt.u32)));
@@ -593,7 +593,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const swapped: rt.ByteVec = new rt.ByteVec();
 	for (const _39 of rt.byteSliceView(data)) {
 		const _45: rt.ByteVec = swap(_39);
-		rt.iterExtendBytes(swapped, rt.iterSlice(rt.byteVecView(_45)), undefined, true);
+		rt.iterExtendBytes(swapped, rt.byteVecIntoIter(_45), undefined, true);
 	}
 	const list: (a0: rt.u8) => undefined = (b6: rt.u8): undefined => {
 		const taken2 = pair[1].listed;
@@ -606,7 +606,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	for (const _57 of rt.byteSliceView(data)) {
 		const _63: rt.ByteVec = option_unwrapOrDefault$0wx44sw(restock(pair[1], _57));
-		rt.iterExtendBytes(swapped, rt.iterSlice(rt.byteVecView(_63)), undefined, true);
+		rt.iterExtendBytes(swapped, rt.byteVecIntoIter(_63), undefined, true);
 	}
 	const taken3 = pair[1].stale;
 	pair[1].stale = new rt.ByteVec();
@@ -753,7 +753,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const hash: rt.HashMap<rt.u8, [rt.u8, rt.u8]> = rt.hashNew() as rt.HashMap<rt.u8, [rt.u8, rt.u8]>;
 	const tree: rt.BTreeMap<rt.u8, rt.u32> = rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u32>;
-	const queue: rt.VecDeque<rt.u32> = rt.dequeNew() as rt.VecDeque<rt.u32>;
+	const queue: rt.VecDeque<rt.u32> = rt.dequeNew(4) as rt.VecDeque<rt.u32>;
 	for (const b2 of rt.byteSliceView(data)) {
 		rt.entryOrInsert(rt.entryAndModify(rt.entry(hash, rt.u8Rem(b2, 5)), (x9: [rt.u8, rt.u8]): undefined => {
 			x9[1] = rt.u8WrappingAdd(x9[1], b2);
@@ -1041,7 +1041,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, k3);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(x5)));
 	}
-	const iter36: rt.Iter<rt.u32> = rt.dequeIter(queue);
+	const iter36: rt.Iter<rt.u32> = rt.dequeIntoIter(queue);
 	while (true) {
 		const _590: rt.u32 | rt.Done = iter36.next();
 		if (_590 === rt.DONE) {

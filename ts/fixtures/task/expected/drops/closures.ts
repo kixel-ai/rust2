@@ -677,7 +677,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 		captured22[Symbol.dispose]();
 	});
 	rt.dropAfter(_475, () => rt.btreeRetain(map, _475, undefined, rt.drop));
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	const _479: Guard.Guard = guard(33);
 	rt.dequePushBack(queue, _479);
 	const _484: Guard.Guard = guard(34);

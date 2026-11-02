@@ -1103,8 +1103,9 @@ export function vecSwapRemove<T>(v: T[], i: number): T {
 	return item;
 }
 
-/** `Vec::extend_from_slice`: a clone of each element of `s`, pushed in order, as far as they clone. */
-export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, clone?: (item: T) => T): void {
+/** `Vec::extend_from_slice` of `size`-byte elements: room reserved for `s`, then a clone of each of its elements pushed in order, as far as they clone. */
+export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
+	vecReserve(v, s.length, size);
 	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
 }
 
@@ -1600,6 +1601,21 @@ export function vecReserveExact<T>(v: T[] & Capped, additional: number, size: nu
 /** `Vec::shrink_to` of `size`-byte elements, and `shrink_to_fit` of 0. */
 export function vecShrinkTo<T>(v: T[] & Capped, min: number, size: number): void {
 	capSet(v, v.length, capShrink(v.length, vecCapacity(v, size), min), size);
+}
+
+/**
+ * `clone`, the clone `clone_from` writes over `v`, with the capacity std's keeps of `v`'s
+ * for `size`-byte elements: as it was, or grown as `reserve` grows it if it held fewer.
+ */
+export function vecClonedInto<T>(clone: T[], v: T[] & Capped, size: number): T[] {
+	capHold(clone, capReserve(0, vecCapacity(v, size), clone.length, size), size);
+	return clone;
+}
+
+/** `vecClonedInto` of bytes. */
+export function byteVecClonedInto(clone: ByteVec, v: ByteVec): ByteVec {
+	byteVecReserveExact(clone, capReserve(0, v.data.length, clone.length, 1) - clone.length);
+	return clone;
 }
 
 /** `v`, a new `Vec` of `size`-byte elements, with room for exactly what it holds, as std's `clone` makes one. */
