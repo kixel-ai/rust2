@@ -2,7 +2,7 @@
 //! and `take`, cloned, and read and written through it as `Deref` and `DerefMut` lend it,
 //! as crossbeam-epoch's `Local` holds its collector and futures-util a waker.
 
-use std::mem::ManuallyDrop;
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::sync::Arc;
 
 /// The crate's struct holding values by hand, which its `Drop` drops one of.
@@ -24,13 +24,13 @@ fn held<T: Clone>(value: &T) -> ManuallyDrop<T> {
 }
 
 /// An `Arc` held by hand each way, its strong count after each: forgotten, given back,
-/// cloned through, dropped, taken, and in a struct whose `Drop` drops it, beside values
-/// JS copies written through it.
+/// cloned through, dropped, taken, in a struct whose `Drop` drops it, and in an `Arc` that
+/// drops, beside values JS copies written through it and copied while it may hold none.
 pub fn arcs(data: &[u8], out: &mut Vec<u8>) {
 	let shared = Arc::new(7u8);
 	let mut kept = Vec::new();
 	for &b in data {
-		match b % 7 {
+		match b % 9 {
 			0 => {
 				let _forgotten = ManuallyDrop::new(shared.clone());
 			}
@@ -61,6 +61,14 @@ pub fn arcs(data: &[u8], out: &mut Vec<u8>) {
 				let pair: &(u8, u16) = &h.pair;
 				out.extend((*h.count).to_le_bytes());
 				out.extend([pair.0, pair.1 as u8, **h.shared]);
+			}
+			6 => drop(Arc::new(held(&shared))),
+			7 => {
+				let mut slot = MaybeUninit::new(ManuallyDrop::new((b, u16::from(b) << 3)));
+				let copy = slot;
+				unsafe { slot.assume_init_mut().0 ^= 0x33 };
+				let (a, c) = (unsafe { copy.assume_init() }, unsafe { slot.assume_init() });
+				out.extend([a.0, a.1 as u8, c.0, c.1 as u8]);
 			}
 			_ => {
 				let mut m = ManuallyDrop::new([b, b ^ 1]);

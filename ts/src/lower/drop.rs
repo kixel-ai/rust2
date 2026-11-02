@@ -257,6 +257,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// Each is its contents in JS.
 				Some(
 					Std::Option
+					| Std::ManuallyDrop
 					| Std::Box
 					| Std::Mutex
 					| Std::RefCell

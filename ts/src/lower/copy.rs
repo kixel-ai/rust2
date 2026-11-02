@@ -251,6 +251,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					body.extend(self.copy_parts(args.type_at(0), true, span));
 					body
 				}
+				Some(Std::ManuallyDrop) => self.copy_parts(args.type_at(0), uninit, span),
 				Some(Std::Option) => ret(self.copy_unless(self.none(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Poll) => ret(self.copy_unless(self.pending(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Result) => ret(self.copy_result(args.type_at(0), args.type_at(1), span)),
