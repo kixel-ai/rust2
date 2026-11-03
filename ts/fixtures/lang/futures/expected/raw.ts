@@ -616,6 +616,11 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return a03 ? 1 : 0;
 	})), undefined, true);
 	rt.byteVecPush(out, rt.ptrErase(rt.ptrUnerase(byte2, "raw::Note", 2) as Note.Note, "raw::Note", 2) === unit ? 1 : 0);
+	const _174: [Byte.Byte, Byte.Byte] = [rt.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte, rt.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte];
+	const a: Byte.Byte = _174[0];
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([a === _174[1], a === rt.DANGLING, a === rt.NULL], (a04: boolean): rt.u8 => {
+		return a04 ? 1 : 0;
+	})), undefined, true);
 	rt.dropAll(wakers);
 }
 

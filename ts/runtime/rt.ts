@@ -195,7 +195,7 @@ export function ptrErase(p: object, type: string, align: number): Place<undefine
 export function ptrUnerase(p: Place<undefined>, type: string, align: number): unknown {
 	if (p === NULL) return NULL;
 	const addr = erasedAddress(p);
-	if (addr !== undefined) return addr === align ? DANGLING : new Address(addr);
+	if (addr !== undefined) return addr === align ? DANGLING : addressAt(addr);
 	const types = ERASED.get(p);
 	if (types?.includes(type)) return p;
 	const was = types === undefined ? "a value no cast to `*const ()` erased" : types.map((t) => `\`${t}\``).join(" or ");
@@ -263,6 +263,25 @@ class Address implements Place<never> {
 	set v(_: never) {
 		nowhere();
 	}
+}
+
+/** Each `Address` by its address, while any pointer holds it, so pointers at one compare as one. */
+const ADDRESSES = new Map<number, WeakRef<Address>>();
+
+/** Forget an address once no pointer holds its `Address`. */
+const UNHELD = new FinalizationRegistry<number>((addr) => {
+	if (ADDRESSES.get(addr)?.deref() === undefined) ADDRESSES.delete(addr);
+});
+
+/** The pointer at `addr`, which no memory is at: the same `Address` as every other one there. */
+function addressAt(addr: number): Address {
+	let at = ADDRESSES.get(addr)?.deref();
+	if (at === undefined) {
+		at = new Address(addr);
+		ADDRESSES.set(addr, new WeakRef(at));
+		UNHELD.register(at, addr);
+	}
+	return at;
 }
 
 function nowhere(): never {
@@ -349,7 +368,7 @@ export function ptrWrappingAdd<T>(p: Place<T>, n: number, size: number, align: n
 	if (p === NULL || p === DANGLING || p instanceof Address) {
 		const base = p === NULL ? 0 : p === DANGLING ? align : (p as Address).addr;
 		const addr = Number((BigInt(base) + BigInt(n | 0) * BigInt(size)) & 0xffffffffn);
-		return addr === 0 ? NULL : addr === align ? DANGLING : (new Address(addr) as Place<T>);
+		return addr === 0 ? NULL : addr === align ? DANGLING : (addressAt(addr) as Place<T>);
 	}
 	const e = elemOf(p);
 	return new AtIndex(e.array, wrapIndex(e.index, n | 0, size));

@@ -454,4 +454,7 @@ fn erased(data: &[u8], out: &mut Vec<u8>) {
 	let through = note as *const Byte as *const ();
 	out.extend([through == note, through == unit, through.cast::<Note>().is_null()].map(u8::from));
 	out.push((byte as *const Note as *const () == unit).into());
+	// Typed pointers at an address no type of theirs dangles at, compared as they are.
+	let (a, b) = (note as *const Byte, note.cast::<Byte>());
+	out.extend([a == b, a == NonNull::<Byte>::dangling().as_ptr(), a.is_null()].map(u8::from));
 }
