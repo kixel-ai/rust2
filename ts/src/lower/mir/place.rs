@@ -74,6 +74,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			return self.project(e, pty, place, n, span, out);
 		}
+		// Drop glue's pointer read whole, which a `&mut` to a value JS copies is: the place of
+		// the value it drops, which its parameter is.
+		if self.glue_pointer(place.local)
+			&& place.projection.is_empty()
+			&& self.b.t.place_pointee(self.mir.local_decls[place.local].ty).is_some()
+		{
+			let value = self.local_expr(place.local, span);
+			return self.place_of(value, None);
+		}
 		let decls = &self.mir.local_decls;
 		let mut pty = PlaceTy::from_ty(decls[place.local].ty);
 		let mut projection = place.projection.iter().peekable();
@@ -204,8 +213,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Deref => {
 					// Drop glue's pointer is the value it drops.
-					let glue =
-						matches!(self.env, Env::Shim) && place.local.as_u32() == 1 && pty.ty == decls[place.local].ty;
+					let glue = self.glue_pointer(place.local) && pty.ty == decls[place.local].ty;
 					// A box's pointer is the box, which is its contents.
 					let boxed = self.box_pointer(place.local);
 					if self.b.t.place_pointee(ty).is_some() && !glue && !boxed {

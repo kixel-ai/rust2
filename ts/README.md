@@ -445,7 +445,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
 through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
-hasher, hashes, finishes, then drops the hasher and the value.
+hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
+an enum, hashes as a struct one does, through the `rt.Place` its `&mut` is.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`

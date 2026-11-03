@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Partial from "./hashes.Partial.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 /** A key whose `Hash` sees only its low nibble. */
 export interface Nibble {
@@ -24,6 +25,10 @@ export function hash$Hash_hashes_Full(self: Nibble, state: Full.Full): void {
 
 export function hash$Hash_hashes_Partial(self: Nibble, state: Partial.Partial): void {
 	rt.hash8(self._0 & 15, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
+}
+
+export function hash$Hash_hashes_Switch(self: Nibble, state: rt.Place<Switch.Switch>): void {
+	rt.hash8(self._0 & 15, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 }
 
 //# sourceMappingURL=hashes.Nibble.ts.map

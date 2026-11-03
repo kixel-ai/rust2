@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Partial from "./hashes.Partial.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 export function hash$Hash_hash_DefaultHasher(self: Shape, state: rt.Hasher): void {
 	rt.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], state);
@@ -42,6 +43,16 @@ export function hash$Hash_hashes_Partial(self: Shape, state: Partial.Partial): v
 	} else if (self.tag === "Rect") {
 		rt.hashI16(self.w, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
 		rt.hashI16(self.h, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
+	}
+}
+
+export function hash$Hash_hashes_Switch(self: Shape, state: rt.Place<Switch.Switch>): void {
+	rt.hashIsize({ Dot: 0, Line: 1, Rect: 2 }[self.tag], new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	if (self.tag === "Line") {
+		rt.hash32(self._0, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	} else if (self.tag === "Rect") {
+		rt.hashI16(self.w, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+		rt.hashI16(self.h, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 	}
 }
 

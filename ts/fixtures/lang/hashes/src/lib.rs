@@ -22,5 +22,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("hashes::random", |_, data, out| hashes::random(data, out)),
 		("hashes::bytes", |_, data, out| hashes::bytes(data, out)),
 		("hashes::own", |_, data, out| hashes::own(data, out)),
+		("hashes::copied", |_, data, out| hashes::copied(data, out)),
 	]
 }
