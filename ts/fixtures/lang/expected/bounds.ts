@@ -179,7 +179,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			flush(out);
 			rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(bytes2)), undefined, true);
 		} else if (_28 === 2) {
-			const queue: rt.VecDeque<bounds_Item.Item> = rt.dequeNew() as rt.VecDeque<bounds_Item.Item>;
+			const queue: rt.VecDeque<bounds_Item.Item> = rt.dequeNew(1) as rt.VecDeque<bounds_Item.Item>;
 			const iter2: rt.Iter<[rt.usize, rt.u8]> = rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 4))));
 			while (true) {
 				const _104: [rt.usize, rt.u8] | rt.Done = iter2.next();

@@ -3,10 +3,10 @@
 
 use crate::{
 	args, arrays, ascii, atomics, borrows, bounds, boxes, capacity, captures, cells, chars, chunks, clones,
-	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, errors, fields,
-	floats, fmt, folds, generics, hashes, hints, holds, ints, iters, joins, keys, lengths, lists, locals, locks,
-	methods, nested, objects, orders, pointers, refs, results, returns, saturates, separated, shapes, singles, slices,
-	splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
+	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, ends,
+	errors, fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists,
+	locals, locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates,
+	searches, separated, shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
 /// The native side's entry: [`run`], except that a case starting with 0xff prints a
@@ -288,6 +288,29 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::maps", capacity::maps),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("collections::deque_ranges", collections::deque_ranges),
+		("ends::ends", ends::ends),
+		("elements::vecs", |_, data, out| elements::vecs(data, out)),
+		("elements::arrays", |_, data, out| elements::arrays(data, out)),
+		("elements::segments", |_, data, out| elements::segments(data, out)),
+		("elements::inline", |_, data, out| elements::inline(data, out)),
+		("elements::edges", |_, data, out| elements::edges(data, out)),
+		("heap::spills", |_, data, out| heap::spills(data, out)),
+		("heap::layouts", |_, data, out| heap::layouts(data, out)),
+		("heap::remnants", |_, data, out| heap::remnants(data, out)),
+		("manual::arcs", |_, data, out| manual::arcs(data, out)),
+		("elements::raw_slices", |_, data, out| elements::raw_slices(data, out)),
+		("elements::empty_parts", |_, data, out| elements::empty_parts(data, out)),
+		("hashes::own", |_, data, out| hashes::own(data, out)),
+		("refs::compared", refs::compared),
+		("rings::slices", rings::slices),
+		("fmt::objects", |_, data, out| fmt::objects(data, out)),
+		("sorts::sorts", sorts::sorts),
+		("sorts::disorders", sorts::disorders),
+		("sorts::btrees", sorts::btrees),
+		("dyns::pointers", |_, data, out| dyns::pointers(data, out)),
+		("searches::searches", searches::searches),
+		("searches::texts", searches::texts),
 		("errors::objects", |_, data, out| errors::objects(data, out)),
 	]
 }

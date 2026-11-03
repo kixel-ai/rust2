@@ -9,6 +9,34 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
+export function unwrapOr$0l7j3f6(self: rt.usize | undefined, default_: rt.usize): rt.usize {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
+export function map$0h57z6f(self: [rt.u16, rt.Place<rt.u32>] | undefined, f: (a0: [rt.u16, rt.Place<rt.u32>]) => rt.Place<rt.u32>): rt.Place<rt.u32> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$127uyaz(self: [rt.u16, rt.u32] | undefined, f: (a0: [rt.u16, rt.u32]) => rt.u16): rt.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1st5iv4(self: [rt.u16, rt.u32] | undefined, f: (a0: [rt.u16, rt.u32]) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function mapOr$1787w44(self: rt.Place<rt.u32> | undefined, default_: rt.usize, f: (a0: rt.Place<rt.u32>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
@@ -23,7 +51,21 @@ export function mapOr$0iaogpf(self: [rt.u16, rt.u32] | undefined, default_: rt.u
 	return f(self);
 }
 
+export function mapOr$0yixjb2(self: rt.u16 | undefined, default_: rt.usize, f: (a0: rt.u16) => rt.usize): rt.usize {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$1vcgixw(self: rt.u32 | undefined, default_: rt.usize, f: (a0: rt.u32) => rt.usize): rt.usize {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1noewr3(self: [rt.u16, rt.Place<rt.u32>] | undefined, default_: rt.usize, f: (a0: [rt.u16, rt.Place<rt.u32>]) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}

@@ -2,7 +2,7 @@ name: Nightly
 
 # The gates too slow for a pull request. A failure lands on main rather than in
 # review, which is the accepted trade; anything that must block a merge belongs
-# in check.yml.
+# in `just ci`.
 
 permissions:
   contents: read
@@ -17,6 +17,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The full check over every module, catching what a merge group's diff-scoped
+  # `just ci` let into main.
+  gate:
+    name: Gate
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/nix
+
+      - name: Gate
+        run: nix develop --command just gate
+
   moq:
     name: Translate moq-net
     runs-on: ubuntu-24.04-arm

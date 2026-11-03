@@ -4,10 +4,14 @@
 //! them, `self: Box<Self>`, and an upcast to the supertrait. Behind an `Arc`, the object
 //! shares the count of the `Arc` it was made from. A `dyn Any` downcasts to the type it
 //! was made of, borrowed, boxed, or shared. A `dyn Fn*` of a closure, a function, or a
-//! function pointer calls it, changing what it captured, borrowed, boxed, or shared.
+//! function pointer calls it, changing what it captured, borrowed, boxed, or shared. An
+//! `Rc`, a `Weak`, a `Pin`, and an `Rc` or an `Arc` made from a box hold one too.
 
 use std::any::Any;
+use std::cell::RefCell;
 use std::fmt::{self, Debug};
+use std::pin::Pin;
+use std::rc::{self, Rc};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Weak};
 
@@ -525,4 +529,197 @@ pub fn fns(data: &[u8], out: &mut Vec<u8>) {
 		out,
 		&format!("{} {} {}", shared(a), other(b), Arc::strong_count(&other)),
 	);
+}
+
+/// A shape that notes its id in a log as it drops.
+struct Noisy(u8, Rc<RefCell<Vec<u8>>>);
+
+impl Shape for Noisy {
+	fn area(&self) -> u32 {
+		u32::from(self.0)
+	}
+	fn grow(&mut self, by: u8) {
+		self.0 = self.0.wrapping_add(by);
+	}
+}
+
+impl Drop for Noisy {
+	fn drop(&mut self) {
+		self.1.borrow_mut().push(self.0);
+	}
+}
+
+/// A shape holding a `Weak` of itself as a trait object, made inside `Rc::new_cyclic`.
+struct Looped {
+	side: u8,
+	me: rc::Weak<dyn Shape>,
+}
+
+impl Shape for Looped {
+	fn area(&self) -> u32 {
+		u32::from(self.side) + 1
+	}
+	fn grow(&mut self, by: u8) {
+		self.side = self.side.wrapping_add(by);
+	}
+}
+
+/// Trait objects behind the rest of the pointers std coerces to one: an `Rc`, a `Weak` of
+/// an `Rc` or an `Arc`, a `Pin`, and an `Rc` or an `Arc` made from a box of one. Counts,
+/// upgrades, `downcast`, and what drops when.
+pub fn pointers(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, rest @ ..] = data else {
+		return;
+	};
+	let log = Rc::new(RefCell::new(Vec::new()));
+
+	// An `Rc` of each, an upcast, and a `Weak` unsized from one of the value's own type.
+	let sq = Rc::new(Square { side: u16::from(*a) });
+	let weak: rc::Weak<Square> = Rc::downgrade(&sq);
+	let weak: rc::Weak<dyn Shape> = weak;
+	let named: Rc<dyn Named> = sq.clone();
+	let shape: Rc<dyn Shape> = named.clone();
+	let other = Rc::downgrade(&shape);
+	put(
+		out,
+		&format!(
+			"{} {} {} {} {} {} ",
+			named.label(),
+			shape.area(),
+			Rc::strong_count(&sq),
+			rc::Weak::strong_count(&weak),
+			rc::Weak::weak_count(&weak),
+			rc::Weak::ptr_eq(&weak, &other),
+		),
+	);
+	let again = weak.clone();
+	drop(sq);
+	drop(named);
+	put(
+		out,
+		&format!("{:?} {} ", again.upgrade().map(|s| s.area()), Rc::strong_count(&shape)),
+	);
+	drop(shape);
+	put(
+		out,
+		&format!(
+			"{} {} {} ",
+			weak.upgrade().is_none(),
+			again.upgrade().is_none(),
+			rc::Weak::strong_count(&weak)
+		),
+	);
+
+	// Of an `Arc`, whose value drops with the last strong one while a `Weak` stays.
+	let noisy = Arc::new(Noisy(*b, log.clone()));
+	let weak: Weak<Noisy> = Arc::downgrade(&noisy);
+	let weak: Weak<dyn Shape> = weak;
+	put(out, &format!("{:?} ", weak.upgrade().map(|s| s.area())));
+	drop(noisy);
+	put(out, &format!("{:?} {:?} ", weak.upgrade().is_none(), log.borrow()));
+
+	// One coerced inside `new_cyclic`, before the value it points at is there.
+	let looped = Rc::new_cyclic(|me: &rc::Weak<Looped>| Looped {
+		side: *a,
+		me: me.clone(),
+	});
+	put(
+		out,
+		&format!(
+			"{:?} {} {} ",
+			looped.me.upgrade().map(|s| s.area()),
+			Rc::strong_count(&looped),
+			Rc::weak_count(&looped),
+		),
+	);
+
+	// Pinned: through a box, which drops what it holds, and through a `&mut`.
+	{
+		let pinned: Pin<Box<dyn Shape>> = Box::pin(Noisy(a.wrapping_add(1), log.clone()));
+		let mut n = u32::from(*b);
+		let borrowed: Pin<&mut u32> = Pin::new(&mut n);
+		let borrowed: Pin<&mut dyn Shape> = borrowed;
+		put(
+			out,
+			&format!("{} {} {} ", pinned.area(), pinned.sides(), borrowed.area()),
+		);
+	}
+	put(out, &format!("{:?} ", log.borrow()));
+
+	// From a box of one: an `Rc` or an `Arc` that drops it with the last clone.
+	let boxes: Vec<Box<dyn Shape>> = rest
+		.iter()
+		.map(|&x| match x % 3 {
+			0 => Box::new(Noisy(x, log.clone())) as Box<dyn Shape>,
+			1 => Box::new(u32::from(x)),
+			_ => Box::new(Tri::Tall(x)),
+		})
+		.collect();
+	let mut rcs: Vec<Rc<dyn Shape>> = Vec::new();
+	let mut arcs: Vec<Arc<dyn Shape>> = Vec::new();
+	for (i, boxed) in boxes.into_iter().enumerate() {
+		match i % 2 {
+			0 => rcs.push(Rc::from(boxed)),
+			_ => arcs.push(boxed.into()),
+		}
+	}
+	let kept: Vec<Rc<dyn Shape>> = rcs.iter().step_by(2).cloned().collect();
+	let areas: Vec<u32> = rcs
+		.iter()
+		.map(|s| s.area())
+		.chain(arcs.iter().map(|s| s.area()))
+		.collect();
+	put(out, &format!("{areas:?} "));
+	log.borrow_mut().clear();
+	drop(arcs);
+	put(out, &format!("{:?} ", log.borrow()));
+	drop(rcs);
+	put(out, &format!("{:?} ", log.borrow()));
+	drop(kept);
+	put(out, &format!("{:?} ", log.borrow()));
+
+	// `Rc::downcast`, of one made from the value's own `Rc`, and of one made from a box,
+	// which shares its count with what it gives back.
+	let any: Rc<dyn Any> = Rc::new(Square { side: u16::from(*b) });
+	let wrong = any.clone().downcast::<Tri>().is_err();
+	match any.downcast::<Square>() {
+		Ok(sq) => put(out, &format!("{wrong} {} {} ", sq.side, Rc::strong_count(&sq))),
+		Err(_) => put(out, "none "),
+	}
+	let boxed: Box<dyn Any> = Box::new(Noisy(b.wrapping_add(1), log.clone()));
+	let any: Rc<dyn Any> = Rc::from(boxed);
+	let held = any.clone();
+	// Two downcasts of one, and each erased again, are still the one allocation.
+	if let (Ok(x), Ok(y)) = (any.clone().downcast::<Noisy>(), held.clone().downcast::<Noisy>()) {
+		let (ex, ey): (Rc<dyn Any>, Rc<dyn Any>) = (x.clone(), y.clone());
+		put(
+			out,
+			&format!(
+				"{} {} {} {} ",
+				Rc::ptr_eq(&x, &y),
+				Rc::ptr_eq(&ex, &ey),
+				Rc::ptr_eq(&ex, &held),
+				Rc::strong_count(&x),
+			),
+		);
+	}
+	log.borrow_mut().clear();
+	match any.downcast::<Noisy>() {
+		Ok(n) => {
+			put(out, &format!("{} {} ", n.0, Rc::strong_count(&n)));
+			drop(held);
+			put(out, &format!("{} {:?} ", Rc::strong_count(&n), log.borrow()));
+		}
+		Err(_) => put(out, "none "),
+	}
+	put(out, &format!("{:?} ", log.borrow()));
+	let boxed: Box<dyn Any + Send + Sync> = Box::new(u32::from(*a));
+	let shared: Arc<dyn Any + Send + Sync> = boxed.into();
+	put(out, &format!("{:?} ", shared.downcast::<u32>().ok().map(|n| *n)));
+
+	// Functions, shared by an `Rc` and from a box.
+	let f: Rc<dyn Fn(u8) -> u8> = Rc::new(move |x| x.wrapping_add(*a));
+	let boxed: Box<dyn Fn(u8) -> u8> = Box::new(move |x| x ^ *b);
+	let g: Arc<dyn Fn(u8) -> u8> = Arc::from(boxed);
+	put(out, &format!("{} {}", f(*b), g(*a)));
 }

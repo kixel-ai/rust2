@@ -9,7 +9,7 @@
 import { fmtCharDebug, type Place, panic, panicFmt, stringLen } from "../rt.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
 import type { char, u8, usize } from "./int.ts";
-import { type Clones, DONE, type Done, Iter, iterForEach, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
+import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 
 const encoder = /* @__PURE__ */ new TextEncoder();
@@ -228,6 +228,50 @@ class Chars extends Iter<char> {
 	}
 }
 
+/** `str::char_indices`. */
+export function strCharIndices(s: string): Iter<[usize, char]> {
+	return new CharIndices(new Chars(s));
+}
+
+class CharIndices extends Iter<[usize, char]> {
+	readonly #chars: Chars;
+	// The bytes before the front, and before the back once it first moves.
+	#front = 0;
+	#back = -1;
+
+	constructor(chars: Chars) {
+		super();
+		this.#chars = chars;
+	}
+
+	next(): [usize, char] | Done {
+		const c = this.#chars.next();
+		if (c === DONE) return DONE;
+		const at = this.#front;
+		this.#front += charLen(c);
+		return [at as usize, c];
+	}
+
+	override nextBack(): [usize, char] | Done {
+		if (this.#back < 0) this.#back = this.#front + stringLen(this.#chars.rest());
+		const c = this.#chars.nextBack();
+		if (c === DONE) return DONE;
+		this.#back -= charLen(c);
+		return [this.#back as usize, c];
+	}
+
+	override sizeHint(): SizeHint {
+		return this.#chars.sizeHint();
+	}
+
+	override clone(): Iter<[usize, char]> {
+		const it = new CharIndices(this.#chars.clone() as Chars);
+		it.#front = this.#front;
+		it.#back = this.#back;
+		return it;
+	}
+}
+
 /**
  * std's searcher of a pattern in `s` between `front` and `back`, in code units. Each step
  * finds the next match from one end, `start` to `end`, and moves that end past it. A
@@ -238,8 +282,10 @@ class Searcher {
 	readonly #p: Pattern;
 	#front = 0;
 	#back: number;
-	// An empty pattern matches before each char and after the last, as std's does.
+	// An empty pattern matches before each char and after the last, as std's does, from
+	// whichever end it searches.
 	#matched = false;
+	#matchedBack = false;
 	start = 0;
 	end = 0;
 
@@ -255,6 +301,7 @@ class Searcher {
 		m.#front = this.#front;
 		m.#back = this.#back;
 		m.#matched = this.#matched;
+		m.#matchedBack = this.#matchedBack;
 		m.start = this.start;
 		m.end = this.end;
 		return m;
@@ -298,6 +345,15 @@ class Searcher {
 	nextMatchBack(): boolean {
 		const { s } = this;
 		const p = this.#p;
+		if (p === "") {
+			if (this.#matchedBack) {
+				if (this.#back <= this.#front) return false;
+				this.#back = before(s, this.#back);
+			}
+			this.#matchedBack = true;
+			this.start = this.end = this.#back;
+			return true;
+		}
 		if (typeof p === "string") {
 			const from = this.#back - p.length;
 			const i = from < this.#front ? -1 : s.lastIndexOf(p, from);
@@ -324,23 +380,83 @@ class Searcher {
 
 /** `str::split`. */
 export function strSplit(s: string, p: Pattern): Iter<string> {
-	return new Split(new Searcher(s, p));
+	return new Split(new Searcher(s, p), true);
 }
 
+/** `str::rsplit`: `split` from the back. */
+export function strRsplit(s: string, p: Pattern): Iter<string> {
+	return iterRev(strSplit(s, p));
+}
+
+/** `str::split_terminator`: `split`, without the empty part after a last match. */
+export function strSplitTerminator(s: string, p: Pattern): Iter<string> {
+	return new Split(new Searcher(s, p), false);
+}
+
+/** `str::rsplit_terminator`: `split_terminator` from the back. */
+export function strRsplitTerminator(s: string, p: Pattern): Iter<string> {
+	return iterRev(strSplitTerminator(s, p));
+}
+
+/** `str::splitn`: `split`, whose `n`th part is the rest. */
+export function strSplitn(s: string, n: usize, p: Pattern): Iter<string> {
+	return new Split(new Searcher(s, p), true, false, n);
+}
+
+/** `str::rsplitn`: `splitn` from the back. */
+export function strRsplitn(s: string, n: usize, p: Pattern): Iter<string> {
+	return iterRev(strSplitn(s, n, p));
+}
+
+/** `str::split_inclusive`: `split_terminator`, each part ending with the match after it. */
+export function strSplitInclusive(s: string, p: Pattern): Iter<string> {
+	return new Split(new Searcher(s, p), false, true);
+}
+
+/** `str::lines`: the parts ending with `\n`, without it or a `\r` before it. */
+export function strLines(s: string): Iter<string> {
+	return iterMap(strSplitInclusive(s, "\n"), (line) => {
+		if (!line.endsWith("\n")) return line;
+		return line.slice(0, line.endsWith("\r\n") ? -2 : -1);
+	});
+}
+
+/** `str::split_whitespace`: the parts between Unicode whitespace, but empty ones. */
+export function strSplitWhitespace(s: string): Iter<string> {
+	return iterFilter(strSplit(s, charIsWhitespace), (part) => part !== "");
+}
+
+/** `char::is_whitespace`: Unicode's `White_Space`. */
+export function charIsWhitespace(c: char): boolean {
+	if (c <= 0x20) return c === 0x20 || (c >= 0x09 && c <= 0x0d);
+	if (c < 0x85) return false;
+	return c === 0x85 || c === 0xa0 || c === 0x1680 || (c >= 0x2000 && c <= 0x200a) || c === 0x2028 || c === 0x2029 || c === 0x202f || c === 0x205f || c === 0x3000;
+}
+
+/** std's `SplitInternal`, and with a count, `SplitNInternal`. */
 class Split extends Iter<string> {
 	readonly #m: Searcher;
 	#start = 0;
 	#end: number;
+	// Whether an empty last part is yielded, which `nextBack` sets once it has passed it.
+	#trailing: boolean;
+	// Whether a part keeps the match that ends it.
+	readonly #inclusive: boolean;
+	// The parts left before the rest is the last, as `splitn` counts them.
+	#count: number;
 	#finished = false;
 
-	constructor(m: Searcher) {
+	constructor(m: Searcher, trailing: boolean, inclusive = false, count = Infinity) {
 		super();
 		this.#m = m;
 		this.#end = m.s.length;
+		this.#trailing = trailing;
+		this.#inclusive = inclusive;
+		this.#count = count;
 	}
 
 	override clone(h?: Clones): Iter<string> {
-		const it = new Split(this.#m.clone(h));
+		const it = new Split(this.#m.clone(h), this.#trailing, this.#inclusive, this.#count);
 		it.#start = this.#start;
 		it.#end = this.#end;
 		it.#finished = this.#finished;
@@ -348,33 +464,90 @@ class Split extends Iter<string> {
 	}
 
 	next(): string | Done {
+		if (this.#count === 0) return DONE;
+		if (--this.#count === 0) return this.#rest();
 		if (this.#finished) return DONE;
 		const m = this.#m;
-		if (m.nextMatch()) {
-			const part = m.s.slice(this.#start, m.start);
-			this.#start = m.end;
+		if (!m.nextMatch()) return this.#rest();
+		const part = m.s.slice(this.#start, this.#inclusive ? m.end : m.start);
+		this.#start = m.end;
+		return part;
+	}
+
+	override nextBack(): string | Done {
+		if (this.#count === 0) return DONE;
+		if (--this.#count === 0) return this.#rest();
+		return this.#back();
+	}
+
+	#back(): string | Done {
+		if (this.#finished) return DONE;
+		if (!this.#trailing) {
+			// The last part, unless it is empty, as std's does.
+			this.#trailing = true;
+			const part = this.#back();
+			if (part !== DONE && part !== "") return part;
+			if (this.#finished) return DONE;
+		}
+		const m = this.#m;
+		if (m.nextMatchBack()) {
+			const part = m.s.slice(m.end, this.#end);
+			this.#end = this.#inclusive ? m.end : m.start;
 			return part;
 		}
 		this.#finished = true;
 		return m.s.slice(this.#start, this.#end);
 	}
 
-	override nextBack(): string | Done {
+	/** std's `get_end`: what is left, once, unless it is an empty last part `trailing` drops. */
+	#rest(): string | Done {
 		if (this.#finished) return DONE;
-		const m = this.#m;
-		if (m.nextMatchBack()) {
-			const part = m.s.slice(m.end, this.#end);
-			this.#end = m.start;
-			return part;
-		}
 		this.#finished = true;
-		return m.s.slice(this.#start, this.#end);
+		return this.#trailing || this.#start < this.#end ? this.#m.s.slice(this.#start, this.#end) : DONE;
+	}
+}
+
+/** `str::matches`. */
+export function strMatches(s: string, p: Pattern): Iter<string> {
+	return new Matches(new Searcher(s, p));
+}
+
+/** `str::rmatches`: `matches` from the back. */
+export function strRmatches(s: string, p: Pattern): Iter<string> {
+	return iterRev(strMatches(s, p));
+}
+
+class Matches extends Iter<string> {
+	readonly #m: Searcher;
+
+	constructor(m: Searcher) {
+		super();
+		this.#m = m;
+	}
+
+	override clone(h?: Clones): Iter<string> {
+		return new Matches(this.#m.clone(h));
+	}
+
+	next(): string | Done {
+		const m = this.#m;
+		return m.nextMatch() ? m.s.slice(m.start, m.end) : DONE;
+	}
+
+	override nextBack(): string | Done {
+		const m = this.#m;
+		return m.nextMatchBack() ? m.s.slice(m.start, m.end) : DONE;
 	}
 }
 
 /** `str::match_indices`: each match, after its offset in UTF-8 bytes. */
 export function strMatchIndices(s: string, p: Pattern): Iter<[usize, string]> {
 	return new MatchIndices(new Searcher(s, p));
+}
+
+/** `str::rmatch_indices`: `match_indices` from the back. */
+export function strRmatchIndices(s: string, p: Pattern): Iter<[usize, string]> {
+	return iterRev(strMatchIndices(s, p));
 }
 
 class MatchIndices extends Iter<[usize, string]> {
@@ -464,6 +637,59 @@ export function strTrimEndMatches(s: string, p: Pattern): string {
 	return s.slice(0, end);
 }
 
+/**
+ * `str::trim_matches`: without the matches at either end. A predicate is called from the
+ * front up to the first char it rejects, then from the back up to that char, as std's is.
+ */
+export function strTrimMatches(s: string, p: Pattern): string {
+	if (typeof p === "string") return strTrimEndMatches(strTrimStartMatches(s, p), p);
+	let start = 0;
+	while (start < s.length && p(s.codePointAt(start) as char)) start += (s.codePointAt(start) as number) > 0xffff ? 2 : 1;
+	// The char it rejected, which the back stops after.
+	const floor = start < s.length ? start + ((s.codePointAt(start) as number) > 0xffff ? 2 : 1) : start;
+	let end = s.length;
+	while (end > floor) {
+		const i = before(s, end);
+		if (!p(s.codePointAt(i) as char)) break;
+		end = i;
+	}
+	return s.slice(start, end);
+}
+
+/** `str::strip_prefix`: what follows a match at the start, which a predicate tests the first char for. */
+export function strStripPrefix(s: string, p: Pattern): string | undefined {
+	if (typeof p === "string") return s.startsWith(p) ? s.slice(p.length) : undefined;
+	if (s.length === 0) return undefined;
+	const c = s.codePointAt(0) as number;
+	return p(c as char) ? s.slice(c > 0xffff ? 2 : 1) : undefined;
+}
+
+/** `str::strip_suffix`: what precedes a match at the end, which a predicate tests the last char for. */
+export function strStripSuffix(s: string, p: Pattern): string | undefined {
+	if (typeof p === "string") return s.endsWith(p) ? s.slice(0, s.length - p.length) : undefined;
+	if (s.length === 0) return undefined;
+	const i = before(s, s.length);
+	return p(s.codePointAt(i) as char) ? s.slice(0, i) : undefined;
+}
+
+/** `str::find`: the first match's offset in UTF-8 bytes. */
+export function strFind(s: string, p: Pattern): usize | undefined {
+	const m = new Searcher(s, p);
+	return m.nextMatch() ? (utf8Len(s, 0, m.start) as usize) : undefined;
+}
+
+/** `str::replace`, and `replacen` of the first `n` matches. */
+export function strReplace(s: string, p: Pattern, to: string, n = Infinity): string {
+	const m = new Searcher(s, p);
+	let out = "";
+	let last = 0;
+	for (let i = 0; i < n && m.nextMatch(); i++) {
+		out += s.slice(last, m.start) + to;
+		last = m.end;
+	}
+	return out + s.slice(last);
+}
+
 /** `str::rfind`: the last match's offset in UTF-8 bytes. */
 export function strRfind(s: string, p: Pattern): usize | undefined {
 	const m = new Searcher(s, p);
@@ -488,6 +714,12 @@ export function strEndsWith(s: string, p: Pattern): boolean {
 export function strSplitOnce(s: string, p: Pattern): [string, string] | undefined {
 	const m = new Searcher(s, p);
 	return m.nextMatch() ? [s.slice(0, m.start), s.slice(m.end)] : undefined;
+}
+
+/** `str::rsplit_once`: the text before the last match and after it. */
+export function strRsplitOnce(s: string, p: Pattern): [string, string] | undefined {
+	const m = new Searcher(s, p);
+	return m.nextMatchBack() ? [s.slice(0, m.start), s.slice(m.end)] : undefined;
 }
 
 /** `str::is_char_boundary`: whether byte `i` starts a char, or is the end. */

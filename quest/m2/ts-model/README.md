@@ -1,4 +1,4 @@
-# Translate moq-net's model to TypeScript
+# [L] Translate moq-net's model to TypeScript
 
 ## Goal
 
@@ -29,7 +29,7 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 `cache::Pool`, `listing::Tracks`, `time::Timestamp`): 4,595 refusals over 1,112 items.
 2,588 are calls into the workspace crates, and 424 items refuse nothing else.
 
-- This is an epic; each group of refusals is a child below. moq must work, but nothing in
+- Each group of refusals is its own quest. moq must work, but nothing in
   the translator is specific to moq: dependencies follow general rules, and moq's own
   changes (safe `cfg` twins of its `unsafe`, dropping or binding `hashlink`, `slab`, and
   `smallvec`) are one research-tier quest in moq's tree.
@@ -46,9 +46,3 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
 Public API: the translator's output for moq-net's model.
-
-## Required
-
-- [The std calls moq's main added to the model](/quest/m2/ts-model/main-std.md) - `VecDeque::range`, and `str::rsplit_once` and `split_terminator` by a `char`, translate
-- [A crate's own hasher](/quest/m2/ts-model/own-hasher.md) - hashlink's default hasher, a crate's own `Hasher`, hashes keys as native's does
-- [A crate's own iterator traits](/quest/m2/ts-model/iter-traits.md) - hashlink's double-ended, exact-size, and fused iterators, and their `size_hint`

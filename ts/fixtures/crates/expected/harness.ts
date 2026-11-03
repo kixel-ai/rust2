@@ -73,14 +73,27 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		}
 		rt.byteVecPush(out, _143);
 	}
+	const _151: rt.Iter<rt.u8> = rt.iterRev(rt.iterFrom(Countdown.new(rt.min(input.length, 5) & 0xff), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), undefined, undefined, (it: Countdown.Countdown) => rt.iterFromOption(Countdown.nextBack$iter_DoubleEndedIterator(it))));
+	rt.iterExtendBytes(out, _151, "next");
+	const both: Countdown.Countdown = Countdown.new(rt.min(input.length, 6) & 0xff);
+	while (true) {
+		const _160: rt.u8 | undefined = Countdown.nextBack$iter_DoubleEndedIterator(both);
+		if (_160 !== undefined) {
+			rt.byteVecPush(out, _160);
+			const _168: rt.u8 | undefined = rt.iterToOption(Countdown.next$iter_Iterator(both));
+			rt.iterExtendBytes(out, rt.iterOption(_168), undefined, true);
+		} else {
+			break;
+		}
+	}
 	const kept: rt.i16[] = [(input.length << 16) >> 16, 7];
 	const filled: rt.i16[] = copy$array_i16(kept);
 	Slots.fill(Slots.withBase(kept[0]), filled);
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(kept[0] & 0xff, kept[1] & 0xff, filled[0] & 0xff, filled[1] & 0xff)), undefined, true);
-	const _181: rt.u8 = first(input.data, input.start, input.length);
-	rt.byteVecPush(out, _181);
-	const _184: rt.u8 = last.last(input);
-	rt.byteVecPush(out, _184);
+	const _202: rt.u8 = first(input.data, input.start, input.length);
+	rt.byteVecPush(out, _202);
+	const _205: rt.u8 = last.last(input);
+	rt.byteVecPush(out, _205);
 	log[Symbol.dispose]();
 	return out;
 }

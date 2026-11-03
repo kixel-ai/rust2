@@ -110,7 +110,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return Some(object.clone());
 		}
 		// A trait of a crate translated from source is as the crate's own.
-		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) {
+		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) && !is_buf(tcx, principal) {
 			self.unrepresented(
 				span,
 				format!("`{ty}`, a trait object of another crate's trait, which is not supported yet"),
@@ -153,6 +153,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 				// Of `Error`, only `source`: `type_id`'s `TypeId` has no JS value, `provide` is
 				// unstable, and `description` and `cause` are deprecated.
 				if is_error(tcx, tr) && tcx.item_name(def_id).as_str() != "source" {
+					continue;
+				}
+				// `Buf::chunks_vectored`, whose `IoSlice` has no JS value.
+				if is_buf(tcx, tr) && tcx.item_name(def_id).as_str() == "chunks_vectored" {
 					continue;
 				}
 				let name = format!("{}${}", super::camel(tcx.item_name(def_id).as_str()), tcx.item_name(tr));
@@ -366,6 +370,14 @@ pub fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_error(tcx, p))
 }
 
+/// Whether `def_id` is `bytes`' `Buf`, whose provided methods translate from its MIR for
+/// a buffer the mapping doesn't name.
+fn is_buf(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+	super::stock::is_stock(tcx, def_id)
+		&& tcx.crate_name(def_id.krate).as_str() == "bytes"
+		&& tcx.item_name(def_id).as_str() == "Buf"
+}
+
 /// Whether `ty` is a `dyn Any`.
 pub fn is_any_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_any(tcx, p))
@@ -435,6 +447,22 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		if let Some(f) = self.t.dyn_fn(object) {
 			return self.fn_object(value, from, f.kind);
 		}
+		// A box of a value to write, as a `&dyn Debug` of it is, which owns and drops it.
+		if let Some(tr) = principal(object).and_then(|p| super::fmt::Trait::of(self.t.tcx, p)) {
+			return match pointee.kind() {
+				_ if principal(pointee) == principal(object) => value,
+				_ if pointee.is_trait() || !from.is_box() => unsupported(self),
+				_ if self.t.polymorphic() && pointee.has_param() => Expr::undefined(),
+				_ => {
+					let write = self.fmt_fn(tr, pointee, span);
+					let args = [value, write]
+						.into_iter()
+						.chain(self.t.drop_fn(pointee, span))
+						.collect();
+					Expr::rt("fmtOwned", args)
+				}
+			};
+		}
 		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
 		}
@@ -503,8 +531,8 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	}
 }
 
-/// A call of `dyn Any`'s `is`, `downcast_ref`, or `downcast_mut`, or of `Box`'s or `Arc`'s
-/// `downcast`, each of which checks for the class a coercion wrapped a value of its type
+/// A call of `dyn Any`'s `is`, `downcast_ref`, or `downcast_mut`, or of `Box`'s, `Arc`'s, or
+/// `Rc`'s `downcast`, each of which checks for the class a coercion wrapped a value of its type
 /// in, or its arguments back if it is none of these.
 pub fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -517,7 +545,7 @@ pub fn call<'tcx>(
 	let tcx = b.t.tcx;
 	if !matches!(
 		(owner, name),
-		("dyn Any", "is" | "downcast_ref" | "downcast_mut") | ("Box" | "Arc", "downcast")
+		("dyn Any", "is" | "downcast_ref" | "downcast_mut") | ("Box" | "Arc" | "Rc", "downcast")
 	) {
 		return Err(args);
 	}
@@ -570,7 +598,14 @@ pub fn call<'tcx>(
 			Box::new(Expr::result(false, o.clone())),
 		),
 		// The `Arc` the object was made from, whose count the object shares.
-		_ => Expr::rt("arcDowncast", vec![o, Expr::Sym(value.sym)]),
+		_ => {
+			let held = crate::ts::Param {
+				name: "object".into(),
+				ty: None,
+			};
+			let held = Expr::Lambda(vec![held], Box::new(Expr::ident("object").field(value.v)));
+			Expr::rt("arcDowncast", vec![o, Expr::Sym(value.sym), held])
+		}
 	};
 	Ok(Some(e))
 }

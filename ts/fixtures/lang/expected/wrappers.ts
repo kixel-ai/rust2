@@ -342,7 +342,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecPush(out, rt.btreeLen(rt.btreeExtendKeys(rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u64>, rt.iterBorrow(_166), true, undefined, undefined, 8, true)) & 0xff);
 		bounds$ops_RangeInclusive_u64(out, keyed);
 		const queued: rt.RangeInclusive<rt.u64> = new rt.RangeInclusive(lo, hi, rt.u64Step);
-		rt.byteVecPush(out, ((rt.dequeFromVec(rt.iterToArray(rt.iterBorrow(queued), undefined, 8, true)) as rt.VecDeque<rt.u64>)).n & 0xff);
+		rt.byteVecPush(out, ((rt.dequeFromVec(rt.iterToArray(rt.iterBorrow(queued), undefined, 8, true), 8) as rt.VecDeque<rt.u64>)).n & 0xff);
 		bounds$ops_RangeInclusive_u64(out, queued);
 		const hashed: rt.RangeInclusive<rt.u64> = new rt.RangeInclusive(lo, hi, rt.u64Step);
 		const _186: rt.RangeInclusive<rt.u64> = hashed;
@@ -354,7 +354,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecPush(out, held.length & 0xff);
 		bounds$ops_RangeInclusive_u64(out, extended);
 		const narrow: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(rt.u64Low(lo) & 0xff, rt.u64Low(hi) & 0xff, rt.u8Step);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(rt.iterToByteVec(rt.iterBorrow(narrow), undefined, true))), undefined, true);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterBorrow(narrow), undefined, true)), undefined, true);
 		rt.byteVecPush(out, rt.rangeInclusiveStart(narrow));
 		rt.byteVecPush(out, rt.rangeInclusiveIsEmpty(narrow) ? 1 : 0);
 		bounds$ops_RangeTo_u64(out, { end: b });
@@ -451,9 +451,9 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const ranked: [rt.u8, rt.usize][] = rt.iterToArray(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_23: [rt.usize, rt.u8]): [rt.u8, rt.usize] => {
 			return [_23[1], _23[0]] as [rt.u8, rt.usize];
 		}), undefined, 8, true);
-		rt.sliceSortByKey(ranked, (_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
+		rt.sliceSort(ranked, rt.keyLt((_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
 			return [rt.u8Rem(_25[0], 4), _25[1]] as [rt.u8, rt.usize];
-		}, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp])));
+		}, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp]))), 8, true);
 		for (const _487 of ranked) {
 			const d: rt.u8 = _487[0];
 			const i2: rt.usize = _487[1];

@@ -14,6 +14,8 @@ elements through raw pointers, so each refuses with its span:
 - `Vec::append`, `resize`, `resize_with`, `split_off`, `extend_from_within`, and
   `try_reserve`, and `VecDeque`'s `append`, `resize`, and `split_off`.
 - `From<VecDeque<T>>` for `Vec<T>`.
+- `VecDeque::range_mut` of items JS copies, which `range` and `iter_mut` translate but its
+  places do not.
 
 A vector's capacity follows only std's guarantees, at least its length and what
 `with_capacity` and `reserve` ask for, and doubles as it grows (decided with the

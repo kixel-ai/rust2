@@ -18,6 +18,9 @@ import {
 	type Place,
 	panic,
 	type RangeInclusive,
+	type Result,
+	Err,
+	Ok,
 } from "../rt.ts";
 import type { usize } from "./int.ts";
 
@@ -210,6 +213,57 @@ export function bufCopyToBytes<B>(
 		limit -= s.length;
 	}
 	return bytesMutFreeze(out);
+}
+
+/** `bytes::TryGetError`: what a `try_get_*` asked for, and what remained. */
+interface TryGetError {
+	requested: usize;
+	available: usize;
+}
+
+/**
+ * `Buf::try_get_*` of an integer of `size` bytes as `bytes` provides it, of a buffer read
+ * through its own methods: an error if fewer remain, and else the integer `decode` makes of
+ * its bytes, the other way around if `le`, read from its chunk and then advanced past, or
+ * copied out by `copyToSlice` where the chunk holds fewer.
+ */
+export function bufTryGet<B, T>(
+	src: B,
+	size: usize,
+	le: boolean,
+	decode: (bytes: Uint8Array) => T,
+	remaining: (src: B) => usize,
+	chunk: (src: B) => ByteSlice,
+	advance: (src: B, cnt: usize) => void,
+	copyToSlice: (src: B, dst: ByteSlice) => void,
+): Result<T, TryGetError> {
+	if (remaining(src) < size) return Err({ requested: size, available: remaining(src) });
+	const c = chunk(src);
+	let bytes: Uint8Array;
+	if (c.length >= size) {
+		bytes = c.data.slice(c.start, c.start + size);
+		advance(src, size);
+	} else {
+		bytes = new Uint8Array(size);
+		copyToSlice(src, new ByteSlice(bytes, 0, size));
+	}
+	return Ok(decode(le ? bytes.reverse() : bytes));
+}
+
+/** `Buf::get_*` as `bufTryGet` reads it, panicking where it fails. */
+export function bufGet<B, T>(
+	src: B,
+	size: usize,
+	le: boolean,
+	decode: (bytes: Uint8Array) => T,
+	remaining: (src: B) => usize,
+	chunk: (src: B) => ByteSlice,
+	advance: (src: B, cnt: usize) => void,
+	copyToSlice: (src: B, dst: ByteSlice) => void,
+): T {
+	const got = bufTryGet(src, size, le, decode, remaining, chunk, advance, copyToSlice);
+	if (!got.ok) panicAdvance(got.error.requested, got.error.available);
+	return got.value;
 }
 
 /** `Buf::get_*` of `Bytes`: its first `n` bytes, the other way around if `le`, read past. */

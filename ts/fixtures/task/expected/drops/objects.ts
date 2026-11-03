@@ -222,7 +222,7 @@ export function anys(log: Log.Log, id: rt.u32): void {
 	Log.note(log, rt.fmtFormat(["clones ", args8[0]]));
 	const a: rt.Arc<Any.Any> = clones[0];
 	const b: rt.Arc<Any.Any> = clones[1];
-	const typed: rt.Arc<[Guard.Guard, Guard.Guard]> | undefined = ok$02syyam(rt.arcDowncast(a, Any.of$tuple2_model_Guard_model_Guard));
+	const typed: rt.Arc<[Guard.Guard, Guard.Guard]> | undefined = ok$02syyam(rt.arcDowncast(a, Any.of$tuple2_model_Guard_model_Guard, (object) => object.v));
 	const part4 = option_map$06e51ml(typed, (t: rt.Arc<[Guard.Guard, Guard.Guard]>): [rt.u32, rt.usize] => {
 		return [Guard.id(t.value[0]), t.strong] as [rt.u32, rt.usize];
 	});

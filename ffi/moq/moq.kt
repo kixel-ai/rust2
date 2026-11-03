@@ -84,7 +84,7 @@ fun main() {
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	val hello = frame!!
-	expect(hello.payload.use { it.toByteArray().decodeToString() } == "hello", "a frame has its payload")
+	expect(hello.payload.toByteArray().decodeToString() == "hello", "a frame has its payload")
 	expect(hello.timestamp == null, "an untimed frame has no timestamp")
 	// When it arrived: moq-clock's `Instant`, from moq-clock's own export.
 	expect(now().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
@@ -106,7 +106,7 @@ fun main() {
 	writer.writeFrame(null, world)
 	writer.finish()
 	runBlocking {
-		expect(first.readFrame()?.payload?.use { it.toByteArray().contentEquals(world) } == true, "the last frame reads")
+		expect(first.readFrame()?.payload?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
 		expect(first.readFrame() == null, "a finished group reads null")
 	}
 
@@ -179,7 +179,7 @@ fun main() {
 	expect(audio.sampleRate == 48000u, "Opus decodes at 48 kHz")
 	expect(audio.channelCount == 2u, "the head is stereo")
 	expect(audio.codec == CatalogAudioCodec.Opus, "the codec is Opus")
-	expect(audio.description?.use { it.toByteArray().contentEquals(head) } == true, "the head is the description")
+	expect(audio.description?.toByteArray()?.contentEquals(head) == true, "the head is the description")
 	// A truncated head is moq-mux's error.
 	try {
 		codecOpusAudioConfig(head.copyOf(8))
@@ -219,7 +219,7 @@ fun main() {
 	Json.parse("""{"on": true}""").use { status.update(it) }
 	runBlocking {
 		val frame = status.consume().recvGroup()?.readFrame()
-		expect(frame?.payload?.use { it.toByteArray().decodeToString() } == """{"on":true}""", "a subscriber reads the latest value")
+		expect(frame?.payload?.toByteArray()?.decodeToString() == """{"on":true}""", "a subscriber reads the latest value")
 	}
 	catalog.mutate { lent ->
 		val sections = lent.ext
@@ -342,7 +342,7 @@ fun main() {
 
 			val subscriber = remote.requestBroadcast("live", null).track("video").subscribe(null)
 			val frame = subscriber.recvGroup()?.readFrame()
-			expect(frame?.payload?.use { it.toByteArray().decodeToString() } == "hello", "a session reads the frame the server serves")
+			expect(frame?.payload?.toByteArray()?.decodeToString() == "hello", "a session reads the frame the server serves")
 
 			established.close_()
 			client.close_()

@@ -51,14 +51,17 @@ Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 
 than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
 [quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
 
+Decided with the maintainer on 2026-11-02
+([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
+`ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
+
 ## Required
 
 - [moq-clock's C names once it moves into kio](/quest/m1/ffi-export/crates.md) - `moq_now` and `moq_origin` become the clock's, after moq moves it into `kio::clock`
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
-- [Kotlin and Swift: boxed options and parameters apart](/quest/m1/ffi-export/fixture-shapes.md) - the generated Kotlin and Swift compile an object's option behind a box or one-tuple, and parameters whose names differ only in underscores
 - [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
 - [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit
-- [Dart bindings](/quest/m1/ffi-export/dart.md) - Dart over the C ABI through `dart:ffi`
-- [A moq checkout per pin](/quest/m1/ffi-export/moq-checkouts.md) - `just ts` and `just ffi` check out their own moq revisions, so both run at once
+- [Dart: calls into a held implementation while the isolate waits](/quest/m1/ffi-export/dart-threads.md) - an implementation Rust kept and calls from another thread runs, or fails loud, while the isolate waits in a call
+- [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
 - [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go
-- [Lifetimes with no undefined behavior](/quest/m1/ffi-export/lifetimes.md) - no `close()` in Swift or Python, errors after `close()` in Kotlin and Go, GC-owned bytes, and C++ smart pointers

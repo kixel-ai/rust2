@@ -77,7 +77,6 @@ impl Iterator for Countdown {
 	}
 }
 
-#[cfg(feature = "rev")]
 impl DoubleEndedIterator for Countdown {
 	fn next_back(&mut self) -> Option<u8> {
 		if self.next == self.last {
@@ -126,7 +125,7 @@ fn read(bytes: &[u8]) -> u8 {
 pub fn last(bytes: &[u8]) -> u8 {
 	assert!(!bytes.is_empty(), "no last byte");
 	// SAFETY: it holds a byte.
-	unsafe { *bytes.as_ptr().add(bytes.len() - 1) }
+	unsafe { *bytes.as_ptr().byte_add(bytes.len() - 1) }
 }
 
 /// What [`tally`] counts with, through trait objects of either crate's types.

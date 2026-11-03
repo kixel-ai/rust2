@@ -67,8 +67,9 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let c!: rt.char | undefined;
 	let part!: string | undefined;
 	let part3!: string | undefined;
+	let part5!: string | undefined;
 	let item!: [rt.usize, string] | undefined;
-	let _236!: rt.char;
+	let _260!: rt.char;
 	const s: string = text(data);
 	const _7: rt.usize = rt.u8Rem(rt.u8Div(kind, 8), 16) as rt.usize;
 	if (!(_7 < 16)) {
@@ -122,29 +123,44 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				} else {
 					rt.byteVecPush(out, i2 & 0xff);
 					fmt_put(out, option_unwrapOr$1iemzn8(rt.iterToOption(rt.strSplit(s, String.fromCodePoint(sep)).next()), "none"));
-					break b0;
+					const parts2: rt.Iter<string> = rt.strSplitTerminator(s, String.fromCodePoint(sep));
+					let i3: rt.usize = 0;
+					while (true) {
+						if (!fromBack(data, i3)) {
+							part3 = rt.iterToOption(parts2.next());
+						} else {
+							part3 = rt.iterToOption(parts2.nextBack());
+						}
+						if (part3 !== undefined) {
+							fmt_put(out, part3);
+							i3 = rt.usizeAdd(i3, 1);
+						} else {
+							rt.byteVecPush(out, i3 & 0xff);
+							break b0;
+						}
+					}
 				}
 			}
 		}
 		if (_13 === 2) {
 			const seen: rt.char[] = [];
-			const parts2: rt.Iter<string> = rt.strSplit(s, (c9: rt.char): boolean => {
+			const parts3: rt.Iter<string> = rt.strSplit(s, (c9: rt.char): boolean => {
 				seen.push(c9);
 				if (!(c9 === sep)) {
 					return rt.isAsciiDigit(c9);
 				}
 				return true;
 			});
-			let i3: rt.usize = 0;
+			let i4: rt.usize = 0;
 			while (true) {
-				if (!fromBack(data, i3)) {
-					part3 = rt.iterToOption(parts2.next());
+				if (!fromBack(data, i4)) {
+					part5 = rt.iterToOption(parts3.next());
 				} else {
-					part3 = rt.iterToOption(parts2.nextBack());
+					part5 = rt.iterToOption(parts3.nextBack());
 				}
-				if (part3 !== undefined) {
-					fmt_put(out, part3);
-					i3 = rt.usizeAdd(i3, 1);
+				if (part5 !== undefined) {
+					fmt_put(out, part5);
+					i4 = rt.usizeAdd(i4, 1);
 				} else {
 					putSeen(out, seen);
 					break b0;
@@ -157,6 +173,13 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			fmt_put(out, rt.strTrimEndMatches(rt.strTrimStartMatches(s, String.fromCodePoint(sep)), String.fromCodePoint(sep)));
 			rt.byteVecPush(out, rt.strStartsWith(s, String.fromCodePoint(sep)) ? 1 : 0);
 			putOffset(out, rt.strRfind(s, String.fromCodePoint(sep)));
+			const _143: [string, string] | undefined = rt.strRsplitOnce(s, String.fromCodePoint(sep));
+			if (_143 === undefined) {
+				rt.byteVecPush(out, 253);
+			} else {
+				fmt_put(out, _143[0]);
+				fmt_put(out, _143[1]);
+			}
 		} else if (_13 === 4) {
 			const seen2: rt.char[] = [];
 			fmt_put(out, rt.strTrimStartMatches(s, (c5: rt.char): boolean => {
@@ -181,9 +204,9 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else {
 			if (_13 === 5) {
 				const found2: rt.Iter<[rt.usize, string]> = rt.strMatchIndices(s, String.fromCodePoint(sep));
-				let i4: rt.usize = 0;
+				let i5: rt.usize = 0;
 				while (true) {
-					if (!fromBack(data, i4)) {
+					if (!fromBack(data, i5)) {
 						item = rt.iterToOption(found2.next());
 					} else {
 						item = rt.iterToOption(found2.nextBack());
@@ -193,48 +216,48 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						const matched: string = item[1];
 						putOffset(out, at);
 						fmt_put(out, matched);
-						i4 = rt.usizeAdd(i4, 1);
+						i5 = rt.usizeAdd(i5, 1);
 					} else {
-						for (const _190 of rt.iterToArray(rt.iterMap(rt.strMatchIndices(s, "/"), (_2: [rt.usize, string]): rt.usize => {
+						for (const _214 of rt.iterToArray(rt.iterMap(rt.strMatchIndices(s, "/"), (_2: [rt.usize, string]): rt.usize => {
 							return _2[0];
 						}), "next", 4)) {
-							putOffset(out, _190);
+							putOffset(out, _214);
 						}
 						break b0;
 					}
 				}
 			}
 			if (_13 === 6) {
-				const parts3: string[] = unescape(s);
-				for (const _202 of parts3) {
-					fmt_put(out, _202);
+				const parts4: string[] = unescape(s);
+				for (const _226 of parts4) {
+					fmt_put(out, _226);
 				}
-				fmt_put(out, escape(parts3));
+				fmt_put(out, escape(parts4));
 			} else {
 				let built: string = "";
 				const named: strs_Named.Named = { name: "" };
 				const each: string[] = ["", ""];
 				const iter4: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.strChars(s));
 				while (true) {
-					const _227: [rt.usize, rt.char] | rt.Done = iter4.next();
-					if (_227 === rt.DONE) {
+					const _251: [rt.usize, rt.char] | rt.Done = iter4.next();
+					if (_251 === rt.DONE) {
 						break;
 					}
-					const i5: rt.usize = _227[0];
-					const c3: rt.char = _227[1];
+					const i6: rt.usize = _251[0];
+					const c3: rt.char = _251[1];
 					built = built + String.fromCodePoint(c3);
-					if (!(rt.usizeRem(i5, 2) === 0)) {
-						_236 = sep;
+					if (!(rt.usizeRem(i6, 2) === 0)) {
+						_260 = sep;
 					} else {
-						_236 = c3;
+						_260 = c3;
 					}
-					named.name = named.name + String.fromCodePoint(_236);
+					named.name = named.name + String.fromCodePoint(_260);
 					strs_Named.add(named, c3);
-					const at2 = rt.idx(each, rt.usizeRem(i5, 2));
+					const at2 = rt.idx(each, rt.usizeRem(i6, 2));
 					each[at2] = each[at2] + String.fromCodePoint(c3);
-					const _247: rt.char | undefined = rt.charFromU32(rt.u32Add(c3 as rt.u32, 1));
-					if (_247 !== undefined) {
-						built = built + String.fromCodePoint(_247);
+					const _271: rt.char | undefined = rt.charFromU32(rt.u32Add(c3 as rt.u32, 1));
+					if (_271 !== undefined) {
+						built = built + String.fromCodePoint(_271);
 					}
 				}
 				named.name = named.name + "􏿿";
@@ -279,7 +302,7 @@ export function pattern(kind: rt.u8, s: string): string {
  * one matches before each char and after the last.
  */
 export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	let _209!: [rt.usize, rt.usize];
+	let _219!: [rt.usize, rt.usize];
 	let sliced!: string;
 	const s: string = text(data);
 	const p: string = pattern(kind, s);
@@ -328,6 +351,13 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					return rt.isAsciiDigit(c);
 				}) ? 1 : 0);
 				putOffset(out, rt.strRfind(s, p));
+				const _123: [string, string] | undefined = rt.strRsplitOnce(s, p);
+				if (_123 === undefined) {
+					rt.byteVecPush(out, 253);
+				} else {
+					fmt_put(out, _123[0]);
+					fmt_put(out, _123[1]);
+				}
 			} else {
 				if (_8 === 3) {
 					const iter3: rt.Iter<string> = rt.iterSuccessors(s, (path: string): string | undefined => {
@@ -339,11 +369,11 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						});
 					});
 					while (true) {
-						const _129: string | rt.Done = iter3.next();
-						if (_129 === rt.DONE) {
+						const _139: string | rt.Done = iter3.next();
+						if (_139 === rt.DONE) {
 							break b0;
 						}
-						fmt_put(out, _129);
+						fmt_put(out, _139);
 					}
 				}
 				if (_8 === 4) {
@@ -370,18 +400,18 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						return rt.usizeSaturatingSub(rt.usizeAdd(rt.stringLen(s), 1), rt.usizeRem(b2 as rt.usize, 4));
 					};
 					if (!(data.length >= 2)) {
-						_209 = [0, 0] as [rt.usize, rt.usize];
+						_219 = [0, 0] as [rt.usize, rt.usize];
 					} else {
-						_209 = [at2(data.data[data.start]), at2(data.data[data.start + 1])] as [rt.usize, rt.usize];
+						_219 = [at2(data.data[data.start]), at2(data.data[data.start + 1])] as [rt.usize, rt.usize];
 					}
-					const a: rt.usize = _209[0];
-					const b: rt.usize = _209[1];
-					const _223: rt.u8 = rt.u8Rem(rt.u8Div(kind, 8), 4);
-					if (_223 === 0) {
+					const a: rt.usize = _219[0];
+					const b: rt.usize = _219[1];
+					const _233: rt.u8 = rt.u8Rem(rt.u8Div(kind, 8), 4);
+					if (_233 === 0) {
 						sliced = rt.strSlice(s, a, b);
-					} else if (_223 === 1) {
+					} else if (_233 === 1) {
 						sliced = rt.strSlice(s, a);
-					} else if (_223 === 2) {
+					} else if (_233 === 2) {
 						sliced = rt.strSlice(s, 0, b);
 					} else {
 						sliced = rt.strSlice(s, 0);

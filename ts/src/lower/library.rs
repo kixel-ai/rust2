@@ -139,6 +139,8 @@ pub enum Std {
 	NonNull,
 	/// What it holds, or nothing yet, as `pointer` has it.
 	MaybeUninit,
+	/// What it holds, which it never drops itself.
+	ManuallyDrop,
 	/// No value: `never`.
 	Infallible,
 	/// `rt.HashMap`, and `rt.HashSet`, a map to `undefined`.
@@ -169,6 +171,10 @@ pub enum Std {
 	RandomState,
 	/// `rt.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rt.Layout`: its size and alignment, never changed once made.
+	Layout,
+	/// `rt.LayoutError`.
+	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -191,6 +197,7 @@ impl Std {
 				| Self::ParseFloatError
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
+				| Self::LayoutError
 		)
 	}
 
@@ -290,6 +297,8 @@ impl Std {
 			.as_slice()
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
+			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -309,6 +318,7 @@ impl Std {
 			["fmt", "rt", "Argument"] => Some(Self::Argument),
 			["ptr", "non_null", "NonNull"] => Some(Self::NonNull),
 			["mem", "maybe_uninit", "MaybeUninit"] => Some(Self::MaybeUninit),
+			["mem", "manually_drop", "ManuallyDrop"] => Some(Self::ManuallyDrop),
 			["future", "poll_fn", "PollFn"] => Some(Self::PollFn),
 			["future", "pending", "Pending"] => Some(Self::Pending),
 			["task", "wake", "RawWakerVTable"] => Some(Self::WakerVTable),
@@ -893,6 +903,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("mem", "replace" | "take" | "swap" | "forget")
 		| ("ptr", "write" | "write_unaligned" | "write_volatile" | "replace")
 		| ("MaybeUninit", "new" | "write" | "assume_init")
+		| ("ManuallyDrop", "new" | "into_inner")
 		| ("Box", "into_raw" | "leak" | "from_raw")
 		| ("hint", "must_use")
 		| ("From", "from")
@@ -926,6 +937,29 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		("LocalKey", "with" | "try_with" | "initialize_with" | "with_borrow_mut") => &[1],
 		_ => return None,
 	})
+}
+
+/// Whether the mapping of `owner::name` drops each closure it takes by value where std's
+/// does: a consumer's as its fold ends, before the iterator, or as it finds the iterator
+/// empty, and an entry's if it never calls it.
+fn releases(owner: &str, name: &str) -> bool {
+	matches!(
+		(owner, name),
+		(
+			"Iterator",
+			"for_each"
+				| "fold"
+				| "reduce"
+				| "max_by"
+				| "min_by"
+				| "max_by_key"
+				| "min_by_key"
+				| "is_sorted_by_key"
+				| "eq_by"
+				| "cmp_by"
+				| "partial_cmp_by"
+		) | ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
+	)
 }
 
 /// Whether `owner::name` is a guard's map, filtered, tried, or split, to parts of what it lends.
@@ -1087,7 +1121,7 @@ pub fn called_through<'tcx>(
 
 /// The closures `call` calls that own a value that drops, by what its mapping does with
 /// each: kept by the iterator it returns, if `iter::holds_closure`; dropped by the mapping,
-/// if `released`, as `iter::releases` says; dropped as it returns, if `Fn` or `FnMut` call
+/// if `released`, as `releases` says; dropped as it returns, if `Fn` or `FnMut` call
 /// it and nothing else it takes by value drops, or the mapping discards none of it, as then
 /// nothing it drops is ordered against it; dropped where `discarded` says, by the type's
 /// index among the call's type arguments; or else leaked. A closure that `Fn` or `FnMut`
@@ -1142,15 +1176,15 @@ fn called_closures<'tcx>(
 			}
 			continue;
 		}
-		// Its owner drops a borrowed closure, and the mapping a released one.
-		if lent || released {
+		// Its owner drops a borrowed closure.
+		if lent {
 			continue;
 		}
 		let index = call.args[..param.index as usize]
 			.iter()
 			.filter(|a| a.as_type().is_some())
 			.count();
-		let discards = discarded.is_some_and(|d| d.contains(&index));
+		let discards = released || discarded.is_some_and(|d| d.contains(&index));
 		let kept = inputs.iter().enumerate().any(|(j, &t)| j != i && mentions(t));
 		if bound != ty::ClosureKind::FnOnce && !kept && !discards && i < args.len() {
 			let dropping = match discarded {
@@ -1258,7 +1292,7 @@ pub fn call<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 	}
 	let discarded = discards(&owner, &name);
 	let mut args = args;
-	let released = super::iter::releases(&owner, &name);
+	let released = releases(&owner, &name);
 	let closures = called_closures(b, call, discarded, released, &mut args);
 	// What std lends of the `[u8; N]`s it holds, its closures are given and it returns as
 	// slices of them.
@@ -1314,6 +1348,10 @@ fn mapping<'tcx>(
 		Err(args) => args,
 	};
 	let args = match super::pointer::call(b, call, &owner, &name, args, out) {
+		Ok(e) => return e,
+		Err(args) => args,
+	};
+	let args = match super::alloc::call(b, call, &owner, &name, args) {
 		Ok(e) => return e,
 		Err(args) => args,
 	};
@@ -1398,7 +1436,17 @@ fn mapping<'tcx>(
 			if let Some(elem) = box_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
-				return Some(boxed_vec(value, elem));
+				return Some(boxed_vec(b, value, elem, span));
+			}
+			// An `Arc` or an `Rc` of what a box holds, its trait object included, which it
+			// drops with the last one. A box of a byte array holds a `Uint8Array` of its own.
+			if b.t.std_of(to) == Some(Std::Arc)
+				&& let ty::Adt(adt, args) = from.kind()
+				&& Std::of(tcx, adt.did()) == Some(Std::Box)
+				&& (args.type_at(0).is_trait() || args.type_at(0).is_sized(tcx, b.t.typing_env()))
+				&& !super::byte_array(args.type_at(0))
+			{
+				return Some(Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]));
 			}
 			// An error, boxed as a `dyn Error`, which `?` converts it by. One of a string boxes
 			// std's own private error type.
@@ -1585,8 +1633,8 @@ fn mapping<'tcx>(
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
 				}
 				_ if let Some(elem) = box_slice(tcx, ty) => return slice_boxed(b, value, elem, span),
-				// A box is what it holds, cloned.
-				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Box) => {
+				// A box, or a `ManuallyDrop`, is what it holds, cloned.
+				ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::Box | Std::ManuallyDrop)) => {
 					let inner = args.type_at(0);
 					if !inner.is_sized(tcx, b.t.typing_env_pub()) {
 						return None;
@@ -1910,6 +1958,23 @@ fn mapping<'tcx>(
 			let cmp = super::collections::cmp_fn(b, elem, false, span);
 			Expr::rt("sliceBinarySearch", vec![s, x, cmp])
 		}
+		// std's same search by the closure's `Ordering`, by `Ord::cmp` of the key it makes
+		// with `b`, or by whether `pred` holds.
+		("slice", "binary_search_by" | "binary_search_by_key" | "partition_point") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
+			match name.as_str() {
+				"binary_search_by" => Expr::rt("sliceBinarySearchBy", values),
+				"partition_point" => Expr::rt("slicePartitionPoint", values),
+				_ => {
+					let key = targ(gargs, 1);
+					values.push(super::collections::cmp_fn(b, key, false, span));
+					let drop = b.t.dropper(key, span);
+					Expr::rt("sliceBinarySearchByKey", super::iter::tail(values, vec![drop]))
+				}
+			}
+		}
 		// Each slot but the last a clone, as `clone_from` makes it, and the last the value;
 		// a `TrivialClone`'s copies, as std specializes `fill` to.
 		("slice", "fill") => {
@@ -1975,22 +2040,20 @@ fn mapping<'tcx>(
 				}
 			}
 		}
-		// Sorted by `PartialOrd::lt`, or by a comparator, or by `lt` of the keys a function makes.
+		// Sorted as std's sorts do, by `PartialOrd::lt`, or by a comparator, or by `lt` of the
+		// keys a function makes.
 		(
 			"slice",
 			"sort" | "sort_unstable" | "sort_by" | "sort_unstable_by" | "sort_by_key" | "sort_unstable_by_key",
 		) => {
 			let elem = targ(gargs, 0);
-			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
-			match name.as_str() {
+			let mut values = args.into_iter();
+			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let less = match name.as_str() {
 				// A typed array sorts its numbers by value, and equal bytes are alike.
-				"sort" | "sort_unstable" if is_u8(elem) => values.remove(0).method("sort", Vec::new()),
-				"sort" | "sort_unstable" => {
-					values.push(super::collections::test_fn(b, targ(gargs, 0), "lt", span));
-					Expr::rt("sliceSort", values)
-				}
-				"sort_by" | "sort_unstable_by" => Expr::rt("sliceSortBy", values),
+				"sort" | "sort_unstable" if is_u8(elem) => return Some(s.method("sort", Vec::new())),
+				"sort" | "sort_unstable" => super::collections::test_fn(b, elem, "lt", span),
+				"sort_by" | "sort_unstable_by" => Expr::rt("cmpLt", vec![values.next()?]),
 				_ => {
 					let key = targ(gargs, 1);
 					if b.t.drops(key) {
@@ -1999,9 +2062,18 @@ fn mapping<'tcx>(
 							format!("`slice::{name}` by `{key}`, which drops, which is not supported yet"),
 						));
 					}
-					values.push(super::collections::test_fn(b, key, "lt", span));
-					Expr::rt("sliceSortByKey", values)
+					let lt = super::collections::test_fn(b, key, "lt", span);
+					Expr::rt("keyLt", vec![values.next()?, lt])
 				}
+			};
+			let mut values = vec![s, less];
+			values.extend(sort_of(b, elem, span));
+			match name.contains("unstable") {
+				true => {
+					values.push(Expr::lit(b.t.is_copy(elem).to_string()));
+					Expr::rt("sliceSortUnstable", values)
+				}
+				false => Expr::rt("sliceSort", values),
 			}
 		}
 		// Whether each element and the next are in order, as `sort` would leave them: by
@@ -2033,7 +2105,7 @@ fn mapping<'tcx>(
 				super::iter::tail(vec![items, compare], vec![Expr::undefined(), drop]),
 			)
 		}
-		("slice", "into_vec") => boxed_vec(args.pop()?, targ(gargs, 0)),
+		("slice", "into_vec") => boxed_vec(b, args.pop()?, targ(gargs, 0), span),
 		("Vec", "into_boxed_slice") => vec_boxed(args.pop()?, targ(gargs, 0)),
 		// `vec![a, b]`'s array once `mir::vec` took the box away. A `Copy` aggregate's operand
 		// may be shared with where it came from, which the vector must not change.
@@ -2118,6 +2190,7 @@ fn mapping<'tcx>(
 		("Vec", "extend_from_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
 		("Vec", "extend_from_slice") => {
 			let mut values = args;
+			values.push(super::iter::size_of(b, targ(gargs, 0), span));
 			let clone = super::collections::clone_fn(b, targ(gargs, 0), span);
 			if !matches!(&clone, Expr::Lit(l) if l == "undefined") {
 				values.push(clone);
@@ -2200,7 +2273,7 @@ fn mapping<'tcx>(
 			match ty.kind() {
 				ty::Adt(adt, vargs) => match Std::of(tcx, adt.did()) {
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
-					Some(Std::String | Std::Box) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop) => v,
 					Some(Std::Cow) if string(tcx, ty) => v,
 					Some(Std::Cow) if let Some(elem) = cow_slice(tcx, ty) => cow_deref(v, elem),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
@@ -2257,11 +2330,31 @@ fn mapping<'tcx>(
 		("str", "bytes") => Expr::rt("strBytes", args),
 		("str", "is_char_boundary") => Expr::rt("strIsCharBoundary", args),
 		// Searches by a pattern.
-		("str", "split" | "match_indices" | "contains" | "starts_with" | "ends_with" | "rfind" | "split_once")
-		| ("str", "trim_start_matches" | "trim_end_matches") => {
+		("str", "split" | "rsplit" | "split_terminator" | "rsplit_terminator" | "split_inclusive")
+		| ("str", "matches" | "rmatches" | "match_indices" | "rmatch_indices" | "split_once" | "rsplit_once")
+		| ("str", "find" | "rfind" | "contains" | "starts_with" | "ends_with" | "strip_prefix" | "strip_suffix")
+		| ("str", "trim_matches" | "trim_start_matches" | "trim_end_matches") => {
 			let [s, p] = <[Expr; 2]>::try_from(args).ok()?;
 			Expr::rt_of("str", &super::camel(&name)).call(vec![s, pattern(b.t, targ(gargs, 0), p)?])
 		}
+		("str", "splitn" | "rsplitn") => {
+			let [s, n, p] = <[Expr; 3]>::try_from(args).ok()?;
+			Expr::rt_of("str", &name).call(vec![s, n, pattern(b.t, targ(gargs, 0), p)?])
+		}
+		// `replacen`'s count follows what replaces each match.
+		("str", "replace" | "replacen") => {
+			let mut args = args.into_iter();
+			let (s, p) = (args.next()?, args.next()?);
+			let rest = args.collect::<Vec<_>>();
+			Expr::rt("strReplace", [vec![s, pattern(b.t, targ(gargs, 0), p)?], rest].concat())
+		}
+		// Searches by whitespace, as std's are by `char::is_whitespace`.
+		("char", "is_whitespace") => Expr::rt("charIsWhitespace", args),
+		("str", "trim" | "trim_start" | "trim_end") => {
+			let f = format!("{}_matches", name);
+			Expr::rt_of("str", &super::camel(&f)).call(vec![args.pop()?, Expr::Rt("charIsWhitespace".into())])
+		}
+		("str", "char_indices" | "lines" | "split_whitespace") => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// A slice of strings concatenated, or joined by a `&str`.
 		("slice", "concat" | "join")
 			if string(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
@@ -2351,11 +2444,16 @@ fn mapping<'tcx>(
 
 		// Formatting.
 		("hint", "must_use") => args.pop()?,
-		// The size wasm32 lays the type out in, which translation targets.
+		// The size and alignment wasm32 lays the type out in, which translation targets.
 		("mem", "size_of") => {
 			let env = b.t.typing_env_pub();
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.size.bytes().to_string())
+		}
+		("mem", "align_of") => {
+			let env = b.t.typing_env_pub();
+			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
+			Expr::lit(layout.align.abi.bytes().to_string())
 		}
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.
@@ -2742,11 +2840,30 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	}
 }
 
-/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it.
-fn boxed_vec(boxed: Expr, elem: Ty<'_>) -> Expr {
+/// `clone`, the `Vec<elem>` that `clone_from` writes over `target`, with the capacity std's
+/// keeps of `target`'s.
+pub(super) fn vec_cloned_into<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	clone: Expr,
+	target: Expr,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecClonedInto", vec![clone, target]),
+		_ => Expr::rt(
+			"vecClonedInto",
+			vec![clone, target, super::iter::size_of(b, elem, span)],
+		),
+	}
+}
+
+/// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it, with room
+/// for exactly its elements.
+fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![boxed]),
-		_ => boxed,
+		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
 	}
 }
 
@@ -3163,6 +3280,13 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 		}
 		_ => v,
 	}
+}
+
+/// What std's sorts pick their small sorts, partitions, and scratch by, of an `elem`: its
+/// size on wasm32 and whether it is `Freeze`.
+pub fn sort_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> [Expr; 2] {
+	let freeze = elem.is_freeze(b.t.tcx, b.t.typing_env_pub());
+	[super::iter::size_of(b, elem, span), Expr::lit(freeze.to_string())]
 }
 
 trait MethodCall {
