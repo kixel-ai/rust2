@@ -5,8 +5,8 @@
 //! writes them, op 7 decodes frame headers as they arrive a few bytes at a time, op 8
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
-//! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, and op 14 keeps
-//! a `HashMap`.
+//! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
+//! `HashMap`, and op 15 numbers TS packets as moq-mux does.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
@@ -40,6 +40,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		12 => order(selector, data, &mut out),
 		13 => push(selector, data, &mut out),
 		14 => hashed(selector, data, &mut out),
+		15 => packets(selector, data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -301,6 +302,39 @@ fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	};
 	put_usize(out, len);
 	put_u64(out, middle.map_or(0, u64::from));
+}
+
+/// `count` TS packets of 188 bytes, each written by element through `as_chunks_mut`, then
+/// numbered by continuity counter as moq-mux's `container/ts/export.rs` numbers them; with
+/// `selector` 1, each packet is read by value first, a copy of its bytes. The sum of the
+/// counters and of each copy's last byte.
+fn packets(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let count = count.min(1 << 12) as usize;
+	let mut packets = vec![0u8; count * 188];
+	for (i, packet) in packets.as_chunks_mut::<188>().0.iter_mut().enumerate() {
+		packet[0] = 0x47;
+		packet[2] = (i % 3) as u8;
+		packet[3] = if i % 5 == 0 { 0x20 } else { 0x10 };
+		packet[187] = i as u8;
+	}
+	let mut counters = [0u8; 3];
+	let mut sum = 0u64;
+	for packet in packets.as_chunks_mut::<188>().0 {
+		if selector == 1 {
+			let copy = *packet;
+			sum += u64::from(copy[187]);
+		}
+		let pid = usize::from(packet[1] & 0x1f) << 8 | usize::from(packet[2]);
+		let next = &mut counters[pid % 3];
+		let cc = match packet[3] & 0x10 != 0 {
+			true => std::mem::replace(next, (*next + 1) & 0x0f),
+			false => next.wrapping_sub(1) & 0x0f,
+		};
+		packet[3] = (packet[3] & 0xf0) | cc;
+		sum += u64::from(cc);
+	}
+	put_u64(out, sum);
 }
 
 /// One iterator chain over every byte, picked by `chain`, with closures that cost little

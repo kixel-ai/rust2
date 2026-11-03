@@ -1123,3 +1123,159 @@ pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	drop(items);
 	flush(out);
 }
+
+/// How many runs of `N` `data` holds, by `as_chunks_mut`, which panics at none.
+fn runs_mut<const N: usize>(data: &mut [u8]) -> u8 {
+	data.as_chunks_mut::<N>().0.len() as u8
+}
+
+/// Whole writes into a slice's runs as arrays, each read by value before them: swapped,
+/// reversed, rotated, sorted, copied within, filled, assigned, and replaced.
+macro_rules! rewrite {
+	($chunks:expr, $out:expr, $digest:expr, $one:expr, $two:expr) => {{
+		let chunks = $chunks;
+		let out: &mut Vec<u8> = $out;
+		if let [first, .., last] = &*chunks {
+			let (first, last) = (*first, *last);
+			chunks.swap(0, chunks.len() - 1);
+			chunks.reverse();
+			let n = chunks.len();
+			chunks[1..].reverse();
+			chunks.rotate_left(1);
+			chunks.rotate_right(n / 2);
+			let kept = chunks[n - 1];
+			chunks.copy_within(..n - 1, 1);
+			out.extend([first, last, kept].iter().map($digest));
+			chunks.sort();
+			out.extend(chunks.iter().map($digest));
+			chunks.sort_by_key(|c| std::cmp::Reverse(c[1]));
+			chunks.sort_unstable();
+			chunks.sort_by_cached_key(|c| std::cmp::Reverse(c[0]));
+			let (head, tail) = chunks.split_at_mut(1);
+			std::mem::swap(&mut head[0], &mut tail[n - 2]);
+			let old = std::mem::replace(&mut chunks[0], $one);
+			chunks[n - 1] = old;
+			let kept = chunks[1];
+			chunks[1] = chunks[0];
+			chunks[0] = kept;
+			if let Some(c) = chunks.last_mut() {
+				*c = $two;
+			}
+			out.extend(chunks.iter().map($digest));
+			chunks[n / 2..].fill($two);
+		}
+	}};
+}
+
+/// `as_chunks_mut` and `as_rchunks_mut` of bytes, of other integers, of values that log as
+/// they drop, and of runs of bytes: written by element as moq writes TS packets, by enumerating, zipping, and
+/// filtering them, and whole after a read of a run by value, which keeps what it read, as
+/// does one the slice's own writes follow; and at none, which panics.
+pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let mut bytes = data.to_vec();
+	let mut words: Vec<u16> = data.iter().map(|&b| b as u16 * 257).collect();
+	let mut items: Vec<Item> = data.iter().map(|&tag| Item { tag }).collect();
+	let tags = |s: &[Item]| s.iter().fold(s.len() as u8, |acc, x| acc.wrapping_mul(31) ^ x.tag);
+	match kind % 5 {
+		0 => {
+			let (chunks, rest) = bytes.as_chunks_mut::<3>();
+			for (i, c) in chunks.iter_mut().enumerate() {
+				c[0] ^= i as u8;
+				let swapped = [c[2], c[1]];
+				c[1..].copy_from_slice(&swapped);
+			}
+			for (c, &b) in chunks.iter_mut().rev().zip(data) {
+				c[2] = c[2].wrapping_add(b);
+			}
+			let mut odd = chunks.iter_mut().filter(|c| c[0] & 1 != 0).peekable();
+			if let Some(c) = odd.peek_mut() {
+				c[1] |= 0x80;
+			}
+			for c in odd {
+				c[0] = !c[0];
+			}
+			rest.fill(1);
+			let (rest, chunks) = words.as_rchunks_mut::<2>();
+			for (i, [a, b]) in chunks.iter_mut().enumerate() {
+				*a ^= i as u16;
+				*b = b.rotate_left(3);
+			}
+			rest.fill(1);
+			let start = data.len() / 3;
+			for c in bytes[start..].as_chunks_mut::<2>().0 {
+				c.swap(0, 1);
+			}
+			// A read by value keeps what it read past the slice's own writes.
+			let kept = bytes.as_chunks_mut::<2>().0.first().copied();
+			let kept_words = words.as_chunks_mut::<2>().0.first().copied();
+			bytes.fill(9);
+			words.fill(9);
+			out.extend(kept.into_iter().flatten());
+			out.extend(kept_words.into_iter().flatten().map(|w| (w ^ w >> 8) as u8));
+		}
+		1 => rewrite!(bytes.as_chunks_mut::<2>().0, out, |c| digest(c), [7, 8], [9, 10]),
+		2 => {
+			rewrite!(words.as_rchunks_mut::<2>().1, out, |c| digest_words(c), [7, 8], [9, 10]);
+			let (_, chunks) = bytes.as_rchunks_mut::<4>();
+			rewrite!(chunks, out, |c| digest(c), [1, 2, 3, 4], [5; 4]);
+			// Runs of runs, and of runs of runs, whose inner runs are views of the bytes too.
+			let (pairs, _) = bytes.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			rewrite!(quads, out, |c| c[0][0] ^ c[1][1], [[1, 2], [3, 4]], [[5, 6], [7, 8]]);
+			let (pairs, _) = bytes.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			let (octets, _) = quads.as_chunks_mut::<2>();
+			let one = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+			rewrite!(octets, out, |c| c[0][0][0] ^ c[1][1][1], one, [[[9; 2]; 2]; 2]);
+			// Runs of runs of references, which a whole write moves and never copies.
+			let mut backing = words.clone();
+			let mut refs: Vec<&mut [u16]> = backing.chunks_mut(1).collect();
+			let (pairs, _) = refs.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			if quads.len() >= 2 {
+				quads.swap(0, 1);
+			}
+			for (i, r) in refs.iter_mut().enumerate() {
+				r[0] ^= i as u16;
+			}
+			out.extend(backing.iter().map(|&w| (w ^ w >> 8) as u8));
+			let (pairs, _) = words.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			rewrite!(
+				quads,
+				out,
+				|c| (c[0][0] ^ c[1][1]) as u8,
+				[[1, 2], [3, 4]],
+				[[5, 6], [7, 8]]
+			);
+		}
+		3 => {
+			let (chunks, _) = items.as_chunks_mut::<2>();
+			if chunks.len() >= 2 {
+				let first = std::mem::replace(&mut chunks[0], [Item { tag: 0x41 }, Item { tag: 0x42 }]);
+				flush(out);
+				chunks.swap(0, 1);
+				chunks.reverse();
+				chunks.sort_by_key(|c| c[1].tag);
+				chunks[1] = first;
+				flush(out);
+				chunks[0][1] = Item { tag: 0x43 };
+				flush(out);
+				let (head, tail) = chunks.split_at_mut(1);
+				std::mem::swap(&mut head[0], &mut tail[0]);
+				out.extend(chunks.iter().map(|c| tags(c)));
+			}
+		}
+		_ => {
+			let (none, rest) = bytes[..0].as_chunks_mut::<4>();
+			out.extend([none.len() as u8, rest.len() as u8]);
+			out.push(runs_mut::<0>(&mut bytes));
+		}
+	}
+	flush(out);
+	out.extend(&bytes);
+	out.extend(words.iter().map(|&w| (w ^ w >> 8) as u8));
+	out.push(tags(&items));
+	drop(items);
+	flush(out);
+}

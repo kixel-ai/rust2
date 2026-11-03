@@ -23,5 +23,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("slices::ranges", slices::ranges),
 		("slices::edits", slices::edits),
 		("slices::arrays", slices::arrays),
+		("slices::arrays_mut", slices::arrays_mut),
 	]
 }
