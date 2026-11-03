@@ -310,9 +310,9 @@ the same clones, as `rt.iterCycle(it, { v: Item.clone$Clone })`, by which it clo
 iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
-`char`, a `&str`, a predicate, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
-closure, which it calls on each char it reads, in the order std reads them, and drops as it
-returns, or with the iterator it returns, as `split` does. An offset it
+`char`, a `&str`, a predicate or a reference to one, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
+closure, which it calls on each char it reads, in the order std reads them, and drops a closure it owns as it
+returns, or with the iterator it returns, as `split` does, leaving one it borrows to its owner. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
 one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics as std
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
@@ -919,7 +919,7 @@ own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method ot
 `size_hint` and `len`, such as `fold` or `nth_back`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
-`char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes
+`char`, a `&str`, a predicate or a reference to one, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a
 reference, a switch on or a field of another crate's type without a mapping, and std
