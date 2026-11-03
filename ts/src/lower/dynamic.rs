@@ -110,7 +110,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return Some(object.clone());
 		}
 		// A trait of a crate translated from source is as the crate's own.
-		if !self.own(principal) && !is_any(tcx, principal) && !is_buf(tcx, principal) {
+		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) && !is_buf(tcx, principal) {
 			self.unrepresented(
 				span,
 				format!("`{ty}`, a trait object of another crate's trait, which is not supported yet"),
@@ -150,6 +150,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 		// `Any`'s object is its class, which a downcast checks for, so it needs no method.
 		for &tr in traits.iter().filter(|&&tr| !is_any(tcx, tr)) {
 			for &def_id in tcx.own_existential_vtable_entries(tr) {
+				// Of `Error`, only `source`: `type_id`'s `TypeId` has no JS value, `provide` is
+				// unstable, and `description` and `cause` are deprecated.
+				if is_error(tcx, tr) && tcx.item_name(def_id).as_str() != "source" {
+					continue;
+				}
 				// `Buf::chunks_vectored`, whose `IoSlice` has no JS value.
 				if is_buf(tcx, tr) && tcx.item_name(def_id).as_str() == "chunks_vectored" {
 					continue;
@@ -353,6 +358,16 @@ impl<'tcx> Translator<'_, 'tcx> {
 /// Whether `def_id` is std's `Any`.
 fn is_any(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 	tcx.is_diagnostic_item(rustc_span::Symbol::intern("Any"), def_id)
+}
+
+/// Whether `def_id` is std's `Error`.
+pub fn is_error(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+	tcx.is_diagnostic_item(rustc_span::Symbol::intern("Error"), def_id)
+}
+
+/// Whether `ty` is a `dyn Error`.
+pub fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+	principal(ty).is_some_and(|p| is_error(tcx, p))
 }
 
 /// Whether `def_id` is `bytes`' `Buf`, whose provided methods translate from its MIR for
