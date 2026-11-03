@@ -981,3 +981,194 @@ pub fn repeats(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 fn repeated<T: Clone>(x: T, n: usize) -> Vec<T> {
 	vec![x; n]
 }
+
+/// Logs its id as it is cloned, as `Logged` does, but drops as nothing.
+struct Counted<'a> {
+	id: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Clone for Counted<'_> {
+	fn clone(&self) -> Self {
+		self.log.borrow_mut().push(0x80 | self.id);
+		Self {
+			id: self.id.wrapping_add(1),
+			log: self.log,
+		}
+	}
+}
+
+/// `iter::repeat`, `repeat_n`, and `once_with` of values that clone and drop themselves:
+/// each item a clone of the element, but `repeat_n`'s last, which is the element, read
+/// from either end, skipped, counted, and dropped part read, a `Take` of a `Repeat` read
+/// from the back as from the front; `once_with`'s closure called as it is first read, and
+/// dropped uncalled with it.
+pub fn sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let logged = |id: u8| Logged { id, log: log.clone() };
+	let at = |i: usize| data.get(i).copied().unwrap_or((i as u8).wrapping_mul(0x30)) & 0x7e;
+	let n = |i: usize| usize::from(data.get(i).copied().unwrap_or(i as u8) % 5);
+	let id = |x: Option<Logged>| x.map_or(0xee, |x| x.id());
+	let hint = |hint: (usize, Option<usize>)| [hint.0.min(0xfd) as u8, hint.1.map_or(0xfe, |n| n as u8)];
+	match kind % 6 {
+		0 => {
+			let mut it = std::iter::repeat(logged(at(0)));
+			out.extend(hint(it.size_hint()));
+			out.push(id(it.next()));
+			out.push(id(it.next_back()));
+			out.push(id(it.nth(n(1))));
+			out.push(id(it.nth_back(n(2))));
+			flush(&log, out);
+			let clone = it.clone();
+			flush(&log, out);
+			drop(it);
+			flush(&log, out);
+			let taken: Vec<u8> = clone.clone().take(n(3)).rev().map(|x| x.id()).collect();
+			out.extend(taken);
+			flush(&log, out);
+			let mut taken = clone.take(n(4));
+			out.push(id(taken.next_back()));
+			out.push(id(taken.nth_back(1)));
+			out.push(taken.len() as u8);
+			out.extend(hint(taken.size_hint()));
+			flush(&log, out);
+			let sum = taken.rfold(0u8, |acc, x| acc.wrapping_add(x.id()));
+			out.push(sum);
+			flush(&log, out);
+		}
+		1 => {
+			let mut it = std::iter::repeat_n(logged(at(0)), n(1));
+			for i in 2..8 {
+				let item = match data.get(i).copied().unwrap_or(0) % 4 {
+					0 => it.next(),
+					1 => it.next_back(),
+					2 => it.nth(n(i + 8) % 3),
+					_ => it.nth_back(n(i + 8) % 3),
+				};
+				out.push(id(item));
+				out.push(it.len() as u8);
+				flush(&log, out);
+				if i == 4 {
+					let clone = it.clone();
+					flush(&log, out);
+					out.extend(clone.map(|x| x.id()));
+					flush(&log, out);
+				}
+			}
+			drop(it);
+			flush(&log, out);
+		}
+		2 => {
+			// Its own `count` and `last`, which clone nothing.
+			out.push(std::iter::repeat_n(logged(at(0)), n(1)).count() as u8);
+			flush(&log, out);
+			out.push(id(std::iter::repeat_n(logged(at(1)), n(2)).last()));
+			flush(&log, out);
+			let all: Vec<Logged> = std::iter::repeat_n(logged(at(2)), n(3)).collect();
+			flush(&log, out);
+			out.extend(all.iter().map(Logged::id));
+			drop(all);
+			flush(&log, out);
+			out.push(std::iter::repeat_n(at(3), n(4)).count() as u8);
+			out.push(std::iter::repeat_n(at(4), n(5)).last().unwrap_or(0xee));
+			let taken: Vec<u8> = std::iter::repeat_n(logged(at(5)), n(6))
+				.take(n(7))
+				.rev()
+				.map(|x| x.id())
+				.collect();
+			out.extend(taken);
+			flush(&log, out);
+			// Through an adaptor, which reaches its own `count` and `last` even of items that
+			// never drop.
+			let counted = |id: u8| Counted { id, log: &log };
+			let it = std::iter::repeat_n(counted(at(7)), n(8)).chain(std::iter::empty());
+			out.push(it.count() as u8);
+			flush(&log, out);
+			let it = std::iter::empty().chain(std::iter::repeat_n(counted(at(9)), n(10)));
+			out.push(it.last().map_or(0xee, |c| c.id));
+			flush(&log, out);
+			let make = || std::iter::repeat_n(Counted { id: 0x11, log: &log }, 3);
+			out.push(std::iter::once_with(make).flatten().count() as u8);
+			flush(&log, out);
+			let it = std::iter::repeat_n(logged(at(11)), n(12)).fuse();
+			out.push(it.count() as u8);
+			flush(&log, out);
+			let mut zero = std::iter::repeat_n(logged(at(6)), 0);
+			flush(&log, out);
+			out.push(id(zero.next()));
+			out.extend(hint(zero.size_hint()));
+		}
+		3 => {
+			// Infinite, so its `count` and `last` panic.
+			if data.first().is_some_and(|b| b % 2 == 0) {
+				out.push(std::iter::repeat(at(1)).count() as u8);
+			} else {
+				out.push(std::iter::repeat(logged(at(1))).last().map_or(0xee, |x| x.id()));
+			}
+		}
+		4 => {
+			// Closures `FnOnce` calls, one that gives up what it owns, and one never called,
+			// which drops with its iterator.
+			let a = logged(at(0));
+			let mut it = std::iter::once_with(move || a.id() ^ 0x55);
+			out.extend(hint(it.size_hint()));
+			let clone = it.clone();
+			flush(&log, out);
+			out.push(it.next_back().unwrap_or(0xee));
+			flush(&log, out);
+			out.push(it.next().unwrap_or(0xee));
+			out.push(it.len() as u8);
+			drop(it);
+			flush(&log, out);
+			out.extend(clone);
+			flush(&log, out);
+			let b = logged(at(1));
+			let mut it = std::iter::once_with(move || b);
+			flush(&log, out);
+			out.push(id(it.next()));
+			flush(&log, out);
+			let c = logged(at(2));
+			let it = std::iter::once_with(move || c.id());
+			flush(&log, out);
+			drop(it);
+			flush(&log, out);
+			// Called before, so `Fn` calls it, and it drops after its one call.
+			let d = logged(at(3));
+			let f = move || d.id() ^ 0x33;
+			out.push(f());
+			let mut it = std::iter::once_with(f);
+			out.extend(hint(it.size_hint()));
+			flush(&log, out);
+			out.push(it.next().unwrap_or(0xee));
+			flush(&log, out);
+			out.push(it.next().unwrap_or(0xee));
+		}
+		_ => {
+			// Read from the front, and through adaptors.
+			let id = |x: &Logged| x.id();
+			let it = std::iter::repeat(logged(at(0))).take(n(1)).map(|x| x.id() ^ 1);
+			out.extend(it);
+			flush(&log, out);
+			let zipped: Vec<(u8, u8)> = std::iter::repeat_n(logged(at(1)), n(2))
+				.zip(std::iter::repeat(at(3)))
+				.map(|(x, y)| (id(&x), y))
+				.collect();
+			for (x, y) in zipped {
+				out.extend([x, y]);
+			}
+			flush(&log, out);
+			let skipped: Vec<u8> = std::iter::repeat_n(logged(at(4)), n(5))
+				.skip(n(6))
+				.map(|x| x.id())
+				.collect();
+			out.extend(skipped);
+			flush(&log, out);
+			let chained: Vec<u8> = std::iter::once_with(|| at(7))
+				.chain(std::iter::repeat_n(at(8), n(9)))
+				.rev()
+				.collect();
+			out.extend(chained);
+		}
+	}
+	flush(&log, out);
+}

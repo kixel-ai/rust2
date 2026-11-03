@@ -18,9 +18,9 @@ elements through raw pointers, so each refuses with its span.
 - `VecDeque::rotate_left`, `rotate_right`, `swap`, `make_contiguous`, `binary_search`,
   `binary_search_by`, `binary_search_by_key`, and `partition_point`, each placing its
   items where std's does, which `as_slices` shows.
-- `Vec::splice`, `extract_if` of elements JS copies, `into_flattened`, `leak`, and
-  `spare_capacity_mut`; the last two hand out memory past the length, which may stay
-  refused.
+- `Vec::splice`, `extract_if` with its `Debug` (`retained`, `remainder`, and
+  `skipped_tail`), `into_flattened`, `leak`, and `spare_capacity_mut`; the last two hand
+  out memory past the length, which may stay refused.
 
 A vector's capacity follows only std's guarantees, at least its length and what
 `with_capacity` and `reserve` ask for, and doubles as it grows (decided with the

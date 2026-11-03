@@ -30,5 +30,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("collections::unlike_compares", collections::unlike_compares),
 		("collections::ref_orders", collections::ref_orders),
 		("collections::deque_ranges", collections::deque_ranges),
+		("collections::extracts", collections::extracts),
 	]
 }

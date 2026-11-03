@@ -1247,14 +1247,16 @@ fn called_closures<'tcx>(
 		let mentions = |t: Ty<'tcx>| t.walk().any(|a| a.as_type() == Some(input));
 		if mentions(output) {
 			// An `rt.Iter` drops the closure it holds, an `rt.PollFn` one it owns, and an
-			// `rt.LazyCell` one it never calls, and one it calls through `FnOnce` as it does.
+			// `rt.LazyCell` or a `OnceWith` one it never calls, and one it calls through
+			// `FnOnce` as it does.
 			let holder = match output.kind() {
 				ty::Adt(adt, args) if args.types().any(|a| a == input) => Some(adt.did()),
 				_ => None,
 			};
 			let iter = holder.is_some_and(|did| super::iter::holds_closure(tcx, did));
 			let holds = holder.and_then(|did| Std::of(tcx, did));
-			let lazy = matches!(holds, Some(Std::LazyCell | Std::LazyLock));
+			let lazy = matches!(holds, Some(Std::LazyCell | Std::LazyLock))
+				|| holder.is_some_and(|did| std_path(tcx, did) == ["iter", "sources", "once_with", "OnceWith"]);
 			if lent && iter && i < args.len() {
 				let f = std::mem::replace(&mut args[i], Expr::undefined());
 				args[i] = Expr::rt("lent", vec![f]);

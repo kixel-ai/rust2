@@ -23,6 +23,7 @@ roots = [
     "config::generic",
     "fmt::chunks_address",
     "fmt::pointer",
+    "fmt::split_state",
     "fmt::written",
     "futures::generic_pending",
     "futures::nested_poll",

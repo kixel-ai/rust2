@@ -10,6 +10,11 @@ pub fn chunks_address(v: &mut [u8]) -> String {
 	format!("{:?}", v.chunks_mut(2))
 }
 
+/// `Debug` of a `str` search, which writes its searcher's state in UTF-8 bytes.
+pub fn split_state(s: &str) -> String {
+	format!("{:?}", s.split(','))
+}
+
 /// A placeholder written to the crate's own `fmt::Write`, which sees each call std makes.
 pub fn written(w: &mut Sink, n: u8) {
 	use std::fmt::Write;
