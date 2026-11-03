@@ -70,19 +70,15 @@ export function sliceSortUnstable<T>(s: Slice<T>, less: Less<T>, size: number, f
 
 /**
  * `sort_by_cached_key`: `key` of each element in order, paired with its index, and then
- * `key` dropped if the sort `owns` it, the pairs sorted by `sort_unstable` by `lt`, which
- * then permute `s`, and drop by `drop`. The
- * index is the smallest of `u8`, `u16`, and `u32` whose pair is smaller than the next's
- * and counts every element, by `sizes`, each pair's size on wasm32 and then `usize`'s.
+ * `key` dropped if the sort `owns` it, the pairs, `size` bytes long on wasm32, sorted by
+ * `sort_unstable` by `lt`, which then permute `s`, and drop by `drop`.
  */
-export function sliceSortByCachedKey<T, K>(s: Slice<T>, key: (item: T) => K, lt: Less<[K, number]>, sizes: [number, number, number, number], freeze: boolean, copy: boolean, owns = false, drop?: (key: K) => void): void {
+export function sliceSortByCachedKey<T, K>(s: Slice<T>, key: (item: T) => K, lt: Less<[K, number]>, size: number, freeze: boolean, copy: boolean, owns = false, drop?: (key: K) => void): void {
 	const n = s.length;
 	if (n < 2) {
 		if (owns) dispose(key);
 		return;
 	}
-	const [u8, u16, u32, usize] = sizes;
-	const size = u8 < u16 && n <= 0xff ? u8 : u16 < u32 && n <= 0xffff ? u16 : u32 < usize ? u32 : usize;
 	const indices: [K, number][] = [];
 	for (let i = 0; i < n; i++) indices.push([key(s[i]), i]);
 	if (owns) dispose(key);

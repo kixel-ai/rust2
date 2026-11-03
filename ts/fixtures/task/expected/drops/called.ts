@@ -300,14 +300,14 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return Key.new(rt.u32Rem(rt.u32Mul(Guard.id(g7), 7), 5), Log.clone$Clone(log));
 		}, (): void => {
 			captured12[Symbol.dispose]();
-		}), rt.cmpLt(rt.cmpTuple<[Key.Key, rt.usize], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), [16, 16, 16, 16], true, false, true, rt.drop);
+		}), rt.cmpLt(rt.cmpTuple<[Key.Key, rt.usize], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 16, true, false, true, rt.drop);
 		const part5 = rt.iterToArray(rt.iterMap(rt.iterSlice(v), Guard.id), undefined, 4, true);
 		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["sorted ", args32[0]]));
 		const w: rt.u32[] = [3, 1, 2];
 		rt.sliceSortByCachedKey(w, (_210: rt.u32): rt.u32 => {
 			return rt.u32Add(_210, Guard.id(d));
-		}, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp])), [8, 8, 8, 8], true, true);
+		}, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp])), 8, true, true);
 		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(w, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["rev ", args34[0]]));
 		rt.dropAll(v);
@@ -446,7 +446,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return _08;
 		}, true), "next", 4, false, 8);
 		const empty: Guard.Guard[] = [];
-		rt.sliceSortByCachedKey(empty, Guard.id, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmp, rt.cmp])), [8, 8, 8, 8], true, true);
+		rt.sliceSortByCachedKey(empty, Guard.id, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true, true);
 		const _515: rt.usize = scanned.length;
 		const _518: rt.usize = empty.length;
 		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_515, f), (f: rt.Formatter) => rt.usizeDisplay(_518, f)];

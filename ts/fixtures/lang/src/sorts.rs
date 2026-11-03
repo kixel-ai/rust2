@@ -1,5 +1,5 @@
 //! std's slice sorts, of items that log each test they make: by `PartialOrd::lt`, `Ord::cmp`,
-//! a comparator, and a key, stable and not, at lengths across each of std's thresholds, of
+//! a comparator, and a key, stable and not, and cached, at lengths across each of std's thresholds, of
 //! element types whose size, `Freeze`, and `Copy` pick each of its small sorts and
 //! partitions. Then sorts by a comparator that orders nothing, which std may answer with a
 //! panic, and B-trees collected of the crate's own keys, which sort them.
@@ -184,6 +184,17 @@ fn sorted<P>(keys: &[u16], pad: impl Fn() -> P, out: &mut Vec<u8>) {
 	v.sort_unstable_by_key(|x| {
 		note(b'k', x.tag, 0);
 		x.key % 3
+	});
+	put(&v, out);
+	// Keys that fit std's network sort alone, but not paired with their index.
+	let mut v = items();
+	v.sort_by_cached_key(|x| {
+		note(b'k', x.tag, 0);
+		Item {
+			key: x.key % 5,
+			tag: x.tag,
+			pad: 0u8,
+		}
 	});
 	put(&v, out);
 }

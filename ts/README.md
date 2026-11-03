@@ -840,8 +840,7 @@ they need.
   elements where std's does: JS's `sort` moves `undefined`, a `None`, to the end without
   comparing it, and each engine orders its comparisons differently. A byte slice's sorts
   by its own `Ord` are its typed array's, whose order nothing observes. `sort_by_cached_key`
-  sorts its keys paired with their indexes by that `sort_unstable`, of the index type std
-  picks by the pairs' sizes.
+  sorts its keys paired with their indexes by that `sort_unstable`.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements

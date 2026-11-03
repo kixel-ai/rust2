@@ -2089,25 +2089,23 @@ fn mapping<'tcx>(
 				false => Expr::rt("sliceSort", values),
 			}
 		}
-		// By `sort_unstable` of each key `f` makes paired with its index, of the smallest
-		// type std picks by the pairs' sizes, `f` dropped once it made them, and then the
-		// keys dropped.
+		// By `sort_unstable` of each key `f` makes paired with its index, a `usize`, as a
+		// `u32` is no smaller on wasm32, `f` dropped once it made them, and then the keys
+		// dropped.
 		("slice", "sort_by_cached_key") => {
 			let (elem, key) = (targ(gargs, 0), targ(gargs, 1));
 			let mut values = args.into_iter();
 			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
 			let f = values.next()?;
-			let types = &tcx.types;
-			let pair = |index: Ty<'tcx>| Ty::new_tup(tcx, &[key, index]);
-			let lt = super::collections::test_fn(b, pair(types.usize), "lt", span);
-			let sizes = [types.u8, types.u16, types.u32, types.usize].map(|i| super::iter::size_of(b, pair(i), span));
-			let [_, freeze] = sort_of(b, pair(types.usize), span);
+			let pair = Ty::new_tup(tcx, &[key, tcx.types.usize]);
+			let lt = super::collections::test_fn(b, pair, "lt", span);
+			let [size, freeze] = sort_of(b, pair, span);
 			let copy = Expr::lit(b.t.is_copy(key).to_string());
 			let owns = Expr::lit(b.t.drops(targ(gargs, 2)).to_string());
 			let drop = b.t.dropper(key, span);
 			Expr::rt(
 				"sliceSortByCachedKey",
-				super::iter::tail(vec![s, f, lt, Expr::Array(sizes.into()), freeze, copy], vec![owns, drop]),
+				super::iter::tail(vec![s, f, lt, size, freeze, copy], vec![owns, drop]),
 			)
 		}
 		// Whether each element and the next are in order, as `sort` would leave them: by
