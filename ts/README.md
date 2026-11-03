@@ -261,7 +261,8 @@ their derived one, whichever way each is held, and a guard of a cell or a lock, 
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
 `<locked>` while a guard keeps it from being read, as std's do; an `UnsafeCell` writes only
-its name. A caller prints a
+its name. A `LazyCell` and a `LazyLock` write their value, or `<uninit>`, unpadded, before
+it is forced and while their function runs, without forcing it. A caller prints a
 `printable` type as `to_string()` and `format!("{err:?}")`
 would: `rt.fmtToString((f) => DecodeError.fmt$fmt_Display(err, f))` and
 `rt.fmtFormat([(f) => DecodeError.fmt$fmt_Debug(err, f)])`, after
@@ -447,7 +448,9 @@ Its iterators are `rt.Iter`s, so std's adaptors run over them.
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
 impl, an `Arc`'s count, or a waker. Bodies lower from MIR, so each drop is where drop
 elaboration put it. A panic drops nothing. A value without `[Symbol.dispose]` of its own, such as
-an enum or a tuple, drops through glue lowered from rustc's `drop_in_place` shim, a
+an enum, a tuple, or a generic struct holding one of those over its type parameters, as
+`hashlink`'s `LruCache` holds a `LinkedHashMap`, whose `Drop` impl has an instance per
+type, drops through glue lowered from rustc's `drop_in_place` shim, a
 function of its type's own (`drop$drops_Held`). `bool`'s, `Option`'s, `Result`'s, and `Poll`'s
 methods and `cmp::max`, `min`, and their `_by` and `_by_key` forms lower from core's MIR,
 so they drop what core's do, where core's do. The runtime

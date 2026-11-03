@@ -248,6 +248,10 @@ name = "lang-defaults-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-drops-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-durations-fixture"
 version = "0.0.0"
 
