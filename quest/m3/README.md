@@ -32,7 +32,6 @@ generic std gap is planned here even when moq never calls it.
 - [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
 - [An Arc's pointer](/quest/m3/ts-arc-pointers.md) - `Arc::as_ptr` and `Rc::as_ptr` translate, comparable by `ptr::addr_eq`
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `try_reserve`, a deque's rotations and searches, and `Vec::splice` translate
-- [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Type errors at the Rust that made them](/quest/m3/ts-span-precision.md) - a `tsc` error on output names the tail expression or call argument that made it
 - [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
