@@ -437,10 +437,12 @@ own directory, and links the library through `CGO_LDFLAGS`.
 - **Bytes** a call takes are a `[]byte`, and text a `string`, each read in place: Go's
   memory, pinned where C reads it through other memory. Bytes Rust passes a callback are
   copied into a `[]byte`. Bytes anywhere else, such as those Rust returns or a record
-  holds, are a `Bytes`, made from Go's with `NewBytes`. One of 2 KiB or more from Rust
+  holds, are a `Bytes`, made from Go's with `NewBytes`. One of 512 B or more from Rust
   reads its buffer in place through `Len`, `At`, `Slice`, `CopyTo`, `Read`, and
   `WriteTo`, and frees it once the GC finds no `Bytes` reaching it, so no Go code holds a
-  slice of freed memory; a smaller one is copied, which costs less than the GC's cleanup.
+  slice of freed memory; a smaller one is copied, which costs less than lending it. Up to
+  16 buffers lent one after another, within 64 KiB, share one GC cleanup and free
+  together, so a `Bytes` kept long keeps at most 64 KiB of the others.
   The GC sees none of Rust's buffers, so at most 64 MiB are lent at once, freed or not;
   past that, larger ones are copied too, and that garbage in Go's heap runs the GC, which
   frees them. On glibc, each thread's malloc arena keeps what is freed into it for that
