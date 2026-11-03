@@ -38,4 +38,11 @@ export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a
 	return f(self);
 }
 
+export function clone$0bhdqd8(self: Logged.Logged[] | undefined): Logged.Logged[] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return self.map(Logged.clone$Clone);
+}
+
 //# sourceMappingURL=option.ts.map
