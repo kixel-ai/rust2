@@ -581,6 +581,14 @@ export function iterBorrow<T>(it: Iter<T>): Iter<T> {
 	return new Borrowed(it);
 }
 
+/**
+ * A `dyn Iterator` of `it`: what std's vtable has, as `it` does it, and the rest by `next`, as
+ * std's default methods read a trait object. It drops `it` as it drops.
+ */
+export function iterDyn<T>(it: Iter<T>): Iter<T> {
+	return new Dyn(it);
+}
+
 // How std's `Vec` and `VecDeque` reserve for an iterator they collect or extend by, of
 // elements `size` bytes each, which panics past what they may hold: a `TrustedLen` one's
 // upper bound first, and else, after each item that finds them full, the lower bound and
@@ -2051,11 +2059,8 @@ class SuccessorsIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/**
- * An iterator borrowed by `&mut`, which forwards only what std's `impl Iterator for &mut
- * I` does, and which dropping drops nothing.
- */
-class Borrowed<T> extends Iter<T> {
+/** What std's vtable of an iterator holds, as `inner` does it, which it drops with itself. */
+class Dyn<T> extends Iter<T> implements Disposable {
 	readonly inner: Iter<T>;
 
 	constructor(inner: Iter<T>) {
@@ -2069,10 +2074,6 @@ class Borrowed<T> extends Iter<T> {
 
 	next(): T | Done {
 		return this.inner.next();
-	}
-
-	override folded(): Iter<T> {
-		return this.inner.folded();
 	}
 
 	override nextBack(): T | Done {
@@ -2098,6 +2099,23 @@ class Borrowed<T> extends Iter<T> {
 	override nthBack(n: number, drop?: Drop<T>): T | Done {
 		return this.inner.nthBack(n, drop);
 	}
+
+	[Symbol.dispose](): void {
+		dispose(this.inner);
+	}
+}
+
+/**
+ * An iterator borrowed by `&mut`, which forwards only what std's `impl Iterator for &mut
+ * I` does, its folds included, as std's specializes them for a sized `I`, and which
+ * dropping drops nothing.
+ */
+class Borrowed<T> extends Dyn<T> {
+	override folded(): Iter<T> {
+		return this.inner.folded();
+	}
+
+	override [Symbol.dispose](): void {}
 }
 
 class MapIter<T, U> extends Calling<T, U, (item: T) => U> {

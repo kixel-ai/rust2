@@ -1479,6 +1479,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Pat(base, _) => self.ty(*base, span),
 			ty::Coroutine(_, args) => self.future_ty(args.as_coroutine().return_ty(), span),
 			ty::Dynamic(..) if let Some(output) = self.dyn_future(ty) => self.future_ty(output, span),
+			ty::Dynamic(..) if let Some(item) = self.dyn_iter(ty) => Type::Rt("Iter", vec![self.ty(item, span)]),
 			// `&dyn Debug` and `&dyn Display` are values ready to write.
 			ty::Dynamic(preds, ..)
 				if preds

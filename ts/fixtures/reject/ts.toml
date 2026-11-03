@@ -183,5 +183,6 @@ roots = [
     "dropped_slots",
     "ranked_slots",
     "touched_slots",
+    "raw_dyn_iter",
 ]
 printable = ["Meters"]

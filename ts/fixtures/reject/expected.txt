@@ -7,8 +7,8 @@ unsupported type `f16` at fixtures/reject/src/lib.rs:7:14
 a scalar constant of type `f16` at fixtures/reject/src/lib.rs:8:2
 arithmetic on `f16` at fixtures/reject/src/lib.rs:8:2
 unsupported type `f16` at fixtures/reject/src/lib.rs:7:25
-`dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:11:16
-`dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:12:4
+`dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:11:16
+`dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet at fixtures/reject/src/lib.rs:12:4
 `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None` at fixtures/reject/src/lib.rs:17:2
 `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None` at fixtures/reject/src/lib.rs:16:15
 `slice::fill` of `Reused`, whose `clone_from` is its own, which is not supported yet at fixtures/reject/src/lib.rs:21:4
@@ -237,6 +237,7 @@ memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the byte
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2271:17
 memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2272:21
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2274:17
+a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, which is not supported yet at fixtures/reject/src/lib.rs:2388:40
 overriding `Iterator::fold`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:125:2
 overriding `DoubleEndedIterator::nth_back`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:150:2
 a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `Escaped`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:994:43

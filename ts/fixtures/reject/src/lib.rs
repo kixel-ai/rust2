@@ -8,8 +8,8 @@ pub fn float(a: f16) -> f16 {
 	a * 2.0
 }
 
-pub fn dynamic(f: &mut dyn Iterator<Item = u8>) -> Option<u8> {
-	f.next()
+pub fn dynamic(h: &mut dyn std::hash::Hasher) -> u64 {
+	h.finish()
 }
 
 /// `None` and `Some(None)` would both be `rt.None`, as `Some(Some(None))` is `undefined`.
@@ -2380,4 +2380,11 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 		slot.write((fill, (at, !at)));
 	}
 	tagged_slots!(slots)
+}
+
+/// A raw pointer to an iterator as one to a trait object, whose `rt.Place` no `rt.Iter` is.
+pub fn raw_dyn_iter(n: u8) -> Option<u8> {
+	let mut range = 0..n;
+	let p: *mut dyn Iterator<Item = u8> = &raw mut range;
+	unsafe { (&mut *p).next() }
 }

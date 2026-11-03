@@ -1,7 +1,7 @@
 # Census of `reject-fixture`
 
-- Refusals: 256
-- Function instances: 292
+- Refusals: 257
+- Function instances: 293
 - Generic functions no instance reached, lowered over their type parameters: 13
 
 ## By construct
@@ -60,6 +60,7 @@
 | 1 | `offset_from` of pointers to `()`, which has no bytes | fixtures/reject/src/lib.rs:2094:13 |
 | 1 | `offset_from` of pointers to `_`, which JS keeps as an object that knows no array it is in | fixtures/reject/src/lib.rs:2087:36 |
 | 1 | a cast from `_` to `_` | fixtures/reject/src/lib.rs:68:2 |
+| 1 | a coercion of `_` to `_`, which is not supported yet | fixtures/reject/src/lib.rs:2388:40 |
 | 1 | a coercion to `_` | fixtures/reject/src/lib.rs:234:2 |
 | 1 | a coercion to `_`, which is not supported yet | fixtures/reject/src/lib.rs:413:30 |
 | 1 | a constant of type `_` | fixtures/reject/src/lib.rs:2288:34 |
@@ -135,7 +136,7 @@ The type or module each refused type or path belongs to.
 | 2 | `[u8; 3]` | fixtures/reject/src/lib.rs:1648:15 |
 | 2 | `dyn Keyed` | fixtures/reject/src/lib.rs:454:32 |
 | 2 | `dyn Scaled` | fixtures/reject/src/lib.rs:386:23 |
-| 2 | `dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:11:16 |
+| 2 | `dyn std::hash::Hasher` | fixtures/reject/src/lib.rs:11:16 |
 | 2 | `slice` | fixtures/reject/src/lib.rs:21:4 |
 | 2 | `std::any::TypeId` | fixtures/reject/src/lib.rs:466:2 |
 | 2 | `std::collections::BTreeSet` | fixtures/reject/src/lib.rs:193:75 |
@@ -159,6 +160,8 @@ The type or module each refused type or path belongs to.
 | 1 | `(u16, InTuple)` | fixtures/reject/src/lib.rs:1268:33 |
 | 1 | `*const [u8; 4]` | fixtures/reject/src/lib.rs:1638:5 |
 | 1 | `*mut [u8; 4]` | fixtures/reject/src/lib.rs:1634:41 |
+| 1 | `*mut dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:2388:40 |
+| 1 | `*mut std::ops::Range` | fixtures/reject/src/lib.rs:2388:40 |
 | 1 | `Aliased` | fixtures/reject/src/lib.rs:1042:29 |
 | 1 | `Assigned` | fixtures/reject/src/lib.rs:1934:20 |
 | 1 | `Bare` | fixtures/reject/src/lib.rs:656:70 |
@@ -272,7 +275,7 @@ The type or module each refused type or path belongs to.
 | 3 | unsupported type `_` | `f16` | fixtures/reject/src/lib.rs:7:14 |
 | 2 | `_` is not supported: its `None` and `Some` would both be `rt.None` | `Option` | fixtures/reject/src/lib.rs:16:15 |
 | 2 | `_` of `_`, whose `None` is `rt.None`, which is not supported yet | `Iterator::scan`, `Option` | fixtures/reject/src/lib.rs:37:4 |
-| 2 | `_`, a trait object of another crate's trait, which is not supported yet | `dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:11:16 |
+| 2 | `_`, a trait object of another crate's trait, which is not supported yet | `dyn std::hash::Hasher` | fixtures/reject/src/lib.rs:11:16 |
 | 2 | `_`, a trait object of the generic trait `_`, which is not supported yet | `dyn Scaled`, `Scaled` | fixtures/reject/src/lib.rs:386:23 |
 | 2 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u32`, `u8` | fixtures/reject/src/lib.rs:483:27 |
 | 2 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u8`, `u32` | fixtures/reject/src/lib.rs:2254:15 |
@@ -317,6 +320,7 @@ The type or module each refused type or path belongs to.
 | 1 | a cast from `_` to `_` | `u64`, `f16` | fixtures/reject/src/lib.rs:68:2 |
 | 1 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u32`, `[u32; 2]` | fixtures/reject/src/lib.rs:2099:13 |
 | 1 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u8`, `Halves` | fixtures/reject/src/lib.rs:2255:16 |
+| 1 | a coercion of `_` to `_`, which is not supported yet | `*mut std::ops::Range`, `*mut dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:2388:40 |
 | 1 | a coercion to `_` | `std::sync::Arc` | fixtures/reject/src/lib.rs:234:2 |
 | 1 | a coercion to `_`, which is not supported yet | `&Tail` | fixtures/reject/src/lib.rs:413:30 |
 | 1 | a constant of type `_` | `std::mem::ManuallyDrop` | fixtures/reject/src/lib.rs:2288:34 |
@@ -733,8 +737,8 @@ The type or module each refused type or path belongs to.
 
 <details><summary>`_`, a trait object of another crate's trait, which is not supported yet (2)</summary>
 
-- fixtures/reject/src/lib.rs:11:16: `dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet
-- fixtures/reject/src/lib.rs:12:4: `dyn std::iter::Iterator<Item = u8>`, a trait object of another crate's trait, which is not supported yet
+- fixtures/reject/src/lib.rs:11:16: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
+- fixtures/reject/src/lib.rs:12:4: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
 
 </details>
 
@@ -925,6 +929,12 @@ The type or module each refused type or path belongs to.
 <details><summary>a cast from `_` to `_` (1)</summary>
 
 - fixtures/reject/src/lib.rs:68:2: a cast from `u64` to `f16`
+
+</details>
+
+<details><summary>a coercion of `_` to `_`, which is not supported yet (1)</summary>
+
+- fixtures/reject/src/lib.rs:2388:40: a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, which is not supported yet
 
 </details>
 
