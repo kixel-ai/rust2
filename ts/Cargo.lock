@@ -88,7 +88,6 @@ dependencies = [
 name = "crates-fixture"
 version = "0.0.0"
 dependencies = [
- "bytes",
  "crates-dep",
 ]
 
