@@ -108,7 +108,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 	put(out, v.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 29 {
+		match op % 35 {
 			0 | 1 => v.push(make(arg)),
 			2 => {
 				drop(v.pop());
@@ -116,7 +116,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			3 | 4 => {
 				let additional = amount(arg, v.len(), size);
-				match op % 29 {
+				match op % 35 {
 					3 => v.reserve(additional),
 					_ => v.reserve_exact(additional),
 				}
@@ -233,6 +233,45 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 				v = own;
 				k.remade(true);
 			}
+			// Room for what it takes, leaving the other whatever it had.
+			29 => {
+				let mut other = Vec::with_capacity(usize::from(arg % 8));
+				other.extend((0..arg % 12).map(make));
+				let (len, n) = (v.len(), other.len());
+				v.append(&mut other);
+				k.reserved(len, n);
+				Known { exact: false, floor: 0 }.put(out, other.len(), other.capacity());
+			}
+			// Room for the rest at once, by a few or past what it may hold, or cut.
+			30 | 31 => {
+				let len = v.len();
+				let new_len = match arg >> 5 {
+					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
+					_ => usize::from(arg % 24),
+				};
+				match op % 35 {
+					30 => v.resize(new_len, make(arg)),
+					_ => v.resize_with(new_len, || make(arg)),
+				}
+				match new_len > len {
+					true => k.reserved(len, new_len - len),
+					false => k.loose(),
+				}
+			}
+			// The rest in a new `Vec` with room for exactly them.
+			32 => {
+				let tail = v.split_off(usize::from(arg) % (v.len() + 1));
+				Known::new(0).put(out, tail.len(), tail.capacity());
+				k.loose();
+			}
+			33 => {
+				let len = v.len();
+				let start = usize::from(arg) % (len + 1);
+				v.extend_from_within(start..);
+				k.reserved(len, len - start);
+			}
+			// Through a deque, which keeps its buffer both ways.
+			34 => v = Vec::from(VecDeque::from(v)),
 			_ => {}
 		}
 		k.put(out, v.len(), v.capacity());
@@ -254,13 +293,13 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 	put(out, q.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 21 {
+		match op % 26 {
 			0 => q.push_back(make(arg)),
 			1 => q.push_front(make(arg)),
 			2 => drop(q.pop_front()),
 			3 | 4 => {
 				let additional = amount(arg, q.len(), size);
-				match op % 21 {
+				match op % 26 {
 					3 => q.reserve(additional),
 					_ => q.reserve_exact(additional),
 				}
@@ -296,7 +335,30 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 				put(out, rest.len());
 				put(out, rest.capacity());
 			}
-			_ => q = VecDeque::from([make(arg), make(arg), make(arg)]),
+			20 => q = VecDeque::from([make(arg), make(arg), make(arg)]),
+			21 => {
+				let mut other = VecDeque::with_capacity(usize::from(arg % 8));
+				other.extend((0..arg % 12).map(make));
+				q.append(&mut other);
+				put(out, other.len());
+				put(out, other.capacity());
+			}
+			22 | 23 => {
+				let new_len = match arg >> 5 {
+					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
+					_ => usize::from(arg % 24),
+				};
+				match op % 26 {
+					22 => q.resize(new_len, make(arg)),
+					_ => q.resize_with(new_len, || make(arg)),
+				}
+			}
+			24 => {
+				let tail = q.split_off(usize::from(arg) % (q.len() + 1));
+				put(out, tail.len());
+				put(out, tail.capacity());
+			}
+			_ => q = VecDeque::from(Vec::from(q)),
 		}
 		put(out, q.len());
 		put(out, q.capacity());
