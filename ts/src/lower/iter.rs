@@ -1716,6 +1716,13 @@ fn collect<'tcx>(
 		return None;
 	};
 	let std = Std::of(tcx, adt.did())?;
+	// An `Arc<[T]>` holds the `Box<[T]>` std's collects.
+	if std == Std::Arc
+		&& let Some(boxed) = super::task::shared_box(tcx, args.type_at(0))
+	{
+		let boxed = collect(b, boxed, item, iter, from, trusted, span)?;
+		return Some(Expr::New(Box::new(Expr::Rt("Arc".into())), vec![boxed]));
+	}
 	// A `Cow<[T]>` owns the `Vec` std's collects, and a `Box<[T]>` becomes it.
 	let boxed = library::box_slice(tcx, ty);
 	let elem = match std {
