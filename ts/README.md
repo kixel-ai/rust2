@@ -142,7 +142,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `AtomicU32` and the others of `bool` and integers, `AtomicPtr<T>` | `rt.Atomic<T>`, the `rt.Place` of its value; an `atomic::Ordering` is its discriminant, and one an operation can't take panics as std's does. An `AtomicPtr` compares pointers only to what JS keeps as an object or bytes, as raw pointers do |
 | `async fn` | a function returning `rt.Future<T>`: a class of its own, its coroutine's state machine |
 | async closure | a closure returning the future of each call, with what makes the future of a call that consumes it if it owns a value that drops and `Fn` or `FnMut` call it |
-| `Poll<T>`, `Waker`, `Context` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read, and `clone_from` keeps where the waker it has `will_wake` the source |
+| `Poll<T>`, `Waker`, `Context`, `RawWaker`, `RawWakerVTable` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read, and `clone_from` keeps where the waker it has `will_wake` the source; `rt.RawWaker` and `rt.WakerVTable`, records of their fields under std's names, compared by their derived `==` |
 | `pin!(x)`, `poll_fn(f)`, `future::pending()`, `future::ready(v)` | `x`; `rt.PollFn`, which drops `f` with itself; `rt.NEVER`, which every `Pending` is; `rt.Ready`, whose first poll or `into_inner` takes `v` and a later one panics, and which drops `v` with itself unless one took it |
 | `Box::pin(x)`, `dyn Future<Output = T>` | `x`; `rt.Future<T>`: an `async` body or std's future as it is, and another future as an `rt.DynFuture` over its `poll`, which drops it with itself unless borrowed |
 | `bytes::Bytes` | `rt.ByteSlice`, as `&[u8]` is: its clones and slices share bytes that never change |
@@ -619,12 +619,15 @@ a `dyn FnOnce` call it.
 `rt.spawn(future, signal?)` runs one as a promise, polling woken tasks in a batch from a
 microtask and yielding to a macrotask after 128 polls. Aborting `signal` drops the future
 at once, or as the poll it aborts in returns pending, and rejects the promise with the
-signal's reason; a future ready in that poll resolves it. `Waker::from(arc)`, of an `Arc` of
-the crate's `Wake` impl, is an `rt.ArcWaker`, which holds a count of the `Arc` and wakes
-through the impl, and `Waker::noop()` is `rt.NOOP_WAKER`. A waker's identity is its `data`
-and `vtable`, as std's is: an `rt.ArcWaker`'s are its `Arc` and the impl's `wake`, so
-clones and wakers made apart from one `Arc` share them, and a caller's own waker gives its
-own, which each of its clones shares.
+signal's reason; a future ready in that poll resolves it. A waker's identity is its `data`
+and `vtable`, as std's is, and its vtable an `rt.WakerVTable` of the four functions std's
+`RawWakerVTable` holds, which `RawWakerVTable::new` and a `static` of one make, `==`
+compares, and `Waker::new`, `Waker::from_raw`'s `rt.VTableWaker`, calls on its data for
+each clone, wake, and drop. `Waker::from(arc)` and `RawWaker::from(arc)`, of an `Arc` of the
+crate's `Wake` impl, hold a count of the `Arc` and wake through the impl: their data is
+the `Arc`, and their vtable the impl's, so clones and wakers made apart from one `Arc`
+share them. `Waker::noop()` is `rt.NOOP_WAKER`, and a caller's own waker gives its own
+identity, which each of its clones shares, and a vtable of what it does.
 
 A file's items follow the Rust source, whatever
 order translation reaches them in, so adding a root moves nothing it does not reach.
@@ -1015,7 +1018,7 @@ method taking a closure tells it, or its accumulator or what it finds, apart fro
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
 drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
 its closure a reference to a `[u8; N]`,
-a pointer's address (`{:p}`) and `Debug` of a `Waker` or a `Context`, which writes addresses, `write!` with a placeholder into
+a pointer's address (`{:p}`) and `Debug` of a `Waker`, a `Context`, a `RawWaker`, or a `RawWakerVTable`, which writes addresses, `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,

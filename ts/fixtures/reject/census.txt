@@ -34,6 +34,7 @@ fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
 fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`
 fixtures/reject/src/futures.rs:pending_output+0:34: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
+fixtures/reject/src/futures.rs:raw_waker_debug+1:2: `Debug` of `std::task::RawWaker`, which writes addresses, which JS has no counterpart of
 fixtures/reject/src/futures.rs:ready_pending+0:27: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
 fixtures/reject/src/futures.rs:waker_debug+1:2: `Debug` of `std::task::Waker`, which writes addresses, which JS has no counterpart of
 fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose closure takes a reference to `[u8; 2]`, which is not supported yet

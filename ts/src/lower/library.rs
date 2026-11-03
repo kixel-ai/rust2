@@ -106,8 +106,10 @@ pub enum Std {
 	LazyLock,
 	/// `rt.Waker`.
 	Waker,
-	/// `rt.WakerVTable`: a waker's vtable, of which only its identity is read.
+	/// `rt.WakerVTable`: a waker's vtable, of its four functions.
 	WakerVTable,
+	/// `rt.RawWaker`: a waker's data and vtable.
+	RawWaker,
 	/// `rt.Context`: its waker.
 	Context,
 	/// `rt.Poll<T>`: `T` itself, or `rt.Pending`.
@@ -200,8 +202,8 @@ pub enum Std {
 }
 
 impl Std {
-	/// Whether it is one of std's errors, or a `Utf8Chunk`, whose runtime fields have std's
-	/// names and whose derived `PartialEq` lowers from its MIR.
+	/// Whether it is one of std's errors, a `Utf8Chunk`, or a raw waker or its vtable, whose
+	/// runtime fields have std's names and whose derived `PartialEq` lowers from its MIR.
 	pub fn record(self) -> bool {
 		matches!(
 			self,
@@ -219,6 +221,8 @@ impl Std {
 				| Self::FmtError
 				| Self::LayoutError
 				| Self::Utf8Chunk
+				| Self::WakerVTable
+				| Self::RawWaker
 		)
 	}
 
@@ -349,6 +353,7 @@ impl Std {
 			["future", "pending", "Pending"] => Some(Self::Pending),
 			["future", "ready", "Ready"] => Some(Self::Ready),
 			["task", "wake", "RawWakerVTable"] => Some(Self::WakerVTable),
+			["task", "wake", "RawWaker"] => Some(Self::RawWaker),
 			["convert", "Infallible"] => Some(Self::Infallible),
 			// A thread-local on wasm32 is never destroyed, so `try_with` never fails.
 			["thread", "local", "AccessError"] => Some(Self::Infallible),

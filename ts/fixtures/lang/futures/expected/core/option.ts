@@ -9,6 +9,13 @@ export function isSomeAnd$09tpccf(self: rt.u8 | undefined, f: (a0: rt.u8) => boo
 	return f(self);
 }
 
+export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function filter$0v80fk8(self: rt.u8 | undefined, predicate: (a0: rt.u8) => boolean): rt.u8 | undefined {
 	if (self !== undefined) {
 		const x: rt.u8 = self;
