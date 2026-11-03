@@ -5,14 +5,31 @@
 [rust2-ts](/ts/README.md) keeps a `Vec`'s capacity through every step that drops its
 length, as std guarantees, when the capacity came only from pushes. That covers `clear`,
 `truncate`, `pop`, `drain`, `retain`, `dedup`, `resize` down, `split_off`, `remove`, and
-`swap_remove`. Differential tests against native Rust prove it.
+`swap_remove`. Differential tests against native Rust prove it. A measured wrapper
+decides how, or whether the divergence is documented instead.
 
 ## Plan
 
-std documents that `clear` and `truncate` leave the capacity unchanged, and that a `Vec`
-never shrinks on its own. So the guarantee-only model the maintainer chose on 2026-11-01
-must keep this capacity. It is a guarantee, not the exact capacity
-[that quest](/quest/m3/ts-vec-exact-capacity.md) leaves open.
+Decided with the maintainer on 2026-11-03:
+
+> std documents that `clear`/`truncate` don't change a Vec's capacity, but the
+> guarantee-only model reports 0 or 1 afterwards. What should the quest aim for?
+>
+> - ✅ Try a wrapper first: measure ts-vec-exact-capacity's untried idea, a Vec object
+>   holding its own length and capacity over its array, on push/stack and the other TS
+>   benchmarks, against the 1.1x-2.8x of peak tracking, before choosing.
+> - Fix it and accept the measured cost.
+> - Document the divergence and drop the quest.
+
+This conflicts with the 2026-11-02 decision recorded in
+[that quest](/quest/m3/ts-vec-exact-capacity.md) to keep only std's capacity guarantees,
+since `clear` and `truncate` keeping the capacity is itself documented. So the first step
+is a measurement: build the wrapper and time it on `push/stack` and the other TS
+benchmarks in Node, Chrome, Bun, and Firefox, against peak tracking's 1.24x, 1.11x, 2.3x,
+and 2.8x on `push/stack`. Then bring the numbers back to choose between the wrapper,
+fixing it at the measured cost, and documenting the divergence. A wrapper that holds its
+own capacity would give std's exact capacity too, so this quest may merge with
+[that quest](/quest/m3/ts-vec-exact-capacity.md) once measured.
 
 A `Vec` whose capacity is implicit, grown by pushes or made exact by `vecExact`, reads it
 back through `capOf` from its current length, so the capacity falls with the length.
@@ -37,10 +54,6 @@ The `capacity` fixture misses this because its `Known` checks capacity only agai
 floor that `with_capacity` or `reserve` set, and those already hold their capacity. Its
 cases need a check that the capacity never drops below what it was before a step that
 shortens the vector.
-
-Recommendation: record the implicit capacity once, when a step first drops the length
-below it, so later steps grow from it. Measure on `push/stack` across engines first. A
-record made on every pop cost 1.24x to 2.8x there in that quest's measurement.
 
 Public API: the translator's output.
 
