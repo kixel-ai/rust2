@@ -835,13 +835,30 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		dropped(out);
 		inner[Symbol.dispose]();
 		dropped(out);
+		const _262: [dyns_Countdown.Countdown, rt.Range<rt.u8>] = [new dyns_Countdown.Countdown(rt.u8Rem(a, 8)), new rt.Range(rt.u8Rem(a, 4), rt.u8Rem(b, 8))];
+		const own2: dyns_Countdown.Countdown = _262[0];
+		const range: rt.Range<rt.u8> = _262[1];
+		const hints: [rt.usize, rt.usize | undefined][] = rt.arrayMap([rt.iterDyn(rt.iterFrom(own2, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it))), rt.iterDyn(rt.iterBorrow(range))], (it: rt.Iter<rt.u8>): [rt.usize, rt.usize | undefined] => {
+			return it.sizeHint();
+		});
+		let held: dyns_Countdown.Countdown = new dyns_Countdown.Countdown(rt.u8Rem(b, 8));
+		let lent2: rt.Place<dyns_Countdown.Countdown> = rt.place(() => held, (value4) => held = value4);
+		const layered: rt.Place<rt.Place<dyns_Countdown.Countdown>> = rt.place(() => lent2, (value5) => lent2 = value5);
+		const fifth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterFrom(layered.v.v, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it))).next());
+		const sixth: rt.u8 | undefined = rt.iterToOption(dyns_Countdown.next$iter_Iterator(layered.v.v));
+		const _301: rt.usize = rt.ownedCount(rt.iterFrom(held, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop));
+		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(hints, f, (value: [rt.usize, rt.usize | undefined], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtOption(value[1], f, rt.usizeDebug)], f)), (f: rt.Formatter) => rt.fmtOption(fifth, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(sixth, f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(_301, f)];
+		fmt_put(out, rt.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", args16[3], " "]));
+		dropped(out);
+		own2[Symbol.dispose]();
+		dropped(out);
 		const split: Chunks.Chunks = new Chunks.of$dyns_Lease({ _0: rt.byteSliceToByteVec(rt.byteSliceRange(data, 2)), _1: rt.usizeAdd(rt.u8Rem(b, 4) as rt.usize, 1) });
 		const lens_: rt.usize[] = rt.iterToArray(rt.iterMap(split.chunks$Chunks(), (a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		}), "next", 4);
-		const _280: rt.usize = rt.ownedCount(split.chunks$Chunks());
-		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_280, f)];
-		fmt_put(out, rt.fmtFormat([args16[0], " ", args16[1]]));
+		const _336: rt.usize = rt.ownedCount(split.chunks$Chunks());
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_336, f)];
+		fmt_put(out, rt.fmtFormat([args18[0], " ", args18[1]]));
 	}
 }
 

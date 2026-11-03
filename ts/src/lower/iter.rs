@@ -178,10 +178,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		if self.t.polymorphic() && pointee.has_param() {
 			return Expr::undefined();
 		}
-		// What a box owns iterates as itself, and what a reference borrows as a `&mut` does.
-		let ty = match from.is_box() {
-			true => pointee,
-			false => Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, pointee),
+		// What a box owns iterates as itself, and what a reference borrows as a `&mut` does,
+		// which `into_iter` makes of a shared one.
+		let ty = match from.kind() {
+			_ if from.is_box() => pointee,
+			ty::Ref(..) => from,
+			_ => Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, pointee),
 		};
 		match into_iter(self, ty, value, span) {
 			Some(it) => Expr::rt("iterDyn", vec![it]),
@@ -198,8 +200,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	let (ty, value) = peel_mut(ty, value);
-	let (ty, value) = unbox_iter(b, ty, value);
+	let (ty, value) = peel_iter(b, ty, value);
 	let (ty, value) = match unbox_ref(tcx, ty) {
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
@@ -407,24 +408,46 @@ pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	(ty, value)
 }
 
-/// `value`, a `ty`, read through each box of an iterator, which std's `Iterator` for `Box<I>`
-/// forwards to and JS holds as itself, and a `&mut` to one, which reads through its
-/// `rt.Place` once to a `&mut I`. A box of a trait object is the `rt.Iter` itself.
-pub fn unbox_iter<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> (Ty<'tcx>, Expr) {
+/// `value`, a `ty`, read through each `&`, `&mut`, and box, in any order, that std's
+/// `Iterator` for `&mut I` and `Box<I>` forward through, down to the iterator: a `&mut` to it
+/// and that `&mut`'s JS value where a reference was read, else the iterator itself, and a
+/// box of a trait object where none was, which drops it. JS holds a box as what it holds.
+pub fn peel_iter<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	let tcx = b.t.tcx;
-	let held = |ty: Ty<'tcx>| ty.boxed_ty().filter(|held| b.t.iter_item(*held).is_some());
-	let unboxed = |mut ty: Ty<'tcx>, trait_box: bool| {
-		while let Some(inner) = held(ty).filter(|inner| trait_box || !inner.is_trait()) {
-			ty = inner;
-		}
-		ty
+	let held = |ty: Ty<'tcx>, borrowed: bool| {
+		ty.boxed_ty()
+			.filter(|held| b.t.iter_item(*held).is_some() && (borrowed || !held.is_trait()))
 	};
-	match *ty.kind() {
-		ty::Ref(region, inner, ty::Mutability::Mut) if held(inner).is_some() => {
-			let value = b.t.pointee_value(ty, value);
-			(Ty::new_mut_ref(tcx, region, unboxed(inner, true)), value)
+	let mut borrowed = false;
+	loop {
+		if let Some(inner) = held(ty, borrowed) {
+			ty = inner;
+			continue;
 		}
-		_ => (unboxed(ty, false), value),
+		let ty::Ref(region, inner, mutability) = *ty.kind() else {
+			return (ty, value);
+		};
+		let mut end = inner;
+		while let Some(held) = held(end, true) {
+			end = held;
+		}
+		// A reference to what is no iterator, such as a slice, iterates as it is.
+		if b.t.iter_item(end).is_none() {
+			return (ty, value);
+		}
+		borrowed = true;
+		if end.is_ref() {
+			value = b.t.pointee_value(ty, value);
+			ty = inner;
+			continue;
+		}
+		// The last reference: a `&mut` to the iterator is the place of the boxes before it, as
+		// JS erases them, or the iterator itself, as a shared reference is too.
+		return match (b.t.needs_place(end), mutability) {
+			(true, ty::Mutability::Mut) => (Ty::new_mut_ref(tcx, region, end), value),
+			(false, _) => (Ty::new_mut_ref(tcx, region, end), b.t.pointee_value(ty, value)),
+			(true, ty::Mutability::Not) => (ty, value),
+		};
 	}
 }
 
@@ -556,8 +579,7 @@ pub fn call<'tcx>(
 	let item = b.t.iter_item(self_ty.peel_refs())?;
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
-	let (self_ty, recv) = peel_mut(self_ty, values.next()?);
-	let (self_ty, recv) = unbox_iter(b, self_ty, recv);
+	let (self_ty, recv) = peel_iter(b, self_ty, values.next()?);
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);

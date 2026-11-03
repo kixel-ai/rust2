@@ -697,6 +697,21 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	dropped(out);
 	drop(inner);
 	dropped(out);
+	// Shared boxes, and boxes and references in any order, each of which std forwards through.
+	let (own, range) = (Box::new(Countdown(a % 8)), Box::new(a % 4..b % 8));
+	let seen: [&dyn Iterator<Item = u8>; 2] = [&own, &range];
+	let hints = seen.map(|it| it.size_hint());
+	let mut held = Box::new(Countdown(b % 8));
+	let mut lent = &mut held;
+	let mut layered: Box<&mut &mut Box<Countdown>> = Box::new(&mut lent);
+	let through: &mut dyn Iterator<Item = u8> = &mut layered;
+	let fifth = through.next();
+	let sixth = layered.next();
+	drop(layered);
+	put(out, &format!("{hints:?} {fifth:?} {sixth:?} {} ", held.count()));
+	dropped(out);
+	drop(own);
+	dropped(out);
 
 	// Returned through a trait object of the crate's own trait.
 	let split: &dyn Chunks = &Lease(rest.to_vec(), usize::from(b % 4) + 1);
