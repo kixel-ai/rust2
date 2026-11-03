@@ -331,9 +331,13 @@ impl<'tcx> Translator<'_, 'tcx> {
 			ctor: ts::Ctor::Positional,
 			doc: None,
 		});
-		if held == Held::Value
-			&& let Some(dropped) = self.drop_value(Expr::This.field(v), from, span)
-		{
+		// A struct's glue drops a trait object in its last field by the object a view of
+		// the struct made of where the field is.
+		let value = match held {
+			Held::Value => Expr::This.field(v),
+			Held::Place => Expr::This.field(v).member("v"),
+		};
+		if let Some(dropped) = self.drop_value(value, from, span) {
 			let dispose = self.method(sym, "[Symbol.dispose]".into());
 			self.program.methods.entry(sym).or_default().push(ts::Function {
 				sym: dispose,

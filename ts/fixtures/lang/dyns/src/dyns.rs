@@ -1073,6 +1073,39 @@ struct Tail<T: ?Sized> {
 	value: T,
 }
 
+/// A struct with a `Drop` impl of its own, which runs before its fields drop.
+struct Guarded<T: ?Sized> {
+	log: Rc<RefCell<Vec<u8>>>,
+	value: T,
+}
+
+impl<T: ?Sized> Drop for Guarded<T> {
+	fn drop(&mut self) {
+		self.log.borrow_mut().push(0xee);
+	}
+}
+
+/// An enum, which JS copies, holding a value that drops.
+enum Held {
+	Empty,
+	Full(Noisy),
+}
+
+impl Shape for Held {
+	fn area(&self) -> u32 {
+		match self {
+			Held::Empty => 0,
+			Held::Full(n) => n.area(),
+		}
+	}
+	fn grow(&mut self, by: u8) {
+		match self {
+			Held::Empty => {}
+			Held::Full(n) => n.grow(by),
+		}
+	}
+}
+
 /// Through a `&mut` to a struct whose last field is a trait object.
 fn bump_tail(t: &mut Tail<dyn Shape>, by: u8) -> u32 {
 	t.count = t.count.wrapping_add(by);
@@ -1257,6 +1290,34 @@ pub fn tails(data: &[u8], out: &mut Vec<u8>) {
 	drop(shared);
 	put(out, &format!("{} {:?} ", again.borrow().area(), log.borrow()));
 	drop(again);
+	put(out, &format!("{:?} ", log.borrow()));
+
+	// A struct whose own `Drop` runs first, then its last field's, of each kind of value.
+	let guarded: Vec<Box<Guarded<dyn Shape>>> = vec![
+		Box::new(Guarded {
+			log: log.clone(),
+			value: Held::Full(Noisy(a, log.clone())),
+		}),
+		Box::new(Guarded {
+			log: log.clone(),
+			value: Noisy(b, log.clone()),
+		}),
+		Box::new(Guarded {
+			log: log.clone(),
+			value: Held::Empty,
+		}),
+	];
+	let cell: Rc<RefCell<Guarded<dyn Shape>>> = Rc::new(RefCell::new(Guarded {
+		log: log.clone(),
+		value: Held::Full(Noisy(c, log.clone())),
+	}));
+	cell.borrow_mut().value.grow(a);
+	let areas: Vec<u32> = guarded.iter().map(|g| g.value.area()).collect();
+	put(out, &format!("{areas:?} {} ", cell.borrow().value.area()));
+	log.borrow_mut().clear();
+	drop(guarded);
+	put(out, &format!("{:?} ", log.borrow()));
+	drop(cell);
 	put(out, &format!("{:?} ", log.borrow()));
 
 	// Of std's traits: a function, a writer of `Debug`, a `dyn Any`, and an iterator.

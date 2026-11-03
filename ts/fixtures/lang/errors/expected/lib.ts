@@ -186,6 +186,10 @@ export class ofPlace$errors_Failure {
 		this.v = v;
 	}
 
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v.v);
+	}
+
 	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 		return Failure.fmt$fmt_Debug(this.v.v, a);
 	}

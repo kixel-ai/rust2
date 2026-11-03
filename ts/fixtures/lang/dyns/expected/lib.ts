@@ -3,6 +3,8 @@
 import * as rt from "./rt.ts";
 import type * as Any from "./core/any.Any.ts";
 import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, tails } from "./dyns.ts";
+import * as Guarded from "./dyns.Guarded.ts";
+import * as Held from "./dyns.Held.ts";
 import * as Hits from "./dyns.Hits.ts";
 import * as Lease from "./dyns.Lease.ts";
 import * as Looped from "./dyns.Looped.ts";
@@ -92,6 +94,42 @@ export function drop$Result_tuple2_usize_u8_sync_Arc_dyn_Any_marker_Sync_marker_
 export function drop$Result_u16_boxed_Box_dyn_Any(_1: rt.Result<rt.u16, Any.Any>): void {
 	if (!_1.ok) {
 		rt.drop(_1.error);
+	}
+}
+
+export function drop$boxed_Box_dyns_Guarded_dyn_dyns_Shape(value: Guarded.Guarded<Shape.Shape>): void {
+	drop$dyns_Guarded_dyn_dyns_Shape(value);
+}
+
+export function drop$cell_RefCell_dyns_Guarded_dyn_dyns_Shape(value: rt.RefCell<Guarded.Guarded<Shape.Shape>>): void {
+	drop$dyns_Guarded_dyn_dyns_Shape(value.value);
+}
+
+export function drop$cell_RefCell_dyns_Guarded_dyns_Held(value: rt.RefCell<Guarded.Guarded<Held.Held>>): void {
+	drop$dyns_Guarded_dyns_Held(value.value);
+}
+
+export function drop$dyns_Guarded_dyn_dyns_Shape(_1: Guarded.Guarded<Shape.Shape>): void {
+	Guarded.drop$ops_Drop_dyn_dyns_Shape(_1);
+	_1.log[Symbol.dispose]();
+	rt.drop(_1.value);
+}
+
+export function drop$dyns_Guarded_dyns_Held(_1: Guarded.Guarded<Held.Held>): void {
+	Guarded.drop$ops_Drop_dyns_Held(_1);
+	_1.log[Symbol.dispose]();
+	drop$dyns_Held(_1.value);
+}
+
+export function drop$dyns_Guarded_dyns_Noisy(_1: Guarded.Guarded<Noisy.Noisy>): void {
+	Guarded.drop$ops_Drop_dyns_Noisy(_1);
+	_1.log[Symbol.dispose]();
+	_1.value[Symbol.dispose]();
+}
+
+export function drop$dyns_Held(_1: Held.Held): void {
+	if (_1.tag !== "Empty") {
+		_1._0[Symbol.dispose]();
 	}
 }
 
@@ -412,6 +450,42 @@ export class ofPlace$Option_u8 {
 
 	constructor(v: rt.Place<rt.u8 | undefined>) {
 		this.v = v;
+	}
+}
+
+export class ofPlace$dyns_Held {
+	v: rt.Place<Held.Held>;
+
+	constructor(v: rt.Place<Held.Held>) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$dyns_Held(this.v.v);
+	}
+
+	area$Shape(): rt.u32 {
+		return Held.area$dyns_Shape(this.v.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Held.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Held.intoArea$dyns_Shape(this.v.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Held.larger$dyns_Shape(this.v.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Held.sides$dyns_Shape(this.v.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Held.tally$dyns_Shape(this.v.v, a);
 	}
 }
 
