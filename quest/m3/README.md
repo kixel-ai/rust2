@@ -24,7 +24,6 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
-- [std's char methods that have no mapping](/quest/m3/ts-char-methods.md) - `is_alphabetic`, `to_lowercase`, `len_utf8`, the escapes, and the rest of `char` translate, called or as values, by std's Unicode version
 - [str's case maps and Unicode escapes](/quest/m3/ts-str-unicode.md) - `str::to_lowercase`, `to_uppercase`, the escapes, and `encode_utf16` translate by std's Unicode tables, final sigma included
 - [Debug of std's iterator adaptors](/quest/m3/ts-iter-adaptor-debug.md) - `Debug` of `Map`, `Zip`, `Peekable`, `DecodeUtf16`, and the other adaptors writes what std's does
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
