@@ -2,6 +2,13 @@
 
 import * as rt from "../rt.ts";
 
+export function thenSome$0b23a33(self: boolean, t: rt.u16): rt.u16 | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function then$0w2ymju(self: boolean, f: () => rt.ByteSlice): rt.ByteSlice | undefined {
 	if (!self) {
 		return undefined;

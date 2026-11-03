@@ -420,6 +420,24 @@ pub fn empty_iter(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	is_std(tcx, did) && std_path(tcx, did) == ["iter", "sources", "empty", "Empty"]
 }
 
+/// Whether `did` is a list's `Iter`, `IterMut`, or `IntoIter`.
+fn list_iter(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	is_std(tcx, did)
+		&& matches!(
+			std_path(tcx, did)
+				.iter()
+				.map(String::as_str)
+				.collect::<Vec<_>>()
+				.as_slice(),
+			["collections", "linked_list", "Iter" | "IterMut" | "IntoIter"]
+		)
+}
+
+/// Whether `Default::default()` of `ty` is an iterator that yields nothing.
+pub fn empty_default(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Adt(adt, _) if empty_iter(tcx, adt.did()) || list_iter(tcx, adt.did()))
+}
+
 /// Whether a `ty`'s value is a JS string: a `str`, a `String`, a `Box<str>`, or a `Cow<str>`.
 pub fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
@@ -1443,12 +1461,14 @@ fn mapping<'tcx>(
 			{
 				return Some(boxed_vec(b, value, elem, span));
 			}
-			// An `Arc` or an `Rc` of what a box holds, its trait object included, which it
-			// drops with the last one. A box of a byte array holds a `Uint8Array` of its own.
+			// An `Arc` or an `Rc` of what a box holds, its trait object or a struct of one
+			// included, which it drops with the last one. A box of a byte array holds a
+			// `Uint8Array` of its own.
 			if b.t.std_of(to) == Some(Std::Arc)
 				&& let ty::Adt(adt, args) = from.kind()
 				&& Std::of(tcx, adt.did()) == Some(Std::Box)
-				&& (args.type_at(0).is_trait() || args.type_at(0).is_sized(tcx, b.t.typing_env()))
+				&& (super::dynamic::unsized_object(tcx, args.type_at(0))
+					|| args.type_at(0).is_sized(tcx, b.t.typing_env()))
 				&& !super::byte_array(args.type_at(0))
 			{
 				return Some(Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]));
@@ -2929,11 +2949,12 @@ pub fn overflowing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<(Overflow, T
 
 /// A `str` method's pattern as the runtime takes it, an `rt.Pattern`: a `char`'s text, a
 /// string or a predicate as it is, or a predicate for an array or slice of chars. `None`
-/// for any other pattern.
+/// for any other pattern. A reference to a predicate is the predicate, as
+/// `called_closures` reads it.
 fn pattern<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, p: Expr) -> Option<Expr> {
 	match ty.kind() {
 		ty::Char => Some(char_text(p)),
-		ty::Closure(..) | ty::FnDef(..) => Some(p),
+		_ if matches!(ty.peel_refs().kind(), ty::Closure(..) | ty::FnDef(..)) => Some(p),
 		ty::Ref(..) if is_text(t, ty) => Some(p),
 		// Any of the chars of an array or slice.
 		ty::Array(c, _) | ty::Slice(c) if c.is_char() => Some(Expr::rt("patternChars", vec![p])),
@@ -3334,19 +3355,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 		_ if nothing(tcx, ty) => Expr::undefined(),
 		ty::Adt(adt, _) if empty_iter(tcx, adt.did()) => b.zero_sized_std(ty, Vec::new(), span).ok()?,
 		// A list's iterators, over an empty list.
-		ty::Adt(adt, _)
-			if is_std(tcx, adt.did())
-				&& matches!(
-					std_path(tcx, adt.did())
-						.iter()
-						.map(String::as_str)
-						.collect::<Vec<_>>()
-						.as_slice(),
-					["collections", "linked_list", "Iter" | "IterMut" | "IntoIter"]
-				) =>
-		{
-			Expr::rt("listIter", vec![Expr::rt("listNew", Vec::new())])
-		}
+		ty::Adt(adt, _) if list_iter(tcx, adt.did()) => Expr::rt("listIter", vec![Expr::rt("listNew", Vec::new())]),
 		ty::Tuple(parts) => Expr::Array(parts.iter().map(|t| part(b, t, out)).collect()),
 		ty::Array(elem, n) => {
 			let n = n.try_to_target_usize(tcx)?;

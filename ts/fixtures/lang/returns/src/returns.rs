@@ -1,5 +1,5 @@
-//! Results of byte slices, or of numbers alone, returned by the crate's own functions,
-//! which hand back an `Ok`'s parts in a slot their caller reads at once.
+//! Results of byte slices, or of numbers alone or in `Option`s, returned by the crate's own
+//! functions, which hand back an `Ok`'s parts in a slot their caller reads at once.
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Error {
@@ -311,7 +311,7 @@ fn numbers(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		sum = sum.wrapping_mul(31).wrapping_add(n as u64);
 		rest = &rest[n as usize + 1..];
 	}
-	out.extend_from_slice(&sum.to_be_bytes());
+	sum.put(out);
 }
 
 pub fn returns(kind: u8, data: &[u8], out: &mut Vec<u8>) {
@@ -424,4 +424,223 @@ pub fn returns(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.extend_from_slice(&sum.to_be_bytes());
 		}
 	}
+}
+
+/// An `Option` of a number of each width, by the first byte: `None`, `Some` of zero, an
+/// error, `Some` of the type's edge, or `Some` of the bytes after it.
+macro_rules! option {
+	($($name:ident: $t:ty = $zero:expr, $edge:expr;)*) => {$(
+		fn $name(data: &[u8]) -> Result<Option<$t>, Error> {
+			let (&tag, rest) = data.split_first().ok_or(Error::Short(1))?;
+			match tag % 5 {
+				0 => Ok(None),
+				1 => Ok(Some($zero)),
+				2 => Err(Error::Bad),
+				3 => Ok(Some($edge)),
+				_ => {
+					let bytes = rest.first_chunk().ok_or(Error::Short(size_of::<$t>()))?;
+					Ok(Some(<$t>::from_be_bytes(*bytes)))
+				}
+			}
+		}
+	)*};
+}
+
+option! {
+	opt_u8: u8 = 0, u8::MAX;
+	opt_u16: u16 = 0, u16::MAX;
+	opt_u32: u32 = 0, u32::MAX;
+	opt_u64: u64 = 0, u64::MAX;
+	opt_u128: u128 = 0, u128::MAX;
+	opt_usize: usize = 0, usize::MAX;
+	opt_i8: i8 = 0, i8::MIN;
+	opt_i16: i16 = 0, i16::MIN;
+	opt_i32: i32 = 0, i32::MIN;
+	opt_i64: i64 = 0, i64::MIN;
+	opt_i128: i128 = 0, i128::MIN;
+	opt_f32: f32 = -0.0, f32::NAN;
+	opt_f64: f64 = 0.0, f64::NAN;
+}
+
+fn opt_bool(data: &[u8]) -> Result<Option<bool>, Error> {
+	match data.first() {
+		None => Err(Error::Short(1)),
+		Some(&b) if b % 3 == 0 => Ok(None),
+		Some(&b) => Ok(Some(b % 3 == 1)),
+	}
+}
+
+fn opt_char(data: &[u8]) -> Result<Option<char>, u8> {
+	let b = byte(data, 0)?;
+	Ok(char::from_u32(u32::from(b) * 0x1b3 + 0xd700))
+}
+
+/// `opt_u64`'s result returned as is, and taken apart by `?` and made again.
+fn opt_again(data: &[u8], first: bool) -> Result<Option<u64>, Error> {
+	if first {
+		return opt_u64(data);
+	}
+	Ok(opt_u64(&data[data.len().min(1)..])?.map(|v| v >> 1))
+}
+
+/// An `Option` beside a number, first and last, and beside a slice.
+fn opt_first(data: &[u8]) -> Result<(Option<u8>, u64), Error> {
+	let n = opt_u8(data)?;
+	Ok((n, data.len() as u64))
+}
+
+fn opt_last(data: &[u8]) -> Result<(u64, Option<i128>), Error> {
+	Ok((data.len() as u64, opt_i128(data)?))
+}
+
+fn opt_rest(data: &[u8]) -> Result<(Option<u16>, &[u8]), Error> {
+	let (&b, rest) = data.split_first().ok_or(Error::Short(1))?;
+	Ok(((b % 2 == 0).then_some(u16::from(b) << 8), rest))
+}
+
+/// A guard whose drop writes the slot after its function's call did.
+struct Opted<'a>(&'a [u8]);
+
+impl Drop for Opted<'_> {
+	fn drop(&mut self) {
+		let _ = opt_u64(self.0);
+	}
+}
+
+fn opt_late(data: &[u8], other: &[u8]) -> Result<Option<u64>, Error> {
+	let _late = Opted(other);
+	opt_u64(data)
+}
+
+/// A number's bytes, as each case writes it.
+trait Put {
+	fn put(self, out: &mut Vec<u8>);
+}
+
+macro_rules! put {
+	($($t:ty),*) => {$(
+		impl Put for $t {
+			fn put(self, out: &mut Vec<u8>) {
+				out.extend_from_slice(&self.to_be_bytes());
+			}
+		}
+	)*};
+}
+
+put!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
+
+impl Put for usize {
+	fn put(self, out: &mut Vec<u8>) {
+		(self as u64).put(out);
+	}
+}
+
+impl Put for bool {
+	fn put(self, out: &mut Vec<u8>) {
+		out.push(self as u8);
+	}
+}
+
+impl Put for char {
+	fn put(self, out: &mut Vec<u8>) {
+		(self as u32).put(out);
+	}
+}
+
+/// A float's bits, or its sign alone if it is a NaN, whose payload is the engine's.
+impl Put for f32 {
+	fn put(self, out: &mut Vec<u8>) {
+		match self.is_nan() {
+			true => out.extend_from_slice(&[0x7f, self.is_sign_negative() as u8]),
+			false => self.to_bits().put(out),
+		}
+	}
+}
+
+impl Put for f64 {
+	fn put(self, out: &mut Vec<u8>) {
+		match self.is_nan() {
+			true => out.extend_from_slice(&[0x7f, self.is_sign_negative() as u8]),
+			false => self.to_bits().put(out),
+		}
+	}
+}
+
+/// Results of `Option`s of numbers: held as parts, kept whole, and read after the slot was
+/// written again.
+pub fn options(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	macro_rules! push {
+		($r:expr) => {
+			match $r {
+				Ok(Some(v)) => {
+					out.push(1);
+					v.put(out);
+				}
+				Ok(None) => out.push(0),
+				Err(e) => out.extend_from_slice(&[0xee, e.code()]),
+			}
+		};
+	}
+	push!(opt_u8(data));
+	push!(opt_u16(data));
+	push!(opt_u32(data));
+	push!(opt_u64(data));
+	push!(opt_u128(data));
+	push!(opt_usize(data));
+	push!(opt_i8(data));
+	push!(opt_i16(data));
+	push!(opt_i32(data));
+	push!(opt_i64(data));
+	push!(opt_i128(data));
+	push!(opt_f32(data));
+	push!(opt_f64(data));
+	push!(opt_bool(data));
+	match opt_char(data) {
+		Ok(Some(c)) => c.put(out),
+		Ok(None) => out.push(0),
+		Err(b) => out.extend_from_slice(&[0xee, b]),
+	}
+	let tail = &data[data.len().min(1)..];
+	push!(opt_again(data, kind % 2 == 0));
+	push!(opt_late(data, tail));
+	match opt_first(data) {
+		Ok((n, len)) => out.extend_from_slice(&[n.map_or(0xaa, |n| n), len as u8]),
+		Err(e) => out.push(e.code()),
+	}
+	match opt_last(data) {
+		Ok((len, n)) => {
+			out.push(len as u8);
+			n.unwrap_or(-1).put(out);
+		}
+		Err(e) => out.push(e.code()),
+	}
+	match opt_rest(data) {
+		Ok((n, rest)) => out.extend_from_slice(&[n.is_some() as u8, (n.unwrap_or(0) >> 8) as u8, rest.len() as u8]),
+		Err(e) => out.push(e.code()),
+	}
+	// Both held while the slot is written again between them.
+	let (x, y) = (opt_u64(data), opt_u64(tail));
+	match (x, y) {
+		(Ok(Some(x)), Ok(Some(y))) => (x ^ y).put(out),
+		(x, y) => out.extend_from_slice(&[x.is_ok() as u8, y.is_ok() as u8, (x == y) as u8]),
+	}
+	// Kept whole: in a collection, and through a function as a value.
+	let kept: Vec<Result<Option<u64>, Error>> = (0..3).map(|i| opt_u64(&data[data.len().min(i)..])).collect();
+	for r in kept {
+		push!(r);
+	}
+	let f: fn(&[u8]) -> Result<Option<i64>, Error> = if kind % 2 == 0 {
+		opt_i64
+	} else {
+		|d| opt_i64(&d[d.len().min(1)..])
+	};
+	push!(f(data));
+	// A loop that calls again while the last result is still read.
+	let mut rest = data;
+	let mut sum = 0u32;
+	while let Ok(Some(n)) = opt_u32(rest) {
+		sum = sum.wrapping_mul(31).wrapping_add(n);
+		rest = &rest[(n as usize % 5).min(rest.len()).max(1)..];
+	}
+	sum.put(out);
 }

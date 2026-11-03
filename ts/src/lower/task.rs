@@ -213,8 +213,11 @@ pub fn call<'tcx>(
 		}
 		("Arc" | "Rc", "strong_count") => first(args).member("strong"),
 		("Arc" | "Rc", "weak_count") => first(args).member("weak"),
-		// Two `Arc`s of trait objects are views of the `Arc`s they were made from.
-		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(Ty::is_trait) => Expr::rt("arcPtrEq", args),
+		// Two `Arc`s of trait objects, or of structs of them, are views of the `Arc`s they
+		// were made from.
+		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+			Expr::rt("arcPtrEq", args)
+		}
 		("Arc" | "Rc", "ptr_eq") => {
 			let [l, r] = two(args);
 			l.binary("===", r)
@@ -222,7 +225,7 @@ pub fn call<'tcx>(
 		("Weak", "upgrade") => Expr::rt("weakUpgrade", args),
 		("Weak", "strong_count") => first(args).member("arc").member("strong"),
 		("Weak", "weak_count") => Expr::rt("weakWeakCount", args),
-		("Weak", "ptr_eq") if self_ty.is_some_and(Ty::is_trait) => {
+		("Weak", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
 			let [l, r] = two(args);
 			Expr::rt("arcPtrEq", vec![l.member("arc"), r.member("arc")])
 		}

@@ -332,6 +332,55 @@ export function weakDyn<T, U>(weak: Weak<T>, view: (arc: Arc<T>) => Arc<U>): Wea
 	return dyn;
 }
 
+/**
+ * `value`, a struct whose last field unsizes to a trait object, as the struct of that
+ * object: its other fields, a cell's borrows, and a mutex's lock are `value`'s own, the
+ * last field is the object `field`'s one function makes of `value` wherever it is read,
+ * and its drop is `value`'s, by `by`.
+ */
+export function tailDyn<T extends object, F extends { readonly [P in keyof T]?: (value: T) => unknown }>(
+	value: T,
+	field: F,
+	by?: (value: T) => void,
+): Omit<T, keyof F> & { [P in keyof F]: ReturnType<NonNullable<F[P]>> } & Disposable {
+	const key = Object.keys(field)[0] as keyof F;
+	const object = field[key] as (value: T) => unknown;
+	return new Proxy(value, new Tail(key, object, () => by?.(value))) as never;
+}
+
+/** Whether two `tailDyn` views, or views of them, are of one struct. */
+export function tailSame(x: object, y: object): boolean {
+	return tailed(x) === tailed(y);
+}
+
+/** What a `tailDyn` view reads as the struct it is of. */
+const TAILED: unique symbol = /* @__PURE__ */ Symbol("tailed");
+
+function tailed(view: object): object {
+	for (let of: object | undefined; (of = (view as { [TAILED]?: object })[TAILED]) !== undefined; ) view = of;
+	return view;
+}
+
+/** What `tailDyn` makes: a view whose last field is made as it is read, and whose drop is `dispose`. */
+class Tail<T extends object, U> implements ProxyHandler<T> {
+	private readonly key: PropertyKey;
+	private readonly object: (value: T) => U;
+	private readonly dispose: () => void;
+
+	constructor(key: PropertyKey, object: (value: T) => U, dispose: () => void) {
+		this.key = key;
+		this.object = object;
+		this.dispose = dispose;
+	}
+
+	get(target: T, key: PropertyKey): unknown {
+		if (key === this.key) return this.object(target);
+		if (key === Symbol.dispose) return this.dispose;
+		if (key === TAILED) return target;
+		return Reflect.get(target, key);
+	}
+}
+
 /** `Weak::upgrade`: a new `Arc`, or `undefined` once none is left. */
 export function weakUpgrade<T>(weak: Weak<T>): Arc<T> | undefined {
 	if (weak.arc.strong === 0) return undefined;

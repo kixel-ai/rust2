@@ -141,6 +141,8 @@ export function drop$generics_Run_generics_Ticked(_1: Run.Run<Ticked.Ticked>): v
 	}
 }
 
+export const out$Option_u8: { p: rt.u8 | undefined } = { p: undefined as never };
+
 export const out$u8: { err: unknown } = { err: undefined };
 
 /**

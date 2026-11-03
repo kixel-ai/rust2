@@ -49,8 +49,9 @@
   whose object its body never makes as its `data`, `start`, and `length`:
   `read(buf, form)` is `read(buf.data, buf.start, buf.length, form)`. A caller takes
   which from the output. One that returns a `Result` of byte slices
-  and scalars, or of numbers alone, returns its error or `undefined`, and leaves the `Ok`'s parts in a
-  slot `lib.ts` exports, named for the payload type, such as `out$ref_slice_u8`. If the
+  and scalars, or of numbers alone, an `Option` of one counting as a number, such as
+  `Result<Option<u64>, E>`, returns its error or `undefined`, and leaves the `Ok`'s parts in a
+  slot `lib.ts` exports, named for the payload type, such as `out$ref_slice_u8` or `out$Option_u64`. If the
   `Ok`'s first part is a number, it returns that, or `undefined` for an error, and leaves
   the rest, or the error as `err`, in the slot, such as `out$tuple2_u64_ref_slice_u8`. A root still takes an `rt.ByteSlice` and returns
   the `Result`.

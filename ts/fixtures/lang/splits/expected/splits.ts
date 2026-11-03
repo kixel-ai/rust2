@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { out$tuple2_ref_slice_u8_ref_slice_u8, out$tuple3_u8_u16_ref_slice_u8 } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$11e0ggl as option_mapOr$11e0ggl, okOr$0q0ogpn as option_okOr$0q0ogpn } from "./core/option.ts";
+import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$11e0ggl as option_mapOr$11e0ggl } from "./core/option.ts";
 import type * as Short from "./splits.Short.ts";
 
 /** The first byte, then a big-endian `u16`, by `?` on `ok_or`. */
@@ -51,11 +51,10 @@ export function take(dataData: Uint8Array, dataStart: number, dataLen: number, n
 
 /** The byte after the first, or an error that is itself an enum, held whole. */
 export function second(dataData: Uint8Array, dataStart: number, dataLen: number, e: rt.u8 | undefined): rt.Result<rt.u8, rt.u8 | undefined> {
-	const _4: rt.Result<[rt.ByteSlice, rt.ByteSlice], rt.u8 | undefined> = option_okOr$0q0ogpn((1 <= dataLen ? [new rt.ByteSlice(dataData, dataStart, 1), new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.ByteSlice, rt.ByteSlice] : undefined) as [rt.ByteSlice, rt.ByteSlice] | undefined, e);
-	if (_4.ok) {
-		return rt.Ok(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(_4.value[1]), 0));
+	if (1 <= dataLen) {
+		return rt.Ok(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)), 0));
 	}
-	return _4;
+	return rt.Err(e);
 }
 
 /** A use that needs the slice itself. */
