@@ -19,4 +19,10 @@ export function take$1357qwq(self: rt.LocalKey<rt.RefCell<rt.Arc<rt.LazyCell<str
 	})(self.get());
 }
 
+export function take$122f15k(self: rt.LocalKey<rt.RefCell<rt.ByteVec>>): rt.ByteVec {
+	return ((a0: rt.RefCell<rt.ByteVec>): rt.ByteVec => {
+		return rt.refCellReplace(a0, new rt.ByteVec());
+	})(self.get());
+}
+
 //# sourceMappingURL=local.ts.map

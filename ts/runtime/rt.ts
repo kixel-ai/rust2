@@ -412,10 +412,11 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 
 /**
  * `ptr::write` of `value` through a pointer to an object: `value` copied into it, one
- * object deep, so every pointer to it sees the write.
+ * object deep, or moved by `$move`, so every pointer to it sees the write.
  */
 export function ptrWrite<T extends object>(p: T, value: T): void {
 	if (ArrayBuffer.isView(p)) (p as unknown as Uint8Array).set(value as unknown as Uint8Array);
+	else if (moved(value)) value.$move(p as T & Moved);
 	else Object.assign(p, value);
 }
 
@@ -427,7 +428,7 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
 export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 	const old = objectCopy(p, depth);
 	if (Array.isArray(p)) vecAssign(p, value as unknown[]);
-	else Object.assign(p, value);
+	else ptrWrite(p, value);
 	return old;
 }
 
@@ -444,7 +445,21 @@ export function objectCopy<T extends object>(p: T, depth = 0): T {
 		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;
 	}
+	if (moved(p)) return p.$move();
 	return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
+}
+
+/**
+ * An object whose class keeps its state private, where copying its fields can't reach,
+ * so `$move`, which no Rust field can be named, moves it: into `to`, or else into a new
+ * object of its class, which it returns.
+ */
+interface Moved {
+	$move(to?: this): this;
+}
+
+function moved(p: object): p is Moved {
+	return "$move" in p;
 }
 
 // Bindings

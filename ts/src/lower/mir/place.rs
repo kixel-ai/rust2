@@ -780,6 +780,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Some(ObjectKind::Array) if self.b.t.erased(pointee).is_slice() => {
 						Expr::rt("vecAssign", vec![target, value])
 					}
+					Some(_) if self.b.t.moves_private(pointee) => Expr::rt("ptrWrite", vec![target, value]),
 					Some(_) => Expr::ident("Object").member("assign").call(vec![target, value]),
 					None => self.err(span, format!("an assignment through a reference to `{pointee}`")),
 				},
@@ -1305,12 +1306,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// The `const` item of the thread-local `c` borrows, as `with`'s `&'static self` is: a
-	/// promoted borrow of the key.
+	/// The `const` item of the thread-local `c` is, or borrows, as `with`'s `&'static self`
+	/// is: a promoted borrow of the key. Each copy of a key names the same storage.
 	fn local_key_of(&self, c: &mir::ConstOperand<'tcx>) -> Option<DefId> {
 		let tcx = self.tcx;
-		let ty::Ref(_, key, _) = c.ty().kind() else {
-			return None;
+		let key = match c.ty().kind() {
+			ty::Ref(_, key, _) => *key,
+			_ => c.ty(),
 		};
 		let ty::Adt(adt, _) = key.kind() else {
 			return None;
@@ -1321,7 +1323,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mir::Const::Unevaluated(uv, _) = c.const_ else {
 			return None;
 		};
-		let promoted = &tcx.promoted_mir(uv.def)[uv.promoted?];
+		let Some(promoted) = uv.promoted else {
+			return (key == c.ty()).then_some(uv.def);
+		};
+		let promoted = &tcx.promoted_mir(uv.def)[promoted];
 		promoted
 			.basic_blocks
 			.iter()
