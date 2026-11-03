@@ -1087,6 +1087,12 @@ pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				*x ^= 0xff;
 			}
 			out.extend(kept.into_iter().flatten());
+			// A copy of a run of other values is its own too.
+			let kept = words.as_chunks::<2>().0.first().copied();
+			if let Some(x) = words.first_mut() {
+				*x ^= 0xffff;
+			}
+			out.extend(kept.map(|c| digest_words(&c)));
 		}
 		2 => {
 			let owned = Vec::from(data);

@@ -109,6 +109,7 @@ roots = [
     "places::replace_guard",
     "places::replace_pinned_ref",
     "places::swap_guards",
+    "pointers::array_pointers",
     "pointers::assigned_through",
     "pointers::byte_pointer_ops",
     "pointers::byte_pointer_parts",

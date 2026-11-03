@@ -5,8 +5,16 @@ import { parts, chunked, subslices, drains, ranges, edits, arrays } from "./slic
 import type * as Noisy from "./slices.Noisy.ts";
 import type * as Pair from "./slices.Pair.ts";
 
+export function copy$Option_array2_u16(v: rt.u16[] | undefined): rt.u16[] | undefined {
+	return v === undefined ? v : copy$array_u16(v);
+}
+
 export function copy$Option_array2_u8(v: Uint8Array | undefined): Uint8Array | undefined {
 	return v === undefined ? v : copy$array_u8(v);
+}
+
+export function copy$array_u16(v: rt.u16[]): rt.u16[] {
+	return v.slice();
 }
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {

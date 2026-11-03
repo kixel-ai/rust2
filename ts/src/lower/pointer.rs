@@ -100,6 +100,15 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				"comparing pointers to `{ty}`, which has no bytes and so no address of its own"
 			));
 		}
+		// A slice lends a run of other values as an array of its own, by `first_chunk` or
+		// `as_chunks`, so where one points says nothing of where the slice holds it.
+		if let ty::Array(..) = self.uninit_inner(ty).kind()
+			&& self.pointee(ty) == Pointee::Object
+		{
+			return Some(format!(
+				"comparing pointers to `{ty}`, which a slice lends as a copy of its own"
+			));
+		}
 		match self.pointee(ty) {
 			Pointee::Object | Pointee::Bytes => {
 				self.compare(ty);
