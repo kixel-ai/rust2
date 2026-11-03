@@ -64,6 +64,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Bound
 					| Std::TryLockError
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating
 					| Std::Range
@@ -174,6 +175,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Box
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => self.disposable(args.type_at(0), glue),
@@ -209,9 +211,15 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		match Std::of(self.tcx, adt.did()) {
 			_ if self.bound_drops(adt.did()).is_some() => true,
-			Some(Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError) => {
-				self.always_disposes(args.type_at(0))
-			}
+			Some(
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError,
+			) => self.always_disposes(args.type_at(0)),
 			Some(
 				Std::Waker
 				| Std::PollFn
@@ -309,6 +317,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::Box
 				| Std::Pin
 				| Std::Reverse
+				| Std::AssertUnwindSafe
 				| Std::Wrapping
 				| Std::Saturating
 				| Std::PoisonError
@@ -354,6 +363,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Poll
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => args.types().all(|t| self.inert(t)),
@@ -412,7 +422,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let option = Ty::new_option(self.tcx, args.type_at(0));
 					return self.drop_value(value.member("v"), option, span);
 				}
-				Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError => {
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError => {
 					return self.drop_value(value, args.type_at(0), span);
 				}
 				// Its value, or the function that never made one.
@@ -575,9 +591,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did())? {
 				Std::Vec => Some(args.type_at(0)),
 				Std::Option if self.erases_to(args.type_at(0)).undefined => None,
-				Std::Option | Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating => {
-					self.elements(args.type_at(0))
-				}
+				Std::Option
+				| Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating => self.elements(args.type_at(0)),
 				_ => None,
 			},
 			_ => None,

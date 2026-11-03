@@ -414,8 +414,14 @@ pub fn call<'tcx>(
 				let [future, cx] = two(args);
 				future.member("poll").call(vec![cx])
 			}
-			// A pinned pointer or a box polls what it points at, which its JS value is.
-			Some(ty::Adt(adt, adt_args)) if matches!(Std::of(tcx, adt.did()), Some(Std::Pin | Std::Box)) => {
+			// A pinned pointer, a box, or an `AssertUnwindSafe` polls what it points at or holds,
+			// which its JS value is.
+			Some(ty::Adt(adt, adt_args))
+				if matches!(
+					Std::of(tcx, adt.did()),
+					Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+				) =>
+			{
 				let inner = match Std::of(tcx, adt.did()) {
 					Some(Std::Pin) => adt_args.type_at(0).builtin_deref(true),
 					_ => Some(adt_args.type_at(0)),

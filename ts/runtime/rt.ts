@@ -43,6 +43,11 @@ export function panic(message: string): never {
 	throw new Panic(message);
 }
 
+/** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
+export function resumeUnwind(): never {
+	throw new Abort("resume_unwind");
+}
+
 /**
  * Panic with a formatted message, which keeps what was written before a value failed to
  * format, as std's does.

@@ -14,6 +14,7 @@ mod iters;
 mod kept;
 mod keys;
 mod objects;
+mod panics;
 mod parts;
 mod places;
 mod pointers;
