@@ -134,6 +134,7 @@ fixtures/reject/src/places.rs:replace_boxed_future+4:2: an assignment through a 
 fixtures/reject/src/places.rs:replace_guard+1:2: an assignment through a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a reference to `std::pin::Pin<&mut places::Noisy>`
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
+fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+6:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
