@@ -5,3 +5,8 @@ exclude = ["**/target/**", "**/.direnv/**", ".scratch/**", ".tmp/**", "uniffi/**
 indent_string = "    "
 column_width = 150
 align_comments = false
+
+# A root added at the end of reject's long list would conflict with any other added there.
+[[rule]]
+include = ["ts/fixtures/reject/ts.toml"]
+formatting.reorder_arrays = true

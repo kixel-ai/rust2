@@ -1,0 +1,2 @@
+package = "lang-separated-fixture"
+roots = ["harness::run", "harness::op"]

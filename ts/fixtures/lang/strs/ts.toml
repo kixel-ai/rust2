@@ -1,0 +1,2 @@
+package = "lang-strs-fixture"
+roots = ["harness::run", "harness::op"]
