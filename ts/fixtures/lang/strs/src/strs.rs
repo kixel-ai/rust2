@@ -1,9 +1,9 @@
 //! `str` and `String` over `char`: iterated from both ends, searched by a `char`, a
 //! predicate, or a `&str`, trimmed, split, sliced by byte offsets, built a char at a
 //! time, edited in place, parsed into a `bool`, a `char`, or a `NonZero`, mapped by case,
-//! escaped, and encoded as UTF-16. Text is made of chars of every UTF-8 width and those
-//! next to UTF-16's surrogates, so byte offsets and code units part. Predicates log each char they are called with, so
-//! where a search stops is output too.
+//! escaped, and encoded as and decoded from UTF-16. Text is made of chars of every UTF-8
+//! width and those next to UTF-16's surrogates, so byte offsets and code units part.
+//! Predicates log each char they are called with, so where a search stops is output too.
 
 use std::ops::Bound;
 
@@ -1155,4 +1155,74 @@ pub fn unicode(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			put(out, &format!("{units:?}|{each:?}|{}", back == s));
 		}
 	}
+}
+
+/// UTF-16 units at a surrogate's edges and beside them, a pair among them, so random input
+/// pairs a leading surrogate with a trailing one, leaves either alone, or ends on one.
+const UNITS: [u16; 16] = [
+	0, 0x41, 0xe9, 0xd7ff, 0xd800, 0xd801, 0xdbff, 0xdc00, 0xdc01, 0xdfff, 0xe000, 0xfeff, 0xfffd, 0xffff, 0xd83d,
+	0xde00,
+];
+
+/// What a `String` from UTF-16 is, or its error's `Display`, padded or not, and `Debug`.
+fn put_utf16(out: &mut Vec<u8>, r: Result<String, std::string::FromUtf16Error>) {
+	match r {
+		Ok(s) => put(out, &format!("{s:?}")),
+		Err(e) => put(
+			out,
+			&format!("{e}|{e:>40}|{e:-<12}|{e:?}|{e:#?}|{}", e.to_string().len()),
+		),
+	}
+}
+
+/// A `String` from UTF-16 units, by `from_utf16` and `from_utf16_lossy`, and from their bytes
+/// either way round, by `from_utf16le` and `from_utf16be` and their lossy forms, of an even
+/// and an odd number of bytes, as methods and as function values. Units are of `UNITS`, or
+/// the input's raw bytes in pairs.
+pub fn utf16(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let units: Vec<u16> = match kind % 2 {
+		0 => data.iter().map(|&b| UNITS[usize::from(b % 16)]).collect(),
+		_ => data
+			.chunks(2)
+			.map(|p| u16::from_be_bytes([p[0], *p.get(1).unwrap_or(&0)]))
+			.collect(),
+	};
+	put_utf16(out, String::from_utf16(&units));
+	put(out, &format!("{:?}", String::from_utf16_lossy(&units)));
+	put(out, &format!("{:?}", String::from_utf16(&units)));
+	let le: Vec<u8> = units.iter().flat_map(|u| u.to_le_bytes()).collect();
+	let be: Vec<u8> = units.iter().flat_map(|u| u.to_be_bytes()).collect();
+	// Whole, a byte in, which is odd and shifts every unit, and the input's own bytes.
+	for (le, be) in [
+		(&le[..], &be[..]),
+		(le.get(1..).unwrap_or(&[]), be.get(1..).unwrap_or(&[])),
+		(data, data),
+	] {
+		put_utf16(out, String::from_utf16le(le));
+		put_utf16(out, String::from_utf16be(be));
+		put(
+			out,
+			&format!(
+				"{:?}|{:?}",
+				String::from_utf16le_lossy(le),
+				String::from_utf16be_lossy(be)
+			),
+		);
+	}
+	let decode: [fn(&[u8]) -> Result<String, std::string::FromUtf16Error>; 2] =
+		[String::from_utf16le, String::from_utf16be];
+	let lossy: [fn(&[u8]) -> String; 2] = [String::from_utf16le_lossy, String::from_utf16be_lossy];
+	for (decode, lossy) in decode.into_iter().zip(lossy) {
+		put_utf16(out, decode(data));
+		put(out, &lossy(data));
+	}
+	let parts: Vec<&[u16]> = units.split(|&u| u == 0).collect();
+	let each: Vec<String> = parts.iter().copied().map(String::from_utf16_lossy).collect();
+	let ok: Vec<bool> = parts
+		.iter()
+		.copied()
+		.map(String::from_utf16)
+		.map(|r| r.is_ok())
+		.collect();
+	put(out, &format!("{each:?}|{ok:?}"));
 }
