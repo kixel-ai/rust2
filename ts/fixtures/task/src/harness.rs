@@ -156,6 +156,9 @@ fn steps() -> Vec<(&'static str, Step)> {
 		("indexed", |log, exec, _, arg| {
 			drops::indexed(log, 1000 * exec.len() as u32, arg)
 		}),
+		("sorted", |log, exec, _, arg| {
+			drops::sorted(log, 1000 * exec.len() as u32, arg)
+		}),
 		("compared", |log, exec, _, arg| {
 			drops::compared(log, 1000 * exec.len() as u32, arg)
 		}),

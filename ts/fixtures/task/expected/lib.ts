@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import type * as Any from "./core/any.Any.ts";
 import { take$drops_objects_Part_u32 as objects_take$drops_objects_Part_u32, id$drops_objects_Part_u32 } from "./drops/objects.ts";
+import type * as Ranked from "./drops/sorted.Ranked.ts";
 import * as Held from "./drops.Held.ts";
 import type * as Key from "./drops.Key.ts";
 import type * as Pair from "./drops.Pair.ts";
@@ -216,6 +217,11 @@ export function drop$tuple2_drops_Key_drops_Key(_1: [Key.Key, Key.Key]): void {
 }
 
 export function drop$tuple2_drops_Key_model_Guard(_1: [Key.Key, Guard.Guard]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_drops_sorted_Ranked_model_Guard(_1: [Ranked.Ranked, Guard.Guard]): void {
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 }

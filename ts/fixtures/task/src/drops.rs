@@ -33,6 +33,7 @@ mod objects;
 mod once;
 mod released;
 mod searched;
+mod sorted;
 
 /// A value of a type that drops, with no `[Symbol.dispose]` of its own.
 pub enum Held {
@@ -753,6 +754,12 @@ pub fn indexed(log: &Log, id: u32, arg: u8) {
 /// The last panics in a fold.
 pub fn released(log: &Log, id: u32, arg: u8) {
 	released::released(log, id, arg);
+}
+
+/// Run scenario `arg % 6` of what a B-tree's `collect` and `from` drop of keys whose own
+/// impls disagree. The last panics in the sort.
+pub fn sorted(log: &Log, id: u32, arg: u8) {
+	sorted::sorted(log, id, arg);
 }
 
 /// Run scenario `arg % 3` of where std drops a closure given to a string's search or edit.
