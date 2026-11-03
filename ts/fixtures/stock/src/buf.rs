@@ -356,6 +356,27 @@ pub fn dyns(data: &[u8], out: &mut Vec<u8>) {
 	out.push(leased.pieces() as u8);
 }
 
+/// A method first called through a `dyn Buf`, then through one of a buffer coerced only in
+/// a function this one calls, which translation reaches after, so the object holds the
+/// method before that buffer's class is made.
+pub fn late(data: &[u8], out: &mut Vec<u8>) {
+	let mut slice = data;
+	let buf: &mut dyn Buf = &mut slice;
+	if buf.remaining() >= 2 {
+		out.extend_from_slice(&buf.get_i16_ne().to_le_bytes());
+	}
+	late_take(slice, out);
+}
+
+/// `get_i16_ne` through a box of a `Take` of `data`, a type no other `dyn Buf` is made of.
+fn late_take(data: &[u8], out: &mut Vec<u8>) {
+	let mut boxed: Box<dyn Buf> = Box::new(data.take(data.len().saturating_sub(1)));
+	while boxed.remaining() >= 2 {
+		out.extend_from_slice(&boxed.get_i16_ne().to_le_bytes());
+	}
+	out.push(boxed.remaining() as u8);
+}
+
 /// The same writes into a `Vec<u8>` and a `BytesMut`, which must match, and through the
 /// impls forwarding through a `&mut` and a `Box`, whose provided `put` and `put_bytes`
 /// grow by `chunk_mut` instead: the bytes, and each vector's capacity.

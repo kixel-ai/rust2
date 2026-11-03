@@ -1,4 +1,4 @@
-//! The crate's own `Clone`, `Drop`, `Ord`, and traits, which std calls where the translation would not.
+//! Slots written whole past a pointer into them, as std writes them through the crate's own `Clone`, `Drop`, `Ord`, and traits.
 
 use crate::places::Noisy;
 
@@ -94,4 +94,20 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 		slot.write((fill, (at, !at)));
 	}
 	tagged_slots!(slots)
+}
+
+/// Slots written whole in a loop after a pointer to the first's tags is kept by a function
+/// generic over what it keeps, which sees the pointer only as a type parameter's value.
+pub fn stashed_slots(fill: [u8; 2]) -> u8 {
+	let mut slots: [std::mem::MaybeUninit<([u8; 2], (u8, u8))>; 2] = [const { std::mem::MaybeUninit::uninit() }; 2];
+	let mut kept = Vec::new();
+	for slot in slots.iter_mut() {
+		slot.write((fill, (0, 1)));
+		stash((unsafe { &raw mut slot.assume_init_mut().1 }, 0), &mut kept);
+	}
+	unsafe { (*kept[0]).0 }
+}
+
+fn stash<T: Copy>(pair: (T, u8), kept: &mut Vec<T>) {
+	kept.push(pair.0);
 }

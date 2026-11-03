@@ -10,18 +10,25 @@
 //! `dyn FusedIterator` of std's iterators or the crate's own, borrowed, boxed, or shared,
 //! reads by its vtable's methods and folds by `next`, dropping what it owns in std's order.
 //! A box of an iterator reads by what std's box forwards and folds by `next` too.
-//! A struct whose last field is a trait object, a `RefCell`, a `Mutex`, an `RwLock`, or the
-//! crate's own, shares its fields, borrows, and lock with the value it was made from.
+//! A struct whose last field is a trait object, a `RefCell`, a `Mutex`, an `RwLock`, a
+//! `Cell`, an `UnsafeCell`, or the crate's own, shares its fields, borrows, and lock with the
+//! value it was made from, a future there polled in place and dropped once. A
+//! `ManuallyDrop` of one drops only by its own `drop`, and a raw pointer unsized to one, or
+//! to a struct of one, reads and writes what it points at, drops it as the box made of it,
+//! or stays null.
 
 use std::any::Any;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug};
+use std::future::Future;
 use std::iter::FusedIterator;
+use std::mem::ManuallyDrop;
 use std::pin::Pin;
 use std::rc::{self, Rc};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, RwLock, Weak};
+use std::task::{Context, Poll, Waker};
 
 use crate::harness::put;
 
@@ -1534,4 +1541,245 @@ pub fn tails(data: &[u8], out: &mut Vec<u8>) {
 		}
 		_ => put(out, &format!("{}", n.borrow())),
 	}
+}
+
+/// A future of the crate's own, which JS keeps as an object: pending until it has counted
+/// down, waking its waker each time, and noting its count as it drops.
+struct Ticks {
+	left: u8,
+	polls: u8,
+	log: Rc<RefCell<Vec<u8>>>,
+}
+
+impl Future for Ticks {
+	type Output = u8;
+
+	fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<u8> {
+		self.polls = self.polls.wrapping_add(1);
+		match self.left.checked_sub(1) {
+			Some(left) => {
+				self.left = left;
+				cx.waker().wake_by_ref();
+				Poll::Pending
+			}
+			None => Poll::Ready(self.polls),
+		}
+	}
+}
+
+impl Drop for Ticks {
+	fn drop(&mut self) {
+		self.log.borrow_mut().push(0xf0 | self.polls);
+	}
+}
+
+/// Polls `f` until it is ready, at most `max` times: how many it took and its output.
+fn poll_tail(f: &Mutex<dyn Future<Output = u8> + Unpin>, max: u8) -> (u8, Option<u8>) {
+	let mut cx = Context::from_waker(Waker::noop());
+	for i in 0..max {
+		if let Poll::Ready(v) = Pin::new(&mut *f.lock().unwrap()).poll(&mut cx) {
+			return (i + 1, Some(v));
+		}
+	}
+	(max, None)
+}
+
+/// Through a raw pointer to a trait object, as `&mut` to it would.
+unsafe fn grow_raw(p: *mut dyn Shape, by: u8) -> u32 {
+	unsafe {
+		(*p).grow(by);
+		(*p).area()
+	}
+}
+
+pub fn rests(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, c, ..] = data else {
+		return;
+	};
+	let (a, b, c) = (*a, *b, *c);
+	let log = Rc::new(RefCell::new(Vec::new()));
+
+	// A `Cell`, changed in place through `get_mut` and read through `as_ptr`, of each kind
+	// of value, and shared, dropping its value with the last `Rc`.
+	let mut n = Cell::new(u32::from(a));
+	let mut sq = Cell::new(Square { side: u16::from(b) });
+	let mut tri = Cell::new(Tri::Tall(c));
+	{
+		let cells: [&mut Cell<dyn Shape>; 3] = [&mut n, &mut sq, &mut tri];
+		for (i, cell) in cells.into_iter().enumerate() {
+			cell.get_mut().grow(c.wrapping_add(i as u8));
+		}
+	}
+	let shared: &Cell<dyn Shape> = &tri;
+	let area = unsafe { (*shared.as_ptr()).area() };
+	put(
+		out,
+		&format!("{} {} {:?} {area} ", n.get(), sq.get_mut().side, tri.get()),
+	);
+	let noisy = Rc::new(Cell::new(Noisy(a, log.clone())));
+	let cell: Rc<Cell<dyn Shape>> = noisy.clone();
+	let area = unsafe { grow_raw(cell.as_ptr(), b) };
+	drop(noisy);
+	put(out, &format!("{area} {:?} ", log.borrow()));
+	drop(cell);
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+
+	// An `UnsafeCell`, written through `get` in the value's own cell, and boxed.
+	let u = Rc::new(UnsafeCell::new(Tri::Flat));
+	let shape: Rc<UnsafeCell<dyn Shape>> = u.clone();
+	unsafe { (*shape.get()).grow(a) };
+	let area = unsafe { grow_raw(shape.get(), b) };
+	let mut boxed: Box<UnsafeCell<dyn Shape>> = Box::new(UnsafeCell::new(Noisy(c, log.clone())));
+	boxed.get_mut().grow(a);
+	put(
+		out,
+		&format!("{area} {:?} {} ", unsafe { *u.get() }, unsafe { (*boxed.get()).area() }),
+	);
+	drop(boxed);
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+
+	// A `ManuallyDrop`, changed in place, whose box drops nothing and whose `drop` drops
+	// the value once.
+	let mut kept = ManuallyDrop::new(Noisy(a, log.clone()));
+	let mut held = ManuallyDrop::new(Tri::Tall(b));
+	{
+		let m: &mut ManuallyDrop<dyn Shape> = &mut kept;
+		m.grow(c);
+		let t: &mut ManuallyDrop<dyn Shape> = &mut held;
+		t.grow(a);
+		put(out, &format!("{} {} ", m.area(), t.area()));
+	}
+	let boxed: Box<ManuallyDrop<dyn Shape>> = Box::new(ManuallyDrop::new(Noisy(b, log.clone())));
+	put(out, &format!("{} {} {:?} ", boxed.area(), kept.0, *held));
+	drop(boxed);
+	put(out, &format!("{:?} ", log.borrow()));
+	{
+		let m: &mut ManuallyDrop<dyn Shape> = &mut kept;
+		unsafe { ManuallyDrop::drop(m) };
+	}
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+
+	// A future in a lock, polled through a pin of the guard: each poll advances the one
+	// future, which drops once, with the last `Arc`.
+	let ticks = Arc::new(Mutex::new(Ticks {
+		left: a % 4,
+		polls: 0,
+		log: log.clone(),
+	}));
+	let future: Arc<Mutex<dyn Future<Output = u8> + Unpin>> = ticks.clone();
+	let first = poll_tail(&future, b % 3);
+	let polls = ticks.lock().unwrap().polls;
+	let rest = poll_tail(&future, 8);
+	drop(ticks);
+	put(out, &format!("{first:?} {polls} {rest:?} {:?} ", log.borrow()));
+	drop(future);
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+	// An `async` block in a cell, polled through a pin of its borrow, which drops what it
+	// owns once, with the last `Rc`.
+	let owned = Noisy(c, log.clone());
+	let block = Rc::new(RefCell::new(async move { owned.0 }));
+	let erased: Rc<RefCell<dyn Future<Output = u8>>> = block.clone();
+	let mut cx = Context::from_waker(Waker::noop());
+	let ready = {
+		let mut borrowed = erased.borrow_mut();
+		match unsafe { Pin::new_unchecked(&mut *borrowed) }.poll(&mut cx) {
+			Poll::Ready(v) => Some(v),
+			Poll::Pending => None,
+		}
+	};
+	drop(block);
+	put(out, &format!("{ready:?} {:?} ", log.borrow()));
+	drop(erased);
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+
+	// A raw pointer unsized to a trait object, and to a struct of one, writing the original.
+	let mut side = Square { side: u16::from(a) };
+	let mut num = u32::from(b);
+	let mut t = Tail {
+		count: c,
+		head: Noisy(c, log.clone()),
+		value: Tri::Tall(a),
+	};
+	let (p, q): (*mut dyn Shape, *mut dyn Shape) = (&raw mut side, &raw mut num);
+	let r: *const dyn Shape = &raw const side;
+	let tail: *mut Tail<dyn Shape> = &raw mut t;
+	let areas = unsafe { (grow_raw(p, c), grow_raw(q, a), (*r).area()) };
+	let area = unsafe {
+		(*tail).count = (*tail).count.wrapping_add(a);
+		grow_raw(&raw mut (*tail).value, b)
+	};
+	put(
+		out,
+		&format!("{areas:?} {area} {} {num} {} {:?} ", side.side, t.count, t.value),
+	);
+	drop(t);
+	put(out, &format!("{:?} ", log.borrow()));
+	// To a cell of one, read and written in place.
+	let mut sq = Cell::new(Square { side: u16::from(c) });
+	let mut tri = RefCell::new(Tri::Tall(a));
+	let p: *mut Cell<dyn Shape> = &raw mut sq;
+	let q: *mut RefCell<dyn Shape> = &raw mut tri;
+	let areas = unsafe {
+		(*p).get_mut().grow(b);
+		(*q).borrow_mut().grow(c);
+		((*p).get_mut().area(), (*q).borrow().area())
+	};
+	put(out, &format!("{areas:?} {} {:?} ", sq.get_mut().side, tri.borrow()));
+	// Owned again by `Box::from_raw`, which drops what it points at once.
+	let (ticks, noisy, tail) = (
+		Box::into_raw(Box::new(Ticks {
+			left: b % 3,
+			polls: 0,
+			log: log.clone(),
+		})),
+		Box::into_raw(Box::new(Noisy(a, log.clone()))),
+		Box::into_raw(Box::new(Tail {
+			count: b,
+			head: Noisy(b, log.clone()),
+			value: Noisy(c, log.clone()),
+		})),
+	);
+	let (ticks, noisy, tail): (*mut dyn Future<Output = u8>, *mut dyn Shape, *mut Tail<dyn Shape>) =
+		(ticks, noisy, tail);
+	let mut cx = Context::from_waker(Waker::noop());
+	let polled = unsafe { Pin::new_unchecked(&mut *ticks) }.poll(&mut cx).is_ready();
+	unsafe {
+		(*noisy).grow(c);
+		drop(Box::from_raw(ticks));
+		drop(Box::from_raw(noisy));
+		drop(Box::from_raw(tail));
+	}
+	put(out, &format!("{polled} {:?} ", log.borrow()));
+	log.borrow_mut().clear();
+	// An iterator of the crate's own in a cell and in a lock, read through each and
+	// dropped once, with the last owner.
+	let mut cell: Box<Cell<dyn Iterator<Item = u8>>> = Box::new(Cell::new(Countdown(a % 8)));
+	let first = cell.get_mut().next();
+	let locked: Arc<Mutex<dyn Iterator<Item = u8>>> = Arc::new(Mutex::new(Countdown(b % 8)));
+	let second = locked.lock().unwrap().next();
+	put(out, &format!("{first:?} {second:?} "));
+	drop(cell);
+	dropped(out);
+	drop(locked);
+	dropped(out);
+	// To a cell not there yet, read only once it is.
+	let mut slot = std::mem::MaybeUninit::<Cell<u32>>::uninit();
+	let thin = slot.as_mut_ptr();
+	let wide: *mut Cell<dyn Shape> = thin;
+	let null = wide.is_null();
+	let area = unsafe {
+		thin.write(Cell::new(u32::from(a)));
+		(*wide).get_mut().grow(b);
+		(*wide).get_mut().area()
+	};
+	put(out, &format!("{null} {area} {} ", unsafe { slot.assume_init() }.get()));
+	// Of std's traits: a `Debug` written, and a null pointer, which stays null.
+	let shown: *const dyn Debug = &raw const side;
+	let null: *const dyn Shape = std::ptr::null::<Square>();
+	put(out, &format!("{:?} {}", unsafe { &*shown }, null.is_null()));
 }

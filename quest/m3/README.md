@@ -18,8 +18,6 @@ generic std gap is planned here even when moq never calls it.
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
 - [The capacity of a BytesMut](/quest/m3/ts-bytes-capacity.md) - `BytesMut::capacity` and what reads it translate with `bytes`' values
 - [Trait objects](/quest/m3/ts-dyn.md) - std's other traits, generic traits, traits with an associated type, and `Any::type_id` translate, so a consumer neither rewrites nor binds them
-- [The rest of a trait object in a struct's last field](/quest/m3/ts-dyn-tail-rest.md) - a `Cell`, `UnsafeCell`, or `ManuallyDrop` of one, a `dyn Future` there, and a raw pointer to one translate
-- [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
@@ -32,12 +30,14 @@ generic std gap is planned here even when moq never calls it.
 - [A slice's chunks as mutable arrays](/quest/m3/ts-slice-conversions.md) - `as_chunks_mut` and `as_rchunks_mut` translate, writes landing in the slice
 - [Repeated values that drop](/quest/m3/ts-vec-from-elem-drops.md) - `vec![x; n]` translates where `x` drops, cloned and dropped as std's `from_elem` does
 - [A vector's capacity where clone_from writes it in a container](/quest/m3/ts-clone-from-capacity.md) - a `Vec` an array, slice, `Option`, or list clones over keeps its capacity as std's does
+- [clone_from through containers of values that drop](/quest/m3/ts-clone-from-drops.md) - `Option`'s, `Vec`'s, and nested arrays' `clone_from` clone and drop in std's order
 - [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
 - [An Arc's pointer](/quest/m3/ts-arc-pointers.md) - `Arc::as_ptr` and `Rc::as_ptr` translate, comparable by `ptr::addr_eq`
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `try_reserve`, a deque's rotations and searches, and `Vec::splice` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Type errors at the Rust that made them](/quest/m3/ts-span-precision.md) - a `tsc` error on output names the tail expression or call argument that made it
-- [Fresh writes through a zip, a copy, and a repeat](/quest/m3/ts-fresh-shapes.md) - zipping a `Vec<[T; N]>`, reading a `T` out of `Zip::next`, and `copied` or `vec![x; n]` over a `Copy` type translate
+- [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
+- [Fresh writes through a vector's own accessors](/quest/m3/ts-fresh-vec-access.md) - a whole write into a vector's element stays fresh through a shared borrow, `first_mut`, a by-value array `for`, and a byte-holding collect
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects

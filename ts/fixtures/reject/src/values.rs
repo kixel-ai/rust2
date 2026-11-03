@@ -1,6 +1,5 @@
 //! Values JS can't represent as Rust does.
 
-use crate::objects::Reading;
 use crate::places::Bare;
 
 pub fn float(a: f16) -> f16 {
@@ -25,11 +24,6 @@ pub fn generic_unit(value: Option<()>) -> bool {
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()
-}
-
-/// A `Cell` whose value unsizes to a trait object, which nothing can read through.
-pub fn cell_unsized(c: &std::cell::Cell<u8>) -> &std::cell::Cell<dyn Reading> {
-	c
 }
 
 /// A union whose fields overlap in values JS keeps apart.
