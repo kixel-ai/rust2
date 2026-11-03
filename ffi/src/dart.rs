@@ -1676,6 +1676,10 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let mut params = Vec::new();
+		// Each implementation and waker is given to Rust as the call evaluates its arguments,
+		// so every other one that may throw is lowered before, and a call that throws gives
+		// Rust nothing.
+		let mut gave = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
@@ -1692,15 +1696,23 @@ impl<'a> Gen<'a> {
 				}
 				(Type::Callback(i, _), _) => {
 					let cb = abi.callback(*i);
-					let v = format!("c{k}_");
-					pre.push(format!(
-						"final {v} = a_<_Callback>();\n_n.give({v}.ref, _tables_{}, {name}, {name}.close);",
-						self.bare(&cb)
-					));
-					args.push(format!("{v}.ref"));
+					args.push(format!("_n.give(_tables_{}, {name}, {name}.close)", self.bare(&cb)));
+					gave = true;
 				}
-				(Type::Waker, _) => args.push(format!("_n.wakerOf({name})")),
-				(ty, c) if Self::scalar(c) => args.push(self.lower(ty, &name)),
+				(Type::Waker, _) => {
+					args.push(format!("_n.wakerOf({name})"));
+					gave = true;
+				}
+				(ty, c) if Self::scalar(c) => {
+					let lowered = self.lower(ty, &name);
+					if gave {
+						let v = format!("c{k}_");
+						pre.push(format!("final {v} = {lowered};"));
+						args.push(v);
+					} else {
+						args.push(lowered);
+					}
+				}
 				(ty, c) => {
 					let v = format!("c{k}_");
 					let nt = self.nt(c);
