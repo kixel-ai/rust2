@@ -5,7 +5,7 @@ import { out$u8 } from "../../lib.ts";
 import * as Pieces from "../../buf.Pieces.ts";
 import * as Provided from "../../buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "../../bytes.ts";
-import { signExtend, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_bytes_BytesMut as buf_impl_advance$bytes_Buf_mut_bytes_BytesMut, advance$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_mut_ref_slice_u8, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_bytes_BytesMut as buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut, chunk$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8 } from "../../bytes/buf/buf_impl.ts";
+import { signExtend, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_bytes_BytesMut as buf_impl_advance$bytes_Buf_mut_bytes_BytesMut, advance$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_mut_ref_slice_u8, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_bytes_BytesMut as buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut, chunk$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes as buf_impl_copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_bytes_BytesMut as buf_impl_copyToBytes$bytes_Buf_mut_bytes_BytesMut, copyToBytes$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8 } from "../../bytes/buf/buf_impl.ts";
 import * as Chain from "../../bytes/buf/chain.Chain.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
 import { min$0wa4xqw } from "../../core/cmp.ts";
@@ -972,6 +972,31 @@ export function chunk$bytes_Buf_ref_slice_u8_mut(self: Take<rt.ByteSlice>): rt.B
 }
 
 /**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_bytes_Bytes_mut(self: rt.Place<Take<rt.ByteSlice>>, len: rt.usize): rt.ByteSlice {
+	return copyToBytes$bytes_Buf_bytes_Bytes(self.v, len);
+}
+
+/**
  * Returns true if there are any more bytes to consume
  *
  * This is equivalent to `self.remaining() != 0`.
@@ -1023,6 +1048,223 @@ export function hasRemaining$bytes_Buf_bytes_Bytes_mut(self: Take<rt.ByteSlice>)
  */
 export function remaining$bytes_Buf_bytes_Bytes_mut(self: Take<rt.ByteSlice>): rt.usize {
 	return remaining$bytes_Buf_bytes_Bytes(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_buf_Pieces_mut(self: Take<Pieces.Pieces>): rt.usize {
+	return remaining$bytes_Buf_mut_buf_Pieces(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_buf_Provided_mut(self: Take<Provided.Provided>): rt.usize {
+	return remaining$bytes_Buf_mut_buf_Provided(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_bytes_BytesMut_mut(self: Take<rt.BytesMut>): rt.usize {
+	return remaining$bytes_Buf_mut_bytes_BytesMut(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_bytes_Bytes_mut(self: Take<rt.Place<rt.ByteSlice>>): rt.usize {
+	return remaining$bytes_Buf_mut_bytes_Bytes(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8_mut(self: Take<Chain.Chain<Provided.Provided, rt.ByteSlice>>): rt.usize {
+	return remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_mut_ref_slice_u8_mut(self: Take<rt.Place<rt.Place<rt.ByteSlice>>>): rt.usize {
+	return remaining$bytes_Buf_mut_mut_ref_slice_u8(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_ref_slice_u8_mut(self: Take<rt.Place<rt.ByteSlice>>): rt.usize {
+	return remaining$bytes_Buf_mut_ref_slice_u8(self);
 }
 
 /**
@@ -2061,6 +2303,223 @@ export function copyToBytes$bytes_Buf_bytes_Bytes(self: Take<rt.ByteSlice>, len:
 		rt.panicFmt(["`len` greater than remaining"]);
 	} else {
 		const r: rt.ByteSlice = rt.bytesSplitTo(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_buf_Pieces(self: Take<Pieces.Pieces>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_buf_Pieces_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = Pieces.copyToBytes$bytes_Buf_mut(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_buf_Provided(self: Take<Provided.Provided>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_buf_Provided_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = Provided.copyToBytes$bytes_Buf_mut(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_bytes_Bytes(self: Take<rt.Place<rt.ByteSlice>>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_bytes_Bytes_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = buf_impl_copyToBytes$bytes_Buf_mut_bytes_Bytes(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_bytes_BytesMut(self: Take<rt.BytesMut>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_bytes_BytesMut_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = buf_impl_copyToBytes$bytes_Buf_mut_bytes_BytesMut(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Take<Chain.Chain<Provided.Provided, rt.ByteSlice>>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = Chain.copyToBytes$bytes_Buf_buf_Provided_ref_slice_u8_mut(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_mut_ref_slice_u8(self: Take<rt.Place<rt.Place<rt.ByteSlice>>>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_mut_ref_slice_u8_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = buf_impl_copyToBytes$bytes_Buf_mut_mut_ref_slice_u8(rt.place(() => self.inner, (value) => self.inner = value), len);
+		self.limit = rt.usizeSub(self.limit, len);
+		return r;
+	}
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_ref_slice_u8(self: Take<rt.Place<rt.ByteSlice>>, len: rt.usize): rt.ByteSlice {
+	if (!(len <= remaining$bytes_Buf_mut_ref_slice_u8_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const r: rt.ByteSlice = buf_impl_copyToBytes$bytes_Buf_mut_ref_slice_u8(rt.place(() => self.inner, (value) => self.inner = value), len);
 		self.limit = rt.usizeSub(self.limit, len);
 		return r;
 	}

@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import { drop$Vec_clones_Logged, drop$array1_clones_Logged, drop$array2_clones_Kept, drop$array2_clones_Logged, drop$clones_Slot, drop$tuple2_Option_Vec_clones_Logged_Option_Vec_clones_Logged, drop$tuple2_Vec_array2_clones_Logged_array2_array2_clones_Logged, drop$tuple2_Vec_clones_Logged_Vec_Vec_clones_Logged, drop$tuple2_Vec_clones_Logged_Vec_clones_Logged, drop$tuple2_array2_array2_clones_Logged_array2_array2_clones_Logged, drop$tuple2_clones_Logged_String, drop$tuple2_tuple3_array2_clones_Logged_String_clones_Logged_clones_Pair, drop$tuple3_Option_array2_clones_Logged_Option_array2_clones_Logged_Option_array2_clones_Logged, drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String, drop$tuple3_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged, drop$tuple3_Vec_array2_clones_Logged_Vec_array2_clones_Logged_array2_clones_Logged, drop$tuple3_Vec_clones_Logged_Vec_clones_Logged_Vec_clones_Logged, drop$tuple3_array0_clones_Logged_array0_clones_Logged_array3_clones_Logged, drop$tuple3_array2_clones_Logged_String_clones_Logged, drop$tuple3_array3_clones_Logged_array3_clones_Logged_array3_clones_Logged, drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged, drop$tuple7_Vec_clones_Kept_Vec_clones_Kept_array1_array2_clones_Kept_Option_clones_Kept_array2_clones_Slot_collections_LinkedList_clones_Kept_collections_LinkedList_clones_Kept } from "./lib.ts";
 import * as Countdown from "./clones.Countdown.ts";
+import * as Counted from "./clones.Counted.ts";
 import * as Fussy from "./clones.Fussy.ts";
 import * as Kept from "./clones.Kept.ts";
 import * as Logged from "./clones.Logged.ts";
@@ -10,7 +11,7 @@ import * as Pair from "./clones.Pair.ts";
 import * as Plan from "./clones.Plan.ts";
 import * as Slot from "./clones.Slot.ts";
 import { then$1uqvqbl } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0y3liwu as option_map$0y3liwu, mapOr$1yabfom as option_mapOr$1yabfom, mapOr$1surhce as option_mapOr$1surhce, mapOr$02k4ito as option_mapOr$02k4ito, clone$0bhdqd8 as option_clone$0bhdqd8, clone$1jx0028 as option_clone$1jx0028 } from "./core/option.ts";
+import { isSomeAnd$09tpccf, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0y3liwu as option_map$0y3liwu, mapOr$0w6m9d0 as option_mapOr$0w6m9d0, mapOr$0bq8trh as option_mapOr$0bq8trh, mapOr$1yabfom as option_mapOr$1yabfom, mapOr$1surhce as option_mapOr$1surhce, mapOr$02k4ito as option_mapOr$02k4ito, clone$0bhdqd8 as option_clone$0bhdqd8, clone$1jx0028 as option_clone$1jx0028 } from "./core/option.ts";
 
 /** Puts what was logged since the last flush, after a marker. */
 export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
@@ -8243,6 +8244,284 @@ export function repeated$Vec_clones_Logged(x: Logged.Logged[], n: rt.usize): Log
 /** `vec![x; n]` where only its bound says `x` clones. */
 export function repeated$clones_Logged(x: Logged.Logged, n: rt.usize): Logged.Logged[] {
 	return rt.vecFromElem(x, n, Logged.clone$Clone, rt.drop);
+}
+
+/**
+ * `iter::repeat`, `repeat_n`, and `once_with` of values that clone and drop themselves:
+ * each item a clone of the element, but `repeat_n`'s last, which is the element, read
+ * from either end, skipped, counted, and dropped part read, a `Take` of a `Repeat` read
+ * from the back as from the front; `once_with`'s closure called as it is first read, and
+ * dropped uncalled with it.
+ */
+export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _132!: rt.usize;
+	let item!: Logged.Logged | undefined;
+	const _11: (a0: Logged.Logged | undefined) => rt.u8 = (x2: Logged.Logged | undefined): rt.u8 => {
+		return option_mapOr$0bq8trh(x2, 238, (x3: Logged.Logged): rt.u8 => {
+			const _02: rt.u8 = Logged.id(x3);
+			x3[Symbol.dispose]();
+			return _02;
+		});
+	};
+	const _12: (a0: [rt.usize, rt.usize | undefined]) => Uint8Array = (hint: [rt.usize, rt.usize | undefined]): Uint8Array => {
+		return Uint8Array.of(rt.min(hint[0], 253) & 0xff, option_mapOr$02k4ito(hint[1], 254, (n2: rt.usize): rt.u8 => {
+			return n2 & 0xff;
+		}));
+	};
+	const _501: (a0: Logged.Logged) => rt.u8 = (x4: Logged.Logged): rt.u8 => {
+		return Logged.id(x4);
+	};
+	const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
+	const logged: (a0: rt.u8) => Logged.Logged = (id: rt.u8): Logged.Logged => {
+		return new Logged.Logged(id, rt.arcClone(log));
+	};
+	const at: (a0: rt.usize) => rt.u8 = (i2: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i2), rt.u8WrappingMul(i2 & 0xff, 48)) & 126;
+	};
+	const n: (a0: rt.usize) => rt.usize = (i3: rt.usize): rt.usize => {
+		return rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i3), i3 & 0xff), 5) as rt.usize;
+	};
+	const _13: rt.u8 = rt.u8Rem(kind, 6);
+	if (_13 === 0) {
+		const part27 = at(0);
+		const it: rt.Iter<Logged.Logged> = rt.iterRepeat(logged(part27), Logged.clone$Clone, rt.drop);
+		const part28 = it.sizeHint();
+		rt.iterExtendBytes(out, rt.iterSlice(_12(part28)), undefined, true);
+		const part29 = rt.iterToOption(it.next());
+		rt.byteVecPush(out, _11(part29));
+		const part30 = rt.iterToOption(it.nextBack());
+		rt.byteVecPush(out, _11(part30));
+		const _46: rt.usize = n(1);
+		const part31 = rt.iterNth(it, _46, rt.drop);
+		rt.byteVecPush(out, _11(part31));
+		const _55: rt.usize = n(2);
+		const part32 = rt.iterNthBack(it, _55, rt.drop);
+		rt.byteVecPush(out, _11(part32));
+		flush(log.value, out);
+		const clone: rt.Iter<Logged.Logged> = it.clone();
+		flush(log.value, out);
+		rt.drop(it);
+		flush(log.value, out);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(rt.iterRev(rt.iterTake(clone.clone(), n(3), rt.drop)), (x11: Logged.Logged): rt.u8 => {
+			const _024: rt.u8 = Logged.id(x11);
+			x11[Symbol.dispose]();
+			return _024;
+		}), "fold", true)), undefined, true);
+		flush(log.value, out);
+		const _85: rt.usize = n(4);
+		const taken2: rt.Iter<Logged.Logged> = rt.iterTake(clone, _85, rt.drop);
+		const part33 = rt.iterToOption(taken2.nextBack());
+		rt.byteVecPush(out, _11(part33));
+		const part34 = rt.iterNthBack(taken2, 1, rt.drop);
+		rt.byteVecPush(out, _11(part34));
+		rt.byteVecPush(out, taken2.len() & 0xff);
+		const part35 = taken2.sizeHint();
+		rt.iterExtendBytes(out, rt.iterSlice(_12(part35)), undefined, true);
+		flush(log.value, out);
+		rt.byteVecPush(out, rt.iterRfold(taken2, 0, (acc: rt.u8, x12: Logged.Logged): rt.u8 => {
+			const _025: rt.u8 = rt.u8WrappingAdd(acc, Logged.id(x12));
+			x12[Symbol.dispose]();
+			return _025;
+		}, true));
+		flush(log.value, out);
+	} else if (_13 === 1) {
+		const part24 = at(0);
+		const it2: rt.Iter<Logged.Logged> = rt.iterRepeatN(logged(part24), n(1), Logged.clone$Clone, rt.drop);
+		let iterStart: rt.usize = 2;
+		const iterEnd: rt.usize = 8;
+		while ((_132 = iterStart++) < iterEnd) {
+			const i: rt.usize = _132;
+			const _137: rt.u8 = rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), 0), 4);
+			if (_137 === 0) {
+				item = rt.iterToOption(it2.next());
+			} else if (_137 === 1) {
+				item = rt.iterToOption(it2.nextBack());
+			} else if (_137 === 2) {
+				const _145: rt.usize = rt.usizeRem(n(rt.usizeAdd(i, 8)), 3);
+				item = rt.iterNth(it2, _145, rt.drop);
+			} else {
+				const _153: rt.usize = rt.usizeRem(n(rt.usizeAdd(i, 8)), 3);
+				item = rt.iterNthBack(it2, _153, rt.drop);
+			}
+			rt.byteVecPush(out, _11(item));
+			rt.byteVecPush(out, it2.len() & 0xff);
+			flush(log.value, out);
+			if (i === 4) {
+				const clone2: rt.Iter<Logged.Logged> = it2.clone();
+				flush(log.value, out);
+				rt.iterExtendBytes(out, rt.iterMap(clone2, (x10: Logged.Logged): rt.u8 => {
+					const _023: rt.u8 = Logged.id(x10);
+					x10[Symbol.dispose]();
+					return _023;
+				}), "fold", true);
+				flush(log.value, out);
+			}
+		}
+		rt.drop(it2);
+		flush(log.value, out);
+	} else if (_13 === 2) {
+		const part13 = at(0);
+		rt.byteVecPush(out, rt.ownedCount(rt.iterRepeatN(logged(part13), n(1), Logged.clone$Clone, rt.drop), rt.drop) & 0xff);
+		flush(log.value, out);
+		const part14 = at(1);
+		const part15 = rt.ownedLast(rt.iterRepeatN(logged(part14), n(2), Logged.clone$Clone, rt.drop), rt.drop);
+		rt.byteVecPush(out, _11(part15));
+		flush(log.value, out);
+		const part16 = at(2);
+		const all: Logged.Logged[] = rt.iterToArray(rt.iterRepeatN(logged(part16), n(3), Logged.clone$Clone, rt.drop), "fold", 8, true);
+		flush(log.value, out);
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(all), Logged.id), undefined, true);
+		rt.dropAll(all);
+		flush(log.value, out);
+		rt.byteVecPush(out, rt.ownedCount(rt.iterRepeatN(at(3), n(4))) & 0xff);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.ownedLast(rt.iterRepeatN(at(4), n(5))), 238));
+		const part17 = at(5);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(rt.iterRev(rt.iterTake(rt.iterRepeatN(logged(part17), n(6), Logged.clone$Clone, rt.drop), n(7), rt.drop)), (x9: Logged.Logged): rt.u8 => {
+			const _019: rt.u8 = Logged.id(x9);
+			x9[Symbol.dispose]();
+			return _019;
+		}), "fold", true)), undefined, true);
+		flush(log.value, out);
+		const counted: (a0: rt.u8) => Counted.Counted = (id2: rt.u8): Counted.Counted => {
+			return { id: id2, log: log.value };
+		};
+		const part18 = at(7);
+		const _289: rt.Iter<Counted.Counted> = rt.iterRepeatN(counted(part18), n(8), Counted.clone$Clone);
+		rt.iterEmpty();
+		rt.byteVecPush(out, rt.ownedCount(rt.iterChain(_289, rt.iterEmpty() as rt.Iter<Counted.Counted>)) & 0xff);
+		flush(log.value, out);
+		rt.iterEmpty();
+		const part19 = at(9);
+		const _308: rt.Iter<Counted.Counted> = rt.iterRepeatN(counted(part19), n(10), Counted.clone$Clone);
+		rt.byteVecPush(out, option_mapOr$0w6m9d0(rt.ownedLast(rt.iterChain(rt.iterEmpty() as rt.Iter<Counted.Counted>, _308)), 238, (c2: Counted.Counted): rt.u8 => {
+			return c2.id;
+		}));
+		flush(log.value, out);
+		rt.byteVecPush(out, rt.ownedCount(rt.iterFlatten(rt.iterOnceWith((): rt.Iter<Counted.Counted> => {
+			return rt.iterRepeatN({ id: 17, log: log.value }, 3, Counted.clone$Clone);
+		}), undefined, true)) & 0xff);
+		flush(log.value, out);
+		const part20 = at(11);
+		rt.byteVecPush(out, rt.ownedCount(rt.iterFuse(rt.iterRepeatN(logged(part20), n(12), Logged.clone$Clone, rt.drop), true), rt.drop) & 0xff);
+		flush(log.value, out);
+		const part21 = at(6);
+		const zero: rt.Iter<Logged.Logged> = rt.iterRepeatN(logged(part21), 0, Logged.clone$Clone, rt.drop);
+		flush(log.value, out);
+		const part22 = rt.iterToOption(zero.next());
+		rt.byteVecPush(out, _11(part22));
+		const part23 = zero.sizeHint();
+		rt.iterExtendBytes(out, rt.iterSlice(_12(part23)), undefined, true);
+		rt.drop(zero);
+	} else if (_13 === 3) {
+		if (!isSomeAnd$09tpccf(rt.byteSliceFirst(data), (b2: rt.u8): boolean => {
+			return rt.u8Rem(b2, 2) === 0;
+		})) {
+			const part12 = at(1);
+			rt.byteVecPush(out, option_mapOr$0bq8trh(rt.ownedLast(rt.iterRepeat(logged(part12), Logged.clone$Clone, rt.drop), rt.drop), 238, (x8: Logged.Logged): rt.u8 => {
+				const _018: rt.u8 = Logged.id(x8);
+				x8[Symbol.dispose]();
+				return _018;
+			}));
+		} else {
+			rt.byteVecPush(out, rt.ownedCount(rt.iterRepeat(at(1))) & 0xff);
+		}
+	} else if (_13 === 4) {
+		const part5 = at(0);
+		const a: Logged.Logged = logged(part5);
+		const make2 = (captured: Logged.Logged): () => rt.u8 => {
+			return rt.closure(rt.cloning((): rt.u8 => {
+				const _013: rt.u8 = Logged.id(captured) ^ 85;
+				captured[Symbol.dispose]();
+				return _013;
+			}, () => make2(Logged.clone$Clone(captured))), (): void => {
+				captured[Symbol.dispose]();
+			});
+		};
+		const it6: rt.Iter<rt.u8> = rt.iterOnceWith(make2(a));
+		const part6 = it6.sizeHint();
+		rt.iterExtendBytes(out, rt.iterSlice(_12(part6)), undefined, true);
+		const clone3: rt.Iter<rt.u8> = it6.clone({ f: rt.closureClone });
+		flush(log.value, out);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(it6.nextBack()), 238));
+		flush(log.value, out);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(it6.next()), 238));
+		rt.byteVecPush(out, it6.len() & 0xff);
+		rt.drop(it6);
+		flush(log.value, out);
+		rt.iterExtendBytes(out, clone3, "fold", true);
+		flush(log.value, out);
+		const part7 = at(1);
+		const captured2 = logged(part7);
+		const it7: rt.Iter<Logged.Logged> = rt.iterOnceWith(rt.closure((): Logged.Logged => {
+			return captured2;
+		}, (): void => {
+			captured2[Symbol.dispose]();
+		}));
+		flush(log.value, out);
+		const part8 = rt.iterToOption(it7.next());
+		rt.byteVecPush(out, _11(part8));
+		flush(log.value, out);
+		const part9 = at(2);
+		const captured3 = logged(part9);
+		const it8: rt.Iter<rt.u8> = rt.iterOnceWith(rt.closure((): rt.u8 => {
+			const _015: rt.u8 = Logged.id(captured3);
+			captured3[Symbol.dispose]();
+			return _015;
+		}, (): void => {
+			captured3[Symbol.dispose]();
+		}));
+		flush(log.value, out);
+		rt.drop(it8);
+		flush(log.value, out);
+		const part10 = at(3);
+		const captured4 = logged(part10);
+		const f: () => rt.u8 = rt.closure((): rt.u8 => {
+			return Logged.id(captured4) ^ 51;
+		}, (): void => {
+			captured4[Symbol.dispose]();
+		});
+		rt.byteVecPush(out, f());
+		const it9: rt.Iter<rt.u8> = rt.iterOnceWith(rt.once(f));
+		const part11 = it9.sizeHint();
+		rt.iterExtendBytes(out, rt.iterSlice(_12(part11)), undefined, true);
+		flush(log.value, out);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(it9.next()), 238));
+		flush(log.value, out);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(it9.next()), 238));
+		rt.drop(it9);
+		rt.drop(it7);
+	} else {
+		const part = at(0);
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterTake(rt.iterRepeat(logged(part), Logged.clone$Clone, rt.drop), n(1), rt.drop), (x5: Logged.Logged): rt.u8 => {
+			const _09: rt.u8 = Logged.id(x5) ^ 1;
+			x5[Symbol.dispose]();
+			return _09;
+		}), "fold", true);
+		flush(log.value, out);
+		const part2 = at(1);
+		for (const _539 of rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterRepeatN(logged(part2), n(2), Logged.clone$Clone, rt.drop), rt.iterRepeat(at(3)), "len", rt.drop), (_2: [Logged.Logged, rt.u8]): [rt.u8, rt.u8] => {
+			const x6: Logged.Logged = _2[0];
+			const y2: rt.u8 = _2[1];
+			const _010: [rt.u8, rt.u8] = [_501(x6), y2];
+			x6[Symbol.dispose]();
+			return _010;
+		}), "fold", 2, true)) {
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_539[0], _539[1])), undefined, true);
+		}
+		flush(log.value, out);
+		const part4 = at(4);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(rt.iterSkip(rt.iterRepeatN(logged(part4), n(5), Logged.clone$Clone, rt.drop), n(6), rt.drop), (x7: Logged.Logged): rt.u8 => {
+			const _011: rt.u8 = Logged.id(x7);
+			x7[Symbol.dispose]();
+			return _011;
+		}), "next")), undefined, true);
+		flush(log.value, out);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterRev(rt.iterChain(rt.iterOnceWith((): rt.u8 => {
+			return at(7);
+		}), rt.iterRepeatN(at(8), n(9)))), undefined, true)), undefined, true);
+	}
+	flush(log.value, out);
+	log[Symbol.dispose]();
 }
 
 //# sourceMappingURL=clones.ts.map

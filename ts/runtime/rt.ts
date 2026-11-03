@@ -5,6 +5,7 @@
 // left only where a call dispatches on its receiver: an iterator's `next`, a writer's
 // `writeStr`, a future's `poll`, a waker's, and `[Symbol.dispose]`.
 
+import type { Shared } from "./rt/bytes.ts";
 import type { Ordering } from "./rt/collections.ts";
 import type { ParseFloatError } from "./rt/float.ts";
 import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
@@ -1617,6 +1618,26 @@ export class ByteSlice {
 		this.data = data;
 		this.start = start;
 		this.length = length;
+	}
+}
+
+/**
+ * A `bytes::Bytes` that is one of the handles counted of `shared`, its storage. A `Bytes`
+ * that is a plain `ByteSlice` is static: it holds no storage, as `Bytes::new` makes. It is
+ * here, not in `rt/bytes.ts`, as that module runs before this one defines `ByteSlice`.
+ */
+export class CountedBytes extends ByteSlice {
+	readonly shared: Shared;
+	/**
+	 * Whether it is the handle `bytes` made of a vector as long as its capacity, which a
+	 * `truncate` to nothing gives the storage up from. None of its clones is.
+	 */
+	readonly promotable: boolean;
+
+	constructor(data: Uint8Array, start: number, length: number, shared: Shared, promotable: boolean) {
+		super(data, start, length);
+		this.shared = shared;
+		this.promotable = promotable;
 	}
 }
 

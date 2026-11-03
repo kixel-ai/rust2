@@ -296,12 +296,17 @@ its length, as std's do. `Debug` of std's iterator adaptors, `Map` through `Flat
 `DecodeUtf16`, and a `str`'s escapes, writes their fields as std's does, each iterator it
 wraps by its own `Debug`, no closure, and the state each keeps, such as what a `Peekable` peeked, what a
 `Skip` has left to skip, and the countdown std's `StepBy` of a small unsigned range keeps
-in its end. So does `Debug` of std's sources, `Once`, `FromFn`, `RepeatWith`, and
-`Successors`, an `Option`'s, a `Result`'s, and an array's iterators, a `CharIndices`, a
-`String`'s `Drain`, and a slice's `Windows`, chunks, and splits, each writing what is left of
-its slice as std's does, emptied where std's `nth` past the end empties a `Windows`; a hash
-set's operations write the list a clone yields. A slice's `chunks_mut` and its forms are
-refused, as std writes their slice's address. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
+in its end. So does `Debug` of std's sources, `Once`, `OnceWith`, `FromFn`, `Repeat`,
+`RepeatN`, `RepeatWith`, and `Successors`, an `Option`'s, a `Result`'s, and an array's
+iterators, a `CharIndices`, a `String`'s `Drain`, and a slice's `Windows`, chunks, and
+splits, each writing what is left of its slice as std's does, emptied where std's `nth` past
+the end empties a `Windows`; a hash set's operations write the list a clone yields, and a
+`BTreeSet`'s the way std picked to make each, by the iterators it reads, the set it looks
+keys up in, and the key it peeked or holds back. A list's `ExtractIf` writes the item it
+reads next, and a hash map's and set's nothing. A slice's `chunks_mut` and its forms are
+refused, as std writes their slice's address, and so are a `str`'s searches, `Split` and
+its forms, `Matches`, `MatchIndices`, `Lines`, and `SplitWhitespace`, as std writes its
+searcher's state in UTF-8 bytes. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
@@ -644,36 +649,40 @@ Imports name the `.ts` file, which Node, Bun, and bundlers run as is. A `tsc` bu
 rust2-ts maps a few crates itself, as it maps std, so a consumer binds and configures none
 of them:
 
-- `bytes::Bytes` is an `rt.ByteSlice`. Its constructors, `len`, `is_empty`, `slice`,
+- `bytes::Bytes` is an `rt.ByteSlice`: an `rt.CountedBytes`, one of the handles its
+  storage counts as `bytes` does, which drops by `rt.bytesDrop`, or a plain one where it is
+  static. Its constructors, `len`, `is_empty`, `is_unique`, `try_into_mut`, `slice`,
   `Clone`, `Deref`, `AsRef`, `PartialEq` with bytes, `Default`, `Debug`, and `From`
   between it and `Vec<u8>`, `String`, `&'static [u8]`, and `&'static str` map to
   `rt/bytes.ts`, panicking as `bytes` does, and so do `split_to`, `split_off`,
-  `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. `slice_ref` of
+  `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. A `String`'s
+  bytes are in storage of its capacity, which JS keeps none of, so a crate that makes a
+  `Bytes` or a `Vec<u8>` of them is refused what reads a `Bytes`' capacity: `is_unique`,
+  `try_into_mut`, `truncate`, `clear`, `From` into a `BytesMut` or a `Vec<u8>`, and `put`
+  of a `Buf` but a `BytesMut` or a slice into a `BytesMut`. Another crate reads them as a
+  vector's whose capacity is their length. `slice_ref` of
   bytes from other storage throws, since Rust may share what JS copied, as a `&'static
   str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
   reads its owner's bytes once, as `bytes` does, and is refused for an owner that drops,
   which would drop with the last clone of what it makes.
-- `bytes::BytesMut` is an `rt.BytesMut`: a window of storage that the handles `split_to`
-  and `split` make and the `Bytes` that `freeze` makes share without overlapping, as
-  `bytes`' do. Its constructors, `len`, `is_empty`, `freeze`, `split_to`, `split`,
-  `truncate`, `clear`, `resize`, `reserve`, `extend_from_slice`, `unsplit`, `Clone`,
+- `bytes::BytesMut` is an `rt.BytesMut`: a vector of its own, or a window of storage that
+  the handles `split_to`, `split_off`, and `split` make and the `Bytes` that `freeze`
+  makes share without overlapping, as `bytes`' do. Its constructors, `len`, `is_empty`,
+  `capacity`, `freeze`, `split_to`, `split_off`, `split`, `truncate`, `clear`, `resize`,
+  `reserve`, `try_reclaim`, `extend_from_slice`, `unsplit`, `try_unsplit`, `Clone`,
   `Deref`, `DerefMut`, `AsRef`, `AsMut`, `PartialEq` with bytes, `Default`, `Debug`, and
-  `From` between it and `Bytes`, `Vec<u8>`, `&[u8]`, and `&str` map, panicking as `bytes`
-  does. A handle never split nor taken from a `Bytes` is a vector that grows and panics
-  as `Vec` does, counting the bytes it read past. Once its storage was shared, `bytes`'
-  capacity depends on whether the other handles of it dropped, such as a `Bytes` it froze,
-  which nothing here counts: its `reserve` throws past 512 MiB, counting what it read
-  past, where `bytes`' panic depends on that, and its capacity is refused, as are
-  `split_off`, `try_reclaim`, `try_unsplit`, and `spare_capacity_mut`, which read it.
+  `From` between it and `Bytes`, `Vec<u8>`, `&[u8]`, and `&str` map, with `bytes`'
+  capacities and panics: each handle drops, so `reserve` reclaims storage once no other
+  handle holds it, as `bytes`' does. `spare_capacity_mut` is refused, as JS holds its
+  `[MaybeUninit<u8>]` apart from the storage.
 - `Buf` and `BufMut` of a `Bytes`, a `BytesMut`, a `&[u8]`, and a `Vec<u8>` map: the
   required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
   `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
   `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
-  one, into a `Vec<u8>` reads it through its methods as `bytes` does. Into a `BytesMut`
-  it is refused, as `bytes` picks those methods by its capacity, but for `bytes`' own, as
-  `Chain::copy_to_bytes` makes, each into a `BytesMut` it just made with a capacity,
-  which reads it chunk by chunk. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
+  one, reads it through its methods as `bytes` does, which into a `BytesMut` of no
+  capacity copies it out whole by its `copy_to_bytes` and takes the copy's storage if no
+  other handle holds it, then drops it. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through
@@ -1084,14 +1093,15 @@ so adding, removing, or reordering a case changes no other case's inputs.
   slices and panics, how each is made and printed, that no event evaluates a field, and
   that each random value is in its range, every value of a small range drawn. It splits,
   freezes, grows, and writes a `BytesMut` by ops its input picks, ending with every
-  piece's bytes, and reads and writes through `Buf` and `BufMut` generically, through a
-  `&mut` and a `Box` too, a buffer of its own included, ending with each vector's
-  capacity. It copies bytes out of `Chain`s of each kind of buffer, nested and as
+  piece's bytes and capacity, after the other handles of its storage dropped or not, and
+  reads and writes through `Buf` and `BufMut` generically, through a `&mut` and a `Box`
+  too, a buffer of its own included, ending with each vector's capacity. It copies bytes out of `Chain`s of each kind of buffer, nested and as
   `dyn Buf`s, at either end of each half and past the end. It changes hashbrown's maps and sets, keyed by JS primitives and by
   tuples, and `HashTable`s of tuples and of numbers, whose places it writes, under hashes
   that collide and that pass 2^53, checks their capacity by std's guarantees, and writes a
-  `hashlink::LinkedHashMap` in its own order. `caller.ts` names the inputs that reserve at the edges of
-  `BytesMut`'s 512 MiB limit.
+  `hashlink::LinkedHashMap` in its own order. `caller.ts` names the inputs that read a `BytesMut` past
+  where `bytes` shares a vector's storage, 128 MiB, and drop each pick of a storage's
+  handles before reserving.
 - `bind` binds `buf::Blob`, a renamed dependency's type with `unsafe` inside, and a function and a type of its own that read through raw
   pointers, the type dropping an `Arc` where Rust drops it, to the TS in `bind/`. It keys
   hash and B-tree collections by `Blob` and by `key::Nibble`, a JS number equal to another

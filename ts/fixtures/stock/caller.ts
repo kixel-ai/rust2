@@ -1,6 +1,6 @@
 // The harness, with its cases by name and the inputs it names for `differential.ts`:
-// `buf::reserves`' edges of `rt.BytesMut`'s limit, which only these reach, as each
-// allocates 512 MiB, each of `hashlink`'s iterators read through every pick of steps from
+// `buf::far`'s reads past where a vector shares its storage, which only these reach, as
+// each allocates 128 MiB, `buf::reclaims` after each pick of the handles to drop, each of `hashlink`'s iterators read through every pick of steps from
 // either end, each `buf::chains` chain copied by each pick of a length, split at either
 // end and between, and every pair of steps over `hashlink`'s maps of what drops.
 
@@ -14,10 +14,8 @@ export const ops = new Map(named().map(([name]): [string, Uint8Array] => [name, 
 /** Its cases read full-width values. */
 export const wide = true;
 
-const reserves = op("buf::reserves");
-
-/** Each edge but shared storage past the limit, which throws, read past by none and by some. */
-const edges = [0, 1, 2].flatMap((kind) => [0, 3].map((read) => Uint8Array.of(reserves, ...new TextEncoder().encode("edge"), kind, read)));
+/** Read past just that far and one more, then each op, frozen and taken back first or not. */
+const far = [0, 1].flatMap((past) => Array.from({ length: 8 }, (_, step) => Uint8Array.of(op("buf::far"), ...new TextEncoder().encode("far"), past, step)));
 
 /** `maps::linked_iters` of maps empty, of one, and fuller, each iterator and adaptor by each pick. */
 const linked = [0x00, 0x01, 0x02, 0x15, 0x0b, 0x3b].flatMap((len) =>
@@ -35,4 +33,9 @@ const nested = [0, 1, 2, 3, 4].flatMap((cap) =>
 	Array.from({ length: 81 * 2 }, (_, i) => Uint8Array.of(op("maps::nested"), cap, 0x00, 0x01, 0x02, 0x01, 0x03, 0x02, 0x01, 0x02, i % 9, i >= 81 ? 0x05 : 0x01, Math.floor(i / 9) % 9, 0x02)),
 );
 
-export const cases: Uint8Array[] = [...edges, ...linked, ...chains, ...nested];
+/** Of no capacity, of some, and past `bytes`' smallest original capacity, each pick dropped, reserving nothing, a little, and much, read past or not. */
+const reclaims = [0, 3, 200].flatMap((cap) =>
+	Array.from({ length: 8 * 4 * 2 }, (_, i) => Uint8Array.of(op("buf::reclaims"), cap, i % 8, [0, 3, 40, 255][Math.floor(i / 8) % 4], i < 32 ? 0 : 5)),
+);
+
+export const cases: Uint8Array[] = [...far, ...reclaims, ...linked, ...chains, ...nested];
