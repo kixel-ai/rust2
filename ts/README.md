@@ -313,9 +313,9 @@ the same clones, as `rt.iterCycle(it, { v: Item.clone$Clone })`, by which it clo
 iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
-`char`, a `&str`, a predicate, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
-closure, which it calls on each char it reads, in the order std reads them, and drops as it
-returns, or with the iterator it returns, as `split` does. An offset it
+`char`, a `&str`, a predicate or a reference to one, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
+closure, which it calls on each char it reads, in the order std reads them, and drops a closure it owns as it
+returns, or with the iterator it returns, as `split` does, leaving one it borrows to its owner. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
 one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics as std
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
@@ -803,7 +803,8 @@ they need.
   the geometric mean, and frame decode at 0.61, 0.56, 0.70, and 0.61, with the A/A route
   within 0.04 and encode no slower. A tuple or `Result` of numbers alone is held so only
   where it meets a slot below, and its object, such as an `rt.Ok`, counts as made at each
-  read that makes it. A return is still a `ByteSlice` but for the `Result`s below.
+  read that makes it. An `Option` of a number is one part, that or `undefined`, as its JS
+  value is. A return is still a `ByteSlice` but for the `Result`s below.
 - A function only translated code calls takes each `&[u8]` or `&[u8; N]` parameter as
   three, its `data`, `start`, and `length`, which its body holds as that local's parts:
   not a root, which the outside calls, a closure, or an `async fn`. One whose object the
@@ -819,8 +820,8 @@ they need.
   1.01-1.05 over two runs, with the A/A route within 0.05, Firefox and Bun within their
   noise, and Node's varint decode at 1.11-1.15.
 - A function of the crate's that only translated code calls and that returns a `Result`
-  of byte slices and scalars, or of numbers alone, such as `Result<(u64, &[u8]), E>` or
-  `Result<u64, E>`, whose error is one JS
+  of byte slices and scalars, or of numbers alone, such as `Result<(u64, &[u8]), E>`,
+  `Result<u64, E>`, or `Result<Option<u64>, E>`, whose error is one JS
   value that is never `undefined`, writes the `Ok`'s parts into a module-level slot and returns the error or
   `undefined`. The slot is shared by every function returning that payload type, in
   `lib.ts` and named for the type as the shims are, as `out$ref_slice_u8` or `out$u64`, so
@@ -932,7 +933,7 @@ other than calling or dropping the closure or passing them to std's iterators ou
 own types, or a drop of the accumulator,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
-`char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes
+`char`, a `&str`, a predicate or a reference to one, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a
 reference, a switch on or a field of another crate's type without a mapping, and std
