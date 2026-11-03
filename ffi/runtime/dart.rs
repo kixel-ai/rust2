@@ -27,7 +27,13 @@ const RUN: i64 = 2;
 struct Api {
 	post: unsafe extern "C" fn(i64, i64) -> bool,
 	isolate: unsafe extern "C" fn() -> *mut c_void,
+	finalizable: unsafe extern "C" fn(*mut c_void, *mut c_void, isize, Finalize) -> *mut c_void,
+	unfinalize: unsafe extern "C" fn(*mut c_void, *mut c_void),
 }
+
+/// What the garbage collector calls with a handle once the Dart object owning it is
+/// unreachable, with no current isolate: the isolate group's data, then the handle.
+pub type Finalize = unsafe extern "C" fn(*mut c_void, *mut c_void);
 
 static API: OnceLock<Api> = OnceLock::new();
 
@@ -76,7 +82,12 @@ pub unsafe fn init(data: *const c_void) -> bool {
 			entry = unsafe { entry.add(1) };
 		}
 	};
-	let (Some(post), Some(isolate)) = (find(c"Dart_PostInteger"), find(c"Dart_CurrentIsolate")) else {
+	let (Some(post), Some(isolate), Some(finalizable), Some(unfinalize)) = (
+		find(c"Dart_PostInteger"),
+		find(c"Dart_CurrentIsolate"),
+		find(c"Dart_NewFinalizableHandle"),
+		find(c"Dart_DeleteFinalizableHandle"),
+	) else {
 		return false;
 	};
 	// SAFETY: Dart's API declares them so.
@@ -84,9 +95,41 @@ pub unsafe fn init(data: *const c_void) -> bool {
 		Api {
 			post: std::mem::transmute::<*const c_void, unsafe extern "C" fn(i64, i64) -> bool>(post),
 			isolate: std::mem::transmute::<*const c_void, unsafe extern "C" fn() -> *mut c_void>(isolate),
+			finalizable: std::mem::transmute::<
+				*const c_void,
+				unsafe extern "C" fn(*mut c_void, *mut c_void, isize, Finalize) -> *mut c_void,
+			>(finalizable),
+			unfinalize: std::mem::transmute::<*const c_void, unsafe extern "C" fn(*mut c_void, *mut c_void)>(
+				unfinalize,
+			),
 		}
 	});
 	true
+}
+
+/// Make the garbage collector call `finalize` with `raw` once `object` is unreachable,
+/// unless [`disown`] comes first: what lets Dart own `raw`, for a fraction of what a
+/// `NativeFinalizer` that `close` detaches costs.
+///
+/// # Safety
+/// Called from Dart in its isolate, with `object` a handle of the Dart object.
+pub unsafe fn own(object: *mut c_void, raw: *mut c_void, finalize: Finalize) -> *mut c_void {
+	// SAFETY: the caller's contract.
+	let own = unsafe { (api().finalizable)(object, raw, 0, finalize) };
+	if own.is_null() {
+		rt::fail("dart", "Dart made no finalizable handle");
+	}
+	own
+}
+
+/// Take back what [`own`] gave the garbage collector, which then never finalizes it.
+///
+/// # Safety
+/// Called from Dart in its isolate, once for `own`, which [`own`] made of `object`, a
+/// handle of the same Dart object.
+pub unsafe fn disown(own: *mut c_void, object: *mut c_void) {
+	// SAFETY: the caller's contract.
+	unsafe { (api().unfinalize)(own, object) }
 }
 
 /// An isolate: its port, and the calls into it other threads wait on. One lives for each
@@ -123,8 +166,8 @@ pub fn home(port: i64, dropped: unsafe extern "C" fn(i64)) -> &'static Home {
 enum Task {
 	/// A call into Dart another thread waits on.
 	Call(Arc<Job>),
-	/// An implementation of this token Rust dropped, which nothing waits on, since a
-	/// `NativeFinalizer` may drop it on a thread the garbage collector holds.
+	/// An implementation of this token Rust dropped, which nothing waits on, since the
+	/// garbage collector's free may drop it on a thread it holds.
 	Drop(i64),
 }
 
@@ -409,8 +452,8 @@ pub unsafe fn relay_free(relay: *mut Relay) {
 
 /// An implementation's `free`: tell the isolate Rust dropped it, so its `close` runs before
 /// the call that dropped it returns, on the isolate's thread or one the call serves, or
-/// else from its event loop. A `NativeFinalizer` runs with no current isolate, so a drop it
-/// makes never runs Dart at once.
+/// else from its event loop. The garbage collector's free runs with no current isolate, so
+/// a drop it makes never runs Dart at once.
 ///
 /// # Safety
 /// `relay` came from [`relay`], freed once.
