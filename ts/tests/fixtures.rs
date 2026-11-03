@@ -415,6 +415,7 @@ mod lang {
 		fields,
 		floats,
 		folds,
+		futures,
 		hashes,
 		heap,
 		hints,

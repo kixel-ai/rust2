@@ -3041,6 +3041,11 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 			let hash = hash_fn(b, inner, hasher, span);
 			Expr::rt("hashOption", [hash].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Poll) => {
+			let inner = arg(ty, 0);
+			let hash = hash_fn(b, inner, hasher, span);
+			Expr::rt("hashPoll", [hash].into_iter().chain(b.t.pending_arg(inner)).collect())
+		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("hashArc", vec![hash_fn(b, inner, hasher, span)]),
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => {
 			hash_fn(b, inner, hasher, span)

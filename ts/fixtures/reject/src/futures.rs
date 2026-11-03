@@ -37,3 +37,13 @@ fn poll_pinned<O: std::future::Future>(
 ) -> std::task::Poll<O::Output> {
 	o.poll(cx)
 }
+
+/// A `Ready`'s `Ready(Pending)` would be `rt.Pending`, as its own poll's pending is.
+pub fn ready_pending() -> std::future::Ready<std::task::Poll<u8>> {
+	std::future::ready(std::task::Poll::Pending)
+}
+
+/// What a waker writes is its data's and vtable's addresses.
+pub fn waker_debug(w: &std::task::Waker) -> String {
+	format!("{w:?}")
+}
