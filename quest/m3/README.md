@@ -41,5 +41,6 @@ generic std gap is planned here even when moq never calls it.
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
 - [No unused import in an export's generated crate](/quest/m3/ffi-unused-c-void.md) - the crate rust2-ffi generates builds without warnings when no export uses `void *`
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
-- [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
 - [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - an enum `Hasher`, whose `&mut` is a place, hashes as a struct one does
+- [A map built with BuildHasherDefault](/quest/m3/ts-build-hasher-default.md) - `FxHashMap`-style maps, of `BuildHasherDefault` over a crate's own `Hasher`, translate
+- [Equality of hash maps and sets](/quest/m3/ts-hash-map-eq.md) - `==` of two hash maps or sets translates as std's

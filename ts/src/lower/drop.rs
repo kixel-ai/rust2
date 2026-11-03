@@ -297,7 +297,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Some(Std::Entry) if self.tcx.item_name(adt.did()).as_str() == "OccupiedEntry" => true,
 			Some(Std::OnceCell | Std::OnceLock) => self.uniform(Ty::new_option(self.tcx, args.type_at(0))),
 			Some(Std::Cow) => library::cow_slice(self.tcx, ty).is_none_or(|elem| self.uniform(elem)),
-			Some(Std::LazyCell | Std::LazyLock | Std::HashMap | Std::BTreeMap) => held(self, 2),
+			// A hash map's and set's own `BuildHasher` too.
+			Some(Std::HashMap) => held(self, 3),
+			Some(Std::HashSet) => held(self, 2),
+			Some(Std::LazyCell | Std::LazyLock | Std::BTreeMap) => held(self, 2),
 			Some(
 				Std::Arc
 				| Std::Mutex
@@ -309,7 +312,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::Wrapping
 				| Std::Saturating
 				| Std::PoisonError
-				| Std::HashSet
 				| Std::HashTable
 				| Std::BTreeSet
 				| Std::VecDeque
@@ -415,9 +417,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				// Its value, or the function that never made one.
 				Std::LazyCell | Std::LazyLock => ("lazyDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?]),
+				// Its own `BuildHasher` last, which the runtime drops first, as hashbrown's field.
+				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?, each(self, 2)?]),
 				Std::BTreeMap => ("btreeDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashSet => ("hashDrop", vec![value, each(self, 0)?]),
+				Std::HashSet => (
+					"hashDrop",
+					vec![value, each(self, 0)?, Expr::undefined(), each(self, 1)?],
+				),
 				// Its items are the values of a map whose keys are nothing.
 				Std::HashTable => ("hashDrop", vec![value, Expr::undefined(), each(self, 0)?]),
 				Std::BTreeSet => ("btreeDrop", vec![value, each(self, 0)?]),

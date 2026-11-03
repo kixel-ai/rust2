@@ -21,7 +21,3 @@ with "hashing into `_`, a `Hasher` JS copies, which is not supported yet".
 - No consumer yet; planned here because rust2 aims to support all of std.
 
 Public API: the translator's output.
-
-## Related
-
-- [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - the other gap #424 left

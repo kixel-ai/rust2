@@ -608,3 +608,60 @@ pub fn nested(data: &[u8], out: &mut Vec<u8>) {
 	}
 	out.extend(log.borrow().iter());
 }
+
+/// A `BuildHasher` of the crate's own, numbered, which logs its clone and its drop, and
+/// builds std's `DefaultHasher`.
+struct Seeded<'a>(u8, &'a RefCell<Vec<u8>>);
+
+impl BuildHasher for Seeded<'_> {
+	type Hasher = std::hash::DefaultHasher;
+
+	fn build_hasher(&self) -> Self::Hasher {
+		std::hash::DefaultHasher::new()
+	}
+}
+
+impl Clone for Seeded<'_> {
+	fn clone(&self) -> Self {
+		self.1.borrow_mut().push(b'c');
+		Seeded(self.0 + 1, self.1)
+	}
+}
+
+impl Drop for Seeded<'_> {
+	fn drop(&mut self) {
+		self.1.borrow_mut().extend([b'x', self.0]);
+	}
+}
+
+/// `hashbrown::HashMap` and `HashSet` with a `BuildHasher` of the crate's own, of keys that
+/// are JS objects and keys that are not: each holds its own, which `hasher` lends, clones
+/// it before what it holds, and drops it before them, and at once from `into_iter`. Only
+/// maps of one entry say what they drop, as hashbrown's order is its own.
+pub fn own_hasher(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let mut pairs: HashMap<(u8, u8), u32, Seeded> = HashMap::with_hasher(Seeded(1, &log));
+	let mut set: HashSet<u8, Seeded> = HashSet::with_capacity_and_hasher(data.len(), Seeded(10, &log));
+	for &b in data {
+		*pairs.entry((b % 4, b % 3)).or_insert(0) += 1;
+		out.push(u8::from(set.insert(b % 8)));
+	}
+	for a in 0..4 {
+		for b in 0..3 {
+			put(out, pairs.get(&(a, b)).copied().unwrap_or(0) as usize);
+		}
+	}
+	out.push(pairs.hasher().0);
+	out.push(set.hasher().0);
+	let mut one: HashMap<(u8, u8), Logged, Seeded> = HashMap::with_hasher(Seeded(20, &log));
+	let first = data.first().copied().unwrap_or(0);
+	one.insert((first, 0), Logged(first, &log));
+	let copy = HashSet::<u8, Seeded>::clone(&set);
+	out.push(copy.hasher().0);
+	let mut entries = one.into_iter();
+	log.borrow_mut().push(b'i');
+	drop(entries.next());
+	drop(entries);
+	drop((pairs, set, copy));
+	out.extend_from_slice(&log.take());
+}

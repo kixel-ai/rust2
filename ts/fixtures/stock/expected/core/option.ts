@@ -3,6 +3,13 @@
 import * as rt from "../rt.ts";
 import type * as Logged from "../maps.Logged.ts";
 
+export function unwrapOr$11c0we2(self: rt.u32 | undefined, default_: rt.u32): rt.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
