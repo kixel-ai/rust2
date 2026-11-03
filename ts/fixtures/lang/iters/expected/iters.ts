@@ -555,14 +555,14 @@ export function peekedOthers(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const bytes: rt.ByteVec = rt.byteSliceToByteVec(data);
 	const it10: rt.Peekable<rt.Place<rt.u8>> = rt.iterPeekable(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(bytes))));
 	const _242: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
-	const _239: rt.Place<rt.u8> | undefined = rt.peekableNextIfEq(it10, _242, (a019: rt.Place<rt.u8>, a115: rt.u8): boolean => {
-		return a019.v === a115;
+	const _239: rt.Place<rt.u8> | undefined = rt.peekableNextIfEq(it10, _242, (a018: rt.Place<rt.u8>, a114: rt.u8): boolean => {
+		return a018.v === a114;
 	});
 	if (_239 !== undefined) {
 		_239.v = _239.v ^ 64;
 	}
-	rt.byteVecPush(out, option_mapOr$0ev76sb(rt.peekableNextIfEq(it10, 3, (a020: rt.Place<rt.u8>, a116: rt.u8): boolean => {
-		return a020.v === a116;
+	rt.byteVecPush(out, option_mapOr$0ev76sb(rt.peekableNextIfEq(it10, 3, (a019: rt.Place<rt.u8>, a115: rt.u8): boolean => {
+		return a019.v === a115;
 	}), 170, (b9: rt.Place<rt.u8>): rt.u8 => {
 		return b9.v;
 	}));

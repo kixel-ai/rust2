@@ -10,8 +10,8 @@ import { sorts, disorders, btrees } from "./sorts.ts";
 export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
 	return [["sorts::sorts", (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec): undefined => {
 		sorts(a0, a1.data, a1.start, a1.length, a2);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a03: rt.u8, a13: rt.ByteSlice, a23: rt.ByteVec): undefined => {
-		btrees(a03, a13.data, a13.start, a13.length, a23);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a02: rt.u8, a12: rt.ByteSlice, a22: rt.ByteVec): undefined => {
+		btrees(a02, a12.data, a12.start, a12.length, a22);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
