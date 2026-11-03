@@ -421,6 +421,7 @@ mod lang {
 		methods,
 		nested,
 		objects,
+		operators,
 		orders,
 		pointers,
 		refs,
