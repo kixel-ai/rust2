@@ -207,6 +207,10 @@ export class of$buf_Counted {
 		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
+	}
+
 	getI32$Buf(): rt.i32 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
@@ -685,6 +689,10 @@ export class of$buf_Provided {
 		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
+	}
+
 	getI32$Buf(): rt.i32 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
@@ -788,6 +796,10 @@ export class of$bytes_Bytes {
 	}
 
 	getI16Le$Buf(): rt.i16 {
+		return (rt.bytesReadWord(this, 2, true) << 16) >> 16 as rt.i16;
+	}
+
+	getI16Ne$Buf(): rt.i16 {
 		return (rt.bytesReadWord(this, 2, true) << 16) >> 16 as rt.i16;
 	}
 
@@ -921,6 +933,10 @@ export class of$bytes_BytesMut {
 		return (rt.bytesMutReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return (rt.bytesMutReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
+	}
+
 	getI32$Buf(): rt.i32 {
 		return (rt.bytesMutReadWord(this.v, 4, false) | 0) as rt.i32;
 	}
@@ -1051,6 +1067,10 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
+	}
+
 	getI32$Buf(): rt.i32 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
@@ -1161,6 +1181,10 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
 	getI32$Buf(): rt.i32 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
@@ -1267,6 +1291,10 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
 	getI32$Buf(): rt.i32 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
@@ -1334,6 +1362,116 @@ export class of$bytes_buf_Take_bytes_Bytes {
 	}
 }
 
+export class of$bytes_buf_Take_ref_slice_u8 {
+	v: Take.Take<rt.ByteSlice>;
+
+	constructor(v: Take.Take<rt.ByteSlice>) {
+		this.v = v;
+	}
+
+	advance$Buf(a: rt.usize): void {
+		return Take.advance$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	chunk$Buf(): rt.ByteSlice {
+		return Take.chunk$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	copyToBytes$Buf(a: rt.usize): rt.ByteSlice {
+		return Take.copyToBytes$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	copyToSlice$Buf(a: rt.ByteSlice): void {
+		return Take.copyToSlice$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	getF32Le$Buf(): rt.f32 {
+		return Take.getF32Le$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getF64$Buf(): rt.f64 {
+		return Take.getF64$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getI128$Buf(): rt.i128 {
+		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI16Le$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI32$Buf(): rt.i32 {
+		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI64Le$Buf(): rt.i64 {
+		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI8$Buf(): rt.i8 {
+		return Take.getI8$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getIntLe$Buf(a: rt.usize): rt.i64 {
+		return Take.getIntLe$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	getU128Le$Buf(): rt.u128 {
+		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU16$Buf(): rt.u16 {
+		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU32Le$Buf(): rt.u32 {
+		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU64$Buf(): rt.u64 {
+		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU8$Buf(): rt.u8 {
+		return Take.getU8$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getUint$Buf(a: rt.usize): rt.u64 {
+		return Take.getUint$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	hasRemaining$Buf(): boolean {
+		return Take.hasRemaining$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	remaining$Buf(): rt.usize {
+		return Take.remaining$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
+		const part = Take.tryGetU8$bytes_Buf_ref_slice_u8(this.v);
+		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
+		return result;
+	}
+}
+
 export class of$ref_slice_u8 {
 	v: rt.ByteSlice;
 
@@ -1370,6 +1508,10 @@ export class of$ref_slice_u8 {
 	}
 
 	getI16Le$Buf(): rt.i16 {
+		return (rt.bytesReadWord(this, 2, true) << 16) >> 16 as rt.i16;
+	}
+
+	getI16Ne$Buf(): rt.i16 {
 		return (rt.bytesReadWord(this, 2, true) << 16) >> 16 as rt.i16;
 	}
 
@@ -1503,6 +1645,10 @@ export class ofPlace$bytes_Bytes {
 		return (rt.bytesReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
 	}
 
+	getI16Ne$Buf(): rt.i16 {
+		return (rt.bytesReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
+	}
+
 	getI32$Buf(): rt.i32 {
 		return (rt.bytesReadWord(this.v, 4, false) | 0) as rt.i32;
 	}
@@ -1630,6 +1776,10 @@ export class ofPlace$ref_slice_u8 {
 	}
 
 	getI16Le$Buf(): rt.i16 {
+		return (rt.bytesReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
+	}
+
+	getI16Ne$Buf(): rt.i16 {
 		return (rt.bytesReadWord(this.v, 2, true) << 16) >> 16 as rt.i16;
 	}
 

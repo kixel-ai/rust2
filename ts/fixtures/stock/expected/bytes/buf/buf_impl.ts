@@ -6,7 +6,7 @@ import type * as Leased from "../../buf.Leased.ts";
 import type * as Provided from "../../buf.Provided.ts";
 import type * as Buf from "../../bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "../../bytes/buf/chain.Chain.ts";
-import { new_$bytes_Bytes as take_new_$bytes_Bytes, new_$mut_bytes_Bytes as take_new_$mut_bytes_Bytes, new_$mut_bytes_BytesMut as take_new_$mut_bytes_BytesMut, new_$mut_mut_ref_slice_u8 as take_new_$mut_mut_ref_slice_u8, new_$mut_ref_slice_u8 as take_new_$mut_ref_slice_u8 } from "../../bytes/buf/take.ts";
+import { new_$bytes_Bytes as take_new_$bytes_Bytes, new_$mut_bytes_Bytes as take_new_$mut_bytes_Bytes, new_$mut_bytes_BytesMut as take_new_$mut_bytes_BytesMut, new_$mut_mut_ref_slice_u8 as take_new_$mut_mut_ref_slice_u8, new_$mut_ref_slice_u8 as take_new_$mut_ref_slice_u8, new_$ref_slice_u8 as take_new_$ref_slice_u8 } from "../../bytes/buf/take.ts";
 import type * as Take from "../../bytes/buf/take.Take.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
 
@@ -262,6 +262,33 @@ export function take$bytes_Buf_mut_mut_ref_slice_u8(self: rt.Place<rt.Place<rt.B
  */
 export function take$bytes_Buf_mut_ref_slice_u8(self: rt.Place<rt.ByteSlice>, limit: rt.usize): Take.Take<rt.Place<rt.ByteSlice>> {
 	return take_new_$mut_ref_slice_u8(self, limit);
+}
+
+/**
+ * Creates an adaptor which will read at most `limit` bytes from `self`.
+ *
+ * This function returns a new instance of `Buf` which will read at most
+ * `limit` bytes.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::{Buf, BufMut};
+ *
+ * let mut buf = b"hello world"[..].take(5);
+ * let mut dst = vec![];
+ *
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b"hello");
+ *
+ * let mut buf = buf.into_inner();
+ * dst.clear();
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b" world");
+ * ```
+ */
+export function take$bytes_Buf_ref_slice_u8(self: rt.ByteSlice, limit: rt.usize): Take.Take<rt.ByteSlice> {
+	return take_new_$ref_slice_u8(self, limit);
 }
 
 /**
@@ -2998,6 +3025,31 @@ export function getI128$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: rt.Place<Buf.Buf
  */
 export function getI16Le$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: rt.Place<Buf.Buf>): rt.i16 {
 	return self.v.getI16Le$Buf();
+}
+
+/**
+ * Gets a signed 16 bit integer from `self` in native-endian byte order.
+ *
+ * The current position is advanced by 2.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf: &[u8] = match cfg!(target_endian = "big") {
+ *     true => b"\x08\x09 hello",
+ *     false => b"\x09\x08 hello",
+ * };
+ * assert_eq!(0x0809, buf.get_i16_ne());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getI16Ne$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: rt.Place<Buf.Buf>): rt.i16 {
+	return self.v.getI16Ne$Buf();
 }
 
 /**
