@@ -282,7 +282,11 @@ collections writes their items in the order each iterates, a hash map's or set's
 and of their iterators and `Chars` the items each has left, in std's wrapper; a deque's
 `Iter` and `IterMut` write the two slices of its buffer they have left, swapped as std's
 swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
-its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+its length, as std's do. `Debug` of std's iterator adaptors, `Map` through `Flatten`,
+`DecodeUtf16`, and a `str`'s escapes, writes their fields as std's does, each iterator it
+wraps by its own `Debug`, no closure, and the state each keeps, such as what a `Peekable` peeked, what a
+`Skip` has left to skip, and the countdown std's `StepBy` of a small unsigned range keeps
+in its end. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
@@ -469,7 +473,11 @@ such as a number, from `get_mut` or the entry API, is an `rt.Place` whose `v` re
 writes the map's slot. A hash map iterates in an order
 of the runtime's, mostly insertion order, which std leaves unspecified, and hashes a key
 with a hasher of its own, as std's keys its at random. So is how often the runtime
-calls a key's `Hash`, `Eq`, or `Ord`.
+calls a key's `Hash`, `Eq`, or `Ord`. A map or set built with any `BuildHasher` but
+`RandomState` holds it, which `hasher` lends, `Default` and `collect` make, and `clone`
+clones before what the map holds; it drops before the map's entries, and at once from
+`into_iter`, `into_keys`, and `into_values`, as hashbrown's does. No key goes through it:
+the runtime's own hasher finds them, so it builds no hasher for the map.
 
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std

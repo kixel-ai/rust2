@@ -51,7 +51,7 @@ export function put$Cell_u32(v: Item.Item<rt.Cell<rt.u32>>[], out: rt.ByteVec): 
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<rt.Cell<rt.u32>>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -71,7 +71,7 @@ export function put$array10_u32(v: Item.Item<rt.u32[]>[], out: rt.ByteVec): void
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<rt.u32[]>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -91,7 +91,7 @@ export function put$array1100_u32(v: Item.Item<rt.u32[]>[], out: rt.ByteVec): vo
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<rt.u32[]>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -111,7 +111,7 @@ export function put$array22_u32(v: Item.Item<rt.u32[]>[], out: rt.ByteVec): void
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<rt.u32[]>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -131,7 +131,7 @@ export function put$array30_u32(v: Item.Item<rt.u32[]>[], out: rt.ByteVec): void
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<rt.u32[]>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -151,7 +151,7 @@ export function put$sorts_Held(v: Item.Item<Held.Held>[], out: rt.ByteVec): void
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<Held.Held>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -171,7 +171,7 @@ export function put$unit(v: Item.Item<undefined>[], out: rt.ByteVec): void {
 	} else {
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (x: Item.Item<undefined>): Uint8Array => {
 			return rt.u16ToBeBytes(x.tag).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 

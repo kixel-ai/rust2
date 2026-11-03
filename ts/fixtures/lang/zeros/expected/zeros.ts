@@ -91,7 +91,7 @@ export function zeros(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, 0, true).length & 0xff);
 		rt.byteVecPush(out, rt.iterCount(rt.iterFlatten(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_215: rt.u8): Unit.Unit[] => {
 			return [{}, {}, {}];
-		}), (value: Unit.Unit[]) => rt.iterSlice(value), false, 3)) & 0xff);
+		}), (value: Unit.Unit[]) => rt.iterSlice(value), true, 3)) & 0xff);
 		rt.byteVecPush(out, rt.iterCount(rt.iterFilter(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_216: rt.u8): Pair.Pair => {
 			return pair();
 		}), (p: Pair.Pair): boolean => {
@@ -451,7 +451,7 @@ export function flattened(_value: undefined, xs: rt.ByteVec[]): rt.u8 {
 	if (false) {
 		return 0;
 	}
-	return rt.iterCount(rt.iterFlatten(rt.iterSlice(xs), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)))) & 0xff;
+	return rt.iterCount(rt.iterFlatten(rt.iterSlice(xs), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)), true)) & 0xff;
 }
 
 /**

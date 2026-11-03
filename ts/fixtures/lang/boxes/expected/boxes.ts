@@ -688,7 +688,7 @@ export function places(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(held.nested).reverse()), undefined, true);
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (b: rt.u32): Uint8Array => {
 			return rt.u32ToBeBytes(b).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(option_unwrapOr$11c0we2(option_asDeref$0avuzwv(o), 238)).reverse()), undefined, true);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(result_unwrapOr$0e4foht(copied$0bbq7yi(result_asDeref$04i8i5u(res)), 238)).reverse()), undefined, true);
 		const _298: rt.Result<string, rt.u8> = said;
@@ -699,10 +699,10 @@ export function places(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(words), (w: rt.u32): Uint8Array => {
 			return rt.u32ToBeBytes(w).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
-		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterFlatten(rt.iterOption(someWords), (value: rt.u32[]) => rt.iterSlice(value)), (w2: rt.u32): Uint8Array => {
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
+		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterFlatten(rt.iterOption(someWords), (value: rt.u32[]) => rt.iterSlice(value), true), (w2: rt.u32): Uint8Array => {
 			return rt.u32ToBeBytes(w2).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 4), "next");
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 4), "next");
 		put(out, option_unwrapOr$1iemzn8(option_asDeref$0w8at8i(named), "-"));
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(leaked.v).reverse()), undefined, true);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(option_unwrapOr$11c0we2(option_flatten$08boupk(option_asDeref$0w2m0zn(deep)), 238)).reverse()), undefined, true);
