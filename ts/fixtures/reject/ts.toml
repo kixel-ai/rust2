@@ -38,8 +38,6 @@ roots = [
     "iters::measures",
     "iters::parts_summed",
     "iters::probes",
-    "iters::scanned",
-    "iters::scanned_unit",
     "iters::sizes",
     "iters::tens",
     "kept::atomic_exchanged",

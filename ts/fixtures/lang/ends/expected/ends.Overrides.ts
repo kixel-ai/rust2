@@ -136,7 +136,7 @@ export function forEach$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_unit(sel
 	rt.drop(f);
 }
 
-export function forEach$iter_Iterator_ends_folded_closure7_ends_Overrides(self: Overrides, f: (a0: rt.u8) => undefined): void {
+export function forEach$iter_Iterator_ends_folded_closure11_ends_Overrides(self: Overrides, f: (a0: rt.u8) => undefined): void {
 	Run.logged(self._0, 69);
 	while (true) {
 		const _5: rt.u8 | undefined = Run.nextBack$iter_DoubleEndedIterator(self._0);

@@ -16,4 +16,12 @@ export function thenSome$0d5am30(self: boolean, t: rt.u8): rt.u8 | undefined {
 	return t;
 }
 
+export function then$19svsql(self: boolean, f: () => undefined): undefined | rt.None {
+	if (!self) {
+		return rt.None;
+	}
+	f();
+	return undefined;
+}
+
 //# sourceMappingURL=bool.ts.map

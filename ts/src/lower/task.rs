@@ -149,14 +149,19 @@ pub fn call<'tcx>(
 			Expr::rt("arcGetMut", args)
 		}
 		// A `&mut` to the value, which is where it is for one JS copies. `make_mut` takes the
-		// `Arc`'s place, which it may point at a new `Arc`.
-		("Arc" | "Rc", "get_mut" | "make_mut") if call.args.type_at(0).is_sized(tcx, b.t.typing_env_pub()) => {
+		// `Arc`'s place, which it may point at a new `Arc` of a clone, cloned as a box of a
+		// slice or text is.
+		("Arc" | "Rc", "get_mut" | "make_mut")
+			if call.args.type_at(0).is_sized(tcx, b.t.typing_env_pub())
+				|| shared_box(tcx, call.args.type_at(0)).is_some() =>
+		{
 			let value = call.args.type_at(0);
 			let place = if b.t.needs_place(value) { "Place" } else { "" };
 			match name {
 				"get_mut" => Expr::rt(format!("arcGetMut{place}"), args),
 				_ => {
-					let clone = super::collections::clone_fn(b, value, call.span);
+					let cloned = shared_box(tcx, value).unwrap_or(value);
+					let clone = super::collections::clone_fn(b, cloned, call.span);
 					let arc = b.t.sig(call.def_id, call.args).inputs()[0].peel_refs();
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
@@ -166,15 +171,29 @@ pub fn call<'tcx>(
 				}
 			}
 		}
-		// An `Arc<str>` of a string, which JS shares as it is.
+		// An `Arc<[u8]>` of an `Arc<str>`'s bytes, which shares its count, as std's shares its
+		// allocation.
+		("From", "from")
+			if let [to, from] = call.args.as_slice()
+				&& let (ty::Adt(_, to), ty::Adt(_, from)) = (to.expect_ty().kind(), from.expect_ty().kind())
+				&& self_std == Some(Std::Arc)
+				&& std_of(call.args.type_at(1)) == Some(Std::Arc)
+				&& matches!(to.type_at(0).kind(), ty::Slice(e) if matches!(e.kind(), ty::Uint(ty::UintTy::U8)))
+				&& from.type_at(0).is_str() =>
+		{
+			Expr::rt("arcStrBytes", args)
+		}
+		// An `Arc` of a slice or text, of the box `From` makes of the same value, but for the
+		// `Arc` itself.
 		("From", "from")
 			if let [arc, from] = call.args.as_slice()
-				&& let ty::Adt(_, arc) = arc.expect_ty().kind()
 				&& self_std == Some(Std::Arc)
-				&& arc.type_at(0).is_str()
-				&& library::string(tcx, from.expect_ty().peel_refs()) =>
+				&& std_of(from.expect_ty()) != Some(Std::Arc)
+				&& let ty::Adt(_, arc) = arc.expect_ty().kind()
+				&& let Some(boxed) = shared_box(tcx, arc.type_at(0)) =>
 		{
-			Expr::New(Box::new(Expr::Rt("Arc".into())), args)
+			let value = b.convert(first(args), from.expect_ty(), boxed, call.span, out);
+			Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value])
 		}
 		// A waker over the crate's `Wake` impl.
 		("From", "from")
@@ -283,6 +302,14 @@ pub fn call<'tcx>(
 		("MutexGuard" | "MappedMutexGuard", "map" | "filter_map") => guard_map(b, call, name, "mutex", args, out),
 		("Ref", "clone") => Expr::rt("refClone", args),
 		("RefCell", "replace") => Expr::rt("refCellReplace", args),
+		// With the value's place where JS would copy it.
+		("RefCell", "replace_with") => {
+			let copied = b.t.needs_place(call.args.type_at(0));
+			Expr::rt(
+				"refCellReplaceWith",
+				super::iter::tail(args, vec![Expr::lit(copied.to_string())]),
+			)
+		}
 		("RefCell", "take") => {
 			let ty = call.args.type_at(0);
 			let f = super::collections::trait_fn(tcx, "Default", "default");
@@ -324,6 +351,7 @@ pub fn call<'tcx>(
 		}
 		("Atomic", _) => return atomic(b, call, name, args),
 		("LazyCell" | "LazyLock", "force") => first(args).member("force").call(vec![]),
+		("LazyCell" | "LazyLock", "new") => Expr::New(Box::new(Expr::Rt(owner.into())), args),
 		("OnceCell" | "OnceLock", _) => return once(b, call, name, args),
 		// A `OnceLock` of `true`, which nothing poisons, as a panic aborts.
 		("Once", "new") => once_unrun(),
@@ -523,6 +551,7 @@ fn cell<'tcx>(
 		"get" => b.t.copied(first(args).member("v"), ty, call.span),
 		"into_inner" => first(args).member("v"),
 		"replace" => Expr::rt("cellReplace", args),
+		"update" => Expr::rt("cellUpdate", args),
 		// With what drops the value it replaces.
 		"set" => {
 			let Some(droppers) = b.t.droppers([ty], call.span) else {
@@ -582,6 +611,11 @@ fn once<'tcx>(
 		_ => return Ok(None),
 	};
 	Ok(Some(e))
+}
+
+/// A `Box<pointee>`, if `pointee` is a slice or text, whose value an `rt.Arc` of it holds.
+pub fn shared_box<'tcx>(tcx: ty::TyCtxt<'tcx>, pointee: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	matches!(pointee.kind(), ty::Slice(_) | ty::Str).then(|| Ty::new_box(tcx, pointee))
 }
 
 /// The type a cell or lock of type `ty` holds.

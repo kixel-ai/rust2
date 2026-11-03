@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -186,6 +186,23 @@ export function arcDowncast<T, U, C>(
 		downcasts.set(arc, typed);
 	}
 	return Ok(typed);
+}
+
+/**
+ * The `Arc<[u8]>` each `From` of an `Arc<str>` gives, which is one allocation, and the text
+ * it was made of. Other text there was written through a unique `Arc<str>`, so no `Arc<[u8]>`
+ * of the old text is left.
+ */
+const strBytes = new WeakMap<Arc<string>, { text: string; bytes: Arc<ByteSlice> }>();
+
+/** `Arc<[u8]>::from` an `Arc<str>`: its bytes, sharing its count as std shares the allocation. */
+export function arcStrBytes(arc: Arc<string>): Arc<ByteSlice> {
+	let made = strBytes.get(arc);
+	if (made?.text !== arc.value) {
+		made = { text: arc.value, bytes: new ArcDyn(arc, stringAsBytes(arc.value)) };
+		strBytes.set(arc, made);
+	}
+	return made.bytes;
 }
 
 /**
@@ -532,6 +549,27 @@ export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
 	return old;
 }
 
+/**
+ * `RefCell::replace_with`: its value, which what `f` returns of it, or of its place if
+ * `copied`, where JS copies it, replaces, exclusively borrowed until then.
+ */
+export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, copied = false): T {
+	refCellBorrowMut(cell);
+	const at = copied
+		? place(
+				() => cell.value,
+				(v) => {
+					cell.value = v;
+				},
+			)
+		: cell.value;
+	const replacement = f(at as never);
+	const old = cell.value;
+	cell.value = replacement;
+	refMutRelease(cell);
+	return old;
+}
+
 /** `Debug` of a `RefCell`: its value, borrowed while it is written, or `<borrowed>` unpadded while borrowed exclusively. */
 export function refCellDebug<T>(cell: RefCell<T>, f: Formatter, debug: Debug<T>): FmtResult {
 	const b = fmtDebugStruct(f, "RefCell");
@@ -809,6 +847,11 @@ export function cellReplace<T>(cell: Cell<T>, v: T): T {
 	const old = cell.v;
 	cell.v = v;
 	return old;
+}
+
+/** `Cell::update`: what `f` returns of its value, in its place. */
+export function cellUpdate<T>(cell: Cell<T>, f: (v: T) => T): void {
+	cell.v = f(cell.v);
 }
 
 /** `Cell::set`: `v` in place of the value it held, which `dropOld` drops after. */

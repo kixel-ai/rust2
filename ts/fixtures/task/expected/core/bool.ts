@@ -27,6 +27,13 @@ export function thenSome$1af3oea(self: boolean, t: rt.u32): rt.u32 | undefined {
 	return t;
 }
 
+export function thenSome$1j8foe9(self: boolean, _: undefined): undefined | rt.None {
+	if (!self) {
+		return rt.None;
+	}
+	return undefined;
+}
+
 export function then$06wuxll(self: boolean, f: () => Guard.Guard | undefined): Guard.Guard | undefined | rt.None {
 	if (!self) {
 		return rt.None;
