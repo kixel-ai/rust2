@@ -82,12 +82,10 @@ fn reclone<const N: usize>(a: Option<Block<N>>) -> Option<Block<N>> {
 }
 
 /// `LinkedList`'s unstable `retain`, which no mapping covers, as none does its other
-/// unstable methods; its `clone_from` of items whose own `clone_from` it would call; and
-/// an empty `IterMut` of bytes, whose places nothing makes.
-pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) -> usize {
+/// unstable methods; and its `clone_from` of items whose own `clone_from` it would call.
+pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) {
 	l.retain(|x| *x > 1);
 	r.clone_from(&std::collections::LinkedList::new());
-	std::collections::linked_list::IterMut::<u8>::default().count()
 }
 
 /// `ManuallyDrop`'s impls beyond holding a value: compared, formatted, and a constant.
