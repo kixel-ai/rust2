@@ -1346,7 +1346,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether `ty`'s JS value, through the `Pin`s and `Box`es JS erases, is of an `rt` class
-	/// that keeps its state private, which `rt.ptrWrite` moves in by `rt.MOVE`.
+	/// that keeps its state private, which `rt.ptrWrite` moves in by its `$move`.
 	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		matches!(

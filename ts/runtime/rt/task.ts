@@ -1207,18 +1207,6 @@ export function onceIsPoisoned(_state: OnceState): boolean {
 }
 
 /**
- * The method that moves the state of an object whose class keeps it private, where
- * copying its fields can't reach: into `to`, or else into a new object of its class,
- * which it returns. Defined here, as its classes' keys need it before `rt.ts` runs.
- */
-export const MOVE: unique symbol = /* @__PURE__ */ Symbol("move");
-
-/** An object whose class keeps its state private, which `MOVE` moves. */
-export interface Moved {
-	[MOVE](to?: this): this;
-}
-
-/**
  * `LazyCell<T>`: the function that makes its value until the first `force` runs it, once,
  * and then that value. Forced from within that function, it panics as std's does.
  */
@@ -1233,7 +1221,7 @@ export class LazyCell<T> {
 	}
 
 	/** Moves its state into `to`, or into a new cell of its class. */
-	[MOVE](to?: this): this {
+	$move(to?: this): this {
 		const into = to ?? new (this.constructor as new (f: (() => T) | undefined) => this)(this.#f);
 		into.#f = this.#f;
 		into.#value = this.#value;
@@ -1435,7 +1423,7 @@ export class PollFn<T> implements Future<T> {
 	}
 
 	/** Moves its function into `to`, or into a new future. */
-	[MOVE](to?: this): this {
+	$move(to?: this): this {
 		if (to === undefined) return new PollFn(this.#f, this.#drop) as this;
 		to.#f = this.#f;
 		to.#drop = this.#drop;
