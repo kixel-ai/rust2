@@ -34,7 +34,3 @@ Recommend the first if it stays sound under specialization; it covers every adap
 once.
 
 Public API: the translator's output.
-
-## Related
-
-- [Fresh writes through a vector's own accessors](/quest/m3/ts-fresh-vec-access.md) - the other refusals found beside this one
