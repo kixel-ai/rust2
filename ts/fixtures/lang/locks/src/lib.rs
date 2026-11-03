@@ -25,5 +25,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("locks::mutex_mapped", |_, data, out| locks::mutex_mapped(data, out)),
 		("locks::printed", |_, data, out| locks::printed(data, out)),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
+		("locks::shown", |_, data, out| locks::shown(data, out)),
 	]
 }

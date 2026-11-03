@@ -1272,8 +1272,7 @@ export function toRefs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			text = text + String.fromCodePoint(rt.u8Add(97, rt.u8Rem(_59, 26)) as rt.char);
 		}
 		let s: string = text;
-		const part = rt.min(rt.usizeRem(n, 3), rt.stringLen(s));
-		s = rt.strSlice(s, part);
+		s = rt.strSlice(s, rt.min(rt.usizeRem(n, 3), rt.stringLen(s)));
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(s));
 		const part2 = rt.usizeDiv(rt.byteSliceRange(data, 1).length, 2);
 		const _85: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceRange(data, 1), part2);

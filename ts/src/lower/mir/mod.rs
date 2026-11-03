@@ -2109,8 +2109,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		});
 	}
 
-	/// Emit the pending temporaries `e` reads, and those held back before them, so that
-	/// `e` can be read more than once, or later.
+	/// Emit the pending temporaries `e` reads, those held back before them, and those
+	/// after them that do or read anything, so that `e` can be read more than once, or
+	/// later. What `out` gathers is often emitted after, which would run those first.
 	pub(super) fn materialize(&mut self, e: &Expr, out: &mut Vec<Stmt>) {
 		let mut names = Vec::new();
 		reads_of(e, &mut names);
@@ -2124,7 +2125,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return;
 		};
 		let pending = std::mem::take(&mut self.pending);
-		let (flush, keep): (Vec<Pending>, Vec<Pending>) = pending.into_iter().partition(|p| p.order <= last);
+		let (flush, keep): (Vec<Pending>, Vec<Pending>) =
+			(pending.into_iter()).partition(|p| p.order <= last || p.effect || p.memory);
 		self.pending = keep;
 		for p in flush {
 			self.flush_one(p, out);
@@ -3515,7 +3517,17 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 		Expr::Unary(_, e) | Expr::Located(_, e) | Expr::As(e, _) | Expr::Instantiate(e, _) | Expr::Postfix(e, _) => {
 			subst(e, name, value)
 		}
-		Expr::Binary(l, _, r) | Expr::Assign(l, r) => subst(l, name, value) || subst(r, name, value),
+		Expr::Binary(l, op, r) => {
+			if !(subst(l, name, value) || subst(r, name, value)) {
+				return false;
+			}
+			// A constant held in a temporary compares as one written in place.
+			if compares(op) {
+				*e = fold(std::mem::replace(e, Expr::This));
+			}
+			true
+		}
+		Expr::Assign(l, r) => subst(l, name, value) || subst(r, name, value),
 		Expr::Cond(c, a, b) => subst(c, name, value) || subst(a, name, value) || subst(b, name, value),
 		Expr::Arrow(..) | Expr::Lambda(..) => false,
 	}
@@ -3884,19 +3896,37 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 	}
 }
 
-/// `e` with comparisons of two number literals, and their negations, worked out.
+/// Whether the JS operator `op` compares its operands.
+fn compares(op: &str) -> bool {
+	matches!(op, "<" | "<=" | ">" | ">=" | "===" | "!==")
+}
+
+/// `e` with comparisons of two number literals or two boolean ones, and their negations,
+/// worked out. `tsc` refuses an equality of two literals that differ, as an instance of a
+/// generic function can compare its constants.
 pub fn fold(e: Expr) -> Expr {
 	match e {
 		Expr::Binary(l, op, r) => {
 			let (l, r) = (fold(*l), fold(*r));
-			let num = |e: &Expr| match e {
+			let num = |e: &Expr| match e.unlocated() {
 				Expr::Lit(t) => t.parse::<f64>().ok(),
 				_ => None,
 			};
+			// A boolean compares as JS does, as the number it converts to.
+			let boolean = |e: &Expr| match e.unlocated() {
+				Expr::Lit(t) if t == "true" => Some(1.0),
+				Expr::Lit(t) if t == "false" => Some(0.0),
+				_ => None,
+			};
+			if let (Some(a), Some(b)) = (boolean(&l), boolean(&r))
+				&& compares(op)
+			{
+				return Expr::lit(compare(op, a, b).to_string());
+			}
 			if let (Some(a), Some(b)) = (num(&l), num(&r)) {
 				// Integer arithmetic JS does exactly, in 32 bits for the bitwise operators. An
 				// `f64` literal is spelled with a point or an exponent, and its -0.0 is no integer.
-				let int = |e: &Expr| matches!(e, Expr::Lit(t) if !t.contains(['.', 'e']));
+				let int = |e: &Expr| matches!(e.unlocated(), Expr::Lit(t) if !t.contains(['.', 'e']));
 				let small = |v: f64| v.fract() == 0.0 && v.abs() < 2f64.powi(31);
 				if int(&l) && int(&r) && small(a) && small(b) {
 					let (x, y) = (a as i64, b as i64);
@@ -3916,17 +3946,8 @@ pub fn fold(e: Expr) -> Expr {
 						return Expr::lit(v.to_string());
 					}
 				}
-				let value = match op {
-					"<" => Some(a < b),
-					"<=" => Some(a <= b),
-					">" => Some(a > b),
-					">=" => Some(a >= b),
-					"===" => Some(a == b),
-					"!==" => Some(a != b),
-					_ => None,
-				};
-				if let Some(value) = value {
-					return Expr::lit(value.to_string());
+				if compares(op) {
+					return Expr::lit(compare(op, a, b).to_string());
 				}
 			}
 			Expr::Binary(Box::new(l), op, Box::new(r))
@@ -3956,7 +3977,23 @@ pub fn fold(e: Expr) -> Expr {
 			Expr::Lit(t) if t == "false" => Expr::lit("true"),
 			inner => Expr::Unary("!", Box::new(inner)),
 		},
+		Expr::Located(loc, inner) => match fold(*inner) {
+			lit @ Expr::Lit(_) => lit,
+			inner => Expr::Located(loc, Box::new(inner)),
+		},
 		e => e,
+	}
+}
+
+/// `a op b`, for an `op` that [`compares`].
+fn compare(op: &str, a: f64, b: f64) -> bool {
+	match op {
+		"<" => a < b,
+		"<=" => a <= b,
+		">" => a > b,
+		">=" => a >= b,
+		"===" => a == b,
+		_ => a != b,
 	}
 }
 

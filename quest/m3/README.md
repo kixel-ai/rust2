@@ -21,7 +21,6 @@ generic std gap is planned here even when moq never calls it.
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
-- [Debug of a RefCell or a Cell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, `RefMut`, and `Cell` translates as std's writes them
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
@@ -31,16 +30,15 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A crate's own find and for_each](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `find`, `rfind`, `find_map`, or `for_each` translates, each called where std's adaptors and consumers call it
-- [A comparison of two constants](/quest/m3/ts-constant-compares.md) - `size_of::<T>() == 1` in a generic function translates to TypeScript `tsc` accepts
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
-- [Popping a String that is reassigned elsewhere](/quest/m3/ts-reassigned-pop.md) - `pop`, `remove`, and `split_off` of a local some other path assigns whole translate
 - [Whether a type needs drop](/quest/m3/ts-needs-drop.md) - `mem::needs_drop::<T>()` translates as rustc's constant for each instance
 - [Operator trait methods called by path](/quest/m3/ts-operator-paths.md) - `<u8 as AddAssign>::add_assign` and every other `std::ops` operator method translate called by path or as a value
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Whole writes into a lazy cell or thread-local key](/quest/m3/ts-lazy-writes.md) - a whole write through a `&mut` to a `LazyCell`, `LazyLock`, or `LocalKey` keeps its state
+- [Debug of a LazyCell or a LazyLock](/quest/m3/ts-lazy-debug.md) - `{:?}` of a `LazyCell` and a `LazyLock` writes its value or `<uninit>`, as std's do
 - [Type errors at the Rust that made them](/quest/m3/ts-span-precision.md) - a `tsc` error on output names the tail expression or call argument that made it
 - [An empty iterator of mutable references](/quest/m3/ts-empty-places.md) - `iter::empty::<&mut T>()` given to `zip` or `chain` translates
 - [An Option of numbers in the result slot](/quest/m3/ts-option-slot.md) - `varint_opt`'s `Option` comes back through the slot with no object per call

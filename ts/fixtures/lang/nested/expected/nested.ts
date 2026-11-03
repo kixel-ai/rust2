@@ -496,8 +496,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	const v: Array<rt.u8 | undefined> = rt.vecExact(items.slice(), 2);
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(code(rt.sliceFirst(v, rt.None)), code(rt.sliceLast(v, rt.None)), code(rt.sliceGet(v, at, rt.None)))), undefined, true);
-	const part = at;
-	rt.byteVecPush(out, code(option_andThen$0ocv8av(rt.sliceGetRange(rt.sliceRange(v, 0), part), (s: Array<rt.u8 | undefined>): rt.u8 | undefined | rt.None => {
+	rt.byteVecPush(out, code(option_andThen$0ocv8av(rt.sliceGetRange(rt.sliceRange(v, 0), at), (s: Array<rt.u8 | undefined>): rt.u8 | undefined | rt.None => {
 		return rt.sliceFirst(s, rt.None);
 	})));
 	option_map$1diqi3e(rt.sliceFirstMut(v), (o9: rt.Place<rt.u8 | undefined>): undefined => {

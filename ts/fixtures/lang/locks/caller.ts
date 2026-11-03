@@ -39,4 +39,7 @@ const downgrades = [[0x00, 0x01, 0x11, 0x02, 0xf2, 0xe2, 0x03, 0x04, 0x13, 0x05]
 /** `locks::rwlocks` scripts: `get_mut` and `into_inner` among writes and reads. */
 const rwlocks = [[6, 7, 0, 6, 2, 14, 15, 1]].map((bytes) => Uint8Array.of(...op("locks::rwlocks"), 0, ...bytes));
 
-export const cases: Uint8Array[] = [...locks, ...mappedLocks, ...relocks, ...mutexMaps, ...printed, ...downgrades, ...rwlocks];
+/** `locks::shown` scripts: each lock printed, free, read, held, and written, nested, and locked while it writes what it holds. */
+const shown = [[0, 6, 11, 2, 3, 8, 4, 125, 7]].map((bytes) => Uint8Array.of(...op("locks::shown"), 0, ...bytes));
+
+export const cases: Uint8Array[] = [...locks, ...mappedLocks, ...relocks, ...mutexMaps, ...printed, ...downgrades, ...rwlocks, ...shown];
