@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$Result_array0_u8_u8, copy$Result_array1_u8_u8, copy$Result_array5_u8_u8, drop$Result_results_Logged_results_Logged, out$u8 } from "./lib.ts";
-import { unwrapOr$17ntxfo as option_unwrapOr$17ntxfo, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$18ph0j9 as option_mapOr$18ph0j9, mapOr$02k4ito as option_mapOr$02k4ito } from "./core/option.ts";
+import { unwrapOr$17ntxfo as option_unwrapOr$17ntxfo, unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0ejznqm as option_map$0ejznqm, map$0w2t0i1 as option_map$0w2t0i1, map$1mcfwnw as option_map$1mcfwnw, map$0p22lts as option_map$0p22lts, mapOr$18ph0j9 as option_mapOr$18ph0j9, mapOr$02k4ito as option_mapOr$02k4ito, filter$0v80fk8, clone$1grnave as option_clone$1grnave } from "./core/option.ts";
 import { map$03hz3l7 as result_map$03hz3l7 } from "./core/result.ts";
 import * as Logged from "./results.Logged.ts";
 
@@ -641,6 +641,113 @@ export function arrays$5(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 		rt.byteVecExtendFromSlice(out, _146);
+	}
+}
+
+/**
+ * `Option::as_slice` and `as_mut_slice` of each payload `kind` picks: of a `Some`, a slice
+ * of the one value, read and written where the `Option` holds it, and of a `None`, an
+ * empty one. A byte's is only read, as a byte slice views only an array of bytes.
+ */
+export function optionSlices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const some: (a0: rt.usize) => rt.u8 | undefined = (i: rt.usize): rt.u8 | undefined => {
+		return filter$0v80fk8(rt.byteSliceGet(data, i), (b: rt.u8): boolean => {
+			return rt.u8Rem(b, 3) !== 0;
+		});
+	};
+	b0: {
+		const _5: rt.u8 = rt.u8Rem(kind, 4);
+		if (_5 === 0) {
+			const bytes: Array<rt.u8 | undefined> = [some(0), some(1)];
+			for (const _17 of bytes) {
+				rt.byteVecPush(out, rt.byteOptionAsSlice(_17).length & 0xff);
+				rt.byteVecExtendFromSlice(out, rt.byteOptionAsSlice(_17));
+			}
+			rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(bytes), (a02: rt.u8 | undefined): rt.ByteSlice => {
+				return rt.byteOptionAsSlice(a02);
+			}, (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true), "next");
+		} else {
+			if (_5 === 1) {
+				let wide: rt.u16 | undefined = option_map$1mcfwnw(some(0), (b3: rt.u8): rt.u16 => {
+					return ((b3 as rt.u16) << 4) & 0xffff;
+				});
+				(wide === undefined ? [] : rt.sliceOfPlace(rt.place(() => wide as rt.u16, (value3) => wide = value3))).fill(4660);
+				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(rt.iterFold(rt.iterSlice(rt.optionAsSlice(wide)), 0, (a: rt.u16, w: rt.u16): rt.u16 => {
+					return a ^ w;
+				}))));
+				const wides: Array<rt.u16 | undefined> = [wide, option_map$0w2t0i1(some(1), (a0: rt.u8): rt.u16 => {
+					return a0 as rt.u16;
+				}), option_map$1mcfwnw(some(2), (b4: rt.u8): rt.u16 => {
+					return rt.u16Mul(b4 as rt.u16, 257);
+				})];
+				const iter2: rt.Iter<rt.Place<rt.u16 | undefined>> = rt.iterSliceMut(wides);
+				while (true) {
+					const _60: rt.Place<rt.u16 | undefined> | rt.Done = iter2.next();
+					if (_60 === rt.DONE) {
+						break;
+					}
+					const iter3: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(_60.v === undefined ? [] : rt.sliceOfPlace(rt.place(() => _60.v as rt.u16, (value4) => _60.v = value4)));
+					while (true) {
+						const _67: rt.Place<rt.u16> | rt.Done = iter3.next();
+						if (_67 === rt.DONE) {
+							break;
+						}
+						_67.v = _67.v ^ 3855;
+					}
+					const _71: rt.u16[] = _60.v === undefined ? [] : rt.sliceOfPlace(rt.place(() => _60.v as rt.u16, (value5) => _60.v = value5));
+					if (_71.length === 1) {
+						_71[0] = rt.intRotateLeft(_71[0], 3, 16, false);
+					}
+					rt.byteVecPush(out, rt.optionAsSlice(_60.v).length & 0xff);
+				}
+				swapHalves(rt.place(() => wides[1], (value6) => wides[1] = value6));
+				const iterS2: Array<rt.u16 | undefined> = wides;
+				let iterI2: number = 0;
+				while (true) {
+					const _90: rt.u16 | undefined | rt.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rt.DONE;
+					if (_90 === rt.DONE) {
+						break b0;
+					}
+					rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(option_unwrapOr$1j4op5y(_90, 61166))));
+				}
+			}
+			if (_5 === 2) {
+				const words: rt.ByteVec | undefined = option_map$0ejznqm(some(0), (b2: rt.u8): rt.ByteVec => {
+					return rt.byteVecOf(b2, rt.u8Rem(b2, 4) as rt.usize);
+				});
+				const other: rt.ByteVec | undefined = option_clone$1grnave(words);
+				for (const _110 of words === undefined ? [] : rt.sliceIn(words)) {
+					rt.byteVecPush(_110, 119);
+				}
+				const _115: rt.ByteVec | undefined = rt.sliceFirst(words === undefined ? [] : rt.sliceIn(words));
+				if (_115 !== undefined) {
+					Object.assign(_115, rt.byteVecFrom(Uint8Array.of(102)));
+				}
+				const s: rt.ByteVec[] = rt.optionAsSlice(words);
+				rt.byteVecPush(out, s.length & 0xff);
+				rt.iterExtendBytes(out, rt.iterFlatten(rt.iterSlice(s), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)), true), "next");
+				rt.iterExtendBytes(out, rt.iterFlatten(rt.iterSlice(rt.optionAsSlice(other)), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)), true), "next");
+				rt.iterExtendBytes(out, rt.iterFlatten(rt.iterOption(words), (value: rt.ByteVec) => rt.byteVecIntoIter(value), true), "next");
+			} else {
+				let units: undefined | rt.None = option_map$0p22lts(some(0), (_2: rt.u8): undefined => {});
+				rt.byteVecPush(out, rt.optionAsSlice(units, rt.None).length & 0xff);
+				rt.byteVecPush(out, (units === rt.None ? [] : rt.sliceOfPlace(rt.place(() => units as undefined, (value) => units = value))).length & 0xff);
+				(units === rt.None ? [] : rt.sliceOfPlace(rt.place(() => units as undefined, (value2) => units = value2))).fill(undefined);
+				rt.byteVecPush(out, units !== rt.None ? 1 : 0);
+			}
+		}
+	}
+}
+
+/** Swaps the bytes of `o`'s payload, if any, through the slice of it. */
+export function swapHalves(o: rt.Place<rt.u16 | undefined>): void {
+	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(o.v === undefined ? [] : rt.sliceOfPlace(rt.place(() => o.v as rt.u16, (value) => o.v = value)));
+	while (true) {
+		const _5: rt.Place<rt.u16> | rt.Done = iter.next();
+		if (_5 === rt.DONE) {
+			break;
+		}
+		_5.v = rt.intSwapBytes(_5.v, 16, false);
 	}
 }
 

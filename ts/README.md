@@ -390,7 +390,8 @@ place and writes the string without the drained text as it drops, so one that
 `to_mut` borrows the `Cow`'s own place, and code that tells its variants apart, a `match`
 on them or `Cow::is_borrowed`, is refused. A `Cow<[T]>` keeps its variant in its class,
 so a `match` reads it, and `to_mut` of a borrowed one stores a clone of its slice in the
-`Cow`'s place before lending it.
+`Cow`'s place before lending it. Its `clone_from` of an owned one over an owned one clones
+into the `Vec` it owns, keeping its buffer, as std's does.
 
 Functions and members are camelCase. Functions are monomorphized: each instance is its
 own function, suffixed after a `$` by the items it is nested in below its module, its

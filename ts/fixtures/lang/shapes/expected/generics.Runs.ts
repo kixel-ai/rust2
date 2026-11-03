@@ -6,7 +6,7 @@ import { clone$0hmts8n as option_clone$0hmts8n, clone$1grnave as option_clone$1g
 import type * as Run from "./generics.Run.ts";
 
 export function clone$Clone_u16(self: Runs<rt.u16>): Runs<rt.u16> {
-	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecExact((self.list as rt.u16[]).slice(), 2), self.view as rt.u16[], (self.boxed as rt.u16[]).slice(), rt.cowClone(self.cow as rt.Cow<rt.u16>), rt.vecExact((self.pairs as rt.u16[][]).map(copy$array_u16), 4), option_clone$0hmts8n(self.maybe as rt.u16[] | undefined));
+	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecExact((self.list as rt.u16[]).slice(), 2), self.view as rt.u16[], (self.boxed as rt.u16[]).slice(), rt.cowClone(self.cow as rt.Cow<rt.u16>, 2), rt.vecExact((self.pairs as rt.u16[][]).map(copy$array_u16), 4), option_clone$0hmts8n(self.maybe as rt.u16[] | undefined));
 }
 
 export function clone$Clone_u8(self: Runs<rt.u8>): Runs<rt.u8> {
@@ -127,7 +127,7 @@ export function total$u8(self: Runs<rt.u8>): rt.usize {
 
 export function push$u16(self: Runs<rt.u16>, item: rt.u16): void {
 	(self.list as rt.u16[]).push(item);
-	const owned = rt.cowIntoOwned(self.cow as rt.Cow<rt.u16>);
+	const owned = rt.cowIntoOwned(self.cow as rt.Cow<rt.u16>, 2);
 	(self.cow as rt.Cow<rt.u16>) = owned;
 	owned.push(item);
 	(self.pairs as rt.u16[][]).push(Array.from({ length: 2 }, (): rt.u16 => {

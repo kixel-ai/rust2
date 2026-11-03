@@ -437,6 +437,11 @@ pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
 }
 
+/// A slice of an `Option`'s byte, which no `rt.ByteSlice` views either.
+pub fn byte_option_slice(o: &mut Option<u8>) {
+	o.as_mut_slice().fill(1);
+}
+
 /// A pointer to a variable's object, which `clone_from` of the whole variable replaces.
 pub fn variable_cloned_from(n: u32) -> u32 {
 	let mut pair = (n, n);
