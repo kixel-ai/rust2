@@ -712,6 +712,22 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	dropped(out);
 	drop(own);
 	dropped(out);
+	// A box is no `TrustedLen` iterator, though what it holds is, so std collects it by `next`.
+	let seen = RefCell::new(Vec::new());
+	let zipped = || {
+		let seen = &seen;
+		(0..a % 4)
+			.chain(2..2)
+			.map(move |x| {
+				seen.borrow_mut().push(x);
+				x
+			})
+			.zip(0..b % 4)
+	};
+	let owned: Vec<(u8, u8)> = Box::new(zipped()).collect();
+	let mut boxed = Box::new(zipped());
+	let lent: Vec<(u8, u8)> = (&mut boxed).collect();
+	put(out, &format!("{owned:?} {lent:?} {:?} ", seen.borrow()));
 
 	// Returned through a trait object of the crate's own trait.
 	let split: &dyn Chunks = &Lease(rest.to_vec(), usize::from(b % 4) + 1);

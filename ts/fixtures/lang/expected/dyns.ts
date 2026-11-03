@@ -852,13 +852,29 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		dropped(out);
 		own2[Symbol.dispose]();
 		dropped(out);
+		const seen2: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+		const zipped: () => rt.Iter<[rt.u8, rt.u8]> = (): rt.Iter<[rt.u8, rt.u8]> => {
+			return rt.iterZip(rt.iterMap(rt.iterChain(new rt.Range(0, rt.u8Rem(a, 4)), new rt.Range(2, 2)), (x4: rt.u8): rt.u8 => {
+				const _66: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(seen2);
+				rt.byteVecPush(_66.value, x4);
+				rt.refMutRelease(_66);
+				return x4;
+			}), new rt.Range(0, rt.u8Rem(b, 4)), "len");
+		};
+		const owned: [rt.u8, rt.u8][] = rt.iterToArray(zipped(), "next", 2);
+		const lent3: [rt.u8, rt.u8][] = rt.iterToArray(rt.iterBorrow(zipped()), "next", 2);
+		const _339: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(seen2);
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(owned, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtList(lent3, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(_339.value), f, rt.u8Debug)];
+		const _335: string = rt.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]);
+		rt.refRelease(_339);
+		fmt_put(out, _335);
 		const split: Chunks.Chunks = new Chunks.of$dyns_Lease({ _0: rt.byteSliceToByteVec(rt.byteSliceRange(data, 2)), _1: rt.usizeAdd(rt.u8Rem(b, 4) as rt.usize, 1) });
 		const lens_: rt.usize[] = rt.iterToArray(rt.iterMap(split.chunks$Chunks(), (a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		}), "next", 4);
-		const _336: rt.usize = rt.ownedCount(split.chunks$Chunks());
-		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_336, f)];
-		fmt_put(out, rt.fmtFormat([args18[0], " ", args18[1]]));
+		const _369: rt.usize = rt.ownedCount(split.chunks$Chunks());
+		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_369, f)];
+		fmt_put(out, rt.fmtFormat([args20[0], " ", args20[1]]));
 	}
 }
 

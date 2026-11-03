@@ -584,7 +584,9 @@ pub fn call<'tcx>(
 	let item = b.t.iter_item(self_ty.peel_refs())?;
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
-	let (self_ty, recv) = peel_iter(b, self_ty, values.next()?);
+	// What it reads through boxes and references, while std picks each specialization by
+	// `self_ty`, which a box implements none of.
+	let (iter_ty, recv) = peel_iter(b, self_ty, values.next()?);
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);
@@ -592,13 +594,13 @@ pub fn call<'tcx>(
 	// `next` by the protocol, as an `Option`.
 	if matches!(name, "next" | "next_back" | "nth_back") {
 		let item = match name {
-			"next" => next(b, self_ty, recv),
-			"next_back" => match own_back(b, self_ty, recv.clone()) {
+			"next" => next(b, iter_ty, recv),
+			"next_back" => match own_back(b, iter_ty, recv.clone()) {
 				Some(back) => back,
 				None => recv.member("nextBack").call(Vec::new()),
 			},
 			_ => {
-				let recv = into_iter(b, self_ty, recv, span)?;
+				let recv = into_iter(b, iter_ty, recv, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
@@ -610,7 +612,7 @@ pub fn call<'tcx>(
 		return Some(recv);
 	}
 
-	let recv = into_iter(b, self_ty, recv, span)?;
+	let recv = into_iter(b, iter_ty, recv, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
 		let of = match owner {
