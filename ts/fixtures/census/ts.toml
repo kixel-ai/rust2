@@ -1,0 +1,3 @@
+# The census's: no roots, so every item is one.
+package = "census-fixture"
+roots = []

@@ -17,15 +17,16 @@ rustc_private = true
 # nightly, which the other projects do not use.
 members = [
     "fixtures/bind",
+    "fixtures/census",
     "fixtures/codec",
     "fixtures/crates",
+    # A fixture per module of the language, beside what they share.
+    "fixtures/lang/*",
     "fixtures/names",
     "fixtures/reject",
     "fixtures/share",
     "fixtures/stock",
     "fixtures/task",
-    # A fixture per module of the language, beside what they share.
-    "fixtures/lang/*",
 ]
 resolver = "3"
 

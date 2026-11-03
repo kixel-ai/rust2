@@ -984,8 +984,12 @@ built natively for wasm32 and run beside its translation on the same inputs by
   `refused.toml` drops the binding, its `rev` feature makes the dependency's iterator run
   from either end, and its `shared` feature adds a module of the dependency's name, with
   the errors in `refused.txt`, `rev.txt`, and `shared.txt`.
-- `reject` holds constructs outside the subset; its expected errors are `expected.txt`,
-  and its expected census is `census.md`.
+- `reject` holds constructs outside the subset, a module per kind of construct. Its
+  expected errors are `expected.txt` and its census's spans `census.txt`, each line keyed
+  by the item it points into and sorted, so cases added to different items don't conflict.
+  Its roots in `ts.toml` stay sorted through taplo.
+- `census` holds a few constructs translation refuses for good, whose census, with its
+  totals, is `census.md`.
 
 `tests/spawn.ts` checks that `rt.spawn` yields to a timer after its 128-poll budget,
 rejects when a future panics as it drops, and drops a future when its signal aborts:
