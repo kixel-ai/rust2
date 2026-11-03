@@ -17,9 +17,12 @@ that sets one must leave the harness able to read the message.
 
 The crate's own `#[track_caller]` functions already take their caller's `rt.Location`
 (`ts/src/lower/caller.rs`); std's that map to the runtime, such as `unwrap`, `expect`,
-indexing, and `RefCell::borrow_mut`, take none, as nothing reads it yet. Passing one to
-each costs every hot call, so measure it on `just ts bench` and the moq codec, and weigh
-passing it only where a hook is set. A panic inside std's own code, not under
+indexing, and `RefCell::borrow_mut`, take none, as nothing reads it yet. A prototype
+passing a hoisted `rt.Location` constant as a last argument to each of the codec's checked
+operations, indexes, unwraps, and ranges measured within `just ts bench`'s noise in every
+engine, but grew the codec's bundle by 7.7% raw and 5.5% gzipped, and moq sets no hook, so
+nothing reads them there. Which calls carry one is open in the quest's PR: always, or only
+where a `set_hook` is reachable from the roots. A panic inside std's own code, not under
 `#[track_caller]`, is at a path in the native build's sysroot, which translation must name
 as that build does.
 
