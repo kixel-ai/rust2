@@ -19,9 +19,15 @@ fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_capacity+5:6: `BytesMut::capacity`, which reads a capacity that depends on whether the other handles of its storage dropped, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_put+1:2: `BufMut::put` of `buffers::Counted` into a `BytesMut`, which picks the methods it calls by a capacity that depends on whether the other handles of its storage dropped, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_put_through+1:2: `BufMut::put` of `buffers::Counted` into a `BytesMut`, which advances it by the room left in a capacity that depends on whether the other handles of its storage dropped, which is not supported
+fixtures/reject/src/buffers.rs:bytes_mut_spare+1:6: `BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+2:17: `Bytes::is_unique` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+3:12: `Vec::from(Bytes)` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+4:14: `BytesMut::from(Bytes)` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+5:6: `BufMut::put` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+6:6: `BufMut::put` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of

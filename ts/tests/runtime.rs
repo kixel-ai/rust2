@@ -52,20 +52,6 @@ fn once_recursive() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
-/// A `BytesMut` whose storage was shared throws on a reserve past its limit, which
-/// `reserve.ts` checks.
-#[test]
-fn bytes_mut_reserve() {
-	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-		.join("tests")
-		.join("reserve.ts");
-	let output = Command::new("node")
-		.arg(script)
-		.output()
-		.expect("running node, which the dev shell provides");
-	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-}
-
 /// A lazy thread-local's first value comes as wasm32's `LazyStorage` makes it, which
 /// `local.ts` checks.
 #[test]
