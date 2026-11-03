@@ -119,6 +119,7 @@ roots = [
     "places::swap_guards",
     "pointers::array_pointers",
     "pointers::assigned_through",
+    "pointers::byte_option_slice",
     "pointers::byte_pointer_ops",
     "pointers::byte_pointer_parts",
     "pointers::byte_pointer_rebound",

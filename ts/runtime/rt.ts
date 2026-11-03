@@ -636,6 +636,18 @@ export function sliceView<T>(s: T[], start: number, end: number): T[] {
 	return new Proxy(new Array<T>(end - start), view);
 }
 
+/** `Option::as_slice` of `o`, whose `None` is `none`: its payload, if any, as `slice::from_ref` makes a slice of one. */
+export function optionAsSlice<T>(o: T | undefined): T[];
+export function optionAsSlice<T>(o: T | None, none: None): T[];
+export function optionAsSlice<T>(o: T, none?: None): T[] {
+	return o === none ? [] : [o];
+}
+
+/** `optionAsSlice` of a byte. */
+export function byteOptionAsSlice(o: number | undefined): ByteSlice {
+	return byteSliceFrom(o === undefined ? new Uint8Array(0) : Uint8Array.of(o));
+}
+
 /**
  * `slice::from_mut` or `array::from_mut`: a slice of the one value at `p`, read and
  * written there, as a `sliceView` is of its array's.
@@ -2233,10 +2245,13 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
 	return c instanceof ByteVec ? byteVecSlice(c) : c;
 }
 
-/** `Cow::into_owned` of a `Cow<[T]>`: its `Vec`, or a clone of what it borrows, each item by `clone` if given. */
-export function cowIntoOwned<T>(c: Cow<T>, clone?: (item: T) => T): T[] {
+/**
+ * `Cow::into_owned` of a `Cow<[T]>`, of `size`-byte items: its `Vec`, or a clone of what it
+ * borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
+ */
+export function cowIntoOwned<T>(c: Cow<T>, size: number, clone?: (item: T) => T): T[] {
 	if (!(c instanceof Borrowed)) return c;
-	return clone === undefined ? c.slice.slice() : c.slice.map(clone);
+	return vecExact(clone === undefined ? c.slice.slice() : c.slice.map(clone), size);
 }
 
 /** `Cow::into_owned` of a `Cow<[u8]>`. */
@@ -2244,15 +2259,44 @@ export function byteCowIntoOwned(c: ByteCow): ByteVec {
 	return c instanceof ByteVec ? c : byteSliceToByteVec(c);
 }
 
-/** `Clone` of a `Cow<[T]>`: a borrow of the same slice, or a clone of its `Vec`. */
-export function cowClone<T>(c: Cow<T>, clone?: (item: T) => T): Cow<T> {
+/**
+ * `Clone` of a `Cow<[T]>`, of `size`-byte items: a borrow of the same slice, or a clone of
+ * its `Vec` with room for exactly its items, as `to_vec` makes it.
+ */
+export function cowClone<T>(c: Cow<T>, size: number, clone?: (item: T) => T): Cow<T> {
 	if (c instanceof Borrowed) return new Borrowed(c.slice);
-	return clone === undefined ? c.slice() : c.map(clone);
+	return vecExact(clone === undefined ? c.slice() : c.map(clone), size);
 }
 
 /** `Clone` of a `Cow<[u8]>`. */
 export function byteCowClone(c: ByteCow): ByteCow {
 	return c instanceof ByteVec ? byteSliceToByteVec(byteVecSlice(c)) : c;
+}
+
+/**
+ * `clone_from` of a `Cow<[T]>`, of `size`-byte items: an owned one's `Vec`, of an owned
+ * one's, as `vecCloneFrom` clones into it, and else `src`'s clone, made before `c` drops.
+ */
+export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T> {
+	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src, size, clone, drop, over);
+	const item = cowClone(src, size, clone);
+	cowDrop(c, drop);
+	return item;
+}
+
+/** `cowCloneFrom` as a `CloneFrom`. */
+export function cowCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T>> {
+	return (old, src) => cowCloneFrom(old, src, size, clone, drop, over);
+}
+
+/** `cowCloneFrom` of a `Cow<[u8]>`. */
+export function byteCowCloneFrom(c: ByteCow, src: ByteCow): ByteCow {
+	return c instanceof ByteVec && src instanceof ByteVec ? byteVecCloneFrom(c, src) : byteCowClone(src);
+}
+
+/** `byteCowCloneFrom` as a `CloneFrom`. */
+export function byteCowCloneFromFn(): CloneFrom<ByteCow> {
+	return byteCowCloneFrom;
 }
 
 /** Drop a `Cow<[T]>`: the items it owns, by `f` if given. */

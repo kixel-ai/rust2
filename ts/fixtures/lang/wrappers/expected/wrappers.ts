@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import { unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$02k4ito as option_mapOr$02k4ito } from "./core/option.ts";
 import { put } from "./harness.ts";
+import * as Logged from "./wrappers.Logged.ts";
 import * as Scale from "./wrappers.Scale.ts";
 import * as Tally from "./wrappers.Tally.ts";
 
@@ -509,6 +510,59 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecPush(out, Scale.eq$cmp_PartialEq(scale, { _0: 1000 }) ? 1 : 0);
 		rt.byteVecPush(out, Scale.partialCmp$cmp_PartialOrd(scale, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64 }) === -1 ? 1 : 0);
 		putU64(out, scale._0);
+	}
+}
+
+/**
+ * `Reverse`'s `clone` and `clone_from`, each of what it wraps: a value JS copies, one
+ * that logs as it is cloned and drops, and a `Vec`, which JS shares and whose
+ * `clone_from` keeps its buffer.
+ */
+export function reverses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), i & 0xff);
+	};
+	const _5: rt.u8 = rt.u8Rem(kind, 3);
+	if (_5 === 0) {
+		const a: rt.u8 = at(0);
+		let b: rt.u8 = a;
+		b = rt.u8WrappingAdd(b, 1);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a, b)), undefined, true);
+		b = a;
+		rt.byteVecPush(out, b);
+	} else if (_5 === 1) {
+		const log: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+		const a2: Logged.Logged = new Logged.Logged(at(0) & 127, log);
+		let b2: Logged.Logged = Logged.clone$Clone(a2);
+		const _38: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_38.value, 254);
+		rt.refMutRelease(_38);
+		const _43: Logged.Logged = new Logged.Logged(at(1) & 127, log);
+		const old = b2;
+		b2 = Logged.clone$Clone(_43);
+		old[Symbol.dispose]();
+		_43[Symbol.dispose]();
+		const _53: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_53.value, 254);
+		rt.refMutRelease(_53);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a2.id, b2.id)), undefined, true);
+		b2[Symbol.dispose]();
+		a2[Symbol.dispose]();
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(log.value), undefined, true);
+	} else {
+		const a3: rt.ByteVec = rt.iterToByteVec(new rt.Range(0, rt.u8Rem(at(0), 6)), undefined, true);
+		const b3: rt.ByteVec = ((a0: rt.ByteVec): rt.ByteVec => {
+			return rt.byteVecFrom(rt.byteVecView(a0));
+		})(a3);
+		rt.byteVecPush(b3, 85);
+		rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(a3))), rt.iterSlice(rt.byteVecView(b3))), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a3.data.length & 0xff, b3.data.length & 0xff)), undefined, true);
+		const kept: rt.ByteVec = rt.byteVecWithCapacity(rt.u8Rem(at(1), 16) as rt.usize);
+		const _98: rt.u8 = at(2);
+		rt.byteVecPush(kept, _98);
+		rt.byteVecCloneFrom(kept, a3);
+		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(kept))), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(kept.length & 0xff, kept.data.length & 0xff)), undefined, true);
 	}
 }
 
