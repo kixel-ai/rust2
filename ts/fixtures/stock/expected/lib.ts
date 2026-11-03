@@ -12,7 +12,15 @@ import * as DropFilteredValues from "./hashlink/linked_hash_map.DropFilteredValu
 import * as linked_hash_map_IntoIter from "./hashlink/linked_hash_map.IntoIter.ts";
 import * as LinkedHashMap from "./hashlink/linked_hash_map.LinkedHashMap.ts";
 import * as Remainder$drop_value_nodes from "./hashlink/linked_hash_map.Remainder$drop_value_nodes.ts";
+import type * as LinkedHashSet from "./hashlink/linked_hash_set.LinkedHashSet.ts";
+import type * as LruCache from "./hashlink/lru_cache.LruCache.ts";
 import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
+import type * as Held from "./maps.Held.ts";
+import * as Logged from "./maps.Logged.ts";
+
+export function copy$maps_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v._0, v._1);
+}
 
 export function copy$mem_MaybeUninit_tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u16, rt.u32] {
 	if (v === undefined) {
@@ -21,16 +29,58 @@ export function copy$mem_MaybeUninit_tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u1
 	return [v[0], v[1]];
 }
 
+export function copy$tuple2_maps_Logged_maps_Logged(v: [Logged.Logged, Logged.Logged]): [Logged.Logged, Logged.Logged] {
+	return [copy$maps_Logged(v[0]), copy$maps_Logged(v[1])];
+}
+
+export function copy$tuple2_maps_Logged_unit(v: [Logged.Logged, undefined]): [Logged.Logged, undefined] {
+	return [copy$maps_Logged(v[0]), v[1]];
+}
+
 export function copy$tuple2_sync_Arc_str_u32(v: [rt.Arc<string>, rt.u32]): [rt.Arc<string>, rt.u32] {
 	return [v[0], v[1]];
+}
+
+export function copy$tuple2_u16_maps_Logged(v: [rt.u16, Logged.Logged]): [rt.u16, Logged.Logged] {
+	return [v[0], copy$maps_Logged(v[1])];
 }
 
 export function copy$tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u16, rt.u32] {
 	return [v[0], v[1]];
 }
 
+export function drop$Option_tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1: [LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, Logged.Logged] | undefined): void {
+	if (_1 !== undefined) {
+		drop$tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1);
+	}
+}
+
+export function drop$Option_tuple2_maps_Logged_maps_Logged(_1: [Logged.Logged, Logged.Logged] | undefined): void {
+	if (_1 !== undefined) {
+		drop$tuple2_maps_Logged_maps_Logged(_1);
+	}
+}
+
+export function drop$Option_tuple2_u16_maps_Logged(_1: [rt.u16, Logged.Logged] | undefined): void {
+	if (_1 !== undefined) {
+		drop$tuple2_u16_maps_Logged(_1);
+	}
+}
+
+export function drop$hashlink_LinkedHashMap_maps_Logged_maps_Logged(_1: LinkedHashMap.LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	LinkedHashMap.drop$ops_Drop_maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(_1);
+}
+
+export function drop$hashlink_LinkedHashMap_maps_Logged_unit(_1: LinkedHashMap.LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>): void {
+	LinkedHashMap.drop$ops_Drop_maps_Logged_unit_hashlink_DefaultHashBuilder(_1);
+}
+
 export function drop$hashlink_LinkedHashMap_sync_Arc_str_u32(_1: LinkedHashMap.LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
 	LinkedHashMap.drop$ops_Drop_sync_Arc_str_u32_hashlink_DefaultHashBuilder(_1);
+}
+
+export function drop$hashlink_LinkedHashMap_u16_maps_Logged(_1: LinkedHashMap.LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	LinkedHashMap.drop$ops_Drop_u16_maps_Logged_hashlink_DefaultHashBuilder(_1);
 }
 
 export function drop$hashlink_LinkedHashMap_u16_u32(_1: LinkedHashMap.LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
@@ -39,6 +89,18 @@ export function drop$hashlink_LinkedHashMap_u16_u32(_1: LinkedHashMap.LinkedHash
 
 export function drop$hashlink_LinkedHashMap_u16_u32_hash_RandomState(_1: LinkedHashMap.LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): void {
 	LinkedHashMap.drop$ops_Drop_u16_u32_hash_RandomState(_1);
+}
+
+export function drop$hashlink_LinkedHashSet_maps_Logged(_1: LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	drop$hashlink_LinkedHashMap_maps_Logged_unit(_1.map);
+}
+
+export function drop$hashlink_LruCache_maps_Logged_maps_Logged(_1: LruCache.LruCache<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	drop$hashlink_LinkedHashMap_maps_Logged_maps_Logged(_1.map);
+}
+
+export function drop$hashlink_LruCache_u16_maps_Logged(_1: LruCache.LruCache<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	drop$hashlink_LinkedHashMap_u16_maps_Logged(_1.map);
 }
 
 export function drop$hashlink_linked_hash_map_Drain_u16_u32(_1: linked_hash_map_Drain.Drain<rt.u16, rt.u32>): void {
@@ -53,16 +115,51 @@ export function drop$hashlink_linked_hash_map_IntoIter_u16_u32(_1: linked_hash_m
 	linked_hash_map_IntoIter.drop$ops_Drop_u16_u32(_1);
 }
 
+export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_maps_Logged_maps_Logged(_1: Remainder$drop_value_nodes.Remainder<Logged.Logged, Logged.Logged>): void {
+	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_maps_Logged_maps_Logged(_1);
+}
+
+export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_maps_Logged_unit(_1: Remainder$drop_value_nodes.Remainder<Logged.Logged, undefined>): void {
+	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_maps_Logged_unit(_1);
+}
+
 export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_sync_Arc_str_u32(_1: Remainder$drop_value_nodes.Remainder<rt.Arc<string>, rt.u32>): void {
 	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_sync_Arc_str_u32(_1);
+}
+
+export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_u16_maps_Logged(_1: Remainder$drop_value_nodes.Remainder<rt.u16, Logged.Logged>): void {
+	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_u16_maps_Logged(_1);
 }
 
 export function drop$hashlink_linked_hash_map_drop_value_nodes_Remainder_u16_u32(_1: Remainder$drop_value_nodes.Remainder<rt.u16, rt.u32>): void {
 	Remainder$drop_value_nodes.drop$drop_value_nodes_ops_Drop_u16_u32(_1);
 }
 
+export function drop$maps_Held_maps_Logged(_1: Held.Held<Logged.Logged>): void {
+	drop$hashlink_LruCache_u16_maps_Logged(_1.cache);
+	_1.last[Symbol.dispose]();
+}
+
+export function drop$tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1: [LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, Logged.Logged]): void {
+	drop$hashlink_LinkedHashSet_maps_Logged(_1[0]);
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_maps_Logged_maps_Logged(_1: [Logged.Logged, Logged.Logged]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_maps_Logged_unit(_1: [Logged.Logged, undefined]): void {
+	_1[0][Symbol.dispose]();
+}
+
 export function drop$tuple2_sync_Arc_str_u32(_1: [rt.Arc<string>, rt.u32]): void {
 	_1[0][Symbol.dispose]();
+}
+
+export function drop$tuple2_u16_maps_Logged(_1: [rt.u16, Logged.Logged]): void {
+	_1[1][Symbol.dispose]();
 }
 
 export class of$buf_Counted {

@@ -2,7 +2,7 @@
 
 import * as rt from "../rt.ts";
 import { drop$hashlink_LinkedHashMap_u16_u32_hash_RandomState as lib_drop$hashlink_LinkedHashMap_u16_u32_hash_RandomState, drop$hashlink_linked_hash_map_DropFilteredValues_u16_u32 as lib_drop$hashlink_linked_hash_map_DropFilteredValues_u16_u32 } from "../lib.ts";
-import { asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32, dropValueNodes$sync_Arc_str_u32, dropValueNodes$u16_u32, dropFreeNodes$sync_Arc_str_u32, dropFreeNodes$u16_u32, hashNode$hashlink_DefaultHashBuilder_sync_Arc_str_u32, hashNode$hashlink_DefaultHashBuilder_u16_u32 } from "../hashlink/linked_hash_map.ts";
+import { asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_maps_Logged, asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32, dropValueNodes$maps_Logged_maps_Logged, dropValueNodes$maps_Logged_unit, dropValueNodes$sync_Arc_str_u32, dropValueNodes$u16_maps_Logged, dropValueNodes$u16_u32, dropFreeNodes$maps_Logged_maps_Logged, dropFreeNodes$maps_Logged_unit, dropFreeNodes$sync_Arc_str_u32, dropFreeNodes$u16_maps_Logged, dropFreeNodes$u16_u32, hashNode$hashlink_DefaultHashBuilder_maps_Logged_maps_Logged, hashNode$hashlink_DefaultHashBuilder_sync_Arc_str_u32, hashNode$hashlink_DefaultHashBuilder_u16_maps_Logged, hashNode$hashlink_DefaultHashBuilder_u16_u32 } from "../hashlink/linked_hash_map.ts";
 import * as linked_hash_map_Drain from "../hashlink/linked_hash_map.Drain.ts";
 import * as DropFilteredValues from "../hashlink/linked_hash_map.DropFilteredValues.ts";
 import * as linked_hash_map_IntoIter from "../hashlink/linked_hash_map.IntoIter.ts";
@@ -18,6 +18,7 @@ import type * as ValueLinks from "../hashlink/linked_hash_map.ValueLinks.ts";
 import type * as linked_hash_map_Values from "../hashlink/linked_hash_map.Values.ts";
 import type * as ValuesMut from "../hashlink/linked_hash_map.ValuesMut.ts";
 import * as DefaultHashBuilder from "../hashlink.DefaultHashBuilder.ts";
+import * as Logged from "../maps.Logged.ts";
 
 /**
  * A version of `HashMap` that has a user controllable order for its entries.
@@ -50,9 +51,24 @@ export class LinkedHashMap<K, V, S> {
 	}
 }
 
+export function new$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(): LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
+	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<Logged.Logged, Logged.Logged>>, _1, undefined, undefined);
+}
+
+export function new$maps_Logged_unit_hashlink_DefaultHashBuilder(): LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> {
+	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<Logged.Logged, undefined>>, _1, undefined, undefined);
+}
+
 export function new$sync_Arc_str_u32_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
 	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
 	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.Arc<string>, rt.u32>>, _1, undefined, undefined);
+}
+
+export function new$u16_maps_Logged_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
+	const _1: DefaultHashBuilder.DefaultHashBuilder = DefaultHashBuilder.default$Default();
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.u16, Logged.Logged>>, _1, undefined, undefined);
 }
 
 export function new$u16_u32_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
@@ -60,11 +76,23 @@ export function new$u16_u32_hashlink_DefaultHashBuilder(): LinkedHashMap<rt.u16,
 	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.u16, rt.u32>>, _1, undefined, undefined);
 }
 
+export function withHasher$maps_Logged_unit_hashlink_DefaultHashBuilder(hashBuilder: DefaultHashBuilder.DefaultHashBuilder): LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> {
+	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<Logged.Logged, undefined>>, hashBuilder, undefined, undefined);
+}
+
 export function withHasher$u16_u32_hash_RandomState(hashBuilder: rt.RandomState): LinkedHashMap<rt.u16, rt.u32, rt.RandomState> {
 	return new LinkedHashMap(rt.hashNew() as rt.HashTable<Node.Node<rt.u16, rt.u32>>, hashBuilder, undefined, undefined);
 }
 
+export function len$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
+	return rt.hashLen(self.table);
+}
+
 export function len$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
+	return rt.hashLen(self.table);
+}
+
+export function len$u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): rt.usize {
 	return rt.hashLen(self.table);
 }
 
@@ -76,8 +104,16 @@ export function len$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u
 	return rt.hashLen(self.table);
 }
 
+export function isEmpty$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): boolean {
+	return len$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self) === 0;
+}
+
 export function isEmpty$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): boolean {
 	return len$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self) === 0;
+}
+
+export function isEmpty$u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): boolean {
+	return len$u16_maps_Logged_hashlink_DefaultHashBuilder(self) === 0;
 }
 
 export function isEmpty$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): boolean {
@@ -181,6 +217,63 @@ export function capacity$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap
  * Returns the previously set value, if one existed prior to this call.  After this call,
  * calling `LinkedHashMap::back` will return a reference to this key / value pair.
  */
+export function insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged, v: Logged.Logged): Logged.Logged | undefined {
+	let _0!: Logged.Logged | undefined;
+	let _16: boolean = false;
+	_16 = true;
+	const _4: RawEntryMut.RawEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self), k);
+	if (_4.tag === "Occupied") {
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toBack$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(occupied);
+		_0 = RawOccupiedEntryMut.replaceValue$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(occupied, v);
+	} else {
+		const vacant: RawVacantEntryMut.RawVacantEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		_16 = false;
+		RawVacantEntryMut.insert$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(vacant, k, v);
+		_0 = undefined;
+	}
+	if (_16) {
+		k[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
+}
+
+/**
+ * Inserts the given key / value pair at the *back* of the internal linked list.
+ *
+ * Returns the previously set value, if one existed prior to this call.  After this call,
+ * calling `LinkedHashMap::back` will return a reference to this key / value pair.
+ */
+export function insert$maps_Logged_unit_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged, _: undefined): undefined | rt.None {
+	let _0!: undefined | rt.None;
+	let _16: boolean = false;
+	_16 = true;
+	const _4: RawEntryMut.RawEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_unit_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_unit_hashlink_DefaultHashBuilder(self), k);
+	if (_4.tag === "Occupied") {
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toBack$maps_Logged_unit_hashlink_DefaultHashBuilder(occupied);
+		RawOccupiedEntryMut.replaceValue$maps_Logged_unit_hashlink_DefaultHashBuilder(occupied, undefined);
+		_0 = undefined;
+	} else {
+		const vacant: RawVacantEntryMut.RawVacantEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		_16 = false;
+		RawVacantEntryMut.insert$maps_Logged_unit_hashlink_DefaultHashBuilder(vacant, k, undefined);
+		_0 = rt.None;
+	}
+	if (_16) {
+		k[Symbol.dispose]();
+		return _0;
+	}
+	return _0;
+}
+
+/**
+ * Inserts the given key / value pair at the *back* of the internal linked list.
+ *
+ * Returns the previously set value, if one existed prior to this call.  After this call,
+ * calling `LinkedHashMap::back` will return a reference to this key / value pair.
+ */
 export function insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: rt.Arc<string>, v: rt.u32): rt.u32 | undefined {
 	let _0!: rt.u32 | undefined;
 	let _16: boolean = false;
@@ -201,6 +294,23 @@ export function insert$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: Linked
 		return _0;
 	}
 	return _0;
+}
+
+/**
+ * Inserts the given key / value pair at the *back* of the internal linked list.
+ *
+ * Returns the previously set value, if one existed prior to this call.  After this call,
+ * calling `LinkedHashMap::back` will return a reference to this key / value pair.
+ */
+export function insert$u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, k: rt.u16, v: Logged.Logged): Logged.Logged | undefined {
+	const _4: RawEntryMut.RawEntryMut<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$u16_maps_Logged_hashlink_DefaultHashBuilder_u16(rawEntryMut$u16_maps_Logged_hashlink_DefaultHashBuilder(self), k);
+	if (_4.tag === "Occupied") {
+		const occupied: RawOccupiedEntryMut.RawOccupiedEntryMut<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = _4._0;
+		RawOccupiedEntryMut.toBack$u16_maps_Logged_hashlink_DefaultHashBuilder(occupied);
+		return RawOccupiedEntryMut.replaceValue$u16_maps_Logged_hashlink_DefaultHashBuilder(occupied, v);
+	}
+	RawVacantEntryMut.insert$u16_maps_Logged_hashlink_DefaultHashBuilder(_4._0, k, v);
+	return undefined;
 }
 
 /**
@@ -254,6 +364,23 @@ export function insertFront$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHash
 	return undefined;
 }
 
+export function remove$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_maps_Logged(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged): Logged.Logged | undefined {
+	const _3: RawEntryMut.RawEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self), k);
+	if (_3.tag === "Occupied") {
+		return RawOccupiedEntryMut.remove$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(_3._0);
+	}
+	return undefined;
+}
+
+export function remove$maps_Logged_unit_hashlink_DefaultHashBuilder_maps_Logged(self: LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>, k: Logged.Logged): undefined | rt.None {
+	const _3: RawEntryMut.RawEntryMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$maps_Logged_unit_hashlink_DefaultHashBuilder_maps_Logged(rawEntryMut$maps_Logged_unit_hashlink_DefaultHashBuilder(self), k);
+	if (_3.tag === "Occupied") {
+		RawOccupiedEntryMut.remove$maps_Logged_unit_hashlink_DefaultHashBuilder(_3._0);
+		return undefined;
+	}
+	return rt.None;
+}
+
 export function remove$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>, k: string): rt.u32 | undefined {
 	const _3: RawEntryMut.RawEntryMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromKey$sync_Arc_str_u32_hashlink_DefaultHashBuilder_str(rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self), k);
 	if (_3.tag === "Occupied") {
@@ -270,6 +397,21 @@ export function remove$u16_u32_hashlink_DefaultHashBuilder_u16(self: LinkedHashM
 	return undefined;
 }
 
+export function popFront$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): [Logged.Logged, Logged.Logged] | undefined {
+	if (!isEmpty$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self)) {
+		const front: Node.Node<Logged.Logged, Logged.Logged> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_maps_Logged_maps_Logged(self.values).links.at0 as Node.Node<Logged.Logged, Logged.Logged>;
+		const hash: rt.u64 = hashNode$hashlink_DefaultHashBuilder_maps_Logged_maps_Logged(self.hashBuilder, front);
+		const _9: RawEntryMut.RawEntryMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromHash$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder_hashlink_LinkedHashMap_K_V_S_pop_front_closure0_maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(rawEntryMut$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self), hash, (k: Logged.Logged): boolean => {
+			return Logged.eq$cmp_PartialEq(k, Node.keyRef$maps_Logged_maps_Logged(front));
+		});
+		if (_9.tag === "Occupied") {
+			return RawOccupiedEntryMut.removeEntry$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(_9._0);
+		}
+		return undefined;
+	}
+	return undefined;
+}
+
 export function popFront$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): [rt.Arc<string>, rt.u32] | undefined {
 	if (!isEmpty$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self)) {
 		const front: Node.Node<rt.Arc<string>, rt.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_sync_Arc_str_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_sync_Arc_str_u32(self.values).links.at0 as Node.Node<rt.Arc<string>, rt.u32>;
@@ -280,6 +422,21 @@ export function popFront$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: Link
 		});
 		if (_9.tag === "Occupied") {
 			return RawOccupiedEntryMut.removeEntry$sync_Arc_str_u32_hashlink_DefaultHashBuilder(_9._0);
+		}
+		return undefined;
+	}
+	return undefined;
+}
+
+export function popFront$u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): [rt.u16, Logged.Logged] | undefined {
+	if (!isEmpty$u16_maps_Logged_hashlink_DefaultHashBuilder(self)) {
+		const front: Node.Node<rt.u16, Logged.Logged> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_maps_Logged_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_maps_Logged(self.values).links.at0 as Node.Node<rt.u16, Logged.Logged>;
+		const hash: rt.u64 = hashNode$hashlink_DefaultHashBuilder_u16_maps_Logged(self.hashBuilder, front);
+		const _9: RawEntryMut.RawEntryMut<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> = RawEntryBuilderMut.fromHash$u16_maps_Logged_hashlink_DefaultHashBuilder_hashlink_LinkedHashMap_K_V_S_pop_front_closure0_u16_maps_Logged_hashlink_DefaultHashBuilder(rawEntryMut$u16_maps_Logged_hashlink_DefaultHashBuilder(self), hash, (k: rt.u16): boolean => {
+			return k === Node.keyRef$u16_maps_Logged(front);
+		});
+		if (_9.tag === "Occupied") {
+			return RawOccupiedEntryMut.removeEntry$u16_maps_Logged_hashlink_DefaultHashBuilder(_9._0);
 		}
 		return undefined;
 	}
@@ -344,7 +501,19 @@ export function toBack$u16_u32_hashlink_DefaultHashBuilder_u16(self: LinkedHashM
 	return undefined;
 }
 
+export function rawEntryMut$maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
+	return { map: self };
+}
+
+export function rawEntryMut$maps_Logged_unit_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> {
+	return { map: self };
+}
+
 export function rawEntryMut$sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder> {
+	return { map: self };
+}
+
+export function rawEntryMut$u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): RawEntryBuilderMut.RawEntryBuilderMut<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder> {
 	return { map: self };
 }
 
@@ -356,6 +525,28 @@ export function rawEntryMut$u16_u32_hashlink_DefaultHashBuilder(self: LinkedHash
 	return { map: self };
 }
 
+export function default$Default_maps_Logged_unit_hashlink_DefaultHashBuilder(): LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder> {
+	return withHasher$maps_Logged_unit_hashlink_DefaultHashBuilder(DefaultHashBuilder.default$Default());
+}
+
+export function drop$ops_Drop_maps_Logged_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	if (self.values !== undefined) {
+		const values: Node.Node<Logged.Logged, Logged.Logged> = self.values;
+		dropValueNodes$maps_Logged_maps_Logged(values);
+		values;
+	}
+	dropFreeNodes$maps_Logged_maps_Logged(self.free);
+}
+
+export function drop$ops_Drop_maps_Logged_unit_hashlink_DefaultHashBuilder(self: LinkedHashMap<Logged.Logged, undefined, DefaultHashBuilder.DefaultHashBuilder>): void {
+	if (self.values !== undefined) {
+		const values: Node.Node<Logged.Logged, undefined> = self.values;
+		dropValueNodes$maps_Logged_unit(values);
+		values;
+	}
+	dropFreeNodes$maps_Logged_unit(self.free);
+}
+
 export function drop$ops_Drop_sync_Arc_str_u32_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.Arc<string>, rt.u32, DefaultHashBuilder.DefaultHashBuilder>): void {
 	if (self.values !== undefined) {
 		const values: Node.Node<rt.Arc<string>, rt.u32> = self.values;
@@ -363,6 +554,15 @@ export function drop$ops_Drop_sync_Arc_str_u32_hashlink_DefaultHashBuilder(self:
 		values;
 	}
 	dropFreeNodes$sync_Arc_str_u32(self.free);
+}
+
+export function drop$ops_Drop_u16_maps_Logged_hashlink_DefaultHashBuilder(self: LinkedHashMap<rt.u16, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
+	if (self.values !== undefined) {
+		const values: Node.Node<rt.u16, Logged.Logged> = self.values;
+		dropValueNodes$u16_maps_Logged(values);
+		values;
+	}
+	dropFreeNodes$u16_maps_Logged(self.free);
 }
 
 export function drop$ops_Drop_u16_u32_hash_RandomState(self: LinkedHashMap<rt.u16, rt.u32, rt.RandomState>): void {
