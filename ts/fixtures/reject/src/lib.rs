@@ -438,27 +438,36 @@ pub fn rebound_reference(a: &u32, b: &u32) -> (u32, u32) {
 	(x(), y())
 }
 
-pub trait Keyed: std::any::Any {
-	fn key(&self) -> u8;
-}
+pub mod first {
+	pub trait Named {
+		fn name(&self) -> u8;
+	}
 
-impl Keyed for u8 {
-	fn key(&self) -> u8 {
-		*self
+	impl Named for u8 {
+		fn name(&self) -> u8 {
+			*self
+		}
 	}
 }
 
-/// An upcast to `dyn Any`, whose downcast checks for the class of the value's own type,
-/// not the object of another trait.
-pub fn any_upcast(k: &dyn Keyed) -> bool {
-	let any: &dyn std::any::Any = k;
-	any.is::<u8>()
+pub mod second {
+	pub trait Named {
+		fn name(&self) -> u8;
+	}
+
+	impl Named for u8 {
+		fn name(&self) -> u8 {
+			self.wrapping_add(1)
+		}
+	}
 }
 
-/// The same upcast of a `Weak`.
-pub fn weak_any_upcast(k: std::rc::Weak<dyn Keyed>) -> bool {
-	let any: std::rc::Weak<dyn std::any::Any> = k;
-	any.upgrade().is_some_and(|a| a.is::<u8>())
+/// Objects of two traits of one name with a method of one name, which the class of the
+/// value's own type, shared by its objects, can't both have.
+pub fn same_named(x: &u8) -> u8 {
+	let a: &dyn first::Named = x;
+	let b: &dyn second::Named = x;
+	a.name().wrapping_add(b.name())
 }
 
 /// A `TypeId`, which no value stands for yet.

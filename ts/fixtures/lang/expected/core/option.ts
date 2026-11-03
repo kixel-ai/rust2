@@ -13,6 +13,8 @@ import type * as collections_Nibble from "../collections.Nibble.ts";
 import type * as collections_Picky from "../collections.Picky.ts";
 import type * as Rank from "../collections.Rank.ts";
 import type * as collections_Tally from "../collections.Tally.ts";
+import type * as Any from "../core/any.Any.ts";
+import type * as error_Error from "../core/error.Error.ts";
 import type * as ArcNode from "../counts.ArcNode.ts";
 import type * as ArcShared from "../counts.ArcShared.ts";
 import type * as counts_Counted from "../counts.Counted.ts";
@@ -26,6 +28,7 @@ import * as defaults_Made from "../defaults.Made.ts";
 import type * as dyns_Shape from "../dyns.Shape.ts";
 import type * as dyns_Tagged from "../dyns.Tagged.ts";
 import * as edits_Named from "../edits.Named.ts";
+import type * as Failure from "../errors.Failure.ts";
 import type * as Ticked from "../generics.Ticked.ts";
 import type * as heap_Fault from "../heap.Fault.ts";
 import type * as hints_Unit from "../hints.Unit.ts";
@@ -54,6 +57,13 @@ import * as slices_Noisy from "../slices.Noisy.ts";
 import type * as slices_Pair from "../slices.Pair.ts";
 import type * as Loud from "../zeros.Loud.ts";
 import * as zeros_Tagged from "../zeros.Tagged.ts";
+
+export function isSomeAnd$13v37g1(self: rt.Arc<Any.Any> | undefined, f: (a0: rt.Arc<Any.Any>) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
 
 export function isSomeAnd$08u1px1(self: rt.Ordering | undefined, f: (a0: rt.Ordering) => boolean): boolean {
 	if (self === undefined) {
@@ -582,11 +592,32 @@ export function map$09ua5et(self: collections_Nibble.Nibble | undefined, f: (a0:
 	return f(self);
 }
 
+export function map$0frk5o8(self: error_Error.Error | undefined, f: (a0: error_Error.Error) => [boolean, rt.IntErrorKind | undefined]): [boolean, rt.IntErrorKind | undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1u8sh4f(self: edits_Named.Named | undefined, _: (a0: edits_Named.Named) => edits_Named.Named[]): edits_Named.Named[] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return [self];
+}
+
+export function map$03ygfmn(self: Failure.Failure | undefined, f: (a0: Failure.Failure) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0ukfexb(self: rt.ParseIntError | undefined, f: (a0: rt.ParseIntError) => rt.IntErrorKind): rt.IntErrorKind | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function map$1cfrse5(self: Loaded.Loaded | undefined, f: (a0: Loaded.Loaded) => Loaded.Loaded): Loaded.Loaded | undefined {

@@ -13,16 +13,23 @@ import type * as Any from "./core/any.Any.ts";
 import type * as error_Error from "./core/error.Error.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
-import type * as counts_Noisy from "./counts.Noisy.ts";
+import * as counts_Noisy from "./counts.Noisy.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 import type * as durations_Window from "./durations.Window.ts";
-import type * as dyns_Noisy from "./dyns.Noisy.ts";
-import type * as Square from "./dyns.Square.ts";
-import type * as Tri from "./dyns.Tri.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32 as dyns_tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32 } from "./dyns.ts";
+import * as Hits from "./dyns.Hits.ts";
+import * as Lease from "./dyns.Lease.ts";
+import * as Looped from "./dyns.Looped.ts";
+import * as dyns_Noisy from "./dyns.Noisy.ts";
+import * as Square from "./dyns.Square.ts";
+import * as Tri from "./dyns.Tri.ts";
 import * as Inline from "./elements.Inline.ts";
-import type * as Failure from "./errors.Failure.ts";
+import * as Failure from "./errors.Failure.ts";
+import * as Leaf from "./errors.Leaf.ts";
+import * as Transported from "./errors.Transported.ts";
 import type * as Couple from "./fields.Couple.ts";
+import type * as fmt_Fault from "./fmt.Fault.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as generics_Run from "./generics.Run.ts";
@@ -38,6 +45,7 @@ import * as lengths_Tagged from "./lengths.Tagged.ts";
 import type * as locals_Twin from "./locals.Twin.ts";
 import type * as locks_Tally from "./locks.Tally.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
+import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
 import type * as ByClosure from "./pointers.ByClosure.ts";
 import type * as ByObject from "./pointers.ByObject.ts";
@@ -51,6 +59,8 @@ import type * as Outer from "./pointers.Outer.ts";
 import type * as pointers_Pair from "./pointers.Pair.ts";
 import type * as Paired from "./pointers.Paired.ts";
 import type * as results_Logged from "./results.Logged.ts";
+import * as At from "./returns.At.ts";
+import type * as returns_Error from "./returns.Error.ts";
 import * as saturates_Gauge from "./saturates.Gauge.ts";
 import type * as shapes_Gauge from "./shapes.Gauge.ts";
 import type * as shapes_Held from "./shapes.Held.ts";
@@ -1200,9 +1210,21 @@ export function drop$Result_tuple2_tuples_Logged_u8_u8(_1: rt.Result<[tuples_Log
 	}
 }
 
+export function drop$Result_tuple2_usize_u32_Rc_dyn_Any(_1: rt.Result<[rt.usize, rt.u32], rt.Arc<Any.Any>>): void {
+	if (!_1.ok) {
+		_1.error[Symbol.dispose]();
+	}
+}
+
 export function drop$Result_tuple2_usize_u8_sync_Arc_dyn_Any_marker_Sync_marker_Send(_1: rt.Result<[rt.usize, rt.u8], rt.Arc<Any.Any>>): void {
 	if (!_1.ok) {
 		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_u16_boxed_Box_dyn_Any(_1: rt.Result<rt.u16, Any.Any>): void {
+	if (!_1.ok) {
+		rt.drop(_1.error);
 	}
 }
 
@@ -1458,6 +1480,664 @@ export function drop$zeros_Lock_u32(_1: zeros_Lock.Lock<rt.u32>): void {
 
 export function drop$zeros_Lock_zeros_Loud(_1: zeros_Lock.Lock<Loud.Loud>): void {
 	zeros_Lock.drop$ops_Drop_zeros_Loud(_1);
+}
+
+export class of$Option_u8 {
+	v: rt.u8 | undefined;
+
+	constructor(v: rt.u8 | undefined) {
+		this.v = v;
+	}
+}
+
+export class of$boxed_Box_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$counts_Noisy {
+	v: counts_Noisy.Noisy;
+
+	constructor(v: counts_Noisy.Noisy) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	id$Id(): rt.u8 {
+		return counts_Noisy.id$counts_Id(this.v);
+	}
+}
+
+export class of$dyns_Hits {
+	v: Hits.Hits;
+
+	constructor(v: Hits.Hits) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return Hits.area$dyns_Shape(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Hits.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Hits.intoArea$dyns_Shape(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Hits.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Hits.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Hits.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Lease {
+	v: Lease.Lease;
+
+	constructor(v: Lease.Lease) {
+		this.v = v;
+	}
+
+	chunks$Chunks(): rt.Iter<rt.ByteSlice> {
+		return Lease.chunks$dyns_Chunks(this.v);
+	}
+}
+
+export class of$dyns_Looped {
+	v: Looped.Looped;
+
+	constructor(v: Looped.Looped) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	area$Shape(): rt.u32 {
+		return Looped.area$dyns_Shape(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Looped.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Looped.intoArea$dyns_Shape(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Looped.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Looped.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Looped.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Noisy {
+	v: dyns_Noisy.Noisy;
+
+	constructor(v: dyns_Noisy.Noisy) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	area$Shape(): rt.u32 {
+		return dyns_Noisy.area$dyns_Shape(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return dyns_Noisy.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return dyns_Noisy.intoArea$dyns_Shape(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return dyns_Noisy.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return dyns_Noisy.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return dyns_Noisy.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Square {
+	v: Square.Square;
+
+	constructor(v: Square.Square) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return Square.area$dyns_Shape(this.v);
+	}
+
+	asAny$Erased(): Any.Any {
+		return Square.asAny$dyns_Erased(this.v);
+	}
+
+	asAnyMut$Erased(): Any.Any {
+		return Square.asAnyMut$dyns_Erased(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Square.fmt$fmt_Debug(this.v, a);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Square.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Square.intoArea$dyns_Shape(this.v);
+	}
+
+	key$Keyed(): rt.u32 {
+		return Square.key$dyns_Keyed(this.v);
+	}
+
+	label$Named(): string {
+		return Square.label$dyns_Named(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Square.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Square.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Square.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Tri {
+	v: Tri.Tri;
+
+	constructor(v: Tri.Tri) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return Tri.area$dyns_Shape(this.v);
+	}
+
+	asAny$Erased(): Any.Any {
+		return Tri.asAny$dyns_Erased(this.v);
+	}
+
+	asAnyMut$Erased(): Any.Any {
+		return Tri.asAnyMut$dyns_Erased(this);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Tri.fmt$fmt_Debug(this.v, a);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Tri.grow$dyns_Shape(this, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Tri.intoArea$dyns_Shape(this.v);
+	}
+
+	label$Named(): string {
+		return Tri.label$dyns_Named(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Tri.larger$dyns_Shape(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Tri.sides$dyns_Shape(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Tri.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v);
+	}
+
+	code$Coded(): rt.u8 {
+		return Failure.code$errors_Coded(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$errors_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$errors_Transported {
+	v: Transported.Transported;
+
+	constructor(v: Transported.Transported) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Transported.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Transported.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return Transported.source$Error(this.v);
+	}
+}
+
+export class of$fmt_Fault {
+	v: fmt_Fault.Fault;
+
+	constructor(v: fmt_Fault.Fault) {
+		this.v = v;
+	}
+}
+
+export class of$num_ParseIntError {
+	v: rt.ParseIntError;
+
+	constructor(v: rt.ParseIntError) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDebug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDisplay(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$pointers_Bin_pointers_ByObject {
+	v: Bin.Bin<ByObject.ByObject>;
+
+	constructor(v: Bin.Bin<ByObject.ByObject>) {
+		this.v = v;
+	}
+
+	reset$Reset(): void {
+		return Bin.reset$pointers_Reset_pointers_ByObject(this.v);
+	}
+}
+
+export class of$ref_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$ref_errors_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$ref_str {
+	v: string;
+
+	constructor(v: string) {
+		this.v = v;
+	}
+}
+
+export class of$returns_At {
+	v: At.At;
+
+	constructor(v: At.At) {
+		this.v = v;
+	}
+
+	split$Split(a: rt.ByteSlice): rt.Result<[rt.ByteSlice, rt.ByteSlice], returns_Error.Error> {
+		const err = At.split$returns_Split(this.v, a.data, a.start, a.length);
+		const result: rt.Result<[rt.ByteSlice, rt.ByteSlice], returns_Error.Error> = err !== undefined ? rt.Err(err as returns_Error.Error) : rt.Ok([new rt.ByteSlice(out$tuple2_ref_slice_u8_ref_slice_u8.p_0Data, out$tuple2_ref_slice_u8_ref_slice_u8.p_0Start, out$tuple2_ref_slice_u8_ref_slice_u8.p_0Len), new rt.ByteSlice(out$tuple2_ref_slice_u8_ref_slice_u8.p_1Data, out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start, out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len)] as [rt.ByteSlice, rt.ByteSlice]);
+		return result;
+	}
+}
+
+export class of$tuple2_u8_u8 {
+	v: [rt.u8, rt.u8];
+
+	constructor(v: [rt.u8, rt.u8]) {
+		this.v = v;
+	}
+}
+
+export class of$u32 {
+	v: rt.u32;
+
+	constructor(v: rt.u32) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return area$dyns_Shape_u32(this.v);
+	}
+
+	asAny$Erased(): Any.Any {
+		return asAny$dyns_Erased_u32(this.v);
+	}
+
+	asAnyMut$Erased(): Any.Any {
+		return asAnyMut$dyns_Erased_u32(this);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return grow$dyns_Shape_u32(this, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return intoArea$dyns_Shape_u32(this.v);
+	}
+
+	key$Keyed(): rt.u32 {
+		return key$dyns_Keyed_u32(this.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return larger$dyns_Shape_u32(this.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return sides$dyns_Shape_u32(this.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return dyns_tally$dyns_Shape_u32(this.v, a);
+	}
+}
+
+export class of$u8 {
+	v: rt.u8;
+
+	constructor(v: rt.u8) {
+		this.v = v;
+	}
+}
+
+export class of$unit {
+	v: undefined;
+
+	constructor(v: undefined) {
+		this.v = v;
+	}
+}
+
+export class ofPlace$Option_u8 {
+	v: rt.Place<rt.u8 | undefined>;
+
+	constructor(v: rt.Place<rt.u8 | undefined>) {
+		this.v = v;
+	}
+}
+
+export class ofPlace$dyns_Tri {
+	v: rt.Place<Tri.Tri>;
+
+	constructor(v: rt.Place<Tri.Tri>) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return Tri.area$dyns_Shape(this.v.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return Tri.grow$dyns_Shape(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return Tri.intoArea$dyns_Shape(this.v.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return Tri.larger$dyns_Shape(this.v.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return Tri.sides$dyns_Shape(this.v.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return Tri.tally$dyns_Shape(this.v.v, a);
+	}
+}
+
+export class ofPlace$errors_Failure {
+	v: rt.Place<Failure.Failure>;
+
+	constructor(v: rt.Place<Failure.Failure>) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return Failure.source$Error(this.v.v);
+	}
+}
+
+export class ofPlace$fmt_Fault {
+	v: rt.Place<fmt_Fault.Fault>;
+
+	constructor(v: rt.Place<fmt_Fault.Fault>) {
+		this.v = v;
+	}
+}
+
+export class ofPlace$num_ParseIntError {
+	v: rt.Place<rt.ParseIntError>;
+
+	constructor(v: rt.Place<rt.ParseIntError>) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDebug(this.v.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDisplay(this.v.v, a);
+	}
+
+	source$Error(): error_Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class ofPlace$u32 {
+	v: rt.Place<rt.u32>;
+
+	constructor(v: rt.Place<rt.u32>) {
+		this.v = v;
+	}
+
+	area$Shape(): rt.u32 {
+		return area$dyns_Shape_u32(this.v.v);
+	}
+
+	asAny$Erased(): Any.Any {
+		return asAny$dyns_Erased_u32(this.v.v);
+	}
+
+	asAnyMut$Erased(): Any.Any {
+		return asAnyMut$dyns_Erased_u32(this.v);
+	}
+
+	grow$Shape(a: rt.u8): void {
+		return grow$dyns_Shape_u32(this.v, a);
+	}
+
+	intoArea$Shape(): rt.u32 {
+		return intoArea$dyns_Shape_u32(this.v.v);
+	}
+
+	key$Keyed(): rt.u32 {
+		return key$dyns_Keyed_u32(this.v.v);
+	}
+
+	larger$Shape(a: rt.u32): rt.u32 {
+		return larger$dyns_Shape_u32(this.v.v, a);
+	}
+
+	sides$Shape(): rt.u8 {
+		return sides$dyns_Shape_u32(this.v.v);
+	}
+
+	tally$Shape(a: rt.Place<rt.u32>): void {
+		return dyns_tally$dyns_Shape_u32(this.v.v, a);
+	}
+}
+
+export class ofPlace$u8 {
+	v: rt.Place<rt.u8>;
+
+	constructor(v: rt.Place<rt.u8>) {
+		this.v = v;
+	}
+}
+
+export class ofPlace$unit {
+	v: rt.Place<undefined>;
+
+	constructor(v: rt.Place<undefined>) {
+		this.v = v;
+	}
 }
 
 export const out$bool: { p: boolean } = { p: undefined as never };

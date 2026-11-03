@@ -1,8 +1,8 @@
 //! `==` and `!=` of a `Result` and of std's errors: every pair of a type's values at its
 //! edges and of the input, so `Ok` meets `Err` and each error kind meets every other. A
 //! `dyn Error` of the crate's errors and std's, borrowed, boxed by `?`, and upcast from the
-//! crate's own trait, written by its `Display` and `Debug` and walked by `source`, and
-//! dropping what it owns as its box drops.
+//! crate's own trait, written by its `Display` and `Debug`, walked by `source`, downcast to
+//! the type it was made of, and dropping what it owns as its box drops.
 
 use std::cell::Cell;
 use std::convert::Infallible;
@@ -322,5 +322,51 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	drop(borrowed);
 	put(out, &format!("{} ", DROPPED.get()));
 	drop(leaf);
-	put(out, &format!("{}", DROPPED.get()));
+	put(out, &format!("{} | ", DROPPED.get()));
+
+	// Downcast, of the crate's errors and std's, and of one upcast from the crate's trait,
+	// whose value is still a `Failure`.
+	let coded: Box<dyn Coded> = Box::new(failure(a, b));
+	put(out, &format!("{} ", downcast(&*coded)));
+	let errors: Vec<Box<dyn Error>> = vec![
+		coded,
+		Box::new(Leaf { code: a }),
+		Box::new(u8::from_str("x").unwrap_err()),
+	];
+	for e in &errors {
+		put(out, &format!("{} ", downcast(&**e)));
+	}
+	// Changed where it is.
+	let mut leaf = Leaf { code: a };
+	let e: &mut dyn Error = &mut leaf;
+	if let Some(l) = e.downcast_mut::<Leaf>() {
+		l.code = l.code.wrapping_add(b);
+	}
+	put(out, &format!("{} ", leaf.code));
+	// A box's downcast gives its value or the box back, which each drop once.
+	DROPPED.set(0);
+	for e in errors {
+		match e.downcast::<Failure>() {
+			Ok(f) => put(out, &format!("failure {} {} ", f.code(), DROPPED.get())),
+			Err(e) => match e.downcast::<Leaf>() {
+				Ok(l) => put(out, &format!("leaf {} {} ", l.code, DROPPED.get())),
+				Err(e) => put(out, &format!("{e} ")),
+			},
+		}
+	}
+	put(out, &format!("{} ", DROPPED.get()));
+	let sent = checked(b, a.wrapping_mul(4)).map_err(|e| e.downcast::<Failure>().map(|f| f.code()));
+	put(out, &format!("{:?}", sent.map_err(|e| e.map_err(|e| e.to_string()))));
+}
+
+/// Which of the crate's errors and std's `e` and its source are, and the `Failure` it holds.
+fn downcast(e: &(dyn Error + 'static)) -> String {
+	let is = (e.is::<Failure>(), e.is::<Leaf>(), e.is::<ParseIntError>());
+	let source = e.source().map(|s| {
+		(
+			s.is::<Leaf>(),
+			s.downcast_ref::<ParseIntError>().map(|p| p.kind().clone()),
+		)
+	});
+	format!("{is:?} {source:?} {:?}", e.downcast_ref::<Failure>().map(|f| f.code()))
 }
