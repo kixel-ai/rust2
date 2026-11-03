@@ -22,6 +22,7 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Waiting: a slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate once a consumer calls them
+- [Wakers made from a RawWaker](/quest/m3/ts-raw-waker.md) - `Waker::from_raw` and the rest of the raw waker API translate, each vtable call where std makes it
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [Debug of std's other iterators](/quest/m3/ts-iter-source-debug.md) - `Debug` of `Once`, `Repeat`, `FromFn`, an array's `IntoIter`, and std's other iterators writes what std's does
@@ -34,7 +35,6 @@ generic std gap is planned here even when moq never calls it.
 - [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
-- [Equality of hash maps and sets](/quest/m3/ts-hash-map-eq.md) - `==` of two hash maps or sets translates as std's
 - [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
 - [A panic's Location](/quest/m3/ts-panic-location.md) - `Location::caller` and `#[track_caller]` translate with native Rust's locations
 - [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook

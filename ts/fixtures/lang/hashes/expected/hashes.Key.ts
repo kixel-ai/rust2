@@ -4,6 +4,10 @@ import * as rt from "./rt.ts";
 import * as Fnv from "./hashes.Fnv.ts";
 import * as Tally from "./hashes.Tally.ts";
 
+export function clone$Clone(self: Key): Key {
+	return { _0: self._0, _1: self._1 };
+}
+
 export function eq$cmp_PartialEq(self: Key, other: Key): boolean {
 	if (!(self._0 === other._0)) {
 		return false;

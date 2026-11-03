@@ -292,7 +292,10 @@ pub fn std_impl<'tcx>(
 			if tr == Trait::Debug
 				&& (library::pinned(tcx, adt.did())
 					|| library::empty_iter(tcx, adt.did())
-					|| Std::of(tcx, adt.did()) == Some(Std::BuildHasherDefault)) =>
+					|| matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::Pending | Std::PollFn | Std::BuildHasherDefault)
+					)) =>
 		{
 			rt("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
 		}
@@ -469,6 +472,20 @@ pub fn std_impl<'tcx>(
 				let ok = b.fmt_fn(tr, args.type_at(0), span);
 				let err = b.fmt_fn(tr, args.type_at(1), span);
 				rt("result", vec![value, f, ok, err])
+			}
+			(Std::Poll, Trait::Debug) => {
+				let ready = b.fmt_fn(tr, args.type_at(0), span);
+				let pending = b.t.pending_arg(args.type_at(0));
+				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
+			}
+			(Std::Waker | Std::Context | Std::WakerVTable, Trait::Debug) => b.err(
+				span,
+				format!("`Debug` of `{ty}`, which writes addresses, which JS has no counterpart of"),
+			),
+			// The `Option` it holds until a poll takes its value.
+			(Std::Ready, Trait::Debug) => {
+				let held = b.fmt_fn(tr, args.type_at(0), span);
+				value.member("debug").call(vec![f, held])
 			}
 			(Std::Arguments, Trait::Display | Trait::Debug) => rt("arguments", vec![value, f]),
 			(Std::FmtError, Trait::Debug) => rt("errorDebug", vec![value, f]),

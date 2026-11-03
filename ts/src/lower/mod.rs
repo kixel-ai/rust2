@@ -1293,6 +1293,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::Pin
 					| library::Std::PollFn
 					| library::Std::Pending
+					| library::Std::Ready
 					| library::Std::Range
 					| library::Std::RangeInclusive
 					| library::Std::RangeFrom
@@ -1353,7 +1354,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		use library::Std;
 		matches!(
 			self.std_of(self.erased(ty)),
-			Some(Std::PollFn | Std::LazyCell | Std::LazyLock)
+			Some(Std::PollFn | Std::Ready | Std::LazyCell | Std::LazyLock)
 		)
 	}
 
@@ -1725,6 +1726,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let output = self.future_output(Ty::new_adt(tcx, adt, args), span);
 					self.future_ty(output, span)
 				}
+				// Its own class, whose value `into_inner`, `clone`, and `Debug` read; refused where
+				// that can be pending, as any future's output is.
+				library::Std::Ready => {
+					self.future_ty(args.type_at(0), span);
+					Type::Rt("Ready", vec![self.ty(args.type_at(0), span)])
+				}
 				library::Std::Range => Type::Rt("Range", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeInclusive => Type::Rt("RangeInclusive", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeTo => Type::Object(vec![("end".into(), self.ty(args.type_at(0), span))]),
@@ -1979,10 +1986,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The JS value of `Pending` in a `Poll<inner>`: `rt.Pending`, or `rt.OuterPending`
 	/// where `inner` can already be `rt.Pending`.
 	pub fn pending(&self, inner: Ty<'tcx>) -> ts::Expr {
-		match self.erases_to(inner).pending {
-			true => ts::Expr::Rt("OuterPending".into()),
-			false => ts::Expr::Rt("Pending".into()),
-		}
+		self.pending_arg(inner)
+			.unwrap_or_else(|| ts::Expr::Rt("Pending".into()))
+	}
+
+	/// `rt.OuterPending` where it is a `Poll<inner>`'s `Pending`, for a runtime function
+	/// whose `pending` is `rt.Pending` unless given.
+	pub fn pending_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
+		self.erases_to(inner)
+			.pending
+			.then(|| ts::Expr::Rt("OuterPending".into()))
 	}
 
 	/// The JS value of `None` in an `Option<inner>`, and of `Break` in a `ControlFlow`

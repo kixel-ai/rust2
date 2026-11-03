@@ -13,6 +13,7 @@ import * as Dir from "./hashes.Dir.ts";
 import * as Fnv from "./hashes.Fnv.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Holder from "./hashes.Holder.ts";
+import * as hashes_Index from "./hashes.Index.ts";
 import * as Key from "./hashes.Key.ts";
 import * as Logged from "./hashes.Logged.ts";
 import * as Nibble from "./hashes.Nibble.ts";
@@ -23,7 +24,9 @@ import * as Partial from "./hashes.Partial.ts";
 import * as Priorities$random from "./hashes.Priorities$random.ts";
 import * as Seeded from "./hashes.Seeded.ts";
 import * as Shape from "./hashes.Shape.ts";
+import * as Sided from "./hashes.Sided.ts";
 import * as Small from "./hashes.Small.ts";
+import * as Spread from "./hashes.Spread.ts";
 import * as Switch from "./hashes.Switch.ts";
 import * as Tallied from "./hashes.Tallied.ts";
 import * as Tally from "./hashes.Tally.ts";
@@ -1116,6 +1119,238 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.hashDrop(seen, undefined, undefined, rt.drop);
 }
 
+export const CALLS: rt.LocalKey<rt.RefCell<rt.u32[]>> = /* @__PURE__ */ new rt.LocalKey(CALLS$init, false);
+
+export function CALLS$init(): rt.RefCell<rt.u32[]> {
+	const _1: rt.u32[] = [];
+	return new rt.RefCell(_1);
+}
+
+/** Log a call of `what` on the value of `side` holding `n`, given one of `other`. */
+export function call(what: rt.u8, side: rt.u8, other: rt.u8, n: rt.u8): void {
+	((calls: rt.RefCell<rt.u32[]>): undefined => {
+		const _5: rt.RefCell<rt.u32[]> = rt.refCellBorrowMut(calls);
+		_5.value.push(((what << 24) | (side << 16) | (other << 8) | n) >>> 0);
+		rt.refMutRelease(_5);
+	})(CALLS.get());
+}
+
+/**
+ * Whether `a == b`, and what it logged: in the order it called each if it did so for one
+ * entry at most, else sorted if it visited every entry, else nothing, as which entries it
+ * visits before one differs follows std's order.
+ */
+export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(a: rt.HashMap<Sided.Sided, Sided.Sided>, b: rt.HashMap<Sided.Sided, Sided.Sided>, len: rt.usize, out: rt.ByteVec): void {
+	((calls2: rt.RefCell<rt.u32[]>): undefined => {
+		const _5: rt.RefCell<rt.u32[]> = rt.refCellBorrowMut(calls2);
+		rt.vecTruncate(_5.value, 0);
+		rt.refMutRelease(_5);
+	})(CALLS.get());
+	const equal: boolean = rt.hashEq(Sided.eq$cmp_PartialEq)(a, b);
+	rt.byteVecPush(out, equal ? 1 : 0);
+	rt.byteVecPush(out, !rt.hashEq(Sided.eq$cmp_PartialEq)(a, b) ? 1 : 0);
+	const calls: rt.u32[] = ((calls3: rt.RefCell<rt.u32[]>): rt.u32[] => {
+		return rt.refCellReplace(calls3, []);
+	})(CALLS.get());
+	if (len > 1) {
+		if (!equal) {
+			rt.vecTruncate(calls, 0);
+		}
+	}
+	rt.vecTruncate(calls, rt.usizeDiv(calls.length, 2));
+	if (len > 1) {
+		rt.sliceSort(calls, rt.lt, 4, true);
+	}
+	rt.byteVecPush(out, calls.length & 0xff);
+	for (const _39 of calls) {
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_39)));
+	}
+}
+
+/**
+ * Whether `a == b`, and what it logged: in the order it called each if it did so for one
+ * entry at most, else sorted if it visited every entry, else nothing, as which entries it
+ * visits before one differs follows std's order.
+ */
+export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rt.HashSet<Sided.Sided>, b: rt.HashSet<Sided.Sided>, len: rt.usize, out: rt.ByteVec): void {
+	((calls2: rt.RefCell<rt.u32[]>): undefined => {
+		const _5: rt.RefCell<rt.u32[]> = rt.refCellBorrowMut(calls2);
+		rt.vecTruncate(_5.value, 0);
+		rt.refMutRelease(_5);
+	})(CALLS.get());
+	const equal: boolean = rt.hashEq()(a, b);
+	rt.byteVecPush(out, equal ? 1 : 0);
+	rt.byteVecPush(out, !rt.hashEq()(a, b) ? 1 : 0);
+	const calls: rt.u32[] = ((calls3: rt.RefCell<rt.u32[]>): rt.u32[] => {
+		return rt.refCellReplace(calls3, []);
+	})(CALLS.get());
+	if (len > 1) {
+		if (!equal) {
+			rt.vecTruncate(calls, 0);
+		}
+	}
+	rt.vecTruncate(calls, rt.usizeDiv(calls.length, 2));
+	if (len > 1) {
+		rt.sliceSort(calls, rt.lt, 4, true);
+	}
+	rt.byteVecPush(out, calls.length & 0xff);
+	for (const _39 of calls) {
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_39)));
+	}
+}
+
+/**
+ * `==` and `!=` of hash maps and sets, as std's: equal lengths, then each entry of the
+ * left looked up in the right, which hashes the left's key by its own `BuildHasher` and
+ * calls the left key's `eq` on the right's, then the left value's `eq` on the right's.
+ * Each side holds its own `BuildHasher`, seeded apart, and is built of the same bytes in
+ * another order, so a key given twice keeps the value it was given last; or of all but
+ * the last, or of one byte flipped. Then maps of a `RandomState`, which compare their keys
+ * as JS does, and maps in a `Vec` and in a type that derives `PartialEq`.
+ */
+export function equal(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const _8: (a0: rt.u8, a1: rt.ByteSlice) => rt.HashSet<Sided.Sided> = (side: rt.u8, bytes: rt.ByteSlice): rt.HashSet<Sided.Sided> => {
+		const _52: Spread.Spread = { _0: side as rt.u64 };
+		const s: rt.HashSet<Sided.Sided> = rt.hashNew(rt.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rt.Hasher) => undefined, Sided.eq$cmp_PartialEq), _52) as rt.HashSet<Sided.Sided>;
+		const iterS: Uint8Array = rt.byteSliceView(bytes);
+		let iterI: number = 0;
+		while (true) {
+			const _9: rt.u8 | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
+			if (_9 === rt.DONE) {
+				return s;
+			}
+			rt.hashAdd(s, { n: _9 & 127, side });
+		}
+	};
+	const _96: (a0: rt.ByteSlice) => rt.HashMap<rt.u8, rt.u16> = (bytes2: rt.ByteSlice): rt.HashMap<rt.u8, rt.u16> => {
+		const m: rt.HashMap<rt.u8, rt.u16> = rt.hashNew() as rt.HashMap<rt.u8, rt.u16>;
+		const iterS2: Uint8Array = rt.byteSliceView(bytes2);
+		let iterI2: number = 0;
+		while (true) {
+			const _64: rt.u8 | rt.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rt.DONE;
+			if (_64 === rt.DONE) {
+				return m;
+			}
+			const b2: rt.u8 = _64;
+			const _102: rt.u16 = b2 as rt.u16;
+			const _113: rt.Place<rt.u16> = rt.entryOrInsertWithMut(rt.entry(m, rt.u8Rem(b2, 8)), (): rt.u16 => {
+				return 0;
+			});
+			_113.v = rt.u16Add(_113.v, _102);
+		}
+	};
+	const _123: (a0: rt.ByteSlice) => rt.HashSet<string> = (bytes3: rt.ByteSlice): rt.HashSet<string> => {
+		const _3: rt.Iter<string> = rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes3)), (_2: rt.u8): string => {
+			return text(rt.byteSliceFrom(Uint8Array.of(rt.u8Rem(_2, 4))));
+		});
+		return rt.hashExtendKeys(rt.hashNew() as rt.HashSet<string>, _3, undefined, undefined, 117440512);
+	};
+	const _175: (a0: rt.ByteSlice) => hashes_Index.Index = (bytes4: rt.ByteSlice): hashes_Index.Index => {
+		const _46: rt.Iter<[rt.u8, string]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes4)), (_22: rt.u8): [rt.u8, string] => {
+			const b4: rt.u8 = _22;
+			return [rt.u8Rem(b4, 8), text(rt.byteSliceFrom(Uint8Array.of(rt.u8Rem(b4, 3))))] as [rt.u8, string];
+		});
+		const _33: rt.HashMap<rt.u8, string> = rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u8, string>, _46, undefined, undefined, undefined, 58720256);
+		const _75: rt.Iter<[rt.u8, boolean]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes4)), (_23: rt.u8): [rt.u8, boolean] => {
+			const b5: rt.u8 = _23;
+			return [rt.u8Rem(b5, 5), rt.u8Rem(b5, 2) === 0] as [rt.u8, boolean];
+		});
+		return { names: _33, seen: rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashTuple([rt.hash8, rt.hash8]), rt.eqTuple([rt.same, rt.same]))) as rt.HashSet<[rt.u8, boolean]>, _75, undefined, undefined, 469762048) };
+	};
+	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
+	const map: (a0: rt.u8, a1: rt.ByteSlice) => rt.HashMap<Sided.Sided, Sided.Sided> = (side2: rt.u8, bytes5: rt.ByteSlice): rt.HashMap<Sided.Sided, Sided.Sided> => {
+		const _58: Spread.Spread = { _0: rt.u64Add(rt.u64Mul(side2 as rt.u64, 65537), first as rt.u64) };
+		const m2: rt.HashMap<Sided.Sided, Sided.Sided> = rt.hashNew(rt.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rt.Hasher) => undefined, Sided.eq$cmp_PartialEq), _58) as rt.HashMap<Sided.Sided, Sided.Sided>;
+		const iterS3: Uint8Array = rt.byteSliceView(bytes5);
+		let iterI3: number = 0;
+		while (true) {
+			const _1510: rt.u8 | rt.Done = iterI3 < iterS3.length ? iterS3[iterI3++] : rt.DONE;
+			if (_1510 === rt.DONE) {
+				return m2;
+			}
+			const b6: rt.u8 = _1510;
+			const _212: Sided.Sided = { n: b6 & 127, side: side2 };
+			const _232: Sided.Sided = { n: b6 >> 6, side: rt.u8Add(side2, 2) };
+			rt.hashInsert(m2, _212, _232);
+		}
+	};
+	const reversed: rt.ByteVec = rt.iterToByteVec(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))), undefined, true);
+	const flipped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_210: [rt.usize, rt.u8]): rt.u8 => {
+		const i: rt.usize = _210[0];
+		const b7: rt.u8 = _210[1];
+		if (!(i === rt.usizeDiv(data.length, 2))) {
+			return b7;
+		}
+		return b7 ^ 65;
+	}), undefined, true);
+	const shorter: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeSaturatingSub(data.length, 1));
+	const left: rt.HashMap<Sided.Sided, Sided.Sided> = map(1, data);
+	const part2 = rt.byteVecSlice(reversed);
+	const _27: rt.HashMap<Sided.Sided, Sided.Sided> = map(2, part2);
+	const _32: rt.HashMap<Sided.Sided, Sided.Sided> = map(2, data);
+	const _35: rt.HashMap<Sided.Sided, Sided.Sided> = map(2, shorter);
+	const part3 = rt.byteVecSlice(flipped);
+	const iter: rt.Iter<rt.HashMap<Sided.Sided, Sided.Sided>> = rt.iterSlice([_27, _32, _35, map(2, part3)]);
+	while (true) {
+		const _44: rt.HashMap<Sided.Sided, Sided.Sided> | rt.Done = iter.next();
+		if (_44 === rt.DONE) {
+			break;
+		}
+		const right: rt.HashMap<Sided.Sided, Sided.Sided> = _44;
+		const _51: rt.usize = rt.hashLen(left);
+		compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(left, right, _51, out);
+		const _56: rt.usize = rt.hashLen(left);
+		compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(right, left, _56, out);
+	}
+	const left2: rt.HashSet<Sided.Sided> = _8(1, data);
+	const part4 = rt.byteVecSlice(reversed);
+	const _63: rt.HashSet<Sided.Sided> = _8(2, part4);
+	const _68: rt.HashSet<Sided.Sided> = _8(2, shorter);
+	const part5 = rt.byteVecSlice(flipped);
+	const iter2: rt.Iter<rt.HashSet<Sided.Sided>> = rt.iterSlice([_63, _68, _8(2, part5)]);
+	while (true) {
+		const _77: rt.HashSet<Sided.Sided> | rt.Done = iter2.next();
+		if (_77 === rt.DONE) {
+			break;
+		}
+		const right2: rt.HashSet<Sided.Sided> = _77;
+		const _84: rt.usize = rt.hashLen(left2);
+		compared$collections_HashSet_hashes_Sided_hashes_Spread(left2, right2, _84, out);
+		const _89: rt.usize = rt.hashLen(left2);
+		compared$collections_HashSet_hashes_Sided_hashes_Spread(right2, left2, _89, out);
+	}
+	compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Spread(rt.hashNew(rt.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rt.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rt.HashMap<Sided.Sided, Sided.Sided>, rt.hashNew(rt.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rt.Hasher) => undefined, Sided.eq$cmp_PartialEq), Spread.default$Default()) as rt.HashMap<Sided.Sided, Sided.Sided>, 0, out);
+	const _101: rt.HashMap<rt.u8, rt.u16> = _96(data);
+	const part6 = rt.byteVecSlice(reversed);
+	const _105: rt.HashMap<rt.u8, rt.u16> = _96(part6);
+	rt.byteVecPush(out, rt.hashEq(rt.same)(_101, _105) ? 1 : 0);
+	const _114: rt.HashMap<rt.u8, rt.u16> = _96(data);
+	const part7 = rt.byteVecSlice(flipped);
+	const _118: rt.HashMap<rt.u8, rt.u16> = _96(part7);
+	rt.byteVecPush(out, !rt.hashEq(rt.same)(_114, _118) ? 1 : 0);
+	const _128: rt.HashSet<string> = _123(data);
+	const part8 = rt.byteVecSlice(reversed);
+	const _132: rt.HashSet<string> = _123(part8);
+	rt.byteVecPush(out, rt.hashEq()(_128, _132) ? 1 : 0);
+	const _141: rt.HashSet<string> = _123(data);
+	const _145: rt.HashSet<string> = _123(shorter);
+	rt.byteVecPush(out, rt.hashEq()(_141, _145) ? 1 : 0);
+	const _154: rt.HashSet<string> = _123(data);
+	const part9 = rt.byteVecSlice(flipped);
+	const _152: rt.HashSet<string>[] = [_154, _123(part9)];
+	const part10 = rt.byteVecSlice(reversed);
+	const _165: rt.HashSet<string> = _123(part10);
+	const part11 = rt.byteVecSlice(flipped);
+	const _163: rt.HashSet<string>[] = [_165, _123(part11)];
+	rt.byteVecPush(out, rt.eqSeq(rt.hashEq())(_152, _163) ? 1 : 0);
+	const _180: hashes_Index.Index = _175(data);
+	const part12 = rt.byteVecSlice(reversed);
+	rt.byteVecPush(out, hashes_Index.eq$cmp_PartialEq(_180, _175(part12)) ? 1 : 0);
+	const _193: hashes_Index.Index = _175(data);
+	const part13 = rt.byteVecSlice(flipped);
+	rt.byteVecPush(out, !hashes_Index.eq$cmp_PartialEq(_193, _175(part13)) ? 1 : 0);
+}
+
 /**
  * `BuildHasherDefault`, made by `new`, `Default`, and `Clone`, which all compare equal and
  * print alike whatever their `Hasher`, and each builds its hasher by the hasher's own
@@ -1194,12 +1429,16 @@ export function defaults(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}).s as undefined;
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(new rt.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), first, rt.hash8)).reverse()));
 	rt.byteVecPush(out, true ? 1 : 0);
+	const _195: rt.HashMap<Key.Key, rt.u8> = rt.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
+		return undefined;
+	});
+	rt.byteVecPush(out, rt.hashEq(rt.same)(keyed, _195) ? 1 : 0);
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "BuildHasherDefault")];
 	put(out, rt.fmtFormat([args4[0]]));
-	const _205: rt.Iter<rt.u8> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): rt.u8 => {
+	const _212: rt.Iter<rt.u8> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): rt.u8 => {
 		return rt.u8Rem(b2, 4);
 	});
-	const small: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, _205, undefined, undefined, 469762048);
+	const small: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, _212, undefined, undefined, 469762048);
 	rt.byteVecPush(out, rt.hashLen(rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, rt.hashUnion(small, seen), undefined, undefined, 469762048)) & 0xff);
 	rt.byteVecPush(out, rt.hashIsSubset(small, seen) ? 1 : 0);
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(((events2: rt.RefCell<rt.ByteVec>): rt.ByteVec => {

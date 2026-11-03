@@ -288,6 +288,10 @@ name = "lang-folds-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-futures-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-hashes-fixture"
 version = "0.0.0"
 

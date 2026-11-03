@@ -1252,6 +1252,80 @@ export function ownFromIter(data: rt.ByteSlice, out: rt.ByteVec): void {
 }
 
 /**
+ * `==` and `!=` of `hashbrown`'s maps and sets, as std's: equal lengths, then each entry
+ * of the left found in the right with an equal value, whatever the `BuildHasher` of each,
+ * its own seeded apart on each side, or the default. The right is of the same bytes in
+ * another order, so a key given twice keeps the value it was given last; or of all but the
+ * last, or of one byte flipped.
+ */
+export function equal(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const _22: (a0: rt.ByteSlice) => rt.HashMap<rt.u16, rt.u32> = (bytes: rt.ByteSlice): rt.HashMap<rt.u16, rt.u32> => {
+		const _3: rt.Iter<[rt.u16, rt.u32]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_2: rt.u8): [rt.u16, rt.u32] => {
+			const b: rt.u8 = _2;
+			return [rt.u8Rem(b, 8) as rt.u16, b as rt.u32] as [rt.u16, rt.u32];
+		});
+		return rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u16, rt.u32>, _3, undefined, undefined, undefined, 117440512);
+	};
+	const log: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+	const reversed: rt.ByteVec = rt.iterToByteVec(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))), undefined, true);
+	const flipped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_23: [rt.usize, rt.u8]): rt.u8 => {
+		const i: rt.usize = _23[0];
+		const b2: rt.u8 = _23[1];
+		if (!(i === rt.usizeDiv(data.length, 2))) {
+			return b2;
+		}
+		return b2 ^ 33;
+	}), undefined, true);
+	const shorter: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeSaturatingSub(data.length, 1));
+	const pairs: (a0: rt.u8, a1: rt.ByteSlice) => rt.HashMap<[rt.u8, boolean], rt.u8> = (seed: rt.u8, bytes2: rt.ByteSlice): rt.HashMap<[rt.u8, boolean], rt.u8> => {
+		const _54: Seeded.Seeded = new Seeded.Seeded(seed, log);
+		const m: rt.HashMap<[rt.u8, boolean], rt.u8> = rt.hashNew(rt.hashing(rt.hashTuple([rt.hash8, rt.hash8]), rt.eqTuple([rt.same, rt.same])), _54) as rt.HashMap<[rt.u8, boolean], rt.u8>;
+		const iterS: Uint8Array = rt.byteSliceView(bytes2);
+		let iterI: number = 0;
+		while (true) {
+			const _83: rt.u8 | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
+			if (_83 === rt.DONE) {
+				return m;
+			}
+			const b3: rt.u8 = _83;
+			const _142: [rt.u8, boolean] = [rt.u8Rem(b3, 8), rt.u8Rem(b3, 3) === 0];
+			rt.hashInsert(m, _142, b3 >> 5);
+		}
+	};
+	const keys: (a0: rt.u8, a1: rt.ByteSlice) => rt.HashSet<rt.u8> = (seed2: rt.u8, bytes3: rt.ByteSlice): rt.HashSet<rt.u8> => {
+		const s: rt.HashSet<rt.u8> = rt.hashNew(undefined, new Seeded.Seeded(seed2, log)) as rt.HashSet<rt.u8>;
+		const _84: rt.Iter<rt.u8> = rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes3)), (b4: rt.u8): rt.u8 => {
+			return rt.u8Rem(b4, 16);
+		});
+		rt.hashExtendKeys(s, _84, undefined, undefined, 469762048);
+		return s;
+	};
+	const _26: [rt.HashMap<[rt.u8, boolean], rt.u8>, rt.HashSet<rt.u8>, rt.HashMap<rt.u16, rt.u32>] = [pairs(1, data), keys(1, data), _22(data)];
+	const left: rt.HashMap<[rt.u8, boolean], rt.u8> = _26[0];
+	const set: rt.HashSet<rt.u8> = _26[1];
+	const counts: rt.HashMap<rt.u16, rt.u32> = _26[2];
+	const iter: rt.Iter<rt.ByteSlice> = rt.iterSlice([rt.byteSliceRange(rt.byteVecSlice(reversed), 0), data, shorter, rt.byteVecSlice(flipped)]);
+	while (true) {
+		const _43: rt.ByteSlice | rt.Done = iter.next();
+		if (_43 === rt.DONE) {
+			break;
+		}
+		const right: rt.HashMap<[rt.u8, boolean], rt.u8> = pairs(2, _43);
+		rt.byteVecPush(out, rt.hashEq(rt.same)(left, right) ? 1 : 0);
+		rt.byteVecPush(out, !rt.hashEq(rt.same)(right, left) ? 1 : 0);
+		const other: rt.HashSet<rt.u8> = keys(2, _43);
+		rt.byteVecPush(out, rt.hashEq()(set, other) ? 1 : 0);
+		rt.byteVecPush(out, !rt.hashEq()(other, set) ? 1 : 0);
+		const _78: rt.HashMap<rt.u16, rt.u32> = _22(_43);
+		rt.byteVecPush(out, rt.hashEq(rt.same)(counts, _78) ? 1 : 0);
+		rt.hashDrop(other, undefined, undefined, rt.drop);
+		rt.hashDrop(right, undefined, undefined, rt.drop);
+	}
+	rt.hashDrop(set, undefined, undefined, rt.drop);
+	rt.hashDrop(left, undefined, undefined, rt.drop);
+}
+
+/**
  * `hashbrown::HashMap` and `HashSet` with `BuildHasherDefault` of std's `DefaultHasher`,
  * made by `default` and `from_iter`, whose `hasher` hashes as `DefaultHasher::new` does.
  */
@@ -1289,6 +1363,10 @@ export function defaultHasher(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}).s as undefined;
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(rt.hasher(), first, rt.hash8)).reverse()));
 	rt.byteVecPush(out, true ? 1 : 0);
+	const _79: rt.HashMap<[rt.u8, rt.u8], rt.u32> = rt.hashClone(pairs, undefined, undefined, (_a02: undefined): undefined => {
+		return undefined;
+	});
+	rt.byteVecPush(out, rt.hashEq(rt.same)(pairs, _79) ? 1 : 0);
 }
 
 //# sourceMappingURL=maps.ts.map
