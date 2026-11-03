@@ -3,14 +3,14 @@
 //! iteration order is unspecified, so only what does not depend on it is written, but a
 //! linked map's order is its own, and written as it is, read from either end.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
 use std::sync::Arc;
 
 use hashbrown::hash_table::{Entry, HashTable};
 use hashbrown::{HashMap, HashSet};
-use hashlink::LinkedHashMap;
+use hashlink::{LinkedHashMap, LinkedHashSet, LruCache};
 
 /// Counts its drop in the cell it borrows, so a closure that owns one shows whether it
 /// dropped before it was called, and that it dropped at all.
@@ -506,4 +506,105 @@ pub fn linked_iters(data: &[u8], out: &mut Vec<u8>) {
 			put(out, m.keys().rposition(|k| k % 2 == 0).unwrap_or(0x100));
 		}
 	}
+}
+
+/// Logs its byte as it drops, so the log shows the order values drop in. Keys compare by
+/// the byte alone.
+struct Logged<'a>(u8, &'a RefCell<Vec<u8>>);
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		self.1.borrow_mut().push(self.0);
+	}
+}
+
+impl PartialEq for Logged<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.0 == other.0
+	}
+}
+
+impl Eq for Logged<'_> {}
+
+impl std::hash::Hash for Logged<'_> {
+	fn hash<H: std::hash::Hasher>(&self, h: &mut H) {
+		self.0.hash(h);
+	}
+}
+
+/// A crate's own generic type holding `hashlink`'s, which holds another with a `Drop` impl
+/// of its own, and a value after it.
+struct Held<T> {
+	cache: LruCache<u16, T>,
+	last: T,
+}
+
+/// `hashlink`'s `LruCache` and `LinkedHashSet`, which each hold a `LinkedHashMap`, of what
+/// drops, through each pair of bytes after a capacity: a step and its key. What dropped is
+/// written after each step, and after the end.
+pub fn nested(data: &[u8], out: &mut Vec<u8>) {
+	let [cap, steps @ ..] = data else {
+		return;
+	};
+	let log = RefCell::new(Vec::new());
+	{
+		let mut cache: LruCache<Logged, Logged> = LruCache::new(usize::from(cap % 5));
+		let mut set: LinkedHashSet<Logged> = LinkedHashSet::new();
+		let mut held = Held {
+			cache: LruCache::new_unbounded(),
+			last: Logged(0xf0, &log),
+		};
+		let mut kept: Vec<LruCache<u16, Logged>> = Vec::new();
+		let mut once: Option<(LinkedHashSet<Logged>, Logged)> = None;
+		for (i, step) in steps.chunks(2).enumerate() {
+			let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
+			// Keys are few, so they repeat; each value is its step's own.
+			let (key, id) = (arg % 6, (i as u8).wrapping_add(0x10));
+			match op % 9 {
+				0 | 1 => {
+					let old = cache.insert(Logged(key, &log), Logged(id, &log));
+					out.push(old.map_or(0xff, |v| v.0));
+				}
+				2 => out.push(u8::from(set.insert(Logged(key | 0x80, &log)))),
+				3 => {
+					held.cache.insert(u16::from(key), Logged(id, &log));
+				}
+				4 => {
+					out.push(cache.remove(&Logged(key, &log)).map_or(0xff, |v| v.0));
+					out.push(u8::from(set.remove(&Logged(key | 0x80, &log))));
+				}
+				5 => cache.set_capacity(usize::from(arg % 4)),
+				// The cache it held drops before the new one is made.
+				6 => {
+					let made = std::mem::replace(&mut held.cache, LruCache::new(usize::from(arg % 3)));
+					kept.push(made);
+					kept.truncate(usize::from(arg % 2));
+				}
+				7 => {
+					let taken = std::mem::take(&mut set);
+					once = Some((taken, Logged(id, &log)));
+				}
+				// One field moved out and the rest dropped where it is.
+				_ => {
+					let Held { cache: moved, last } = std::mem::replace(
+						&mut held,
+						Held {
+							cache: LruCache::new_unbounded(),
+							last: Logged(id, &log),
+						},
+					);
+					out.push(last.0);
+					if arg & 1 == 1 {
+						drop(moved);
+					}
+					out.push(0xfd);
+				}
+			}
+			out.push(0xfe);
+			out.extend(log.borrow_mut().drain(..));
+		}
+		out.push(u8::from(once.is_some()));
+		out.push(0xfe);
+	}
+	out.extend(log.borrow().iter());
 }
