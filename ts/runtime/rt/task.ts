@@ -241,10 +241,11 @@ export function arcGetMutPlace<T>(arc: Arc<T>): Place<T> | undefined {
 
 /**
  * `Arc::make_mut`: the value of the `Arc` at `p`, made its own. Another `Arc` sharing it
- * leaves a clone by `clone`, or the value itself if none, in a new `Arc` at `p`, and drops
- * the old one by `drop`, which is the last if the clone released the others. Only `Weak`s
- * sharing it leave them dangling as the value moves to a new `Arc`, copied by `moved` if
- * JS keeps it as an object, whose address the move changes.
+ * leaves a clone by `clone`, or else a copy by `moved`, or the value itself if neither,
+ * in a new `Arc` at `p`, and drops the old one by `drop`, which is the last if the clone
+ * released the others. Only `Weak`s sharing it leave them dangling as the value moves to
+ * a new `Arc`, copied by `moved`. `moved` makes a new object where JS keeps one, whose
+ * address the new allocation changes.
  */
 export function arcMakeMut<T>(
 	p: Place<Arc<T>>,
@@ -276,7 +277,7 @@ function arcOwn<T>(
 ): Arc<T> {
 	const arc = p.v;
 	if (arc.strong !== 1) {
-		p.v = new Arc(clone ? clone(arc.value) : arc.value);
+		p.v = new Arc(clone ? clone(arc.value) : moved ? moved(arc.value) : arc.value);
 		drop(arc);
 	} else if (arc.weak !== 0) {
 		arc.strong = 0;

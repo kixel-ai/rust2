@@ -528,12 +528,14 @@ macro_rules! counts {
 						}
 						out.push(maybe.map_or(0xfd, |(a, _)| a));
 						drop(kept);
-						// Moved by a `make_mut` that never writes it, of a type nothing writes.
+						// Moved or cloned by a `make_mut` that never writes it, of a type nothing
+						// writes.
 						let kept = (op & 0x40 != 0).then(|| $Ptr::downgrade(&unread));
+						let shadow = (op & 0x20 != 0).then(|| $Ptr::clone(&unread));
 						let before = $Ptr::as_ptr(&unread);
 						let pair = *$Ptr::make_mut(&mut unread);
 						out.extend([u8::from(std::ptr::addr_eq(before, $Ptr::as_ptr(&unread))), pair.1]);
-						drop(kept);
+						drop((kept, shadow));
 						let other = $Ptr::new(());
 						let before = $Ptr::as_ptr(&unit);
 						let shadow = (op & 0x80 != 0).then(|| $Ptr::clone(&unit));

@@ -52,6 +52,16 @@ export function drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing(value: rt.Ref
 	rt.dropAll(value.value);
 }
 
+export function drop$tuple2_Option_rc_Weak_tuple2_u16_u8_Option_Rc_tuple2_u16_u8(_1: [rt.Weak<[rt.u16, rt.u8]> | undefined, rt.Arc<[rt.u16, rt.u8]> | undefined]): void {
+	rt.drop(_1[0]);
+	rt.drop(_1[1]);
+}
+
+export function drop$tuple2_Option_sync_Weak_tuple2_u16_u8_Option_sync_Arc_tuple2_u16_u8(_1: [rt.Weak<[rt.u16, rt.u8]> | undefined, rt.Arc<[rt.u16, rt.u8]> | undefined]): void {
+	rt.drop(_1[0]);
+	rt.drop(_1[1]);
+}
+
 export function drop$tuple5_Vec_Rc_counts_Noisy_Vec_Rc_counts_Noisy_Vec_counts_RcShared_Vec_counts_Noisy_Vec_Vec_Rc_counts_Noisy(_1: [rt.Arc<Noisy.Noisy>[], rt.Arc<Noisy.Noisy>[], RcShared.RcShared[], Noisy.Noisy[], rt.Arc<Noisy.Noisy>[][]]): void {
 	rt.dropAll(_1[0]);
 	rt.dropAll(_1[1]);
