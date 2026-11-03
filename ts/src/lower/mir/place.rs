@@ -595,6 +595,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					| Std::Box
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::NonZero
 					| Std::Wrapping
 					| Std::Saturating

@@ -1313,6 +1313,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::BytesMut
 					| library::Std::ThreadRng,
 				) => Some(ObjectKind::Class),
+				// What it holds, which its JS value is.
+				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
 				// A place, unless a pointer to what it holds is that object.
 				Some(library::Std::MaybeUninit | library::Std::ManuallyDrop) => match self.pointee(args.type_at(0)) {
 					pointer::Pointee::Object | pointer::Pointee::Bytes => self.object_kind(args.type_at(0)),
@@ -1638,6 +1640,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				library::Std::Box
 				| library::Std::Reverse
+				| library::Std::AssertUnwindSafe
 				| library::Std::NonZero
 				| library::Std::Wrapping
 				| library::Std::Saturating
@@ -1802,6 +1805,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			&& let Some(item) = self.iter_item(Ty::new_adt(tcx, adt, args))
 		{
 			return Type::Rt("Iter", vec![self.ty(item, span)]);
+		}
+		if library::location(tcx, adt.did()) {
+			self.unrepresented(span, library::LOCATION.into());
+			return Type::Builtin("unknown");
 		}
 		if !self.crates.translates(adt.did()) {
 			self.unrepresented(
@@ -2007,6 +2014,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					library::Std::Box
 					| library::Std::Pin
 					| library::Std::Reverse
+					| library::Std::AssertUnwindSafe
 					| library::Std::NonZero
 					| library::Std::Wrapping
 					| library::Std::Saturating
