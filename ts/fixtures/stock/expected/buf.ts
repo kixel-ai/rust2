@@ -2345,6 +2345,9 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		rt.byteVecPush(out, drops.value.v);
 		const leased: Leased.Leased = new of$buf_Pieces(Pieces.new(input.data, input.start, input.length, cut));
 		rt.byteVecPush(out, leased.pieces$Leased() & 0xff);
+		let skipped: rt.ByteSlice = ops2;
+		leased.skip$Leased(new ofPlace$ref_slice_u8(rt.place(() => skipped, (value5) => skipped = value5)));
+		rt.byteVecPush(out, skipped.length & 0xff);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(readAll$dyn_buf_Leased(leased, ops2, out)));
 		rt.byteVecPush(out, leased.pieces$Leased() & 0xff);
 		rt.drop(leased);

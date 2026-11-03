@@ -1153,12 +1153,9 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 			&& let ty::FnDef(def_id, args) = *constant.ty().kind()
 			&& !self.crate_fn(def_id, args.skip_binder())
 		{
-			let sig = self
-				.tcx
-				.fn_sig(def_id)
-				.instantiate(self.tcx, args.skip_binder())
-				.skip_norm_wip();
-			if let Some(&this) = sig.skip_binder().inputs().first()
+			let sig = self.tcx.fn_sig(def_id).instantiate(self.tcx, args.skip_binder());
+			let sig = self.tcx.instantiate_bound_regions_with_erased(sig.skip_norm_wip());
+			if let Some(&this) = sig.inputs().first()
 				&& let Some(value) = replaces(self.tcx, def_id, this)
 			{
 				self.replace(value);
@@ -1178,7 +1175,7 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 				}
 				_ => None,
 			};
-			for (i, &input) in sig.skip_binder().inputs().iter().enumerate() {
+			for (i, &input) in sig.inputs().iter().enumerate() {
 				let fresh = replace
 					&& call.is_some_and(|(args, made)| {
 						args.get(i)

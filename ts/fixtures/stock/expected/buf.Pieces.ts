@@ -4,7 +4,8 @@ import * as rt from "./rt.ts";
 import { out$f32, out$f64, out$i64, out$i8, out$u128, out$u16, out$u64, out$u8 } from "./lib.ts";
 import type * as Provided from "./buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "./bytes.ts";
-import { signExtend } from "./bytes/buf/buf_impl.ts";
+import { signExtend, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
+import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
 import { new_$mut_buf_Pieces as take_new_$mut_buf_Pieces } from "./bytes/buf/take.ts";
 import type * as Take from "./bytes/buf/take.Take.ts";
@@ -187,6 +188,15 @@ export function copyToBytes$bytes_Buf(self: Pieces, len: rt.usize): rt.ByteSlice
 
 export function pieces$buf_Leased(self: Pieces): rt.usize {
 	return self.parts.length;
+}
+
+/** Reads a byte of `other`, then skips as many bytes as it has left. */
+export function skip$buf_Leased(self: Pieces, other: Buf.Buf): void {
+	if (hasRemaining$bytes_Buf_mut_dyn_bytes_Buf(other)) {
+		other.advance$Buf(1);
+	}
+	const _7: rt.usize = rt.min(remaining$bytes_Buf_mut_dyn_bytes_Buf(other), remaining$bytes_Buf_mut(self));
+	advance$bytes_Buf(self, _7);
 }
 
 /**
