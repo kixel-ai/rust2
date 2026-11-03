@@ -26,7 +26,6 @@ generic std gap is planned here even when moq never calls it.
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
-- [A crate's own collect, eq, partial_cmp, and by_ref](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `collect`, `eq`, `partial_cmp`, or `by_ref` translates, each called where std calls it
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [A Vec from a slice, and a slice's chunks as arrays](/quest/m3/ts-slice-conversions.md) - `Vec::from(&[T])` and `as_chunks` translate

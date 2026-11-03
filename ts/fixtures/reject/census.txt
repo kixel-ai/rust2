@@ -35,13 +35,13 @@ fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
 fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`
 fixtures/reject/src/futures.rs:pending_output+0:34: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
-fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose predicate takes a reference to `[u8; 2]`, which is not supported yet
-fixtures/reject/src/iters.rs:impl Iterator for Collects+7:2: overriding `Iterator::collect`, which std calls in place of another method, which is not supported yet
+fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose closure takes a reference to `[u8; 2]`, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Discards+11:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Disposes+10:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Finds+8:15: overriding `Iterator::find_map` with a drop of what it finds, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Folds+8:3: overriding `Iterator::fold` with its accumulator in an `Option` or a `Poll`, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Keeps+8:18: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
+fixtures/reject/src/iters.rs:impl Iterator for Maps+7:2: overriding `Iterator::map`, which std calls in place of another method, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Measures+11:11: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Probes+8:11: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Sizes+8:11: overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet

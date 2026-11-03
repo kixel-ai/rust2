@@ -298,11 +298,15 @@ moves read steps in place, as two variables: the array and an index into it, or 
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
-`find`, `rfind`, `find_map`, `for_each`, `reduce`, and `all`, where std's adaptors and consumers
-call them: a filter's `next` calls `find`, an `extend` into a hash or B-tree collection, a
-`String`, or a tuple calls `for_each`, `max` calls `reduce`, and `is_sorted` calls `all`. Its
-own `position`, `max`, and the others std never calls in place of another run only where the
-crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
+`find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
+adaptors and consumers call them: a filter's `next` calls `find`, an `extend` into a hash or
+B-tree collection, a `String`, or a tuple calls `for_each`, `max` calls `reduce`, and
+`is_sorted` calls `is_sorted_by`, which calls `all`. Its
+own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
+`Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
+`partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
+which std calls only from `Vec::splice`, which is not supported, `position`, `max`, and the
+others std never calls in place of another only where the crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -947,12 +951,12 @@ copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method std calls in place
-of another other than those, such as `collect`, `eq`, `partial_cmp`, or `by_ref`, or whose own
+of another other than those, such as `map`, which `flat_map` calls, or whose own
 method taking a closure tells it, or its accumulator or what it finds, apart from another, by an
 `Option` or a `Poll` of the accumulator, a call or constant generic over them other than calling
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
-drop of the accumulator or what it finds, or whose own `find` or `rfind` gives its predicate a
-reference to a `[u8; N]`,
+drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
+its closure a reference to a `[u8; N]`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes

@@ -74,7 +74,7 @@ fn own_next<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Instance<'tcx>
 
 /// The methods of std's iterator traits, by trait, that an iterator of the crate may have
 /// of its own: `rt.iterFrom` calls each where std's adaptors and consumers do.
-const OWN: [(&str, &str); 16] = [
+const OWN: [(&str, &str); 17] = [
 	("Iterator", "next"),
 	("Iterator", "size_hint"),
 	("Iterator", "nth"),
@@ -86,6 +86,7 @@ const OWN: [(&str, &str); 16] = [
 	("Iterator", "for_each"),
 	("Iterator", "reduce"),
 	("Iterator", "all"),
+	("Iterator", "is_sorted_by"),
 	("DoubleEndedIterator", "next_back"),
 	("DoubleEndedIterator", "nth_back"),
 	("DoubleEndedIterator", "rfold"),
@@ -116,13 +117,28 @@ const BY_VALUE: [(&str, &str); 5] = [
 /// The overrides in `OWN` that take a closure, which the crate's method is translated for
 /// one instance of, as `closure_args` gives it, beside what it is generic over itself: an
 /// accumulator, or what it finds.
-const CLOSURES: [&str; 8] = [
-	"fold", "rfold", "find", "rfind", "find_map", "for_each", "reduce", "all",
+const CLOSURES: [&str; 9] = [
+	"fold",
+	"rfold",
+	"find",
+	"rfind",
+	"find_map",
+	"for_each",
+	"reduce",
+	"all",
+	"is_sorted_by",
 ];
 
-/// The provided methods of `Iterator` that std never calls of an iterator in place of
-/// another, so that only the crate's own calls of them, which call its override, reach one.
-const UNCALLED: [&str; 21] = [
+/// The provided methods of `Iterator` that std calls of an iterator only as the crate's
+/// own calls do, which resolve to its override, or not at all: `eq` and `partial_cmp`, which
+/// `ne` and the orderings call as `library::Inherited` does, `collect`, which `own_collect`
+/// calls for the collections that collect a `Vec` first, and `by_ref`, which only
+/// `Vec::splice` calls, which is not supported.
+const RESOLVED: [&str; 25] = [
+	"collect",
+	"eq",
+	"partial_cmp",
+	"by_ref",
 	"any",
 	"position",
 	"rposition",
@@ -147,10 +163,10 @@ const UNCALLED: [&str; 21] = [
 ];
 
 /// Refuse an `impl Iterator` of the crate, whose `next` is `next_fn`, that std would read
-/// other than through the methods in `OWN`: one whose `Iterator` or `DoubleEndedIterator`
-/// impl overrides another that std calls in its place, such as `collect`, which std's
-/// `FromIterator` of a `BTreeMap` calls, or whose own method taking a closure tells it, or
-/// what else it is generic over, apart from the ones `closure_args` translates it for.
+/// other than through the methods in `OWN` and `RESOLVED`: one whose `Iterator` or
+/// `DoubleEndedIterator` impl overrides another that std calls in its place, such as `map`,
+/// which std's `flat_map` calls, or whose own method taking a closure tells it, or what else
+/// it is generic over, apart from the ones `closure_args` translates it for.
 pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 	let tcx = t.tcx;
 	let Some(imp) = tcx.impl_of_assoc(next_fn) else {
@@ -174,8 +190,8 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 			if !item.is_fn() {
 				continue;
 			}
-			let uncalled = tr == "Iterator" && UNCALLED.contains(&name.as_str());
-			if !uncalled && !OWN.contains(&(tr.as_str(), name.as_str())) {
+			let resolved = tr == "Iterator" && RESOLVED.contains(&name.as_str());
+			if !resolved && !OWN.contains(&(tr.as_str(), name.as_str())) {
 				t.err(
 					tcx.def_span(item.def_id),
 					format!(
@@ -401,6 +417,7 @@ fn closure_args<'tcx>(t: &Translator<'_, 'tcx>, name: &str, item: Ty<'tcx>) -> O
 		"for_each" => (None, vec![item], tcx.types.unit),
 		"reduce" => (None, vec![item, item], item),
 		"all" => (None, vec![item], tcx.types.bool),
+		"is_sorted_by" => (None, vec![by_ref, by_ref], tcx.types.bool),
 		_ => return None,
 	};
 	let lang = tcx.lang_items();
@@ -419,8 +436,25 @@ fn closure_args<'tcx>(t: &Translator<'_, 'tcx>, name: &str, item: Ty<'tcx>) -> O
 /// is one of the crate's own that overrides it or has it as a required method: its
 /// instance for `closure_args` if it takes a closure.
 fn own_method<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, tr: &str, name: &str) -> Option<Instance<'tcx>> {
-	let tcx = b.t.tcx;
 	let ty = ty.peel_refs();
+	let args = match CLOSURES.contains(&name) {
+		true => closure_args(b.t, name, b.t.iter_item(ty)?)?,
+		false => Vec::new(),
+	};
+	own_instance(b, ty, tr, name, &args)
+}
+
+/// The crate's own `tr::name` of an iterator of type `ty`, for the generic arguments `args`
+/// of its own, if `ty` is one of the crate's own that overrides it or has it as a required
+/// method.
+fn own_instance<'tcx>(
+	b: &Body<'_, '_, 'tcx>,
+	ty: Ty<'tcx>,
+	tr: &str,
+	name: &str,
+	args: &[Ty<'tcx>],
+) -> Option<Instance<'tcx>> {
+	let tcx = b.t.tcx;
 	// Over parameters, only a census's instance, which never runs, would call it.
 	if !matches!(ty.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || ty.has_param() || ty.has_aliases() {
 		return None;
@@ -433,16 +467,48 @@ fn own_method<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, tr: &str, name: &str) 
 		.filter_by_name_unhygienic(rustc_span::Symbol::intern(name))
 		.next()?
 		.def_id;
-	let mut args = vec![ty::GenericArg::from(ty)];
-	if CLOSURES.contains(&name) {
-		args.extend(
-			closure_args(b.t, name, b.t.iter_item(ty)?)?
-				.into_iter()
-				.map(ty::GenericArg::from),
-		);
-	}
-	let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), method, tcx.mk_args(&args)).ok()??;
+	let args = std::iter::once(ty)
+		.chain(args.iter().copied())
+		.map(ty::GenericArg::from);
+	let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), method, tcx.mk_args_from_iter(args)).ok()??;
 	(instance.def_id() != method).then_some(instance)
+}
+
+/// The crate's own `collect` into a `Vec` of its `item`s of the crate's own iterator of type
+/// `source`, which std's `FromIterator` of `coll` calls first if `coll` is a `Box<[T]>`,
+/// `Rc<[T]>`, `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap`, and the `Vec`'s type. A
+/// reference to one collects by its `Iterator`'s default, which never calls the crate's.
+fn own_collect<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	item: Ty<'tcx>,
+	source: Ty<'tcx>,
+) -> Option<(Ty<'tcx>, Expr)> {
+	let tcx = b.t.tcx;
+	let ty::Adt(adt, args) = coll.kind() else {
+		return None;
+	};
+	let by_vec = match Std::of(tcx, adt.did())? {
+		Std::Box | Std::Arc => matches!(args.type_at(0).kind(), ty::Slice(_)),
+		Std::BTreeMap | Std::BTreeSet | Std::BinaryHeap => true,
+		_ => false,
+	};
+	if !by_vec {
+		return None;
+	}
+	// `Vec<item>`, in std's allocator, its default.
+	let vec = tcx.get_diagnostic_item(rustc_span::sym::Vec)?;
+	let args = ty::GenericArgs::for_item(tcx, vec, |param, args| match param.index {
+		0 => item.into(),
+		_ => param
+			.default_value(tcx)
+			.expect("`Vec` defaults its allocator")
+			.instantiate(tcx, args)
+			.skip_norm_wip(),
+	});
+	let vec = Ty::new_adt(tcx, tcx.adt_def(vec), args);
+	let instance = own_instance(b, source, "Iterator", "collect", &[vec])?;
+	Some((vec, Expr::Sym(b.t.instance(instance))))
 }
 
 /// Whether `ty` holds, by value rather than through a reference, an iterator of the crate with a
@@ -476,15 +542,15 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		let Some(instance) = own_method(b, ty, tr, name) else {
 			continue;
 		};
-		// The predicate is given a reference to each item, which std lends a `[u8; N]` to as
+		// The closure is given a reference to each item, which std lends a `[u8; N]` to as
 		// the array, where the crate's is a slice of it.
-		if matches!(*name, "find" | "rfind")
+		if matches!(*name, "find" | "rfind" | "is_sorted_by")
 			&& let Some(item) = item.filter(|&item| super::byte_array(item))
 		{
 			b.t.err(
 				span,
 				format!(
-					"`{tr}::{name}` of `{ty}`, whose predicate takes a reference to `{item}`, which is not supported yet"
+					"`{tr}::{name}` of `{ty}`, whose closure takes a reference to `{item}`, which is not supported yet"
 				),
 			);
 			continue;
@@ -959,9 +1025,13 @@ pub fn call<'tcx>(
 
 	// What `collect` calls.
 	if (owner, name) == ("FromIterator", "from_iter") {
-		let source = targ(2)?;
+		let value = args.pop()?;
+		let (source, value) = match own_collect(b, targ(0)?, targ(1)?, targ(2)?) {
+			Some((vec, collect)) => (vec, collect.call(vec![value])),
+			None => (targ(2)?, value),
+		};
 		let iter = iter_of(b.t, source)?;
-		let items = into_iter(b, source, args.pop()?, span)?;
+		let items = into_iter(b, source, value, span)?;
 		let trusted = implements(b.t, iter, "TrustedLen");
 		return collect(b, targ(0)?, targ(1)?, items, iter, trusted, span);
 	}
@@ -1253,7 +1323,7 @@ pub fn call<'tcx>(
 			Some(Expr::rt("iterIsSortedBy", tail(vec![items, compare], droppers)))
 		}
 		"rposition" => method(&camel, rest),
-		"eq" | "ne" | "lt" | "le" | "gt" | "ge" | "cmp" | "partial_cmp" | "eq_by" | "cmp_by" | "partial_cmp_by" => {
+		"eq" | "cmp" | "partial_cmp" | "eq_by" | "cmp_by" | "partial_cmp_by" => {
 			compare(b, call, name, self_ty, item, recv, rest)
 		}
 		"chain" => {
@@ -1328,9 +1398,9 @@ pub fn call<'tcx>(
 
 /// std's comparison `name` of `recv`, an iterator of type `self_ty` and items of type
 /// `item`, against the `IntoIterator` first in `rest`, by the closure after it in a `_by`
-/// form. Each is `iter_compare`'s: `ne` is `!eq`, and `lt`, `le`, `gt`, and `ge` test
-/// `partial_cmp`. The rest compare each pair by the items' `PartialEq`, `Ord`, or
-/// `PartialOrd`, in a closure that drops the pair.
+/// form, or else each pair by the items' `PartialEq`, `Ord`, or `PartialOrd`, in a closure
+/// that drops the pair: each `iter_compare`'s. `ne` and the orderings call `eq` and
+/// `partial_cmp`, as `library::Inherited` does.
 fn compare<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
@@ -1352,7 +1422,7 @@ fn compare<'tcx>(
 		Some(f) => (f, b.t.drops(call.args.types().nth(2)?)),
 		None => {
 			let f = match test {
-				"eq" | "ne" => super::collections::pair_eq(b, item, other_item, false, span),
+				"eq" => super::collections::pair_eq(b, item, other_item, false, span),
 				"cmp" => super::collections::cmp_fn(b, item, false, span),
 				_ => super::collections::pair_partial_cmp(b, item, other_item, span),
 			};
@@ -1373,14 +1443,12 @@ fn compare<'tcx>(
 	];
 	Some(match test {
 		// std's `eq` of two `TrustedLen` iterators reads neither unless their size hints agree.
-		"eq" | "ne" => {
+		"eq" => {
 			let trusted = implements(b.t, self_ty, "TrustedLen") && implements(b.t, other_iter, "TrustedLen");
 			let trusted = if trusted { Expr::lit("true") } else { Expr::undefined() };
-			let eq = Expr::rt("iterEq", tail(vec![recv, other, f], [vec![trusted], compared].concat()));
-			if name == "ne" { eq.not() } else { eq }
+			Expr::rt("iterEq", tail(vec![recv, other, f], [vec![trusted], compared].concat()))
 		}
-		"cmp" | "partial_cmp" => Expr::rt("iterCmp", tail(vec![recv, other, f], compared)),
-		_ => Expr::rt_of("iter", test).call(tail(vec![recv, other, f], compared)),
+		_ => Expr::rt("iterCmp", tail(vec![recv, other, f], compared)),
 	})
 }
 
