@@ -672,7 +672,9 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 			log.note(format!("chain {m} {} {}", d.id(), e.id()));
 			// Its folds through a chain, which lends them its closure: theirs drop the loan.
 			let (k, l) = (guard(30), guard(31));
-			let n = pile(1, 4).chain(guards(4, 6)).fold(0, move |n, g| n + g.id() + k.id() - k.id());
+			let n = pile(1, 4)
+				.chain(guards(4, 6))
+				.fold(0, move |n, g| n + g.id() + k.id() - k.id());
 			let r = guards(1, 3)
 				.into_iter()
 				.chain(pile(3, 6))

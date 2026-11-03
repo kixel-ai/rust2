@@ -114,7 +114,10 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 			} else if matches!(name.as_str(), "fold" | "rfold")
 				&& let Some((span, what)) = erases(tcx, item.def_id)
 			{
-				t.err(span, format!("overriding `{tr}::{name}` with {what}, which is not supported yet"));
+				t.err(
+					span,
+					format!("overriding `{tr}::{name}` with {what}, which is not supported yet"),
+				);
 			}
 		}
 	}
@@ -172,7 +175,8 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 				return self.is_f(args.type_at(0));
 			}
 			tcx.trait_of_assoc(def_id).is_some_and(|tr| {
-				tcx.is_fn_trait(tr) || [core_trait(tcx, "Iterator"), core_trait(tcx, "DoubleEndedIterator")].contains(&Some(tr))
+				tcx.is_fn_trait(tr)
+					|| [core_trait(tcx, "Iterator"), core_trait(tcx, "DoubleEndedIterator")].contains(&Some(tr))
 			})
 		}
 
@@ -213,7 +217,10 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 				_ => ty::List::empty(),
 			};
 			if self.mentions(c.const_.ty().into()) || args.iter().any(|a| self.mentions(a)) {
-				self.find(self.mir.source_info(loc).span, "a constant generic over its accumulator or closure");
+				self.find(
+					self.mir.source_info(loc).span,
+					"a constant generic over its accumulator or closure",
+				);
 			}
 		}
 	}
