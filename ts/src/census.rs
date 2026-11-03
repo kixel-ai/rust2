@@ -135,6 +135,7 @@ fn ranked<'a, K: Ord>(groups: &'a Groups<K>) -> Vec<(&'a K, &'a Vec<&'a Refusal>
 
 /// Code that refusal messages quote as written, rather than a type or path they name.
 const VERBATIM: &[&str] = &[
+	"#[track_caller]",
 	"()",
 	"+",
 	"-",
@@ -154,6 +155,7 @@ const VERBATIM: &[&str] = &[
 	"From::from",
 	"Hash::hash_slice",
 	"Hasher",
+	"Location",
 	"LowerExp",
 	"MAY_HAVE_SIDE_EFFECT",
 	"None",
