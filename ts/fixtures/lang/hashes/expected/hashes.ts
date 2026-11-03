@@ -1063,13 +1063,13 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, _63[1]);
 	}
 	const probe: Key.Key = { _0: first as rt.u16, _1: text(rt.byteSliceFrom(Uint8Array.of(first))) };
-	rt.byteVecPush(out, ((keyed.s as Numbered.Numbered))._0);
+	rt.byteVecPush(out, (keyed.s as Numbered.Numbered)._0);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(new rt.OwnHasher(Numbered.buildHasher$hash_BuildHasher(keyed.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), probe, rt.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined))).reverse()));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(new rt.OwnHasher(Numbered.buildHasher$hash_BuildHasher(seen.s as Numbered.Numbered), Fnv.hasher$hash_Hasher), first, rt.hash8)).reverse()));
 	const noisy: rt.HashMap<rt.u8, Noisy.Noisy> = rt.hashNew(undefined, new Numbered.Numbered(5)) as rt.HashMap<rt.u8, Noisy.Noisy>;
 	rt.drop(rt.hashInsert(noisy, first, new Noisy.Noisy(first)));
 	const copy: rt.HashMap<rt.u8, Noisy.Noisy> = rt.hashClone(noisy, undefined, Noisy.clone$Clone, Numbered.clone$Clone);
-	rt.byteVecPush(out, ((copy.s as Numbered.Numbered))._0);
+	rt.byteVecPush(out, (copy.s as Numbered.Numbered)._0);
 	rt.hashDrop(noisy, undefined, rt.drop, rt.drop);
 	const entries: rt.Iter<[rt.u8, Noisy.Noisy]> = rt.hashIter(copy, undefined, rt.drop, rt.drop);
 	event(105, 0);

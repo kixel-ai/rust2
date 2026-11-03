@@ -1194,14 +1194,14 @@ export function ownHasher(data: rt.ByteSlice, out: rt.ByteVec): void {
 			put(out, option_unwrapOr$11c0we2(rt.hashGet(pairs, [a, _43] as [rt.u8, rt.u8]), 0) as rt.usize);
 		}
 	}
-	rt.byteVecPush(out, ((pairs.s as Seeded.Seeded))._0);
-	rt.byteVecPush(out, ((set.s as Seeded.Seeded))._0);
+	rt.byteVecPush(out, (pairs.s as Seeded.Seeded)._0);
+	rt.byteVecPush(out, (set.s as Seeded.Seeded)._0);
 	const _64: Seeded.Seeded = new Seeded.Seeded(20, log);
 	const one: rt.HashMap<[rt.u8, rt.u8], Logged.Logged> = rt.hashNew(rt.hashing(rt.hashTuple([rt.hash8, rt.hash8]), rt.eqTuple([rt.same, rt.same])), _64) as rt.HashMap<[rt.u8, rt.u8], Logged.Logged>;
 	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
 	rt.drop(rt.hashInsert(one, [first, 0] as [rt.u8, rt.u8], new Logged.Logged(first, log)));
 	const copy: rt.HashSet<rt.u8> = rt.hashClone(set, undefined, undefined, Seeded.clone$Clone);
-	rt.byteVecPush(out, ((copy.s as Seeded.Seeded))._0);
+	rt.byteVecPush(out, (copy.s as Seeded.Seeded)._0);
 	const entries: rt.Iter<[[rt.u8, rt.u8], Logged.Logged]> = rt.hashIter(one, undefined, rt.drop, rt.drop);
 	const _85: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 	rt.byteVecPush(_85.value, 105);
