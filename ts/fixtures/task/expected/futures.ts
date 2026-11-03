@@ -268,7 +268,7 @@ export class wakersFuture {
 						this.#other = new rt.ArcWaker(new rt.Arc(this.#relay(200)), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc3: rt.Arc<Relay.Relay>) => arc3[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined);
 						this.#plain = new rt.ArcWaker(new rt.Arc(new Plain.Plain(this.#relay(300))), Plain.wake$task_Wake as (a0: rt.Arc<Plain.Plain>) => undefined, (arc4: rt.Arc<Plain.Plain>) => arc4[Symbol.dispose]());
 						this.#noop = rt.NOOP_WAKER;
-						this.#checks = [rt.willWake(this.#a, this.#b), ((this.#a.data as rt.Place<undefined>)) === this.#b.data as rt.Place<undefined>, rt.willWake(this.#a, this.#other), ((this.#a.data as rt.Place<undefined>)) === this.#other.data as rt.Place<undefined>, this.#a.vtable === this.#other.vtable, this.#a.vtable === this.#plain.vtable, rt.willWake(this.#a, this.#noop), rt.willWake(this.#noop, rt.NOOP_WAKER), ((this.#noop.data as rt.Place<undefined>)) === rt.NULL, rt.NULL === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT];
+						this.#checks = [rt.willWake(this.#a, this.#b), (this.#a.data as rt.Place<undefined>) === this.#b.data as rt.Place<undefined>, rt.willWake(this.#a, this.#other), (this.#a.data as rt.Place<undefined>) === this.#other.data as rt.Place<undefined>, this.#a.vtable === this.#other.vtable, this.#a.vtable === this.#plain.vtable, rt.willWake(this.#a, this.#noop), rt.willWake(this.#noop, rt.NOOP_WAKER), (this.#noop.data as rt.Place<undefined>) === rt.NULL, rt.NULL === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT];
 						put$unit(rt.DANGLING_UNIT, undefined);
 						put$unit(rt.DANGLING_UNIT, undefined);
 						const arg = this.#checks;
@@ -690,7 +690,7 @@ export class boxedFuture {
 							i = rt.usizeAdd(i, 1);
 						}
 					}
-					if (!((captured6.length === 0))) {
+					if (!(captured6.length === 0)) {
 						return rt.Pending;
 					}
 					return poll_map$1ooj6xj(pollUnsized$dyn_Future_u64(new rt.DynFuture(captured8, Pending.poll$Future_futures_boxed_closure0_closure5), cx), (value7: rt.u64): rt.u64 => {

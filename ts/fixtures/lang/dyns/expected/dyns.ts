@@ -348,7 +348,7 @@ export function kind(a: Any.Any): string {
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => Tri.fmt$fmt_Debug(_24, f)];
 		return rt.fmtFormat(["tri ", args6[0]]);
 	}
-	if (!((a instanceof of$u8 || a instanceof ofPlace$u8))) {
+	if (!(a instanceof of$u8 || a instanceof ofPlace$u8)) {
 		return "other";
 	}
 	return "u8";
@@ -377,13 +377,13 @@ export function bump(a: Any.Any, by: rt.u8): boolean {
 /** The same, through a generic `downcast_ref`, as a type parameter instantiates it. */
 export function isA$dyns_Square(e: dyns_Erased.Erased): boolean {
 	const _4: Any.Any = e.asAny$Erased();
-	return ((_4 instanceof of$dyns_Square ? _4.v : undefined)) !== undefined;
+	return (_4 instanceof of$dyns_Square ? _4.v : undefined) !== undefined;
 }
 
 /** The same, through a generic `downcast_ref`, as a type parameter instantiates it. */
 export function isA$u32(e: dyns_Erased.Erased): boolean {
 	const _4: Any.Any = e.asAny$Erased();
-	return ((_4 instanceof of$u32 ? _4.v : _4 instanceof ofPlace$u32 ? _4.v.v : undefined)) !== undefined;
+	return (_4 instanceof of$u32 ? _4.v : _4 instanceof ofPlace$u32 ? _4.v.v : undefined) !== undefined;
 }
 
 export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
@@ -460,7 +460,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 					return undefined;
 				});
 			}
-			const arg2 = ((_167 instanceof of$unit ? _167 : _167 instanceof ofPlace$unit ? _167.v : undefined)) !== undefined;
+			const arg2 = (_167 instanceof of$unit ? _167 : _167 instanceof ofPlace$unit ? _167.v : undefined) !== undefined;
 			const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(arg2, f)];
 			put(out, rt.fmtFormat([args14[0], " "]));
 		}
@@ -704,11 +704,11 @@ export function fns(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part4, f)];
 		put(out, rt.fmtFormat([args10[0], " "]));
 		const captured3 = rt.byteVecFrom(Uint8Array.of(a));
-		const part6 = (((x6: rt.u8): rt.ByteVec => {
+		const part6 = ((x6: rt.u8): rt.ByteVec => {
 			const list2: rt.ByteVec = captured3;
 			rt.byteVecPush(list2, x6);
 			return list2;
-		}))(b);
+		})(b);
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(part6), f, rt.u8Debug)];
 		put(out, rt.fmtFormat([args12[0], " "]));
 		const part7 = rt.once(rt.optionUnwrap(fs.pop()))(a);

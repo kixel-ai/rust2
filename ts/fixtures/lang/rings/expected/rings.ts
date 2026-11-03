@@ -13,7 +13,7 @@ export function bump$rings_Item_u8(self: rt.Place<rt.u8>): void {
 }
 
 export function make$rings_Item_u32(b: rt.u8): rt.u32 {
-	return (((b as rt.u32)) << 12) >>> 0;
+	return ((b as rt.u32) << 12) >>> 0;
 }
 
 export function bump$rings_Item_u32(self: rt.Place<rt.u32>): void {

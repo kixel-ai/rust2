@@ -120,7 +120,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_42 === 8) {
 			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), copy$array_u64(make(arg)));
 		} else if (_42 === 9) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -183,7 +183,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			v = old;
 			Known.put(Known.new(0), out, taken.length, rt.vecCapacity(taken, 1280));
 		} else if (_42 === 21) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -284,7 +284,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		} else if (_42 === 8) {
 			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), copy$tuple2_u64_u8(make(arg)));
 		} else if (_42 === 9) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -347,7 +347,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			v = old;
 			Known.put(Known.new(0), out, taken.length, rt.vecCapacity(taken, 16));
 		} else if (_42 === 21) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -448,7 +448,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_42 === 8) {
 			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), make(arg));
 		} else if (_42 === 9) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -511,7 +511,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			v = old;
 			Known.put(Known.new(0), out, taken.length, rt.vecCapacity(taken, 2));
 		} else if (_42 === 21) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -612,7 +612,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 		} else if (_42 === 8) {
 			rt.byteVecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), make(arg));
 		} else if (_42 === 9) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.byteVecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -673,7 +673,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			v = old;
 			Known.put(Known.new(0), out, taken.length, taken.data.length);
 		} else if (_42 === 21) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.byteVecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -777,7 +777,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			make(arg);
 			rt.vecInsert(_88, _89, undefined);
 		} else if (_42 === 9) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}
@@ -842,7 +842,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			v = old;
 			Known.put(Known.new(0), out, taken.length, rt.vecCapacity(taken, 0));
 		} else if (_42 === 21) {
-			if (!((v.length === 0))) {
+			if (!(v.length === 0)) {
 				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 				Known.loose(k);
 			}

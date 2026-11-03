@@ -961,7 +961,7 @@ export function deques(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.dequeReserve(touch(q), 1);
 	rt.byteVecPush(out, q.n & 0xff);
 	rt.iterExtendBytes(out, rt.iterRev(rt.dequeIter(q)), undefined, true);
-	if (!((q.n === 0))) {
+	if (!(q.n === 0)) {
 		rt.byteVecPush(out, rt.dequeIndex(q, rt.usizeDiv(q.n, 2)));
 	}
 	rt.dequeRetain(q, (b4: rt.u8): boolean => {
@@ -4730,7 +4730,7 @@ export function partialCmp$cmp_PartialOrd_boxed_Box_collections_Boxed(self: Boxe
  */
 export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let data2!: rt.ByteSlice;
-	if (!((data.length === 0))) {
+	if (!(data.length === 0)) {
 		data2 = data;
 	} else {
 		data2 = rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(0)), 0);

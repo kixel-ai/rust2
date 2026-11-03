@@ -993,7 +993,7 @@ export function returnedNever(b: rt.u8, len: rt.usize): rt.u8 {
 
 /** A `return` of a `match` that guards, whose arms fall through to the next. */
 export function guardedReturn(dataData: Uint8Array, dataStart: number, dataLen: number): rt.u8 {
-	if (!((dataLen === 0))) {
+	if (!(dataLen === 0)) {
 		if (dataLen === 2) {
 			const a: rt.u8 = dataData[dataStart];
 			const b: rt.u8 = dataData[dataStart + 1];
@@ -1267,7 +1267,7 @@ export function position$u8(itemsData: Uint8Array, itemsStart: number, itemsLen:
 			if (_9 >= itemsLen) {
 				rt.panic("index out of bounds: the len is " + itemsLen + " but the index is " + _9);
 			}
-			if (!((itemsData[itemsStart + _9] === want))) {
+			if (!(itemsData[itemsStart + _9] === want)) {
 				i = rt.usizeAdd(i, 1);
 			} else {
 				return i;
@@ -1301,7 +1301,7 @@ export function patterns(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (!(data.length === 1)) {
 			if (!(data.length >= 2)) {
 				rt.unreachable(undefined);
-			} else if (!((data.data[data.start] === data.data[data.start + (data.length - 1)]))) {
+			} else if (!(data.data[data.start] === data.data[data.start + (data.length - 1)])) {
 				rt.byteVecPush(out, data.data[data.start] ^ data.data[data.start + 1]);
 				rt.byteVecPush(out, (data.length - 2) & 0xff);
 			} else {
@@ -2184,7 +2184,7 @@ export function uninhabited(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, calls);
 	const pair: [rt.Result<rt.u8, never>, Partial.Partial] = [counted(rt.place(() => calls, (value9) => calls = value9), a), { tag: "Real", _0: b } as Partial.Partial];
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of((pair[0] as { ok: true; value: rt.u8 }).value, (pair[1] as { tag: "Real"; _0: rt.u8 })._0)));
-	const held: Parts.Parts = { left: rt.Ok(a), right: thenSome$0ztng9q(rt.u8Rem(b, 2) === 0, rt.Ok((((b as rt.u16)) << 4) & 0xffff)) };
+	const held: Parts.Parts = { left: rt.Ok(a), right: thenSome$0ztng9q(rt.u8Rem(b, 2) === 0, rt.Ok(((b as rt.u16) << 4) & 0xffff)) };
 	const l: rt.u8 = (held.left as { ok: true; value: rt.u8 }).value;
 	const right: rt.Result<rt.u16, Void.Void> | undefined = held.right;
 	if (right === undefined) {
@@ -2343,7 +2343,7 @@ export function library(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return v.length & 0xff;
 		}));
 		const flag: boolean = rt.u8Rem(x, 3) === 0;
-		rt.byteVecPush(out, rt.u8Add(rt.u8Add(flag ? 1 : 0, ((flag ? 1 : 0)) & 0xff), ((flag ? 1 : 0)) & 0xff));
+		rt.byteVecPush(out, rt.u8Add(rt.u8Add(flag ? 1 : 0, (flag ? 1 : 0) & 0xff), (flag ? 1 : 0) & 0xff));
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(flag ? 1 : 0)));
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes(flag ? 1 : 0)));
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes(flag ? 1 : 0)));

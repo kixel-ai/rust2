@@ -326,7 +326,7 @@ export function wrapped(dataData: Uint8Array, dataStart: number, dataLen: number
 /** A number alone, past 2^53 from eight bytes. */
 export function big(data: rt.ByteSlice): rt.u64 | undefined {
 	if (!(data.length >= 8)) {
-		if (!((rt.byteSliceFirst(data) === 255))) {
+		if (!(rt.byteSliceFirst(data) === 255)) {
 			out$u64.err = { tag: "Short", _0: rt.usizeSub(8, data.length) } as returns_Error.Error;
 			return undefined;
 		}
@@ -1231,7 +1231,7 @@ export function optLast(dataData: Uint8Array, dataStart: number, dataLen: number
 export function optRest(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
 		const b: rt.u8 = dataData[dataStart];
-		out$tuple2_Option_u16_ref_slice_u8.p_0 = thenSome$0b23a33(rt.u8Rem(b, 2) === 0, (((b as rt.u16)) << 8) & 0xffff);
+		out$tuple2_Option_u16_ref_slice_u8.p_0 = thenSome$0b23a33(rt.u8Rem(b, 2) === 0, ((b as rt.u16) << 8) & 0xffff);
 		out$tuple2_Option_u16_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_Option_u16_ref_slice_u8.p_1Start = dataStart + 1;
 		out$tuple2_Option_u16_ref_slice_u8.p_1Len = dataLen - 1;

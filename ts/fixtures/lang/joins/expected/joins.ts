@@ -105,14 +105,14 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _145: Uint8Array[] = [];
 		bytes(rt.byteSlicesJoin(_145, rt.byteSliceFrom(Uint8Array.of(sep)), rt.byteSliceFrom), out);
 	} else if (_26 === 2) {
-		const sep2: rt.u16 = ((((sep as rt.u16)) << 8) & 0xffff) | 1;
+		const sep2: rt.u16 = (((sep as rt.u16) << 8) & 0xffff) | 1;
 		const wide: rt.u16[][] = rt.iterToArray(rt.iterMap(rt.iterSlice(parts), (p5: rt.ByteSlice): rt.u16[] => {
 			return rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(p5)), (_223: rt.u8): rt.u16 => {
 				return rt.u16Mul(_223 as rt.u16, 257);
 			}), undefined, 2, true);
 		}), undefined, 12, true);
 		const wideSeps: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(seps)), (_224: rt.u8): rt.u16 => {
-			return ((_224 as rt.u16)) | 256;
+			return (_224 as rt.u16) | 256;
 		}), undefined, 2, true);
 		wides(rt.slicesJoin(wide, 2), out);
 		wides(rt.slicesJoin(wide, 2, [sep2]), out);

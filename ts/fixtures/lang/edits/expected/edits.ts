@@ -566,13 +566,13 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
 		rt.byteVecPush(out, rt.byteVecSwapRemove(v15, rt.usizeRem(j, v15.length)));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
-		if (!((v15.length === 0))) {
+		if (!(v15.length === 0)) {
 			rt.byteVecPush(out, rt.byteVecRemove(v15, rt.usizeRem(i, v15.length)));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
 		const part = rt.min(v15.length, 1);
 		const tail2: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(v15), part);
-		if (!((tail2.length === 0))) {
+		if (!(tail2.length === 0)) {
 			rt.byteSliceSwap(tail2, rt.usizeRem(i, tail2.length), rt.usizeRem(j, tail2.length));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
