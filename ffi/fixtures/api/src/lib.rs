@@ -643,6 +643,20 @@ pub fn log_later(log: Box<dyn Log>) -> impl Future<Output = bool> + use<> {
 	async move { log.log(0, "later") }
 }
 
+/// Logs the count of `counter`, then of each of `more`, to `log` at `level`, returning how
+/// many it kept.
+pub fn log_counts(log: Box<dyn Log>, level: u8, counter: &Counter, more: Vec<Counter>) -> u32 {
+	let counts = std::iter::once(counter).chain(&more).map(Counter::get);
+	counts.filter(|n| log.log(level, &n.to_string())).count() as u32
+}
+
+/// Whether this runs on the thread its first call ran on.
+pub fn on_first_thread() -> bool {
+	static FIRST: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+	let here = std::thread::current().id();
+	*FIRST.get_or_init(|| here) == here
+}
+
 /// Holds a foreign implementation as a trait object, dropping it with itself.
 pub struct Logger {
 	sink: Box<dyn Log>,
@@ -655,6 +669,47 @@ impl Logger {
 
 	pub fn write(&self, line: &str) -> bool {
 		self.sink.log(0, line)
+	}
+
+	/// [`Logger::write`] on another thread, which the call waits on.
+	pub fn write_from_thread(&self, line: &str) -> bool {
+		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
+	}
+}
+
+/// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
+pub struct LogThread {
+	thread: std::thread::JoinHandle<bool>,
+}
+
+impl LogThread {
+	pub fn new(log: Box<dyn Log>, line: String) -> Self {
+		Self {
+			thread: std::thread::spawn(move || log.log(0, &line)),
+		}
+	}
+
+	/// Whether the line was kept.
+	pub fn join(self) -> bool {
+		self.thread.join().expect("the thread finishes")
+	}
+}
+
+/// A future that never finishes, whose drop logs a line to `log` on another thread it
+/// waits on.
+pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
+	let guard = LogOnDrop(log);
+	async move {
+		let _guard = guard;
+		std::future::pending().await
+	}
+}
+
+struct LogOnDrop(Box<dyn Log>);
+
+impl Drop for LogOnDrop {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
 	}
 }
 

@@ -8,8 +8,8 @@ pub fn float(a: f16) -> f16 {
 	a * 2.0
 }
 
-pub fn dynamic(f: &mut dyn Iterator<Item = u8>) -> Option<u8> {
-	f.next()
+pub fn dynamic(h: &mut dyn std::hash::Hasher) -> u64 {
+	h.finish()
 }
 
 /// `None` and `Some(None)` would both be `rt.None`, as `Some(Some(None))` is `undefined`.
@@ -253,13 +253,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	let mut set = std::collections::HashSet::new();
 	set.insert(v);
 	set.len()
-}
-
-/// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
-/// call but never drop.
-pub fn pattern_closure(s: &str) -> bool {
-	let n = Noisy(1);
-	s.contains(move |c: char| c as u8 == (&n).0)
 }
 
 /// A `Cow<str>` is a JS string, which keeps no variant to match on or ask about.
@@ -711,12 +704,6 @@ pub fn pointer_statics(p: *mut u32) -> u32 {
 	// Two `rt.Place`s of one place are two objects, which `===` can't tell are one.
 	let _ = SLOT.compare_exchange(p, std::ptr::null_mut(), Relaxed, Relaxed);
 	*NAMED
-}
-
-/// A closure that owns a value that drops, which `String::retain` would call but never drop.
-pub fn string_retained(s: &mut String) {
-	let n = Noisy(1);
-	s.retain(move |c| c as u8 != (&n).0);
 }
 
 /// A census lowers this over `F` and `O`, and `awaited`'s body with it, whose closure names
@@ -2393,4 +2380,11 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 		slot.write((fill, (at, !at)));
 	}
 	tagged_slots!(slots)
+}
+
+/// A raw pointer to an iterator as one to a trait object, whose `rt.Place` no `rt.Iter` is.
+pub fn raw_dyn_iter(n: u8) -> Option<u8> {
+	let mut range = 0..n;
+	let p: *mut dyn Iterator<Item = u8> = &raw mut range;
+	unsafe { (&mut *p).next() }
 }
