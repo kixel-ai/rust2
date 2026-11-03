@@ -622,7 +622,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// `TryFromIntError`'s `IntErrorKind`.
 				Some(Std::TryFromIntError) => base.member("kind"),
 				// The runtime's field of each of std's errors has its name.
-				Some(std) if std.error() => {
+				Some(std) if std.record() => {
 					base.member(crate::lower::camel(adt.non_enum_variant().fields[field].name.as_str()))
 				}
 				// Cast to its variant's class: the slice an `rt.Borrowed` wraps, or the `Vec`.
