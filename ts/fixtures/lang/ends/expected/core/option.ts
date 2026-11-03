@@ -23,6 +23,13 @@ export function map$1sj2ls1(self: [rt.usize, rt.u8] | undefined, f: (a0: [rt.usi
 	return f(self);
 }
 
+export function map$1fmzefe(self: rt.u8 | undefined, f: (a0: rt.u8) => [rt.u8, rt.u8]): [rt.u8, rt.u8] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0vbopjd(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.usize): rt.usize | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -33,6 +40,13 @@ export function map$0vbopjd(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.usize)
 export function map$05nbzug(self: rt.usize | undefined, f: (a0: rt.usize) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
+	}
+	return f(self);
+}
+
+export function mapOr$1e4a1e0(self: rt.Ordering | undefined, default_: rt.u8, f: (a0: rt.Ordering) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
 	}
 	return f(self);
 }
