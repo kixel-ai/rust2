@@ -3,9 +3,9 @@
 
 use crate::{
 	args, arrays, ascii, atomics, borrows, bounds, boxes, capacity, captures, cells, chars, chunks, clones,
-	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, ends,
-	errors, fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists,
-	locals, locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates,
+	collections, combinators, constants, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements,
+	ends, errors, fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths,
+	lists, locals, locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates,
 	searches, separated, shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
@@ -313,6 +313,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("searches::texts", searches::texts),
 		("dyns::iters", |_, data, out| dyns::iters(data, out)),
 		("errors::objects", |_, data, out| errors::objects(data, out)),
+		("constants::compares", |_, _, out| constants::compares(out)),
 	]
 }
 

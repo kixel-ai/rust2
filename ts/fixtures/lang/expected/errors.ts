@@ -5,10 +5,10 @@ import { drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send, drop$errors
 import { then$0afp4no } from "./core/bool.ts";
 import { eq$09vw48j as convert_eq$09vw48j } from "./core/char/convert.ts";
 import * as error_Error from "./core/error.Error.ts";
-import { fromStr$1hq0zfa as num_fromStr$1hq0zfa } from "./core/num.ts";
+import { fromStr$1s51v8m as num_fromStr$1s51v8m } from "./core/num.ts";
 import { eq$18sin5z as num_error_eq$18sin5z } from "./core/num/error.ts";
 import { eq$04qb8k3 as result_eq$04qb8k3, eq$10fppe8 as result_eq$10fppe8, eq$0ecfqx9 as result_eq$0ecfqx9, eq$0nlhjpf as result_eq$0nlhjpf, eq$04iua4k as result_eq$04iua4k, eq$1dhtbkj as result_eq$1dhtbkj, eq$0pe0qmq as result_eq$0pe0qmq, eq$1mpp8xa as result_eq$1mpp8xa, eq$0grmb7g as result_eq$0grmb7g, eq$19kc15f as result_eq$19kc15f, eq$0rj0czq as result_eq$0rj0czq, eq$1hq3neq as result_eq$1hq3neq, eq$08241oi as result_eq$08241oi, eq$0bl30vt as result_eq$0bl30vt, eq$1fkhuzl as result_eq$1fkhuzl, eq$0p1bb4y as result_eq$0p1bb4y, eq$03gbayb as result_eq$03gbayb, err$1ujom0k, err$02r96h1, err$0jf6smd, map$0fm1w6u as result_map$0fm1w6u, map$0r57egs as result_map$0r57egs, mapErr$1ff8zoy as result_mapErr$1ff8zoy, mapErr$0u5yxjj as result_mapErr$0u5yxjj } from "./core/result.ts";
-import { parse$0vh4cry, parse$082ztwj, parse$1ci7nyc, parse$1s5pqso, parse$0o4ono0, parse$0at0fdl } from "./core/str.ts";
+import { parse$0vh4cry, parse$082ztwj, parse$14z7a72, parse$00ibreq, parse$0o4ono0, parse$0vh70p5 } from "./core/str.ts";
 import { eq$1f3e51k as str_error_eq$1f3e51k } from "./core/str/error.ts";
 import * as Coded from "./errors.Coded.ts";
 import type * as Failure from "./errors.Failure.ts";
@@ -411,13 +411,13 @@ export function parsed$i128(all: string[]): rt.Result<rt.i128, rt.ParseIntError>
 
 export function parsed$i8(all: string[]): rt.Result<rt.i8, rt.ParseIntError>[] {
 	return rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s: string): rt.Result<rt.i8, rt.ParseIntError> => {
-		return parse$1ci7nyc(s);
+		return parse$14z7a72(s);
 	}), undefined, 2, true);
 }
 
 export function parsed$num_NonZero_u32(all: string[]): rt.Result<rt.u32, rt.ParseIntError>[] {
 	return rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s: string): rt.Result<rt.u32, rt.ParseIntError> => {
-		return parse$1s5pqso(s);
+		return parse$00ibreq(s);
 	}), undefined, 8, true);
 }
 
@@ -429,7 +429,7 @@ export function parsed$u64(all: string[]): rt.Result<rt.u64, rt.ParseIntError>[]
 
 export function parsed$u8(all: string[]): rt.Result<rt.u8, rt.ParseIntError>[] {
 	return rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s: string): rt.Result<rt.u8, rt.ParseIntError> => {
-		return parse$0at0fdl(s);
+		return parse$0vh70p5(s);
 	}), undefined, 2, true);
 }
 
@@ -494,7 +494,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, 16, true), out);
 	} else if (_32 === 12) {
 		pairs$Result_Option_u8_num_ParseIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s6: string): rt.Result<rt.u8 | undefined, rt.ParseIntError> => {
-			return result_map$0r57egs(parse$0at0fdl(s6), (v10: rt.u8): rt.u8 | undefined => {
+			return result_map$0r57egs(parse$0vh70p5(s6), (v10: rt.u8): rt.u8 | undefined => {
 				return rt.u8CheckedSub(v10, 1);
 			});
 		}), undefined, 2, true), out);
@@ -505,7 +505,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			});
 		}), undefined, 8, true), out);
 		pairs$Result_u8_num_IntErrorKind(rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s8: string): rt.Result<rt.u8, rt.IntErrorKind> => {
-			return result_mapErr$0u5yxjj(parse$0at0fdl(s8), (e: rt.ParseIntError): rt.IntErrorKind => {
+			return result_mapErr$0u5yxjj(parse$0vh70p5(s8), (e: rt.ParseIntError): rt.IntErrorKind => {
 				return e.kind;
 			});
 		}), undefined, 2, true), out);
@@ -523,7 +523,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		pairs$Option_Result_u8_num_ParseIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s: string): rt.Result<rt.u8, rt.ParseIntError> | undefined => {
 			const _73: string = s;
 			return then$0afp4no(!((s.length === 0)), (): rt.Result<rt.u8, rt.ParseIntError> => {
-				return parse$0at0fdl(_73);
+				return parse$0vh70p5(_73);
 			});
 		}), undefined, 2, true), out);
 		pairs$Vec_Result_bool_str_ParseBoolError(rt.iterToArray(rt.iterMap(rt.sliceChunks(all, 2), parsed$bool), undefined, 12, true), out);
@@ -537,7 +537,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return err$1ujom0k(parse$0vh4cry(s4));
 		}), "next", 0), out);
 		pairs$num_ParseIntError(rt.iterToArray(rt.iterFilterMap(rt.iterSlice(all), (s5: string): rt.ParseIntError | undefined => {
-			return err$0jf6smd(parse$1ci7nyc(s5));
+			return err$0jf6smd(parse$14z7a72(s5));
 		}), "next", 1), out);
 	}
 }
@@ -578,14 +578,14 @@ export function failure(kind: rt.u8, n: rt.u8): Failure.Failure {
 	if (!(_11 < 3)) {
 		rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _11);
 	}
-	return { tag: "Parse", _0: rt.resultUnwrapErr(num_fromStr$1hq0zfa(["", "x", "999"][_11]), rt.u8Debug) } as Failure.Failure;
+	return { tag: "Parse", _0: rt.resultUnwrapErr(num_fromStr$1s51v8m(["", "x", "999"][_11]), rt.u8Debug) } as Failure.Failure;
 }
 
 /** `?` boxes a `Failure` as a `dyn Error`, as does `into`. */
 export function checked(kind: rt.u8, n: rt.u8): rt.Result<rt.u8, error_Error.Error> {
 	if (!(rt.u8Rem(n, 4) === 0)) {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
-		const _8: rt.Result<rt.u8, Failure.Failure> = result_mapErr$1ff8zoy(num_fromStr$1hq0zfa(rt.fmtFormat([args2[0], args2[0]])), (a0: rt.ParseIntError): Failure.Failure => {
+		const _8: rt.Result<rt.u8, Failure.Failure> = result_mapErr$1ff8zoy(num_fromStr$1s51v8m(rt.fmtFormat([args2[0], args2[0]])), (a0: rt.ParseIntError): Failure.Failure => {
 			return { tag: "Parse", _0: a0 };
 		});
 		if (_8.ok) {
@@ -610,7 +610,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		_29[Symbol.dispose]();
 		drop$errors_Failure(_24);
 		fmt_put(out, _17);
-		const part = chain(new error_Error.of$num_ParseIntError(rt.resultUnwrapErr(num_fromStr$1hq0zfa("x"), rt.u8Debug)));
+		const part = chain(new error_Error.of$num_ParseIntError(rt.resultUnwrapErr(num_fromStr$1s51v8m("x"), rt.u8Debug)));
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part)];
 		fmt_put(out, rt.fmtFormat([args4[0], " | "]));
 		const held: Failure.Failure = failure(a, b);
