@@ -1756,6 +1756,17 @@ pub fn rests(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put(out, &format!("{polled} {:?} ", log.borrow()));
 	log.borrow_mut().clear();
+	// An iterator of the crate's own in a cell and in a lock, read through each and
+	// dropped once, with the last owner.
+	let mut cell: Box<Cell<dyn Iterator<Item = u8>>> = Box::new(Cell::new(Countdown(a % 8)));
+	let first = cell.get_mut().next();
+	let locked: Arc<Mutex<dyn Iterator<Item = u8>>> = Arc::new(Mutex::new(Countdown(b % 8)));
+	let second = locked.lock().unwrap().next();
+	put(out, &format!("{first:?} {second:?} "));
+	drop(cell);
+	dropped(out);
+	drop(locked);
+	dropped(out);
 	// To a cell not there yet, read only once it is.
 	let mut slot = std::mem::MaybeUninit::<Cell<u32>>::uninit();
 	let thin = slot.as_mut_ptr();
