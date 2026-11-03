@@ -29,7 +29,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	rt.dequeExtend(deque, rt.iterMap(rt.iterLend(rt.iterSlice(pairs), rt.byteSliceFrom), rt.byteSliceToArray), undefined, true);
 	const _47: rt.Iter<rt.u8> = rt.iterFlatMap(rt.iterLend(rt.dequeIter(deque), rt.byteSliceFrom), (p: rt.ByteSlice): Uint8Array => {
 		return Uint8Array.of(p.data[p.start], p.data[p.start + 1]);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	rt.iterExtendBytes(out, _47, undefined, true);
 	return out;
 }

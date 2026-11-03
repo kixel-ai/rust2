@@ -619,11 +619,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut rereadable = Vec::with_capacity(ops.len());
 		for op in ops.iter() {
 			let v = self.operand(op, span, out);
-			let is_ref = op.ty(&self.mir.local_decls, self.tcx).is_ref();
-			let reread = is_ref && v.is_path() && op.place().is_none_or(|place| self.rereads(place));
-			let v = match parts_read && is_ref && !reread {
-				true => self.path(v, "part", out),
-				false => v,
+			let op_ty = op.ty(&self.mir.local_decls, self.tcx);
+			let is_ref = op_ty.is_ref();
+			// Shared references to what holds nothing are `undefined` wherever they point, unlike
+			// a `&mut`, which may be an `rt.Place`.
+			let mut pointee = op_ty;
+			while let ty::Ref(_, inner, rustc_ast::Mutability::Not) = pointee.kind() {
+				pointee = *inner;
+			}
+			let empty = is_ref && crate::lower::library::nothing(self.tcx, pointee) && !self.part_reads(&v).0;
+			let reread = empty || is_ref && v.is_path() && op.place().is_none_or(|place| self.rereads(place));
+			let v = match (empty, parts_read && is_ref && !reread) {
+				(true, _) => Expr::undefined(),
+				(false, true) => self.path(v, "part", out),
+				(false, false) => v,
 			};
 			values.push(v);
 			rereadable.push(reread);
@@ -775,7 +784,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::RangeTo | Std::RangeToInclusive, _) => {
 					crate::lower::library::range_to(values.pop().unwrap(), std == Std::RangeToInclusive)
 				}
-				(Std::Reverse | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
+				(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
 				(Std::Bound | Std::TryLockError, _) => {
 					let ts_ty = self.b.t.ty(ty, span);
 					crate::lower::library::tagged(def.name.as_str(), values.pop(), ts_ty)
@@ -784,7 +793,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					values.extend(crate::lower::library::range_step(tcx, args.type_at(0), true));
 					Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
 				}
-				(Std::RangeFull, _) => Expr::undefined(),
+				(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
+				(Std::Pending, _) => Expr::Rt("NEVER".into()),
 				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),

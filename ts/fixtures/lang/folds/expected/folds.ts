@@ -428,9 +428,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return x64;
 			}), "next").length, r53);
 			const r54: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.iterCount(rt.iterFuse(rt.iterBorrow(r54))), r54);
+			state$u8_usize(out, rt.iterCount(rt.iterFuse(rt.iterBorrow(r54), true)), r54);
 			const r55: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_bool(out, rt.iterAny(rt.iterRev(rt.iterFuse(rt.iterBorrow(r55))), (x65: rt.u8): boolean => {
+			state$u8_bool(out, rt.iterAny(rt.iterRev(rt.iterFuse(rt.iterBorrow(r55), true)), (x65: rt.u8): boolean => {
 				return isK(x65);
 			}), r55);
 			const r56: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
@@ -462,29 +462,29 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const r61: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_usize(out, rt.iterCount(rt.iterFlatMap(rt.iterBorrow(r61), (x67: rt.u8): rt.u8 | undefined => {
 				return x67;
-			}, (value: rt.u8 | undefined) => rt.iterOption(value), false, undefined, true)), r61);
+			}, (value: rt.u8 | undefined) => rt.iterOption(value), true, undefined, true)), r61);
 			const r62: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_u8(out, rt.iterToOption(rt.iterFlatMap(rt.iterBorrow(r62), (x68: rt.u8): rt.u8 | undefined => {
 				return x68;
-			}, (value: rt.u8 | undefined) => rt.iterOption(value), false, undefined, true).next()), r62);
+			}, (value: rt.u8 | undefined) => rt.iterOption(value), true, undefined, true).next()), r62);
 			const r63: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _594: rt.RangeInclusive<rt.u8> = r63;
 			const _596: (a0: rt.u8) => rt.RangeInclusive<rt.u8> = (x69: rt.u8): rt.RangeInclusive<rt.u8> => {
 				return new rt.RangeInclusive(lo2, x69, rt.u8Step);
 			};
-			state$u8_usize(out, rt.iterCount(rt.iterFlatten(rt.iterMap(rt.iterBorrow(_594), _596))), r63);
+			state$u8_usize(out, rt.iterCount(rt.iterFlatten(rt.iterMap(rt.iterBorrow(_594), _596), undefined, true)), r63);
 			const r64: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _604: rt.RangeInclusive<rt.u8> = r64;
 			const _606: (a0: rt.u8) => rt.RangeInclusive<rt.u8> = (x70: rt.u8): rt.RangeInclusive<rt.u8> => {
 				return new rt.RangeInclusive(x70, hi2, rt.u8Step);
 			};
-			state$u8_Option_usize(out, rt.iterPosition(rt.iterFlatMap(rt.iterBorrow(_604), _606), (x71: rt.u8): boolean => {
+			state$u8_Option_usize(out, rt.iterPosition(rt.iterFlatMap(rt.iterBorrow(_604), _606, undefined, true), (x71: rt.u8): boolean => {
 				return isK(x71);
 			}), r64);
 			const r65: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_u8(out, rt.iterLast(rt.iterRev(rt.iterFlatMap(rt.iterBorrow(r65), (x72: rt.u8): Uint8Array => {
 				return Uint8Array.of(x72, x72);
-			}, (value: Uint8Array) => rt.iterSlice(value), false, 2))), r65);
+			}, (value: Uint8Array) => rt.iterSlice(value), true, 2))), r65);
 			const r66: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _623: rt.RangeInclusive<rt.u8> = r66;
 			const _625: rt.usize = rt.usizeAdd(n2, 1);
@@ -783,9 +783,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return x28;
 			}), "next", 8).length, r136);
 			const r137: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
-			state$i64_usize(out, rt.iterCount(rt.iterFuse(rt.iterBorrow(r137))), r137);
+			state$i64_usize(out, rt.iterCount(rt.iterFuse(rt.iterBorrow(r137), true)), r137);
 			const r138: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
-			state$i64_bool(out, rt.iterAny(rt.iterRev(rt.iterFuse(rt.iterBorrow(r138))), (x29: rt.i64): boolean => {
+			state$i64_bool(out, rt.iterAny(rt.iterRev(rt.iterFuse(rt.iterBorrow(r138), true)), (x29: rt.i64): boolean => {
 				return isK3(x29);
 			}), r138);
 			const r139: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
@@ -817,29 +817,29 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const r144: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			state$i64_usize(out, rt.iterCount(rt.iterFlatMap(rt.iterBorrow(r144), (x31: rt.i64): rt.i64 | undefined => {
 				return x31;
-			}, (value: rt.i64 | undefined) => rt.iterOption(value), false, undefined, true)), r144);
+			}, (value: rt.i64 | undefined) => rt.iterOption(value), true, undefined, true)), r144);
 			const r145: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			state$i64_Option_i64(out, rt.iterToOption(rt.iterFlatMap(rt.iterBorrow(r145), (x32: rt.i64): rt.i64 | undefined => {
 				return x32;
-			}, (value: rt.i64 | undefined) => rt.iterOption(value), false, undefined, true).next()), r145);
+			}, (value: rt.i64 | undefined) => rt.iterOption(value), true, undefined, true).next()), r145);
 			const r146: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			const _1374: rt.RangeInclusive<rt.i64> = r146;
 			const _1376: (a0: rt.i64) => rt.RangeInclusive<rt.i64> = (x33: rt.i64): rt.RangeInclusive<rt.i64> => {
 				return new rt.RangeInclusive(lo5, x33, rt.i64Step);
 			};
-			state$i64_usize(out, rt.iterCount(rt.iterFlatten(rt.iterMap(rt.iterBorrow(_1374), _1376))), r146);
+			state$i64_usize(out, rt.iterCount(rt.iterFlatten(rt.iterMap(rt.iterBorrow(_1374), _1376), undefined, true)), r146);
 			const r147: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			const _1384: rt.RangeInclusive<rt.i64> = r147;
 			const _1386: (a0: rt.i64) => rt.RangeInclusive<rt.i64> = (x34: rt.i64): rt.RangeInclusive<rt.i64> => {
 				return new rt.RangeInclusive(x34, hi5, rt.i64Step);
 			};
-			state$i64_Option_usize(out, rt.iterPosition(rt.iterFlatMap(rt.iterBorrow(_1384), _1386), (x35: rt.i64): boolean => {
+			state$i64_Option_usize(out, rt.iterPosition(rt.iterFlatMap(rt.iterBorrow(_1384), _1386, undefined, true), (x35: rt.i64): boolean => {
 				return isK3(x35);
 			}), r147);
 			const r148: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			state$i64_Option_i64(out, rt.iterLast(rt.iterRev(rt.iterFlatMap(rt.iterBorrow(r148), (x36: rt.i64): rt.i64[] => {
 				return [x36, x36];
-			}, (value: rt.i64[]) => rt.iterSlice(value), false, 2))), r148);
+			}, (value: rt.i64[]) => rt.iterSlice(value), true, 2))), r148);
 			const r149: rt.RangeInclusive<rt.i64> = new rt.RangeInclusive(lo5, hi5, rt.i64Step);
 			const _1403: rt.RangeInclusive<rt.i64> = r149;
 			const _1405: rt.usize = rt.usizeAdd(n4, 1);

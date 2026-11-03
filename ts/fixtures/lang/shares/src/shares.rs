@@ -4,7 +4,7 @@
 //! written through `get_mut` and `make_mut`, and downgraded, of bytes, of `u16`s, of
 //! values JS copies, and of values that log their clones and drops, empty or not, with
 //! what drops dropped when its last owner does; held by a generic type at each of those,
-//! and looked up as map keys by a borrow of their slice or text.
+//! looked up as map keys by a borrow of their slice or text, and pointed at by `as_ptr`.
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -576,4 +576,25 @@ pub fn keys(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	slot.clone_from(&other);
 	out.push(u8::from(Rc::ptr_eq(&slot, &other)));
 	counts(&other, out);
+}
+
+/// What `as_ptr` points at in an `Rc<[u16]>` and an `Arc<[u8]>`, by `kind` alone, shared by
+/// another handle, or by a `Weak` alone, read after `make_mut` writes it.
+pub fn addresses(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let mut wide: Rc<[u16]> = data.iter().map(|&b| u16::from(b) << 4).collect();
+	let mut bytes: Arc<[u8]> = Arc::from(data);
+	let other = (kind % 3 == 1).then(|| (Rc::clone(&wide), Arc::clone(&bytes)));
+	let weak = (kind % 3 == 2).then(|| (Rc::downgrade(&wide), Arc::downgrade(&bytes)));
+	if let Some(first) = Rc::make_mut(&mut wide).first_mut() {
+		*first ^= u16::from(kind);
+	}
+	if let Some(last) = Arc::make_mut(&mut bytes).last_mut() {
+		*last ^= kind;
+	}
+	let (wide, bytes) = unsafe { (&*Rc::as_ptr(&wide), &*Arc::as_ptr(&bytes)) };
+	out.extend(wide.iter().flat_map(|w| w.to_le_bytes()));
+	put_bytes(bytes, out);
+	out.push(u8::from(
+		other.is_some() || weak.is_some_and(|(a, b)| a.upgrade().is_none() && b.upgrade().is_none()),
+	));
 }

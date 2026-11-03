@@ -49,9 +49,9 @@ export function map$03hz3l7(self: rt.Result<rt.u8, rt.u8>, op: (a0: rt.u8) => un
 	return self as rt.Result<undefined, rt.u8>;
 }
 
-export function map$0yqi183(self: rt.Result<undefined, rt.u8>, op: (a0: undefined) => undefined): rt.Result<undefined, rt.u8> {
+export function map$1916nm0(self: rt.Result<undefined, rt.u8>, op: (a0: undefined) => undefined): rt.Result<undefined, rt.u8> {
 	if (self.ok) {
-		op(self.value);
+		op(undefined);
 		return rt.OK;
 	}
 	return self;

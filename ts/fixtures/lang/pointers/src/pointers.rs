@@ -1881,3 +1881,148 @@ fn lend<T: Aim>(to: &mut T, n: u8, out: &mut Vec<u8>) {
 	lent.to.put(n >> 1);
 	out.extend([lent.to.get(), lent.seen.get()]);
 }
+
+/// A struct nothing writes into, holding a pair nothing writes into either.
+#[derive(Clone, Copy)]
+struct Spot {
+	at: (u16, u8),
+	tag: u8,
+}
+
+/// A value of each that holds no copy of its own but is cloned by its parts.
+#[derive(Clone)]
+struct Named {
+	spot: Spot,
+	name: String,
+}
+
+const ORIGIN: (u16, u8) = (0, 1);
+
+/// Whether pointers to copies of one value nothing writes into are equal: of a pair, a
+/// struct, the pair it holds, and bytes, each allocated twice by `Arc`, `Rc`, `Box`, a
+/// `Vec`, an `Option`, a constant, a clone, std's copies of each element of a run, a
+/// `Cell`'s `get`, and `ptr::read`, and moved out of one and allocated again, by hand or
+/// by `make_mut`, of a slice of bytes too, as `ptr::eq`, `addr_eq`, and `as_ptr` compare
+/// them; a clone of an `Arc` or `Rc` shares its value.
+pub fn distinct(data: &[u8], out: &mut Vec<u8>) {
+	for chunk in data.chunks(3) {
+		let &[a, b, c] = chunk else {
+			continue;
+		};
+		let pair = (u16::from(a) << 8 | u16::from(b), c);
+		let spot = Spot { at: pair, tag: a ^ c };
+		let bytes = [a, b, c];
+		let (x, y) = (Arc::new(pair), Arc::new(pair));
+		let same = Arc::clone(&x);
+		let (p, q) = (Rc::new(spot), Rc::new(spot));
+		let shared = Rc::clone(&p);
+		let (m, n) = (Box::new(pair), Box::new(pair));
+		let (k, l) = (Arc::new(bytes), Rc::new(bytes));
+		let list = vec![pair; 2];
+		let mut pushed = Vec::new();
+		pushed.push(spot);
+		pushed.push(spot);
+		let held = [Some(pair), Some(pair)];
+		let (origin, other) = (Box::new(ORIGIN), Box::new(ORIGIN));
+		let named = Named {
+			spot,
+			name: String::from("a"),
+		};
+		let renamed = named.clone();
+		out.extend([
+			u8::from(ptr::eq(&*x, &*y)),
+			u8::from(ptr::eq(&*x, &*same)),
+			u8::from(Arc::as_ptr(&x) == Arc::as_ptr(&y)),
+			u8::from(ptr::addr_eq(Arc::as_ptr(&x), Arc::as_ptr(&same))),
+			u8::from(ptr::eq(&*x, &pair)),
+			u8::from(ptr::eq(&*p, &*q)),
+			u8::from(ptr::eq(&*p, &*shared)),
+			u8::from(ptr::eq(&p.at, &q.at)),
+			u8::from(ptr::eq(&p.at, &spot.at)),
+			u8::from(ptr::addr_eq(Rc::as_ptr(&p), Rc::as_ptr(&shared))),
+			u8::from(ptr::eq(&*m, &*n)),
+			u8::from(ptr::eq(&*m, &*x)),
+			u8::from(ptr::addr_eq(Arc::as_ptr(&k), Rc::as_ptr(&l))),
+			u8::from(ptr::eq(&*k, &bytes)),
+			u8::from(ptr::eq(&list[0], &list[1])),
+			u8::from(ptr::eq(&pushed[0], &pushed[1])),
+			u8::from(ptr::eq(&pushed[0].at, &spot.at)),
+			u8::from(ptr::eq(held[0].as_ref().unwrap(), held[1].as_ref().unwrap())),
+			u8::from(ptr::eq(&*origin, &*other)),
+			u8::from(ptr::eq(&named.spot, &renamed.spot)),
+			u8::from(ptr::eq(&named.spot.at, &renamed.spot.at)),
+		]);
+		// Moved out and allocated again.
+		let moved = *m;
+		let again = Box::new(moved);
+		let swapped = Box::new(*n);
+		let alone = Arc::into_inner(x).unwrap_or(ORIGIN);
+		let unwrapped = Arc::new(alone);
+		let inner = Rc::into_inner(q).map_or(spot, |s| s);
+		let rewrapped = Rc::new(inner);
+		out.extend([
+			u8::from(ptr::eq(&*again, &*m)),
+			u8::from(ptr::eq(&*again, &moved)),
+			u8::from(ptr::eq(&*n, &*again)),
+			u8::from(ptr::eq(&*swapped, &*n)),
+			u8::from(ptr::eq(&*unwrapped, &*y)),
+			u8::from(ptr::eq(&*unwrapped, &*same)),
+			u8::from(ptr::addr_eq(Arc::as_ptr(&unwrapped), Arc::as_ptr(&y))),
+			u8::from(ptr::eq(&*rewrapped, &*p)),
+			u8::from(ptr::eq(&rewrapped.at, &p.at)),
+			u8::from(Rc::strong_count(&p) as u8),
+			swapped.1 ^ unwrapped.1 ^ rewrapped.tag ^ named.name.len() as u8,
+		]);
+		// Copied element by element by std.
+		let repeated = [pair; 2].to_vec();
+		let copied: Vec<(u16, u8)> = list.iter().copied().collect();
+		let cloned: Vec<Spot> = pushed.iter().cloned().collect();
+		let mut extended = list.to_vec();
+		extended.extend_from_slice(&list);
+		extended.push(pair);
+		extended.push(pair);
+		extended.extend(list.iter());
+		let opted = held[0].as_ref().copied();
+		let cell = Cell::new(pair);
+		let (got, again_got) = (cell.get(), cell.get());
+		let (read, reread) = unsafe { (ptr::read(&pair), ptr::read(&*m)) };
+		out.extend([
+			u8::from(ptr::eq(&repeated[0], &repeated[1])),
+			u8::from(ptr::eq(&copied[0], &list[0])),
+			u8::from(ptr::eq(&cloned[1].at, &pushed[1].at)),
+			u8::from(ptr::eq(&extended[0], &list[0])),
+			u8::from(ptr::eq(&extended[2], &list[0])),
+			u8::from(ptr::eq(&extended[4], &extended[5])),
+			u8::from(ptr::eq(&extended[6], &list[0])),
+			u8::from(ptr::eq(opted.as_ref().unwrap(), held[0].as_ref().unwrap())),
+			u8::from(ptr::eq(&got, &again_got)),
+			u8::from(ptr::eq(&read, &pair)),
+			u8::from(ptr::eq(&reread, &*m)),
+		]);
+		// Moved to an allocation of its own by `make_mut` while a `Weak` alone shares it,
+		// or cloned into one while another handle does.
+		let mut maybe = Rc::new(Some(pair));
+		let mut spotted = Arc::new(spot);
+		let weak = (c & 1 != 0).then(|| (Rc::downgrade(&maybe), Arc::downgrade(&spotted)));
+		let strong = (c & 2 != 0).then(|| (Rc::clone(&maybe), Arc::clone(&spotted)));
+		let mut run: Arc<[u8]> = Arc::from(vec![a, b, c]);
+		let run_weak = (c & 4 != 0).then(|| Arc::downgrade(&run));
+		Arc::make_mut(&mut run)[0] ^= c;
+		out.extend_from_slice(&run);
+		drop(run_weak);
+		let was: *const (u16, u8) = maybe.as_ref().as_ref().unwrap();
+		let was_at: *const (u16, u8) = &spotted.at;
+		let was_spot = Arc::as_ptr(&spotted);
+		let now: *const (u16, u8) = Rc::make_mut(&mut maybe).as_ref().unwrap();
+		let now_at: *const (u16, u8) = &Arc::make_mut(&mut spotted).at;
+		out.extend([
+			u8::from(was == now),
+			u8::from(was_at == now_at),
+			u8::from(ptr::eq(was_spot, &*spotted)),
+			u8::from(weak.is_some_and(|(r, a)| r.upgrade().is_some() || a.upgrade().is_some())),
+			u8::from(strong.is_some_and(|(r, a)| {
+				ptr::eq(r.as_ref().as_ref().unwrap(), maybe.as_ref().as_ref().unwrap()) || ptr::eq(&a.at, &spotted.at)
+			})),
+		]);
+	}
+}

@@ -2,14 +2,19 @@
 //! `DefaultHasher::new` keys it, whose values must be native's byte for byte, and
 //! `RandomState`, whose keys are random on both sides: its case prints only what holds
 //! whatever they are, such as one state hashing equal values alike, and never a hash. A
-//! `Hasher` of the crate's own logs each call `Hash` makes of it.
+//! `Hasher` of the crate's own logs each call `Hash` makes of it. Then hash maps and sets
+//! that hold a `BuildHasher` of the crate's own, and their `==`, and `BuildHasherDefault`
+//! of a `Hasher` of the crate's own.
 
 use std::cell::{Cell, RefCell};
 use std::cmp::Reverse;
-use std::hash::{BuildHasher, DefaultHasher, Hash, Hasher, RandomState};
+use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher, Hash, Hasher, RandomState};
 use std::num::NonZero;
 use std::sync::Arc;
 use std::time::Duration;
+
+use crate::harness::{put, text};
 
 #[derive(Hash)]
 struct Packet {
@@ -610,4 +615,416 @@ pub fn copied(data: &[u8], out: &mut Vec<u8>) {
 		out.extend_from_slice(&h.to_le_bytes());
 	}
 	out.extend_from_slice(&log.into_inner());
+}
+
+thread_local! {
+	/// What each [`Numbered`] and [`Noisy`] did, in order.
+	static EVENTS: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Log `what` happened to the value numbered `n`.
+fn event(what: u8, n: u8) {
+	EVENTS.with(|events| events.borrow_mut().extend([what, n]));
+}
+
+/// FNV-1a, a `Hasher` of the crate's own that logs nothing, so a map may call it as often
+/// as it likes.
+struct Fnv(u64);
+
+impl Default for Fnv {
+	fn default() -> Self {
+		Fnv(0xcbf2_9ce4_8422_2325)
+	}
+}
+
+impl Hasher for Fnv {
+	fn finish(&self) -> u64 {
+		self.0
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		for &b in bytes {
+			self.0 = (self.0 ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3);
+		}
+	}
+}
+
+/// A `BuildHasher` of the crate's own, numbered, which logs each one `Default` makes, each
+/// clone, and each drop, and seeds its [`Fnv`] by its number.
+struct Numbered(u8);
+
+impl BuildHasher for Numbered {
+	type Hasher = Fnv;
+
+	fn build_hasher(&self) -> Fnv {
+		Fnv(0xcbf2_9ce4_8422_2325 ^ u64::from(self.0))
+	}
+}
+
+impl Default for Numbered {
+	fn default() -> Self {
+		event(b'n', 0);
+		Numbered(0)
+	}
+}
+
+impl Clone for Numbered {
+	fn clone(&self) -> Self {
+		event(b'c', self.0);
+		Numbered(self.0.wrapping_add(1))
+	}
+}
+
+impl Drop for Numbered {
+	fn drop(&mut self) {
+		event(b'x', self.0);
+	}
+}
+
+/// A value that logs its clone and its drop.
+struct Noisy(u8);
+
+impl Clone for Noisy {
+	fn clone(&self) -> Self {
+		event(b'C', self.0);
+		Noisy(self.0)
+	}
+}
+
+impl Drop for Noisy {
+	fn drop(&mut self) {
+		event(b'D', self.0);
+	}
+}
+
+/// A key that is a JS object.
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+struct Key(u16, String);
+
+/// Hash maps and sets with a `BuildHasher` of the crate's own, keyed by JS objects and by
+/// numbers, which find their keys whatever it hashes them to. Each holds its own, which
+/// `hasher` lends, made by `Default` where std's makes one, cloned before what the map
+/// holds, and dropped before it, and at once by a consuming iterator. Only maps of one
+/// entry say what they drop or clone, and only sorted what they hold, as std's order is
+/// its own.
+pub fn maps(data: &[u8], out: &mut Vec<u8>) {
+	EVENTS.with(|events| events.borrow_mut().clear());
+	let first = data.first().copied().unwrap_or(7);
+	let mut keyed: HashMap<Key, u8, Numbered> = HashMap::with_capacity_and_hasher(data.len(), Numbered(first));
+	let mut seen: HashSet<u8, Numbered> = HashSet::with_hasher(Numbered(1));
+	for (i, &b) in data.iter().enumerate() {
+		*keyed.entry(Key(u16::from(b % 8), text(&data[i..=i]))).or_default() += 1;
+		out.push(seen.insert(b % 16) as u8);
+		out.push(keyed.contains_key(&Key(u16::from(b % 8 ^ 1), text(&[b ^ 1]))) as u8);
+	}
+	let mut held: Vec<(&Key, &u8)> = keyed.iter().collect();
+	held.sort();
+	for (Key(n, text), count) in held {
+		out.push(*n as u8);
+		put(out, text);
+		out.push(*count);
+	}
+	// What `hasher` lends is the map's own.
+	let probe = Key(u16::from(first), text(&[first]));
+	out.push(keyed.hasher().0);
+	out.extend_from_slice(&keyed.hasher().hash_one(&probe).to_le_bytes());
+	out.extend_from_slice(&seen.hasher().hash_one(first).to_le_bytes());
+	let mut noisy: HashMap<u8, Noisy, Numbered> = HashMap::with_hasher(Numbered(5));
+	noisy.insert(first, Noisy(first));
+	let copy = noisy.clone();
+	out.push(copy.hasher().0);
+	drop(noisy);
+	let mut entries = copy.into_iter();
+	event(b'i', 0);
+	drop(entries.next());
+	drop(entries);
+	let mut made: HashMap<u8, Noisy, Numbered> = HashMap::default();
+	made.insert(2, Noisy(2));
+	let taken = std::mem::take(&mut made);
+	out.push(taken.len() as u8);
+	out.push(made.len() as u8);
+	let small: HashSet<u8, Numbered> = data.iter().map(|b| b % 4).collect();
+	let union = &small | &seen;
+	out.push(union.len() as u8);
+	out.push(small.is_subset(&seen) as u8);
+	seen.extend(small);
+	out.push(seen.len() as u8);
+	let mut keys: Vec<Key> = keyed.into_keys().collect();
+	keys.sort();
+	out.push(keys.len() as u8);
+	for value in taken.into_values() {
+		event(b'v', value.0);
+	}
+	drop(union);
+	out.extend_from_slice(&EVENTS.with(|events| events.take()));
+}
+
+thread_local! {
+	/// Each `Hash` and `eq` of a [`Sided`], in order.
+	static CALLS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Log a call of `what` on the value of `side` holding `n`, given one of `other`.
+fn call(what: u8, side: u8, other: u8, n: u8) {
+	CALLS.with(|calls| calls.borrow_mut().push(u32::from_be_bytes([what, side, other, n])));
+}
+
+/// A key or value of a map's side that logs each `Hash` and `eq` of it, so the log says
+/// whose key std hashes, and whose `eq` it calls with the other's as its argument.
+#[derive(Clone)]
+struct Sided {
+	n: u8,
+	side: u8,
+}
+
+impl Hash for Sided {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		call(b'h', self.side, 0, self.n);
+		self.n.hash(state);
+	}
+}
+
+impl PartialEq for Sided {
+	fn eq(&self, other: &Self) -> bool {
+		call(b'e', self.side, other.side, self.n);
+		self.n == other.n
+	}
+}
+
+impl Eq for Sided {}
+
+/// A `Hasher` of the crate's own whose hash puts the low 7 bits of the last byte written
+/// where hashbrown reads each slot's tag, on 32- and 64-bit targets, so a lookup among keys
+/// that differ there calls `eq` only on the one it finds, as the runtime's does. The seed
+/// moves the rest, and so where each key goes.
+struct Spreader {
+	seed: u64,
+	last: u64,
+}
+
+impl Hasher for Spreader {
+	fn finish(&self) -> u64 {
+		let tag = self.last & 0x7f;
+		(tag << 57) | (tag << 25) | ((self.last ^ self.seed).wrapping_mul(0x9e37_79b9) & 0x1ff_ffff)
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		if let Some(&b) = bytes.last() {
+			self.last = u64::from(b);
+		}
+	}
+}
+
+/// What builds a [`Spreader`] of its seed.
+#[derive(Clone, Default)]
+struct Spread(u64);
+
+impl BuildHasher for Spread {
+	type Hasher = Spreader;
+
+	fn build_hasher(&self) -> Spreader {
+		Spreader { seed: self.0, last: 0 }
+	}
+}
+
+/// A type whose derived `PartialEq` compares the maps it holds.
+#[derive(PartialEq)]
+struct Index {
+	names: HashMap<u8, String>,
+	seen: HashSet<(u8, bool)>,
+}
+
+/// Whether `a == b`, and what it logged: in the order it called each if it did so for one
+/// entry at most, else sorted if it visited every entry, else nothing, as which entries it
+/// visits before one differs follows std's order.
+fn compared<T: PartialEq>(a: &T, b: &T, len: usize, out: &mut Vec<u8>) {
+	CALLS.with(|calls| calls.borrow_mut().clear());
+	let equal = a == b;
+	out.push(equal as u8);
+	out.push((a != b) as u8);
+	let mut calls = CALLS.with(|calls| calls.take());
+	if len > 1 && !equal {
+		calls.clear();
+	}
+	// `!=` repeats `==`'s calls.
+	calls.truncate(calls.len() / 2);
+	if len > 1 {
+		calls.sort();
+	}
+	out.push(calls.len() as u8);
+	for c in calls {
+		out.extend_from_slice(&c.to_be_bytes());
+	}
+}
+
+/// `==` and `!=` of hash maps and sets, as std's: equal lengths, then each entry of the
+/// left looked up in the right, which hashes the left's key by its own `BuildHasher` and
+/// calls the left key's `eq` on the right's, then the left value's `eq` on the right's.
+/// Each side holds its own `BuildHasher`, seeded apart, and is built of the same bytes in
+/// another order, so a key given twice keeps the value it was given last; or of all but
+/// the last, or of one byte flipped. Then maps of a `RandomState`, which compare their keys
+/// as JS does, and maps in a `Vec` and in a type that derives `PartialEq`.
+pub fn equal(data: &[u8], out: &mut Vec<u8>) {
+	let first = data.first().copied().unwrap_or(0);
+	let map = |side: u8, bytes: &[u8]| {
+		let mut m = HashMap::with_hasher(Spread(u64::from(side) * 0x1_0001 + u64::from(first)));
+		for &b in bytes {
+			m.insert(
+				Sided { n: b & 0x7f, side },
+				Sided {
+					n: b >> 6,
+					side: side + 2,
+				},
+			);
+		}
+		m
+	};
+	let set = |side: u8, bytes: &[u8]| {
+		let mut s = HashSet::with_hasher(Spread(u64::from(side)));
+		for &b in bytes {
+			s.insert(Sided { n: b & 0x7f, side });
+		}
+		s
+	};
+	let reversed: Vec<u8> = data.iter().rev().copied().collect();
+	let flipped: Vec<u8> = data
+		.iter()
+		.enumerate()
+		.map(|(i, &b)| if i == data.len() / 2 { b ^ 0x41 } else { b })
+		.collect();
+	let shorter = &data[..data.len().saturating_sub(1)];
+	let left = map(1, data);
+	for right in [map(2, &reversed), map(2, data), map(2, shorter), map(2, &flipped)] {
+		compared(&left, &right, left.len(), out);
+		compared(&right, &left, left.len(), out);
+	}
+	let left = set(1, data);
+	for right in [set(2, &reversed), set(2, shorter), set(2, &flipped)] {
+		compared(&left, &right, left.len(), out);
+		compared(&right, &left, left.len(), out);
+	}
+	let empty: HashMap<Sided, Sided, Spread> = HashMap::default();
+	compared(&empty, &HashMap::default(), 0, out);
+	let counts = |bytes: &[u8]| {
+		let mut m: HashMap<u8, u16> = HashMap::new();
+		for &b in bytes {
+			*m.entry(b % 8).or_default() += u16::from(b);
+		}
+		m
+	};
+	out.push((counts(data) == counts(&reversed)) as u8);
+	out.push((counts(data) != counts(&flipped)) as u8);
+	let strings = |bytes: &[u8]| bytes.iter().map(|&b| text(&[b % 4])).collect::<HashSet<String>>();
+	out.push((strings(data) == strings(&reversed)) as u8);
+	out.push((strings(data) == strings(shorter)) as u8);
+	out.push((vec![strings(data), strings(&flipped)] == vec![strings(&reversed), strings(&flipped)]) as u8);
+	let index = |bytes: &[u8]| Index {
+		names: bytes.iter().map(|&b| (b % 8, text(&[b % 3]))).collect(),
+		seen: bytes.iter().map(|&b| (b % 5, b % 2 == 0)).collect(),
+	};
+	out.push((index(data) == index(&reversed)) as u8);
+	out.push((index(data) != index(&flipped)) as u8);
+}
+
+/// A `Hasher` of the crate's own that `BuildHasherDefault` builds, logging each one
+/// `Default` makes, each byte written, each finish, and each drop.
+struct Tally(u64);
+
+impl Default for Tally {
+	fn default() -> Self {
+		event(b'n', 0);
+		Tally(0)
+	}
+}
+
+impl Hasher for Tally {
+	fn finish(&self) -> u64 {
+		event(b'f', self.0 as u8);
+		self.0
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		for &b in bytes {
+			event(b'w', b);
+			self.0 = self.0.wrapping_mul(31).wrapping_add(u64::from(b));
+		}
+	}
+}
+
+impl Drop for Tally {
+	fn drop(&mut self) {
+		event(b'd', self.0 as u8);
+	}
+}
+
+/// `BuildHasherDefault` held in a field, its impls derived.
+#[derive(Default, Clone, Debug, PartialEq)]
+struct Tallied {
+	tag: u8,
+	state: BuildHasherDefault<Tally>,
+}
+
+/// One made in a `const`.
+const MADE: BuildHasherDefault<Tally> = BuildHasherDefault::new();
+
+/// `BuildHasherDefault`, made by `new`, `Default`, and `Clone`, which all compare equal and
+/// print alike whatever their `Hasher`, and each builds its hasher by the hasher's own
+/// `Default`, once per hash. Then hash maps and sets that hold one, which find their keys
+/// whatever it hashes them to, and say only sorted what they hold, as std's order is its own.
+pub fn defaults(data: &[u8], out: &mut Vec<u8>) {
+	EVENTS.with(|events| events.borrow_mut().clear());
+	let first = data.first().copied().unwrap_or(7);
+	let made = BuildHasherDefault::<Tally>::new();
+	let copy = made.clone();
+	let held = Tallied {
+		tag: first,
+		..Tallied::default()
+	};
+	let cloned = held.clone();
+	out.push((made == copy) as u8);
+	out.push((MADE != BuildHasherDefault::default()) as u8);
+	out.push((held == cloned) as u8);
+	out.push((held == Tallied::default()) as u8);
+	put(out, &format!("{made:?} {:?} {cloned:?} {held:#?}", Some(&MADE)));
+	let word = std::str::from_utf8(data).unwrap_or("✓");
+	let n = wide(data, 0, 2) as u16;
+	let mut built = made.build_hasher();
+	n.hash(&mut built);
+	let hashes = [
+		built.finish(),
+		made.hash_one(n),
+		copy.hash_one(word),
+		MADE.hash_one((n as u8, word)),
+		cloned.state.hash_one(&Key(n, word.to_string())),
+	];
+	drop(built);
+	for h in hashes {
+		out.extend_from_slice(&h.to_le_bytes());
+	}
+	let mut keyed: HashMap<Key, u8, BuildHasherDefault<Fnv>> = HashMap::default();
+	let mut seen: HashSet<u8, BuildHasherDefault<Fnv>> =
+		HashSet::with_capacity_and_hasher(data.len(), BuildHasherDefault::new());
+	for (i, &b) in data.iter().enumerate() {
+		*keyed.entry(Key(u16::from(b % 8), text(&data[i..=i]))).or_default() += 1;
+		out.push(seen.insert(b % 16) as u8);
+		out.push(keyed.contains_key(&Key(u16::from(b % 8 ^ 1), text(&[b ^ 1]))) as u8);
+	}
+	let mut entries: Vec<(&Key, &u8)> = keyed.iter().collect();
+	entries.sort();
+	for (Key(n, text), count) in entries {
+		out.push(*n as u8);
+		put(out, text);
+		out.push(*count);
+	}
+	let probe = Key(u16::from(first), text(&[first]));
+	out.extend_from_slice(&keyed.hasher().hash_one(&probe).to_le_bytes());
+	out.extend_from_slice(&seen.clone().hasher().hash_one(first).to_le_bytes());
+	out.push((*keyed.hasher() == BuildHasherDefault::default()) as u8);
+	out.push((keyed == keyed.clone()) as u8);
+	put(out, &format!("{:?}", seen.hasher()));
+	let small: HashSet<u8, BuildHasherDefault<Fnv>> = data.iter().map(|b| b % 4).collect();
+	let union = &small | &seen;
+	out.push(union.len() as u8);
+	out.push(small.is_subset(&seen) as u8);
+	out.extend_from_slice(&EVENTS.with(|events| events.take()));
 }

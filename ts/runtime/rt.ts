@@ -44,6 +44,11 @@ export function panic(message: string): never {
 	throw new Panic(message);
 }
 
+/** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
+export function resumeUnwind(): never {
+	throw new Abort("resume_unwind");
+}
+
 /**
  * Panic with a formatted message, which keeps what was written before a value failed to
  * format, as std's does.
@@ -627,7 +632,7 @@ export function slicePart<T>(s: T[], start: number, end: number = s.length): T[]
  */
 export function sliceView<T>(s: T[], start: number, end: number): T[] {
 	const outer = (s as { [VIEW]?: View<T> })[VIEW];
-	const view = outer ? new View(outer.s, outer.start + start, end - start) : new View(s, start, end - start);
+	const view = outer ? outer.part(start, end - start) : new View(s, start, end - start);
 	return new Proxy(new Array<T>(end - start), view);
 }
 
@@ -695,14 +700,35 @@ const VIEW = /* @__PURE__ */ Symbol("view");
 
 /** A `sliceView`'s traps: of `length` elements of `s` from `start`. */
 class View<T> implements ProxyHandler<T[]> {
-	readonly s: { [index: number]: T };
-	readonly start: number;
+	s: { [index: number]: T };
+	start: number;
 	readonly length: number;
 
 	constructor(s: { [index: number]: T }, start: number, length: number) {
 		this.s = s;
 		this.start = start;
 		this.length = length;
+	}
+
+	/** The traps of a view of `length` of these elements from `start`. */
+	part(start: number, length: number): View<T> {
+		return new View(this.s, this.start + start, length);
+	}
+
+	/** Element `i` of `s`. */
+	item(i: number): T {
+		return this.s[i];
+	}
+
+	/** A write of element `i` of `s`. */
+	put(i: number, value: T): void {
+		this.s[i] = value;
+	}
+
+	/** Holds a copy of what it views from now on, as a read of the array it views copied it. */
+	detach(): void {
+		this.s = Array.from({ length: this.length }, (_, i) => this.item(this.start + i));
+		this.start = 0;
 	}
 
 	/** Where in `s` the element `key` names is, or -1 if it names none. */
@@ -715,13 +741,13 @@ class View<T> implements ProxyHandler<T[]> {
 	get(target: T[], key: string | symbol): unknown {
 		if (key === VIEW) return this;
 		const i = this.at(key);
-		return i < 0 ? Reflect.get(target, key) : this.s[i];
+		return i < 0 ? Reflect.get(target, key) : this.item(i);
 	}
 
 	set(target: T[], key: string | symbol, value: T): boolean {
 		const i = this.at(key);
 		if (i < 0) return Reflect.set(target, key, value);
-		this.s[i] = value;
+		this.put(i, value);
 		return true;
 	}
 
@@ -736,8 +762,139 @@ class View<T> implements ProxyHandler<T[]> {
 	getOwnPropertyDescriptor(target: T[], key: string | symbol): PropertyDescriptor | undefined {
 		const i = this.at(key);
 		if (i < 0) return Reflect.getOwnPropertyDescriptor(target, key);
-		return { value: this.s[i], writable: true, enumerable: true, configurable: true };
+		return { value: this.item(i), writable: true, enumerable: true, configurable: true };
 	}
+}
+
+/**
+ * `as_chunks_mut`'s slice of arrays: element `i` the view of run `i` of `n` elements of `flat`
+ * from `offset`, made the first time it is read and kept in `views`. A whole write of a run
+ * copies into it, and the view a read took of it first detaches to a copy of what it held,
+ * as Rust's read copied the array.
+ */
+class Runs<T> extends View<T[]> {
+	flat: T[];
+	offset: number;
+	readonly n: number;
+
+	constructor(flat: T[], at: number, n: number, views: T[][], start: number, length: number) {
+		super(views, start, length);
+		this.flat = flat;
+		this.offset = at;
+		this.n = n;
+	}
+
+	override part(start: number, length: number): Runs<T> {
+		return new Runs(this.flat, this.offset, this.n, this.s as T[][], this.start + start, length);
+	}
+
+	override item(i: number): T[] {
+		const from = this.offset + i * this.n;
+		return ((this.s as (T[] | undefined)[])[i] ??= sliceView(this.flat, from, from + this.n));
+	}
+
+	override put(i: number, value: T[]): void {
+		const views = this.s as (T[] | undefined)[];
+		const held = views[i];
+		if (held !== undefined) {
+			(held as { [VIEW]?: View<T> })[VIEW]!.detach();
+			views[i] = undefined;
+		}
+		const from = this.offset + i * this.n;
+		for (let k = 0; k < this.n; k++) this.flat[from + k] = value[k];
+	}
+
+	override detach(): void {
+		const from = this.offset + this.start * this.n;
+		const runs = isRuns(this.flat);
+		this.flat = Array.from({ length: this.length * this.n }, (_, k) => (runs ? copyRun(this.flat[from + k]) : this.flat[from + k]));
+		this.offset = -this.start * this.n;
+		this.s = [];
+	}
+}
+
+/** Whether `s` is runs, or a view of them, whose elements are views of their runs. */
+function isRuns(s: object): boolean {
+	const view = (s as { [VIEW]?: unknown })[VIEW];
+	return view instanceof Runs || view instanceof ByteRuns;
+}
+
+/**
+ * `x`, a run read out of runs, as a value of its own, since a write through the runs
+ * would change it: a copy of its elements, and of each run it holds as runs at any depth,
+ * but not of what its elements point at.
+ */
+function copyRun<T>(x: T): T {
+	if (x instanceof Uint8Array) return x.slice() as T;
+	const run = x as unknown as unknown[];
+	return (isRuns(run) ? Array.from(run, copyRun) : Array.from(run)) as T;
+}
+
+/**
+ * `as_chunks_mut` of bytes' slice of arrays: element `i` a `Uint8Array` view of run `i` of
+ * `n` bytes of `data` from `offset`, made the first time it is read and kept in `views`, and a
+ * whole write of a run copied into it. A `Uint8Array` can't detach as `Runs`' views do, so
+ * a read of one by value copies it, as `byValue` has the runtime's own reads do.
+ */
+class ByteRuns extends View<Uint8Array> {
+	data: Uint8Array;
+	offset: number;
+	readonly n: number;
+
+	constructor(data: Uint8Array, at: number, n: number, views: Uint8Array[], start: number, length: number) {
+		super(views, start, length);
+		this.data = data;
+		this.offset = at;
+		this.n = n;
+	}
+
+	override part(start: number, length: number): ByteRuns {
+		return new ByteRuns(this.data, this.offset, this.n, this.s as Uint8Array[], this.start + start, length);
+	}
+
+	override item(i: number): Uint8Array {
+		const from = this.offset + i * this.n;
+		return ((this.s as (Uint8Array | undefined)[])[i] ??= this.data.subarray(from, from + this.n));
+	}
+
+	override put(i: number, value: Uint8Array): void {
+		this.data.set(value, this.offset + i * this.n);
+	}
+
+	override detach(): void {
+		const from = this.offset + this.start * this.n;
+		this.data = this.data.slice(from, from + this.length * this.n);
+		this.offset = -this.start * this.n;
+		this.s = [];
+	}
+
+	override get(target: Uint8Array[], key: string | symbol): unknown {
+		if (key !== "reverse") return super.get(target, key);
+		const s = new Proxy(target, this);
+		return () => byValue(s, (values) => values.reverse());
+	}
+}
+
+/**
+ * `op` of `s`, a slice it reads elements of before writes that may overwrite them: of
+ * copies of each, then each written back, if `s` holds `ByteRuns`' views, which a write
+ * through `s` would change under `op`.
+ */
+export function byValue<T>(s: T[], op: (s: T[]) => void): void {
+	if (!byteRuns(s)) return op(s);
+	const values = Array.from(s as Uint8Array[], (run) => run.slice()) as T[];
+	op(values);
+	for (let i = 0; i < values.length; i++) s[i] = values[i];
+}
+
+/** `x`, an element of `s` read before a write that may overwrite it: a copy if `s` holds `ByteRuns`' views. */
+function held<T>(s: T[], x: T): T {
+	return byteRuns(s) ? ((x as Uint8Array).slice() as T) : x;
+}
+
+/** Whether `s` holds `ByteRuns`' views. */
+function byteRuns(s: object): boolean {
+	return (s as { [VIEW]?: unknown })[VIEW] instanceof ByteRuns;
 }
 
 /** `&mut s[start..end]`: the runtime's view of it, checked as `sliceRange` checks it. */
@@ -787,6 +944,24 @@ export function sliceAsRchunks<T>(s: T[], n: number): [T[], T[][]] {
 	const count = chunkCount(s.length, n);
 	const rest = s.length - count * n;
 	return [slicePart(s, 0, rest), runs(count, n, (start, end) => s.slice(rest + start, rest + end))];
+}
+
+/** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
+export function sliceAsChunksMut<T>(s: T[], n: number): [T[][], T[]] {
+	const count = chunkCount(s.length, n);
+	return [runsOf(s, 0, n, count), sliceView(s, count * n, s.length)];
+}
+
+/** `as_rchunks_mut`: the rest, and each run of `n` elements up to the back as an array, written where the slice holds it, panicking at a size of 0. */
+export function sliceAsRchunksMut<T>(s: T[], n: number): [T[], T[][]] {
+	const count = chunkCount(s.length, n);
+	const rest = s.length - count * n;
+	return [sliceView(s, 0, rest), runsOf(s, rest, n, count)];
+}
+
+/** `count` runs of `n` elements of `s` from `at`, as `Runs` lends them. */
+function runsOf<T>(s: T[], at: number, n: number, count: number): T[][] {
+	return new Proxy(new Array<T[]>(count), new Runs(s, at, n, [], 0, count));
 }
 
 /** How many runs of `n` elements fit in `length`, panicking at a size of 0, as `as_chunks` does. */
@@ -952,26 +1127,51 @@ export function slicePartitionPoint<T>(s: ArrayLike<T>, pred: (item: T) => boole
 
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
 export function sliceSwap<T>(s: T[], a: number, b: number): void {
-	const x = s[idx(s, a)];
+	const x = held(s, s[idx(s, a)]);
 	s[a] = s[idx(s, b)];
 	s[b] = x;
 }
 
 /**
- * `fill`: a clone of `value` into each slot but the last, each old element dropped once
- * its slot's clone is made, then `value` itself into the last, or `value` dropped if there
- * is none. `clone` is `undefined` where a clone is the value.
+ * `fill`: `value` cloned over each slot but the last by `cloneOver`, then `value` itself
+ * into the last, or `value` dropped if there is none.
  */
-export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): void {
 	const last = s.length - 1;
 	if (last < 0) return drop?.(value);
-	for (let i = 0; i < last; i++) {
-		const item = clone === undefined ? value : clone(value);
-		drop?.(s[i]);
-		s[i] = item;
-	}
+	for (let i = 0; i < last; i++) s[i] = cloneOver(s[i], value, clone, drop, over);
 	drop?.(s[last]);
 	s[last] = value;
+}
+
+/** A `clone_from` as a function of the value it writes over and its source, returning what takes the old value's place. */
+export type CloneFrom<T> = (old: T, src: T) => T;
+
+/**
+ * What `clone_from` of `src` leaves over `old`: `over`'s, where it is its own, or else
+ * `src`'s clone, made before `old` drops. `clone` is `undefined` where a clone is the value.
+ */
+export function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
+	if (over !== undefined) return over(old, src);
+	const item = clone === undefined ? src : clone(src);
+	drop?.(old);
+	return item;
+}
+
+/** A crate's own `clone_from` of an object, `f`, which writes over it in place. */
+export function cloneFromFn<T>(f: (old: T, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(old, src);
+		return old;
+	};
+}
+
+/** A crate's own `clone_from` of a value a `&mut` lends as an `rt.Place`, `f`. */
+export function cloneFromPlaceFn<T>(f: (old: Place<T>, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(place(() => old, (value) => (old = value)), src);
+		return old;
+	};
 }
 
 /** `fill_with`: `f()` into each slot in order, each old element dropped once its slot's value is made. */
@@ -998,9 +1198,11 @@ export function sliceRotateRight<T>(s: T[], k: number): void {
 /** The elements from `mid` on, then those before it, in place. */
 function rotate<T>(s: T[], mid: number): void {
 	if (mid === 0 || mid === s.length) return;
-	const head = s.slice(0, mid);
-	s.copyWithin(0, mid);
-	for (let i = 0; i < mid; i++) s[s.length - mid + i] = head[i];
+	byValue(s, (s) => {
+		const head = s.slice(0, mid);
+		s.copyWithin(0, mid);
+		for (let i = 0; i < mid; i++) s[s.length - mid + i] = head[i];
+	});
 }
 
 /** `copy_within`: `s[start..end]` copied to index `dest`, panicking out of bounds; `copy` is `undefined` where a copy is the value. */
@@ -1010,8 +1212,9 @@ export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: num
 		s.copyWithin(dest, start, end);
 		return;
 	}
-	const items = s.slice(start, end);
-	for (let i = 0; i < items.length; i++) s[dest + i] = copy(items[i]);
+	// Each copied before any write, which may land in what one views.
+	const items = s.slice(start, end).map(copy);
+	for (let i = 0; i < items.length; i++) s[dest + i] = items[i];
 }
 
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
@@ -1028,25 +1231,89 @@ export function sliceCopyFromSlice<T>(dst: T[], src: ArrayLike<T>, copy?: (value
 	for (let i = 0; i < src.length; i++) dst[i] = copy === undefined ? src[i] : copy(src[i]);
 }
 
-/** `clone_from_slice`: each slot's clone in order, each old element dropped once its slot's clone is made, panicking first if the lengths differ. */
-export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+/** `clone_from_slice`: each element cloned over its slot's in order by `cloneOver`, panicking first if the lengths differ. */
+export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
 	if (dst.length !== src.length) panic("destination and source slices have different lengths");
-	for (let i = 0; i < src.length; i++) {
-		const item = clone === undefined ? src[i] : clone(src[i]);
-		drop?.(dst[i]);
-		dst[i] = item;
-	}
+	for (let i = 0; i < src.length; i++) dst[i] = cloneOver(dst[i], src[i], clone, drop, over);
+	return dst;
+}
+
+/** `sliceCloneFromSlice` as a `CloneFrom` of an array. */
+export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => sliceCloneFromSlice(old, src, clone, drop, over);
 }
 
 /** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
-export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void): T[] {
-	if (dst.length === src.length) {
-		sliceCloneFromSlice(dst, src, clone, drop);
-		return dst;
-	}
+export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	if (dst.length === src.length) return sliceCloneFromSlice(dst, src, clone, drop, over);
 	const v = clone === undefined ? src.slice() : src.map(clone);
 	if (drop !== undefined) for (const item of dst) drop(item);
 	return v;
+}
+
+/** `boxSliceCloneFrom` as a `CloneFrom`. */
+export function boxSliceCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => boxSliceCloneFrom(old, src, clone, drop, over);
+}
+
+/**
+ * `Option::clone_from` of `src` over `old`, whose `None` is `none`: of two `Some`s, `over`
+ * of what they hold, and else `src`'s clone, made before `old` drops.
+ */
+export function optionCloneFrom<T>(old: T | undefined, src: T | undefined, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): T | undefined;
+export function optionCloneFrom<T>(old: T | None, src: T | None, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): T | None;
+export function optionCloneFrom<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): T {
+	return optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom` as a `CloneFrom`. */
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): CloneFrom<T | undefined>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): CloneFrom<T | None>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): CloneFrom<T> {
+	return (old, src) => optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom`, of any `none`. */
+function optionOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: unknown): T {
+	if (old !== none && src !== none) return over(old, src);
+	const item = src === none || clone === undefined ? src : clone(src);
+	if (old !== none) drop?.(old);
+	return item;
+}
+
+/**
+ * `Result::clone_from` of `src` over `old`: of two `Ok`s or two `Err`s, what `src` holds
+ * cloned over what `old` does, as `cloneOver` clones it by each side's own functions, and
+ * else `src`'s clone, made before `old` drops.
+ */
+export function resultCloneFrom<T, E>(
+	old: Result<T, E>,
+	src: Result<T, E>,
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): Result<T, E> {
+	if (old.ok && src.ok) return Ok(cloneOver(old.value, src.value, cloneOk, dropOk, overOk));
+	if (!old.ok && !src.ok) return Err(cloneOver(old.error, src.error, cloneErr, dropErr, overErr));
+	const item: Result<T, E> = src.ok ? Ok(cloneOk === undefined ? src.value : cloneOk(src.value)) : Err(cloneErr === undefined ? src.error : cloneErr(src.error));
+	if (old.ok) dropOk?.(old.value);
+	else dropErr?.(old.error);
+	return item;
+}
+
+/** `resultCloneFrom` as a `CloneFrom`. */
+export function resultCloneFromFn<T, E>(
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): CloneFrom<Result<T, E>> {
+	return (old, src) => resultCloneFrom(old, src, cloneOk, dropOk, overOk, cloneErr, dropErr, overErr);
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
@@ -1216,6 +1483,28 @@ export function vecSwapRemove<T>(v: T[], i: number): T {
 export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
 	vecReserve(v, s.length, size);
 	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
+}
+
+/**
+ * `Vec::clone_from` of `src`, and `clone_into` of a slice, over `v` of `size`-byte
+ * elements, as std's: truncated to `src`'s length, each element it keeps cloned over by
+ * `cloneOver`, and then the rest of `src` cloned onto its end.
+ */
+export function vecCloneFrom<T>(v: T[] & Capped, src: ArrayLike<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	// Its buffer, kept as it is cut, where its length was all that said how big it is.
+	const cap = vecCapacity(v, size);
+	vecTruncate(v, src.length, drop);
+	capSet(v, v.length, cap, size);
+	const kept = v.length;
+	for (let i = 0; i < kept; i++) v[i] = cloneOver(v[i], src[i], clone, drop, over);
+	vecReserve(v, src.length - kept, size);
+	for (let i = kept; i < src.length; i++) v.push(clone === undefined ? src[i] : clone(src[i]));
+	return v;
+}
+
+/** `vecCloneFrom` as a `CloneFrom`. */
+export function vecCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => vecCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `Vec::append` of `size`-byte elements: room reserved for `other`'s, which then move over in order, leaving it empty. */
@@ -1393,6 +1682,24 @@ export function byteSliceAsRchunks(s: ByteSlice, n: number): [ByteSlice, Uint8Ar
 	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(at + start, at + end))];
 }
 
+/** `as_chunks_mut` of bytes: each run of `n` from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
+export function byteSliceAsChunksMut(s: ByteSlice, n: number): [Uint8Array[], ByteSlice] {
+	const count = chunkCount(s.length, n);
+	return [byteRunsOf(s.data, s.start, n, count), new ByteSlice(s.data, s.start + count * n, s.length - count * n)];
+}
+
+/** `as_rchunks_mut` of bytes: the rest, and each run of `n` up to the back as an array, written where the slice holds it, panicking at a size of 0. */
+export function byteSliceAsRchunksMut(s: ByteSlice, n: number): [ByteSlice, Uint8Array[]] {
+	const count = chunkCount(s.length, n);
+	const rest = s.length - count * n;
+	return [new ByteSlice(s.data, s.start, rest), byteRunsOf(s.data, s.start + rest, n, count)];
+}
+
+/** `count` runs of `n` bytes of `data` from `at`, as `ByteRuns` lends them. */
+function byteRunsOf(data: Uint8Array, at: number, n: number, count: number): Uint8Array[] {
+	return new Proxy(new Array<Uint8Array>(count), new ByteRuns(data, at, n, [], 0, count));
+}
+
 /** `first`: the first byte, or `undefined` if empty. */
 export function byteSliceFirst(s: ByteSlice): number | undefined {
 	return s.length === 0 ? undefined : s.data[s.start];
@@ -1480,14 +1787,16 @@ export function byteSliceToByteVec(s: ByteSlice): ByteVec {
 	return v;
 }
 
-/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them; `clone` is `undefined` where a clone is the value. */
-export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined): T[] {
+/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them, or `value` dropped where `n` is 0; `clone` is `undefined` where a clone is the value. */
+export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): T[] {
 	const v: T[] & Capped = [];
-	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
-	if (n > 0) {
-		v.push(value);
-		v.cap = n;
+	if (n === 0) {
+		drop?.(value);
+		return v;
 	}
+	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
+	v.push(value);
+	v.cap = n;
 	return v;
 }
 
@@ -1783,18 +2092,20 @@ export function vecShrinkTo<T>(v: T[] & Capped, min: number, size: number): void
 }
 
 /**
- * `clone`, the clone `clone_from` writes over `v`, with the capacity std's keeps of `v`'s
- * for `size`-byte elements: as it was, or grown as `reserve` grows it if it held fewer.
+ * `Vec::clone_from` of `src`, and `clone_into` of a byte slice, over `v`: its buffer, grown
+ * as `reserve` grows it if it holds fewer, holding a copy of `src`'s bytes.
  */
-export function vecClonedInto<T>(clone: T[], v: T[] & Capped, size: number): T[] {
-	capHold(clone, capReserve(0, vecCapacity(v, size), clone.length, size), size);
-	return clone;
+export function byteVecCloneFrom(v: ByteVec, src: ByteVec | ByteSlice): ByteVec {
+	v.length = 0;
+	reserve(v, src.length);
+	copyBytes(v.data, 0, src.data, src instanceof ByteSlice ? src.start : 0, src.length);
+	v.length = src.length;
+	return v;
 }
 
-/** `vecClonedInto` of bytes. */
-export function byteVecClonedInto(clone: ByteVec, v: ByteVec): ByteVec {
-	byteVecReserveExact(clone, capReserve(0, v.data.length, clone.length, 1) - clone.length);
-	return clone;
+/** `byteVecCloneFrom` as a `CloneFrom`. */
+export function byteVecCloneFromFn(): CloneFrom<ByteVec> {
+	return byteVecCloneFrom;
 }
 
 /** `v`, a new `Vec` of `size`-byte elements, with room for exactly what it holds, as std's `clone` makes one. */
@@ -1980,7 +2291,8 @@ export class FromUtf8Error {
 
 	constructor(bytes: ByteVec) {
 		this.bytes = bytes;
-		this.error = utf8Error(byteVecView(bytes));
+		// Made only of bytes that are not UTF-8.
+		this.error = utf8Check(byteVecView(bytes)) as Utf8Error;
 	}
 }
 
@@ -1989,8 +2301,8 @@ export function fromUtf8ErrorClone(e: FromUtf8Error): FromUtf8Error {
 	return new FromUtf8Error(byteVecFrom(byteVecView(e.bytes)));
 }
 
-/** Where `v`, which is not UTF-8, stops being so, and how many bytes are invalid there, as std reports it. */
-function utf8Error(v: Uint8Array): Utf8Error {
+/** Where `v` stops being UTF-8, and how many bytes are invalid there, as std reports it: `undefined` if it never does. */
+export function utf8Check(v: Uint8Array): Utf8Error | undefined {
 	const tail = (b: number | undefined) => b !== undefined && b >= 0x80 && b <= 0xbf;
 	for (let i = 0; i < v.length; ) {
 		const first = v[i];
@@ -2011,7 +2323,7 @@ function utf8Error(v: Uint8Array): Utf8Error {
 		}
 		i += width;
 	}
-	throw new Error("utf8Error: the bytes are valid UTF-8");
+	return undefined;
 }
 
 /** `str::from_utf8`. */
@@ -2020,7 +2332,7 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 	try {
 		return Ok(decoder.decode(v));
 	} catch {
-		return Err(utf8Error(v));
+		return Err(utf8Check(v) as Utf8Error);
 	}
 }
 
@@ -2036,6 +2348,11 @@ export function stringFromUtf8(bytes: ByteVec): Result<string, FromUtf8Error> {
 /** `str::as_bytes`: its UTF-8 bytes. */
 export function stringAsBytes(s: string): ByteSlice {
 	return byteSliceFrom(encoder.encode(s));
+}
+
+/** `String::into_bytes`: its UTF-8 bytes. */
+export function stringIntoBytes(s: string): ByteVec {
+	return byteVecFrom(encoder.encode(s));
 }
 
 /** `str::len`: its length in UTF-8 bytes. */
@@ -2511,6 +2828,17 @@ export type IterWrap = string | readonly [name: string, field: string];
 /** `Debug` of one of std's iterators: the items `it` has left, as a list inside `wraps`, outermost first. */
 export function fmtIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[] = []): FmtResult {
 	return wrapIn(f, wraps, (f) => fmtList(it.remaining() as Iterable<T>, f, debug));
+}
+
+/** `Debug` of an `Option`'s, a `Result`'s, or a `Once`'s iterator: the item `it` has left, if any, as an `Option` inside `wraps`, outermost first. */
+export function fmtIterOption<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[]): FmtResult {
+	const items = [...it.remaining()] as T[];
+	return wrapIn(f, wraps, (f) => (items.length === 0 ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(items[0], f)])));
+}
+
+/** `Debug` of what std writes as the list of what a clone of it yields: a `HashSet`'s set operations. */
+export function fmtIterClone<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	return fmtList(it.clone(), f, debug);
 }
 
 /** `Debug` of a `LinkedList`'s `Iter` or `IterMut`, `name`: the list it has left, then its length by `len`. */

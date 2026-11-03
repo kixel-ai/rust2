@@ -23,5 +23,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("hashes::bytes", |_, data, out| hashes::bytes(data, out)),
 		("hashes::own", |_, data, out| hashes::own(data, out)),
 		("hashes::copied", |_, data, out| hashes::copied(data, out)),
+		("hashes::maps", |_, data, out| hashes::maps(data, out)),
+		("hashes::equal", |_, data, out| hashes::equal(data, out)),
+		("hashes::defaults", |_, data, out| hashes::defaults(data, out)),
 	]
 }

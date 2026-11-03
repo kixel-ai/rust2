@@ -1919,3 +1919,230 @@ fn halves<I: Iterator<Item = u8>>(mut it: I, n: usize) -> Vec<u8> {
 	let front: Vec<u8> = it.by_ref().take(n).collect();
 	[front, it.take(1).collect()].concat()
 }
+
+/// The crate's own iterators taken by value, whose JS value is copied as an enum's is or
+/// shared as a struct's is, through adaptors, consumers, `for`, and `IntoIterator`, with
+/// what each drops logged where it drops.
+pub fn by_value(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = std::cell::RefCell::new(Vec::new());
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let phase = Phase::of(at(0));
+	let ticks = || Ticks::Left(at(1) % 6, Noted(&log, 0xd0));
+	let logged = || Logged {
+		left: at(2) % 5,
+		log: &log,
+	};
+	match kind % 13 {
+		0 => out.extend(phase.map(|n| n * 3)),
+		1 => {
+			let v: Vec<u8> = phase.filter(|n| n % 2 == 0).collect();
+			out.extend(v);
+		}
+		2 => out.extend(phase.zip(ticks()).map(|(a, b)| a ^ b)),
+		3 => out.extend(ticks().zip(logged()).map(|(a, b)| a + b)),
+		4 => out.extend(phase.chain(ticks()).chain(logged())),
+		5 => {
+			for n in ticks() {
+				log.borrow_mut().push(n);
+			}
+			for n in phase {
+				out.push(n);
+			}
+		}
+		6 => {
+			out.push(phase.count() as u8);
+			out.push(Phase::of(at(1)).last().unwrap_or(0xee));
+			out.push(phase.fold(1, |acc, n| acc ^ n));
+			out.push(phase.size_hint().0 as u8);
+			out.push(phase.rev().next().unwrap_or(0xee));
+		}
+		7 => {
+			out.push(ticks().count() as u8);
+			out.push(ticks().last().unwrap_or(0xee));
+			out.push(ticks().sum());
+			out.push(ticks().nth(1).unwrap_or(0xee));
+			out.push(logged().take(2).count() as u8);
+		}
+		8 => {
+			let mut v = vec![at(3)];
+			v.extend(ticks());
+			v.extend(phase);
+			out.extend(v);
+		}
+		9 => {
+			let bag = Bag(at(0), at(1));
+			for n in bag {
+				out.push(n);
+			}
+			out.extend(bag.into_iter().map(|n| n + 1).enumerate().map(|(i, n)| i as u8 ^ n));
+		}
+		10 => {
+			// Stopped partway, so what each still holds drops with the adaptor.
+			let mut it = ticks().map(|n| n * 2).peekable();
+			out.extend(it.next());
+			out.extend(it.peek().copied());
+			drop(it);
+			let mut it = logged().chain(ticks()).skip(1);
+			out.extend(it.next());
+			log.borrow_mut().push(0xaa);
+		}
+		11 => {
+			let pairs: Vec<(u8, u8)> = phase.zip(phase.rev()).collect();
+			for (a, b) in pairs {
+				out.push(a * 16 + b);
+			}
+			out.push(phase.max().unwrap_or(0xee));
+			out.push(u8::from(phase.eq(Phase::of(at(1)))));
+			// Each pass of a cycle reads a clone of the iterator as it was.
+			out.extend(phase.into_iter().cycle().take(usize::from(at(1) % 8)));
+		}
+		_ => {
+			// Std's methods taking `&mut self`, and adaptors of a `&mut`, advance the local.
+			let mut p = phase;
+			out.extend(p.nth(0));
+			out.push(u8::from(p.any(|n| n == 1)));
+			out.extend(p.by_ref().map(|n| n + 0x10).take(1));
+			out.push((&mut p).size_hint().0 as u8);
+			for n in &mut p {
+				out.push(n);
+				break;
+			}
+			let lent = &mut p;
+			out.extend(lent.nth(0));
+			out.push(lent.size_hint().0 as u8);
+			out.extend(p);
+			let mut t = ticks();
+			out.extend(t.find(|n| n % 2 == 0));
+			out.extend(t.position(|n| n == 0).map(|i| i as u8));
+			out.extend((&mut t).zip(phase).map(|(a, b)| a * b));
+			out.extend(t);
+		}
+	}
+	out.extend_from_slice(&log.borrow());
+}
+
+/// A countdown whose JS value is a string: each step a variant.
+#[derive(Clone, Copy)]
+enum Phase {
+	Three,
+	Two,
+	One,
+	Done,
+}
+
+impl Phase {
+	fn of(b: u8) -> Self {
+		[Self::Three, Self::Two, Self::One, Self::Done][usize::from(b % 4)]
+	}
+
+	fn left(self) -> u8 {
+		match self {
+			Self::Three => 3,
+			Self::Two => 2,
+			Self::One => 1,
+			Self::Done => 0,
+		}
+	}
+}
+
+impl Iterator for Phase {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		let left = self.left();
+		*self = match self {
+			Self::Three => Self::Two,
+			Self::Two => Self::One,
+			Self::One | Self::Done => Self::Done,
+		};
+		(left != 0).then_some(left)
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let left = usize::from(self.left());
+		(left, Some(left))
+	}
+
+	fn count(self) -> usize {
+		usize::from(self.left()) + 10
+	}
+}
+
+impl DoubleEndedIterator for Phase {
+	/// From the back, it counts up, ending where the front would.
+	fn next_back(&mut self) -> Option<u8> {
+		let left = self.left();
+		*self = Self::of(4 - left.min(3) + 1);
+		(left != 0).then_some(4 - left)
+	}
+}
+
+/// What logs a byte as it drops.
+struct Noted<'a>(&'a std::cell::RefCell<Vec<u8>>, u8);
+
+impl Drop for Noted<'_> {
+	fn drop(&mut self) {
+		self.0.borrow_mut().push(self.1);
+	}
+}
+
+/// An enum with a field, whose JS value is an object a `&mut` replaces, and which drops
+/// what it holds.
+enum Ticks<'a> {
+	Left(u8, Noted<'a>),
+	Done,
+}
+
+impl Iterator for Ticks<'_> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		match self {
+			Self::Left(0, noted) => {
+				noted.1 += 1;
+				*self = Self::Done;
+				None
+			}
+			Self::Left(left, noted) => {
+				*left -= 1;
+				noted.1 += 1;
+				Some(*left)
+			}
+			Self::Done => None,
+		}
+	}
+}
+
+/// A struct that logs what it has left as it drops.
+struct Logged<'a> {
+	left: u8,
+	log: &'a std::cell::RefCell<Vec<u8>>,
+}
+
+impl Iterator for Logged<'_> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.left = self.left.checked_sub(1)?;
+		Some(self.left + 0x40)
+	}
+}
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		self.log.borrow_mut().push(0x80 | self.left);
+	}
+}
+
+/// A pair that iterates as a `Phase` from each.
+#[derive(Clone, Copy)]
+struct Bag(u8, u8);
+
+impl IntoIterator for Bag {
+	type Item = u8;
+	type IntoIter = std::iter::Chain<Phase, Phase>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		Phase::of(self.0).chain(Phase::of(self.1))
+	}
+}

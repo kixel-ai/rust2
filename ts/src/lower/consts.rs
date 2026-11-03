@@ -173,7 +173,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 							values.extend(super::library::range_step(tcx, args.type_at(0), false));
 							Expr::New(Box::new(Expr::Rt("Range".into())), values)
 						}
-						(Std::RangeFull, _) => Expr::undefined(),
+						(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
+						(Std::Pending, _) => Expr::Rt("NEVER".into()),
 						(Std::ParseIntError, _) => {
 							Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())])
 						}

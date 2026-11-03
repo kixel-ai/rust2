@@ -105,10 +105,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 		}
 	}
 
-	/// What `ty` owns through any boxes.
+	/// What `ty` owns through any boxes and `AssertUnwindSafe`s.
 	pub fn unboxed(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
 		while let ty::Adt(adt, args) = ty.kind()
-			&& Std::of(self.tcx, adt.did()) == Some(Std::Box)
+			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::Box | Std::AssertUnwindSafe))
 		{
 			ty = args.type_at(0);
 		}

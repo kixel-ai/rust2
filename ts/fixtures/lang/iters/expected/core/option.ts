@@ -97,6 +97,13 @@ export function map$0p22lts(self: rt.u8 | undefined, f: (a0: rt.u8) => undefined
 	return undefined;
 }
 
+export function map$05nbzug(self: rt.usize | undefined, f: (a0: rt.usize) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function mapOr$0lcrgk1(self: string | undefined, default_: rt.u8, f: (a0: string) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;

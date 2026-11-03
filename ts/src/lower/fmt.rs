@@ -278,6 +278,10 @@ pub fn std_impl<'tcx>(
 		ty::Dynamic(preds, ..) if preds.principal_def_id().and_then(|did| Trait::of(tcx, did)) == Some(tr) => {
 			value.call(vec![f])
 		}
+		// Its name and no fields, unpadded, whatever it holds.
+		ty::Dynamic(..) if tr == Trait::Debug && super::dynamic::is_any_object(tcx, ty) => {
+			rt("writeStr", vec![f, Expr::Str("Any { .. }".into())])
+		}
 		// Unpadded, naming its type as `type_name` does.
 		ty::Adt(adt, args) if tr == Trait::Debug && adt.is_phantom_data() => {
 			let name = rustc_const_eval::util::type_name(tcx, args.type_at(0));
@@ -285,7 +289,13 @@ pub fn std_impl<'tcx>(
 		}
 		// Each its name alone, unpadded.
 		ty::Adt(adt, _)
-			if tr == Trait::Debug && (library::pinned(tcx, adt.did()) || library::empty_iter(tcx, adt.did())) =>
+			if tr == Trait::Debug
+				&& (library::pinned(tcx, adt.did())
+					|| library::empty_iter(tcx, adt.did())
+					|| matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::Pending | Std::PollFn | Std::BuildHasherDefault)
+					)) =>
 		{
 			rt("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
 		}
@@ -353,6 +363,12 @@ pub fn std_impl<'tcx>(
 		{
 			e
 		}
+		ty::Adt(adt, args)
+			if tr == Trait::Debug
+				&& let Some(e) = adaptor_debug(b, adt.did(), args, &value, &f, span) =>
+		{
+			e
+		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
 			(Std::String | Std::Cow, Trait::Display) if library::string(tcx, ty) => Expr::rt("fmtPad", vec![f, value]),
 			(Std::String | Std::Cow, Trait::Debug) if library::string(tcx, ty) => rt("str", vec![value, f]),
@@ -394,12 +410,10 @@ pub fn std_impl<'tcx>(
 			}
 			(Std::Ordering, Trait::Debug) => rt("ordering", vec![value, f]),
 			// Erased to what it holds.
-			(Std::Reverse, Trait::Debug) => {
+			(std @ (Std::Reverse | Std::AssertUnwindSafe), Trait::Debug) => {
 				let held = b.fmt_value(tr, args.type_at(0), value, span, out);
-				rt(
-					"debugTupleFields",
-					vec![f, Expr::Str("Reverse".into()), Expr::Array(vec![held])],
-				)
+				let name = format!("{std:?}");
+				rt("debugTupleFields", vec![f, Expr::Str(name), Expr::Array(vec![held])])
 			}
 			(Std::ControlFlow, Trait::Debug) => {
 				let go = b.fmt_fn(tr, args.type_at(1), span);
@@ -458,6 +472,20 @@ pub fn std_impl<'tcx>(
 				let ok = b.fmt_fn(tr, args.type_at(0), span);
 				let err = b.fmt_fn(tr, args.type_at(1), span);
 				rt("result", vec![value, f, ok, err])
+			}
+			(Std::Poll, Trait::Debug) => {
+				let ready = b.fmt_fn(tr, args.type_at(0), span);
+				let pending = b.t.pending_arg(args.type_at(0));
+				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
+			}
+			(Std::Waker | Std::Context | Std::WakerVTable, Trait::Debug) => b.err(
+				span,
+				format!("`Debug` of `{ty}`, which writes addresses, which JS has no counterpart of"),
+			),
+			// The `Option` it holds until a poll takes its value.
+			(Std::Ready, Trait::Debug) => {
+				let held = b.fmt_fn(tr, args.type_at(0), span);
+				value.member("debug").call(vec![f, held])
 			}
 			(Std::Arguments, Trait::Display | Trait::Debug) => rt("arguments", vec![value, f]),
 			(Std::FmtError, Trait::Debug) => rt("errorDebug", vec![value, f]),
@@ -529,6 +557,7 @@ pub fn std_impl<'tcx>(
 			(Std::FromUtf16Error, Trait::Display) => rt("fromUtf16ErrorDisplay", vec![value, f]),
 			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
 			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
+			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
@@ -543,7 +572,8 @@ pub fn std_impl<'tcx>(
 
 /// `Debug` of one of std's iterators that lists the items it has left, as std writes
 /// them, or `None` for another type. A deque's `Iter` and `IterMut` write the two slices of
-/// its ring buffer they have left, and its `Drain` its counts.
+/// its ring buffer they have left, and its `Drain` its counts; an `Option`'s iterator the
+/// item it has left as an `Option`, and a slice's parts what is left of the slice.
 fn iter_debug<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	did: DefId,
@@ -553,9 +583,9 @@ fn iter_debug<'tcx>(
 	span: Span,
 ) -> Option<Expr> {
 	/// What std writes around the list: a tuple struct's name, or a struct's and its field's.
-	enum Wrap {
-		Tuple(&'static str),
-		Struct(&'static str, &'static str),
+	enum Wrap<'a> {
+		Tuple(&'a str),
+		Struct(&'a str, &'a str),
 	}
 	/// What it lists: a type argument, the map entry of the first two, or a `BTreeSet`'s
 	/// entry of its key and `SetValZST`.
@@ -569,14 +599,94 @@ fn iter_debug<'tcx>(
 	let tcx = b.t.tcx;
 	let path = library::std_path(tcx, did);
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
+	let listed = |wraps: &[Wrap]| {
+		let wraps = (wraps.iter()).map(|wrap| match *wrap {
+			Tuple(name) => Expr::Str(name.into()),
+			Struct(name, field) => Expr::Array(vec![Expr::Str(name.into()), Expr::Str(field.into())]),
+		});
+		Expr::Array(wraps.collect())
+	};
+	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let write = |text: String| Some(Expr::rt("fmtWriteStr", vec![f.clone(), Expr::Str(text)]));
+	// The item it has left, if any, as std's `Option` inside `wraps`: a reference as it is
+	// held, a `&mut` to a value JS copies its place.
+	let option = |b: &mut Body<'_, '_, 'tcx>, wraps: &[Wrap]| {
+		let item = b.t.iter_item(Ty::new_adt(tcx, tcx.adt_def(did), args))?;
+		let debug = b.fmt_fn(Trait::Debug, item, span);
+		Some(call("fmtIterOption", vec![debug, listed(wraps)]))
+	};
+	// What writes a slice of its parts.
+	let slice =
+		|b: &mut Body<'_, '_, 'tcx>| Some(b.fmt_fn(Trait::Debug, Ty::new_slice(tcx, args.types().next()?), span));
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
+		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
+		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
 		// Without its fields, which neither `#` nor a width changes.
-		["str", "iter", "EncodeUtf16"] => {
-			return Some(Expr::rt(
-				"fmtWriteStr",
-				vec![f.clone(), Expr::Str("EncodeUtf16 { .. }".into())],
+		["str", "iter", "EncodeUtf16"] | ["iter", "sources", "repeat_with", "RepeatWith"] => {
+			return write(format!("{} {{ .. }}", tcx.item_name(did)));
+		}
+		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
+		["iter", "sources", "successors", "Successors"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtSuccessors", vec![debug]));
+		}
+		["iter", "sources", "once", "Once"] => {
+			return option(
+				b,
+				&[
+					Struct("Once", "inner"),
+					Struct("IntoIter", "inner"),
+					Struct("Item", "opt"),
+				],
+			);
+		}
+		["option", name @ ("Iter" | "IterMut" | "IntoIter")] => {
+			return option(b, &[Struct(name, "inner"), Struct("Item", "opt")]);
+		}
+		["result", name @ ("Iter" | "IterMut" | "IntoIter")] => return option(b, &[Struct(name, "inner")]),
+		[
+			"slice",
+			"iter",
+			name @ ("Windows" | "Chunks" | "ChunksExact" | "RChunks" | "RChunksExact"),
+		] => {
+			let slice = slice(b)?;
+			return Some(call("fmtParts", vec![slice, Expr::Str((*name).into())]));
+		}
+		[
+			"slice",
+			"iter",
+			"ChunksMut" | "ChunksExactMut" | "RChunksMut" | "RChunksExactMut",
+		] => {
+			let name = tcx.item_name(did);
+			return Some(b.err(
+				span,
+				format!("`Debug` of a `{name}`, whose slice std writes as an address, which JS has no counterpart of"),
 			));
+		}
+		// A `splitn`'s is a `GenericSplitN` of the split it is named for.
+		[
+			"slice",
+			"iter",
+			name @ ("Split" | "SplitMut" | "SplitInclusive" | "SplitInclusiveMut" | "RSplit" | "RSplitMut" | "SplitN"
+			| "SplitNMut" | "RSplitN" | "RSplitNMut"),
+		] => {
+			let split = name.replacen('N', "", 1);
+			let n = (split != *name).then(|| Expr::Str((*name).into()));
+			let taken = Expr::lit(name.ends_with("Mut").to_string());
+			let rest = [slice(b)?, Expr::Str(split), taken].into_iter().chain(n);
+			return Some(call("fmtSplit", rest.collect()));
+		}
+		// The list of what a clone of it yields.
+		[
+			"collections",
+			"hash",
+			"set",
+			"Difference" | "Intersection" | "SymmetricDifference" | "Union",
+		] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtIterClone", vec![debug]));
 		}
 		[
 			"collections",
@@ -605,6 +715,7 @@ fn iter_debug<'tcx>(
 		| ["collections", "btree", "set", "Iter"] => (Arg(0), &[Tuple("Iter")]),
 		["slice", "iter", "IterMut"] => (Arg(0), &[Tuple("IterMut")]),
 		["vec", "into_iter", "IntoIter"]
+		| ["array", "iter", "IntoIter"]
 		| ["collections", "binary_heap", "IntoIter"]
 		| ["collections", "vec_deque", "into_iter", "IntoIter"]
 		| ["collections", "linked_list", "IntoIter"] => (Arg(0), &[Tuple("IntoIter")]),
@@ -636,17 +747,114 @@ fn iter_debug<'tcx>(
 		SetVal => Expr::rt("fmtSetVal", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
 		Byte => b.fmt_fn(Trait::Debug, tcx.types.u8, span),
 	};
-	let wraps: Vec<Expr> = (wraps.iter())
-		.map(|wrap| match *wrap {
-			Tuple(name) => Expr::Str(name.into()),
-			Struct(name, field) => Expr::Array(vec![Expr::Str(name.into()), Expr::Str(field.into())]),
-		})
-		.collect();
-	let mut call = vec![value.clone(), f.clone(), debug];
+	let mut rest = vec![debug];
 	if !wraps.is_empty() {
-		call.push(Expr::Array(wraps));
+		rest.push(listed(wraps));
 	}
-	Some(Expr::rt("fmtIter", call))
+	Some(call("fmtIter", rest))
+}
+
+/// `Debug` of one of std's iterator adaptors, as std's derived or written impl writes it:
+/// its fields in order, each iterator it wraps by that iterator's own `Debug`, and none of
+/// its closures; or `None` for another type.
+fn adaptor_debug<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	did: DefId,
+	args: ty::GenericArgsRef<'tcx>,
+	value: &Expr,
+	f: &Expr,
+	span: Span,
+) -> Option<Expr> {
+	let tcx = b.t.tcx;
+	let path = library::std_path(tcx, did);
+	let path: Vec<&str> = path.iter().map(String::as_str).collect();
+	let arg = |n: usize| args.types().nth(n);
+	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let name = |name: &str| Expr::Str(name.into());
+	// What writes an iterator it wraps, as the adaptor holds it and `rt.iterHeld` reads it.
+	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| {
+		let (ty, _) = super::iter::peel_iter(b, ty, Expr::undefined());
+		b.fmt_fn(Trait::Debug, ty, span)
+	};
+	Some(match path.as_slice() {
+		[
+			"iter",
+			"adapters",
+			_,
+			adaptor @ ("Map" | "Filter" | "FilterMap" | "Inspect" | "MapWhile" | "Rev"),
+		] => call("fmtAdaptor", vec![name(adaptor), wrapped(b, arg(0)?)]),
+		// A `copied` that JS reads its items as is is its iterator itself.
+		["iter", "adapters", "copied", "Copied"]
+			if let ty::Ref(_, item, _) = b.t.iter_item(arg(0)?)?.kind()
+				&& super::iter::copies_itself(b.t, *item) =>
+		{
+			call("fmtAround", vec![name("Copied"), name("it"), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", _, adaptor @ ("Copied" | "Cloned")] => {
+			let inner = wrapped(b, arg(0)?);
+			call("fmtAdaptor", vec![name(adaptor), inner, name("it")])
+		}
+		["iter", "adapters", "enumerate", "Enumerate"] => call("fmtEnumerate", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", _, adaptor @ ("Skip" | "Take")] => {
+			call("fmtCounted", vec![name(adaptor), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", _, adaptor @ ("SkipWhile" | "TakeWhile")] => {
+			call("fmtFlagged", vec![name(adaptor), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", "scan", "Scan"] => {
+			let inner = wrapped(b, arg(0)?);
+			call("fmtScan", vec![inner, b.fmt_fn(Trait::Debug, arg(1)?, span)])
+		}
+		["iter", "adapters", "peekable", "Peekable"] => {
+			let inner = wrapped(b, arg(0)?);
+			let item = b.t.iter_item(arg(0)?)?;
+			call("fmtPeekable", vec![inner, b.fmt_fn(Trait::Debug, item, span)])
+		}
+		["iter", "adapters", "step_by", "StepBy"] => call("fmtStepBy", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", "chain", "Chain"] => {
+			let a = wrapped(b, arg(0)?);
+			call("fmtChain", vec![a, wrapped(b, arg(1)?)])
+		}
+		// std's specializes it to write neither of two it reads by index.
+		["iter", "adapters", "zip", "Zip"] => {
+			let (a, other) = (arg(0)?, arg(1)?);
+			match [a, other]
+				.iter()
+				.all(|&ty| super::iter::implements(b.t, ty, "TrustedRandomAccessNoCoerce"))
+			{
+				true => call("fmtZip", Vec::new()),
+				false => {
+					let a = wrapped(b, a);
+					call("fmtZip", vec![a, wrapped(b, other)])
+				}
+			}
+		}
+		["iter", "adapters", "cycle", "Cycle"] => call("fmtCycle", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", "fuse", "Fuse"] => call("fmtFuse", vec![wrapped(b, arg(0)?)]),
+		// Its `FlattenCompat`'s source and the iterator of each item, as its field's type
+		// names them.
+		["iter", "adapters", "flatten", adaptor @ ("Flatten" | "FlatMap")] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let ty::Adt(_, compat) = b.t.field_ty(field.did, args).kind() else {
+				return None;
+			};
+			let source = wrapped(b, compat.type_at(0));
+			let inner = wrapped(b, compat.type_at(1));
+			call("fmtFlatten", vec![name(adaptor), source, inner])
+		}
+		["char", "decode", "DecodeUtf16"] => call("fmtDecodeUtf16", vec![wrapped(b, arg(0)?)]),
+		// A `str`'s escape is the `flat_map` of its chars it holds.
+		[
+			"str",
+			"iter",
+			escape @ ("EscapeDebug" | "EscapeDefault" | "EscapeUnicode"),
+		] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let inner = b.fmt_fn(Trait::Debug, b.t.field_ty(field.did, args), span);
+			call("fmtAround", vec![name(escape), name("inner"), inner])
+		}
+		_ => return None,
+	})
 }
 
 /// One part of a `format_args!` template.

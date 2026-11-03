@@ -419,7 +419,8 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// rather than what it points at: a `MaybeUninit`'s or a `ManuallyDrop`'s, which it points
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
-/// whole `Result`, an iterator's that `by_ref` returns, and a well-known crate's, such as a
+/// whole `Result`, an iterator's that `by_ref` returns, the crate's own iterator's that its
+/// `next` reads through, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -432,6 +433,7 @@ fn takes_place<'tcx>(
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
+			|| matches!(owner.as_str(), "Iterator" | "DoubleEndedIterator") && super::iter::held_own(t, args.type_at(0))
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
 			// The `&mut` to the crate's own hasher, which its methods take as it is.
 			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::own_hasher(t, args.type_at(1))
@@ -619,6 +621,22 @@ pub fn call<'tcx>(
 			Some(Pointee::Bytes) if owner == "NonNull" => to_reference(arg()),
 			_ => arg(),
 		},
+		// An `rt.Arc` is its allocation, which has one place of its value: the pointer to a
+		// value JS copies and to `()`, whose pointer is an identity. Otherwise the value is
+		// where a reference to it points, a pointer to which is made as `ptr::from_ref`
+		// makes one.
+		("Arc" | "Rc", "as_ptr") if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) => {
+			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
+		}
+		("Arc" | "Rc", "as_ptr") => {
+			let arc = arg();
+			match kind(b, pointee()) {
+				Some(Pointee::Slice) => raw_of(pointee(), arc.member("value")),
+				Some(Pointee::Place) => Expr::rt("arcPlace", vec![arc]),
+				Some(Pointee::Bytes) => to_pointer(arc.member("value")),
+				_ => arc.member("value"),
+			}
+		}
 		// A pointer to what a box held, which no box holds any longer.
 		("Box", "into_raw" | "leak") => match kind(b, pointee()) {
 			Some(Pointee::Slice) if name == "into_raw" => raw_of(pointee(), arg()),
@@ -675,6 +693,19 @@ pub fn call<'tcx>(
 			b.t.drop_value(value, pointee(), span).unwrap_or_else(Expr::undefined)
 		}
 		("ptr", "eq") => {
+			let (x, y) = (arg(), arg());
+			compare(b, x, y, pointee(), span)
+		}
+		// Only the addresses, which JS compares only between pointers to one type.
+		("ptr", "addr_eq") if pointee() != targ(gargs, 1) => b.err(
+			span,
+			format!(
+				"comparing the addresses of pointers to `{}` and to `{}`, which JS keeps apart",
+				pointee(),
+				targ(gargs, 1)
+			),
+		),
+		("ptr", "addr_eq") => {
 			let (x, y) = (arg(), arg());
 			compare(b, x, y, pointee(), span)
 		}

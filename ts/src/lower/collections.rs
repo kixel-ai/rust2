@@ -133,11 +133,11 @@ pub fn call<'tcx>(
 					let eq = eq.call(args);
 					return Ok(Some(if name == "eq" { eq } else { eq.not() }));
 				}
-				let kind = b.t.std_of(t) == Some(Std::ErrorKind);
+				let comparable = matches!(b.t.std_of(t), Some(Std::ErrorKind | Std::HashMap | Std::HashSet));
 				if matches!(t.kind(), ty::Bool | ty::Int(_) | ty::Uint(_))
 					|| library::nothing(tcx, t)
 					|| bytes(b, t)
-					|| !(std_key(b, t) || kind)
+					|| !(std_key(b, t) || comparable)
 					|| !alike(b, t, rhs)
 				{
 					return Err(args);
@@ -170,7 +170,9 @@ pub fn call<'tcx>(
 				values.insert(0, own_state(b, h, state, span));
 				return Ok(Some(hasher_call(b, name, values, span, out)));
 			}
-			("BuildHasher", _, Some(Std::RandomState), Some(t)) => (Std::RandomState, t.peel_refs()),
+			("BuildHasher", _, Some(std @ (Std::RandomState | Std::BuildHasherDefault)), Some(t)) => {
+				(std, t.peel_refs())
+			}
 			("BuildHasher", "hash_one", None, Some(s))
 				if let Some(h) = built_hasher(b, s)
 					&& own_hasher(b.t, h) =>
@@ -240,6 +242,7 @@ pub fn call<'tcx>(
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
+		Std::BuildHasherDefault => Some(build_hasher_default(b, call, coll, name, args, out)),
 		_ => return Err(args),
 	};
 	let Some(e) = e else {
@@ -571,16 +574,32 @@ fn hash<'tcx>(
 	let none = library::sentinel_option(b.t, call).is_some();
 	let mut values = args;
 	let e = match (owner, name) {
-		(_, "new" | "with_hasher") | ("Default", "default") => {
+		(_, "new") | ("Default", "default") => {
 			discard(values, out);
-			hash_new(b, coll, span)?
+			let state = new_state(b, coll, span);
+			hash_new(b, coll, state, span)?
+		}
+		// Its own `BuildHasher`, which it keeps, or a `RandomState`, which nothing reads.
+		(_, "with_hasher") => {
+			let state = held_state(b, coll).and_then(|_| values.pop());
+			discard(values, out);
+			hash_new(b, coll, state, span)?
 		}
 		(_, "with_capacity" | "with_capacity_and_hasher") => {
 			let n = values.remove(0);
+			let state = held_state(b, coll).and_then(|_| values.pop());
 			discard(values, out);
 			let mut values = vec![n, hash_max(b, coll, span)];
 			values.extend(hashing(b, coll, key, span)?);
+			if let Some(state) = state {
+				values.resize(3, Expr::undefined());
+				values.push(state);
+			}
 			empty(b, Expr::rt("hashWithCapacity", values), coll, span)
+		}
+		(_, "hasher") if let Some(state) = held_state(b, coll) => {
+			let ty = b.t.ty(state, span);
+			Expr::As(Box::new(values.pop()?.member("s")), ty)
 		}
 		(_, "len") => Expr::rt("hashLen", values),
 		(_, "is_empty") => Expr::rt("hashLen", values).binary("===", Expr::lit("0")),
@@ -608,9 +627,13 @@ fn hash<'tcx>(
 		// does: before `next` returns, and after `fold` has the item.
 		(_, "into_keys" | "into_values") => {
 			let (kept, other) = if name == "into_keys" { (0, 1) } else { (1, 0) };
-			let Some(droppers) = b.t.droppers([arg(coll, kept), arg(coll, other)], span) else {
+			let Some(mut droppers) = b.t.droppers([arg(coll, kept), arg(coll, other)], span) else {
 				return Some(Expr::undefined());
 			};
+			if let Some(state) = state_dropper(b, coll, span) {
+				droppers.resize(2, Expr::undefined());
+				droppers.push(state);
+			}
 			let f = if name == "into_keys" { "hashKeys" } else { "hashValues" };
 			Expr::rt(f, super::iter::tail(values, droppers))
 		}
@@ -625,7 +648,8 @@ fn hash<'tcx>(
 		(_, name) if let Some(f) = set_op("hash", name) => Expr::rt(f, values),
 		("BitOr" | "BitAnd" | "Sub" | "BitXor", _) => {
 			let keys = set_op_keys(b, coll, "hash", owner, values, span)?;
-			let target = hash_new(b, coll, span)?;
+			let state = new_state(b, coll, span);
+			let target = hash_new(b, coll, state, span)?;
 			let max = hash_max(b, coll, span);
 			Expr::rt(
 				"hashExtendKeys",
@@ -643,12 +667,16 @@ fn hash<'tcx>(
 				None => Expr::undefined(),
 			};
 			values.extend([k, v]);
-			Expr::rt("hashClone", values)
+			let s = held_state(b, coll).map(|s| clone_fn(b, s, span));
+			Expr::rt("hashClone", super::iter::tail(values, s.into_iter().collect()))
 		}
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
 			let target = match owner {
-				"From" => hash_new(b, coll, span)?,
+				"From" => {
+					let state = new_state(b, coll, span);
+					hash_new(b, coll, state, span)?
+				}
 				_ => values.pop()?,
 			};
 			hash_extend(b, coll, target, source, iter, span)
@@ -846,15 +874,22 @@ fn hash_extend<'tcx>(
 	iter: Ty<'tcx>,
 	span: Span,
 ) -> Expr {
-	let mut droppers = entry_droppers(b, coll, span);
-	// By `for_each`.
-	droppers.push(super::iter::iter_take(b, iter, true, span));
-	droppers.push(hash_max(b, coll, span));
 	let f = match b.t.std_of(coll) {
 		Some(Std::HashSet) => "hashExtendKeys",
 		_ => "hashExtend",
 	};
-	Expr::rt(f, super::iter::tail(vec![target, source], droppers))
+	let tail = hash_extend_tail(b, coll, iter, span);
+	Expr::rt(f, super::iter::tail(vec![target, source], tail))
+}
+
+/// What `hashExtend` and its kin take after the collection and the items, of an iterator of
+/// type `iter`: what drops each entry, how it reads them, and the most entries it holds.
+fn hash_extend_tail<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, iter: Ty<'tcx>, span: Span) -> Vec<Expr> {
+	let mut tail = entry_droppers(b, coll, span);
+	// By `for_each`.
+	tail.push(super::iter::iter_take(b, iter, true, span));
+	tail.push(hash_max(b, coll, span));
+	tail
 }
 
 /// The most entries a hash collection of type `coll` holds on wasm32, past which hashbrown's
@@ -902,11 +937,56 @@ fn hash_max<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Exp
 	Expr::lit(lo.to_string())
 }
 
-/// An empty hash collection of type `coll`, which finds its keys as their type needs.
-fn hash_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Option<Expr> {
+/// An empty hash collection of type `coll`, which finds its keys as their type needs and
+/// holds `state`, its own `BuildHasher`, if given.
+fn hash_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, state: Option<Expr>, span: Span) -> Option<Expr> {
 	let key = arg(coll, 0);
-	let values = hashing(b, coll, key, span)?.into_iter().collect();
+	let mut values: Vec<Expr> = hashing(b, coll, key, span)?.into_iter().collect();
+	if let Some(state) = state {
+		values.resize(1, Expr::undefined());
+		values.push(state);
+	}
 	Some(empty(b, Expr::rt("hashNew", values), coll, span))
+}
+
+/// The `BuildHasher` of a `HashMap<K, V, S, A>` or `HashSet<T, S, A>` of type `coll`.
+fn state_of<'tcx>(b: &Body<'_, '_, 'tcx>, coll: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	let n = match b.t.std_of(coll)? {
+		Std::HashMap => 2,
+		Std::HashSet => 1,
+		_ => return None,
+	};
+	let ty::Adt(_, args) = coll.kind() else {
+		return None;
+	};
+	args.types().nth(n)
+}
+
+/// The `BuildHasher` a hash collection of type `coll` holds, which `hasher` lends: any but
+/// `RandomState`, whose keys nothing reads.
+fn held_state<'tcx>(b: &Body<'_, '_, 'tcx>, coll: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	state_of(b, coll).filter(|&state| b.t.std_of(state) != Some(Std::RandomState))
+}
+
+/// `Default::default` of the `BuildHasher` a new hash collection of type `coll` holds, if
+/// it holds one.
+fn new_state<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Option<Expr> {
+	let state = held_state(b, coll)?;
+	let tcx = b.t.tcx;
+	let default = trait_fn(tcx, "Default", "default");
+	let mut body = Vec::new();
+	let value = b.call_def(default, tcx.mk_args(&[state.into()]), Vec::new(), span, &mut body);
+	if body.is_empty() {
+		return Some(value);
+	}
+	body.push(StmtKind::Return(Some(value.typed())).at(None));
+	Some(Expr::Arrow(Vec::new(), b.t.ty(state, span), body).call(Vec::new()))
+}
+
+/// What drops the `BuildHasher` a hash collection of type `coll` holds, if it drops.
+fn state_dropper<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Option<Expr> {
+	let state = held_state(b, coll)?;
+	b.t.drops(state).then(|| b.t.dropper(state, span))
 }
 
 /// `new`, as an empty collection of type `coll`: TS infers a generic key's type, as of
@@ -1051,16 +1131,24 @@ fn derived_eq<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		.is_some_and(|imp| tcx.is_automatically_derived(imp))
 }
 
-/// The `Hasher` a hash collection of type `coll` hashes with: its `BuildHasher`'s.
+/// The `Hasher` a hash collection of type `coll` hashes a key with, as the runtime's own
+/// hasher stands in for it: its `RandomState`'s, or std's `DefaultHasher` in place of any
+/// other `BuildHasher`'s, which no key goes through.
 fn hasher_ty<'tcx>(b: &Body<'_, '_, 'tcx>, coll: Ty<'tcx>) -> Option<Ty<'tcx>> {
-	let ty::Adt(_, args) = coll.kind() else {
-		return None;
-	};
-	// `HashMap<K, V, S, A>` and `HashSet<T, S, A>`.
-	let state = args
-		.types()
-		.nth(if b.t.std_of(coll) == Some(Std::HashSet) { 1 } else { 2 })?;
-	built_hasher(b, state).filter(|&hasher| b.t.std_of(hasher) == Some(Std::Hasher))
+	let tcx = b.t.tcx;
+	if held_state(b, coll).is_some() {
+		let std = tcx
+			.crates(())
+			.iter()
+			.find(|&&c| tcx.crate_name(c) == rustc_span::sym::std)?;
+		let child = |module: DefId, name: &str| {
+			let child = tcx.module_children(module).iter().find(|c| c.ident.as_str() == name)?;
+			child.res.opt_def_id()
+		};
+		let hasher = child(child(std.as_def_id(), "hash")?, "DefaultHasher")?;
+		return Some(tcx.type_of(hasher).instantiate_identity().skip_norm_wip());
+	}
+	built_hasher(b, state_of(b, coll)?).filter(|&hasher| b.t.std_of(hasher) == Some(Std::Hasher))
 }
 
 /// The `Hasher` a `BuildHasher` of type `state` builds.
@@ -1643,20 +1731,10 @@ fn list<'tcx>(
 			values.push(clone_fn(b, item, span));
 			Expr::rt("listClone", values)
 		}
-		// Each item by its `clone_from`, as `*item = source.clone()` does, which drops what
-		// it writes over.
+		// Each item by its `clone_from`.
 		("Clone", "clone_from") => {
-			if !library::clone_from_clones(b.t, item) {
-				let msg = format!(
-					"`clone_from` of `{coll}`, whose items' `clone_from` is their own, which is not supported yet"
-				);
-				return Some(b.err(span, msg));
-			}
-			let clone = clone_fn(b, item, span);
-			let Some(drop) = b.t.droppers([item], span) else {
-				return Some(Expr::undefined());
-			};
-			Expr::rt("listCloneFrom", super::iter::tail(values, [vec![clone], drop].concat()))
+			let fns = library::clone_from_fns(b, item, span);
+			Expr::rt("listCloneFrom", [values, fns].concat())
 		}
 		// std's specializes `extend` by another list to `append`.
 		("Extend", "extend") if library::targ(call.args, 2) == coll => Expr::rt("listAppend", values),
@@ -2183,7 +2261,10 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 		Std::VecDeque => deque_new(b, coll, span),
 		Std::LinkedList => list_new(b, coll, span),
 		Std::BinaryHeap => empty(b, Expr::rt("heapNew", Vec::new()), coll, span),
-		Std::HashMap | Std::HashSet => hash_new(b, coll, span)?,
+		Std::HashMap | Std::HashSet => {
+			let state = new_state(b, coll, span);
+			hash_new(b, coll, state, span)?
+		}
 		Std::BTreeMap | Std::BTreeSet => btree_new(b, coll, span),
 		_ => return None,
 	})
@@ -2318,6 +2399,46 @@ fn random_state<'tcx>(
 	}
 }
 
+/// A function of `BuildHasherDefault`, or of a trait it implements, which holds nothing:
+/// making one, which `Default` and `Clone` do too, building its hasher by the hasher's own
+/// `Default`, or hashing one value with it as `BuildHasher::hash_one` does, dropping the
+/// value.
+fn build_hasher_default<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	ty: Ty<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let (tcx, span) = (b.t.tcx, call.span);
+	let ty::Adt(_, gargs) = ty.kind() else {
+		unreachable!("a BuildHasherDefault")
+	};
+	let hasher = gargs.type_at(0);
+	match name {
+		"new" | "default" | "clone" => Expr::undefined(),
+		"build_hasher" => {
+			let default = trait_fn(tcx, "Default", "default");
+			b.call_def(default, tcx.mk_args(&[hasher.into()]), Vec::new(), span, out)
+		}
+		"hash_one" if own_hasher(b.t, hasher) => own_hash_one(b, call, ty, hasher, args, out),
+		"hash_one" if b.t.std_of(hasher) == Some(Std::Hasher) => {
+			let Ok([_, value]) = <[Expr; 2]>::try_from(args) else {
+				unreachable!("hash_one takes a state and a value")
+			};
+			let value_ty = library::targ(call.args, 1);
+			let mut args = vec![Expr::rt("hasher", vec![]), value, hash_fn(b, value_ty, hasher, span)];
+			args.extend(b.t.drop_fn(value_ty, span));
+			Expr::rt("hashOne", args)
+		}
+		_ => b.err(
+			span,
+			format!("`BuildHasherDefault<{hasher}>::{name}`, which is not supported yet"),
+		),
+	}
+}
+
 /// `Hasher`'s methods: writing an integer or a string, and `finish`.
 fn hasher_call(b: &mut Body<'_, '_, '_>, name: &str, args: Vec<Expr>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	let mut values = args;
@@ -2422,7 +2543,7 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => held(bound),
 		ty::Adt(..) if let Some((inner, _)) = cell_of(b, ty) => held(inner),
 		ty::Adt(_, args) if derived_std(b, ty) => args.types().all(held),
-		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::error) => true,
+		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => library::string(b.t.tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration)),
 		_ => false,
 	}
@@ -2747,6 +2868,9 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rt("eqSeq", vec![not_ne_fn(b, item, span)]),
 		// A list's iterator compares its items by `==`.
 		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rt("eqList", vec![eq_fn(b, item, span)]),
+		// A map compares its values by `==`, and a set holds none.
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashMap) => Expr::rt("hashEq", vec![eq_fn(b, arg(ty, 1), span)]),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashSet) => Expr::rt("hashEq", vec![]),
 		_ if bytes(b, ty) => Expr::Rt("eqBytes".into()),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => {
 			let eq = eq_fn(b, inner, span);
@@ -2755,7 +2879,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
-		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::error) => {
+		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
 			b.fn_value(eq, tcx.mk_args(&[ty.into(), ty.into()]), span)
 		}
@@ -2960,6 +3084,11 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 			let hash = hash_fn(b, inner, hasher, span);
 			Expr::rt("hashOption", [hash].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Poll) => {
+			let inner = arg(ty, 0);
+			let hash = hash_fn(b, inner, hasher, span);
+			Expr::rt("hashPoll", [hash].into_iter().chain(b.t.pending_arg(inner)).collect())
+		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("hashArc", vec![hash_fn(b, inner, hasher, span)]),
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => {
 			hash_fn(b, inner, hasher, span)
@@ -3081,7 +3210,12 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 	if !ty.is_ref() {
 		// A deque's is the deque itself, which it pops from.
 		let name = if name == "dequeIter" { "dequeIntoIter" } else { name };
-		let droppers = entry_droppers(b, coll, span);
+		let mut droppers = entry_droppers(b, coll, span);
+		// A map's own `BuildHasher` drops at once, after what drops each entry.
+		if let Some(state) = state_dropper(b, coll, span) {
+			droppers.resize(2, Expr::undefined());
+			droppers.push(state);
+		}
 		return Some(Expr::rt(name, super::iter::tail(vec![value], droppers)));
 	}
 	// What it holds, borrowed.
@@ -3105,7 +3239,19 @@ pub fn collect<'tcx>(
 	let std = b.t.std_of(ty)?;
 	Some(match std {
 		Std::HashMap | Std::HashSet => {
-			let target = hash_new(b, ty, span)?;
+			let state = new_state(b, ty, span);
+			let held = state.is_some();
+			let target = hash_new(b, ty, state, span)?;
+			// hashbrown's map takes its items and reads their size hint before it makes its
+			// hasher, where std's and hashbrown's set make it first.
+			if std == Std::HashMap
+				&& held
+				&& matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()))
+			{
+				let make = Expr::Lambda(Vec::new(), Box::new(target));
+				let tail = hash_extend_tail(b, ty, from, span);
+				return Some(Expr::rt("hashFromIter", super::iter::tail(vec![iter, make], tail)));
+			}
 			hash_extend(b, ty, target, iter, from, span)
 		}
 		Std::BTreeMap | Std::BTreeSet => btree_collect(b, ty, iter, from, trusted, span),

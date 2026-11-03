@@ -81,7 +81,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 				return self.future_object(*inner, value, true, dropped, span);
 			}
 			ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
-				Some(Std::PollFn | Std::Pending) => true,
+				Some(Std::PollFn | Std::Pending | Std::Ready) => true,
 				Some(Std::Box | Std::Pin) => {
 					return self.future_object(args.type_at(0), value, borrowed, dropped, span);
 				}
@@ -166,7 +166,10 @@ pub fn call<'tcx>(
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
 					};
-					let values = args.into_iter().chain([clone]).chain(droppers).collect();
+					// What moves the value to a new allocation, as std's does when only `Weak`s
+					// share it: a new object where pointers to it compare.
+					let moved = b.t.held_addressed(value).then(|| b.t.shim(value, call.span)).flatten();
+					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();
 					Expr::rt(format!("arcMakeMut{place}"), values)
 				}
 			}
@@ -247,6 +250,13 @@ pub fn call<'tcx>(
 				}
 			}
 		}
+		// A `Ready`'s clones its value, if it still holds it, and every `Pending` is one.
+		("Clone", "clone") if owned_std == Some(Std::Ready) => {
+			let clone = super::collections::clone_fn(b, held(self_ty), call.span);
+			let clone = (clone != Expr::undefined()).then_some(clone);
+			first(args).member("clone").call(clone.into_iter().collect())
+		}
+		("Clone", "clone") if owned_std == Some(Std::Pending) => Expr::Rt("NEVER".into()),
 		// A waker is the executor's, whose `clone` is its own.
 		("Clone", "clone") if owned_std == Some(Std::Waker) => first(args).member("clone").call(vec![]),
 		// A reference is the object it points at, which its own `Deref` gives: read out of a
@@ -395,6 +405,15 @@ pub fn call<'tcx>(
 			)
 		}
 		("pending", "pending") => Expr::Rt("NEVER".into()),
+		// With what drops its value, unless a poll takes it first.
+		("ready", "ready") => {
+			let dropper = b.t.drop_fn(call.args.type_at(0), call.span);
+			Expr::New(
+				Box::new(Expr::Rt("Ready".into())),
+				args.into_iter().chain(dropper).collect(),
+			)
+		}
+		("Ready", "into_inner") => first(args).member("intoInner").call(vec![]),
 		// A box's JS value is what it holds.
 		("Box", "pin") => first(args),
 		("Future", "poll") => match self_ty.map(Ty::kind) {
@@ -405,14 +424,20 @@ pub fn call<'tcx>(
 				b.call_def(call.def_id, tcx.mk_args(&[(*inner).into()]), args, call.span, out)
 			}
 			// std's futures and a `dyn Future` are `rt.Future`s, which poll themselves.
-			_ if matches!(self_std, Some(Std::PollFn | Std::Pending))
+			_ if matches!(self_std, Some(Std::PollFn | Std::Pending | Std::Ready))
 				|| self_ty.is_some_and(|ty| b.t.dyn_future(ty).is_some()) =>
 			{
 				let [future, cx] = two(args);
 				future.member("poll").call(vec![cx])
 			}
-			// A pinned pointer or a box polls what it points at, which its JS value is.
-			Some(ty::Adt(adt, adt_args)) if matches!(Std::of(tcx, adt.did()), Some(Std::Pin | Std::Box)) => {
+			// A pinned pointer, a box, or an `AssertUnwindSafe` polls what it points at or holds,
+			// which its JS value is.
+			Some(ty::Adt(adt, adt_args))
+				if matches!(
+					Std::of(tcx, adt.did()),
+					Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+				) =>
+			{
 				let inner = match Std::of(tcx, adt.did()) {
 					Some(Std::Pin) => adt_args.type_at(0).builtin_deref(true),
 					_ => Some(adt_args.type_at(0)),

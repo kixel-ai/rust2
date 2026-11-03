@@ -62,6 +62,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Poll
 					| Std::Pin
 					| Std::PollFn
+					| Std::Ready
 					| Std::HashMap
 					| Std::HashSet
 					| Std::HashTable
@@ -73,6 +74,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Bound
 					| Std::TryLockError
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating
 					| Std::Range
@@ -170,7 +172,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Weak | Std::BytesMut) => true,
+				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -183,6 +185,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Box
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => self.disposable(args.type_at(0), glue),
@@ -218,12 +221,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		match Std::of(self.tcx, adt.did()) {
 			_ if self.bound_drops(adt.did()).is_some() => true,
-			Some(Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError) => {
-				self.always_disposes(args.type_at(0))
-			}
+			Some(
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError,
+			) => self.always_disposes(args.type_at(0)),
 			Some(
 				Std::Waker
 				| Std::PollFn
+				| Std::Ready
 				| Std::Weak
 				| Std::Arc
 				| Std::Mutex
@@ -307,7 +317,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Some(Std::Entry) if self.tcx.item_name(adt.did()).as_str() == "OccupiedEntry" => true,
 			Some(Std::OnceCell | Std::OnceLock) => self.uniform(Ty::new_option(self.tcx, args.type_at(0))),
 			Some(Std::Cow) => library::cow_slice(self.tcx, ty).is_none_or(|elem| self.uniform(elem)),
-			Some(Std::LazyCell | Std::LazyLock | Std::HashMap | Std::BTreeMap) => held(self, 2),
+			// A hash map's and set's own `BuildHasher` too.
+			Some(Std::HashMap) => held(self, 3),
+			Some(Std::HashSet) => held(self, 2),
+			Some(Std::LazyCell | Std::LazyLock | Std::BTreeMap) => held(self, 2),
 			Some(
 				Std::Arc
 				| Std::Mutex
@@ -316,10 +329,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::Box
 				| Std::Pin
 				| Std::Reverse
+				| Std::AssertUnwindSafe
 				| Std::Wrapping
 				| Std::Saturating
 				| Std::PoisonError
-				| Std::HashSet
 				| Std::HashTable
 				| Std::BTreeSet
 				| Std::VecDeque
@@ -362,6 +375,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Poll
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => args.types().all(|t| self.inert(t)),
@@ -423,14 +437,24 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let option = Ty::new_option(self.tcx, args.type_at(0));
 					return self.drop_value(value.member("v"), option, span);
 				}
-				Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError => {
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError => {
 					return self.drop_value(value, args.type_at(0), span);
 				}
 				// Its value, or the function that never made one.
 				Std::LazyCell | Std::LazyLock => ("lazyDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?]),
+				// Its own `BuildHasher` last, which the runtime drops first, as hashbrown's field.
+				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?, each(self, 2)?]),
 				Std::BTreeMap => ("btreeDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashSet => ("hashDrop", vec![value, each(self, 0)?]),
+				Std::HashSet => (
+					"hashDrop",
+					vec![value, each(self, 0)?, Expr::undefined(), each(self, 1)?],
+				),
 				// Its items are the values of a map whose keys are nothing.
 				Std::HashTable => ("hashDrop", vec![value, Expr::undefined(), each(self, 0)?]),
 				Std::BTreeSet => ("btreeDrop", vec![value, each(self, 0)?]),
@@ -585,9 +609,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did())? {
 				Std::Vec => Some(args.type_at(0)),
 				Std::Option if self.erases_to(args.type_at(0)).undefined => None,
-				Std::Option | Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating => {
-					self.elements(args.type_at(0))
-				}
+				Std::Option
+				| Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating => self.elements(args.type_at(0)),
 				_ => None,
 			},
 			_ => None,

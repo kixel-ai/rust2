@@ -246,7 +246,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				.or_else(|| tcx.async_fn_trait_kind_from_def_id(trait_id))
 			&& let [callee, tupled] = args
 		{
-			let callee_ty = gargs.type_at(0);
+			// An `AssertUnwindSafe` is the function it holds.
+			let mut callee_ty = gargs.type_at(0);
+			while let Some(inner) = library::unwind_safe(tcx, callee_ty) {
+				callee_ty = inner;
+			}
 			let values = match self.take_parts(&tupled.node) {
 				Some(parts) => parts,
 				None => {
@@ -275,7 +279,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			// A `&mut` to a function JS copies, such as a box of one, or to a reference to one, as
 			// std's impls for a `&mut` and a box forward through, is its place: call what is
-			// there. A box is what it holds.
+			// there. A box, or an `AssertUnwindSafe`, is what it holds.
 			let mut through = callee.node.ty(&self.mir.local_decls, tcx);
 			let mut f = match callee.node.place() {
 				Some(p) if let Some(pointee) = self.b.t.place_pointee(through) => {
@@ -285,7 +289,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				_ => self.operand(&callee.node, span, out),
 			};
 			loop {
-				through = match (through.boxed_ty(), self.b.t.place_pointee(through)) {
+				let held = through.boxed_ty().or_else(|| library::unwind_safe(tcx, through));
+				through = match (held, self.b.t.place_pointee(through)) {
 					(Some(inner), _) => inner,
 					(None, Some(inner)) => {
 						f = f.member("v");
@@ -573,7 +578,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let place = self.borrowed_place(target, span, out)?;
 				let source = self.operand(source, span, out);
 				let value = match library::box_slice(tcx, library::unboxed(self.b.t, targ(0)?)) {
-					Some(elem) => library::box_slice_clone_from(self.b, place.0.clone(), source, elem, span)?,
+					Some(elem) => library::box_slice_clone_from(self.b, place.0.clone(), source, elem, span),
 					None => source,
 				};
 				self.set_borrowed(&place, value, span, out);
@@ -603,38 +608,38 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					.call_def(clone_from, tcx.mk_args(&[own.into()]), vec![to, from], span, out);
 				done(call, true)
 			}
-			// An array, which JS writes in place, of elements that do more than copy.
+			// An array that clones over each element where that does more than copy, and a
+			// `Vec`, which keeps its buffer, each written in place: a slice's `clone_into` a
+			// `Vec` too.
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
-				if let Some(ty) = targ(0)
-					&& let ty::Array(elem, _) = ty.kind()
-					&& !library::clone_copies(self.b.t, self.b.t.typing_env_pub(), ty) =>
+				if let Some(ty) = self.cloned_over(&name, args)
+					&& let own = library::unboxed(self.b.t, ty)
+					&& match own.kind() {
+						ty::Array(..) => !library::clone_copies(self.b.t, self.b.t.typing_env_pub(), own),
+						_ => self.b.t.std_of(own) == Some(Std::Vec),
+					} =>
 			{
 				let (target, source) = match name.as_str() {
 					"clone_from" => (&args[0].node, &args[1].node),
 					_ => (&args[1].node, &args[0].node),
 				};
-				let target = self.operand(target, span, out);
+				let to = self.operand(target, span, out);
+				let to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
 				let source = self.operand(source, span, out);
-				let call = library::array_clone_from(self.b, target, source, *elem, span)?;
-				done(call, true)
+				done(library::clone_from(self.b, to, source, ty, span), true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
-			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over. A
-			// list's maps, as it clones each element into one of its own nodes, and a deque's,
-			// as it clears itself first and keeps its capacity.
+			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over, and
+			// else std's own over what it holds. A list's maps, as it clones each element into
+			// one of its own nodes, and a deque's, as it clears itself first and keeps its
+			// capacity.
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
 				if !self.b.t.translated(def_id, gargs)
 					&& !matches!(self.b.t.std_of(targ(0)?), Some(Std::LinkedList | Std::VecDeque)) =>
 			{
-				let ty = targ(0)?;
+				let ty = self.cloned_over(&name, args)?;
 				if !ty.is_sized(tcx, self.b.t.typing_env_pub()) {
 					return None;
-				}
-				if !library::clone_from_clones(self.b.t, ty) {
-					let msg = format!(
-						"`{owner}::{name}` of `{ty}`, whose `clone_from` is its own, which is not supported yet"
-					);
-					return done(self.err(span, msg), false);
 				}
 				let (target, source) = match name.as_str() {
 					"clone_from" => (&args[0].node, &args[1].node),
@@ -642,19 +647,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let place = self.borrowed_place(target, span, out)?;
 				let source = self.operand(source, span, out);
+				if !library::clone_from_clones(self.b.t, ty) {
+					let value = library::clone_from(self.b, place.0.clone(), source, ty, span);
+					self.set_borrowed(&place, value, span, out);
+					return done(Expr::undefined(), false);
+				}
 				let clone = crate::lower::collections::trait_fn(tcx, "Clone", "clone");
 				let clone = self
 					.b
 					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
-				// std's `Vec` keeps the target's buffer, grown if it holds fewer, as it does
-				// through a box.
-				let own = library::unboxed(self.b.t, ty);
-				let clone = match own.kind() {
-					ty::Adt(_, args) if self.b.t.std_of(own) == Some(Std::Vec) => {
-						library::vec_cloned_into(self.b, clone, place.0.clone(), args.type_at(0), span)
-					}
-					_ => clone,
-				};
 				let drops = self.b.t.drops(ty);
 				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, out);
 				if drops && let Some(drop) = self.b.t.drop_value(old, ty, span) {
@@ -837,10 +838,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				self.same_place(args, dest, span, out)
 			}
-			// A box is what it holds, so the `&mut` borrows the place holding the box.
+			// A box is what it holds, so the `&mut` borrows the place holding the box, and so is an
+			// `AssertUnwindSafe`.
 			("DerefMut", "deref_mut") | ("AsMut", "as_mut") | ("BorrowMut", "borrow_mut")
 				if targ(0)
-					.and_then(|t| t.boxed_ty())
+					.and_then(|t| t.boxed_ty().or_else(|| library::unwind_safe(tcx, t)))
 					.is_some_and(|t| self.b.t.needs_place(t)) =>
 			{
 				self.same_place(args, dest, span, out)
@@ -1509,6 +1511,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ProjectionElem::Field(FieldIdx::ZERO, payload),
 		];
 		Some((target, place.map(|p| p.project_deeper(&elems, self.tcx))))
+	}
+
+	/// The type `clone_from` or `clone_into`, `name`, of `args` writes over: what its `&mut`
+	/// borrows, a `Vec` where a slice's `clone_into` writes one.
+	fn cloned_over(&self, name: &str, args: &[Spanned<Operand<'tcx>>]) -> Option<Ty<'tcx>> {
+		let target = match name {
+			"clone_from" => &args[0].node,
+			_ => &args[1].node,
+		};
+		target.ty(&self.mir.local_decls, self.tcx).builtin_deref(true)
 	}
 
 	/// `get_or_insert`, `get_or_insert_with`, `get_or_insert_default`, or `insert` of the

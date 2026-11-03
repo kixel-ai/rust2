@@ -289,8 +289,8 @@ pub fn pointer_kept_across(data: &[u32]) -> u32 {
 }
 
 /// Pointer operations on arrays of bytes that read the address or other bytes than the
-/// array's: comparing addresses only, copying, offsetting, hashing, and ordering, beside
-/// pointers to their first bytes.
+/// array's: copying, offsetting, hashing, and ordering, beside pointers to their first
+/// bytes.
 pub fn byte_pointer_ops(mut a: [u8; 4], b: [u8; 4]) -> u64 {
 	use std::hash::{Hash, Hasher};
 	let p: *mut [u8; 4] = &mut a;
@@ -298,7 +298,7 @@ pub fn byte_pointer_ops(mut a: [u8; 4], b: [u8; 4]) -> u64 {
 	unsafe {
 		std::ptr::copy(q, p, 1);
 		std::ptr::copy_nonoverlapping(q, p, 1);
-		let same = std::ptr::addr_eq(p, q) || p < q.cast_mut();
+		let same = p < q.cast_mut();
 		let byte = *p.cast::<u8>() + *(q as *const u8) + (*p.add(0))[0] + (*q.offset(0))[1];
 		let slice: *const [u8] = q;
 		let mut h = std::collections::hash_map::DefaultHasher::new();

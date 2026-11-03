@@ -536,6 +536,7 @@ fn folds_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span: Span) -> Expr {
 	let item = b.t.iter_item(ty.peel_refs());
 	let none = item.and_then(|item| b.t.none_arg(item));
+	let held = held(b, ty);
 	let mut props = Vec::new();
 	for (tr, name) in &OWN[1..] {
 		if !owned && !BORROWED.contains(&(tr, name)) {
@@ -557,28 +558,28 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 			);
 			continue;
 		}
-		let sym = Expr::Sym(b.t.instance(instance));
+		let mut sym = Expr::Sym(b.t.instance(instance));
+		let args: &[&str] = match *name {
+			"size_hint" | "len" | "count" | "last" | "next_back" => &[],
+			"nth" | "nth_back" => &["n"],
+			"fold" | "rfold" => &["acc", "f"],
+			_ => &["f"],
+		};
+		// One held by its place, which a method not taking `&mut self` reads the value of.
+		let receiver = b.t.sig(instance.def_id(), instance.args).inputs()[0];
+		if held && receiver.ref_mutability() != Some(ty::Mutability::Mut) {
+			sym = through_place(b, ty, sym, args, span);
+		}
 		// Each that returns an `Option` of an item, as the protocol returns it: an item or
 		// `rt.DONE`.
 		let method = match *name {
 			"next_back" | "nth" | "nth_back" | "last" | "find" | "rfind" | "reduce" => {
-				let arg = match *name {
-					"nth" | "nth_back" => Some("n"),
-					"find" | "rfind" | "reduce" => Some("f"),
-					_ => None,
-				};
-				let args = [Expr::ident("it")].into_iter().chain(arg.map(Expr::ident)).collect();
-				let option = [sym.call(args)].into_iter().chain(none.clone()).collect();
-				let it = Param {
-					name: "it".into(),
-					ty: Some(b.t.ty(ty.peel_refs(), span)),
-				};
-				// `n` and `f` are typed by their place in `rt.Own`.
-				let params = [it].into_iter().chain(arg.map(|arg| Param {
-					name: arg.into(),
-					ty: None,
-				}));
-				Expr::Lambda(params.collect(), Box::new(Expr::rt("iterFromOption", option)))
+				let call = [Expr::ident("it")]
+					.into_iter()
+					.chain(args.iter().map(|&arg| Expr::ident(arg)));
+				let option = [sym.call(call.collect())].into_iter().chain(none.clone()).collect();
+				let params = source_params(b, ty, args, span);
+				Expr::Lambda(params, Box::new(Expr::rt("iterFromOption", option)))
 			}
 			_ => sym,
 		};
@@ -593,6 +594,47 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		true => Expr::undefined(),
 		false => Expr::Object(props),
 	}
+}
+
+/// Whether `rt.iterFrom` holds the crate's own iterator of type `ty`, through references, as
+/// an `rt.Place`, as its `next` reads one whose JS value is copied, such as an enum's.
+fn held<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	b.t.needs_place(ty.peel_refs())
+}
+
+/// Whether `ty` is an iterator of the crate's own whose `&mut` is an `rt.Place`, which std's
+/// methods taking `&mut self` read through, as its `next` does.
+pub fn held_own<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	matches!(ty.kind(), ty::Adt(adt, _) if t.own(adt.did())) && t.iter_item(ty).is_some() && t.needs_place(ty)
+}
+
+/// The parameters of a function of the source of `rt.iterFrom` holding the crate's own
+/// iterator of type `ty`, then `args`, which are typed by their place in `rt.Own`.
+fn source_params<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &[&str], span: Span) -> Vec<Param> {
+	let it = b.t.ty(ty.peel_refs(), span);
+	let it = match held(b, ty) {
+		true => Type::Rt("Place", vec![it]),
+		false => it,
+	};
+	let it = Param {
+		name: "it".into(),
+		ty: Some(it),
+	};
+	let args = args.iter().map(|arg| Param {
+		name: (*arg).into(),
+		ty: None,
+	});
+	[it].into_iter().chain(args).collect()
+}
+
+/// `f` of the value in the place `rt.iterFrom` holds the crate's own iterator of type `ty`
+/// by, then `args`.
+fn through_place<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, args: &[&str], span: Span) -> Expr {
+	let call = [Expr::ident("it").member("v")]
+		.into_iter()
+		.chain(args.iter().map(|&arg| Expr::ident(arg)));
+	let params = source_params(b, ty, args, span);
+	Expr::Lambda(params, Box::new(f.call(call.collect())))
 }
 
 /// `iter.next_back()` of the crate's own iterator of type `ty`, as the protocol returns it:
@@ -725,9 +767,19 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		return Some(match own_next(b, ty) {
 			Some(instance) => {
 				let next = Expr::Sym(b.t.instance(instance));
+				// One owned whose `next` reads its place is moved into a place of its own.
+				let placed = owned && held(b, ty);
 				let drop = match owned && b.t.drops(ty) {
+					true if placed => {
+						let drop = b.t.dropper(ty, span);
+						through_place(b, ty, drop, &[], span)
+					}
 					true => b.t.dropper(ty, span),
 					false => Expr::undefined(),
+				};
+				let value = match placed {
+					true => Expr::Object(vec![(Key::Name("v".into()), value)]),
+					false => value,
 				};
 				let own = own_methods(b, ty, owned, span);
 				Expr::rt("iterFrom", tail(vec![value, next], vec![drop, own]))
@@ -1055,6 +1107,15 @@ pub fn call<'tcx>(
 	}
 
 	let self_ty = match (owner, name) {
+		// The crate's own iterator, which a method taking `&mut self` borrows.
+		("Iterator" | "DoubleEndedIterator" | "ExactSizeIterator", _)
+			if !targ(0)?.is_ref()
+				&& own_next(b, targ(0)?).is_some()
+				&& let receiver = b.t.sig(call.def_id, gargs).inputs()[0]
+				&& receiver.ref_mutability() == Some(ty::Mutability::Mut) =>
+		{
+			receiver
+		}
 		("Iterator" | "DoubleEndedIterator" | "ExactSizeIterator", _) => targ(0)?,
 		("Peekable", "peek" | "peek_mut" | "next_if" | "next_if_eq")
 			if library::inherent_std(tcx, call.def_id) == Some(Std::Peekable) =>
@@ -1111,7 +1172,24 @@ pub fn call<'tcx>(
 			method(&camel, [rest, none.into_iter().collect()].concat())
 		}
 		// What each drops: an item it skips or rejects, or one it peeked.
-		"filter" | "skip_while" | "take_while" | "peekable" | "skip" | "take" | "step_by" => {
+		// std's specializes a step through a `Range` of an unsigned integer no wider than a
+		// `usize`, which on wasm32 is a `u8`, a `u16`, a `u32`, or a `usize`, to count down
+		// the range's end: the runtime is given the integer's greatest.
+		"step_by" => {
+			let dropper = b.t.dropper(item, span);
+			let max = match self_ty.kind() {
+				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Range) => match args.type_at(0).kind() {
+					ty::Uint(uint) => match uint.bit_width().unwrap_or(32) {
+						bits @ ..=32 => Expr::lit(((1u64 << bits) - 1).to_string()),
+						_ => Expr::undefined(),
+					},
+					_ => Expr::undefined(),
+				},
+				_ => Expr::undefined(),
+			};
+			method("stepBy", tail(rest, vec![dropper, max]))
+		}
+		"filter" | "skip_while" | "take_while" | "peekable" | "skip" | "take" => {
 			let dropper = b.t.dropper(item, span);
 			// std's `take` folds a `TrustedRandomAccess` iterator by index, as `next` does
 			// one that has no side effects.
@@ -1121,7 +1199,7 @@ pub fn call<'tcx>(
 			method(&camel, tail(rest, vec![dropper, Expr::lit(indexes.to_string())]))
 		}
 		"fuse" => {
-			let fused = fused(b, self_ty, None);
+			let fused = fused(b, self_ty);
 			method(name, tail(rest, vec![fused]))
 		}
 		// What clones its iterator, as it is made and each time a clone of it ends.
@@ -1344,7 +1422,7 @@ pub fn call<'tcx>(
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
 			let into = into_fn(b, targ(1)?, span)?.unwrap_or_else(Expr::undefined);
-			let fused = fused(b, self_ty, Some(targ(2)?));
+			let fused = fused(b, self_ty);
 			let size = array_size(b, targ(1)?);
 			let one_shot = Expr::lit(implements(b.t, inner, "OneShot").to_string());
 			method("flatMap", tail(rest, vec![into, fused, size, one_shot]))
@@ -1352,7 +1430,7 @@ pub fn call<'tcx>(
 		"flatten" => {
 			let inner = iter_of(b.t, item)?;
 			let into = into_fn(b, item, span)?.unwrap_or_else(Expr::undefined);
-			let fused = fused(b, self_ty, None);
+			let fused = fused(b, self_ty);
 			let size = array_size(b, item);
 			let one_shot = Expr::lit(implements(b.t, inner, "OneShot").to_string());
 			method("flatten", tail(Vec::new(), vec![into, fused, size, one_shot]))
@@ -1365,6 +1443,9 @@ pub fn call<'tcx>(
 				let clone = tcx.lang_items().clone_fn()?;
 				Some(b.fn_value(clone, tcx.mk_args(&[(*inner).into()]), span))
 			};
+			if name == "copied" && copies_itself(b.t, *inner) {
+				return Some(recv);
+			}
 			// A `Clone` written by hand may do other than copy, even for a `Copy` type. A JS
 			// string is a value already.
 			let copies = name == "copied"
@@ -1485,18 +1566,17 @@ pub(super) fn size_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span
 	layout(b, ty, span).map_or_else(|e| e, |(size, _)| Expr::lit(size.to_string()))
 }
 
+/// Whether `copied` of an iterator of `&inner`s is that iterator itself, as JS reads an
+/// `inner` as its value already.
+pub(super) fn copies_itself<'tcx>(t: &Translator<'_, 'tcx>, inner: Ty<'tcx>) -> bool {
+	!super::byte_array(inner) && !t.needs_copy(inner)
+}
+
 /// Whether an iterator of type `ty` is a `FusedIterator`, which std's `fuse` and `flatten`
-/// keep once it ends rather than drop, and read on from: `true` or `false`. Only one that
-/// drops, with `held` beside it, or holds an iterator of the crate's own, which may yield
-/// again past its end, can tell.
-fn fused<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, held: Option<Ty<'tcx>>) -> Expr {
-	let drops = b.t.drops(ty) || held.is_some_and(|held| b.t.drops(held));
-	let own = (ty.walk().filter_map(|arg| arg.as_type()))
-		.any(|t| matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) && b.t.iter_item(t).is_some());
-	Expr::lit(match (drops || own) && implements(b.t, ty, "FusedIterator") {
-		true => "true",
-		false => "false",
-	})
+/// keep once it ends rather than drop, as their `Debug` shows, and read on from: `true` or
+/// `false`.
+fn fused<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Expr {
+	Expr::lit(implements(b.t, ty, "FusedIterator").to_string())
 }
 
 /// How many items `ty` has, if it is an array or a reference to one, which std's `flatten`
@@ -1609,7 +1689,20 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 	let tcx = b.t.tcx;
 	let value = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| super::collections::clone_fn(b, ty, span);
 	if own_next(b, ty).is_some() {
-		return Some(parts(vec![("v", value(b, ty))]));
+		// A place of its own for the clone of one held by its place.
+		let clone = match (held(b, ty), value(b, ty)) {
+			(true, clone) => {
+				let v = Expr::ident("it").member("v");
+				let v = match undefined(&clone) {
+					true => v,
+					false => clone.call(vec![v]),
+				};
+				let params = source_params(b, ty, &[], span);
+				Expr::Lambda(params, Box::new(Expr::Object(vec![(Key::Name("v".into()), v)])))
+			}
+			(false, clone) => clone,
+		};
+		return Some(parts(vec![("v", clone)]));
 	}
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
@@ -1620,6 +1713,7 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 	Some(match path.as_slice() {
 		// Those that borrow what they read, as their clones do too, or hold nothing.
 		["iter", "sources", "empty", "Empty"]
+		| ["str", "lossy", "Utf8Chunks"]
 		| [
 			"slice",
 			"iter",
