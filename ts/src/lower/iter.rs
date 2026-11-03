@@ -1222,12 +1222,13 @@ pub fn call<'tcx>(
 		// `rt.owned<Name>`, which drops what `self_ty` holds and its items by `dropper` as
 		// std's own does, where either drops, counts a `Cycle` as std's `Take::count` does,
 		// by its `advance_by`, which stops at a clone that yields nothing where `try_fold`
-		// reads on, or reaches a `Repeat`'s or a `RepeatN`'s own, which clone nothing: else
-		// `rt.iter<Name>`, so a bundle that never drops doesn't carry it.
+		// reads on, or reaches a `Repeat`'s or a `RepeatN`'s own, which clone nothing, held
+		// or yielded to a `Flatten`: else `rt.iter<Name>`, so a bundle that never drops
+		// doesn't carry it.
 		"count" | "last" => {
 			let dropper = b.t.dropper(item, span);
 			let none: Vec<Expr> = none.into_iter().filter(|_| name == "last").collect();
-			let held: Vec<Vec<String>> = (self_ty.walk().filter_map(|arg| arg.as_type()))
+			let held: Vec<Vec<String>> = (held_types(b.t, self_ty).into_iter())
 				.filter_map(|t| std_iter_path(tcx, t))
 				.collect();
 			let cycles = name == "count" && held.iter().any(|p| p == &["iter", "adapters", "cycle", "Cycle"]);
@@ -1611,6 +1612,25 @@ fn array_size<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Expr {
 }
 
 /// The path of the std type `ty` is, if it is one.
+/// The types `ty` is made of, and of each iterator among them, those of the iterators it
+/// yields, which a `Flatten` reads by their own methods.
+fn held_types<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Vec<Ty<'tcx>> {
+	let mut held: Vec<Ty<'tcx>> = Vec::new();
+	let mut next = vec![ty];
+	while let Some(ty) = next.pop() {
+		for ty in ty.walk().filter_map(|arg| arg.as_type()) {
+			if held.contains(&ty) {
+				continue;
+			}
+			held.push(ty);
+			if let Some(item) = t.iter_item(ty).filter(|&item| t.iter_item(item).is_some()) {
+				next.push(item);
+			}
+		}
+	}
+	held
+}
+
 fn std_iter_path(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<Vec<String>> {
 	let ty::Adt(adt, _) = ty.kind() else {
 		return None;

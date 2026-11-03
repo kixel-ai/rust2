@@ -8268,7 +8268,7 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			return n2 & 0xff;
 		}));
 	};
-	const _491: (a0: Logged.Logged) => rt.u8 = (x4: Logged.Logged): rt.u8 => {
+	const _501: (a0: Logged.Logged) => rt.u8 = (x4: Logged.Logged): rt.u8 => {
 		return Logged.id(x4);
 	};
 	const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
@@ -8303,9 +8303,9 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		rt.drop(it);
 		flush(log.value, out);
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(rt.iterRev(rt.iterTake(clone.clone(), n(3), rt.drop)), (x11: Logged.Logged): rt.u8 => {
-			const _023: rt.u8 = Logged.id(x11);
+			const _024: rt.u8 = Logged.id(x11);
 			x11[Symbol.dispose]();
-			return _023;
+			return _024;
 		}), "fold", true)), undefined, true);
 		flush(log.value, out);
 		const _85: rt.usize = n(4);
@@ -8319,9 +8319,9 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		rt.iterExtendBytes(out, rt.iterSlice(_12(part35)), undefined, true);
 		flush(log.value, out);
 		rt.byteVecPush(out, rt.iterRfold(taken2, 0, (acc: rt.u8, x12: Logged.Logged): rt.u8 => {
-			const _024: rt.u8 = rt.u8WrappingAdd(acc, Logged.id(x12));
+			const _025: rt.u8 = rt.u8WrappingAdd(acc, Logged.id(x12));
 			x12[Symbol.dispose]();
-			return _024;
+			return _025;
 		}, true));
 		flush(log.value, out);
 	} else if (_13 === 1) {
@@ -8350,9 +8350,9 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				const clone2: rt.Iter<Logged.Logged> = it2.clone();
 				flush(log.value, out);
 				rt.iterExtendBytes(out, rt.iterMap(clone2, (x10: Logged.Logged): rt.u8 => {
-					const _022: rt.u8 = Logged.id(x10);
+					const _023: rt.u8 = Logged.id(x10);
 					x10[Symbol.dispose]();
-					return _022;
+					return _023;
 				}), "fold", true);
 				flush(log.value, out);
 			}
@@ -8397,6 +8397,10 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			return c2.id;
 		}));
 		flush(log.value, out);
+		rt.byteVecPush(out, rt.ownedCount(rt.iterFlatten(rt.iterOnceWith((): rt.Iter<Counted.Counted> => {
+			return rt.iterRepeatN({ id: 17, log: log.value }, 3, Counted.clone$Clone);
+		}), undefined, true)) & 0xff);
+		flush(log.value, out);
 		const part20 = at(11);
 		rt.byteVecPush(out, rt.ownedCount(rt.iterFuse(rt.iterRepeatN(logged(part20), n(12), Logged.clone$Clone, rt.drop), true), rt.drop) & 0xff);
 		flush(log.value, out);
@@ -8424,16 +8428,16 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	} else if (_13 === 4) {
 		const part5 = at(0);
 		const a: Logged.Logged = logged(part5);
-		const make = (captured: Logged.Logged): () => rt.u8 => {
+		const make2 = (captured: Logged.Logged): () => rt.u8 => {
 			return rt.closure(rt.cloning((): rt.u8 => {
 				const _013: rt.u8 = Logged.id(captured) ^ 85;
 				captured[Symbol.dispose]();
 				return _013;
-			}, () => make(Logged.clone$Clone(captured))), (): void => {
+			}, () => make2(Logged.clone$Clone(captured))), (): void => {
 				captured[Symbol.dispose]();
 			});
 		};
-		const it6: rt.Iter<rt.u8> = rt.iterOnceWith(make(a));
+		const it6: rt.Iter<rt.u8> = rt.iterOnceWith(make2(a));
 		const part6 = it6.sizeHint();
 		rt.iterExtendBytes(out, rt.iterSlice(_12(part6)), undefined, true);
 		const clone3: rt.Iter<rt.u8> = it6.clone({ f: rt.closureClone });
@@ -8495,14 +8499,14 @@ export function sources(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		}), "fold", true);
 		flush(log.value, out);
 		const part2 = at(1);
-		for (const _529 of rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterRepeatN(logged(part2), n(2), Logged.clone$Clone, rt.drop), rt.iterRepeat(at(3)), "len", rt.drop), (_2: [Logged.Logged, rt.u8]): [rt.u8, rt.u8] => {
+		for (const _539 of rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterRepeatN(logged(part2), n(2), Logged.clone$Clone, rt.drop), rt.iterRepeat(at(3)), "len", rt.drop), (_2: [Logged.Logged, rt.u8]): [rt.u8, rt.u8] => {
 			const x6: Logged.Logged = _2[0];
 			const y2: rt.u8 = _2[1];
-			const _010: [rt.u8, rt.u8] = [_491(x6), y2];
+			const _010: [rt.u8, rt.u8] = [_501(x6), y2];
 			x6[Symbol.dispose]();
 			return _010;
 		}), "fold", 2, true)) {
-			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_529[0], _529[1])), undefined, true);
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_539[0], _539[1])), undefined, true);
 		}
 		flush(log.value, out);
 		const part4 = at(4);

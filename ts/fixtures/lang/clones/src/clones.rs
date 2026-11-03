@@ -1087,6 +1087,9 @@ pub fn sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let it = std::iter::empty().chain(std::iter::repeat_n(counted(at(9)), n(10)));
 			out.push(it.last().map_or(0xee, |c| c.id));
 			flush(&log, out);
+			let make = || std::iter::repeat_n(Counted { id: 0x11, log: &log }, 3);
+			out.push(std::iter::once_with(make).flatten().count() as u8);
+			flush(&log, out);
 			let it = std::iter::repeat_n(logged(at(11)), n(12)).fuse();
 			out.push(it.count() as u8);
 			flush(&log, out);
