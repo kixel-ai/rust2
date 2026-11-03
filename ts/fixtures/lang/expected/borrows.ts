@@ -156,8 +156,8 @@ export function guards(data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteVecPush(out, _81.value.id);
 			rt.refRelease(_81);
 			drop$tuple2_Option_cell_Ref_borrows_Tagged_Option_cell_RefMut_borrows_Tagged([held, heldMut] as [rt.RefCell<borrows_Tagged.Tagged> | undefined, rt.RefCell<borrows_Tagged.Tagged> | undefined]);
-			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.refCellClone(bytes, (a02: rt.ByteVec): rt.ByteVec => {
-				return rt.byteVecFrom(rt.byteVecView(a02));
+			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.refCellClone(bytes, (a0: rt.ByteVec): rt.ByteVec => {
+				return rt.byteVecFrom(rt.byteVecView(a0));
 			}).value));
 			rt.byteVecPush(out, rt.refCellClone(number, undefined).value & 0xff);
 			copy[Symbol.dispose]();

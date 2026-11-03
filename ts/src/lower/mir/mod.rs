@@ -80,6 +80,62 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 	})
 }
 
+/// A function as a value: an arrow whose body is its reify shim, which calls it as a
+/// written call does, so std's that replace what a `&mut` borrows, such as `mem::take`,
+/// lower as their calls do. Its spans are `span`'s, where the function is named.
+pub fn fn_value<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	def_id: rustc_hir::def_id::DefId,
+	args: ty::GenericArgsRef<'tcx>,
+	span: Span,
+) -> Expr {
+	let tcx = b.t.tcx;
+	let shim = Instance {
+		def: ty::InstanceKind::Shim(ty::ShimKind::Reify(def_id, None)),
+		args,
+	};
+	let mut mir = shim.instantiate_mir_and_normalize_erasing_regions(
+		tcx,
+		b.t.typing_env_pub(),
+		EarlyBinder::bind(tcx, tcx.instance_mir(shim.def).clone()),
+	);
+	mir.span = span;
+	for decl in mir.local_decls.iter_mut() {
+		decl.source_info.span = span;
+	}
+	// Its arguments are named `a0` on, as debug info names a function's.
+	let args: Vec<Local> = mir.args_iter().collect();
+	for (i, local) in args.into_iter().enumerate() {
+		mir.var_debug_info.push(mir::VarDebugInfo {
+			name: rustc_span::Symbol::intern(&format!("a{i}")),
+			source_info: mir.local_decls[local].source_info,
+			composite: None,
+			value: mir::VarDebugInfoContents::Place(local.into()),
+			argument_index: Some(i as u16 + 1),
+		});
+	}
+	for block in mir.basic_blocks.as_mut() {
+		for stmt in &mut block.statements {
+			stmt.source_info.span = span;
+		}
+		let term = block.terminator_mut();
+		term.source_info.span = span;
+		if let TerminatorKind::Call { fn_span, .. } = &mut term.kind {
+			*fn_span = span;
+		}
+	}
+	// The shim's parameters are whole, whatever the body it is in takes.
+	let parted = std::mem::take(&mut b.parted);
+	let slotted = b.slotted.take();
+	let mut fx = Fx::new(b, &mir, Env::Plain, span);
+	let params = fx.params();
+	let body = fx.lower();
+	b.parted = parted;
+	b.slotted = slotted;
+	let ret = b.t.ty(mir.return_ty(), span);
+	Expr::Arrow(params, ret, body)
+}
+
 /// The MIR of `instance`, with its generic arguments in place.
 fn instance_mir<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>, span: Span) -> Option<mir::Body<'tcx>> {
 	let tcx = t.tcx;

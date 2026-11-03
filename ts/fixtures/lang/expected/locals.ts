@@ -71,9 +71,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 	})(POLLING.get()));
 	rt.byteVecPush(out, ((p2: locals_Polling.Polling): rt.u8 => {
 		const _64: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(p2.held);
-		const _05: rt.u8 = _64.value.length & 0xff;
+		const _06: rt.u8 = _64.value.length & 0xff;
 		rt.refRelease(_64);
-		return _05;
+		return _06;
 	})(POLLING.get()));
 	rt.byteVecPush(out, withBorrow$1qygtee(HELD, (held: locals_Noisy.Noisy | undefined): rt.u8 => {
 		return option_mapOr$0cqaybi(held, 253, (n: locals_Noisy.Noisy): rt.u8 => {
@@ -105,9 +105,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_46 === 2) {
 			rt.byteVecPush(out, result_mapOr$18ipla0(rt.Ok(((log6: rt.RefCell<rt.ByteVec>): rt.usize => {
 				const _512: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log6);
-				const _020: rt.usize = _512.value.length;
+				const _021: rt.usize = _512.value.length;
 				rt.refRelease(_512);
-				return _020;
+				return _021;
 			})(LOG.get())), 253, (n4: rt.usize): rt.u8 => {
 				return n4 & 0xff;
 			}));
@@ -117,9 +117,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 					const _318: rt.u8 = c3.v & 0xff;
 					const _910: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log5);
 					const _78: rt.ByteVec = _910.value;
-					const _019: rt.u8 = _318 ^ _78.data[rt.idx(_78, 0)];
+					const _020: rt.u8 = _318 ^ _78.data[rt.idx(_78, 0)];
 					rt.refRelease(_910);
-					return _019;
+					return _020;
 				})(LOG.get());
 			})(COUNT.get()));
 		} else if (_46 === 4) {
@@ -132,9 +132,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(_611.value, op);
 				rt.refMutRelease(_611);
 				const _1110: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(p4.held);
-				const _016: rt.usize = _1110.value.length;
+				const _017: rt.usize = _1110.value.length;
 				rt.refRelease(_1110);
-				return _016;
+				return _017;
 			})(POLLING.get());
 			rt.byteVecPush(out, option_mapOr$0ucbp7g(outer, 253, (_23: [rt.u64, rt.u64]): rt.u8 => {
 				return rt.u64Low(_23[0]) & 0xff;
@@ -182,9 +182,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 			}));
 			rt.drop(old);
 			rt.byteVecPush(out, option_mapOr$0cqaybi(local_take$1x34chv(HELD), 253, (n3: locals_Noisy.Noisy): rt.u8 => {
-				const _012: rt.u8 = n3.id;
+				const _013: rt.u8 = n3.id;
 				n3[Symbol.dispose]();
-				return _012;
+				return _013;
 			}));
 			rt.localKeyWithBorrowMutPlace(TALLY, (tally2: rt.Place<rt.u32>): undefined => {
 				tally2.v = rt.u32WrappingAdd(rt.u32WrappingMul(tally2.v, 3), op as rt.u32);
@@ -228,9 +228,9 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _518: rt.RefCell<locals_Noisy.Noisy | undefined> = rt.refCellBorrowMut(held4);
 		const taken = _518.value;
 		_518.value = undefined;
-		const _022: locals_Noisy.Noisy | undefined = taken;
+		const _024: locals_Noisy.Noisy | undefined = taken;
 		rt.refMutRelease(_518);
-		return _022;
+		return _024;
 	})(HELD.get()));
 	serial(true);
 	const _208: rt.Mutex<rt.ByteVec> = rt.mutexLock(log.value);

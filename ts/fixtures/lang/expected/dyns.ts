@@ -918,9 +918,9 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		rt.refRelease(_495);
 		fmt_put(out, _491);
 		const part3 = option_map$0j05j69(ok$00p9ap8(rt.arcDowncast(new rt.Arc(new Any.of$u32(dataData[dataStart] as rt.u32)), Any.of$u32, (object) => object.v)), (n3: rt.Arc<rt.u32>): rt.u32 => {
-			const _08: rt.u32 = n3.value;
+			const _09: rt.u32 = n3.value;
 			n3[Symbol.dispose]();
-			return _08;
+			return _09;
 		});
 		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part3, f, rt.u32Debug)];
 		fmt_put(out, rt.fmtFormat([args36[0], " "]));

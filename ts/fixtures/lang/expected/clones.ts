@@ -7454,8 +7454,8 @@ export function owned(data: rt.ByteSlice, plan: Plan.Plan, out: rt.ByteVec): voi
 	}), undefined, 12, true), drop$Vec_clones_Logged), (value: clones_Logged.Logged[]) => rt.iterSlice(value, rt.drop), true);
 	rt.drop(rt.iterToOption(it4.next()));
 	rt.drop(rt.iterToOption(it4.nextBack()));
-	const clone4: rt.Iter<clones_Logged.Logged> = it4.clone({ i: { v: (a07: clones_Logged.Logged[]): clones_Logged.Logged[] => {
-		return rt.vecExact(a07.map(clones_Logged.clone$Clone), 8);
+	const clone4: rt.Iter<clones_Logged.Logged> = it4.clone({ i: { v: (a0: clones_Logged.Logged[]): clones_Logged.Logged[] => {
+		return rt.vecExact(a0.map(clones_Logged.clone$Clone), 8);
 	} }, o: { v: clones_Logged.clone$Clone } });
 	flush(log.value, out);
 	rt.drop(it4);
@@ -7463,9 +7463,9 @@ export function owned(data: rt.ByteSlice, plan: Plan.Plan, out: rt.ByteVec): voi
 	turns$iter_Flatten_vec_IntoIter_Vec_clones_Logged_clones_owned_closure13_clones_owned_closure14(clone4, (it10: rt.Iter<clones_Logged.Logged>): clones_Logged.Logged | undefined => {
 		return rt.iterToOption(it10.nextBack());
 	}, plan, (x5: clones_Logged.Logged): rt.u8 => {
-		const _016: rt.u8 = clones_Logged.id(x5);
+		const _017: rt.u8 = clones_Logged.id(x5);
 		x5[Symbol.dispose]();
-		return _016;
+		return _017;
 	}, out);
 	flush(log.value, out);
 	const it5: rt.Iter<clones_Logged.Logged> = rt.iterSuccessors(logged(40), (x6: clones_Logged.Logged): clones_Logged.Logged | undefined => {
@@ -7479,9 +7479,9 @@ export function owned(data: rt.ByteSlice, plan: Plan.Plan, out: rt.ByteVec): voi
 	turns$iter_Successors_clones_Logged_clones_owned_closure15_clones_owned_closure16_clones_owned_closure17(clone5, (it11: rt.Iter<clones_Logged.Logged>): clones_Logged.Logged | undefined => {
 		return rt.iterToOption(it11.next());
 	}, plan, (x7: clones_Logged.Logged): rt.u8 => {
-		const _020: rt.u8 = clones_Logged.id(x7);
+		const _021: rt.u8 = clones_Logged.id(x7);
 		x7[Symbol.dispose]();
-		return _020;
+		return _021;
 	}, out);
 	rt.drop(it5);
 	flush(log.value, out);

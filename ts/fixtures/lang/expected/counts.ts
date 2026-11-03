@@ -179,8 +179,8 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		weakObject[Symbol.dispose]();
 	}
 	new rt.Arc(new counts_Noisy.Noisy(224, rt.arcClone(log)))[Symbol.dispose]();
-	const _228: rt.Arc<counts_Noisy.Noisy> | undefined = option_map$1srhyy0(rt.sliceFirst(strong), (a02: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
-		return rt.arcClone(a02);
+	const _228: rt.Arc<counts_Noisy.Noisy> | undefined = option_map$1srhyy0(rt.sliceFirst(strong), (a0: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
+		return rt.arcClone(a0);
 	});
 	rt.byteVecPush(out, option_mapOr$1iuqai4(option_asDeref$0hypa7g(_228), 253, (noisy3: counts_Noisy.Noisy): rt.u8 => {
 		return noisy3.id;
@@ -189,9 +189,9 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.dropAll(strong);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(weak), (w: rt.Weak<counts_Noisy.Noisy>): rt.u8 => {
 		const _54: rt.Arc<counts_Noisy.Noisy> | undefined = rt.weakUpgrade(w);
-		const _05: rt.u8 = _54 === undefined ? 1 : 0;
+		const _06: rt.u8 = _54 === undefined ? 1 : 0;
 		rt.drop(_54);
-		return _05;
+		return _06;
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(weak), (w2: rt.Weak<counts_Noisy.Noisy>): rt.u8 => {
 		return rt.weakWeakCount(w2) & 0xff;
@@ -267,8 +267,8 @@ export function clonedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.iterExtend(noisy, rt.iterOption(_92, rt.drop), "fold", 8, true);
 				made2[Symbol.dispose]();
 			} else if (_34 === 4) {
-				const all: rt.Arc<counts_Noisy.Noisy>[] = rt.iterToArray(rt.iterMap(rt.iterSlice(handles), (a04: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
-					return rt.arcClone(a04);
+				const all: rt.Arc<counts_Noisy.Noisy>[] = rt.iterToArray(rt.iterMap(rt.iterSlice(handles), (a02: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
+					return rt.arcClone(a02);
 				}), undefined, 4, true);
 				_191 = true;
 				rt.byteVecPush(out, handles[at].strong & 0xff);
@@ -521,9 +521,9 @@ export function uniqueArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	for (const _110 of weak) {
 		rt.byteVecPush(out, option_mapOr$1q3ff8g(rt.weakUpgrade(_110), 253, (s: rt.Arc<rt.u8>): rt.u8 => {
-			const _0: rt.u8 = s.value;
+			const _03: rt.u8 = s.value;
 			s[Symbol.dispose]();
-			return _0;
+			return _03;
 		}));
 		rt.byteVecPush(out, _110.arc.strong & 0xff);
 		rt.byteVecPush(out, rt.weakWeakCount(_110) & 0xff);
@@ -624,8 +624,8 @@ export function clonedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.iterExtend(noisy, rt.iterOption(_92, rt.drop), "fold", 8, true);
 				made2[Symbol.dispose]();
 			} else if (_34 === 4) {
-				const all: rt.Arc<counts_Noisy.Noisy>[] = rt.iterToArray(rt.iterMap(rt.iterSlice(handles), (a04: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
-					return rt.arcClone(a04);
+				const all: rt.Arc<counts_Noisy.Noisy>[] = rt.iterToArray(rt.iterMap(rt.iterSlice(handles), (a02: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
+					return rt.arcClone(a02);
 				}), undefined, 4, true);
 				_191 = true;
 				rt.byteVecPush(out, handles[at].strong & 0xff);
@@ -947,8 +947,8 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		weakObject[Symbol.dispose]();
 	}
 	new rt.Arc(new counts_Noisy.Noisy(224, rt.arcClone(log)))[Symbol.dispose]();
-	const _228: rt.Arc<counts_Noisy.Noisy> | undefined = option_map$1srhyy0(rt.sliceFirst(strong), (a02: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
-		return rt.arcClone(a02);
+	const _228: rt.Arc<counts_Noisy.Noisy> | undefined = option_map$1srhyy0(rt.sliceFirst(strong), (a0: rt.Arc<counts_Noisy.Noisy>): rt.Arc<counts_Noisy.Noisy> => {
+		return rt.arcClone(a0);
 	});
 	rt.byteVecPush(out, option_mapOr$1iuqai4(option_asDeref$0hypa7g(_228), 253, (noisy3: counts_Noisy.Noisy): rt.u8 => {
 		return noisy3.id;
@@ -957,9 +957,9 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.dropAll(strong);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(weak), (w: rt.Weak<counts_Noisy.Noisy>): rt.u8 => {
 		const _54: rt.Arc<counts_Noisy.Noisy> | undefined = rt.weakUpgrade(w);
-		const _05: rt.u8 = _54 === undefined ? 1 : 0;
+		const _06: rt.u8 = _54 === undefined ? 1 : 0;
 		rt.drop(_54);
-		return _05;
+		return _06;
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(weak), (w2: rt.Weak<counts_Noisy.Noisy>): rt.u8 => {
 		return rt.weakWeakCount(w2) & 0xff;
@@ -1056,9 +1056,9 @@ export function uniqueRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	for (const _110 of weak) {
 		rt.byteVecPush(out, option_mapOr$1q3ff8g(rt.weakUpgrade(_110), 253, (s: rt.Arc<rt.u8>): rt.u8 => {
-			const _0: rt.u8 = s.value;
+			const _03: rt.u8 = s.value;
 			s[Symbol.dispose]();
-			return _0;
+			return _03;
 		}));
 		rt.byteVecPush(out, _110.arc.strong & 0xff);
 		rt.byteVecPush(out, rt.weakWeakCount(_110) & 0xff);

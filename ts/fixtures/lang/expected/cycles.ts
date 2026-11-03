@@ -1136,8 +1136,8 @@ export function closures(data: rt.ByteSlice, steps: rt.ByteSlice, out: rt.ByteVe
 				return cycles_Logged.called(captured6, l & 0xff);
 			}
 			return undefined;
-		}, () => make4(((a04: rt.Arc<rt.Cell<rt.usize>>): rt.Arc<rt.Cell<rt.usize>> => {
-			return rt.arcClone(a04);
+		}, () => make4(((a0: rt.Arc<rt.Cell<rt.usize>>): rt.Arc<rt.Cell<rt.usize>> => {
+			return rt.arcClone(a0);
 		})(captured5), cycles_Logged.clone$Clone(captured6))), (): void => {
 			captured5[Symbol.dispose]();
 			captured6[Symbol.dispose]();

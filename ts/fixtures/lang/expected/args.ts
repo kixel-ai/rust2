@@ -160,8 +160,8 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, byRef(data) & 0xff);
 		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind)), (s: rt.ByteSlice): rt.u8 => {
 			return opaque(s);
-		}), 0, (a05: rt.u8, a1: rt.u8): rt.u8 => {
-			return rt.u8WrappingAdd(a05, a1);
+		}), 0, (a03: rt.u8, a1: rt.u8): rt.u8 => {
+			return rt.u8WrappingAdd(a03, a1);
 		}));
 	} else if (_4 === 1) {
 		if (data.length >= 4) {
@@ -176,8 +176,8 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return _2[1];
 		}), opaque)), undefined, true);
 		if (!(rt.usizeRem(data.length, 2) === 0)) {
-			f = (a03: rt.ByteSlice): rt.u8 => {
-				return sum(a03.data, a03.start, a03.length);
+			f = (a0: rt.ByteSlice): rt.u8 => {
+				return sum(a0.data, a0.start, a0.length);
 			};
 		} else {
 			f = opaque;
@@ -185,8 +185,8 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, f(data));
 		rt.byteVecPush(out, option_mapOr$0dk8jdr(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rt.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, (_22: [rt.u8, rt.ByteSlice]): rt.ByteSlice => {
 			return _22[1];
-		}), 0, (a04: rt.ByteSlice): rt.usize => {
-			return len(a04.data, a04.start, a04.length);
+		}), 0, (a02: rt.ByteSlice): rt.usize => {
+			return len(a02.data, a02.start, a02.length);
 		}) & 0xff);
 	} else if (_4 === 3) {
 		rt.byteVecPush(out, pair(code(out, 1), pick(out, data)));

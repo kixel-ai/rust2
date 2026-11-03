@@ -215,8 +215,8 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u64ToBeBytes(hash$boxed_Box_slice_u8(b)).reverse()), undefined, true);
 		rt.byteVecPush(out, a.length & 0xff);
 		rt.byteVecPush(out, a.length === 0 ? 1 : 0);
-		rt.byteVecPush(out, rt.iterFold(rt.iterSlice(rt.byteSliceView(a)), 0, (a04: rt.u8, a1: rt.u8): rt.u8 => {
-			return rt.u8WrappingAdd(a04, a1);
+		rt.byteVecPush(out, rt.iterFold(rt.iterSlice(rt.byteSliceView(a)), 0, (a0: rt.u8, a1: rt.u8): rt.u8 => {
+			return rt.u8WrappingAdd(a0, a1);
 		}));
 		rt.byteVecPush(out, rt.byteSliceView(a).includes(0) ? 1 : 0);
 		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.byteSliceFirst(a), 170));

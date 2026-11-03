@@ -223,8 +223,8 @@ export function sorted(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.u8Div(a5, 4) <= rt.u8Div(b8, 4);
 		}) ? 1 : 0, rt.iterIsSortedBy(rt.iterMap(rt.iterSlice(rt.byteSliceView(_12)), (_25: rt.u8): rt.u8 => {
 			return rt.u8Rem(_25, 8);
-		}), rt.le) ? 1 : 0, rt.iterIsSortedBy(rt.iterSlice(rt.byteSliceView(_12)), rt.le) ? 1 : 0, rt.sliceIsSorted(strings, rt.cmpLe(rt.cmpStr)) ? 1 : 0, rt.iterIsSortedBy(rt.iterMap(rt.iterSlice(strings), (a06: string): rt.usize => {
-			return rt.stringLen(a06);
+		}), rt.le) ? 1 : 0, rt.iterIsSortedBy(rt.iterSlice(rt.byteSliceView(_12)), rt.le) ? 1 : 0, rt.sliceIsSorted(strings, rt.cmpLe(rt.cmpStr)) ? 1 : 0, rt.iterIsSortedBy(rt.iterMap(rt.iterSlice(strings), (a0: string): rt.usize => {
+			return rt.stringLen(a0);
 		}), rt.le) ? 1 : 0, rt.iterIsSortedBy(rt.iterMap(rt.iterSlice(rt.byteSliceView(_12)), (_29: rt.u8): rt.f64 => {
 			return (_29 as rt.f64) / 3.0;
 		}), rt.cmpLe(rt.f64PartialCmp)) ? 1 : 0)), undefined, true);
@@ -647,8 +647,8 @@ export function tuples(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _136: [Part.Part, rt.f64] = [part2, fy];
 		const _132: boolean = rt.cmpTuple<[Part.Part, rt.f64], rt.Ordering | undefined>([Part.partialCmp$cmp_PartialOrd, rt.f64PartialCmp])(_134, _136) === -1;
 		const order_ = rt.cmpTuple<[rt.f64, rt.u8], rt.Ordering | undefined>([rt.f64PartialCmp, rt.cmp])([fx, x] as [rt.f64, rt.u8], [fy, y] as [rt.f64, rt.u8]);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_132, order_ !== undefined && order_ >= 0], (a010: boolean): rt.u8 => {
-			return a010 ? 1 : 0;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_132, order_ !== undefined && order_ >= 0], (a0: boolean): rt.u8 => {
+			return a0 ? 1 : 0;
 		})), undefined, true);
 		flush(out);
 		const _146: [Part.Part, rt.u8][] = [[part_, x] as [Part.Part, rt.u8]];
@@ -703,8 +703,8 @@ export function tuples(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(pairs), (p6: [rt.u8, Part.Part]): rt.u8 => {
 		return p6[1].tag;
 	}), undefined, true);
-	rt.localKeyWithBorrowMut(LOG, (a021: rt.ByteVec): undefined => {
-		rt.byteVecClear(a021);
+	rt.localKeyWithBorrowMut(LOG, (a02: rt.ByteVec): undefined => {
+		rt.byteVecClear(a02);
 	});
 	const floats: [rt.f64, rt.u8][] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_26: rt.u8): [rt.f64, rt.u8] => {
 		const b3: rt.u8 = _26;
@@ -929,8 +929,8 @@ export function held(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _100: rt.Result<Part.Part, Part.Part>[] = [a];
 		const _104: rt.Result<Part.Part, Part.Part>[] = [b];
 		const order3 = rt.cmpSlice(result_partialCmp$0spmpix)(_100, _104);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_89, order3 !== undefined && order3 >= 0], (a06: boolean): rt.u8 => {
-			return a06 ? 1 : 0;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_89, order3 !== undefined && order3 >= 0], (a02: boolean): rt.u8 => {
+			return a02 ? 1 : 0;
 		})), undefined, true);
 		flush(out);
 		rt.idx(_10[1], 0);
@@ -952,8 +952,8 @@ export function held(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _152: boolean = result_eq$15zrpyn(x, y);
 		const _157: [rt.Result<rt.f64, rt.f64>, rt.i32] = [x, 1];
 		const _159: [rt.Result<rt.f64, rt.f64>, rt.i32] = [y, 0];
-		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_140, _143, _146, _149, _152, rt.cmpTuple<[rt.Result<rt.f64, rt.f64>, rt.i32], rt.Ordering | undefined>([result_partialCmp$0v2kxbo, rt.cmp])(_157, _159) === -1], (a09: boolean): rt.u8 => {
-			return a09 ? 1 : 0;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_140, _143, _146, _149, _152, rt.cmpTuple<[rt.Result<rt.f64, rt.f64>, rt.i32], rt.Ordering | undefined>([result_partialCmp$0v2kxbo, rt.cmp])(_157, _159) === -1], (a03: boolean): rt.u8 => {
+			return a03 ? 1 : 0;
 		})), undefined, true);
 		rt.idx(_10[1], 0);
 		const _163: rt.Poll<rt.u8> = _5(_10[1].data[_10[1].start]);
@@ -969,8 +969,8 @@ export function held(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _205: boolean = poll_partialCmp$1r9dhkr(q, 2) === 1;
 		const _210 = p as rt.Poll<rt.u8> | undefined;
 		const _212 = q as rt.Poll<rt.u8> | undefined;
-		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_196, _199, _202, _205, !rt.eqOption(poll_eq$1h9nnoh)(_210, _212)], (a011: boolean): rt.u8 => {
-			return a011 ? 1 : 0;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_196, _199, _202, _205, !rt.eqOption(poll_eq$1h9nnoh)(_210, _212)], (a04: boolean): rt.u8 => {
+			return a04 ? 1 : 0;
 		})), undefined, true);
 		rt.byteVecPush(out, order(poll_partialCmp$1fsj76o(x as rt.Poll<rt.Result<rt.f64, rt.f64>>, y as rt.Poll<rt.Result<rt.f64, rt.f64>>)));
 	}
@@ -1000,8 +1000,8 @@ export function held(data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(order(rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(d, e)), rt.cmpDeque(Part.cmp$cmp_Ord)(d, e) & 0xff, order(rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(e, d)))), undefined, true);
 			const _263: boolean = rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(d, e) === -1;
 			const order7 = rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(d, e);
-			rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_263, order7 !== undefined && order7 >= 0, rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(e, d) === 1, rt.eqSeq(Part.eq$cmp_PartialEq)(d, e)], (a020: boolean): rt.u8 => {
-				return a020 ? 1 : 0;
+			rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_263, order7 !== undefined && order7 >= 0, rt.cmpDeque(Part.partialCmp$cmp_PartialOrd)(e, d) === 1, rt.eqSeq(Part.eq$cmp_PartialEq)(d, e)], (a05: boolean): rt.u8 => {
+				return a05 ? 1 : 0;
 			})), undefined, true);
 			const _280: rt.VecDeque<Part.Part> | undefined = d;
 			const _283: rt.VecDeque<Part.Part> | undefined = e;
@@ -1169,8 +1169,8 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.btreeLen(rt.btreeCollectKeys(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.iterToArray(rt.iterSlice([]), undefined, 3, true), 3, true, Torn.lt$cmp_PartialOrd, (a7: Torn.Torn, b8: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a7, b8);
 		})) & 0xff);
-		const _91: rt.Iter<Torn.Torn[]> = rt.iterMap(rt.sliceChunks(keys2, 2), (a017: Torn.Torn[]): Torn.Torn[] => {
-			return rt.vecExact(a017.slice(), 3);
+		const _91: rt.Iter<Torn.Torn[]> = rt.iterMap(rt.sliceChunks(keys2, 2), (a0: Torn.Torn[]): Torn.Torn[] => {
+			return rt.vecExact(a0.slice(), 3);
 		});
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(rt.cmpSlice(Torn.cmp$cmp_Ord)) as rt.BTreeSet<Torn.Torn[]>, rt.iterToArray(_91, undefined, 12, true), 12, true, rt.cmpLt(rt.cmpSlice(Torn.partialCmp$cmp_PartialOrd)), rt.eqSlice((a8: Torn.Torn, b9: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a8, b9);
@@ -1202,8 +1202,8 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.btreeExtendKeys(left, _138);
 		const _142: rt.Iter<Torn.Torn> = rt.iterSlice(_129[1]);
 		rt.btreeExtendKeys(right, _142);
-		rt.localKeyWithBorrowMut(LOG, (a025: rt.ByteVec): undefined => {
-			rt.byteVecClear(a025);
+		rt.localKeyWithBorrowMut(LOG, (a02: rt.ByteVec): undefined => {
+			rt.byteVecClear(a02);
 		});
 		rt.iterExtendBytes(out, rt.iterMap(rt.btreeKeys(rt.btreeFromSorted(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.btreeUnion(left, right), (a9: Torn.Torn, b10: Torn.Torn): boolean => {
 			return !Torn.ne$cmp_PartialEq(a9, b10);
@@ -1221,13 +1221,13 @@ export function btrees(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		})), (k10: Torn.Torn): rt.u8 => {
 			return k10.tag;
 		}), undefined, true);
-		rt.iterExtendBytes(out, rt.iterMap(rt.btreeKeys(rt.btreeFromSorted(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.btreeDifference(left, right), (a20: Torn.Torn, b13: Torn.Torn): boolean => {
-			return !Torn.ne$cmp_PartialEq(a20, b13);
+		rt.iterExtendBytes(out, rt.iterMap(rt.btreeKeys(rt.btreeFromSorted(rt.btreeNew(Torn.cmp$cmp_Ord) as rt.BTreeSet<Torn.Torn>, rt.btreeDifference(left, right), (a12: Torn.Torn, b13: Torn.Torn): boolean => {
+			return !Torn.ne$cmp_PartialEq(a12, b13);
 		})), (k11: Torn.Torn): rt.u8 => {
 			return k11.tag;
 		}), undefined, true);
-		rt.localKeyWithBorrowMut(LOG, (a034: rt.ByteVec): undefined => {
-			rt.byteVecClear(a034);
+		rt.localKeyWithBorrowMut(LOG, (a03: rt.ByteVec): undefined => {
+			rt.byteVecClear(a03);
 		});
 	}
 	const apart: Apart.Apart[] = rt.vecFromElem({}, short.length, undefined);

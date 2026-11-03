@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import { copy$array_char } from "./lib.ts";
 import { unwrapOr$039uout as option_unwrapOr$039uout, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, map$0xa0bn7 as option_map$0xa0bn7, map$1u8sh4f as option_map$1u8sh4f, mapOr$14njs1h as option_mapOr$14njs1h, mapOr$1llunel as option_mapOr$1llunel, filter$184yuq2, clone$0vcwlo5 as option_clone$0vcwlo5 } from "./core/option.ts";
 import * as Lean from "./edits.Lean.ts";
+import * as edits_Logged from "./edits.Logged.ts";
 import * as edits_Named from "./edits.Named.ts";
 import * as Stamp from "./edits.Stamp.ts";
 import * as edits_Tally from "./edits.Tally.ts";
@@ -258,8 +259,8 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return rt.u16Add(i4 as rt.u16, b5 as rt.u16);
 			}), undefined, 2, true);
 		}), undefined, 12, true);
-		const _453: rt.u16[][] = rt.vecExact(nested.map((a027: rt.u16[]): rt.u16[] => {
-			return rt.vecExact(a027.slice(), 2);
+		const _453: rt.u16[][] = rt.vecExact(nested.map((a02: rt.u16[]): rt.u16[] => {
+			return rt.vecExact(a02.slice(), 2);
 		}), 12);
 		rt.byteVecPush(out, rt.eqSlice(rt.eqSlice(rt.same))(_453, nested) ? 1 : 0);
 		const pair: [string, rt.u8] = [strs_text(data), at(0)];
@@ -352,8 +353,8 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, option_mapOr$14njs1h(optional$edits_Named(_604(part3)), 65535, (n2: edits_Named.Named): rt.u16 => {
 			return n2.id;
 		}) & 0xff);
-		const part4 = option_unwrapOr$039uout(option_map$1u8sh4f(rt.sliceFirst(kept), (a09: edits_Named.Named): edits_Named.Named[] => {
-			return [a09];
+		const part4 = option_unwrapOr$039uout(option_map$1u8sh4f(rt.sliceFirst(kept), (a0: edits_Named.Named): edits_Named.Named[] => {
+			return [a0];
 		}), kept);
 		putU16s(out, _605(part4));
 		const part5 = [_604(7)];
@@ -589,6 +590,220 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteSliceSwap(rt.byteVecSlice(v15), i, j);
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
+	}
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$String_String_String_mem_replace_String(_: (a0: rt.Place<string>, a1: string) => string, place: rt.Place<string>, value: string): string {
+	return ((a0: rt.Place<string>, a1: string): string => {
+		const old = a0.v;
+		a0.v = a1;
+		return old;
+	})(place, value);
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$String_mut_String_unit_mem_swap_String(_: (a0: rt.Place<string>, a1: rt.Place<string>) => undefined, place: rt.Place<string>, value: rt.Place<string>): void {
+	((a0: rt.Place<string>, a1: rt.Place<string>): undefined => {
+		const swapped = a0.v;
+		a0.v = a1.v;
+		a1.v = swapped;
+	})(place, value);
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$edits_Logged_edits_Logged_edits_Logged_mem_replace_edits_Logged(_: (a0: edits_Logged.Logged, a1: edits_Logged.Logged) => edits_Logged.Logged, place: edits_Logged.Logged, value: edits_Logged.Logged): edits_Logged.Logged {
+	return ((a0: edits_Logged.Logged, a1: edits_Logged.Logged): edits_Logged.Logged => {
+		return rt.replaceIn(a0, a1);
+	})(place, value);
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$edits_Logged_mut_edits_Logged_unit_mem_swap_edits_Logged(_: (a0: edits_Logged.Logged, a1: edits_Logged.Logged) => undefined, place: edits_Logged.Logged, value: edits_Logged.Logged): void {
+	((a0: edits_Logged.Logged, a1: edits_Logged.Logged): undefined => {
+		Object.assign(a0, rt.replaceIn(a1, a0));
+	})(place, value);
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$u8_mut_u8_unit_mem_swap_u8(_: (a0: rt.Place<rt.u8>, a1: rt.Place<rt.u8>) => undefined, place: rt.Place<rt.u8>, value: rt.Place<rt.u8>): void {
+	((a0: rt.Place<rt.u8>, a1: rt.Place<rt.u8>): undefined => {
+		const swapped = a0.v;
+		a0.v = a1.v;
+		a1.v = swapped;
+	})(place, value);
+}
+
+/** `f` of `place` and `value`, as a function value of two parameters is called. */
+export function apply$u8_u8_u8_mem_replace_u8(_: (a0: rt.Place<rt.u8>, a1: rt.u8) => rt.u8, place: rt.Place<rt.u8>, value: rt.u8): rt.u8 {
+	return ((a0: rt.Place<rt.u8>, a1: rt.u8): rt.u8 => {
+		const old = a0.v;
+		a0.v = a1;
+		return old;
+	})(place, value);
+}
+
+/**
+ * `mem::take`, `replace`, and `swap` passed as function values: to an iterator's `map`, to
+ * a generic function, and as `fn` pointers, of bytes JS keeps in a place, of objects it
+ * writes in place, and of values that drop.
+ */
+export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), 0);
+	};
+	const _5: rt.u8 = rt.u8Rem(kind, 4);
+	if (_5 === 0) {
+		const bytes: rt.ByteVec = rt.byteSliceToByteVec(data);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterMap(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(bytes))), (a012: rt.Place<rt.u8>): rt.u8 => {
+			const taken7 = a012.v;
+			a012.v = 0;
+			return taken7;
+		}), undefined, true)));
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(bytes));
+		const held: rt.ByteVec[] = rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data, 2), (a013: rt.ByteSlice): rt.ByteVec => {
+			return rt.byteSliceToByteVec(a013);
+		}), undefined, 12, true);
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterMap(rt.iterSlice(rt.iterToArray(rt.iterMap(rt.iterSlice(held), (a014: rt.ByteVec): rt.ByteVec => {
+			return rt.replaceIn(a014, new rt.ByteVec());
+		}), undefined, 12, true)), (a015: rt.ByteVec): rt.usize => {
+			return a015.length;
+		}), (n2: rt.usize): rt.u8 => {
+			return n2 & 0xff;
+		}), undefined, true);
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterMap(rt.iterSlice(held), (a016: rt.ByteVec): rt.usize => {
+			return a016.length;
+		}), (n3: rt.usize): rt.u8 => {
+			return n3 & 0xff;
+		}), undefined, true);
+		const texts: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_210: rt.u8): string => {
+			return strs_text(rt.byteSliceFrom(Uint8Array.of(_210)));
+		}), undefined, 12, true);
+		fmt_put(out, rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterRev(rt.iterSliceMut(texts)), (a017: rt.Place<string>): string => {
+			const taken9 = a017.v;
+			a017.v = "";
+			return taken9;
+		}), undefined, 12, true), ""));
+		fmt_put(out, rt.strsJoin(texts, ""));
+	} else if (_5 === 1) {
+		let n: rt.u8 = at(0);
+		const _66: rt.u8 = at(1);
+		rt.byteVecPush(out, apply$u8_u8_u8_mem_replace_u8((a08: rt.Place<rt.u8>, a17: rt.u8): rt.u8 => {
+			const old6 = a08.v;
+			a08.v = a17;
+			return old6;
+		}, rt.place(() => n, (value3) => n = value3), _66));
+		rt.byteVecPush(out, n);
+		const replace: (a0: rt.Place<rt.u8>, a1: rt.u8) => rt.u8 = (a09: rt.Place<rt.u8>, a18: rt.u8): rt.u8 => {
+			const old7 = a09.v;
+			a09.v = a18;
+			return old7;
+		};
+		const _75: rt.u8 = at(2);
+		rt.byteVecPush(out, replace(rt.place(() => n, (value4) => n = value4), _75));
+		rt.byteVecPush(out, n);
+		let s: string = strs_text(data);
+		const _83: string = strs_text(rt.byteSliceFrom(Uint8Array.of(at(0))));
+		fmt_put(out, apply$String_String_String_mem_replace_String((a010: rt.Place<string>, a19: string): string => {
+			const old8 = a010.v;
+			a010.v = a19;
+			return old8;
+		}, rt.place(() => s, (value5) => s = value5), _83));
+		fmt_put(out, s);
+		const v: rt.ByteVec = rt.byteSliceToByteVec(data);
+		rt.byteVecPush(out, ((a011: rt.ByteVec): rt.ByteVec => {
+			return rt.replaceIn(a011, new rt.ByteVec());
+		})(v).length & 0xff);
+		rt.byteVecPush(out, v.length & 0xff);
+	} else if (_5 === 2) {
+		const _110: [rt.u8, rt.u8] = [at(0), at(1)];
+		let a: rt.u8 = _110[0];
+		let b: rt.u8 = _110[1];
+		apply$u8_mut_u8_unit_mem_swap_u8((a05: rt.Place<rt.u8>, a14: rt.Place<rt.u8>): undefined => {
+			const swapped2 = a05.v;
+			a05.v = a14.v;
+			a14.v = swapped2;
+		}, rt.place(() => a, (value) => a = value), rt.place(() => b, (value2) => b = value2));
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a, b)), undefined, true);
+		const _127: [rt.ByteVec, rt.ByteVec] = [rt.byteSliceToByteVec(data), rt.byteVecFrom(Uint8Array.of(at(2)))];
+		const x: rt.ByteVec = _127[0];
+		const y: rt.ByteVec = _127[1];
+		((a06: rt.ByteVec, a15: rt.ByteVec): undefined => {
+			Object.assign(a06, rt.replaceIn(a15, a06));
+		})(x, y);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(x));
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(y));
+		const texts2: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): string => {
+			return strs_text(rt.byteSliceFrom(Uint8Array.of(_22)));
+		}), undefined, 12, true);
+		const others: string[] = rt.iterToArray(rt.iterMap(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))), (_26: rt.u8): string => {
+			const b4: rt.u8 = _26;
+			return strs_text(rt.byteSliceFrom(Uint8Array.of(b4, b4)));
+		}), undefined, 12, true);
+		rt.iterForEach(rt.iterZip(rt.iterSliceMut(texts2), rt.iterSliceMut(others), [false, false]), (_27: [rt.Place<string>, rt.Place<string>]): undefined => {
+			apply$String_mut_String_unit_mem_swap_String((a07: rt.Place<string>, a16: rt.Place<string>): undefined => {
+				const swapped4 = a07.v;
+				a07.v = a16.v;
+				a16.v = swapped4;
+			}, _27[0], _27[1]);
+		});
+		fmt_put(out, rt.strsJoin(texts2, ""));
+		fmt_put(out, rt.strsJoin(others, ""));
+	} else {
+		const log: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+		const logged: (a0: rt.u8) => edits_Logged.Logged = (id: rt.u8): edits_Logged.Logged => {
+			return new edits_Logged.Logged(id, log);
+		};
+		const held2: edits_Logged.Logged[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): edits_Logged.Logged => {
+			return logged(_2);
+		}), undefined, 8, true);
+		const taken4: edits_Logged.Logged[] = rt.iterToArray(rt.iterMap(rt.iterSlice(held2), (a0: edits_Logged.Logged): edits_Logged.Logged => {
+			return rt.replaceIn(a0, edits_Logged.default$Default());
+		}), undefined, 8, true);
+		const _187: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_187.value, 240);
+		rt.refMutRelease(_187);
+		rt.dropAll(taken4);
+		const _193: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_193.value, 241);
+		rt.refMutRelease(_193);
+		const part = at(0);
+		const one: edits_Logged.Logged = logged(part);
+		const part2 = at(1);
+		const _204: edits_Logged.Logged = logged(part2);
+		apply$edits_Logged_edits_Logged_edits_Logged_mem_replace_edits_Logged((a02: edits_Logged.Logged, a1: edits_Logged.Logged): edits_Logged.Logged => {
+			return rt.replaceIn(a02, a1);
+		}, one, _204)[Symbol.dispose]();
+		const _213: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_213.value, 242);
+		rt.refMutRelease(_213);
+		const replace2: (a0: edits_Logged.Logged, a1: edits_Logged.Logged) => edits_Logged.Logged = (a03: edits_Logged.Logged, a12: edits_Logged.Logged): edits_Logged.Logged => {
+			return rt.replaceIn(a03, a12);
+		};
+		const part3 = at(2);
+		const _218: edits_Logged.Logged = logged(part3);
+		const old3: edits_Logged.Logged = replace2(one, _218);
+		const part4 = at(3);
+		const other: edits_Logged.Logged = logged(part4);
+		apply$edits_Logged_mut_edits_Logged_unit_mem_swap_edits_Logged((a04: edits_Logged.Logged, a13: edits_Logged.Logged): undefined => {
+			Object.assign(a04, rt.replaceIn(a13, a04));
+		}, one, other);
+		const _236: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_236.value, 243);
+		rt.refMutRelease(_236);
+		other[Symbol.dispose]();
+		const _243: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_243.value, 244);
+		rt.refMutRelease(_243);
+		old3[Symbol.dispose]();
+		const _249: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_249.value, 245);
+		rt.refMutRelease(_249);
+		one[Symbol.dispose]();
+		rt.dropAll(held2);
+		const _255: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_255.value));
+		rt.refRelease(_255);
 	}
 }
 

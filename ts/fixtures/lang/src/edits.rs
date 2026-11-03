@@ -1,8 +1,9 @@
 //! `Vec`'s and slices' editing and sorting methods, with closures that log what they are
 //! called with, `Clone` and comparisons of vectors, tuples, boxes, and `Option`s that are
-//! not `Copy`, `mem::take`, `mem::size_of`, `Ord`'s defaults on the crate's own types, and
-//! `str`'s byte searches.
+//! not `Copy`, `mem::take`, `replace`, and `swap`, called and as function values,
+//! `mem::size_of`, `Ord`'s defaults on the crate's own types, and `str`'s byte searches.
 
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, VecDeque};
 
@@ -511,6 +512,122 @@ pub fn bytes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				_ => v.swap(i, j),
 			}
 			out.extend_from_slice(&v);
+		}
+	}
+}
+
+/// Logs its id as it drops, so what `mem::replace` gives back and leaves shows by when each
+/// drops.
+#[derive(Default)]
+struct Logged<'a> {
+	id: u8,
+	log: Option<&'a RefCell<Vec<u8>>>,
+}
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		if let Some(log) = self.log {
+			log.borrow_mut().push(self.id);
+		}
+	}
+}
+
+/// `f` of `place` and `value`, as a function value of two parameters is called.
+fn apply<T, U, R>(f: impl FnOnce(&mut T, U) -> R, place: &mut T, value: U) -> R {
+	f(place, value)
+}
+
+/// `mem::take`, `replace`, and `swap` passed as function values: to an iterator's `map`, to
+/// a generic function, and as `fn` pointers, of bytes JS keeps in a place, of objects it
+/// writes in place, and of values that drop.
+pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	match kind % 4 {
+		0 => {
+			let mut bytes = data.to_vec();
+			let taken: Vec<u8> = bytes.iter_mut().map(std::mem::take).collect();
+			out.extend_from_slice(&taken);
+			out.extend_from_slice(&bytes);
+			let mut held: Vec<Vec<u8>> = data.chunks(2).map(<[u8]>::to_vec).collect();
+			let taken: Vec<Vec<u8>> = held.iter_mut().map(std::mem::take).collect();
+			out.extend(taken.iter().map(Vec::len).map(|n| n as u8));
+			out.extend(held.iter().map(Vec::len).map(|n| n as u8));
+			let mut texts: Vec<String> = data.iter().map(|&b| text(&[b])).collect();
+			let taken: Vec<String> = texts.iter_mut().rev().map(std::mem::take).collect();
+			put(out, &taken.concat());
+			put(out, &texts.concat());
+		}
+		1 => {
+			let mut n = at(0);
+			out.push(apply(std::mem::replace, &mut n, at(1)));
+			out.push(n);
+			let replace: fn(&mut u8, u8) -> u8 = std::mem::replace;
+			out.push(replace(&mut n, at(2)));
+			out.push(n);
+			let mut s = text(data);
+			let old = apply(std::mem::replace, &mut s, text(&[at(0)]));
+			put(out, &old);
+			put(out, &s);
+			let mut v = data.to_vec();
+			let take: fn(&mut Vec<u8>) -> Vec<u8> = std::mem::take;
+			let old = take(&mut v);
+			out.push(old.len() as u8);
+			out.push(v.len() as u8);
+			// Others of std's that write what a `&mut` borrows, as values too.
+			let mut held = (at(0) % 2 == 0).then_some(at(1));
+			out.extend(apply(Option::replace, &mut held, at(2)));
+			out.extend(held);
+			apply(String::push_str, &mut s, "+");
+			apply(String::push, &mut s, '!');
+			apply(Clone::clone_from, &mut s, &old.len().to_string());
+			put(out, &s);
+			let mut bytes = data.to_vec();
+			bytes.iter_mut().for_each(u8::make_ascii_uppercase);
+			out.extend_from_slice(&bytes);
+		}
+		2 => {
+			let (mut a, mut b) = (at(0), at(1));
+			apply(std::mem::swap, &mut a, &mut b);
+			out.extend([a, b]);
+			let swap: fn(&mut Vec<u8>, &mut Vec<u8>) = std::mem::swap;
+			let (mut x, mut y) = (data.to_vec(), vec![at(2)]);
+			swap(&mut x, &mut y);
+			out.extend_from_slice(&x);
+			out.extend_from_slice(&y);
+			let mut texts: Vec<String> = data.iter().map(|&b| text(&[b])).collect();
+			let mut others: Vec<String> = data.iter().rev().map(|&b| text(&[b, b])).collect();
+			texts
+				.iter_mut()
+				.zip(others.iter_mut())
+				.for_each(|(t, o)| apply(std::mem::swap, t, o));
+			put(out, &texts.concat());
+			put(out, &others.concat());
+		}
+		_ => {
+			// Each replaced value drops where its caller drops what it gave back, and each
+			// left in place where its owner drops it.
+			let log = RefCell::new(Vec::new());
+			let logged = |id: u8| Logged { id, log: Some(&log) };
+			{
+				let mut held: Vec<Logged> = data.iter().map(|&b| logged(b)).collect();
+				let taken: Vec<Logged> = held.iter_mut().map(std::mem::take).collect();
+				log.borrow_mut().push(0xf0);
+				drop(taken);
+				log.borrow_mut().push(0xf1);
+				let mut one = logged(at(0));
+				drop(apply(std::mem::replace, &mut one, logged(at(1))));
+				log.borrow_mut().push(0xf2);
+				let replace: fn(&mut _, _) -> _ = std::mem::replace;
+				let old = replace(&mut one, logged(at(2)));
+				let mut other = logged(at(3));
+				apply(std::mem::swap, &mut one, &mut other);
+				log.borrow_mut().push(0xf3);
+				drop(other);
+				log.borrow_mut().push(0xf4);
+				drop(old);
+				log.borrow_mut().push(0xf5);
+			}
+			out.extend_from_slice(&log.borrow());
 		}
 	}
 }

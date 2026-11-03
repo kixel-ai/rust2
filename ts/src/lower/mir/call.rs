@@ -260,7 +260,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 			};
 			if let ty::FnDef(inner, inner_args) = *callee_ty.peel_refs().kind() {
-				return self.b.call_def(inner, inner_args.skip_binder(), values, span, out);
+				let inner_args = inner_args.skip_binder();
+				// std's that takes a `&mut` is called as its value, which lowers the call as a
+				// written one does, given the `&mut`s as they are passed.
+				if self.b.t.mapped(inner, inner_args)
+					&& !matches!(tcx.def_kind(inner), rustc_hir::def::DefKind::Ctor(..))
+					&& (self.b.t.sig(inner, inner_args).inputs().iter())
+						.any(|i| matches!(i.kind(), ty::Ref(_, _, rustc_ast::Mutability::Mut)))
+				{
+					return self.b.fn_value(inner, inner_args, span).call(values);
+				}
+				return self.b.call_def(inner, inner_args, values, span, out);
 			}
 			// A `&mut` to a function JS copies, such as a box of one, or to a reference to one, as
 			// std's impls for a `&mut` and a box forward through, is its place: call what is
