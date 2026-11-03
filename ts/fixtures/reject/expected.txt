@@ -101,6 +101,10 @@ fixtures/reject/src/objects.rs:generic_object+0:23: `dyn objects::Scaled<u8>`, a
 fixtures/reject/src/objects.rs:generic_object+1:4: `dyn objects::Scaled<u8>`, a trait object of the generic trait `objects::Scaled`, which is not supported yet
 fixtures/reject/src/objects.rs:raw_dyn_iter+2:40: a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, whose object would hold the value there as it is made, not as it is read, which is not supported yet
 fixtures/reject/src/objects.rs:same_named+2:30: `u8` as `dyn objects::second::Named`, whose class has another trait's method named `name$Named`, which is not supported yet
+fixtures/reject/src/panics.rs:caller+1:2: a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet
+fixtures/reject/src/panics.rs:caller+1:33: a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet
+fixtures/reject/src/panics.rs:hooked+1:13: `panic::take_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
+fixtures/reject/src/panics.rs:hooked+2:2: `panic::set_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
 fixtures/reject/src/parts.rs:array_part+1:9: a raw pointer to `std::cell::UnsafeCell<u16>` in `parts::InArray`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:array_part_replaced+3:33: a reference through which a raw pointer may be made into `parts::InArray` in `[parts::InArray; 2]`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:element_replaced+2:20: a reference through which a raw pointer may be made into `std::cell::UnsafeCell<u16>` in `[std::cell::UnsafeCell<u16>; 2]`, which the crate may put another object in place of
@@ -123,12 +127,15 @@ fixtures/reject/src/parts.rs:tuple_part+1:9: a raw pointer to `std::cell::Unsafe
 fixtures/reject/src/parts.rs:tuple_part_replaced+3:33: a reference through which a raw pointer may be made into `parts::InTuple` in `(u16, parts::InTuple)`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:written_part+1:9: a raw pointer to `std::cell::UnsafeCell<u16>` in `parts::InWritten`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:written_part_replaced+3:35: a reference through which a raw pointer may be made into `parts::InWritten` in `[parts::InWritten; 1]`, which the crate may put another object in place of
+fixtures/reject/src/places.rs:addresses_across+1:2: comparing the addresses of pointers to `(u8, u8)` and to `[u8; 2]`, which JS keeps apart
+fixtures/reject/src/places.rs:arc_dyn_pointer+1:2: a raw pointer to the `dyn std::fmt::Debug` an `Arc` holds
 fixtures/reject/src/places.rs:copied_closure+6:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:mapped_closure+2:10: a mapped guard of `{closure@fixtures/reject/src/places.rs:mapped_closure+1:38: +1:50}`, which JS can't write in place
 fixtures/reject/src/places.rs:ok_passed+1:12: a mutable reference into a `Result`'s payload, passed on or kept
 fixtures/reject/src/places.rs:optional_places_compared+2:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/places.rs:places_compared+3:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/places.rs:places_equal+1:2: unsupported call to `<std::option::Option<&mut u32> as std::cmp::PartialEq>::eq`
+fixtures/reject/src/places.rs:rc_places_compared+1:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/places.rs:rebound_reference+7:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:rebound_reference+8:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:replace_boxed_bytes+4:2: replacing the value behind a reference to `std::pin::Pin<std::boxed::Box<[u8; 2]>>`
@@ -140,8 +147,7 @@ fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+6:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
-fixtures/reject/src/pointers.rs:byte_pointer_ops+7:14: unsupported call to `std::ptr::addr_eq::<[u8; 4], [u8; 4]>`
-fixtures/reject/src/pointers.rs:byte_pointer_ops+7:41: comparing `*mut [u8; 4]`
+fixtures/reject/src/pointers.rs:byte_pointer_ops+7:14: comparing `*mut [u8; 4]`
 fixtures/reject/src/pointers.rs:byte_pointer_ops+8:56: an offset of a pointer to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+8:73: an offset of a pointer to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+11:5: hashing `*const [u8; 4]` by its address, which JS has no counterpart of

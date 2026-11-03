@@ -961,7 +961,7 @@ export function cycles(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		read$iter_Peekable_slice_Iter_u8_cycles_cycles_closure1(peeked, steps, (x16: rt.u8): rt.u8 => {
 			return x16;
 		}, out);
-		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rt.iterFlatten(rt.byteSliceChunks(data, rt.usizeAdd(n, 1)), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value))), steps, (x17: rt.u8): rt.u8 => {
+		read$iter_Flatten_slice_Chunks_u8_cycles_cycles_closure1(rt.iterFlatten(rt.byteSliceChunks(data, rt.usizeAdd(n, 1)), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true), steps, (x17: rt.u8): rt.u8 => {
 			return x17;
 		}, out);
 	} else if (_12 === 2) {

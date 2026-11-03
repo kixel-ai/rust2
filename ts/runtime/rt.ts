@@ -43,6 +43,11 @@ export function panic(message: string): never {
 	throw new Panic(message);
 }
 
+/** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
+export function resumeUnwind(): never {
+	throw new Abort("resume_unwind");
+}
+
 /**
  * Panic with a formatted message, which keeps what was written before a value failed to
  * format, as std's does.
@@ -975,7 +980,7 @@ export type CloneFrom<T> = (old: T, src: T) => T;
  * What `clone_from` of `src` leaves over `old`: `over`'s, where it is its own, or else
  * `src`'s clone, made before `old` drops. `clone` is `undefined` where a clone is the value.
  */
-function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
+export function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
 	if (over !== undefined) return over(old, src);
 	const item = clone === undefined ? src : clone(src);
 	drop?.(old);
@@ -1100,6 +1105,41 @@ function optionOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, dro
 	const item = src === none || clone === undefined ? src : clone(src);
 	if (old !== none) drop?.(old);
 	return item;
+}
+
+/**
+ * `Result::clone_from` of `src` over `old`: of two `Ok`s or two `Err`s, what `src` holds
+ * cloned over what `old` does, as `cloneOver` clones it by each side's own functions, and
+ * else `src`'s clone, made before `old` drops.
+ */
+export function resultCloneFrom<T, E>(
+	old: Result<T, E>,
+	src: Result<T, E>,
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): Result<T, E> {
+	if (old.ok && src.ok) return Ok(cloneOver(old.value, src.value, cloneOk, dropOk, overOk));
+	if (!old.ok && !src.ok) return Err(cloneOver(old.error, src.error, cloneErr, dropErr, overErr));
+	const item: Result<T, E> = src.ok ? Ok(cloneOk === undefined ? src.value : cloneOk(src.value)) : Err(cloneErr === undefined ? src.error : cloneErr(src.error));
+	if (old.ok) dropOk?.(old.value);
+	else dropErr?.(old.error);
+	return item;
+}
+
+/** `resultCloneFrom` as a `CloneFrom`. */
+export function resultCloneFromFn<T, E>(
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): CloneFrom<Result<T, E>> {
+	return (old, src) => resultCloneFrom(old, src, cloneOk, dropOk, overOk, cloneErr, dropErr, overErr);
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
@@ -1535,14 +1575,16 @@ export function byteSliceToByteVec(s: ByteSlice): ByteVec {
 	return v;
 }
 
-/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them; `clone` is `undefined` where a clone is the value. */
-export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined): T[] {
+/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them, or `value` dropped where `n` is 0; `clone` is `undefined` where a clone is the value. */
+export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): T[] {
 	const v: T[] & Capped = [];
-	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
-	if (n > 0) {
-		v.push(value);
-		v.cap = n;
+	if (n === 0) {
+		drop?.(value);
+		return v;
 	}
+	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
+	v.push(value);
+	v.cap = n;
 	return v;
 }
 
@@ -1838,18 +1880,20 @@ export function vecShrinkTo<T>(v: T[] & Capped, min: number, size: number): void
 }
 
 /**
- * `clone`, the clone `clone_from` writes over `v`, with the capacity std's keeps of `v`'s
- * for `size`-byte elements: as it was, or grown as `reserve` grows it if it held fewer.
+ * `Vec::clone_from` of `src`, and `clone_into` of a byte slice, over `v`: its buffer, grown
+ * as `reserve` grows it if it holds fewer, holding a copy of `src`'s bytes.
  */
-export function vecClonedInto<T>(clone: T[], v: T[] & Capped, size: number): T[] {
-	capHold(clone, capReserve(0, vecCapacity(v, size), clone.length, size), size);
-	return clone;
+export function byteVecCloneFrom(v: ByteVec, src: ByteVec | ByteSlice): ByteVec {
+	v.length = 0;
+	reserve(v, src.length);
+	copyBytes(v.data, 0, src.data, src instanceof ByteSlice ? src.start : 0, src.length);
+	v.length = src.length;
+	return v;
 }
 
-/** `vecClonedInto` of bytes. */
-export function byteVecClonedInto(clone: ByteVec, v: ByteVec): ByteVec {
-	byteVecReserveExact(clone, capReserve(0, v.data.length, clone.length, 1) - clone.length);
-	return clone;
+/** `byteVecCloneFrom` as a `CloneFrom`. */
+export function byteVecCloneFromFn(): CloneFrom<ByteVec> {
+	return byteVecCloneFrom;
 }
 
 /** `v`, a new `Vec` of `size`-byte elements, with room for exactly what it holds, as std's `clone` makes one. */
@@ -2035,7 +2079,8 @@ export class FromUtf8Error {
 
 	constructor(bytes: ByteVec) {
 		this.bytes = bytes;
-		this.error = utf8Error(byteVecView(bytes));
+		// Made only of bytes that are not UTF-8.
+		this.error = utf8Check(byteVecView(bytes)) as Utf8Error;
 	}
 }
 
@@ -2044,8 +2089,8 @@ export function fromUtf8ErrorClone(e: FromUtf8Error): FromUtf8Error {
 	return new FromUtf8Error(byteVecFrom(byteVecView(e.bytes)));
 }
 
-/** Where `v`, which is not UTF-8, stops being so, and how many bytes are invalid there, as std reports it. */
-function utf8Error(v: Uint8Array): Utf8Error {
+/** Where `v` stops being UTF-8, and how many bytes are invalid there, as std reports it: `undefined` if it never does. */
+export function utf8Check(v: Uint8Array): Utf8Error | undefined {
 	const tail = (b: number | undefined) => b !== undefined && b >= 0x80 && b <= 0xbf;
 	for (let i = 0; i < v.length; ) {
 		const first = v[i];
@@ -2066,7 +2111,7 @@ function utf8Error(v: Uint8Array): Utf8Error {
 		}
 		i += width;
 	}
-	throw new Error("utf8Error: the bytes are valid UTF-8");
+	return undefined;
 }
 
 /** `str::from_utf8`. */
@@ -2075,7 +2120,7 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 	try {
 		return Ok(decoder.decode(v));
 	} catch {
-		return Err(utf8Error(v));
+		return Err(utf8Check(v) as Utf8Error);
 	}
 }
 
@@ -2091,6 +2136,11 @@ export function stringFromUtf8(bytes: ByteVec): Result<string, FromUtf8Error> {
 /** `str::as_bytes`: its UTF-8 bytes. */
 export function stringAsBytes(s: string): ByteSlice {
 	return byteSliceFrom(encoder.encode(s));
+}
+
+/** `String::into_bytes`: its UTF-8 bytes. */
+export function stringIntoBytes(s: string): ByteVec {
+	return byteVecFrom(encoder.encode(s));
 }
 
 /** `str::len`: its length in UTF-8 bytes. */

@@ -262,7 +262,8 @@ struct Held {
 }
 
 /// A waker cloned over another by `clone_from` takes the source's place, unless both would
-/// wake the same task, when std keeps the one it had: one in a variable and one in a field.
+/// wake the same task, when std keeps the one it had: one in a variable, a field, an
+/// `Option`, which clones over what it holds by the waker's own, and an array.
 fn wakers(data: &[u8], out: &mut Vec<u8>) {
 	let a = Arc::new(Count(AtomicU8::new(0)));
 	let b = Arc::new(Count(AtomicU8::new(0)));
@@ -270,6 +271,8 @@ fn wakers(data: &[u8], out: &mut Vec<u8>) {
 	let mut held = Held {
 		waker: Waker::noop().clone(),
 	};
+	let mut maybe: Option<Waker> = None;
+	let mut pair = [Waker::noop().clone(), Waker::from(b.clone())];
 	for &byte in data {
 		let source = match byte % 3 {
 			0 => Waker::from(a.clone()),
@@ -278,15 +281,25 @@ fn wakers(data: &[u8], out: &mut Vec<u8>) {
 		};
 		w.clone_from(&source);
 		held.waker.clone_from(&w);
+		let from = match byte % 4 {
+			0 => None,
+			_ => Some(source.clone()),
+		};
+		maybe.clone_from(&from);
+		pair.clone_from(&[w.clone(), source.clone()]);
 		out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 		out.push(w.will_wake(&source).into());
 		w.wake_by_ref();
 		held.waker.wake_by_ref();
-		drop(source);
+		if let Some(m) = &maybe {
+			m.wake_by_ref();
+		}
+		pair.iter().for_each(Waker::wake_by_ref);
+		drop((source, from));
 		out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 	}
 	drop(w);
-	drop(held);
+	drop((held, maybe, pair));
 	out.extend([a.0.load(Ordering::Relaxed), b.0.load(Ordering::Relaxed)]);
 	out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 }

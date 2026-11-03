@@ -106,7 +106,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `ControlFlow<B, C>` | `rt.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
 | tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
 | `Cow<[T]>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice` |
-| `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
+| `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, or an object whose parts kept as objects are there, holding `undefined` |
 | `ManuallyDrop<T>` | `T`, which nothing drops but its own `drop`; its `Debug`, comparisons, and constants are refused |
@@ -132,7 +132,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
-| `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
+| `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` pointing where a reference to its value does, or at its place where JS copies it, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rt.TryLockError<T>`, tagged as `Bound` is |
 | `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s and `Cell::as_ptr`'s pointer, and `get_mut`'s reference, is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
 | `thread_local!`, `LocalKey<T>` | an `rt.LocalKey`, a module's value that each copy of the key is, which makes its value on first use from the `const` or the expression and never drops it, as wasm32's do; `with` calls its function on that value, `try_with` never fails, the `Cell` and `RefCell` helpers lower from std, and a `RefCell` key's `set` and `with_borrow_mut` borrow it as `borrow_mut` does |
@@ -171,7 +171,11 @@ wraps silently. A panic throws `rt.Panic`, with the message native Rust panics w
 aborts as wasm32's does: it runs no cleanup, so what the translation held is undefined
 after one, as a wasm trap leaves it, and a caller that catches `rt.Panic` must not use it
 again. An abort without a panic, as std's for an `RwLock` locked again while held,
-throws `rt.Abort`, a `Panic` with std's abort message.
+throws `rt.Abort`, a `Panic` with std's abort message. So `catch_unwind` only ever returns
+`Ok`, `resume_unwind` throws `rt.Abort` without running the hook, and `panic_any` panics
+with its payload if that is text, or `Box<dyn Any>` as std's hook writes any other. A
+`Location`, and with it `set_hook` and `take_hook`, is refused: translated panics carry
+none.
 
 Each integer type is its own type to `tsc`, named as Rust's: `rt.u8` is a `number` with a
 type-only brand, so a `u16` where a `u8` goes fails the type check, while a plain
@@ -217,6 +221,12 @@ are std's `flat_map` of each char's, sized as it is, and write what they have le
 their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired surrogate
 fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
 becomes U+FFFD, and so does an odd byte at the end.
+`String::from_utf8_lossy` is a `TextDecoder`'s, which writes one U+FFFD for each maximal
+invalid sequence, as std's does; its `Cow<str>` is the text either way. `utf8_chunks` splits
+where `str::from_utf8` fails, so each `Utf8Chunk`'s `invalid` bytes are std's, and `Debug`
+of it writes what is left as std's does, each invalid byte as `\xNN`. `from_utf8_unchecked`,
+of a `str` or a `String`, decodes as `from_utf8_lossy` does the UTF-8 its contract promises.
+`String::into_bytes` and `Vec::<u8>::from` a string encode its UTF-8 anew.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
@@ -277,7 +287,11 @@ collections writes their items in the order each iterates, a hash map's or set's
 and of their iterators and `Chars` the items each has left, in std's wrapper; a deque's
 `Iter` and `IterMut` write the two slices of its buffer they have left, swapped as std's
 swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
-its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+its length, as std's do. `Debug` of std's iterator adaptors, `Map` through `Flatten`,
+`DecodeUtf16`, and a `str`'s escapes, writes their fields as std's does, each iterator it
+wraps by its own `Debug`, no closure, and the state each keeps, such as what a `Peekable` peeked, what a
+`Skip` has left to skip, and the countdown std's `StepBy` of a small unsigned range keeps
+in its end. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
@@ -408,9 +422,9 @@ function refers to a binding `x`. A `Copy` struct, enum, tuple,
 or array, or an `Option`, `Result`, or `Poll` holding one, is copied where Rust copies
 it, since JS would share the object: by a function of `lib.ts` made for its type, such
 as `copy$shapes_Point`, which copies what it holds by value and shares what it holds by
-reference. Only a type the crate writes into in place is copied, or one holding such a
-type by value: a value of any other type never changes once made, so it is shared. A
-write counts through a field, an element, a reference, or a box, and a mutable reference
+reference. Only a type the crate writes into in place or compares pointers to is copied,
+or one holding such a type by value: a value of any other type never changes once made
+and has no address that tells its copies apart, so it is shared. A write counts through a field, an element, a reference, or a box, and a mutable reference
 a std function's parameters take, where the crate calls it or takes it as a value, or
 one kept other than in a local, counts as a write into what it points at. A write over a type parameter counts for the type each instance translation reaches gives it, a closure's and one reached through a trait object included. A caller must
 not change in place what it passes to or gets from the translation either.
@@ -464,7 +478,11 @@ such as a number, from `get_mut` or the entry API, is an `rt.Place` whose `v` re
 writes the map's slot. A hash map iterates in an order
 of the runtime's, mostly insertion order, which std leaves unspecified, and hashes a key
 with a hasher of its own, as std's keys its at random. So is how often the runtime
-calls a key's `Hash`, `Eq`, or `Ord`.
+calls a key's `Hash`, `Eq`, or `Ord`. A map or set built with any `BuildHasher` but
+`RandomState` holds it, which `hasher` lends, `Default` and `collect` make, and `clone`
+clones before what the map holds; it drops before the map's entries, and at once from
+`into_iter`, `into_keys`, and `into_values`, as hashbrown's does. No key goes through it:
+the runtime's own hasher finds them, so it builds no hasher for the map.
 
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std
@@ -536,7 +554,7 @@ whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
-a.v : undefined`. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
+a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
 back the `Arc<T>` the object was made from, or, of one made from a box, an `rt.ArcDyn` of
 the value sharing its count.
@@ -895,7 +913,7 @@ they need.
   capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
-  as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that
+  as through pushes, a `clone_from` that keeps its own, through any container whose `clone_from` reaches it, and a `collect` that
   reuses its source's buffer, in place or from a boxed slice, whose capacity is its
   length. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or

@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 
 // Drops
@@ -244,10 +244,16 @@ export function arcGetMutPlace<T>(arc: Arc<T>): Place<T> | undefined {
  * `Arc::make_mut`: the value of the `Arc` at `p`, made its own. Another `Arc` sharing it
  * leaves a clone by `clone`, or the value itself if none, in a new `Arc` at `p`, and drops
  * the old one by `drop`, which is the last if the clone released the others. Only `Weak`s
- * sharing it leave them dangling as the value moves to a new `Arc`.
+ * sharing it leave them dangling as the value moves to a new `Arc`, copied by `moved`
+ * where a pointer to it could tell the two allocations apart.
  */
-export function arcMakeMut<T>(p: Place<Arc<T>>, clone: ((value: T) => T) | undefined, drop: (arc: Arc<T>) => void): T {
-	return arcOwn(p, clone, drop).value;
+export function arcMakeMut<T>(
+	p: Place<Arc<T>>,
+	clone: ((value: T) => T) | undefined,
+	drop: (arc: Arc<T>) => void,
+	moved?: (value: T) => T,
+): T {
+	return arcOwn(p, clone, drop, moved).value;
 }
 
 /** `Arc::make_mut` of a value JS copies: where it is. */
@@ -255,22 +261,28 @@ export function arcMakeMutPlace<T>(
 	p: Place<Arc<T>>,
 	clone: ((value: T) => T) | undefined,
 	drop: (arc: Arc<T>) => void,
+	moved?: (value: T) => T,
 ): Place<T> {
-	return valuePlace(arcOwn(p, clone, drop));
+	return valuePlace(arcOwn(p, clone, drop, moved));
 }
 
 function arcUnique(arc: Arc<unknown>): boolean {
 	return arc.strong === 1 && arc.weak === 0;
 }
 
-function arcOwn<T>(p: Place<Arc<T>>, clone: ((value: T) => T) | undefined, drop: (arc: Arc<T>) => void): Arc<T> {
+function arcOwn<T>(
+	p: Place<Arc<T>>,
+	clone: ((value: T) => T) | undefined,
+	drop: (arc: Arc<T>) => void,
+	moved?: (value: T) => T,
+): Arc<T> {
 	const arc = p.v;
 	if (arc.strong !== 1) {
 		p.v = new Arc(clone ? clone(arc.value) : arc.value);
 		drop(arc);
 	} else if (arc.weak !== 0) {
 		arc.strong = 0;
-		p.v = new Arc(arc.value);
+		p.v = new Arc(moved ? moved(arc.value) : arc.value);
 	}
 	return p.v;
 }
@@ -283,6 +295,19 @@ export function valuePlace<T>(holder: { value: T }): Place<T> {
 			holder.value = value;
 		},
 	);
+}
+
+/** The place of each `Arc`'s value that `arcPlace` made. */
+const places = new WeakMap<Arc<unknown>, Place<unknown>>();
+
+/**
+ * `Arc::as_ptr` of a value JS copies: the place of its value, one for the allocation the
+ * `Arc` is, as its address is.
+ */
+export function arcPlace<T>(arc: Arc<T>): Place<T> {
+	let at = places.get(arc);
+	if (at === undefined) places.set(arc, (at = valuePlace(arc)));
+	return at as Place<T>;
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */
@@ -773,6 +798,22 @@ export function refCellClone<T>(cell: RefCell<T>, clone?: (value: T) => T): RefC
 	const value = clone ? clone(cell.value) : cell.value;
 	refRelease(cell);
 	return new RefCell(value);
+}
+
+/**
+ * `clone_from` of a `RefCell`: `src`'s value cloned over its own, as `cloneOver` clones
+ * it, while borrowing `src`, which panics while it is mutably borrowed.
+ */
+export function refCellCloneFrom<T>(cell: RefCell<T>, src: RefCell<T>, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): RefCell<T> {
+	refCellBorrow(src);
+	cell.value = cloneOver(cell.value, src.value, clone, drop, over);
+	refRelease(src);
+	return cell;
+}
+
+/** `refCellCloneFrom` as a `CloneFrom`. */
+export function refCellCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<RefCell<T>> {
+	return (old, src) => refCellCloneFrom(old, src, clone, drop, over);
 }
 
 /** A `RefMut`'s or an `RwLockWriteGuard`'s drop. */
@@ -1338,6 +1379,20 @@ export type WakerVTable = object;
 /** `a.will_wake(b)`: whether their identities are the same, as std compares them. */
 export function willWake(a: Waker, b: Waker): boolean {
 	return a.data === b.data && a.vtable === b.vtable;
+}
+
+/**
+ * `Waker::clone_from` of `src` over `old`: `old`, where it would wake what `src` would, as
+ * std's keeps it without a clone or a drop, and else `src`'s clone, made before `old` drops.
+ */
+export function wakerCloneFrom(old: Waker, src: Waker): Waker {
+	if (willWake(old, src)) return old;
+	return cloneOver(old, src, (w) => w.clone(), (w) => w[Symbol.dispose]());
+}
+
+/** `wakerCloneFrom` as a `CloneFrom`. */
+export function wakerCloneFromFn(): CloneFrom<Waker> {
+	return wakerCloneFrom;
 }
 
 /**

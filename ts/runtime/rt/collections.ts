@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -442,6 +442,11 @@ export interface HashMap<K, V> {
 	n: number;
 	/** How to find a key that is an object, or `undefined` if no key is one. */
 	readonly h: Hashing<K> | undefined;
+	/**
+	 * Its own `BuildHasher`, which `hasher` lends, or `undefined` for a `RandomState`. No
+	 * key goes through it: `h` finds them by the runtime's own hasher.
+	 */
+	readonly s: unknown;
 	/** The capacity an operation last set it to, if any, which `hashCapacity` reads. */
 	cap?: number;
 }
@@ -450,11 +455,12 @@ export interface HashMap<K, V> {
 export type HashSet<K> = HashMap<K, undefined>;
 
 /**
- * `HashMap::new` and `HashSet::new`, with how to find a key that is an object. The type
- * `K` is asserted, not inferred from `h`: a slice's hashing takes any `ArrayLike`.
+ * `HashMap::new` and `HashSet::new`, with how to find a key that is an object, and
+ * `with_hasher` of its own `BuildHasher` `s`. The type `K` is asserted, not inferred from
+ * `h`: a slice's hashing takes any `ArrayLike`.
  */
-export function hashNew<K, V>(h?: Hashing<NoInfer<K>>): HashMap<K, V> {
-	return { p: new Map(), o: undefined, n: 0, h };
+export function hashNew<K, V>(h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
+	return { p: new Map(), o: undefined, n: 0, h, s };
 }
 
 /** Whether `key` goes by its hash rather than as its own JS map key. */
@@ -496,9 +502,9 @@ function hold<K, V>(m: HashMap<K, V>): void {
 }
 
 /** `with_capacity`, of at most `max` entries, past which it panics, as hashbrown's does. */
-export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>): HashMap<K, V> {
+export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
 	if (n > max) panic("Hash table capacity overflow");
-	const m = hashNew<K, V>(h);
+	const m = hashNew<K, V>(h, s);
 	if (n > 0) m.cap = n;
 	return m;
 }
@@ -726,8 +732,12 @@ export function hashKey<K>(m: HashSet<K>, key: K, take = false, none?: None): K 
 	return key;
 }
 
-/** Drop `m`: each key by `k` and each value by `v`, of those that drop, entry by entry. */
-export function hashDrop<K, V>(m: HashMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
+/**
+ * Drop `m`: its own `BuildHasher` by `s`, as hashbrown's field before its table, then each
+ * key by `k` and each value by `v`, of those that drop, entry by entry.
+ */
+export function hashDrop<K, V>(m: HashMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void, s?: (state: never) => void): void {
+	s?.(m.s as never);
 	for (const [key, value] of m.p) dropPair(key, value, k, v);
 	for (const first of m.o?.values() ?? []) {
 		for (let s: Slot<K, V> | undefined = first; s !== undefined; s = s.next) dropPair(s.k, s.v, k, v);
@@ -928,19 +938,23 @@ export class HashIter<K, V, T> extends Iter<T> implements Disposable {
 
 /**
  * `iter` and `iter_mut` of a map, and with what drops each key and value of those that
- * drop, `into_iter`: its entries, as `[key, value]`.
+ * drop, `into_iter`: its entries, as `[key, value]`. Each consuming one drops the map's own
+ * `BuildHasher` by `s` at once, as hashbrown's does.
  */
-export function hashIter<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): Iter<[K, V]> {
+export function hashIter<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void, s?: (state: never) => void): Iter<[K, V]> {
+	s?.(m.s as never);
 	return new HashIter<K, V, [K, V]>(m, ENTRIES, k, v);
 }
 
 /** `keys` of a map and `iter` of a set, and with what drops each key and value, `into_keys` and `into_iter`. */
-export function hashKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): Iter<K> {
+export function hashKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void, s?: (state: never) => void): Iter<K> {
+	s?.(m.s as never);
 	return new HashIter<K, V, K>(m, KEYS, k, v);
 }
 
 /** `values` and `values_mut`, and with what drops each value and key, `into_values`. */
-export function hashValues<K, V>(m: HashMap<K, V>, v?: (value: V) => void, k?: (key: K) => void): Iter<V> {
+export function hashValues<K, V>(m: HashMap<K, V>, v?: (value: V) => void, k?: (key: K) => void, s?: (state: never) => void): Iter<V> {
+	s?.(m.s as never);
 	return new HashIter<K, V, V>(m, VALUES, k, v);
 }
 
@@ -967,7 +981,7 @@ export function hashDrainKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void): Ite
 /** What `m` held, which it no longer does, with the room it had. */
 function taken<K, V>(m: HashMap<K, V>): HashMap<K, V> {
 	hold(m);
-	const out: HashMap<K, V> = { p: m.p, o: m.o, n: m.n, h: m.h };
+	const out: HashMap<K, V> = { p: m.p, o: m.o, n: m.n, h: m.h, s: undefined };
 	m.p = new Map();
 	hashClear(m);
 	return out;
@@ -1025,6 +1039,29 @@ function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number |
  */
 export function hashExtend<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take, max?: number): HashMap<K, V> {
 	extendReserve(m, items.sizeHint()[0], max);
+	return hashFill(m, items, k, v, take);
+}
+
+/**
+ * hashbrown's `from_iter` of a map, as `hashExtend` into what `make` makes, but which reads
+ * `items`' size hint first, as hashbrown's does before it makes its `BuildHasher`.
+ */
+export function hashFromIter<K, V>(
+	items: Iter<[K, V]>,
+	make: () => HashMap<K, V>,
+	k?: (key: K) => void,
+	v?: (value: V) => void,
+	take?: Take,
+	max?: number,
+): HashMap<K, V> {
+	const n = items.sizeHint()[0];
+	const m = make();
+	extendReserve(m, n, max);
+	return hashFill(m, items, k, v, take);
+}
+
+/** Insert each of `items` into `m`, as `hashExtend` does once it has reserved. */
+function hashFill<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take): HashMap<K, V> {
 	const add = (item: [K, V]) => {
 		const old = hashInsert(m, item[0], item[1], k);
 		if (old !== undefined) v?.(old);
@@ -1038,9 +1075,17 @@ export function hashExtendKeys<K>(m: HashSet<K>, keys: Iter<K>, k?: (key: K) => 
 	return extending(m, keys, (key) => hashAdd(m, key, k), take);
 }
 
-/** `clone`, with each key and value through its `Clone`, or as itself without one. */
-export function hashClone<K, V>(m: HashMap<K, V>, key: (k: K) => K = itself, value: (v: V) => V = itself): HashMap<K, V> {
-	const out = hashNew<K, V>(m.h);
+/**
+ * `clone`, with its own `BuildHasher` through `state`, first, as hashbrown's, then each key
+ * and value through its `Clone`, or each as itself without one.
+ */
+export function hashClone<K, V>(
+	m: HashMap<K, V>,
+	key: (k: K) => K = itself,
+	value: (v: V) => V = itself,
+	state?: (s: never) => unknown,
+): HashMap<K, V> {
+	const out = hashNew<K, V>(m.h, state === undefined ? m.s : state(m.s as never));
 	for (const [k, v] of m.p) out.p.set(key(k), value(v));
 	// Each clone keeps its original's hash, as hashbrown's copies its table without
 	// rehashing, and a table has no hasher to rehash by.
@@ -3461,10 +3506,16 @@ export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): V
  * `clone_from`: `q` cleared, which drops its items in order, then a clone of each of `src`'s
  * in its room, as std's `extend` reserves for them.
  */
-export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): void {
+export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): VecDeque<T> {
 	dequeClear(q, drop);
 	dequeReserve(q, src.n);
 	for (let i = 0; i < src.n; i++) q.b[at(q, q.n++)] = item(src.b[at(src, i)] as T);
+	return q;
+}
+
+/** `dequeCloneFrom` as a `CloneFrom`. */
+export function dequeCloneFromFn<T>(item?: (value: T) => T, drop?: (item: T) => void): CloneFrom<VecDeque<T>> {
+	return (old, src) => dequeCloneFrom(old, src, item, drop);
 }
 
 /** `append`: room reserved for `other`'s items, which then move over in order, leaving it empty with its head at the front. */
@@ -3820,7 +3871,7 @@ export function listClone<T>(l: LinkedList<T>, item: (value: T) => T = itself): 
  * `source`'s length popped from the back, each dropped as it is; then clones of the rest
  * of `source`'s pushed.
  */
-export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): void {
+export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): LinkedList<T> {
 	let [node, from]: (ListNode<T> | undefined)[] = [l.h, source.h];
 	for (; node !== undefined && from !== undefined; node = node.x, from = from.x) {
 		if (over !== undefined) {
@@ -3836,6 +3887,12 @@ export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: 
 		f?.(old);
 	}
 	for (; from !== undefined; from = from.x) listPushBack(l, item(from.v));
+	return l;
+}
+
+/** `listCloneFrom` as a `CloneFrom`. */
+export function listCloneFromFn<T>(item?: (value: T) => T, f?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<LinkedList<T>> {
+	return (old, src) => listCloneFrom(old, src, item, f, over);
 }
 
 // `BinaryHeap`: std's max-heap in an array, sifted as std's sifts it, so equal elements
@@ -3865,6 +3922,17 @@ export function heapWithCapacity<T>(n: number, size: number): BinaryHeap<T> {
 export function heapFrom<T>(d: T[], le: Test<T>, ge: Test<T>, lt: Test<T>): BinaryHeap<T> {
 	rebuild(d, le, ge, lt);
 	return { d };
+}
+
+/** `clone_from`: its vector's, of `size`-byte elements, which keeps its buffer. */
+export function heapCloneFrom<T>(h: BinaryHeap<T>, src: BinaryHeap<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): BinaryHeap<T> {
+	vecCloneFrom(h.d, src.d, size, clone, drop, over);
+	return h;
+}
+
+/** `heapCloneFrom` as a `CloneFrom`. */
+export function heapCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<BinaryHeap<T>> {
+	return (old, src) => heapCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `push`: `item` sifted up from the end. */

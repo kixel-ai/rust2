@@ -242,8 +242,7 @@ pub struct Translator<'a, 'tcx> {
 	cloned: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// Those this run reached.
 	cloning: rustc_data_structures::fx::FxHashSet<DefId>,
-	/// The types with no `UnsafeCell` whose pointers the runs before compared, into which
-	/// a callee may keep a pointer through a reference.
+	/// The types whose pointers the runs before compared, by their storage.
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
@@ -402,7 +401,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// writes it didn't read, or an instance of one writing a type parameter that it didn't
 	/// judge by. A closure's clone may come before or after the closure is made, which
 	/// makes it as its clones need, so it runs again too when it reaches a new one, and a
-	/// comparison of pointers may come before or after the borrows it decides.
+	/// comparison of pointers may come before or after the borrows and copies it decides.
 	fn settle<R>(
 		tcx: TyCtxt<'tcx>,
 		config: &'a Config,
@@ -1314,6 +1313,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::BytesMut
 					| library::Std::ThreadRng,
 				) => Some(ObjectKind::Class),
+				// What it holds, which its JS value is.
+				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
 				// A place, unless a pointer to what it holds is that object.
 				Some(library::Std::MaybeUninit | library::Std::ManuallyDrop) => match self.pointee(args.type_at(0)) {
 					pointer::Pointee::Object | pointer::Pointee::Bytes => self.object_kind(args.type_at(0)),
@@ -1346,8 +1347,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		)
 	}
 
-	/// Whether `ty`'s JS value, through the `Pin`s and `Box`es JS erases, is of an `rt` class
-	/// that keeps its state private, which `rt.ptrWrite` moves in by its `$move`.
+	/// Whether `ty`'s JS value, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s JS
+	/// erases, is of an `rt` class that keeps its state private, which `rt.ptrWrite` moves in
+	/// by its `$move`.
 	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		matches!(
@@ -1356,22 +1358,25 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		)
 	}
 
-	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s and `Box`es.
+	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s, `Box`es, and
+	/// `AssertUnwindSafe`s.
 	pub fn erased(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		use library::Std;
 		let mut erased = ty;
 		while let ty::Adt(adt, args) = erased.kind()
-			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::Pin | Std::Box))
-		{
+			&& matches!(
+				Std::of(self.tcx, adt.did()),
+				Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+			) {
 			erased = args.type_at(0);
 		}
 		erased
 	}
 
-	/// The kind of a `pointee`'s object, through the `Pin`s and `Box`es JS erases, where a
-	/// whole value of it can be written into the object in place: one only its owner
-	/// holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose state
-	/// a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
+	/// The kind of a `pointee`'s object, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s
+	/// JS erases, where a whole value of it can be written into the object in place: one only
+	/// its owner holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose
+	/// state a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
 	/// class it is.
 	pub fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
 		use library::Std;
@@ -1639,6 +1644,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				library::Std::Box
 				| library::Std::Reverse
+				| library::Std::AssertUnwindSafe
 				| library::Std::NonZero
 				| library::Std::Wrapping
 				| library::Std::Saturating
@@ -1663,6 +1669,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
 				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
 				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),
+				library::Std::Utf8Chunk => Type::Rt("Utf8Chunk", vec![]),
 				library::Std::ParseFloatError => Type::Rt("ParseFloatError", vec![]),
 				library::Std::TryFromFloatSecsError => Type::Rt("TryFromFloatSecsError", vec![]),
 				library::Std::Formatter => Type::Rt("Formatter", vec![]),
@@ -1809,6 +1816,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			&& let Some(item) = self.iter_item(Ty::new_adt(tcx, adt, args))
 		{
 			return Type::Rt("Iter", vec![self.ty(item, span)]);
+		}
+		if library::location(tcx, adt.did()) {
+			self.unrepresented(span, library::LOCATION.into());
+			return Type::Builtin("unknown");
 		}
 		if !self.crates.translates(adt.did()) {
 			self.unrepresented(
@@ -2020,6 +2031,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					library::Std::Box
 					| library::Std::Pin
 					| library::Std::Reverse
+					| library::Std::AssertUnwindSafe
 					| library::Std::NonZero
 					| library::Std::Wrapping
 					| library::Std::Saturating

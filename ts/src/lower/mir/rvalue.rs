@@ -775,7 +775,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::RangeTo | Std::RangeToInclusive, _) => {
 					crate::lower::library::range_to(values.pop().unwrap(), std == Std::RangeToInclusive)
 				}
-				(Std::Reverse | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
+				(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
 				(Std::Bound | Std::TryLockError, _) => {
 					let ts_ty = self.b.t.ty(ty, span);
 					crate::lower::library::tagged(def.name.as_str(), values.pop(), ts_ty)

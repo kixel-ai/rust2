@@ -2,12 +2,24 @@
 
 import * as rt from "./rt.ts";
 import { futures } from "./futures.ts";
+import type * as Held from "./futures.Held.ts";
 import type * as Logged from "./futures.Logged.ts";
 
 export function drop$task_Poll_futures_Logged(_1: rt.Poll<Logged.Logged>): void {
 	if (_1 !== rt.Pending) {
 		_1[Symbol.dispose]();
 	}
+}
+
+export function drop$tuple2_task_Waker_Option_task_Waker(_1: [rt.Waker, rt.Waker | undefined]): void {
+	_1[0][Symbol.dispose]();
+	rt.drop(_1[1]);
+}
+
+export function drop$tuple3_futures_Held_Option_task_Waker_array2_task_Waker(_1: [Held.Held, rt.Waker | undefined, rt.Waker[]]): void {
+	_1[0][Symbol.dispose]();
+	rt.drop(_1[1]);
+	rt.dropAll(_1[2]);
 }
 
 /**

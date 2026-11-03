@@ -5,6 +5,10 @@ import { statics, cells, onces, lazies, writes } from "./statics.ts";
 import type * as Dropped from "./statics.Dropped.ts";
 import * as Lock from "./statics.Lock.ts";
 
+export function copy$array_u8(v: Uint8Array): Uint8Array {
+	return v.slice();
+}
+
 export function drop$cell_LazyCell_statics_Dropped_statics_cell_closure0(value: rt.LazyCell<Dropped.Dropped>): void {
 	rt.lazyDrop(value, rt.drop);
 }
