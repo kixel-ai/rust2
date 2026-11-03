@@ -870,7 +870,7 @@ they need.
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
   whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
   where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
-  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
+  capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
   as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that

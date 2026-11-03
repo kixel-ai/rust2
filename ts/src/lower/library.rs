@@ -947,9 +947,14 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("RangeInclusive", "new")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
-		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate` and
-		// `clear` cut.
-		("Vec", "retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear") => &[0],
+		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
+		// `clear`, and a shrinking `resize` and `resize_with` cut, and the value `resize` then
+		// has no slot for.
+		(
+			"Vec",
+			"retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear" | "resize"
+			| "resize_with",
+		) => &[0],
 		// A slice's `fill`, `fill_with`, and `clone_from_slice` drop each element they write
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
@@ -1465,6 +1470,17 @@ fn mapping<'tcx>(
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
 				return Some(cow_cloned(b, "IntoOwned", value, elem, span));
+			}
+			// A `Vec` of a deque's items keeps its capacity.
+			if let ty::Adt(_, vargs) = to.kind()
+				&& b.t.std_of(to) == Some(Std::Vec)
+				&& b.t.std_of(from) == Some(Std::VecDeque)
+			{
+				let v = Expr::rt("dequeToVec", vec![value]);
+				return Some(match is_u8(vargs.type_at(0)) {
+					true => Expr::rt("byteVecFromVec", vec![v]),
+					false => v,
+				});
 			}
 			// A `Vec` clones what a slice or an array borrows, as `to_vec` does.
 			if let ty::Adt(_, vargs) = to.kind()
@@ -2315,8 +2331,34 @@ fn mapping<'tcx>(
 			}
 			Expr::rt("vecExtendFromSlice", values)
 		}
-		("Vec", "insert" | "remove" | "swap_remove") if is_u8(targ(gargs, 0)) => {
+		("Vec", "insert" | "remove" | "swap_remove" | "append" | "resize" | "resize_with" | "split_off")
+			if is_u8(targ(gargs, 0)) =>
+		{
 			rt2(args, "byteVec", &super::camel(&name))
+		}
+		// Each reserves as std's does, by the size of the elements, and `resize` clones its
+		// value for each slot but the last.
+		("Vec", "append" | "resize" | "resize_with" | "split_off") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			if name == "resize" {
+				values.push(super::collections::clone_fn(b, elem, span));
+			}
+			rt2(values, "vec", &super::camel(&name))
+		}
+		("Vec", "extend_from_within") => {
+			let elem = targ(gargs, 0);
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.push(ranged.bounds.clone());
+			return Some(ranged.after(match is_u8(elem) {
+				true => Expr::rt("byteVecExtendFromWithin", args),
+				false => {
+					args.push(super::iter::size_of(b, elem, span));
+					args.push(super::collections::clone_fn(b, elem, span));
+					Expr::rt("vecExtendFromWithin", args)
+				}
+			}));
 		}
 		("Vec", "insert" | "remove" | "swap_remove" | "truncate") => rt2(args, "vec", &super::camel(&name)),
 		("Vec", "clear") => {
