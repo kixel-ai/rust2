@@ -67,6 +67,13 @@ pub(super) fn indexed(log: &Log, id: u32, arg: u8) {
 				.find(|(a, _)| a.id() == id + 3)
 				.map(|(a, _)| a.id() - id);
 			log.note(format!("take find {found:?}"));
+			// Bounded by what is left of what it wraps, which reads nothing once a `skip` passes it.
+			let n = pairs().skip(4).take(1).fold(0, |n, (a, b)| n + a.id() + b.id());
+			let m = pairs()
+				.skip(3)
+				.take(2)
+				.fold(0, |n, (a, b)| n * 100 + a.id() + b.id() - 2 * id);
+			log.note(format!("take past {n} {m}"));
 			// A zip of it and what is `TrustedRandomAccessNoCoerce` alone folds both by index.
 			let n = pairs().skip(1).zip(vec![0u32, 1].into_iter()).count();
 			log.note(format!("vec count {n}"));

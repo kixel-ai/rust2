@@ -3061,11 +3061,14 @@ class TakeIter<T> extends Adaptor<T, T> {
 	 * std's: its iterator folded, counting each item it reads against the limit, and from
 	 * the back, past what it holds beyond the limit by `nth_back` as the fold starts,
 	 * folded without counting, where `next_back` reads past it by one `nth_back` of its own.
-	 * Its `fold` reads a `TrustedRandomAccess` one by index from the front.
+	 * Its `fold` reads a `TrustedRandomAccess` one by index from the front, no further than
+	 * its size, which a `skip` past its end makes 0.
 	 */
 	override folded(fold = false): Iter<T> {
 		const inner = this.inner.folded();
-		return this.foldedBy(inner, fold && this.indexes ? this.inner.indexed() : inner);
+		if (!(fold && this.indexes)) return this.foldedBy(inner, inner);
+		this.n = Math.min(this.n, this.inner.len());
+		return this.foldedBy(inner, this.inner.indexed());
 	}
 
 	/** Read from the front by `front`, and from the back by `inner`, its iterator folded. */
