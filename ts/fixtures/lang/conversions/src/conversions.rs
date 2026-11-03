@@ -3,9 +3,10 @@
 //! parameter; `binary_search`, by a closure and by a key, and `partition_point` over runs
 //! of equal elements; `size_of_val` and `align_of_val`; slices, arrays, and cells of one
 //! value, written through; arrays as slices by `AsRef`, `AsMut`, `Borrow`, and
-//! `BorrowMut`; and raw pointers of references. Each is generic over the value, run for
-//! numbers JS copies, strings, `Option`s, arrays and `Vec`s of bytes and of numbers, a
-//! struct, and one that logs its clones and drops.
+//! `BorrowMut`, and `Vec`s by those and as themselves; `clone_from` of boxes; and raw
+//! pointers of references. Each is generic over the value, run for numbers JS copies,
+//! strings, `Option`s, arrays and `Vec`s of bytes and of numbers, a struct, and one that
+//! logs its clones and drops.
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::{Cell, RefCell};
@@ -257,6 +258,7 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	measured(data, out);
 	pointed(data, out);
+	boxed_kept(data, out);
 }
 
 /// Each conversion of a `T` that orders.
@@ -413,12 +415,101 @@ fn converted<T: Value>(data: &[u8], out: &mut Vec<u8>) {
 	for x in &array {
 		x.put(out);
 	}
+	// A `Vec` as a slice and as itself, written through, and an empty one.
+	let mut list = vec![T::make(data, 13), T::make(data, 14)];
+	let mut none: Vec<T> = Vec::new();
+	let lens = [
+		AsRef::<[T]>::as_ref(&list).len(),
+		AsRef::<Vec<T>>::as_ref(&list).len(),
+		AsMut::<[T]>::as_mut(&mut none).len(),
+		AsRef::<[T]>::as_ref(&none).len(),
+		Borrow::<[T]>::borrow(&list).len(),
+	];
+	out.extend(lens.map(|n| n as u8));
+	AsMut::<[T]>::as_mut(&mut list)[0] = b.clone();
+	AsMut::<[T]>::as_mut(&mut list)[1].clone_from(&c);
+	BorrowMut::<[T]>::borrow_mut(&mut list).swap(0, 1);
+	AsMut::<Vec<T>>::as_mut(&mut list).push(T::make(data, 15));
+	AsMut::<Vec<T>>::as_mut(&mut none).push(a.clone());
+	for x in list.iter().chain(&none) {
+		x.put(out);
+	}
+	boxed::<T>(data, out);
 	// A pointer, read and written through.
 	let p = std::ptr::from_ref(&b);
 	unsafe { (*p).put(out) };
 	let q = std::ptr::from_mut(&mut c);
 	unsafe { *q = T::make(data, 16) };
 	c.put(out);
+}
+
+/// Boxes, which clone what they hold by its own `clone_from`: a box, one in a box, in an
+/// `Option`, and in a slice, and a boxed slice by `clone_into`.
+fn boxed<T: Value>(data: &[u8], out: &mut Vec<u8>) {
+	let mut boxed = Box::new(T::make(data, 19));
+	boxed.clone_from(&Box::new(T::make(data, 3)));
+	boxed.put(out);
+	let source = Box::new(T::make(data, 20));
+	source.clone_into(&mut boxed);
+	boxed.put(out);
+	source.put(out);
+	let mut nested = Box::new(Box::new(T::make(data, 21)));
+	nested.clone_from(&Box::new(source.clone()));
+	nested.put(out);
+	let mut maybe = Some(Box::new(T::make(data, 22)));
+	maybe.clone_from(&Some(boxed.clone()));
+	maybe.clone_from(&None);
+	out.push(u8::from(maybe.is_none()));
+	maybe.clone_from(&Some(source.clone()));
+	maybe.iter().for_each(|x| x.put(out));
+	let mut slots = [Box::new(T::make(data, 23)), Box::new(T::make(data, 24))];
+	slots.clone_from_slice(&[source, boxed]);
+	for x in &slots {
+		x.put(out);
+	}
+	let n = usize::from(byte(data, 25) % 3);
+	let whole: Box<[T]> = (0..n).map(|i| T::make(data, 26 + i)).collect();
+	let mut into: Box<[T]> = (0..(n + 1) % 3).map(|i| T::make(data, 29 + i)).collect();
+	whole.clone_into(&mut into);
+	out.push(into.len() as u8);
+	for x in into.iter().chain(&whole) {
+		x.put(out);
+	}
+}
+
+/// A box's `clone_from` of a `Vec`, which keeps its buffer, into one of a capacity `data`
+/// picks, and of the crate's own `clone_from`.
+fn boxed_kept(data: &[u8], out: &mut Vec<u8>) {
+	let mut words: Box<Vec<u32>> = Box::new(Vec::with_capacity(usize::from(byte(data, 0) % 8)));
+	words.extend((0..byte(data, 1) % 4).map(u32::from));
+	words.clone_from(&Box::new((0..byte(data, 2) % 6).map(u32::from).collect()));
+	out.extend([words.len() as u8, words.capacity() as u8]);
+	let mut kept = Box::new(Kept {
+		id: byte(data, 5),
+		from: 0,
+	});
+	kept.clone_from(&Box::new(Kept {
+		id: byte(data, 6),
+		from: 0,
+	}));
+	out.extend([kept.id, kept.from]);
+}
+
+/// Cloned into by its own `clone_from`, which keeps the id it held.
+struct Kept {
+	id: u8,
+	from: u8,
+}
+
+impl Clone for Kept {
+	fn clone(&self) -> Self {
+		Kept { id: self.id, from: 0 }
+	}
+
+	fn clone_from(&mut self, source: &Self) {
+		self.from = self.id;
+		self.id = source.id;
+	}
 }
 
 /// Slices and arrays of one value of a local, a field, and an element, written through as
