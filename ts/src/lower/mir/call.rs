@@ -603,6 +603,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					.call_def(clone_from, tcx.mk_args(&[own.into()]), vec![to, from], span, out);
 				done(call, true)
 			}
+			// An array, which JS writes in place, of elements that do more than copy.
+			("Clone", "clone_from") | ("ToOwned", "clone_into")
+				if let Some(ty) = targ(0)
+					&& let ty::Array(elem, _) = ty.kind()
+					&& !library::clone_copies(self.b.t, self.b.t.typing_env_pub(), ty) =>
+			{
+				let (target, source) = match name.as_str() {
+					"clone_from" => (&args[0].node, &args[1].node),
+					_ => (&args[1].node, &args[0].node),
+				};
+				let target = self.operand(target, span, out);
+				let source = self.operand(source, span, out);
+				let call = library::array_clone_from(self.b, target, source, *elem, span)?;
+				done(call, true)
+			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
 			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over. A
 			// list's maps, as it clones each element into one of its own nodes, and a deque's,
