@@ -1502,3 +1502,174 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	drop(boxed);
 	dropped(out);
 }
+
+/// std's iterator sources', an `Option`'s, a `Result`'s, and an array's iterators', and a
+/// slice's parts' `Debug`, each the state std's fields keep: fresh, read from either end,
+/// and past the end, plain and pretty.
+pub fn sources(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let (front, back) = (usize::from(at(0) % 4), usize::from(at(1) % 3));
+	fn ends<I: DoubleEndedIterator>(mut it: I, front: usize, back: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		for _ in 0..back {
+			it.next_back();
+		}
+		it
+	}
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let b = at(2);
+	let bytes = &data[..data.len().min(7)];
+
+	// What each holds, an `Option`, until it is read.
+	let it = fronts(std::iter::once(b), front % 2);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = std::iter::once((b % 2 == 0).then_some(Pair(b, -1)));
+	put(out, &format!("{it:?}|{it:#?}"));
+	let maybe = (b % 3 != 0).then_some(b);
+	put(out, &format!("{:?}|{:#?}", maybe.iter(), maybe.into_iter()));
+	let mut pair = (b % 2 == 0).then_some(Pair(b, 2));
+	put(out, &format!("{:?}", fronts(pair.iter(), front % 2)));
+	put(out, &format!("{:?}", pair.iter_mut()));
+	put(out, &format!("{:?}", pair.into_iter()));
+	let nested: Option<Option<u8>> = [None, Some(None), Some(Some(b))][usize::from(b % 3)];
+	put(out, &format!("{:?}|{:x?}", nested.iter(), nested.into_iter()));
+	let mut mine = maybe;
+	put(out, &format!("{:?}", fronts(mine.iter_mut(), front % 2)));
+	let result: Result<u8, Pair> = if b % 2 == 0 { Ok(b) } else { Err(Pair(b, 3)) };
+	put(out, &format!("{:?}|{:#?}", result.iter(), result.clone().into_iter()));
+	let mut held: Result<Pair, u8> = if b % 3 == 0 { Err(b) } else { Ok(Pair(b, 4)) };
+	put(out, &format!("{:?}", fronts(held.iter_mut(), front % 2)));
+	put(out, &format!("{:?}", fronts(held.into_iter(), front % 2)));
+
+	// An array's elements it has left.
+	let it = ends([b, at(3), at(4), at(5)].into_iter(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:02x?}"));
+	let it = ends([Pair(b, 5), Pair(at(3), 6)].into_iter(), front % 3, back % 2);
+	put(out, &format!("{it:?}|{it:#?}"));
+	put(out, &format!("{:?}", [0u8; 0].into_iter()));
+
+	// Closures std writes none of, and the item a `Successors` yields next.
+	let mut n = 0;
+	let it = std::iter::from_fn(|| {
+		n += 1;
+		(n < 3).then_some(n)
+	});
+	put(out, &format!("{it:?}|{it:#?}"));
+	put(out, &format!("{:?}", it.take(2)));
+	let it = std::iter::repeat_with(|| b);
+	put(out, &format!("{it:?}|{it:#?}"));
+	put(out, &format!("{:#?}", it.skip(1)));
+	let it = fronts(std::iter::successors(Some(b), |&x| x.checked_add(100)), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = fronts(
+		std::iter::successors(Some(Some(b)), |&x| x.and_then(|x| x.checked_sub(100).map(Some))),
+		front,
+	);
+	put(out, &format!("{it:?}"));
+	let it = std::iter::once(b).chain([at(3), at(4)]).map(|x| x / 2);
+	put(out, &format!("{it:?}|{it:#?}"));
+
+	// The bytes before the front, and the chars left.
+	let text: String = bytes
+		.iter()
+		.map(|&b| ['a', 'é', '中', '🦀', '\n'][usize::from(b % 5)])
+		.collect();
+	let it = ends(text.char_indices(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let mut drained = text.clone();
+	let it = ends(drained.drain(..), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	drop(it);
+
+	// A slice's parts: what is left of it, and past its end, as `nth` and `next_back` leave
+	// a `Windows`.
+	let size = usize::from(at(3) % 4) + 1;
+	let it = ends(bytes.windows(size), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let mut it = bytes.windows(size);
+	it.nth(usize::from(at(4) % 8));
+	put(out, &format!("{it:?}"));
+	let mut it = fronts(bytes.windows(size), 8);
+	put(out, &format!("{it:?}"));
+	it.next_back();
+	put(out, &format!("{it:?}"));
+	let mut it = bytes.windows(size);
+	it.nth_back(usize::from(at(4) % 8));
+	put(out, &format!("{it:?}"));
+	let wide: Vec<u16> = bytes.iter().map(|&b| u16::from(b) * 0x101).collect();
+	let it = ends(wide.windows(size), front, back);
+	put(out, &format!("{it:?}|{it:#x?}"));
+	let it = ends(bytes.chunks(size), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(wide.chunks_exact(size), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(bytes.chunks_exact(size), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends(wide.rchunks(size), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends(bytes.rchunks(size), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(bytes.rchunks_exact(size), front, back);
+	put(out, &format!("{it:?}"));
+	let mut it = wide.rchunks_exact(size);
+	it.nth(usize::from(at(4) % 4));
+	put(out, &format!("{it:?}"));
+
+	// What is left to split, which a `&mut` one gives up as it finishes.
+	let sep = |x: &u8| x % 3 == 0;
+	let it = ends(bytes.split(sep), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = ends(bytes.split_inclusive(sep), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends(bytes.rsplit(sep), front, back);
+	put(out, &format!("{it:?}"));
+	let it = fronts(bytes.splitn(usize::from(at(4) % 4), sep), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(bytes.rsplitn(2, sep), front);
+	put(out, &format!("{it:?}"));
+	let wide_sep = |x: &u16| x % 3 == 0;
+	let it = ends(wide.split(wide_sep), front, back);
+	put(out, &format!("{it:?}"));
+	let it = fronts(wide.splitn(2, wide_sep), front);
+	put(out, &format!("{it:?}"));
+	let mut owned = bytes.to_vec();
+	let it = ends(owned.split_mut(sep), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(owned.split_inclusive_mut(sep), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends(owned.rsplit_mut(sep), front, back);
+	put(out, &format!("{it:?}"));
+	let it = fronts(owned.splitn_mut(2, sep), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts(owned.rsplitn_mut(usize::from(at(4) % 4), sep), front);
+	put(out, &format!("{it:?}"));
+	let mut owned = wide.clone();
+	let it = ends(owned.split_mut(wide_sep), front, back);
+	put(out, &format!("{it:?}"));
+
+	// A hash set's operations, of at most one key, since std leaves their order unspecified.
+	let (mut one, mut other) = (HashSet::new(), HashSet::new());
+	if b % 2 == 0 {
+		one.insert(b);
+	}
+	if b % 3 == 0 {
+		other.insert(b);
+	}
+	put(
+		out,
+		&format!(
+			"{:?}|{:#?}|{:?}|{:?}",
+			one.difference(&other),
+			one.intersection(&other),
+			one.symmetric_difference(&other),
+			one.union(&other)
+		),
+	);
+}

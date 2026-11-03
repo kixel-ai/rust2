@@ -2,8 +2,8 @@
 
 import * as rt from "./rt.ts";
 import { copy$array_tuple2_u8_u8, copy$array_u8, copy$tuple2_u8_u8 } from "./lib.ts";
-import { thenSome$0d5am30, then$0uwf92a } from "./core/bool.ts";
-import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { thenSome$1ou04rm, thenSome$0n2gkz4, thenSome$0d5am30, then$0uwf92a } from "./core/bool.ts";
+import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0phsnvg as option_map$0phsnvg, andThen$1bd14ex as option_andThen$1bd14ex } from "./core/option.ts";
 import * as Bare from "./fmt.Bare.ts";
 import * as Braced from "./fmt.Braced.ts";
 import * as Capped from "./fmt.Capped.ts";
@@ -3361,6 +3361,736 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.drop(up);
 		rt.dropAll(shown);
 		log[Symbol.dispose]();
+	}
+}
+
+/**
+ * std's iterator sources', an `Option`'s, a `Result`'s, and an array's iterators', and a
+ * slice's parts' `Debug`, each the state std's fields keep: fresh, read from either end,
+ * and past the end, plain and pretty.
+ */
+export function sources(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let result!: rt.Result<rt.u8, Pair.Pair>;
+	let held!: rt.Result<Pair.Pair, rt.u8>;
+	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), 0);
+	};
+	const _6: [rt.usize, rt.usize] = [rt.u8Rem(at(0), 4) as rt.usize, rt.u8Rem(at(1), 3) as rt.usize];
+	const front: rt.usize = _6[0];
+	const back: rt.usize = _6[1];
+	const b: rt.u8 = at(2);
+	const bytes: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.min(data.length, 7));
+	const part2 = fronts$sources_iter_Once_u8(rt.iterOnce(b), rt.usizeRem(front, 2));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part2, f, rt.u8Debug, [["Once", "inner"], ["IntoIter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args2[0], "|", rt.fmtSpec({ alternate: true }, args2[0]), "|", rt.fmtSpec({ debugHex: "x" }, args2[0])]));
+	const part3 = rt.iterOnce(thenSome$1ou04rm(rt.u8Rem(b, 2) === 0, { _0: b, _1: -1 }));
+	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part3, f, (value: Pair.Pair | undefined, f: rt.Formatter) => rt.fmtOption(value, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f)), [["Once", "inner"], ["IntoIter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args4[0], "|", rt.fmtSpec({ alternate: true }, args4[0])]));
+	const maybe: rt.u8 | undefined = thenSome$0d5am30(rt.u8Rem(b, 3) !== 0, b);
+	const _72: rt.Iter<rt.u8> = rt.iterOption(maybe);
+	const _75: rt.Iter<rt.u8> = rt.iterOption(maybe);
+	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(_72, f, rt.u8Debug, [["Iter", "inner"], ["Item", "opt"]]), (f: rt.Formatter) => rt.fmtIterOption(_75, f, rt.u8Debug, [["IntoIter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args6[0], "|", rt.fmtSpec({ alternate: true }, args6[1])]));
+	const pair: Pair.Pair | undefined = thenSome$1ou04rm(rt.u8Rem(b, 2) === 0, { _0: b, _1: 2 });
+	const part4 = fronts$sources_option_Iter_fmt_Pair(rt.iterOption(pair), rt.usizeRem(front, 2));
+	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part4, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), [["Iter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args8[0]]));
+	const part5 = rt.iterOption(pair);
+	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part5, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), [["IterMut", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args10[0]]));
+	const part6 = rt.iterOption(pair);
+	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part6, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), [["IntoIter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args12[0]]));
+	const _132: Array<rt.u8 | undefined | rt.None> = [rt.None, undefined, b];
+	const _138: rt.usize = rt.u8Rem(b, 3) as rt.usize;
+	if (!(_138 < 3)) {
+		rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _138);
+	}
+	const nested: rt.u8 | undefined | rt.None = _132[_138];
+	const _150: rt.Iter<rt.u8 | undefined> = rt.iterOption(nested, undefined, rt.None);
+	const _153: rt.Iter<rt.u8 | undefined> = rt.iterOption(nested, undefined, rt.None);
+	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(_150, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), [["Iter", "inner"], ["Item", "opt"]]), (f: rt.Formatter) => rt.fmtIterOption(_153, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), [["IntoIter", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args14[0], "|", rt.fmtSpec({ debugHex: "x" }, args14[1])]));
+	let mine: rt.u8 | undefined = maybe;
+	const part7 = fronts$sources_option_IterMut_u8(rt.iterOption(mine === undefined ? undefined : rt.place(() => mine as rt.u8, (value) => mine = value)), rt.usizeRem(front, 2));
+	const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part7, f, (value: rt.Place<rt.u8>, f: rt.Formatter) => rt.u8Debug(value.v, f), [["IterMut", "inner"], ["Item", "opt"]])];
+	put(out, rt.fmtFormat([args16[0]]));
+	if (!(rt.u8Rem(b, 2) === 0)) {
+		result = rt.Err({ _0: b, _1: 3 });
+	} else {
+		result = rt.Ok(b);
+	}
+	const _190: rt.Iter<rt.u8> = rt.iterResult(result);
+	const _193: rt.Iter<rt.u8> = rt.iterResult(result);
+	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(_190, f, rt.u8Debug, [["Iter", "inner"]]), (f: rt.Formatter) => rt.fmtIterOption(_193, f, rt.u8Debug, [["IntoIter", "inner"]])];
+	put(out, rt.fmtFormat([args18[0], "|", rt.fmtSpec({ alternate: true }, args18[1])]));
+	if (!(rt.u8Rem(b, 3) === 0)) {
+		held = rt.Ok({ _0: b, _1: 4 });
+	} else {
+		held = rt.Err(b);
+	}
+	const part8 = fronts$sources_result_IterMut_fmt_Pair(rt.iterResult(held), rt.usizeRem(front, 2));
+	const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part8, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), [["IterMut", "inner"]])];
+	put(out, rt.fmtFormat([args20[0]]));
+	const part9 = fronts$sources_result_IntoIter_fmt_Pair(rt.iterResult(held), rt.usizeRem(front, 2));
+	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterOption(part9, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), [["IntoIter", "inner"]])];
+	put(out, rt.fmtFormat([args22[0]]));
+	const _243: rt.u8 = at(3);
+	const _246: rt.u8 = at(4);
+	const _249: rt.u8 = at(5);
+	const part10 = ends$sources_array_IntoIter_u8_4(rt.iterSlice(Uint8Array.of(b, _243, _246, _249)), front, back);
+	const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part10, f, rt.u8Debug, ["IntoIter"])];
+	put(out, rt.fmtFormat([args24[0], "|", rt.fmtSpec({ alternate: true }, args24[0]), "|", rt.fmtSpec({ zero: true, debugHex: "x", width: 2 }, args24[0])]));
+	const part11 = ends$sources_array_IntoIter_fmt_Pair_2(rt.iterSlice([{ _0: b, _1: 5 }, { _0: at(3), _1: 6 }]), rt.usizeRem(front, 3), rt.usizeRem(back, 2));
+	const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part11, f, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f), ["IntoIter"])];
+	put(out, rt.fmtFormat([args26[0], "|", rt.fmtSpec({ alternate: true }, args26[0])]));
+	const part12 = rt.iterSlice(Uint8Array.of());
+	const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIter(part12, f, rt.u8Debug, ["IntoIter"])];
+	put(out, rt.fmtFormat([args28[0]]));
+	let n: rt.i32 = 0;
+	const it5: rt.Iter<rt.i32> = rt.iterFromFn((): rt.i32 | undefined => {
+		n = rt.i32Add(n, 1);
+		return thenSome$0n2gkz4(n < 3, n);
+	});
+	const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "FromFn")];
+	put(out, rt.fmtFormat([args30[0], "|", rt.fmtSpec({ alternate: true }, args30[0])]));
+	const part13 = rt.iterTake(it5, 2);
+	const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part13, f, "Take", (_value: rt.Iter<rt.i32>, f: rt.Formatter) => rt.fmtWriteStr(f, "FromFn"))];
+	put(out, rt.fmtFormat([args32[0]]));
+	const it6: rt.Iter<rt.u8> = rt.iterRepeatWith((): rt.u8 => {
+		return b;
+	});
+	const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "RepeatWith { .. }")];
+	put(out, rt.fmtFormat([args34[0], "|", rt.fmtSpec({ alternate: true }, args34[0])]));
+	const part14 = rt.iterSkip(it6, 1);
+	const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part14, f, "Skip", (_value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtWriteStr(f, "RepeatWith { .. }"))];
+	put(out, rt.fmtFormat([rt.fmtSpec({ alternate: true }, args36[0])]));
+	const part15 = fronts$sources_iter_Successors_u8_fmt_sources_closure3(rt.iterSuccessors(b, (_22: rt.u8): rt.u8 | undefined => {
+		return rt.u8CheckedAdd(_22, 100);
+	}), front);
+	const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSuccessors(part15, f, rt.u8Debug)];
+	put(out, rt.fmtFormat([args38[0], "|", rt.fmtSpec({ alternate: true }, args38[0]), "|", rt.fmtSpec({ debugHex: "x" }, args38[0])]));
+	const part16 = fronts$sources_iter_Successors_Option_u8_fmt_sources_closure4(rt.iterSuccessors(b as rt.u8 | undefined | rt.None, (_26: rt.u8 | undefined): rt.u8 | undefined | rt.None => {
+		return option_andThen$1bd14ex(_26, (x3: rt.u8): rt.u8 | undefined | rt.None => {
+			return option_map$0phsnvg(rt.u8CheckedSub(x3, 100), (a0: rt.u8): rt.u8 | undefined => {
+				return a0;
+			});
+		});
+	}, undefined, rt.None), front);
+	const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSuccessors(part16, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))];
+	put(out, rt.fmtFormat([args40[0]]));
+	const part17 = rt.iterMap(rt.iterChain(rt.iterOnce(b), rt.iterSlice(Uint8Array.of(at(3), at(4)))), (x4: rt.u8): rt.u8 => {
+		return rt.u8Div(x4, 2);
+	});
+	const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAdaptor(part17, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtChain(value, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIterOption(value, f, rt.u8Debug, [["Once", "inner"], ["IntoIter", "inner"], ["Item", "opt"]]), (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["IntoIter"])))];
+	put(out, rt.fmtFormat([args42[0], "|", rt.fmtSpec({ alternate: true }, args42[0])]));
+	const text: string = rt.stringExtendChars("", rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_212: rt.u8): rt.char => {
+		const _54: rt.usize = rt.u8Rem(_212, 5) as rt.usize;
+		if (!(_54 < 5)) {
+			rt.panic("index out of bounds: the len is " + 5 + " but the index is " + _54);
+		}
+		return [97, 233, 20013, 129408, 10][_54];
+	}));
+	const part18 = ends$sources_str_CharIndices(rt.strCharIndices(text), front, back);
+	const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCharIndices(part18, f)];
+	put(out, rt.fmtFormat([args44[0], "|", rt.fmtSpec({ alternate: true }, args44[0]), "|", rt.fmtSpec({ debugHex: "x" }, args44[0])]));
+	let drained: string = text;
+	const it11: rt.Iter<rt.char> = ends$sources_string_Drain(rt.stringDrain(rt.place(() => drained, (value3) => drained = value3), undefined), front, back);
+	const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStringDrain(it11, f)];
+	put(out, rt.fmtFormat([args46[0], "|", rt.fmtSpec({ alternate: true }, args46[0])]));
+	rt.drop(it11);
+	const size: rt.usize = rt.usizeAdd(rt.u8Rem(at(3), 4) as rt.usize, 1);
+	const part19 = ends$sources_slice_Windows_u8(rt.byteSliceWindows(bytes, size), front, back);
+	const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part19, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Windows")];
+	put(out, rt.fmtFormat([args48[0], "|", rt.fmtSpec({ alternate: true }, args48[0]), "|", rt.fmtSpec({ debugHex: "x" }, args48[0])]));
+	const it13: rt.Iter<rt.ByteSlice> = rt.byteSliceWindows(bytes, size);
+	const _473: rt.usize = rt.u8Rem(at(4), 8) as rt.usize;
+	rt.iterNth(it13, _473);
+	const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(it13, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Windows")];
+	put(out, rt.fmtFormat([args50[0]]));
+	const it14: rt.Iter<rt.ByteSlice> = fronts$sources_slice_Windows_u8(rt.byteSliceWindows(bytes, size), 8);
+	const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(it14, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Windows")];
+	put(out, rt.fmtFormat([args52[0]]));
+	rt.iterToOption(it14.nextBack());
+	const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(it14, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Windows")];
+	put(out, rt.fmtFormat([args54[0]]));
+	const it15: rt.Iter<rt.ByteSlice> = rt.byteSliceWindows(bytes, size);
+	const _522: rt.usize = rt.u8Rem(at(4), 8) as rt.usize;
+	rt.iterNthBack(it15, _522);
+	const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(it15, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Windows")];
+	put(out, rt.fmtFormat([args56[0]]));
+	const wide: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_213: rt.u8): rt.u16 => {
+		return rt.u16Mul(_213 as rt.u16, 257);
+	}), undefined, 2, true);
+	const part20 = ends$sources_slice_Windows_u16(rt.sliceWindows(wide, size), front, back);
+	const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part20, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "Windows")];
+	put(out, rt.fmtFormat([args58[0], "|", rt.fmtSpec({ alternate: true, debugHex: "x" }, args58[0])]));
+	const part21 = ends$sources_slice_Chunks_u8(rt.byteSliceChunks(bytes, size), front, back);
+	const args60: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part21, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Chunks")];
+	put(out, rt.fmtFormat([args60[0], "|", rt.fmtSpec({ alternate: true }, args60[0])]));
+	const part22 = ends$sources_slice_ChunksExact_u16(rt.sliceChunksExact(wide, size), front, back);
+	const args62: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part22, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "ChunksExact")];
+	put(out, rt.fmtFormat([args62[0], "|", rt.fmtSpec({ alternate: true }, args62[0])]));
+	const part23 = ends$sources_slice_ChunksExact_u8(rt.byteSliceChunksExact(bytes, size), front, back);
+	const args64: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part23, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "ChunksExact")];
+	put(out, rt.fmtFormat([args64[0]]));
+	const part24 = ends$sources_slice_RChunks_u16(rt.sliceRchunks(wide, size), front, back);
+	const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part24, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "RChunks")];
+	put(out, rt.fmtFormat([args66[0]]));
+	const part25 = ends$sources_slice_RChunks_u8(rt.byteSliceRchunks(bytes, size), front, back);
+	const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part25, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RChunks")];
+	put(out, rt.fmtFormat([args68[0], "|", rt.fmtSpec({ alternate: true }, args68[0])]));
+	const part26 = ends$sources_slice_RChunksExact_u8(rt.byteSliceRchunksExact(bytes, size), front, back);
+	const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(part26, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RChunksExact")];
+	put(out, rt.fmtFormat([args70[0]]));
+	const it23: rt.Iter<rt.u16[]> = rt.sliceRchunksExact(wide, size);
+	const _652: rt.usize = rt.u8Rem(at(4), 4) as rt.usize;
+	rt.iterNth(it23, _652);
+	const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtParts(it23, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "RChunksExact")];
+	put(out, rt.fmtFormat([args72[0]]));
+	const part27 = ends$sources_slice_Split_u8_fmt_sources_closure8(rt.byteSliceSplit(bytes, (x5: rt.u8): boolean => {
+		return rt.u8Rem(x5, 3) === 0;
+	}), front, back);
+	const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part27, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Split", false)];
+	put(out, rt.fmtFormat([args74[0], "|", rt.fmtSpec({ alternate: true }, args74[0]), "|", rt.fmtSpec({ debugHex: "x" }, args74[0])]));
+	const part28 = ends$sources_slice_SplitInclusive_u8_fmt_sources_closure8(rt.byteSliceSplitInclusive(bytes, (x6: rt.u8): boolean => {
+		return rt.u8Rem(x6, 3) === 0;
+	}), front, back);
+	const args76: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part28, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "SplitInclusive", false)];
+	put(out, rt.fmtFormat([args76[0]]));
+	const part29 = ends$sources_slice_RSplit_u8_fmt_sources_closure8(rt.byteSliceRsplit(bytes, (x7: rt.u8): boolean => {
+		return rt.u8Rem(x7, 3) === 0;
+	}), front, back);
+	const args78: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part29, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RSplit", false)];
+	put(out, rt.fmtFormat([args78[0]]));
+	const part30 = fronts$sources_slice_SplitN_u8_fmt_sources_closure8(rt.byteSliceSplitn(bytes, rt.u8Rem(at(4), 4) as rt.usize, (x8: rt.u8): boolean => {
+		return rt.u8Rem(x8, 3) === 0;
+	}), front);
+	const args80: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part30, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "Split", false, "SplitN")];
+	put(out, rt.fmtFormat([args80[0], "|", rt.fmtSpec({ alternate: true }, args80[0])]));
+	const part31 = fronts$sources_slice_RSplitN_u8_fmt_sources_closure8(rt.byteSliceRsplitn(bytes, 2, (x9: rt.u8): boolean => {
+		return rt.u8Rem(x9, 3) === 0;
+	}), front);
+	const args82: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part31, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RSplit", false, "RSplitN")];
+	put(out, rt.fmtFormat([args82[0]]));
+	const part32 = ends$sources_slice_Split_u16_fmt_sources_closure9(rt.sliceSplit(wide, (x10: rt.u16): boolean => {
+		return rt.u16Rem(x10, 3) === 0;
+	}), front, back);
+	const args84: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part32, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "Split", false)];
+	put(out, rt.fmtFormat([args84[0]]));
+	const part33 = fronts$sources_slice_SplitN_u16_fmt_sources_closure9(rt.sliceSplitn(wide, 2, (x11: rt.u16): boolean => {
+		return rt.u16Rem(x11, 3) === 0;
+	}), front);
+	const args86: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part33, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "Split", false, "SplitN")];
+	put(out, rt.fmtFormat([args86[0]]));
+	const owned: rt.ByteVec = rt.byteSliceToByteVec(bytes);
+	const part34 = ends$sources_slice_SplitMut_u8_fmt_sources_closure8(rt.byteSliceSplit(rt.byteVecSlice(owned), (x12: rt.u8): boolean => {
+		return rt.u8Rem(x12, 3) === 0;
+	}), front, back);
+	const args88: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part34, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "SplitMut", true)];
+	put(out, rt.fmtFormat([args88[0], "|", rt.fmtSpec({ alternate: true }, args88[0])]));
+	const part35 = ends$sources_slice_SplitInclusiveMut_u8_fmt_sources_closure8(rt.byteSliceSplitInclusive(rt.byteVecSlice(owned), (x13: rt.u8): boolean => {
+		return rt.u8Rem(x13, 3) === 0;
+	}), front, back);
+	const args90: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part35, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "SplitInclusiveMut", true)];
+	put(out, rt.fmtFormat([args90[0]]));
+	const part36 = ends$sources_slice_RSplitMut_u8_fmt_sources_closure8(rt.byteSliceRsplit(rt.byteVecSlice(owned), (x14: rt.u8): boolean => {
+		return rt.u8Rem(x14, 3) === 0;
+	}), front, back);
+	const args92: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part36, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RSplitMut", true)];
+	put(out, rt.fmtFormat([args92[0]]));
+	const part37 = fronts$sources_slice_SplitNMut_u8_fmt_sources_closure8(rt.byteSliceSplitn(rt.byteVecSlice(owned), 2, (x15: rt.u8): boolean => {
+		return rt.u8Rem(x15, 3) === 0;
+	}), front);
+	const args94: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part37, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "SplitMut", true, "SplitNMut")];
+	put(out, rt.fmtFormat([args94[0]]));
+	const part38 = fronts$sources_slice_RSplitNMut_u8_fmt_sources_closure8(rt.byteSliceRsplitn(rt.byteVecSlice(owned), rt.u8Rem(at(4), 4) as rt.usize, (x16: rt.u8): boolean => {
+		return rt.u8Rem(x16, 3) === 0;
+	}), front);
+	const args96: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part38, f, (value: rt.ByteSlice, f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug), "RSplitMut", true, "RSplitNMut")];
+	put(out, rt.fmtFormat([args96[0]]));
+	const part39 = ends$sources_slice_SplitMut_u16_fmt_sources_closure9(rt.sliceSplitMut(rt.vecExact(wide.slice(), 2), (x17: rt.u16): boolean => {
+		return rt.u16Rem(x17, 3) === 0;
+	}), front, back);
+	const args98: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtSplit(part39, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug), "SplitMut", true)];
+	put(out, rt.fmtFormat([args98[0]]));
+	const _885: [rt.HashSet<rt.u8>, rt.HashSet<rt.u8>] = [rt.hashNew() as rt.HashSet<rt.u8>, rt.hashNew() as rt.HashSet<rt.u8>];
+	const one: rt.HashSet<rt.u8> = _885[0];
+	const other: rt.HashSet<rt.u8> = _885[1];
+	if (rt.u8Rem(b, 2) === 0) {
+		rt.hashAdd(one, b);
+	}
+	if (rt.u8Rem(b, 3) === 0) {
+		rt.hashAdd(other, b);
+	}
+	const _906: rt.Iter<rt.u8> = rt.hashDifference(one, other);
+	const _910: rt.Iter<rt.u8> = rt.hashIntersection(one, other);
+	const _914: rt.Iter<rt.u8> = rt.hashSymmetricDifference(one, other);
+	const _918: rt.Iter<rt.u8> = rt.hashUnion(one, other);
+	const args100: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtIterClone(_906, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtIterClone(_910, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtIterClone(_914, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtIterClone(_918, f, rt.u8Debug)];
+	put(out, rt.fmtFormat([args100[0], "|", rt.fmtSpec({ alternate: true }, args100[1]), "|", args100[2], "|", args100[3]]));
+}
+
+export function ends$sources_array_IntoIter_fmt_Pair_2(it: rt.Iter<Pair.Pair>, front: rt.usize, back: rt.usize): rt.Iter<Pair.Pair> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_array_IntoIter_u8_4(it: rt.Iter<rt.u8>, front: rt.usize, back: rt.usize): rt.Iter<rt.u8> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_ChunksExact_u16(it: rt.Iter<rt.u16[]>, front: rt.usize, back: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_ChunksExact_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_Chunks_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_RChunksExact_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_RChunks_u16(it: rt.Iter<rt.u16[]>, front: rt.usize, back: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_RChunks_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_RSplitMut_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_RSplit_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_SplitInclusiveMut_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_SplitInclusive_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_SplitMut_u16_fmt_sources_closure9(it: rt.Iter<rt.u16[]>, front: rt.usize, back: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_SplitMut_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_Split_u16_fmt_sources_closure9(it: rt.Iter<rt.u16[]>, front: rt.usize, back: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_Split_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_Windows_u16(it: rt.Iter<rt.u16[]>, front: rt.usize, back: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_slice_Windows_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize, back: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_str_CharIndices(it: rt.Iter<[rt.usize, rt.char]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, rt.char]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$sources_string_Drain(it: rt.Iter<rt.char>, front: rt.usize, back: rt.usize): rt.Iter<rt.char> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function fronts$sources_iter_Once_u8(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_iter_Successors_Option_u8_fmt_sources_closure4(it: rt.Iter<rt.u8 | undefined>, front: rt.usize): rt.Iter<rt.u8 | undefined> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next(), rt.None);
+	}
+}
+
+export function fronts$sources_iter_Successors_u8_fmt_sources_closure3(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_option_IterMut_u8(it: rt.Iter<rt.Place<rt.u8>>, front: rt.usize): rt.Iter<rt.Place<rt.u8>> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_option_Iter_fmt_Pair(it: rt.Iter<Pair.Pair>, front: rt.usize): rt.Iter<Pair.Pair> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_result_IntoIter_fmt_Pair(it: rt.Iter<Pair.Pair>, front: rt.usize): rt.Iter<Pair.Pair> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_result_IterMut_fmt_Pair(it: rt.Iter<Pair.Pair>, front: rt.usize): rt.Iter<Pair.Pair> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_RSplitNMut_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_RSplitN_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_SplitNMut_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_SplitN_u16_fmt_sources_closure9(it: rt.Iter<rt.u16[]>, front: rt.usize): rt.Iter<rt.u16[]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_SplitN_u8_fmt_sources_closure8(it: rt.Iter<rt.ByteSlice>, front: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$sources_slice_Windows_u8(it: rt.Iter<rt.ByteSlice>, front: rt.usize): rt.Iter<rt.ByteSlice> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
 	}
 }
 
