@@ -1528,8 +1528,10 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 	})
 }
 
-/// What clones a `str` search's searcher of `pattern`: its closure, if it is one.
+/// What clones a `str` search's searcher of `pattern`: its closure, if it is one or a box
+/// of one, which is the closure.
 fn searcher<'tcx>(b: &mut Body<'_, '_, 'tcx>, pattern: Ty<'tcx>, span: Span) -> Expr {
+	let pattern = b.t.unboxed(pattern);
 	match pattern.kind() {
 		ty::Closure(..) => parts(vec![("f", super::collections::clone_fn(b, pattern, span))]),
 		_ => Expr::undefined(),
