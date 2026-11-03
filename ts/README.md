@@ -315,7 +315,8 @@ one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics 
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
 `insert`, `retain`, `replace_range`, and the rest, assign the edited one to the local or
 field the `&mut` borrows, taking and checking byte offsets as std does, and `retain` then
-drops its closure. A `&mut str` is
+drops its closure. `+`, of a `String` or a `Cow<str>`, is JS's `+` of the moved text, as
+`+=` is. A `&mut str` is
 the `rt.Place` of its `String` wherever that is, and a part of one, from `&mut s[a..b]`,
 `get_mut`, or `split_at_mut`, is `rt.strPart(p, a, b)`, a place of its own that writes the
 whole string anew, checking its offsets as `&s[a..b]` does. `as_bytes_mut`,

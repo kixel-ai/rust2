@@ -624,9 +624,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				);
 				done(next, true)
 			}
-			// A JS string can't change in place, so what the `&mut` borrows gets a new one.
+			// A JS string can't change in place, so what the `&mut` borrows gets a new one. A
+			// `Cow<str>` is its text, as a `String` is.
 			("String", "push" | "push_str") | ("AddAssign", "add_assign")
-				if owner == "String" || targ(0).is_some_and(|t| self.b.t.std_of(t) == Some(Std::String)) =>
+				if owner == "String"
+					|| (targ(0).is_some_and(|t| library::string(tcx, t)) && !self.b.t.translated(def_id, gargs)) =>
 			{
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let text = self.operand(&args[1].node, span, out);

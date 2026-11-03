@@ -419,7 +419,14 @@ fn edit(s: &mut String, op: u8, a: u8, b: u8, out: &mut Vec<u8>) {
 	let (i, j) = (offset(s, a), offset(s, b));
 	match op % 14 {
 		0 => s.push_str(&piece),
-		1 => *s += &piece,
+		// `+=`, and `+`, which moves the `String` it pushes onto: of a `&str`, and through
+		// deref of a `&String`, a `&&str`, and the `&mut String` itself, chained.
+		1 => match b % 4 {
+			0 => *s += &piece,
+			1 => *s = std::mem::take(s) + &piece,
+			2 => *s = std::mem::take(s) + "" + &&*piece + &piece,
+			_ => *s = String::with_capacity(usize::from(a)) + s + "",
+		},
 		2 if a % 4 == 0 => s.clear(),
 		2 => s.push(ALPHABET[usize::from(b % 16)]),
 		3 => s.truncate(i),
@@ -504,6 +511,9 @@ pub fn edits(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		put(out, &s);
 		put(out, &named.name);
 	}
+	// `+` of the local itself, moved.
+	let s = s + "😀" + &named.name;
+	put(out, &s);
 }
 
 /// Where `bool`, `char`, and `NonZero` parse or fail: case, whitespace, each UTF-8 width,
