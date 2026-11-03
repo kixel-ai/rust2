@@ -69,13 +69,37 @@ export function caught$u8_ref_panics_called_closure7(f: () => rt.u8): rt.u8 {
 	rt.panicFmt(["internal error: entered unreachable code: a panic aborts"]);
 }
 
+/** Write `to` over what `at` points at. */
+export function replace$panic_AssertUnwindSafe_Vec_u8(at: rt.ByteVec, to: rt.ByteVec): void {
+	Object.assign(at, to);
+}
+
+/** Write `to` over what `at` points at. */
+export function replace$panic_AssertUnwindSafe_sync_Arc_u8(at: rt.Place<rt.Arc<rt.u8>>, to: rt.Arc<rt.u8>): void {
+	at.v[Symbol.dispose]();
+	at.v = to;
+}
+
 /** `AssertUnwindSafe` of values, read and written as what it holds. */
 export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let f!: rt.ByteVec;
-	let _199: boolean = false;
+	let _234: boolean = false;
 	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
-	const _7: rt.u8 = rt.u8Rem(kind, 6);
-	if (_7 === 0) {
+	const _7: rt.u8 = rt.u8Rem(kind, 7);
+	if (_7 === 6) {
+		let a: rt.Arc<rt.u8> = new rt.Arc(first);
+		const shared: rt.Arc<rt.u8> = rt.arcClone(a);
+		const _16: rt.Arc<rt.u8> = new rt.Arc(9);
+		replace$panic_AssertUnwindSafe_sync_Arc_u8(rt.place(() => a, (value) => a = value), _16);
+		const v: rt.ByteVec = rt.byteSliceToByteVec(data);
+		const before: rt.usize = v.length;
+		const _25: rt.ByteVec = rt.byteVecOf(first, 3);
+		replace$panic_AssertUnwindSafe_Vec_u8(v, _25);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(shared.value, a.value, shared.strong & 0xff, before & 0xff)), undefined, true);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v));
+		shared[Symbol.dispose]();
+		a[Symbol.dispose]();
+	} else if (_7 === 0) {
 		let w: rt.usize = data.length;
 		w = rt.usizeAdd(w, 1);
 		rt.byteVecPush(out, w & 0xff);
@@ -84,20 +108,20 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		w = rt.usizeAdd(w, first as rt.usize);
 		rt.byteVecPush(out, w & 0xff);
 	} else if (_7 === 1) {
-		const v: rt.ByteVec = rt.byteSliceToByteVec(data);
-		rt.byteVecPush(v, first);
-		rt.byteVecPush(v, 9);
-		rt.byteVecRetain(v, (b2: rt.u8): boolean => {
+		const v2: rt.ByteVec = rt.byteSliceToByteVec(data);
+		rt.byteVecPush(v2, first);
+		rt.byteVecPush(v2, 9);
+		rt.byteVecRetain(v2, (b2: rt.u8): boolean => {
 			return rt.u8Rem(b2, 2) === 0;
 		});
-		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v));
-		rt.byteVecPush(out, v.length & 0xff);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v2));
+		rt.byteVecPush(out, v2.length & 0xff);
 	} else if (_7 === 2) {
 		const p: Point.Point = { x: first, y: 2 };
-		const _54: rt.u8 = rt.u8WrappingAdd(p.x, 1);
-		p.x = _54;
-		const _60: rt.u8 = rt.u8WrappingMul(p.y, first);
-		p.y = _60;
+		const _89: rt.u8 = rt.u8WrappingAdd(p.x, 1);
+		p.x = _89;
+		const _95: rt.u8 = rt.u8WrappingMul(p.y, first);
+		p.y = _95;
 		const copy: Point.Point = copy$panics_Point(p);
 		p.x = 0;
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(copy.x, copy.y, p.x, p.y)), undefined, true);
@@ -105,52 +129,52 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		nested = rt.u8WrappingAdd(nested, 5);
 		rt.byteVecPush(out, nested);
 	} else if (_7 === 3) {
-		const _97: rt.u8 = first;
-		const _99: rt.u8 = first;
-		const _101: string = text(data);
-		const _103: rt.i8 = -1;
-		const _105: Point.Point = { x: first, y: 0 };
-		const _109: [rt.u8, string] = [first, "a"];
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.u8Debug(_97, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.u8Debug(_99, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtStr(_101, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.i8Debug(_103, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => Point.fmt$fmt_Debug(_105, f)])]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(_109[0], f), (f: rt.Formatter) => rt.fmtStr(_109[1], f)], f)])];
+		const _132: rt.u8 = first;
+		const _134: rt.u8 = first;
+		const _136: string = text(data);
+		const _138: rt.i8 = -1;
+		const _140: Point.Point = { x: first, y: 0 };
+		const _144: [rt.u8, string] = [first, "a"];
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.u8Debug(_132, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.u8Debug(_134, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtStr(_136, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.i8Debug(_138, f)]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => Point.fmt$fmt_Debug(_140, f)])]), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(_144[0], f), (f: rt.Formatter) => rt.fmtStr(_144[1], f)], f)])];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], "|", rt.fmtSpec({ alternate: true }, args2[1]), "|", args2[2], "|", rt.fmtSpec({ width: 5 }, args2[3]), "|", args2[4], "|", rt.fmtSpec({ alternate: true }, args2[5])])));
 	} else if (_7 === 4) {
 		const d: rt.u8 = 0;
 		const s2: string = "";
 		const p2: Point.Point = Point.default$Default();
-		const v2: rt.ByteVec = new rt.ByteVec();
+		const v3: rt.ByteVec = new rt.ByteVec();
 		const e: rt.u8 = first;
 		f = rt.byteSliceToByteVec(data);
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(d, rt.stringLen(s2) & 0xff, p2.x, p2.y, v2.length & 0xff, e, f.length & 0xff)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(d, rt.stringLen(s2) & 0xff, p2.x, p2.y, v3.length & 0xff, e, f.length & 0xff)), undefined, true);
 	} else {
 		const log: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
-		const a: Logged.Logged = new Logged.Logged(1, log);
+		const a2: Logged.Logged = new Logged.Logged(1, log);
 		let b: Logged.Logged = new Logged.Logged(2, log);
-		const _163: Logged.Logged = new Logged.Logged(3, log);
-		_199 = true;
-		const c: Logged.Logged = _163;
-		a[Symbol.dispose]();
-		const _167: Logged.Logged = new Logged.Logged(4, log);
-		const _169: Logged.Logged = b;
-		_169[Symbol.dispose]();
-		Object.assign(_169, _167);
-		const _171: Logged.Logged = new Logged.Logged(5, log);
+		const _198: Logged.Logged = new Logged.Logged(3, log);
+		_234 = true;
+		const c: Logged.Logged = _198;
+		a2[Symbol.dispose]();
+		const _202: Logged.Logged = new Logged.Logged(4, log);
+		const _204: Logged.Logged = b;
+		_204[Symbol.dispose]();
+		Object.assign(_204, _202);
+		const _206: Logged.Logged = new Logged.Logged(5, log);
 		b[Symbol.dispose]();
-		b = _171;
+		b = _206;
 		if (rt.u8Rem(first, 2) === 0) {
-			_199 = false;
+			_234 = false;
 			c[Symbol.dispose]();
 		}
-		const _181: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
-		rt.byteVecPush(_181.value, b._0);
-		rt.refMutRelease(_181);
+		const _216: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
+		rt.byteVecPush(_216.value, b._0);
+		rt.refMutRelease(_216);
 		b[Symbol.dispose]();
-		const _191: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
-		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(_191.value))), undefined, true);
-		rt.refRelease(_191);
-		if (_199) {
+		const _226: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
+		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(_226.value))), undefined, true);
+		rt.refRelease(_226);
+		if (_234) {
 			c[Symbol.dispose]();
 		}
-		_199 = false;
+		_234 = false;
 	}
 }
 

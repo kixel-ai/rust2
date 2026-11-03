@@ -1347,8 +1347,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		)
 	}
 
-	/// Whether `ty`'s JS value, through the `Pin`s and `Box`es JS erases, is of an `rt` class
-	/// that keeps its state private, which `rt.ptrWrite` moves in by its `$move`.
+	/// Whether `ty`'s JS value, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s JS
+	/// erases, is of an `rt` class that keeps its state private, which `rt.ptrWrite` moves in
+	/// by its `$move`.
 	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		matches!(
@@ -1357,22 +1358,25 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		)
 	}
 
-	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s and `Box`es.
+	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s, `Box`es, and
+	/// `AssertUnwindSafe`s.
 	pub fn erased(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		use library::Std;
 		let mut erased = ty;
 		while let ty::Adt(adt, args) = erased.kind()
-			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::Pin | Std::Box))
-		{
+			&& matches!(
+				Std::of(self.tcx, adt.did()),
+				Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+			) {
 			erased = args.type_at(0);
 		}
 		erased
 	}
 
-	/// The kind of a `pointee`'s object, through the `Pin`s and `Box`es JS erases, where a
-	/// whole value of it can be written into the object in place: one only its owner
-	/// holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose state
-	/// a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
+	/// The kind of a `pointee`'s object, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s
+	/// JS erases, where a whole value of it can be written into the object in place: one only
+	/// its owner holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose
+	/// state a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
 	/// class it is.
 	pub fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
 		use library::Std;

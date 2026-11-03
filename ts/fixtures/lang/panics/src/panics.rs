@@ -1,6 +1,6 @@
 //! `std::panic` under wasm32's `panic=abort`: `AssertUnwindSafe` made, read and written
-//! through `Deref`, `DerefMut`, and its field, called, awaited, printed, defaulted, and
-//! converted into, dropping what it holds where Rust drops it; `catch_unwind`, which only
+//! through `Deref`, `DerefMut`, and its field, replaced whole through a `&mut`, called,
+//! awaited, printed, defaulted, and converted into, dropping what it holds where Rust drops it; `catch_unwind`, which only
 //! ever returns `Ok` or panics on, of closures, functions, and wrapped closures that drop
 //! what they own; `panic_any`, whose hook writes a payload of text and `Box<dyn Any>` for any
 //! other; `resume_unwind`, which aborts without the hook; and `Debug` of a `dyn Any`.
@@ -10,6 +10,7 @@ use std::cell::RefCell;
 use std::future::Future;
 use std::panic::{self, AssertUnwindSafe};
 use std::pin::pin;
+use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 
 /// Logs its byte as it drops.
@@ -40,10 +41,26 @@ fn caught<R>(f: impl FnOnce() -> R + panic::UnwindSafe) -> R {
 	}
 }
 
+/// Write `to` over what `at` points at.
+fn replace<T>(at: &mut T, to: T) {
+	*at = to;
+}
+
 /// `AssertUnwindSafe` of values, read and written as what it holds.
 pub fn wrapped(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let first = data.first().copied().unwrap_or(0);
-	match kind % 6 {
+	match kind % 7 {
+		6 => {
+			// Replaced whole through a `&mut`: a handle another shares, and bytes.
+			let mut a = AssertUnwindSafe(Arc::new(first));
+			let shared = Arc::clone(&a);
+			replace(&mut a, AssertUnwindSafe(Arc::new(9)));
+			let mut v = AssertUnwindSafe(data.to_vec());
+			let before = v.len();
+			replace(&mut v, AssertUnwindSafe(vec![first; 3]));
+			out.extend([*shared, **a, Arc::strong_count(&shared) as u8, before as u8]);
+			out.extend_from_slice(&v);
+		}
 		0 => {
 			let mut w = AssertUnwindSafe(data.len());
 			*w += 1;
