@@ -231,6 +231,17 @@ fn vtables(data: &[u8], out: &mut Vec<u8>) {
 		out.push((RawWaker::new(data_of(byte), l) == RawWaker::new(data_of(byte >> 1), r)).into());
 		mem::forget((wl, wr));
 	}
+	// Written whole through a `&mut`, into a copy of a static, which keeps its own, and into
+	// a raw waker.
+	let mut copy = A;
+	let mut raw = RawWaker::new(ptr::null(), &A);
+	for &byte in data {
+		replace(&mut copy, tables[usize::from(byte % 4)]);
+		replace_raw(&mut raw, byte);
+		out.push((copy == B).into());
+		out.push((raw == RawWaker::new(data_of(byte), &B)).into());
+	}
+	out.push((A == A_AGAIN).into());
 	let noop = Waker::noop();
 	out.push((*noop.vtable() == *Waker::noop().vtable()).into());
 	out.push((*noop.vtable() == A).into());
@@ -239,6 +250,16 @@ fn vtables(data: &[u8], out: &mut Vec<u8>) {
 	let borrowed = ManuallyDrop::new(unsafe { Waker::new(noop.data(), noop.vtable()) });
 	borrowed.wake_by_ref();
 	out.push(borrowed.will_wake(noop).into());
+}
+
+/// Write `by`'s functions over `table`'s.
+fn replace(table: &mut RawWakerVTable, by: &RawWakerVTable) {
+	*table = *by;
+}
+
+/// Write a raw waker of vtable `B` over `raw`.
+fn replace_raw(raw: &mut RawWaker, byte: u8) {
+	*raw = RawWaker::new(data_of(byte), &B);
 }
 
 /// Counts the wakes through it.

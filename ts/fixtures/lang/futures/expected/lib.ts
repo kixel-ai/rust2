@@ -6,6 +6,10 @@ import type * as Held from "./futures.Held.ts";
 import type * as Logged from "./futures.Logged.ts";
 import { raw } from "./raw.ts";
 
+export function copy$task_RawWakerVTable(v: rt.WakerVTable): rt.WakerVTable {
+	return rt.wakerVTable(v.clone, v.wake, v.wakeByRef, v.drop);
+}
+
 export function drop$task_Poll_futures_Logged(_1: rt.Poll<Logged.Logged>): void {
 	if (_1 !== rt.Pending) {
 		_1[Symbol.dispose]();

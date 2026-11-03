@@ -1392,7 +1392,7 @@ export function wakerVTable(
 	wakeByRef: (data: Place<undefined>) => void,
 	drop: (data: Place<undefined>) => void,
 ): WakerVTable {
-	return Object.freeze({ clone, wake, wakeByRef, drop });
+	return { clone, wake, wakeByRef, drop };
 }
 
 /** `RawWaker`: a waker's data and vtable, under std's names. */
