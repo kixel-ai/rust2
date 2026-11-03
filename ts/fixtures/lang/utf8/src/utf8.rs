@@ -55,6 +55,12 @@ pub fn lossy(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		out.push(text.len() as u8);
 		let owned: String = text.into_owned();
 		put(out, &owned);
+		// Its UTF-8 again, taken unchecked.
+		put(out, unsafe { std::str::from_utf8_unchecked(owned.as_bytes()) });
+		let from: Vec<u8> = owned.clone().into();
+		out.extend_from_slice(&from);
+		out.extend_from_slice(&Vec::from(owned.as_str()));
+		put(out, &unsafe { String::from_utf8_unchecked(owned.into_bytes()) });
 
 		let mut chunks = rest.utf8_chunks();
 		put(out, &format!("{chunks:?}|{chunks:#?}"));

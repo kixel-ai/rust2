@@ -2094,6 +2094,11 @@ export function stringAsBytes(s: string): ByteSlice {
 	return byteSliceFrom(encoder.encode(s));
 }
 
+/** `String::into_bytes`: its UTF-8 bytes. */
+export function stringIntoBytes(s: string): ByteVec {
+	return byteVecFrom(encoder.encode(s));
+}
+
 /** `str::len`: its length in UTF-8 bytes. */
 export function stringLen(s: string): number {
 	return encoder.encode(s).length;

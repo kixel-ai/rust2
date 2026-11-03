@@ -1466,6 +1466,13 @@ fn mapping<'tcx>(
 			if string(tcx, to) && string(tcx, from.peel_refs()) {
 				return Some(b.t.pointee_value(targ(gargs, 1), value));
 			}
+			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
+			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
+				return Some(Expr::rt(
+					"stringIntoBytes",
+					vec![b.t.pointee_value(targ(gargs, 1), value)],
+				));
+			}
 			// A `Vec` is owned, and a reference to a slice, an array, or a `Vec` borrows its slice.
 			if let Some(elem) = cow_slice(tcx, to) {
 				let owned = b.t.std_of(targ(gargs, 1)) == Some(Std::Vec);
@@ -2463,8 +2470,14 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
+		("String", "into_bytes") => Expr::rt("stringIntoBytes", args),
 		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
 		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
+		// UTF-8 by their contract, which the lossy decoder reads as the text.
+		("converts" | "str", "from_utf8_unchecked") => Expr::rt("stringFromUtf8Lossy", args),
+		("String", "from_utf8_unchecked") => {
+			Expr::rt("stringFromUtf8Lossy", vec![Expr::rt("byteVecSlice", vec![args.pop()?])])
+		}
 		("FromUtf8Error", "as_bytes") => Expr::rt("byteVecSlice", vec![args.pop()?.member("bytes")]),
 		("FromUtf8Error", "into_bytes") => args.pop()?.member("bytes"),
 		("FromUtf8Error", "utf8_error") => args.pop()?.member("error"),

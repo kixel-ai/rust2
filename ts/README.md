@@ -220,7 +220,9 @@ becomes U+FFFD, and so does an odd byte at the end.
 `String::from_utf8_lossy` is a `TextDecoder`'s, which writes one U+FFFD for each maximal
 invalid sequence, as std's does; its `Cow<str>` is the text either way. `utf8_chunks` splits
 where `str::from_utf8` fails, so each `Utf8Chunk`'s `invalid` bytes are std's, and `Debug`
-of it writes what is left as std's does, each invalid byte as `\xNN`.
+of it writes what is left as std's does, each invalid byte as `\xNN`. `from_utf8_unchecked`,
+of a `str` or a `String`, decodes as `from_utf8_lossy` does the UTF-8 its contract promises.
+`String::into_bytes` and `Vec::<u8>::from` a string encode its UTF-8 anew.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
