@@ -9,7 +9,7 @@
 // plain loops here. A panic in `less` leaves the slice as it is, which wasm32, where a
 // panic aborts, never shows.
 
-import { panic } from "../rt.ts";
+import { byValue, panic } from "../rt.ts";
 import { drop as dispose } from "./task.ts";
 
 type Slice<T> = { [i: number]: T; length: number };
@@ -33,6 +33,10 @@ type Sort<T> = {
 
 /** `sort`, `sort_by`, and `sort_by_key`: std's driftsort of `s` by `less`, of elements `size` bytes long on wasm32. */
 export function sliceSort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean): void {
+	byValue(s as T[], (s) => driftsort(s, less, size, freeze));
+}
+
+function driftsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean): void {
 	const n = s.length;
 	if (size === 0 || n < 2) return;
 	if (n <= 20) {
@@ -50,6 +54,10 @@ export function sliceSort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: b
 
 /** `sort_unstable` and its `_by` and `_by_key` forms: std's ipnsort of `s` by `less`, of elements `size` bytes long on wasm32. */
 export function sliceSortUnstable<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
+	byValue(s as T[], (s) => ipnsort(s, less, size, freeze, copy));
+}
+
+function ipnsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
 	const n = s.length;
 	if (size === 0 || n < 2) return;
 	if (n <= 20) {
@@ -82,15 +90,17 @@ export function sliceSortByCachedKey<T, K>(s: Slice<T>, key: (item: T) => K, lt:
 	const indices: [K, number][] = [];
 	for (let i = 0; i < n; i++) indices.push([key(s[i]), i]);
 	if (owns) dispose(key);
-	sliceSortUnstable(indices, lt, size, freeze, copy);
-	for (let i = 0; i < n; i++) {
-		let index = indices[i][1];
-		while (index < i) index = indices[index][1];
-		indices[i][1] = index;
-		const t = s[i];
-		s[i] = s[index];
-		s[index] = t;
-	}
+	ipnsort(indices, lt, size, freeze, copy);
+	byValue(s as T[], (s) => {
+		for (let i = 0; i < n; i++) {
+			let index = indices[i][1];
+			while (index < i) index = indices[index][1];
+			indices[i][1] = index;
+			const t = s[i];
+			s[i] = s[index];
+			s[index] = t;
+		}
+	});
 	if (drop !== undefined) for (const [k] of indices) drop(k);
 }
 
