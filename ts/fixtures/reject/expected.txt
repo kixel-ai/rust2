@@ -83,7 +83,6 @@ fixtures/reject/src/keys.rs:keyed_across+1:11: unsupported call to `std::ops::Ra
 fixtures/reject/src/keys.rs:keyed_across+1:32: unsupported call to `<std::ops::RangeFrom<u8> as std::ops::RangeBounds<u8>>::contains::<keys::Key>`
 fixtures/reject/src/keys.rs:place_bounds+1:9: unsupported call to `std::ops::Range::<&mut u8>::is_empty`
 fixtures/reject/src/keys.rs:places_sorted+1:15: unsupported call to `<std::slice::IterMut<'_, u8> as std::iter::Iterator>::is_sorted`
-fixtures/reject/src/keys.rs:ranked_cells+1:22: `collect` of `std::collections::BTreeMap<std::cell::Cell<keys::Ranked>, places::Noisy>`, which sorts by `std::cell::Cell<keys::Ranked>`'s own `Ord`, of entries that drop, which is not supported yet
 fixtures/reject/src/keys.rs:set_keys+1:75: comparing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
 fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
 fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`

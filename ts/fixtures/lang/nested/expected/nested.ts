@@ -285,22 +285,22 @@ export function consumers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return option_map$0cs071d(o2, (b4: rt.u8): rt.u8 => {
 			return rt.u8Rem(b4, 4);
 		});
-	}, rt.cmpLt(rt.cmpOption(rt.cmp)), undefined, undefined, undefined, rt.None)));
+	}, rt.cmpLt(rt.cmpOption(rt.cmp)), undefined, undefined, undefined, undefined, rt.None)));
 	rt.byteVecPush(out, code(rt.iterMinByKey(it(), (o3: rt.u8 | undefined): rt.u8 | undefined => {
 		return option_map$0cs071d(o3, (b5: rt.u8): rt.u8 => {
 			return rt.u8Rem(b5, 4);
 		});
-	}, rt.cmpLt(rt.cmpOption(rt.cmp)), undefined, undefined, undefined, rt.None)));
+	}, rt.cmpLt(rt.cmpOption(rt.cmp)), undefined, undefined, undefined, undefined, rt.None)));
 	rt.byteVecPush(out, code(rt.iterMaxByKey(it(), (o4: rt.u8 | undefined): rt.u8 | undefined | rt.None => {
 		return option_map$0rbsrz6(o4, (b6: rt.u8): rt.u8 | undefined => {
 			return thenSome$0d5am30(rt.u8Rem(b6, 4) !== 0, rt.u8Rem(b6, 3));
 		});
-	}, rt.cmpLt(rt.cmpOption(rt.cmpOption(rt.cmp), rt.None)), undefined, undefined, undefined, rt.None)));
+	}, rt.cmpLt(rt.cmpOption(rt.cmpOption(rt.cmp), rt.None)), undefined, undefined, undefined, undefined, rt.None)));
 	rt.byteVecPush(out, code(rt.iterMinByKey(it(), (o5: rt.u8 | undefined): rt.u8 | undefined | rt.None => {
 		return option_map$0rbsrz6(o5, (b7: rt.u8): rt.u8 | undefined => {
 			return thenSome$0d5am30(rt.u8Rem(b7, 4) !== 0, rt.u8Rem(b7, 3));
 		});
-	}, rt.cmpLt(rt.cmpOption(rt.cmpOption(rt.cmp), rt.None)), undefined, undefined, undefined, rt.None)));
+	}, rt.cmpLt(rt.cmpOption(rt.cmpOption(rt.cmp), rt.None)), undefined, undefined, undefined, undefined, rt.None)));
 	rt.byteVecPush(out, code(rt.iterFind(rt.iterSlice(items), (o6: rt.u8 | undefined): boolean => {
 		return o6 === undefined;
 	}, undefined, rt.None)));
