@@ -125,11 +125,11 @@ export function ones(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.byteVecFromVec(heap2.d)), undefined, true);
 	rt.tupleExtendOne([undefined] as [undefined], rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_216: rt.u8): [undefined] => {
 		return [undefined] as [undefined];
-	}), (_c11, items10) => rt.iterFold(items10, undefined, () => undefined));
+	}), (_c11, items10) => rt.iterForEach(items10, () => undefined));
 	let seen: rt.u8 = 0;
-	rt.iterFold(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_217: rt.u8): undefined => {
+	rt.iterForEach(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_217: rt.u8): undefined => {
 		seen = rt.u8Add(seen, 1);
-	}), undefined, () => undefined);
+	}), () => undefined);
 	rt.byteVecPush(out, seen);
 }
 
