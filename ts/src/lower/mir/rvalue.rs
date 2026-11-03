@@ -215,7 +215,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					expr: rv,
 					value: self.const_int(r),
 				};
-				num::binary(self.b, op, l, r, lty, rty, span)
+				let value = num::binary(self.b, op, l, r, lty, rty, span);
+				match op {
+					BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => super::fold(value),
+					_ => value,
+				}
 			}
 			Rvalue::UnaryOp(op, operand) => {
 				let aty = operand.ty(&self.mir.local_decls, tcx);

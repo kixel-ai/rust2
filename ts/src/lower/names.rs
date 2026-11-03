@@ -74,8 +74,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 	pub(super) fn names(&self) -> Names {
 		let tcx = self.tcx;
 		let mut names = Names::default();
-		// The copies, drops, and slots of `Ok` parts `lib.ts` makes.
-		for shim in ["copy", "drop", "out"] {
+		// The copies, drops, slots of `Ok` parts, and trait objects' classes `lib.ts` makes.
+		for shim in ["copy", "drop", "out", "of", "ofPlace"] {
 			importable(&mut names, shim, Vec::new());
 		}
 		for (module, namespace, prefix) in self.bound_files() {

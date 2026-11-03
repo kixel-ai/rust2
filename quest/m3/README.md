@@ -17,7 +17,7 @@ generic std gap is planned here even when moq never calls it.
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
 - [The capacity of a BytesMut](/quest/m3/ts-bytes-capacity.md) - `BytesMut::capacity` and what reads it translate with `bytes`' values
-- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Error`'s downcasts translate, so a consumer neither rewrites nor binds them
+- [Trait objects](/quest/m3/ts-dyn.md) - std's other traits, generic traits, traits with an associated type, and `Any::type_id` translate, so a consumer neither rewrites nor binds them
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
 - [A boxed iterator folds as std's box does](/quest/m3/ts-box-folds.md) - a `Box<I>` reads by `next` where std's `Iterator` for `Box<I>` forwards nothing else
@@ -31,11 +31,11 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [Folds from the back, and a crate's own folds](/quest/m3/ts-iter-back-folds.md) - `rfold` and `try_rfold` translate, and so does a crate's iterator that overrides `fold` or `nth_back`
-- [A comparison of two constants](/quest/m3/ts-constant-compares.md) - `size_of::<T>() == 1` in a generic function translates to TypeScript `tsc` accepts
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
-- [Adding to a String](/quest/m3/ts-string-add.md) - `String + &str` translates as `+=` does
+- [Popping a String that is reassigned elsewhere](/quest/m3/ts-reassigned-pop.md) - `pop`, `remove`, and `split_off` of a local some other path assigns whole translate
+- [Whether a type needs drop](/quest/m3/ts-needs-drop.md) - `mem::needs_drop::<T>()` translates as rustc's constant for each instance
 - [Operator trait methods called by path](/quest/m3/ts-operator-paths.md) - `<u8 as AddAssign>::add_assign` and every other `std::ops` operator method translate called by path or as a value
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
