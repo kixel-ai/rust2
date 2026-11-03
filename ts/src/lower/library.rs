@@ -1003,7 +1003,7 @@ fn takes_none(owner: &str, name: &str) -> bool {
 				)
 				| ("Arc" | "Rc", "into_inner")
 				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind")
-				| ("dyn Any", "downcast_ref" | "downcast_mut")
+				| ("dyn Any" | "dyn Error", "downcast_ref" | "downcast_mut")
 				| ("ptr", "as_ref" | "as_mut")
 				| ("from_fn", "from_fn")
 				| ("successors", "successors")
@@ -1567,7 +1567,7 @@ fn mapping<'tcx>(
 		("Not", "not") if let Some((_, int)) = overflowing(tcx, targ(gargs, 0).peel_refs()) => {
 			num::unary(b, rustc_middle::mir::UnOp::Not, args.pop()?, int, span)
 		}
-		// Operators on references to primitives.
+		// Operators on primitives, called by path, and on references to them.
 		(_, _)
 			if let Some(op) = operator(&owner)
 				&& primitive(targ(gargs, 0).peel_refs()) =>
@@ -1583,6 +1583,13 @@ fn mapping<'tcx>(
 				rty,
 				span,
 			)
+		}
+		("Neg", "neg") | ("Not", "not") if primitive(targ(gargs, 0).peel_refs()) => {
+			let op = match name.as_str() {
+				"neg" => rustc_middle::mir::UnOp::Neg,
+				_ => rustc_middle::mir::UnOp::Not,
+			};
+			num::unary(b, op, args.pop()?, targ(gargs, 0), span)
 		}
 		// Every value of a type holding nothing is equal, and no `!` is ever compared.
 		("PartialEq", "eq" | "ne")
@@ -2309,6 +2316,11 @@ fn mapping<'tcx>(
 		// A `Box<str>` is its text, as a `String` is.
 		("String", "as_str" | "into_boxed_str") | ("str", "into_string") => args.pop()?,
 		("String", "new") => Expr::Str(String::new()),
+		// `String + &str` and `Cow<str>`'s, which push onto the moved text as `+=` does.
+		("Add", "add") if string(tcx, targ(gargs, 0)) => {
+			let text = args.pop()?;
+			args.pop()?.binary("+", text)
+		}
 		("String", "with_capacity") => Expr::rt("stringWithCapacity", args),
 		// Of the place the `&mut` is, which it writes as it drops, and of a range, as `Vec::drain`.
 		("String", "drain") => {
@@ -2459,6 +2471,13 @@ fn mapping<'tcx>(
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.align.abi.bytes().to_string())
 		}
+		// rustc's answers for the instance, which a JS value that drops nothing, such as a
+		// `String`'s, leaves as they are.
+		("mem", "needs_drop") => {
+			let needs = targ(gargs, 0).needs_drop(tcx, b.t.typing_env_pub());
+			Expr::lit(needs.to_string())
+		}
+		("any", "type_name" | "type_name_of_val") => Expr::Str(rustc_const_eval::util::type_name(tcx, targ(gargs, 0))),
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.
 		("mem", "size_of_val" | "align_of_val") => {
@@ -3255,7 +3274,7 @@ fn compared<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	primitive(ty).then_some(ty)
 }
 
-fn primitive(ty: Ty<'_>) -> bool {
+pub fn primitive(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char) || super::float::is(ty)
 }
 

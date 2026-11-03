@@ -419,7 +419,14 @@ fn edit(s: &mut String, op: u8, a: u8, b: u8, out: &mut Vec<u8>) {
 	let (i, j) = (offset(s, a), offset(s, b));
 	match op % 14 {
 		0 => s.push_str(&piece),
-		1 => *s += &piece,
+		// `+=`, and `+`, which moves the `String` it pushes onto: of a `&str`, and through
+		// deref of a `&String`, a `&&str`, and the `&mut String` itself, chained.
+		1 => match b % 4 {
+			0 => *s += &piece,
+			1 => *s = std::mem::take(s) + &piece,
+			2 => *s = std::mem::take(s) + "" + &&*piece + &piece,
+			_ => *s = String::with_capacity(usize::from(a)) + s + "",
+		},
 		2 if a % 4 == 0 => s.clear(),
 		2 => s.push(ALPHABET[usize::from(b % 16)]),
 		3 => s.truncate(i),
@@ -490,13 +497,16 @@ pub fn edits(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		let [op, a, b] = [op[0], *op.get(1).unwrap_or(&0), *op.get(2).unwrap_or(&0x10)];
 		match op / 64 {
 			0 => edit(&mut named.name, op, a, b, out),
-			// On the local itself, with no `&mut` between.
-			1 => match op % 6 {
+			// On the local itself, with no `&mut` between, which the `+` after the loop assigns whole.
+			1 => match op % 8 {
 				0 => s.push_str("é/"),
 				1 => s.truncate(offset(&s, a)),
 				2 => put_char(out, s.pop()),
 				3 => s.insert_str(offset(&s, a), "😀"),
 				4 => put(out, &s.split_off(offset(&s, a))),
+				// Of a constant offset, which reads nothing between the borrow and the edit.
+				5 => put_char(out, Some(s.remove(0))),
+				6 => put(out, &s.split_off(1)),
 				_ => s.clear(),
 			},
 			_ => edit(&mut s, op, a, b, out),
@@ -504,6 +514,9 @@ pub fn edits(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		put(out, &s);
 		put(out, &named.name);
 	}
+	// `+` of the local itself, moved.
+	s = s + "😀" + &named.name;
+	put(out, &s);
 }
 
 /// Where `bool`, `char`, and `NonZero` parse or fail: case, whitespace, each UTF-8 width,

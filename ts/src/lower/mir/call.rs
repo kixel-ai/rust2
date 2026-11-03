@@ -624,9 +624,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				);
 				done(next, true)
 			}
-			// A JS string can't change in place, so what the `&mut` borrows gets a new one.
+			// A JS string can't change in place, so what the `&mut` borrows gets a new one. A
+			// `Cow<str>` is its text, as a `String` is.
 			("String", "push" | "push_str") | ("AddAssign", "add_assign")
-				if owner == "String" || targ(0).is_some_and(|t| self.b.t.std_of(t) == Some(Std::String)) =>
+				if owner == "String"
+					|| (targ(0).is_some_and(|t| library::string(tcx, t)) && !self.b.t.translated(def_id, gargs)) =>
 			{
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let text = self.operand(&args[1].node, span, out);
@@ -802,11 +804,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				done(Expr::rt(f, values), true)
 			}
-			// A `Wrapping` or a `Saturating` is its integer, so what the `&mut` borrows gets the
-			// wrapped or saturated result.
+			// What the `&mut` borrows gets the result: a primitive's operator's, as `+=` on one
+			// computes, or a `Wrapping`'s or a `Saturating`'s, which is its integer, wrapped or
+			// saturated.
 			(_, _)
 				if let Some(op) = owner.strip_suffix("Assign").and_then(library::operator)
-					&& let Some((overflow, int)) = targ(0).and_then(|t| library::overflowing(tcx, t)) =>
+					&& let Some(ty) = targ(0)
+					&& (library::primitive(ty) || library::overflowing(tcx, ty).is_some()) =>
 			{
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let by = self.operand(&args[1].node, span, out);
@@ -818,15 +822,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					expr: by,
 					value: self.const_int(&args[1].node),
 				};
-				let value = crate::lower::num::overflowing(self.b, overflow, op, l, r, int, span);
+				let value = match library::overflowing(tcx, ty) {
+					Some((overflow, int)) => crate::lower::num::overflowing(self.b, overflow, op, l, r, int, span),
+					None => crate::lower::num::binary(self.b, op, l, r, ty, targ(1)?, span),
+				};
 				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
 			}
 			// A `Cow<[T]>` that borrows takes a clone of its slice, whose `Vec` the `&mut` lends.
 			("Cow", "to_mut") if let ty::Slice(elem) = targ(0)?.kind() => {
 				let place = self.borrowed_place(&args[0].node, span, out)?;
-				// Read twice, by the clone and by the store.
-				self.materialize(&place.0, out);
 				let owned = library::cow_cloned(self.b, "IntoOwned", place.0.clone(), *elem, span);
 				let owned = self.path(owned, "owned", out);
 				self.set_borrowed(&place, owned.clone(), span, out);
@@ -1185,7 +1190,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// reference, which a store resolves: an alias of a borrowed place, not a copy of a
 	/// reference, which holds the object it points at, or an `rt.Place`, whose `v` it is,
 	/// or else the object it points at, written in place. A `[u8; N]`'s is a copy of its
-	/// bytes instead, which the store writes in place.
+	/// bytes instead, which the store writes in place. What it reads that is held back is
+	/// emitted, as an edit reads it and then writes it, where MIR reads it once.
 	fn borrowed_place(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Option<Borrowed<'tcx>> {
 		let (Operand::Copy(place) | Operand::Move(place)) = op else {
 			return None;
@@ -1200,23 +1206,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let slice = self.slice_path(slice, out);
 			return Some((Expr::rt("byteSliceToArray", vec![slice]), Some(deref)));
 		}
-		match &self.slots[place.local] {
+		let borrowed = match &self.slots[place.local] {
 			Slot::Alias(Some(target)) if assignable(target) && self.alias_of_place(place.local) => {
-				Some((target.clone(), Some(deref)))
+				(target.clone(), Some(deref))
 			}
 			_ if self.b.t.place_pointee(self.mir.local_decls[place.local].ty).is_some() => {
-				Some((self.place_expr(deref, span, out), Some(deref)))
+				(self.place_expr(deref, span, out), Some(deref))
 			}
 			_ if self.in_object(deref) => {
 				let target = self.place_expr(deref, span, out);
-				Some((self.path(target, "object", out), Some(deref)))
+				(self.path(target, "object", out), Some(deref))
 			}
 			_ => {
 				let pointee = self.mir.local_decls[place.local].ty.peel_refs();
 				let err = self.err(span, format!("replacing the value behind a reference to `{pointee}`"));
-				Some((err, None))
+				(err, None)
 			}
-		}
+		};
+		self.materialize(&borrowed.0, out);
+		Some(borrowed)
 	}
 
 	/// `slice::from_mut`, `array::from_mut`, or with `cell`, `Cell::from_mut` of `op`, a
@@ -1447,8 +1455,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Some(payload) = payload else {
 			return Some(Some((target, true)));
 		};
-		// The test reads it before either branch, so what it reads is set before both.
-		self.materialize(&target, out);
 		let whole = tcx.mk_place_deref(args[0].node.place()?);
 		let option_ty = whole.ty(&self.mir.local_decls, tcx).ty;
 		// What it inserts, made before the `Option` is read, as Rust makes the argument.

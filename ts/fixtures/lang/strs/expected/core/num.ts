@@ -203,7 +203,7 @@ export function fromAsciiBytesRadixImpl$0xhcrxt(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0jbbuu8(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i16, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$0ut8llb(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i16, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -211,7 +211,7 @@ export function fromAsciiBytesRadixImpl$0jbbuu8(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > -32768;
+				const isSignedTy: boolean = true;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -355,7 +355,7 @@ export function fromAsciiBytesRadixImpl$0jbbuu8(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0p2idzk(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i32, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1ykgy6m(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i32, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -363,7 +363,7 @@ export function fromAsciiBytesRadixImpl$0p2idzk(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > -2147483648;
+				const isSignedTy: boolean = true;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -659,7 +659,7 @@ export function fromAsciiBytesRadixImpl$01tfvb9(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$18og5o1(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$0k9pjln(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -667,7 +667,7 @@ export function fromAsciiBytesRadixImpl$18og5o1(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > -128;
+				const isSignedTy: boolean = true;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -811,7 +811,7 @@ export function fromAsciiBytesRadixImpl$18og5o1(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$05ylgyc(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.isize, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1hpkcx2(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.isize, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -819,7 +819,7 @@ export function fromAsciiBytesRadixImpl$05ylgyc(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > -2147483648;
+				const isSignedTy: boolean = true;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -1115,7 +1115,7 @@ export function fromAsciiBytesRadixImpl$0r1q6uy(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1ukmfx2(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u16, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$0q4dbht(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u16, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -1123,7 +1123,7 @@ export function fromAsciiBytesRadixImpl$1ukmfx2(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -1267,7 +1267,7 @@ export function fromAsciiBytesRadixImpl$1ukmfx2(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$0ax4wbr(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u32, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1xmrosk(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u32, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -1275,7 +1275,7 @@ export function fromAsciiBytesRadixImpl$0ax4wbr(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value5 = src.data[src.start];
 					if (value5 === 43 || value5 === 45) {
@@ -1571,7 +1571,7 @@ export function fromAsciiBytesRadixImpl$02xpj41(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1n9fygl(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$037x42t(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -1579,7 +1579,7 @@ export function fromAsciiBytesRadixImpl$1n9fygl(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -1723,7 +1723,7 @@ export function fromAsciiBytesRadixImpl$1n9fygl(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$00hojjd(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.usize, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1cdwgun(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.usize, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -1731,7 +1731,7 @@ export function fromAsciiBytesRadixImpl$00hojjd(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {

@@ -196,7 +196,7 @@ export function fromAsciiBytesRadixImpl$0xhcrxt(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$18og5o1(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$0k9pjln(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -204,7 +204,7 @@ export function fromAsciiBytesRadixImpl$18og5o1(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > -128;
+				const isSignedTy: boolean = true;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -352,19 +352,19 @@ export function fromStr$0zyj6he(src: string): rt.Result<rt.i128, rt.ParseIntErro
 	return fromStrRadix$0366bau(src, 10);
 }
 
-export function fromStr$0ovlgjd(src: string): rt.Result<rt.i8, rt.ParseIntError> {
-	return fromStrRadix$0s9rspw(src, 10);
+export function fromStr$029r9bb(src: string): rt.Result<rt.i8, rt.ParseIntError> {
+	return fromStrRadix$0dg9fx3(src, 10);
 }
 
 export function fromStrRadix$0366bau(src: string, radix: rt.u32): rt.Result<rt.i128, rt.ParseIntError> {
 	return fromAsciiBytesRadixImpl$0xhcrxt(rt.stringAsBytes(src), radix);
 }
 
-export function fromStrRadix$0s9rspw(src: string, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
-	return fromAsciiBytesRadixImpl$18og5o1(rt.stringAsBytes(src), radix);
+export function fromStrRadix$0dg9fx3(src: string, radix: rt.u32): rt.Result<rt.i8, rt.ParseIntError> {
+	return fromAsciiBytesRadixImpl$0k9pjln(rt.stringAsBytes(src), radix);
 }
 
-export function fromAsciiBytesRadixImpl$0ax4wbr(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u32, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$1xmrosk(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u32, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -372,7 +372,7 @@ export function fromAsciiBytesRadixImpl$0ax4wbr(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value5 = src.data[src.start];
 					if (value5 === 43 || value5 === 45) {
@@ -668,7 +668,7 @@ export function fromAsciiBytesRadixImpl$02xpj41(src: rt.ByteSlice, radix: rt.u32
 	fromAsciiBytesRadixPanic(radix);
 }
 
-export function fromAsciiBytesRadixImpl$1n9fygl(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
+export function fromAsciiBytesRadixImpl$037x42t(src: rt.ByteSlice, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
 	let _12_0!: boolean;
 	let _12_1Data!: Uint8Array;
 	let _12_1Start!: number;
@@ -676,7 +676,7 @@ export function fromAsciiBytesRadixImpl$1n9fygl(src: rt.ByteSlice, radix: rt.u32
 	if (!(2 > radix)) {
 		if (!(radix > 36)) {
 			if (!(src.length === 0)) {
-				const isSignedTy: boolean = 0 > 0;
+				const isSignedTy: boolean = false;
 				if (src.length === 1) {
 					const value7 = src.data[src.start];
 					if (value7 === 43 || value7 === 45) {
@@ -824,16 +824,16 @@ export function fromStr$1ypcnp8(src: string): rt.Result<rt.u64, rt.ParseIntError
 	return fromStrRadix$1gp4jqq(src, 10);
 }
 
-export function fromStr$1hq0zfa(src: string): rt.Result<rt.u8, rt.ParseIntError> {
-	return fromStrRadix$0nj08um(src, 10);
+export function fromStr$1s51v8m(src: string): rt.Result<rt.u8, rt.ParseIntError> {
+	return fromStrRadix$1s6gdoj(src, 10);
 }
 
 export function fromStrRadix$1gp4jqq(src: string, radix: rt.u32): rt.Result<rt.u64, rt.ParseIntError> {
 	return fromAsciiBytesRadixImpl$02xpj41(rt.stringAsBytes(src), radix);
 }
 
-export function fromStrRadix$0nj08um(src: string, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
-	return fromAsciiBytesRadixImpl$1n9fygl(rt.stringAsBytes(src), radix);
+export function fromStrRadix$1s6gdoj(src: string, radix: rt.u32): rt.Result<rt.u8, rt.ParseIntError> {
+	return fromAsciiBytesRadixImpl$037x42t(rt.stringAsBytes(src), radix);
 }
 
 //# sourceMappingURL=num.ts.map

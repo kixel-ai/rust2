@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type Debug, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtDebugTuple, fmtPad, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, vecAssign } from "../rt.ts";
+import { Abort, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -349,6 +349,23 @@ export class Mutex<T> implements Disposable {
 	}
 }
 
+/** `Debug` of a `Mutex`: its value, locked while it is written, or `"<locked>"`, a string, while a guard holds it. */
+export function mutexDebug<T>(mutex: Mutex<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const b = fmtDebugStruct(f, "Mutex");
+	if (mutex.locked) debugStructField(b, "data", (f) => fmtStr("<locked>", f));
+	else {
+		mutexLock(mutex);
+		debugStructField(b, "data", (f) => debug(mutex.value, f));
+		mutexUnlock(mutex);
+	}
+	return lockFinish(b);
+}
+
+/** A lock's `Debug` after its `data`: that it is never poisoned, as a panic aborts. */
+function lockFinish(b: DebugStruct): FmtResult {
+	return debugStructFinishNonExhaustive(debugStructField(b, "poisoned", (f) => fmtBool(false, f)));
+}
+
 /** `TryLockError<T>`, tagged as the crate's own enums are; a panic aborts, so it is never `Poisoned`. */
 export type TryLockError<T> = { readonly tag: "Poisoned"; readonly _0: T } | { readonly tag: "WouldBlock" };
 
@@ -464,6 +481,30 @@ export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
 	const old = cell.value;
 	cell.value = value;
 	return old;
+}
+
+/** `Debug` of a `RefCell`: its value, borrowed while it is written, or `<borrowed>` unpadded while borrowed exclusively. */
+export function refCellDebug<T>(cell: RefCell<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const b = fmtDebugStruct(f, "RefCell");
+	if (cell.borrows < 0) debugStructField(b, "value", (f) => f.out.writeStr("<borrowed>"));
+	else {
+		refCellBorrow(cell);
+		debugStructField(b, "value", (f) => debug(cell.value, f));
+		refRelease(cell);
+	}
+	return debugStructFinish(b);
+}
+
+/** `Debug` of an `RwLock`: its value, read while it is written, or `<locked>` unpadded while written. */
+export function rwLockDebug<T>(lock: RefCell<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const b = fmtDebugStruct(f, "RwLock");
+	if (lock.borrows < 0) debugStructField(b, "data", (f) => f.out.writeStr("<locked>"));
+	else {
+		rwLockRead(lock);
+		debugStructField(b, "data", (f) => debug(lock.value, f));
+		refRelease(lock);
+	}
+	return lockFinish(b);
 }
 
 /** `RwLock::read`: a shared guard, which aborts while a write is held, as wasm32's does. */
@@ -677,6 +718,11 @@ export class Cell<T> implements Place<T>, Disposable {
 	[Symbol.dispose](): void {
 		drop(this.v);
 	}
+}
+
+/** `Debug` of a `Cell` of a `Copy` value, given what `Cell::get` gave before anything is written. */
+export function cellDebug<T>(value: T, f: Formatter, debug: Debug<T>): FmtResult {
+	return debugStructFinish(debugStructField(fmtDebugStruct(f, "Cell"), "value", (f) => debug(value, f)));
 }
 
 /** `Cell::from_mut` of the place `p`: a cell of it, which nothing drops, as nothing owns it. */
