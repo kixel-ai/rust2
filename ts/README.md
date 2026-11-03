@@ -213,6 +213,10 @@ capital sigma, which `to_lowercase` writes final at the end of a word, as std re
 cased and case-ignorable neighbors. `escape_debug`, `escape_default`, and `escape_unicode`
 are std's `flat_map` of each char's, sized as it is, and write what they have left by
 `Display`, unpadded. `encode_utf16` is sized as std's, and `Debug` of it is `EncodeUtf16 { .. }`.
+`String::from_utf16` and `from_utf16_lossy`, and `from_utf16le`, `from_utf16be`, and
+their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired surrogate
+fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
+becomes U+FFFD, and so does an odd byte at the end.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
@@ -880,7 +884,7 @@ they need.
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
   whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
   where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
-  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
+  capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
   as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that

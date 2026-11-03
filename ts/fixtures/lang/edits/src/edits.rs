@@ -1,7 +1,8 @@
 //! `Vec`'s and slices' editing and sorting methods, with closures that log what they are
 //! called with, `Clone` and comparisons of vectors, tuples, boxes, and `Option`s that are
 //! not `Copy`, `mem::take`, `replace`, and `swap`, called and as function values,
-//! `mem::size_of`, `Ord`'s defaults on the crate's own types, and `str`'s byte searches.
+//! `mem::size_of`, `Ord`'s defaults on the crate's own types, `str`'s byte searches, and
+//! the `Vec` and `VecDeque` methods that resize, split, and append one.
 
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -654,6 +655,293 @@ pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				log.borrow_mut().push(0xf5);
 			}
 			out.extend_from_slice(&log.borrow());
+		}
+	}
+}
+
+/// Logs `0xcc` and its id as it clones, and its id and how many clones from the first it is
+/// as it drops, so which of a vector's values are clones, and when each drops, shows.
+struct Tracked<'a> {
+	id: u8,
+	copies: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Clone for Tracked<'_> {
+	fn clone(&self) -> Self {
+		self.log.borrow_mut().extend([0xcc, self.id]);
+		Tracked {
+			id: self.id,
+			copies: self.copies + 1,
+			log: self.log,
+		}
+	}
+}
+
+impl Drop for Tracked<'_> {
+	fn drop(&mut self) {
+		self.log.borrow_mut().extend([self.id, self.copies]);
+	}
+}
+
+/// The range of `0..=len + 1` two bytes pick, which may be past `len` or end before it
+/// starts.
+fn picked(a: u8, b: u8, len: usize) -> std::ops::Range<usize> {
+	usize::from(a) % (len + 2)..usize::from(b) % (len + 2)
+}
+
+/// `q` with its items moved from the front to the back `n % 8` times, which wraps them past
+/// the end of its buffer.
+fn wrap<T>(q: &mut VecDeque<T>, n: u8) {
+	for _ in 0..n % 8 {
+		if let Some(x) = q.pop_front() {
+			q.push_back(x);
+		}
+	}
+}
+
+/// `Vec`'s and `VecDeque`'s `resize`, `resize_with`, `split_off`, `append`, and `Vec`'s
+/// `extend_from_within`: which values clone, in order, and when each removed one drops,
+/// against a closure that owns one; whether a value written after it is shared with
+/// another, of objects and of arrays and tuples JS holds by reference; bytes, which are an
+/// `rt.ByteVec`; `Vec::from` of a deque; and a deque's `range_mut` of items JS copies. Each
+/// panics with std's message past the end.
+pub fn resizes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let log = RefCell::new(Vec::new());
+	let tracked = |id: u8| Tracked {
+		id,
+		copies: 0,
+		log: &log,
+	};
+	let mark = |m: u8| log.borrow_mut().push(m);
+	let ids = |v: &[Tracked]| v.iter().flat_map(|t| [t.id, t.copies]).collect::<Vec<u8>>();
+	match kind % 6 {
+		0 => {
+			{
+				let mut v: Vec<Tracked> = data.iter().take(6).map(|&b| tracked(b)).collect();
+				v.resize(usize::from(at(0) % 10), tracked(0xa0));
+				mark(0xf0);
+				out.extend(ids(&v));
+				let owned = tracked(0xe0);
+				let mut n = 0;
+				v.resize_with(usize::from(at(1) % 10), move || {
+					n += 1;
+					// The whole of `owned`, which drops with the closure.
+					let owned = &owned;
+					Tracked {
+						id: owned.id + n,
+						copies: 0,
+						log: owned.log,
+					}
+				});
+				mark(0xf1);
+				out.extend(ids(&v));
+				let mut tail = v.split_off(usize::from(at(2)) % (v.len() + 1));
+				mark(0xf2);
+				out.extend(ids(&tail));
+				v.extend_from_within(picked(at(3), at(4), v.len()).start.min(v.len())..);
+				mark(0xf3);
+				v.append(&mut tail);
+				out.push(tail.len() as u8);
+				out.extend(ids(&v));
+				mark(0xf4);
+			}
+			out.extend_from_slice(&log.borrow());
+			// Each panics past the end, or with a range that ends before it starts.
+			let mut v: Vec<u16> = data.iter().map(|&b| u16::from(b) << 4).collect();
+			match kind >> 3 & 3 {
+				0 => drop(v.split_off(usize::from(at(5)) % (v.len() + 2))),
+				1 => v.extend_from_within(picked(at(5), at(6), v.len())),
+				2 => v.extend_from_within(usize::from(at(5)) % (v.len() + 2)..=usize::from(at(6)) % (v.len() + 2)),
+				_ => v.extend_from_within(..=usize::from(at(5)) % (v.len() + 2)),
+			}
+			for x in v {
+				out.extend(x.to_be_bytes());
+			}
+		}
+		1 => {
+			// A value written once resized or extended within is its own, not its source's.
+			let named = |w: u16| Named {
+				id: w,
+				name: text(&[w as u8]),
+			};
+			let mut v: Vec<Named> = data.iter().take(4).map(|&b| named(u16::from(b))).collect();
+			v.resize(usize::from(at(0) % 8), named(0x1ff));
+			v.extend_from_within(..);
+			for (i, n) in v.iter_mut().enumerate().skip(1).step_by(2) {
+				n.name.push('!');
+				n.id += i as u16;
+			}
+			for n in &v {
+				put(out, &n.name);
+				out.extend(n.id.to_be_bytes());
+			}
+			let mut pairs: Vec<[u16; 2]> = data.iter().take(3).map(|&b| [u16::from(b), 0]).collect();
+			pairs.resize(usize::from(at(1) % 7), [7, 7]);
+			pairs.extend_from_within(usize::from(at(2)) % (pairs.len() + 1)..);
+			let mut tuples: Vec<(u8, u16)> = data.iter().take(3).map(|&b| (b, 1)).collect();
+			tuples.resize_with(usize::from(at(3) % 7), || (at(4), 2));
+			tuples.extend_from_within(..tuples.len() / 2);
+			let mut moved = pairs.split_off(pairs.len() / 2);
+			for (i, p) in pairs.iter_mut().chain(moved.iter_mut()).enumerate() {
+				p[i % 2] += i as u16;
+			}
+			for t in tuples.iter_mut().step_by(2) {
+				t.1 += 10;
+			}
+			pairs.append(&mut moved);
+			for p in pairs.iter().flatten() {
+				out.extend(p.to_be_bytes());
+			}
+			for (a, b) in &tuples {
+				out.push(*a);
+				out.extend(b.to_be_bytes());
+			}
+			out.push(moved.len() as u8);
+			let mut keys: Vec<[u8; 2]> = data.chunks_exact(2).take(3).map(|c| [c[0], c[1]]).collect();
+			keys.resize(usize::from(at(5) % 6), [9, 9]);
+			keys.extend_from_within(..);
+			let mut rest = keys.split_off(keys.len() / 3);
+			for (i, k) in keys.iter_mut().chain(rest.iter_mut()).enumerate().step_by(2) {
+				k[i % 2] ^= 0xff;
+			}
+			keys.append(&mut rest);
+			out.extend(keys.iter().flatten());
+		}
+		2 => {
+			// Bytes, on every short prefix of the input.
+			for data in (0..data.len().min(3)).map(|n| &data[..n]).chain([data]) {
+				let at = |i: usize| data.get(i).copied().unwrap_or(0);
+				let mut v = data.to_vec();
+				v.resize(usize::from(at(0) % 9), 0xaa);
+				out.extend_from_slice(&v);
+				let mut n = 0;
+				v.resize_with(usize::from(at(1) % 9), || {
+					n += 3;
+					n
+				});
+				out.extend_from_slice(&v);
+				v.extend_from_within(usize::from(at(2)) % (v.len() + 1)..);
+				out.extend_from_slice(&v);
+				let mut tail = v.split_off(usize::from(at(3)) % (v.len() + 1));
+				out.extend_from_slice(&tail);
+				tail.push(0xbb);
+				v.append(&mut tail);
+				out.extend_from_slice(&v);
+				out.push(tail.len() as u8);
+				out.push(0xfe);
+			}
+			let mut v = data.to_vec();
+			match kind >> 3 & 1 {
+				0 => drop(v.split_off(usize::from(at(5)) % (v.len() + 2))),
+				_ => v.extend_from_within(picked(at(5), at(6), v.len())),
+			}
+			out.extend_from_slice(&v);
+		}
+		3 => {
+			{
+				let mut q: VecDeque<Tracked> = data.iter().take(5).map(|&b| tracked(b)).collect();
+				wrap(&mut q, at(0));
+				q.resize(usize::from(at(1) % 9), tracked(0xa0));
+				mark(0xf0);
+				let owned = tracked(0xe0);
+				let mut n = 0;
+				q.resize_with(usize::from(at(2) % 9), move || {
+					n += 1;
+					// The whole of `owned`, which drops with the closure.
+					let owned = &owned;
+					Tracked {
+						id: owned.id + n,
+						copies: 0,
+						log: owned.log,
+					}
+				});
+				mark(0xf1);
+				let mut tail = q.split_off(usize::from(at(3)) % (q.len() + 1));
+				mark(0xf2);
+				out.extend(tail.iter().flat_map(|t| [t.id, t.copies]));
+				tail.push_front(tracked(0xd0));
+				q.append(&mut tail);
+				out.push(tail.len() as u8);
+				out.extend(q.iter().flat_map(|t| [t.id, t.copies]));
+				mark(0xf3);
+				let v = Vec::from(q);
+				out.extend(ids(&v));
+				mark(0xf4);
+			}
+			out.extend_from_slice(&log.borrow());
+			let mut q: VecDeque<u16> = data.iter().map(|&b| u16::from(b)).collect();
+			drop(q.split_off(usize::from(at(5)) % (q.len() + 2)));
+			out.push(q.len() as u8);
+		}
+		4 => {
+			// `range_mut` writes each item JS copies in place, and an object it lends.
+			let mut q: VecDeque<u16> = data.iter().map(|&b| u16::from(b)).collect();
+			wrap(&mut q, at(0));
+			let r = picked(at(1), at(2), q.len());
+			let (lo, hi) = (r.start.min(q.len()), r.end.min(q.len()));
+			for (i, x) in q.range_mut(lo.min(hi)..hi).enumerate() {
+				*x += 0x100 * (i as u16 + 1);
+			}
+			let mut it = q.range_mut(lo.min(hi)..);
+			if let Some(x) = it.next_back() {
+				*x ^= 0xffff;
+			}
+			for x in &q {
+				out.extend(x.to_be_bytes());
+			}
+			let mut named: VecDeque<Named> = q
+				.iter()
+				.map(|&w| Named {
+					id: w,
+					name: text(&[w as u8]),
+				})
+				.collect();
+			for n in named.range_mut(lo.min(hi)..hi) {
+				n.name.push('+');
+			}
+			for n in &named {
+				put(out, &n.name);
+			}
+			let bytes: VecDeque<u8> = data.iter().copied().collect();
+			let mut bytes = bytes;
+			if let Some(b) = bytes.range_mut(..).next() {
+				*b = b.wrapping_add(1);
+			}
+			out.extend_from_slice(&Vec::from(bytes));
+			// Panics past the end, or with a range that ends before it starts.
+			for x in q.range_mut(picked(at(3), at(4), q.len())) {
+				*x += 1;
+			}
+			out.push(q.len() as u8);
+		}
+		_ => {
+			// A deque of bytes, wrapped, and of values JS copies.
+			let mut q: VecDeque<u8> = data.iter().copied().collect();
+			wrap(&mut q, at(0));
+			q.resize(usize::from(at(1) % 9), 0xaa);
+			let mut n = 0;
+			q.resize_with(usize::from(at(2) % 9), || {
+				n += 3;
+				n
+			});
+			let mut tail = q.split_off(usize::from(at(3)) % (q.len() + 1));
+			out.extend(tail.iter());
+			tail.push_front(0xdd);
+			q.append(&mut tail);
+			out.extend(q.iter());
+			out.extend_from_slice(&Vec::from(q));
+			let mut pairs: VecDeque<[u16; 2]> = data.iter().take(4).map(|&b| [u16::from(b), 0]).collect();
+			pairs.resize(usize::from(at(4) % 7), [7, 7]);
+			let mut moved = pairs.split_off(pairs.len() / 2);
+			for (i, p) in pairs.iter_mut().chain(moved.iter_mut()).enumerate() {
+				p[i % 2] += i as u16;
+			}
+			pairs.append(&mut moved);
+			for p in Vec::from(pairs).iter().flatten() {
+				out.extend(p.to_be_bytes());
+			}
 		}
 	}
 }
