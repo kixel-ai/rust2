@@ -80,7 +80,7 @@ export function addressedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.byteSliceSame(before2, after2) ? 1 : 0);
 				rt.byteVecExtendFromSlice(out, after2);
 				rt.drop(shadow);
-				const at: rt.Place<rt.u8> = number;
+				const at: rt.Place<rt.u8> = rt.arcPlace(number);
 				const _95: rt.Place<rt.u8> | undefined = rt.arcGetMutPlace(number);
 				if (_95 !== undefined) {
 					_95.v = _95.v ^ op;
@@ -98,12 +98,12 @@ export function addressedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				}));
 				rt.drop(kept);
 				const other: rt.Arc<undefined> = new rt.Arc(undefined);
-				const before3: rt.Place<undefined> = unit;
+				const before3: rt.Place<undefined> = rt.arcPlace(unit);
 				const shadow2: rt.Arc<undefined> | undefined = then$0duifht((op & 128) !== 0, (): rt.Arc<undefined> => {
 					return rt.arcClone(unit);
 				});
 				rt.arcMakeMutPlace(rt.place(() => unit, (value3) => unit = value3), undefined, rt.drop);
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === unit ? 1 : 0, other === unit ? 1 : 0)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === rt.arcPlace(unit) ? 1 : 0, rt.arcPlace(other) === rt.arcPlace(unit) ? 1 : 0)), undefined, true);
 				rt.drop(shadow2);
 				other[Symbol.dispose]();
 			}
@@ -709,7 +709,7 @@ export function addressedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.byteSliceSame(before2, after2) ? 1 : 0);
 				rt.byteVecExtendFromSlice(out, after2);
 				rt.drop(shadow);
-				const at: rt.Place<rt.u8> = number;
+				const at: rt.Place<rt.u8> = rt.arcPlace(number);
 				const _95: rt.Place<rt.u8> | undefined = rt.arcGetMutPlace(number);
 				if (_95 !== undefined) {
 					_95.v = _95.v ^ op;
@@ -727,12 +727,12 @@ export function addressedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				}));
 				rt.drop(kept);
 				const other: rt.Arc<undefined> = new rt.Arc(undefined);
-				const before3: rt.Place<undefined> = unit;
+				const before3: rt.Place<undefined> = rt.arcPlace(unit);
 				const shadow2: rt.Arc<undefined> | undefined = then$0duifht((op & 128) !== 0, (): rt.Arc<undefined> => {
 					return rt.arcClone(unit);
 				});
 				rt.arcMakeMutPlace(rt.place(() => unit, (value3) => unit = value3), undefined, rt.drop);
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === unit ? 1 : 0, other === unit ? 1 : 0)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === rt.arcPlace(unit) ? 1 : 0, rt.arcPlace(other) === rt.arcPlace(unit) ? 1 : 0)), undefined, true);
 				rt.drop(shadow2);
 				other[Symbol.dispose]();
 			}

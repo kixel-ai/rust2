@@ -106,24 +106,13 @@ export function lent<A extends unknown[], R>(f: (...args: A) => R): (...args: A)
 
 // Shared ownership
 
-/**
- * `Arc<T>` and `Rc<T>`: every clone is this one object, counted, as are its `Weak`s. It is
- * its allocation, so it is the place of its value, which `as_ptr` points at.
- */
-export class Arc<T> implements Disposable, Place<T> {
+/** `Arc<T>` and `Rc<T>`: every clone is this one object, counted, as are its `Weak`s. */
+export class Arc<T> implements Disposable {
 	strong = 1;
 	weak = 0;
 	value: T;
 
 	constructor(value: T) {
-		this.value = value;
-	}
-
-	get v(): T {
-		return this.value;
-	}
-
-	set v(value: T) {
 		this.value = value;
 	}
 
@@ -144,11 +133,6 @@ export class ArcDyn<T, U> implements Disposable {
 	constructor(arc: Arc<T>, value: U) {
 		this.arc = arc;
 		this.value = value;
-	}
-
-	/** Its value, as an `Arc`'s place gives it. */
-	get v(): U {
-		return this.value;
 	}
 
 	get strong(): number {
@@ -309,6 +293,19 @@ export function valuePlace<T>(holder: { value: T }): Place<T> {
 			holder.value = value;
 		},
 	);
+}
+
+/** The place of each `Arc`'s value that `arcPlace` made. */
+const places = new WeakMap<Arc<unknown>, Place<unknown>>();
+
+/**
+ * `Arc::as_ptr` of a value JS copies: the place of its value, one for the allocation the
+ * `Arc` is, as its address is.
+ */
+export function arcPlace<T>(arc: Arc<T>): Place<T> {
+	let at = places.get(arc);
+	if (at === undefined) places.set(arc, (at = valuePlace(arc)));
+	return at as Place<T>;
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */
