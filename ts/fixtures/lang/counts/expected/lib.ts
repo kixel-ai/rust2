@@ -2,10 +2,10 @@
 
 import * as rt from "./rt.ts";
 import { addressedArcs, arcs, clonedArcs, cyclicArcs, uniqueArcs, addressedRcs, clonedRcs, cyclicRcs, rcs, uniqueRcs, copies } from "./counts.ts";
-import * as ArcReleasing from "./counts.ArcReleasing.ts";
+import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
 import * as Noisy from "./counts.Noisy.ts";
-import * as RcReleasing from "./counts.RcReleasing.ts";
+import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 
 export function copy$Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8, rt.u8] | undefined {
@@ -14,18 +14,6 @@ export function copy$Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8,
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
-}
-
-export function copy$counts_ArcReleasing(v: ArcReleasing.ArcReleasing): ArcReleasing.ArcReleasing {
-	return new ArcReleasing.ArcReleasing(v.id, v.others, v.log);
-}
-
-export function copy$counts_Noisy(v: Noisy.Noisy): Noisy.Noisy {
-	return new Noisy.Noisy(v.id, v.log);
-}
-
-export function copy$counts_RcReleasing(v: RcReleasing.RcReleasing): RcReleasing.RcReleasing {
-	return new RcReleasing.RcReleasing(v.id, v.others, v.log);
 }
 
 export function copy$tuple2_u16_u8(v: [rt.u16, rt.u8]): [rt.u16, rt.u8] {

@@ -1,10 +1,10 @@
 //! Copies of `Copy` aggregates, by their type.
 //!
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
-//! the crate's code writes into in place is copied where Rust copies it. A function made
-//! for its type copies what it holds by value and shares what it holds by reference, as
-//! Rust does. A value of a type nothing writes into never changes once made, so sharing
-//! it is a copy no one can tell apart.
+//! the crate's code writes into in place, or compares pointers to, is copied where Rust
+//! copies it. A function made for its type copies what it holds by value and shares what
+//! it holds by reference, as Rust does. A value of a type nothing writes into or compares
+//! pointers to never changes once made, so sharing it is a copy no one can tell apart.
 
 use std::cell::RefCell;
 
@@ -28,12 +28,13 @@ use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
-	/// value, a JS object the crate's code writes into in place.
+	/// value, a JS object the crate's code writes into in place or compares pointers to.
 	pub fn needs_copy(&self, ty: Ty<'tcx>) -> bool {
 		self.is_copy(ty) && self.changes(ty)
 	}
 
-	/// Whether a value of `ty` is, or holds by value, a JS object the crate writes into.
+	/// Whether a value of `ty` is, or holds by value, a JS object the crate writes into or
+	/// compares pointers to.
 	fn changes(&self, ty: Ty<'tcx>) -> bool {
 		let (object, parts): (bool, Vec<Ty<'tcx>>) = match ty.kind() {
 			ty::Tuple(tys) if !tys.is_empty() => (true, tys.to_vec()),
@@ -60,8 +61,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			_ => return false,
 		};
-		object && self.writes.contains(&self.writes.into, false, self.tcx, ty)
+		object && (self.writes.contains(&self.writes.into, false, self.tcx, ty) || self.addressed(ty))
 			|| parts.into_iter().any(|t| self.changes(t))
+	}
+
+	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
+	/// so each copy of one is at an address of its own, as in Rust, wherever it is read.
+	pub fn held_addressed(&self, ty: Ty<'tcx>) -> bool {
+		!self.compared.is_empty() && by_value(self.tcx, self.typing_env(), ty).any(|part| self.addressed(part))
+	}
+
+	/// Whether the runs before compared pointers to a `ty`.
+	fn addressed(&self, ty: Ty<'tcx>) -> bool {
+		self.compared.contains(&storage(self.tcx, ty))
 	}
 
 	/// Whether the crate may give the part of a `ty` kept as a JS object in the field `at`,
@@ -94,25 +106,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	/// Note a comparison of pointers to a `ty`, which [`Self::taken`] counts from the next
-	/// run on if a pointer may be made into it, or into what holds it, through a reference,
-	/// by any body.
+	/// Note a comparison of pointers to a `ty`, which the next run copies each value of as
+	/// it is read, and which [`Self::taken`] counts if a pointer may be made into it, or into
+	/// what holds it, through a reference, by any body.
 	pub fn compare(&mut self, ty: Ty<'tcx>) {
-		let (tcx, env, writes) = (self.tcx, self.typing_env(), &self.writes);
-		let stored = storage(tcx, ty);
-		let kept = (ty.has_param() || ty.is_freeze(tcx, env))
-			&& std::iter::once(&writes.taken)
-				.chain(writes.taken_in.values())
-				.any(|taken| {
-					writes.contains(taken, true, tcx, ty)
-						|| taken
-							.concrete
-							.iter()
-							.any(|&taken| by_value(tcx, env, taken).any(|part| storage(tcx, part) == stored))
-				});
-		if kept {
-			self.comparing.insert(stored);
-		}
+		self.comparing.insert(storage(self.tcx, ty));
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, a type parameter standing for

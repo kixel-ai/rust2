@@ -166,14 +166,9 @@ pub fn call<'tcx>(
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
 					};
-					// What moves or copies the value to a new allocation, as std's does when
-					// only `Weak`s share it, or when its clone shares it in JS: a new object
-					// where a pointer to it is the object, which compares, whether or not the
-					// crate writes into it.
-					let moved = match b.t.pointee(value) {
-						super::pointer::Pointee::Object | super::pointer::Pointee::Bytes => b.t.shim(value, call.span),
-						super::pointer::Pointee::Place | super::pointer::Pointee::Slice => None,
-					};
+					// What moves the value to a new allocation, as std's does when only `Weak`s
+					// share it: a new object where pointers to it compare.
+					let moved = b.t.held_addressed(value).then(|| b.t.shim(value, call.span)).flatten();
 					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();
 					Expr::rt(format!("arcMakeMut{place}"), values)
 				}

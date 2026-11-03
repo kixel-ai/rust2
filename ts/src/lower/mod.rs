@@ -242,8 +242,7 @@ pub struct Translator<'a, 'tcx> {
 	cloned: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// Those this run reached.
 	cloning: rustc_data_structures::fx::FxHashSet<DefId>,
-	/// The types with no `UnsafeCell` whose pointers the runs before compared, into which
-	/// a callee may keep a pointer through a reference.
+	/// The types whose pointers the runs before compared, by their storage.
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
@@ -402,7 +401,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// writes it didn't read, or an instance of one writing a type parameter that it didn't
 	/// judge by. A closure's clone may come before or after the closure is made, which
 	/// makes it as its clones need, so it runs again too when it reaches a new one, and a
-	/// comparison of pointers may come before or after the borrows it decides.
+	/// comparison of pointers may come before or after the borrows and copies it decides.
 	fn settle<R>(
 		tcx: TyCtxt<'tcx>,
 		config: &'a Config,

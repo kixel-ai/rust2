@@ -5376,7 +5376,7 @@ export function measured(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function pointed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _5: [Uint8Array, Uint8Array] = [make$conversions_Value_array2_u8(data, 0), make$conversions_Value_array2_u8(data, 2)];
 	const a: Uint8Array = copy$array_u8(_5[0]);
-	const b: Uint8Array = _5[1];
+	const b: Uint8Array = copy$array_u8(_5[1]);
 	const _10: [Named.Named, Named.Named] = [Named.make$conversions_Value(data, 0), Named.make$conversions_Value(data, 3)];
 	const x: Named.Named = _10[0];
 	const y: Named.Named = _10[1];
