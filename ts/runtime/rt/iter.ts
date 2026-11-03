@@ -948,33 +948,43 @@ export function iterFlatten<T, V>(it: Iter<T>, into?: (value: T) => Iter<V>, fus
 // Debug. Each writes what std's `Debug` of an adaptor writes: its fields in std's order,
 // each iterator it wraps, an `I`, by the function given for its type, and no closure.
 
+/**
+ * What an adaptor's field holds as Rust sees it, from the iterator the adaptor reads: one
+ * borrowed by `&mut`, or the crate's own, which `iterFrom` reads.
+ */
+export function iterHeld<I>(it: Iter<unknown>): I {
+	if (it instanceof Borrowed) return it.inner as I;
+	if (it instanceof FromNext) return it.source as I;
+	return it as I;
+}
+
 /** `Debug` of an adaptor std writes as the iterator it wraps alone, under `field`. */
 export function fmtAdaptor<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>, field = "iter"): FmtResult {
-	return fmtDebugStructFields(f, name, [field], [(f) => inner((it as Adaptor<unknown, unknown>).inner as I, f)]);
+	return fmtDebugStructFields(f, name, [field], [(f) => inner(iterHeld((it as Adaptor<unknown, unknown>).inner), f)]);
 }
 
 /** `Debug` of an `Enumerate`: its iterator and the index it yields next. */
 export function fmtEnumerate<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
 	const e = it as EnumerateIter<unknown>;
-	return fmtDebugStructFields(f, "Enumerate", ["iter", "count"], [(f) => inner(e.inner as I, f), (f) => usizeDebug(e.index, f)]);
+	return fmtDebugStructFields(f, "Enumerate", ["iter", "count"], [(f) => inner(iterHeld(e.inner), f), (f) => usizeDebug(e.index, f)]);
 }
 
 /** `Debug` of a `Skip` or a `Take`, `name`: its iterator and how many it has left to skip or take. */
 export function fmtCounted<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>): FmtResult {
 	const c = it as SkipIter<unknown> | TakeIter<unknown>;
-	return fmtDebugStructFields(f, name, ["iter", "n"], [(f) => inner(c.inner as I, f), (f) => usizeDebug(c.n, f)]);
+	return fmtDebugStructFields(f, name, ["iter", "n"], [(f) => inner(iterHeld(c.inner), f), (f) => usizeDebug(c.n, f)]);
 }
 
 /** `Debug` of a `SkipWhile` or a `TakeWhile`, `name`: its iterator and whether its closure has failed. */
 export function fmtFlagged<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>): FmtResult {
 	const w = it as SkipWhileIter<unknown> | TakeWhileIter<unknown>;
-	return fmtDebugStructFields(f, name, ["iter", "flag"], [(f) => inner(w.inner as I, f), (f) => fmtBool(w.flag, f)]);
+	return fmtDebugStructFields(f, name, ["iter", "flag"], [(f) => inner(iterHeld(w.inner), f), (f) => fmtBool(w.flag, f)]);
 }
 
 /** `Debug` of a `Scan`: its iterator and its state, by `state`. */
 export function fmtScan<I, S>(it: Iter<unknown>, f: Formatter, inner: Debug<I>, state: Debug<S>): FmtResult {
 	const s = it as ScanIter<unknown, S, unknown>;
-	return fmtDebugStructFields(f, "Scan", ["iter", "state"], [(f) => inner(s.inner as I, f), (f) => state(s.state, f)]);
+	return fmtDebugStructFields(f, "Scan", ["iter", "state"], [(f) => inner(iterHeld(s.inner), f), (f) => state(s.state, f)]);
 }
 
 /** `Debug` of a `Peekable`: its iterator and what it peeked, `Some` of the item by `item` or of `None`. */
@@ -982,23 +992,23 @@ export function fmtPeekable<I, T>(it: Peekable<T>, f: Formatter, inner: Debug<I>
 	const some = (f: Formatter, value: Fmt): FmtResult => fmtDebugTupleFields(f, "Some", [value]);
 	const peeked = (f: Formatter): FmtResult => {
 		if (!it.peeked) return f.out.writeStr("None");
-		const held = it.item;
-		return some(f, (f) => (held === DONE ? f.out.writeStr("None") : some(f, (f) => item(held, f))));
+		const peek = it.item;
+		return some(f, (f) => (peek === DONE ? f.out.writeStr("None") : some(f, (f) => item(peek, f))));
 	};
-	return fmtDebugStructFields(f, "Peekable", ["iter", "peeked"], [(f) => inner(it.inner as I, f), peeked]);
+	return fmtDebugStructFields(f, "Peekable", ["iter", "peeked"], [(f) => inner(iterHeld(it.inner), f), peeked]);
 }
 
 /** `Debug` of a `StepBy`: its iterator, its step less one, and whether it has yet to take its first item. */
 export function fmtStepBy<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
 	const s = it as StepByIter<unknown> | RangeStepBy;
-	const fields = [(f: Formatter) => inner(s.inner as I, f), (f: Formatter) => usizeDebug(s.step, f), (f: Formatter) => fmtBool(s.firstTake, f)];
+	const fields = [(f: Formatter) => inner(iterHeld(s.inner), f), (f: Formatter) => usizeDebug(s.step, f), (f: Formatter) => fmtBool(s.firstTake, f)];
 	return fmtDebugStructFields(f, "StepBy", ["iter", "step_minus_one", "first_take"], fields);
 }
 
 /** `Debug` of a `Chain`: each of its iterators, by `a` and `b`, until it has dropped it. */
 export function fmtChain<A, B>(it: Iter<unknown>, f: Formatter, a: Debug<A>, b: Debug<B>): FmtResult {
 	const c = it as ChainIter<unknown>;
-	return fmtDebugStructFields(f, "Chain", ["a", "b"], [(f) => fmtOption(c.a as A | undefined, f, a), (f) => fmtOption(c.b as B | undefined, f, b)]);
+	return fmtDebugStructFields(f, "Chain", ["a", "b"], [(f) => fmtOption(c.a && iterHeld<A>(c.a), f, a), (f) => fmtOption(c.b && iterHeld<B>(c.b), f, b)]);
 }
 
 /**
@@ -1008,18 +1018,19 @@ export function fmtChain<A, B>(it: Iter<unknown>, f: Formatter, a: Debug<A>, b: 
 export function fmtZip<A, B>(it: Iter<unknown>, f: Formatter, a?: Debug<A>, b?: Debug<B>): FmtResult {
 	const z = it as ZipIter<unknown, unknown>;
 	if (a === undefined || b === undefined) return fmtDebugStructFields(f, "Zip", [], []);
-	return fmtDebugStructFields(f, "Zip", ["a", "b"], [(f) => a(z.a as A, f), (f) => b(z.b as B, f)]);
+	return fmtDebugStructFields(f, "Zip", ["a", "b"], [(f) => a(iterHeld(z.a), f), (f) => b(iterHeld(z.b), f)]);
 }
 
 /** `Debug` of a `Cycle`: the iterator as it was, and the one it reads. */
 export function fmtCycle<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
 	const c = it as CycleIter<unknown>;
-	return fmtDebugStructFields(f, "Cycle", ["orig", "iter"], [(f) => inner(c.orig as I, f), (f) => inner(c.iter as I, f)]);
+	return fmtDebugStructFields(f, "Cycle", ["orig", "iter"], [(f) => inner(iterHeld(c.orig), f), (f) => inner(iterHeld(c.iter), f)]);
 }
 
 /** `Debug` of a `Fuse`: its iterator, until it has dropped it. */
 export function fmtFuse<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
-	return fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption((it as FuseIter<unknown>).inner as I | undefined, f, inner)]);
+	const fused = (it as FuseIter<unknown>).inner;
+	return fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption(fused && iterHeld<I>(fused), f, inner)]);
 }
 
 /**
@@ -1028,8 +1039,8 @@ export function fmtFuse<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): Fm
  */
 export function fmtFlatten<S, I>(it: Iter<unknown>, f: Formatter, name: string, source: Debug<S>, inner: Debug<I>): FmtResult {
 	const flat = it as FlattenIter<unknown, unknown>;
-	const fused = (f: Formatter): FmtResult => fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption(flat.outer as S | undefined, f, source)]);
-	const fields = [fused, (f: Formatter) => fmtOption(flat.front as I | undefined, f, inner), (f: Formatter) => fmtOption(flat.back as I | undefined, f, inner)];
+	const fused = (f: Formatter): FmtResult => fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption(flat.outer && iterHeld<S>(flat.outer), f, source)]);
+	const fields = [fused, (f: Formatter) => fmtOption(flat.front && iterHeld<I>(flat.front), f, inner), (f: Formatter) => fmtOption(flat.back && iterHeld<I>(flat.back), f, inner)];
 	return fmtDebugStructFields(f, name, ["inner"], [(f) => fmtDebugStructFields(f, "FlattenCompat", ["iter", "frontiter", "backiter"], fields)]);
 }
 
@@ -2257,7 +2268,7 @@ class OptionIter<T> extends Iter<T> implements Disposable {
  * reads by the methods it has of its own.
  */
 class FromNext<S, T> extends Iter<T> implements Disposable {
-	private readonly source: S;
+	readonly source: S;
 	private readonly step: (source: S) => T | Done;
 	private drop: Drop<S> | undefined;
 	readonly own: Own<S, T> | undefined;

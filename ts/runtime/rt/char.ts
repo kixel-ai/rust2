@@ -6,7 +6,7 @@
 
 import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
 import { type char, type u8, type u16, u16Debug, type u32, type usize } from "./int.ts";
-import { type Clones, DONE, type Done, Iter, type SizeHint } from "./iter.ts";
+import { type Clones, DONE, type Done, Iter, iterHeld, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, LOWERCASE, NUMERIC, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 
@@ -375,7 +375,7 @@ export function charDecodeUtf16(it: Iter<u16>): Iter<Result<char, DecodeUtf16Err
 /** `Debug` of a `DecodeUtf16`: its iterator, by `inner`, and the unit it holds to read next. */
 export function fmtDecodeUtf16<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
 	const d = it as DecodeUtf16;
-	return fmtDebugStructFields(f, "DecodeUtf16", ["iter", "buf"], [(f) => inner(d.it as I, f), (f) => fmtOption(d.buf, f, u16Debug)]);
+	return fmtDebugStructFields(f, "DecodeUtf16", ["iter", "buf"], [(f) => inner(iterHeld(d.it), f), (f) => fmtOption(d.buf, f, u16Debug)]);
 }
 
 /** `char::DecodeUtf16`: `it`, and the unit after a leading surrogate that was no trailing one, which it reads next. */

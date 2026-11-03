@@ -944,6 +944,20 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	put(out, &format!("{it:?}"));
 }
 
+/// An iterator of the crate's own, counting down from what it holds, which its derived
+/// `Debug` writes.
+#[derive(Debug)]
+struct Countdown(u8);
+
+impl Iterator for Countdown {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+}
+
 /// std's iterator adaptors' `Debug`, each its fields in std's order through what it wraps,
 /// with no closure: consumed from either end, so each writes the state it keeps, as a
 /// `Peekable` its peeked item and a `Skip` what it has left to skip, plain and pretty.
@@ -1118,6 +1132,25 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let it = fronts(char::decode_utf16(units.iter().copied()), front);
 	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
 	let it = fronts(char::decode_utf16(vec![0xd800, 0x61, 0x62]), usize::from(at(2) % 3));
+	put(out, &format!("{it:?}"));
+
+	// An adaptor of a borrowed iterator, or of the crate's own, writes it as it is.
+	let mut base = bytes.iter();
+	base.next();
+	let it = base.by_ref().map(|b| b + 1).skip(1);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut base = units.iter().copied();
+	let it = fronts(char::decode_utf16(base.by_ref()), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts(Countdown(at(2) % 5).map(|n| n * 2).enumerate(), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut own = Countdown(at(3) % 5);
+	let it = fronts(own.by_ref().peekable(), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts(
+		lists.iter().flat_map(|v| Countdown(v[0] % 3)).chain(Countdown(2)),
+		front,
+	);
 	put(out, &format!("{it:?}"));
 
 	// Adaptors of adaptors, with every option passed down.
