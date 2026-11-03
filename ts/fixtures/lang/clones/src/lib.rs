@@ -20,5 +20,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("clones::arrays", clones::arrays),
 		("clones::clone_froms", clones::clone_froms),
 		("clones::repeats", clones::repeats),
+		("clones::sources", clones::sources),
 	]
 }
