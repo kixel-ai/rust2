@@ -525,6 +525,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `error`, such as `StringException`.
 - **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
   thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
+  A call that throws before Rust sees it gives Rust none of its implementations.
 - **Closures** lent for a call are Dart functions, which Rust calls only during the call,
   on the isolate's thread. An object it lends lives only for that call of the closure.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it.
