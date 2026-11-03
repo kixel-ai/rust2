@@ -921,7 +921,7 @@ they need.
   capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
-  as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that
+  as through pushes, a `clone_from` that keeps its own, through any container whose `clone_from` reaches it, and a `collect` that
   reuses its source's buffer, in place or from a boxed slice, whose capacity is its
   length. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
