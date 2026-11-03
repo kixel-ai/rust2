@@ -75,7 +75,7 @@ export function count$iter_Iterator(self: Pile): rt.usize {
 
 export function last$iter_Iterator(self: Pile): Guard.Guard | undefined {
 	Log.note(self.log, "pile last");
-	const _0: Guard.Guard | undefined = then$1xpp3sz(!((self.held.length === 0)), (): Guard.Guard => {
+	const _0: Guard.Guard | undefined = then$1xpp3sz(!(self.held.length === 0), (): Guard.Guard => {
 		return rt.vecRemove(self.held, 0);
 	});
 	self[Symbol.dispose]();
@@ -83,7 +83,7 @@ export function last$iter_Iterator(self: Pile): Guard.Guard | undefined {
 }
 
 export function nextBack$iter_DoubleEndedIterator(self: Pile): Guard.Guard | undefined {
-	return then$1xpp3sz(!((self.held.length === 0)), (): Guard.Guard => {
+	return then$1xpp3sz(!(self.held.length === 0), (): Guard.Guard => {
 		return rt.vecRemove(self.held, 0);
 	});
 }

@@ -467,7 +467,7 @@ export function parses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const iterEnd: rt.i32 = 16;
 			while (iterStart++ < iterEnd) {
 				const x: rt.f32 = rt.f32FromBits((step(rt.place(() => state, (value) => state = value)) & 2147483647) >>> 0);
-				const half: rt.f64 = (((x as rt.f64)) + ((rt.f32NextUp(x) as rt.f64))) / 2.0;
+				const half: rt.f64 = ((x as rt.f64) + (rt.f32NextUp(x) as rt.f64)) / 2.0;
 				const p: rt.usize = rt.u32Add(rt.u32Rem(step(rt.place(() => state, (value2) => state = value2)), 30), 8) as rt.usize;
 				const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.f64LowerExp(half, f), rt.fmtCount(p)];
 				one(rt.fmtFormat([rt.fmtSpec({ precision: rt.fmtCountOf(args2[1]) }, args2[0])]), out);

@@ -26,7 +26,7 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
 	}
 	const parts: rt.ByteVec[] = [rt.byteSliceToByteVec(new rt.ByteSlice(inputData, inputStart, cut)), rt.byteSliceToByteVec(new rt.ByteSlice(inputData, inputStart + cut, inputLen - cut))];
 	rt.vecRetain(parts, (part: rt.ByteVec): boolean => {
-		return !((part.length === 0));
+		return !(part.length === 0);
 	});
 	return { parts, at: 0 };
 }

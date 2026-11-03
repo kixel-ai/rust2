@@ -29,7 +29,7 @@ export function rank(self: Torn): rt.i16 {
 /** What `PartialEq` compares. */
 function class_(self: Torn): rt.u16 {
 	if (self.mode === 2) {
-		return ((((self.key as rt.u16)) << 8) & 0xffff) | self.tag as rt.u16;
+		return (((self.key as rt.u16) << 8) & 0xffff) | self.tag as rt.u16;
 	}
 	if (self.mode === 3) {
 		return rt.u8Div(self.key, 2) as rt.u16;
