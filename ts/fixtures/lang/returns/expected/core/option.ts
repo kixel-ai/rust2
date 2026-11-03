@@ -3,6 +3,20 @@
 import * as rt from "../rt.ts";
 import type * as returns_Error from "../returns.Error.ts";
 
+export function unwrapOr$06r8g1t(self: rt.i128 | undefined, default_: rt.i128): rt.i128 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
+export function unwrapOr$1j4op5y(self: rt.u16 | undefined, default_: rt.u16): rt.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
@@ -24,6 +38,20 @@ export function map$1yogfym(self: [rt.u8, rt.ByteSlice] | undefined, f: (a0: [rt
 	return f(self);
 }
 
+export function map$1cf8u0y(self: rt.u64 | undefined, f: (a0: rt.u64) => rt.u64): rt.u64 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function mapOr$1surhce(self: rt.u8 | undefined, default_: rt.u8, f: (a0: rt.u8) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function okOr$1b6nkwr(self: rt.char | undefined, err: rt.u8): rt.Result<rt.char, rt.u8> {
 	if (self === undefined) {
 		return rt.Err(err);
@@ -31,14 +59,14 @@ export function okOr$1b6nkwr(self: rt.char | undefined, err: rt.u8): rt.Result<r
 	return rt.Ok(self);
 }
 
-export function okOr$0gtm15y(self: rt.ByteSlice | undefined, err: rt.u8 | undefined): rt.Result<rt.ByteSlice, rt.u8 | undefined> {
+export function okOr$12p77jh(self: rt.ByteSlice | undefined, err: returns_Error.Error): rt.Result<rt.ByteSlice, returns_Error.Error> {
 	if (self === undefined) {
 		return rt.Err(err);
 	}
 	return rt.Ok(self);
 }
 
-export function okOr$12p77jh(self: rt.ByteSlice | undefined, err: returns_Error.Error): rt.Result<rt.ByteSlice, returns_Error.Error> {
+export function okOr$0gtm15y(self: rt.ByteSlice | undefined, err: rt.u8 | undefined): rt.Result<rt.ByteSlice, rt.u8 | undefined> {
 	if (self === undefined) {
 		return rt.Err(err);
 	}
