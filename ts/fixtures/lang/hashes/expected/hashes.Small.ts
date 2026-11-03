@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Partial from "./hashes.Partial.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 export function hash$Hash_hash_DefaultHasher(self: Small, state: rt.Hasher): void {
 	rt.hash8({ Low: 3, High: 200 }[self], state);
@@ -19,6 +20,10 @@ export function hash$Hash_hashes_Full(self: Small, state: Full.Full): void {
 
 export function hash$Hash_hashes_Partial(self: Small, state: Partial.Partial): void {
 	rt.hash8({ Low: 3, High: 200 }[self], new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
+}
+
+export function hash$Hash_hashes_Switch(self: Small, state: rt.Place<Switch.Switch>): void {
+	rt.hash8({ Low: 3, High: 200 }[self], new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 }
 
 /** A `u8` discriminant, which the derive writes as a byte. */

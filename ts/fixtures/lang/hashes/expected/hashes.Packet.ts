@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Partial from "./hashes.Partial.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 export function hash$Hash_hash_DefaultHasher(self: Packet, state: rt.Hasher): void {
 	rt.hash64(self.id, state);
@@ -35,6 +36,14 @@ export function hash$Hash_hashes_Partial(self: Packet, state: Partial.Partial): 
 	rt.hashStr(self.name, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
 	rt.hashInts(2)(self.tags, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
 	rt.hashOption(rt.hashI32)(self.next, new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
+}
+
+export function hash$Hash_hashes_Switch(self: Packet, state: rt.Place<Switch.Switch>): void {
+	rt.hash64(self.id, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	rt.hash8(self.flags, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	rt.hashStr(self.name, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	rt.hashInts(2)(self.tags, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	rt.hashOption(rt.hashI32)(self.next, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 }
 
 export interface Packet {

@@ -407,6 +407,75 @@ impl Drop for Logged<'_> {
 	}
 }
 
+/// A `Hasher` of the crate's own that JS copies: an enum that logs each write until a
+/// `write_u8` of a multiple of four switches it to summing what follows, so each write
+/// through its `&mut` must land in the original, its variant too.
+#[derive(Clone)]
+enum Switch<'a> {
+	Log(&'a RefCell<Vec<u8>>),
+	Sum(&'a RefCell<Vec<u8>>, u64),
+}
+
+impl Hasher for Switch<'_> {
+	fn finish(&self) -> u64 {
+		match *self {
+			Switch::Log(log) => {
+				record(log, b'f', &[]);
+				log.borrow().len() as u64
+			}
+			Switch::Sum(log, sum) => {
+				record(log, b'F', &sum.to_le_bytes());
+				sum
+			}
+		}
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		match self {
+			Switch::Log(log) => record(log, b'w', bytes),
+			Switch::Sum(_, sum) => {
+				for &b in bytes {
+					*sum = sum.wrapping_mul(31).wrapping_add(b as u64);
+				}
+			}
+		}
+	}
+
+	fn write_u8(&mut self, i: u8) {
+		match *self {
+			Switch::Log(log) if i % 4 == 0 => *self = Switch::Sum(log, i as u64),
+			Switch::Log(log) => record(log, 1, &[i]),
+			Switch::Sum(_, ref mut sum) => *sum ^= (i as u64) << 56,
+		}
+	}
+}
+
+impl Drop for Switch<'_> {
+	fn drop(&mut self) {
+		let (Switch::Log(log) | Switch::Sum(log, _)) = *self;
+		record(log, b'd', &[]);
+	}
+}
+
+/// What builds a [`Switch`] by cloning the one it holds, logging that it did.
+struct Seeded<'a>(Switch<'a>);
+
+impl<'a> BuildHasher for Seeded<'a> {
+	type Hasher = Switch<'a>;
+
+	fn build_hasher(&self) -> Switch<'a> {
+		let (Switch::Log(log) | Switch::Sum(log, _)) = self.0;
+		record(log, b'b', &[]);
+		self.0.clone()
+	}
+}
+
+/// A [`Switch`] held in a field, hashed into through a `&mut` to the field.
+struct Holder<'a> {
+	tag: u8,
+	h: Switch<'a>,
+}
+
 /// Hash values of std's types and the crate's, made of `data`, into `h`.
 fn hash_into<H: Hasher>(h: &mut H, data: &[u8]) {
 	let w = |at: usize, n: usize| wide(data, at, n);
@@ -499,6 +568,41 @@ pub fn own(data: &[u8], out: &mut Vec<u8>) {
 		build.hash_one(Logged(n as i16, &log)),
 		build.hash_one(&Logged(-1, &log)),
 	];
+	for h in hashes {
+		out.extend_from_slice(&h.to_le_bytes());
+	}
+	out.extend_from_slice(&log.into_inner());
+}
+
+/// What `Hash` writes into a `Hasher` of the crate's own that JS copies, call by call, and
+/// what it then holds: one bound to a local, one held in a field, and one
+/// `BuildHasher::hash_one` builds of one held in the state, which drops before the value.
+pub fn copied(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let n = wide(data, 0, 2) as u16;
+	let mut local = Switch::Log(&log);
+	hash_into(&mut local, data);
+	let mut holder = Holder { tag: n as u8, h: Switch::Log(&log) };
+	holder.h.write_u8(n as u8 | 1);
+	n.hash(&mut holder.h);
+	hash_into(&mut holder.h, &data[data.len() / 2..]);
+	let text = std::str::from_utf8(data).unwrap_or("✓");
+	let seeded = Seeded(Switch::Log(&log));
+	let summing = Seeded(Switch::Sum(&log, n as u64));
+	let hashes = [
+		local.finish(),
+		holder.h.finish(),
+		holder.tag as u64,
+		seeded.hash_one(&n),
+		seeded.hash_one(text),
+		seeded.hash_one((n as u8, text)),
+		seeded.hash_one(Logged(n as i16, &log)),
+		summing.hash_one(&Logged(-1, &log)),
+		summing.hash_one(data),
+	];
+	drop(local);
+	drop(holder);
+	drop((seeded, summing));
 	for h in hashes {
 		out.extend_from_slice(&h.to_le_bytes());
 	}
