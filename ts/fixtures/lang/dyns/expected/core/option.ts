@@ -61,6 +61,27 @@ export function map$0j05j69(self: rt.Arc<rt.u32> | undefined, f: (a0: rt.Arc<rt.
 	return f(self);
 }
 
+export function map$0z7s8q7(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f: (a0: [Tagged.Tagged, Tagged.Tagged]) => [rt.u8, rt.u8]): [rt.u8, rt.u8] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function mapOr$1surhce(self: rt.u8 | undefined, default_: rt.u8, f: (a0: rt.u8) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1ttssgs(self: [rt.u8, rt.ByteSlice] | undefined, default_: [rt.u8, rt.ByteSlice], f: (a0: [rt.u8, rt.ByteSlice]) => [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$06rr3sb(self: rt.u8 | undefined, default_: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8 | undefined): rt.u8 | undefined {
 	if (self === undefined) {
 		return default_;

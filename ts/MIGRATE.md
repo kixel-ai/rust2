@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- In its type's module, the suffix of a method of a generic type behind a reference spells
+  the references after the type's arguments: `&mut Take<Bytes>`'s `Buf::chunk` is
+  `chunk$bytes_Buf_bytes_Bytes_mut`, not `chunk$bytes_Buf_mut_bytes_Bytes`, which is
+  `Take<&mut Bytes>`'s.
 - A trait object's class is its value's type's in `lib.ts`, which every trait's object of
   the type shares: `of$dyns_Square` rather than `Shape.of$dyns_Square` or
   `Any.of$dyns_Square`, and `ofPlace$dyns_Square` rather than `Shape.ofPlace$dyns_Square`.

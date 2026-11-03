@@ -9536,8 +9536,8 @@ export function lent(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(erased.next()), 238));
 	rt.iterExtendBytes(out, range, undefined, true);
 	let boxed: rt.Iter<rt.u8> = rt.iterDyn(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))));
-	rt.iterExtendBytes(out, rt.iterTake(rt.iterBorrow(boxed), n), "next");
-	rt.iterExtendBytes(out, rt.iterTake(boxed, 1), "next");
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterBorrow(rt.iterBox(rt.iterBorrow(boxed))), n), "next");
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterBox(boxed), 1), "next");
 	const rest: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(halves$mut_iter_Copied_slice_Iter_u8(rest, n)), undefined, true);
 	rt.iterExtendBytes(out, rest, undefined, true);
