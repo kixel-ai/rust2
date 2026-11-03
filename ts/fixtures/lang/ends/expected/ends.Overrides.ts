@@ -6,11 +6,13 @@ import * as Run from "./ends.Run.ts";
 
 /**
  * A `Run` with its own `nth`, `nth_back`, `fold`, `rfold`, `count`, `last`, `find`, `rfind`,
- * `find_map`, `for_each`, `reduce`, and `all`, each logged as `N`, `B`, `f`, `r`, `c`, `L`,
- * `F`, `R`, `M`, `E`, `D`, and `A`, which std's adaptors and consumers call in place of
- * `next` and `next_back`, and its own `position` and `max`, logged as `P` and `X`, which
- * only the crate's own calls reach. Its `count` reads nothing, and its `last`, `for_each`,
- * `reduce`, and `max` read from the back.
+ * `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, each logged as `N`, `B`, `f`,
+ * `r`, `c`, `L`, `F`, `R`, `M`, `E`, `D`, `A`, and `S`, which std's adaptors and consumers
+ * call in place of `next` and `next_back`, its own `collect`, `eq`, `partial_cmp`, and
+ * `by_ref`, logged as `C`, `Q`, `O`, and `Y`, which std's collections and comparisons call
+ * of it itself, and its own `position` and `max`, logged as `P` and `X`, which only the
+ * crate's own calls reach. Its `count` reads nothing, and its `last`, `for_each`, `reduce`,
+ * `is_sorted_by`, `max`, `collect`, and comparisons read from the back.
  */
 export interface Overrides {
 	_0: Run.Run;
@@ -249,6 +251,89 @@ export function max$iter_Iterator(self: Overrides): rt.u8 | undefined {
 			return best;
 		}
 	}
+}
+
+export function isSortedBy$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_ref_u8_ref_u8_bool(self: Overrides, compare: (a0: rt.u8, a1: rt.u8) => boolean): boolean {
+	let _0!: boolean;
+	Run.logged(self._0, 83);
+	const _6: rt.u8 | undefined = Run.nextBack$iter_DoubleEndedIterator(self._0);
+	b1: {
+		if (_6 !== undefined) {
+			let last: rt.u8 = _6;
+			while (true) {
+				const _9: rt.u8 | undefined = Run.nextBack$iter_DoubleEndedIterator(self._0);
+				if (_9 !== undefined) {
+					const b: rt.u8 = _9;
+					if (!compare(b, last)) {
+						_0 = false;
+						break b1;
+					}
+					last = b;
+				} else {
+					break;
+				}
+			}
+			rt.drop(compare);
+			return true;
+		}
+		_0 = true;
+	}
+	rt.drop(compare);
+	return _0;
+}
+
+export function isSortedBy$iter_Iterator_ends_found_closure17_ends_Overrides(self: Overrides, compare: (a0: rt.u8, a1: rt.u8) => boolean): boolean {
+	let _0!: boolean;
+	Run.logged(self._0, 83);
+	const _6: rt.u8 | undefined = Run.nextBack$iter_DoubleEndedIterator(self._0);
+	b1: {
+		if (_6 !== undefined) {
+			let last: rt.u8 = _6;
+			while (true) {
+				const _9: rt.u8 | undefined = Run.nextBack$iter_DoubleEndedIterator(self._0);
+				if (_9 !== undefined) {
+					const b: rt.u8 = _9;
+					if (!compare(b, last)) {
+						_0 = false;
+						break b1;
+					}
+					last = b;
+				} else {
+					break;
+				}
+			}
+			rt.drop(compare);
+			return true;
+		}
+		_0 = true;
+	}
+	rt.drop(compare);
+	return _0;
+}
+
+export function collect$iter_Iterator_Vec_u8(self: Overrides): rt.ByteVec {
+	Run.logged(self._0, 67);
+	return rt.iterToByteVec(rt.iterRev(rt.iterFrom(self, next$iter_Iterator, undefined, { hint: sizeHint$iter_Iterator, nth: (it: Overrides, n) => rt.iterFromOption(nth$iter_Iterator(it, n)), fold: fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, count: count$iter_Iterator, last: (it: Overrides) => rt.iterFromOption(last$iter_Iterator(it)), find: (it: Overrides, f) => rt.iterFromOption(find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)), findMap: findMap$iter_Iterator_u32_boxed_Box_dyn_ops_FnMut_tuple1_u8_Option_u32, forEach: forEach$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_unit, reduce: (it: Overrides, f) => rt.iterFromOption(reduce$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_u8_u8_u8(it, f)), all: all$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_bool, isSortedBy: isSortedBy$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_ref_u8_ref_u8_bool, back: (it: Overrides) => rt.iterFromOption(nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides, n) => rt.iterFromOption(nthBack$iter_DoubleEndedIterator(it, n)), rfold: rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, rfind: (it: Overrides, f) => rt.iterFromOption(rfind$iter_DoubleEndedIterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)) })), "next");
+}
+
+export function collect$iter_Iterator_boxed_Box_slice_u8(self: Overrides): rt.ByteSlice {
+	Run.logged(self._0, 67);
+	return rt.byteVecSlice(rt.iterToByteVec(rt.iterRev(rt.iterFrom(self, next$iter_Iterator, undefined, { hint: sizeHint$iter_Iterator, nth: (it: Overrides, n) => rt.iterFromOption(nth$iter_Iterator(it, n)), fold: fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, count: count$iter_Iterator, last: (it: Overrides) => rt.iterFromOption(last$iter_Iterator(it)), find: (it: Overrides, f) => rt.iterFromOption(find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)), findMap: findMap$iter_Iterator_u32_boxed_Box_dyn_ops_FnMut_tuple1_u8_Option_u32, forEach: forEach$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_unit, reduce: (it: Overrides, f) => rt.iterFromOption(reduce$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_u8_u8_u8(it, f)), all: all$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_bool, isSortedBy: isSortedBy$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_ref_u8_ref_u8_bool, back: (it: Overrides) => rt.iterFromOption(nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides, n) => rt.iterFromOption(nthBack$iter_DoubleEndedIterator(it, n)), rfold: rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, rfind: (it: Overrides, f) => rt.iterFromOption(rfind$iter_DoubleEndedIterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)) })), "next"));
+}
+
+export function eq$iter_Iterator_ops_Range_u8(self: Overrides, other: rt.Range<rt.u8>): boolean {
+	Run.logged(self._0, 81);
+	return rt.iterEq(rt.iterRev(rt.iterFrom(self, next$iter_Iterator, undefined, { hint: sizeHint$iter_Iterator, nth: (it: Overrides, n) => rt.iterFromOption(nth$iter_Iterator(it, n)), fold: fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, count: count$iter_Iterator, last: (it: Overrides) => rt.iterFromOption(last$iter_Iterator(it)), find: (it: Overrides, f) => rt.iterFromOption(find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)), findMap: findMap$iter_Iterator_u32_boxed_Box_dyn_ops_FnMut_tuple1_u8_Option_u32, forEach: forEach$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_unit, reduce: (it: Overrides, f) => rt.iterFromOption(reduce$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_u8_u8_u8(it, f)), all: all$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_bool, isSortedBy: isSortedBy$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_ref_u8_ref_u8_bool, back: (it: Overrides) => rt.iterFromOption(nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides, n) => rt.iterFromOption(nthBack$iter_DoubleEndedIterator(it, n)), rfold: rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, rfind: (it: Overrides, f) => rt.iterFromOption(rfind$iter_DoubleEndedIterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)) })), other, rt.same, undefined, true);
+}
+
+export function partialCmp$iter_Iterator_ops_Range_u8(self: Overrides, other: rt.Range<rt.u8>): rt.Ordering | undefined {
+	Run.logged(self._0, 79);
+	return rt.iterCmp(rt.iterRev(rt.iterFrom(self, next$iter_Iterator, undefined, { hint: sizeHint$iter_Iterator, nth: (it: Overrides, n) => rt.iterFromOption(nth$iter_Iterator(it, n)), fold: fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, count: count$iter_Iterator, last: (it: Overrides) => rt.iterFromOption(last$iter_Iterator(it)), find: (it: Overrides, f) => rt.iterFromOption(find$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)), findMap: findMap$iter_Iterator_u32_boxed_Box_dyn_ops_FnMut_tuple1_u8_Option_u32, forEach: forEach$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_unit, reduce: (it: Overrides, f) => rt.iterFromOption(reduce$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_u8_u8_u8(it, f)), all: all$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple1_u8_bool, isSortedBy: isSortedBy$iter_Iterator_boxed_Box_dyn_ops_FnMut_tuple2_ref_u8_ref_u8_bool, back: (it: Overrides) => rt.iterFromOption(nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides, n) => rt.iterFromOption(nthBack$iter_DoubleEndedIterator(it, n)), rfold: rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32, rfind: (it: Overrides, f) => rt.iterFromOption(rfind$iter_DoubleEndedIterator_boxed_Box_dyn_ops_FnMut_tuple1_ref_u8_bool(it, f)) })), other, rt.cmp, true);
+}
+
+export function byRef$iter_Iterator(self: Overrides): Overrides {
+	Run.logged(self._0, 89);
+	return self;
 }
 
 export function nextBack$iter_DoubleEndedIterator(self: Overrides): rt.u8 | undefined {
