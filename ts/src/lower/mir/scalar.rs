@@ -1921,6 +1921,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let values = values.into_iter().map(Expr::typed).collect();
 		let mut pre = Vec::new();
 		let call = self.b.direct_call(instance, values, span, &mut pre);
+		let call = self.locate_arguments(call);
 		self.emit(pre, false, out);
 		match self.b.t.loc(span) {
 			Some(loc) => Expr::Located(loc, Box::new(call)),

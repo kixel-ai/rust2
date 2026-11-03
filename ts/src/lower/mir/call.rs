@@ -14,7 +14,7 @@ use crate::lower::fmt::{self, Piece};
 use crate::lower::lend::{self, Plan};
 use crate::lower::library::{self, Flow, Std};
 use crate::lower::num::Int;
-use crate::ts::{Expr, Stmt, StmtKind};
+use crate::ts::{self, Expr, Stmt, StmtKind};
 
 /// What a `&mut` borrows: its path, and the place a store through the reference writes,
 /// unless the reference is refused.
@@ -30,6 +30,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) {
 		let tcx = self.tcx;
+		self.arguments.clear();
 		if self.forwards(dest) {
 			self.forward_call(args, span, out);
 			return;
@@ -134,6 +135,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(local) if self.stepped.contains(&local) => self.stepped_make(value, span),
 			_ => value,
 		};
+		let value = self.locate_arguments(value);
 		let value = match self.b.t.loc(span) {
 			Some(loc) if effect => Expr::Located(loc, Box::new(value)),
 			_ => value,
@@ -214,9 +216,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				_ => value,
 			});
+			if arg.node.place().is_some()
+				&& let Some(value) = values.last().filter(|v| !matches!(v, Expr::Located(..)))
+				&& let Some(loc) = self.b.t.loc(arg.span)
+			{
+				self.arguments.push((value.clone(), loc));
+			}
 		}
 		self.into_frozen = saved;
 		values
+	}
+
+	/// `call` with each argument [`Self::operands`] read from a place at that argument's
+	/// own Rust. Std's mappings match the arguments' shapes, so they are given them bare,
+	/// and each is located where it appears as an argument of what they made.
+	pub(super) fn locate_arguments(&mut self, mut call: Expr) -> Expr {
+		let mut arguments = std::mem::take(&mut self.arguments);
+		locate(&mut call, &mut arguments);
+		call
 	}
 
 	/// An argument, which the callee copies if it changes it in place.
@@ -2115,5 +2132,46 @@ fn assignable(e: &Expr) -> bool {
 		Expr::Index(..) => true,
 		Expr::Member(base, _) | Expr::Located(_, base) | Expr::As(base, _) => assignable(base),
 		e => e.is_path(),
+	}
+}
+
+/// Locate each of `arguments` at the first argument of a call or `new` in `e` it is, and
+/// drop it from the list.
+fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
+	if arguments.is_empty() {
+		return;
+	}
+	match e {
+		Expr::Call(callee, args) | Expr::New(callee, args) => {
+			locate(callee, arguments);
+			for arg in args {
+				match arguments.iter().position(|(value, _)| value == arg) {
+					Some(i) => {
+						let (_, loc) = arguments.remove(i);
+						*arg = Expr::Located(loc, Box::new(std::mem::replace(arg, Expr::undefined())));
+					}
+					None => locate(arg, arguments),
+				}
+			}
+		}
+		Expr::Member(e, _)
+		| Expr::Unary(_, e)
+		| Expr::Postfix(e, _)
+		| Expr::As(e, _)
+		| Expr::Instantiate(e, _)
+		| Expr::Lambda(_, e)
+		| Expr::Located(_, e) => locate(e, arguments),
+		Expr::Index(a, b) | Expr::Binary(a, _, b) | Expr::Assign(a, b) => {
+			locate(a, arguments);
+			locate(b, arguments);
+		}
+		Expr::Cond(a, b, c) => {
+			locate(a, arguments);
+			locate(b, arguments);
+			locate(c, arguments);
+		}
+		Expr::Array(es) => es.iter_mut().for_each(|e| locate(e, arguments)),
+		Expr::Object(props) => props.iter_mut().for_each(|(_, e)| locate(e, arguments)),
+		_ => {}
 	}
 }
