@@ -83,6 +83,8 @@ roots = [
     "objects::generic_object",
     "objects::raw_dyn_iter",
     "objects::same_named",
+    "panics::caller",
+    "panics::hooked",
     "parts::array_part_replaced",
     "parts::element_replaced",
     "parts::field_part_replaced",
