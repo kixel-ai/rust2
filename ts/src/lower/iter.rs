@@ -502,7 +502,7 @@ fn own_collect<'tcx>(
 		0 => item.into(),
 		_ => param
 			.default_value(tcx)
-			.expect("`Vec` defaults its allocator")
+			.expect("Vec defaults its allocator")
 			.instantiate(tcx, args)
 			.skip_norm_wip(),
 	});
