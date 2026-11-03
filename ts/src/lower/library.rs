@@ -2309,6 +2309,11 @@ fn mapping<'tcx>(
 		// A `Box<str>` is its text, as a `String` is.
 		("String", "as_str" | "into_boxed_str") | ("str", "into_string") => args.pop()?,
 		("String", "new") => Expr::Str(String::new()),
+		// `String + &str` and `Cow<str>`'s, which push onto the moved text as `+=` does.
+		("Add", "add") if string(tcx, targ(gargs, 0)) => {
+			let text = args.pop()?;
+			args.pop()?.binary("+", text)
+		}
 		("String", "with_capacity") => Expr::rt("stringWithCapacity", args),
 		// Of the place the `&mut` is, which it writes as it drops, and of a range, as `Vec::drain`.
 		("String", "drain") => {
