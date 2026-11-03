@@ -535,3 +535,88 @@ pub fn bytes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		out.extend_from_slice(c);
 	}
 }
+
+/// `clone_from` of each pairing of borrowed and owned, by `kind`'s low bits: an owned one
+/// over an owned one clones into the `Vec` it owns, which keeps its buffer, truncated to
+/// the source's length, each item it keeps cloned over; any other is the source's clone,
+/// made before what it replaces drops.
+pub fn clone_froms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (into_owned, from_owned) = (kind & 1 != 0, kind & 2 != 0);
+	let mid = data.len() / 2;
+	let (left, right) = data.split_at(mid);
+	match kind / 4 % 4 {
+		0 => {
+			// What it clones and drops, and in what order.
+			let log = Cell::new(0);
+			{
+				let first: Vec<Tally> = left.iter().map(|&b| Tally(b, &log)).collect();
+				let second: Vec<Tally> = right.iter().map(|&b| Tally(b, &log)).collect();
+				let tallies = |items: &[Tally<'_>]| items.iter().map(|t| t.0).collect::<Vec<_>>();
+				let mut c = match into_owned {
+					true => Cow::Owned(first.clone()),
+					false => Cow::Borrowed(&first[..]),
+				};
+				let from = match from_owned {
+					true => Cow::Owned(second.clone()),
+					false => Cow::Borrowed(&second[..]),
+				};
+				out.extend_from_slice(&log.replace(0).to_be_bytes());
+				c.clone_from(&from);
+				out.extend_from_slice(&log.replace(0).to_be_bytes());
+				out.push(matches!(c, Cow::Owned(_)) as u8);
+				out.extend(tallies(&c));
+				out.extend(tallies(&first));
+			}
+			out.extend_from_slice(&log.get().to_be_bytes());
+		}
+		1 => {
+			// The buffer an owned one keeps, of words, of bytes, and of `Vec`s, each of which
+			// keeps its own.
+			let mut words = Vec::with_capacity(usize::from(data.first().copied().unwrap_or(0) % 16));
+			words.extend(self::words(left));
+			let from = self::words(right);
+			let mut c: Cow<[u16]> = match into_owned {
+				true => Cow::Owned(words),
+				false => Cow::Borrowed(&[7]),
+			};
+			c.clone_from(&cow_of(&from, from_owned));
+			put_words(out, &c);
+			if let Cow::Owned(v) = &c {
+				out.push(v.capacity() as u8);
+			}
+			// A borrowed one's own `Vec`, made with room for exactly its items.
+			out.push(cow_of(&from, false).into_owned().capacity() as u8);
+			let mut bytes = Vec::with_capacity(usize::from(data.last().copied().unwrap_or(0) % 32));
+			bytes.extend_from_slice(right);
+			let mut c: Cow<[u8]> = match into_owned {
+				true => Cow::Owned(bytes),
+				false => Cow::Borrowed(b"x"),
+			};
+			c.clone_from(&made(left, from_owned));
+			out.extend_from_slice(&c);
+			if let Cow::Owned(v) = &c {
+				out.push(v.capacity() as u8);
+			}
+			let nested: Vec<Vec<u8>> = left.iter().map(|&b| Vec::with_capacity(usize::from(b % 8))).collect();
+			let from: Vec<Vec<u8>> = right.iter().map(|&b| vec![b; usize::from(b % 3)]).collect();
+			let mut c: Cow<[Vec<u8>]> = match into_owned {
+				true => Cow::Owned(nested),
+				false => Cow::Borrowed(&[]),
+			};
+			c.clone_from(&match from_owned {
+				true => Cow::Owned(from.clone()),
+				false => Cow::Borrowed(&from[..]),
+			});
+			for v in c.iter() {
+				out.extend([v.len() as u8, v.capacity() as u8]);
+			}
+		}
+		_ => {
+			// Text, whose variant and capacity JS can't read.
+			let (to, from) = (text(left), text(right));
+			let mut c = cow(&to, into_owned);
+			c.clone_from(&cow(&from, from_owned));
+			put(out, &c);
+		}
+	}
+}

@@ -935,6 +935,39 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => done(lent, true),
 				}
 			}
+			// A slice of the payload, if any, read and written where the `Option` holds it, as
+			// `slice::from_mut` makes one of a place or of the object a `&mut` is, and else an
+			// empty one.
+			("Option", "as_mut_slice") => {
+				let inner = targ(0)?;
+				if matches!(inner.kind(), ty::Uint(ty::UintTy::U8)) {
+					let refused = self.err(
+						span,
+						"a slice of one byte's place, which a byte slice can view only in an array of bytes",
+					);
+					return done(refused, true);
+				}
+				let (target, payload) = self.payload_place(&args[0].node, inner, span, out)?;
+				let Some(payload) = payload else {
+					return done(target, true);
+				};
+				let none = target.clone().binary("===", self.b.t.none(inner));
+				let some = match () {
+					_ if self.b.t.needs_place(inner) => {
+						Expr::rt("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
+					}
+					_ if self.b.t.zero_sized(inner) => Expr::Array(vec![target]),
+					_ if self.b.t.write_in(inner).is_some() => Expr::rt("sliceIn", vec![target]),
+					_ => self.err(
+						span,
+						format!("`Option::as_mut_slice` of `Option<{inner}>`, whose payload JS can't write in place"),
+					),
+				};
+				done(
+					Expr::Cond(Box::new(none), Box::new(Expr::Array(vec![])), Box::new(some)),
+					true,
+				)
+			}
 			("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => {
 				self.option_insert(&name, targ(0)?, args, dest, span, out)
 			}
