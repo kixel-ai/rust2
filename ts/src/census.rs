@@ -141,6 +141,7 @@ const VERBATIM: &[&str] = &[
 	"-",
 	".await",
 	"?",
+	"Arc",
 	"Binary",
 	"Buf::copy_to_bytes",
 	"BufMut::put",

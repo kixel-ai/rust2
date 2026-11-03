@@ -6,9 +6,28 @@
 // well formed, so a pattern's text matches where its UTF-8 would, never across a
 // surrogate pair.
 
-import { type ByteSlice, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugStructFields, fmtPad, Ok, type Place, panic, panicFmt, type Result, stringLen } from "../rt.ts";
+import {
+	ByteSlice,
+	byteSliceView,
+	Err,
+	type FmtResult,
+	type Formatter,
+	fmtCharDebug,
+	fmtDebugStructFields,
+	fmtList,
+	fmtPad,
+	fmtStr,
+	Ok,
+	type Place,
+	panic,
+	panicFmt,
+	type Result,
+	stringLen,
+	utf8Check,
+} from "../rt.ts";
+import { escapeDebug } from "./char.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
-import type { char, u8, u16, usize } from "./int.ts";
+import { type char, type u8, type u16, type usize, u8Debug } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 
@@ -783,6 +802,82 @@ export function strIsCharBoundary(s: string, i: number): boolean {
 /** `str::bytes`: its UTF-8 bytes. */
 export function strBytes(s: string): Iter<u8> {
 	return iterSlice(encoder.encode(s));
+}
+
+// Lossy and chunked UTF-8. A non-fatal `TextDecoder` writes one U+FFFD for each maximal
+// invalid sequence, as WHATWG's decoder and std's both do.
+
+// `ignoreBOM` keeps a leading U+FEFF, as Rust does.
+const lossy = /* @__PURE__ */ new TextDecoder("utf-8", { ignoreBOM: true });
+
+/** `String::from_utf8_lossy`: the text, each invalid sequence replaced by U+FFFD. */
+export function stringFromUtf8Lossy(bytes: ByteSlice): string {
+	return lossy.decode(byteSliceView(bytes));
+}
+
+/** `core::str::Utf8Chunk`: valid text, and the invalid bytes after it. */
+export type Utf8Chunk = {
+	/** `Utf8Chunk::valid`. */
+	readonly valid: string;
+	/** `Utf8Chunk::invalid`: empty only in the last chunk. */
+	readonly invalid: ByteSlice;
+};
+
+/** `<[u8]>::utf8_chunks`. */
+export function byteSliceUtf8Chunks(bytes: ByteSlice): Iter<Utf8Chunk> {
+	return new Utf8Chunks(bytes);
+}
+
+class Utf8Chunks extends Iter<Utf8Chunk> {
+	#source: ByteSlice;
+
+	constructor(source: ByteSlice) {
+		super();
+		this.#source = source;
+	}
+
+	next(): Utf8Chunk | Done {
+		const s = this.#source;
+		if (s.length === 0) return DONE;
+		const error = utf8Check(byteSliceView(s));
+		const valid = error?.validUpTo ?? s.length;
+		// A sequence the input ends in the middle of is invalid up to the end.
+		const end = error === undefined ? s.length : valid + (error.errorLen ?? s.length - valid);
+		this.#source = new ByteSlice(s.data, s.start + end, s.length - end);
+		const text = lossy.decode(s.data.subarray(s.start, s.start + valid));
+		return { valid: text, invalid: new ByteSlice(s.data, s.start + valid, end - valid) };
+	}
+
+	/** What it has left, which std's `Debug` writes. */
+	source(): ByteSlice {
+		return this.#source;
+	}
+
+	override clone(): Iter<Utf8Chunk> {
+		return new Utf8Chunks(this.#source);
+	}
+}
+
+/** `Debug` of a `Utf8Chunks`: what it has left as a string, each invalid byte as `\xNN`. */
+export function fmtUtf8Chunks(it: Iter<Utf8Chunk>, f: Formatter): FmtResult {
+	return fmtDebugStructFields(f, "Utf8Chunks", ["source"], [
+		(f) => {
+			let out = '"';
+			for (const chunk of new Utf8Chunks((it as Utf8Chunks).source())) {
+				for (const c of chunk.valid) out += escapeDebug(c, '"');
+				for (const b of byteSliceView(chunk.invalid)) out += `\\x${b.toString(16).toUpperCase().padStart(2, "0")}`;
+			}
+			return f.out.writeStr(`${out}"`);
+		},
+	]);
+}
+
+/** `Debug` of a `Utf8Chunk`, as std derives it. */
+export function fmtUtf8ChunkDebug(chunk: Utf8Chunk, f: Formatter): FmtResult {
+	return fmtDebugStructFields(f, "Utf8Chunk", ["valid", "invalid"], [
+		(f) => fmtStr(chunk.valid, f),
+		(f) => fmtList(byteSliceView(chunk.invalid), f, u8Debug),
+	]);
 }
 
 // `String`'s edits, each giving the edited string, which the caller writes where the

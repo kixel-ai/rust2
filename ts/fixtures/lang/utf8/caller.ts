@@ -5,11 +5,11 @@ import { op } from "./lang.ts";
 export { ops, run } from "./lang.ts";
 
 /**
- * `utf8::decodes` of raw bytes: a byte order mark, which std keeps, and the sequences at
- * each edge of what it takes: surrogates, overlongs, past U+10FFFF, and cut short at the
- * end or by another byte.
+ * Raw bytes for `utf8::decodes` and `utf8::lossy`: a byte order mark, which std keeps, and
+ * the sequences at each edge of what it takes: surrogates, overlongs, past U+10FFFF, and
+ * cut short at the end or by another byte.
  */
-const utf8 = [
+const bytes = [
 	[0xef, 0xbb, 0xbf, 0x61],
 	[0xed, 0x9f, 0xbf, 0xed, 0xa0, 0x80, 0xed, 0xbf, 0xbf],
 	[0xc0, 0x80, 0xc1, 0xbf, 0xc2, 0x80],
@@ -20,6 +20,10 @@ const utf8 = [
 	[0xe2, 0x82],
 	[0xc2],
 	[0x80, 0xf8, 0xff],
-].map((bytes) => Uint8Array.of(...op("utf8::decodes"), 0, ...bytes));
+	[],
+	[0x61, 0xc3, 0xa9, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0x80],
+];
 
-export const cases: Uint8Array[] = [...utf8];
+export const cases: Uint8Array[] = ["utf8::decodes", "utf8::lossy"].flatMap((name) =>
+	bytes.map((b) => Uint8Array.of(...op(name), 0, ...b)),
+);

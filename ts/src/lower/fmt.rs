@@ -537,6 +537,7 @@ pub fn std_impl<'tcx>(
 			(Std::FromUtf16Error, Trait::Display) => rt("fromUtf16ErrorDisplay", vec![value, f]),
 			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
 			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
+			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
@@ -579,6 +580,7 @@ fn iter_debug<'tcx>(
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
 		// Without its fields, which neither `#` nor a width changes.
 		["str", "iter", "EncodeUtf16"] => {
 			return Some(Expr::rt(

@@ -52,6 +52,8 @@ pub enum Std {
 	TryFromCharError,
 	/// `rt.DecodeUtf16Error`: `{ code }`, the unpaired surrogate.
 	DecodeUtf16Error,
+	/// `rt.Utf8Chunk`: `{ valid, invalid }`, never changed once made.
+	Utf8Chunk,
 	ParseFloatError,
 	TryFromFloatSecsError,
 	/// `rt.Formatter`.
@@ -194,8 +196,9 @@ pub enum Std {
 }
 
 impl Std {
-	/// Whether it is one of std's errors, whose derived `PartialEq` lowers from its MIR.
-	pub fn error(self) -> bool {
+	/// Whether it is one of std's errors, or a `Utf8Chunk`, whose runtime fields have std's
+	/// names and whose derived `PartialEq` lowers from its MIR.
+	pub fn record(self) -> bool {
 		matches!(
 			self,
 			Self::FromUtf8Error
@@ -211,6 +214,7 @@ impl Std {
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
 				| Self::LayoutError
+				| Self::Utf8Chunk
 		)
 	}
 
@@ -323,6 +327,7 @@ impl Std {
 			["char", "convert", "CharTryFromError"] => Some(Self::CharTryFromError),
 			["char", "TryFromCharError"] => Some(Self::TryFromCharError),
 			["char", "decode", "DecodeUtf16Error"] => Some(Self::DecodeUtf16Error),
+			["str", "lossy", "Utf8Chunk"] => Some(Self::Utf8Chunk),
 			["fmt", "Formatter"] => Some(Self::Formatter),
 			["fmt", "Arguments"] => Some(Self::Arguments),
 			["fmt", "Error"] => Some(Self::FmtError),
@@ -868,9 +873,9 @@ pub fn may_from_mir(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if parses {
 		return true;
 	}
-	// A std error's derived `PartialEq`, which compares its fields.
+	// A std error's or a `Utf8Chunk`'s derived `PartialEq`, which compares its fields.
 	if let ty::Adt(adt, _) = self_ty.kind()
-		&& Std::of(tcx, adt.did()).is_some_and(Std::error)
+		&& Std::of(tcx, adt.did()).is_some_and(Std::record)
 		&& tcx.is_automatically_derived(imp)
 	{
 		return name == rustc_span::sym::eq;
@@ -993,6 +998,8 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		// A slice's `fill`, `fill_with`, and `clone_from_slice` drop each element they write
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
+		// `vec![x; 0]` drops `x`.
+		("vec", "from_elem") => &[0],
 		// `get_or_init::<T, F>` drops its function uncalled if the cell is set.
 		("OnceCell" | "OnceLock", "get_or_init" | "get_or_try_init") => &[1],
 		// A guard's map calls its function, filtered or not.
@@ -1501,6 +1508,13 @@ fn mapping<'tcx>(
 			if string(tcx, to) && string(tcx, from.peel_refs()) {
 				return Some(b.t.pointee_value(targ(gargs, 1), value));
 			}
+			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
+			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
+				return Some(Expr::rt(
+					"stringIntoBytes",
+					vec![b.t.pointee_value(targ(gargs, 1), value)],
+				));
+			}
 			// A `Vec` is owned, and a reference to a slice, an array, or a `Vec` borrows its slice.
 			if let Some(elem) = cow_slice(tcx, to) {
 				let owned = b.t.std_of(targ(gargs, 1)) == Some(Std::Vec);
@@ -1783,7 +1797,9 @@ fn mapping<'tcx>(
 					Expr::rt("fromUtf8ErrorClone", vec![value])
 				}
 				// Never changed once made.
-				ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::DecodeUtf16Error) => value,
+				ty::Adt(adt, _) if matches!(Std::of(tcx, adt.did()), Some(Std::DecodeUtf16Error | Std::Utf8Chunk)) => {
+					value
+				}
 				// Another that holds nothing.
 				ty::Adt(adt, _) if empty_iter(tcx, adt.did()) => b.zero_sized_std(ty, Vec::new(), span).ok()?,
 				// Through the reference, a slice of the bytes.
@@ -2298,7 +2314,7 @@ fn mapping<'tcx>(
 		}
 		("Box", "new") => args.pop()?,
 		// `vec![x; n]`: `n - 1` clones of `x`, then `x` itself, which the caller gives as its
-		// own, as it does whatever std keeps.
+		// own, as it does whatever std keeps, or `x` dropped where `n` is 0.
 		("vec", "from_elem") => {
 			let elem = targ(gargs, 0);
 			let mut values = args;
@@ -2496,6 +2512,19 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
+		("String", "into_bytes") => Expr::rt("stringIntoBytes", args),
+		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
+		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
+		// UTF-8 by their contract, which the lossy decoder reads as the text.
+		("converts" | "str", "from_utf8_unchecked") => Expr::rt("stringFromUtf8Lossy", args),
+		("String", "from_utf8_unchecked") => {
+			Expr::rt("stringFromUtf8Lossy", vec![Expr::rt("byteVecSlice", vec![args.pop()?])])
+		}
+		("FromUtf8Error", "as_bytes") => Expr::rt("byteVecSlice", vec![args.pop()?.member("bytes")]),
+		("FromUtf8Error", "into_bytes") => args.pop()?.member("bytes"),
+		("FromUtf8Error", "utf8_error") => args.pop()?.member("error"),
+		("slice", "utf8_chunks") => Expr::rt("byteSliceUtf8Chunks", args),
+		("Utf8Chunk", "valid" | "invalid") => args.pop()?.member(&name),
 		(
 			"String",
 			"from_utf16" | "from_utf16_lossy" | "from_utf16le" | "from_utf16le_lossy" | "from_utf16be"

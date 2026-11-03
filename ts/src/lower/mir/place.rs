@@ -623,7 +623,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// `TryFromIntError`'s `IntErrorKind`.
 				Some(Std::TryFromIntError) => base.member("kind"),
 				// The runtime's field of each of std's errors has its name.
-				Some(std) if std.error() => {
+				Some(std) if std.record() => {
 					base.member(crate::lower::camel(adt.non_enum_variant().fields[field].name.as_str()))
 				}
 				// Cast to its variant's class: the slice an `rt.Borrowed` wraps, or the `Vec`.
@@ -683,7 +683,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			// JS shares objects where Rust copies, so a `Copy` aggregate is copied where
 			// either side could change in place: into a local changed in place, or out of a
-			// place that could change.
+			// place that could change; or where pointers to it compare.
 			Operand::Copy(place) => {
 				let ty = place.ty(&self.mir.local_decls, self.tcx).ty;
 				// Optimized MIR also copies what isn't `Copy`, where it is a move: copy
@@ -692,7 +692,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return self.err(span, "a copy of a closure that changes what it captured");
 				}
 				let value = self.place_expr(*place, span, out);
-				match self.force_share || self.into_frozen && self.frozen(*place) {
+				let shared = self.force_share || self.into_frozen && self.frozen(*place);
+				match shared && !self.b.t.held_addressed(ty) {
 					true => value,
 					false => self.b.t.copied(value, ty, span),
 				}

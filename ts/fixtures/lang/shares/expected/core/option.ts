@@ -10,6 +10,13 @@ export function isSomeAnd$0vr0nda(self: rt.Arc<rt.ByteSlice> | undefined, f: (a0
 	return f(self);
 }
 
+export function isSomeAnd$0uiydx2(self: [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>] | undefined, f: (a0: [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>]) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;

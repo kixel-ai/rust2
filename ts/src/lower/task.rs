@@ -166,7 +166,10 @@ pub fn call<'tcx>(
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
 					};
-					let values = args.into_iter().chain([clone]).chain(droppers).collect();
+					// What moves the value to a new allocation, as std's does when only `Weak`s
+					// share it: a new object where pointers to it compare.
+					let moved = b.t.held_addressed(value).then(|| b.t.shim(value, call.span)).flatten();
+					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();
 					Expr::rt(format!("arcMakeMut{place}"), values)
 				}
 			}
