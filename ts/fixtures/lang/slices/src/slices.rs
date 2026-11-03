@@ -1224,7 +1224,13 @@ pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			rewrite!(quads, out, |c| c[0][0] ^ c[1][1], [[1, 2], [3, 4]], [[5, 6], [7, 8]]);
 			let (pairs, _) = words.as_chunks_mut::<2>();
 			let (quads, _) = pairs.as_chunks_mut::<2>();
-			rewrite!(quads, out, |c| (c[0][0] ^ c[1][1]) as u8, [[1, 2], [3, 4]], [[5, 6], [7, 8]]);
+			rewrite!(
+				quads,
+				out,
+				|c| (c[0][0] ^ c[1][1]) as u8,
+				[[1, 2], [3, 4]],
+				[[5, 6], [7, 8]]
+			);
 		}
 		3 => {
 			let (chunks, _) = items.as_chunks_mut::<2>();

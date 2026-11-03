@@ -2252,8 +2252,8 @@ export function arraysMut(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		const keptWords: rt.u16[] | undefined = copy$Option_array2_u16(rt.sliceFirst(rt.sliceAsChunksMut(words, 2)[0]));
 		rt.byteSliceFill(rt.byteVecSlice(bytes), 9);
 		words.fill(9);
-		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterFlatten(rt.iterOption(copy$Option_array2_u16(keptWords)), (value: rt.u16[]) => rt.iterSlice(value), false, 2), (w: rt.u16): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterFlatten(rt.iterOption(copy$Option_array2_u16(keptWords)), (value: rt.u16[]) => rt.iterSlice(value), true, 2), (w: rt.u16): rt.u8 => {
 			return (w ^ (w >> 8)) & 0xff;
 		}), undefined, true);
 	} else if (_12 === 1) {
