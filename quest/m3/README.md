@@ -53,3 +53,4 @@ generic std gap is planned here even when moq never calls it.
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
 - [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - an enum `Hasher`, whose `&mut` is a place, hashes as a struct one does
+- [A reference to a closure as a string pattern](/quest/m3/ts-closure-patterns.md) - `s.contains(&f)` and `s.split(&mut f)` translate, leaving the closure to its owner to drop
