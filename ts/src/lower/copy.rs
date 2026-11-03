@@ -21,7 +21,7 @@ use rustc_mir_dataflow::impls::MaybeLiveLocals;
 use rustc_span::Span;
 
 use super::library::{Flow, Std};
-use super::mir::holders::{Filled, Trace};
+use super::mir::holders::{Filled, Holds, Trace};
 use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
@@ -1060,7 +1060,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		let Some(made) = made.as_local() else {
 			return true;
 		};
-		let held = self.trace.holders(made, false, false);
+		let held = self.trace.holders(made, Holds::Pointers, false);
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		let raw = |ty: Ty<'tcx>| {
 			ty.is_raw_ptr()
