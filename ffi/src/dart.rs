@@ -1388,20 +1388,16 @@ impl<'a> Gen<'a> {
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
-		let handle = vec![Ty::Handle {
+		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
-		}];
-		let (own, free) = self.owned(&c, &handle[0]);
+		};
+		let (own, free) = self.owned(&c, &owner);
 		let mut members = vec!["close".to_string()];
 		let mut body = vec![format!(
 			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
 		)];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
-		let owner = Ty::Handle {
-			name: c.clone(),
-			constant: false,
-		};
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
