@@ -9,10 +9,10 @@ use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TyCtxt};
 use rustc_span::{Span, Spanned};
 
 use super::{Fx, Slot};
+use crate::lower::ObjectKind;
 use crate::lower::fmt::{self, Piece};
 use crate::lower::lend::{self, Plan};
 use crate::lower::library::{self, Flow, Std};
-use crate::lower::ObjectKind;
 use crate::lower::num::Int;
 use crate::ts::{Expr, Stmt, StmtKind};
 
@@ -1292,7 +1292,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		Some(self.err(
 			span,
-			format!("a slice or a cell of a mutable reference to `{ty}` that names no place, which JS can't write in place"),
+			format!(
+				"a slice or a cell of a mutable reference to `{ty}` that names no place, which JS can't write in place"
+			),
 		))
 	}
 
@@ -1644,12 +1646,18 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return None;
 		}
 		let target = self.through_aliases((*place)?);
-		let [base @ .., ProjectionElem::Deref, ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. }] =
-			target.projection.as_slice()
+		let [
+			base @ ..,
+			ProjectionElem::Deref,
+			ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
+		] = target.projection.as_slice()
 		else {
 			return None;
 		};
-		if !Place::ty_from(target.local, base, &self.mir.local_decls, self.tcx).ty.is_ref() {
+		if !Place::ty_from(target.local, base, &self.mir.local_decls, self.tcx)
+			.ty
+			.is_ref()
+		{
 			return None;
 		}
 		let mut read = read;
