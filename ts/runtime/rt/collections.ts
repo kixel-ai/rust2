@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -3461,10 +3461,16 @@ export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): V
  * `clone_from`: `q` cleared, which drops its items in order, then a clone of each of `src`'s
  * in its room, as std's `extend` reserves for them.
  */
-export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): void {
+export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): VecDeque<T> {
 	dequeClear(q, drop);
 	dequeReserve(q, src.n);
 	for (let i = 0; i < src.n; i++) q.b[at(q, q.n++)] = item(src.b[at(src, i)] as T);
+	return q;
+}
+
+/** `dequeCloneFrom` as a `CloneFrom`. */
+export function dequeCloneFromFn<T>(item?: (value: T) => T, drop?: (item: T) => void): CloneFrom<VecDeque<T>> {
+	return (old, src) => dequeCloneFrom(old, src, item, drop);
 }
 
 /** `append`: room reserved for `other`'s items, which then move over in order, leaving it empty with its head at the front. */
@@ -3820,7 +3826,7 @@ export function listClone<T>(l: LinkedList<T>, item: (value: T) => T = itself): 
  * `source`'s length popped from the back, each dropped as it is; then clones of the rest
  * of `source`'s pushed.
  */
-export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): void {
+export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): LinkedList<T> {
 	let [node, from]: (ListNode<T> | undefined)[] = [l.h, source.h];
 	for (; node !== undefined && from !== undefined; node = node.x, from = from.x) {
 		if (over !== undefined) {
@@ -3836,6 +3842,12 @@ export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: 
 		f?.(old);
 	}
 	for (; from !== undefined; from = from.x) listPushBack(l, item(from.v));
+	return l;
+}
+
+/** `listCloneFrom` as a `CloneFrom`. */
+export function listCloneFromFn<T>(item?: (value: T) => T, f?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<LinkedList<T>> {
+	return (old, src) => listCloneFrom(old, src, item, f, over);
 }
 
 // `BinaryHeap`: std's max-heap in an array, sifted as std's sifts it, so equal elements
@@ -3865,6 +3877,17 @@ export function heapWithCapacity<T>(n: number, size: number): BinaryHeap<T> {
 export function heapFrom<T>(d: T[], le: Test<T>, ge: Test<T>, lt: Test<T>): BinaryHeap<T> {
 	rebuild(d, le, ge, lt);
 	return { d };
+}
+
+/** `clone_from`: its vector's, of `size`-byte elements, which keeps its buffer. */
+export function heapCloneFrom<T>(h: BinaryHeap<T>, src: BinaryHeap<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): BinaryHeap<T> {
+	vecCloneFrom(h.d, src.d, size, clone, drop, over);
+	return h;
+}
+
+/** `heapCloneFrom` as a `CloneFrom`. */
+export function heapCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<BinaryHeap<T>> {
+	return (old, src) => heapCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `push`: `item` sifted up from the end. */

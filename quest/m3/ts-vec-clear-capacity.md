@@ -47,4 +47,3 @@ Public API: the translator's output.
 ## Related
 
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - std's exact capacity, beyond its guarantees, so a deque made from a shrunk `Vec` splits its slices where std's does
-- `quest/m3/ts-clone-from-capacity.md`, added in [moq-dev/rust2#527](https://github.com/moq-dev/rust2/pull/527) - the capacity of a `Vec` that `clone_from` writes over inside a container; link it by path once #527 lands

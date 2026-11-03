@@ -2885,8 +2885,8 @@ pub(super) fn box_slice_clone_from<'tcx>(
 }
 
 /// What `clone_from` of `source` leaves over `old`, a `ty` whose `clone_from` is std's own
-/// over what it holds, as `clone_from_clones` says it is not: `old` itself for an array or
-/// a `Vec`, written in place. Refused for any other `clone_from`.
+/// over what it holds, as `clone_from_clones` says it is not: `old` itself, written in
+/// place, for all but an `Option` and a `Result`. Refused for any other `clone_from`.
 pub(super) fn clone_from<'tcx>(b: &mut Body<'_, '_, 'tcx>, old: Expr, source: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	match std_clone_from(b, ty, span) {
 		Ok((name, fns)) => Expr::rt(name, [vec![old, source], fns].concat()),
@@ -2928,15 +2928,37 @@ fn std_clone_from<'tcx>(
 	if let Some(elem) = box_slice(b.t.tcx, own) {
 		return Ok(("boxSliceCloneFrom", clone_from_fns(b, elem, span)));
 	}
-	match own.kind() {
-		ty::Adt(_, args) if b.t.std_of(own) == Some(Std::Vec) => {
-			let elem = args.type_at(0);
-			let size = super::iter::size_of(b, elem, span);
-			Ok(("vecCloneFrom", [vec![size], clone_from_fns(b, elem, span)].concat()))
+	let refused = |b: &mut Body<'_, '_, 'tcx>| {
+		b.err(
+			span,
+			format!("`clone_from` of `{ty}`, whose `clone_from` is its own, which is not supported yet"),
+		)
+	};
+	let ty::Adt(_, args) = own.kind() else {
+		return Err(refused(b));
+	};
+	let first = args.types().next();
+	match (b.t.std_of(own), first) {
+		(Some(Std::Vec), Some(elem)) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+			Ok(("byteVecCloneFrom", vec![]))
 		}
+		// A heap's is its vector's.
+		(Some(Std::Vec | Std::BinaryHeap), Some(elem)) => {
+			let name = match b.t.std_of(own) {
+				Some(Std::Vec) => "vecCloneFrom",
+				_ => "heapCloneFrom",
+			};
+			let size = super::iter::size_of(b, elem, span);
+			Ok((name, [vec![size], clone_from_fns(b, elem, span)].concat()))
+		}
+		// Cleared, then extended by clones, in the buffer it keeps.
+		(Some(Std::VecDeque), Some(elem)) => {
+			let fns = vec![super::collections::clone_fn(b, elem, span), b.t.dropper(elem, span)];
+			Ok(("dequeCloneFrom", trimmed(fns)))
+		}
+		(Some(Std::LinkedList), Some(elem)) => Ok(("listCloneFrom", clone_from_fns(b, elem, span))),
 		// Of two `Some`s, what one holds clones over the other's by its own `clone_from`.
-		ty::Adt(_, args) if b.t.std_of(own) == Some(Std::Option) => {
-			let inner = args.type_at(0);
+		(Some(Std::Option), Some(inner)) => {
 			let clone = super::collections::clone_fn(b, inner, span);
 			let drop = b.t.dropper(inner, span);
 			let over = clone_from_fn(b, inner, span);
@@ -2944,10 +2966,16 @@ fn std_clone_from<'tcx>(
 			fns.extend(b.t.none_arg(inner));
 			Ok(("optionCloneFrom", fns))
 		}
-		_ => Err(b.err(
-			span,
-			format!("`clone_from` of `{ty}`, whose `clone_from` is its own, which is not supported yet"),
-		)),
+		// Of two `Ok`s or two `Err`s, what one holds clones over the other's, as an
+		// element's does.
+		(Some(Std::Result), Some(ok)) => {
+			let mut fns = clone_from_fns(b, ok, span);
+			fns.resize_with(3, Expr::undefined);
+			fns.extend(clone_from_fns(b, args.type_at(1), span));
+			Ok(("resultCloneFrom", trimmed(fns)))
+		}
+		(Some(Std::RefCell), Some(inner)) => Ok(("refCellCloneFrom", clone_from_fns(b, inner, span))),
+		_ => Err(refused(b)),
 	}
 }
 
@@ -2978,7 +3006,8 @@ pub(super) fn unboxed<'tcx>(t: &Translator<'_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'t
 
 /// Whether `clone_from` of `ty` clones, and drops what it writes over, as
 /// `*self = source.clone()` would: `Clone`'s own, and std's own over such types, where it
-/// only reuses memory, if nothing drops or it is an `Option`'s, or a box's of one.
+/// only reuses memory, if nothing drops or it is an `Option`'s, or a box's of one. A
+/// vector's, a deque's, and a heap's keep their buffer's capacity, which a clone's would not.
 pub(super) fn clone_from_clones<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	let tcx = t.tcx;
 	let ty = unboxed(t, ty);
@@ -2990,9 +3019,12 @@ pub(super) fn clone_from_clones<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>
 	if instance.def_id() == clone_from {
 		return true;
 	}
-	let inner: Vec<Ty<'tcx>> = match ty.kind() {
-		ty::Adt(adt, args) if is_std(tcx, adt.did()) => args.types().collect(),
-		ty::Array(elem, _) => vec![*elem],
+	let inner: Vec<Ty<'tcx>> = match (t.std_of(ty), ty.kind()) {
+		(Some(Std::Vec | Std::VecDeque | Std::BinaryHeap), _) => return false,
+		// A hash table's and a B-tree set's clone each element anew, by its `clone`.
+		(Some(Std::HashMap | Std::HashSet | Std::HashTable | Std::BTreeSet), _) => vec![],
+		(_, ty::Adt(adt, args)) if is_std(tcx, adt.did()) => args.types().collect(),
+		(_, ty::Array(elem, _)) => vec![*elem],
 		_ => return false,
 	};
 	(t.std_of(ty) == Some(Std::Option) || !t.drops(ty)) && inner.into_iter().all(|arg| clone_from_clones(t, arg))
@@ -3114,24 +3146,6 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
 		_ => v,
-	}
-}
-
-/// `clone`, the `Vec<elem>` that `clone_from` writes over `target`, with the capacity std's
-/// keeps of `target`'s.
-pub(super) fn vec_cloned_into<'tcx>(
-	b: &mut Body<'_, '_, 'tcx>,
-	clone: Expr,
-	target: Expr,
-	elem: Ty<'tcx>,
-	span: Span,
-) -> Expr {
-	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecClonedInto", vec![clone, target]),
-		_ => Expr::rt(
-			"vecClonedInto",
-			vec![clone, target, super::iter::size_of(b, elem, span)],
-		),
 	}
 }
 

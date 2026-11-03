@@ -603,14 +603,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					.call_def(clone_from, tcx.mk_args(&[own.into()]), vec![to, from], span, out);
 				done(call, true)
 			}
-			// An array or a `Vec`, which JS writes in place, that clones over each element it
-			// keeps where that does more than copy: a slice's `clone_into` a `Vec` too.
+			// An array that clones over each element where that does more than copy, and a
+			// `Vec`, which keeps its buffer, each written in place: a slice's `clone_into` a
+			// `Vec` too.
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
 				if let Some(ty) = self.cloned_over(&name, args)
 					&& let own = library::unboxed(self.b.t, ty)
 					&& match own.kind() {
 						ty::Array(..) => !library::clone_copies(self.b.t, self.b.t.typing_env_pub(), own),
-						_ => self.b.t.std_of(own) == Some(Std::Vec) && !library::clone_from_clones(self.b.t, own),
+						_ => self.b.t.std_of(own) == Some(Std::Vec),
 					} =>
 			{
 				let (target, source) = match name.as_str() {
@@ -646,23 +647,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					self.set_borrowed(&place, value, span, out);
 					return done(Expr::undefined(), false);
 				}
-				let clone = match targ(0)?.kind() {
-					ty::Slice(elem) => library::slice_to_vec(self.b, source, *elem, span),
-					_ => {
-						let clone = crate::lower::collections::trait_fn(tcx, "Clone", "clone");
-						self.b
-							.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out)
-					}
-				};
-				// std's `Vec` keeps the target's buffer, grown if it holds fewer, as it does
-				// through a box.
-				let own = library::unboxed(self.b.t, ty);
-				let clone = match own.kind() {
-					ty::Adt(_, args) if self.b.t.std_of(own) == Some(Std::Vec) => {
-						library::vec_cloned_into(self.b, clone, place.0.clone(), args.type_at(0), span)
-					}
-					_ => clone,
-				};
+				let clone = crate::lower::collections::trait_fn(tcx, "Clone", "clone");
+				let clone = self
+					.b
+					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
 				let drops = self.b.t.drops(ty);
 				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, out);
 				if drops && let Some(drop) = self.b.t.drop_value(old, ty, span) {
