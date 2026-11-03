@@ -78,7 +78,7 @@ and each type a module of its own beside it, holding the type and its functions
 (`coding/decode.Decoder.ts`), each with a `.ts.map` source map into the Rust it came
 from. `rt.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rt/iter.ts`, `str`'s searches
-in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
+in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings in `rt/char.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
 `rt/task.ts`, `f64`'s and `f32`'s methods in `rt/float.ts`, `Duration` in `rt/time.ts`, and `Layout` and memory from `alloc` in `rt/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
@@ -198,6 +198,16 @@ and a `String`, are std's. A `u8` and a `char` share each runtime function, `rt.
 the other case where the `&mut` borrows it, a part of a `String` included. `escape_ascii`'s iterators read from either
 end, size themselves as std's do, and write what they have left by `Display`, unpadded.
 
+`char`'s Unicode classes and case maps read std's Unicode tables, which the runtime
+carries in `rt/unicode.ts`, not the engine's, so they hold of the chars std's do whatever
+the engine's Unicode version. `to_lowercase`, `to_uppercase`, and the escapes read from
+either end, size themselves as std's do, and write what they have left by `Display`,
+unpadded, as `escape_debug` of a char it leaves as it is writes that char even once it has
+yielded it. `encode_utf8` lends the `&mut str` of the bytes it wrote, which a write through
+it changes in place, and `encode_utf16` a view of its units. `char::decode_utf16`,
+`char::from_digit`, `char::try_from` a `u32`, and `u8`'s and `u16`'s `try_from` a `char` are
+std's, their errors and panics included.
+
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
 `min` ignore a NaN, and a cast to an integer truncates, saturates at the type's bounds,
@@ -287,8 +297,12 @@ An iterator over a slice, array, or `Vec`, or a small range, that only its `next
 moves read steps in place, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
-and of one it owns its own `fold`, `rfold`, `count`, and `last`, where std's adaptors
-call them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
+and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
+`find`, `rfind`, `find_map`, `for_each`, `reduce`, and `all`, where std's adaptors and consumers
+call them: a filter's `next` calls `find`, an `extend` into a hash or B-tree collection, a
+`String`, or a tuple calls `for_each`, `max` calls `reduce`, and `is_sorted` calls `all`. Its
+own `position`, `max`, and the others std never calls in place of another run only where the
+crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -449,7 +463,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
 through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
-hasher, hashes, finishes, then drops the hasher and the value.
+hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
+an enum, hashes as a struct one does, through the `rt.Place` its `&mut` is.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
@@ -468,7 +483,9 @@ map's `drain` does, drops those it still holds by `[Symbol.dispose]`, an adaptor
 what it skips or rejects, and a consumer that takes an iterator by value drops it:
 through each `rt.Iter`'s own `fold` where std's folds, which drops each adaptor's closure
 as its fold ends, before what it wraps, as std's does. The crate's own `fold` is given that
-closure as a `Box<dyn FnMut>`, which drops it where its body does. `try_fold`, `try_rfold`,
+closure as a `Box<dyn FnMut>`, which drops it where its body does, and so are its own
+`find`, `find_map`, `for_each`, `reduce`, and `all`, whose `find_map` is given what it finds
+boxed. `try_fold`, `try_rfold`,
 and `try_for_each` drop their closure as they return, leaving what the iterator holds to drop
 with it. `scan` hands its closure its state, or the state's place where JS copies it, and
 drops the state after the closure, as std's fields drop. A `Vec`'s `drain` leaves the vector
@@ -933,11 +950,13 @@ another type it borrows as through the crate's own `Borrow`, a `&mut` to a value
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
-own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
-those, such as `find` or `for_each`, or whose own `fold` or `rfold` tells its accumulator or
-closure apart from another, by an `Option` or a `Poll` of it, a call or constant generic over it
-other than calling or dropping the closure or passing them to std's iterators outside the crate's
-own types, or a drop of the accumulator,
+own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method std calls in place
+of another other than those, such as `collect`, `eq`, `partial_cmp`, or `by_ref`, or whose own
+method taking a closure tells it, or its accumulator or what it finds, apart from another, by an
+`Option` or a `Poll` of the accumulator, a call or constant generic over them other than calling
+or dropping the closure or passing them to std's iterators outside the crate's own types, or a
+drop of the accumulator or what it finds, or whose own `find` or `rfind` gives its predicate a
+reference to a `[u8; N]`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes

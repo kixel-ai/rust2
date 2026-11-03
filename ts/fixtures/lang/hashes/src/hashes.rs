@@ -411,6 +411,75 @@ impl Drop for Logged<'_> {
 	}
 }
 
+/// A `Hasher` of the crate's own that JS copies: an enum that logs each write until a
+/// `write_u8` of a multiple of four switches it to summing what follows, so each write
+/// through its `&mut` must land in the original, its variant too.
+#[derive(Clone)]
+enum Switch<'a> {
+	Log(&'a RefCell<Vec<u8>>),
+	Sum(&'a RefCell<Vec<u8>>, u64),
+}
+
+impl Hasher for Switch<'_> {
+	fn finish(&self) -> u64 {
+		match *self {
+			Switch::Log(log) => {
+				record(log, b'f', &[]);
+				log.borrow().len() as u64
+			}
+			Switch::Sum(log, sum) => {
+				record(log, b'F', &sum.to_le_bytes());
+				sum
+			}
+		}
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		match self {
+			Switch::Log(log) => record(log, b'w', bytes),
+			Switch::Sum(_, sum) => {
+				for &b in bytes {
+					*sum = sum.wrapping_mul(31).wrapping_add(b as u64);
+				}
+			}
+		}
+	}
+
+	fn write_u8(&mut self, i: u8) {
+		match *self {
+			Switch::Log(log) if i % 4 == 0 => *self = Switch::Sum(log, i as u64),
+			Switch::Log(log) => record(log, 1, &[i]),
+			Switch::Sum(_, ref mut sum) => *sum ^= (i as u64) << 56,
+		}
+	}
+}
+
+impl Drop for Switch<'_> {
+	fn drop(&mut self) {
+		let (Switch::Log(log) | Switch::Sum(log, _)) = *self;
+		record(log, b'd', &[]);
+	}
+}
+
+/// What builds a [`Switch`] by cloning the one it holds, logging that it did.
+struct Seeded<'a>(Switch<'a>);
+
+impl<'a> BuildHasher for Seeded<'a> {
+	type Hasher = Switch<'a>;
+
+	fn build_hasher(&self) -> Switch<'a> {
+		let (Switch::Log(log) | Switch::Sum(log, _)) = self.0;
+		record(log, b'b', &[]);
+		self.0.clone()
+	}
+}
+
+/// A [`Switch`] held in a field, hashed into through a `&mut` to the field.
+struct Holder<'a> {
+	tag: u8,
+	h: Switch<'a>,
+}
+
 /// Hash values of std's types and the crate's, made of `data`, into `h`.
 fn hash_into<H: Hasher>(h: &mut H, data: &[u8]) {
 	let w = |at: usize, n: usize| wide(data, at, n);
@@ -509,8 +578,46 @@ pub fn own(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(&log.into_inner());
 }
 
+/// What `Hash` writes into a `Hasher` of the crate's own that JS copies, call by call, and
+/// what it then holds: one bound to a local, one held in a field, and one
+/// `BuildHasher::hash_one` builds of one held in the state, which drops before the value.
+pub fn copied(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let n = wide(data, 0, 2) as u16;
+	let mut local = Switch::Log(&log);
+	hash_into(&mut local, data);
+	let mut holder = Holder {
+		tag: n as u8,
+		h: Switch::Log(&log),
+	};
+	holder.h.write_u8(n as u8 | 1);
+	n.hash(&mut holder.h);
+	hash_into(&mut holder.h, &data[data.len() / 2..]);
+	let text = std::str::from_utf8(data).unwrap_or("✓");
+	let seeded = Seeded(Switch::Log(&log));
+	let summing = Seeded(Switch::Sum(&log, n as u64));
+	let hashes = [
+		local.finish(),
+		holder.h.finish(),
+		holder.tag as u64,
+		seeded.hash_one(&n),
+		seeded.hash_one(text),
+		seeded.hash_one((n as u8, text)),
+		seeded.hash_one(Logged(n as i16, &log)),
+		summing.hash_one(&Logged(-1, &log)),
+		summing.hash_one(data),
+	];
+	drop(local);
+	drop(holder);
+	drop((seeded, summing));
+	for h in hashes {
+		out.extend_from_slice(&h.to_le_bytes());
+	}
+	out.extend_from_slice(&log.into_inner());
+}
+
 thread_local! {
-	/// What each [`Seeded`] and [`Noisy`] did, in order.
+	/// What each [`Numbered`] and [`Noisy`] did, in order.
 	static EVENTS: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
 }
 
@@ -537,9 +644,9 @@ impl Hasher for Fnv {
 
 /// A `BuildHasher` of the crate's own, numbered, which logs each one `Default` makes, each
 /// clone, and each drop, and seeds its [`Fnv`] by its number.
-struct Seeded(u8);
+struct Numbered(u8);
 
-impl BuildHasher for Seeded {
+impl BuildHasher for Numbered {
 	type Hasher = Fnv;
 
 	fn build_hasher(&self) -> Fnv {
@@ -547,21 +654,21 @@ impl BuildHasher for Seeded {
 	}
 }
 
-impl Default for Seeded {
+impl Default for Numbered {
 	fn default() -> Self {
 		event(b'n', 0);
-		Seeded(0)
+		Numbered(0)
 	}
 }
 
-impl Clone for Seeded {
+impl Clone for Numbered {
 	fn clone(&self) -> Self {
 		event(b'c', self.0);
-		Seeded(self.0.wrapping_add(1))
+		Numbered(self.0.wrapping_add(1))
 	}
 }
 
-impl Drop for Seeded {
+impl Drop for Numbered {
 	fn drop(&mut self) {
 		event(b'x', self.0);
 	}
@@ -596,8 +703,8 @@ struct Key(u16, String);
 pub fn maps(data: &[u8], out: &mut Vec<u8>) {
 	EVENTS.with(|events| events.borrow_mut().clear());
 	let first = data.first().copied().unwrap_or(7);
-	let mut keyed: HashMap<Key, u8, Seeded> = HashMap::with_capacity_and_hasher(data.len(), Seeded(first));
-	let mut seen: HashSet<u8, Seeded> = HashSet::with_hasher(Seeded(1));
+	let mut keyed: HashMap<Key, u8, Numbered> = HashMap::with_capacity_and_hasher(data.len(), Numbered(first));
+	let mut seen: HashSet<u8, Numbered> = HashSet::with_hasher(Numbered(1));
 	for (i, &b) in data.iter().enumerate() {
 		*keyed.entry(Key(u16::from(b % 8), text(&data[i..=i]))).or_default() += 1;
 		out.push(seen.insert(b % 16) as u8);
@@ -615,7 +722,7 @@ pub fn maps(data: &[u8], out: &mut Vec<u8>) {
 	out.push(keyed.hasher().0);
 	out.extend_from_slice(&keyed.hasher().hash_one(&probe).to_le_bytes());
 	out.extend_from_slice(&seen.hasher().hash_one(first).to_le_bytes());
-	let mut noisy: HashMap<u8, Noisy, Seeded> = HashMap::with_hasher(Seeded(5));
+	let mut noisy: HashMap<u8, Noisy, Numbered> = HashMap::with_hasher(Numbered(5));
 	noisy.insert(first, Noisy(first));
 	let copy = noisy.clone();
 	out.push(copy.hasher().0);
@@ -624,12 +731,12 @@ pub fn maps(data: &[u8], out: &mut Vec<u8>) {
 	event(b'i', 0);
 	drop(entries.next());
 	drop(entries);
-	let mut made: HashMap<u8, Noisy, Seeded> = HashMap::default();
+	let mut made: HashMap<u8, Noisy, Numbered> = HashMap::default();
 	made.insert(2, Noisy(2));
 	let taken = std::mem::take(&mut made);
 	out.push(taken.len() as u8);
 	out.push(made.len() as u8);
-	let small: HashSet<u8, Seeded> = data.iter().map(|b| b % 4).collect();
+	let small: HashSet<u8, Numbered> = data.iter().map(|b| b % 4).collect();
 	let union = &small | &seen;
 	out.push(union.len() as u8);
 	out.push(small.is_subset(&seen) as u8);

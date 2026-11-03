@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import { record } from "./hashes.ts";
 import * as Full from "./hashes.Full.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 /** A value whose `Hash` calls a method std provides of the hasher, and logs its drop. */
 export class Logged {
@@ -22,6 +23,11 @@ export class Logged {
 export function hash$Hash_hashes_Full(self: Logged, state: Full.Full): void {
 	Full.writeI16$hash_Hasher(state, self._0);
 	Full.writeLengthPrefix$hash_Hasher(state, 2);
+}
+
+export function hash$Hash_hashes_Switch(self: Logged, state: rt.Place<Switch.Switch>): void {
+	rt.hashI16(self._0, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
+	rt.hashPrefix(2, new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 }
 
 export function drop$ops_Drop(self: Logged): void {

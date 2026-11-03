@@ -558,20 +558,50 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.set_borrowed(&c, old, span, out);
 				done(Expr::undefined(), false)
 			}
-			// What `clone_from` leaves where the `&mut` borrows a boxed slice or text.
-			("Clone", "clone_from")
+			// What `clone_from` leaves where the `&mut` borrows a boxed slice or text, through
+			// any boxes of it, as `clone_into` leaves it in its target.
+			("Clone", "clone_from") | ("ToOwned", "clone_into")
 				if targ(0).is_some_and(|t| {
-					library::box_slice(tcx, t).is_some() || t.boxed_ty().is_some_and(|t| t.is_str())
+					let own = library::unboxed(self.b.t, t);
+					library::box_slice(tcx, own).is_some() || own.boxed_ty().is_some_and(|t| t.is_str())
 				}) =>
 			{
-				let place = self.borrowed_place(&args[0].node, span, out)?;
-				let source = self.operand(&args[1].node, span, out);
-				let value = match library::box_slice(tcx, targ(0)?) {
+				let (target, source) = match name.as_str() {
+					"clone_from" => (&args[0].node, &args[1].node),
+					_ => (&args[1].node, &args[0].node),
+				};
+				let place = self.borrowed_place(target, span, out)?;
+				let source = self.operand(source, span, out);
+				let value = match library::box_slice(tcx, library::unboxed(self.b.t, targ(0)?)) {
 					Some(elem) => library::box_slice_clone_from(self.b, place.0.clone(), source, elem, span)?,
 					None => source,
 				};
 				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
+			}
+			// A box of the crate's own value clones it by its own `clone_from`. A box is what
+			// it holds, so a `&` to one is a `&` to that, and a `&mut` the place holding it,
+			// where a `&mut` to it is not one.
+			("Clone", "clone_from") | ("ToOwned", "clone_into")
+				if let Some(ty) = targ(0)
+					&& let own = library::unboxed(self.b.t, ty)
+					&& own != ty
+					&& let clone_from = crate::lower::collections::trait_fn(tcx, "Clone", "clone_from")
+					&& self.b.t.translated(clone_from, tcx.mk_args(&[own.into()])) =>
+			{
+				let (target, source) = match name.as_str() {
+					"clone_from" => (&args[0].node, &args[1].node),
+					_ => (&args[1].node, &args[0].node),
+				};
+				let mut to = self.operand(target, span, out);
+				if !self.b.t.needs_place(own) {
+					to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
+				}
+				let from = self.operand(source, span, out);
+				let call = self
+					.b
+					.call_def(clone_from, tcx.mk_args(&[own.into()]), vec![to, from], span, out);
+				done(call, true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
 			// its `ToOwned` has `clone_into`, cloning before it drops what it writes over. A
@@ -601,9 +631,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let clone = self
 					.b
 					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
-				// std's `Vec` keeps the target's buffer, grown if it holds fewer.
-				let clone = match ty.kind() {
-					ty::Adt(_, args) if self.b.t.std_of(ty) == Some(Std::Vec) => {
+				// std's `Vec` keeps the target's buffer, grown if it holds fewer, as it does
+				// through a box.
+				let own = library::unboxed(self.b.t, ty);
+				let clone = match own.kind() {
+					ty::Adt(_, args) if self.b.t.std_of(own) == Some(Std::Vec) => {
 						library::vec_cloned_into(self.b, clone, place.0.clone(), args.type_at(0), span)
 					}
 					_ => clone,
@@ -812,6 +844,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::Object(vec![(crate::ts::Key::Name("v".into()), Expr::Str(String::new()))]),
 					false,
 				)
+			}
+			// The `&mut str` is the bytes it wrote, which a write through it changes in place.
+			("char", "encode_utf8") => {
+				let values = self.operands(false, &[], args, dest.ty(&self.mir.local_decls, tcx).ty, span, out);
+				done(Expr::rt("charEncodeUtf8", values), true)
 			}
 			("str", "split_at_mut" | "split_at_mut_checked") => {
 				let values = self.operands(false, &[], args, dest.ty(&self.mir.local_decls, tcx).ty, span, out);
