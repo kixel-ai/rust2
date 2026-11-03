@@ -44,6 +44,8 @@ pub enum Std {
 	ParseBoolError,
 	/// `rt.ParseCharError`: `{ kind }`, its `CharErrorKind`'s name.
 	ParseCharError,
+	/// `rt.FromUtf16Error`: `{ kind }`, its `FromUtf16ErrorKind`'s name.
+	FromUtf16Error,
 	/// `rt.CharTryFromError`: why `char::try_from` a `u32` failed.
 	CharTryFromError,
 	/// `rt.TryFromCharError`: why `u8::try_from` or `u16::try_from` a `char` failed.
@@ -292,6 +294,7 @@ impl Std {
 		}
 		match tcx.item_name(did).as_str() {
 			"FromUtf8Error" => return Some(Self::FromUtf8Error),
+			"FromUtf16Error" => return Some(Self::FromUtf16Error),
 			"TryFromIntError" => return Some(Self::TryFromIntError),
 			"ParseFloatError" => return Some(Self::ParseFloatError),
 			"TryFromFloatSecsError" => return Some(Self::TryFromFloatSecsError),
@@ -607,8 +610,8 @@ pub fn referent<'tcx>(
 	Some(tcx.mk_args(&args))
 }
 
-/// A comparison an impl of `PartialEq` or `PartialOrd` inherits from its trait, as a
-/// derived one inherits all but `eq` and `partial_cmp`.
+/// A comparison an impl of `PartialEq`, `PartialOrd`, or `Iterator` inherits from its
+/// trait, as a derived one inherits all but `eq` and `partial_cmp`.
 #[derive(Clone, Copy)]
 pub enum Inherited {
 	Ne,
@@ -619,30 +622,31 @@ pub enum Inherited {
 }
 
 impl Inherited {
-	/// The comparison `instance` is, if it is the trait's own default.
-	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<Self> {
+	/// The comparison `instance` is, if it is the trait's own default, and what it calls,
+	/// with the same generic arguments and operands: the trait's `eq` or `partial_cmp`.
+	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<(Self, DefId)> {
 		let ty::InstanceKind::Item(did) = instance.def else {
 			return None;
 		};
 		let tr = tcx.trait_of_assoc(did)?;
 		let inherited = match (tcx.get_diagnostic_name(tr)?.as_str(), tcx.item_name(did).as_str()) {
-			("PartialEq", "ne") => Self::Ne,
-			("PartialOrd", "lt") => Self::Lt,
-			("PartialOrd", "le") => Self::Le,
-			("PartialOrd", "gt") => Self::Gt,
-			("PartialOrd", "ge") => Self::Ge,
+			("PartialEq" | "Iterator", "ne") => Self::Ne,
+			("PartialOrd" | "Iterator", "lt") => Self::Lt,
+			("PartialOrd" | "Iterator", "le") => Self::Le,
+			("PartialOrd" | "Iterator", "gt") => Self::Gt,
+			("PartialOrd" | "Iterator", "ge") => Self::Ge,
 			_ => return None,
 		};
-		Some(inherited)
-	}
-
-	/// What the default calls, with the same generic arguments and operands: `eq` or
-	/// `partial_cmp`.
-	pub fn via(self, tcx: TyCtxt<'_>) -> DefId {
-		match self {
-			Self::Ne => super::collections::trait_fn(tcx, "PartialEq", "eq"),
-			_ => super::collections::trait_fn(tcx, "PartialOrd", "partial_cmp"),
-		}
+		let via = match inherited {
+			Self::Ne => "eq",
+			_ => "partial_cmp",
+		};
+		let via = tcx
+			.associated_items(tr)
+			.filter_by_name_unhygienic(rustc_span::Symbol::intern(via))
+			.next()?
+			.def_id;
+		Some((inherited, via))
 	}
 
 	/// The comparison, from what `via` returned: `!eq`, or whether the `partial_cmp` is
@@ -947,9 +951,14 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("RangeInclusive", "new")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
-		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate` and
-		// `clear` cut.
-		("Vec", "retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear") => &[0],
+		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
+		// `clear`, and a shrinking `resize` and `resize_with` cut, and the value `resize` then
+		// has no slot for.
+		(
+			"Vec",
+			"retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear" | "resize"
+			| "resize_with",
+		) => &[0],
 		// A slice's `fill`, `fill_with`, and `clone_from_slice` drop each element they write
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
@@ -1465,6 +1474,17 @@ fn mapping<'tcx>(
 				&& b.t.std_of(to) == Some(Std::Vec)
 			{
 				return Some(cow_cloned(b, "IntoOwned", value, elem, span));
+			}
+			// A `Vec` of a deque's items keeps its capacity.
+			if let ty::Adt(_, vargs) = to.kind()
+				&& b.t.std_of(to) == Some(Std::Vec)
+				&& b.t.std_of(from) == Some(Std::VecDeque)
+			{
+				let v = Expr::rt("dequeToVec", vec![value]);
+				return Some(match is_u8(vargs.type_at(0)) {
+					true => Expr::rt("byteVecFromVec", vec![v]),
+					false => v,
+				});
 			}
 			// A `Vec` clones what a slice or an array borrows, as `to_vec` does.
 			if let ty::Adt(_, vargs) = to.kind()
@@ -2315,8 +2335,34 @@ fn mapping<'tcx>(
 			}
 			Expr::rt("vecExtendFromSlice", values)
 		}
-		("Vec", "insert" | "remove" | "swap_remove") if is_u8(targ(gargs, 0)) => {
+		("Vec", "insert" | "remove" | "swap_remove" | "append" | "resize" | "resize_with" | "split_off")
+			if is_u8(targ(gargs, 0)) =>
+		{
 			rt2(args, "byteVec", &super::camel(&name))
+		}
+		// Each reserves as std's does, by the size of the elements, and `resize` clones its
+		// value for each slot but the last.
+		("Vec", "append" | "resize" | "resize_with" | "split_off") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			if name == "resize" {
+				values.push(super::collections::clone_fn(b, elem, span));
+			}
+			rt2(values, "vec", &super::camel(&name))
+		}
+		("Vec", "extend_from_within") => {
+			let elem = targ(gargs, 0);
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.push(ranged.bounds.clone());
+			return Some(ranged.after(match is_u8(elem) {
+				true => Expr::rt("byteVecExtendFromWithin", args),
+				false => {
+					args.push(super::iter::size_of(b, elem, span));
+					args.push(super::collections::clone_fn(b, elem, span));
+					Expr::rt("vecExtendFromWithin", args)
+				}
+			}));
 		}
 		("Vec", "insert" | "remove" | "swap_remove" | "truncate") => rt2(args, "vec", &super::camel(&name)),
 		("Vec", "clear") => {
@@ -2415,6 +2461,11 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
+		(
+			"String",
+			"from_utf16" | "from_utf16_lossy" | "from_utf16le" | "from_utf16le_lossy" | "from_utf16be"
+			| "from_utf16be_lossy",
+		) => Expr::rt_of("string", &super::camel(&name)).call(args),
 		// `str::from_utf8` is `core::str::converts::from_utf8`, or `str`'s own.
 		("converts" | "str", "from_utf8") => Expr::rt("strFromUtf8", args),
 		("Utf8Error", "valid_up_to") => args.pop()?.member("validUpTo"),
@@ -2480,6 +2531,10 @@ fn mapping<'tcx>(
 			| "to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "len_utf8"
 			| "len_utf16" | "encode_utf16" | "from_digit",
 		) => Expr::rt_of("char", &super::camel(&name)).call(args),
+		(
+			"str",
+			"to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "encode_utf16",
+		) => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// `char::decode_utf16` of what it is given, either as a method or as `char`'s function.
 		("char", "decode_utf16") => {
 			let mut values = args;

@@ -333,6 +333,20 @@ pub fn std_impl<'tcx>(
 				_ => return None,
 			}
 		}
+		// A `str`'s escape writes what it has left, unpadded.
+		ty::Adt(adt, _)
+			if tr == Trait::Display
+				&& matches!(
+					library::std_path(tcx, adt.did())
+						.iter()
+						.map(String::as_str)
+						.collect::<Vec<_>>()
+						.as_slice(),
+					["str", "iter", "EscapeUnicode" | "EscapeDebug" | "EscapeDefault"]
+				) =>
+		{
+			Expr::rt("fmtStrEscapeDisplay", vec![value, f])
+		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
 				&& let Some(e) = iter_debug(b, adt.did(), args, &value, &f, span) =>
@@ -511,6 +525,8 @@ pub fn std_impl<'tcx>(
 			(Std::TryFromFloatSecsError, Trait::Display) => rt("tryFromFloatSecsErrorDisplay", vec![value, f]),
 			(Std::FromUtf8Error, Trait::Debug) => rt("fromUtf8ErrorDebug", vec![value, f]),
 			(Std::FromUtf8Error, Trait::Display) => rt("fromUtf8ErrorDisplay", vec![value, f]),
+			(Std::FromUtf16Error, Trait::Debug) => rt("fromUtf16ErrorDebug", vec![value, f]),
+			(Std::FromUtf16Error, Trait::Display) => rt("fromUtf16ErrorDisplay", vec![value, f]),
 			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
 			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
@@ -555,6 +571,13 @@ fn iter_debug<'tcx>(
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		// Without its fields, which neither `#` nor a width changes.
+		["str", "iter", "EncodeUtf16"] => {
+			return Some(Expr::rt(
+				"fmtWriteStr",
+				vec![f.clone(), Expr::Str("EncodeUtf16 { .. }".into())],
+			));
+		}
 		[
 			"collections",
 			"vec_deque",
