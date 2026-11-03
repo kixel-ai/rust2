@@ -2849,9 +2849,7 @@ export function converted$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec
 	_165[0] = _163;
 	const _173: Logged.Logged[] = list;
 	rt.idx(_173, 1);
-	const old9 = _173[1];
-	_173[1] = Logged.clone$Clone(c);
-	old9[Symbol.dispose]();
+	rt.sliceReplace(_173, 1, Logged.clone$Clone(c))[Symbol.dispose]();
 	rt.sliceSwap(list, 0, 1);
 	list.push(Logged.make$conversions_Value(data, 15));
 	none.push(Logged.clone$Clone(a));
