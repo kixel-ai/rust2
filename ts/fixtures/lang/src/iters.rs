@@ -1840,3 +1840,55 @@ pub fn compares(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	out.extend_from_slice(&log.borrow());
 }
+
+/// `by_ref` of a `&mut` to an iterator held in a local, of a `&mut` to that, and of a
+/// `&mut dyn Iterator`: each advances the iterator it points at, which the original reads
+/// on from where the borrow stopped, and writing through what it returns rebinds the local.
+pub fn lent(data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().map_or(0, |&b| usize::from(b % 4));
+	let mut it = data.iter().copied();
+	let mut lent = &mut it;
+	out.extend((&mut lent).by_ref().take(n));
+	out.push(lent.next().unwrap_or(0xaa));
+	out.extend(it.by_ref().take(1));
+	let mut once = &mut it;
+	let mut twice = &mut once;
+	out.push((&mut twice).by_ref().nth(n).unwrap_or(0xbb));
+	out.push(twice.next().unwrap_or(0xcc));
+	out.push(it.next().unwrap_or(0xdd));
+
+	// Rebound through the `&mut` that `by_ref` returns, the local reads the other iterator,
+	// and the first is left where it stopped.
+	let mut own = Countdown { left: n as u8 * 3, step: 2 };
+	let mut other = Countdown { left: 9, step: 4 };
+	let mut held = &mut own;
+	out.push(held.next().unwrap_or(0xaa));
+	*(&mut held).by_ref() = &mut other;
+	out.push(held.next().unwrap_or(0xbb));
+	out.extend(own);
+	out.extend(other);
+
+	let mut range = 0..n as u8 * 3;
+	let mut erased: &mut dyn Iterator<Item = u8> = &mut range;
+	out.extend((&mut erased).by_ref().step_by(2).take(2));
+	out.push(erased.next().unwrap_or(0xee));
+	let mut deeper = &mut erased;
+	out.push((&mut deeper).by_ref().next().unwrap_or(0xee));
+	out.extend(range);
+	let mut boxed: Box<dyn Iterator<Item = u8>> = Box::new(data.iter().rev().copied());
+	let mut lent = &mut boxed;
+	out.extend((&mut lent).by_ref().take(n));
+	out.extend(boxed.take(1));
+
+	// Generic over an iterator that is itself a `&mut`, or one it owns.
+	let mut rest = data.iter().copied();
+	out.extend(halves(&mut rest, n));
+	out.extend(rest);
+	out.extend(halves(data.iter().copied(), n));
+}
+
+/// The first `n` items, then one more.
+fn halves<I: Iterator<Item = u8>>(mut it: I, n: usize) -> Vec<u8> {
+	let front: Vec<u8> = it.by_ref().take(n).collect();
+	[front, it.take(1).collect()].concat()
+}
