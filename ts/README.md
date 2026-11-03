@@ -503,8 +503,11 @@ behind `&`, `&mut`, `Box`, `Arc`, or `Rc` is an `rt.Iter` of its items, `rt.iter
 of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
 such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
 trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
-trait object's does. A box drops the iterator it owns, and the last `Arc` the one they
-share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
+trait object's does. A box of any iterator, a trait object or not, is `rt.iterBox` of it
+wherever it is read, behind a `&mut` too: it forwards `next`, `nth`, `last`, and what else
+std's `Iterator` for `Box<I>` forwards, and reads the rest by `next`, `advance_by` and the
+folds included, so a boxed `skip` of a zip skips through the zip's `nth` as std's does. A
+box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
 A trait object of std's

@@ -589,6 +589,15 @@ export function iterDyn<T>(it: Iter<T>): Iter<T> {
 	return new Dyn(it);
 }
 
+/**
+ * A `Box` of `it`: what std's `Iterator` for `Box<I>` forwards, `last` among them, as `it`
+ * does it, and the rest by `next`, `advance_by` and the folds included. It drops `it` as it
+ * drops.
+ */
+export function iterBox<T>(it: Iter<T>): Iter<T> {
+	return new Boxed(it);
+}
+
 // How std's `Vec` and `VecDeque` reserve for an iterator they collect or extend by, of
 // elements `size` bytes each, which panics past what they may hold: a `TrustedLen` one's
 // upper bound first, and else, after each item that finds them full, the lower bound and
@@ -1493,6 +1502,8 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
  * does. By `fold`, each item drops as the next replaces it.
  */
 function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
+	// std's of a box: what it holds, by its own.
+	if (it instanceof Boxed) return last(it.inner, drop);
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
 		// std's, of a `Vec`'s or an array's, and of a B-tree's `into_keys` and
 		// `into_values`: the last item, and then the rest drop with it.
@@ -2059,8 +2070,11 @@ class SuccessorsIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/** What std's vtable of an iterator holds, as `inner` does it, which it drops with itself. */
-class Dyn<T> extends Iter<T> implements Disposable {
+/**
+ * An iterator of `inner` that forwards what std's `Iterator` for `Box<I>` and a trait
+ * object's vtable both have, and drops it as it drops.
+ */
+abstract class Forward<T> extends Iter<T> implements Disposable {
 	readonly inner: Iter<T>;
 
 	constructor(inner: Iter<T>) {
@@ -2084,14 +2098,6 @@ class Dyn<T> extends Iter<T> implements Disposable {
 		return this.inner.len();
 	}
 
-	override advanceBy(n: number, drop?: Drop<T>): number {
-		return this.inner.advanceBy(n, drop);
-	}
-
-	override advanceBackBy(n: number, drop?: Drop<T>): number {
-		return this.inner.advanceBackBy(n, drop);
-	}
-
 	override nth(n: number, drop?: Drop<T>): T | Done {
 		return this.inner.nth(n, drop);
 	}
@@ -2102,6 +2108,20 @@ class Dyn<T> extends Iter<T> implements Disposable {
 
 	[Symbol.dispose](): void {
 		dispose(this.inner);
+	}
+}
+
+/** A box, whose `last` is `inner`'s too, which `last` dispatches on. */
+class Boxed<T> extends Forward<T> {}
+
+/** What std's vtable of an iterator holds, as `inner` does it: a box's, and `advance_by` too. */
+class Dyn<T> extends Forward<T> {
+	override advanceBy(n: number, drop?: Drop<T>): number {
+		return this.inner.advanceBy(n, drop);
+	}
+
+	override advanceBackBy(n: number, drop?: Drop<T>): number {
+		return this.inner.advanceBackBy(n, drop);
 	}
 }
 

@@ -21,7 +21,6 @@ generic std gap is planned here even when moq never calls it.
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
-- [A boxed iterator folds as std's box does](/quest/m3/ts-box-folds.md) - a `Box<I>` reads by `next` where std's `Iterator` for `Box<I>` forwards nothing else
 - [Debug of a RefCell or a Cell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, `RefMut`, and `Cell` translates as std's writes them
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
