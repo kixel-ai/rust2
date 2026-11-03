@@ -1291,7 +1291,8 @@ fn lookalike() {
 		.args(["build", "--quiet", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
-		.arg(package.join("glue")));
+		.arg(package.join("glue"))
+		.env("RUSTFLAGS", "-D warnings"));
 }
 
 /// Writes each `(path, text)` into `dir`.
@@ -1337,7 +1338,29 @@ fn build_offline(out: &Path, target: &Path) {
 		.args(["build", "--quiet", "--offline", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
-		.arg(target));
+		.arg(target)
+		.env("RUSTFLAGS", "-D warnings"));
+}
+
+/// The glue of an API that passes no handle, out-parameter, or callback builds without
+/// warnings in every language's module too, writing no import it leaves unused.
+#[test]
+fn plain() {
+	let package = package("plain");
+	export_and_build(&package, &[]);
+	run(cargo()
+		.args([
+			"check",
+			"--quiet",
+			"--offline",
+			"--features",
+			"kotlin,python,dart",
+			"--manifest-path",
+		])
+		.arg(package.join("out").join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(package.join("glue"))
+		.env("RUSTFLAGS", "-D warnings"));
 }
 
 /// Another export patched in for a registry dependency is bound by its resolved package,

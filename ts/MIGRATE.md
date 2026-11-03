@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- A `dyn Error`'s or `dyn Buf`'s type and classes hold only the methods some call through
+  one dispatches to: a TS caller can call no other, such as `getU16Le$Buf` where no Rust
+  call reads one through a `dyn Buf`.
 - Comparing pointers to an array of other values than bytes, such as `ptr::eq` of two
   `&[u16; 2]`, is refused, since a slice lends such an array as a copy of its own; compare
   the indexes they were taken at instead.
