@@ -553,6 +553,32 @@ Future<void> futures() async {
   check(await api.emitLater(laterLog, bytes([1, 2])) == 4, 'an async call and its poll into Dart from a joined thread');
   check(laterLog.lines == 4, 'each line logged, eagerly and once polled');
 
+  // An implementation Rust holds, which a later call that gives none waits on another
+  // thread to call, runs on the isolate's thread meanwhile: from a method, and from a
+  // cancel whose drop calls it.
+  final heldLog = CountLog();
+  final logger = api.Logger(heldLog);
+  check(logger.writeFromThread('held'), 'a call into a held implementation from a joined thread');
+  check(heldLog.lines == 1, 'the held implementation logged');
+  logger.close();
+  check(heldLog.closes == 1, 'closing the object closes the implementation it held');
+  // So does a call the thread made before the isolate waited, which its event loop would
+  // have run: `sleep` holds the isolate's thread without running its event loop meanwhile,
+  // unless the thread made it while its constructor waited.
+  final postedLog = CountLog();
+  final posting = api.LogThread(postedLog, 'posted');
+  sleep(const Duration(milliseconds: 100));
+  check(posting.join(), 'a call into Dart made before the isolate waited on its thread');
+  check(postedLog.lines == 1, 'the posted call logged');
+  await until(() => postedLog.closes == 1, 'an implementation its thread dropped is closed');
+  final dropLog = CountLog();
+  final dropping = api.logOnDrop(dropLog);
+  await step();
+  dropping.cancel();
+  check(dropLog.lines == 1, "a cancel calls into the implementation its future's drop holds");
+  check(dropLog.closes == 1, 'a cancel closes the implementation its future held');
+  await cancelled(dropping, 'a cancelled future that never finishes completes with Cancelled');
+
   // A wake that lands while the future polls, before it returns pending, as each of
   // `yielded`'s does, is kept: the future polls again rather than waiting for a wake that
   // already happened.
