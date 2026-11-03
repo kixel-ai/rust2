@@ -190,5 +190,6 @@ roots = [
     "keeps",
     "sizes",
     "discards",
+    "disposes",
 ]
 printable = ["Meters"]

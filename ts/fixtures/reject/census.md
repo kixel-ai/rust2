@@ -1,7 +1,7 @@
 # Census of `reject-fixture`
 
-- Refusals: 263
-- Function instances: 306
+- Refusals: 264
+- Function instances: 309
 - Generic functions no instance reached, lowered over their type parameters: 13
 
 ## By construct
@@ -38,6 +38,7 @@
 | 2 | a raw pointer to a place of `()`, which has no address of its own | fixtures/reject/src/lib.rs:676:15 |
 | 2 | an upcast from `_` to `_`, which is not supported yet | fixtures/reject/src/lib.rs:474:32 |
 | 2 | comparing pointers to `_`, each a place JS makes of its own | fixtures/reject/src/lib.rs:544:2 |
+| 2 | overriding `_` with a call generic over its accumulator or closure, which is not supported yet | fixtures/reject/src/lib.rs:2423:18 |
 | 2 | passing `_`, which drops, to `_`, which is not supported yet | fixtures/reject/src/lib.rs:275:4 |
 | 2 | unsupported type `_` from another crate | fixtures/reject/src/lib.rs:387:32 |
 | 1 | `Buf::copy_to_bytes` of `_`, a value JS copies, which is not supported | fixtures/reject/src/lib.rs:709:2 |
@@ -95,9 +96,8 @@
 | 1 | hashing `_` as a key, which is not supported yet | fixtures/reject/src/lib.rs:206:75 |
 | 1 | hashing `_` by its address, which JS has no counterpart of | fixtures/reject/src/lib.rs:1664:5 |
 | 1 | hashing `_` through `_`'s own `Hash::hash_slice`, which is not supported yet | fixtures/reject/src/lib.rs:266:16 |
-| 1 | overriding `_` with a call generic over its accumulator or closure, which is not supported yet | fixtures/reject/src/lib.rs:2422:3 |
-| 1 | overriding `_` with a constant generic over its accumulator or closure, which is not supported yet | fixtures/reject/src/lib.rs:2446:11 |
-| 1 | overriding `_` with a drop of its accumulator, which is not supported yet | fixtures/reject/src/lib.rs:2469:3 |
+| 1 | overriding `_` with a constant generic over its accumulator or closure, which is not supported yet | fixtures/reject/src/lib.rs:2448:11 |
+| 1 | overriding `_` with a drop of its accumulator, which is not supported yet | fixtures/reject/src/lib.rs:2471:3 |
 | 1 | overriding `_` with its accumulator in an `Option` or a `Poll`, which is not supported yet | fixtures/reject/src/lib.rs:126:3 |
 | 1 | overriding `_`, which std's adaptors call in place of `next` or beside it | fixtures/reject/src/lib.rs:150:2 |
 | 1 | union `_`, whose fields overlap in `_` and `f64`, which JS keeps apart | fixtures/reject/src/lib.rs:530:1 |
@@ -114,7 +114,7 @@ The type or module each refused type or path belongs to.
 | 11 | `(u8, u8)` | fixtures/reject/src/lib.rs:1220:31 |
 | 9 | `[u8; 4]` | fixtures/reject/src/lib.rs:423:26 |
 | 8 | `u8` | fixtures/reject/src/lib.rs:224:6 |
-| 6 | `Iterator` | fixtures/reject/src/lib.rs:37:4 |
+| 7 | `Iterator` | fixtures/reject/src/lib.rs:37:4 |
 | 6 | `f16` | fixtures/reject/src/lib.rs:7:14 |
 | 6 | `std::borrow::Cow` | fixtures/reject/src/lib.rs:280:2 |
 | 5 | `Gap` | fixtures/reject/src/lib.rs:856:10 |
@@ -300,6 +300,7 @@ The type or module each refused type or path belongs to.
 | 2 | an upcast from `_` to `_`, which is not supported yet | `dyn Keyed`, `dyn std::any::Any` | fixtures/reject/src/lib.rs:474:32 |
 | 2 | comparing pointers to `_`, each a place JS makes of its own | `u32` | fixtures/reject/src/lib.rs:544:2 |
 | 2 | memory from `alloc` cast to pointers to `_` and to `_`, which reads the bytes of one type as another | `u32`, `i32` | fixtures/reject/src/lib.rs:2294:7 |
+| 2 | overriding `_` with a call generic over its accumulator or closure, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2423:18 |
 | 2 | replacing the value behind a reference to `_` | `std::pin::Pin` | fixtures/reject/src/lib.rs:91:2 |
 | 2 | unsupported call to `_` | `<std::vec::IntoIter as std::iter::Iterator>::sum` | fixtures/reject/src/lib.rs:383:17 |
 | 1 | `Buf::copy_to_bytes` of `_`, a value JS copies, which is not supported | `Blank` | fixtures/reject/src/lib.rs:709:2 |
@@ -432,9 +433,8 @@ The type or module each refused type or path belongs to.
 | 1 | hashing `_` as a key, which is not supported yet | `std::collections::BTreeSet` | fixtures/reject/src/lib.rs:206:75 |
 | 1 | hashing `_` by its address, which JS has no counterpart of | `*const [u8; 4]` | fixtures/reject/src/lib.rs:1664:5 |
 | 1 | hashing `_` through `_`'s own `Hash::hash_slice`, which is not supported yet | `std::vec::Vec`, `Batched` | fixtures/reject/src/lib.rs:266:16 |
-| 1 | overriding `_` with a call generic over its accumulator or closure, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2422:3 |
-| 1 | overriding `_` with a constant generic over its accumulator or closure, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2446:11 |
-| 1 | overriding `_` with a drop of its accumulator, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2469:3 |
+| 1 | overriding `_` with a constant generic over its accumulator or closure, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2448:11 |
+| 1 | overriding `_` with a drop of its accumulator, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:2471:3 |
 | 1 | overriding `_` with its accumulator in an `Option` or a `Poll`, which is not supported yet | `Iterator::fold` | fixtures/reject/src/lib.rs:126:3 |
 | 1 | overriding `_`, which std's adaptors call in place of `next` or beside it | `DoubleEndedIterator::rfind` | fixtures/reject/src/lib.rs:150:2 |
 | 1 | passing `_`, which drops, to `_`, which is not supported yet | `{closure}`, `String::retain` | fixtures/reject/src/lib.rs:732:4 |
@@ -812,6 +812,13 @@ The type or module each refused type or path belongs to.
 
 </details>
 
+<details><summary>overriding `_` with a call generic over its accumulator or closure, which is not supported yet (2)</summary>
+
+- fixtures/reject/src/lib.rs:2423:18: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
+- fixtures/reject/src/lib.rs:2493:3: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
+
+</details>
+
 <details><summary>passing `_`, which drops, to `_`, which is not supported yet (2)</summary>
 
 - fixtures/reject/src/lib.rs:275:4: passing `{closure@fixtures/reject/src/lib.rs:275:13: 275:27}`, which drops, to `str::contains`, which is not supported yet
@@ -1156,21 +1163,15 @@ The type or module each refused type or path belongs to.
 
 </details>
 
-<details><summary>overriding `_` with a call generic over its accumulator or closure, which is not supported yet (1)</summary>
-
-- fixtures/reject/src/lib.rs:2422:3: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
-
-</details>
-
 <details><summary>overriding `_` with a constant generic over its accumulator or closure, which is not supported yet (1)</summary>
 
-- fixtures/reject/src/lib.rs:2446:11: overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet
+- fixtures/reject/src/lib.rs:2448:11: overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet
 
 </details>
 
 <details><summary>overriding `_` with a drop of its accumulator, which is not supported yet (1)</summary>
 
-- fixtures/reject/src/lib.rs:2469:3: overriding `Iterator::fold` with a drop of its accumulator, which is not supported yet
+- fixtures/reject/src/lib.rs:2471:3: overriding `Iterator::fold` with a drop of its accumulator, which is not supported yet
 
 </details>
 

@@ -2408,7 +2408,8 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 	tagged_slots!(slots)
 }
 
-/// An iterator whose own `fold` tells its accumulator apart by a helper generic over it.
+/// An iterator whose own `fold` tells its accumulator apart by a helper generic over it,
+/// in a closure.
 pub struct Keeps;
 
 impl Iterator for Keeps {
@@ -2419,7 +2420,8 @@ impl Iterator for Keeps {
 	}
 
 	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
-		keep(init)
+		let kept = |x| keep(x);
+		kept(init)
 	}
 }
 
@@ -2473,4 +2475,26 @@ impl Iterator for Discards {
 
 pub fn discards() -> usize {
 	Discards.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` drops its accumulator by `drop`, which only its closure can be.
+pub struct Disposes;
+
+impl Iterator for Disposes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	#[allow(clippy::empty_loop)]
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, f: F) -> B {
+		drop(f);
+		drop(init);
+		loop {}
+	}
+}
+
+pub fn disposes() -> usize {
+	Disposes.map(|b| b + 1).count()
 }

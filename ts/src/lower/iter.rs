@@ -128,7 +128,7 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 /// `B`, which drops as the one it is translated for does.
 fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 	use rustc_middle::mir::visit::Visitor;
-	use rustc_middle::mir::{self, AggregateKind, BasicBlock, BasicBlockData, ConstOperand, Location, Rvalue, TerminatorKind};
+	use rustc_middle::mir::{self, ConstOperand, Location, TerminatorKind};
 
 	struct Erases<'a, 'tcx> {
 		tcx: TyCtxt<'tcx>,
@@ -139,8 +139,25 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 		found: Option<(Span, &'static str)>,
 	}
 	impl<'tcx> Erases<'_, 'tcx> {
-		fn mentions(&self, arg: ty::GenericArg<'tcx>) -> bool {
-			arg.walk().any(|a| matches!(a.as_type().map(Ty::kind), Some(ty::Param(p)) if self.params.contains(&p.index)))
+		/// Whether `arg` is over `B` or `F` other than through a closure, whose own body is
+		/// checked in its place, as one in this body is over both.
+		fn mentions(&mut self, arg: ty::GenericArg<'tcx>) -> bool {
+			let mut walk = arg.walk();
+			let mut mentions = false;
+			while let Some(a) = walk.next() {
+				let Some(t) = a.as_type() else {
+					continue;
+				};
+				match *t.kind() {
+					ty::Closure(closure, _) => {
+						self.closures.push(closure);
+						walk.skip_current_subtree();
+					}
+					ty::Param(p) if self.params.contains(&p.index) => mentions = true,
+					_ => {}
+				}
+			}
+			mentions
 		}
 
 		/// Whether `ty` is `F`.
@@ -164,22 +181,6 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 		}
 	}
 	impl<'tcx> Visitor<'tcx> for Erases<'_, 'tcx> {
-		fn visit_basic_block_data(&mut self, bb: BasicBlock, data: &BasicBlockData<'tcx>) {
-			// A panic aborts on wasm32 before its cleanup runs.
-			if !data.is_cleanup {
-				self.super_basic_block_data(bb, data);
-			}
-		}
-
-		fn visit_rvalue(&mut self, rvalue: &Rvalue<'tcx>, loc: Location) {
-			if let Rvalue::Aggregate(kind, _) = rvalue
-				&& let AggregateKind::Closure(closure, _) = **kind
-			{
-				self.closures.push(closure);
-			}
-			self.super_rvalue(rvalue, loc);
-		}
-
 		fn visit_terminator(&mut self, term: &mir::Terminator<'tcx>, loc: Location) {
 			let span = term.source_info.span;
 			match &term.kind {
@@ -206,13 +207,13 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 			self.super_terminator(term, loc);
 		}
 
-		fn visit_const_operand(&mut self, c: &ConstOperand<'tcx>, _: Location) {
+		fn visit_const_operand(&mut self, c: &ConstOperand<'tcx>, loc: Location) {
 			let args = match c.const_ {
 				mir::Const::Unevaluated(uv, _) => uv.args,
 				_ => ty::List::empty(),
 			};
 			if self.mentions(c.const_.ty().into()) || args.iter().any(|a| self.mentions(a)) {
-				self.find(c.span, "a constant generic over its accumulator or closure");
+				self.find(self.mir.source_info(loc).span, "a constant generic over its accumulator or closure");
 			}
 		}
 	}
@@ -225,8 +226,20 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 		.map(|p| p.index);
 	let params = [params.next()?, params.next()?];
 	let mut bodies = vec![def_id];
+	let mut seen = Vec::new();
 	while let Some(def_id) = bodies.pop() {
+		if seen.contains(&def_id) {
+			continue;
+		}
+		seen.push(def_id);
 		let mir = tcx.optimized_mir(def_id);
+		let mut erases = Erases {
+			tcx,
+			mir,
+			params,
+			closures: Vec::new(),
+			found: None,
+		};
 		for local in &mir.local_decls {
 			let wraps = local.ty.walk().filter_map(|arg| arg.as_type()).any(|t| match t.kind() {
 				ty::Adt(adt, args) => {
@@ -238,14 +251,8 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 			if wraps {
 				return Some((local.source_info.span, "its accumulator in an `Option` or a `Poll`"));
 			}
+			erases.mentions(local.ty.into());
 		}
-		let mut erases = Erases {
-			tcx,
-			mir,
-			params,
-			closures: Vec::new(),
-			found: None,
-		};
 		erases.visit_body(mir);
 		if erases.found.is_some() {
 			return erases.found;

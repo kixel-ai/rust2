@@ -258,6 +258,7 @@ a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may pu
 a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2321:23
 a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2377:13
 a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2321:23
-overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2422:3
-overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2446:11
-overriding `Iterator::fold` with a drop of its accumulator, which is not supported yet at fixtures/reject/src/lib.rs:2469:3
+overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2423:18
+overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2448:11
+overriding `Iterator::fold` with a drop of its accumulator, which is not supported yet at fixtures/reject/src/lib.rs:2471:3
+overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2493:3
