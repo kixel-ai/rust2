@@ -12,7 +12,7 @@ export function eq$cmp_PartialEq(self: Rank, other: Rank): boolean {
 		}
 	} else if (self.tag === "High") {
 		if (other.tag === "High") {
-			if (!((self.x === other.x))) {
+			if (!(self.x === other.x)) {
 				return false;
 			}
 			return self.y === other.y;

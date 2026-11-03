@@ -30,7 +30,7 @@ export function push(self: Waiters, waiter: Waiter.Waiter): void {
 
 export function pop(self: Waiters): boolean {
 	const head: Waiter.Waiter = self.head.v;
-	if (!((head === rt.NULL))) {
+	if (!(head === rt.NULL)) {
 		const _6: Waiter.Waiter = rt.atomicLoad(head.next, 4);
 		self.head.v = _6;
 		rt.atomicStore(head.enqueued, false, 4);

@@ -568,13 +568,13 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
 		rt.byteVecPush(out, rt.byteVecSwapRemove(v15, rt.usizeRem(j, v15.length)));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
-		if (!((v15.length === 0))) {
+		if (!(v15.length === 0)) {
 			rt.byteVecPush(out, rt.byteVecRemove(v15, rt.usizeRem(i, v15.length)));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
 		const part = rt.min(v15.length, 1);
 		const tail2: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(v15), part);
-		if (!((tail2.length === 0))) {
+		if (!(tail2.length === 0)) {
 			rt.byteSliceSwap(tail2, rt.usizeRem(i, tail2.length), rt.usizeRem(j, tail2.length));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
@@ -1017,7 +1017,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_121.value));
 		rt.refRelease(_121);
 		const v2: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_234: rt.u8): rt.u16 => {
-			return (((_234 as rt.u16)) << 4) & 0xffff;
+			return ((_234 as rt.u16) << 4) & 0xffff;
 		}), undefined, 2, true);
 		const _127: rt.u8 = (kind >> 3) & 3;
 		if (_127 === 0) {

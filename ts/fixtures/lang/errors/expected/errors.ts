@@ -29,7 +29,7 @@ export function pairs$Option_Result_u8_num_ParseIntError(values: Array<rt.Result
 				continue l1;
 			}
 			const b: rt.Result<rt.u8, rt.ParseIntError> | undefined = _11;
-			rt.byteVecPush(out, ((rt.eqOption(result_eq$0p1bb4y)(a, b) ? 1 : 0)) | ((((!rt.eqOption(result_eq$0p1bb4y)(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (rt.eqOption(result_eq$0p1bb4y)(a, b) ? 1 : 0) | (((!rt.eqOption(result_eq$0p1bb4y)(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -45,7 +45,7 @@ export function pairs$Result_Option_u8_num_ParseIntError(values: rt.Result<rt.u8
 				continue l1;
 			}
 			const b: rt.Result<rt.u8 | undefined, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$04qb8k3(a, b) ? 1 : 0)) | ((((!result_eq$04qb8k3(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$04qb8k3(a, b) ? 1 : 0) | (((!result_eq$04qb8k3(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -61,7 +61,7 @@ export function pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(
 				continue l1;
 			}
 			const b: rt.Result<rt.Result<rt.char, rt.ParseCharError>, rt.ParseBoolError> = _11;
-			rt.byteVecPush(out, ((result_eq$10fppe8(a, b) ? 1 : 0)) | ((((!result_eq$10fppe8(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$10fppe8(a, b) ? 1 : 0) | (((!result_eq$10fppe8(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -77,7 +77,7 @@ export function pairs$Result_String_string_FromUtf8Error(values: rt.Result<strin
 				continue l1;
 			}
 			const b: rt.Result<string, rt.FromUtf8Error> = _11;
-			rt.byteVecPush(out, ((result_eq$0ecfqx9(a, b) ? 1 : 0)) | ((((!result_eq$0ecfqx9(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0ecfqx9(a, b) ? 1 : 0) | (((!result_eq$0ecfqx9(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -93,7 +93,7 @@ export function pairs$Result_bool_str_ParseBoolError(values: rt.Result<boolean, 
 				continue l1;
 			}
 			const b: rt.Result<boolean, rt.ParseBoolError> = _11;
-			rt.byteVecPush(out, ((result_eq$0nlhjpf(a, b) ? 1 : 0)) | ((((!result_eq$0nlhjpf(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0nlhjpf(a, b) ? 1 : 0) | (((!result_eq$0nlhjpf(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -109,7 +109,7 @@ export function pairs$Result_char_char_ParseCharError(values: rt.Result<rt.char,
 				continue l1;
 			}
 			const b: rt.Result<rt.char, rt.ParseCharError> = _11;
-			rt.byteVecPush(out, ((result_eq$04iua4k(a, b) ? 1 : 0)) | ((((!result_eq$04iua4k(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$04iua4k(a, b) ? 1 : 0) | (((!result_eq$04iua4k(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -125,7 +125,7 @@ export function pairs$Result_f64_num_ParseFloatError(values: rt.Result<rt.f64, r
 				continue l1;
 			}
 			const b: rt.Result<rt.f64, rt.ParseFloatError> = _11;
-			rt.byteVecPush(out, ((result_eq$1dhtbkj(a, b) ? 1 : 0)) | ((((!result_eq$1dhtbkj(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1dhtbkj(a, b) ? 1 : 0) | (((!result_eq$1dhtbkj(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -141,7 +141,7 @@ export function pairs$Result_i128_num_ParseIntError(values: rt.Result<rt.i128, r
 				continue l1;
 			}
 			const b: rt.Result<rt.i128, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$0pe0qmq(a, b) ? 1 : 0)) | ((((!result_eq$0pe0qmq(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pe0qmq(a, b) ? 1 : 0) | (((!result_eq$0pe0qmq(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -157,7 +157,7 @@ export function pairs$Result_i8_num_ParseIntError(values: rt.Result<rt.i8, rt.Pa
 				continue l1;
 			}
 			const b: rt.Result<rt.i8, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$1mpp8xa(a, b) ? 1 : 0)) | ((((!result_eq$1mpp8xa(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1mpp8xa(a, b) ? 1 : 0) | (((!result_eq$1mpp8xa(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -173,7 +173,7 @@ export function pairs$Result_i8_num_TryFromIntError(values: rt.Result<rt.i8, rt.
 				continue l1;
 			}
 			const b: rt.Result<rt.i8, rt.TryFromIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$0grmb7g(a, b) ? 1 : 0)) | ((((!result_eq$0grmb7g(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0grmb7g(a, b) ? 1 : 0) | (((!result_eq$0grmb7g(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -189,7 +189,7 @@ export function pairs$Result_num_NonZero_u32_num_ParseIntError(values: rt.Result
 				continue l1;
 			}
 			const b: rt.Result<rt.u32, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$19kc15f(a, b) ? 1 : 0)) | ((((!result_eq$19kc15f(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$19kc15f(a, b) ? 1 : 0) | (((!result_eq$19kc15f(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -205,7 +205,7 @@ export function pairs$Result_ref_str_str_Utf8Error(values: rt.Result<string, rt.
 				continue l1;
 			}
 			const b: rt.Result<string, rt.Utf8Error> = _11;
-			rt.byteVecPush(out, ((result_eq$0rj0czq(a, b) ? 1 : 0)) | ((((!result_eq$0rj0czq(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0rj0czq(a, b) ? 1 : 0) | (((!result_eq$0rj0czq(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -221,7 +221,7 @@ export function pairs$Result_time_Duration_time_TryFromFloatSecsError(values: rt
 				continue l1;
 			}
 			const b: rt.Result<rt.Duration, rt.TryFromFloatSecsError> = _11;
-			rt.byteVecPush(out, ((result_eq$1hq3neq(a, b) ? 1 : 0)) | ((((!result_eq$1hq3neq(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hq3neq(a, b) ? 1 : 0) | (((!result_eq$1hq3neq(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -237,7 +237,7 @@ export function pairs$Result_u16_never(values: rt.Result<rt.u16, never>[], out: 
 				continue l1;
 			}
 			const b: rt.Result<rt.u16, never> = _11;
-			rt.byteVecPush(out, ((result_eq$08241oi(a, b) ? 1 : 0)) | ((((!result_eq$08241oi(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$08241oi(a, b) ? 1 : 0) | (((!result_eq$08241oi(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -253,7 +253,7 @@ export function pairs$Result_u64_num_ParseIntError(values: rt.Result<rt.u64, rt.
 				continue l1;
 			}
 			const b: rt.Result<rt.u64, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$0bl30vt(a, b) ? 1 : 0)) | ((((!result_eq$0bl30vt(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0bl30vt(a, b) ? 1 : 0) | (((!result_eq$0bl30vt(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -269,7 +269,7 @@ export function pairs$Result_u8_num_IntErrorKind(values: rt.Result<rt.u8, rt.Int
 				continue l1;
 			}
 			const b: rt.Result<rt.u8, rt.IntErrorKind> = _11;
-			rt.byteVecPush(out, ((result_eq$1fkhuzl(a, b) ? 1 : 0)) | ((((!result_eq$1fkhuzl(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1fkhuzl(a, b) ? 1 : 0) | (((!result_eq$1fkhuzl(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -285,7 +285,7 @@ export function pairs$Result_u8_num_ParseIntError(values: rt.Result<rt.u8, rt.Pa
 				continue l1;
 			}
 			const b: rt.Result<rt.u8, rt.ParseIntError> = _11;
-			rt.byteVecPush(out, ((result_eq$0p1bb4y(a, b) ? 1 : 0)) | ((((!result_eq$0p1bb4y(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0p1bb4y(a, b) ? 1 : 0) | (((!result_eq$0p1bb4y(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -301,7 +301,7 @@ export function pairs$Result_unit_fmt_Error(values: rt.Result<undefined, rt.FmtE
 				continue l1;
 			}
 			const b: rt.Result<undefined, rt.FmtError> = _11;
-			rt.byteVecPush(out, ((result_eq$03gbayb(a, b) ? 1 : 0)) | ((((!result_eq$03gbayb(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$03gbayb(a, b) ? 1 : 0) | (((!result_eq$03gbayb(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -317,7 +317,7 @@ export function pairs$Vec_Result_bool_str_ParseBoolError(values: rt.Result<boole
 				continue l1;
 			}
 			const b: rt.Result<boolean, rt.ParseBoolError>[] = _11;
-			rt.byteVecPush(out, ((rt.eqSlice(result_eq$0nlhjpf)(a, b) ? 1 : 0)) | ((((!rt.eqSlice(result_eq$0nlhjpf)(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (rt.eqSlice(result_eq$0nlhjpf)(a, b) ? 1 : 0) | (((!rt.eqSlice(result_eq$0nlhjpf)(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -333,7 +333,7 @@ export function pairs$char_ParseCharError(values: rt.ParseCharError[], out: rt.B
 				continue l1;
 			}
 			const b: rt.ParseCharError = _11;
-			rt.byteVecPush(out, ((convert_eq$09vw48j(a, b) ? 1 : 0)) | ((((!convert_eq$09vw48j(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (convert_eq$09vw48j(a, b) ? 1 : 0) | (((!convert_eq$09vw48j(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -349,7 +349,7 @@ export function pairs$num_ParseIntError(values: rt.ParseIntError[], out: rt.Byte
 				continue l1;
 			}
 			const b: rt.ParseIntError = _11;
-			rt.byteVecPush(out, ((num_error_eq$18sin5z(a, b) ? 1 : 0)) | ((((!num_error_eq$18sin5z(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (num_error_eq$18sin5z(a, b) ? 1 : 0) | (((!num_error_eq$18sin5z(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -365,7 +365,7 @@ export function pairs$str_ParseBoolError(values: rt.ParseBoolError[], out: rt.By
 				continue l1;
 			}
 			const b: rt.ParseBoolError = _11;
-			rt.byteVecPush(out, ((str_error_eq$1f3e51k(a, b) ? 1 : 0)) | ((((!str_error_eq$1f3e51k(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (str_error_eq$1f3e51k(a, b) ? 1 : 0) | (((!str_error_eq$1f3e51k(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -381,7 +381,7 @@ export function pairs$tuple2_Result_char_char_ParseCharError_usize(values: [rt.R
 				continue l1;
 			}
 			const b: [rt.Result<rt.char, rt.ParseCharError>, rt.usize] = _11;
-			rt.byteVecPush(out, ((rt.eqTuple([result_eq$04iua4k, rt.same])(a, b) ? 1 : 0)) | ((((!rt.eqTuple([result_eq$04iua4k, rt.same])(a, b) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (rt.eqTuple([result_eq$04iua4k, rt.same])(a, b) ? 1 : 0) | (((!rt.eqTuple([result_eq$04iua4k, rt.same])(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -487,7 +487,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_32 === 11) {
 		const secs: rt.f64[] = [0.0, -0.0, 1.5, -1.0, NaN, Infinity, -Infinity, 1e30];
 		const _105: rt.Iter<rt.f64> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_25: rt.u8): rt.f64 => {
-			return (((_25 << 24) >> 24 as rt.f64)) / 4.0;
+			return ((_25 << 24) >> 24 as rt.f64) / 4.0;
 		});
 		rt.iterExtend(secs, _105, undefined, 8, true);
 		pairs$Result_time_Duration_time_TryFromFloatSecsError(rt.iterToArray(rt.iterMap(rt.iterSlice(secs), (a0: rt.f64): rt.Result<rt.Duration, rt.TryFromFloatSecsError> => {
@@ -523,7 +523,7 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else {
 		pairs$Option_Result_u8_num_ParseIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s: string): rt.Result<rt.u8, rt.ParseIntError> | undefined => {
 			const _73: string = s;
-			return then$0afp4no(!((s.length === 0)), (): rt.Result<rt.u8, rt.ParseIntError> => {
+			return then$0afp4no(!(s.length === 0), (): rt.Result<rt.u8, rt.ParseIntError> => {
 				return parse$0vh70p5(_73);
 			});
 		}), undefined, 2, true), out);

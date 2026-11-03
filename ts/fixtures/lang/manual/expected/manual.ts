@@ -41,7 +41,7 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteVecPush(out, rt.u8Add(taken.value, taken.strong & 0xff));
 			taken[Symbol.dispose]();
 		} else if (_12 === 5) {
-			const h: ByHand.ByHand = new ByHand.ByHand(held$sync_Arc_u8(shared), b as rt.u32, copy$tuple2_u8_u16([b, (((b as rt.u16)) << 4) & 0xffff] as [rt.u8, rt.u16]));
+			const h: ByHand.ByHand = new ByHand.ByHand(held$sync_Arc_u8(shared), b as rt.u32, copy$tuple2_u8_u16([b, ((b as rt.u16) << 4) & 0xffff] as [rt.u8, rt.u16]));
 			h.count = rt.u32Add(h.count, 3);
 			const _64: [rt.u8, rt.u16] = h.pair;
 			_64[0] = _64[0] ^ 90;
@@ -52,7 +52,7 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_12 === 6) {
 			rt.arcDrop(new rt.Arc(held$sync_Arc_u8(shared)));
 		} else if (_12 === 7) {
-			const slot: [rt.u8, rt.u16] = copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16(copy$tuple2_u8_u16([b, (((b as rt.u16)) << 3) & 0xffff] as [rt.u8, rt.u16]));
+			const slot: [rt.u8, rt.u16] = copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16(copy$tuple2_u8_u16([b, ((b as rt.u16) << 3) & 0xffff] as [rt.u8, rt.u16]));
 			const copy: [rt.u8, rt.u16] = copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16(slot);
 			const _93: [rt.u8, rt.u16] = slot;
 			_93[0] = _93[0] ^ 51;

@@ -165,7 +165,7 @@ export function splits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			pair_1Len = _81Len;
 		}
 		rt.byteVecPush(out, pair_0Len & 0xff);
-		if (!((pair_1Len === 0))) {
+		if (!(pair_1Len === 0)) {
 			const _224Len: number = pair_1Len;
 			if (0 >= _224Len) {
 				rt.panic("index out of bounds: the len is " + _224Len + " but the index is " + 0);
