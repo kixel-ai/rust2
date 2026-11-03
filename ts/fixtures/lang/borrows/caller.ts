@@ -49,4 +49,13 @@ const leaks = [[0x00, 0x01, 0x02, 0xf1, 0xf2, 0x04, 0x05, 0x03, 0x06], [0xe3], [
 	Uint8Array.of(...op("borrows::leaks"), 0, ...bytes),
 );
 
-export const cases: Uint8Array[] = [...guards, ...maps, ...tries, ...leaks];
+/**
+ * `borrows::printed` scripts: each cell printed, free, shared, and borrowed exclusively,
+ * nested, through guards, and borrowed while it writes what it holds, more than once so
+ * that what each holds grows.
+ */
+const printed = [[0x00, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x18, 0xf1, 0x12, 0xfb, 0x24, 0x2d], []].map((bytes) =>
+	Uint8Array.of(...op("borrows::printed"), 0, ...bytes),
+);
+
+export const cases: Uint8Array[] = [...guards, ...maps, ...tries, ...leaks, ...printed];
