@@ -959,7 +959,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				} else {
 					self.err(
 						span,
-						format!("`Option::as_mut_slice` of `Option<{inner}>`, whose payload JS can't write in place"),
+						format!("a slice of the payload of `Option<{inner}>`, which JS can't write in place"),
 					)
 				};
 				done(
