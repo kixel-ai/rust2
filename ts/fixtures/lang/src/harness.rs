@@ -6,7 +6,7 @@ use crate::{
 	collections, combinators, conversions, counts, cows, cycles, defaults, durations, dyns, edits, elements, ends,
 	errors, fields, floats, fmt, folds, generics, hashes, heap, hints, holds, ints, iters, joins, keys, lengths, lists,
 	locals, locks, manual, methods, nested, objects, orders, pointers, refs, results, returns, rings, saturates,
-	separated, shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
+	searches, separated, shapes, singles, slices, sorts, splits, statics, strs, tuples, utf8, wrappers, wraps, zeros,
 };
 
 /// The native side's entry: [`run`], except that a case starting with 0xff prints a
@@ -309,6 +309,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("sorts::disorders", sorts::disorders),
 		("sorts::btrees", sorts::btrees),
 		("dyns::pointers", |_, data, out| dyns::pointers(data, out)),
+		("searches::searches", searches::searches),
+		("searches::texts", searches::texts),
 		("dyns::iters", |_, data, out| dyns::iters(data, out)),
 	]
 }

@@ -1122,7 +1122,11 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 			"iter",
 			"Iter" | "Windows" | "Chunks" | "ChunksExact" | "RChunks" | "RChunksExact",
 		]
-		| ["str", "iter", "Chars" | "Bytes"]
+		| [
+			"str",
+			"iter",
+			"Chars" | "CharIndices" | "Bytes" | "Lines" | "SplitWhitespace",
+		]
 		| ["ascii", "EscapeDefault"]
 		| ["slice", "ascii", "EscapeAscii"]
 		| ["option", "Iter"]
@@ -1153,11 +1157,18 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		| ["collections", "vec_deque", "into_iter", "IntoIter"]
 		| ["collections", "linked_list", "IntoIter"]
 		| ["collections", "binary_heap", "IntoIter"] => parts(vec![("v", value(b, arg(0)?))]),
-		// A closure's searcher clones the closure; another holds what it searches for.
-		["str", "iter", "Split" | "SplitTerminator" | "MatchIndices"] => match arg(0)?.kind() {
-			ty::Closure(..) => parts(vec![("f", value(b, arg(0)?))]),
-			_ => Expr::undefined(),
-		},
+		// A closure's searcher clones the closure; another holds what it searches for. One
+		// from the back is `rt.iterRev` of one from the front.
+		[
+			"str",
+			"iter",
+			"Split" | "SplitTerminator" | "SplitN" | "SplitInclusive" | "Matches" | "MatchIndices",
+		] => searcher(b, arg(0)?, span),
+		[
+			"str",
+			"iter",
+			"RSplit" | "RSplitTerminator" | "RSplitN" | "RMatches" | "RMatchIndices",
+		] => parts(vec![("i", searcher(b, arg(0)?, span))]),
 		// A slice's parts by a closure clone the closure.
 		["slice", "iter", "Split" | "SplitInclusive" | "RSplit"] => parts(vec![("f", value(b, arg(1)?))]),
 		// Its closure is what `rt.iterFrom` reads by.
@@ -1196,6 +1207,14 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		}
 		_ => return None,
 	})
+}
+
+/// What clones a `str` search's searcher of `pattern`: its closure, if it is one.
+fn searcher<'tcx>(b: &mut Body<'_, '_, 'tcx>, pattern: Ty<'tcx>, span: Span) -> Expr {
+	match pattern.kind() {
+		ty::Closure(..) => parts(vec![("f", super::collections::clone_fn(b, pattern, span))]),
+		_ => Expr::undefined(),
+	}
 }
 
 /// An `rt.Clones` of `parts` but those that clone as themselves, or `undefined` if all do.

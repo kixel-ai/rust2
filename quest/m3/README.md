@@ -38,7 +38,6 @@ generic std gap is planned here even when moq never calls it.
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
-- [The rest of str's searches](/quest/m3/ts-str-searches.md) - `find`, `strip_prefix`, `replace`, `rsplit`, `splitn`, `matches`, `lines`, and the rest of `str`'s searches translate
 - [Adding to a String](/quest/m3/ts-string-add.md) - `String + &str` translates as `+=` does
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained

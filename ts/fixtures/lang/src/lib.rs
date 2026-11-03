@@ -97,6 +97,7 @@ mod results;
 mod returns;
 mod rings;
 mod saturates;
+mod searches;
 mod separated;
 mod shapes;
 mod singles;
