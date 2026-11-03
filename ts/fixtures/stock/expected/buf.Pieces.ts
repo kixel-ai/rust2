@@ -2,8 +2,12 @@
 
 import * as rt from "./rt.ts";
 import { out$f32, out$f64, out$i64, out$i8, out$u128, out$u16, out$u64, out$u8 } from "./lib.ts";
+import type * as Provided from "./buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "./bytes.ts";
 import { signExtend } from "./bytes/buf/buf_impl.ts";
+import * as Chain from "./bytes/buf/chain.Chain.ts";
+import { new_$mut_buf_Pieces as take_new_$mut_buf_Pieces } from "./bytes/buf/take.ts";
+import type * as Take from "./bytes/buf/take.Take.ts";
 import type * as TryGetError from "./bytes.TryGetError.ts";
 import { unwrapOrElse$1wp5sd9 as result_unwrapOrElse$1wp5sd9, unwrapOrElse$0s2lrc9 as result_unwrapOrElse$0s2lrc9 } from "./core/result.ts";
 
@@ -167,14 +171,18 @@ export function advance$bytes_Buf(self: Pieces, cnt: rt.usize): void {
  * This function panics if `len > self.remaining()`.
  */
 export function copyToBytes$bytes_Buf(self: Pieces, len: rt.usize): rt.ByteSlice {
-	const out: rt.BytesMut = rt.bytesMutWithCapacity(len);
-	while (out.length < len) {
-		const take: rt.usize = rt.min(chunk$bytes_Buf_mut(self).length, rt.usizeSub(len, out.length));
-		const _17: rt.ByteSlice = rt.byteSliceRange(chunk$bytes_Buf_mut(self), 0, take);
-		rt.bytesMutExtend(out, _17);
-		advance$bytes_Buf(self, take);
+	if (!(len <= remaining$bytes_Buf_mut(self))) {
+		rt.panicFmt(["`len` greater than remaining"]);
+	} else {
+		const out: rt.BytesMut = rt.bytesMutWithCapacity(len);
+		while (out.length < len) {
+			const take: rt.usize = rt.min(chunk$bytes_Buf_mut(self).length, rt.usizeSub(len, out.length));
+			const _22: rt.ByteSlice = rt.byteSliceRange(chunk$bytes_Buf_mut(self), 0, take);
+			rt.bytesMutExtend(out, _22);
+			advance$bytes_Buf(self, take);
+		}
+		return rt.bytesMutFreeze(out);
 	}
-	return rt.bytesMutFreeze(out);
 }
 
 export function pieces$buf_Leased(self: Pieces): rt.usize {
@@ -1210,6 +1218,54 @@ export function tryGetF64Ne$bytes_Buf(self: Pieces): rt.f64 | undefined {
 	}
 	out$f64.err = (_3 as { ok: false; error: TryGetError.TryGetError }).error;
 	return undefined;
+}
+
+/**
+ * Creates an adaptor which will read at most `limit` bytes from `self`.
+ *
+ * This function returns a new instance of `Buf` which will read at most
+ * `limit` bytes.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::{Buf, BufMut};
+ *
+ * let mut buf = b"hello world"[..].take(5);
+ * let mut dst = vec![];
+ *
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b"hello");
+ *
+ * let mut buf = buf.into_inner();
+ * dst.clear();
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b" world");
+ * ```
+ */
+export function take$bytes_Buf_mut(self: Pieces, limit: rt.usize): Take.Take<Pieces> {
+	return take_new_$mut_buf_Pieces(self, limit);
+}
+
+/**
+ * Creates an adaptor which will chain this buffer with another.
+ *
+ * The returned `Buf` instance will first consume all bytes from `self`.
+ * Afterwards the output is equivalent to the output of next.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut chain = b"hello "[..].chain(&b"world"[..]);
+ *
+ * let full = chain.copy_to_bytes(11);
+ * assert_eq!(full.chunk(), b"hello world");
+ * ```
+ */
+export function chain$bytes_Buf_buf_Provided(self: Pieces, next: Provided.Provided): Chain.Chain<Pieces, Provided.Provided> {
+	return Chain.new$buf_Pieces_buf_Provided(self, next);
 }
 
 /**
