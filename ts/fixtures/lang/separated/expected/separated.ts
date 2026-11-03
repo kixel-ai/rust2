@@ -204,7 +204,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			const _73: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 			rt.byteVecPush(_73.value, b4);
 			rt.refMutRelease(_73);
-			return ((b4 as rt.u16)) < bound;
+			return (b4 as rt.u16) < bound;
 		};
 		const testWords: (a0: rt.u16) => boolean = (_29: rt.u16): boolean => {
 			const w: rt.u16 = _29;
@@ -217,7 +217,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			const _63: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 			rt.byteVecPush(_63.value, p35.a ^ 51);
 			rt.refMutRelease(_63);
-			return ((p35.a as rt.u16)) < bound;
+			return (p35.a as rt.u16) < bound;
 		};
 		const testTexts: (a0: string) => boolean = (s: string): boolean => {
 			const _67: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -563,7 +563,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					const _610: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 					rt.byteVecPush(_610.value, t.data[t.start + 1]);
 					rt.refMutRelease(_610);
-					return ((t.data[t.start] as rt.u16)) < bound;
+					return (t.data[t.start] as rt.u16) < bound;
 				};
 				const iter15: rt.Iter<boolean> = rt.iterSlice([false, true]);
 				l133: while (true) {

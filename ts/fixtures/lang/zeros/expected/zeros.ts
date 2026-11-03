@@ -78,7 +78,7 @@ export function zeros(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _13: Pair.Pair = Pair.clone$Clone(pair());
 		const _16: Unit.Unit = made$zeros_Unit();
 		phantom$u8();
-		rt.byteVecPush(out, ((Unit.eq$cmp_PartialEq(_11, {}) ? 1 : 0)) | ((((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0)) << 1) & 0xff));
+		rt.byteVecPush(out, (Unit.eq$cmp_PartialEq(_11, {}) ? 1 : 0) | (((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0) << 1) & 0xff));
 		const _40: One.One = One.clone$Clone("Only" as One.One);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rt.Formatter) => One.fmt$fmt_Debug(_40, f)];
 		rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0], " ", args2[1]])), undefined, true);
@@ -310,10 +310,10 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const part2 = _76[1];
 			const a: Tagged.Tagged<string> = part;
 			const b: Tagged.Tagged<string> = part2;
-			rt.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | ((((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0)) << 2) & 0xff) | ((((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rt.Ordering | undefined ? 1 : 0)) << 3) & 0xff));
+			rt.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rt.Ordering | undefined ? 1 : 0) << 3) & 0xff));
 			rt.byteVecPush(out, Tagged.cmp$cmp_Ord_String(a, b) === 0 === rt.u64Eq(hash$zeros_Tagged_String(a), hash$zeros_Tagged_String(b)) ? 1 : 0);
 		}
-		rt.byteVecPush(out, ((true ? 1 : 0)) | ((((true ? 1 : 0)) << 1) & 0xff));
+		rt.byteVecPush(out, (true ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
 		rt.byteVecPush(out, rt.cmpNothing(undefined, undefined) & 0xff);
 		rt.byteVecPush(out, rt.cmpNothing(undefined, undefined) & 0xff);
 	} else if (_7 === 2) {
@@ -367,13 +367,13 @@ export function keys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const tree: rt.BTreeSet<undefined> = rt.btreeNew(rt.cmpNothing) as rt.BTreeSet<undefined>;
 		for (const _10 of rt.byteSliceView(data)) {
 			if (!((_10 & 1) === 0)) {
-				rt.byteVecPush(out, ((rt.hashDelete(hash, undefined) ? 1 : 0)) | ((((rt.btreeDelete(tree, undefined) ? 1 : 0)) << 1) & 0xff));
+				rt.byteVecPush(out, (rt.hashDelete(hash, undefined) ? 1 : 0) | (((rt.btreeDelete(tree, undefined) ? 1 : 0) << 1) & 0xff));
 			} else {
-				rt.byteVecPush(out, ((rt.hashAdd(hash, undefined) ? 1 : 0)) | ((((rt.btreeAdd(tree, undefined) ? 1 : 0)) << 1) & 0xff));
+				rt.byteVecPush(out, (rt.hashAdd(hash, undefined) ? 1 : 0) | (((rt.btreeAdd(tree, undefined) ? 1 : 0) << 1) & 0xff));
 			}
 			rt.byteVecPush(out, (rt.hashLen(hash) & 0xff) | (((rt.btreeLen(tree) & 0xff) << 4) & 0xff));
 		}
-		rt.byteVecPush(out, ((rt.hashContains(hash, undefined) ? 1 : 0)) | ((((rt.btreeContains(tree, undefined) ? 1 : 0)) << 1) & 0xff));
+		rt.byteVecPush(out, (rt.hashContains(hash, undefined) ? 1 : 0) | (((rt.btreeContains(tree, undefined) ? 1 : 0) << 1) & 0xff));
 		rt.byteVecPush(out, rt.btreeFirstKey(tree, false, rt.None) === rt.btreeFirstKey(tree, true, rt.None) ? 1 : 0);
 	} else if (_4 === 1) {
 		const map: rt.HashMap<undefined, rt.u8> = rt.hashNew() as rt.HashMap<undefined, rt.u8>;
@@ -484,9 +484,9 @@ export function unread(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const lock: Lock.Lock<rt.u32> = Lock.new$u32(option_map$1qp1ym6(rt.byteSliceFirst(data), (_2: rt.u8): rt.u32 => {
 			return _2 as rt.u32;
 		}));
-		rt.byteVecPush(out, ((((_22: undefined): boolean => {
+		rt.byteVecPush(out, (((_22: undefined): boolean => {
 			return true;
-		})(([undefined] as [undefined])[0]) ? 1 : 0)) | ((((true ? 1 : 0)) << 1) & 0xff));
+		})(([undefined] as [undefined])[0]) ? 1 : 0) | (((true ? 1 : 0) << 1) & 0xff));
 		drop$zeros_Lock_u32(lock);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(rt.atomicLoad(LOG, 0))), undefined, true);
 	}
@@ -519,12 +519,12 @@ export function writes(kind: rt.u8, _dataData: Uint8Array, _dataStart: number, d
 		leaked(3);
 		leaked(4);
 		leaked(6);
-		rt.byteVecPush(out, ((true ? 1 : 0)) | ((n << 1) & 0xff));
+		rt.byteVecPush(out, (true ? 1 : 0) | ((n << 1) & 0xff));
 	} else if (_9 === 1) {
 		rt.byteVecPush(out, true ? 1 : 0);
 		unit();
 		Unit.default$Default();
-		rt.byteVecPush(out, ((Unit.eq$cmp_PartialEq({}, Unit.default$Default()) ? 1 : 0)) | ((n << 1) & 0xff));
+		rt.byteVecPush(out, (Unit.eq$cmp_PartialEq({}, Unit.default$Default()) ? 1 : 0) | ((n << 1) & 0xff));
 		rt.byteVecPush(out, Defaulted.eq$cmp_PartialEq({}, Defaulted.default$Default()) ? 1 : 0);
 	} else if (_9 === 2) {
 		raw(1);
@@ -534,7 +534,7 @@ export function writes(kind: rt.u8, _dataData: Uint8Array, _dataStart: number, d
 		const q: Unit.Unit = {};
 		unit();
 		const _96: Unit.Unit = {};
-		rt.byteVecPush(out, ((Unit.eq$cmp_PartialEq(q, _96) ? 1 : 0)) | ((n << 1) & 0xff));
+		rt.byteVecPush(out, (Unit.eq$cmp_PartialEq(q, _96) ? 1 : 0) | ((n << 1) & 0xff));
 	} else if (_9 === 3) {
 		const _113: rt.Cell<undefined> = new rt.Cell(undefined);
 		rt.cellReplace(_113, undefined);
@@ -552,12 +552,12 @@ export function writes(kind: rt.u8, _dataData: Uint8Array, _dataStart: number, d
 		let o: undefined | rt.None = thenSome$1j8foe9(n > 0, undefined);
 		const old2: undefined | rt.None = o;
 		o = undefined;
-		rt.byteVecPush(out, ((old2 !== rt.None ? 1 : 0)) | ((((o !== rt.None ? 1 : 0)) << 1) & 0xff));
+		rt.byteVecPush(out, (old2 !== rt.None ? 1 : 0) | (((o !== rt.None ? 1 : 0) << 1) & 0xff));
 		const taken2: undefined | rt.None = o;
 		o = rt.None;
 		const taken: undefined | rt.None = taken2;
 		o = rt.None;
-		rt.byteVecPush(out, ((taken !== rt.None ? 1 : 0)) | ((((o !== rt.None ? 1 : 0)) << 1) & 0xff));
+		rt.byteVecPush(out, (taken !== rt.None ? 1 : 0) | (((o !== rt.None ? 1 : 0) << 1) & 0xff));
 		let x: rt.u8 = n;
 		x = 1;
 		x = 0;

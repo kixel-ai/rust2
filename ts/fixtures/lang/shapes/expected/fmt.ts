@@ -409,7 +409,7 @@ export function written(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _222: Noted.Noted = { _0: 2 };
 	const args20: rt.Fmt[] = [(f: rt.Formatter) => Noted.fmt$fmt_Display(_218, f), (f: rt.Formatter) => Noted.fmt$fmt_Display(_222, f)];
 	put(out, rt.fmtFormat([args20[0], "|", rt.fmtSpec({ align: ">", width: 6 }, args20[1])]));
-	if (!((data.length === 0))) {
+	if (!(data.length === 0)) {
 		put(out, logged(log, data.data, data.start, data.length));
 	}
 	const _241: rt.u8 = at(13);

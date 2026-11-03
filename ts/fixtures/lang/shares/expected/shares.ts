@@ -414,7 +414,7 @@ export function copies(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const data2: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeRem(kind >> 3 as rt.usize, rt.usizeAdd(data.length, 1)));
 	const source: [rt.u8, rt.u16][] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): [rt.u8, rt.u16] => {
 		const b: rt.u8 = _2;
-		return [b, (((b as rt.u16)) << 4) & 0xffff] as [rt.u8, rt.u16];
+		return [b, ((b as rt.u16) << 4) & 0xffff] as [rt.u8, rt.u16];
 	}), undefined, 4, true);
 	const fromRef: rt.Arc<[rt.u8, rt.u16][]> = new rt.Arc(rt.sliceRange(source, 0).map(copy$tuple2_u8_u16));
 	const fromVec: rt.Arc<[rt.u8, rt.u16][]> = new rt.Arc(rt.vecExact(source.map(copy$tuple2_u8_u16), 4));
@@ -646,7 +646,7 @@ export function generics(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(Shared.first$u8(bytes), 170));
 	counts$slice_u8(copy.items as rt.Arc<rt.ByteSlice>, out);
 	const wide: Shared.Shared<rt.u16> = Shared.collected$u16_iter_Map_slice_Iter_u8_shares_generics_closure0(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): rt.u16 => {
-		return (((_2 as rt.u16)) << 8) & 0xffff;
+		return ((_2 as rt.u16) << 8) & 0xffff;
 	}));
 	const twin: Shared.Shared<rt.u16> = Shared.clone$Clone_u16(wide);
 	counts$slice_u16(wide.items as rt.Arc<rt.u16[]>, out);

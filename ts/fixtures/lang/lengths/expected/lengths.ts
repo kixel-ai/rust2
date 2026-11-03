@@ -41,7 +41,7 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 0, true);
 	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
-			return (((((b as rt.u32)) << 8) >>> 0) | 1) >>> 0;
+			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 0, true);
 	joined$0(data, rt.vecExact(rows.map(copy$array_u8), 0), out);
@@ -76,7 +76,7 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 1, true);
 	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
-			return (((((b as rt.u32)) << 8) >>> 0) | 1) >>> 0;
+			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 4, true);
 	joined$1(data, rt.vecExact(rows.map(copy$array_u8), 1), out);
@@ -111,7 +111,7 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 17, true);
 	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
-			return (((((b as rt.u32)) << 8) >>> 0) | 1) >>> 0;
+			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 68, true);
 	joined$17(data, rt.vecExact(rows.map(copy$array_u8), 17), out);
@@ -146,7 +146,7 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, 3, true);
 	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
-			return (((((b as rt.u32)) << 8) >>> 0) | 1) >>> 0;
+			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 12, true);
 	joined$3(data, rt.vecExact(rows.map(copy$array_u8), 3), out);
@@ -1791,7 +1791,7 @@ export function swapped$u8_0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 					}
 				}
 				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), (_2: rt.u8): rt.u8 => {
-					return ((_2 as rt.u32)) & 0xff;
+					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
 		}
@@ -1844,7 +1844,7 @@ export function swapped$u8_1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 					}
 				}
 				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), (_2: rt.u8): rt.u8 => {
-					return ((_2 as rt.u32)) & 0xff;
+					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
 		}
@@ -1897,7 +1897,7 @@ export function swapped$u8_17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.By
 					}
 				}
 				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), (_2: rt.u8): rt.u8 => {
-					return ((_2 as rt.u32)) & 0xff;
+					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
 		}
@@ -1950,7 +1950,7 @@ export function swapped$u8_3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 					}
 				}
 				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), (_2: rt.u8): rt.u8 => {
-					return ((_2 as rt.u32)) & 0xff;
+					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
 		}

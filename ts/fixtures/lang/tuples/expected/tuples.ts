@@ -72,7 +72,7 @@ export function tuples(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
  */
 export function ones(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.tupleExtendOne([[]] as [rt.u16[]], rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [rt.u16] => {
-		return [(((_2 as rt.u16)) << 4) & 0xffff] as [rt.u16];
+		return [((_2 as rt.u16) << 4) & 0xffff] as [rt.u16];
 	}), (c, items) => rt.iterExtend(c, items, undefined, 2, true))[0]), (n: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
@@ -187,7 +187,7 @@ export function pairs(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function triples(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _7: rt.Iter<[rt.u8, rt.u16, rt.char]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [rt.u8, rt.u16, rt.char] => {
 		const b: rt.u8 = _2;
-		return [b, (((b as rt.u16)) << 8) & 0xffff, rt.u8Add(97, rt.u8Rem(b, 26)) as rt.char] as [rt.u8, rt.u16, rt.char];
+		return [b, ((b as rt.u16) << 8) & 0xffff, rt.u8Add(97, rt.u8Rem(b, 26)) as rt.char] as [rt.u8, rt.u16, rt.char];
 	});
 	const _6: [rt.ByteVec, rt.VecDeque<rt.u16>, string] = rt.tupleExtend([new rt.ByteVec(), rt.dequeNew(2) as rt.VecDeque<rt.u16>, ""] as [rt.ByteVec, rt.VecDeque<rt.u16>, string], _7, [rt.byteVecPart(), rt.dequePart(), rt.STRING_CHARS_PART]);
 	const v: rt.ByteVec = _6[0];
@@ -327,13 +327,13 @@ export function extended(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function borrowed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const points: Spot.Spot[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): Spot.Spot => {
 		const b: rt.u8 = _2;
-		return { x: b, y: (((b as rt.u16)) << 2) & 0xffff };
+		return { x: b, y: ((b as rt.u16) << 2) & 0xffff };
 	}), undefined, 4, true);
 	const t: [rt.ByteVec, Spot.Spot[], rt.HashMap<rt.u8, rt.u8>, string] = [new rt.ByteVec(), [], rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, ""];
 	const marks: rt.char[] = [122, 233];
 	const _10: rt.Iter<[rt.u8, Spot.Spot, [rt.u8, rt.u8], rt.char]> = rt.iterMap(rt.iterZip(rt.iterSlice(rt.byteSliceView(data)), rt.iterSlice(points), [false, false]), (_23: [rt.u8, Spot.Spot]): [rt.u8, Spot.Spot, [rt.u8, rt.u8], rt.char] => {
 		const _54: [rt.u8, rt.u8] = [_23[0], _23[0]];
-		const _72: rt.usize = ((_23[0] & 1)) as rt.usize;
+		const _72: rt.usize = (_23[0] & 1) as rt.usize;
 		if (!(_72 < 2)) {
 			rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _72);
 		}
@@ -626,7 +626,7 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 	calls(out);
 	const _47: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(data2))), (_210: rt.u8): [rt.u8, rt.u16] => {
 		const b9: rt.u8 = _210;
-		return [b9, (((b9 as rt.u16)) << 3) & 0xffff] as [rt.u8, rt.u16];
+		return [b9, ((b9 as rt.u16) << 3) & 0xffff] as [rt.u8, rt.u16];
 	});
 	const _46: [Tally.Tally, rt.u16[]] = rt.tupleExtend([Tally.default$Default(), []] as [Tally.Tally, rt.u16[]], _47, [rt.ownPart(Tally.extend$iter_Extend_u8_Option_u8 as (a0: Tally.Tally, a1: rt.u8 | undefined) => undefined), rt.vecPart(2)]);
 	const t3: Tally.Tally = _46[0];

@@ -198,7 +198,7 @@ export function each$String(self: List<string>, out: rt.ByteVec): void {
 			const guard: Node.Node<string> = self.guard;
 			let at: Node.Node<string> = guard.link.at0 as Node.Node<string>;
 			while (true) {
-				if (!((at !== guard))) {
+				if (!(at !== guard)) {
 					break b0;
 				}
 				const _13: [rt.u8, string] = at.entry;

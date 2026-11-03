@@ -115,7 +115,7 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const bytes: Uint8Array = Uint8Array.of(op, op ^ 1, op ^ 2, op ^ 3);
 			const wide: rt.u16[] = rt.arrayMap(bytes, (b2: rt.u8): rt.u16 => {
 				rt.byteVecPush(seen, b2);
-				return ((((b2 as rt.u16)) << 8) & 0xffff) | op as rt.u16;
+				return (((b2 as rt.u16) << 8) & 0xffff) | op as rt.u16;
 			});
 			const narrow: Uint8Array = rt.bytesMap(wide, (w3: rt.u16): rt.u8 => {
 				return (w3 >> 4) & 0xff;
@@ -252,7 +252,7 @@ export function lent(data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 		} else if (_21 === 1) {
 			const _40: rt.Place<rt.u16>[] = rt.arrayPlaces(wide);
-			_40[0].v = rt.u16WrappingAdd(_40[0].v, (((op as rt.u16)) << 7) & 0xffff);
+			_40[0].v = rt.u16WrappingAdd(_40[0].v, ((op as rt.u16) << 7) & 0xffff);
 			const swapped = _40[0].v;
 			_40[0].v = _40[1].v;
 			_40[1].v = swapped;
@@ -391,7 +391,7 @@ export function asSlices(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const all: rt.u32[][] = pairs;
 			const _93: rt.usize = rt.usizeRem(i, 2);
 			rt.idx(all, _93);
-			rt.sliceCopyFromSlice(all[_93], [op as rt.u32, (((op as rt.u32)) << 20) >>> 0]);
+			rt.sliceCopyFromSlice(all[_93], [op as rt.u32, ((op as rt.u32) << 20) >>> 0]);
 			rt.sliceSwap(all, 0, 1);
 		} else if (_22 === 5) {
 			const _108: rt.u16[] = [];

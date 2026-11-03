@@ -295,7 +295,7 @@ export function edges(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const dangling: rt.Place<rt.u16> = rt.DANGLING;
 		rt.byteVecPush(out, rt.ptrWrappingAdd(dangling, -1, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(dangling, 4294967295, 2, 2) === rt.NULL ? 1 : 0);
-		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.ptrWrappingAdd(dangling, -((n as rt.usize)), 2, 2), n as rt.usize, 2, 2) === rt.NULL ? 1 : 0);
+		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.ptrWrappingAdd(dangling, -(n as rt.usize), 2, 2), n as rt.usize, 2, 2) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, rt.ptrWrappingAdd(rt.DANGLING, rt.isizeSub(rt.u8Rem(n, 3) as rt.isize, 1), 8, 8) === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
 		rt.byteVecPush(out, new rt.RawSlice(rt.NULL, 0).ptr === rt.NULL ? 1 : 0);
@@ -405,9 +405,9 @@ export function rawSlices(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, _140.data[_140.start + 1]);
 	const null_: rt.RawSlice<rt.u32> = new rt.RawSlice(rt.NULL, 0);
 	const pointer4 = null_;
-	rt.byteVecPush(out, ((pointer4.ptr === rt.NULL ? undefined : pointer4)) === undefined ? 1 : 0);
+	rt.byteVecPush(out, (pointer4.ptr === rt.NULL ? undefined : pointer4) === undefined ? 1 : 0);
 	const pointer5 = null_;
-	rt.byteVecPush(out, ((pointer5.ptr === rt.NULL ? undefined : pointer5.deref())) === undefined ? 1 : 0);
+	rt.byteVecPush(out, (pointer5.ptr === rt.NULL ? undefined : pointer5.deref()) === undefined ? 1 : 0);
 	const raw: rt.RawSlice<rt.u32> = rt.rawSliceOf([n as rt.u32, 2, 3]);
 	rt.idx(raw, 2);
 	raw.deref()[2] = 8;

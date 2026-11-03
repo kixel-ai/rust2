@@ -70,7 +70,7 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					c = rt.iterToOption(it.nextBack());
 				}
 				putChar(out, c);
-				if (!((c === undefined))) {
+				if (!(c === undefined)) {
 					i = rt.usizeAdd(i, 1);
 				} else {
 					rt.byteVecPush(out, rt.iterCount(rt.strChars(s)) & 0xff);
@@ -344,7 +344,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				if (_8 === 3) {
 					const iter3: rt.Iter<string> = rt.iterSuccessors(s, (path: string): string | undefined => {
 						const _73: string = path;
-						return then$0havnzo(!((path.length === 0)), (): string => {
+						return then$0havnzo(!(path.length === 0), (): string => {
 							return option_mapOr$147z9gi(rt.strRfind(_73, "/"), "", (slash: rt.usize): string => {
 								return rt.strSlice(_73, 0, slash);
 							});
@@ -412,7 +412,7 @@ export function digit(c: rt.char): boolean {
 
 /** `/` separates parts, and `\` escapes a `/` or `\` within one. */
 export function unescape(path: string): string[] {
-	if (!((path.length === 0))) {
+	if (!(path.length === 0)) {
 		const parts: string[] = [];
 		let part: string = "";
 		const chars: rt.Iter<rt.char> = rt.strChars(path);
@@ -1251,7 +1251,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, p4)];
 			return rt.fmtFormat([args4[0], args4[0]]);
 		}), (p5: string): boolean => {
-			return !((p5.length === 0));
+			return !(p5.length === 0);
 		})));
 		rt.iterEmpty();
 		put(out, rt.stringFromStrings(rt.iterEmpty() as rt.Iter<string>));
