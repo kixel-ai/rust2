@@ -313,6 +313,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("searches::texts", searches::texts),
 		("dyns::iters", |_, data, out| dyns::iters(data, out)),
 		("errors::objects", |_, data, out| errors::objects(data, out)),
+		("iters::lent", |_, data, out| iters::lent(data, out)),
 		("constants::compares", |_, _, out| constants::compares(out)),
 	]
 }
