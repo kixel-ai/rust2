@@ -201,7 +201,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 					library::cow_made(elem, variant, values.pop().unwrap())
 				}
 				(library::Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
-				(library::Std::Reverse | library::Std::Wrapping | library::Std::Saturating, _) => values.pop().unwrap(),
+				(
+					library::Std::Reverse
+					| library::Std::AssertUnwindSafe
+					| library::Std::Wrapping
+					| library::Std::Saturating,
+					_,
+				) => values.pop().unwrap(),
 				(library::Std::Bound | library::Std::TryLockError, _) => {
 					let ts_ty = self.t.ty(Ty::new_adt(tcx, adt, gargs), span);
 					library::tagged(adt.variant(variant).name.as_str(), values.pop(), ts_ty)
