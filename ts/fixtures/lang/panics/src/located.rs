@@ -257,7 +257,8 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		0 => check(first % 3 != 0),
 		_ => {
 			let f: fn(bool) = check;
-			f(first % 3 != 1);
+			let fs: [fn(bool); 2] = [check, f];
+			fs[usize::from(first % 2)](first % 3 != 1);
 		}
 	}
 	out.push(first);

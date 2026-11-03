@@ -1,10 +1,10 @@
 // `core::panic::Location`, for rust2-ts output: where a `#[track_caller]` function was
 // called, which never changes once made, so values share it. `rt.ts` re-exports all of it.
 
-import { type FmtResult, type Formatter, fmtDebugStructFields, fmtStr } from "../rt.ts";
+import { type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtStr, fmtWriteFmt } from "../rt.ts";
 import { cmp, cmpStr, type Ordering } from "./collections.ts";
 import { type Hasher, hash32, hashStr } from "./hash.ts";
-import { type u32, u32Debug } from "./int.ts";
+import { type u32, u32Debug, u32Display } from "./int.ts";
 
 /** `core::panic::Location`: the file as rustc names it, and the line and column from 1. */
 export interface Location {
@@ -30,9 +30,9 @@ export function locationHash(l: Location, s: Hasher): void {
 	hash32(l.col, s);
 }
 
-/** `Display`: `file:line:column`, which no width pads, as std writes it. */
+/** `Display`: `file:line:column`, a part at a time, which no width pads, as std's `write!` writes it. */
 export function fmtLocationDisplay(l: Location, f: Formatter): FmtResult {
-	return f.out.writeStr(`${l.file}:${l.line}:${l.col}`);
+	return fmtWriteFmt(f, [(f) => fmtPad(f, l.file), ":", (f) => u32Display(l.line, f), ":", (f) => u32Display(l.col, f)]);
 }
 
 /** `Debug`, as std's: a struct of the file, line, and column. */

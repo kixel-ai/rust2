@@ -35,6 +35,30 @@ pub fn pointed() -> usize {
 	f().file_as_c_str().count_bytes()
 }
 
+/// An iterator whose `next` std's adaptors call, and a value whose `drop` std's glue calls.
+struct Counted(u8);
+
+impl Iterator for Counted {
+	type Item = u8;
+
+	#[track_caller]
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(Location::caller().line() as u8)
+	}
+}
+
+impl Drop for Counted {
+	#[track_caller]
+	fn drop(&mut self) {
+		self.0 = Location::caller().column() as u8;
+	}
+}
+
+pub fn iterated(n: u8) -> u32 {
+	Counted(n).map(u32::from).sum()
+}
+
 /// A hook reads each panic's `Location`.
 pub fn hooked() {
 	let hook = std::panic::take_hook();

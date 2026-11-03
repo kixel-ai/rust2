@@ -95,8 +95,23 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let call = self.call_def(instance.def_id(), instance.args, values, span, &mut body);
 		self.site = outer;
 		body.push(StmtKind::Return(Some(call.typed())).at(None));
+		// Declared, so its `()` is `void`, which a value's type says is `undefined`.
 		let ret = self.t.ret_ty(sig.output(), span);
-		Some(Expr::Arrow(params, ret, body))
+		let arrow = Expr::Arrow(params, ret, body);
+		Some(match sig.output().is_unit() {
+			true => Expr::As(Box::new(arrow), self.t.fn_ty(sig.inputs(), sig.output(), span)),
+			false => arrow,
+		})
+	}
+}
+
+/// Refuse `instance`, which std's code calls, if it takes its caller's location, which is
+/// then in std's source.
+pub fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'tcx>) {
+	if tracks(t, instance) {
+		let path = t.tcx.def_path_str(instance.def_id());
+		let msg = format!("`{path}`, a `#[track_caller]` function std's code calls, whose caller is in std's source");
+		t.err(t.tcx.def_span(instance.def_id()), msg);
 	}
 }
 

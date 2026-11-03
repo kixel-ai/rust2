@@ -510,6 +510,7 @@ fn own_collect<'tcx>(
 	});
 	let vec = Ty::new_adt(tcx, tcx.adt_def(vec), args);
 	let instance = own_instance(b, source, "Iterator", "collect", &[vec])?;
+	super::caller::refuse_std_call(b.t, instance);
 	Some((vec, Expr::Sym(b.t.instance(instance))))
 }
 
@@ -558,6 +559,7 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 			);
 			continue;
 		}
+		super::caller::refuse_std_call(b.t, instance);
 		let mut sym = Expr::Sym(b.t.instance(instance));
 		let args: &[&str] = match *name {
 			"size_hint" | "len" | "count" | "last" | "next_back" => &[],
@@ -642,6 +644,7 @@ fn through_place<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, args: 
 fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Option<Expr> {
 	let instance = own_method(b, ty, "DoubleEndedIterator", "next_back")?;
 	let item = b.t.iter_item(ty.peel_refs())?;
+	super::caller::refuse_std_call(b.t, instance);
 	let sym = b.t.instance(instance);
 	let none = b.t.none_arg(item);
 	let option = Expr::Sym(sym).call(vec![iter]);
@@ -652,6 +655,7 @@ fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Optio
 pub fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr {
 	match own_next(b, ty) {
 		Some(instance) => {
+			super::caller::refuse_std_call(b.t, instance);
 			let sym = b.t.instance(instance);
 			Expr::Sym(sym).call(vec![iter])
 		}
@@ -766,6 +770,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		not_bound(b, ty, span);
 		return Some(match own_next(b, ty) {
 			Some(instance) => {
+				super::caller::refuse_std_call(b.t, instance);
 				let next = Expr::Sym(b.t.instance(instance));
 				// One owned whose `next` reads its place is moved into a place of its own.
 				let placed = owned && held(b, ty);

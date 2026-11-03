@@ -201,9 +201,17 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	if (rt.u8Rem(kind, 2) === 0) {
 		check$panicked(rt.u8Rem(first, 3) !== 0, { file: "fixtures/lang/panics/src/located.rs", line: 257, col: 14 });
 	} else {
-		((a: boolean): void => {
+		const f: (a0: boolean) => undefined = ((a: boolean): void => {
 			return check$panicked(a, { file: "fixtures/lang/panics/src/located.rs", line: 250, col: 5 });
-		})(rt.u8Rem(first, 3) !== 1);
+		}) as (a0: boolean) => undefined;
+		const _15: (a0: boolean) => undefined = ((a2: boolean): void => {
+			return check$panicked(a2, { file: "fixtures/lang/panics/src/located.rs", line: 250, col: 5 });
+		}) as (a0: boolean) => undefined;
+		const _18: rt.usize = rt.u8Rem(first, 2) as rt.usize;
+		if (!(_18 < 2)) {
+			rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _18);
+		}
+		[_15, f][_18](rt.u8Rem(first, 3) !== 1);
 	}
 	rt.byteVecPush(out, first);
 }
