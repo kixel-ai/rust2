@@ -518,11 +518,23 @@ pub fn chains(data: &[u8], out: &mut Vec<u8>) {
 	let rest = match kind % 9 {
 		0 => chained(at, &mut bytes(a).chain(b), pick, ops, out),
 		1 => chained(at, &mut a.chain(BytesMut::from(b)), pick, ops, out),
-		2 => chained(at, &mut Pieces::new(a, a.len() / 2).chain(Provided(Pieces::new(b, 1))), pick, ops, out),
+		2 => chained(
+			at,
+			&mut Pieces::new(a, a.len() / 2).chain(Provided(Pieces::new(b, 1))),
+			pick,
+			ops,
+			out,
+		),
 		3 => chained(at, &mut Provided(Pieces::new(a, 1)).chain(bytes(b)), pick, ops, out),
 		4 => chained(at, &mut bytes(input).take(cut).chain(Pieces::new(b, 0)), pick, ops, out),
 		5 => chained(at, &mut a.chain(bytes(b1)).chain(Pieces::new(b2, 1)), pick, ops, out),
-		6 => chained(at, &mut bytes(a).chain(Provided(Pieces::new(b1, 0)).chain(b2)), pick, ops, out),
+		6 => chained(
+			at,
+			&mut bytes(a).chain(Provided(Pieces::new(b1, 0)).chain(b2)),
+			pick,
+			ops,
+			out,
+		),
 		7 => {
 			let first: Box<dyn Buf> = Box::new(Pieces::new(a, 1));
 			let mut chain: Box<dyn Buf> = Box::new(first.chain(bytes(b1)).chain(b2));
