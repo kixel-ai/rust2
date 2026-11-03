@@ -606,8 +606,9 @@ export function iterSuccessors<T>(first: T | undefined | None, succ: (item: T) =
 /**
  * The methods of std's iterator traits an iterator of the translated crate has of its own,
  * beside `next`, each a function of its source: `iterFrom` calls each where std's
- * adaptors and consumers do. `fold`, `rfold`, `count`, `last`, `forEach`, and `reduce`
- * take it by value. Each that takes a closure is given a function of what std's is given.
+ * adaptors and consumers do. `fold`, `rfold`, `count`, `last`, `forEach`, `reduce`, and
+ * `isSortedBy` take it by value. Each that takes a closure is given a function of what
+ * std's is given.
  */
 export interface Own<S, T> {
 	readonly hint?: (source: S) => SizeHint;
@@ -627,6 +628,7 @@ export interface Own<S, T> {
 	readonly forEach?: (source: S, f: never) => void;
 	readonly reduce?: (source: S, f: never) => T | Done;
 	readonly all?: (source: S, f: never) => boolean;
+	readonly isSortedBy?: (source: S, f: never) => boolean;
 }
 
 /**
@@ -1337,7 +1339,8 @@ function best<T, K>(
  * then as `all` folds, or by the translated crate's own `all`, stopping at the first it
  * fails. Each item drops by `drop` as the next replaces it, or after the one it failed
  * against; then `compare` by `dropCompare`, as `all` drops it, the last item, and `it`, if
- * `drops`.
+ * `drops`. The translated crate's own `is_sorted_by`, which `is_sorted` calls, takes `it`
+ * by value in its place.
  */
 export function iterIsSortedBy<T>(
 	it: Iter<T>,
@@ -1346,6 +1349,12 @@ export function iterIsSortedBy<T>(
 	drop?: Drop<T>,
 	dropCompare?: Drop<(a: T, b: T) => boolean>,
 ): boolean {
+	if (it instanceof FromNext && it.own?.isSortedBy !== undefined) {
+		const sorted = it.own.isSortedBy as (source: unknown, f: (a: T, b: T) => boolean) => boolean;
+		const dropped = dropCompare;
+		const release = dropped === undefined ? undefined : () => dropped(compare);
+		return it.taken((source) => sorted(source, lend(compare, release)));
+	}
 	let last = it.next();
 	let sorted = true;
 	if (last !== DONE && it instanceof FromNext && it.own?.all !== undefined) {
@@ -1465,28 +1474,6 @@ export function iterEq<T, U>(a: Iter<T>, b: Iter<U>, eq: (x: T, y: U) => boolean
 	if (dropsOther) dispose(b);
 	if (drops) dispose(a);
 	return equal;
-}
-
-/** `Iterator::lt`: whether `iterCmp` by `partial_cmp` is `Less`. */
-export function iterLt<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	return iterCmp(a, b, cmp, ...rest) === -1;
-}
-
-/** `Iterator::le`: whether `iterCmp` by `partial_cmp` is `Less` or `Equal`. */
-export function iterLe<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	const order = iterCmp(a, b, cmp, ...rest);
-	return order !== undefined && order <= 0;
-}
-
-/** `Iterator::gt`: whether `iterCmp` by `partial_cmp` is `Greater`. */
-export function iterGt<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	return iterCmp(a, b, cmp, ...rest) === 1;
-}
-
-/** `Iterator::ge`: whether `iterCmp` by `partial_cmp` is `Greater` or `Equal`. */
-export function iterGe<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	const order = iterCmp(a, b, cmp, ...rest);
-	return order !== undefined && order >= 0;
 }
 
 /**

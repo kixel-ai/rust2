@@ -9,8 +9,8 @@ export { ops, run } from "./lang.ts";
  * from a `Vec` of 7: pushed at both ends and popped at the front to wrap it, past a few
  * capacities, then each step by a few arguments, twice.
  */
-const ringsCases = Array.from({ length: 5 * 3 * 4 * 24 * 3 }, (_, i) => {
-	const [kind, first, wraps, step, arg] = [i % 5, [0, 0x15, 0x1e][Math.floor(i / 5) % 3], [1, 3, 6, 10][Math.floor(i / 15) % 4], Math.floor(i / 60) % 24, [0, 0x5b, 0xe7][Math.floor(i / 1440)]];
+const ringsCases = Array.from({ length: 5 * 3 * 4 * 30 * 3 }, (_, i) => {
+	const [kind, first, wraps, step, arg] = [i % 5, [0, 0x15, 0x1e][Math.floor(i / 5) % 3], [1, 3, 6, 10][Math.floor(i / 15) % 4], Math.floor(i / 60) % 30, [0, 0x5b, 0xe7][Math.floor(i / 1800)]];
 	const wrap = Array.from({ length: wraps }, (_, j) => [j % 3 === 2 ? 4 : 0, j * 3, 6, 0, 4, j]).flat();
 	return Uint8Array.of(...op("rings::slices"), kind, first, ...wrap, step, arg, step, arg ^ 0x25);
 });
