@@ -60,3 +60,4 @@ Public API: the translator's output.
 ## Related
 
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - std's exact capacity, beyond its guarantees, so a deque made from a shrunk `Vec` splits its slices where std's does
+- [A string's exact capacity](/quest/m3/ts-string-capacity.md) - measures a `String` wrapper or side table the same way

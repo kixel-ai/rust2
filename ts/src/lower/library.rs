@@ -1520,6 +1520,9 @@ fn mapping<'tcx>(
 			}
 			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
 			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
+				if !from.is_ref() {
+					b.t.string_bytes(span);
+				}
 				return Some(Expr::rt(
 					"stringIntoBytes",
 					vec![b.t.pointee_value(targ(gargs, 1), value)],
@@ -2533,7 +2536,10 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
-		("String", "into_bytes") => Expr::rt("stringIntoBytes", args),
+		("String", "into_bytes") => {
+			b.t.string_bytes(span);
+			Expr::rt("stringIntoBytes", args)
+		}
 		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
 		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
 		// UTF-8 by their contract, which the lossy decoder reads as the text.

@@ -343,23 +343,31 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 	let f = match (b.t.std_of(to), b.t.std_of(from)) {
 		(Some(Std::Bytes), Some(Std::BytesMut)) => "bytesMutFreeze",
 		(Some(Std::Bytes), _) if byte_vec(from) => "bytesFromVec",
-		// A `&'static str`'s bytes are static, and a `String`'s are its storage.
+		// A `&'static str`'s bytes are static. A `String`'s are a vector whose capacity is
+		// their length, as JS keeps none of the `String`'s, so its crate's reads of one are refused.
 		(Some(Std::Bytes), _) if from.is_ref() && string(tcx, from.peel_refs()) => "stringAsBytes",
 		(Some(Std::Bytes), _) if string(tcx, from) => {
-			let bytes = Expr::rt("stringAsBytes", args.collect());
-			return Ok(Some(Expr::rt("bytesFromString", vec![bytes])));
+			b.t.string_bytes(call.span);
+			let bytes = Expr::rt("stringIntoBytes", args.collect());
+			return Ok(Some(Expr::rt("bytesFromVec", vec![bytes])));
 		}
 		(Some(Std::Bytes), _) if is_bytes_ref(from) => "bytesStatic",
 		(Some(Std::Bytes), _) => return Ok(None),
 		(Some(Std::BytesMut), _) => {
 			let bytes = match as_slice(b, from.peel_refs(), args.next().expect("an operand")) {
 				Some(bytes) if from.is_ref() => Expr::rt("bytesMutFrom", vec![bytes]),
-				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => Expr::rt("bytesMutFromBytes", vec![bytes]),
+				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => {
+					b.t.string_capacity(call.span, "BytesMut::from(Bytes)");
+					Expr::rt("bytesMutFromBytes", vec![bytes])
+				}
 				_ => return Ok(None),
 			};
 			return Ok(Some(bytes));
 		}
-		(_, Some(Std::Bytes)) if byte_vec(to) => "bytesToByteVec",
+		(_, Some(Std::Bytes)) if byte_vec(to) => {
+			b.t.string_capacity(call.span, "Vec::from(Bytes)");
+			"bytesToByteVec"
+		}
 		(_, Some(Std::BytesMut)) if byte_vec(to) => "bytesMutToByteVec",
 		(_, Some(Std::Bytes | Std::BytesMut)) => return Ok(None),
 		_ => return Err(args.collect()),
@@ -419,6 +427,10 @@ fn bytes_own<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Option<Expr> {
 	let tcx = b.t.tcx;
+	// Whether the storage is unique, and whether truncating gives it up, hinge on its capacity.
+	if matches!(name, "is_unique" | "try_into_mut" | "truncate" | "clear") {
+		b.t.string_capacity(call.span, &format!("Bytes::{name}"));
+	}
 	let mut args = args.into_iter();
 	Some(match name {
 		"new" => Expr::rt("bytesNew", vec![]),
@@ -671,6 +683,9 @@ fn put<'tcx>(
 	// Into a `BytesMut` of no capacity, `bytes` copies it out whole and drops it, then takes
 	// the copy's storage if no other handle holds it, so the runtime drops it there.
 	if buffer == Buffer::BytesMut && !through {
+		if !matches!(source, Some(Buffer::BytesMut | Buffer::Slice)) {
+			b.t.string_capacity(call.span, "BufMut::put");
+		}
 		let f = match source {
 			Some(Buffer::Bytes) => "bytesMutPutStorage",
 			Some(Buffer::BytesMut) => "bytesMutPutMut",

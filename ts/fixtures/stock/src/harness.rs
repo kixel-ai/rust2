@@ -117,7 +117,6 @@ fn made(data: &[u8], out: &mut Vec<u8>) {
 	let made = [
 		Bytes::from(rest.to_vec()),
 		Bytes::from_static(b"\0\t\r\n\\\"'~\x7f\x80\xff"),
-		Bytes::from(String::from("string")),
 		Bytes::from("text"),
 		Bytes::from(&b"static"[..]),
 		Bytes::default(),

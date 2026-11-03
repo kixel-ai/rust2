@@ -55,24 +55,16 @@ export class Shared {
 	 * `BytesMut` taking it makes a vector of its own again.
 	 */
 	readonly original: number | undefined;
-	/** Whether `data` is as long as the vector's capacity, which a `String`'s, whose capacity JS keeps none of, may not be. */
-	readonly sure: boolean;
 
-	constructor(data: Uint8Array, original: number | undefined, sure = true) {
+	constructor(data: Uint8Array, original: number | undefined) {
 		this.data = data;
 		this.original = original;
-		this.sure = sure;
 	}
 }
 
-/**
- * Whether `b` is the one handle of its storage, as `Bytes::is_unique` says. An empty
- * `String`'s bytes are static unless it had capacity, which JS keeps none of.
- */
+/** Whether `b` is the one handle of its storage, as `Bytes::is_unique` says. */
 export function bytesIsUnique(b: Bytes): boolean {
-	if (!(b instanceof CountedBytes)) return false;
-	if (!b.shared.sure && b.shared.data.length === 0) sure(b.shared, "whether a handle is the last");
-	return b.shared.refs === 1;
+	return b instanceof CountedBytes && b.shared.refs === 1;
 }
 
 /** A `Bytes` of the bytes `s` lends, which counts no storage, as `from_static` and `from_owner` make. */
@@ -105,11 +97,6 @@ function moved(b: Bytes, start: number, length: number): Bytes {
 	return new CountedBytes(b.data, start, length, b.shared, b.promotable);
 }
 
-/** Throw where `bytes` reads the capacity of a `String`'s bytes, which JS keeps none of. */
-function sure(s: Shared, what: string): void {
-	if (!s.sure) throw new Error(`rust2-ts: ${what} of a \`String\`'s bytes, whose capacity JS keeps none of`);
-}
-
 /** `Bytes::new`. Its bytes are made each time, as a bundler keeps a constant object. */
 export function bytesNew(): Bytes {
 	return new ByteSlice(new Uint8Array(0), 0, 0);
@@ -129,11 +116,6 @@ export function bytesFromVec(v: ByteVec): Bytes {
 	return new CountedBytes(v.data, 0, v.length, new Shared(v.data, undefined), whole);
 }
 
-/** `From<String>`: its bytes, in storage whose capacity is the `String`'s, which JS keeps none of. */
-export function bytesFromString(s: ByteSlice): Bytes {
-	return new CountedBytes(s.data, s.start, s.length, new Shared(s.data, undefined, false), true);
-}
-
 /** `From<Bytes> for Vec<u8>`: its storage's vector, if it is the one handle of it, and else a copy. */
 export function bytesToByteVec(b: Bytes): ByteVec {
 	if (!bytesIsUnique(b)) {
@@ -141,7 +123,6 @@ export function bytesToByteVec(b: Bytes): ByteVec {
 		return byteSliceToByteVec(b);
 	}
 	const s = (b as CountedBytes).shared;
-	sure(s, "`Vec::from` a `Bytes`");
 	s.refs--;
 	return vecOf(s.data, b.start, b.length);
 }
@@ -242,8 +223,6 @@ export function bytesTruncate(p: Place<Bytes>, len: usize): void {
 	const b = p.v;
 	if (len >= b.length) return;
 	if (len === 0 && b instanceof CountedBytes && b.promotable) {
-		// A `String`'s bytes are promotable only if it had no room to spare.
-		sure(b.shared, "`Bytes::truncate` to nothing");
 		b.shared.refs--;
 		p.v = new ByteSlice(b.data, b.start, 0);
 		return;
@@ -519,7 +498,6 @@ export function bytesMutFromBytes(s: Bytes): BytesMut {
 		return bytesMutFrom(s);
 	}
 	const shared = (s as CountedBytes).shared;
-	sure(shared, "`BytesMut::from` a `Bytes`");
 	const cap = shared.data.length - s.start;
 	if (shared.original !== undefined) return new BytesMut(shared.data, s.start, s.length, cap, shared, 0);
 	const b = ofVec(shared.data, s.start + s.length);
