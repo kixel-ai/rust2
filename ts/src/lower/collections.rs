@@ -1362,15 +1362,6 @@ fn btree_collect<'tcx>(
 		let f = if set { "btreeExtendKeys" } else { "btreeExtend" };
 		return Expr::rt(f, super::iter::tail(vec![target, source], droppers));
 	}
-	// A sort by an impl of the crate's may panic, or leave equal keys in another order.
-	if own && b.t.drops(coll) {
-		return b.err(
-			span,
-			format!(
-				"`collect` of `{coll}`, which sorts by `{key}`'s own `Ord`, of entries that drop, which is not supported yet"
-			),
-		);
-	}
 	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
 	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
