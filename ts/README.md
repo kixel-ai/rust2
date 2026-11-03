@@ -468,7 +468,11 @@ such as a number, from `get_mut` or the entry API, is an `rt.Place` whose `v` re
 writes the map's slot. A hash map iterates in an order
 of the runtime's, mostly insertion order, which std leaves unspecified, and hashes a key
 with a hasher of its own, as std's keys its at random. So is how often the runtime
-calls a key's `Hash`, `Eq`, or `Ord`.
+calls a key's `Hash`, `Eq`, or `Ord`. A map or set built with any `BuildHasher` but
+`RandomState` holds it, which `hasher` lends, `Default` and `collect` make, and `clone`
+clones before what the map holds; it drops before the map's entries, and at once from
+`into_iter`, `into_keys`, and `into_values`, as hashbrown's does. No key goes through it:
+the runtime's own hasher finds them, so it builds no hasher for the map.
 
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std
