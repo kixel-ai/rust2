@@ -732,9 +732,9 @@ export function ends$hashlink_linked_hash_map_Drain_u16_u32_maps_linked_iters_cl
 		} else if (_20 === 1) {
 			item = linked_hash_map_Drain.nextBack$iter_DoubleEndedIterator_u16_u32(it);
 		} else if (_20 === 2) {
-			item = rt.iterNth(rt.iterFrom(it, linked_hash_map_Drain.next$iter_Iterator_u16_u32, lib_drop$hashlink_linked_hash_map_Drain_u16_u32, { hint: linked_hash_map_Drain.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Drain.Drain<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Drain.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
+			item = rt.iterNth(rt.iterFrom(it, linked_hash_map_Drain.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Drain.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Drain.Drain<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Drain.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
 		} else {
-			item = rt.iterNthBack(rt.iterFrom(it, linked_hash_map_Drain.next$iter_Iterator_u16_u32, lib_drop$hashlink_linked_hash_map_Drain_u16_u32, { hint: linked_hash_map_Drain.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Drain.Drain<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Drain.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
+			item = rt.iterNthBack(rt.iterFrom(it, linked_hash_map_Drain.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Drain.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Drain.Drain<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Drain.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
 		}
 		put(out, option_mapOr$0iaogpf(item, 256, f));
 		const _32: [rt.usize, rt.usize | undefined] = linked_hash_map_Drain.sizeHint$iter_Iterator_u16_u32(it);
@@ -775,9 +775,9 @@ export function ends$hashlink_linked_hash_map_IntoIter_u16_u32_maps_linked_iters
 		} else if (_20 === 1) {
 			item = linked_hash_map_IntoIter.nextBack$iter_DoubleEndedIterator_u16_u32(it);
 		} else if (_20 === 2) {
-			item = rt.iterNth(rt.iterFrom(it, linked_hash_map_IntoIter.next$iter_Iterator_u16_u32, lib_drop$hashlink_linked_hash_map_IntoIter_u16_u32, { hint: linked_hash_map_IntoIter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_IntoIter.IntoIter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_IntoIter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
+			item = rt.iterNth(rt.iterFrom(it, linked_hash_map_IntoIter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_IntoIter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_IntoIter.IntoIter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_IntoIter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
 		} else {
-			item = rt.iterNthBack(rt.iterFrom(it, linked_hash_map_IntoIter.next$iter_Iterator_u16_u32, lib_drop$hashlink_linked_hash_map_IntoIter_u16_u32, { hint: linked_hash_map_IntoIter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_IntoIter.IntoIter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_IntoIter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
+			item = rt.iterNthBack(rt.iterFrom(it, linked_hash_map_IntoIter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_IntoIter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_IntoIter.IntoIter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_IntoIter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }), n);
 		}
 		put(out, option_mapOr$0iaogpf(item, 256, f));
 		const _32: [rt.usize, rt.usize | undefined] = linked_hash_map_IntoIter.sizeHint$iter_Iterator_u16_u32(it);
