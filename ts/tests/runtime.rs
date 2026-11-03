@@ -1,5 +1,8 @@
 //! The runtime's own behavior, beyond what translated fixtures exercise.
 
+// The Unicode properties `str::to_lowercase` reads for a final sigma, which `unicode` copies.
+#![feature(case_ignorable, titlecase)]
+
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -259,11 +262,16 @@ fn retain() {
 }
 
 /// `rt/unicode.ts` holds std's Unicode tables that `char`'s classes, case maps, and `Debug`
-/// read, by this toolchain's std, whose Unicode version the JS engine's may trail.
-/// `UPDATE_EXPECT=1 just ts test --test runtime unicode` rewrites it.
+/// read, and `str::to_lowercase`'s final sigma, by this toolchain's std, whose Unicode version
+/// the JS engine's may trail. `UPDATE_EXPECT=1 just ts test --test runtime unicode` rewrites it.
 #[test]
 fn unicode() {
 	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("runtime/rt/unicode.ts");
+	// The runtime reads `is_cased` from three of the tables, as std defines it.
+	for c in (0..=char::MAX as u32).filter_map(char::from_u32) {
+		let cased = c.is_lowercase() || c.is_uppercase() || c.is_titlecase();
+		assert_eq!(c.is_cased(), cased, "U+{:04X}", u32::from(c));
+	}
 	let tables = [
 		class("UNPRINTABLE", "The chars `Debug` writes as `\\u{..}`", |c| {
 			c.escape_debug().to_string().starts_with("\\u")
@@ -272,6 +280,12 @@ fn unicode() {
 		class("LOWERCASE", "The chars `is_lowercase` holds of", char::is_lowercase),
 		class("UPPERCASE", "The chars `is_uppercase` holds of", char::is_uppercase),
 		class("NUMERIC", "The chars `is_numeric` holds of", char::is_numeric),
+		class("TITLECASE", "The chars `is_titlecase` holds of", char::is_titlecase),
+		class(
+			"CASE_IGNORABLE",
+			"The chars `is_case_ignorable` holds of",
+			char::is_case_ignorable,
+		),
 		case_map("TO_LOWERCASE", "to_lowercase", |c| c.to_lowercase().collect()),
 		case_map("TO_UPPERCASE", "to_uppercase", |c| c.to_uppercase().collect()),
 	];
