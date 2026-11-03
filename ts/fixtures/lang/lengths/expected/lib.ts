@@ -2,6 +2,8 @@
 
 import * as rt from "./rt.ts";
 import { lengths } from "./lengths.ts";
+import type * as Loud from "./lengths.Loud.ts";
+import * as Row from "./lengths.Row.ts";
 import * as Tagged from "./lengths.Tagged.ts";
 
 export function copy$Option_lengths_Tagged_array0_u32(v: Tagged.Tagged<rt.u32[]> | undefined): Tagged.Tagged<rt.u32[]> | undefined {
@@ -62,6 +64,14 @@ export function copy$array_u32(v: rt.u32[]): rt.u32[] {
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$lengths_Row_lengths_Loud(v: Row.Row<Loud.Loud>): Row.Row<Loud.Loud> {
+	return new Row.Row(v._0, copy$tuple2_u16_u16(v._1));
+}
+
+export function copy$lengths_Row_u8(v: Row.Row<rt.u8>): Row.Row<rt.u8> {
+	return new Row.Row(v._0, copy$tuple2_u16_u16(v._1));
 }
 
 export function copy$lengths_Tagged_array0_u32(v: Tagged.Tagged<rt.u32[]>): Tagged.Tagged<rt.u32[]> {
@@ -261,6 +271,10 @@ export function copy$mem_MaybeUninit_tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt
 	if (v === undefined) {
 		return v;
 	}
+	return [v[0], v[1]];
+}
+
+export function copy$tuple2_u16_u16(v: [rt.u16, rt.u16]): [rt.u16, rt.u16] {
 	return [v[0], v[1]];
 }
 
