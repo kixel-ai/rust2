@@ -432,3 +432,29 @@ pub fn key_taken(n: u16) -> u16 {
 	drop(KEY_TAKE.take());
 	unsafe { *part }
 }
+
+pub struct Reaimed(pub (u16, u16));
+
+/// A fresh allocation written whole through a pointer that a shared borrow of the
+/// `UnsafeCell` holding it aimed at another value, into which a pointer may still be read.
+pub fn reaimed(n: u16) -> u16 {
+	let mut other = Reaimed((n, n));
+	let part = &raw mut other.0;
+	let at = std::cell::UnsafeCell::new(Box::into_raw(Box::new(Reaimed((0, 0)))));
+	let shared = &at;
+	unsafe { *shared.get() = &raw mut other };
+	unsafe { *at.into_inner() = Reaimed((1, 1)) };
+	unsafe { (*part).0 }
+}
+
+pub struct Reversed(pub (u16, u16));
+
+/// A value std's `Reverse` holds, swapped whole for another while a pointer into it may
+/// still be read.
+pub fn reversed(n: u16) -> u16 {
+	let mut slot = std::cmp::Reverse(Reversed((n, n)));
+	let mut other = std::cmp::Reverse(Reversed((0, 0)));
+	let part = &raw mut slot.0.0;
+	std::mem::swap(&mut slot, &mut other);
+	unsafe { (*part).0 }
+}
