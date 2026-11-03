@@ -1,12 +1,18 @@
-// The harness, with inputs it names for `differential.ts`: `buf::reserves`' edges of
-// `rt.BytesMut`'s limit, which only these reach, as each allocates 512 MiB, each of
-// `hashlink`'s iterators read through every pick of steps from either end, each
-// `buf::chains` chain copied by each pick of a length, split at either end and between,
-// and every pair of steps over `hashlink`'s maps of what drops.
+// The harness, with its cases by name and the inputs it names for `differential.ts`:
+// `buf::reserves`' edges of `rt.BytesMut`'s limit, which only these reach, as each
+// allocates 512 MiB, each of `hashlink`'s iterators read through every pick of steps from
+// either end, each `buf::chains` chain copied by each pick of a length, split at either
+// end and between, and every pair of steps over `hashlink`'s maps of what drops.
 
-import { op, run } from "./harness.ts";
+import { cases as named, op, run } from "./harness.ts";
 
 export { run };
+
+/** Each case's name and the byte that picks it. */
+export const ops = new Map(named().map(([name]): [string, Uint8Array] => [name, Uint8Array.of(op(name))]));
+
+/** Its cases read full-width values. */
+export const wide = true;
 
 const reserves = op("buf::reserves");
 

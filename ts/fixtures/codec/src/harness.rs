@@ -11,19 +11,19 @@ use crate::{SessionError, lite};
 /// What a case runs on the rest of the input.
 type Case = fn(&[u8], &mut Vec<u8>);
 
-/// Each case, which the first byte picks modulo their count, so a case added at the end
-/// moves no other.
-fn cases() -> Vec<Case> {
+/// Each case's name and what it runs. The first byte picks one modulo their count, so a
+/// case added at the end moves no other.
+fn cases() -> Vec<(&'static str, Case)> {
 	vec![
-		decode_script,
-		encode_script,
-		zigzag,
-		sizes,
-		roundtrip::<Versions>,
-		roundtrip_lite::<lite::Group>,
-		roundtrip_lite::<lite::Probe>,
-		encode_messages,
-		errors,
+		("decode_script", decode_script),
+		("encode_script", encode_script),
+		("zigzag", zigzag),
+		("sizes", sizes),
+		("roundtrip", roundtrip::<Versions>),
+		("roundtrip_lite::<Group>", roundtrip_lite::<lite::Group>),
+		("roundtrip_lite::<Probe>", roundtrip_lite::<lite::Probe>),
+		("encode_messages", encode_messages),
+		("errors", errors),
 	]
 }
 
@@ -34,7 +34,8 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		return out;
 	};
 	let cases = cases();
-	cases[usize::from(op) % cases.len()](data, &mut out);
+	let (_, case) = cases[usize::from(op) % cases.len()];
+	case(data, &mut out);
 	out
 }
 
