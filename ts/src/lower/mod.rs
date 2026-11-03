@@ -217,6 +217,10 @@ pub struct Translator<'a, 'tcx> {
 	drops_cycle: bool,
 	/// The classes given drop glue.
 	glued: rustc_data_structures::fx::FxHashSet<DefId>,
+	/// Whether one class's glue drops every instance of each struct, as
+	/// [`Self::shared_glue`] found, and the structs it is still deciding.
+	shared_glues: rustc_data_structures::fx::FxHashMap<DefId, bool>,
+	shared_open: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// The drop glue made from each type's drop shim.
 	pub drop_shims: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The function copying each `Copy` aggregate type.
@@ -474,6 +478,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			drops_open: Default::default(),
 			drops_cycle: false,
 			glued: Default::default(),
+			shared_glues: Default::default(),
+			shared_open: Default::default(),
 			coroutines: Default::default(),
 			objects: Default::default(),
 			object_classes: Default::default(),
