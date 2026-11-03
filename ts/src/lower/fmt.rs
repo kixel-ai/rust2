@@ -309,6 +309,30 @@ pub fn std_impl<'tcx>(
 				_ => return None,
 			}
 		}
+		// A char's case map or escape writes what it has left, unpadded, and `Debug` that in
+		// std's derived fields.
+		ty::Adt(adt, _)
+			if matches!(
+				library::std_path(tcx, adt.did())
+					.iter()
+					.map(String::as_str)
+					.collect::<Vec<_>>()
+					.as_slice(),
+				[
+					"char",
+					"ToLowercase" | "ToUppercase" | "EscapeUnicode" | "EscapeDebug" | "EscapeDefault"
+				]
+			) =>
+		{
+			match tr {
+				Trait::Display => Expr::rt("fmtCharsDisplay", vec![value, f]),
+				Trait::Debug => {
+					let name = Expr::Str(tcx.item_name(adt.did()).to_string());
+					Expr::rt("fmtCharsDebug", vec![value, f, name])
+				}
+				_ => return None,
+			}
+		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
 				&& let Some(e) = iter_debug(b, adt.did(), args, &value, &f, span) =>
@@ -431,6 +455,12 @@ pub fn std_impl<'tcx>(
 			(Std::ParseIntError, Trait::Debug) => rt("parseIntErrorDebug", vec![value, f]),
 			(Std::ParseIntError, Trait::Display) => rt("parseIntErrorDisplay", vec![value, f]),
 			(Std::ErrorKind, Trait::Debug) => rt("writeStr", vec![f, value]),
+			(Std::CharTryFromError, Trait::Debug) => rt("charTryFromErrorDebug", vec![value, f]),
+			(Std::CharTryFromError, Trait::Display) => rt("charTryFromErrorDisplay", vec![value, f]),
+			(Std::TryFromCharError, Trait::Debug) => rt("tryFromCharErrorDebug", vec![value, f]),
+			(Std::TryFromCharError, Trait::Display) => rt("tryFromCharErrorDisplay", vec![value, f]),
+			(Std::DecodeUtf16Error, Trait::Debug) => rt("decodeUtf16ErrorDebug", vec![value, f]),
+			(Std::DecodeUtf16Error, Trait::Display) => rt("decodeUtf16ErrorDisplay", vec![value, f]),
 			(Std::ParseBoolError, Trait::Debug) => rt("parseBoolErrorDebug", vec![value, f]),
 			(Std::ParseBoolError, Trait::Display) => rt("parseBoolErrorDisplay", vec![value, f]),
 			(Std::BorrowError, Trait::Debug) => Expr::rt("borrowErrorDebug", vec![value, f]),

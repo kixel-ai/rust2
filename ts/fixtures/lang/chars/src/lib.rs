@@ -15,5 +15,13 @@ use harness::Case;
 /// Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
 /// their count, so a case added at the end moves no other.
 fn cases() -> Vec<(&'static str, Case)> {
-	vec![("chars::chars", chars::chars)]
+	vec![
+		("chars::chars", chars::chars),
+		("chars::unicode", chars::unicode),
+		("chars::iters", chars::iters),
+		("chars::encodes", chars::encodes),
+		("chars::decodes", chars::decodes),
+		("chars::converts", chars::converts),
+		("chars::values", chars::values),
+	]
 }
