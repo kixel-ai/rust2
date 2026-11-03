@@ -886,8 +886,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// `ty`, and each type it holds by value, as replaced: a write of a whole `ty` gives
-	/// each part it holds another object, and so each part those hold, at any depth.
+	/// each part it holds another object, and so each part those hold, at any depth. Nothing
+	/// writes a whole unsized value, and what a trait object's methods replace counts where
+	/// it became one.
 	fn replace(&mut self, ty: Ty<'tcx>) {
+		if !ty.is_sized(self.tcx, ty::TypingEnv::post_analysis(self.tcx, self.def_id)) {
+			return;
+		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
 		}
