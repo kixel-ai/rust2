@@ -3,7 +3,9 @@
 import * as rt from "./rt.ts";
 import type * as Error from "./core/error.Error.ts";
 import { eqs, objects } from "./errors.ts";
-import type * as Failure from "./errors.Failure.ts";
+import * as Failure from "./errors.Failure.ts";
+import * as Leaf from "./errors.Leaf.ts";
+import * as Transported from "./errors.Transported.ts";
 
 export function drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send(_1: rt.Result<rt.u8, Error.Error>): void {
 	if (!_1.ok) {
@@ -14,6 +16,206 @@ export function drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send(_1: r
 export function drop$errors_Failure(_1: Failure.Failure): void {
 	if (_1.tag === "Wrapped") {
 		_1._0[Symbol.dispose]();
+	}
+}
+
+export class of$boxed_Box_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$errors_Failure(this.v);
+	}
+
+	code$Coded(): rt.u8 {
+		return Failure.code$errors_Coded(this.v);
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$errors_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$errors_Transported {
+	v: Transported.Transported;
+
+	constructor(v: Transported.Transported) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Transported.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Transported.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return Transported.source$Error(this.v);
+	}
+}
+
+export class of$num_ParseIntError {
+	v: rt.ParseIntError;
+
+	constructor(v: rt.ParseIntError) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDebug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDisplay(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class of$ref_errors_Failure {
+	v: Failure.Failure;
+
+	constructor(v: Failure.Failure) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return Failure.source$Error(this.v);
+	}
+}
+
+export class of$ref_errors_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Debug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Leaf.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class ofPlace$errors_Failure {
+	v: rt.Place<Failure.Failure>;
+
+	constructor(v: rt.Place<Failure.Failure>) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Debug(this.v.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return Failure.fmt$fmt_Display(this.v.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return Failure.source$Error(this.v.v);
+	}
+}
+
+export class ofPlace$num_ParseIntError {
+	v: rt.Place<rt.ParseIntError>;
+
+	constructor(v: rt.Place<rt.ParseIntError>) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDebug(this.v.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtParseIntErrorDisplay(this.v.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
 	}
 }
 
