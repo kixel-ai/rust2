@@ -269,7 +269,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return rt.u32Sub(rt.u32Sub(rt.u32Sub(rt.u32Add(rt.u32Add(rt.u32Mul(_216[0], 10), _216[1]), Guard.id(captured9)), captured10), captured11), 1);
 		}, (): void => {
 			captured9[Symbol.dispose]();
-		})), "index", 4, true);
+		})), "index", 4, true, 4);
 		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args48[0]]));
 		const c: Guard.Guard = guard(22);
@@ -283,7 +283,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			captured12[Symbol.dispose]();
 		})), "index"), (_217: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_217[0], _217[1]);
-		}), "index", 4, true);
+		}), "index", 4, true, 4);
 		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args50[0]]));
 	} else {
@@ -300,7 +300,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			captured3[Symbol.dispose]();
 		})), new rt.Range(0, 3), "index"), 1), (_29: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_29[0], _29[1]);
-		}), "index", 4, true);
+		}), "index", 4, true, 4);
 		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["skipped ", args52[0]]));
 		const part3 = rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterSlice([1, 2, 3]), rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), "index", undefined, lib_drop$tuple2_model_Guard_model_Guard), (_211: [rt.u32, [Guard.Guard, Guard.Guard]]): rt.u32 => {
@@ -311,7 +311,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			b3[Symbol.dispose]();
 			a3[Symbol.dispose]();
 			return _010;
-		}), "index", 4, true);
+		}), "index", 4, true, 4);
 		const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["beside ", args54[0]]));
 		const e2: Guard.Guard = guard(24);
@@ -324,7 +324,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			captured5[Symbol.dispose]();
 		})), new rt.Range(0, 3), "index"), (_212: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_212[0], _212[1]);
-		}), "index", 4, true);
+		}), "index", 4, true, 4);
 		const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["empty ", args56[0]]));
 	}

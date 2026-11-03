@@ -11,4 +11,9 @@ export function panicAdvance(errorInfo: TryGetError.TryGetError): never {
 	rt.panicFmt(["advance out of bounds: the len is ", args2[0], " but advancing by ", args2[1]]);
 }
 
+export function panicDoesNotFit(size: rt.usize, nbytes: rt.usize): never {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(size, f), (f: rt.Formatter) => rt.usizeDisplay(nbytes, f)];
+	rt.panicFmt(["size too large: the integer type can fit ", args2[0], " bytes, but nbytes is ", args2[1]]);
+}
+
 //# sourceMappingURL=bytes.ts.map

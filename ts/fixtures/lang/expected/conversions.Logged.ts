@@ -35,6 +35,14 @@ export function drop$ops_Drop(self: Logged): void {
 	rt.refMutRelease(_5);
 }
 
+export function cmp$cmp_Ord(self: Logged, other: Logged): rt.Ordering {
+	return rt.cmp(self.id, other.id);
+}
+
+export function partialCmp$cmp_PartialOrd(self: Logged, other: Logged): rt.Ordering | undefined {
+	return cmp$cmp_Ord(self, other);
+}
+
 /** The value `data` makes from `at`. */
 export function make$conversions_Value(data: rt.ByteSlice, at: rt.usize): Logged {
 	return new Logged(conversions_byte(data, at) & 127, ((a0: rt.Arc<rt.RefCell<rt.ByteVec>>): rt.Arc<rt.RefCell<rt.ByteVec>> => {

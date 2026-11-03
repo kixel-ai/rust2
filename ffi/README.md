@@ -29,8 +29,9 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
-Swift, over the C header as a clang module, and `go/<prefix>.go` holds it in Go, over the C
-ABI through cgo.
+Swift, over the C header as a clang module, `go/<prefix>.go` holds it in Go, over the C
+ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
+`dart:ffi` and what the crate builds with `--features dart`.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
@@ -125,7 +126,9 @@ refused, and the census counts why.
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
   there is no Rust caller to return an error to. A setter borrows as `&mut T` and takes
   its value as `T`, so it writes the value the handle holds, or the one Rust lent it,
-  while a getter's copy is C's own: a nested field is got, set, and set back.
+  while a getter's copy is C's own: a nested field is got, set, and set back. A type
+  whose C++ copies share one value has `_borrowed`, true while a call or future borrows
+  it, so moving it out would abort.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -194,23 +197,47 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `moq::track_producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
-- **Objects** are classes owning their handle, move-only unless `Clone`, whose copy
-  clones. `&self` methods are `const`, and `self` methods are `&&`, so a call that moves
-  the value out reads `std::move(c).into_label()`. A handle taken by value is moved into,
-  by a parameter taken by value.
+- **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
+  calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
+  Rust for a value of its own. A type whose copies may share one value, by the rule below,
+  owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
+  into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
+  `const`, and `self` methods are `&&`, so a call that moves the value out reads
+  `std::move(c).into_label()`. A handle taken by value is moved into, by a parameter taken
+  by value; moving out of a shared copy another copy holds, or a pending future borrows,
+  moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
+  moved-from object, or one a call moved the value out of, aborts; a dangling reference
+  to an object is C++'s own undefined behavior.
+- **Sharing** stands in for `clone` where no call can tell the two apart but by counting
+  an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
+  since one that is not is borrowed on one thread at a time, which copies on two threads
+  would contend for; borrowed mutably by no export, through `&mut self`, a `&mut`
+  parameter, or a closure lent one; and its clone owns no state that changes behind `&`.
+  For that last, what a field reaches through an `Arc`, an `Rc`, or a shared reference,
+  the clone shares, and any other field must clone by a derived `Clone` or std's, with no
+  `Drop` of its own, and hold only such values. So a `Mutex`, `OnceLock`, or atomic it
+  owns, even behind a `Box`, keeps copies apart, as does a raw pointer, or a `Clone` or
+  `Drop` written by hand, which may count clones. std's `Clone` of a `Copy` type copies
+  it. The one difference: every C++ copy of a shared object is one Rust value, so
+  `Arc::strong_count`, `Rc::strong_count`, or a weak count of what it holds counts one for
+  all of them, where Rust's clones would count one each. Of moq's types, `path`, `timestamp`, and `url`
+  share, and its producers and consumers, whose `Clone` counts them, cross.
 - **Records** are structs, and **enums** an `enum class`, or for one with data a
   `std::variant` of a struct per variant, `<enum>_<variant>`. An enum's methods and
   traits are free functions taking it first. `PartialEq` is `==`, `Display` `to_string()`,
   `Debug` `debug()`, and `Default` `default_()`.
 - **Bytes** are passed as a `view`, which any contiguous bytes convert to, and returned as
-  a `buf`, which owns Rust's buffer without a copy. A `Vec<T>` is a `std::vector`, of
+  a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
+  from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
+  lives only as long as the bytes it views, and a `view` lent to a callback only for the
+  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
   Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it aborts.
+  its class for that call: moving out of it, or keeping a copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -246,11 +273,16 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
 - **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, a read-only `ByteBuffer`:
-  up to 1 KiB copied, and longer ones lending Rust's buffer as a direct one until `close()`
-  frees it, or, never closed, until the GC collects that buffer, since a copy undercuts
-  `NewDirectByteBuffer` only that far; `Bytes(ByteArray)` holds Kotlin's for a record
-  passed in.
+  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
+  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
+  which JNI keeps reachable until the call returns, and are freed once the GC finds no
+  `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
+  64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
+  garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
+  Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
@@ -409,7 +441,13 @@ own directory, and links the library through `CGO_LDFLAGS`.
   reads its buffer in place through `Len`, `At`, `Slice`, `CopyTo`, `Read`, and
   `WriteTo`, and frees it once the GC finds no `Bytes` reaching it, so no Go code holds a
   slice of freed memory; a smaller one is copied, which costs less than the GC's cleanup.
-  `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
+  The GC sees none of Rust's buffers, so at most 64 MiB are lent at once, freed or not;
+  past that, larger ones are copied too, and that garbage in Go's heap runs the GC, which
+  frees them. On glibc, each thread's malloc arena keeps what is freed into it for that
+  thread to reuse, and a goroutine moves between threads, so reading lent bytes at full
+  speed can hold up to 64 MiB of RSS per thread the reads ran on. A global allocator that
+  returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
+  the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
   pointer, nil for `None`. A tuple is `Tuple2[A, B]` and so on, but a tuple of one is its
@@ -436,6 +474,78 @@ own directory, and links the library through `CGO_LDFLAGS`.
 - **The contract** is checked when the package loads, before any other call: a Go file and
   a library from different builds panic.
 
+## Dart
+
+`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
+`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
+the shared library the crate builds with `--features dart` as the package's native asset:
+the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+
+- **Names** are the C names without the prefix: a type in Pascal case and a member in
+  camel case, so `moq_track_producer` is `TrackProducer`, and its method
+  `moq_track_producer_append_group` is `TrackProducer.appendGroup`. A function of a type
+  that returns it is a constructor, which may share its name with a field: an object's
+  `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
+  (`Position.group`). A type's other functions are static members. A reserved word takes
+  a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
+  with a name the runtime declares, fails the export: give it a `rename`.
+- **Objects** are final classes owning their handle. `close()` frees it once no call
+  holds it, and a second does nothing; one never closed is freed once the garbage
+  collector finds it unreachable, through a `NativeFinalizer`. Any call that meets a
+  closed object, as its receiver or anywhere in its arguments, throws a `StateError`
+  before Rust sees it, and moves none of the call's other arguments. An isolate cannot
+  send an object to another, so no `close()` races a call. A `self` method, or passing the
+  object by value, closes it once the call returns. `Clone` is `clone()`, and a `pub`
+  field a getter and a setter.
+- **Records** are final classes with a named, required parameter per field, and
+  positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
+  with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
+  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
+  through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
+  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. A plain enum's `==` is Dart's, by its value.
+- **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
+  range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
+  A `char` is a `String` of one Unicode scalar.
+- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
+  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+  manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
+  unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
+  reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
+  garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
+  returns is copied into a `String`. A path is a `String`, and one Rust returns that is
+  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
+  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
+  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
+  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
+  range a `RangeError`.
+- **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
+  implementing `Exception`, and any other in a final class `<T>Exception` holding it as
+  `error`, such as `StringException`.
+- **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
+  thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
+- **Closures** lent for a call are Dart functions, which Rust calls only during the call,
+  on the isolate's thread. An object it lends lives only for that call of the closure.
+- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it.
+  The call polls it once, and makes a waker only if that poll pends. A wake, from any
+  thread, posts to the isolate's port, and its event loop polls again, so a wake never
+  polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
+  future unless it finished, which cancels it in Rust and loses nothing: the next call
+  takes what it would have, and it completes with `Cancelled`. A pending future keeps
+  the isolate alive, as a timer does.
+- A **waker** is a `void Function()`, which runs on the isolate's event loop.
+- **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
+  other through the isolate's port, and waits for its event loop to run the call. A call
+  that lends a closure or gives an implementation, and each poll of its future, runs on a
+  thread of its own, acting as the caller's for the handles it borrows, while the
+  isolate's thread runs what Rust calls into Dart. Any other call, a future's `cancel()`
+  included, holds the isolate's thread, so it deadlocks if Rust waits in it on another
+  thread calling an implementation it kept, such as one a method calls from a thread it
+  joins, or one a future's destructor calls.
+- **The contract** is checked at the first call, before any other: a Dart file and a
+  library from different builds throw a `StateError`.
+
 ## IR
 
 [`src/ir.rs`](src/ir.rs) is the API as each generator reads it, with no language decided:
@@ -445,14 +555,16 @@ its Rust path, its span, and its docs. A type is in the exact form Rust takes or
 borrow where Rust borrows. [`src/abi.rs`](src/abi.rs) decides the C ABI from it once,
 names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
 [`src/kotlin.rs`](src/kotlin.rs), [`src/python.rs`](src/python.rs),
-[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), and [`src/glue.rs`](src/glue.rs)
+[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), [`src/dart.rs`](src/dart.rs), and
+[`src/glue.rs`](src/glue.rs)
 agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
 Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
 [`runtime/python.rs`](runtime/python.rs), the one the Swift includes
-[`runtime/rt.swift`](runtime/rt.swift), and the one the Go includes
-[`runtime/rt.go`](runtime/rt.go).
+[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
+[`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
+[`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
 ## Census
 
@@ -465,13 +577,13 @@ refusal, which is a bug in the exporter's inference rather than in the crate.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, and Go
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, and moq/moq.go
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, and Dart
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, and Go, and moq's rs/moq-c
+nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
 ```
 
 The `api` fixture covers each rule once, and names the `dep` fixture's types, which
@@ -481,8 +593,10 @@ then it breaks each runtime check, which must abort with its message. `tests/api
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
-runs the script through the Kotlin on the JVM, checks its futures the same way, and breaks
-each runtime check, which must throw or abort with its message. `just ffi android` runs
+runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
+after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
+record they came from, until the GC frees it, and that calls racing `close()` or the GC
+read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
 the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
 device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
@@ -516,8 +630,10 @@ RTTI, as OBS builds it, serving on an executor's thread and blocking on each rea
 `moq/moq.kt` through the Kotlin, serving in a coroutine and suspending on each read,
 `moq/moq.py` through the Python, running the origin's driver and the server as asyncio
 tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a task and
-awaiting each read, and `moq/moq.go` through the Go, running the origin's driver on a
-goroutine of its own and serving on another, each read blocking under a context.
+awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
+goroutine of its own and serving on another, each read blocking under a context, and
+`moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
+on each wake and at its deadline's `Timer`, and awaiting each read.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`

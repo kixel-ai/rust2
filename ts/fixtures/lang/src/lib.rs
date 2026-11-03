@@ -17,8 +17,11 @@
 //! slices, the order, equality, and
 //! hashes of bytes, ranges of `Bound`s and of the crate's own `RangeBounds`, the equality
 //! of `Result`s and std's errors, inclusive ranges read through each adaptor, iterators'
-//! size hints, the capacity overflows collections reserving by them panic with, the
-//! capacity of a `Vec`, `VecDeque`, and `BinaryHeap` as each grows and shrinks, tuples of
+//! size hints, the crate's own iterators read from the back and by their length, the capacity overflows collections reserving by them panic with, the
+//! capacity of a `Vec`, `VecDeque`, and `BinaryHeap` as each grows and shrinks, pointers
+//! into arrays moved, measured, and copied between, memory from `alloc` typed by a cast of
+//! its pointer, grown, shrunk, and freed, and the `Layout`s it is laid out by, values
+//! held by `ManuallyDrop`, which drops them only when asked, tuples of
 //! collections collected and extended by their items, zero-sized values, which MIR
 //! never assigns, with std's impls of them, functions generic over an array's length, and
 //! std's conversions of a reference: clones into it, searches, sizes, slices, cells, and
@@ -62,6 +65,8 @@ mod defaults;
 mod durations;
 mod dyns;
 mod edits;
+mod elements;
+mod ends;
 mod errors;
 mod fields;
 mod floats;
@@ -70,6 +75,7 @@ mod folds;
 mod generics;
 pub mod harness;
 mod hashes;
+mod heap;
 mod hints;
 mod holds;
 mod ints;
@@ -80,6 +86,7 @@ mod lengths;
 mod lists;
 mod locals;
 mod locks;
+mod manual;
 mod methods;
 mod nested;
 mod objects;
@@ -88,11 +95,14 @@ mod pointers;
 mod refs;
 mod results;
 mod returns;
+mod rings;
 mod saturates;
+mod searches;
 mod separated;
 mod shapes;
 mod singles;
 mod slices;
+mod sorts;
 mod splits;
 mod statics;
 mod strs;

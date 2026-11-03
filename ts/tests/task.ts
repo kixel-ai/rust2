@@ -58,6 +58,7 @@ export interface Fixture<V> {
 		folded(log: Log, id: number, arg: number): void;
 		rfolded(log: Log, id: number, arg: number): void;
 		inside(log: Log, id: number, arg: number): void;
+		released(log: Log, id: number, arg: number): void;
 		flattened(log: Log, id: number, arg: number): void;
 		indexed(log: Log, id: number, arg: number): void;
 		compared(log: Log, id: number, arg: number): void;
@@ -324,6 +325,7 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 		},
 	],
 	["inside", (r, arg) => r.f.drops.inside(r.log, 1000 * r.exec.tasks.length, arg)],
+	["released", (r, arg) => r.f.drops.released(r.log, 1000 * r.exec.tasks.length, arg)],
 	["flattened", (r, arg) => r.f.drops.flattened(r.log, 1000 * r.exec.tasks.length, arg)],
 	["indexed", (r, arg) => r.f.drops.indexed(r.log, 1000 * r.exec.tasks.length, arg)],
 	["compared", (r, arg) => r.f.drops.compared(r.log, 1000 * r.exec.tasks.length, arg)],
@@ -430,6 +432,8 @@ export const cases: Uint8Array[] = [
 	...Array.from({ length: 9 }, (_, arg) => script(["rfolded", arg])),
 	// Where std drops values inside its iterators and formatting.
 	...[...Array.from({ length: 10 }, (_, arg) => arg), 19, 29].map((arg) => script(["inside", arg])),
+	// Where std drops a closure given to a consumer or an entry.
+	...Array.from({ length: 7 }, (_, arg) => script(["released", arg])),
 	// What a `flatten` drops of inner iterators that hold items once they end.
 	...Array.from({ length: 10 }, (_, arg) => script(["flattened", arg])),
 	// What std drops of a zip it reads by index.

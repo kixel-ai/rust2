@@ -8,6 +8,7 @@ import type * as clones_Logged from "./clones.Logged.ts";
 import type * as collections_Picky from "./collections.Picky.ts";
 import type * as Quirky from "./collections.Quirky.ts";
 import type * as collections_Tally from "./collections.Tally.ts";
+import type * as conversions_Logged from "./conversions.Logged.ts";
 import type * as Any from "./core/any.Any.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
@@ -15,12 +16,17 @@ import type * as counts_Noisy from "./counts.Noisy.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 import type * as durations_Window from "./durations.Window.ts";
+import type * as dyns_Noisy from "./dyns.Noisy.ts";
+import type * as Square from "./dyns.Square.ts";
+import type * as Tri from "./dyns.Tri.ts";
+import * as Inline from "./elements.Inline.ts";
 import type * as Couple from "./fields.Couple.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as generics_Run from "./generics.Run.ts";
 import type * as Ticked from "./generics.Ticked.ts";
 import * as Wrap from "./generics.Wrap.ts";
+import * as Spill from "./heap.Spill.ts";
 import type * as Bumped from "./iters.Bumped.ts";
 import type * as joins_Logged from "./joins.Logged.ts";
 import type * as Hop from "./keys.Hop.ts";
@@ -180,6 +186,10 @@ export function copy$Option_tuple2_u64_u64(v: [rt.u64, rt.u64] | undefined): [rt
 	return v === undefined ? v : copy$tuple2_u64_u64(v);
 }
 
+export function copy$Option_tuple2_u8_u16(v: [rt.u8, rt.u16] | undefined): [rt.u8, rt.u16] | undefined {
+	return v === undefined ? v : copy$tuple2_u8_u16(v);
+}
+
 export function copy$Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8, rt.u8] | undefined {
 	return v === undefined ? v : copy$tuple2_u8_u8(v);
 }
@@ -214,6 +224,10 @@ export function copy$array_Option_Option_array1_u8(v: Array<Uint8Array | undefin
 
 export function copy$array_Option_Option_array5_u8(v: Array<Uint8Array | undefined | rt.None>): Array<Uint8Array | undefined | rt.None> {
 	return v.map(copy$Option_Option_array5_u8);
+}
+
+export function copy$array_Option_tuple2_u8_u8(v: Array<[rt.u8, rt.u8] | undefined>): Array<[rt.u8, rt.u8] | undefined> {
+	return v.map(copy$Option_tuple2_u8_u8);
 }
 
 export function copy$array_Option_u8(v: Array<rt.u8 | undefined>): Array<rt.u8 | undefined> {
@@ -410,6 +424,27 @@ export function copy$locals_Twin(v: locals_Twin.Twin): locals_Twin.Twin {
 	return { _0: v._0, _1: v._1 };
 }
 
+export function copy$mem_MaybeUninit_Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8, rt.u8] | undefined {
+	if (v === undefined) {
+		return v;
+	}
+	return v === undefined ? v : copy$tuple2_u8_u8(v);
+}
+
+export function copy$mem_MaybeUninit_Result_tuple2_u32_u32_u8(v: rt.Result<[rt.u32, rt.u32], rt.u8>): rt.Result<[rt.u32, rt.u32], rt.u8> {
+	if (v === undefined) {
+		return v;
+	}
+	return v.ok ? rt.Ok(copy$tuple2_u32_u32(v.value)) : rt.Err(v.error);
+}
+
+export function copy$mem_MaybeUninit_array_Option_tuple2_u8_u8(v: Array<[rt.u8, rt.u8] | undefined>): Array<[rt.u8, rt.u8] | undefined> {
+	if (v === undefined) {
+		return v;
+	}
+	return v.map(copy$mem_MaybeUninit_Option_tuple2_u8_u8);
+}
+
 export function copy$mem_MaybeUninit_array_array0_u8(v: Uint8Array[]): Uint8Array[] {
 	if (v === undefined) {
 		return v;
@@ -457,6 +492,13 @@ export function copy$mem_MaybeUninit_array_u8(v: Uint8Array): Uint8Array {
 		return v;
 	}
 	return v.slice();
+}
+
+export function copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
+	if (v === undefined) {
+		return v;
+	}
+	return [v[0], v[1]];
 }
 
 export function copy$mem_MaybeUninit_tuple2_array0_array0_u8_tuple2_u8_u8(v: [Uint8Array[], [rt.u8, rt.u8]]): [Uint8Array[], [rt.u8, rt.u8]] {
@@ -884,6 +926,30 @@ export function drop$Option_cell_Ref_borrows_Tagged(_1: rt.RefCell<borrows_Tagge
 	}
 }
 
+export function drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_1: rt.Result<rt.Arc<dyns_Noisy.Noisy>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_Rc_dyns_Square_Rc_dyn_Any(_1: rt.Result<rt.Arc<Square.Square>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_Rc_dyns_Tri_Rc_dyn_Any(_1: rt.Result<rt.Arc<Tri.Tri>, rt.Arc<Any.Any>>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
 export function drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally(_1: rt.Result<rt.Result<rt.Mutex<rt.u64>, rt.Mutex<rt.u64>>, rt.Mutex<locks_Tally.Tally>>): void {
 	if (_1.ok) {
 		drop$Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64(_1.value);
@@ -1007,6 +1073,14 @@ export function drop$Result_cell_Ref_u32_tuple2_cell_Ref_borrows_Parts_unit(_1: 
 }
 
 export function drop$Result_results_Logged_results_Logged(_1: rt.Result<results_Logged.Logged, results_Logged.Logged>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		_1.error[Symbol.dispose]();
+	}
+}
+
+export function drop$Result_sync_Arc_u32_sync_Arc_dyn_Any_marker_Sync_marker_Send(_1: rt.Result<rt.Arc<rt.u32>, rt.Arc<Any.Any>>): void {
 	if (_1.ok) {
 		_1.value[Symbol.dispose]();
 	} else {
@@ -1162,12 +1236,32 @@ export function drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing(value: rt.Ref
 	rt.dropAll(value.value);
 }
 
+export function drop$elements_Inline_Option_tuple2_u8_u8(_1: Inline.Inline<[rt.u8, rt.u8] | undefined>): void {
+	Inline.drop$ops_Drop_Option_tuple2_u8_u8(_1);
+}
+
+export function drop$elements_Inline_sync_Arc_u8(_1: Inline.Inline<rt.Arc<rt.u8>>): void {
+	Inline.drop$ops_Drop_sync_Arc_u8(_1);
+}
+
 export function drop$generics_Run_generics_Ticked(_1: generics_Run.Run<Ticked.Ticked>): void {
 	if (_1.tag === "Listed") {
 		rt.dropAll(_1._0 as Ticked.Ticked[]);
 	} else if (_1.tag === "Fixed") {
 		rt.dropAll(_1.array as Ticked.Ticked[]);
 	}
+}
+
+export function drop$heap_Spill_Option_tuple2_u8_u16(_1: Spill.Spill<[rt.u8, rt.u16] | undefined>): void {
+	Spill.drop$ops_Drop_Option_tuple2_u8_u16(_1);
+}
+
+export function drop$heap_Spill_sync_Arc_u8(_1: Spill.Spill<rt.Arc<rt.u8>>): void {
+	Spill.drop$ops_Drop_sync_Arc_u8(_1);
+}
+
+export function drop$heap_Spill_u32(_1: Spill.Spill<rt.u32>): void {
+	Spill.drop$ops_Drop_u32(_1);
 }
 
 export function drop$pointers_List_String(_1: List.List<string>): void {
@@ -1285,6 +1379,10 @@ export function drop$tuple2_cell_Ref_str_cell_RefMut_u32(_1: [rt.RefCell<string>
 
 export function drop$tuple2_cell_Ref_tuple2_u8_ref_str_u8(_1: [rt.RefCell<[rt.u8, string]>, rt.u8]): void {
 	rt.refRelease(_1[0]);
+}
+
+export function drop$tuple2_conversions_Logged_u8(_1: [conversions_Logged.Logged, rt.u8]): void {
+	_1[0][Symbol.dispose]();
 }
 
 export function drop$tuple2_sync_Arc_collections_Picky_u8(_1: [rt.Arc<collections_Picky.Picky>, rt.u8]): void {

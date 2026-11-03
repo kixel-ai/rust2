@@ -20,6 +20,7 @@ roots = [
     "drops::inside",
     "drops::flattened",
     "drops::indexed",
+    "drops::released",
     "drops::compared",
     "drops::lists",
     "futures::helpers",

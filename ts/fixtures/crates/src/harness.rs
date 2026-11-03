@@ -70,6 +70,13 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 	for n in Countdown::new(input.len().min(4) as u8) {
 		out.push(n);
 	}
+	// The dependency's iterator, from the back and then from either end until they meet.
+	out.extend(Countdown::new(input.len().min(5) as u8).rev());
+	let mut both = Countdown::new(input.len().min(6) as u8);
+	while let Some(n) = both.next_back() {
+		out.push(n);
+		out.extend(both.next());
+	}
 	// Only the binding writes into a `[i16; 2]`, so the copy must not share it.
 	let kept: [i16; 2] = [input.len() as i16, 7];
 	let mut filled = kept;

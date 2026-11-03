@@ -391,8 +391,13 @@ pub struct Object<T> {
 }
 
 /// This thread's id for [`Object::borrow_local`]: the address of a thread local, which no
-/// other live thread shares and which is neither 0 nor a sentinel.
-fn thread() -> usize {
+/// other live thread shares and which is neither 0 nor a sentinel. A thread Dart's runtime
+/// hands a call to, while the thread it acts for waits, takes that thread's.
+pub fn thread() -> usize {
+	#[cfg(feature = "dart")]
+	if let Some(id) = crate::dart::acting() {
+		return id;
+	}
 	thread_local!(static ID: u8 = const { 0 });
 	ID.with(|id| std::ptr::from_ref(id) as usize)
 }
@@ -588,6 +593,17 @@ impl<T> Object<T> {
 		}
 		drop(spare);
 		result
+	}
+
+	/// Whether a call or a future borrows the value, so moving it out would abort. A value
+	/// moved out is not, so the move refuses it, naming itself.
+	///
+	/// # Safety
+	/// As [`Self::borrow`].
+	pub unsafe fn borrowed(handle: *const c_void, what: &str) -> bool {
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::get(handle, what) };
+		!matches!(object.state.load(Ordering::Acquire), 0 | TAKEN)
 	}
 
 	/// Move the value out, leaving the handle to be freed.

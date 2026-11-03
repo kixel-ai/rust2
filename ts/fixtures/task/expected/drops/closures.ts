@@ -647,12 +647,11 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 		return guard(rt.u32Add(36, _225));
 	});
 	const captured21 = r;
-	const _441: (a0: Guard.Guard) => rt.u32 = rt.closure((g17: Guard.Guard): rt.u32 => {
+	const part9 = option_map$1raha9y(rt.iterMaxByKey(_435, rt.closure((g17: Guard.Guard): rt.u32 => {
 		return rt.u32Add(rt.u32Rem(Guard.id(g17), 2), Guard.id(captured21));
 	}, (): void => {
 		captured21[Symbol.dispose]();
-	});
-	const part9 = option_map$1raha9y(rt.dropAfter(_441, () => rt.iterMaxByKey(_435, _441, rt.lt, undefined, rt.drop)), (g18: Guard.Guard): rt.u32 => {
+	}), rt.lt, undefined, rt.drop, true), (g18: Guard.Guard): rt.u32 => {
 		const _028: rt.u32 = Guard.id(g18);
 		g18[Symbol.dispose]();
 		return _028;
@@ -678,7 +677,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 		captured22[Symbol.dispose]();
 	});
 	rt.dropAfter(_475, () => rt.btreeRetain(map, _475, undefined, rt.drop));
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	const _479: Guard.Guard = guard(33);
 	rt.dequePushBack(queue, _479);
 	const _484: Guard.Guard = guard(34);

@@ -77,6 +77,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match self.b.t.pointee(pointee) {
 					Pointee::Object => self.place_expr(*place, span, out),
+					// `&raw mut *p` of a raw pointer is `p`; of a reference, the slice's start and
+					// length.
+					Pointee::Slice => match place.projection.as_slice() {
+						[rest @ .., mir::ProjectionElem::Deref]
+							if Place::ty_from(place.local, rest, &self.mir.local_decls, tcx)
+								.ty
+								.is_raw_ptr() =>
+						{
+							let base = Place {
+								local: place.local,
+								projection: tcx.mk_place_elems(rest),
+							};
+							self.place_expr(base, span, out)
+						}
+						_ => {
+							let value = self.place_expr(*place, span, out);
+							match crate::lower::pointer::slice_of_bytes(pointee) {
+								true => Expr::rt("rawByteSliceOf", vec![value]),
+								false => Expr::rt("rawSliceOf", vec![value]),
+							}
+						}
+					},
 					// A slice of all of an array's bytes, as a borrow of it is.
 					Pointee::Bytes => {
 						let value = self.place_expr(*place, span, out);
@@ -114,6 +136,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								"a raw pointer to `{pointee}` behind a reference, which is the object and not where it is kept"
 							),
 						),
+						// A pointer to an element is where it is in its array, which pointer
+						// arithmetic moves within.
+						[
+							array @ ..,
+							mir::ProjectionElem::Index(_) | mir::ProjectionElem::ConstantIndex { .. },
+						] => {
+							// It points into the array, which must stay where it is.
+							let array = Place {
+								local: place.local,
+								projection: tcx.mk_place_elems(array),
+							};
+							if let Some(why) = self.out_of_step(array, false) {
+								return Some(self.err(span, why));
+							}
+							let target = self.place_expr(*place, span, out);
+							let target = self.stable_target(*place, target, span, out);
+							match target.unlocated() {
+								Expr::Index(array, index) => {
+									Expr::rt("sliceAsPtr", vec![*array.clone(), *index.clone()])
+								}
+								_ => self.place_of(target, None),
+							}
+						}
 						_ => {
 							let target = self.place_expr(*place, span, out);
 							self.make_place(*place, target, span, out)
@@ -213,6 +258,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The integer an operand has, if it is a constant one, a named `const` included.
+	/// `p`, a raw pointer to an array, `from`, as one to a slice of all of it: its first
+	/// element's pointer and the array's length.
+	fn raw_unsize(&mut self, p: Expr, from: Ty<'tcx>, span: Span) -> Expr {
+		let Some(array) = from.builtin_deref(true) else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let ty::Array(elem, len) = *array.kind() else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let Some(len) = len.try_to_target_usize(self.tcx) else {
+			return self.err(
+				span,
+				format!("a coercion of `{from}`, of no fixed length, to a pointer to a slice"),
+			);
+		};
+		let first = crate::lower::pointer::cast(self.b, p, array, elem, span);
+		Expr::New(
+			Box::new(Expr::Rt("RawSlice".into())),
+			vec![first, Expr::lit(len.to_string())],
+		)
+	}
+
 	pub(super) fn const_int(&self, op: &Operand<'tcx>) -> Option<i128> {
 		let Operand::Constant(c) = op else {
 			return None;
@@ -272,6 +339,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn cast(&mut self, kind: CastKind, op: &Operand<'tcx>, to: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		let from = op.ty(&self.mir.local_decls, tcx);
+		// A `Pin` is the pointer it holds, which unsizes as it does.
+		let (from, to) = match kind {
+			CastKind::PointerCoercion(PointerCoercion::Unsize, _) => unpinned(tcx, from, to),
+			_ => (from, to),
+		};
 		match kind {
 			CastKind::IntToInt | CastKind::IntToFloat | CastKind::FloatToInt | CastKind::FloatToFloat => {
 				let value = self.operand(op, span, out);
@@ -291,6 +363,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.arc_object(value, pointee, object, span, out)
 				}
+				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
+					let value = self.operand(op, span, out);
+					self.weak_object(value, pointee, object, span, out)
+				}
 				// A future, as the `rt.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
 					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_future(part).is_some()) =>
@@ -309,10 +385,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let value = self.operand(op, span, out);
 							match crate::lower::bytes_ref(from) {
 								true => value,
-								// A raw pointer to a slice is an `rt.Place` of one, which one to an array is not.
-								false if from.is_raw_ptr() => {
-									self.err(span, format!("a coercion of `{from}` to `{to}`, a pointer to a slice"))
-								}
+								false if from.is_raw_ptr() => self.raw_unsize(value, from, span),
 								false => Expr::rt("byteSliceFrom", vec![value]),
 							}
 						}
@@ -320,18 +393,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				PointerCoercion::Unsize
+					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| t.is_slice()) =>
+				{
+					let value = self.operand(op, span, out);
+					self.raw_unsize(value, from, span)
+				}
+				PointerCoercion::Unsize
 				| PointerCoercion::ReifyFnPointer(_)
 				| PointerCoercion::ClosureFnPointer(_)
 				| PointerCoercion::MutToConstPointer => self.operand(op, span, out),
 				_ => self.err(span, format!("unsupported pointer coercion {coercion:?}")),
 			},
-			// The same pointer, as one to the same pointee: `*mut T` as `*const T`, or a
-			// `MaybeUninit<T>` as the `T` it holds.
+			// The same pointer, as one to the same pointee, `*mut T` as `*const T` or a
+			// `MaybeUninit<T>` as the `T` it holds, or one to the first element of an array.
 			CastKind::PtrToPtr
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
-					&& self.b.t.uninit_inner(a) == self.b.t.uninit_inner(b) =>
+					&& from.is_raw_ptr() =>
 			{
-				self.operand(op, span, out)
+				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {
+					return cast;
+				}
+				let p = self.operand(op, span, out);
+				crate::lower::pointer::cast(self.b, p, a, b, span)
 			}
 			CastKind::PtrToPtr => self.err(
 				span,
@@ -381,6 +464,32 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(arc) => Expr::New(Box::new(Expr::Rt("ArcDyn".into())), vec![arc, value]),
 			None => value,
 		}
+	}
+
+	/// `weak`, a `Weak` of `pointee` unsized to one of the trait object `object`: `rt.weakDyn`
+	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
+	/// upcast, which `arc_object` checks.
+	fn weak_object(
+		&mut self,
+		weak: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		if pointee.is_trait() {
+			return self.arc_object(weak, pointee, object, span, out);
+		}
+		let name = self.b.fresh("arc");
+		let mut body = Vec::new();
+		let arc = self.arc_object(Expr::ident(name.clone()), pointee, object, span, &mut body);
+		body.push(StmtKind::Return(Some(arc)).at(None));
+		let param = crate::ts::Param {
+			name,
+			ty: Some(crate::ts::Type::Rt("Arc", vec![self.b.t.ty(pointee, span)])),
+		};
+		let ret = crate::ts::Type::Rt("Arc", vec![self.b.t.ty(object, span)]);
+		Expr::rt("weakDyn", vec![weak, Expr::Arrow(vec![param], ret, body)])
 	}
 
 	/// A discriminant as its number, of a whole `next` result if `next`.
@@ -640,6 +749,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
 				}
 				(Std::RangeFull, _) => Expr::undefined(),
+				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),
 				(Std::Ordering, _) => crate::lower::collections::ordering_variant(variant),
@@ -948,6 +1058,25 @@ fn arc_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(
 	};
 	let object = to_args.type_at(0);
 	(Std::of(tcx, adt.did()) == Some(Std::Arc) && object.is_trait()).then(|| (from_args.type_at(0), object))
+}
+
+/// What a `Weak` unsized to a `Weak` of a trait object points at, and that object.
+fn weak_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
+	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
+		return None;
+	};
+	let object = to_args.type_at(0);
+	(Std::of(tcx, adt.did()) == Some(Std::Weak) && object.is_trait()).then(|| (from_args.type_at(0), object))
+}
+
+/// `from` and `to`, each the pointer the `Pin` it is holds, if both are pins.
+fn unpinned<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> (Ty<'tcx>, Ty<'tcx>) {
+	match (from.kind(), to.kind()) {
+		(ty::Adt(a, a_args), ty::Adt(b, b_args)) if a.did() == b.did() && Std::of(tcx, a.did()) == Some(Std::Pin) => {
+			(a_args.type_at(0), b_args.type_at(0))
+		}
+		_ => (from, to),
+	}
 }
 
 /// Whether evaluating `rvalue` can do or throw anything.

@@ -205,6 +205,10 @@ export function hashNode$hashlink_DefaultHashBuilder_u16_u32(s: DefaultHashBuild
 	return hashKey$hashlink_DefaultHashBuilder_u16(s, Node.keyRef$u16_u32(node));
 }
 
+export function hashKey$hash_RandomState_u16(s: rt.RandomState, k: rt.u16): rt.u64 {
+	return rt.hashOne(rt.buildHasher(s), k, rt.hash16);
+}
+
 export function hashKey$hashlink_DefaultHashBuilder_str(s: DefaultHashBuilder.DefaultHashBuilder, k: string): rt.u64 {
 	return rt.hashOne(new rt.OwnHasher(DefaultHashBuilder.buildHasher$hash_BuildHasher(s), DefaultHasher.hasher$hash_Hasher), k, rt.hashStr);
 }

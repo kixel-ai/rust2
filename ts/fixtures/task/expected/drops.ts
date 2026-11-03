@@ -14,6 +14,7 @@ import { looped, collected, drained, extended, compared as iters_compared } from
 import { run as lists_run } from "./drops/lists.ts";
 import { boxed as objects_boxed, shared, anys, fns } from "./drops/objects.ts";
 import { run as once_run } from "./drops/once.ts";
+import { released as released_released } from "./drops/released.ts";
 import * as Held from "./drops.Held.ts";
 import * as Key from "./drops.Key.ts";
 import * as Named from "./drops.Named.ts";
@@ -397,7 +398,7 @@ export function ordered(log: Log.Log, id: rt.u32): void {
 	Log.note(log, _185);
 	const _201: Key.Key = key(12);
 	rt.btreeAdd(set, _201, rt.drop);
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew() as rt.VecDeque<Guard.Guard>;
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	let iterStart: rt.u32 = 20;
 	const iterEnd: rt.u32 = 26;
 	while ((_208 = iterStart++) < iterEnd) {
@@ -930,7 +931,7 @@ export function elements(log: Log.Log, id: rt.u32): void {
 	});
 	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None)];
 	Log.note(log, rt.fmtFormat(["called ", args14[0]]));
-	const q: rt.VecDeque<Guard.Guard | undefined> = rt.dequeNew() as rt.VecDeque<Guard.Guard | undefined>;
+	const q: rt.VecDeque<Guard.Guard | undefined> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard | undefined>;
 	rt.dequePushBack(q, undefined as Guard.Guard | undefined);
 	const _186: Guard.Guard | undefined = guard(4);
 	rt.dequePushBack(q, _186);
@@ -1302,6 +1303,14 @@ export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 /** Run scenario `arg % 9` of what std drops of a zip it reads by index. */
 export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	indexed_indexed(log, id, arg);
+}
+
+/**
+ * Run scenario `arg % 7` of where std drops a closure given to a consumer or an entry.
+ * The last panics in a fold.
+ */
+export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	released_released(log, id, arg);
 }
 
 /** Run scenario `arg % 9` of what std's comparisons of iterators drop. */

@@ -89,6 +89,16 @@ func (h *handle) close() {
 	}
 }
 
+// end ends a lend, closing the handle, which Rust frees next: a call still holding it
+// would reach the freed handle, so it panics, as Rust's own check fails once a call
+// borrowed.
+func (h *handle) end() {
+	h.close()
+	if h.state.Load() != closed_ {
+		panic(h.name + ": a call still holds it when its lend ends")
+	}
+}
+
 // emptyBuf_ is where a present but empty buffer or array points: C reads a null pointer as
 // None. Aligned for any element.
 var emptyBuf_ [2]uint64
@@ -268,16 +278,44 @@ func (b *Bytes) consume(n int) {
 // registers, about 700 ns at any size.
 const lendFrom_ = 2048
 
-// liftBytes_ is bytes Rust returned: below lendFrom_ copied, with Rust's buffer freed at
-// once, and otherwise lent in place until the GC frees them.
+// lentMax_ is the most bytes lent from Rust at once, freed or not. The GC sees none of
+// them, so a program making little garbage of its own would never collect the Bytes
+// holding them; past this, bytes are copied into Go's heap, whose garbage the GC does see.
+const lentMax_ = 64 << 20
+
+// lentHeld_ is the bytes lent from Rust and not yet freed.
+var lentHeld_ atomic.Int64
+
+// lends_ is whether n bytes Rust returned are lent rather than copied: from lendFrom_, and
+// within lentMax_, which they then count against until freed. A call racing another past
+// the limit may copy where it could have lent, never the reverse.
+func lends_(n int64) bool {
+	if n < lendFrom_ {
+		return false
+	}
+	if lentHeld_.Add(n) <= lentMax_ {
+		return true
+	}
+	lentHeld_.Add(-n)
+	return false
+}
+
+// freeLent_ frees a buffer lends_ counted, uncounted first so none Rust dropped counts.
+func freeLent_(buf cBuf) {
+	lentHeld_.Add(-int64(buf.len))
+	cBufFree(buf)
+}
+
+// liftBytes_ is bytes Rust returned: copied, with Rust's buffer freed at once, unless it
+// lends_ them in place until the GC frees them.
 func liftBytes_(buf cBuf) Bytes {
-	if buf.len < lendFrom_ {
+	if !lends_(int64(buf.len)) {
 		b := NewBytes(append([]byte(nil), view_(buf)...))
 		cBufFree(buf)
 		return b
 	}
 	owner := &bytesOwner_{buf: buf}
-	runtime.AddCleanup(owner, cBufFree, buf)
+	runtime.AddCleanup(owner, freeLent_, buf)
 	return Bytes{owner: owner, ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
 }
 
