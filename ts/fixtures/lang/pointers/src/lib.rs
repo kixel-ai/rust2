@@ -45,5 +45,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 			pointers::part_written(data, out)
 		}),
 		("pointers::aimed", |_, data, out| pointers::aimed(data, out)),
+		("pointers::distinct", |_, data, out| pointers::distinct(data, out)),
 	]
 }
