@@ -15,5 +15,9 @@ use harness::Case;
 /// Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
 /// their count, so a case added at the end moves no other.
 fn cases() -> Vec<(&'static str, Case)> {
-	vec![("edits::edits", edits::edits), ("edits::bytes", edits::bytes)]
+	vec![
+		("edits::edits", edits::edits),
+		("edits::bytes", edits::bytes),
+		("edits::values", edits::values),
+	]
 }

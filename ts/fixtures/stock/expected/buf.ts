@@ -245,8 +245,8 @@ export function read$buf_Pieces(buf: Pieces.Pieces, n: rt.usize): rt.u128 {
 	};
 	const _4: rt.usize = rt.usizeRem(n, 19);
 	if (_4 === 15) {
-		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined, Pieces.copyToSlice$bytes_Buf as (a0: Pieces.Pieces, a1: rt.ByteSlice) => undefined), (a046: rt.u16): rt.u128 => {
-			return a046 as rt.u128;
+		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined, Pieces.copyToSlice$bytes_Buf as (a0: Pieces.Pieces, a1: rt.ByteSlice) => undefined), (a02: rt.u16): rt.u128 => {
+			return a02 as rt.u128;
 		});
 		return _3(part7);
 	}
@@ -263,8 +263,8 @@ export function read$buf_Pieces(buf: Pieces.Pieces, n: rt.usize): rt.u128 {
 	if (_4 === 18) {
 		const part3: rt.u8 | undefined = Pieces.tryGetU8$bytes_Buf(buf);
 		const err: TryGetError.TryGetError | undefined = part3 === undefined ? out$u8.err as TryGetError.TryGetError : undefined;
-		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a033: rt.u8): rt.u128 => {
-			return a033 as rt.u128;
+		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a0: rt.u8): rt.u128 => {
+			return a0 as rt.u128;
 		});
 		return _3(part4);
 	}
@@ -330,8 +330,8 @@ export function read$buf_Provided(buf: Provided.Provided, n: rt.usize): rt.u128 
 	};
 	const _4: rt.usize = rt.usizeRem(n, 19);
 	if (_4 === 15) {
-		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined), (a046: rt.u16): rt.u128 => {
-			return a046 as rt.u128;
+		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined), (a02: rt.u16): rt.u128 => {
+			return a02 as rt.u128;
 		});
 		return _3(part7);
 	}
@@ -348,8 +348,8 @@ export function read$buf_Provided(buf: Provided.Provided, n: rt.usize): rt.u128 
 	if (_4 === 18) {
 		const part3: rt.u8 | undefined = Provided.tryGetU8$bytes_Buf(buf);
 		const err: TryGetError.TryGetError | undefined = part3 === undefined ? out$u8.err as TryGetError.TryGetError : undefined;
-		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a033: rt.u8): rt.u128 => {
-			return a033 as rt.u128;
+		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a0: rt.u8): rt.u128 => {
+			return a0 as rt.u128;
 		});
 		return _3(part4);
 	}
@@ -633,8 +633,8 @@ export function read$bytes_buf_Take_bytes_Bytes(buf: Take.Take<rt.ByteSlice>, n:
 	};
 	const _4: rt.usize = rt.usizeRem(n, 19);
 	if (_4 === 15) {
-		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined), (a046: rt.u16): rt.u128 => {
-			return a046 as rt.u128;
+		const part7 = result_map$0hs8st9(rt.bufTryGet(buf, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined), (a02: rt.u16): rt.u128 => {
+			return a02 as rt.u128;
 		});
 		return _3(part7);
 	}
@@ -651,8 +651,8 @@ export function read$bytes_buf_Take_bytes_Bytes(buf: Take.Take<rt.ByteSlice>, n:
 	if (_4 === 18) {
 		const part3: rt.u8 | undefined = Take.tryGetU8$bytes_Buf_bytes_Bytes(buf);
 		const err: TryGetError.TryGetError | undefined = part3 === undefined ? out$u8.err as TryGetError.TryGetError : undefined;
-		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a033: rt.u8): rt.u128 => {
-			return a033 as rt.u128;
+		const part4 = result_map$01kzrm1((err !== undefined ? rt.Err(err as TryGetError.TryGetError) : rt.Ok(part3 as rt.u8)) as rt.Result<rt.u8, TryGetError.TryGetError>, (a0: rt.u8): rt.u128 => {
+			return a0 as rt.u128;
 		});
 		return _3(part4);
 	}

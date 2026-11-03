@@ -43,8 +43,8 @@ export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, s);
 		const shared: rt.Arc<string> = new rt.Arc(s);
 		put(out, shared.value);
-		put(out, option_unwrapOr$1iemzn8(option_map$1uo1d4o(rt.iterNth(rt.strSplit(s, "\\"), 1), (a03: string): string => {
-			return a03;
+		put(out, option_unwrapOr$1iemzn8(option_map$1uo1d4o(rt.iterNth(rt.strSplit(s, "\\"), 1), (a0: string): string => {
+			return a0;
 		}), "fallback"));
 		put(out, cow(first, owned));
 		put(out, first);

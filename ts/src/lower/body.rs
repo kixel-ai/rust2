@@ -334,33 +334,32 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	pub fn fn_value(&mut self, def_id: rustc_hir::def_id::DefId, gargs: GenericArgsRef<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let sig = self.t.sig(def_id, gargs);
-		let names: Vec<String> = (0..sig.inputs().len()).map(|i| self.fresh(&format!("a{i}"))).collect();
-		// std's mappings take a `&mut` they declare that is an `rt.Place` as what it points
-		// at, as a call's operands pass it.
-		let pointees = match self.t.mapped(def_id, gargs) {
-			true => super::pointer::pointees(self.t, def_id, gargs),
-			false => Vec::new(),
-		};
-		let values: Vec<Expr> = std::iter::zip(&names, sig.inputs())
-			.enumerate()
-			.map(
-				|(i, (name, &ty))| match pointees.get(i) == Some(&true) && self.t.place_pointee(ty).is_some() {
-					true => Expr::ident(name).member("v"),
-					false => Expr::ident(name),
-				},
-			)
-			.collect();
+		// A constructor makes its value, as a call of it does.
+		if matches!(tcx.def_kind(def_id), rustc_hir::def::DefKind::Ctor(..)) {
+			let names: Vec<String> = (0..sig.inputs().len()).map(|i| self.fresh(&format!("a{i}"))).collect();
+			let mut body = Vec::new();
+			let made = self.call_def(def_id, gargs, names.iter().map(Expr::ident).collect(), span, &mut body);
+			body.push(StmtKind::Return(Some(made.typed())).at(None));
+			let params = std::iter::zip(names, sig.inputs())
+				.map(|(name, ty)| Param {
+					name,
+					ty: Some(self.t.ty(*ty, span)),
+				})
+				.collect();
+			let ret = self.t.ty(sig.output(), span);
+			return Expr::Arrow(params, ret, body);
+		}
 		// A binding's export, or a function whose body translates, is named directly.
-		if !matches!(tcx.def_kind(def_id), rustc_hir::def::DefKind::Ctor(..))
-			&& let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs)
-		{
+		if let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs) {
 			let sym = match self.t.bound_fn(instance, span) {
 				Some(sym) => Some(sym),
-				// One that takes byte slices as their parts, or hands back its `Ok`'s, is wrapped
-				// to take and return them whole.
+				// One that takes byte slices as their parts, hands back its `Ok`'s parts, or is a
+				// `next`, which returns an item or `rt.DONE`, is wrapped to take and return what
+				// a call does.
 				None => (self.t.lowers(self.t.typing_env_pub(), instance)
 					&& self.t.parted(instance).is_empty()
-					&& self.t.slotted(instance).is_none())
+					&& self.t.slotted(instance).is_none()
+					&& !super::iter::is_next(tcx, instance.def_id()))
 				.then(|| self.t.callee(instance, span)),
 			};
 			if let Some(sym) = sym {
@@ -370,25 +369,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				};
 			}
 		}
-		let mut body = Vec::new();
-		let call = self.call_def(def_id, gargs, values, span, &mut body);
-		body.push(
-			match sig.output().is_unit() {
-				true => StmtKind::Expr(call),
-				false => StmtKind::Return(Some(call.typed())),
-			}
-			.at(None),
-		);
-		let params = names
-			.into_iter()
-			.zip(sig.inputs())
-			.map(|(name, ty)| {
-				let ty = self.t.ty(*ty, span);
-				Param { name, ty: Some(ty) }
-			})
-			.collect();
-		let ret = self.t.ty(sig.output(), span);
-		Expr::Arrow(params, ret, body)
+		// Any other, std's included, is its reify shim, which calls it as written calls do.
+		super::mir::fn_value(self, def_id, gargs, span)
 	}
 }
 

@@ -473,8 +473,8 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.i64Mul((_27 << 24) >> 24 as rt.i64, 2);
 		});
 		rt.iterExtend(ints, _78, undefined, 8, true);
-		pairs$Result_i8_num_TryFromIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(ints), (a03: rt.i64): rt.Result<rt.i8, rt.TryFromIntError> => {
-			return rt.i8TryFrom(a03);
+		pairs$Result_i8_num_TryFromIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(ints), (a02: rt.i64): rt.Result<rt.i8, rt.TryFromIntError> => {
+			return rt.i8TryFrom(a02);
 		}), undefined, 2, true), out);
 	} else if (_32 === 9) {
 		pairs$Result_ref_str_str_Utf8Error(rt.iterToArray(rt.iterMap(rt.iterSlice(bytes), (b6: rt.ByteSlice): rt.Result<string, rt.Utf8Error> => {
@@ -490,8 +490,8 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return (((_25 << 24) >> 24 as rt.f64)) / 4.0;
 		});
 		rt.iterExtend(secs, _105, undefined, 8, true);
-		pairs$Result_time_Duration_time_TryFromFloatSecsError(rt.iterToArray(rt.iterMap(rt.iterSlice(secs), (a02: rt.f64): rt.Result<rt.Duration, rt.TryFromFloatSecsError> => {
-			return rt.durationTryFromSecsF64(a02);
+		pairs$Result_time_Duration_time_TryFromFloatSecsError(rt.iterToArray(rt.iterMap(rt.iterSlice(secs), (a0: rt.f64): rt.Result<rt.Duration, rt.TryFromFloatSecsError> => {
+			return rt.durationTryFromSecsF64(a0);
 		}), undefined, 16, true), out);
 	} else if (_32 === 12) {
 		pairs$Result_Option_u8_num_ParseIntError(rt.iterToArray(rt.iterMap(rt.iterSlice(all), (s6: string): rt.Result<rt.u8 | undefined, rt.ParseIntError> => {

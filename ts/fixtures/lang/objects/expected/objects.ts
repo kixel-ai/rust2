@@ -452,9 +452,9 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const weak: rt.Weak<rt.u8> = new rt.Weak();
 	relink(weak, two);
 	rt.byteVecPush(out, option_mapOr$1q3ff8g(rt.weakUpgrade(weak), 238, (a3: rt.Arc<rt.u8>): rt.u8 => {
-		const _04: rt.u8 = a3.value;
+		const _05: rt.u8 = a3.value;
 		a3[Symbol.dispose]();
-		return _04;
+		return _05;
 	}));
 	rt.byteVecPush(out, two.weak & 0xff);
 	const a: Window.Window = Window.withStart(Window.default$Default(), by);
