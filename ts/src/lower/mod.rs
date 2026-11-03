@@ -245,8 +245,10 @@ pub struct Translator<'a, 'tcx> {
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// The trait of each trait object, by its principal trait.
 	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object>,
-	/// The class wrapping each type as each trait object.
-	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, SymId, dynamic::Held), dynamic::Class>,
+	/// The class wrapping each type, held each way, as every trait object.
+	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, dynamic::Held), dynamic::Class>,
+	/// The trait method each of those classes' methods calls, by class and name.
+	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), DefId>,
 	/// The class of each coroutine instance.
 	pub coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
 	/// Whether [`Self::ty`] is typing a variable: see [`Self::held_ty`].
@@ -475,6 +477,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			coroutines: Default::default(),
 			objects: Default::default(),
 			object_classes: Default::default(),
+			class_methods: Default::default(),
 			drop_shims: Default::default(),
 			copy_shims: Default::default(),
 			values: Default::default(),

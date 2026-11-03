@@ -3,6 +3,7 @@
 import * as rt from "../rt.ts";
 import { eq$09knsz6 as string_eq$09knsz6 } from "../alloc/string.ts";
 import { eq$09vw48j as convert_eq$09vw48j } from "../core/char/convert.ts";
+import type * as Error from "../core/error.Error.ts";
 import { eq$08q6k9m as fmt_eq$08q6k9m } from "../core/fmt.ts";
 import { eq$1nf2rde as num_error_eq$1nf2rde, eq$18sin5z as num_error_eq$18sin5z } from "../core/num/error.ts";
 import { eq$1horntk as float_parse_eq$1horntk } from "../core/num/float_parse.ts";
@@ -208,11 +209,39 @@ export function map$0fm1w6u(self: rt.Result<boolean, rt.ParseBoolError>, op: (a0
 	return self as rt.Result<rt.Result<rt.char, rt.ParseCharError>, rt.ParseBoolError>;
 }
 
+export function map$0d23w2b(self: rt.Result<Failure.Failure, Error.Error>, op: (a0: Failure.Failure) => rt.u8): rt.Result<rt.u8, Error.Error> {
+	if (self.ok) {
+		return rt.Ok(op(self.value));
+	}
+	return self as rt.Result<rt.u8, Error.Error>;
+}
+
 export function map$0r57egs(self: rt.Result<rt.u8, rt.ParseIntError>, op: (a0: rt.u8) => rt.u8 | undefined): rt.Result<rt.u8 | undefined, rt.ParseIntError> {
 	if (self.ok) {
 		return rt.Ok(op(self.value));
 	}
 	return self as rt.Result<rt.u8 | undefined, rt.ParseIntError>;
+}
+
+export function mapErr$1ibyj9t(self: rt.Result<rt.u8, rt.Result<rt.u8, Error.Error>>, op: (a0: rt.Result<rt.u8, Error.Error>) => rt.Result<rt.u8, string>): rt.Result<rt.u8, rt.Result<rt.u8, string>> {
+	if (self.ok) {
+		return self as rt.Result<rt.u8, rt.Result<rt.u8, string>>;
+	}
+	return rt.Err(op(self.error));
+}
+
+export function mapErr$0pzoye2(self: rt.Result<rt.u8, Error.Error>, op: (a0: Error.Error) => rt.Result<rt.u8, Error.Error>): rt.Result<rt.u8, rt.Result<rt.u8, Error.Error>> {
+	if (self.ok) {
+		return self as rt.Result<rt.u8, rt.Result<rt.u8, Error.Error>>;
+	}
+	return rt.Err(op(self.error));
+}
+
+export function mapErr$09yhde7(self: rt.Result<rt.u8, Error.Error>, op: (a0: Error.Error) => string): rt.Result<rt.u8, string> {
+	if (self.ok) {
+		return self as rt.Result<rt.u8, string>;
+	}
+	return rt.Err(op(self.error));
 }
 
 export function mapErr$1ff8zoy(self: rt.Result<rt.u8, rt.ParseIntError>, _: (a0: rt.ParseIntError) => Failure.Failure): rt.Result<rt.u8, Failure.Failure> {

@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import { lists, shared, places, unchecked, nested, copies, sentinels, cells, rebound, lapsed, writers, made, segments, uninitRuns, iteratedRuns, besideWritten, waiters, taken, bytes, loaded, reattached, partWritten, aimed } from "./pointers.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
+import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
 import type * as ByClosure from "./pointers.ByClosure.ts";
 import type * as ByObject from "./pointers.ByObject.ts";
@@ -179,6 +180,18 @@ export function drop$pointers_List_sync_Arc_u8(_1: List.List<rt.Arc<rt.u8>>): vo
 
 export function drop$tuple2_u8_sync_Arc_u8(_1: [rt.u8, rt.Arc<rt.u8>]): void {
 	_1[1][Symbol.dispose]();
+}
+
+export class of$pointers_Bin_pointers_ByObject {
+	v: Bin.Bin<ByObject.ByObject>;
+
+	constructor(v: Bin.Bin<ByObject.ByObject>) {
+		this.v = v;
+	}
+
+	reset$Reset(): void {
+		return Bin.reset$pointers_Reset_pointers_ByObject(this.v);
+	}
 }
 
 /**

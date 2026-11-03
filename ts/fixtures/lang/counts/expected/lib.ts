@@ -4,7 +4,7 @@ import * as rt from "./rt.ts";
 import { arcs, clonedArcs, cyclicArcs, uniqueArcs, clonedRcs, cyclicRcs, rcs, uniqueRcs, copies } from "./counts.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
-import type * as Noisy from "./counts.Noisy.ts";
+import * as Noisy from "./counts.Noisy.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 
@@ -38,6 +38,22 @@ export function drop$tuple5_Vec_sync_Arc_counts_Noisy_Vec_sync_Arc_counts_Noisy_
 	rt.dropAll(_1[2]);
 	rt.dropAll(_1[3]);
 	rt.dropAll(_1[4], drop$Vec_sync_Arc_counts_Noisy);
+}
+
+export class of$counts_Noisy {
+	v: Noisy.Noisy;
+
+	constructor(v: Noisy.Noisy) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	id$Id(): rt.u8 {
+		return Noisy.id$counts_Id(this.v);
+	}
 }
 
 /**
