@@ -2498,3 +2498,66 @@ impl Iterator for Disposes {
 pub fn disposes() -> usize {
 	Disposes.map(|b| b + 1).count()
 }
+
+/// An iterator whose own `fold` tells its accumulator apart by an iterator of the crate over it.
+pub struct Probes;
+
+impl Iterator for Probes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		assert!(Probe(&init).count() > 0);
+		init
+	}
+}
+
+/// Counts its type parameter's size.
+pub struct Probe<'a, T>(&'a T);
+
+impl<T> Iterator for Probe<'_, T> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn count(self) -> usize {
+		size_of::<T>()
+	}
+}
+
+pub fn probes() -> usize {
+	Probes.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` tells its closure apart by the size of a closure holding it.
+pub struct Measures;
+
+impl Iterator for Measures {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, f: F) -> B {
+		let held = move || {
+			let _held = &f;
+		};
+		assert!(measure(held) > 0);
+		init
+	}
+}
+
+#[inline(never)]
+fn measure<T>(_x: T) -> usize {
+	size_of::<T>()
+}
+
+pub fn measures() -> usize {
+	Measures.map(|b| b + 1).count()
+}

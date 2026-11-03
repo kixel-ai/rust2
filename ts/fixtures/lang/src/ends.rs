@@ -147,11 +147,8 @@ impl DoubleEndedIterator for Overrides<'_> {
 
 	fn rfold<B, F: FnMut(B, u8) -> B>(mut self, init: B, mut f: F) -> B {
 		self.0.logged(b'r');
-		let mut acc = init;
-		while let Some(b) = self.0.next_back() {
-			acc = f(acc, b);
-		}
-		acc
+		// Through std's fold, by a closure holding `f`.
+		std::iter::from_fn(|| self.0.next_back()).fold(init, move |acc, b| f(acc, b))
 	}
 }
 

@@ -126,9 +126,9 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 /// Where the crate's own `fold` or `rfold`, `def_id`, or a closure in it, tells its
 /// accumulator `B` or closure `F` apart from the others it is generic over, and how: by an
 /// `Option` or a `Poll` of `B`, whose `None` or `Pending` is the one of whichever `B` it is
-/// translated for; a call generic over either, but `F`'s, a `drop` of `F`, and std's
-/// iterators', which take any; a constant generic over either, such as its size; or a drop of
-/// `B`, which drops as the one it is translated for does.
+/// translated for; a call generic over either, but `F`'s and std's iterators', which take
+/// any unless the crate's own type holds one; a constant generic over either, such as its
+/// size; or a drop of `B`, which drops as the one it is translated for does.
 fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 	use rustc_middle::mir::visit::Visitor;
 	use rustc_middle::mir::{self, ConstOperand, Location, TerminatorKind};
@@ -142,42 +142,49 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 		found: Option<(Span, &'static str)>,
 	}
 	impl<'tcx> Erases<'_, 'tcx> {
-		/// Whether `arg` is over `B` or `F` other than through a closure, whose own body is
-		/// checked in its place, as one in this body is over both.
-		fn mentions(&mut self, arg: ty::GenericArg<'tcx>) -> bool {
+		/// Whether `arg` is over one of `params`, a closure through what it captures, as its
+		/// own body is checked in its place, or only under a type of the crate if `crate_only`.
+		fn over(&mut self, arg: ty::GenericArg<'tcx>, params: &[u32], crate_only: bool) -> bool {
 			let mut walk = arg.walk();
-			let mut mentions = false;
+			let mut over = false;
 			while let Some(a) = walk.next() {
 				let Some(t) = a.as_type() else {
 					continue;
 				};
 				match *t.kind() {
-					ty::Closure(closure, _) => {
+					ty::Closure(closure, args) => {
 						self.closures.push(closure);
 						walk.skip_current_subtree();
+						over |= self.over(args.as_closure().tupled_upvars_ty().into(), params, crate_only);
 					}
-					ty::Param(p) if self.params.contains(&p.index) => mentions = true,
+					ty::Adt(adt, args) if crate_only && !library::is_std(self.tcx, adt.did()) => {
+						walk.skip_current_subtree();
+						over |= args.iter().any(|a| self.over(a, params, false));
+					}
+					ty::Param(p) if !crate_only && params.contains(&p.index) => over = true,
 					_ => {}
 				}
 			}
-			mentions
+			over
 		}
 
-		/// Whether `ty` is `F`.
-		fn is_f(&self, ty: Ty<'tcx>) -> bool {
-			matches!(ty.kind(), ty::Param(p) if p.index == self.params[1])
+		/// Whether a drop of `ty` drops a `B`, or runs the crate's code over `B` or `F`.
+		fn drops(&mut self, ty: Ty<'tcx>) -> bool {
+			let params = self.params;
+			self.over(ty.into(), &params[..1], false) || self.over(ty.into(), &params, true)
 		}
 
-		/// Whether a call of `def_id` for `args` takes any `B` and `F`.
-		fn takes_any(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+		/// Whether a call of `def_id` for `args` runs the crate's code over `B` or `F`, or code
+		/// that can tell them apart: anything but `F`'s calls and std's iterators', which take
+		/// any `B` and `F`.
+		fn tells(&mut self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
 			let tcx = self.tcx;
-			if tcx.is_diagnostic_item(rustc_span::sym::mem_drop, def_id) {
-				return self.is_f(args.type_at(0));
-			}
-			tcx.trait_of_assoc(def_id).is_some_and(|tr| {
+			let any = tcx.trait_of_assoc(def_id).is_some_and(|tr| {
 				tcx.is_fn_trait(tr)
 					|| [core_trait(tcx, "Iterator"), core_trait(tcx, "DoubleEndedIterator")].contains(&Some(tr))
-			})
+			});
+			let params = self.params;
+			args.iter().any(|a| self.over(a, &params, any))
 		}
 
 		fn find(&mut self, span: Span, what: &'static str) {
@@ -189,11 +196,17 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 			let span = term.source_info.span;
 			match &term.kind {
 				TerminatorKind::Call { func, args, .. } => {
-					if let Some((callee, callee_args)) = func.const_fn_def()
-						&& !self.takes_any(callee, callee_args)
-						&& callee_args.iter().any(|a| self.mentions(a))
-					{
-						self.find(span, "a call generic over its accumulator or closure");
+					if let Some((callee, callee_args)) = func.const_fn_def() {
+						if self.tcx.is_diagnostic_item(rustc_span::sym::mem_drop, callee) {
+							if self.drops(callee_args.type_at(0)) {
+								self.find(
+									span,
+									"a drop of its accumulator, or of the crate's type over it or its closure",
+								);
+							}
+						} else if self.tells(callee, callee_args) {
+							self.find(span, "a call generic over its accumulator or closure");
+						}
 					}
 					for arg in args {
 						self.visit_operand(&arg.node, loc);
@@ -202,8 +215,11 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 				}
 				TerminatorKind::Drop { place, .. } => {
 					let ty = place.ty(self.mir, self.tcx).ty;
-					if !self.is_f(ty) && self.mentions(ty.into()) {
-						self.find(span, "a drop of its accumulator");
+					if self.drops(ty) {
+						self.find(
+							span,
+							"a drop of its accumulator, or of the crate's type over it or its closure",
+						);
 					}
 				}
 				_ => {}
@@ -216,7 +232,8 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 				mir::Const::Unevaluated(uv, _) => uv.args,
 				_ => ty::List::empty(),
 			};
-			if self.mentions(c.const_.ty().into()) || args.iter().any(|a| self.mentions(a)) {
+			let params = self.params;
+			if self.over(c.const_.ty().into(), &params, false) || args.iter().any(|a| self.over(a, &params, false)) {
 				self.find(
 					self.mir.source_info(loc).span,
 					"a constant generic over its accumulator or closure",
@@ -258,7 +275,7 @@ fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
 			if wraps {
 				return Some((local.source_info.span, "its accumulator in an `Option` or a `Poll`"));
 			}
-			erases.mentions(local.ty.into());
+			erases.over(local.ty.into(), &[], false);
 		}
 		erases.visit_body(mir);
 		if erases.found.is_some() {

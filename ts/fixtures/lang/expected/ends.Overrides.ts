@@ -88,30 +88,26 @@ export function nthBack$iter_DoubleEndedIterator(self: Overrides, n: rt.usize): 
 
 export function rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_u8_Option_u32(self: Overrides, init: rt.u32 | undefined, f: (a0: rt.u32 | undefined, a1: rt.u8) => rt.u32 | undefined): rt.u32 | undefined {
 	ends_Run.logged(self._0, 114);
-	let acc: rt.u32 | undefined = init;
-	while (true) {
-		const _7: rt.u8 | undefined = ends_Run.nextBack$iter_DoubleEndedIterator(self._0);
-		if (_7 !== undefined) {
-			acc = f(acc, _7);
-		} else {
-			break;
-		}
-	}
-	rt.drop(f);
-	return acc;
+	const _6: rt.Iter<rt.u8> = rt.iterFromFn((): rt.u8 | undefined => {
+		return ends_Run.nextBack$iter_DoubleEndedIterator(self._0);
+	});
+	let captured = f;
+	return rt.iterFold(_6, init, rt.closure((acc: rt.u32 | undefined, b: rt.u8): rt.u32 | undefined => {
+		return captured(acc, b);
+	}, (): void => {
+		rt.drop(captured);
+	}), undefined, true);
 }
 
 export function rfold$iter_DoubleEndedIterator_u8_ends_folded_closure1_ends_Overrides(self: Overrides, init: rt.u8, f: (a0: rt.u8, a1: rt.u8) => rt.u8): rt.u8 {
 	ends_Run.logged(self._0, 114);
-	let acc: rt.u8 = init;
-	while (true) {
-		const _7: rt.u8 | undefined = ends_Run.nextBack$iter_DoubleEndedIterator(self._0);
-		if (_7 !== undefined) {
-			acc = f(acc, _7);
-		} else {
-			return acc;
-		}
-	}
+	const _6: rt.Iter<rt.u8> = rt.iterFromFn((): rt.u8 | undefined => {
+		return ends_Run.nextBack$iter_DoubleEndedIterator(self._0);
+	});
+	let captured = f;
+	return rt.iterFold(_6, init, (acc: rt.u8, b: rt.u8): rt.u8 => {
+		return captured(acc, b);
+	}, true);
 }
 
 //# sourceMappingURL=ends.Overrides.ts.map

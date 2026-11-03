@@ -894,8 +894,8 @@ without a mapping in `src/lower/iter.rs` (such as `partition`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
 those, such as `find` or `for_each`, or whose own `fold` or `rfold` tells its accumulator or
 closure apart from another, by an `Option` or a `Poll` of it, a call or constant generic over it
-other than calling or dropping the closure or passing them to std's iterators, or a drop of the
-accumulator,
+other than calling or dropping the closure or passing them to std's iterators outside the crate's
+own types, or a drop of the accumulator,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes
