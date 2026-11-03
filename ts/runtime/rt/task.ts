@@ -1076,12 +1076,15 @@ export function onceClone<T>(cell: OnceCell<T, None | undefined>, clone: ((value
 export function onceDebug<T>(cell: OnceCell<T>, f: Formatter, name: string, debug: Debug<T>): FmtResult;
 export function onceDebug<T>(cell: OnceCell<T, None>, f: Formatter, name: string, debug: Debug<T>, none: None): FmtResult;
 export function onceDebug<T>(cell: OnceCell<T, None | undefined>, f: Formatter, name: string, debug: Debug<T>, none?: None): FmtResult {
-	return heldDebug(f, name, cell.v !== none, cell.v as T, debug);
+	return heldDebug(f, name, () => cell.v !== none, () => cell.v as T, debug);
 }
 
-/** `Debug` of a one-time cell named `name`: `value` if it is `held`, or else `<uninit>`, unpadded. */
-function heldDebug<T>(f: Formatter, name: string, held: boolean, value: T, debug: Debug<T>): FmtResult {
-	const field = held ? (f: Formatter) => debug(value, f) : (f: Formatter) => f.out.writeStr("<uninit>");
+/**
+ * `Debug` of a one-time cell named `name`: its `value` if it is `held`, or else `<uninit>`,
+ * unpadded. Both are read once the name is written, which a writer may set the cell from.
+ */
+function heldDebug<T>(f: Formatter, name: string, held: () => boolean, value: () => T, debug: Debug<T>): FmtResult {
+	const field = (f: Formatter) => (held() ? debug(value(), f) : f.out.writeStr("<uninit>"));
 	return debugTupleFinish(debugTupleField(fmtDebugTuple(f, name), field));
 }
 
@@ -1137,7 +1140,7 @@ export class LazyCell<T> {
 
 	/** `Debug`, named `name`: its value, or `<uninit>` until `force` makes it, which this never runs. */
 	debug(f: Formatter, name: string, debug: Debug<T>): FmtResult {
-		return heldDebug(f, name, this.#init, this.#value as T, debug);
+		return heldDebug(f, name, () => this.#init, () => this.#value as T, debug);
 	}
 
 	/** `drop`: of its value, or of the function if `force` never ran it. */
