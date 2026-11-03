@@ -2500,7 +2500,7 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => held(bound),
 		ty::Adt(..) if let Some((inner, _)) = cell_of(b, ty) => held(inner),
 		ty::Adt(_, args) if derived_std(b, ty) => args.types().all(held),
-		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::error) => true,
+		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => library::string(b.t.tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration)),
 		_ => false,
 	}
@@ -2833,7 +2833,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
-		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::error) => {
+		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
 			b.fn_value(eq, tcx.mk_args(&[ty.into(), ty.into()]), span)
 		}

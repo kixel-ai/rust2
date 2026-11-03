@@ -1713,6 +1713,7 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 	Some(match path.as_slice() {
 		// Those that borrow what they read, as their clones do too, or hold nothing.
 		["iter", "sources", "empty", "Empty"]
+		| ["str", "lossy", "Utf8Chunks"]
 		| [
 			"slice",
 			"iter",

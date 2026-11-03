@@ -6,7 +6,8 @@
 //! step that shortens one only what std guarantees, as the runtime holds no more. A
 //! `VecDeque`'s it checks exactly past every step, as where its slices split depends on it. A `HashMap`'s and a `HashSet`'s it checks only by std's guarantees.
 
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use std::cell::RefCell;
+use std::collections::{BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::mem;
 
 /// A length or capacity, as four bytes.
@@ -276,6 +277,115 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 		}
 		k.put(out, v.len(), v.capacity());
 	}
+}
+
+/// A struct whose derived `clone_from` clones.
+#[derive(Clone)]
+struct Holds<T>(Vec<T>);
+
+/// The length and capacity of each `Vec` that `clone_from` writes over in each container
+/// std's reaches it through: kept, grown only where it holds fewer, where std's clones
+/// over each `Vec` it holds, and a clone's where a tuple's, a derived struct's, or a
+/// deque's clones it anew.
+pub fn clone_froms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	by_kind!(kind, clone_from_steps, data, out);
+}
+
+fn clone_from_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) {
+	let at = |i: usize| {
+		data.get(i)
+			.copied()
+			.unwrap_or((i as u8).wrapping_mul(0x35) ^ data.len() as u8)
+	};
+	// Room for more than it holds: by `with_capacity` if odd, else by pushes.
+	let held = |i: usize| {
+		let b = at(i);
+		let mut v = match b & 1 {
+			1 => Vec::with_capacity(usize::from(b >> 4)),
+			_ => Vec::new(),
+		};
+		for j in 0..(b >> 1) % 6 {
+			v.push(make(j));
+		}
+		v
+	};
+	let source = |i: usize| (0..at(i) % 10).map(make).collect::<Vec<T>>();
+	let len = |i: usize| usize::from(at(i) % 4);
+	let holds = |from: usize, n: usize| (0..n).map(|j| held(from + j)).collect::<Vec<_>>();
+	let sources = |from: usize, n: usize| (0..n).map(|j| source(from + j)).collect::<Vec<_>>();
+	let caps = |vs: &[Vec<T>], out: &mut Vec<u8>| {
+		put(out, vs.len());
+		for v in vs {
+			put(out, v.len());
+			put(out, v.capacity());
+		}
+	};
+	// An array's and a slice's, each over its own, and `fill`'s, each but the last.
+	let mut array = [held(0), held(1)];
+	array.clone_from(&[source(2), source(3)]);
+	caps(&array, out);
+	let mut slice = [held(4), held(5), held(6)];
+	slice[1..].clone_from_slice(&[source(7), source(8)]);
+	caps(&slice, out);
+	slice.fill(source(9));
+	caps(&slice, out);
+	// A `Vec`'s, over those it keeps, as a slice's `clone_into` one.
+	let mut nested = holds(11, len(10));
+	nested.clone_from(&sources(15, len(14)));
+	caps(&nested, out);
+	let mut into = holds(19, len(18));
+	sources(23, len(22))[..].clone_into(&mut into);
+	caps(&into, out);
+	// A box's is what it holds', and a boxed slice's its elements' where the lengths match.
+	let mut boxed = Box::new(held(26));
+	boxed.clone_from(&Box::new(source(27)));
+	caps(&[*boxed], out);
+	let mut boxes: Box<[Vec<T>]> = holds(29, len(28)).into();
+	boxes.clone_from(&sources(33, len(32)).into());
+	caps(&boxes, out);
+	// Of two `Some`s, and of two `Ok`s or two `Err`s, what they hold.
+	let mut option = (at(36) % 3 != 0).then(|| held(37));
+	option.clone_from(&(at(38) % 3 != 0).then(|| source(39)));
+	caps(&option.into_iter().collect::<Vec<_>>(), out);
+	let mut result: Result<Vec<T>, Vec<T>> = match at(40) % 2 {
+		0 => Ok(held(41)),
+		_ => Err(held(42)),
+	};
+	result.clone_from(&match at(43) % 2 {
+		0 => Ok(source(44)),
+		_ => Err(source(45)),
+	});
+	out.push(u8::from(result.is_ok()));
+	caps(&[result.unwrap_or_else(|v| v)], out);
+	let mut cell = RefCell::new(held(46));
+	cell.clone_from(&RefCell::new(source(47)));
+	caps(&[cell.into_inner()], out);
+	let mut deep = Some([Box::new(held(52))]);
+	deep.clone_from(&Some([Box::new(source(53))]));
+	caps(&deep.map(|[b]| *b).into_iter().collect::<Vec<_>>(), out);
+	// A list's, over each it keeps; a deque's, which clears and clones.
+	let mut list: LinkedList<Vec<T>> = holds(55, len(54)).into_iter().collect();
+	list.clone_from(&sources(59, len(58)).into_iter().collect());
+	caps(&list.into_iter().collect::<Vec<_>>(), out);
+	let mut deque: VecDeque<Vec<T>> = holds(63, len(62)).into();
+	deque.clone_from(&sources(67, len(66)).into());
+	caps(&Vec::from(deque), out);
+	// A heap's is its vector's, and a deque's keeps its own buffer, each in an array too.
+	let mut heap = BinaryHeap::from(held(70));
+	heap.clone_from(&BinaryHeap::from(source(71)));
+	caps(&[heap.into_vec()], out);
+	let mut heaps = [BinaryHeap::from(held(72))];
+	heaps.clone_from(&[BinaryHeap::from(source(73))]);
+	put(out, heaps[0].capacity());
+	let mut deques = [VecDeque::from(held(74))];
+	deques.clone_from(&[VecDeque::from(source(75))]);
+	put(out, deques[0].capacity());
+	// A tuple's and a derived struct's clone.
+	let mut pair = (held(76), 0u8);
+	pair.clone_from(&(source(77), 1));
+	let mut holder = Holds(held(78));
+	holder.clone_from(&Holds(source(79)));
+	caps(&[pair.0, holder.0], out);
 }
 
 /// A `VecDeque`, as `vecs` steps a `Vec`.

@@ -60,4 +60,3 @@ Public API: the translator's output.
 ## Related
 
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - std's exact capacity, beyond its guarantees, so a deque made from a shrunk `Vec` splits its slices where std's does
-- [A vector's capacity where clone_from writes it in a container](/quest/m3/ts-clone-from-capacity.md) - the capacity of a `Vec` that `clone_from` writes over inside a container

@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -797,6 +797,22 @@ export function refCellClone<T>(cell: RefCell<T>, clone?: (value: T) => T): RefC
 	const value = clone ? clone(cell.value) : cell.value;
 	refRelease(cell);
 	return new RefCell(value);
+}
+
+/**
+ * `clone_from` of a `RefCell`: `src`'s value cloned over its own, as `cloneOver` clones
+ * it, while borrowing `src`, which panics while it is mutably borrowed.
+ */
+export function refCellCloneFrom<T>(cell: RefCell<T>, src: RefCell<T>, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): RefCell<T> {
+	refCellBorrow(src);
+	cell.value = cloneOver(cell.value, src.value, clone, drop, over);
+	refRelease(src);
+	return cell;
+}
+
+/** `refCellCloneFrom` as a `CloneFrom`. */
+export function refCellCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<RefCell<T>> {
+	return (old, src) => refCellCloneFrom(old, src, clone, drop, over);
 }
 
 /** A `RefMut`'s or an `RwLockWriteGuard`'s drop. */
