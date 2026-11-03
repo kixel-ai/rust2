@@ -8,7 +8,7 @@ use rustc_abi::{BackendRepr, FieldIdx, Size, VariantIdx};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, DefIndex};
-use rustc_middle::mir::interpret::{AllocId, GlobalAlloc, GlobalId, Scalar, alloc_range};
+use rustc_middle::mir::interpret::{AllocId, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
 use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{self, ConstValue, Local, Operand, Place, PlaceTy, ProjectionElem};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
@@ -1616,6 +1616,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 				};
 				let unnamed = format!("a constant of type `{ty}`, a pointer into memory translation can't name");
+				// A `Location`, as `Location::caller` gives a constant.
+				if self.b.t.std_of(*inner) == Some(Std::Location) {
+					return match self.location_const(alloc, offset, *inner) {
+						Some(location) => location,
+						None => self.err(span, unnamed),
+					};
+				}
 				let ty::Array(elem, len) = inner.kind() else {
 					return self.err(span, unnamed);
 				};
@@ -1647,6 +1654,35 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				None => self.err(span, format!("a constant of type `{ty}` held in memory")),
 			},
 		}
+	}
+
+	/// The `Location` of type `ty` at `at` in `alloc`: its file, the `str` another
+	/// allocation holds, and its line and column.
+	fn location_const(&self, alloc: ConstAllocation<'tcx>, at: Size, ty: Ty<'tcx>) -> Option<Expr> {
+		let tcx = self.tcx;
+		let layout = tcx.layout_of(self.b.t.typing_env_pub().as_query_input(ty)).ok()?;
+		let field = |i: usize| at + layout.fields.offset(i);
+		let read = |at: Size, size: Size, ptr: bool| alloc.inner().read_scalar(&tcx, alloc_range(at, size), ptr).ok();
+		let size = tcx.data_layout.pointer_size();
+		let Scalar::Ptr(file, _) = read(field(0), size, true)? else {
+			return None;
+		};
+		let len = read(field(0) + size, size, false)?
+			.to_target_usize(&tcx)
+			.discard_err()?;
+		let u32_size = Size::from_bytes(4);
+		let line = read(field(1), u32_size, false)?.to_u32().discard_err()?;
+		let col = read(field(2), u32_size, false)?.to_u32().discard_err()?;
+		let (prov, start) = file.prov_and_relative_offset();
+		let GlobalAlloc::Memory(text) = tcx.global_alloc(prov.alloc_id()) else {
+			return None;
+		};
+		let start = start.bytes_usize();
+		let bytes = text
+			.inner()
+			.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len as usize);
+		let file = std::str::from_utf8(bytes).ok()?.to_string();
+		Some(crate::lower::caller::object(file, line, col))
 	}
 
 	/// The value a `ty` that is no aggregate holds at `offset` in `alloc_id`, as rustc would
@@ -1694,7 +1730,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.bare_closure(Ty::new_closure(tcx, def_id, instance.args), span)
 			}
 			ty::InstanceKind::Item(def_id) | ty::InstanceKind::Shim(ty::ShimKind::Reify(def_id, _)) => {
-				self.b.fn_value(def_id, instance.args, span)
+				let item = Instance::new_raw(def_id, instance.args);
+				match self.b.reified(item, span) {
+					Some(reified) => reified,
+					None => self.b.fn_value(def_id, instance.args, span),
+				}
 			}
 			// A closure coerced to a function pointer calls it once.
 			ty::InstanceKind::Shim(ty::ShimKind::ClosureOnce { .. }) => match instance.args.type_at(0).kind() {

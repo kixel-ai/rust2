@@ -426,6 +426,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.raw_unsize(value, from, span)
 				}
+				// A `#[track_caller]` function's pointer passes the function's own location.
+				PointerCoercion::ReifyFnPointer(_)
+					if let ty::FnDef(def_id, args) = *from.kind()
+						&& let Ok(Some(item)) =
+							Instance::try_resolve(self.tcx, self.b.t.typing_env_pub(), def_id, args.skip_binder())
+						&& let Some(reified) = self.b.reified(item, span) =>
+				{
+					reified
+				}
 				PointerCoercion::Unsize
 				| PointerCoercion::ReifyFnPointer(_)
 				| PointerCoercion::ClosureFnPointer(_)

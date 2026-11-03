@@ -664,6 +664,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		let mut steps = Vec::new();
 		if let Some(dtor) = adt.destructor(tcx) {
+			super::caller::refuse_std_call(self, Instance::mono(tcx, dtor.did));
 			let sym = self.instance(Instance::mono(tcx, dtor.did));
 			steps.push(StmtKind::Expr(Expr::Sym(sym).call(vec![Expr::This])).at(None));
 		}

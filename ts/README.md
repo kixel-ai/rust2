@@ -178,9 +178,16 @@ after one, as a wasm trap leaves it, and a caller that catches `rt.Panic` must n
 again. An abort without a panic, as std's for an `RwLock` locked again while held,
 throws `rt.Abort`, a `Panic` with std's abort message. So `catch_unwind` only ever returns
 `Ok`, `resume_unwind` throws `rt.Abort` without running the hook, and `panic_any` panics
-with its payload if that is text, or `Box<dyn Any>` as std's hook writes any other. A
-`Location`, and with it `set_hook` and `take_hook`, is refused: translated panics carry
-none.
+with its payload if that is text, or `Box<dyn Any>` as std's hook writes any other.
+Translated panics carry no `Location`, so `set_hook` and `take_hook` are refused.
+
+`Location::caller` gives rustc's location: the file as the session names it, and line
+and column. A function rustc passes its caller's location to, such as a `#[track_caller]`
+one, takes it as an `rt.Location` last parameter, and so does a trait object's method
+whose trait declares it so. A call the crate writes passes the call's location, or, in such
+a function, its own caller's; a function pointer, or a trait object's method only the impl
+tracks, passes the function's own, as rustc's shim does. One that std's code calls,
+through its `Fn` impls, is refused, as its location is in std's source.
 
 Each integer type is its own type to `tsc`, named as Rust's: `rt.u8` is a `number` with a
 type-only brand, so a `u16` where a `u8` goes fails the type check, while a plain
