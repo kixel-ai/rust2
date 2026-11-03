@@ -943,20 +943,45 @@ export function sliceSwap<T>(s: T[], a: number, b: number): void {
 }
 
 /**
- * `fill`: a clone of `value` into each slot but the last, each old element dropped once
- * its slot's clone is made, then `value` itself into the last, or `value` dropped if there
- * is none. `clone` is `undefined` where a clone is the value.
+ * `fill`: `value` cloned over each slot but the last by `cloneOver`, then `value` itself
+ * into the last, or `value` dropped if there is none.
  */
-export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): void {
 	const last = s.length - 1;
 	if (last < 0) return drop?.(value);
-	for (let i = 0; i < last; i++) {
-		const item = clone === undefined ? value : clone(value);
-		drop?.(s[i]);
-		s[i] = item;
-	}
+	for (let i = 0; i < last; i++) s[i] = cloneOver(s[i], value, clone, drop, over);
 	drop?.(s[last]);
 	s[last] = value;
+}
+
+/** A `clone_from` as a function of the value it writes over and its source, returning what takes the old value's place. */
+export type CloneFrom<T> = (old: T, src: T) => T;
+
+/**
+ * What `clone_from` of `src` leaves over `old`: `over`'s, where it is its own, or else
+ * `src`'s clone, made before `old` drops. `clone` is `undefined` where a clone is the value.
+ */
+function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
+	if (over !== undefined) return over(old, src);
+	const item = clone === undefined ? src : clone(src);
+	drop?.(old);
+	return item;
+}
+
+/** A crate's own `clone_from` of an object, `f`, which writes over it in place. */
+export function cloneFromFn<T>(f: (old: T, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(old, src);
+		return old;
+	};
+}
+
+/** A crate's own `clone_from` of a value a `&mut` lends as an `rt.Place`, `f`. */
+export function cloneFromPlaceFn<T>(f: (old: Place<T>, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(place(() => old, (value) => (old = value)), src);
+		return old;
+	};
 }
 
 /** `fill_with`: `f()` into each slot in order, each old element dropped once its slot's value is made. */
@@ -1013,25 +1038,54 @@ export function sliceCopyFromSlice<T>(dst: T[], src: ArrayLike<T>, copy?: (value
 	for (let i = 0; i < src.length; i++) dst[i] = copy === undefined ? src[i] : copy(src[i]);
 }
 
-/** `clone_from_slice`: each slot's clone in order, each old element dropped once its slot's clone is made, panicking first if the lengths differ. */
-export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+/** `clone_from_slice`: each element cloned over its slot's in order by `cloneOver`, panicking first if the lengths differ. */
+export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
 	if (dst.length !== src.length) panic("destination and source slices have different lengths");
-	for (let i = 0; i < src.length; i++) {
-		const item = clone === undefined ? src[i] : clone(src[i]);
-		drop?.(dst[i]);
-		dst[i] = item;
-	}
+	for (let i = 0; i < src.length; i++) dst[i] = cloneOver(dst[i], src[i], clone, drop, over);
+	return dst;
+}
+
+/** `sliceCloneFromSlice` as a `CloneFrom` of an array. */
+export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => sliceCloneFromSlice(old, src, clone, drop, over);
 }
 
 /** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
-export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void): T[] {
-	if (dst.length === src.length) {
-		sliceCloneFromSlice(dst, src, clone, drop);
-		return dst;
-	}
+export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	if (dst.length === src.length) return sliceCloneFromSlice(dst, src, clone, drop, over);
 	const v = clone === undefined ? src.slice() : src.map(clone);
 	if (drop !== undefined) for (const item of dst) drop(item);
 	return v;
+}
+
+/** `boxSliceCloneFrom` as a `CloneFrom`. */
+export function boxSliceCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => boxSliceCloneFrom(old, src, clone, drop, over);
+}
+
+/**
+ * `Option::clone_from` of `src` over `old`, whose `None` is `none`: of two `Some`s, `over`
+ * of what they hold, and else `src`'s clone, made before `old` drops.
+ */
+export function optionCloneFrom<T>(old: T | undefined, src: T | undefined, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): T | undefined;
+export function optionCloneFrom<T>(old: T | None, src: T | None, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): T | None;
+export function optionCloneFrom<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): T {
+	return optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom` as a `CloneFrom`. */
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): CloneFrom<T | undefined>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): CloneFrom<T | None>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): CloneFrom<T> {
+	return (old, src) => optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom`, of any `none`. */
+function optionOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: unknown): T {
+	if (old !== none && src !== none) return over(old, src);
+	const item = src === none || clone === undefined ? src : clone(src);
+	if (old !== none) drop?.(old);
+	return item;
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
@@ -1201,6 +1255,25 @@ export function vecSwapRemove<T>(v: T[], i: number): T {
 export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
 	vecReserve(v, s.length, size);
 	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
+}
+
+/**
+ * `Vec::clone_from` of `src`, and `clone_into` of a slice, over `v` of `size`-byte
+ * elements, as std's: truncated to `src`'s length, each element it keeps cloned over by
+ * `cloneOver`, and then the rest of `src` cloned onto its end.
+ */
+export function vecCloneFrom<T>(v: T[] & Capped, src: ArrayLike<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	vecTruncate(v, src.length, drop);
+	const kept = v.length;
+	for (let i = 0; i < kept; i++) v[i] = cloneOver(v[i], src[i], clone, drop, over);
+	vecReserve(v, src.length - kept, size);
+	for (let i = kept; i < src.length; i++) v.push(clone === undefined ? src[i] : clone(src[i]));
+	return v;
+}
+
+/** `vecCloneFrom` as a `CloneFrom`. */
+export function vecCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => vecCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `Vec::append` of `size`-byte elements: room reserved for `other`'s, which then move over in order, leaving it empty. */
