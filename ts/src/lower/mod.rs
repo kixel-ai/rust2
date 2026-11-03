@@ -1333,6 +1333,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::LazyLock
 					| library::Std::Waker
 					| library::Std::WakerVTable
+					| library::Std::RawWaker
 					| library::Std::Context
 					| library::Std::Pin
 					| library::Std::PollFn
@@ -1758,6 +1759,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::LazyLock => Type::Rt("LazyLock", vec![self.ty(args.type_at(0), span)]),
 				library::Std::Waker => Type::Rt("Waker", vec![]),
 				library::Std::WakerVTable => Type::Rt("WakerVTable", vec![]),
+				library::Std::RawWaker => Type::Rt("RawWaker", vec![]),
 				library::Std::Context => Type::Rt("Context", vec![]),
 				library::Std::Poll => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {

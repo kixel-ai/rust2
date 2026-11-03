@@ -47,3 +47,8 @@ pub fn ready_pending() -> std::future::Ready<std::task::Poll<u8>> {
 pub fn waker_debug(w: &std::task::Waker) -> String {
 	format!("{w:?}")
 }
+
+/// What a raw waker writes is its data's and vtable's addresses too.
+pub fn raw_waker_debug(w: &std::task::Waker) -> String {
+	format!("{:?}", std::task::RawWaker::new(w.data(), w.vtable()))
+}

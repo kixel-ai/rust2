@@ -167,9 +167,9 @@ export class helpersFuture {
 export function relayed(task: rt.Waker, log: Log.Log, id: rt.u32): rt.Waker {
 	const relay: Relay.Relay = new Relay.Relay(task.clone(), Guard.new(id, log));
 	if (rt.u32Rem(id, 2) === 0) {
-		return new rt.ArcWaker(new rt.Arc(relay), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc2: rt.Arc<Relay.Relay>) => arc2[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined);
+		return rt.arcWaker(new rt.Arc(relay), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc2: rt.Arc<Relay.Relay>) => arc2[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined);
 	}
-	return new rt.ArcWaker(new rt.Arc(new Plain.Plain(relay)), Plain.wake$task_Wake as (a0: rt.Arc<Plain.Plain>) => undefined, (arc: rt.Arc<Plain.Plain>) => arc[Symbol.dispose]());
+	return rt.arcWaker(new rt.Arc(new Plain.Plain(relay)), Plain.wake$task_Wake as (a0: rt.Arc<Plain.Plain>) => undefined, (arc: rt.Arc<Plain.Plain>) => arc[Symbol.dispose]());
 }
 
 export const POLLING: rt.LocalKey<rt.Cell<[rt.Place<undefined>, rt.WakerVTable] | undefined>> = /* @__PURE__ */ new rt.LocalKey(POLLING$init, false);
@@ -262,11 +262,11 @@ export class wakersFuture {
 							return new Relay.Relay(rt.NOOP_WAKER.clone(), Guard.new(rt.u32Add(Guard.id(this.#guard), id), Log.clone$Clone(Guard.log(this.#guard))));
 						};
 						this.#one = new rt.Arc(this.#relay(100));
-						const _7: [rt.Waker, rt.Waker] = [new rt.ArcWaker(rt.arcClone(this.#one), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc: rt.Arc<Relay.Relay>) => arc[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined), new rt.ArcWaker(rt.arcClone(this.#one), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc2: rt.Arc<Relay.Relay>) => arc2[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined)];
+						const _7: [rt.Waker, rt.Waker] = [rt.arcWaker(rt.arcClone(this.#one), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc: rt.Arc<Relay.Relay>) => arc[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined), rt.arcWaker(rt.arcClone(this.#one), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc2: rt.Arc<Relay.Relay>) => arc2[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined)];
 						this.#a = _7[0];
 						this.#b = _7[1];
-						this.#other = new rt.ArcWaker(new rt.Arc(this.#relay(200)), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc3: rt.Arc<Relay.Relay>) => arc3[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined);
-						this.#plain = new rt.ArcWaker(new rt.Arc(new Plain.Plain(this.#relay(300))), Plain.wake$task_Wake as (a0: rt.Arc<Plain.Plain>) => undefined, (arc4: rt.Arc<Plain.Plain>) => arc4[Symbol.dispose]());
+						this.#other = rt.arcWaker(new rt.Arc(this.#relay(200)), Relay.wake$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined, (arc3: rt.Arc<Relay.Relay>) => arc3[Symbol.dispose](), Relay.wakeByRef$task_Wake as (a0: rt.Arc<Relay.Relay>) => undefined);
+						this.#plain = rt.arcWaker(new rt.Arc(new Plain.Plain(this.#relay(300))), Plain.wake$task_Wake as (a0: rt.Arc<Plain.Plain>) => undefined, (arc4: rt.Arc<Plain.Plain>) => arc4[Symbol.dispose]());
 						this.#noop = rt.NOOP_WAKER;
 						this.#checks = [rt.willWake(this.#a, this.#b), (this.#a.data as rt.Place<undefined>) === this.#b.data as rt.Place<undefined>, rt.willWake(this.#a, this.#other), (this.#a.data as rt.Place<undefined>) === this.#other.data as rt.Place<undefined>, this.#a.vtable === this.#other.vtable, this.#a.vtable === this.#plain.vtable, rt.willWake(this.#a, this.#noop), rt.willWake(this.#noop, rt.NOOP_WAKER), (this.#noop.data as rt.Place<undefined>) === rt.NULL, rt.NULL === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT, rt.DANGLING_UNIT === rt.DANGLING_UNIT];
 						put$unit(rt.DANGLING_UNIT, undefined);

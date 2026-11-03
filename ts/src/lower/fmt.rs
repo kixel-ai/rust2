@@ -478,7 +478,7 @@ pub fn std_impl<'tcx>(
 				let pending = b.t.pending_arg(args.type_at(0));
 				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
 			}
-			(Std::Waker | Std::Context | Std::WakerVTable, Trait::Debug) => b.err(
+			(Std::Waker | Std::Context | Std::WakerVTable | Std::RawWaker, Trait::Debug) => b.err(
 				span,
 				format!("`Debug` of `{ty}`, which writes addresses, which JS has no counterpart of"),
 			),
