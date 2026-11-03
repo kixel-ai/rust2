@@ -2754,7 +2754,7 @@ export function collected$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick
 	const _9: (a0: rt.BTreeMap<rt.u8, rt.u8>) => rt.Iter<rt.u8> = (map: rt.BTreeMap<rt.u8, rt.u8>): rt.Iter<rt.u8> => {
 		return rt.iterFlatMap(rt.btreeIter(map), (_2: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(_2[0], _2[1]);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	};
 	b0: {
 		const other: rt.Range<rt.u8> = new rt.Range(0, k & 0xff);
@@ -2840,7 +2840,7 @@ export function collected$ends_Overrides(it: Overrides.Overrides, pick: rt.u8, k
 	const _9: (a0: rt.BTreeMap<rt.u8, rt.u8>) => rt.Iter<rt.u8> = (map: rt.BTreeMap<rt.u8, rt.u8>): rt.Iter<rt.u8> => {
 		return rt.iterFlatMap(rt.btreeIter(map), (_2: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(_2[0], _2[1]);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	};
 	b0: {
 		const other: rt.Range<rt.u8> = new rt.Range(0, k & 0xff);
@@ -2926,7 +2926,7 @@ export function collected$ends_Run(it: Run.Run, pick: rt.u8, k: rt.usize, log: r
 	const _9: (a0: rt.BTreeMap<rt.u8, rt.u8>) => rt.Iter<rt.u8> = (map: rt.BTreeMap<rt.u8, rt.u8>): rt.Iter<rt.u8> => {
 		return rt.iterFlatMap(rt.btreeIter(map), (_2: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(_2[0], _2[1]);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	};
 	b0: {
 		const other: rt.Range<rt.u8> = new rt.Range(0, k & 0xff);
@@ -3012,7 +3012,7 @@ export function collected$mut_ends_Overrides(it: Overrides.Overrides, pick: rt.u
 	const _9: (a0: rt.BTreeMap<rt.u8, rt.u8>) => rt.Iter<rt.u8> = (map: rt.BTreeMap<rt.u8, rt.u8>): rt.Iter<rt.u8> => {
 		return rt.iterFlatMap(rt.btreeIter(map), (_2: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(_2[0], _2[1]);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	};
 	b0: {
 		const other: rt.Range<rt.u8> = new rt.Range(0, k & 0xff);
