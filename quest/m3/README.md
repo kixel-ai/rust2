@@ -23,9 +23,7 @@ generic std gap is planned here even when moq never calls it.
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [Drop order in std's folds and iterators](/quest/m3/ts-drop-order.md) - the values that drop still refused in std's consumers and collects drop as std's do
-- [A slice of one value behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8`, or of an object no place names, translate
-- [A function pointer or a boxed closure as a string pattern](/quest/m3/ts-fn-patterns.md) - `s.split(p)` of a `fn(char) -> bool` or a `Box<dyn FnMut(char) -> bool>` translates, dropping a box it owns where std does
+- [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A crate's own find and for_each](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `find`, `rfind`, `find_map`, or `for_each` translates, each called where std's adaptors and consumers call it
@@ -43,4 +41,3 @@ generic std gap is planned here even when moq never calls it.
 - [No unused import in an export's generated crate](/quest/m3/ffi-unused-c-void.md) - the crate rust2-ffi generates builds without warnings when no export uses `void *`
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
-- [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - an enum `Hasher`, whose `&mut` is a place, hashes as a struct one does

@@ -323,7 +323,8 @@ the same clones, as `rt.iterCycle(it, { v: Item.clone$Clone })`, by which it clo
 iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
-`char`, a `&str`, a predicate or a reference to one, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
+`char`, a `&str`, a predicate (a closure, a function or a function pointer, or a `dyn FnMut`) behind any references and boxes,
+or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
 closure, which it calls on each char it reads, in the order std reads them, and drops a closure it owns as it
 returns, or with the iterator it returns, as `split` does, leaving one it borrows to its owner. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
@@ -454,7 +455,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
 through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
-hasher, hashes, finishes, then drops the hasher and the value.
+hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
+an enum, hashes as a struct one does, through the `rt.Place` its `&mut` is.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
@@ -929,8 +931,7 @@ hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
 that drops given to a std function that keeps it other than in an iterator or a
-`poll_fn`, or whose mapping doesn't drop it where std's does, and values that drop in some
-iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
+`poll_fn`, or whose mapping doesn't drop it where std's does, a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
 `rt.None`, an `Option` of an `Option` of `()` or another
 `Option`, an instance of a generic type whose field is an `Option` of a type parameter
@@ -946,7 +947,7 @@ other than calling or dropping the closure or passing them to std's iterators ou
 own types, or a drop of the accumulator,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
-`char`, a `&str`, a predicate or a reference to one, or chars, a mutable `str` slice, a copy of a closure that changes
+`char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a
 reference, a switch on or a field of another crate's type without a mapping, and std

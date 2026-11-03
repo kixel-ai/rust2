@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Full from "./hashes.Full.ts";
 import * as Partial from "./hashes.Partial.ts";
+import * as Switch from "./hashes.Switch.ts";
 
 export function hash$Hash_hash_DefaultHasher(self: Dir, state: rt.Hasher): void {
 	rt.hashIsize({ Up: 0, Down: 1 }[self], state);
@@ -19,6 +20,10 @@ export function hash$Hash_hashes_Full(self: Dir, state: Full.Full): void {
 
 export function hash$Hash_hashes_Partial(self: Dir, state: Partial.Partial): void {
 	rt.hashIsize({ Up: 0, Down: 1 }[self], new rt.OwnHasher(state, Partial.hasher$hash_Hasher));
+}
+
+export function hash$Hash_hashes_Switch(self: Dir, state: rt.Place<Switch.Switch>): void {
+	rt.hashIsize({ Up: 0, Down: 1 }[self], new rt.OwnHasher(state, Switch.hasher$hash_Hasher));
 }
 
 /** A fieldless enum, which is a JS string, hashed by its `isize` discriminant. */

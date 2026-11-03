@@ -232,13 +232,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether each closure that drops in `ty`, one of std's iterators, is one an adaptor's
-	/// `rt.Iter` drops, as `iter::holds_closure` says.
+	/// `rt.Iter` drops, as `iter::holds_closure` says. A box of a closure is the closure.
 	fn closures_held(&mut self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return true;
 		};
 		let holds = super::iter::holds_closure(self.tcx, adt.did());
-		args.types().all(|t| match t.kind() {
+		args.types().all(|t| match self.unboxed(t).kind() {
 			ty::Closure(..) | ty::CoroutineClosure(..) => holds || !self.drops(t),
 			_ => self.closures_held(t),
 		})

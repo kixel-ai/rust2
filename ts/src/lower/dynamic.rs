@@ -86,17 +86,23 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// The function trait that calls the closure, async closure, or `dyn Fn*` that `ty` is,
 	/// or boxes.
-	pub fn owned_fn(&self, mut ty: Ty<'tcx>) -> Option<ty::ClosureKind> {
-		while let ty::Adt(adt, args) = ty.kind()
-			&& Std::of(self.tcx, adt.did()) == Some(Std::Box)
-		{
-			ty = args.type_at(0);
-		}
+	pub fn owned_fn(&self, ty: Ty<'tcx>) -> Option<ty::ClosureKind> {
+		let ty = self.unboxed(ty);
 		match ty.kind() {
 			ty::Closure(..) | ty::CoroutineClosure(..) => super::closure_kind(ty),
 			ty::Dynamic(..) => self.dyn_fn(ty).map(|f| f.kind),
 			_ => None,
 		}
+	}
+
+	/// What `ty` owns through any boxes.
+	pub fn unboxed(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
+		while let ty::Adt(adt, args) = ty.kind()
+			&& Std::of(self.tcx, adt.did()) == Some(Std::Box)
+		{
+			ty = args.type_at(0);
+		}
+		ty
 	}
 
 	/// The trait of the trait object `ty`, a `dyn Trait`, made the first time.
