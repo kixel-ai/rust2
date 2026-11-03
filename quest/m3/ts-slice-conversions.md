@@ -20,6 +20,20 @@ For values other than bytes, a view could detach to a copy of what it held befor
 chunk is overwritten. A byte chunk is a `Uint8Array` over the slice's buffer, which can't
 detach, so bytes need another representation or proof that no read outlives a write.
 
-No consumer calls them yet; they are planned here as part of std.
+moq calls `as_chunks_mut::<N>()` over bytes in moq-mux (`container/ts/export.rs`,
+`import.rs`), moq-audio (`format.rs`), and moq-cli (`publish.rs`), writing each run by
+element as it enumerates, zips, or filters them.
+
+Decided with the maintainer on 2026-11-03:
+
+- `as_chunks_mut` over bytes: each chunk can be a `Uint8Array` view over the slice's
+  buffer, so element writes land, but a view can't detach. How to handle a whole write
+  through the outer `&mut [[u8; N]]` (swap/sort/reverse/assign) changing an earlier
+  by-value read?
+  - ✅ Views; copy array reads: chunks are views, and reading a whole `[u8; N]` out of a
+    view by value always copies it, so whole writes are safe everywhere. Measure the
+    copy's cost on moq-mux.
+  - Views; refuse whole writes.
+  - Prove no read outlives a write.
 
 Public API: the translator's output.
