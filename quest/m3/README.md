@@ -24,15 +24,18 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
+- [str's case maps and Unicode escapes](/quest/m3/ts-str-unicode.md) - `str::to_lowercase`, `to_uppercase`, the escapes, and `encode_utf16` translate by std's Unicode tables, final sigma included
+- [Debug of std's iterator adaptors](/quest/m3/ts-iter-adaptor-debug.md) - `Debug` of `Map`, `Zip`, `Peekable`, `DecodeUtf16`, and the other adaptors writes what std's does
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
-- [A Vec from a slice, and a slice's chunks as arrays](/quest/m3/ts-slice-conversions.md) - `Vec::from(&[T])` and `as_chunks` translate
+- [A slice's chunks as mutable arrays](/quest/m3/ts-slice-conversions.md) - `as_chunks_mut` and `as_rchunks_mut` translate, writes landing in the slice
+- [An array's clone of values that clone themselves](/quest/m3/ts-array-clone.md) - `[T; N]::clone` translates where `T` clones by its own `Clone`
+- [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
 - [An Arc's pointer](/quest/m3/ts-arc-pointers.md) - `Arc::as_ptr` and `Rc::as_ptr` translate, comparable by `ptr::addr_eq`
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
-- [Whole writes into a lazy cell or thread-local key](/quest/m3/ts-lazy-writes.md) - a whole write through a `&mut` to a `LazyCell`, `LazyLock`, or `LocalKey` keeps its state
 - [Type errors at the Rust that made them](/quest/m3/ts-span-precision.md) - a `tsc` error on output names the tail expression or call argument that made it
 - [Fresh writes through a zip, a copy, and a repeat](/quest/m3/ts-fresh-shapes.md) - zipping a `Vec<[T; N]>`, reading a `T` out of `Zip::next`, and `copied` or `vec![x; n]` over a `Copy` type translate
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair

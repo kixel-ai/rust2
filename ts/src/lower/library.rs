@@ -1467,6 +1467,18 @@ fn mapping<'tcx>(
 			{
 				return Some(cow_cloned(b, "IntoOwned", value, elem, span));
 			}
+			// A `Vec` clones what a slice or an array borrows, as `to_vec` does.
+			if let ty::Adt(_, vargs) = to.kind()
+				&& b.t.std_of(to) == Some(Std::Vec)
+				&& let ty::Ref(_, s, _) = targ(gargs, 1).kind()
+				&& (s.is_slice() || s.is_array())
+			{
+				let elem = vargs.type_at(0);
+				return match is_u8(elem) {
+					true => Some(Expr::rt("byteSliceToByteVec", vec![value])),
+					false => vec_clone(b, value, elem, span),
+				};
+			}
 			// A boxed slice clones what it borrows, moves an array's or a `Vec`'s elements, owns
 			// the `Vec` a `Cow` gives up, and takes a boxed text's bytes.
 			if let Some(elem) = box_slice(tcx, to) {
@@ -1918,6 +1930,17 @@ fn mapping<'tcx>(
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
+		// Copies of each run of `N` as an array, which a shared borrow can't tell from the
+		// slice's own elements.
+		("slice", "as_chunks" | "as_rchunks") => {
+			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
+			let mut values = args;
+			values.push(Expr::lit(n.to_string()));
+			match is_u8(targ(gargs, 0)) {
+				true => rt2(values, "byteSlice", &super::camel(&name)),
+				false => rt2(values, "slice", &super::camel(&name)),
+			}
+		}
 		// A part of bytes is a view already, and one of other values the runtime's view.
 		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => {
 			match is_u8(targ(gargs, 0)) {
