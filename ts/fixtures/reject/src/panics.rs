@@ -28,6 +28,13 @@ pub fn caller(data: &[u8]) -> u32 {
 	mapped + iterated + call(here).column()
 }
 
+/// `Location::caller` as a pointer, whose shim passes its location in std's source, and a
+/// file as a C string, which has no JS value.
+pub fn pointed() -> usize {
+	let f: fn() -> Here = Location::caller;
+	f().file_as_c_str().count_bytes()
+}
+
 /// A hook reads each panic's `Location`.
 pub fn hooked() {
 	let hook = std::panic::take_hook();

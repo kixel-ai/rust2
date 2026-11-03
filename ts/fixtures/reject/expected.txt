@@ -111,6 +111,9 @@ fixtures/reject/src/panics.rs:caller+2:38: `panics::at`, a `#[track_caller]` fun
 fixtures/reject/src/panics.rs:caller+3:22: `panics::here`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
 fixtures/reject/src/panics.rs:hooked+1:13: `panic::take_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
 fixtures/reject/src/panics.rs:hooked+2:2: `panic::set_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
+fixtures/reject/src/panics.rs:pointed+1:24: `std::panic::Location::<'a>::caller`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:pointed+2:6: unsupported call to `std::panic::Location::<'_>::file_as_c_str`
+fixtures/reject/src/panics.rs:pointed+2:22: unsupported call to `std::ffi::CStr::count_bytes`
 fixtures/reject/src/parts.rs:array_part+1:9: a raw pointer to `std::cell::UnsafeCell<u16>` in `parts::InArray`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:array_part_replaced+3:33: a reference through which a raw pointer may be made into `parts::InArray` in `[parts::InArray; 2]`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:element_replaced+2:20: a reference through which a raw pointer may be made into `std::cell::UnsafeCell<u16>` in `[std::cell::UnsafeCell<u16>; 2]`, which the crate may put another object in place of

@@ -107,7 +107,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			&& self.t.dispatches(instance)
 		{
 			let mut args = args;
-			if super::caller::tracks(tcx, instance) {
+			if super::caller::tracks(self.t, instance) {
 				args.push(self.caller_arg(instance, span));
 			}
 			return self.virtual_call(method, gargs.type_at(0), args, span);
@@ -278,7 +278,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			true => values,
 			false => self.slice_args(values, &parted, out),
 		};
-		if super::caller::tracks(self.t.tcx, instance) {
+		if super::caller::tracks(self.t, instance) {
 			values.push(self.caller_arg(instance, span));
 		}
 		Expr::Sym(self.t.callee(instance, span)).call(values)
@@ -372,8 +372,9 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		}
 		// A binding's export, or a function whose body translates, is named directly.
 		if let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs) {
-			// Std's `Fn` impls call it from their own source, whose location it would take.
-			if super::caller::tracks(tcx, instance) {
+			// Std's `Fn` impls call it from their own source, whose location it would take, as
+			// would `Location::caller` itself.
+			if super::caller::tracks(self.t, instance) || super::caller::is_caller(tcx, def_id) {
 				let path = tcx.def_path_str(def_id);
 				return self.err(
 					span,

@@ -229,7 +229,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let sig = self.sig(def_id, method_args(tcx, def_id, ty));
 		// The methods it holds are declared, so their `()` is `void`.
 		let mut params: Vec<Type> = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
-		if super::caller::tracks_virtual(tcx, def_id) {
+		if super::caller::tracks_virtual(self, def_id) {
 			params.push(super::caller::param_ty());
 		}
 		let func = Type::Func(params, Box::new(self.ret_ty(sig.output(), span)));
@@ -343,9 +343,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 		// The impl takes the location the object's caller passed, or, if only it tracks its
 		// caller, its own, as rustc's shim passes.
 		if let Ok(Some(imp)) = Instance::try_resolve(tcx, b.t.typing_env_pub(), method.def_id, args)
-			&& super::caller::tracks(tcx, imp)
+			&& super::caller::tracks(b.t, imp)
 		{
-			let location = match super::caller::tracks_virtual(tcx, method.def_id) {
+			let location = match super::caller::tracks_virtual(b.t, method.def_id) {
 				true => {
 					let caller = b.fresh("caller");
 					params.push(Param {

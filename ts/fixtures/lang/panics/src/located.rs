@@ -1,7 +1,7 @@
 //! `panic::Location`: `Location::caller` in a function and in a `#[track_caller]` one,
 //! through chains of them, closures, trait methods called directly, generically, through
 //! `Index`, and through trait objects whose trait or only whose impl tracks its caller,
-//! function pointers, and macros; its accessors, `Display`, `Debug`, comparisons, and
+//! function pointers, constants, and macros; its accessors, `Display`, `Debug`, comparisons, and
 //! hash; and a panic whose message carries one.
 
 use std::collections::{BTreeSet, HashSet};
@@ -12,7 +12,7 @@ use std::panic::Location;
 type Here = &'static Location<'static>;
 
 #[track_caller]
-fn here() -> Here {
+const fn here() -> Here {
 	Location::caller()
 }
 
@@ -126,7 +126,7 @@ fn lines(out: &mut Vec<u8>, at: &[Here]) {
 /// Calls of `#[track_caller]` functions, and `Location::caller` itself.
 pub fn called(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let first = data.first().copied().unwrap_or(0);
-	match kind % 5 {
+	match kind % 6 {
 		0 => {
 			let (a, b) = twice();
 			lines(
@@ -168,6 +168,16 @@ pub fn called(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let fs: [fn() -> Here; 2] = [here, plain];
 			let own: fn(&Own) -> Here = <Own as Untracked>::at;
 			lines(out, &[f(), g(), h(first), fs[usize::from(first % 2)](), own(&Own)]);
+		}
+		4 => {
+			// A constant's and a static's are where its value calls, and a function item held
+			// in a variable is called where the call is.
+			const HERE: Here = Location::caller();
+			const VIA: Here = here();
+			static THERE: Here = Location::caller();
+			let f = Location::caller;
+			let g = here;
+			lines(out, &[HERE, VIA, THERE, f(), g()]);
 		}
 		_ => {
 			// A macro's call is where the outermost macro was called; a format argument is

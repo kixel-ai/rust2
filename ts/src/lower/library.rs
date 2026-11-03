@@ -2686,7 +2686,10 @@ fn mapping<'tcx>(
 		("panic", "resume_unwind") => Expr::rt("resumeUnwind", Vec::new()),
 		// The location the call passes, as a `#[track_caller]` function's call does.
 		("Location", _) if inherent_std(tcx, call.def_id) != Some(Std::Location) => return None,
-		("Location", "caller") => b.caller_arg(Instance::mono(tcx, call.def_id), span),
+		("Location", "caller") => {
+			let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, call.args).ok()??;
+			b.caller_arg(instance, span)
+		}
 		("Location", "file" | "line") => args.pop()?.member(name.as_str()),
 		("Location", "column") => args.pop()?.member("col"),
 		("panicking", "set_hook" | "take_hook") => {

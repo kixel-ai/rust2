@@ -10,7 +10,9 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
 use rustc_span::{RemapPathScopeComponents, Span};
 
+use super::Translator;
 use super::body::Body;
+use super::library::{self, Std};
 use crate::ts::{Expr, Key, Param, StmtKind, Type};
 
 /// The `rt.Location` rustc gives a call at `span`: where the outermost macro call it came
@@ -24,22 +26,33 @@ pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 		.display(RemapPathScopeComponents::MACRO)
 		.to_string_lossy()
 		.into_owned();
+	object(file, pos.line, pos.col_display + 1)
+}
+
+/// The `rt.Location` of `file`, `line`, and `col`.
+pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("file".into()), Expr::Str(file)),
-		(Key::Name("line".into()), Expr::lit(pos.line.to_string())),
-		(Key::Name("col".into()), Expr::lit((pos.col_display + 1).to_string())),
+		(Key::Name("line".into()), Expr::lit(line.to_string())),
+		(Key::Name("col".into()), Expr::lit(col.to_string())),
 	])
 }
 
-/// Whether a call of `instance` passes its caller's location.
-pub fn tracks<'tcx>(tcx: TyCtxt<'tcx>, instance: Instance<'tcx>) -> bool {
-	instance.def.requires_caller_location(tcx)
+/// Whether a call of `instance` passes its caller's location: the crate's own, as std's
+/// read it only to say where they panic, which translated panics do not carry.
+pub fn tracks<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> bool {
+	t.crates.translates(instance.def_id()) && instance.def.requires_caller_location(t.tcx)
 }
 
-/// Whether a call of the trait method `def_id` through a trait object passes its caller's
-/// location, as its declaration's `#[track_caller]` says.
-pub fn tracks_virtual(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
-	InstanceKind::Virtual(def_id, 0).requires_caller_location(tcx)
+/// Whether `def_id` is `Location::caller`, which gives the location its call passes.
+pub fn is_caller(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+	library::inherent_std(tcx, def_id) == Some(Std::Location) && tcx.item_name(def_id).as_str() == "caller"
+}
+
+/// Whether a call of the crate's trait method `def_id` through a trait object passes its
+/// caller's location, as its declaration's `#[track_caller]` says.
+pub fn tracks_virtual(t: &Translator<'_, '_>, def_id: DefId) -> bool {
+	t.crates.translates(def_id) && InstanceKind::Virtual(def_id, 0).requires_caller_location(t.tcx)
 }
 
 impl<'tcx> Body<'_, '_, 'tcx> {
@@ -65,7 +78,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// shim does, or `None` if it takes none.
 	pub fn reified(&mut self, instance: Instance<'tcx>, span: Span) -> Option<Expr> {
 		let tcx = self.t.tcx;
-		if !tracks(tcx, instance) {
+		if !tracks(self.t, instance) {
 			return None;
 		}
 		let sig = self.t.sig(instance.def_id(), instance.args);

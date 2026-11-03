@@ -60,7 +60,7 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 	b.slotted = slotted.clone();
 	let mut fx = Fx::new(&mut b, &mir, Env::Plain, span);
 	let mut params = fx.params();
-	if crate::lower::caller::tracks(tcx, instance) {
+	if crate::lower::caller::tracks(fx.b.t, instance) {
 		let caller = fx.b.fresh("caller");
 		params.push(Param {
 			name: caller.clone(),
@@ -2698,7 +2698,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		};
 		let env = self.b.t.typing_env_pub();
 		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
-		if !crate::lower::caller::tracks(self.tcx, instance) {
+		if !(crate::lower::caller::is_caller(self.tcx, def_id) || crate::lower::caller::tracks(self.b.t, instance)) {
 			return None;
 		}
 		let location = match &self.caller {

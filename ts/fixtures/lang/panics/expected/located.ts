@@ -81,25 +81,25 @@ export function lines(out: rt.ByteVec, at: rt.Location[]): void {
 export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _24: (a0: rt.u8) => rt.Location = (n: rt.u8): rt.Location => {
 		if (!(rt.u8Rem(n, 2) === 0)) {
-			return outer({ file: "fixtures/lang/panics/src/located.rs", line: 136, col: 61 });
+			return outer({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 61 });
 		}
-		return here({ file: "fixtures/lang/panics/src/located.rs", line: 136, col: 45 });
+		return here({ file: "fixtures/lang/panics/src/located.rs", line: 139, col: 45 });
 	};
 	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
-	const _7: rt.u8 = rt.u8Rem(kind, 5);
+	const _7: rt.u8 = rt.u8Rem(kind, 6);
 	if (_7 === 0) {
 		const _11: [rt.Location, rt.Location] = twice({ file: "fixtures/lang/panics/src/located.rs", line: 131, col: 26 });
-		lines(out, [{ file: "fixtures/lang/panics/src/located.rs", line: 132, col: 26 }, here({ file: "fixtures/lang/panics/src/located.rs", line: 132, col: 46 }), outer({ file: "fixtures/lang/panics/src/located.rs", line: 132, col: 54 }), _11[0], _11[1], plain(), picked(first, { file: "fixtures/lang/panics/src/located.rs", line: 132, col: 78 })]);
+		lines(out, [{ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 19 }, here({ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 39 }), outer({ file: "fixtures/lang/panics/src/located.rs", line: 134, col: 47 }), _11[0], _11[1], plain(), picked(first, { file: "fixtures/lang/panics/src/located.rs", line: 134, col: 71 })]);
 	} else if (_7 === 1) {
-		const _23: [rt.Location, rt.Location] = inClosure({ file: "fixtures/lang/panics/src/located.rs", line: 135, col: 33 });
+		const _23: [rt.Location, rt.Location] = inClosure({ file: "fixtures/lang/panics/src/located.rs", line: 138, col: 33 });
 		lines(out, [_23[0], _23[1], _24(first), ((): rt.Location => {
-			return { file: "fixtures/lang/panics/src/located.rs", line: 137, col: 53 };
+			return { file: "fixtures/lang/panics/src/located.rs", line: 140, col: 53 };
 		})()]);
 	} else if (_7 === 2) {
 		const tracked: Tracked.Tracked = new of$u8(first);
 		const inherits: Tracked.Tracked = new of$located_Inherits({});
 		const own: Untracked.Untracked = new of$located_Own({});
-		lines(out, [at$located_Tracked_u8(first, { file: "fixtures/lang/panics/src/located.rs", line: 146, col: 27 }), via$located_Tracked_u8(first), Inherits.at$located_Tracked({}, { file: "fixtures/lang/panics/src/located.rs", line: 148, col: 30 }), generic$u8(first), generic$located_Inherits({}), tracked.at$Tracked({ file: "fixtures/lang/panics/src/located.rs", line: 151, col: 29 }), tracked.via$Tracked(), inherits.at$Tracked({ file: "fixtures/lang/panics/src/located.rs", line: 153, col: 30 }), own.at$Untracked(), Own.at$located_Untracked({}, { file: "fixtures/lang/panics/src/located.rs", line: 155, col: 25 }), Places.index$ops_Index_u8({}, first, { file: "fixtures/lang/panics/src/located.rs", line: 156, col: 28 })]);
+		lines(out, [at$located_Tracked_u8(first, { file: "fixtures/lang/panics/src/located.rs", line: 149, col: 27 }), via$located_Tracked_u8(first), Inherits.at$located_Tracked({}, { file: "fixtures/lang/panics/src/located.rs", line: 151, col: 30 }), generic$u8(first), generic$located_Inherits({}), tracked.at$Tracked({ file: "fixtures/lang/panics/src/located.rs", line: 154, col: 29 }), tracked.via$Tracked(), inherits.at$Tracked({ file: "fixtures/lang/panics/src/located.rs", line: 156, col: 30 }), own.at$Untracked(), Own.at$located_Untracked({}, { file: "fixtures/lang/panics/src/located.rs", line: 158, col: 25 }), Places.index$ops_Index_u8({}, first, { file: "fixtures/lang/panics/src/located.rs", line: 159, col: 28 })]);
 	} else if (_7 === 3) {
 		const g: () => rt.Location = (): rt.Location => {
 			return outer({ file: "fixtures/lang/panics/src/located.rs", line: 21, col: 1 });
@@ -123,21 +123,25 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _78);
 		}
 		lines(out, [_73, _74, _75, fs[_78](), own2({})]);
+	} else if (_7 === 4) {
+		lines(out, [{ file: "fixtures/lang/panics/src/located.rs", line: 175, col: 32 }, { file: "fixtures/lang/panics/src/located.rs", line: 176, col: 31 }, THERE$called, { file: "fixtures/lang/panics/src/located.rs", line: 180, col: 44 }, here({ file: "fixtures/lang/panics/src/located.rs", line: 180, col: 49 })]);
 	} else {
-		lines(out, [here({ file: "fixtures/lang/panics/src/located.rs", line: 173, col: 23 }), here({ file: "fixtures/lang/panics/src/located.rs", line: 173, col: 34 }), here({ file: "fixtures/lang/panics/src/located.rs", line: 173, col: 45 })]);
+		lines(out, [here({ file: "fixtures/lang/panics/src/located.rs", line: 186, col: 23 }), here({ file: "fixtures/lang/panics/src/located.rs", line: 186, col: 34 }), here({ file: "fixtures/lang/panics/src/located.rs", line: 186, col: 45 })]);
 		const wide: string = "é😀　";
-		const _97: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 175, col: 49 });
-		const _99: rt.Location = { file: "fixtures/lang/panics/src/located.rs", line: 175, col: 57 };
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, wide), (f: rt.Formatter) => rt.fmtLocationDisplay(_97, f), (f: rt.Formatter) => rt.fmtLocationDisplay(_99, f)];
+		const _105: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 188, col: 49 });
+		const _107: rt.Location = { file: "fixtures/lang/panics/src/located.rs", line: 188, col: 57 };
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, wide), (f: rt.Formatter) => rt.fmtLocationDisplay(_105, f), (f: rt.Formatter) => rt.fmtLocationDisplay(_107, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], args2[1], args2[0], args2[2]])));
 	}
 }
 
+export const THERE$called: rt.Location = { file: "fixtures/lang/panics/src/located.rs", line: 177, col: 34 };
+
 /** What a `Location` says of itself, and how locations compare. */
 export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
-	const a: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 184, col: 13 });
-	const b: rt.Location = picked(first, { file: "fixtures/lang/panics/src/located.rs", line: 185, col: 13 });
+	const a: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 197, col: 13 });
+	const b: rt.Location = picked(first, { file: "fixtures/lang/panics/src/located.rs", line: 198, col: 13 });
 	const _9: rt.u8 = rt.u8Rem(kind, 4);
 	if (_9 === 0) {
 		let s: string = "";
@@ -155,7 +159,7 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(s));
 	} else if (_9 === 1) {
 		const copy: rt.Location = a;
-		const same: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 195, col: 24 });
+		const same: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 208, col: 24 });
 		const _49: rt.u8 = rt.locationEq(a, b) ? 1 : 0;
 		const _53: rt.u8 = rt.locationEq(a, copy) ? 1 : 0;
 		const _56: rt.u8 = !rt.locationEq(a, same) ? 1 : 0;
@@ -166,9 +170,9 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}))), undefined, true);
 		lines(out, [max$02i836o(a, b), min$1rvi5e9(a, b)]);
 	} else if (_9 === 2) {
-		const _83: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 208, col: 35 });
-		const _84: rt.Location = outer({ file: "fixtures/lang/panics/src/located.rs", line: 208, col: 46 });
-		const _85: rt.Location = picked(rt.u8WrappingAdd(first, 1), { file: "fixtures/lang/panics/src/located.rs", line: 208, col: 55 });
+		const _83: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 221, col: 35 });
+		const _84: rt.Location = outer({ file: "fixtures/lang/panics/src/located.rs", line: 221, col: 46 });
+		const _85: rt.Location = picked(rt.u8WrappingAdd(first, 1), { file: "fixtures/lang/panics/src/located.rs", line: 221, col: 55 });
 		const all: rt.Location[] = [b, _83, a, _84, _85];
 		rt.sliceSort(all, rt.cmpLt(rt.locationCmp), 4, true);
 		rt.vecDedupBy(all, rt.locationEq);
@@ -182,7 +186,7 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.btreeLen(set) & 0xff, rt.hashLen(hashed) & 0xff, rt.hashContains(hashed, a) ? 1 : 0)), undefined, true);
 	} else {
 		const _117: rt.Location | undefined = then$142atvy(rt.u8Rem(first, 2) === 0, (): rt.Location => {
-			return here({ file: "fixtures/lang/panics/src/located.rs", line: 225, col: 49 });
+			return here({ file: "fixtures/lang/panics/src/located.rs", line: 238, col: 49 });
 		});
 		const held: Held$read.Held = { at: a, maybe: _117 };
 		const _127: rt.u8 = Held$read.eq$read_cmp_PartialEq(held, held) ? 1 : 0;
@@ -195,10 +199,10 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
 	if (rt.u8Rem(kind, 2) === 0) {
-		check$panicked(rt.u8Rem(first, 3) !== 0, { file: "fixtures/lang/panics/src/located.rs", line: 244, col: 14 });
+		check$panicked(rt.u8Rem(first, 3) !== 0, { file: "fixtures/lang/panics/src/located.rs", line: 257, col: 14 });
 	} else {
 		((a: boolean): void => {
-			return check$panicked(a, { file: "fixtures/lang/panics/src/located.rs", line: 237, col: 5 });
+			return check$panicked(a, { file: "fixtures/lang/panics/src/located.rs", line: 250, col: 5 });
 		})(rt.u8Rem(first, 3) !== 1);
 	}
 	rt.byteVecPush(out, first);
