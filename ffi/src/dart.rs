@@ -8,7 +8,7 @@
 //! returning it is a constructor, which may share its name with a field: an object's `new`
 //! its unnamed one (`Counter('c', 1)`), and any other a named one (`Position.group`). Its
 //! other functions are static members. An object is a final class owning its
-//! handle, freed by `close` or a `NativeFinalizer`; a record a final class; an enum a Dart
+//! handle, freed by `close` or the garbage collector; a record a final class; an enum a Dart
 //! enum, or with data a sealed class of a final class per variant; a tuple a record; a
 //! trait an abstract class, whose `close` Rust calls once it drops an implementation; a
 //! closure a function type; a future a `Cancelable`, a `Future` that cancels; an error a
@@ -225,7 +225,6 @@ const TAKEN: &[&str] = &[
 	"FormatException",
 	"Function",
 	"Future",
-	"FutureOr",
 	"List",
 	"Map",
 	"Never",
@@ -234,7 +233,6 @@ const TAKEN: &[&str] = &[
 	"SocketAddr",
 	"StackTrace",
 	"StateError",
-	"Stream",
 	"String",
 	"UnsupportedError",
 	"bool",
@@ -655,6 +653,35 @@ impl<'a> Gen<'a> {
 			args.join(", ")
 		);
 		self.native_fn(&name, params, call.ret.clone())
+	}
+
+	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
+	/// giving the garbage collector a Dart object owning it to free it with, and one taking
+	/// that back and freeing it, serving the isolate meanwhile.
+	fn owned(&mut self, c: &str, handle: &Ty) -> (String, String) {
+		let p = &self.abi.prefix;
+		let bare = self.bare(c);
+		let own = format!("{p}_dart_own_{bare}");
+		let free = format!("{p}_dart_free_{bare}");
+		let raw = rs(handle);
+		let _ = write!(
+			self.glue,
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n\
+			#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tunsafe {{ runtime::disown(own, object) }};\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}\n}}\n\n"
+		);
+		self.natives.insert(
+			own.clone(),
+			format!(
+				"@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{own}')\nexternal ffi.Pointer<ffi.Void> _{own}(Object p0, ffi.Pointer<ffi.Void> p1);\n\n"
+			),
+		);
+		self.natives.insert(
+			free.clone(),
+			format!(
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{free}')\nexternal void _{free}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3);\n\n"
+			),
+		);
+		(format!("_{own}"), format!("_{free}"))
 	}
 
 	/// [`Self::served`] of a C function by name, parameters, and return.
@@ -1361,22 +1388,16 @@ impl<'a> Gen<'a> {
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
-		let handle = vec![Ty::Handle {
-			name: c.clone(),
-			constant: false,
-		}];
-		// The garbage collector's free runs with no isolate to serve.
-		let fin = self.native_fn(&format!("{c}_free"), handle.clone(), Ty::Void);
-		let free = self.served_fn(&format!("{c}_free"), handle, Ty::Void);
-		let mut members = vec!["close".to_string()];
-		let mut body = vec![format!(
-			"\tstatic final _fin = ffi.NativeFinalizer(ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({fin}));\n\n\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_fin.attach(this, raw.cast(), detach: this);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() {{\n\t\t_fin.detach(this);\n\t\t{free}(_n.home, _raw);\n\t}}\n"
-		)];
-		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
 		};
+		let (own, free) = self.owned(&c, &owner);
+		let mut members = vec!["close".to_string()];
+		let mut body = vec![format!(
+			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
+		)];
+		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		self.methods(&object.methods, &owner, &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
 		let text = format!("{rust}\n\n{}", object.docs);
@@ -1764,7 +1785,7 @@ impl<'a> Gen<'a> {
 			self.helpers.insert(
 				poll_name.clone(),
 				format!(
-					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, Cancelable<{ok_dt}> c) {{\n\tfinal a_ = _Arena();\n\ttry {{\n\t\t{}\n\t\tswitch ({poll_fn}({})) {{\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.end();\n\t}}\n}}\n\n",
+					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, _Call<{ok_dt}> c) {{\n\tfinal a_ = _n.stack;\n\tfinal m_ = a_.mark();\n\ttry {{\n\t\t{}\n\t\tswitch ({poll_fn}({})) {{\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.reset(m_);\n\t}}\n}}\n\n",
 					stmts.join("\n\t\t"),
 					poll_args.join(", "),
 					cases.iter().map(|c| c.replace("\n\t\t", "\n\t\t\t").replacen("\t\tcase", "\t\t\tcase", 1)).collect::<Vec<_>>().join("\n")
@@ -1778,7 +1799,7 @@ impl<'a> Gen<'a> {
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
 				indent(&inner.join("\n"))
 			));
-			body.push(format!("return Cancelable<{ok_dt}>._(f_, {free_fn}, {poll_name});"));
+			body.push(format!("return _call<{ok_dt}>(f_, {free_fn}, {poll_name});"));
 		} else {
 			ret_type = ok_dt.clone();
 			let mut inner = pre.clone();

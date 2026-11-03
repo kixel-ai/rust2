@@ -437,6 +437,30 @@ export function bytesMutPutStorage(b: BytesMut, s: Bytes): void {
 	bytesMutExtend(b, s);
 }
 
+/**
+ * `BufMut::put` of a `Buf` read through its own methods into a `BytesMut` that `bytes`
+ * just made with a capacity, which isn't 0, so it reserves and copies chunk by chunk.
+ */
+export function bytesMutPutBuf<B>(
+	b: BytesMut,
+	src: B,
+	hasRemaining: (src: B) => boolean,
+	remaining: (src: B) => usize,
+	chunk: (src: B) => ByteSlice,
+	advance: (src: B, cnt: usize) => void,
+): void {
+	if (!hasRemaining(src)) return;
+	if (!b.exact || b.cap === 0) {
+		throw new Error("rust2-ts: `BufMut::put` of a `Buf` into a `BytesMut` that `bytes` did not just make with a capacity");
+	}
+	bytesMutReserve(b, remaining(src));
+	while (hasRemaining(src)) {
+		const s = chunk(src);
+		bytesMutExtend(b, s);
+		advance(src, s.length as usize);
+	}
+}
+
 /** `BytesMut::extend_from_slice`, and `BufMut::put_slice`. */
 export function bytesMutExtend(b: BytesMut, s: ByteSlice): void {
 	bytesMutReserve(b, s.length);

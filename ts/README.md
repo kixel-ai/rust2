@@ -346,7 +346,9 @@ crate or a module its item repeats, as `Option`, `fmt_Display`, and `io_Error`. 
 goes by where it is defined, `hints_typed_closure1` for `hints::typed::{closure#1}`, with
 the type arguments of what it is in, and an impl by its trait and self type. A reference
 is `ref` or `mut`, a slice `slice`, and an array or tuple goes by its length, `array4` or
-`tuple2`, each before what it holds: `ref_slice_u8` for `&[u8]`. The suffix depends on
+`tuple2`, each before what it holds: `ref_slice_u8` for `&[u8]`, but a reference to a
+generic type in its module after the type's arguments: `chunk$bytes_Buf_u8_mut` for `&mut
+Wrap<u8>`'s, apart from `Wrap<&mut u8>`'s `chunk$bytes_Buf_mut_u8`. The suffix depends on
 the instance alone, and is there even when no other instance is, so reaching one renames
 nothing; two instances it doesn't tell apart fail translation. A type or trait declared
 in a function has its module suffixed alike, `copy.Pair$run`, and an async block's class
@@ -511,8 +513,11 @@ behind `&`, `&mut`, `Box`, `Arc`, or `Rc` is an `rt.Iter` of its items, `rt.iter
 of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
 such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
 trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
-trait object's does. A box drops the iterator it owns, and the last `Arc` the one they
-share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
+trait object's does. A box of any iterator, a trait object or not, is `rt.iterBox` of it
+wherever it is read, behind a `&mut` too: it forwards `next`, `nth`, `last`, and what else
+std's `Iterator` for `Box<I>` forwards, and reads the rest by `next`, `advance_by` and the
+folds included, so a boxed `skip` of a zip skips through the zip's `nth` as std's does. A
+box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
 A trait object of std's
@@ -580,9 +585,11 @@ of them:
   required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
   `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
   `put_slice`, `put_bytes`, and `put`, whose panics are
-  `bytes`'. `put` of the crate's own `Buf` into a `Vec<u8>` reads it through its methods
-  as `bytes` does, and into a `BytesMut` is refused, as `bytes` picks those methods by its
-  capacity. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
+  `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
+  one, into a `Vec<u8>` reads it through its methods as `bytes` does. Into a `BytesMut`
+  it is refused, as `bytes` picks those methods by its capacity, but for `bytes`' own, as
+  `Chain::copy_to_bytes` makes, each into a `BytesMut` it just made with a capacity,
+  which reads it chunk by chunk. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through
@@ -984,7 +991,8 @@ built natively for wasm32 and run beside its translation on the same inputs by
   freezes, grows, and writes a `BytesMut` by ops its input picks, ending with every
   piece's bytes, and reads and writes through `Buf` and `BufMut` generically, through a
   `&mut` and a `Box` too, a buffer of its own included, ending with each vector's
-  capacity. It changes hashbrown's maps and sets, keyed by JS primitives and by
+  capacity. It copies bytes out of `Chain`s of each kind of buffer, nested and as
+  `dyn Buf`s, at either end of each half and past the end. It changes hashbrown's maps and sets, keyed by JS primitives and by
   tuples, and `HashTable`s of tuples and of numbers, whose places it writes, under hashes
   that collide and that pass 2^53, checks their capacity by std's guarantees, and writes a
   `hashlink::LinkedHashMap` in its own order. `caller.ts` names the inputs that reserve at the edges of
