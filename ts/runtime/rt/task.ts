@@ -820,11 +820,11 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 /**
  * `Cell::from_mut` of the object or the bytes a `&mut` is: a read is a copy, as a `Cell`
  * only moves or copies its value out, and a write lands in place, a JS array's taking
- * the new one's length. A read copies as `objectCopy` copies with `each`.
+ * the new one's length. A read copies as `objectCopy` copies to `depth`.
  */
-export function cellIn<T extends object>(p: T, each = false): Cell<T> {
+export function cellIn<T extends object>(p: T, depth = 0): Cell<T> {
 	const write = partPlace(p);
-	return cellOfPlace(place(() => objectCopy(p, each), (value) => (write.v = value)));
+	return cellOfPlace(place(() => objectCopy(p, depth), (value) => (write.v = value)));
 }
 
 /**

@@ -421,10 +421,10 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
 /**
  * `mem::replace` of what a `&mut` to an object points at, in place: `value`'s fields, or
  * its items and capacity for a JS array, moved into `p`, and what `p` held returned as an
- * object of its own, copied as `objectCopy` copies with `each`.
+ * object of its own, copied as `objectCopy` copies to `depth`.
  */
-export function replaceIn<T extends object>(p: T, value: T, each = false): T {
-	const old = objectCopy(p, each);
+export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
+	const old = objectCopy(p, depth);
 	if (Array.isArray(p)) vecAssign(p, value as unknown[]);
 	else Object.assign(p, value);
 	return old;
@@ -432,15 +432,15 @@ export function replaceIn<T extends object>(p: T, value: T, each = false): T {
 
 /**
  * A copy of the object `p`, one object deep: its fields, its bytes, or its items and
- * capacity for a JS array. With `each`, its items are objects a write may land in, as a
- * `sliceIn`'s, which a view of one gets copies of too.
+ * capacity for a JS array. Its items, and theirs to `depth` levels of arrays, are objects
+ * a write may land in, as a `sliceIn`'s, which a view of one copies too.
  */
-export function objectCopy<T extends object>(p: T, each = false): T {
+export function objectCopy<T extends object>(p: T, depth = 0): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
 		const old: unknown[] & Capped = p.slice();
 		if ((p as Capped).cap !== undefined) old.cap = (p as Capped).cap;
-		if (each && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object);
+		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;
 	}
 	return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
@@ -640,10 +640,10 @@ function writesIn(s: object): boolean {
 
 /**
  * `mem::replace` of element `i` of `s`, a slice of objects: what it held, as an object of
- * its own where the write lands in it.
+ * its own, copied to `depth` as `objectCopy` copies, where the write lands in it.
  */
-export function sliceReplace<T extends object>(s: T[], i: number, value: T): T {
-	if (writesIn(s)) return replaceIn(s[i], value);
+export function sliceReplace<T extends object>(s: T[], i: number, value: T, depth = 0): T {
+	if (writesIn(s)) return replaceIn(s[i], value, depth);
 	const old = s[i];
 	s[i] = value;
 	return old;
@@ -651,12 +651,12 @@ export function sliceReplace<T extends object>(s: T[], i: number, value: T): T {
 
 /**
  * `mem::swap` of element `i` of `a` and element `j` of `b`, slices of objects: the one
- * whose write lands in its object is copied out first, as the other's slot would
- * otherwise take that object itself.
+ * whose write lands in its object is copied out first, to `depth` as `sliceReplace`
+ * copies, as the other's slot would otherwise take that object itself.
  */
-export function sliceSwapAcross<T extends object>(a: T[], i: number, b: T[], j: number): void {
+export function sliceSwapAcross<T extends object>(a: T[], i: number, b: T[], j: number, depth = 0): void {
 	if (writesIn(b)) [a, i, b, j] = [b, j, a, i];
-	b[j] = sliceReplace(a, i, b[j]);
+	b[j] = sliceReplace(a, i, b[j], depth);
 }
 
 /** What a `sliceView` answers to its own `View` by. */

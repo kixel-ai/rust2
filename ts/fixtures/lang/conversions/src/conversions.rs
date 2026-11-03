@@ -284,10 +284,15 @@ fn write_first<T: Value>(s: &mut [T], value: T) -> T {
 	old
 }
 
+/// `mem::replace` of the first array, as a function given any slice of them makes it.
+fn replace_first<T>(s: &mut [[T; 1]], value: [T; 1]) -> [T; 1] {
+	std::mem::replace(&mut s[0], value)
+}
+
 /// A slice of what a `&mut` whose place only the caller knows points at: written whole,
 /// read out by `mem::replace` and by `mem::swap` either way round, with a local, with
-/// another slice's element, as an array, of a reference to it, and by a cell, and written
-/// in place.
+/// another slice's element, as an array, of a reference to it, by a cell, and nested in
+/// arrays, and written in place.
 fn lent_param<T: Value>(to: &mut T, data: &[u8], out: &mut Vec<u8>) {
 	let s = std::slice::from_mut(to);
 	write_first(s, T::make(data, 18)).put(out);
@@ -314,6 +319,13 @@ fn lent_param<T: Value>(to: &mut T, data: &[u8], out: &mut Vec<u8>) {
 	// A cell of the element, and of an array of it.
 	Cell::from_mut(&mut s[0]).replace(T::make(data, 25)).put(out);
 	let [old] = Cell::from_mut(std::array::from_mut(&mut s[0])).replace([T::make(data, 26)]);
+	old.put(out);
+	// Nested: a slice of an array of it, and a cell of an array of an array of it.
+	let a = std::array::from_mut(&mut s[0]);
+	let [old] = replace_first(std::slice::from_mut(a), [T::make(data, 27)]);
+	old.put(out);
+	let b = std::array::from_mut(std::array::from_mut(&mut s[0]));
+	let [[old]] = Cell::from_mut(b).replace([[T::make(data, 28)]]);
 	old.put(out);
 	s[0].clone_from(&other);
 	s[0].put(out);

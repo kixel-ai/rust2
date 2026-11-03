@@ -542,7 +542,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& !in_object(&c)
 					&& let (Some((s, i)), Some((t, j))) = (self.element_in(&a, ty), self.element_in(&c, ty))
 				{
-					out.push(StmtKind::Expr(Expr::rt("sliceSwapAcross", vec![s, i, t, j])).at(None));
+					let mut made = vec![s, i, t, j];
+					made.extend(self.copy_depth(ty));
+					out.push(StmtKind::Expr(Expr::rt("sliceSwapAcross", made)).at(None));
 					return done(Expr::undefined(), false);
 				}
 				// An object written in place gives a copy of what it held, so it goes first:
@@ -1278,7 +1280,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// lands in, such as an element of a slice of one.
 		if cell && self.b.t.write_in(ty).is_some() {
 			let mut made = vec![self.operand(op, span, out)];
-			made.extend(self.copies_each(ty).then(|| Expr::lit("true")));
+			made.extend(self.copy_depth(ty));
 			return Some(Expr::rt("cellIn", made));
 		}
 		if let Slot::Alias(Some(target)) = &self.slots[place.local]
@@ -1613,7 +1615,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// The object written in place gives what it held as an object of its own.
 		if place.1.is_some_and(|p| self.in_object(p)) {
 			let mut made = vec![place.0, value];
-			made.extend(self.copies_each(ty).then(|| Expr::lit("true")));
+			made.extend(self.copy_depth(ty));
 			let old = Expr::rt("replaceIn", made);
 			let Some(base) = base else {
 				out.push(StmtKind::Expr(old).at(None));
@@ -1629,7 +1631,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		};
 		let name = self.b.fresh(base);
 		if let Some((slice, index)) = self.element_in(&place, ty) {
-			let old = Expr::rt("sliceReplace", vec![slice, index, value]);
+			let mut made = vec![slice, index, value];
+			made.extend(self.copy_depth(ty));
+			let old = Expr::rt("sliceReplace", made);
 			out.push(StmtKind::decl(false, name.clone(), None, Some(old)).at(None));
 			return Expr::ident(name);
 		}
@@ -1679,10 +1683,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(((**slice).clone(), (**index).clone()))
 	}
 
-	/// Whether `ty` is an array of objects a write may land in, which a copy of a view of
-	/// one copies too, unlike references, which move as they are.
-	fn copies_each(&self, ty: Ty<'tcx>) -> bool {
-		matches!(ty.kind(), ty::Array(elem, _) if self.b.t.write_in(*elem).is_some())
+	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
+	/// copy of a view of one copies too, unlike references, which move as they are: the
+	/// runtime's `depth`, if any.
+	fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
+		let mut depth = 0;
+		let mut at = ty;
+		while let ty::Array(elem, _) = at.kind()
+			&& self.b.t.write_in(*elem).is_some()
+		{
+			depth += 1;
+			at = *elem;
+		}
+		(depth > 0).then(|| Expr::lit(depth.to_string()))
 	}
 
 	/// Set what a `&mut` borrows to `value`.
