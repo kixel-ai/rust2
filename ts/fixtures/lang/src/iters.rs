@@ -1859,7 +1859,10 @@ pub fn lent(data: &[u8], out: &mut Vec<u8>) {
 
 	// Rebound through the `&mut` that `by_ref` returns, the local reads the other iterator,
 	// and the first is left where it stopped.
-	let mut own = Countdown { left: n as u8 * 3, step: 2 };
+	let mut own = Countdown {
+		left: n as u8 * 3,
+		step: 2,
+	};
 	let mut other = Countdown { left: 9, step: 4 };
 	let mut held = &mut own;
 	out.push(held.next().unwrap_or(0xaa));
