@@ -1662,6 +1662,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
 				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
 				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),
+				library::Std::Utf8Chunk => Type::Rt("Utf8Chunk", vec![]),
 				library::Std::ParseFloatError => Type::Rt("ParseFloatError", vec![]),
 				library::Std::TryFromFloatSecsError => Type::Rt("TryFromFloatSecsError", vec![]),
 				library::Std::Formatter => Type::Rt("Formatter", vec![]),

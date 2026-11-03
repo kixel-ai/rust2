@@ -217,6 +217,10 @@ are std's `flat_map` of each char's, sized as it is, and write what they have le
 their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired surrogate
 fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
 becomes U+FFFD, and so does an odd byte at the end.
+`String::from_utf8_lossy` is a `TextDecoder`'s, which writes one U+FFFD for each maximal
+invalid sequence, as std's does; its `Cow<str>` is the text either way. `utf8_chunks` splits
+where `str::from_utf8` fails, so each `Utf8Chunk`'s `invalid` bytes are std's, and `Debug`
+of it writes what is left as std's does, each invalid byte as `\xNN`.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and

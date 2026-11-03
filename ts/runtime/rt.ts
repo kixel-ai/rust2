@@ -2035,7 +2035,8 @@ export class FromUtf8Error {
 
 	constructor(bytes: ByteVec) {
 		this.bytes = bytes;
-		this.error = utf8Error(byteVecView(bytes));
+		// Made only of bytes that are not UTF-8.
+		this.error = utf8Check(byteVecView(bytes)) as Utf8Error;
 	}
 }
 
@@ -2044,8 +2045,8 @@ export function fromUtf8ErrorClone(e: FromUtf8Error): FromUtf8Error {
 	return new FromUtf8Error(byteVecFrom(byteVecView(e.bytes)));
 }
 
-/** Where `v`, which is not UTF-8, stops being so, and how many bytes are invalid there, as std reports it. */
-function utf8Error(v: Uint8Array): Utf8Error {
+/** Where `v` stops being UTF-8, and how many bytes are invalid there, as std reports it: `undefined` if it never does. */
+export function utf8Check(v: Uint8Array): Utf8Error | undefined {
 	const tail = (b: number | undefined) => b !== undefined && b >= 0x80 && b <= 0xbf;
 	for (let i = 0; i < v.length; ) {
 		const first = v[i];
@@ -2066,7 +2067,7 @@ function utf8Error(v: Uint8Array): Utf8Error {
 		}
 		i += width;
 	}
-	throw new Error("utf8Error: the bytes are valid UTF-8");
+	return undefined;
 }
 
 /** `str::from_utf8`. */
@@ -2075,7 +2076,7 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 	try {
 		return Ok(decoder.decode(v));
 	} catch {
-		return Err(utf8Error(v));
+		return Err(utf8Check(v) as Utf8Error);
 	}
 }
 
