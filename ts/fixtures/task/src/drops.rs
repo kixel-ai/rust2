@@ -31,9 +31,9 @@ mod iters;
 mod lists;
 mod objects;
 mod once;
+mod orders;
 mod released;
 mod searched;
-mod sorted;
 
 /// A value of a type that drops, with no `[Symbol.dispose]` of its own.
 pub enum Held {
@@ -756,10 +756,11 @@ pub fn released(log: &Log, id: u32, arg: u8) {
 	released::released(log, id, arg);
 }
 
-/// Run scenario `arg % 6` of what a B-tree's `collect` and `from` drop of keys whose own
-/// impls disagree. The last panics in the sort.
-pub fn sorted(log: &Log, id: u32, arg: u8) {
-	sorted::sorted(log, id, arg);
+/// Run scenario `arg % 8` of what std drops as it orders: a B-tree's `collect` and `from`
+/// of keys whose own impls disagree, `max_by_key` and `min_by_key` by keys that drop, and
+/// a map's `into_keys`' `max` and `min`. The last panics in the sort.
+pub fn orders(log: &Log, id: u32, arg: u8) {
+	orders::orders(log, id, arg);
 }
 
 /// Run scenario `arg % 3` of where std drops a closure given to a string's search or edit.

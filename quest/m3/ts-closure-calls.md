@@ -8,7 +8,7 @@ owns as std's does, proven by the task fixture's differential tests against nati
 
 ## Plan
 
-Found probing std's consumers for [drop order](/quest/m3/ts-drop-order.md) in
+Found probing std's consumers for drop order in
 [#438](https://github.com/moq-dev/rust2/pull/438). Of a closure that owns nothing, each of
 these is refused today:
 

@@ -1,7 +1,10 @@
-//! What a B-tree's `collect` and `from` drop of keys whose own `Ord`, `PartialOrd`, and
-//! `PartialEq` disagree with each other: std sorts the entries as its stable sort does, a
-//! set's by `lt` and a map's by `cmp`, then keeps the last of each run `!=` finds equal,
-//! dropping each other one, key then value, as it finds it.
+//! What std drops as it orders. A B-tree's `collect` and `from`, of keys whose own `Ord`,
+//! `PartialOrd`, and `PartialEq` disagree with each other, sort the entries as std's stable
+//! sort does, a set's by `lt` and a map's by `cmp`, then keep the last of each run `!=`
+//! finds equal, dropping each other one, key then value, as they find it. `max_by_key` and
+//! `min_by_key` pair each item with its key, which drops with the item as it loses, and the
+//! best's once the fold ends. A map's `into_keys` reads an end for `max` and `min`, and then
+//! drops the rest with it.
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
@@ -71,8 +74,8 @@ impl Ord for Rank {
 	}
 }
 
-/// Run scenario `arg % 6`. The last panics in the sort, which aborts before anything drops.
-pub(super) fn sorted(log: &Log, id: u32, arg: u8) {
+/// Run scenario `arg % 8`. The last panics in the sort, which aborts before anything drops.
+pub(super) fn orders(log: &Log, id: u32, arg: u8) {
 	let key = |n: u32, rank: u8| Ranked { id: id + n, rank, log: log.clone() };
 	// Each key of `n` and its value, a guard of `n + 100`.
 	let entry = |n: u32, rank: u8| (key(n, rank), Guard::new(id + n + 100, log.clone()));
@@ -89,7 +92,7 @@ pub(super) fn sorted(log: &Log, id: u32, arg: u8) {
 	let short = [3, 1, 3, 2, 1, 5, 4, 0];
 	// Past the 20 std's insertion sort takes, so its driftsort runs.
 	let long: Vec<u8> = (0..26).map(|n| n * 7 % 9).collect();
-	match arg % 6 {
+	match arg % 8 {
 		0 => {
 			let set: BTreeSet<Ranked> = keys(&short).into_iter().collect();
 			log.note(format!("set {}", set_ids(&set)));
@@ -127,6 +130,35 @@ pub(super) fn sorted(log: &Log, id: u32, arg: u8) {
 				.collect();
 			let kept = map.iter().map(|(k, g)| format!("{}:{}", k.get().0, g.id() - id));
 			log.note(format!("cells {}", kept.collect::<Vec<_>>().join(",")));
+		}
+		5 => {
+			// Each key made of an item, which says so.
+			let by = |g: &Guard| {
+				let n = g.id() - id;
+				log.note(format!("key {n}"));
+				key(n + 50, (n % 3) as u8 * 2)
+			};
+			let guards = |from: u32, to: u32| (from..to).map(|n| Guard::new(id + n, log.clone())).collect::<Vec<_>>();
+			let max = guards(1, 6).into_iter().max_by_key(by);
+			log.note(format!("max {:?}", max.map(|g| g.id() - id)));
+			let min = guards(6, 11).into_iter().min_by_key(by);
+			log.note(format!("min {:?}", min.map(|g| g.id() - id)));
+			let one = guards(11, 12).into_iter().max_by_key(by);
+			let none = guards(12, 12).into_iter().min_by_key(by);
+			log.note(format!("one {:?} {}", one.map(|g| g.id() - id), none.is_none()));
+		}
+		6 => {
+			// Of keys and values that drop, and of values alone.
+			let map: BTreeMap<Ranked, Guard> = entries(&short).into_iter().collect();
+			let max = map.into_keys().max();
+			log.note(format!("max {:?}", max.map(|k| k.id - id)));
+			let map: BTreeMap<Ranked, Guard> = entries(&short).into_iter().collect();
+			let min = map.into_keys().min();
+			log.note(format!("min {:?}", min.map(|k| k.id - id)));
+			let plain: BTreeMap<u32, Guard> = (1..5).map(|n| (n, Guard::new(id + n + 200, log.clone()))).collect();
+			log.note(format!("plain {:?}", plain.into_keys().max()));
+			let empty: BTreeMap<u32, Guard> = BTreeMap::new();
+			log.note(format!("empty {:?}", empty.into_keys().min()));
 		}
 		_ => {
 			let _set: BTreeSet<Ranked> = keys(&[2, 1, 99, 3]).into_iter().collect();

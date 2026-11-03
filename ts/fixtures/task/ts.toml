@@ -21,7 +21,7 @@ roots = [
     "drops::flattened",
     "drops::indexed",
     "drops::released",
-    "drops::sorted",
+    "drops::orders",
     "drops::compared",
     "drops::lists",
     "drops::searched",

@@ -15,4 +15,4 @@ export function cmp$cmp_Ord(self: Rank, other: Rank): rt.Ordering {
 	return rt.cmp(rt.u8Rem(self._0, 4), rt.u8Rem(other._0, 4));
 }
 
-//# sourceMappingURL=sorted.Rank.ts.map
+//# sourceMappingURL=orders.Rank.ts.map

@@ -70,4 +70,4 @@ export function cmp$cmp_Ord(self: Ranked, other: Ranked): rt.Ordering {
 	rt.panicFmt(["cmp of k", args4[0], " with k", args4[1]]);
 }
 
-//# sourceMappingURL=sorted.Ranked.ts.map
+//# sourceMappingURL=orders.Ranked.ts.map
