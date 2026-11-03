@@ -2005,9 +2005,9 @@ fn mapping<'tcx>(
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
-		// Copies of each run of `N` as an array, which a shared borrow can't tell from the
-		// slice's own elements.
-		("slice", "as_chunks" | "as_rchunks") => {
+		// Each run of `N` as an array: shared, a copy, which a shared borrow can't tell from
+		// the slice's own elements, and mutable, the runtime's view of where the slice holds it.
+		("slice", "as_chunks" | "as_rchunks" | "as_chunks_mut" | "as_rchunks_mut") => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));

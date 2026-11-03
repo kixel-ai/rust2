@@ -49,6 +49,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 				push(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 14) {
 				hashed(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 15) {
+				packets(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rt.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -463,6 +465,62 @@ export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	harness_putU64(out, option_mapOr$1jt76jv(middle, 0, (a0: rt.u32): rt.u64 => {
 		return a0 as rt.u64;
 	}));
+}
+
+/**
+ * `count` TS packets of 188 bytes, each written by element through `as_chunks_mut`, then
+ * numbered by continuity counter as moq-mux's `container/ts/export.rs` numbers them; with
+ * `selector` 1, each packet is read by value first, a copy of its bytes. The sum of the
+ * counters and of each copy's last byte.
+ */
+export function packets(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _32!: rt.u8;
+	let cc!: rt.u8;
+	const packets: rt.ByteVec = rt.byteVecOf(0, rt.usizeMul(rt.u64Low(rt.u64Min(takeU64(data)[0], 4096)), 188));
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0]), rt.byteSliceFrom));
+	while (true) {
+		const _21: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
+		if (_21 === rt.DONE) {
+			break;
+		}
+		const i: rt.usize = _21[0];
+		_21[1].data[_21[1].start] = 71;
+		_21[1].data[_21[1].start + 2] = rt.usizeRem(i, 3) & 0xff;
+		if (!(rt.usizeRem(i, 5) === 0)) {
+			_32 = 16;
+		} else {
+			_32 = 32;
+		}
+		_21[1].data[_21[1].start + 3] = _32;
+		_21[1].data[_21[1].start + 187] = i & 0xff;
+	}
+	const counters: Uint8Array = rt.bytes(3);
+	let sum: rt.u64 = 0;
+	const iter2: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0]), rt.byteSliceFrom);
+	while (true) {
+		const _48: rt.ByteSlice | rt.Done = iter2.next();
+		if (_48 === rt.DONE) {
+			break;
+		}
+		if (selector === 1) {
+			sum = rt.u64Add(sum, rt.byteSliceToArray(_48)[187] as rt.u64);
+		}
+		const _73: rt.usize = rt.usizeRem((((((_48.data[_48.start + 1] & 31) as rt.usize) << 8) >>> 0) | _48.data[_48.start + 2] as rt.usize) >>> 0, 3);
+		if (!(_73 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _73);
+		}
+		if (!((_48.data[_48.start + 3] & 16) !== 0)) {
+			cc = rt.u8WrappingSub(counters[_73], 1) & 15;
+		} else {
+			const _82: rt.u8 = rt.u8Add(counters[_73], 1) & 15;
+			const old = counters[_73];
+			counters[_73] = _82;
+			cc = old;
+		}
+		_48.data[_48.start + 3] = (_48.data[_48.start + 3] & 240) | cc;
+		sum = rt.u64Add(sum, cc as rt.u64);
+	}
+	harness_putU64(out, sum);
 }
 
 /**
