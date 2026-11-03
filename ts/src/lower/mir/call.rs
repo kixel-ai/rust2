@@ -396,8 +396,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ("Arc" | "Rc", "get_mut" | "make_mut")
 				| ("Mutex" | "RwLock" | "RefCell" | "OnceCell" | "OnceLock", "get_mut")
 				| ("RefMut", "leak")
-				| ("RefCell", "undo_leak")
-				| ("Iterator", "by_ref")
+				| ("RefCell", "undo_leak" | "replace_with")
+				| ("Iterator", "by_ref" | "scan")
 				| ("empty", "empty")
 				| (
 					"RefMut" | "MutexGuard" | "MappedMutexGuard" | "RwLockWriteGuard" | "MappedRwLockWriteGuard",

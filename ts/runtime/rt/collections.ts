@@ -28,6 +28,7 @@ import {
 	iterChain,
 	iterEmpty,
 	iterFilter,
+	iterFold,
 	iterMap,
 	iterOnce,
 	iterSlice,
@@ -40,7 +41,7 @@ import {
 	capNext,
 	trustedUpper,
 } from "./iter.ts";
-import { type Arc, drop as dispose, dropAll, dropRange } from "./task.ts";
+import { type Arc, closure, drop as dispose, dropAll, dropRange } from "./task.ts";
 
 // Ordering
 
@@ -4031,6 +4032,20 @@ function rebuild<T>(d: T[], le: Test<T>, ge: Test<T>, lt: Test<T>): void {
 export interface Part<C, T> {
 	reserve?(c: C, additional: number): void;
 	one(c: C, item: T): C;
+}
+
+/**
+ * `Iterator::partition` into `sides`, the collection's two defaults: each item `f` tests
+ * true into the first, and the rest into the second, by `part`'s `extend_one`, through
+ * `fold`, which drops `f` as it ends if it `owns` it.
+ */
+export function iterPartition<T, C>(it: Iter<T>, f: (item: T) => boolean, sides: [C, C], part: Part<C, T>, drops = false, owns = false): [C, C] {
+	const g = (_: undefined, item: T): undefined => {
+		const i = f(item) ? 0 : 1;
+		sides[i] = part.one(sides[i], item);
+	};
+	iterFold(it, undefined, owns ? closure(g, () => dispose(f)) : g, drops, owns);
+	return sides;
 }
 
 /**

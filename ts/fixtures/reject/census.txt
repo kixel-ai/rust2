@@ -45,8 +45,6 @@ fixtures/reject/src/iters.rs:impl Iterator for Probes+8:11: overriding `Iterator
 fixtures/reject/src/iters.rs:impl Iterator for Sizes+8:11: overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet
 fixtures/reject/src/iters.rs:parts_summed+1:17: unsupported call to `<std::vec::IntoIter<iters::Part> as std::iter::Iterator>::sum::<std::time::Duration>`
 fixtures/reject/src/iters.rs:parts_summed+1:38: unsupported call to `<std::vec::IntoIter<iters::Part> as std::iter::Iterator>::sum::<u64>`
-fixtures/reject/src/iters.rs:scanned+2:4: `Iterator::scan` of `Option<std::option::Option<u8>>`, whose `None` is `rt.None`, which is not supported yet
-fixtures/reject/src/iters.rs:scanned_unit+1:11: `Iterator::scan` of `Option<()>`, whose `None` is `rt.None`, which is not supported yet
 fixtures/reject/src/iters.rs:tens+1:31: `Extend` of `(std::vec::Vec<u8>, iters::Tens)` by `(u8, u8)`, whose `iters::Tens` of `u8` is not supported yet
 fixtures/reject/src/kept.rs:atomic_exchanged+4:30: a raw pointer to `std::cell::UnsafeCell<u16>` in `kept::ByExchanged`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:atomic_swapped+3:76: a raw pointer to `std::cell::UnsafeCell<u16>` in `kept::BySwapped`, which the crate may put another object in place of

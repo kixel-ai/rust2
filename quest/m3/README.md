@@ -25,7 +25,6 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Drop order in std's folds and iterators](/quest/m3/ts-drop-order.md) - the values that drop still refused in std's consumers and collects drop as std's do
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
-- [std's calls of a closure that have no mapping](/quest/m3/ts-closure-calls.md) - `try_fold`, `partition`, `repeat_with`, `sort_by_cached_key`, and `LazyCell::new` translate, dropping what their closures own as std's do
 - [A function pointer or a boxed closure as a string pattern](/quest/m3/ts-fn-patterns.md) - `s.split(p)` of a `fn(char) -> bool` or a `Box<dyn FnMut(char) -> bool>` translates, dropping a box it owns where std does
 - [std's char methods that have no mapping](/quest/m3/ts-char-methods.md) - `is_alphabetic`, `to_lowercase`, `len_utf8`, the escapes, and the rest of `char` translate, called or as values, by std's Unicode version
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
@@ -33,7 +32,8 @@ generic std gap is planned here even when moq never calls it.
 - [A crate's own find and for_each](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `find`, `rfind`, `find_map`, or `for_each` translates, each called where std's adaptors and consumers call it
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
-- [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
+- [A Vec from a slice, and a slice's chunks as arrays](/quest/m3/ts-slice-conversions.md) - `Vec::from(&[T])` and `as_chunks` translate
+- [An Arc's pointer](/quest/m3/ts-arc-pointers.md) - `Arc::as_ptr` and `Rc::as_ptr` translate, comparable by `ptr::addr_eq`
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Whole writes into a lazy cell or thread-local key](/quest/m3/ts-lazy-writes.md) - a whole write through a `&mut` to a `LazyCell`, `LazyLock`, or `LocalKey` keeps its state

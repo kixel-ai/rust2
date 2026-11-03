@@ -433,6 +433,7 @@ mod lang {
 		searches,
 		separated,
 		shapes,
+		shares,
 		singles,
 		slices,
 		sorts,

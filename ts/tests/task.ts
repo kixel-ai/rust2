@@ -57,6 +57,7 @@ export interface Fixture<V> {
 		cells(log: Log, id: number, arg: number): void;
 		folded(log: Log, id: number, arg: number): void;
 		rfolded(log: Log, id: number, arg: number): void;
+		called(log: Log, id: number, arg: number): void;
 		inside(log: Log, id: number, arg: number): void;
 		released(log: Log, id: number, arg: number): void;
 		flattened(log: Log, id: number, arg: number): void;
@@ -311,6 +312,7 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 	["cells", (r, arg) => r.f.drops.cells(r.log, 1000 * r.exec.tasks.length, arg)],
 	["folded", (r, arg) => r.f.drops.folded(r.log, 1000 * r.exec.tasks.length, arg)],
 	["rfolded", (r, arg) => r.f.drops.rfolded(r.log, 1000 * r.exec.tasks.length, arg)],
+	["called", (r, arg) => r.f.drops.called(r.log, 1000 * r.exec.tasks.length, arg)],
 	[
 		"watch",
 		(r, arg) => {
@@ -432,6 +434,7 @@ export const cases: Uint8Array[] = [
 	// Each scenario of adaptors' closures that drop, folded either way.
 	...Array.from({ length: 42 }, (_, arg) => script(["folded", arg])),
 	...Array.from({ length: 18 }, (_, arg) => script(["rfolded", arg])),
+	...Array.from({ length: 12 }, (_, arg) => script(["called", arg])),
 	// Where std drops values inside its iterators and formatting.
 	...[...Array.from({ length: 10 }, (_, arg) => arg), 19, 29].map((arg) => script(["inside", arg])),
 	// Where std drops a closure given to a consumer or an entry.
