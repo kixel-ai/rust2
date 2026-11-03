@@ -1,14 +1,5 @@
 //! Strings and `Cow`s, which JS keeps as primitives.
 
-use crate::places::Noisy;
-
-/// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
-/// call but never drop.
-pub fn pattern_closure(s: &str) -> bool {
-	let n = Noisy(1);
-	s.contains(move |c: char| c as u8 == (&n).0)
-}
-
 /// A `Cow<str>` is a JS string, which keeps no variant to match on or ask about.
 pub fn cow_matched(c: std::borrow::Cow<'_, str>) -> String {
 	match c {
@@ -33,12 +24,6 @@ pub fn cow_made(a: &std::sync::Arc<u8>) -> usize {
 		drop(c);
 	}
 	std::sync::Arc::strong_count(a)
-}
-
-/// A closure that owns a value that drops, which `String::retain` would call but never drop.
-pub fn string_retained(s: &mut String) {
-	let n = Noisy(1);
-	s.retain(move |c| c as u8 != (&n).0);
 }
 
 /// A `str`'s UTF-8 written as bytes, or a part of it unchecked.

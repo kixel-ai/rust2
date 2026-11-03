@@ -643,6 +643,20 @@ pub fn log_later(log: Box<dyn Log>) -> impl Future<Output = bool> + use<> {
 	async move { log.log(0, "later") }
 }
 
+/// Logs the count of `counter`, then of each of `more`, to `log` at `level`, returning how
+/// many it kept.
+pub fn log_counts(log: Box<dyn Log>, level: u8, counter: &Counter, more: Vec<Counter>) -> u32 {
+	let counts = std::iter::once(counter).chain(&more).map(Counter::get);
+	counts.filter(|n| log.log(level, &n.to_string())).count() as u32
+}
+
+/// Whether this runs on the thread its first call ran on.
+pub fn on_first_thread() -> bool {
+	static FIRST: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+	let here = std::thread::current().id();
+	*FIRST.get_or_init(|| here) == here
+}
+
 /// Holds a foreign implementation as a trait object, dropping it with itself.
 pub struct Logger {
 	sink: Box<dyn Log>,
