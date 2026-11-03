@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Comparing pointers to an array of other values than bytes, such as `ptr::eq` of two
+  `&[u16; 2]`, is refused, since a slice lends such an array as a copy of its own; compare
+  the indexes they were taken at instead.
 - `rt.iterFrom` takes `hint`, `back`, and `len` in one `rt.Own` record after `drop`,
   which also holds the crate's own `nth`, `fold`, and the rest, as in
   `rt.iterFrom(source, next, drop, { hint, back, len })`.
