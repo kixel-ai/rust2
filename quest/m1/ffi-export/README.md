@@ -51,6 +51,11 @@ Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 
 than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
 [quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
 
+Decided with the maintainer on 2026-11-02
+([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
+`ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
+
 ## Required
 
 - [moq-clock's C names once it moves into kio](/quest/m1/ffi-export/crates.md) - `moq_now` and `moq_origin` become the clock's, after moq moves it into `kio::clock`
@@ -60,4 +65,3 @@ than `ctypes`; the others call C natively. moq's packages switch to them in moq'
 - [Dart: calls into a held implementation while the isolate waits](/quest/m1/ffi-export/dart-threads.md) - an implementation Rust kept and calls from another thread runs, or fails loud, while the isolate waits in a call
 - [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
 - [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go
-- [Lent bytes freed off the calling thread return their memory](/quest/m1/ffi-export/freed-rss.md) - a Go program reading many large `Bytes` holds RSS near its lent backlog, not what glibc's arenas keep after the GC frees them
