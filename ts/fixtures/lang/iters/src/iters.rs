@@ -1190,7 +1190,8 @@ fn at<T>(items: &[T], i: usize) -> Option<&T> {
 /// A zip of each kind std specializes, of sides whose closures log each item they make, and
 /// either side shorter or empty: by index (`TrustedRandomAccess`), folded by its size hint
 /// (`TrustedLen`, or only `TrustedRandomAccessNoCoerce`), and by `next` (neither), read by
-/// each of std's consumers, and through adaptors that fold it or read it by `try_fold`.
+/// each of std's consumers, through adaptors that fold it or read it by `try_fold`, and
+/// through a box.
 pub fn zips(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let split = (kind >> 5) as usize % (data.len() + 1);
 	let (a, b) = data.split_at(split);
@@ -1228,6 +1229,7 @@ pub fn zips(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				5 => out.push(z.fold(0u8, |acc, p| acc.wrapping_mul(3) ^ at(p))),
 				6 => out.push(z.map(at).any(|x| x == 0) as u8),
 				_ => {
+					#[allow(unused_mut, reason = "a zip read through a `&mut` needs none")]
 					let mut z = z;
 					out.push(z.position(|(x, y)| x > y).map_or(0xee, |i| i as u8));
 					out.push(z.find(|&(x, _)| x % 3 == 0).map_or(0xee, at));
@@ -1237,11 +1239,19 @@ pub fn zips(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 		}};
 	}
-	// `$zip` and then adaptors of it, each folding it or reading it by `try_fold`.
+	// `$zip` and then adaptors of it, each folding it or reading it by `try_fold`, or a box
+	// of it, owned or borrowed, which std's reads by `next` for each consumer but `nth` and
+	// `last`.
 	macro_rules! adapt {
 		($zip:expr) => {{
 			match kind & 16 {
-				0 => read!($zip),
+				0 => match data.len() / 8 % 5 {
+					0 => read!($zip),
+					1 => read!(Box::new($zip)),
+					2 => read!(Box::new($zip.skip(n))),
+					3 => read!(&mut Box::new($zip)),
+					_ => read!(&mut Box::new($zip.skip(n))),
+				},
 				_ => match data.len() % 8 {
 					0 => out.push($zip.filter(|&(x, _)| x % 2 == 0).count() as u8),
 					1 => out.push($zip.filter_map(|(x, y)| x.checked_sub(y)).count() as u8),
