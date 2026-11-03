@@ -25,5 +25,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("strs::hinted", strs::hinted),
 		("strs::gets", strs::gets),
 		("strs::unicode", strs::unicode),
+		("strs::utf16", strs::utf16),
 	]
 }
