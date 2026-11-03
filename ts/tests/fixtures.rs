@@ -360,22 +360,113 @@ fn lines(text: &str) -> Vec<String> {
 	lines
 }
 
-#[test]
-fn lang() {
-	let out = translated("lang");
-	snapshot("lang", &out);
-	lang_differential(&out);
+/// The language, a fixture per module: each translated, compared with its snapshot,
+/// type-checked with its hand-written callers, and run against its native build.
+mod lang {
+	macro_rules! lang {
+		($($module:ident),* $(,)?) => {
+			$(
+				#[test]
+				fn $module() {
+					super::lang(stringify!($module));
+				}
+			)*
+		};
+	}
+
+	lang!(
+		args,
+		arrays,
+		ascii,
+		atomics,
+		borrows,
+		bounds,
+		boxes,
+		capacity,
+		captures,
+		cells,
+		chars,
+		chunks,
+		clones,
+		collections,
+		combinators,
+		conversions,
+		counts,
+		cows,
+		cycles,
+		defaults,
+		durations,
+		dyns,
+		edits,
+		elements,
+		ends,
+		errors,
+		fields,
+		floats,
+		folds,
+		hashes,
+		heap,
+		hints,
+		holds,
+		ints,
+		iters,
+		joins,
+		keys,
+		lengths,
+		lists,
+		locals,
+		locks,
+		manual,
+		methods,
+		nested,
+		objects,
+		orders,
+		pointers,
+		refs,
+		results,
+		returns,
+		rings,
+		saturates,
+		searches,
+		separated,
+		shapes,
+		singles,
+		slices,
+		sorts,
+		splits,
+		statics,
+		strs,
+		tuples,
+		utf8,
+		wrappers,
+		wraps,
+		zeros
+	);
 }
 
-fn lang_differential(out: &Path) {
-	// Hand-written callers, type-checked against the output they call: one runs it, with
-	// the one difference from native it accepts, and one mixes integer types, which `tsc`
-	// must refuse.
-	for file in ["caller.ts", "fma.ts", "brands.ts"] {
-		std::fs::copy(manifest_dir().join("fixtures/lang").join(file), out.join(file)).unwrap();
+fn lang(module: &str) {
+	let name = format!("lang/{module}");
+	let out = translated(&name);
+	snapshot(&name, &out);
+	// Hand-written callers, type-checked against the output they call: `lang.ts` runs the
+	// harness, and a fixture's own name the inputs it covers, accept the one difference from
+	// native it accepts, or mix integer types, which `tsc` must refuse.
+	let shared = manifest_dir().join("fixtures/lang");
+	let mut entry = "lang.ts";
+	for dir in [shared.clone(), fixture(&name)] {
+		for file in std::fs::read_dir(&dir).unwrap() {
+			let path = file.unwrap().path();
+			if path.extension().is_some_and(|e| e == "ts") {
+				std::fs::copy(&path, out.join(path.file_name().unwrap())).unwrap();
+				if path.file_name().unwrap() == "caller.ts" {
+					entry = "caller.ts";
+				}
+			}
+		}
 	}
-	typecheck(out);
-	differential("lang-fixture", &[], out, "caller.ts", 50_000);
+	typecheck(&out);
+	// As many random inputs per case as when one fixture held every module.
+	differential(&format!("lang-{module}-fixture"), &[], &out, entry, 151);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.

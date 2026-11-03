@@ -15,7 +15,18 @@ rustc_private = true
 [workspace]
 # Its own workspace, apart from the repo's: the driver builds on ts/rust-toolchain.toml's
 # nightly, which the other projects do not use.
-members = ["fixtures/*"]
+members = [
+    "fixtures/bind",
+    "fixtures/codec",
+    "fixtures/crates",
+    "fixtures/names",
+    "fixtures/reject",
+    "fixtures/share",
+    "fixtures/stock",
+    "fixtures/task",
+    # A fixture per module of the language, beside what they share.
+    "fixtures/lang/*",
+]
 resolver = "3"
 
 [workspace.package]

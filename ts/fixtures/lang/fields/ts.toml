@@ -1,0 +1,2 @@
+package = "lang-fields-fixture"
+roots = ["harness::run", "harness::op"]

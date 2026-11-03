@@ -1,0 +1,2 @@
+package = "lang-refs-fixture"
+roots = ["harness::run", "harness::op"]
