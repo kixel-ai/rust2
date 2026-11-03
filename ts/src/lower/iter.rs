@@ -510,6 +510,7 @@ fn own_collect<'tcx>(
 	});
 	let vec = Ty::new_adt(tcx, tcx.adt_def(vec), args);
 	let instance = own_instance(b, source, "Iterator", "collect", &[vec])?;
+	super::caller::refuse_std_call(b.t, instance);
 	Some((vec, Expr::Sym(b.t.instance(instance))))
 }
 
@@ -558,6 +559,7 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 			);
 			continue;
 		}
+		super::caller::refuse_std_call(b.t, instance);
 		let mut sym = Expr::Sym(b.t.instance(instance));
 		let args: &[&str] = match *name {
 			"size_hint" | "len" | "count" | "last" | "next_back" => &[],
@@ -642,6 +644,7 @@ fn through_place<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, args: 
 fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Option<Expr> {
 	let instance = own_method(b, ty, "DoubleEndedIterator", "next_back")?;
 	let item = b.t.iter_item(ty.peel_refs())?;
+	super::caller::refuse_std_call(b.t, instance);
 	let sym = b.t.instance(instance);
 	let none = b.t.none_arg(item);
 	let option = Expr::Sym(sym).call(vec![iter]);
@@ -652,6 +655,7 @@ fn own_back<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Optio
 pub fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr {
 	match own_next(b, ty) {
 		Some(instance) => {
+			super::caller::refuse_std_call(b.t, instance);
 			let sym = b.t.instance(instance);
 			Expr::Sym(sym).call(vec![iter])
 		}
@@ -766,6 +770,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		not_bound(b, ty, span);
 		return Some(match own_next(b, ty) {
 			Some(instance) => {
+				super::caller::refuse_std_call(b.t, instance);
 				let next = Expr::Sym(b.t.instance(instance));
 				// One owned whose `next` reads its place is moved into a place of its own.
 				let placed = owned && held(b, ty);
@@ -1069,6 +1074,18 @@ pub fn call<'tcx>(
 			return Some(Expr::rt("iterFromFn", [args, none.into_iter().collect()].concat()));
 		}
 		["iter", "sources", "repeat_with", "repeat_with"] => return Some(Expr::rt("iterRepeatWith", args)),
+		["iter", "sources", "once_with", "once_with"] => return Some(Expr::rt("iterOnceWith", args)),
+		// What clones the element for each item, and drops it.
+		["iter", "sources", source @ ("repeat" | "repeat_n"), _] => {
+			let clone = super::collections::clone_fn(b, targ(0)?, span);
+			let dropper = b.t.dropper(targ(0)?, span);
+			let name = if *source == "repeat" {
+				"iterRepeat"
+			} else {
+				"iterRepeatN"
+			};
+			return Some(Expr::rt(name, tail(args, vec![clone, dropper])));
+		}
 		// What drops the item it holds next.
 		["iter", "sources", "successors", "successors"] => {
 			let droppers = [b.t.dropper(targ(0)?, span)].into_iter().chain(b.t.none_arg(targ(0)?));
@@ -1208,17 +1225,22 @@ pub fn call<'tcx>(
 			method(name, tail(rest, vec![clones]))
 		}
 		// `rt.owned<Name>`, which drops what `self_ty` holds and its items by `dropper` as
-		// std's own does, where either drops, or counts a `Cycle` as std's `Take::count`
-		// does, by its `advance_by`, which stops at a clone that yields nothing where
-		// `try_fold` reads on: else `rt.iter<Name>`, so a bundle that never drops doesn't
-		// carry it.
+		// std's own does, where either drops, counts a `Cycle` as std's `Take::count` does,
+		// by its `advance_by`, which stops at a clone that yields nothing where `try_fold`
+		// reads on, or reaches a `Repeat`'s or a `RepeatN`'s own, which clone nothing, held
+		// or yielded to a `Flatten`: else `rt.iter<Name>`, so a bundle that never drops
+		// doesn't carry it.
 		"count" | "last" => {
 			let dropper = b.t.dropper(item, span);
 			let none: Vec<Expr> = none.into_iter().filter(|_| name == "last").collect();
-			let cycles = name == "count"
-				&& (self_ty.walk().filter_map(|arg| arg.as_type()))
-					.any(|t| std_iter_path(tcx, t).is_some_and(|p| p == ["iter", "adapters", "cycle", "Cycle"]));
-			match drops_iter(b, self_ty, span) || !undefined(&dropper) || cycles {
+			let held: Vec<Vec<String>> = (held_types(b.t, self_ty).into_iter())
+				.filter_map(|t| std_iter_path(tcx, t))
+				.collect();
+			let cycles = name == "count" && held.iter().any(|p| p == &["iter", "adapters", "cycle", "Cycle"]);
+			let repeats = held.iter().any(|p| {
+				p == &["iter", "sources", "repeat", "Repeat"] || p == &["iter", "sources", "repeat_n", "RepeatN"]
+			});
+			match drops_iter(b, self_ty, span) || !undefined(&dropper) || cycles || repeats {
 				true => Some(Expr::rt_of("owned", name).call(tail(vec![recv.clone()], [vec![dropper], none].concat()))),
 				false => method(name, none),
 			}
@@ -1595,6 +1617,25 @@ fn array_size<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Expr {
 }
 
 /// The path of the std type `ty` is, if it is one.
+/// The types `ty` is made of, and of each iterator among them, those of the iterators it
+/// yields, which a `Flatten` reads by their own methods.
+fn held_types<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Vec<Ty<'tcx>> {
+	let mut held: Vec<Ty<'tcx>> = Vec::new();
+	let mut next = vec![ty];
+	while let Some(ty) = next.pop() {
+		for ty in ty.walk().filter_map(|arg| arg.as_type()) {
+			if held.contains(&ty) {
+				continue;
+			}
+			held.push(ty);
+			if let Some(item) = t.iter_item(ty).filter(|&item| t.iter_item(item).is_some()) {
+				next.push(item);
+			}
+		}
+	}
+	held
+}
+
 fn std_iter_path(tcx: ty::TyCtxt<'_>, ty: Ty<'_>) -> Option<Vec<String>> {
 	let ty::Adt(adt, _) = ty.kind() else {
 		return None;
@@ -1751,6 +1792,9 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 			v if undefined(&v) => parts(vec![("v", Expr::Rt("itself".into()))]),
 			v => parts(vec![("v", v)]),
 		},
+		// Those that clone their element by what they were made with.
+		["iter", "sources", "repeat", "Repeat"] | ["iter", "sources", "repeat_n", "RepeatN"] => Expr::undefined(),
+		["iter", "sources", "once_with", "OnceWith"] => parts(vec![("f", value(b, arg(0)?))]),
 		// Those that own their items, each cloned.
 		["array", "iter", "IntoIter"]
 		| ["option", "IntoIter"]
@@ -1850,9 +1894,11 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "adapters", "scan", "Scan"]
 			| ["iter", "sources", "from_fn", "FromFn"]
 			| ["iter", "sources", "repeat_with", "RepeatWith"]
+			| ["iter", "sources", "once_with", "OnceWith"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
 			| ["vec", "extract_if", "ExtractIf"]
+			| ["collections", "hash", "map" | "set", "ExtractIf"]
 			| [
 				"str",
 				"iter",

@@ -189,6 +189,8 @@ pub enum Std {
 	Duration,
 	/// `rt.Layout`: its size and alignment, never changed once made.
 	Layout,
+	/// `rt.Location`: a panic's file, line, and column, never changed once made.
+	Location,
 	/// `rt.LayoutError`.
 	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
@@ -320,6 +322,7 @@ impl Std {
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
 			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["panic", "location", "Location"] => Some(Self::Location),
 			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
@@ -507,22 +510,6 @@ pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		},
 		_ => None,
 	}
-}
-
-/// Why a `Location` is refused.
-pub const LOCATION: &str =
-	"a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet";
-
-/// Whether `did` is std's `panic::Location`.
-pub fn location(tcx: TyCtxt<'_>, did: DefId) -> bool {
-	matches!(
-		std_path(tcx, did)
-			.iter()
-			.map(String::as_str)
-			.collect::<Vec<_>>()
-			.as_slice(),
-		["panic", "location", "Location"]
-	)
 }
 
 /// What `ty` holds if it is an `AssertUnwindSafe`.
@@ -1260,14 +1247,16 @@ fn called_closures<'tcx>(
 		let mentions = |t: Ty<'tcx>| t.walk().any(|a| a.as_type() == Some(input));
 		if mentions(output) {
 			// An `rt.Iter` drops the closure it holds, an `rt.PollFn` one it owns, and an
-			// `rt.LazyCell` one it never calls, and one it calls through `FnOnce` as it does.
+			// `rt.LazyCell` or a `OnceWith` one it never calls, and one it calls through
+			// `FnOnce` as it does.
 			let holder = match output.kind() {
 				ty::Adt(adt, args) if args.types().any(|a| a == input) => Some(adt.did()),
 				_ => None,
 			};
 			let iter = holder.is_some_and(|did| super::iter::holds_closure(tcx, did));
 			let holds = holder.and_then(|did| Std::of(tcx, did));
-			let lazy = matches!(holds, Some(Std::LazyCell | Std::LazyLock));
+			let lazy = matches!(holds, Some(Std::LazyCell | Std::LazyLock))
+				|| holder.is_some_and(|did| std_path(tcx, did) == ["iter", "sources", "once_with", "OnceWith"]);
 			if lent && iter && i < args.len() {
 				let f = std::mem::replace(&mut args[i], Expr::undefined());
 				args[i] = Expr::rt("lent", vec![f]);
@@ -1520,6 +1509,9 @@ fn mapping<'tcx>(
 			}
 			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
 			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
+				if !from.is_ref() {
+					b.t.string_bytes(span);
+				}
 				return Some(Expr::rt(
 					"stringIntoBytes",
 					vec![b.t.pointee_value(targ(gargs, 1), value)],
@@ -2608,7 +2600,10 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
-		("String", "into_bytes") => Expr::rt("stringIntoBytes", args),
+		("String", "into_bytes") => {
+			b.t.string_bytes(span);
+			Expr::rt("stringIntoBytes", args)
+		}
 		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
 		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
 		// UTF-8 by their contract, which the lossy decoder reads as the text.
@@ -2784,12 +2779,14 @@ fn mapping<'tcx>(
 		// so nothing drops it.
 		("panic", "catch_unwind") => return Some(Expr::result(true, args.pop()?.call(Vec::new()))),
 		("panic", "resume_unwind") => Expr::rt("resumeUnwind", Vec::new()),
-		("Location", _)
-			if impl_self(tcx, call.def_id)
-				.is_some_and(|t| matches!(t.kind(), ty::Adt(adt, _) if location(tcx, adt.did()))) =>
-		{
-			return Some(b.err(span, LOCATION));
+		// The location the call passes, as a `#[track_caller]` function's call does.
+		("Location", _) if inherent_std(tcx, call.def_id) != Some(Std::Location) => return None,
+		("Location", "caller") => {
+			let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, call.args).ok()??;
+			b.caller_arg(instance, span)
 		}
+		("Location", "file" | "line") => args.pop()?.member(name.as_str()),
+		("Location", "column") => args.pop()?.member("col"),
 		("panicking", "set_hook" | "take_hook") => {
 			let why =
 				format!("`panic::{name}`, whose hook reads each panic's `Location`, which panics don't carry yet");

@@ -560,6 +560,8 @@ pub fn std_impl<'tcx>(
 			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
+			(Std::Location, Trait::Debug) => rt("locationDebug", vec![value, f]),
+			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
@@ -621,13 +623,39 @@ fn iter_debug<'tcx>(
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
 		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
+		[
+			"str",
+			"iter",
+			"Split" | "RSplit" | "SplitTerminator" | "RSplitTerminator" | "SplitN" | "RSplitN" | "SplitInclusive"
+			| "Matches" | "RMatches" | "MatchIndices" | "RMatchIndices" | "Lines" | "LinesAny" | "SplitWhitespace",
+		] => {
+			let name = tcx.item_name(did);
+			return Some(b.err(
+				span,
+				format!(
+					"`Debug` of a `str::{name}`, whose searcher std writes with its state in UTF-8 bytes, which the runtime does not keep yet"
+				),
+			));
+		}
 		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
 		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
 		// Without its fields, which neither `#` nor a width changes.
-		["str", "iter", "EncodeUtf16"] | ["iter", "sources", "repeat_with", "RepeatWith"] => {
+		["str", "iter", "EncodeUtf16"]
+		| ["iter", "sources", "repeat_with", "RepeatWith"]
+		| ["collections", "hash", "map" | "set", "ExtractIf"] => {
 			return write(format!("{} {{ .. }}", tcx.item_name(did)));
 		}
+		// The item it reads next.
+		["collections", "linked_list", "ExtractIf"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtListExtractIf", vec![debug]));
+		}
 		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
+		["iter", "sources", "once_with", "OnceWith"] => return Some(call("fmtOnceWith", Vec::new())),
+		["iter", "sources", "repeat", "Repeat"] | ["iter", "sources", "repeat_n", "RepeatN"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call(&format!("fmt{}", tcx.item_name(did)), vec![debug]));
+		}
 		["iter", "sources", "successors", "Successors"] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			return Some(call("fmtSuccessors", vec![debug]));
@@ -677,6 +705,16 @@ fn iter_debug<'tcx>(
 			let taken = Expr::lit(name.ends_with("Mut").to_string());
 			let rest = [slice(b)?, Expr::Str(split), taken].into_iter().chain(n);
 			return Some(call("fmtSplit", rest.collect()));
+		}
+		// The way std picked to make it, and what that reads.
+		[
+			"collections",
+			"btree",
+			"set",
+			name @ ("Difference" | "Intersection" | "SymmetricDifference" | "Union"),
+		] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtBTreeSetOp", vec![debug, Expr::Str((*name).into())]));
 		}
 		// The list of what a clone of it yields.
 		[

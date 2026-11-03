@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -793,6 +793,94 @@ function retainHash<K, V>(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => 
 			dropPair(s.k, s.v, k, v);
 		}
 	}
+}
+
+/**
+ * `extract_if`: each entry `f` returns true for, taken out as it is read, in `hashIter`'s
+ * order, as `[key, value]`, or of a set its key. `f` is given each key and value or, with
+ * `places`, the value's place, and drops with the iterator; what it has not read stays.
+ */
+class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
+	private readonly m: HashMap<K, V>;
+	private readonly p: Iterator<[K, V]>;
+	private readonly o: Iterator<[number, Slot<K, V>]> | undefined;
+	/** The chain it reads, by its hash, the slot it reads next, and the last it kept there. */
+	private hash = 0;
+	private at: Slot<K, V> | undefined;
+	private kept: Slot<K, V> | undefined;
+	private readonly f: (key: K, value: V | Place<V>) => boolean;
+	private readonly places: boolean;
+	private readonly keys: boolean;
+	/** How many it has left to read. */
+	private left: number;
+
+	constructor(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => boolean, places: boolean, keys: boolean) {
+		super();
+		hold(m);
+		this.m = m;
+		this.p = m.p.entries();
+		this.o = m.o?.entries();
+		this.f = f;
+		this.places = places;
+		this.keys = keys;
+		this.left = hashLen(m);
+	}
+
+	next(): T | Done {
+		const m = this.m;
+		for (; this.left > 0; this.left--) {
+			const entry = this.p.next();
+			if (!entry.done) {
+				const [key, value] = entry.value;
+				if (!this.f(key, this.places ? new AtKey(m.p, key) : value)) continue;
+				const now = this.places ? (m.p.get(key) as V) : value;
+				m.p.delete(key);
+				this.left--;
+				return (this.keys ? key : [key, now]) as T;
+			}
+			if (this.at === undefined) {
+				[this.hash, this.at] = (this.o as Iterator<[number, Slot<K, V>]>).next().value as [number, Slot<K, V>];
+				this.kept = undefined;
+			}
+			const s = this.at;
+			this.at = s.next;
+			if (!this.f(s.k, this.places ? s : s.v)) {
+				this.kept = s;
+				continue;
+			}
+			const o = m.o as Map<number, Slot<K, V>>;
+			if (this.kept !== undefined) this.kept.next = s.next;
+			else if (s.next !== undefined) o.set(this.hash, s.next);
+			else o.delete(this.hash);
+			m.n--;
+			this.left--;
+			return (this.keys ? s.k : [s.k, s.v]) as T;
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		return [0, this.left];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.f);
+	}
+}
+
+/** `extract_if` of a map, handing `f` each key and value. */
+export function hashExtractIf<K, V>(m: HashMap<K, V>, f: (key: K, value: V) => boolean): Iter<[K, V]> {
+	return new HashExtractIf(m, f as (key: K, value: V | Place<V>) => boolean, false, false);
+}
+
+/** `extract_if` of a map of values JS copies: `f` takes the place of each. */
+export function hashExtractIfMut<K, V>(m: HashMap<K, V>, f: (key: K, value: Place<V>) => boolean): Iter<[K, V]> {
+	return new HashExtractIf(m, f as (key: K, value: V | Place<V>) => boolean, true, false);
+}
+
+/** `extract_if` of a set, handing `f` each key. */
+export function hashExtractKeysIf<K>(m: HashSet<K>, f: (key: K) => boolean): Iter<K> {
+	return new HashExtractIf(m, f as (key: K) => boolean, false, true);
 }
 
 /**
@@ -2208,12 +2296,12 @@ function ends<K>(m: BTreeSet<K>): [K, K] {
  * the greater of two that differ.
  */
 abstract class Merge<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 	/** The key held back, and whether it is `a`'s. */
-	private held: K | Done = DONE;
-	private heldA = false;
+	held: K | Done = DONE;
+	heldA = false;
 
 	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
 		super();
@@ -2289,29 +2377,57 @@ export function btreeSymmetricDifference<K>(a: BTreeSet<K>, b: BTreeSet<K>): Ite
 }
 
 /**
- * Each key of `a` that the other set lacks: looked up in it, or with no set to look in,
- * found by stepping through its keys by `b`, peeked a key ahead.
+ * A set operation that looks each key of `small` up in `large`: an intersection's, yielding
+ * those `large` holds if `holds`, or a difference's, those it lacks.
  */
+class Search<K> extends Iter<K> {
+	readonly small: Iter<K>;
+	readonly large: BTreeSet<K>;
+	private readonly holds: boolean;
+
+	constructor(small: Iter<K>, large: BTreeSet<K>, holds: boolean) {
+		super();
+		this.small = small;
+		this.large = large;
+		this.holds = holds;
+	}
+
+	override clone(): Iter<K> {
+		return new Search(this.small.clone(), this.large, this.holds);
+	}
+
+	next(): K | Done {
+		for (let x = this.small.next(); x !== DONE; x = this.small.next()) {
+			if (btreeContains(this.large, x) === this.holds) return x;
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		const n = this.small.len();
+		return [this.holds ? 0 : Math.max(n - this.large.n, 0), n];
+	}
+}
+
+/** Each key of `a` that the other set lacks, found by stepping through its keys by `b`, peeked a key ahead. */
 class Difference<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly set: BTreeSet<K> | undefined;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 	/** `b`'s next key, once `peeked` says it was read. */
-	private peek: K | Done = DONE;
-	private peeked = false;
+	peek: K | Done = DONE;
+	peeked = false;
 
-	constructor(a: Iter<K>, set: BTreeSet<K> | undefined, b: Iter<K>, c: (a: K, b: K) => Ordering) {
+	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
 		super();
 		this.a = a;
-		this.set = set;
 		this.b = b;
 		this.c = c;
 	}
 
 	/** std's: each of its iterators, and the key it peeked. */
 	override clone(): Iter<K> {
-		const it = new Difference(this.a.clone(), this.set, this.b.clone(), this.c);
+		const it = new Difference(this.a.clone(), this.b.clone(), this.c);
 		it.peek = this.peek;
 		it.peeked = this.peeked;
 		return it;
@@ -2320,13 +2436,6 @@ class Difference<K> extends Iter<K> {
 	next(): K | Done {
 		let x = this.a.next();
 		if (x === DONE) return DONE;
-		if (this.set !== undefined) {
-			while (btreeContains(this.set, x)) {
-				x = this.a.next();
-				if (x === DONE) return DONE;
-			}
-			return x;
-		}
 		for (;;) {
 			if (!this.peeked) {
 				this.peek = this.b.next();
@@ -2344,7 +2453,7 @@ class Difference<K> extends Iter<K> {
 
 	override sizeHint(): SizeHint {
 		const n = this.a.len();
-		const other = this.set !== undefined ? this.set.n : this.b.len() + (this.peeked && this.peek !== DONE ? 1 : 0);
+		const other = this.b.len() + (this.peeked && this.peek !== DONE ? 1 : 0);
 		return [Math.max(n - other, 0), n];
 	}
 }
@@ -2360,15 +2469,15 @@ export function btreeDifference<K>(a: BTreeSet<K>, b: BTreeSet<K>): Iter<K> {
 	if (low > 0 || high < 0) return keys;
 	if (low === 0) keys.next();
 	else if (high === 0) keys.nextBack();
-	else if (a.n <= Math.floor(b.n / TIPPING)) return new Difference(keys, b, iterEmpty(), b.c);
-	else return new Difference(keys, undefined, btreeKeys(b), b.c);
+	else if (a.n <= Math.floor(b.n / TIPPING)) return new Search(keys, b, false);
+	else return new Difference(keys, btreeKeys(b), b.c);
 	return keys;
 }
 
 /** An intersection that merges: each key of `a` that `b` holds. */
 class Intersection<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 
 	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
@@ -2414,9 +2523,52 @@ export function btreeIntersection<K>(a: BTreeSet<K>, b: BTreeSet<K>): Iter<K> {
 	if (low > 0 || high < 0) return iterEmpty();
 	if (low === 0) return iterOnce(aMin);
 	if (high === 0) return iterOnce(aMax);
-	if (a.n <= Math.floor(b.n / TIPPING)) return iterFilter(btreeKeys(a), (key) => btreeContains(b, key));
-	if (b.n <= Math.floor(a.n / TIPPING)) return iterFilter(btreeKeys(b), (key) => btreeContains(a, key));
+	if (a.n <= Math.floor(b.n / TIPPING)) return new Search(btreeKeys(a), b, true);
+	if (b.n <= Math.floor(a.n / TIPPING)) return new Search(btreeKeys(b), a, true);
 	return new Intersection(btreeKeys(a), btreeKeys(b), a.c);
+}
+
+/**
+ * `Debug` of a `BTreeSet`'s `Difference`, `Intersection`, `Union`, or
+ * `SymmetricDifference`, `name`, each key by `debug`: the way std picked to make it, by
+ * the iterators it reads, a set it looks keys up in, and the key it peeked or holds back.
+ */
+export function fmtBTreeSetOp<K>(it: Iter<unknown>, f: Formatter, debug: Debug<K>, name: string): FmtResult {
+	const keys =
+		(it: Iter<unknown>): Fmt =>
+		(f) =>
+			fmtIter(it, f, debug, ["Iter"]);
+	const none: Fmt = (f) => f.out.writeStr("None");
+	const some =
+		(value: Fmt): Fmt =>
+		(f) =>
+			fmtDebugTupleFields(f, "Some", [value]);
+	const key =
+		(key: K): Fmt =>
+		(f) =>
+			debug(key, f);
+	let inner: Fmt;
+	if (it instanceof Merge) {
+		const held = it.held as K;
+		const peeked = it.held === DONE ? none : some((f) => fmtDebugTupleFields(f, it.heldA ? "A" : "B", [key(held)]));
+		inner = (f) => fmtDebugTupleFields(f, "MergeIterInner", [keys(it.a), keys(it.b), peeked]);
+	} else if (it instanceof Search) {
+		const set: Fmt = (f) => fmtSet(btreeKeys(it.large), f, debug);
+		const names = name === "Difference" ? ["self_iter", "other_iter"] : ["small_iter", "large_set"];
+		inner = (f) => fmtDebugStructFields(f, "Search", names, [keys(it.small), set]);
+	} else if (it instanceof Difference) {
+		const peeked = !it.peeked ? none : some(it.peek === DONE ? none : some(key(it.peek as K)));
+		const other: Fmt = (f) => fmtDebugStructFields(f, "Peekable", ["iter", "peeked"], [keys(it.b), peeked]);
+		inner = (f) => fmtDebugStructFields(f, "Stitch", ["self_iter", "other_iter"], [keys(it.a), other]);
+	} else if (it instanceof Intersection) {
+		inner = (f) => fmtDebugStructFields(f, "Stitch", ["a", "b"], [keys(it.a), keys(it.b)]);
+	} else if (name === "Difference") {
+		inner = (f) => fmtDebugTupleFields(f, "Iterate", [keys(it)]);
+	} else {
+		const left = [...it.remaining()] as K[];
+		inner = (f) => fmtDebugTupleFields(f, "Answer", [left.length === 0 ? none : some(key(left[0]))]);
+	}
+	return fmtDebugTupleFields(f, name, [inner]);
 }
 
 /** `BTreeSet::is_subset`: whether `b` holds each key of `a`. */
@@ -4181,7 +4333,7 @@ export function listIterMut<T>(l: LinkedList<T>): Iter<Place<T>> {
  */
 class ListExtractIf<T> extends Iter<T> implements Disposable {
 	private readonly l: LinkedList<T>;
-	private node: ListNode<T> | undefined;
+	node: ListNode<T> | undefined;
 	private readonly f: (item: T | Place<T>) => boolean;
 	private readonly places: boolean;
 	/** How many it has left to read. */
@@ -4218,6 +4370,13 @@ class ListExtractIf<T> extends Iter<T> implements Disposable {
 	[Symbol.dispose](): void {
 		dispose(this.f);
 	}
+}
+
+/** `Debug` of a list's `ExtractIf`: the item it reads next, if any. */
+export function fmtListExtractIf<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>): FmtResult {
+	const node = (it as ListExtractIf<T>).node;
+	const peek: Fmt = (f) => (node === undefined ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(node.v, f)]));
+	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
 }
 
 /** `extract_if`, handing `f` each item. */

@@ -5650,4 +5650,147 @@ export function cmpByte$ref_orders(o: rt.Ordering): rt.u8 {
 	return o & 0xff;
 }
 
+/**
+ * `extract_if` of hash maps and sets: what its closure takes out, by keys JS compares as
+ * they are and keys found by their `Hash`, all colliding, with values changed in place as
+ * each is read, and what stays, each sorted. Read part way, it takes out only what it
+ * read, and the rest stays.
+ */
+export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _176!: rt.u8;
+	const keep: rt.u8 = option_mapOr$1surhce(rt.byteSliceFirst(data), 2, (b: rt.u8): rt.u8 => {
+		return rt.u8Add(rt.u8Rem(b, 3), 2);
+	});
+	const _6: rt.u8 = rt.u8Rem(kind, 3);
+	if (_6 === 0) {
+		const _9: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_212: rt.u8): [rt.u8, rt.u16] => {
+			const b6: rt.u8 = _212;
+			return [rt.u8Rem(b6, 16), b6 as rt.u16] as [rt.u8, rt.u16];
+		});
+		const map: rt.HashMap<rt.u8, rt.u16> = rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u8, rt.u16>, _9, undefined, undefined, undefined, 234881024);
+		rt.byteVecPush(out, option_mapOr$02k4ito(rt.hashExtractIfMut(map, (_213: rt.u8, _311: rt.Place<rt.u16>): boolean => {
+			return true;
+		}).sizeHint()[1], 254, (n: rt.usize): rt.u8 => {
+			return n & 0xff;
+		}));
+		const _19: rt.Iter<[rt.u8, rt.u16]> = rt.hashExtractIfMut(map, (k4: rt.u8, v: rt.Place<rt.u16>): boolean => {
+			v.v = rt.u16Add(v.v, 1);
+			return rt.u8Rem(k4, keep) === 0;
+		});
+		const taken: rt.BTreeMap<rt.u8, rt.u16> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, _19, true, undefined, undefined, "next", 4);
+		const _24: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(rt.hashIter(map), (_214: [rt.u8, rt.u16]): [rt.u8, rt.u16] => {
+			return [_214[0], _214[1]] as [rt.u8, rt.u16];
+		});
+		const kept: rt.BTreeMap<rt.u8, rt.u16> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, _24, true, undefined, undefined, "next", 4);
+		const iter: rt.Iter<[rt.u8, rt.u16]> = rt.iterChain(rt.iterChain(rt.btreeIter(taken), rt.iterSlice([[255, 65535] as [rt.u8, rt.u16]])), rt.btreeIter(kept));
+		while (true) {
+			const _38: [rt.u8, rt.u16] | rt.Done = iter.next();
+			if (_38 === rt.DONE) {
+				break;
+			}
+			rt.byteVecPush(out, _38[0]);
+			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_38[1])), undefined, true);
+		}
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.iterToOption(rt.hashExtractIfMut(map, (k5: rt.u8, _312: rt.Place<rt.u16>): boolean => {
+			return rt.u8Rem(k5, 2) === 0;
+		}).next()) !== undefined ? 1 : 0, rt.hashLen(map) & 0xff)), undefined, true);
+		const _63: rt.Iter<[rt.u8, rt.ByteVec]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_215: rt.u8): [rt.u8, rt.ByteVec] => {
+			const b7: rt.u8 = _215;
+			return [rt.u8Rem(b7, 8), rt.byteVecFrom(Uint8Array.of(b7))] as [rt.u8, rt.ByteVec];
+		});
+		const words: rt.HashMap<rt.u8, rt.ByteVec> = rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u8, rt.ByteVec>, _63, undefined, undefined, undefined, 58720256);
+		const _66: rt.Iter<[rt.u8, rt.ByteVec]> = rt.hashExtractIf(words, (k6: rt.u8, v2: rt.ByteVec): boolean => {
+			rt.byteVecPush(v2, k6);
+			return rt.u8Rem(v2.data[rt.idx(v2, 0)], keep) === 0;
+		});
+		const iter2: rt.Iter<[rt.u8, rt.ByteVec]> = rt.btreeIter(rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.ByteVec>, _66, true, undefined, undefined, "next", 16));
+		while (true) {
+			const _73: [rt.u8, rt.ByteVec] | rt.Done = iter2.next();
+			if (_73 === rt.DONE) {
+				break;
+			}
+			rt.byteVecPush(out, _73[0]);
+			rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(_73[1])), undefined, true);
+		}
+		rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.hashValues(words), (a0: rt.ByteVec): rt.usize => {
+			return a0.length;
+		}), rt.usizeAdd, 0) & 0xff);
+	} else if (_6 === 1) {
+		const _88: rt.Iter<Pair.Pair> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_210: rt.u8): Pair.Pair => {
+			const b4: rt.u8 = _210;
+			return { a: rt.u8Rem(b4, 8), b: rt.u8Rem(b4, 3) as rt.u16 };
+		});
+		const set: rt.HashSet<Pair.Pair> = rt.hashExtendKeys(rt.hashNew(rt.hashing(Pair.hash$Hash_hash_DefaultHasher as (a0: Pair.Pair, a1: rt.Hasher) => undefined, Pair.eq$cmp_PartialEq)) as rt.HashSet<Pair.Pair>, _88, undefined, undefined, 234881024);
+		const _91: rt.Iter<Pair.Pair> = rt.hashExtractKeysIf(set, (p: Pair.Pair): boolean => {
+			return rt.u16Rem(p.a as rt.u16, keep as rt.u16) === p.b;
+		});
+		const taken3: rt.BTreeSet<Pair.Pair> = rt.btreeExtendKeys(rt.btreeNew(Pair.cmp$cmp_Ord) as rt.BTreeSet<Pair.Pair>, _91, true, undefined, "next", 4);
+		const _96: rt.Iter<Pair.Pair> = rt.hashKeys(set);
+		const kept2: rt.BTreeSet<Pair.Pair> = rt.btreeExtendKeys(rt.btreeNew(Pair.cmp$cmp_Ord) as rt.BTreeSet<Pair.Pair>, _96, true, undefined, "next", 4);
+		const iter3: rt.Iter<Pair.Pair> = rt.iterChain(rt.iterChain(rt.btreeKeys(taken3), rt.iterSlice([{ a: 255, b: 0 }])), rt.btreeKeys(kept2));
+		while (true) {
+			const _108: Pair.Pair | rt.Done = iter3.next();
+			if (_108 === rt.DONE) {
+				break;
+			}
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_108.a, _108.b & 0xff)), undefined, true);
+		}
+		const _118: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
+		const bytes: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew() as rt.HashSet<rt.u8>, _118, undefined, undefined, 469762048);
+		rt.byteVecPush(out, rt.iterCount(rt.hashExtractKeysIf(bytes, (b5: rt.u8): boolean => {
+			return rt.u8Rem(b5, keep) === 1;
+		})) & 0xff);
+		rt.byteVecPush(out, rt.hashLen(bytes) & 0xff);
+		rt.byteVecPush(out, rt.iterToOption(rt.hashExtractKeysIf(bytes, (_211: rt.u8): boolean => {
+			return false;
+		}).next()) === undefined ? 1 : 0);
+	} else {
+		const _140: rt.Iter<[Clash.Clash, Tally.Tally]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [Clash.Clash, Tally.Tally] => {
+			const b2: rt.u8 = _2;
+			return [{ _0: rt.u8Rem(b2, 8) }, { n: b2 as rt.u16 }] as [Clash.Clash, Tally.Tally];
+		});
+		const map2: rt.HashMap<Clash.Clash, Tally.Tally> = rt.hashExtend(rt.hashNew(rt.hashing(Clash.hash$Hash_hash_DefaultHasher as (a0: Clash.Clash, a1: rt.Hasher) => undefined, Clash.eq$cmp_PartialEq)) as rt.HashMap<Clash.Clash, Tally.Tally>, _140, undefined, undefined, undefined, 234881024);
+		const _143: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(rt.hashExtractIf(map2, (k2: Clash.Clash, t: Tally.Tally): boolean => {
+			t.n = rt.u16Add(t.n, k2._0 as rt.u16);
+			return rt.u16Rem(t.n, keep as rt.u16) === 0;
+		}), (_22: [Clash.Clash, Tally.Tally]): [rt.u8, rt.u16] => {
+			return [_22[0]._0, _22[1].n] as [rt.u8, rt.u16];
+		});
+		const taken4: rt.BTreeMap<rt.u8, rt.u16> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, _143, true, undefined, undefined, "next", 4);
+		const _149: rt.Iter<[rt.u8, rt.u16]> = rt.iterMap(rt.hashIter(map2), (_23: [Clash.Clash, Tally.Tally]): [rt.u8, rt.u16] => {
+			return [_23[0]._0, _23[1].n] as [rt.u8, rt.u16];
+		});
+		const kept3: rt.BTreeMap<rt.u8, rt.u16> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u16>, _149, true, undefined, undefined, "next", 4);
+		const iter4: rt.Iter<[rt.u8, rt.u16]> = rt.iterChain(rt.iterChain(rt.btreeIter(taken4), rt.iterSlice([[255, 65535] as [rt.u8, rt.u16]])), rt.btreeIter(kept3));
+		while (true) {
+			const _163: [rt.u8, rt.u16] | rt.Done = iter4.next();
+			if (_163 === rt.DONE) {
+				break;
+			}
+			rt.byteVecPush(out, _163[0]);
+			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_163[1])), undefined, true);
+		}
+		let iterStart: rt.u8 = 0;
+		const iterEnd: rt.u8 = 8;
+		while ((_176 = iterStart++) < iterEnd) {
+			rt.byteVecPush(out, option_mapOr$1ht002r(rt.hashGet(map2, { _0: _176 }), 238, (t3: Tally.Tally): rt.u8 => {
+				return t3.n & 0xff;
+			}));
+		}
+		const _187: rt.Iter<Clash.Clash> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_26: rt.u8): Clash.Clash => {
+			return { _0: rt.u8Rem(_26, 6) };
+		});
+		const set2: rt.HashSet<Clash.Clash> = rt.hashExtendKeys(rt.hashNew(rt.hashing(Clash.hash$Hash_hash_DefaultHasher as (a0: Clash.Clash, a1: rt.Hasher) => undefined, Clash.eq$cmp_PartialEq)) as rt.HashSet<Clash.Clash>, _187, undefined, undefined, 469762048);
+		rt.byteVecPush(out, rt.iterCount(rt.hashExtractKeysIf(set2, (c: Clash.Clash): boolean => {
+			return rt.u8Rem(c._0, keep) === 0;
+		})) & 0xff);
+		const kept4: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.hashKeys(set2), (c2: Clash.Clash): rt.u8 => {
+			return c2._0;
+		}), "next");
+		rt.byteSliceView(rt.byteVecSlice(kept4)).sort();
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(kept4), undefined, true);
+		rt.byteVecPush(out, rt.hashContains(set2, { _0: 0 }) ? 1 : 0);
+	}
+}
+
 //# sourceMappingURL=collections.ts.map

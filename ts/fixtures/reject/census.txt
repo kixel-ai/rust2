@@ -15,9 +15,15 @@ fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_capacity+5:6: `BytesMut::capacity`, which reads a capacity that depends on whether the other handles of its storage dropped, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_put+1:2: `BufMut::put` of `buffers::Counted` into a `BytesMut`, which picks the methods it calls by a capacity that depends on whether the other handles of its storage dropped, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_put_through+1:2: `BufMut::put` of `buffers::Counted` into a `BytesMut`, which advances it by the room left in a capacity that depends on whether the other handles of its storage dropped, which is not supported
+fixtures/reject/src/buffers.rs:bytes_mut_spare+1:6: `BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+2:17: `Bytes::is_unique` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+3:12: `Vec::from(Bytes)` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+4:14: `BytesMut::from(Bytes)` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+5:6: `BufMut::put` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+6:6: `BufMut::put` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
+fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut`, whose length is a capacity the runtime holds only as std guarantees it, which is not supported
@@ -31,6 +37,7 @@ fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
 fixtures/reject/src/config.rs:generic+2:2: a cast from `u64` to `f16`
 fixtures/reject/src/fmt.rs:chunks_address+1:2: `Debug` of a `ChunksMut`, whose slice std writes as an address, which JS has no counterpart of
 fixtures/reject/src/fmt.rs:pointer+1:2: `Pointer` formatting, as in `{:p}`, is not supported
+fixtures/reject/src/fmt.rs:split_state+1:2: `Debug` of a `str::Split`, whose searcher std writes with its state in UTF-8 bytes, which the runtime does not keep yet
 fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or not made in place, written to `fmt::Sink`'s own `fmt::Write`, which is not supported yet: std splits what a placeholder writes into `write_str` calls the runtime does not make
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
 fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`
@@ -102,10 +109,20 @@ fixtures/reject/src/objects.rs:generic_object+0:23: `dyn objects::Scaled<u8>`, a
 fixtures/reject/src/objects.rs:generic_object+1:4: `dyn objects::Scaled<u8>`, a trait object of the generic trait `objects::Scaled`, which is not supported yet
 fixtures/reject/src/objects.rs:raw_dyn_iter+2:40: a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, whose object would hold the value there as it is made, not as it is read, which is not supported yet
 fixtures/reject/src/objects.rs:same_named+2:30: `u8` as `dyn objects::second::Named`, whose class has another trait's method named `name$Named`, which is not supported yet
-fixtures/reject/src/panics.rs:caller+1:2: a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet
-fixtures/reject/src/panics.rs:caller+1:33: a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet
+fixtures/reject/src/panics.rs:call+1:2: `panics::here`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:call+1:2: a call through std's code of `panics::here`, a `#[track_caller]` function, whose caller is in std's source
+fixtures/reject/src/panics.rs:caller+1:37: `panics::at`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:caller+1:37: `panics::at`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source, in `std::option::Option::<T>::map`
+fixtures/reject/src/panics.rs:caller+1:37: a call through std's code of `panics::at`, a `#[track_caller]` function, whose caller is in std's source, in `std::option::Option::<T>::map`
+fixtures/reject/src/panics.rs:caller+2:38: `panics::at`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:caller+3:22: `panics::here`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
 fixtures/reject/src/panics.rs:hooked+1:13: `panic::take_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
 fixtures/reject/src/panics.rs:hooked+2:2: `panic::set_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
+fixtures/reject/src/panics.rs:impl Drop for Counted+2:2: `<panics::Counted as std::ops::Drop>::drop`, a `#[track_caller]` function std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:impl Iterator for Counted+4:2: `<panics::Counted as std::iter::Iterator>::next`, a `#[track_caller]` function std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:pointed+1:24: `std::panic::Location::<'a>::caller`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
+fixtures/reject/src/panics.rs:pointed+2:6: unsupported call to `std::panic::Location::<'_>::file_as_c_str`
+fixtures/reject/src/panics.rs:pointed+2:22: unsupported call to `std::ffi::CStr::count_bytes`
 fixtures/reject/src/parts.rs:array_part+1:9: a raw pointer to `std::cell::UnsafeCell<u16>` in `parts::InArray`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:array_part_replaced+3:33: a reference through which a raw pointer may be made into `parts::InArray` in `[parts::InArray; 2]`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:element_replaced+2:20: a reference through which a raw pointer may be made into `std::cell::UnsafeCell<u16>` in `[std::cell::UnsafeCell<u16>; 2]`, which the crate may put another object in place of

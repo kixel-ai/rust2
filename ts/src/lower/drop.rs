@@ -31,11 +31,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let drops = match ty.kind() {
 			ty::Adt(adt, _) if let Some(drops) = self.bound_drops(adt.did()) => drops,
 			ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
-				// A guard unlocks its mutex or ends its borrow, a `Weak` uncounts itself, and a
-				// `PeekMut` sifts what it lent.
-				Some(Std::Arc | Std::Weak | Std::Waker | Std::MutexGuard | Std::Ref | Std::RefMut | Std::PeekMut) => {
-					true
-				}
+				// A guard unlocks its mutex or ends its borrow, a `Weak` uncounts itself, a
+				// `PeekMut` sifts what it lent, and a `Bytes` or a `BytesMut` uncounts its
+				// storage, which `bytes` reclaims once the last handle of it dropped.
+				Some(
+					Std::Arc
+					| Std::Weak
+					| Std::Waker
+					| Std::MutexGuard
+					| Std::Ref
+					| Std::RefMut
+					| Std::PeekMut
+					| Std::Bytes
+					| Std::BytesMut,
+				) => true,
 				Some(
 					Std::Option
 					| Std::Result
@@ -95,9 +104,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => match adt.has_dtor(tcx) {
 					// What owns its items, an `IntoIter` or a `Drain`, drops those it still holds.
 					true => args.types().any(|t| self.drops(t)),
-					// A `str` search's holds its pattern inside std's searcher, which no `rt.Iter`
-					// stands for.
-					false if super::iter::holds_closure(tcx, adt.did()) => args.types().any(|t| self.drops(t)),
+					// A `str` search's holds its pattern inside std's searcher, and a `RepeatN` its
+					// element inside a struct of its own, which no `rt.Iter` stands for.
+					false
+						if super::iter::holds_closure(tcx, adt.did())
+							|| library::std_path(tcx, adt.did()) == ["iter", "sources", "repeat_n", "RepeatN"] =>
+					{
+						args.types().any(|t| self.drops(t))
+					}
 					false => self.fields_drop(*adt, args, true),
 				},
 				Some(_) => false,
@@ -164,8 +178,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			// Its binding's `[Symbol.dispose]`.
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				// Each drops by what it was given, or a `Weak` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak) => true,
+				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
+				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -233,7 +247,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::RefCell
 				| Std::Cell
 				| Std::OnceCell
-				| Std::OnceLock,
+				| Std::OnceLock
+				| Std::BytesMut,
 			) => true,
 			Some(_) => false,
 			// An `rt.Iter` has one only if it was given what drops.
@@ -415,6 +430,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				false => Some(Expr::undefined()),
 			};
 			let (name, args) = match std {
+				// Not by a `[Symbol.dispose]`: the `&[u8]` it derefs to is the same object,
+				// which glue may give `rt.drop`.
+				Std::Bytes => ("bytesDrop", vec![value]),
 				Std::Arc => ("arcDrop", vec![value, each(self, 0)?]),
 				Std::Mutex => return self.drop_value(value.member("value"), args.type_at(0), span),
 				Std::MutexGuard => ("mutexUnlock", vec![value]),
@@ -531,6 +549,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if self.disposable(ty, Some(span)) {
 			return Some(Expr::Rt("drop".into()));
 		}
+		if self.std_of(ty) == Some(Std::Bytes) {
+			return Some(Expr::Rt("bytesDrop".into()));
+		}
 		// A tuple over type parameters, as a generic class's glue holds, has no glue of
 		// rustc's until an instance: each element in order, as that glue drops them.
 		if let ty::Tuple(tys) = ty.kind()
@@ -645,6 +666,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		let mut steps = Vec::new();
 		if let Some(dtor) = adt.destructor(tcx) {
+			super::caller::refuse_std_call(self, Instance::mono(tcx, dtor.did));
 			let sym = self.instance(Instance::mono(tcx, dtor.did));
 			steps.push(StmtKind::Expr(Expr::Sym(sym).call(vec![Expr::This])).at(None));
 		}
