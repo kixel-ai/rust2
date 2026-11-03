@@ -374,6 +374,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.b.dyn_future(from, to, value, span)
 				}
+				// An iterator, as the `rt.Iter` a `dyn Iterator` is.
+				PointerCoercion::Unsize
+					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_iter(part).is_some()) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.dyn_iter(from, to, value, span)
+				}
 				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_trait()) => {
 					let value = self.operand(op, span, out);
 					self.b.object_of(value, from, to, span)

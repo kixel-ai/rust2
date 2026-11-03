@@ -22,7 +22,7 @@ import { cows, slices as cows_slices, bytes as cows_bytes } from "./cows.ts";
 import { cycles } from "./cycles.ts";
 import { defaults as defaults_defaults } from "./defaults.ts";
 import { durations } from "./durations.ts";
-import { dyns, shared as dyns_shared, anys, fns, pointers } from "./dyns.ts";
+import { dyns, shared as dyns_shared, anys, fns, iters as dyns_iters, pointers } from "./dyns.ts";
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
 import { vecs as elements_vecs, arrays as elements_arrays, segments as elements_segments, inline, edges as elements_edges, rawSlices, emptyParts } from "./elements.ts";
 import { ends as ends_ends } from "./ends.ts";
@@ -325,8 +325,10 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		sorts_btrees(a0165, a1165.data, a1165.start, a1165.length, a2165);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::pointers", (_2212: rt.u8, data112: rt.ByteSlice, out113: rt.ByteVec): undefined => {
 		pointers(data112.data, data112.start, data112.length, out113);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::searches", searches as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::texts", texts as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["errors::objects", (_2213: rt.u8, data113: rt.ByteSlice, out114: rt.ByteVec): undefined => {
-		errors_objects(data113.data, data113.start, data113.length, out114);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::searches", searches as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::texts", texts as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::iters", (_2213: rt.u8, data113: rt.ByteSlice, out114: rt.ByteVec): undefined => {
+		dyns_iters(data113, out114);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["errors::objects", (_2214: rt.u8, data114: rt.ByteSlice, out115: rt.ByteVec): undefined => {
+		errors_objects(data114.data, data114.start, data114.length, out115);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

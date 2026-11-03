@@ -126,6 +126,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
+| `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
@@ -490,10 +491,17 @@ that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` con
 makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
 is `From` a string, which boxes std's own private error type.
 
+A `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` behind `&`,
+`&mut`, or `Box` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
+of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
+such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
+trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
+trait object's does. A box drops the iterator it owns.
+
 A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
 `Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Error`, `dyn Buf`, and the function traits, of a generic
+`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -873,7 +881,7 @@ they need.
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
+`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, `dyn Iterator` and its subtraits, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
 
