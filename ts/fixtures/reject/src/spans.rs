@@ -1,5 +1,6 @@
 //! Rust that translates, for the stand-in `tsc` of `spans.toml`, which fails each `return`
-//! and each argument, to be reported at the Rust each comes from.
+//! and each argument, to be reported at the Rust each comes from: a call, a name, or an
+//! operator.
 
 pub struct Meter {
 	pub reads: Vec<u32>,
@@ -29,4 +30,8 @@ pub fn method(m: &Meter, a: u32) -> u32 {
 
 pub fn chained(v: &[u32]) -> u32 {
 	v.iter().map(|x| x.leading_zeros()).max().unwrap_or(0)
+}
+
+pub fn operators(m: &Meter, a: u32, at: usize) -> u32 {
+	m.scaled(a ^ 7, at / 2)
 }
