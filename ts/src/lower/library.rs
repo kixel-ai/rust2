@@ -1449,6 +1449,15 @@ fn mapping<'tcx>(
 			{
 				return Some(Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]));
 			}
+			// An error, boxed as a `dyn Error`, which `?` converts it by. One of a string boxes
+			// std's own private error type.
+			let error = targ(gargs, 1);
+			if let Some(object) = to.boxed_ty()
+				&& super::dynamic::is_error_object(tcx, object)
+				&& !string(tcx, error.peel_refs())
+			{
+				return Some(b.object_of(value, Ty::new_box(tcx, error), to, span));
+			}
 			// A heap's `Vec` is its elements.
 			if let ty::Adt(adt, args) = from.kind()
 				&& Std::of(tcx, adt.did()) == Some(Std::BinaryHeap)
@@ -2322,11 +2331,31 @@ fn mapping<'tcx>(
 		("str", "bytes") => Expr::rt("strBytes", args),
 		("str", "is_char_boundary") => Expr::rt("strIsCharBoundary", args),
 		// Searches by a pattern.
-		("str", "split" | "split_terminator" | "match_indices" | "contains" | "starts_with" | "ends_with")
-		| ("str", "rfind" | "split_once" | "rsplit_once" | "trim_start_matches" | "trim_end_matches") => {
+		("str", "split" | "rsplit" | "split_terminator" | "rsplit_terminator" | "split_inclusive")
+		| ("str", "matches" | "rmatches" | "match_indices" | "rmatch_indices" | "split_once" | "rsplit_once")
+		| ("str", "find" | "rfind" | "contains" | "starts_with" | "ends_with" | "strip_prefix" | "strip_suffix")
+		| ("str", "trim_matches" | "trim_start_matches" | "trim_end_matches") => {
 			let [s, p] = <[Expr; 2]>::try_from(args).ok()?;
 			Expr::rt_of("str", &super::camel(&name)).call(vec![s, pattern(b.t, targ(gargs, 0), p)?])
 		}
+		("str", "splitn" | "rsplitn") => {
+			let [s, n, p] = <[Expr; 3]>::try_from(args).ok()?;
+			Expr::rt_of("str", &name).call(vec![s, n, pattern(b.t, targ(gargs, 0), p)?])
+		}
+		// `replacen`'s count follows what replaces each match.
+		("str", "replace" | "replacen") => {
+			let mut args = args.into_iter();
+			let (s, p) = (args.next()?, args.next()?);
+			let rest = args.collect::<Vec<_>>();
+			Expr::rt("strReplace", [vec![s, pattern(b.t, targ(gargs, 0), p)?], rest].concat())
+		}
+		// Searches by whitespace, as std's are by `char::is_whitespace`.
+		("char", "is_whitespace") => Expr::rt("charIsWhitespace", args),
+		("str", "trim" | "trim_start" | "trim_end") => {
+			let f = format!("{}_matches", name);
+			Expr::rt_of("str", &super::camel(&f)).call(vec![args.pop()?, Expr::Rt("charIsWhitespace".into())])
+		}
+		("str", "char_indices" | "lines" | "split_whitespace") => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// A slice of strings concatenated, or joined by a `&str`.
 		("slice", "concat" | "join")
 			if string(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
@@ -2488,6 +2517,27 @@ fn mapping<'tcx>(
 			let tr = fmt::Trait::of(tcx, tcx.trait_of_assoc(call.def_id)?)?;
 			let [value, f] = <[Expr; 2]>::try_from(args).ok()?;
 			fmt::std_impl(b, tr, targ(gargs, 0), value, f, span, out)?
+		}
+		// `Error`'s own `source`, which a type that has none keeps, and std's for a reference
+		// or a box, which asks what it points at, its JS value.
+		("Error", "source")
+			if tcx
+				.trait_of_assoc(call.def_id)
+				.is_some_and(|tr| super::dynamic::is_error(tcx, tr)) =>
+		{
+			let self_ty = targ(gargs, 0);
+			if let Some(inner) = self_ty.builtin_deref(true).filter(|_| !self_ty.is_raw_ptr()) {
+				return Some(b.call_def(call.def_id, tcx.mk_args(&[inner.into()]), args, span, out));
+			}
+			let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, gargs).ok()??;
+			if instance.def_id() != call.def_id {
+				return None;
+			}
+			let sig = b.t.sig(call.def_id, gargs);
+			match sig.output().kind() {
+				ty::Adt(_, option) => b.t.none(option.type_at(0)),
+				_ => return None,
+			}
 		}
 		("ToString", "to_string") => {
 			let ty = targ(gargs, 0);

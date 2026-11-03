@@ -19,6 +19,5 @@ Each child reports its CPU saved, cold and warm, against `origin/main`.
 ## Required
 
 - [A warm gate](/quest/m0/checks/cache.md) - the land gate builds through mbx, as moq's does
-- [Stable names on a small fixture](/quest/m0/checks/stable-names.md) - `stable_names` runs on a small fixture with generic instances and trait impls
 - [Fixtures that merge](/quest/m0/checks/fixture-layout.md) - `lang` splits by module, and `reject`'s snapshots key by item, not line
-- [The stock fixture's target dir race](/quest/m0/checks/stock-cachedir.md) - the `stock` fixture never fails creating its target dir
+- [A result slot's name stays as translation reaches more](/quest/m0/checks/ts-stable-slots.md) - reaching another function sharing a slot renames nothing
