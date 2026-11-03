@@ -607,8 +607,8 @@ pub fn referent<'tcx>(
 	Some(tcx.mk_args(&args))
 }
 
-/// A comparison an impl of `PartialEq` or `PartialOrd` inherits from its trait, as a
-/// derived one inherits all but `eq` and `partial_cmp`.
+/// A comparison an impl of `PartialEq`, `PartialOrd`, or `Iterator` inherits from its
+/// trait, as a derived one inherits all but `eq` and `partial_cmp`.
 #[derive(Clone, Copy)]
 pub enum Inherited {
 	Ne,
@@ -619,30 +619,31 @@ pub enum Inherited {
 }
 
 impl Inherited {
-	/// The comparison `instance` is, if it is the trait's own default.
-	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<Self> {
+	/// The comparison `instance` is, if it is the trait's own default, and what it calls,
+	/// with the same generic arguments and operands: the trait's `eq` or `partial_cmp`.
+	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<(Self, DefId)> {
 		let ty::InstanceKind::Item(did) = instance.def else {
 			return None;
 		};
 		let tr = tcx.trait_of_assoc(did)?;
 		let inherited = match (tcx.get_diagnostic_name(tr)?.as_str(), tcx.item_name(did).as_str()) {
-			("PartialEq", "ne") => Self::Ne,
-			("PartialOrd", "lt") => Self::Lt,
-			("PartialOrd", "le") => Self::Le,
-			("PartialOrd", "gt") => Self::Gt,
-			("PartialOrd", "ge") => Self::Ge,
+			("PartialEq" | "Iterator", "ne") => Self::Ne,
+			("PartialOrd" | "Iterator", "lt") => Self::Lt,
+			("PartialOrd" | "Iterator", "le") => Self::Le,
+			("PartialOrd" | "Iterator", "gt") => Self::Gt,
+			("PartialOrd" | "Iterator", "ge") => Self::Ge,
 			_ => return None,
 		};
-		Some(inherited)
-	}
-
-	/// What the default calls, with the same generic arguments and operands: `eq` or
-	/// `partial_cmp`.
-	pub fn via(self, tcx: TyCtxt<'_>) -> DefId {
-		match self {
-			Self::Ne => super::collections::trait_fn(tcx, "PartialEq", "eq"),
-			_ => super::collections::trait_fn(tcx, "PartialOrd", "partial_cmp"),
-		}
+		let via = match inherited {
+			Self::Ne => "eq",
+			_ => "partial_cmp",
+		};
+		let via = tcx
+			.associated_items(tr)
+			.filter_by_name_unhygienic(rustc_span::Symbol::intern(via))
+			.next()?
+			.def_id;
+		Some((inherited, via))
 	}
 
 	/// The comparison, from what `via` returned: `!eq`, or whether the `partial_cmp` is
@@ -2522,6 +2523,10 @@ fn mapping<'tcx>(
 			| "to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "len_utf8"
 			| "len_utf16" | "encode_utf16" | "from_digit",
 		) => Expr::rt_of("char", &super::camel(&name)).call(args),
+		(
+			"str",
+			"to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "encode_utf16",
+		) => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// `char::decode_utf16` of what it is given, either as a method or as `char`'s function.
 		("char", "decode_utf16") => {
 			let mut values = args;

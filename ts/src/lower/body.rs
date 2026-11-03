@@ -156,8 +156,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				.collect();
 			return self.call_def(def_id, referent, args, span, out);
 		}
-		if let Some(inherited) = library::Inherited::of(tcx, instance) {
-			let value = self.call_def(inherited.via(tcx), gargs, args, span, out);
+		if let Some((inherited, via)) = library::Inherited::of(tcx, instance) {
+			let value = self.call_def(via, gargs, args, span, out);
 			return inherited.test(self, value, out);
 		}
 		let call = library::Call {
