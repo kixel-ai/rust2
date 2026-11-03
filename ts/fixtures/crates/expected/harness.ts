@@ -73,7 +73,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		}
 		rt.byteVecPush(out, _143);
 	}
-	const _151: rt.Iter<rt.u8> = rt.iterRev(rt.iterFrom(Countdown.new(rt.min(input.length, 5) & 0xff), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), undefined, undefined, (it: Countdown.Countdown) => rt.iterFromOption(Countdown.nextBack$iter_DoubleEndedIterator(it))));
+	const _151: rt.Iter<rt.u8> = rt.iterRev(rt.iterFrom(Countdown.new(rt.min(input.length, 5) & 0xff), Countdown.next$iter_Iterator, undefined, { back: (it: Countdown.Countdown) => rt.iterFromOption(Countdown.nextBack$iter_DoubleEndedIterator(it)) }));
 	rt.iterExtendBytes(out, _151, "next");
 	const both: Countdown.Countdown = Countdown.new(rt.min(input.length, 6) & 0xff);
 	while (true) {

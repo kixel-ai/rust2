@@ -25,7 +25,7 @@ export function nextBack$iter_DoubleEndedIterator_u16_u32(self: ValuesMut<rt.u16
 }
 
 export function len$iter_ExactSizeIterator_u16_u32(self: ValuesMut<rt.u16, rt.u32>): rt.usize {
-	return rt.iterFrom(self.inner, (it: IterMut.IterMut<rt.u16, rt.u32>) => IterMut.next$iter_Iterator_u16_u32(it), undefined, (it: IterMut.IterMut<rt.u16, rt.u32>) => IterMut.sizeHint$iter_Iterator_u16_u32(it), (it: IterMut.IterMut<rt.u16, rt.u32>) => rt.iterFromOption(IterMut.nextBack$iter_DoubleEndedIterator_u16_u32(it))).len();
+	return rt.iterFrom(self.inner, IterMut.next$iter_Iterator_u16_u32, undefined, { hint: IterMut.sizeHint$iter_Iterator_u16_u32, back: (it: IterMut.IterMut<rt.u16, rt.u32>) => rt.iterFromOption(IterMut.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }).len();
 }
 
 //# sourceMappingURL=linked_hash_map.ValuesMut.ts.map

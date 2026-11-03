@@ -37,4 +37,11 @@ export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a
 	return f(self);
 }
 
+export function or$1loyskh(self: rt.u8 | undefined, optb: rt.u8 | undefined): rt.u8 | undefined {
+	if (self === undefined) {
+		return optb;
+	}
+	return self;
+}
+
 //# sourceMappingURL=option.ts.map

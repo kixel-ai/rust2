@@ -22,7 +22,7 @@ export function nextBack$iter_DoubleEndedIterator(self: Counted): rt.u8 | undefi
 
 export function len$iter_ExactSizeIterator(self: Counted): rt.usize {
 	Run.logged(self._0, 108);
-	return rt.iterFrom(self._0, (it: Run.Run) => Run.next$iter_Iterator(it), undefined, (it: Run.Run) => Run.sizeHint$iter_Iterator(it), (it: Run.Run) => rt.iterFromOption(Run.nextBack$iter_DoubleEndedIterator(it))).len();
+	return rt.iterFrom(self._0, Run.next$iter_Iterator, undefined, { hint: Run.sizeHint$iter_Iterator, back: (it: Run.Run) => rt.iterFromOption(Run.nextBack$iter_DoubleEndedIterator(it)) }).len();
 }
 
 //# sourceMappingURL=ends.Counted.ts.map

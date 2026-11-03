@@ -725,8 +725,8 @@ pub fn folded(log: &Log, id: u32, arg: u8) {
 	folds::folded(log, id, arg);
 }
 
-/// Run scenario `arg % 9` of what folds back to front, and through what wraps a closure
-/// beside another.
+/// Run scenario `arg % 18` of what folds back to front, through what wraps a closure beside
+/// another, and through a crate's iterator with folds of its own. The last panics in a fold.
 pub fn rfolded(log: &Log, id: u32, arg: u8) {
 	folds::rfolded(log, id, arg);
 }
