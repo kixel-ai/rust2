@@ -1069,23 +1069,15 @@ pub fn call<'tcx>(
 		{
 			let by_key = name.ends_with("_by_key");
 			let key = if by_key { targ(1)? } else { item };
-			if by_key && b.t.drops(key) {
-				return Some(b.err(
-					span,
-					format!("`{name}` by `{key}`, which drops, which is not supported yet"),
+			// A B-tree's iterators read an end, comparing nothing, and a map's `into_keys` then
+			// drops the rest with it.
+			if !by_key && btree_end(tcx, self_ty, name) && b.t.drops(self_ty) {
+				let back = Expr::lit((name == "max").to_string());
+				return Some(Expr::rt(
+					"ownedEnd",
+					[recv.clone(), back].into_iter().chain(none).collect(),
 				));
 			}
-			// A `BTreeMap`'s `into_keys` reads the one end and drops the rest with it.
-			if !by_key
-				&& std_iter_path(tcx, self_ty).is_some_and(|p| p == ["collections", "btree", "map", "IntoKeys"])
-				&& b.t.drops(self_ty)
-			{
-				return Some(b.err(
-					span,
-					format!("`{name}` of `{self_ty}`, which drops its values, which is not supported yet"),
-				));
-			}
-			// A B-tree's iterators read an end, comparing nothing.
 			if !by_key && btree_end(tcx, self_ty, name) {
 				let end = match name {
 					"max" => recv.member("nextBack").call(Vec::new()),
@@ -1100,13 +1092,14 @@ pub fn call<'tcx>(
 				));
 			}
 			let lt = super::collections::test_fn(b, key, "lt", span);
-			let owns = match by_key {
-				true => Some(flag(b.t.drops(targ(2)?))),
-				false => None,
+			// The `_by_key` forms own their function, and drop each key with its item.
+			let keyed = match by_key {
+				true => vec![flag(b.t.drops(targ(2)?)), b.t.dropper(key, span)],
+				false => Vec::new(),
 			};
 			let droppers = [iter_drops(b, self_ty, span), b.t.dropper(item, span)]
 				.into_iter()
-				.chain(owns)
+				.chain(keyed)
 				.chain(none);
 			method(&camel, tail([rest, vec![lt]].concat(), droppers.collect()))
 		}
