@@ -3,9 +3,9 @@
 ## Goal
 
 [rust2-ts](/ts/README.md) translates `Debug` of std's iterator adaptors, such as `Map`,
-`Filter`, `Enumerate`, `Zip`, `Chain`, `Peekable`, `Rev`, `Take`, `Skip`, and
-`char::DecodeUtf16`, writing what std's derived or hand-written impl writes, pretty forms
-included, over whatever iterator each wraps. Proven by differential tests against
+`Filter`, `Enumerate`, `Zip`, `Chain`, `Peekable`, `Rev`, `Take`, `Skip`,
+`char::DecodeUtf16`, and `str`'s escapes, each a `FlatMap` in a struct, writing what
+std's derived or hand-written impl writes, pretty forms included, over whatever iterator each wraps. Proven by differential tests against
 native Rust.
 
 ## Plan

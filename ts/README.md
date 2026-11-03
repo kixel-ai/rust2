@@ -78,7 +78,7 @@ and each type a module of its own beside it, holding the type and its functions
 (`coding/decode.Decoder.ts`), each with a `.ts.map` source map into the Rust it came
 from. `rt.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rt/iter.ts`, `str`'s searches
-in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings in `rt/char.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
+in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings, and `str`'s case maps and escapes, in `rt/char.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
 `rt/task.ts`, `f64`'s and `f32`'s methods in `rt/float.ts`, `Duration` in `rt/time.ts`, and `Layout` and memory from `alloc` in `rt/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
@@ -107,7 +107,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
 | `Cow<[T]>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice` |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
-| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
+| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, or an object whose parts kept as objects are there, holding `undefined` |
 | `ManuallyDrop<T>` | `T`, which nothing drops but its own `drop`; its `Debug`, comparisons, and constants are refused |
 | `union` | an object of slots named by offset, `at0` and `at8`, each holding the field part kept there; fields must overlap in the same type, or in a non-null pointer and an `Option` of it |
@@ -208,6 +208,12 @@ it changes in place, and `encode_utf16` a view of its units. `char::decode_utf16
 `char::from_digit`, `char::try_from` a `u32`, and `u8`'s and `u16`'s `try_from` a `char` are
 std's, their errors and panics included.
 
+`str`'s `to_lowercase` and `to_uppercase` map each char by the same tables, but for a
+capital sigma, which `to_lowercase` writes final at the end of a word, as std reads its
+cased and case-ignorable neighbors. `escape_debug`, `escape_default`, and `escape_unicode`
+are std's `flat_map` of each char's, sized as it is, and write what they have left by
+`Display`, unpadded. `encode_utf16` is sized as std's, and `Debug` of it is `EncodeUtf16 { .. }`.
+
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
 `min` ignore a NaN, and a cast to an integer truncates, saturates at the type's bounds,
@@ -298,11 +304,15 @@ moves read steps in place, as two variables: the array and an index into it, or 
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
-`find`, `rfind`, `find_map`, `for_each`, `reduce`, and `all`, where std's adaptors and consumers
-call them: a filter's `next` calls `find`, an `extend` into a hash or B-tree collection, a
-`String`, or a tuple calls `for_each`, `max` calls `reduce`, and `is_sorted` calls `all`. Its
-own `position`, `max`, and the others std never calls in place of another run only where the
-crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
+`find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
+adaptors and consumers call them: a filter's `next` calls `find`, an `extend` into a hash or
+B-tree collection, a `String`, or a tuple calls `for_each`, `max` calls `reduce`, and
+`is_sorted` calls `is_sorted_by`, which calls `all`. Its
+own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
+`Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
+`partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
+which std calls only from `Vec::splice`, which is not supported, `position`, `max`, and the
+others std never calls in place of another only where the crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -947,12 +957,12 @@ copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method std calls in place
-of another other than those, such as `collect`, `eq`, `partial_cmp`, or `by_ref`, or whose own
+of another other than those, such as `map`, which `flat_map` calls, or whose own
 method taking a closure tells it, or its accumulator or what it finds, apart from another, by an
 `Option` or a `Poll` of the accumulator, a call or constant generic over them other than calling
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
-drop of the accumulator or what it finds, or whose own `find` or `rfind` gives its predicate a
-reference to a `[u8; N]`,
+drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
+its closure a reference to a `[u8; N]`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
