@@ -318,7 +318,8 @@ impl Drop for Counted {
 
 /// The reads of `reads` through a `dyn Buf` of each buffer: called on the object, through
 /// the impls forwarding through a `&mut` to one and a `Box` of one, and through the crate's
-/// own trait over `Buf`, whose method takes another `dyn Buf`. A box drops what it owns once.
+/// own trait over `Buf`, whose method takes another `dyn Buf`. A box drops what it owns
+/// once.
 pub fn dyns(data: &[u8], out: &mut Vec<u8>) {
 	let [kind, cut, ops @ ..] = data else {
 		return;

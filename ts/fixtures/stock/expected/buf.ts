@@ -2286,7 +2286,8 @@ export function readAll$ref_slice_u8(buf: rt.Place<rt.ByteSlice>, ops: rt.ByteSl
 /**
  * The reads of `reads` through a `dyn Buf` of each buffer: called on the object, through
  * the impls forwarding through a `&mut` to one and a `Box` of one, and through the crate's
- * own trait over `Buf`. A box drops what it owns once.
+ * own trait over `Buf`, whose method takes another `dyn Buf`. A box drops what it owns
+ * once.
  */
 export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
 	let _30!: Buf.Buf;
