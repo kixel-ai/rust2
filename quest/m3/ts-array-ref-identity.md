@@ -28,7 +28,7 @@ design then needs all of:
   detach a run's view before a whole write, would have to keep it instead.
 - A run covering a whole `[T; N]` being that array, but not a `Vec`'s, whose length
   changes.
-- `as_flattened`'s runs being the arrays it flattened.
+- `as_flattened`, once translated, lending runs that are the arrays it flattened.
 
 Measured on [moq-dev/rust2#558](https://github.com/moq-dev/rust2/pull/558), per shared
 subslice of 8 of 16 values: 21.9 ns in Node 24 and 12.6 ns in Bun 1.4 as a copy; noting
