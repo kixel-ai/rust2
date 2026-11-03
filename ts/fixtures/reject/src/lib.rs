@@ -2394,3 +2394,10 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 	}
 	tagged_slots!(slots)
 }
+
+/// A raw pointer to an iterator as one to a trait object, whose `rt.Place` no `rt.Iter` is.
+pub fn raw_dyn_iter(n: u8) -> Option<u8> {
+	let mut range = 0..n;
+	let p: *mut dyn Iterator<Item = u8> = &raw mut range;
+	unsafe { (&mut *p).next() }
+}

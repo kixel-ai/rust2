@@ -1,7 +1,7 @@
 # Census of `reject-fixture`
 
-- Refusals: 258
-- Function instances: 294
+- Refusals: 259
+- Function instances: 295
 - Generic functions no instance reached, lowered over their type parameters: 13
 
 ## By construct
@@ -61,6 +61,7 @@
 | 1 | `offset_from` of pointers to `()`, which has no bytes | fixtures/reject/src/lib.rs:2107:13 |
 | 1 | `offset_from` of pointers to `_`, which JS keeps as an object that knows no array it is in | fixtures/reject/src/lib.rs:2100:36 |
 | 1 | a cast from `_` to `_` | fixtures/reject/src/lib.rs:68:2 |
+| 1 | a coercion of `_` to `_`, which is not supported yet | fixtures/reject/src/lib.rs:2401:40 |
 | 1 | a coercion to `_` | fixtures/reject/src/lib.rs:234:2 |
 | 1 | a coercion to `_`, which is not supported yet | fixtures/reject/src/lib.rs:420:30 |
 | 1 | a constant of type `_` | fixtures/reject/src/lib.rs:2301:34 |
@@ -161,6 +162,8 @@ The type or module each refused type or path belongs to.
 | 1 | `(u16, InTuple)` | fixtures/reject/src/lib.rs:1281:33 |
 | 1 | `*const [u8; 4]` | fixtures/reject/src/lib.rs:1651:5 |
 | 1 | `*mut [u8; 4]` | fixtures/reject/src/lib.rs:1647:41 |
+| 1 | `*mut dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:2401:40 |
+| 1 | `*mut std::ops::Range` | fixtures/reject/src/lib.rs:2401:40 |
 | 1 | `Aliased` | fixtures/reject/src/lib.rs:1055:29 |
 | 1 | `Assigned` | fixtures/reject/src/lib.rs:1947:20 |
 | 1 | `Bare` | fixtures/reject/src/lib.rs:663:70 |
@@ -320,6 +323,7 @@ The type or module each refused type or path belongs to.
 | 1 | a cast from `_` to `_` | `u64`, `f16` | fixtures/reject/src/lib.rs:68:2 |
 | 1 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u32`, `[u32; 2]` | fixtures/reject/src/lib.rs:2112:13 |
 | 1 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u8`, `Halves` | fixtures/reject/src/lib.rs:2268:16 |
+| 1 | a coercion of `_` to `_`, which is not supported yet | `*mut std::ops::Range`, `*mut dyn std::iter::Iterator` | fixtures/reject/src/lib.rs:2401:40 |
 | 1 | a coercion to `_` | `std::sync::Arc` | fixtures/reject/src/lib.rs:234:2 |
 | 1 | a coercion to `_`, which is not supported yet | `&Tail` | fixtures/reject/src/lib.rs:420:30 |
 | 1 | a constant of type `_` | `std::mem::ManuallyDrop` | fixtures/reject/src/lib.rs:2301:34 |
@@ -937,6 +941,12 @@ The type or module each refused type or path belongs to.
 <details><summary>a cast from `_` to `_` (1)</summary>
 
 - fixtures/reject/src/lib.rs:68:2: a cast from `u64` to `f16`
+
+</details>
+
+<details><summary>a coercion of `_` to `_`, which is not supported yet (1)</summary>
+
+- fixtures/reject/src/lib.rs:2401:40: a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, which is not supported yet
 
 </details>
 

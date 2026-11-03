@@ -160,7 +160,6 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// std's vtable has and else by `next`, as std's defaults read a trait object, and drops
 	/// it if the box owned it. An upcast from another is the same `rt.Iter`.
 	pub fn dyn_iter(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
-		let tcx = self.t.tcx;
 		let Some(pointee) = from.builtin_deref(true).filter(|_| to.builtin_deref(true).is_some()) else {
 			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		};
@@ -179,11 +178,17 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			return Expr::undefined();
 		}
 		// What a box owns iterates as itself, and what a reference borrows as a `&mut` does,
-		// which `into_iter` makes of a shared one.
+		// which `into_iter` makes of a shared one. A raw pointer can be an `rt.Place`, which
+		// no `rt.Iter` reads through.
 		let ty = match from.kind() {
 			_ if from.is_box() => pointee,
 			ty::Ref(..) => from,
-			_ => Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, pointee),
+			_ => {
+				return self.err(
+					span,
+					format!("a coercion of `{from}` to `{to}`, which is not supported yet"),
+				);
+			}
 		};
 		match into_iter(self, ty, value, span) {
 			Some(it) => Expr::rt("iterDyn", vec![it]),

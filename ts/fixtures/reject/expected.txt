@@ -239,6 +239,7 @@ memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the byte
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2284:17
 memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2285:21
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2287:17
+a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, which is not supported yet at fixtures/reject/src/lib.rs:2401:40
 overriding `Iterator::fold`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:125:2
 overriding `DoubleEndedIterator::nth_back`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:150:2
 a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `Escaped`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1007:43
