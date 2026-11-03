@@ -360,22 +360,113 @@ fn lines(text: &str) -> Vec<String> {
 	lines
 }
 
-#[test]
-fn lang() {
-	let out = translated("lang");
-	snapshot("lang", &out);
-	lang_differential(&out);
+/// The language, a fixture per module: each translated, compared with its snapshot,
+/// type-checked with its hand-written callers, and run against its native build.
+mod lang {
+	macro_rules! lang {
+		($($module:ident),* $(,)?) => {
+			$(
+				#[test]
+				fn $module() {
+					super::lang(stringify!($module));
+				}
+			)*
+		};
+	}
+
+	lang!(
+		args,
+		arrays,
+		ascii,
+		atomics,
+		borrows,
+		bounds,
+		boxes,
+		capacity,
+		captures,
+		cells,
+		chars,
+		chunks,
+		clones,
+		collections,
+		combinators,
+		conversions,
+		counts,
+		cows,
+		cycles,
+		defaults,
+		durations,
+		dyns,
+		edits,
+		elements,
+		ends,
+		errors,
+		fields,
+		floats,
+		folds,
+		hashes,
+		heap,
+		hints,
+		holds,
+		ints,
+		iters,
+		joins,
+		keys,
+		lengths,
+		lists,
+		locals,
+		locks,
+		manual,
+		methods,
+		nested,
+		objects,
+		orders,
+		pointers,
+		refs,
+		results,
+		returns,
+		rings,
+		saturates,
+		searches,
+		separated,
+		shapes,
+		singles,
+		slices,
+		sorts,
+		splits,
+		statics,
+		strs,
+		tuples,
+		utf8,
+		wrappers,
+		wraps,
+		zeros
+	);
 }
 
-fn lang_differential(out: &Path) {
-	// Hand-written callers, type-checked against the output they call: one runs it, with
-	// the one difference from native it accepts, and one mixes integer types, which `tsc`
-	// must refuse.
-	for file in ["caller.ts", "fma.ts", "brands.ts"] {
-		std::fs::copy(manifest_dir().join("fixtures/lang").join(file), out.join(file)).unwrap();
+fn lang(module: &str) {
+	let name = format!("lang/{module}");
+	let out = translated(&name);
+	snapshot(&name, &out);
+	// Hand-written callers, type-checked against the output they call: `lang.ts` runs the
+	// harness, and a fixture's own name the inputs it covers, accept the one difference from
+	// native it accepts, or mix integer types, which `tsc` must refuse.
+	let shared = manifest_dir().join("fixtures/lang");
+	let mut entry = "lang.ts";
+	for dir in [shared.clone(), fixture(&name)] {
+		for file in std::fs::read_dir(&dir).unwrap() {
+			let path = file.unwrap().path();
+			if path.extension().is_some_and(|e| e == "ts") {
+				std::fs::copy(&path, out.join(path.file_name().unwrap())).unwrap();
+				if path.file_name().unwrap() == "caller.ts" {
+					entry = "caller.ts";
+				}
+			}
+		}
 	}
-	typecheck(out);
-	differential("lang-fixture", &[], out, "caller.ts", 50_000);
+	typecheck(&out);
+	// As many random inputs per case as when one fixture held every module.
+	differential(&format!("lang-{module}-fixture"), &[], &out, entry, 151);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.
@@ -516,51 +607,196 @@ fn crates() {
 	}
 }
 
-/// The errors of a failed translation, each with where it points, against `expected`.
+/// The errors of a failed translation, each with where it points, against `expected`: by
+/// item rather than line and sorted, so that a case added or removed moves no other's.
 fn rejected(out: &Path, output: &Output, expected: &Path) {
 	assert!(!output.status.success(), "translating {} succeeded", expected.display());
 	assert!(!out.join("lib.ts").exists(), "a failed translation wrote output");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	// Each error and where it points, without rustc's rendering of the source, and with a
 	// dependency's source from wherever cargo keeps it.
-	let mut got = String::new();
+	let mut errors = Vec::new();
 	let mut lines = stderr.lines().peekable();
 	while let Some(line) = lines.next() {
 		if let Some(error) = line.strip_prefix("error: rust2-ts: ") {
-			got.push_str(error);
+			let mut message = error.to_string();
 			// What goes on in the lines after, as `tsc`'s messages do.
 			while let Some(more) = lines
 				.peek()
 				.filter(|l| l.starts_with("   ") && !l.trim_start().starts_with("--> "))
 			{
-				got.push_str(&format!("\n{more}"));
+				message.push_str(&format!("\n{more}"));
 				lines.next();
 			}
-			if let Some(at) = lines.peek().and_then(|l| l.trim_start().strip_prefix("--> ")) {
-				let at = at
-					.split_once("/registry/src/")
-					.map_or(at, |(_, rest)| rest.split_once('/').map_or(rest, |(_, path)| path));
-				got.push_str(&format!(" at {at}"));
-			}
-			got.push('\n');
+			let at = lines
+				.peek()
+				.and_then(|l| l.trim_start().strip_prefix("--> "))
+				.map(|at| {
+					at.split_once("/registry/src/")
+						.map_or(at, |(_, rest)| rest.split_once('/').map_or(rest, |(_, path)| path))
+						.to_string()
+				});
+			errors.push((at, message));
 		}
 	}
+	expect(expected, &listed(errors));
+}
+
+/// Each refusal on a line, sorted, those without a span first: where it points as its
+/// item and the line and column from where that starts, so a case added elsewhere moves
+/// none of them.
+fn listed(errors: Vec<(Option<String>, String)>) -> String {
+	let mut errors: Vec<_> = errors
+		.into_iter()
+		.map(|(at, message)| (at.map(|at| keyed(&at)), closures(&message)))
+		.collect();
+	errors.sort();
+	let mut got = String::new();
+	for (at, message) in &errors {
+		match at {
+			Some((file, item, line, col)) if item.is_empty() => got.push_str(&format!("{file}:{line}:{col}: ")),
+			Some((file, item, line, col)) => got.push_str(&format!("{file}:{item}{line:+}:{col}: ")),
+			None => {}
+		}
+		got.push_str(message);
+		got.push('\n');
+	}
+	got
+}
+
+/// Compare `got` with the snapshot at `path`, or rewrite it under `UPDATE_EXPECT`.
+fn expect(path: &Path, got: &str) {
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
-		std::fs::write(expected, &got).unwrap();
+		std::fs::write(path, got).unwrap();
 		return;
 	}
-	let want = std::fs::read_to_string(expected).unwrap_or_default();
+	let want = std::fs::read_to_string(path).unwrap_or_default();
 	assert!(
 		got == want,
-		"the errors differ; rerun with UPDATE_EXPECT=1\n{}",
-		diff(&want, &got)
+		"{} differs; rerun with UPDATE_EXPECT=1\n{}",
+		path.display(),
+		diff(&want, got)
 	);
+}
+
+/// `text` with each closure's span, `{closure@file:line:col: line:col}`, keyed by item.
+fn closures(text: &str) -> String {
+	let mut out = String::new();
+	let mut rest = text;
+	while let Some((before, after)) = rest.split_once("{closure@") {
+		let (span, after) = after.split_once('}').unwrap();
+		let (start, end) = span.split_once(": ").unwrap();
+		let span = match keyed(start) {
+			(_, item, ..) if item.is_empty() => span.to_string(),
+			(file, item, line, col) => {
+				let (end_line, end_col) = end.split_once(':').unwrap();
+				let lines =
+					end_line.parse::<i64>().unwrap() - start.rsplit(':').nth(1).unwrap().parse::<i64>().unwrap();
+				format!("{file}:{item}{line:+}:{col}: {:+}:{end_col}", line + lines)
+			}
+		};
+		out.push_str(&format!("{before}{{closure@{span}}}"));
+		rest = after;
+	}
+	out.push_str(rest);
+	out
+}
+
+/// Where `at`, a `file:line:col`, points: the file, the item there, the line counted from
+/// the item's own, and the column. A file outside this crate, as a dependency's, keys by
+/// its line, with no item.
+fn keyed(at: &str) -> (String, String, i64, i64) {
+	let mut parts = at.rsplitn(3, ':');
+	let (Some(col), Some(line), Some(file)) = (parts.next(), parts.next(), parts.next()) else {
+		panic!("{at} is no file:line:col");
+	};
+	let (line, col): (i64, i64) = (line.parse().unwrap(), col.parse().unwrap());
+	let Ok(text) = std::fs::read_to_string(manifest_dir().join(file)) else {
+		return (file.to_string(), String::new(), line, col);
+	};
+	let lines: Vec<&str> = text.lines().collect();
+	// Each item's name, the line its docs and attributes start at, and its header's.
+	let items: Vec<(String, usize, usize)> = (lines.iter().enumerate())
+		.filter_map(|(i, header)| {
+			let name = item(header)?;
+			let mut first = i;
+			while first > 0 && (lines[first - 1].starts_with("///") || lines[first - 1].starts_with("#[")) {
+				first -= 1;
+			}
+			Some((name, first, i))
+		})
+		.collect();
+	// The last item that starts at or before the line.
+	let (name, _, header) = (items.iter())
+		.take_while(|(_, first, _)| (*first as i64) < line)
+		.last()
+		.unwrap_or_else(|| panic!("{at} is in no item"));
+	assert!(
+		items.iter().filter(|(n, ..)| n == name).count() == 1,
+		"{file} has two items named {name}, which errors in it can't tell apart"
+	);
+	(file.to_string(), name.clone(), line - *header as i64 - 1, col)
+}
+
+/// The name of the item a line at the top level of a file starts, if it starts one: a
+/// function's, a type's, a trait's, or a static's name, an impl's header, or a macro's
+/// name and `!`.
+fn item(line: &str) -> Option<String> {
+	if !line.starts_with(|c: char| c.is_ascii_lowercase()) {
+		return None;
+	}
+	let ident = |s: &str| {
+		s.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+			.next()
+			.unwrap()
+			.to_string()
+	};
+	if let Some(header) = line.strip_prefix("impl") {
+		return Some(format!("impl{}", header.trim_end_matches('{').trim_end()));
+	}
+	if let Some(name) = line.strip_prefix("macro_rules! ") {
+		return Some(format!("{}!", ident(name)));
+	}
+	if let Some((name, _)) = line.split_once("! ").filter(|(name, _)| !name.contains(' ')) {
+		return Some(format!("{name}!"));
+	}
+	let mut words = line
+		.split_whitespace()
+		.skip_while(|w| ["pub", "pub(crate)", "async", "unsafe"].contains(w));
+	let kind = words.next()?;
+	if ![
+		"fn", "struct", "enum", "union", "trait", "static", "const", "type", "mod",
+	]
+	.contains(&kind)
+	{
+		return None;
+	}
+	let name = words.find(|w| *w != "mut")?;
+	Some(ident(name))
 }
 
 /// A census of a config without roots ranks every refusal in the crate, reached from each
 /// of its items, and succeeds where translation fails.
 #[test]
 fn census() {
+	let census = scratch().join("census").join("census.md");
+	let config = fixture("census").join("ts.toml");
+	let output = driver("census", &config, &["--census".as_ref(), census.as_ref()], "census");
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	expect(
+		&fixture("census").join("census.md"),
+		&std::fs::read_to_string(&census).unwrap(),
+	);
+}
+
+/// A census of `reject` from each of its items, a generic one lowered over its type
+/// parameters, which no root reaches: each span it lists, keyed as `reject`'s errors are.
+#[test]
+fn reject_census() {
 	let census = scratch().join("reject").join("census.md");
 	let config = fixture("reject").join("census.toml");
 	let output = driver("reject", &config, &["--census".as_ref(), census.as_ref()], "census");
@@ -569,18 +805,17 @@ fn census() {
 		"the census of reject failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	let got = std::fs::read_to_string(&census).unwrap();
-	let path = fixture("reject").join("census.md");
-	if std::env::var_os("UPDATE_EXPECT").is_some() {
-		std::fs::write(&path, &got).unwrap();
-		return;
-	}
-	let want = std::fs::read_to_string(&path).unwrap_or_default();
-	assert!(
-		got == want,
-		"the census differs; rerun with UPDATE_EXPECT=1\n{}",
-		diff(&want, &got)
-	);
+	let census = std::fs::read_to_string(&census).unwrap();
+	let spans = census.split_once("\n## Spans\n").expect("a census lists its spans").1;
+	let errors = spans
+		.lines()
+		.filter_map(|line| line.strip_prefix("- "))
+		.map(|line| {
+			let (at, message) = line.split_once(": ").unwrap();
+			(Some(at.to_string()), message.to_string())
+		})
+		.collect();
+	expect(&fixture("reject").join("census.txt"), &listed(errors));
 }
 
 /// One target directory keeps what it checked against each sysroot apart: a crate
@@ -600,7 +835,7 @@ fn sysroot() {
 	let checked = |sysroot: &str| {
 		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ts"))
 			.arg("--config")
-			.arg(fixture("reject").join("census.toml"))
+			.arg(fixture("census").join("ts.toml"))
 			.arg("--census")
 			.arg(dir.join("census.md"))
 			.env("CARGO_TARGET_DIR", dir.join("build"))
@@ -627,7 +862,7 @@ fn sysroot() {
 	);
 	assert_eq!(
 		checked(&std),
-		["reject-fixture"],
+		["census-fixture"],
 		"switching back to {std} checked its crates again"
 	);
 }

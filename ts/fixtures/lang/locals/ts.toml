@@ -1,0 +1,2 @@
+package = "lang-locals-fixture"
+roots = ["harness::run", "harness::op"]
