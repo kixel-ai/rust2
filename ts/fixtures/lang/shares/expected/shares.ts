@@ -512,7 +512,7 @@ export function drops(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	ids(collected.value, out);
 	const fromBox: rt.Arc<Logged.Logged[]> = new rt.Arc([logged(16), logged(18)]);
 	const fromArray: rt.Arc<Logged.Logged[]> = new rt.Arc([logged(20)]);
-	const cow: rt.Arc<Logged.Logged[]> = new rt.Arc(rt.cowIntoOwned(new rt.Borrowed(rt.sliceRange(fromRef.value, 0)), Logged.clone$Clone));
+	const cow: rt.Arc<Logged.Logged[]> = new rt.Arc(rt.cowIntoOwned(new rt.Borrowed(rt.sliceRange(fromRef.value, 0)), 8, Logged.clone$Clone));
 	flush(log.value, out);
 	rt.arcDrop(fromArray, drop$slice_shares_Logged);
 	rt.arcDrop(collected, drop$slice_shares_Logged);
