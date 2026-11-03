@@ -525,15 +525,31 @@ fn held<T>(lock: &RwLock<T>) -> u8 {
 	u8::from(read) << 1 | u8::from(write)
 }
 
+/// Writes whether the locks it is in can be locked, and how it writes, while they write it.
+struct Probe {
+	mutex: std::sync::Weak<Mutex<Probe>>,
+	lock: std::sync::Weak<RwLock<Mutex<Probe>>>,
+}
+
+impl fmt::Debug for Probe {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let mutex = self.mutex.upgrade().map(|m| m.try_lock().is_ok());
+		let read = self.lock.upgrade().map(|l| l.try_read().is_ok());
+		let written = self.lock.upgrade().map(|l| l.try_write().is_ok());
+		write!(f, "{mutex:?} {read:?} {written:?} {}", f.alternate())
+	}
+}
+
 /// Each lock printed by `Debug` as std writes it, never poisoned, and `<locked>` with no
 /// options while a guard holds a mutex or writes a read-write lock, plain, pretty, and
-/// padded, its value the operand: free, held, read, and nested in an `Arc` and each other.
+/// padded, its value the operand: free, held, read, and nested in an `Arc` and each other,
+/// and locked while each writes what it holds.
 pub fn shown(data: &[u8], out: &mut Vec<u8>) {
 	let mutex = Arc::new(Mutex::new(0u8));
 	let lock = RwLock::new(vec![Mutex::new('a')]);
 	for &op in data {
-		let v = op >> 2;
-		let text = match op % 4 {
+		let v = op / 5;
+		let text = match op % 5 {
 			0 => {
 				*mutex.lock().unwrap() = v;
 				let free = format!("{mutex:?} {mutex:#?} {mutex:>4?}");
@@ -551,6 +567,25 @@ pub fn shown(data: &[u8], out: &mut Vec<u8>) {
 			2 => {
 				let _held = lock.write().unwrap();
 				format!("{lock:?} {lock:#?} {lock:>12?}")
+			}
+			// Locked while each writes what it holds.
+			3 if v % 2 == 0 => {
+				let mutex = Arc::new_cyclic(|me| {
+					Mutex::new(Probe {
+						mutex: me.clone(),
+						lock: std::sync::Weak::new(),
+					})
+				});
+				format!("{mutex:?} {mutex:#?}")
+			}
+			3 => {
+				let lock = Arc::new_cyclic(|me| {
+					RwLock::new(Mutex::new(Probe {
+						mutex: std::sync::Weak::new(),
+						lock: me.clone(),
+					}))
+				});
+				format!("{lock:?} {lock:#?}")
 			}
 			_ => format!("{:?}", RwLock::new(Mutex::new(String::from("s")))),
 		};

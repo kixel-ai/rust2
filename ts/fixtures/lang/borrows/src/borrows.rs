@@ -728,11 +728,24 @@ struct Shown {
 	refcell: RefCell<Vec<u8>>,
 }
 
+/// Writes whether the cell it is in can be borrowed, shared and exclusively, and how it
+/// writes, while the cell writes it.
+struct Probe(std::rc::Weak<RefCell<Probe>>);
+
+impl std::fmt::Debug for Probe {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let cell = self.0.upgrade().unwrap();
+		let shared = cell.try_borrow().is_ok();
+		let exclusive = cell.try_borrow_mut().is_ok();
+		write!(f, "{shared} {exclusive} {}", f.alternate())
+	}
+}
+
 /// Each byte an operation on cells printed by `Debug`, its value the operand: a `RefCell`
 /// free, shared, and borrowed exclusively, which writes `<borrowed>` with no options, plain,
-/// pretty, padded, and as a `&dyn Debug`; cells nested in cells, a vector, and a derived
-/// `Debug`; guards of cells, which write the cell they lend; and `Cell`s of `Copy` values
-/// and an `UnsafeCell`.
+/// pretty, padded, and as a `&dyn Debug`, and borrowed shared while it writes what it
+/// holds; cells nested in cells, a vector, and a derived `Debug`; guards of cells, which
+/// write the cell they lend; and `Cell`s of `Copy` values and an `UnsafeCell`.
 pub fn printed(data: &[u8], out: &mut Vec<u8>) {
 	let number = RefCell::new(0u32);
 	let nested = RefCell::new(vec![RefCell::new(Some(0u8))]);
@@ -792,6 +805,11 @@ pub fn printed(data: &[u8], out: &mut Vec<u8>) {
 				let unsafe_cell = std::cell::UnsafeCell::new(v);
 				let in_refcell = RefCell::new(Cell::new(v));
 				format!("{unsafe_cell:?} {unsafe_cell:#?} {in_refcell:?} {in_refcell:#?}")
+			}
+			// Borrowed while it writes what it holds.
+			6 => {
+				let probe = std::rc::Rc::new_cyclic(|me| RefCell::new(Probe(me.clone())));
+				format!("{probe:?} {probe:#?}")
 			}
 			_ => format!("{:?} {:?}", RefCell::new(String::from("s")), RefCell::new([v; 2])),
 		};

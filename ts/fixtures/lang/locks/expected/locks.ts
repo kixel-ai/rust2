@@ -6,6 +6,7 @@ import { thenSome$0sf2w1i, thenSome$0d5am30 } from "./core/bool.ts";
 import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
 import { map$02txiwz as result_map$02txiwz, map$1g6jln5 as result_map$1g6jln5, mapOr$0666x4n as result_mapOr$0666x4n, mapOr$1qkf3ab as result_mapOr$1qkf3ab } from "./core/result.ts";
 import * as Lock from "./locks.Lock.ts";
+import * as Probe from "./locks.Probe.ts";
 import * as Tally from "./locks.Tally.ts";
 
 /** Each byte an operation on the mutexes, its value the operand; each puts what it read. */
@@ -859,50 +860,67 @@ export function held$u32(lock: rt.RefCell<rt.u32>): rt.u8 {
 /**
  * Each lock printed by `Debug` as std writes it, never poisoned, and `<locked>` with no
  * options while a guard holds a mutex or writes a read-write lock, plain, pretty, and
- * padded, its value the operand: free, held, read, and nested in an `Arc` and each other.
+ * padded, its value the operand: free, held, read, and nested in an `Arc` and each other,
+ * and locked while each writes what it holds.
  */
 export function shown(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let text!: string;
 	const mutex: rt.Arc<rt.Mutex<rt.u8>> = new rt.Arc(new rt.Mutex(0));
 	const lock: rt.RefCell<rt.Mutex<rt.char>[]> = new rt.RefCell([new rt.Mutex(97)]);
 	for (const op of rt.byteSliceView(data)) {
-		const v: rt.u8 = op >> 2;
-		const _19: rt.u8 = rt.u8Rem(op, 4);
-		if (_19 === 0) {
-			const _23: rt.Mutex<rt.u8> = rt.mutexLock(mutex.value);
-			_23.value = v;
-			rt.mutexUnlock(_23);
+		const v: rt.u8 = rt.u8Div(op, 5);
+		const _18: rt.u8 = rt.u8Rem(op, 5);
+		if (_18 === 0) {
+			const _22: rt.Mutex<rt.u8> = rt.mutexLock(mutex.value);
+			_22.value = v;
+			rt.mutexUnlock(_22);
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.mutexDebug(mutex.value, f, rt.u8Debug)];
 			const free: string = rt.fmtFormat([args2[0], " ", rt.fmtSpec({ alternate: true }, args2[0]), " ", rt.fmtSpec({ align: ">", width: 4 }, args2[0])]);
 			const _held: rt.Mutex<rt.u8> = rt.mutexLock(mutex.value);
 			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free), (f: rt.Formatter) => rt.mutexDebug(mutex.value, f, rt.u8Debug)];
 			text = rt.fmtFormat([args4[0], " ", args4[1], " ", rt.fmtSpec({ alternate: true }, args4[1]), " ", rt.fmtSpec({ align: ">", width: 12 }, args4[1])]);
 			rt.mutexUnlock(_held);
-		} else if (_19 === 1) {
-			const _53: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockWrite(lock);
-			const _56: rt.Mutex<rt.char> = new rt.Mutex(rt.u8Add(97, rt.u8Rem(v, 26)) as rt.char);
-			_53.value.push(_56);
-			rt.refMutRelease(_53);
+		} else if (_18 === 1) {
+			const _52: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockWrite(lock);
+			const _55: rt.Mutex<rt.char> = new rt.Mutex(rt.u8Add(97, rt.u8Rem(v, 26)) as rt.char);
+			_52.value.push(_55);
+			rt.refMutRelease(_52);
 			const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			const free2: string = rt.fmtFormat([args6[0], " ", rt.fmtSpec({ alternate: true }, args6[0])]);
 			const read: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockRead(lock);
 			const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			const shared: string = rt.fmtFormat([args8[0]]);
-			const _86: rt.Mutex<rt.char>[] = read.value;
-			const _held2: rt.Mutex<rt.char> = rt.mutexLock(_86[rt.idx(_86, 0)]);
+			const _85: rt.Mutex<rt.char>[] = read.value;
+			const _held2: rt.Mutex<rt.char> = rt.mutexLock(_85[rt.idx(_85, 0)]);
 			const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free2), (f: rt.Formatter) => rt.fmtPad(f, shared), (f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			text = rt.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", rt.fmtSpec({ alternate: true }, args10[2])]);
 			rt.mutexUnlock(_held2);
 			rt.refRelease(read);
-		} else if (_19 === 2) {
+		} else if (_18 === 2) {
 			const _held3: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockWrite(lock);
 			const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			text = rt.fmtFormat([args12[0], " ", rt.fmtSpec({ alternate: true }, args12[0]), " ", rt.fmtSpec({ align: ">", width: 12 }, args12[0])]);
 			rt.refMutRelease(_held3);
+		} else if (_18 === 3) {
+			if (!(rt.u8Rem(v, 2) === 0)) {
+				const lock2: rt.Arc<rt.RefCell<rt.Mutex<Probe.Probe>>> = rt.arcNewCyclic((me2: rt.Weak<rt.RefCell<rt.Mutex<Probe.Probe>>>): rt.RefCell<rt.Mutex<Probe.Probe>> => {
+					return new rt.RefCell(new rt.Mutex(new Probe.Probe(new rt.Weak(), rt.weakClone(me2))));
+				});
+				const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock2.value, f, (value: rt.Mutex<Probe.Probe>, f: rt.Formatter) => rt.mutexDebug(value, f, (value: Probe.Probe, f: rt.Formatter) => Probe.fmt$fmt_Debug(value, f)))];
+				text = rt.fmtFormat([args16[0], " ", rt.fmtSpec({ alternate: true }, args16[0])]);
+				lock2[Symbol.dispose]();
+			} else {
+				const mutex2: rt.Arc<rt.Mutex<Probe.Probe>> = rt.arcNewCyclic((me: rt.Weak<rt.Mutex<Probe.Probe>>): rt.Mutex<Probe.Probe> => {
+					return new rt.Mutex(new Probe.Probe(rt.weakClone(me), new rt.Weak()));
+				});
+				const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.mutexDebug(mutex2.value, f, (value: Probe.Probe, f: rt.Formatter) => Probe.fmt$fmt_Debug(value, f))];
+				text = rt.fmtFormat([args14[0], " ", rt.fmtSpec({ alternate: true }, args14[0])]);
+				mutex2[Symbol.dispose]();
+			}
 		} else {
 			const part = new rt.RefCell(new rt.Mutex("s"));
-			const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(part, f, (value: rt.Mutex<string>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtStr))];
-			text = rt.fmtFormat([args14[0]]);
+			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(part, f, (value: rt.Mutex<string>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtStr))];
+			text = rt.fmtFormat([args18[0]]);
 		}
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(text));
 	}

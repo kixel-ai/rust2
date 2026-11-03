@@ -437,17 +437,23 @@ pub fn std_impl<'tcx>(
 			(Std::BorrowError, Trait::Display) => Expr::rt("borrowErrorDisplay", vec![value, f]),
 			(Std::BorrowMutError, Trait::Debug) => Expr::rt("borrowMutErrorDebug", vec![value, f]),
 			(Std::BorrowMutError, Trait::Display) => Expr::rt("borrowMutErrorDisplay", vec![value, f]),
-			// What each holds, or what keeps it from being read; a `Cell`'s value is `Copy`. An
-			// `RwLock` shares a `RefCell`'s representation, and an `UnsafeCell` a `Cell`'s.
+			// What each holds, held as a guard would while it is written, or what keeps it from
+			// being read. An `RwLock` shares a `RefCell`'s representation, and an `UnsafeCell` a
+			// `Cell`'s.
 			(Std::Cell, Trait::Debug) if tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell) => {
 				rt("writeStr", vec![f, Expr::Str("UnsafeCell { .. }".into())])
 			}
-			(std @ (Std::RefCell | Std::Mutex | Std::Cell), Trait::Debug) => {
+			// What `get` gives, before anything is written.
+			(Std::Cell, Trait::Debug) => {
+				let held = b.fmt_fn(tr, args.type_at(0), span);
+				let value = b.t.copied(value.member("v"), args.type_at(0), span);
+				Expr::rt("cellDebug", vec![value, f, held])
+			}
+			(std @ (Std::RefCell | Std::Mutex), Trait::Debug) => {
 				let debug = match std {
 					Std::RefCell if tcx.is_diagnostic_item(rustc_span::sym::RwLock, adt.did()) => "rwLockDebug",
 					Std::RefCell => "refCellDebug",
-					Std::Mutex => "mutexDebug",
-					_ => "cellDebug",
+					_ => "mutexDebug",
 				};
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				Expr::rt(debug, vec![value, f, held])

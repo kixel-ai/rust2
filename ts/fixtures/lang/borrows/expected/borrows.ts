@@ -5,6 +5,7 @@ import { copy$Option_tuple2_u64_u64, copy$tuple2_u64_u64, drop$Result_cell_RefMu
 import * as Noisy from "./borrows.Noisy.ts";
 import * as Parts from "./borrows.Parts.ts";
 import * as Polling from "./borrows.Polling.ts";
+import * as Probe from "./borrows.Probe.ts";
 import * as Shown from "./borrows.Shown.ts";
 import * as Tagged from "./borrows.Tagged.ts";
 import { thenSome$0zrlsto, thenSome$0d5am30, then$1jgls7y } from "./core/bool.ts";
@@ -1072,9 +1073,9 @@ export function flush(log: rt.Mutex<rt.ByteVec>, out: rt.ByteVec): void {
 /**
  * Each byte an operation on cells printed by `Debug`, its value the operand: a `RefCell`
  * free, shared, and borrowed exclusively, which writes `<borrowed>` with no options, plain,
- * pretty, padded, and as a `&dyn Debug`; cells nested in cells, a vector, and a derived
- * `Debug`; guards of cells, which write the cell they lend; and `Cell`s of `Copy` values
- * and an `UnsafeCell`.
+ * pretty, padded, and as a `&dyn Debug`, and borrowed shared while it writes what it
+ * holds; cells nested in cells, a vector, and a derived `Debug`; guards of cells, which
+ * write the cell they lend; and `Cell`s of `Copy` values and an `UnsafeCell`.
  */
 export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let text!: string;
@@ -1140,7 +1141,7 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const wide: rt.Cell<rt.u64> = new rt.Cell(rt.u64Shl(v as rt.u64, 56));
 			const maybe: rt.Cell<rt.u8 | undefined> = new rt.Cell(thenSome$0d5am30(rt.u8Rem(v, 2) === 0, v));
 			const _184: rt.Cell<undefined> = new rt.Cell(undefined);
-			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.cellDebug(pair, f, (value: [rt.u8, rt.char], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.fmtCharDebug(value[1], f)], f)), (f: rt.Formatter) => rt.cellDebug(wide, f, rt.u64Debug), (f: rt.Formatter) => rt.cellDebug(maybe, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug)), (f: rt.Formatter) => rt.cellDebug(_184, f, rt.fmtUnit)];
+			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.cellDebug(pair.v, f, (value: [rt.u8, rt.char], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.fmtCharDebug(value[1], f)], f)), (f: rt.Formatter) => rt.cellDebug(wide.v, f, rt.u64Debug), (f: rt.Formatter) => rt.cellDebug(maybe.v, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug)), (f: rt.Formatter) => rt.cellDebug(_184.v, f, rt.fmtUnit)];
 			text = rt.fmtFormat([args18[0], " ", rt.fmtSpec({ alternate: true }, args18[0]), " ", args18[1], " ", args18[2], " ", rt.fmtSpec({ alternate: true }, args18[2]), " ", args18[3], " ", rt.fmtSpec({ align: ">", width: 3 }, args18[0])]);
 		} else if (_25 === 4) {
 			rt.cellSet(shown.cell, v);
@@ -1156,13 +1157,20 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_25 === 5) {
 			new rt.Cell(v);
 			const inRefcell: rt.RefCell<rt.Cell<rt.u8>> = new rt.RefCell(new rt.Cell(v));
-			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "UnsafeCell { .. }"), (f: rt.Formatter) => rt.refCellDebug(inRefcell, f, (value: rt.Cell<rt.u8>, f: rt.Formatter) => rt.cellDebug(value, f, rt.u8Debug))];
+			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "UnsafeCell { .. }"), (f: rt.Formatter) => rt.refCellDebug(inRefcell, f, (value: rt.Cell<rt.u8>, f: rt.Formatter) => rt.cellDebug(value.v, f, rt.u8Debug))];
 			text = rt.fmtFormat([args24[0], " ", rt.fmtSpec({ alternate: true }, args24[0]), " ", args24[1], " ", rt.fmtSpec({ alternate: true }, args24[1])]);
+		} else if (_25 === 6) {
+			const probe: rt.Arc<rt.RefCell<Probe.Probe>> = rt.arcNewCyclic((me: rt.Weak<rt.RefCell<Probe.Probe>>): rt.RefCell<Probe.Probe> => {
+				return new rt.RefCell(new Probe.Probe(rt.weakClone(me)));
+			});
+			const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(probe.value, f, (value: Probe.Probe, f: rt.Formatter) => Probe.fmt$fmt_Debug(value, f))];
+			text = rt.fmtFormat([args26[0], " ", rt.fmtSpec({ alternate: true }, args26[0])]);
+			probe[Symbol.dispose]();
 		} else {
-			const _244: rt.RefCell<string> = new rt.RefCell("s");
-			const _247: rt.RefCell<Uint8Array> = new rt.RefCell(rt.bytes(2).fill(v));
-			const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(_244, f, rt.fmtStr), (f: rt.Formatter) => rt.refCellDebug(_247, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
-			text = rt.fmtFormat([args26[0], " ", args26[1]]);
+			const _253: rt.RefCell<string> = new rt.RefCell("s");
+			const _256: rt.RefCell<Uint8Array> = new rt.RefCell(rt.bytes(2).fill(v));
+			const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(_253, f, rt.fmtStr), (f: rt.Formatter) => rt.refCellDebug(_256, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
+			text = rt.fmtFormat([args28[0], " ", args28[1]]);
 		}
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(text));
 	}

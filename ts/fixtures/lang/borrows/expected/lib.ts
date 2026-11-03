@@ -3,6 +3,7 @@
 import * as rt from "./rt.ts";
 import { borrows, guards, maps, tries, leaks, printed } from "./borrows.ts";
 import type * as Parts from "./borrows.Parts.ts";
+import type * as Probe from "./borrows.Probe.ts";
 import type * as Tagged from "./borrows.Tagged.ts";
 
 export function copy$Option_tuple2_u64_u64(v: [rt.u64, rt.u64] | undefined): [rt.u64, rt.u64] | undefined {
@@ -38,6 +39,12 @@ export function drop$Result_cell_RefMut_array4_u8_cell_BorrowMutError(_1: rt.Res
 }
 
 export function drop$Result_cell_RefMut_borrows_Parts_cell_BorrowMutError(_1: rt.Result<rt.RefCell<Parts.Parts>, rt.BorrowMutError>): void {
+	if (_1.ok) {
+		rt.refMutRelease(_1.value);
+	}
+}
+
+export function drop$Result_cell_RefMut_borrows_Probe_cell_BorrowMutError(_1: rt.Result<rt.RefCell<Probe.Probe>, rt.BorrowMutError>): void {
 	if (_1.ok) {
 		rt.refMutRelease(_1.value);
 	}
@@ -82,6 +89,12 @@ export function drop$Result_cell_Ref_array4_u8_cell_BorrowError(_1: rt.Result<rt
 }
 
 export function drop$Result_cell_Ref_borrows_Parts_cell_BorrowError(_1: rt.Result<rt.RefCell<Parts.Parts>, rt.BorrowError>): void {
+	if (_1.ok) {
+		rt.refRelease(_1.value);
+	}
+}
+
+export function drop$Result_cell_Ref_borrows_Probe_cell_BorrowError(_1: rt.Result<rt.RefCell<Probe.Probe>, rt.BorrowError>): void {
 	if (_1.ok) {
 		rt.refRelease(_1.value);
 	}

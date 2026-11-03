@@ -2,6 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { locks, relock, rwlocks, mapped, mutexMapped, printed, downgraded, shown } from "./locks.ts";
+import type * as Probe from "./locks.Probe.ts";
 import type * as Tally from "./locks.Tally.ts";
 
 export function drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally(_1: rt.Result<rt.Result<rt.Mutex<rt.u64>, rt.Mutex<rt.u64>>, rt.Mutex<Tally.Tally>>): void {
@@ -52,6 +53,14 @@ export function drop$Result_sync_MutexGuard_array4_u8_sync_TryLockError_sync_Mut
 	}
 }
 
+export function drop$Result_sync_MutexGuard_locks_Probe_sync_TryLockError_sync_MutexGuard_locks_Probe(_1: rt.Result<rt.Mutex<Probe.Probe>, rt.TryLockError<rt.Mutex<Probe.Probe>>>): void {
+	if (_1.ok) {
+		rt.mutexUnlock(_1.value);
+	} else {
+		drop$sync_TryLockError_sync_MutexGuard_locks_Probe(_1.error);
+	}
+}
+
 export function drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_1: rt.Result<rt.Mutex<Tally.Tally>, rt.TryLockError<rt.Mutex<Tally.Tally>>>): void {
 	if (_1.ok) {
 		rt.mutexUnlock(_1.value);
@@ -92,6 +101,14 @@ export function drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_s
 	}
 }
 
+export function drop$Result_sync_RwLockReadGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockReadGuard_sync_Mutex_locks_Probe(_1: rt.Result<rt.RefCell<rt.Mutex<Probe.Probe>>, rt.TryLockError<rt.RefCell<rt.Mutex<Probe.Probe>>>>): void {
+	if (_1.ok) {
+		rt.refRelease(_1.value);
+	} else {
+		drop$sync_TryLockError_sync_RwLockReadGuard_sync_Mutex_locks_Probe(_1.error);
+	}
+}
+
 export function drop$Result_sync_RwLockReadGuard_u32_sync_TryLockError_sync_RwLockReadGuard_u32(_1: rt.Result<rt.RefCell<rt.u32>, rt.TryLockError<rt.RefCell<rt.u32>>>): void {
 	if (_1.ok) {
 		rt.refRelease(_1.value);
@@ -116,6 +133,14 @@ export function drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_
 	}
 }
 
+export function drop$Result_sync_RwLockWriteGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockWriteGuard_sync_Mutex_locks_Probe(_1: rt.Result<rt.RefCell<rt.Mutex<Probe.Probe>>, rt.TryLockError<rt.RefCell<rt.Mutex<Probe.Probe>>>>): void {
+	if (_1.ok) {
+		rt.refMutRelease(_1.value);
+	} else {
+		drop$sync_TryLockError_sync_RwLockWriteGuard_sync_Mutex_locks_Probe(_1.error);
+	}
+}
+
 export function drop$Result_sync_RwLockWriteGuard_u32_sync_TryLockError_sync_RwLockWriteGuard_u32(_1: rt.Result<rt.RefCell<rt.u32>, rt.TryLockError<rt.RefCell<rt.u32>>>): void {
 	if (_1.ok) {
 		rt.refMutRelease(_1.value);
@@ -127,6 +152,12 @@ export function drop$Result_sync_RwLockWriteGuard_u32_sync_TryLockError_sync_RwL
 export function drop$sync_TryLockError_sync_MutexGuard_array4_u8(_1: rt.TryLockError<rt.Mutex<Uint8Array>>): void {
 	if (_1.tag === "Poisoned") {
 		rt.mutexUnlock((_1 as { tag: "Poisoned"; _0: rt.Mutex<Uint8Array> })._0);
+	}
+}
+
+export function drop$sync_TryLockError_sync_MutexGuard_locks_Probe(_1: rt.TryLockError<rt.Mutex<Probe.Probe>>): void {
+	if (_1.tag === "Poisoned") {
+		rt.mutexUnlock((_1 as { tag: "Poisoned"; _0: rt.Mutex<Probe.Probe> })._0);
 	}
 }
 
@@ -160,6 +191,12 @@ export function drop$sync_TryLockError_sync_RwLockReadGuard_locks_Tally(_1: rt.T
 	}
 }
 
+export function drop$sync_TryLockError_sync_RwLockReadGuard_sync_Mutex_locks_Probe(_1: rt.TryLockError<rt.RefCell<rt.Mutex<Probe.Probe>>>): void {
+	if (_1.tag === "Poisoned") {
+		rt.refRelease((_1 as { tag: "Poisoned"; _0: rt.RefCell<rt.Mutex<Probe.Probe>> })._0);
+	}
+}
+
 export function drop$sync_TryLockError_sync_RwLockReadGuard_u32(_1: rt.TryLockError<rt.RefCell<rt.u32>>): void {
 	if (_1.tag === "Poisoned") {
 		rt.refRelease((_1 as { tag: "Poisoned"; _0: rt.RefCell<rt.u32> })._0);
@@ -175,6 +212,12 @@ export function drop$sync_TryLockError_sync_RwLockWriteGuard_array4_u8(_1: rt.Tr
 export function drop$sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(_1: rt.TryLockError<rt.RefCell<Tally.Tally>>): void {
 	if (_1.tag === "Poisoned") {
 		rt.refMutRelease((_1 as { tag: "Poisoned"; _0: rt.RefCell<Tally.Tally> })._0);
+	}
+}
+
+export function drop$sync_TryLockError_sync_RwLockWriteGuard_sync_Mutex_locks_Probe(_1: rt.TryLockError<rt.RefCell<rt.Mutex<Probe.Probe>>>): void {
+	if (_1.tag === "Poisoned") {
+		rt.refMutRelease((_1 as { tag: "Poisoned"; _0: rt.RefCell<rt.Mutex<Probe.Probe>> })._0);
 	}
 }
 
