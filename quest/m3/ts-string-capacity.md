@@ -23,10 +23,10 @@ Decided with the maintainer on 2026-11-03
 A `String` is a JS string, so `capacity` is refused and `with_capacity`, `reserve`, and
 `shrink_to_fit` do nothing. A `Vec<u8>` or a `Bytes` of its bytes gets a buffer as long
 as its UTF-8, whose capacity std's differs from after `with_capacity`, `format!`, or a
-push that grew it. So a crate that makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes
-is refused what reads a `Bytes`' capacity (`is_unique`, `try_into_mut`, `truncate`,
-`clear`, `From` into a `BytesMut` or a `Vec<u8>`, and `BufMut::put` into a `BytesMut`),
-and another crate reads them as a vector's whose capacity is their length. Lifting that
+push that grew it. So where any translated crate makes a `Bytes` or a `Vec<u8>` of a
+`String`'s bytes, every crate is refused what reads a `Bytes`' capacity (`is_unique`,
+`try_into_mut`, `truncate`, `clear`, `From` into a `BytesMut` or a `Vec<u8>`, and
+`BufMut::put` into a `BytesMut`), since the bytes may reach any of them. Lifting that
 needs the capacity on the `String` itself.
 
 Measure first: a `String` as a wrapper object holding its text and capacity, and a side
