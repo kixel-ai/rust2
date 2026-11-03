@@ -1,7 +1,7 @@
 //! Clones of std's iterators and adaptors, and of closures: each read on from where the
 //! original was, independently of it, the two read in turns from either end after partial
 //! reads, with what they own cloned and dropped as std's do. And clones of arrays, each
-//! element by its own `Clone`.
+//! element by its own `Clone`, and `vec![x; n]`, as std's `from_elem` clones and drops `x`.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
@@ -871,4 +871,113 @@ pub fn clone_froms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			flush(&log, out);
 		}
 	}
+}
+
+/// `vec![x; n]` of values that clone and drop themselves, as std's `from_elem` makes it:
+/// `n - 1` clones of `x` in order, then `x` itself, or `x` dropped where `n` is 0, of a
+/// `Logged`, its own `Clone`, an array, an `Option`, a tuple, nested `Vec`s, and through a
+/// generic function, with `n` from the input.
+pub fn repeats(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let logged = |id: u8| Logged { id, log: log.clone() };
+	let at = |i: usize| data.get(i).copied().unwrap_or((i as u8).wrapping_mul(0x30)) & 0x7e;
+	// Counts of 0 to 4.
+	let n = |i: usize| usize::from(data.get(i).copied().unwrap_or(i as u8) % 5);
+	let ids = |a: &[Logged], out: &mut Vec<u8>| out.extend(a.iter().map(Logged::id));
+	match kind % 8 {
+		0 => {
+			let v = vec![logged(at(0)); n(1)];
+			flush(&log, out);
+			ids(&v, out);
+			out.push(v.capacity() as u8);
+			drop(v);
+			flush(&log, out);
+		}
+		// Each clone has room for exactly its elements, and the last row is the original.
+		1 => {
+			let mut row = Vec::with_capacity(6);
+			row.extend((0..n(1)).map(|i| logged(at(2 + i))));
+			let v = vec![row; n(0)];
+			flush(&log, out);
+			for row in &v {
+				ids(row, out);
+				out.extend([0xfe, row.capacity() as u8]);
+			}
+			drop(v);
+			flush(&log, out);
+		}
+		2 => {
+			let v = vec![[logged(at(0)), logged(at(1))]; n(2)];
+			flush(&log, out);
+			v.iter().for_each(|row| ids(row, out));
+			drop(v);
+			flush(&log, out);
+		}
+		// Its own `Clone`, which logs and clones what it holds.
+		3 => {
+			let v = vec![Kept(logged(at(0))); n(1)];
+			flush(&log, out);
+			out.extend(v.iter().map(|k| k.0.id()));
+			drop(v);
+			flush(&log, out);
+			let slot = match at(2) % 3 {
+				0 => Slot::Empty,
+				_ => Slot::Held(Kept(logged(at(3)))),
+			};
+			let slots = vec![slot; n(4)];
+			flush(&log, out);
+			drop(slots);
+			flush(&log, out);
+		}
+		4 => {
+			let some = vec![Some(logged(at(0))); n(1)];
+			let none: Vec<Option<Logged>> = vec![None; n(2)];
+			flush(&log, out);
+			out.extend(some.iter().map(|x| x.as_ref().map_or(0xfe, Logged::id)));
+			out.push(none.len() as u8);
+			let pairs = vec![(logged(at(3)), at(4).to_string()); n(5)];
+			flush(&log, out);
+			pairs.iter().for_each(|(l, s)| out.extend(s.bytes().chain([l.id()])));
+			drop((some, none, pairs));
+			flush(&log, out);
+		}
+		// Nested repeats: each inner one made once, then the outer clones it whole.
+		5 => {
+			let v = vec![vec![logged(at(0)); n(1)]; n(2)];
+			flush(&log, out);
+			v.iter().for_each(|row| ids(row, out));
+			drop(v);
+			flush(&log, out);
+		}
+		// The value is made before the count, whose making logs, and dropped at once where it is 0.
+		6 => {
+			let count = || {
+				log.borrow_mut().push(0xfb);
+				n(1)
+			};
+			let v = vec![logged(at(0)); count()];
+			log.borrow_mut().push(0xfa);
+			flush(&log, out);
+			ids(&v, out);
+			let empty = vec![logged(at(2)); 0];
+			log.borrow_mut().push(0xfa);
+			flush(&log, out);
+			drop((v, empty));
+			flush(&log, out);
+		}
+		_ => {
+			let v = repeated(logged(at(0)), n(1));
+			flush(&log, out);
+			ids(&v, out);
+			let rows = repeated(vec![logged(at(2)), logged(at(3))], n(4));
+			flush(&log, out);
+			drop((v, rows));
+			flush(&log, out);
+		}
+	}
+}
+
+/// `vec![x; n]` where only its bound says `x` clones.
+fn repeated<T: Clone>(x: T, n: usize) -> Vec<T> {
+	vec![x; n]
 }
