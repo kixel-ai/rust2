@@ -289,7 +289,10 @@ pub fn std_impl<'tcx>(
 		}
 		// Each its name alone, unpadded.
 		ty::Adt(adt, _)
-			if tr == Trait::Debug && (library::pinned(tcx, adt.did()) || library::empty_iter(tcx, adt.did())) =>
+			if tr == Trait::Debug
+				&& (library::pinned(tcx, adt.did())
+					|| library::empty_iter(tcx, adt.did())
+					|| Std::of(tcx, adt.did()) == Some(Std::BuildHasherDefault)) =>
 		{
 			rt("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
 		}

@@ -1733,7 +1733,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					("inclusive".into(), Type::Builtin("true")),
 				]),
 				library::Std::RangeFrom => Type::Rt("RangeFrom", vec![self.ty(args.type_at(0), span)]),
-				library::Std::RangeFull => Type::Builtin("undefined"),
+				library::Std::RangeFull | library::Std::BuildHasherDefault => Type::Builtin("undefined"),
 				library::Std::Argument => Type::Rt("Fmt", vec![]),
 				library::Std::NonNull => self.pointer_ty(args.type_at(0), span),
 				library::Std::MaybeUninit | library::Std::ManuallyDrop => self.ty(args.type_at(0), span),
