@@ -157,21 +157,29 @@ export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 const ERASED = new WeakMap<object, string[]>();
 
 /**
- * Dangling pointers cast to `*const ()`, by the alignment of their type, which is their
- * address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s address is.
+ * A `*const ()` at an address no memory is at, as a dangling pointer cast to one is, by
+ * that address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s is.
  */
-const DANGLING_ERASED = new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+const ERASED_AT = new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+
+/** The address of `p`, a `*const ()` that is one of `ERASED_AT`'s, if it is. */
+function erasedAddress(p: Place<undefined>): number | undefined {
+	for (const [addr, at] of ERASED_AT) if (at === p) return addr;
+	return undefined;
+}
 
 /**
  * `p as *const ()`, of a pointer to a value of Rust type `type`, aligned to `align` bytes:
- * the same identity, which remembers `type` for a cast back.
+ * the same identity, which remembers `type` for a cast back. A dangling pointer is at
+ * `align`, which a cast back keeps.
  */
 export function ptrErase(p: object, type: string, align: number): Place<undefined> {
 	if (p === NULL) return NULL;
-	if (p === DANGLING) {
-		let erased = DANGLING_ERASED.get(align);
-		if (erased === undefined) DANGLING_ERASED.set(align, (erased = { v: undefined }));
-		return erased;
+	if (p === DANGLING || p instanceof Address) {
+		const addr = p === DANGLING ? align : (p as Address).addr;
+		let at = ERASED_AT.get(addr);
+		if (at === undefined) ERASED_AT.set(addr, (at = { v: undefined }));
+		return at;
 	}
 	const types = ERASED.get(p);
 	if (types === undefined) ERASED.set(p, [type]);
@@ -180,12 +188,14 @@ export function ptrErase(p: object, type: string, align: number): Place<undefine
 }
 
 /**
- * `p as *const T`, of a `*const ()`, where `T` is Rust type `type`: the pointer `ptrErase`
- * erased, which must point at a `type`, since JS keeps no bytes to read as another.
+ * `p as *const T`, of a `*const ()`, where `T` is Rust type `type` aligned to `align`
+ * bytes: the pointer `ptrErase` erased, which must point at a `type`, since JS keeps no
+ * bytes to read as another, or one at the address it was.
  */
-export function ptrUnerase(p: Place<undefined>, type: string): unknown {
+export function ptrUnerase(p: Place<undefined>, type: string, align: number): unknown {
 	if (p === NULL) return NULL;
-	for (const dangling of DANGLING_ERASED.values()) if (p === dangling) return DANGLING;
+	const addr = erasedAddress(p);
+	if (addr !== undefined) return addr === align ? DANGLING : new Address(addr);
 	const types = ERASED.get(p);
 	if (types?.includes(type)) return p;
 	const was = types === undefined ? "a value no cast to `*const ()` erased" : types.map((t) => `\`${t}\``).join(" or ");

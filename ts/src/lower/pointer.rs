@@ -872,17 +872,66 @@ fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
 	if b.t.polymorphic() && ty.has_param() {
 		return None;
 	}
+	let erase = format!("a pointer to `{ty}` cast to one to `()`");
 	if !ty.is_sized(b.t.tcx, b.t.typing_env_pub()) {
-		return Some(format!("a pointer to `{ty}` cast to one to `()`, which loses its size"));
+		return Some(format!("{erase}, which loses its size"));
+	}
+	if b.t.zero_sized(ty) {
+		return Some(format!("{erase}, which has no bytes and so no address of its own"));
 	}
 	let what = match b.t.pointee(ty) {
-		Pointee::Object => return None,
+		_ if b.t.erased(ty) != ty => return Some(format!("{erase}, which JS keeps as what it holds")),
+		Pointee::Object => {
+			return shares_start(b, ty).map(|part| {
+				format!(
+					"{erase}, whose address its `{part}` at its start shares, which JS keeps as an object of its own"
+				)
+			});
+		}
 		Pointee::Place | Pointee::Slice => "a place",
 		Pointee::Bytes => "a view",
 	};
-	Some(format!(
-		"a pointer to `{ty}` cast to one to `()`, whose JS value is {what} of its own each borrow"
-	))
+	Some(format!("{erase}, whose JS value is {what} of its own each borrow"))
+}
+
+/// A part `ty` holds by value at its start, at any depth, which a pointer to is an object
+/// of its own, or another type JS keeps as what it holds: at `ty`'s address in Rust, but
+/// another identity in JS. Any field of an enum's or a union's may be at the start.
+fn shares_start<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+	let normalize = |t: Ty<'tcx>| {
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(t))
+			.unwrap_or(t)
+	};
+	let at_start = |i: usize| {
+		tcx.layout_of(env.as_query_input(ty))
+			.is_ok_and(|l| l.fields.offset(i) == rustc_abi::Size::ZERO)
+	};
+	let parts: Vec<Ty<'tcx>> = match *ty.kind() {
+		ty::Array(elem, _) | ty::Pat(elem, _) => vec![elem],
+		ty::Tuple(tys) => (tys.iter().enumerate())
+			.filter(|&(i, _)| at_start(i))
+			.map(|(_, t)| t)
+			.collect(),
+		ty::Adt(adt, args) if adt.is_struct() => (adt.non_enum_variant().fields.iter().enumerate())
+			.filter(|&(i, _)| at_start(i))
+			.map(|(_, f)| normalize(f.ty(tcx, args).skip_norm_wip()))
+			.collect(),
+		ty::Adt(adt, args) => adt
+			.all_fields()
+			.map(|f| normalize(f.ty(tcx, args).skip_norm_wip()))
+			.collect(),
+		_ => Vec::new(),
+	};
+	parts
+		.into_iter()
+		.filter(|&part| !b.t.zero_sized(part))
+		.find_map(
+			|part| match b.t.erased(part) != part || b.t.pointee(part) == Pointee::Object {
+				true => Some(part),
+				false => shares_start(b, part),
+			},
+		)
 }
 
 /// Why pointers to `ty` can't point into an array, if they can't: an element JS keeps as
@@ -908,21 +957,22 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	if inner == into {
 		return p;
 	}
-	// The type a pointer to it remembers, which a cast back must name, or fails at run time.
-	let key = |t: Ty<'tcx>| Expr::Str(b.t.tcx.erase_and_anonymize_regions(t).to_string());
+	// The type a pointer to it remembers, which a cast back must name, or fails at run time,
+	// and where a dangling one is.
+	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+	let key = |t: Ty<'tcx>| Expr::Str(tcx.erase_and_anonymize_regions(t).to_string());
+	let align = |t: Ty<'tcx>| {
+		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.abi.bytes());
+		Expr::lit(align.to_string())
+	};
 	if b.t.identity_pointee(into) {
 		if let Some(why) = unerasable(b, inner) {
 			return b.err(span, why);
 		}
-		let env = b.t.typing_env_pub();
-		let align =
-			b.t.tcx
-				.layout_of(env.as_query_input(inner))
-				.map_or(1, |l| l.align.abi.bytes());
-		return Expr::rt("ptrErase", vec![p, key(inner), Expr::lit(align.to_string())]);
+		return Expr::rt("ptrErase", vec![p, key(inner), align(inner)]);
 	}
 	if b.t.identity_pointee(inner) {
-		let restored = Expr::rt("ptrUnerase", vec![p, key(into)]);
+		let restored = Expr::rt("ptrUnerase", vec![p, key(into), align(into)]);
 		return Expr::As(Box::new(restored), b.t.pointer_ty(into, span));
 	}
 	let elem = match inner.kind() {

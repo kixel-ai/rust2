@@ -450,4 +450,8 @@ fn erased(data: &[u8], out: &mut Vec<u8>) {
 	let byte = NonNull::<Byte>::dangling().cast::<()>().as_ptr().cast_const();
 	out.extend([unit == note, unit == byte, note == byte, note.is_null()].map(u8::from));
 	out.push((note as *const Note == NonNull::<Note>::dangling().as_ptr()).into());
+	// Through a pointer to a type of another alignment, which keeps the address.
+	let through = note as *const Byte as *const ();
+	out.extend([through == note, through == unit, through.cast::<Note>().is_null()].map(u8::from));
+	out.push((byte as *const Note as *const () == unit).into());
 }

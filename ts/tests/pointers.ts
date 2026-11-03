@@ -101,16 +101,22 @@ unsure(() => long.deref());
 const note = { id: 1 };
 const erased = rt.ptrErase(note, "raw::Note", 2);
 assert.equal(erased, note);
-assert.equal(rt.ptrUnerase(erased, "raw::Note"), note);
-unsure(() => rt.ptrUnerase(erased, "u16"));
-unsure(() => rt.ptrUnerase({ v: undefined }, "raw::Note"));
+assert.equal(rt.ptrUnerase(erased, "raw::Note", 2), note);
+unsure(() => rt.ptrUnerase(erased, "u16", 2));
+unsure(() => rt.ptrUnerase({ v: undefined }, "raw::Note", 2));
 // Erased as two types, as a transparent wrapper and what it holds are, it is either.
 rt.ptrErase(note, "raw::Wrapper", 2);
-assert.equal(rt.ptrUnerase(erased, "raw::Wrapper"), note);
-assert.equal(rt.ptrUnerase(erased, "raw::Note"), note);
-// Null and dangling at any type, which no read reaches.
-assert.equal(rt.ptrUnerase(rt.ptrErase(rt.NULL, "raw::Note", 2), "u16"), rt.NULL);
-assert.equal(rt.ptrUnerase(rt.ptrErase(rt.DANGLING, "raw::Note", 2), "u16"), rt.DANGLING);
+assert.equal(rt.ptrUnerase(erased, "raw::Wrapper", 2), note);
+assert.equal(rt.ptrUnerase(erased, "raw::Note", 2), note);
+assert.throws(() => rt.ptrUnerase(erased, "u16", 2), /`\*const \(\)` cast back to a pointer to `u16`, which points at `raw::Note` or `raw::Wrapper`/);
+// Null at any type, and dangling at the address of its type's alignment, which a cast
+// through a type of another alignment keeps.
+assert.equal(rt.ptrUnerase(rt.ptrErase(rt.NULL, "raw::Note", 2), "u16", 2), rt.NULL);
+assert.equal(rt.ptrUnerase(rt.ptrErase(rt.DANGLING, "raw::Note", 2), "u16", 2), rt.DANGLING);
 assert.equal(rt.ptrErase(rt.DANGLING, "raw::Byte", 1), rt.DANGLING_UNIT);
-assert.notEqual(rt.ptrErase(rt.DANGLING, "raw::Note", 2), rt.DANGLING_UNIT);
-assert.throws(() => rt.ptrUnerase(erased, "u16"), /`\*const \(\)` cast back to a pointer to `u16`, which points at `raw::Note` or `raw::Wrapper`/);
+const two = rt.ptrErase(rt.DANGLING, "raw::Note", 2);
+assert.notEqual(two, rt.DANGLING_UNIT);
+const aligned = rt.ptrUnerase(two, "raw::Byte", 1) as object;
+assert.notEqual(aligned, rt.DANGLING);
+assert.equal(rt.ptrErase(aligned, "raw::Byte", 1), two);
+unsure(() => (aligned as rt.Place<number>).v);

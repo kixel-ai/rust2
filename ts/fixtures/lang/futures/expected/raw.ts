@@ -4,6 +4,7 @@ import * as rt from "./rt.ts";
 import { copy$task_RawWakerVTable, drop$tuple2_task_Waker_task_Waker } from "./lib.ts";
 import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$13g654t as option_mapOr$13g654t } from "./core/option.ts";
 import { eq$0n9bv8t as wake_eq$0n9bv8t, eq$0xaykl8 as wake_eq$0xaykl8 } from "./core/task/wake.ts";
+import type * as Byte from "./raw.Byte.ts";
 import * as Counter from "./raw.Counter.ts";
 import type * as Note from "./raw.Note.ts";
 import * as Yields from "./raw.Yields.ts";
@@ -458,13 +459,13 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
  */
 export function noteOf(data: rt.Place<undefined>): Note.Note {
 	let note2!: Note.Note;
-	const _3: rt.u8 = rt.u8Rem((rt.ptrUnerase(data, "raw::Note") as Note.Note).id, 3);
+	const _3: rt.u8 = rt.u8Rem((rt.ptrUnerase(data, "raw::Note", 2) as Note.Note).id, 3);
 	if (_3 === 0) {
-		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+		note2 = rt.ptrUnerase(data, "raw::Note", 2) as Note.Note;
 	} else if (_3 === 1) {
-		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+		note2 = rt.ptrUnerase(data, "raw::Note", 2) as Note.Note;
 	} else {
-		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+		note2 = rt.ptrUnerase(data, "raw::Note", 2) as Note.Note;
 	}
 	const note: Note.Note = note2;
 	const _11: rt.u16 = rt.u16WrappingAdd(note.calls.v, 1);
@@ -521,7 +522,7 @@ export function boxedWake(data: rt.Place<undefined>): void {
 
 export function boxedDrop(data: rt.Place<undefined>): void {
 	heard$120(100, data);
-	const note: Note.Note = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+	const note: Note.Note = rt.ptrUnerase(data, "raw::Note", 2) as Note.Note;
 	rt.localKeyWithBorrowMut(LOG, (log: rt.ByteVec): undefined => {
 		rt.byteVecPush(log, note.id);
 	});
@@ -596,12 +597,12 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 	}
 	drop$tuple2_task_Waker_task_Waker([first, second] as [rt.Waker, rt.Waker]);
-	const _110: Note.Note = rt.ptrUnerase(rt.ptrErase(kept, "raw::Note", 2), "raw::Note") as Note.Note;
+	const _110: Note.Note = rt.ptrUnerase(rt.ptrErase(kept, "raw::Note", 2), "raw::Note", 2) as Note.Note;
 	_110.id = _110.id ^ 15;
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(kept.id, kept.calls.v & 0xff, other.calls.v & 0xff)), undefined, true);
 	const null_: rt.Place<undefined> = rt.ptrErase(rt.NULL, "raw::Note", 2);
 	rt.byteVecPush(out, null_ === rt.NULL ? 1 : 0);
-	rt.byteVecPush(out, (rt.ptrUnerase(null_, "raw::Note") as Note.Note) === rt.NULL ? 1 : 0);
+	rt.byteVecPush(out, (rt.ptrUnerase(null_, "raw::Note", 2) as Note.Note) === rt.NULL ? 1 : 0);
 	rt.byteVecPush(out, rt.ptrErase(rt.NULL, "raw::Note", 2) === rt.NULL ? 1 : 0);
 	const unit: rt.Place<undefined> = rt.DANGLING_UNIT;
 	const note2: rt.Place<undefined> = rt.ptrErase(rt.DANGLING, "raw::Note", 2);
@@ -609,7 +610,12 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([unit === note2, unit === byte2, note2 === byte2, note2 === rt.NULL], (a02: boolean): rt.u8 => {
 		return a02 ? 1 : 0;
 	})), undefined, true);
-	rt.byteVecPush(out, (rt.ptrUnerase(note2, "raw::Note") as Note.Note) === rt.DANGLING ? 1 : 0);
+	rt.byteVecPush(out, (rt.ptrUnerase(note2, "raw::Note", 2) as Note.Note) === rt.DANGLING ? 1 : 0);
+	const through2: rt.Place<undefined> = rt.ptrErase(rt.ptrUnerase(note2, "raw::Byte", 1) as Byte.Byte, "raw::Byte", 1);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([through2 === note2, through2 === unit, (rt.ptrUnerase(through2, "raw::Note", 2) as Note.Note) === rt.NULL], (a03: boolean): rt.u8 => {
+		return a03 ? 1 : 0;
+	})), undefined, true);
+	rt.byteVecPush(out, rt.ptrErase(rt.ptrUnerase(byte2, "raw::Note", 2) as Note.Note, "raw::Note", 2) === unit ? 1 : 0);
 	rt.dropAll(wakers);
 }
 

@@ -482,3 +482,32 @@ pub fn erased_bytes(b: &mut [u8; 4]) -> *mut () {
 pub fn erased_dyn(d: &dyn std::fmt::Debug) -> *const () {
 	d as *const dyn std::fmt::Debug as *const ()
 }
+
+/// A struct whose start is another struct.
+#[repr(C)]
+pub struct Outer {
+	head: Inner,
+	tail: u8,
+}
+
+/// The start of an `Outer`.
+pub struct Inner(u16);
+
+/// A pointer to a struct cast to one to `()`, whose address the object of its first field
+/// shares, which JS keeps apart.
+pub fn erased_start(outer: &Outer) -> bool {
+	let whole = &raw const *outer;
+	whole as *const () == (&raw const outer.head).cast() && outer.tail == outer.head.0 as u8
+}
+
+/// A pointer to a value of no bytes, cast to one to `()`.
+pub fn erased_empty() -> *const () {
+	let unit = ((), ());
+	(&raw const unit).cast()
+}
+
+/// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
+pub fn erased_box(b: Box<(u8, u8)>) -> bool {
+	let p = &raw const b;
+	p as *const () == (&raw const *b).cast()
+}
