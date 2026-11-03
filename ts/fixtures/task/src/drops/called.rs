@@ -77,7 +77,14 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			log.note(format!("odd {:?}", odd.iter().map(Guard::id).collect::<Vec<_>>()));
 			drop(even);
 			let (all, none): (Vec<u32>, Vec<u32>) = (1..4).partition(|_| true);
-			log.note(format!("all {all:?} {none:?} {}", d.id()));
+			log.note(format!("all {all:?} {none:?}"));
+			// Through `map`, whose fold drops `partition`'s closure before its own.
+			let e = guard(22);
+			let (low, high): (Vec<Guard>, Vec<Guard>) = guards(1, 4)
+				.into_iter()
+				.map(move |g| (g, e.id()).0)
+				.partition(move |g| g.id() + d.id() - d.id() < id + 2);
+			log.note(format!("sides {} {}", low.len(), high.len()));
 		}
 		5 => {
 			// `repeat_with`, which drops its closure with the iterator, each item as it goes.
@@ -91,7 +98,7 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			.collect();
 			log.note(format!("made {}", made.len()));
 			let mut it = std::iter::repeat_with(move || d.id());
-			log.note(format!("first {:?}", it.next()));
+			log.note(format!("first {:?} {:?} {:?}", it.next(), it.size_hint(), it.by_ref().take(2).size_hint()));
 			drop(it);
 			log.note("dropped".into());
 		}
@@ -111,7 +118,18 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 				Some(*n)
 			})
 			.sum();
-			log.note(format!("total {total} {}", d.id()));
+			log.note(format!("total {total}"));
+			// Of a state that drops, after the closure, and folded through `flatten`.
+			let e = guard(22);
+			let n = list![guards(1, 3), guards(3, 6)]
+				.into_iter()
+				.flatten()
+				.scan(guard(23), move |held, g| {
+					log.note(format!("held {} {} {}", held.id(), g.id(), d.id()));
+					(g.id() != id + 4).then_some(g.id() + e.id() - e.id())
+				})
+				.fold(0, |n, k| n + k - id);
+			log.note(format!("flat {n}"));
 		}
 		7 => {
 			// `sort_by_cached_key`, whose keys drop after the sort, and whose closure drops
@@ -154,8 +172,9 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			});
 			log.note(format!("updated {}", cell.get()));
 			let cell = RefCell::new(5u32);
-			let old = cell.replace_with(move |n| {
-				log.note(format!("replace {n} {}", d.id()));
+			let old = cell.replace_with(|n| {
+				log.note(format!("replace {n} {} {}", d.id(), cell.try_borrow().is_err()));
+				*n += 1;
 				*n * 2
 			});
 			log.note(format!("replaced {old} {}", cell.borrow()));
@@ -164,6 +183,14 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			let add = move |n: u32| n + e.id() - e.id() + 1;
 			let doubled = move |n: &mut u32| *n * 2 + f.id() - f.id();
 			Cell::new(1u32).update(add);
+			// A copy of what JS shares, which the function changes and the cell keeps.
+			let pair = Cell::new([1u32, 2]);
+			pair.update(|mut p| {
+				p[0] += 10;
+				log.note(format!("pair {} {}", p[0], pair.get()[0]));
+				p
+			});
+			log.note(format!("paired {:?}", pair.get()));
 			log.note(format!("by Fn {}", cell.replace_with(doubled)));
 		}
 		10 => {
@@ -178,7 +205,10 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			let scanned: Vec<u32> = none().scan(0u32, |n, g| Some(*n + g.id())).collect();
 			let mut empty: Vec<Guard> = Vec::new();
 			empty.sort_by_cached_key(Guard::id);
-			log.note(format!("scanned {} {}", scanned.len(), empty.len()));
+			let mut one = guards(1, 2);
+			let e = guard(22);
+			one.sort_by_cached_key(move |g| g.id() + e.id());
+			log.note(format!("scanned {} {} {}", scanned.len(), empty.len(), one.len()));
 		}
 		_ => {
 			let a = guard(30);
