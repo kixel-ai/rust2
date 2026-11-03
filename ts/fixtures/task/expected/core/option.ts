@@ -107,6 +107,41 @@ export function map$01pvlgn(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0
 	return f(self);
 }
 
+export function map$01vf10a(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0uom32p(self: [Guard.Guard, rt.u32] | undefined, f: (a0: [Guard.Guard, rt.u32]) => [rt.u32, rt.u32]): [rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$04djm2e(self: [[Guard.Guard, Guard.Guard], rt.u32] | undefined, f: (a0: [[Guard.Guard, Guard.Guard], rt.u32]) => [rt.u32, rt.u32, rt.u32]): [rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1uj27tb(self: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32] | undefined, f: (a0: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32]) => [rt.usize, rt.u32, rt.u32, rt.u32]): [rt.usize, rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1sprpgt(self: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32] | undefined, f: (a0: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32]) => [rt.usize, rt.u32, rt.i32]): [rt.usize, rt.u32, rt.i32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$14zg54s(self: [rt.usize, Guard.Guard] | undefined, f: (a0: [rt.usize, Guard.Guard]) => [rt.usize, rt.u32]): [rt.usize, rt.u32] | undefined {
 	if (self === undefined) {
 		return undefined;

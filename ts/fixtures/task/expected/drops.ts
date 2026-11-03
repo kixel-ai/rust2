@@ -6,7 +6,9 @@ import { thenSome$0zvoczk } from "./core/bool.ts";
 import { isSomeAnd$17cacqw, unwrapOr$0v6ziq2 as option_unwrapOr$0v6ziq2, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, map$0hegtde as option_map$0hegtde, map$0ccnsmq as option_map$0ccnsmq, map$0782hf5 as option_map$0782hf5, map$0lq7mno as option_map$0lq7mno, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$0ey19f0 as option_mapOr$0ey19f0, okOr$1alhe7b as option_okOr$1alhe7b, filter$1vqc90z, orElse$02wco5t as option_orElse$02wco5t, zip$1rr0evn, clone$1sxxxkp as option_clone$1sxxxkp } from "./core/option.ts";
 import { ok$0rngk0g, err$126l6wy, asRef$01pd5k9, mapOr$1hlk3iq as result_mapOr$1hlk3iq, mapOrElse$196aho3 as result_mapOrElse$196aho3, andThen$0r804hk as result_andThen$0r804hk, unwrapOr$0urixfm as result_unwrapOr$0urixfm } from "./core/result.ts";
 import { scoped, discarded, iterated } from "./drops/closures.ts";
+import { flattened as flattened_flattened } from "./drops/flattened.ts";
 import { folded as folds_folded, rfolded as folds_rfolded } from "./drops/folds.ts";
+import { indexed as indexed_indexed } from "./drops/indexed.ts";
 import { inside as inside_inside } from "./drops/inside.ts";
 import { looped, collected, drained, extended, compared as iters_compared } from "./drops/iters.ts";
 import { run as lists_run } from "./drops/lists.ts";
@@ -1288,6 +1290,19 @@ export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
  */
 export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	inside_inside(log, id, arg);
+}
+
+/**
+ * Run scenario `arg % 10` of what a `flatten` drops of inner iterators that hold items
+ * once they end.
+ */
+export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	flattened_flattened(log, id, arg);
+}
+
+/** Run scenario `arg % 9` of what std drops of a zip it reads by index. */
+export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	indexed_indexed(log, id, arg);
 }
 
 /**

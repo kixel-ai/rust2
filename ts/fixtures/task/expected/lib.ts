@@ -245,9 +245,30 @@ export function drop$tuple2_sync_Arc_str_sync_Arc_str(_1: [rt.Arc<string>, rt.Ar
 	_1[1][Symbol.dispose]();
 }
 
+export function drop$tuple2_tuple2_model_Guard_model_Guard_i32(_1: [[Guard.Guard, Guard.Guard], rt.i32]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[0]);
+}
+
 export function drop$tuple2_tuple2_model_Guard_model_Guard_model_Guard(_1: [[Guard.Guard, Guard.Guard], Guard.Guard]): void {
 	drop$tuple2_model_Guard_model_Guard(_1[0]);
 	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_tuple2_model_Guard_model_Guard_u32(_1: [[Guard.Guard, Guard.Guard], rt.u32]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[0]);
+}
+
+export function drop$tuple2_tuple2_tuple2_model_Guard_model_Guard_i32_i32(_1: [[[Guard.Guard, Guard.Guard], rt.i32], rt.i32]): void {
+	drop$tuple2_tuple2_model_Guard_model_Guard_i32(_1[0]);
+}
+
+export function drop$tuple2_tuple2_usize_model_Guard_model_Guard(_1: [[rt.usize, Guard.Guard], Guard.Guard]): void {
+	drop$tuple2_usize_model_Guard(_1[0]);
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32(_1: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32]): void {
+	drop$tuple2_usize_tuple2_model_Guard_model_Guard(_1[0]);
 }
 
 export function drop$tuple2_u32_model_Guard(_1: [rt.u32, Guard.Guard]): void {
@@ -256,6 +277,10 @@ export function drop$tuple2_u32_model_Guard(_1: [rt.u32, Guard.Guard]): void {
 
 export function drop$tuple2_usize_model_Guard(_1: [rt.usize, Guard.Guard]): void {
 	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_usize_tuple2_model_Guard_model_Guard(_1: [rt.usize, [Guard.Guard, Guard.Guard]]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[1]);
 }
 
 export function drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker(_1: [rt.Waker, rt.Waker, rt.Waker, rt.Waker]): void {
