@@ -1,6 +1,5 @@
 //! Values JS can't represent as Rust does.
 
-use crate::clones::Reused;
 use crate::places::Bare;
 
 pub fn float(a: f16) -> f16 {
@@ -76,10 +75,9 @@ fn reclone<const N: usize>(a: Option<Block<N>>) -> Option<Block<N>> {
 }
 
 /// `LinkedList`'s unstable `retain`, which no mapping covers, as none does its other
-/// unstable methods; and its `clone_from` of items whose own `clone_from` it would call.
-pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) {
+/// unstable methods.
+pub fn lists(l: &mut std::collections::LinkedList<u8>) {
 	l.retain(|x| *x > 1);
-	r.clone_from(&std::collections::LinkedList::new());
 }
 
 /// `ManuallyDrop`'s impls beyond holding a value: compared, formatted, and a constant.

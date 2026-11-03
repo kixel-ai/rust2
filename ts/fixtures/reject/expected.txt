@@ -25,13 +25,10 @@ fixtures/reject/src/buffers.rs:bytes_mut_put_through+1:2: `BufMut::put` of `buff
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
-fixtures/reject/src/clones.rs:recloned+1:4: `slice::clone_from_slice` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
-fixtures/reject/src/clones.rs:refilled+1:4: `slice::fill` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Touched; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `(clones::Dropped, (u8, u8))`, which the crate may put another object in place of
-fixtures/reject/src/clones.rs:vec_clone_from+1:4: `Clone::clone_from` of `std::vec::Vec<clones::Reused>`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/config.rs:Meters+0:1: a printable type must implement `Display` or `Debug`
 fixtures/reject/src/config.rs:generic+0:1: a root must not be generic
 fixtures/reject/src/fmt.rs:pointer+1:11: `Pointer` formatting, as in `{:p}`, is not supported
@@ -250,7 +247,6 @@ fixtures/reject/src/values.rs:float+1:2: a scalar constant of type `f16`
 fixtures/reject/src/values.rs:float+1:2: arithmetic on `f16`
 fixtures/reject/src/values.rs:generic_unit+1:2: `values::Maybe<()>` is not supported: its field `value` is `Option<T>`, typed `T | undefined`, whose `None` would be `rt.None` as `Option<()>`
 fixtures/reject/src/values.rs:lists+1:4: `std::collections::LinkedList::<T, A>::retain` with a mutable reference to a value JS copies, which its mapping would copy
-fixtures/reject/src/values.rs:lists+2:4: `clone_from` of `std::collections::LinkedList<clones::Reused>`, whose items' `clone_from` is their own, which is not supported yet
 fixtures/reject/src/values.rs:manual_impls+2:11: unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt`
 fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq`
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`

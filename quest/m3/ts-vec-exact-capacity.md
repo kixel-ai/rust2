@@ -25,3 +25,7 @@ capacity the runtime models for the `Vec`, which holds only std's guarantees (de
   array, measured on the same workload before it is weighed against that decision.
 
 Public API: the translator's output.
+
+## Related
+
+- [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - the capacity std guarantees as the length drops, which the guarantee-only model must keep

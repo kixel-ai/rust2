@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -3815,13 +3815,18 @@ export function listClone<T>(l: LinkedList<T>, item: (value: T) => T = itself): 
 
 /**
  * `clone_from`: `l`'s items, front to back, each the clone of `source`'s beside it, which
- * drops by `f` what it replaces, as `*elem = source.clone()` does; then those past
+ * drops by `f` what it replaces, as `*elem = source.clone()` does, or else `source`'s
+ * cloned over it by `over`, its own `clone_from`; then those past
  * `source`'s length popped from the back, each dropped as it is; then clones of the rest
  * of `source`'s pushed.
  */
-export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void): void {
+export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): void {
 	let [node, from]: (ListNode<T> | undefined)[] = [l.h, source.h];
 	for (; node !== undefined && from !== undefined; node = node.x, from = from.x) {
+		if (over !== undefined) {
+			node.v = over(node.v, from.v);
+			continue;
+		}
 		const old = node.v;
 		node.v = item(from.v);
 		f?.(old);
