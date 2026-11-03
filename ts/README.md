@@ -126,7 +126,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
-| `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
+| `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
@@ -491,12 +491,14 @@ that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` con
 makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
 is `From` a string, which boxes std's own private error type.
 
-A `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` behind `&`,
-`&mut`, or `Box` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
+A `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or `dyn FusedIterator`
+behind `&`, `&mut`, `Box`, `Arc`, or `Rc` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
 of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
 such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
 trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
-trait object's does. A box drops the iterator it owns.
+trait object's does. A box drops the iterator it owns, and the last `Arc` the one they
+share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
+`Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
 A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,

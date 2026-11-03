@@ -47,15 +47,19 @@ impl<'tcx> Translator<'_, 'tcx> {
 			.ok()
 	}
 
-	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`, or
-	/// `dyn ExactSizeIterator`, whose JS value is an `rt.Iter` of its items.
+	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`,
+	/// `dyn ExactSizeIterator`, or `dyn FusedIterator`, whose JS value is an `rt.Iter` of its
+	/// items.
 	pub fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
 		let principal = preds.principal_def_id()?;
 		let name = library::std_path(self.tcx, principal).pop()?;
-		if !matches!(name.as_str(), "Iterator" | "DoubleEndedIterator" | "ExactSizeIterator") {
+		if !matches!(
+			name.as_str(),
+			"Iterator" | "DoubleEndedIterator" | "ExactSizeIterator" | "FusedIterator"
+		) {
 			return None;
 		}
 		self.iter_item(ty)

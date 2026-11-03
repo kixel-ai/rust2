@@ -1,12 +1,11 @@
-# [L] Trait objects
+# [M] Trait objects
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates the trait objects of std's and mapped crates' traits
-that it still refuses, `dyn Error`'s downcasts and `dyn FusedIterator`, behind
-any pointer std coerces to one, such as `&mut dyn Debug` and
-`Arc<dyn Iterator>`, with Rust's dispatch and drop order, proven by differential tests against native Rust, so a consumer
-neither rewrites nor binds them.
+[rust2-ts](/ts/README.md) translates `dyn Error`'s downcasts, the last of std's trait
+objects it refuses, with Rust's answers for a value upcast from the crate's own trait,
+proven by differential tests against native Rust, so a consumer neither rewrites nor
+binds them.
 
 ## Plan
 
@@ -16,7 +15,8 @@ config, so trait objects move from never to not yet.
 - `dyn Debug` and `dyn Display` translate as functions writing their value, behind `&`,
   `&mut`, `Box`, `Arc`, and `Rc`, `dyn Future`
   as an `rt.Future`, `dyn Any` as the class a downcast checks for, `dyn Fn*` as the
-  closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, and the translated
+  closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, behind `&`, `&mut`,
+  `Box`, `Arc`, and `Rc`, and the translated
   crates' traits as an object with the trait's methods. Build the rest on those.
 - `dyn Error` translates as an object of `source`, `Debug`, and `Display`. Its downcasts
   remain: checking the class of `Error.of$T` as `dyn Any`'s do would miss a value upcast

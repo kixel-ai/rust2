@@ -301,6 +301,13 @@ export function map$1i542n2(self: rt.Arc<dyns_Shape.Shape> | undefined, f: (a0: 
 	return f(self);
 }
 
+export function map$0oedb57(self: rt.Arc<rt.Iter<rt.u8>> | undefined, f: (a0: rt.Arc<rt.Iter<rt.u8>>) => [rt.usize, rt.usize | undefined]): [rt.usize, rt.usize | undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1mp7tga(self: rt.i64[] | undefined, f: (a0: rt.i64[]) => rt.usize): rt.usize | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -389,6 +396,13 @@ export function map$1diqi3e(self: rt.Place<rt.u8 | undefined> | undefined, f: (a
 export function map$1jcn6wm(self: rt.ByteSlice | undefined, f: (a0: rt.ByteSlice) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1qfllpb(self: rt.Iter<rt.u8> | undefined, f: (a0: rt.Iter<rt.u8>) => rt.u8 | undefined): rt.u8 | undefined | rt.None {
+	if (self === undefined) {
+		return rt.None;
 	}
 	return f(self);
 }
@@ -1736,6 +1750,20 @@ export function and$06om98g(self: rt.u8 | undefined, optb: rt.u8 | undefined): r
 export function andThen$0qni7te(self: rt.u8 | undefined | rt.None, f: (a0: rt.u8 | undefined) => rt.u8 | undefined | rt.None): rt.u8 | undefined | rt.None {
 	if (self === rt.None) {
 		return rt.None;
+	}
+	return f(self);
+}
+
+export function andThen$0v0bj8w(self: rt.Iter<dyns_Tagged.Tagged> | undefined, f: (a0: rt.Iter<dyns_Tagged.Tagged>) => dyns_Tagged.Tagged | undefined): dyns_Tagged.Tagged | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function andThen$0ntiuws(self: rt.Iter<rt.u8> | undefined, f: (a0: rt.Iter<rt.u8>) => rt.u8 | undefined): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
 	}
 	return f(self);
 }
