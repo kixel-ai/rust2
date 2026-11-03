@@ -574,7 +574,9 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		// `rt.DONE`.
 		let method = match *name {
 			"next_back" | "nth" | "nth_back" | "last" | "find" | "rfind" | "reduce" => {
-				let call = [Expr::ident("it")].into_iter().chain(args.iter().map(|&arg| Expr::ident(arg)));
+				let call = [Expr::ident("it")]
+					.into_iter()
+					.chain(args.iter().map(|&arg| Expr::ident(arg)));
 				let option = [sym.call(call.collect())].into_iter().chain(none.clone()).collect();
 				let params = source_params(b, ty, args, span);
 				Expr::Lambda(params, Box::new(Expr::rt("iterFromOption", option)))
@@ -628,7 +630,9 @@ fn source_params<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &[&str], 
 /// `f` of the value in the place `rt.iterFrom` holds the crate's own iterator of type `ty`
 /// by, then `args`.
 fn through_place<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, args: &[&str], span: Span) -> Expr {
-	let call = [Expr::ident("it").member("v")].into_iter().chain(args.iter().map(|&arg| Expr::ident(arg)));
+	let call = [Expr::ident("it").member("v")]
+		.into_iter()
+		.chain(args.iter().map(|&arg| Expr::ident(arg)));
 	let params = source_params(b, ty, args, span);
 	Expr::Lambda(params, Box::new(f.call(call.collect())))
 }

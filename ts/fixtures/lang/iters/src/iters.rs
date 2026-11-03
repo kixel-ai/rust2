@@ -1928,7 +1928,10 @@ pub fn by_value(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(0);
 	let phase = Phase::of(at(0));
 	let ticks = || Ticks::Left(at(1) % 6, Noted(&log, 0xd0));
-	let logged = || Logged { left: at(2) % 5, log: &log };
+	let logged = || Logged {
+		left: at(2) % 5,
+		log: &log,
+	};
 	match kind % 13 {
 		0 => out.extend(phase.map(|n| n * 3)),
 		1 => {
