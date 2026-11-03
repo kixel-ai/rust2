@@ -60,6 +60,14 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 	b.slotted = slotted.clone();
 	let mut fx = Fx::new(&mut b, &mir, Env::Plain, span);
 	let mut params = fx.params();
+	if crate::lower::caller::tracks(fx.b.t, instance) {
+		let caller = fx.b.fresh("caller");
+		params.push(Param {
+			name: caller.clone(),
+			ty: Some(crate::lower::caller::param_ty()),
+		});
+		fx.caller = Some(caller);
+	}
 	let body = fx.lower();
 	fx.mark_unread_parts(&mut params, &body);
 	let ret_span = fx.local_span(mir::RETURN_PLACE);
@@ -340,6 +348,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	pub mir: &'m mir::Body<'tcx>,
 	pub tcx: TyCtxt<'tcx>,
 	env: Env,
+	/// The parameter a `#[track_caller]` function takes its caller's location by.
+	caller: Option<String>,
 	slots: IndexVec<Local, Slot<'tcx>>,
 	/// Where each local assigned once is assigned, by a statement.
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
@@ -533,6 +543,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			remade: FxHashSet::default(),
 			part_params: Vec::new(),
 			slot,
+			caller: None,
 			slotted_calls: FxHashMap::default(),
 			returning: FxHashSet::default(),
 			narrowing,
@@ -2682,6 +2693,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			.collect()
 	}
 
+	/// The function a call of `func` at `span` calls, if it takes its caller's location,
+	/// and the location the call passes: its own caller's, if this function takes one, or
+	/// else the call's own.
+	fn site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Expr)> {
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if !(crate::lower::caller::is_caller(self.tcx, def_id) || crate::lower::caller::tracks(self.b.t, instance)) {
+			return None;
+		}
+		let location = match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, span),
+		};
+		Some((instance, location))
+	}
+
 	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut Vec<Stmt>) -> Exit {
 		let span = term.source_info.span;
 		match &term.kind {
@@ -2768,7 +2798,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				fn_span,
 				..
 			} => {
+				// Where rustc's codegen says the call is: from the callee's name on.
+				self.b.site = self.site(func, *fn_span);
 				self.call(func, args, *destination, *fn_span, out);
+				if let Some((instance, _)) = self.b.site.take()
+					&& self.b.t.crates.translates(instance.def_id())
+				{
+					let path = self.tcx.def_path_str(instance.def_id());
+					let msg =
+						format!("a call of `{path}`, a `#[track_caller]` function, that passes no caller's location");
+					self.err(span, msg);
+				}
 				match target {
 					Some(_) if self.returning.contains(&self.at) => {
 						self.flush(out);

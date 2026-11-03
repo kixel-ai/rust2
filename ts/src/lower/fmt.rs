@@ -560,6 +560,8 @@ pub fn std_impl<'tcx>(
 			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
+			(Std::Location, Trait::Debug) => rt("locationDebug", vec![value, f]),
+			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),

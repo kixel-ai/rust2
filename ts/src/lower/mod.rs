@@ -9,6 +9,7 @@ mod alloc;
 mod bind;
 pub use bind::check_module;
 mod body;
+mod caller;
 mod collections;
 mod consts;
 mod copy;
@@ -1834,6 +1835,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::RandomState => Type::Rt("RandomState", vec![]),
 				library::Std::Duration => Type::Rt("Duration", vec![]),
 				library::Std::Layout => Type::Rt("Layout", vec![]),
+				library::Std::Location => Type::Rt("Location", vec![]),
 				library::Std::LayoutError => Type::Rt("LayoutError", vec![]),
 				library::Std::Bytes => Type::Rt("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rt("BytesMut", vec![]),
@@ -1868,10 +1870,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			&& let Some(item) = self.iter_item(Ty::new_adt(tcx, adt, args))
 		{
 			return Type::Rt("Iter", vec![self.ty(item, span)]);
-		}
-		if library::location(tcx, adt.did()) {
-			self.unrepresented(span, library::LOCATION.into());
-			return Type::Builtin("unknown");
 		}
 		if !self.crates.translates(adt.did()) {
 			self.unrepresented(

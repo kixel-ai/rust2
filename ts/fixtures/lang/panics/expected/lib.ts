@@ -2,7 +2,10 @@
 
 import * as rt from "./rt.ts";
 import type * as Any from "./core/any.Any.ts";
-import { wrapped, called, awaited, raised } from "./panics.ts";
+import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked } from "./located.ts";
+import * as Inherits from "./located.Inherits.ts";
+import * as Own from "./located.Own.ts";
+import { wrapped, called as panics_called, awaited, raised } from "./panics.ts";
 import type * as Point from "./panics.Point.ts";
 
 export function copy$panics_Point(v: Point.Point): Point.Point {
@@ -23,6 +26,34 @@ export class of$String {
 	}
 }
 
+export class of$located_Inherits {
+	v: Inherits.Inherits;
+
+	constructor(v: Inherits.Inherits) {
+		this.v = v;
+	}
+
+	at$Tracked(caller: rt.Location): rt.Location {
+		return Inherits.at$located_Tracked(this.v, caller);
+	}
+
+	via$Tracked(): rt.Location {
+		return Inherits.via$located_Tracked(this.v);
+	}
+}
+
+export class of$located_Own {
+	v: Own.Own;
+
+	constructor(v: Own.Own) {
+		this.v = v;
+	}
+
+	at$Untracked(): rt.Location {
+		return Own.at$located_Untracked(this.v, { file: "fixtures/lang/panics/src/located.rs", line: 86, col: 5 });
+	}
+}
+
 export class of$ref_str {
 	v: string;
 
@@ -37,6 +68,14 @@ export class of$u8 {
 	constructor(v: rt.u8) {
 		this.v = v;
 	}
+
+	at$Tracked(caller: rt.Location): rt.Location {
+		return at$located_Tracked_u8(this.v, caller);
+	}
+
+	via$Tracked(): rt.Location {
+		return via$located_Tracked_u8(this.v);
+	}
 }
 
 /**
@@ -44,7 +83,7 @@ export class of$u8 {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["panics::wrapped", wrapped as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::called", called as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::raised", raised as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	return [["panics::wrapped", wrapped as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::called", panics_called as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::raised", raised as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::called", located_called as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::read", read as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::panicked", panicked as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
 //# sourceMappingURL=lib.ts.map

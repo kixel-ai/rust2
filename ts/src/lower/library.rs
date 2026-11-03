@@ -189,6 +189,8 @@ pub enum Std {
 	Duration,
 	/// `rt.Layout`: its size and alignment, never changed once made.
 	Layout,
+	/// `rt.Location`: a panic's file, line, and column, never changed once made.
+	Location,
 	/// `rt.LayoutError`.
 	LayoutError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
@@ -320,6 +322,7 @@ impl Std {
 		{
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
 			["alloc", "layout", "Layout"] => Some(Self::Layout),
+			["panic", "location", "Location"] => Some(Self::Location),
 			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
@@ -507,22 +510,6 @@ pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		},
 		_ => None,
 	}
-}
-
-/// Why a `Location` is refused.
-pub const LOCATION: &str =
-	"a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet";
-
-/// Whether `did` is std's `panic::Location`.
-pub fn location(tcx: TyCtxt<'_>, did: DefId) -> bool {
-	matches!(
-		std_path(tcx, did)
-			.iter()
-			.map(String::as_str)
-			.collect::<Vec<_>>()
-			.as_slice(),
-		["panic", "location", "Location"]
-	)
 }
 
 /// What `ty` holds if it is an `AssertUnwindSafe`.
@@ -2717,12 +2704,14 @@ fn mapping<'tcx>(
 		// so nothing drops it.
 		("panic", "catch_unwind") => return Some(Expr::result(true, args.pop()?.call(Vec::new()))),
 		("panic", "resume_unwind") => Expr::rt("resumeUnwind", Vec::new()),
-		("Location", _)
-			if impl_self(tcx, call.def_id)
-				.is_some_and(|t| matches!(t.kind(), ty::Adt(adt, _) if location(tcx, adt.did()))) =>
-		{
-			return Some(b.err(span, LOCATION));
+		// The location the call passes, as a `#[track_caller]` function's call does.
+		("Location", _) if inherent_std(tcx, call.def_id) != Some(Std::Location) => return None,
+		("Location", "caller") => {
+			let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, call.args).ok()??;
+			b.caller_arg(instance, span)
 		}
+		("Location", "file" | "line") => args.pop()?.member(name.as_str()),
+		("Location", "column") => args.pop()?.member("col"),
 		("panicking", "set_hook" | "take_hook") => {
 			let why =
 				format!("`panic::{name}`, whose hook reads each panic's `Location`, which panics don't carry yet");

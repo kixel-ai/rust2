@@ -89,6 +89,8 @@ roots = [
     "objects::same_named",
     "panics::caller",
     "panics::hooked",
+    "panics::iterated",
+    "panics::pointed",
     "parts::array_part_replaced",
     "parts::element_replaced",
     "parts::field_part_replaced",
