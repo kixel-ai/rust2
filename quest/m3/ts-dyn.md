@@ -2,10 +2,9 @@
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates `dyn Error`'s downcasts, the last of std's trait
-objects it refuses, with Rust's answers for a value upcast from the crate's own trait,
-proven by differential tests against native Rust, so a consumer neither rewrites nor
-binds them.
+[rust2-ts](/ts/README.md) translates `dyn Error`'s downcasts, with Rust's answers for a
+value upcast from the crate's own trait, proven by differential tests against native Rust,
+so a consumer neither rewrites nor binds them.
 
 ## Plan
 
