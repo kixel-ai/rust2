@@ -933,7 +933,7 @@ pub fn may_from_mir(tcx: TyCtxt<'_>, did: DefId) -> bool {
 		(std, name.as_str()),
 		(
 			Some(Std::Option),
-			"unwrap" | "expect" | "is_some" | "is_none" | "as_ref" | "copied" | "cloned" | "iter"
+			"unwrap" | "expect" | "is_some" | "is_none" | "as_ref" | "copied" | "cloned" | "iter" | "as_slice"
 		) | (
 			Some(Std::Result),
 			"unwrap" | "expect" | "unwrap_err" | "is_ok" | "is_err" | "iter"
@@ -1106,6 +1106,7 @@ fn takes_none(owner: &str, name: &str) -> bool {
 				| ("ptr", "as_ref" | "as_mut")
 				| ("from_fn", "from_fn")
 				| ("successors", "successors")
+				| ("Option", "as_slice" | "as_mut_slice")
 		)
 }
 
@@ -1796,8 +1797,13 @@ fn mapping<'tcx>(
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
 				}
 				_ if let Some(elem) = box_slice(tcx, ty) => return slice_boxed(b, value, elem, span),
-				// A box, or a `ManuallyDrop`, is what it holds, cloned.
-				ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::Box | Std::ManuallyDrop)) => {
+				// A box, a `ManuallyDrop`, or a `Reverse` is what it holds, cloned.
+				ty::Adt(adt, args)
+					if matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::Box | Std::ManuallyDrop | Std::Reverse)
+					) =>
+				{
 					let inner = args.type_at(0);
 					if !inner.is_sized(tcx, b.t.typing_env_pub()) {
 						return None;
@@ -1837,6 +1843,12 @@ fn mapping<'tcx>(
 		("Option", "is_some") => args.pop()?.binary("!==", b.t.none(targ(gargs, 0))),
 		("Option", "is_none") => args.pop()?.binary("===", b.t.none(targ(gargs, 0))),
 		("Option", "as_ref" | "as_mut") => args.pop()?,
+		// The payload, if any, as a slice of one, as `slice::from_ref` makes it.
+		("Option", "as_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteOptionAsSlice", args),
+		("Option", "as_slice") => {
+			args.extend(b.t.none_arg(targ(gargs, 0)));
+			Expr::rt("optionAsSlice", args)
+		}
 		// A box is what it holds.
 		("Option", "as_deref_mut") if targ(gargs, 0).is_box() => args.pop()?,
 		// `Option<&T>` or `Option<&mut T>` of the `T` it points at, through `T`'s `Clone`
@@ -2992,7 +3004,7 @@ pub(super) fn box_slice_clone_from<'tcx>(
 
 /// What `clone_from` of `source` leaves over `old`, a `ty` whose `clone_from` is std's own
 /// over what it holds, as `clone_from_clones` says it is not: `old` itself, written in
-/// place, for all but an `Option` and a `Result`. Refused for any other `clone_from`.
+/// place, for all but an `Option`, a `Result`, and a `Cow`. Refused for any other `clone_from`.
 pub(super) fn clone_from<'tcx>(b: &mut Body<'_, '_, 'tcx>, old: Expr, source: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	match std_clone_from(b, ty, span) {
 		Ok((name, fns)) => Expr::rt(name, [vec![old, source], fns].concat()),
@@ -3040,6 +3052,16 @@ fn std_clone_from<'tcx>(
 			format!("`clone_from` of `{ty}`, whose `clone_from` is its own, which is not supported yet"),
 		)
 	};
+	// A `Cow<[T]>`'s: an owned one's `Vec` clones into itself over an owned one's.
+	if let Some(elem) = cow_slice(b.t.tcx, own) {
+		return Ok(match elem.kind() {
+			ty::Uint(ty::UintTy::U8) => ("byteCowCloneFrom", vec![]),
+			_ => {
+				let size = super::iter::size_of(b, elem, span);
+				("cowCloneFrom", [vec![size], clone_from_fns(b, elem, span)].concat())
+			}
+		});
+	}
 	let ty::Adt(_, args) = own.kind() else {
 		return Err(refused(b));
 	};
@@ -3100,15 +3122,20 @@ pub(super) fn clone_from_fns<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, s
 	trimmed(fns)
 }
 
-/// What `ty` holds through std's boxes of sized values, whose `clone_from` is that of what
-/// they hold.
+/// What `ty` holds through std's boxes of sized values and `Reverse`s, each its value in
+/// JS, whose `clone_from` is that of what they hold.
 pub(super) fn unboxed<'tcx>(t: &Translator<'_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'tcx> {
-	while let Some(inner) = ty.boxed_ty()
-		&& inner.is_sized(t.tcx, t.typing_env_pub())
-	{
-		ty = inner;
+	loop {
+		ty = match ty.kind() {
+			ty::Adt(_, args) if t.std_of(ty) == Some(Std::Reverse) => args.type_at(0),
+			_ if let Some(inner) = ty.boxed_ty()
+				&& inner.is_sized(t.tcx, t.typing_env_pub()) =>
+			{
+				inner
+			}
+			_ => return ty,
+		};
 	}
-	ty
 }
 
 /// Whether `clone_from` of `ty` clones, and drops what it writes over, as
@@ -3128,8 +3155,10 @@ pub(super) fn clone_from_clones<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>
 	}
 	let inner: Vec<Ty<'tcx>> = match (t.std_of(ty), ty.kind()) {
 		(Some(Std::Vec | Std::VecDeque | Std::BinaryHeap), _) => return false,
-		// A hash table's and a B-tree set's clone each element anew, by its `clone`.
+		// A hash table's and a B-tree set's clone each element anew, by its `clone`. Text is
+		// a JS string, which keeps no buffer.
 		(Some(Std::HashMap | Std::HashSet | Std::HashTable | Std::BTreeSet), _) => vec![],
+		_ if string(tcx, ty) => vec![],
 		(_, ty::Adt(adt, args)) if is_std(tcx, adt.did()) => args.types().collect(),
 		(_, ty::Array(elem, _)) => vec![*elem],
 		_ => return false,
@@ -3198,17 +3227,15 @@ fn trimmed(mut args: Vec<Expr>) -> Vec<Expr> {
 }
 
 /// `cow`, a `Cow<[elem]>`, through the runtime's `cow{op}`, `IntoOwned` or `Clone`, which
-/// clones what it borrows, or for `Clone` what it owns, by each item's `Clone`.
+/// clones what it borrows, or for `Clone` what it owns, by each item's `Clone`, into a
+/// `Vec` with room for exactly them.
 pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
 		return Expr::rt(format!("byteCow{op}"), vec![cow]);
 	}
-	let mut args = vec![cow];
-	match super::collections::clone_fn(b, elem, span) {
-		Expr::Lit(l) if l == "undefined" => {}
-		clone => args.push(clone),
-	}
-	Expr::rt(format!("cow{op}"), args)
+	let size = super::iter::size_of(b, elem, span);
+	let clone = super::collections::clone_fn(b, elem, span);
+	Expr::rt(format!("cow{op}"), trimmed(vec![cow, size, clone]))
 }
 
 /// `to_vec` of `slice`, of `elem`s: a `Vec` of clones of them.

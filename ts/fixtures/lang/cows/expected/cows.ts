@@ -224,10 +224,10 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(option_unwrapOr$1j4op5y(rt.sliceFirst(rt.cowSlice(c)), 65535))));
 		putWords(out, rt.cowSlice(c));
 		putWords(out, rt.cowSlice(c));
-		putWords(out, rt.cowSlice(rt.cowClone(c)));
+		putWords(out, rt.cowSlice(rt.cowClone(c, 2)));
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.cowSlice(c), f, rt.u16Debug)];
 		put(out, rt.fmtFormat([args2[0]]));
-		putWords(out, rt.cowIntoOwned(c));
+		putWords(out, rt.cowIntoOwned(c, 2));
 		const empty: rt.Cow<rt.u16> = [];
 		putWords(out, rt.cowSlice(empty));
 		const iter: rt.Iter<rt.Cow<rt.u16>> = rt.iterSlice([new rt.Borrowed(half), rt.vecExact(v.slice(), 2), new rt.Borrowed(v), new rt.Borrowed([3, 1, 4]), rt.iterToArray(rt.iterRev(rt.iterSlice(v)), undefined, 2, true)]);
@@ -238,13 +238,13 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			putWords(out, rt.cowSlice(_100));
 		}
-		putWords(out, rt.cowIntoOwned(cowOf(half, owned)));
+		putWords(out, rt.cowIntoOwned(cowOf(half, owned), 2));
 	} else if (_15 === 1) {
 		let c2: rt.Cow<rt.u16> = cowOf(v, owned);
-		const owned4 = rt.cowIntoOwned(c2);
+		const owned4 = rt.cowIntoOwned(c2, 2);
 		c2 = owned4;
 		owned4.push(7);
-		const owned5 = rt.cowIntoOwned(c2);
+		const owned5 = rt.cowIntoOwned(c2, 2);
 		c2 = owned5;
 		const m: rt.u16[] = owned5;
 		const _119: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(m);
@@ -256,7 +256,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		putWords(out, v);
 		const cs: rt.Cow<rt.u16>[] = [cowOf(half, owned), cowOf(v, !owned)];
 		const at = rt.idx(cs, 1);
-		const owned6 = rt.cowIntoOwned(cs[at]);
+		const owned6 = rt.cowIntoOwned(cs[at], 2);
 		cs[at] = owned6;
 		rt.vecTruncate(owned6, 1);
 		for (const _144 of cs) {
@@ -268,7 +268,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => Run.fmt$fmt_Debug(run, f), (f: rt.Formatter) => Run.fmt$fmt_Debug(before, f)];
 		put(out, rt.fmtFormat([args4[0], " ", args4[1]]));
 		putWords(out, half);
-		putWords(out, rt.cowIntoOwned(c2));
+		putWords(out, rt.cowIntoOwned(c2, 2));
 	} else if (_15 === 2) {
 		const a: rt.Cow<rt.u16> = cowOf(v, owned);
 		const b: rt.Cow<rt.u16> = cowOf(half, !owned);
@@ -300,7 +300,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _247: boolean = order !== undefined && order >= 0;
 		const _250: boolean = rt.u64Eq(hashed$borrow_Cow_slice_u16(a), hashed$slice_u16(rt.sliceRange(v, 0)));
 		const _256: boolean = rt.u64Eq(hashed$borrow_Cow_slice_u16(b), hashed$slice_u16(half));
-		const _262: rt.Cow<rt.u16> = rt.ordMax(rt.cowClone(a), rt.cowClone(b), rt.cmpLt(rt.cowBy(rt.cmpSlice(rt.cmp))));
+		const _262: rt.Cow<rt.u16> = rt.ordMax(rt.cowClone(a, 2), rt.cowClone(b, 2), rt.cmpLt(rt.cowBy(rt.cmpSlice(rt.cmp))));
 		const iter3: rt.Iter<boolean> = rt.iterSlice([_188, _191, _194, _197, _203, _206, _210, _213, _216, _222, _226, _234, _238, _244, _247, _250, _256, rt.eqSlice(rt.same)(rt.cowSlice(_262), rt.cowSlice(b))]);
 		while (true) {
 			const _270: boolean | rt.Done = iter3.next();
@@ -321,7 +321,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			(c3 as rt.u16[]).push(5);
 		}
 		putWords(out, rt.cowSlice(c3));
-		const kept: rt.Cow<rt.u16> = rt.cowClone(c3);
+		const kept: rt.Cow<rt.u16> = rt.cowClone(c3, 2);
 		if (c3 instanceof rt.Borrowed) {
 			(c3 as rt.Borrowed<rt.u16>).slice = half;
 		}
@@ -332,7 +332,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		putWords(out, rt.cowSlice(c3));
 		putWords(out, rt.cowSlice(kept));
 		let e: rt.Cow<rt.u16> = cowOf(v, !owned);
-		const kept2: rt.Cow<rt.u16> = rt.cowClone(e);
+		const kept2: rt.Cow<rt.u16> = rt.cowClone(e, 2);
 		if (e instanceof rt.Borrowed) {
 			const borrowed = e as rt.Borrowed<rt.u16>;
 			repoint$u16(rt.place(() => borrowed.slice as rt.u16[], (value5) => borrowed.slice = value5), half);
@@ -415,7 +415,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			c4 = rt.vecExact(items.map(Tally.clone$Clone), 8);
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
-		const copy: rt.Cow<Tally.Tally> = rt.cowClone(c4, Tally.clone$Clone);
+		const copy: rt.Cow<Tally.Tally> = rt.cowClone(c4, 8, Tally.clone$Clone);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
 		rt.cowDrop(copy);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
@@ -426,12 +426,12 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, rt.cowSlice(c4).length & 0xff);
 		const _506: rt.Place<rt.Cow<Tally.Tally>> = rt.place(() => c4, (value2) => c4 = value2);
-		const owned2 = rt.cowIntoOwned(_506.v, Tally.clone$Clone);
+		const owned2 = rt.cowIntoOwned(_506.v, 8, Tally.clone$Clone);
 		_506.v = owned2;
 		rt.drop(owned2.pop());
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
 		const _515: rt.Place<rt.Cow<Tally.Tally>> = rt.place(() => c4, (value3) => c4 = value3);
-		const owned3 = rt.cowIntoOwned(_515.v, Tally.clone$Clone);
+		const owned3 = rt.cowIntoOwned(_515.v, 8, Tally.clone$Clone);
 		_515.v = owned3;
 		owned3.push(new Tally.Tally(9, log));
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
@@ -442,14 +442,14 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			(_524.v as Tally.Tally[]) = _527;
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
-		const kept3: Tally.Tally[] = rt.cowIntoOwned(c4, Tally.clone$Clone);
+		const kept3: Tally.Tally[] = rt.cowIntoOwned(c4, 8, Tally.clone$Clone);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
 		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(kept3), (t: Tally.Tally): rt.u8 => {
 			return t._0;
 		}), undefined, true);
 		rt.dropAll(kept3);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
-		const cloned: Tally.Tally[] = rt.cowIntoOwned(new rt.Borrowed(rt.sliceRange(items, 0)), Tally.clone$Clone);
+		const cloned: Tally.Tally[] = rt.cowIntoOwned(new rt.Borrowed(rt.sliceRange(items, 0)), 8, Tally.clone$Clone);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
 		rt.dropAll(cloned);
 		rt.dropAll(items);
@@ -567,6 +567,147 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteCowSlice(_174));
+	}
+}
+
+/**
+ * `clone_from` of each pairing of borrowed and owned, by `kind`'s low bits: an owned one
+ * over an owned one clones into the `Vec` it owns, which keeps its buffer, truncated to
+ * the source's length, each item it keeps cloned over; any other is the source's clone,
+ * made before what it replaces drops.
+ */
+export function cloneFroms(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let c!: rt.Cow<Tally.Tally>;
+	let from!: rt.Cow<Tally.Tally>;
+	let _60!: boolean;
+	let c2!: rt.Cow<rt.u16>;
+	let c3!: rt.ByteCow;
+	let c4!: rt.Cow<rt.ByteVec>;
+	let _157!: rt.Cow<rt.ByteVec>;
+	const _32: (a0: Tally.Tally[]) => rt.ByteVec = (items: Tally.Tally[]): rt.ByteVec => {
+		return rt.iterToByteVec(rt.iterMap(rt.iterSlice(items), (t: Tally.Tally): rt.u8 => {
+			return t._0;
+		}), undefined, true);
+	};
+	const _6: [boolean, boolean] = [(kind & 1) !== 0, (kind & 2) !== 0];
+	const intoOwned: boolean = _6[0];
+	const fromOwned: boolean = _6[1];
+	const mid2: number = rt.usizeDiv(data.length, 2);
+	if (mid2 > data.length) {
+		rt.panic("mid > len");
+	}
+	const left: rt.ByteSlice = new rt.ByteSlice(data.data, data.start, mid2);
+	const right: rt.ByteSlice = new rt.ByteSlice(data.data, data.start + mid2, data.length - mid2);
+	const _17: rt.u8 = rt.u8Rem(rt.u8Div(kind, 4), 4);
+	if (_17 === 0) {
+		const log: rt.Cell<rt.u32> = new rt.Cell(0);
+		const first: Tally.Tally[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), (_26: rt.u8): Tally.Tally => {
+			return new Tally.Tally(_26, log);
+		}), undefined, 8, true);
+		const second: Tally.Tally[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), (_27: rt.u8): Tally.Tally => {
+			return new Tally.Tally(_27, log);
+		}), undefined, 8, true);
+		if (!intoOwned) {
+			c = new rt.Borrowed(rt.sliceRange(first, 0));
+		} else {
+			c = rt.vecExact(first.map(Tally.clone$Clone), 8);
+		}
+		if (!fromOwned) {
+			from = new rt.Borrowed(rt.sliceRange(second, 0));
+		} else {
+			from = rt.vecExact(second.map(Tally.clone$Clone), 8);
+		}
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
+		const _50: rt.Place<rt.Cow<Tally.Tally>> = rt.place(() => c, (value4) => c = value4);
+		_50.v = rt.cowCloneFrom(_50.v, from, 8, Tally.clone$Clone, rt.drop);
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
+		if (!(c instanceof rt.Borrowed)) {
+			_60 = true;
+		} else {
+			_60 = false;
+		}
+		rt.byteVecPush(out, _60 ? 1 : 0);
+		const part = rt.cowSlice(c);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(_32(part)), undefined, true);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(_32(first)), undefined, true);
+		rt.cowDrop(from);
+		rt.cowDrop(c);
+		rt.dropAll(second);
+		rt.dropAll(first);
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(log.v)));
+	} else if (_17 === 1) {
+		const words_: rt.u16[] = rt.vecWithCapacity(rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0), 16) as rt.usize, 2);
+		const _89: rt.u16[] = words(left);
+		rt.iterExtend(words_, rt.iterSlice(_89), undefined, 2, true);
+		const from2: rt.u16[] = words(right);
+		if (!intoOwned) {
+			c2 = new rt.Borrowed([7]);
+		} else {
+			c2 = words_;
+		}
+		const _96: rt.Place<rt.Cow<rt.u16>> = rt.place(() => c2, (value) => c2 = value);
+		const _98: rt.Cow<rt.u16> = cowOf(from2, fromOwned);
+		_96.v = rt.cowCloneFrom(_96.v, _98, 2);
+		putWords(out, rt.cowSlice(c2));
+		const _104: rt.Cow<rt.u16> = c2;
+		if (!(_104 instanceof rt.Borrowed)) {
+			rt.byteVecPush(out, rt.vecCapacity(_104 as rt.u16[], 2) & 0xff);
+		}
+		rt.byteVecPush(out, rt.vecCapacity(rt.cowIntoOwned(cowOf(from2, false), 2), 2) & 0xff);
+		const bytes: rt.ByteVec = rt.byteVecWithCapacity(rt.u8Rem(option_unwrapOr$0r2bmpr(rt.byteSliceLast(data), 0), 32) as rt.usize);
+		rt.byteVecExtendFromSlice(bytes, right);
+		if (!intoOwned) {
+			c3 = rt.byteSliceFrom(Uint8Array.of(120));
+		} else {
+			c3 = bytes;
+		}
+		const _132: rt.Place<rt.ByteCow> = rt.place(() => c3, (value2) => c3 = value2);
+		const _134: rt.ByteCow = made(left, fromOwned);
+		_132.v = rt.byteCowCloneFrom(_132.v, _134);
+		rt.byteVecExtendFromSlice(out, rt.byteCowSlice(c3));
+		const _138: rt.ByteCow = c3;
+		if (!(_138 instanceof rt.ByteSlice)) {
+			rt.byteVecPush(out, (_138 as rt.ByteVec).data.length & 0xff);
+		}
+		const nested: rt.ByteVec[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), (_2: rt.u8): rt.ByteVec => {
+			return rt.byteVecWithCapacity(rt.u8Rem(_2, 8) as rt.usize);
+		}), undefined, 12, true);
+		const from3: rt.ByteVec[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), (_22: rt.u8): rt.ByteVec => {
+			const b2: rt.u8 = _22;
+			return rt.byteVecOf(b2, rt.u8Rem(b2, 3) as rt.usize);
+		}), undefined, 12, true);
+		if (!intoOwned) {
+			const _153: rt.ByteVec[] = [];
+			c4 = new rt.Borrowed(_153);
+		} else {
+			c4 = nested;
+		}
+		const _155: rt.Place<rt.Cow<rt.ByteVec>> = rt.place(() => c4, (value3) => c4 = value3);
+		if (!fromOwned) {
+			_157 = new rt.Borrowed(rt.sliceRange(from3, 0));
+		} else {
+			_157 = rt.vecExact(from3.map((a0: rt.ByteVec): rt.ByteVec => {
+				return rt.byteVecFrom(rt.byteVecView(a0));
+			}), 12);
+		}
+		_155.v = rt.cowCloneFrom(_155.v, _157, 12, (a02: rt.ByteVec): rt.ByteVec => {
+			return rt.byteVecFrom(rt.byteVecView(a02));
+		}, undefined, rt.byteVecCloneFromFn());
+		const iter: rt.Iter<rt.ByteVec> = rt.iterSlice(rt.cowSlice(c4));
+		while (true) {
+			const _167: rt.ByteVec | rt.Done = iter.next();
+			if (_167 === rt.DONE) {
+				break;
+			}
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_167.length & 0xff, _167.data.length & 0xff)), undefined, true);
+		}
+	} else {
+		const _179: [string, string] = [text(left), text(right)];
+		const to: string = _179[0];
+		const from4: string = _179[1];
+		let c5: string = cow(to, intoOwned);
+		c5 = cow(from4, fromOwned);
+		put(out, c5);
 	}
 }
 

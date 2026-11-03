@@ -243,3 +243,72 @@ fn arrays<const N: usize>(data: &[u8], out: &mut Vec<u8>) {
 		out.extend_from_slice(a);
 	}
 }
+
+/// `Option::as_slice` and `as_mut_slice` of each payload `kind` picks: of a `Some`, a slice
+/// of the one value, read and written where the `Option` holds it, and of a `None`, an
+/// empty one. A byte's is only read, as a byte slice views only an array of bytes.
+pub fn option_slices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let some = |i: usize| data.get(i).copied().filter(|b| b % 3 != 0);
+	match kind % 4 {
+		0 => {
+			let bytes = [some(0), some(1)];
+			for o in &bytes {
+				out.push(o.as_slice().len() as u8);
+				out.extend_from_slice(o.as_slice());
+			}
+			out.extend(bytes.iter().flat_map(Option::as_slice));
+		}
+		1 => {
+			// Of a local, of an element, and through a parameter.
+			let mut wide = some(0).map(|b| u16::from(b) << 4);
+			wide.as_mut_slice().fill(0x1234);
+			let read = wide.as_slice().iter().fold(0u16, |a, w| a ^ w);
+			out.extend_from_slice(&read.to_be_bytes());
+			let mut wides = [wide, some(1).map(u16::from), some(2).map(|b| u16::from(b) * 257)];
+			for o in &mut wides {
+				for w in o.as_mut_slice() {
+					*w ^= 0x0f0f;
+				}
+				if let [w] = o.as_mut_slice() {
+					*w = w.rotate_left(3);
+				}
+				out.push(o.as_slice().len() as u8);
+			}
+			swap_halves(&mut wides[1]);
+			for o in &wides {
+				out.extend_from_slice(&o.unwrap_or(0xeeee).to_be_bytes());
+			}
+		}
+		2 => {
+			// Of a value JS holds as an object, whole writes included.
+			let mut words: Option<Vec<u8>> = some(0).map(|b| vec![b; usize::from(b % 4)]);
+			let other = words.clone();
+			for w in words.as_mut_slice() {
+				w.push(0x77);
+			}
+			if let Some(w) = words.as_mut_slice().first_mut() {
+				*w = vec![0x66];
+			}
+			let s: &[Vec<u8>] = words.as_slice();
+			out.push(s.len() as u8);
+			out.extend(s.iter().flatten());
+			out.extend(other.as_slice().iter().flatten());
+			out.extend(words.into_iter().flatten());
+		}
+		_ => {
+			// Of `()`, whose `Option`'s `None` is `rt.None`.
+			let mut units: Option<()> = some(0).map(|_| ());
+			out.push(units.as_slice().len() as u8);
+			out.push(units.as_mut_slice().len() as u8);
+			units.as_mut_slice().fill(());
+			out.push(units.is_some() as u8);
+		}
+	}
+}
+
+/// Swaps the bytes of `o`'s payload, if any, through the slice of it.
+fn swap_halves(o: &mut Option<u16>) {
+	for w in o.as_mut_slice() {
+		*w = w.swap_bytes();
+	}
+}

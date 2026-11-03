@@ -2,6 +2,7 @@
 //! B-tree's range, `split_off`, `Reverse` as an order and a key, and `NonZero`, made, read,
 //! matched as a constant, compared, and printed.
 
+use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::num::NonZero;
@@ -258,6 +259,75 @@ pub fn wrappers(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.push((scale == Scale::MILLI) as u8);
 			out.push((scale < Scale::WIDE) as u8);
 			put_u64(out, scale.0.get());
+		}
+	}
+}
+
+/// Logs its id as it is cloned, and as it drops.
+struct Logged<'a> {
+	id: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Clone for Logged<'_> {
+	fn clone(&self) -> Self {
+		self.log.borrow_mut().push(self.id | 0x80);
+		Logged {
+			id: self.id.wrapping_add(1) & 0x7f,
+			log: self.log,
+		}
+	}
+}
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		self.log.borrow_mut().push(self.id);
+	}
+}
+
+/// `Reverse`'s `clone` and `clone_from`, each of what it wraps: a value JS copies, one
+/// that logs as it is cloned and drops, and a `Vec`, which JS shares and whose
+/// `clone_from` keeps its buffer.
+pub fn reverses(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
+	match kind % 3 {
+		0 => {
+			let a = Reverse(at(0));
+			let mut b = a.clone();
+			b.0 = b.0.wrapping_add(1);
+			out.extend([a.0, b.0]);
+			b.clone_from(&a);
+			out.push(b.0);
+		}
+		1 => {
+			let log = RefCell::new(Vec::new());
+			{
+				let a = Reverse(Logged {
+					id: at(0) & 0x7f,
+					log: &log,
+				});
+				let mut b = a.clone();
+				log.borrow_mut().push(0xfe);
+				b.clone_from(&Reverse(Logged {
+					id: at(1) & 0x7f,
+					log: &log,
+				}));
+				log.borrow_mut().push(0xfe);
+				out.extend([a.0.id, b.0.id]);
+			}
+			out.extend(log.into_inner());
+		}
+		_ => {
+			let a = Reverse((0..at(0) % 6).collect::<Vec<u8>>());
+			let mut b = a.clone();
+			b.0.push(0x55);
+			out.extend(a.0.iter().chain(&b.0));
+			out.extend([a.0.capacity() as u8, b.0.capacity() as u8]);
+			let mut kept = Reverse(Vec::with_capacity(usize::from(at(1) % 16)));
+			kept.0.push(at(2));
+			kept.clone_from(&a);
+			out.extend(kept.0.iter().copied());
+			out.extend([kept.0.len() as u8, kept.0.capacity() as u8]);
 		}
 	}
 }
