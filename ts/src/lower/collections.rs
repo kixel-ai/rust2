@@ -1728,20 +1728,10 @@ fn list<'tcx>(
 			values.push(clone_fn(b, item, span));
 			Expr::rt("listClone", values)
 		}
-		// Each item by its `clone_from`, as `*item = source.clone()` does, which drops what
-		// it writes over.
+		// Each item by its `clone_from`.
 		("Clone", "clone_from") => {
-			if !library::clone_from_clones(b.t, item) {
-				let msg = format!(
-					"`clone_from` of `{coll}`, whose items' `clone_from` is their own, which is not supported yet"
-				);
-				return Some(b.err(span, msg));
-			}
-			let clone = clone_fn(b, item, span);
-			let Some(drop) = b.t.droppers([item], span) else {
-				return Some(Expr::undefined());
-			};
-			Expr::rt("listCloneFrom", super::iter::tail(values, [vec![clone], drop].concat()))
+			let fns = library::clone_from_fns(b, item, span);
+			Expr::rt("listCloneFrom", [values, fns].concat())
 		}
 		// std's specializes `extend` by another list to `append`.
 		("Extend", "extend") if library::targ(call.args, 2) == coll => Expr::rt("listAppend", values),
