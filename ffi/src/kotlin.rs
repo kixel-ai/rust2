@@ -1963,7 +1963,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Duration => "crate::rt::Duration".to_string(),
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
-		Ty::Handle { .. } => "*const c_void".to_string(),
+		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
 		other => {
 			let _ = abi;
 			unreachable!("{other:?} is never lent to a trampoline")
