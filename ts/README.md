@@ -803,7 +803,8 @@ they need.
   the geometric mean, and frame decode at 0.61, 0.56, 0.70, and 0.61, with the A/A route
   within 0.04 and encode no slower. A tuple or `Result` of numbers alone is held so only
   where it meets a slot below, and its object, such as an `rt.Ok`, counts as made at each
-  read that makes it. A return is still a `ByteSlice` but for the `Result`s below.
+  read that makes it. An `Option` of a number is one part, that or `undefined`, as its JS
+  value is. A return is still a `ByteSlice` but for the `Result`s below.
 - A function only translated code calls takes each `&[u8]` or `&[u8; N]` parameter as
   three, its `data`, `start`, and `length`, which its body holds as that local's parts:
   not a root, which the outside calls, a closure, or an `async fn`. One whose object the
@@ -819,8 +820,8 @@ they need.
   1.01-1.05 over two runs, with the A/A route within 0.05, Firefox and Bun within their
   noise, and Node's varint decode at 1.11-1.15.
 - A function of the crate's that only translated code calls and that returns a `Result`
-  of byte slices and scalars, or of numbers alone, such as `Result<(u64, &[u8]), E>` or
-  `Result<u64, E>`, whose error is one JS
+  of byte slices and scalars, or of numbers alone, such as `Result<(u64, &[u8]), E>`,
+  `Result<u64, E>`, or `Result<Option<u64>, E>`, whose error is one JS
   value that is never `undefined`, writes the `Ok`'s parts into a module-level slot and returns the error or
   `undefined`. The slot is shared by every function returning that payload type, in
   `lib.ts` and named for the type as the shims are, as `out$ref_slice_u8` or `out$u64`, so

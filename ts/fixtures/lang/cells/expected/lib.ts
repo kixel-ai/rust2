@@ -3,6 +3,8 @@
 import * as rt from "./rt.ts";
 import { cells } from "./cells.ts";
 
+export const out$Option_u8: { p: rt.u8 | undefined } = { p: undefined as never };
+
 export const out$u64: { err: unknown } = { err: undefined };
 
 export const out$u8: { err: unknown } = { err: undefined };
