@@ -630,9 +630,10 @@ pub fn call<'tcx>(
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
 	// What it reads through boxes and references, while std picks each specialization by
-	// `self_ty`, which a box implements none of.
-	let value = values.next()?;
-	let (iter_ty, recv) = peel_iter(b, self_ty, value.clone());
+	// `self_ty`, which a box implements none of. `into_iter` peels `self_ty` itself, to tell
+	// a box apart.
+	let first = values.next()?;
+	let (iter_ty, recv) = peel_iter(b, self_ty, first.clone());
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);
@@ -646,14 +647,14 @@ pub fn call<'tcx>(
 				None => recv.member("nextBack").call(Vec::new()),
 			},
 			_ => {
-				let recv = into_iter(b, self_ty, value, span)?;
+				let recv = into_iter(b, self_ty, first, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
 		};
 		return Some(Expr::rt("iterToOption", [item].into_iter().chain(none).collect()));
 	}
-	let recv = into_iter(b, self_ty, value, span)?;
+	let recv = into_iter(b, self_ty, first, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
 		let of = match owner {
