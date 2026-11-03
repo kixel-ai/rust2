@@ -333,6 +333,20 @@ pub fn std_impl<'tcx>(
 				_ => return None,
 			}
 		}
+		// A `str`'s escape writes what it has left, unpadded.
+		ty::Adt(adt, _)
+			if tr == Trait::Display
+				&& matches!(
+					library::std_path(tcx, adt.did())
+						.iter()
+						.map(String::as_str)
+						.collect::<Vec<_>>()
+						.as_slice(),
+					["str", "iter", "EscapeUnicode" | "EscapeDebug" | "EscapeDefault"]
+				) =>
+		{
+			Expr::rt("fmtStrEscapeDisplay", vec![value, f])
+		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
 				&& let Some(e) = iter_debug(b, adt.did(), args, &value, &f, span) =>
@@ -561,6 +575,13 @@ fn iter_debug<'tcx>(
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		// Without its fields, which neither `#` nor a width changes.
+		["str", "iter", "EncodeUtf16"] => {
+			return Some(Expr::rt(
+				"fmtWriteStr",
+				vec![f.clone(), Expr::Str("EncodeUtf16 { .. }".into())],
+			));
+		}
 		[
 			"collections",
 			"vec_deque",
@@ -663,7 +684,7 @@ fn adaptor_debug<'tcx>(
 			if let ty::Ref(_, item, _) = b.t.iter_item(arg(0)?)?.kind()
 				&& super::iter::copies_itself(b.t, *item) =>
 		{
-			call("fmtCopied", vec![wrapped(b, arg(0)?)])
+			call("fmtAround", vec![name("Copied"), name("it"), wrapped(b, arg(0)?)])
 		}
 		["iter", "adapters", _, adaptor @ ("Copied" | "Cloned")] => {
 			let inner = wrapped(b, arg(0)?);
@@ -718,6 +739,16 @@ fn adaptor_debug<'tcx>(
 			call("fmtFlatten", vec![name(adaptor), source, inner])
 		}
 		["char", "decode", "DecodeUtf16"] => call("fmtDecodeUtf16", vec![wrapped(b, arg(0)?)]),
+		// A `str`'s escape is the `flat_map` of its chars it holds.
+		[
+			"str",
+			"iter",
+			escape @ ("EscapeDebug" | "EscapeDefault" | "EscapeUnicode"),
+		] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let inner = b.fmt_fn(Trait::Debug, b.t.field_ty(field.did, args), span);
+			call("fmtAround", vec![name(escape), name("inner"), inner])
+		}
 		_ => return None,
 	})
 }

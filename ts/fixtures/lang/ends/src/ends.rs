@@ -1,11 +1,15 @@
 //! The crate's own iterators that read from the back, know their length, and say they stay
 //! ended, with their own size hints, `nth`s, folds, `count`, `last`, finds, `for_each`,
-//! `reduce`, and `all`: std's adaptors and consumers call each method where native's do,
-//! and `fuse` reads on past the end of one that says it stays ended.
+//! `reduce`, `all`, `is_sorted_by`, `collect`, comparisons, and `by_ref`: std's adaptors,
+//! consumers, and collections call each method where native's do, and `fuse` reads on past
+//! the end of one that says it stays ended.
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, LinkedList};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, LinkedList};
 use std::iter::FusedIterator;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// The items `front..back`, read from either end, logging each call of its methods: `n`,
 /// `b`, `h`, and `l`, each with how many items it has left.
@@ -90,11 +94,13 @@ impl ExactSizeIterator for Counted<'_> {
 }
 
 /// A `Run` with its own `nth`, `nth_back`, `fold`, `rfold`, `count`, `last`, `find`, `rfind`,
-/// `find_map`, `for_each`, `reduce`, and `all`, each logged as `N`, `B`, `f`, `r`, `c`, `L`,
-/// `F`, `R`, `M`, `E`, `D`, and `A`, which std's adaptors and consumers call in place of
-/// `next` and `next_back`, and its own `position` and `max`, logged as `P` and `X`, which
-/// only the crate's own calls reach. Its `count` reads nothing, and its `last`, `for_each`,
-/// `reduce`, and `max` read from the back.
+/// `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, each logged as `N`, `B`, `f`,
+/// `r`, `c`, `L`, `F`, `R`, `M`, `E`, `D`, `A`, and `S`, which std's adaptors and consumers
+/// call in place of `next` and `next_back`, its own `collect`, `eq`, `partial_cmp`, and
+/// `by_ref`, logged as `C`, `Q`, `O`, and `Y`, which std's collections and comparisons call
+/// of it itself, and its own `position` and `max`, logged as `P` and `X`, which only the
+/// crate's own calls reach. Its `count` reads nothing, and its `last`, `for_each`, `reduce`,
+/// `is_sorted_by`, `max`, `collect`, and comparisons read from the back.
 struct Overrides<'a>(Run<'a>);
 
 impl Iterator for Overrides<'_> {
@@ -197,6 +203,48 @@ impl Iterator for Overrides<'_> {
 		}
 		best
 	}
+
+	fn is_sorted_by<F: FnMut(&u8, &u8) -> bool>(mut self, mut compare: F) -> bool {
+		self.0.logged(b'S');
+		let Some(mut last) = self.0.next_back() else {
+			return true;
+		};
+		while let Some(b) = self.0.next_back() {
+			if !compare(&b, &last) {
+				return false;
+			}
+			last = b;
+		}
+		true
+	}
+
+	fn collect<B: FromIterator<u8>>(self) -> B {
+		self.0.logged(b'C');
+		self.rev().collect()
+	}
+
+	fn eq<I>(self, other: I) -> bool
+	where
+		I: IntoIterator,
+		Self::Item: PartialEq<I::Item>,
+	{
+		self.0.logged(b'Q');
+		self.rev().eq(other)
+	}
+
+	fn partial_cmp<I>(self, other: I) -> Option<Ordering>
+	where
+		I: IntoIterator,
+		Self::Item: PartialOrd<I::Item>,
+	{
+		self.0.logged(b'O');
+		self.rev().partial_cmp(other)
+	}
+
+	fn by_ref(&mut self) -> &mut Self {
+		self.0.logged(b'Y');
+		self
+	}
 }
 
 impl DoubleEndedIterator for Overrides<'_> {
@@ -226,6 +274,23 @@ impl DoubleEndedIterator for Overrides<'_> {
 }
 
 impl ExactSizeIterator for Overrides<'_> {}
+
+/// The pairs `(b / 2, b)` of the bytes `I` yields, with its own `collect`, logged as `K`,
+/// which collects them from the back.
+struct Pairs<'a, I>(I, &'a RefCell<Vec<u8>>);
+
+impl<I: DoubleEndedIterator<Item = u8>> Iterator for Pairs<'_, I> {
+	type Item = (u8, u8);
+
+	fn next(&mut self) -> Option<(u8, u8)> {
+		self.0.next().map(|b| (b / 2, b))
+	}
+
+	fn collect<B: FromIterator<(u8, u8)>>(self) -> B {
+		self.1.borrow_mut().push(b'K');
+		self.0.rev().map(|b| (b / 2, b)).collect()
+	}
+}
 
 /// Yields every other call to `next`, from either end, ending between: a `FusedIterator`
 /// that isn't, which std's `fuse` reads on from as it would one that is.
@@ -281,8 +346,9 @@ fn put_vec(out: &mut Vec<u8>, v: Vec<u8>) {
 /// The run `data`'s first byte picks steps through with each of its other bytes, read
 /// directly, through `&mut`, or by std's adaptors, and consumed by the third byte's pick,
 /// by `consumed`, or by `folded` past the fifth `kind`, and boxed, or mapped and boxed, by
-/// either past the tenth, or by `found` past the fourteenth, by value, borrowed, or boxed,
-/// with what each read and each call of its methods logged.
+/// either past the tenth, or by `found` past the fourteenth or `collected` past the
+/// eighteenth, by value, borrowed, or boxed, with what each read and each call of its
+/// methods logged.
 pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let [shape, consume, steps @ ..] = data else {
 		return;
@@ -313,7 +379,7 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	let k = usize::from(consume >> 4);
 	let pick = consume % 16;
-	match kind % 18 {
+	match kind % 22 {
 		0 => consumed(run, pick, k, out),
 		1 => consumed(Counted(run), pick, k, out),
 		4 => consumed(Overrides(run), pick, k, out),
@@ -327,11 +393,16 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		12 => consumed(Box::new(Overrides(run).map(|b| b)), pick, k, out),
 		13 => folded(Box::new(Overrides(run).map(|b| b)), pick, k, &log, out),
 		// std's `Iterator` for `&mut I` and for a box forward none of `find`, `rfind`,
-		// `find_map`, `for_each`, `reduce`, and `all`.
+		// `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`.
 		14 => found(Overrides(run), pick, k, &log, out),
 		15 => found(&mut Overrides(run), pick, k, &log, out),
 		16 => found(Box::new(Overrides(run)), pick, k, &log, out),
 		17 => found(run, pick, k, &log, out),
+		// Nor `collect`, `eq`, `partial_cmp`, and `by_ref`.
+		18 => collected(Overrides(run), pick, k, &log, out),
+		19 => collected(&mut Overrides(run), pick, k, &log, out),
+		20 => collected(Box::new(Overrides(run)), pick, k, &log, out),
+		21 => collected(run, pick, k, &log, out),
 		2 | 7 => fuses(*consume, out),
 		_ => {
 			// Mixed from either end, by the bits of `consume`, until they meet.
@@ -556,8 +627,8 @@ impl Drop for Guard<'_> {
 }
 
 /// `it`, read by std's adaptors and consumers that call its `find`, `rfind`, `find_map`,
-/// `for_each`, `reduce`, or `all`, or that read it by `try_fold` beside them, picked by
-/// `pick`, with `k` what each tests against.
+/// `for_each`, `reduce`, `all`, or `is_sorted_by`, or that read it by `try_fold` beside
+/// them, picked by `pick`, with `k` what each tests against.
 fn found<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 	mut it: I,
 	pick: u8,
@@ -675,6 +746,50 @@ fn found<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 				out.extend(it.rev());
 			}
 		},
+	}
+}
+
+/// `it`, collected by std's `FromIterator` of the collections that collect a `Vec` by its
+/// `collect` first, as a `BTreeMap` collects `Pairs` of it, compared to `0..k` by std's
+/// comparisons that call its `eq` or `partial_cmp`, or read through its `by_ref`, picked by
+/// `pick`.
+fn collected<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
+	mut it: I,
+	pick: u8,
+	k: usize,
+	log: &RefCell<Vec<u8>>,
+	out: &mut Vec<u8>,
+) {
+	let other = 0..k as u8;
+	let order = |o: Option<Ordering>| o.map_or(0xff, |o| o as i8 as u8);
+	let pairs = |map: BTreeMap<u8, u8>| map.into_iter().flat_map(|(k, v)| [k, v]);
+	match pick {
+		0 => out.extend(it.collect::<Box<[u8]>>()),
+		1 => out.extend(Box::<[u8]>::from_iter(it)),
+		2 => out.extend(Rc::<[u8]>::from_iter(it).iter()),
+		3 => out.extend(Arc::<[u8]>::from_iter(it).iter()),
+		4 => out.extend(BTreeSet::from_iter(it)),
+		5 => out.extend(BinaryHeap::from_iter(it).into_vec()),
+		6 => out.extend(pairs(BTreeMap::from_iter(Pairs(it, log)))),
+		7 => out.extend(pairs(BTreeMap::from_iter(&mut Pairs(it, log)))),
+		8 => out.extend(pairs(BTreeMap::from_iter(Box::new(Pairs(it, log))))),
+		9 => out.push(u8::from(it.eq(other))),
+		10 => out.push(u8::from(it.ne(other))),
+		11 if k % 2 == 0 => out.push(u8::from(it.lt(other))),
+		11 => out.push(u8::from(it.gt(other))),
+		12 if k % 2 == 0 => out.push(u8::from(it.le(other))),
+		12 => out.push(u8::from(it.ge(other))),
+		13 => out.push(order(it.partial_cmp(other))),
+		14 => {
+			out.push(it.by_ref().take(k).count() as u8);
+			for b in it.by_ref() {
+				out.push(b);
+			}
+		}
+		_ => {
+			put(out, it.by_ref().next());
+			put_vec(out, it.collect());
+		}
 	}
 }
 

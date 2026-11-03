@@ -8,7 +8,7 @@
 
 import { fmtCharDebug, type Place, panic, panicFmt, stringLen } from "../rt.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
-import type { char, u8, usize } from "./int.ts";
+import type { char, u8, u16, usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 
@@ -225,6 +225,39 @@ class Chars extends Iter<char> {
 	/** std's `Debug` lists a clone. */
 	override remaining(): Iterable<char> {
 		return this.clone();
+	}
+}
+
+/** `str::encode_utf16`: its UTF-16 code units. */
+export function strEncodeUtf16(s: string): Iter<u16> {
+	return new EncodeUtf16(s);
+}
+
+class EncodeUtf16 extends Iter<u16> {
+	readonly #s: string;
+	#at = 0;
+
+	constructor(s: string) {
+		super();
+		this.#s = s;
+	}
+
+	next(): u16 | Done {
+		return this.#at < this.#s.length ? (this.#s.charCodeAt(this.#at++) as u16) : DONE;
+	}
+
+	/** std's: a unit per three bytes left at least and one per byte at most, and the half of a pair it holds. */
+	override sizeHint(): SizeHint {
+		const u = this.#s.charCodeAt(this.#at);
+		const held = u >= 0xdc00 && u <= 0xdfff ? 1 : 0;
+		const bytes = utf8Len(this.#s, this.#at + held, this.#s.length);
+		return [Math.ceil(bytes / 3) + held, bytes + held];
+	}
+
+	override clone(): Iter<u16> {
+		const it = new EncodeUtf16(this.#s);
+		it.#at = this.#at;
+		return it;
 	}
 }
 

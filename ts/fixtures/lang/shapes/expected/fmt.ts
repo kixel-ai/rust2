@@ -1890,7 +1890,7 @@ export function adaptors(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAdaptor(part7, f, "Rev", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
 	put(out, rt.fmtFormat([args12[0], "|", rt.fmtSpec({ alternate: true }, args12[0])]));
 	const part8 = ends$adaptors_iter_Copied_slice_Iter_u8(rt.iterSlice(rt.byteSliceView(bytes)), front, back);
-	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCopied(part8, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
+	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAround(part8, f, "Copied", "it", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
 	put(out, rt.fmtFormat([args14[0], "|", rt.fmtSpec({ alternate: true }, args14[0]), "|", rt.fmtSpec({ zero: true, debugHex: "x", width: 2 }, args14[0])]));
 	const part9 = ends$adaptors_iter_Cloned_slice_Iter_u8(rt.iterCloned(rt.iterSlice(rt.byteSliceView(bytes))), front, back);
 	const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAdaptor(part9, f, "Cloned", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]), "it")];
@@ -2069,60 +2069,76 @@ export function adaptors(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return [97, 55296, 56320, 233, 56319][_517];
 	}), undefined, 2, true);
 	const part41 = fronts$adaptors_char_DecodeUtf16_iter_Copied_slice_Iter_u16(rt.charDecodeUtf16(rt.iterSlice(units)), front);
-	const args96: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDecodeUtf16(part41, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtCopied(value, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u16Debug, ["Iter"])))];
+	const args96: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDecodeUtf16(part41, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtAround(value, f, "Copied", "it", (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u16Debug, ["Iter"])))];
 	put(out, rt.fmtFormat([args96[0], "|", rt.fmtSpec({ alternate: true }, args96[0]), "|", rt.fmtSpec({ debugHex: "x" }, args96[0])]));
 	const part42 = fronts$adaptors_char_DecodeUtf16_vec_IntoIter_u16(rt.charDecodeUtf16(rt.iterSlice([55296, 97, 98])), rt.u8Rem(at(2), 3) as rt.usize);
 	const args98: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDecodeUtf16(part42, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u16Debug, ["IntoIter"]))];
 	put(out, rt.fmtFormat([args98[0]]));
+	const quoted: string = rt.stringExtendChars("", rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_219: rt.u8): rt.char => {
+		const _519: rt.usize = rt.u8Rem(_219, 6) as rt.usize;
+		if (!(_519 < 6)) {
+			rt.panic("index out of bounds: the len is " + 6 + " but the index is " + _519);
+		}
+		return [97, 34, 10, 769, 233, 39][_519];
+	}));
+	const part43 = fronts$adaptors_str_EscapeDebug(rt.strEscapeDebug(quoted), rt.usizeMul(front, 2));
+	const args100: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAround(part43, f, "EscapeDebug", "inner", (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtFlatten(value, f, "FlatMap", (value: rt.Iter<rt.Iter<rt.char>>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", rt.fmtChars), (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtCharsDebug(value, f, "EscapeDebug")))];
+	put(out, rt.fmtFormat([args100[0], "|", rt.fmtSpec({ alternate: true }, args100[0])]));
+	const part44 = fronts$adaptors_str_EscapeDefault(rt.strEscapeDefault(quoted), rt.usizeMul(front, 3));
+	const args102: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAround(part44, f, "EscapeDefault", "inner", (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtFlatten(value, f, "FlatMap", (value: rt.Iter<rt.Iter<rt.char>>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", rt.fmtChars), (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtCharsDebug(value, f, "EscapeDefault")))];
+	put(out, rt.fmtFormat([args102[0]]));
+	const part45 = fronts$adaptors_str_EscapeUnicode(rt.strEscapeUnicode(quoted), rt.usizeMul(front, 5));
+	const args104: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAround(part45, f, "EscapeUnicode", "inner", (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtFlatten(value, f, "FlatMap", (value: rt.Iter<rt.Iter<rt.char>>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", rt.fmtChars), (value: rt.Iter<rt.char>, f: rt.Formatter) => rt.fmtCharsDebug(value, f, "EscapeUnicode")))];
+	put(out, rt.fmtFormat([args104[0], "|", rt.fmtSpec({ alternate: true }, args104[0])]));
 	const base: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(bytes));
 	base.next();
-	const part43 = rt.iterSkip(rt.iterMap(rt.iterBorrow(base), (b14: rt.u8): rt.u8 => {
-		return rt.u8Add(b14, 1);
-	}), 1);
-	const args100: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part43, f, "Skip", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])))];
-	put(out, rt.fmtFormat([args100[0], "|", rt.fmtSpec({ alternate: true }, args100[0])]));
-	const part44 = fronts$adaptors_char_DecodeUtf16_mut_iter_Copied_slice_Iter_u16(rt.charDecodeUtf16(rt.iterBorrow(rt.iterSlice(units))), front);
-	const args102: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDecodeUtf16(part44, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtCopied(value, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u16Debug, ["Iter"])))];
-	put(out, rt.fmtFormat([args102[0]]));
-	const part45 = fronts$adaptors_iter_Copied_mut_slice_Iter_u8(rt.iterBorrow(rt.iterSlice(rt.byteSliceView(bytes))), front);
-	const args104: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCopied(part45, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
-	put(out, rt.fmtFormat([args104[0], "|", rt.fmtSpec({ alternate: true }, args104[0])]));
-	const part46 = fronts$adaptors_iter_Map_boxed_Box_slice_Iter_u8_fmt_adaptors_closure18(rt.iterMap(rt.iterBox(rt.iterSlice(rt.byteSliceView(bytes))), (b15: rt.u8): rt.u8 => {
+	const part46 = rt.iterSkip(rt.iterMap(rt.iterBorrow(base), (b15: rt.u8): rt.u8 => {
 		return rt.u8Add(b15, 1);
-	}), front);
-	const args106: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAdaptor(part46, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
-	put(out, rt.fmtFormat([args106[0]]));
-	const boxed: rt.Iter<rt.u8> = rt.iterRev(rt.iterSlice(rt.byteSliceView(bytes)));
-	const _970: Countdown.Countdown = { _0: 4 };
-	const part47 = fronts$adaptors_iter_Zip_mut_boxed_Box_iter_Rev_slice_Iter_u8_boxed_Box_fmt_Countdown(rt.iterZip(rt.iterBorrow(rt.iterBox(rt.iterBorrow(boxed))), rt.iterBox(rt.iterFrom(_970, Countdown.next$iter_Iterator))), front);
-	const args108: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtZip(part47, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Rev", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f))];
+	}), 1);
+	const args106: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part46, f, "Skip", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])))];
+	put(out, rt.fmtFormat([args106[0], "|", rt.fmtSpec({ alternate: true }, args106[0])]));
+	const part47 = fronts$adaptors_char_DecodeUtf16_mut_iter_Copied_slice_Iter_u16(rt.charDecodeUtf16(rt.iterBorrow(rt.iterSlice(units))), front);
+	const args108: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDecodeUtf16(part47, f, (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtAround(value, f, "Copied", "it", (value: rt.Iter<rt.u16>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u16Debug, ["Iter"])))];
 	put(out, rt.fmtFormat([args108[0]]));
-	const part48 = fronts$adaptors_iter_Enumerate_iter_Map_fmt_Countdown_fmt_adaptors_closure19(rt.iterEnumerate(rt.iterMap(rt.iterFrom({ _0: rt.u8Rem(at(2), 5) }, Countdown.next$iter_Iterator), (n: rt.u8): rt.u8 => {
+	const part48 = fronts$adaptors_iter_Copied_mut_slice_Iter_u8(rt.iterBorrow(rt.iterSlice(rt.byteSliceView(bytes))), front);
+	const args110: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAround(part48, f, "Copied", "it", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
+	put(out, rt.fmtFormat([args110[0], "|", rt.fmtSpec({ alternate: true }, args110[0])]));
+	const part49 = fronts$adaptors_iter_Map_boxed_Box_slice_Iter_u8_fmt_adaptors_closure19(rt.iterMap(rt.iterBox(rt.iterSlice(rt.byteSliceView(bytes))), (b16: rt.u8): rt.u8 => {
+		return rt.u8Add(b16, 1);
+	}), front);
+	const args112: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtAdaptor(part49, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))];
+	put(out, rt.fmtFormat([args112[0]]));
+	const boxed: rt.Iter<rt.u8> = rt.iterRev(rt.iterSlice(rt.byteSliceView(bytes)));
+	const _1027: Countdown.Countdown = { _0: 4 };
+	const part50 = fronts$adaptors_iter_Zip_mut_boxed_Box_iter_Rev_slice_Iter_u8_boxed_Box_fmt_Countdown(rt.iterZip(rt.iterBorrow(rt.iterBox(rt.iterBorrow(boxed))), rt.iterBox(rt.iterFrom(_1027, Countdown.next$iter_Iterator))), front);
+	const args114: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtZip(part50, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Rev", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f))];
+	put(out, rt.fmtFormat([args114[0]]));
+	const part51 = fronts$adaptors_iter_Enumerate_iter_Map_fmt_Countdown_fmt_adaptors_closure20(rt.iterEnumerate(rt.iterMap(rt.iterFrom({ _0: rt.u8Rem(at(2), 5) }, Countdown.next$iter_Iterator), (n: rt.u8): rt.u8 => {
 		return rt.u8Mul(n, 2);
 	})), front);
-	const args110: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtEnumerate(part48, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f)))];
-	put(out, rt.fmtFormat([args110[0], "|", rt.fmtSpec({ alternate: true }, args110[0])]));
+	const args116: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtEnumerate(part51, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f)))];
+	put(out, rt.fmtFormat([args116[0], "|", rt.fmtSpec({ alternate: true }, args116[0])]));
 	const own: Countdown.Countdown = { _0: rt.u8Rem(at(3), 5) };
-	const part49 = fronts$adaptors_iter_Peekable_mut_fmt_Countdown(rt.iterPeekable(rt.iterFrom(own, Countdown.next$iter_Iterator)), front);
-	const args112: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPeekable(part49, f, (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f), rt.u8Debug)];
-	put(out, rt.fmtFormat([args112[0]]));
-	const part50 = fronts$adaptors_iter_Chain_iter_FlatMap_slice_Iter_Vec_u8_fmt_Countdown_fmt_adaptors_closure20_fmt_Countdown(rt.iterChain(rt.iterFlatMap(rt.iterSlice(lists), (v2: rt.ByteVec): Countdown.Countdown => {
+	const part52 = fronts$adaptors_iter_Peekable_mut_fmt_Countdown(rt.iterPeekable(rt.iterFrom(own, Countdown.next$iter_Iterator)), front);
+	const args118: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPeekable(part52, f, (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f), rt.u8Debug)];
+	put(out, rt.fmtFormat([args118[0]]));
+	const part53 = fronts$adaptors_iter_Chain_iter_FlatMap_slice_Iter_Vec_u8_fmt_Countdown_fmt_adaptors_closure21_fmt_Countdown(rt.iterChain(rt.iterFlatMap(rt.iterSlice(lists), (v2: rt.ByteVec): Countdown.Countdown => {
 		return { _0: rt.u8Rem(v2.data[rt.idx(v2, 0)], 3) };
 	}, (value: Countdown.Countdown) => rt.iterFrom(value, Countdown.next$iter_Iterator), true), rt.iterFrom({ _0: 2 }, Countdown.next$iter_Iterator)), front);
-	const args114: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtChain(part50, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtFlatten(value, f, "FlatMap", (value: rt.Iter<Countdown.Countdown>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.ByteVec>, f: rt.Formatter) => rt.fmtIter(value, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug), ["Iter"])), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f)), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f))];
-	put(out, rt.fmtFormat([args114[0]]));
-	const part51 = ends$adaptors_iter_Take_iter_Rev_iter_Skip_iter_Enumerate_iter_Map_slice_Iter_u8_fmt_adaptors_closure21(rt.iterTake(rt.iterRev(rt.iterSkip(rt.iterEnumerate(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_219: rt.u8): Pair.Pair => {
-		return { _0: _219, _1: -1 };
+	const args120: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtChain(part53, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtFlatten(value, f, "FlatMap", (value: rt.Iter<Countdown.Countdown>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.ByteVec>, f: rt.Formatter) => rt.fmtIter(value, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug), ["Iter"])), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f)), (value: Countdown.Countdown, f: rt.Formatter) => Countdown.fmt$fmt_Debug(value, f))];
+	put(out, rt.fmtFormat([args120[0]]));
+	const part54 = ends$adaptors_iter_Take_iter_Rev_iter_Skip_iter_Enumerate_iter_Map_slice_Iter_u8_fmt_adaptors_closure22(rt.iterTake(rt.iterRev(rt.iterSkip(rt.iterEnumerate(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_221: rt.u8): Pair.Pair => {
+		return { _0: _221, _1: -1 };
 	})), 1)), 3), front, back);
-	const args116: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part51, f, "Take", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Rev", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtCounted(value, f, "Skip", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtEnumerate(value, f, (value: rt.Iter<Pair.Pair>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))))))];
-	put(out, rt.fmtFormat([args116[0], "|", rt.fmtSpec({ alternate: true }, args116[0]), "|", rt.fmtSpec({ align: ">", width: 4 }, args116[0])]));
-	const it53: rt.Peekable<rt.u8> = rt.iterPeekable(rt.iterSlice(rt.byteSliceView(bytes)));
-	rt.peekablePeek(it53);
-	const part52 = rt.iterChain(rt.iterFilter(rt.iterZip(it53, new rt.RangeFrom(1, rt.u8Step), "len"), (p: [rt.u8, rt.u8]): boolean => {
+	const args122: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCounted(part54, f, "Take", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Rev", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtCounted(value, f, "Skip", (value: rt.Iter<[rt.usize, Pair.Pair]>, f: rt.Formatter) => rt.fmtEnumerate(value, f, (value: rt.Iter<Pair.Pair>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Map", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"]))))))];
+	put(out, rt.fmtFormat([args122[0], "|", rt.fmtSpec({ alternate: true }, args122[0]), "|", rt.fmtSpec({ align: ">", width: 4 }, args122[0])]));
+	const it56: rt.Peekable<rt.u8> = rt.iterPeekable(rt.iterSlice(rt.byteSliceView(bytes)));
+	rt.peekablePeek(it56);
+	const part55 = rt.iterChain(rt.iterFilter(rt.iterZip(it56, new rt.RangeFrom(1, rt.u8Step), "len"), (p: [rt.u8, rt.u8]): boolean => {
 		return p[0] !== 0;
 	}), rt.iterSlice(copy$array_tuple2_u8_u8([[9, 9] as [rt.u8, rt.u8]]).map(copy$tuple2_u8_u8)));
-	const args118: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtChain(part52, f, (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Filter", (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtZip(value, f, (value: rt.Peekable<rt.u8>, f: rt.Formatter) => rt.fmtPeekable(value, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtCopied(value, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])), rt.u8Debug), (value: rt.RangeFrom<rt.u8>, f: rt.Formatter) => rt.fmtRangeFrom(value, f, rt.u8Debug))), (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtIter(value, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f), ["IntoIter"]))];
-	put(out, rt.fmtFormat([args118[0], "|", rt.fmtSpec({ alternate: true }, args118[0])]));
+	const args124: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtChain(part55, f, (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtAdaptor(value, f, "Filter", (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtZip(value, f, (value: rt.Peekable<rt.u8>, f: rt.Formatter) => rt.fmtPeekable(value, f, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtAround(value, f, "Copied", "it", (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["Iter"])), rt.u8Debug), (value: rt.RangeFrom<rt.u8>, f: rt.Formatter) => rt.fmtRangeFrom(value, f, rt.u8Debug))), (value: rt.Iter<[rt.u8, rt.u8]>, f: rt.Formatter) => rt.fmtIter(value, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f), ["IntoIter"]))];
+	put(out, rt.fmtFormat([args124[0], "|", rt.fmtSpec({ alternate: true }, args124[0])]));
 }
 
 export function ends$adaptors_iter_Chain_slice_Iter_u8_slice_Iter_u8(it: rt.Iter<rt.u8>, front: rt.usize, back: rt.usize): rt.Iter<rt.u8> {
@@ -2429,7 +2445,7 @@ export function ends$adaptors_iter_StepBy_slice_Iter_u8(it: rt.Iter<rt.u8>, fron
 	}
 }
 
-export function ends$adaptors_iter_Take_iter_Rev_iter_Skip_iter_Enumerate_iter_Map_slice_Iter_u8_fmt_adaptors_closure21(it: rt.Iter<[rt.usize, Pair.Pair]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, Pair.Pair]> {
+export function ends$adaptors_iter_Take_iter_Rev_iter_Skip_iter_Enumerate_iter_Map_slice_Iter_u8_fmt_adaptors_closure22(it: rt.Iter<[rt.usize, Pair.Pair]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, Pair.Pair]> {
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -2526,7 +2542,7 @@ export function fronts$adaptors_char_DecodeUtf16_vec_IntoIter_u16(it: rt.Iter<rt
 	}
 }
 
-export function fronts$adaptors_iter_Chain_iter_FlatMap_slice_Iter_Vec_u8_fmt_Countdown_fmt_adaptors_closure20_fmt_Countdown(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
+export function fronts$adaptors_iter_Chain_iter_FlatMap_slice_Iter_Vec_u8_fmt_Countdown_fmt_adaptors_closure21_fmt_Countdown(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = front;
 	while (true) {
@@ -2559,7 +2575,7 @@ export function fronts$adaptors_iter_Cycle_slice_Iter_u8(it: rt.Iter<rt.u8>, fro
 	}
 }
 
-export function fronts$adaptors_iter_Enumerate_iter_Map_fmt_Countdown_fmt_adaptors_closure19(it: rt.Iter<[rt.usize, rt.u8]>, front: rt.usize): rt.Iter<[rt.usize, rt.u8]> {
+export function fronts$adaptors_iter_Enumerate_iter_Map_fmt_Countdown_fmt_adaptors_closure20(it: rt.Iter<[rt.usize, rt.u8]>, front: rt.usize): rt.Iter<[rt.usize, rt.u8]> {
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = front;
 	while (true) {
@@ -2625,7 +2641,7 @@ export function fronts$adaptors_iter_MapWhile_slice_Iter_u8_fmt_adaptors_closure
 	}
 }
 
-export function fronts$adaptors_iter_Map_boxed_Box_slice_Iter_u8_fmt_adaptors_closure18(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
+export function fronts$adaptors_iter_Map_boxed_Box_slice_Iter_u8_fmt_adaptors_closure19(it: rt.Iter<rt.u8>, front: rt.usize): rt.Iter<rt.u8> {
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = front;
 	while (true) {
@@ -2714,6 +2730,39 @@ export function fronts$adaptors_iter_Zip_mut_boxed_Box_iter_Rev_slice_Iter_u8_bo
 }
 
 export function fronts$adaptors_iter_Zip_str_Chars_slice_Iter_u8(it: rt.Iter<[rt.char, rt.u8]>, front: rt.usize): rt.Iter<[rt.char, rt.u8]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$adaptors_str_EscapeDebug(it: rt.Iter<rt.char>, front: rt.usize): rt.Iter<rt.char> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$adaptors_str_EscapeDefault(it: rt.Iter<rt.char>, front: rt.usize): rt.Iter<rt.char> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$adaptors_str_EscapeUnicode(it: rt.Iter<rt.char>, front: rt.usize): rt.Iter<rt.char> {
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = front;
 	while (true) {

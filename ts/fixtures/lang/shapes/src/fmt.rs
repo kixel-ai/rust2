@@ -1134,6 +1134,18 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let it = fronts(char::decode_utf16(vec![0xd800, 0x61, 0x62]), usize::from(at(2) % 3));
 	put(out, &format!("{it:?}"));
 
+	// A `str`'s escapes, each the `flat_map` of its chars, partly read.
+	let quoted: String = bytes
+		.iter()
+		.map(|&b| ['a', '"', '\n', '\u{301}', 'é', '\''][usize::from(b % 6)])
+		.collect();
+	let it = fronts(quoted.escape_debug(), front * 2);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(quoted.escape_default(), front * 3);
+	put(out, &format!("{it:?}"));
+	let it = fronts(quoted.escape_unicode(), front * 5);
+	put(out, &format!("{it:?}|{it:#?}"));
+
 	// An adaptor of a borrowed iterator, or of the crate's own, writes it as it is.
 	let mut base = bytes.iter();
 	base.next();
