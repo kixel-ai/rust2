@@ -840,6 +840,13 @@ they need.
   `rt.ByteSlice` too, its bytes read in place: the decode workloads then took 0.72 times
   a view's time in Chrome, 0.67 in Firefox, 0.87 in Node, and 0.71 in Bun at the
   geometric mean, with the A/A route within 0.03, and encode no slower.
+- A run of bytes `as_chunks_mut` lends is a `Uint8Array` view, which a whole write of
+  another run can't detach, so a read of one by value copies it (decided with the
+  maintainer on 2026-11-03). moq writes its runs by element and reads none whole, so it
+  pays nothing. `just ts bench`'s `packets/` workloads, moq-mux's continuity counters over
+  188-byte packets, measured the copy at 430 ns a packet in Node, 84 in Bun, 1930 in
+  Chrome, and 800 in Firefox, against 280, 114, 1300, and 375 for the hand-written
+  route's `slice`.
 - A local built of byte slices and scalars, in tuples, `Option`s, `Result`s, and
   `ControlFlow`s, is a JS value per part: a slice's `data`, `start`, and `length`, and an
   enum's variant as a flag, when nothing borrows or writes into it and only std's splits,
