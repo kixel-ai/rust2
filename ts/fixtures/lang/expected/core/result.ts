@@ -13,6 +13,7 @@ import { eq$1horntk as float_parse_eq$1horntk } from "../core/num/float_parse.ts
 import { eq$1v93ipo as str_error_eq$1v93ipo, eq$1f3e51k as str_error_eq$1f3e51k } from "../core/str/error.ts";
 import { cmp$175ka5q as poll_cmp$175ka5q } from "../core/task/poll.ts";
 import { eq$0dhyfbb as time_eq$0dhyfbb } from "../core/time.ts";
+import type * as Failure from "../errors.Failure.ts";
 import type * as heap_Fault from "../heap.Fault.ts";
 import type * as locks_Tally from "../locks.Tally.ts";
 import * as Part from "../orders.Part.ts";
@@ -780,6 +781,13 @@ export function mapErr$1lsqfgi(self: rt.Result<rt.u8, rt.u16>, op: (a0: rt.u16) 
 		return self;
 	}
 	return rt.Err(op(self.error));
+}
+
+export function mapErr$1ff8zoy(self: rt.Result<rt.u8, rt.ParseIntError>, _: (a0: rt.ParseIntError) => Failure.Failure): rt.Result<rt.u8, Failure.Failure> {
+	if (self.ok) {
+		return self as rt.Result<rt.u8, Failure.Failure>;
+	}
+	return rt.Err({ tag: "Parse", _0: self.error } as Failure.Failure);
 }
 
 export function mapErr$0u5yxjj(self: rt.Result<rt.u8, rt.ParseIntError>, op: (a0: rt.ParseIntError) => rt.IntErrorKind): rt.Result<rt.u8, rt.IntErrorKind> {
