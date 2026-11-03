@@ -9,4 +9,11 @@ export function thenSome$0d5am30(self: boolean, t: rt.u8): rt.u8 | undefined {
 	return t;
 }
 
+export function then$1i5jtpz(self: boolean, f: () => rt.Arc<Uint8Array>): rt.Arc<Uint8Array> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
 //# sourceMappingURL=bool.ts.map

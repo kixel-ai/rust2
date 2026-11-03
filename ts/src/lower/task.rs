@@ -166,7 +166,14 @@ pub fn call<'tcx>(
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
 					};
-					let values = args.into_iter().chain([clone]).chain(droppers).collect();
+					// What moves a sized value to a new allocation, as std's does when only
+					// `Weak`s share it: a copy where JS keeps it as an object, whose pointers
+					// compare. No pointer into a slice of objects can be made.
+					let moved = match shared_box(tcx, value) {
+						Some(_) => None,
+						None => b.t.snapshot_fn(value, call.span),
+					};
+					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();
 					Expr::rt(format!("arcMakeMut{place}"), values)
 				}
 			}

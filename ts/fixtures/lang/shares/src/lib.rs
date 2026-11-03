@@ -23,5 +23,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("shares::strs", shares::strs),
 		("shares::generics", shares::generics),
 		("shares::keys", shares::keys),
+		("shares::addresses", shares::addresses),
 	]
 }

@@ -594,6 +594,21 @@ pub fn call<'tcx>(
 			Some(Pointee::Bytes) if owner == "NonNull" => to_reference(arg()),
 			_ => arg(),
 		},
+		// An `rt.Arc` is its allocation, and its value is where a reference to the value
+		// points, a pointer to which is made as `ptr::from_ref` makes one, but for a value JS
+		// copies, whose place is the `Arc`'s, which `get_mut` writes.
+		("Arc" | "Rc", "as_ptr") if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) => {
+			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
+		}
+		("Arc" | "Rc", "as_ptr") => {
+			let arc = arg();
+			match kind(b, pointee()) {
+				Some(Pointee::Slice) => raw_of(pointee(), arc.member("value")),
+				Some(Pointee::Place) => Expr::rt("valuePlace", vec![arc]),
+				Some(Pointee::Bytes) => to_pointer(arc.member("value")),
+				_ => arc.member("value"),
+			}
+		}
 		// A pointer to what a box held, which no box holds any longer.
 		("Box", "into_raw" | "leak") => match kind(b, pointee()) {
 			Some(Pointee::Slice) if name == "into_raw" => raw_of(pointee(), arg()),
@@ -650,6 +665,19 @@ pub fn call<'tcx>(
 			b.t.drop_value(value, pointee(), span).unwrap_or_else(Expr::undefined)
 		}
 		("ptr", "eq") => {
+			let (x, y) = (arg(), arg());
+			compare(b, x, y, pointee(), span)
+		}
+		// Only the addresses, which JS compares only between pointers to one type.
+		("ptr", "addr_eq") if pointee() != targ(gargs, 1) => b.err(
+			span,
+			format!(
+				"comparing the addresses of pointers to `{}` and to `{}`, which JS keeps apart",
+				pointee(),
+				targ(gargs, 1)
+			),
+		),
+		("ptr", "addr_eq") => {
 			let (x, y) = (arg(), arg());
 			compare(b, x, y, pointee(), span)
 		}

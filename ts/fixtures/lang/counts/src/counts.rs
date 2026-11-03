@@ -1,8 +1,9 @@
 //! Strong and weak counts of `Arc`s and `Rc`s and their `Weak`s, through every way one is
 //! made and dropped: cloned, downgraded, upgraded, made dangling, made holding handles to
 //! itself, unwrapped by `into_inner`, and held in a `Vec`, an `Option`, a struct, and a closure, of a value and of a
-//! trait object; the values `get_mut` and `make_mut` write, alone or shared; and the
-//! clones `Option`'s and an iterator's `cloned` make, through each type's `Clone`.
+//! trait object; the values `get_mut` and `make_mut` write, alone or shared, and where
+//! `as_ptr` says each value is; and the clones `Option`'s and an iterator's `cloned` make,
+//! through each type's `Clone`.
 
 use std::cell::{Cell, RefCell};
 use std::rc::{self, Rc};
@@ -58,6 +59,7 @@ macro_rules! counts {
 		$releasing:ident,
 		$cloned:ident,
 		$shared:ident,
+		$addressed:ident,
 		$Ptr:ident,
 		$weak:ident
 	) => {
@@ -474,6 +476,54 @@ macro_rules! counts {
 			drop((handles, kept, shared, noisy, lists));
 			flush(&log, out);
 		}
+
+		/// Each byte an operation on pools of strong and weak handles of a pair kept as an
+		/// object, the rest of it the handle it picks, and on one of bytes and one of a byte
+		/// JS copies: `make_mut` keeps the allocation `as_ptr` points at only when no other
+		/// handle, strong or weak, shares it, and a read through `as_ptr` sees each write.
+		pub fn $addressed(data: &[u8], out: &mut Vec<u8>) {
+			let mut strong: Vec<$Ptr<(u8, u8)>> = vec![$Ptr::new((0, 1))];
+			let mut weak: Vec<$weak::Weak<(u8, u8)>> = Vec::new();
+			let mut bytes = $Ptr::new([2u8, 3]);
+			let mut number = $Ptr::new(4u8);
+			for &op in data {
+				let pick = usize::from(op >> 3) % strong.len();
+				match op % 6 {
+					0 => strong.push($Ptr::new((op, 0))),
+					1 => {
+						let again = strong[pick].clone();
+						strong.push(again);
+					}
+					2 => weak.push($Ptr::downgrade(&strong[pick])),
+					3 if strong.len() > 1 && op & 0x80 == 0 => drop(strong.swap_remove(pick)),
+					3 => weak.clear(),
+					4 => {
+						let before = $Ptr::as_ptr(&strong[pick]);
+						$Ptr::make_mut(&mut strong[pick]).1 ^= op;
+						let after = $Ptr::as_ptr(&strong[pick]);
+						out.push(u8::from(std::ptr::addr_eq(before, after)));
+						out.push(u8::from(std::ptr::eq(after, &*strong[pick])));
+						out.push(unsafe { (*after).1 });
+					}
+					_ => {
+						let shadow = (op & 0x80 != 0).then(|| $Ptr::clone(&bytes));
+						let before = $Ptr::as_ptr(&bytes);
+						$Ptr::make_mut(&mut bytes)[0] ^= op;
+						let after = $Ptr::as_ptr(&bytes);
+						out.push(u8::from(std::ptr::addr_eq(before, after)));
+						out.extend_from_slice(unsafe { &*after });
+						drop(shadow);
+						let at = $Ptr::as_ptr(&number);
+						if let Some(n) = $Ptr::get_mut(&mut number) {
+							*n ^= op;
+						}
+						out.push(unsafe { *at });
+					}
+				}
+				let picked = &strong[pick % strong.len()];
+				out.extend_from_slice(&[picked.0, picked.1, $Ptr::strong_count(picked) as u8]);
+			}
+		}
 	};
 }
 
@@ -486,6 +536,7 @@ counts!(
 	ArcReleasing,
 	cloned_arcs,
 	ArcShared,
+	addressed_arcs,
 	Arc,
 	sync
 );
@@ -498,6 +549,7 @@ counts!(
 	RcReleasing,
 	cloned_rcs,
 	RcShared,
+	addressed_rcs,
 	Rc,
 	rc
 );

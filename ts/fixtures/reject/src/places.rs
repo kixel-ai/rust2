@@ -103,6 +103,21 @@ pub fn optional_places_compared(n: &mut u32) -> bool {
 	Some(p) == std::ptr::NonNull::new(&raw mut *n)
 }
 
+/// The places of two `Rc`s' numbers, which `as_ptr` makes each of its own.
+pub fn rc_places_compared(a: &std::rc::Rc<u32>, b: &std::rc::Rc<u32>) -> bool {
+	std::ptr::addr_eq(std::rc::Rc::as_ptr(a), std::rc::Rc::as_ptr(b))
+}
+
+/// Pointers to two types, which JS keeps apart whatever their addresses.
+pub fn addresses_across(a: &(u8, u8), b: &[u8; 2]) -> bool {
+	std::ptr::addr_eq(a, b)
+}
+
+/// A pointer to the trait object an `Arc` holds.
+pub fn arc_dyn_pointer(a: &std::sync::Arc<dyn std::fmt::Debug>) -> *const dyn std::fmt::Debug {
+	std::sync::Arc::as_ptr(a)
+}
+
 /// A `RefMut` mapped to a closure, which a write through the guard would put in place of
 /// the cell's, though JS can't write one closure's captures into another.
 pub fn mapped_closure(add: u8) -> u8 {
