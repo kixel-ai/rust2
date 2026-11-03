@@ -37,7 +37,7 @@ import { spills, remnants, layouts } from "./heap.ts";
 import { hints, reserves } from "./hints.ts";
 import { holds } from "./holds.ts";
 import { u8Op, u16Op, u32Op, u64Op, u128Op, usizeOp, i8Op, i16Op, i32Op, i64Op, i128Op, isizeOp, i8Neg, i16Neg, i32Neg, i64Neg, i128Neg, isizeNeg, cast as ints_cast, convert, parses as ints_parses, widenings } from "./ints.ts";
-import { adaptors, consumers as iters_consumers, reducers, peekedOthers, skips, ranked as iters_ranked, ranges as iters_ranges, options as iters_options, optionItems, own as iters_own, values as iters_values, returned, zips, zipsBack, rangeFroms, rangeMethods, compares } from "./iters.ts";
+import { adaptors, consumers as iters_consumers, reducers, peekedOthers, skips, ranked as iters_ranked, ranges as iters_ranges, options as iters_options, optionItems, own as iters_own, values as iters_values, returned, zips, zipsBack, rangeFroms, rangeMethods, compares, lent as iters_lent } from "./iters.ts";
 import { joins } from "./joins.ts";
 import { keys as keys_keys, overrides, bytes as keys_bytes, lentKeys, lentValues, arrays as keys_arrays, byteRefs } from "./keys.ts";
 import { lengths } from "./lengths.ts";
@@ -329,6 +329,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		dyns_iters(data113, out114);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["errors::objects", (_2214: rt.u8, data114: rt.ByteSlice, out115: rt.ByteVec): undefined => {
 		errors_objects(data114.data, data114.start, data114.length, out115);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["iters::lent", (_2215: rt.u8, data115: rt.ByteSlice, out116: rt.ByteVec): undefined => {
+		iters_lent(data115, out116);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["edits::values", edits_values as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

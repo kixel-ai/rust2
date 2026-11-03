@@ -782,30 +782,32 @@ func closed() {
 // or reader of it and freed by the GC once none is reachable.
 func bytes() {
 	budgeted()
-	// Under 2 KiB, copied and Rust's buffer freed at the call; from 2 KiB, lent.
+	// Under 512 B, copied and Rust's buffer freed at the call; from 512 B, lent.
 	before := api.Dropped()
-	small := api.TokenBytes(1, 2047)
-	check(api.Dropped() == before+1 && small.Len() == 2047 && small.At(2046) == 1, "bytes under 2 KiB are copied and Rust's freed")
+	small := api.TokenBytes(1, 511)
+	check(api.Dropped() == before+1 && small.Len() == 511 && small.At(510) == 1, "bytes under 512 B are copied and Rust's freed")
 	before++
-	b := api.TokenBytes(1, 2048)
-	check(api.Dropped() == before, "returned bytes from 2 KiB keep Rust's buffer")
-	want := strings.Repeat("\x01", 2048)
-	check(b.Len() == 2048 && b.At(2047) == 1 && string(b.Copy()) == want, "returned bytes read back")
-	dst := make([]byte, 3000)
-	check(b.CopyTo(dst) == 2048 && string(dst[:2048]) == want, "CopyTo copies them all")
-	sub := b.Slice(2023, 2048)
+	b := api.TokenBytes(1, 512)
+	check(api.Dropped() == before, "returned bytes from 512 B keep Rust's buffer")
+	want := strings.Repeat("\x01", 512)
+	check(b.Len() == 512 && b.At(511) == 1 && string(b.Copy()) == want, "returned bytes read back")
+	dst := make([]byte, 600)
+	check(b.CopyTo(dst) == 512 && string(dst[:512]) == want, "CopyTo copies them all")
+	sub := b.Slice(487, 512)
 	check(sub.Len() == 25 && string(sub.Slice(5, 10).Copy()) == "\x01\x01\x01\x01\x01", "a sub-view reads its range")
 	check(b.Slice(3, 3).Len() == 0, "an empty sub-view is empty")
 	var out strings.Builder
 	reader := b
 	n, err := reader.WriteTo(&out)
-	check(err == nil && n == 2048 && out.String() == want && reader.Len() == 0, "WriteTo writes and consumes them")
+	check(err == nil && n == 512 && out.String() == want && reader.Len() == 0, "WriteTo writes and consumes them")
 	reader = b
 	read, err := io.ReadAll(&reader)
-	check(err == nil && string(read) == want && b.Len() == 2048, "Read reads and consumes a copy of the view only")
+	check(err == nil && string(read) == want && b.Len() == 512, "Read reads and consumes a copy of the view only")
 	runtime.KeepAlive(b)
+	collected(before+1, "the GC frees lent bytes once nothing reaches them")
 
-	// Kept alive by a sub-view alone, then freed once nothing reaches it.
+	// Kept alive by a sub-view alone, then freed once nothing reaches it. 64 KiB are lent
+	// in a batch of their own, so nothing else lent keeps them.
 	view := subView(2)
 	uncollected(before+1, "a sub-view keeps Rust's buffer")
 	check(view.Len() == 10 && view.At(9) == 2, "a sub-view reads Rust's buffer after its parent is gone")
@@ -816,9 +818,22 @@ func bytes() {
 	r := bufferedReader(3)
 	uncollected(before+2, "a reader keeps Rust's buffer")
 	all, err := io.ReadAll(r)
-	check(err == nil && len(all) == 2048 && all[2047] == 3, "a reader reads Rust's buffer after the Bytes are gone")
+	check(err == nil && len(all) == 64<<10 && all[64<<10-1] == 3, "a reader reads Rust's buffer after the Bytes are gone")
 	r = nil
 	collected(before+3, "the GC frees bytes no reader reaches")
+
+	// Lent in batches, each freed once none of its Bytes is reachable.
+	kept := batched()
+	for range 5 {
+		runtime.GC()
+		runtime.Gosched()
+	}
+	check(api.Dropped() <= before+3+36, "the GC frees no batch whose Bytes are reachable")
+	for i, k := range kept {
+		check(k.Len() == 512 && k.At(511) == uint8(10*i), "kept bytes read Rust's buffer after their batch's others are gone")
+	}
+	kept = nil
+	collected(before+43, "the GC frees every batch once none of its Bytes is reachable")
 
 	// Bytes an object returns outlive its Close: no Bytes depends on an object.
 	body := strings.Repeat("b", 2048)
@@ -860,15 +875,29 @@ func lentToBudget(before uint32) {
 //
 //go:noinline
 func subView(id uint32) api.Bytes {
-	return api.TokenBytes(id, 2048).Slice(2038, 2048)
+	return api.TokenBytes(id, 64<<10).Slice(64<<10-10, 64<<10)
 }
 
 // bufferedReader is a reader of returned bytes, whose Bytes nothing else keeps.
 //
 //go:noinline
 func bufferedReader(id uint32) io.Reader {
-	b := api.TokenBytes(id, 2048)
+	b := api.TokenBytes(id, 64<<10)
 	return bufio.NewReader(&b)
+}
+
+// batched lends 40 Bytes, more than a batch holds, keeping only every tenth.
+//
+//go:noinline
+func batched() []api.Bytes {
+	var kept []api.Bytes
+	for i := range 40 {
+		b := api.TokenBytes(uint32(i), 512)
+		if i%10 == 0 {
+			kept = append(kept, b)
+		}
+	}
+	return kept
 }
 
 // broken breaks a contract, which must fail with a message naming it.

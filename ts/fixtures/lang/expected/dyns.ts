@@ -4,7 +4,7 @@ import * as rt from "./rt.ts";
 import { drop$Result_Rc_dyns_Noisy_Rc_dyn_Any, drop$Result_Rc_dyns_Square_Rc_dyn_Any, drop$Result_Rc_dyns_Tri_Rc_dyn_Any } from "./lib.ts";
 import * as Any from "./core/any.Any.ts";
 import { thenSome$0d5am30 } from "./core/bool.ts";
-import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1i542n2 as option_map$1i542n2, map$08a6hpg as option_map$08a6hpg, map$0j05j69 as option_map$0j05j69, mapOr$06rr3sb as option_mapOr$06rr3sb } from "./core/option.ts";
+import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1i542n2 as option_map$1i542n2, map$0oedb57 as option_map$0oedb57, map$08a6hpg as option_map$08a6hpg, map$1qfllpb as option_map$1qfllpb, map$0j05j69 as option_map$0j05j69, mapOr$06rr3sb as option_mapOr$06rr3sb, andThen$0v0bj8w as option_andThen$0v0bj8w, andThen$0ntiuws as option_andThen$0ntiuws } from "./core/option.ts";
 import { ok$00p9ap8, ok$0lceojf, map$0zzqmaz as result_map$0zzqmaz } from "./core/result.ts";
 import * as Chunks from "./dyns.Chunks.ts";
 import * as dyns_Countdown from "./dyns.Countdown.ts";
@@ -14,6 +14,7 @@ import * as Hook from "./dyns.Hook.ts";
 import * as Looped from "./dyns.Looped.ts";
 import * as dyns_Named from "./dyns.Named.ts";
 import * as dyns_Noisy from "./dyns.Noisy.ts";
+import * as Resuming from "./dyns.Resuming.ts";
 import * as dyns_Shape from "./dyns.Shape.ts";
 import * as Shown from "./dyns.Shown.ts";
 import * as Square from "./dyns.Square.ts";
@@ -874,8 +875,104 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), "next", 4);
 		const _369: rt.usize = rt.ownedCount(split.chunks$Chunks());
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_369, f)];
-		fmt_put(out, rt.fmtFormat([args20[0], " ", args20[1]]));
+		fmt_put(out, rt.fmtFormat([args20[0], " ", args20[1], " "]));
+		const part3 = drain(rt.iterDyn(rt.iterBorrow(rt.iterFuse(rt.iterFrom({ _0: rt.u8Rem(a, 4) }, (it: Resuming.Resuming) => Resuming.next$iter_Iterator(it))))));
+		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part3)];
+		fmt_put(out, rt.fmtFormat([args22[0], " "]));
+		const resuming: Resuming.Resuming = { _0: rt.u8Rem(b, 4) };
+		const up: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(resuming, (it: Resuming.Resuming) => Resuming.next$iter_Iterator(it)));
+		const part4 = [rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next())] as [rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined];
+		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part4[0], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[1], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[2], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[3], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[4], f, rt.u8Debug)], f)];
+		fmt_put(out, rt.fmtFormat([args24[0], " "]));
+		const boxed3: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new dyns_Countdown.Countdown(rt.u8Rem(a, 8)), (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop));
+		const part5 = drain(boxed3);
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part5)];
+		fmt_put(out, rt.fmtFormat([args26[0], " "]));
+		rt.drop(boxed3);
+		dropped(out);
+		const concrete: rt.Arc<rt.Iter<dyns_Tagged.Tagged>> = new rt.Arc(rt.iterSlice(tagged(front), rt.drop));
+		const shared: rt.Arc<rt.Iter<dyns_Tagged.Tagged>> = new rt.ArcDyn(concrete, rt.iterDyn(concrete.value));
+		const other: rt.Arc<rt.Iter<dyns_Tagged.Tagged>> = rt.arcClone(shared);
+		const weak: rt.Weak<rt.Iter<dyns_Tagged.Tagged>> = new rt.Weak(other);
+		const _456: [rt.usize, rt.usize | undefined] = other.value.sizeHint();
+		const _460: boolean = rt.arcGetMut(shared) === undefined;
+		const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(_456[0], f), (f: rt.Formatter) => rt.fmtOption(_456[1], f, rt.usizeDebug)], f), (f: rt.Formatter) => rt.fmtBool(_460, f)];
+		fmt_put(out, rt.fmtFormat([args28[0], " ", args28[1], " "]));
+		other[Symbol.dispose]();
+		weak[Symbol.dispose]();
+		const taken: rt.u8 | undefined = option_map$08a6hpg(option_andThen$0v0bj8w(rt.arcGetMut(shared), (it2: rt.Iter<dyns_Tagged.Tagged>): dyns_Tagged.Tagged | undefined => {
+			return rt.iterToOption(it2.next());
+		}), (t5: dyns_Tagged.Tagged): rt.u8 => {
+			const _014: rt.u8 = t5._0;
+			t5[Symbol.dispose]();
+			return _014;
+		});
+		dropped(out);
+		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(taken, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args30[0], " "]));
+		shared[Symbol.dispose]();
+		dropped(out);
+		const _492: rt.Arc<rt.Iter<rt.u8>> = new rt.Arc(rt.byteVecIntoIter(rt.byteSliceToByteVec(back)));
+		const exact: rt.Arc<rt.Iter<rt.u8>> = new rt.ArcDyn(_492, rt.iterDyn(_492.value));
+		const up2: rt.Arc<rt.Iter<rt.u8>> = rt.arcClone(exact);
+		const _506: rt.usize = exact.value.len();
+		const _510: rt.u8 | undefined | rt.None = option_map$1qfllpb(rt.arcGetMut(up2), (it3: rt.Iter<rt.u8>): rt.u8 | undefined => {
+			return rt.iterToOption(it3.next());
+		});
+		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_506, f), (f: rt.Formatter) => rt.fmtOption(_510, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), rt.None)];
+		fmt_put(out, rt.fmtFormat([args32[0], " ", args32[1], " "]));
+		exact[Symbol.dispose]();
+		const next: rt.u8 | undefined = option_andThen$0ntiuws(rt.arcGetMut(up2), (it4: rt.Iter<rt.u8>): rt.u8 | undefined => {
+			return rt.iterToOption(it4.next());
+		});
+		const _530: [rt.usize, rt.usize | undefined] = up2.value.sizeHint();
+		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(next, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(_530[0], f), (f: rt.Formatter) => rt.fmtOption(_530[1], f, rt.usizeDebug)], f)];
+		fmt_put(out, rt.fmtFormat([args34[0], " ", args34[1], " "]));
+		const fromBox: rt.Arc<rt.Iter<rt.u8>> = new rt.Arc(rt.iterDyn(rt.iterFrom(new dyns_Countdown.Countdown(rt.u8Rem(b, 8)), (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop)));
+		const part6 = option_andThen$0ntiuws(rt.arcGetMut(fromBox), (it5: rt.Iter<rt.u8>): rt.u8 | undefined => {
+			return rt.iterToOption(it5.next());
+		});
+		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part6, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args36[0], " "]));
+		fromBox[Symbol.dispose]();
+		dropped(out);
+		const counted2: rt.Arc<dyns_Countdown.Countdown> = new rt.Arc(new dyns_Countdown.Countdown(rt.u8Rem(a, 8)));
+		const weak3: rt.Weak<rt.Iter<rt.u8>> = rt.weakDyn(new rt.Weak(counted2), (arc: rt.Arc<dyns_Countdown.Countdown>): rt.Arc<rt.Iter<rt.u8>> => {
+			return new rt.ArcDyn(arc, rt.iterDyn(rt.iterFrom(arc.value, (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop)));
+		});
+		const part7 = option_map$0oedb57(rt.weakUpgrade(weak3), (it6: rt.Arc<rt.Iter<rt.u8>>): [rt.usize, rt.usize | undefined] => {
+			const _018: [rt.usize, rt.usize | undefined] = it6.value.sizeHint();
+			it6[Symbol.dispose]();
+			return _018;
+		});
+		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part7, f, (value: [rt.usize, rt.usize | undefined], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtOption(value[1], f, rt.usizeDebug)], f))];
+		fmt_put(out, rt.fmtFormat([args38[0], " "]));
+		counted2[Symbol.dispose]();
+		const _596: rt.Arc<rt.Iter<rt.u8>> | undefined = rt.weakUpgrade(weak3);
+		const part8 = _596 === undefined;
+		const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part8, f)];
+		const _590: string = rt.fmtFormat([args40[0], " "]);
+		rt.drop(_596);
+		fmt_put(out, _590);
+		dropped(out);
+		const pinned: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new dyns_Countdown.Countdown(rt.u8Rem(b, 8)), (it: dyns_Countdown.Countdown) => dyns_Countdown.next$iter_Iterator(it), rt.drop));
+		const part9 = rt.iterToOption(pinned.next());
+		const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part9, f, rt.u8Debug)];
+		fmt_put(out, rt.fmtFormat([args42[0]]));
+		rt.drop(pinned);
+		dropped(out);
+		weak3[Symbol.dispose]();
+		up2[Symbol.dispose]();
 	}
+}
+
+/** What `it` yields up to its end and twice past it. */
+export function drain(it: rt.Iter<rt.u8>): string {
+	const items: rt.ByteVec = rt.iterToByteVec(rt.iterBorrow(it), "next");
+	const _7: rt.u8 | undefined = rt.iterToOption(it.next());
+	const _9: rt.u8 | undefined = rt.iterToOption(it.next());
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(items), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_7, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_9, f, rt.u8Debug)];
+	return rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]);
 }
 
 /**
