@@ -26,6 +26,13 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
+export function map$1p9q0qv(self: rt.Arc<rt.RefCell<Shape.Shape>> | undefined, f: (a0: rt.Arc<rt.RefCell<Shape.Shape>>) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1i542n2(self: rt.Arc<Shape.Shape> | undefined, f: (a0: rt.Arc<Shape.Shape>) => rt.u32): rt.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -50,6 +57,20 @@ export function map$08a6hpg(self: Tagged.Tagged | undefined, f: (a0: Tagged.Tagg
 export function map$1qfllpb(self: rt.Iter<rt.u8> | undefined, f: (a0: rt.Iter<rt.u8>) => rt.u8 | undefined): rt.u8 | undefined | rt.None {
 	if (self === undefined) {
 		return rt.None;
+	}
+	return f(self);
+}
+
+export function map$0cs071d(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1qzd1bs(self: rt.Arc<rt.Mutex<Shape.Shape>> | undefined, f: (a0: rt.Arc<rt.Mutex<Shape.Shape>>) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
 	}
 	return f(self);
 }

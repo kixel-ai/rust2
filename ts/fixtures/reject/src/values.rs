@@ -28,14 +28,9 @@ pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseErr
 	s.parse()
 }
 
-pub struct Tail<T: ?Sized> {
-	pub value: T,
-}
-
-/// A struct whose last field unsizes to a trait object.
-pub fn tail_read(t: &Tail<u8>) -> u8 {
-	let r: &Tail<dyn Reading> = t;
-	r.value.read()
+/// A `Cell` whose value unsizes to a trait object, which nothing can read through.
+pub fn cell_unsized(c: &std::cell::Cell<u8>) -> &std::cell::Cell<dyn Reading> {
+	c
 }
 
 /// A union whose fields overlap in values JS keeps apart.

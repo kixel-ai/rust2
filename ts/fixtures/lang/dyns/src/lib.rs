@@ -23,5 +23,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("dyns::pointers", |_, data, out| dyns::pointers(data, out)),
 		("dyns::iters", |_, data, out| dyns::iters(data, out)),
 		("dyns::boxes", |_, data, out| dyns::boxes(data, out)),
+		("dyns::tails", |_, data, out| dyns::tails(data, out)),
 	]
 }
