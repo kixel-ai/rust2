@@ -2,12 +2,15 @@
 //! and a struct of both, as kio's `Polling` is, initialized by a `const` block or lazily
 //! by an expression; read and written through `with`, given a closure or a function,
 //! `try_with`, and the `Cell` and `RefCell` helpers, as kio's `coop` does; nested; and
-//! declared in a function, as kio's `serial` is. Each case leaves
+//! declared in a function, as kio's `serial` is; and a copy of a key written whole through
+//! a `&mut`, which then names the other's storage. Each case leaves
 //! every thread-local as it found it, so a fresh instance and a reused one agree.
 
 use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
+use std::mem;
 use std::sync::{Arc, Mutex};
+use std::thread::LocalKey;
 
 /// Logs its id when it drops.
 struct Noisy {
@@ -49,6 +52,9 @@ thread_local! {
 		x.0 = 3;
 		Cell::new((x, y))
 	};
+	/// The keys `keys` writes over each other's copies, initialized by a `const` block or lazily.
+	static LEFT: Cell<u8> = const { Cell::new(1) };
+	static RIGHT: Cell<u8> = Cell::new(2);
 }
 
 /// Each byte an operation on the thread-locals; each puts what it read and what dropped.
@@ -157,4 +163,34 @@ fn serial(reset: bool) -> u8 {
 		next.set((n.wrapping_add(u8::from(!reset)), end));
 		n
 	})
+}
+
+/// `*r = v`, through the reference.
+fn assign<T>(r: &mut T, v: T) {
+	*r = v;
+}
+
+/// Each byte a copy of `LEFT` written whole with `RIGHT` by each way std moves a value, or
+/// not at all, after which adding the byte through the copy changes only the key it names.
+/// Each puts what the replaced copy names, then what each key holds. A key is used only
+/// through a `&'static`, so each copy is leaked.
+pub fn keys(data: &[u8], out: &mut Vec<u8>) {
+	for &op in data {
+		let key: &'static mut LocalKey<Cell<u8>> = Box::leak(Box::new(LEFT));
+		match op % 5 {
+			0 => assign(key, RIGHT),
+			1 => out.push(Box::leak(Box::new(mem::replace(key, RIGHT))).get()),
+			2 => {
+				let other = Box::leak(Box::new(RIGHT));
+				mem::swap(key, other);
+				out.push(other.get());
+			}
+			3 => Cell::from_mut(&mut *key).set(RIGHT),
+			_ => {}
+		}
+		key.set(key.get().wrapping_add(op));
+		out.extend([LEFT.get(), RIGHT.get()]);
+	}
+	LEFT.set(1);
+	RIGHT.set(2);
 }

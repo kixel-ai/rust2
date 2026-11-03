@@ -128,10 +128,10 @@ fixtures/reject/src/places.rs:rebound_reference+7:14: a copy of a closure that c
 fixtures/reject/src/places.rs:rebound_reference+8:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:replace_boxed_bytes+4:2: replacing the value behind a reference to `std::pin::Pin<std::boxed::Box<[u8; 2]>>`
 fixtures/reject/src/places.rs:replace_boxed_future+4:2: an assignment through a reference to `std::pin::Pin<std::boxed::Box<dyn std::future::Future<Output = u8>>>`
-fixtures/reject/src/places.rs:replace_boxed_poll_fn+4:2: replacing the value behind a reference to `std::pin::Pin<std::boxed::Box<std::future::PollFn<for<'a, 'b> fn(&'a mut std::task::Context<'b>) -> std::task::Poll<u8>>>>`
 fixtures/reject/src/places.rs:replace_guard+1:2: an assignment through a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a reference to `std::pin::Pin<&mut places::Noisy>`
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
+fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+6:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
@@ -218,9 +218,6 @@ fixtures/reject/src/rebound.rs:retargeted+5:10: a raw pointer to `rebound::Targe
 fixtures/reject/src/rebound.rs:swap_retargeted+6:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:swapped_in_loop+8:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:unboxed_rebound+2:16: a reference to `rebound::Unboxed`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
-fixtures/reject/src/statics.rs:key_celled+1:2: a slice or a cell of a mutable reference to `std::thread::LocalKey<u32>` that names no place, which JS can't write in place
-fixtures/reject/src/statics.rs:lazy_assigned+1:2: an assignment through a reference to `std::sync::LazyLock<u32>`
-fixtures/reject/src/statics.rs:lazy_celled+1:3: a slice or a cell of a mutable reference to `std::cell::LazyCell<u32>` that names no place, which JS can't write in place
 fixtures/reject/src/statics.rs:pointer_statics+3:15: comparing pointers to `u32` in an atomic, which JS has no address of
 fixtures/reject/src/statics.rs:pointer_statics+4:3: a constant of type `&u32`, a pointer into memory translation can't name
 fixtures/reject/src/statics.rs:statics+1:11: a mutable static, which any code may write

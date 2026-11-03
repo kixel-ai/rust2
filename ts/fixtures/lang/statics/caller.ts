@@ -14,4 +14,7 @@ const onces = [[1, 0, 1, 7], [0, 6, 1, 2, 3, 4, 5, 11], [2, 14, 8], [9], [3, 15]
 /** `statics::lazies` scripts: each lazy cell and lock printed before it is forced, after, and from within its own function. */
 const lazies = [[0, 1, 2, 3, 4, 5, 4, 5, 0]].map((bytes) => Uint8Array.of(...op("statics::lazies"), 0, ...bytes));
 
-export const cases: Uint8Array[] = [...onces, ...lazies];
+/** `statics::writes` scripts: each way of writing a lazy cell and lock, with neither, either, or both forced first. */
+const writes = [Array.from({ length: 56 }, (_, i) => i)].map((bytes) => Uint8Array.of(...op("statics::writes"), 0, ...bytes));
+
+export const cases: Uint8Array[] = [...onces, ...lazies, ...writes];

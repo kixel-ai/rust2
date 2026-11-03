@@ -6,6 +6,13 @@ import type * as Item from "../slices.Item.ts";
 import * as Noisy from "../slices.Noisy.ts";
 import type * as Pair from "../slices.Pair.ts";
 
+export function isSomeAnd$0eocbrl(self: [rt.ByteSlice, rt.ByteSlice] | undefined, f: (a0: [rt.ByteSlice, rt.ByteSlice]) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
 export function map$1wqzuhy(self: rt.u16[] | undefined, f: (a0: rt.u16[]) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -60,6 +67,20 @@ export function mapOr$189goit(self: Noisy.Noisy | undefined, default_: rt.u8, f:
 		return default_;
 	}
 	return f(self);
+}
+
+export function zip$0n9ueec(self: rt.ByteSlice | undefined, other: rt.ByteSlice | undefined): [rt.ByteSlice, rt.ByteSlice] | undefined {
+	let _0!: [rt.ByteSlice, rt.ByteSlice] | undefined;
+	b0: {
+		if (self !== undefined) {
+			if (other !== undefined) {
+				_0 = [self, other] as [rt.ByteSlice, rt.ByteSlice];
+				break b0;
+			}
+		}
+		_0 = undefined;
+	}
+	return _0;
 }
 
 export function clone$1omlcob(self: Noisy.Noisy | undefined): Noisy.Noisy | undefined {

@@ -20,5 +20,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("statics::cells", |_, data, out| statics::cells(data, out)),
 		("statics::onces", |_, data, out| statics::onces(data, out)),
 		("statics::lazies", |_, data, out| statics::lazies(data, out)),
+		("statics::writes", |_, data, out| statics::writes(data, out)),
 	]
 }
