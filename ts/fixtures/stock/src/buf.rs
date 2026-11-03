@@ -276,11 +276,20 @@ fn read_all<B: Buf + ?Sized>(buf: &mut B, ops: &[u8], out: &mut Vec<u8>) -> Vec<
 /// A buffer of the crate's own over `Buf`, as moq's transports lend a stream's chunks.
 trait Leased: Buf {
 	fn pieces(&self) -> usize;
+	/// Reads a byte of `other`, then skips as many bytes as it has left.
+	fn skip(&mut self, other: &mut dyn Buf);
 }
 
 impl Leased for Pieces {
 	fn pieces(&self) -> usize {
 		self.parts.len()
+	}
+
+	fn skip(&mut self, other: &mut dyn Buf) {
+		if other.has_remaining() {
+			other.advance(1);
+		}
+		self.advance(other.remaining().min(self.remaining()));
 	}
 }
 
@@ -309,7 +318,8 @@ impl Drop for Counted {
 
 /// The reads of `reads` through a `dyn Buf` of each buffer: called on the object, through
 /// the impls forwarding through a `&mut` to one and a `Box` of one, and through the crate's
-/// own trait over `Buf`. A box drops what it owns once.
+/// own trait over `Buf`, whose method takes another `dyn Buf`. A box drops what it owns
+/// once.
 pub fn dyns(data: &[u8], out: &mut Vec<u8>) {
 	let [kind, cut, ops @ ..] = data else {
 		return;
@@ -351,6 +361,9 @@ pub fn dyns(data: &[u8], out: &mut Vec<u8>) {
 
 	let mut leased: Box<dyn Leased> = Box::new(Pieces::new(input, cut));
 	out.push(leased.pieces() as u8);
+	let mut skipped = ops;
+	leased.skip(&mut skipped);
+	out.push(skipped.len() as u8);
 	let rest = read_all(&mut *leased, ops, out);
 	out.extend_from_slice(&rest);
 	out.push(leased.pieces() as u8);
