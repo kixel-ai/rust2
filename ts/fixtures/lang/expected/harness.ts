@@ -26,7 +26,7 @@ import { dyns, shared as dyns_shared, anys, fns, iters as dyns_iters, pointers }
 import { edits as edits_edits, bytes as edits_bytes } from "./edits.ts";
 import { vecs as elements_vecs, arrays as elements_arrays, segments as elements_segments, inline, edges as elements_edges, rawSlices, emptyParts } from "./elements.ts";
 import { ends as ends_ends } from "./ends.ts";
-import { eqs } from "./errors.ts";
+import { eqs, objects as errors_objects } from "./errors.ts";
 import { fields as fields_fields } from "./fields.ts";
 import { floats, mulAdds as floats_mulAdds, formats as floats_formats, parses as floats_parses } from "./floats.ts";
 import { ints, strings, derived, written as fmt_written, counts as fmt_counts, rounding, panics as fmt_panics, wrapped as fmt_wrapped, collections, enums, iters as fmt_iters, writes as fmt_writes, objects as fmt_objects } from "./fmt.ts";
@@ -327,6 +327,8 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		pointers(data112.data, data112.start, data112.length, out113);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::searches", searches as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["searches::texts", texts as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::iters", (_2213: rt.u8, data113: rt.ByteSlice, out114: rt.ByteVec): undefined => {
 		dyns_iters(data113, out114);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["errors::objects", (_2214: rt.u8, data114: rt.ByteSlice, out115: rt.ByteVec): undefined => {
+		errors_objects(data114.data, data114.start, data114.length, out115);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

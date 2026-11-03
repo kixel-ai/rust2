@@ -23,7 +23,9 @@ macro_rules! list {
 }
 
 mod closures;
+mod flattened;
 mod folds;
+mod indexed;
 mod inside;
 mod iters;
 mod lists;
@@ -733,6 +735,17 @@ pub fn rfolded(log: &Log, id: u32, arg: u8) {
 /// range that panics as `String`'s drop it.
 pub fn inside(log: &Log, id: u32, arg: u8) {
 	inside::inside(log, id, arg);
+}
+
+/// Run scenario `arg % 10` of what a `flatten` drops of inner iterators that hold items
+/// once they end.
+pub fn flattened(log: &Log, id: u32, arg: u8) {
+	flattened::flattened(log, id, arg);
+}
+
+/// Run scenario `arg % 9` of what std drops of a zip it reads by index.
+pub fn indexed(log: &Log, id: u32, arg: u8) {
+	indexed::indexed(log, id, arg);
 }
 
 /// Run scenario `arg % 7` of where std drops a closure given to a consumer or an entry.

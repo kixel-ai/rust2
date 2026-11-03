@@ -329,6 +329,15 @@ fn iterate(chain: u8, data: &[u8], out: &mut Vec<u8>) {
 				.filter(|&(i, &b)| (i as u8) < b)
 				.count(),
 		),
+		// By index from the front, each side mapped, which may have side effects.
+		8 => put_usize(
+			out,
+			data.iter()
+				.map(|&b| b >> 1)
+				.zip(data.iter().map(|&b| b ^ 3))
+				.filter(|(a, b)| a < b)
+				.count(),
+		),
 		_ => {
 			let mut last = 0;
 			for (i, &b) in data.iter().enumerate() {

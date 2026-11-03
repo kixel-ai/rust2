@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 
-/** `Display` through `pad`, which keeps the options. Only `added` prints its `Debug`. */
+/** `Display` through `pad`, which keeps the options. */
 export interface Padded {
 	_0: string;
 }

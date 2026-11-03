@@ -17,23 +17,12 @@ map's `into_keys` and `into_values`, and the closures `for_each` and `fold` own 
 The closures `reduce`, `max_by`, `min_by`, their `_by_key` forms, `is_sorted_by_key`, and
 a map's entries' `or_insert_with`, `or_insert_with_key`, and `and_modify` own landed in
 [#438](https://github.com/moq-dev/rust2/pull/438), with its `released` step.
+A `skip` of a zip std reads by index, a zip collected in place, and a `flatten` whose
+inner iterators hold items once they end landed in
+[#446](https://github.com/moq-dev/rust2/pull/446), with its `indexed` and
+`flattened` steps.
 Each left is refused with a span where std's order is one JS's can't follow yet:
 
-- A `skip` of a `zip` of two `TrustedRandomAccess` iterators of items that drop, as the
-  reject fixture's `skipped_zip`: std's `Skip` read by index, as a zip by index or `take`'s
-  fold reads it, makes and drops each skipped pair whole, where its `next` skips through
-  the zip's `nth`, a side at a time. `rt.Iter` would need a reader by index beside `folded`.
-- A `collect` in place of a zip std reads by index that holds values that drop, as the
-  reject fixture's `zip_in_place`: std reads it by index, then drops it whole, inner
-  closures before outer ones, where the runtime's bounded read is its `fold`, which drops
-  each closure as its fold ends.
-- A `flatten` or `flat_map` whose inner iterator holds items once ended, as
-  `v.into_iter().map(|v| v.into_iter().take(1)).flatten()` of a `Vec<Vec<T>>` whose `T`
-  drops. std's `try_fold` keeps an ended inner iterator until the next one replaces it, or
-  drops it after the source once the source ends, where `next` drops it as it ends. Every
-  adaptor whose `try_fold` is its source's, such as `map`, `filter`'s `next`, and `rev`'s
-  through `try_rfold`, reads it that way, so `rt.Iter::folded` would follow through each,
-  a hot path to measure on the [TS benchmark](/ts/README.md#bench).
 - A B-tree's `collect` of entries that drop, sorted and deduplicated by the crate's own
   impls, as `v.into_iter().collect::<BTreeSet<O>>()` of an `O` whose `Ord`, `PartialOrd`,
   or `PartialEq` is its own: one that panics or disagrees with itself leaves equal keys

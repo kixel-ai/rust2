@@ -123,6 +123,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
+| `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
@@ -484,6 +485,12 @@ that `Fn` or `FnMut` calls, boxed as a `dyn FnOnce`, is `rt.once` of it, which d
 after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it.
 
+A `dyn Error` is such an object of `source` and its supertraits' `Debug` and `Display`,
+`Error.of$errors_Leaf` from `core/error.Error.ts`, whose `source` is `None` for a type
+that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` converts by,
+makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
+is `From` a string, which boxes std's own private error type.
+
 A `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` behind `&`,
 `&mut`, or `Box` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
 of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
@@ -494,7 +501,7 @@ trait object's does. A box drops the iterator it owns.
 A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
 `Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Buf`, the function traits, and those iterators', of a generic
+`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -873,8 +880,8 @@ they need.
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Fn*`, `dyn Buf`, `dyn Iterator` and its subtraits, and the translated crates' traits'
-behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `dyn Error`, binds to
+`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, `dyn Iterator` and its subtraits, and the translated crates' traits'
+behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
@@ -953,6 +960,11 @@ built natively for wasm32 and run beside its translation on the same inputs by
   with products of those values at 128 bits, 128-bit quotients by divisors below 2^32,
   and their halves joined back.
   `brands.ts`, another caller, mixes integer types where `tsc` must refuse them.
+- `names` is translated from `run`, then with `added` as its first root, which reaches
+  another instance of what `run` reaches one of, each sorting before it: a generic method's,
+  a closure's, an impl's of another trait, a std function's that merges with `run`'s, and
+  an impl's over a deeper `&mut`, beside a trait object's module named as a type's that
+  `run` imports. Every line of the first must stay, in order.
 - `share` holds a `Copy` aggregate whose only write in the crate makes it copied, where
   `lang`'s other writes into the same type would hide a write the analysis misses: a
   byte array overwritten whole through a type parameter, or, under its features, by std

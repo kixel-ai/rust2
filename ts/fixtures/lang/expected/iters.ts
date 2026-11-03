@@ -2115,7 +2115,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6227.value, x217 ^ 2);
 					rt.refMutRelease(_6227);
 					return x217;
-				}), [true, true]), n)) & 0xff);
+				}), [true, true]), n, undefined, true)) & 0xff);
 			} else if (_79 === 6) {
 				rt.byteVecPush(out, rt.iterCount(rt.iterSkip(rt.iterZip(rt.iterMap(rt.iterSlice(rt.byteSliceView(a2)), (_2272: rt.u8): rt.u8 => {
 					const x214: rt.u8 = _2272;
@@ -2536,7 +2536,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6179.value, x139 ^ 8);
 					rt.refMutRelease(_6179);
 					return x139;
-				}), "len");
+				}), "index");
 				const _574: rt.usize = rt.usizeRem(data.length, 8);
 				if (_574 === 0) {
 					rt.byteVecPush(out, rt.iterCount(z7) & 0xff);
@@ -2555,7 +2555,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				} else if (_574 === 4) {
 					rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(z7, (_2205: [rt.u8, rt.u8]): rt.u8 => {
 						return _2205[0] ^ _2205[1];
-					}), undefined, true, 1)), undefined, true);
+					}), "index", true, 1)), undefined, true);
 				} else if (_574 === 5) {
 					rt.byteVecPush(out, rt.iterFold(z7, 0, (acc4: rt.u8, p14: [rt.u8, rt.u8]): rt.u8 => {
 						return rt.u8WrappingMul(acc4, 3) ^ _573(p14);
@@ -2598,7 +2598,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6177.value, x136 ^ 8);
 						rt.refMutRelease(_6177);
 						return x136;
-					}), "len"), (_2198: [rt.u8, rt.u8]): boolean => {
+					}), "index"), (_2198: [rt.u8, rt.u8]): boolean => {
 						return rt.u8Rem(_2198[0], 2) === 0;
 					})) & 0xff);
 				} else if (_612 === 1) {
@@ -2612,7 +2612,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6175.value, x133 ^ 8);
 						rt.refMutRelease(_6175);
 						return x133;
-					}), "len"), (_2197: [rt.u8, rt.u8]): rt.u8 | undefined => {
+					}), "index"), (_2197: [rt.u8, rt.u8]): rt.u8 | undefined => {
 						return rt.u8CheckedSub(_2197[0], _2197[1]);
 					})) & 0xff);
 				} else if (_612 === 2) {
@@ -2626,7 +2626,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6173.value, x130 ^ 8);
 						rt.refMutRelease(_6173);
 						return x130;
-					}), "len"), (_2196: [rt.u8, rt.u8]): boolean => {
+					}), "index"), (_2196: [rt.u8, rt.u8]): boolean => {
 						return _2196[0] < 128;
 					})) & 0xff);
 				} else if (_612 === 3) {
@@ -2640,7 +2640,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6171.value, x128 ^ 8);
 						rt.refMutRelease(_6171);
 						return x128;
-					}), "len")), (_2195: [rt.usize, [rt.u8, rt.u8]]): rt.u8 => {
+					}), "index")), (_2195: [rt.usize, [rt.u8, rt.u8]]): rt.u8 => {
 						return _2195[0] & 0xff;
 					})), 238));
 				} else if (_612 === 4) {
@@ -2654,7 +2654,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6169.value, x126 ^ 8);
 						rt.refMutRelease(_6169);
 						return x126;
-					}), "len"), rt.iterSlice([[1, 2] as [rt.u8, rt.u8]]))) & 0xff);
+					}), "index"), rt.iterSlice([[1, 2] as [rt.u8, rt.u8]]))) & 0xff);
 				} else if (_612 === 5) {
 					rt.byteVecPush(out, rt.iterCount(rt.iterTake(rt.iterZip(rt.iterMap(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), (x123: rt.u8): rt.u8 => {
 						const _6166: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2666,7 +2666,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6167.value, x124 ^ 8);
 						rt.refMutRelease(_6167);
 						return x124;
-					}), "len"), n)) & 0xff);
+					}), "index"), n)) & 0xff);
 				} else if (_612 === 6) {
 					rt.byteVecPush(out, rt.iterCount(rt.iterSkip(rt.iterZip(rt.iterMap(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), (x121: rt.u8): rt.u8 => {
 						const _6164: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2678,7 +2678,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6165.value, x122 ^ 8);
 						rt.refMutRelease(_6165);
 						return x122;
-					}), "len"), n)) & 0xff);
+					}), "index"), n)) & 0xff);
 				} else {
 					const p4: rt.Peekable<[rt.u8, rt.u8]> = rt.iterPeekable(rt.iterZip(rt.iterMap(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), (x119: rt.u8): rt.u8 => {
 						const _6162: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2690,7 +2690,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 						rt.byteVecPush(_6163.value, x120 ^ 8);
 						rt.refMutRelease(_6163);
 						return x120;
-					}), "len"));
+					}), "index"));
 					rt.byteVecPush(out, (rt.peekablePeek(p4) !== undefined ? 1 : 0) ^ (rt.iterCount(p4) & 0xff));
 				}
 			}
@@ -2706,7 +2706,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(_6159.value, x108 ^ 10);
 				rt.refMutRelease(_6159);
 				return x108;
-			}), "len");
+			}), "index");
 			const _751: rt.usize = rt.usizeRem(data.length, 8);
 			if (_751 === 0) {
 				rt.byteVecPush(out, rt.iterCount(z9) & 0xff);
@@ -2725,7 +2725,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else if (_751 === 4) {
 				rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterMap(z9, (_2192: [rt.u8, rt.u8]): rt.u8 => {
 					return _2192[0] ^ _2192[1];
-				}), undefined, true, 1)), undefined, true);
+				}), "index", true, 1)), undefined, true);
 			} else if (_751 === 5) {
 				rt.byteVecPush(out, rt.iterFold(z9, 0, (acc3: rt.u8, p12: [rt.u8, rt.u8]): rt.u8 => {
 					return rt.u8WrappingMul(acc3, 3) ^ _750(p12);
@@ -2769,7 +2769,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6157.value, x105 ^ 10);
 					rt.refMutRelease(_6157);
 					return x105;
-				}), "len"), (_2184: [rt.u8, rt.u8]): boolean => {
+				}), "index"), (_2184: [rt.u8, rt.u8]): boolean => {
 					return rt.u8Rem(_2184[0], 2) === 0;
 				})) & 0xff);
 			} else if (_789 === 1) {
@@ -2784,7 +2784,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6155.value, x102 ^ 10);
 					rt.refMutRelease(_6155);
 					return x102;
-				}), "len"), (_2182: [rt.u8, rt.u8]): rt.u8 | undefined => {
+				}), "index"), (_2182: [rt.u8, rt.u8]): rt.u8 | undefined => {
 					return rt.u8CheckedSub(_2182[0], _2182[1]);
 				})) & 0xff);
 			} else if (_789 === 2) {
@@ -2799,7 +2799,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6153.value, x99 ^ 10);
 					rt.refMutRelease(_6153);
 					return x99;
-				}), "len"), (_2180: [rt.u8, rt.u8]): boolean => {
+				}), "index"), (_2180: [rt.u8, rt.u8]): boolean => {
 					return _2180[0] < 128;
 				})) & 0xff);
 			} else if (_789 === 3) {
@@ -2814,7 +2814,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6151.value, x97 ^ 10);
 					rt.refMutRelease(_6151);
 					return x97;
-				}), "len")), (_2178: [rt.usize, [rt.u8, rt.u8]]): rt.u8 => {
+				}), "index")), (_2178: [rt.usize, [rt.u8, rt.u8]]): rt.u8 => {
 					return _2178[0] & 0xff;
 				})), 238));
 			} else if (_789 === 4) {
@@ -2829,7 +2829,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6149.value, x95 ^ 10);
 					rt.refMutRelease(_6149);
 					return x95;
-				}), "len"), rt.iterSlice([[1, 2] as [rt.u8, rt.u8]]))) & 0xff);
+				}), "index"), rt.iterSlice([[1, 2] as [rt.u8, rt.u8]]))) & 0xff);
 			} else if (_789 === 5) {
 				rt.byteVecPush(out, rt.iterCount(rt.iterTake(rt.iterZip(rt.iterMap(rt.iterSkip(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), 1), (x92: rt.u8): rt.u8 => {
 					const _6146: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2842,7 +2842,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6147.value, x93 ^ 10);
 					rt.refMutRelease(_6147);
 					return x93;
-				}), "len"), n)) & 0xff);
+				}), "index"), n)) & 0xff);
 			} else if (_789 === 6) {
 				rt.byteVecPush(out, rt.iterCount(rt.iterSkip(rt.iterZip(rt.iterMap(rt.iterSkip(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), 1), (x90: rt.u8): rt.u8 => {
 					const _6144: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2855,7 +2855,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6145.value, x91 ^ 10);
 					rt.refMutRelease(_6145);
 					return x91;
-				}), "len"), n)) & 0xff);
+				}), "index"), n)) & 0xff);
 			} else {
 				const p5: rt.Peekable<[rt.u8, rt.u8]> = rt.iterPeekable(rt.iterZip(rt.iterMap(rt.iterSkip(rt.byteVecIntoIter(rt.byteSliceToByteVec(a2)), 1), (x88: rt.u8): rt.u8 => {
 					const _6142: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -2868,7 +2868,7 @@ export function zips(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.byteVecPush(_6143.value, x89 ^ 10);
 					rt.refMutRelease(_6143);
 					return x89;
-				}), "len"));
+				}), "index"));
 				rt.byteVecPush(out, (rt.peekablePeek(p5) !== undefined ? 1 : 0) ^ (rt.iterCount(p5) & 0xff));
 			}
 		}
