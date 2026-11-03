@@ -226,7 +226,11 @@ pub(super) fn searched(log: &Log, id: u32, arg: u8) {
 			let stripped = (",a".strip_prefix(p), ",a".strip_suffix(&p));
 			log.note(format!("contains {found:?} {ends:?} {stripped:?}"));
 			let once = (text.split_once(p), text.rsplit_once(&p));
-			let trimmed = (",a,".trim_matches(p), ",a,".trim_start_matches(&p), ",a,".trim_end_matches(p));
+			let trimmed = (
+				",a,".trim_matches(p),
+				",a,".trim_start_matches(&p),
+				",a,".trim_end_matches(p),
+			);
 			let replaced = (text.replace(p, "+"), text.replacen(&p, "+", 2));
 			log.note(format!("once {once:?} {trimmed:?} {replaced:?}"));
 			let mut split = text.split(p);
@@ -285,7 +289,8 @@ pub(super) fn searched(log: &Log, id: u32, arg: u8) {
 			// One that owns nothing drops nothing, by value or with its iterator.
 			let plain: Box<dyn FnMut(char) -> bool> = Box::new(is_sep);
 			let mut split = text.split(plain);
-			log.note(format!("plain {:?} {}", split.next(), text.contains(Box::new(sep) as Box<dyn FnMut(char) -> bool>)));
+			let found = text.contains(Box::new(sep) as Box<dyn FnMut(char) -> bool>);
+			log.note(format!("plain {:?} {found}", split.next()));
 			drop(split);
 		}
 		7 => {

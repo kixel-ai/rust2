@@ -774,15 +774,15 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args104: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(indices5[0], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(indices5[1], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f)];
 		Log.note(log, rt.fmtFormat(["indices ", args104[0]]));
 		const split6: rt.Iter<string> = rt.strSplit(text, isSep);
-		const _1336: (a0: rt.char) => boolean = (c22: rt.char): boolean => {
+		const _1327: (a0: rt.char) => boolean = (c22: rt.char): boolean => {
 			if (!(c22 === 44)) {
 				return c22 === 59;
 			}
 			return true;
 		};
-		const _1332: string | undefined = rt.iterToOption(split6.next());
-		const _1335: boolean = rt.dropAfter(_1336, () => rt.strContains(text, _1336));
-		const args106: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_1332, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1335, f)];
+		const found6: boolean = rt.dropAfter(_1327, () => rt.strContains(text, _1327));
+		const _1335: string | undefined = rt.iterToOption(split6.next());
+		const args106: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_1335, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(found6, f)];
 		Log.note(log, rt.fmtFormat(["plain ", args106[0], " ", args106[1]]));
 		rt.drop(split6);
 	} else if (_8 === 7) {
@@ -806,9 +806,9 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured17[Symbol.dispose]();
 		});
-		const found6: [boolean, rt.usize | undefined, rt.usize | undefined] = [rt.strContains(text, rt.place(() => b4, (value4) => b4 = value4).v), rt.strFind(text, rt.place(() => b4, (value5) => b4 = value5).v), rt.strRfind(text, rt.place(() => b4, (value6) => b4 = value6).v)];
+		const found7: [boolean, rt.usize | undefined, rt.usize | undefined] = [rt.strContains(text, rt.place(() => b4, (value4) => b4 = value4).v), rt.strFind(text, rt.place(() => b4, (value5) => b4 = value5).v), rt.strRfind(text, rt.place(() => b4, (value6) => b4 = value6).v)];
 		const _1364: boolean = b4(120);
-		const args108: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(found6[0], f), (f: rt.Formatter) => rt.fmtOption(found6[1], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(found6[2], f, rt.usizeDebug)], f), (f: rt.Formatter) => rt.fmtBool(_1364, f)];
+		const args108: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(found7[0], f), (f: rt.Formatter) => rt.fmtOption(found7[1], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(found7[2], f, rt.usizeDebug)], f), (f: rt.Formatter) => rt.fmtBool(_1364, f)];
 		Log.note(log, rt.fmtFormat(["contains ", args108[0], " ", args108[1]]));
 		const ends6: [boolean, boolean] = [rt.strStartsWith(text, rt.place(() => b4, (value7) => b4 = value7).v), rt.strEndsWith(text, rt.place(() => b4, (value8) => b4 = value8).v)];
 		const stripped6: [string | undefined, string | undefined] = [rt.strStripPrefix(",a", rt.place(() => b4, (value9) => b4 = value9).v), rt.strStripSuffix(",a", rt.place(() => b4, (value10) => b4 = value10).v)];
@@ -863,7 +863,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured[Symbol.dispose]();
 		});
-		const found7: boolean = rt.dropAfter(_1589, () => rt.strContains(text, _1589));
+		const found8: boolean = rt.dropAfter(_1589, () => rt.strContains(text, _1589));
 		const captured2 = (c7: rt.char): boolean => {
 			if (!(c7 === 44)) {
 				return c7 === 59;
@@ -897,7 +897,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		});
 		const _1597: string = "+";
 		const replaced7: string = rt.dropAfter(_1595, () => rt.strReplace(text, _1595, _1597, 2));
-		const args124: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(found7, f), (f: rt.Formatter) => rt.fmtOption(at, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtPad(f, replaced7)];
+		const args124: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(found8, f), (f: rt.Formatter) => rt.fmtOption(at, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtPad(f, replaced7)];
 		Log.note(log, rt.fmtFormat(["contains ", args124[0], " ", args124[1], " ", args124[2]]));
 		const d3: Guard.Guard = guard(4);
 		const captured6 = (c10: rt.char): boolean => {
@@ -958,10 +958,10 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured12[Symbol.dispose]();
 		});
-		const found8: [rt.usize | undefined, boolean] = [rt.strFind(text, rt.place(() => counted, (value) => counted = value).v), rt.strContains(text, rt.place(() => counted, (value2) => counted = value2).v)];
+		const found9: [rt.usize | undefined, boolean] = [rt.strFind(text, rt.place(() => counted, (value) => counted = value).v), rt.strContains(text, rt.place(() => counted, (value2) => counted = value2).v)];
 		const parts3: string[] = rt.iterToArray(rt.strSplit(text, rt.lent(rt.place(() => counted, (value3) => counted = value3).v)), "next", 8);
 		const _1672: boolean = counted(120);
-		const args130: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(found8[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(found8[1], f)], f), (f: rt.Formatter) => rt.fmtList(parts3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1672, f)];
+		const args130: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(found9[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(found9[1], f)], f), (f: rt.Formatter) => rt.fmtList(parts3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1672, f)];
 		Log.note(log, rt.fmtFormat(["counted ", args130[0], " ", args130[1], " ", args130[2]]));
 		rt.drop(counted);
 		const g3: Guard.Guard = guard(7);
