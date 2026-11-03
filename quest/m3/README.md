@@ -17,13 +17,13 @@ generic std gap is planned here even when moq never calls it.
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
 - [The capacity of a BytesMut](/quest/m3/ts-bytes-capacity.md) - `BytesMut::capacity` and what reads it translate with `bytes`' values
-- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Error`'s downcasts, `dyn FusedIterator`, and `Arc<dyn Iterator>` translate, so a consumer neither rewrites nor binds them
+- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Error`'s downcasts translate, so a consumer neither rewrites nor binds them
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
-- [by_ref of a mutable reference to an iterator](/quest/m3/ts-by-ref-place.md) - `Iterator::by_ref` of a `&mut I` in a local translates
+- [A boxed iterator folds as std's box does](/quest/m3/ts-box-folds.md) - a `Box<I>` reads by `next` where std's `Iterator` for `Box<I>` forwards nothing else
 - [mem::take as a function value](/quest/m3/ts-take-value.md) - `mem::take`, `replace`, and `swap` passed as a function value translate
-- [Debug of a RefCell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, and `RefMut` translates as std's writes them
+- [Debug of a RefCell or a Cell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, `RefMut`, and `Cell` translates as std's writes them
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
@@ -38,6 +38,7 @@ generic std gap is planned here even when moq never calls it.
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
 - [Popping a String that is reassigned elsewhere](/quest/m3/ts-reassigned-pop.md) - `pop`, `remove`, and `split_off` of a local some other path assigns whole translate
+- [Operator trait methods called by path](/quest/m3/ts-operator-paths.md) - `<u8 as AddAssign>::add_assign` and every other `std::ops` operator method translate called by path or as a value
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Whole writes into a lazy cell or thread-local key](/quest/m3/ts-lazy-writes.md) - a whole write through a `&mut` to a `LazyCell`, `LazyLock`, or `LocalKey` keeps its state

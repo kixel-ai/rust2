@@ -109,9 +109,11 @@ func round() string {
 	}
 	read := perFrame(start)
 
-	// And one 4 KiB frame.
+	// And one 512 B frame, the least lent, and one 4 KiB.
 	group := must(track.AppendGroup())
 	reader := must(subscriber.RecvGroup(ctx))
+	check(group.WriteFrame(at, make([]byte, 512)))
+	edge := must(reader.ReadFrame(ctx))
 	check(group.WriteFrame(at, make([]byte, 4096)))
 	big := must(reader.ReadFrame(ctx))
 	reader.Close()
@@ -119,7 +121,7 @@ func round() string {
 	subscriber.Close()
 
 	// Payload reads: each frame's bytes, as a Bytes, then copied out of it. 100 B are copied
-	// at the call; 4 KiB are lent without a copy until the GC frees them.
+	// at the call; from 512 B, they are lent without a copy until the GC frees them.
 	lent := func(frame *moq.FrameFrame) float64 {
 		start := time.Now()
 		for range groups * frames {
@@ -135,8 +137,10 @@ func round() string {
 		return perFrame(start)
 	}
 	small, smallCopied := lent(last), copied(last)
+	least, leastCopied := lent(edge), copied(edge)
 	large, largeCopied := lent(big), copied(big)
 	last.Close()
+	edge.Close()
 	big.Close()
 	at.Close()
 	track.Close()
@@ -146,8 +150,8 @@ func round() string {
 	if closed != 0 {
 		bang = "!"
 	}
-	return fmt.Sprintf("export (Go): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per 100 B payload read (%.0f copied), %.0f per 4 KiB (%.0f copied)%s",
-		stamped, reused, call, read, small, smallCopied, large, largeCopied, bang)
+	return fmt.Sprintf("export (Go): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per 100 B payload read (%.0f copied), %.0f per 512 B (%.0f copied), %.0f per 4 KiB (%.0f copied)%s",
+		stamped, reused, call, read, small, smallCopied, least, leastCopied, large, largeCopied, bang)
 }
 
 func main() {

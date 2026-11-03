@@ -1,6 +1,6 @@
 // The runtime every generated Go file includes, after the generated code names the
-// export's C types as cBuf, cWaker, cDuration, and cAddr, its buffer free as cBufFree, and
-// its callbacks into Go as goCall and goRelease: the handles objects own, the arena a call
+// export's C types as cBuf, cWaker, cDuration, and cAddr, its buffer frees as cBufFree and
+// cBufsFree, and its callbacks into Go as goCall and goRelease: the handles objects own, the arena a call
 // lowers nested values into, values across the C ABI, and what a future waits on.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
@@ -163,7 +163,8 @@ func liftStringOption_(buf cBuf) *string {
 
 // Bytes is bytes Rust returned, or a record holds. From lendFrom_ bytes they are Rust's
 // buffer, read in place and freed only once the GC finds no Bytes, sub-view, or reader of
-// it, so none reads freed memory; below it, a copy in Go's memory. No
+// it or of the buffers lent in its batch, so none reads freed memory; below it, a copy in
+// Go's memory. No
 // method lets Rust's memory out as a []byte but for a call of an io.Writer, which must not
 // keep it. Read and WriteTo consume what they read, as bytes.Buffer's do; the rest leave
 // it. The zero Bytes is empty.
@@ -175,10 +176,31 @@ type Bytes struct {
 	len int
 }
 
-// bytesOwner_ is what owns a buffer Rust returned, freed once the GC collects it.
+// bytesOwner_ is what owns a batch of buffers Rust returned, freed once the GC collects it.
 type bytesOwner_ struct {
-	buf cBuf
+	batch *lentBatch_
 }
+
+// lentBatch_ is buffers lent one after another, freed together by one cleanup, which costs
+// far less than one each: up to 16, within lentBatchMax_ bytes but for one larger alone.
+type lentBatch_ struct {
+	bufs [16]cBuf
+	held int
+	// How many of bufs are lent, stored after each so the cleanup reads them all.
+	n atomic.Int32
+}
+
+// lentBatchMax_ is the most bytes a batch lends, which bounds what a Bytes kept long keeps
+// of the others in its batch.
+const lentBatchMax_ = 64 << 10
+
+// lending_ holds the owner of the batch each P's lends join until it fills; a GC drops it.
+var lending_ sync.Pool
+
+// lentFreeing_ frees one batch at a time: Go runs cleanups on several goroutines, and all of
+// them freeing at once contend for the C allocator's lock, which costs a lent buffer
+// several times more.
+var lentFreeing_ sync.Mutex
 
 // NewBytes is b as Bytes, for a record passed in, holding b itself without a copy.
 func NewBytes(b []byte) Bytes {
@@ -274,9 +296,9 @@ func (b *Bytes) consume(n int) {
 }
 
 // lendFrom_ is the size from which bytes Rust returns are lent rather than copied: below
-// it, a copy with Rust's buffer freed at once costs less than the cleanup a lent buffer
-// registers, about 700 ns at any size.
-const lendFrom_ = 2048
+// it, a copy with Rust's buffer freed at once costs less than a lent buffer, about 200 ns
+// at any size.
+const lendFrom_ = 512
 
 // lentMax_ is the most bytes lent from Rust at once, freed or not. The GC sees none of
 // them, so a program making little garbage of its own would never collect the Bytes
@@ -300,23 +322,43 @@ func lends_(n int64) bool {
 	return false
 }
 
-// freeLent_ frees a buffer lends_ counted, uncounted first so none Rust dropped counts.
-func freeLent_(buf cBuf) {
-	lentHeld_.Add(-int64(buf.len))
-	cBufFree(buf)
+// lend_ is the owner of the batch buf joins, which keeps it until the GC collects them.
+func lend_(buf cBuf) *bytesOwner_ {
+	o, _ := lending_.Get().(*bytesOwner_)
+	if o == nil || o.batch.held+int(buf.len) > lentBatchMax_ {
+		o = &bytesOwner_{batch: new(lentBatch_)}
+		runtime.AddCleanup(o, freeLent_, o.batch)
+	}
+	b := o.batch
+	n := b.n.Load()
+	b.bufs[n] = buf
+	b.held += int(buf.len)
+	b.n.Store(n + 1)
+	if int(n)+1 < len(b.bufs) && b.held < lentBatchMax_ {
+		lending_.Put(o)
+	}
+	return o
+}
+
+// freeLent_ frees a batch of buffers lends_ counted, uncounted first so none Rust dropped
+// counts.
+func freeLent_(b *lentBatch_) {
+	n := b.n.Load()
+	lentHeld_.Add(-int64(b.held))
+	lentFreeing_.Lock()
+	cBufsFree(b.bufs[:n])
+	lentFreeing_.Unlock()
 }
 
 // liftBytes_ is bytes Rust returned: copied, with Rust's buffer freed at once, unless it
-// lends_ them in place until the GC frees them.
+// lends_ them in place until the GC frees their batch.
 func liftBytes_(buf cBuf) Bytes {
 	if !lends_(int64(buf.len)) {
 		b := NewBytes(append([]byte(nil), view_(buf)...))
 		cBufFree(buf)
 		return b
 	}
-	owner := &bytesOwner_{buf: buf}
-	runtime.AddCleanup(owner, freeLent_, buf)
-	return Bytes{owner: owner, ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
+	return Bytes{owner: lend_(buf), ptr: unsafe.Pointer(buf.ptr), len: int(buf.len)}
 }
 
 func liftBytesOption_(buf cBuf) *Bytes {

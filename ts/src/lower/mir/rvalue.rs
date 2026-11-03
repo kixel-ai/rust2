@@ -463,9 +463,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		};
 		let (from, to) = (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object));
-		let value = match self.b.t.dyn_future(object) {
-			Some(_) => self.b.dyn_future(from, to, value, span),
-			None => self.b.object_of(value, from, to, span),
+		let value = if self.b.t.dyn_future(object).is_some() {
+			self.b.dyn_future(from, to, value, span)
+		} else if self.b.t.dyn_iter(object).is_some() {
+			self.b.dyn_iter(from, to, value, span)
+		} else {
+			self.b.object_of(value, from, to, span)
 		};
 		match arc {
 			Some(arc) => Expr::New(Box::new(Expr::Rt("ArcDyn".into())), vec![arc, value]),

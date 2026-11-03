@@ -1,0 +1,2 @@
+package = "lang-borrows-fixture"
+roots = ["harness::run", "harness::op"]
