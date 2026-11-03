@@ -183,7 +183,7 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			let add = move |n: u32| n + e.id() - e.id() + 1;
 			let doubled = move |n: &mut u32| *n * 2 + f.id() - f.id();
 			Cell::new(1u32).update(add);
-			// A copy of what JS shares, which the function changes and the cell keeps.
+			// Of what JS shares, which the function changes and the cell keeps.
 			let pair = Cell::new([1u32, 2]);
 			pair.update(|mut p| {
 				p[0] += 10;

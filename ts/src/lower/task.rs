@@ -526,11 +526,7 @@ fn cell<'tcx>(
 		"get" => b.t.copied(first(args).member("v"), ty, call.span),
 		"into_inner" => first(args).member("v"),
 		"replace" => Expr::rt("cellReplace", args),
-		// With what copies the value where JS would share it.
-		"update" => {
-			let copy = b.t.copy_fn(ty, call.span);
-			Expr::rt("cellUpdate", args.into_iter().chain(copy).collect())
-		}
+		"update" => Expr::rt("cellUpdate", args),
 		// With what drops the value it replaces.
 		"set" => {
 			let Some(droppers) = b.t.droppers([ty], call.span) else {

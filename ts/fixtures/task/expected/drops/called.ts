@@ -464,7 +464,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part2, f), (f: rt.Formatter) => rt.u32Display(part3, f)];
 			Log.note(log, rt.fmtFormat(["pair ", args66[0], " ", args66[1]]));
 			return copy$array_u32(p);
-		}, copy$array_u32);
+		});
 		const part4 = copy$array_u32(pair.v);
 		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["paired ", args48[0]]));

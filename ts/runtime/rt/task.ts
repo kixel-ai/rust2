@@ -737,9 +737,9 @@ export function cellReplace<T>(cell: Cell<T>, v: T): T {
 	return old;
 }
 
-/** `Cell::update`: what `f` returns of a copy of its value, by `copy` where JS shares it, in its place. */
-export function cellUpdate<T>(cell: Cell<T>, f: (v: T) => T, copy?: (v: T) => T): void {
-	cell.v = f(copy === undefined ? cell.v : copy(cell.v));
+/** `Cell::update`: what `f` returns of its value, in its place. */
+export function cellUpdate<T>(cell: Cell<T>, f: (v: T) => T): void {
+	cell.v = f(cell.v);
 }
 
 /** `Cell::set`: `v` in place of the value it held, which `dropOld` drops after. */

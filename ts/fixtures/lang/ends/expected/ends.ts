@@ -501,86 +501,133 @@ export function consumed$ends_Run(it: Run.Run, pick: rt.u8, k: rt.usize, out: rt
  * fold panics past `k` items, with what was logged so far.
  */
 export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: rt.u8, k: rt.usize, log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
-	let _27!: Uint8Array;
-	let _38!: Uint8Array;
-	let _53!: Uint8Array;
+	let _50!: Uint8Array;
+	let r3!: rt.Result<rt.u8, rt.u8>;
+	let _66!: Uint8Array;
+	let _84!: rt.u8 | undefined;
+	let _99!: Uint8Array;
 	const k8: rt.u8 = k & 0xff;
 	if (pick === 0) {
-		rt.byteVecPush(out, rt.iterFold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 1, (a12: rt.u8, b13: rt.u8): rt.u8 => {
-			return rt.u8WrappingMul(a12, 3) ^ b13;
+		rt.byteVecPush(out, rt.iterFold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 1, (a16: rt.u8, b22: rt.u8): rt.u8 => {
+			return rt.u8WrappingMul(a16, 3) ^ b22;
 		}, true));
 	} else if (pick === 1) {
 		const _10: Overrides.Overrides = it;
-		const _11: (a0: rt.u8, a1: rt.u8) => rt.u8 = (a11: rt.u8, b12: rt.u8): rt.u8 => {
+		const _11: (a0: rt.u8, a1: rt.u8) => rt.u8 = (a15: rt.u8, b21: rt.u8): rt.u8 => {
 			if (!(k < 15)) {
-				if (!(b12 !== 2)) {
+				if (!(b21 !== 2)) {
 					const _1110: rt.ByteSlice = rt.byteVecSlice(rt.refCellBorrow(log).value);
-					const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(b12, f), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_1110), f, rt.u8Debug)];
+					const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(b21, f), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_1110), f, rt.u8Debug)];
 					rt.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
 				}
 			}
-			return rt.u8WrappingMul(a11, 3) ^ b12;
+			return rt.u8WrappingMul(a15, 3) ^ b21;
 		};
 		rt.byteVecPush(out, rt.iterRfold(rt.iterFrom(_10, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 1, _11, true));
 	} else if (pick === 2) {
-		if (!(rt.usizeRem(k, 2) === 0)) {
-			const r: rt.u8 | undefined | rt.None = rt.iterTryRfold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), undefined as rt.u8 | undefined, (a10: rt.u8 | undefined, b11: rt.u8): rt.u8 | undefined | rt.None => {
-				const _410: rt.u8 = rt.u8Rem(b11, 3);
-				if (_410 === 0) {
-					return rt.None;
+		if (!(rt.usizeRem(k, 4) === 0)) {
+			if (!(rt.usizeRem(k, 4) === 2)) {
+				if (!(rt.usizeRem(k, 4) === 3)) {
+					const r2: rt.u8 | undefined | rt.None = rt.iterTryRfold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), undefined as rt.u8 | undefined, (a14: rt.u8 | undefined, b20: rt.u8): rt.u8 | undefined | rt.None => {
+						const _416: rt.u8 = rt.u8Rem(b20, 3);
+						if (_416 === 0) {
+							return rt.None;
+						}
+						if (_416 === 1) {
+							return undefined;
+						}
+						return option_or$1loyskh(a14, b20);
+					}, true, undefined, rt.None);
+					if (r2 === rt.None) {
+						_50 = Uint8Array.of(1, 0);
+					} else {
+						_50 = Uint8Array.of(0, option_unwrapOr$0r2bmpr(r2, 255));
+					}
+					rt.iterExtendBytes(out, rt.iterSlice(_50), undefined, true);
+					rt.iterExtendBytes(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), "next");
+				} else {
+					const _38: (a0: rt.u8) => undefined | rt.None = (b19: rt.u8): undefined | rt.None => {
+						return then$19svsql(b19 !== rt.u8Div(k8, 4), (): undefined => {
+							rt.byteVecPush(out, b19);
+						});
+					};
+					rt.byteVecPush(out, rt.iterTryForEach(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _38, true, undefined, rt.None) !== rt.None ? 1 : 0);
+					rt.iterExtendBytes(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), "next");
 				}
-				if (_410 === 1) {
-					return undefined;
-				}
-				return option_or$1loyskh(a10, b11);
-			}, true, undefined, rt.None);
-			if (r === rt.None) {
-				_27 = Uint8Array.of(1, 0);
 			} else {
-				_27 = Uint8Array.of(0, option_unwrapOr$0r2bmpr(r, 255));
+				const _29: (a0: rt.u8, a1: rt.u8) => rt.u8 | undefined = (a13: rt.u8, b18: rt.u8): rt.u8 | undefined => {
+					return thenSome$0d5am30(b18 !== rt.u8Div(k8, 4), a13 ^ b18);
+				};
+				put(out, rt.iterTryFold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _29, true));
+				rt.iterExtendBytes(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), "next");
 			}
-			rt.iterExtendBytes(out, rt.iterSlice(_27), undefined, true);
-			rt.iterExtendBytes(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), "next");
 		} else {
-			const _19: (a0: rt.u8, a1: rt.u8) => rt.u8 | undefined = (a9: rt.u8, b10: rt.u8): rt.u8 | undefined => {
-				return thenSome$0d5am30(b10 !== k8, a9 ^ b10);
+			const _19: (a0: rt.u8, a1: rt.u8) => rt.u8 | undefined = (a12: rt.u8, b17: rt.u8): rt.u8 | undefined => {
+				return thenSome$0d5am30(b17 !== k8, a12 ^ b17);
 			};
 			put(out, rt.iterTryRfold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _19, true));
 			rt.iterExtendBytes(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), "next");
 		}
 	} else if (pick === 3) {
-		const _35: (a0: rt.u8, a1: rt.u8) => rt.Result<rt.u8, rt.u8> = (a8: rt.u8, b9: rt.u8): rt.Result<rt.u8, rt.u8> => {
-			if (!(rt.u8Rem(b9, 4) === rt.u8Rem(k8, 4))) {
-				return rt.Ok(a8 ^ b9);
-			}
-			return rt.Err(b9);
-		};
-		const r2: rt.Result<rt.u8, rt.u8> = rt.iterTryRfold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _35);
-		if (r2.ok) {
-			_38 = Uint8Array.of(0, r2.value);
+		if (rt.usizeRem(k, 2) === 0) {
+			const _60: (a0: rt.u8, a1: rt.u8) => rt.Result<rt.u8, rt.u8> = (a11: rt.u8, b16: rt.u8): rt.Result<rt.u8, rt.u8> => {
+				if (!(rt.u8Rem(b16, 4) === rt.u8Rem(k8, 4))) {
+					return rt.Ok(a11 ^ b16);
+				}
+				return rt.Err(b16);
+			};
+			r3 = rt.iterTryRfold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _60);
 		} else {
-			_38 = Uint8Array.of(1, r2.error);
+			const _63: (a0: rt.u8, a1: rt.u8) => rt.Result<rt.u8, rt.u8> = (a10: rt.u8, b15: rt.u8): rt.Result<rt.u8, rt.u8> => {
+				if (!(rt.u8Rem(b15, 4) === rt.u8Rem(k8, 4))) {
+					return rt.Ok(a10 ^ b15);
+				}
+				return rt.Err(b15);
+			};
+			r3 = rt.iterTryFold(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _63);
 		}
-		rt.iterExtendBytes(out, rt.iterSlice(_38), undefined, true);
+		if (r3.ok) {
+			_66 = Uint8Array.of(0, r3.value);
+		} else {
+			_66 = Uint8Array.of(1, r3.error);
+		}
+		rt.iterExtendBytes(out, rt.iterSlice(_66), undefined, true);
 		put(out, rt.iterToOption(Overrides.next$iter_Iterator(it)));
 	} else if (pick === 4) {
-		const r3: rt.Result<rt.u8, rt.u8> = rt.iterTryRfold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 0, (a7: rt.u8, b8: rt.u8): rt.Result<rt.u8, rt.u8> => {
-			if (!(b8 > k8)) {
-				return rt.Ok(a7 ^ b8);
+		if (!(rt.usizeRem(k, 2) === 1)) {
+			const r5: rt.Result<rt.u8, rt.u8> = rt.iterTryRfold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 0, (a9: rt.u8, b14: rt.u8): rt.Result<rt.u8, rt.u8> => {
+				if (!(b14 > k8)) {
+					return rt.Ok(a9 ^ b14);
+				}
+				return rt.Err(b14);
+			});
+			if (r5.ok) {
+				_99 = Uint8Array.of(0, r5.value);
+			} else {
+				_99 = Uint8Array.of(1, r5.error);
 			}
-			return rt.Err(b8);
-		});
-		if (r3.ok) {
-			_53 = Uint8Array.of(0, r3.value);
+			rt.iterExtendBytes(out, rt.iterSlice(_99), undefined, true);
+			rt.byteVecPush(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }).len() & 0xff);
 		} else {
-			_53 = Uint8Array.of(1, r3.error);
+			const r4: rt.Result<undefined, rt.u8> = rt.iterTryForEach(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), (b13: rt.u8): rt.Result<undefined, rt.u8> => {
+				if (!(b13 > rt.u8Div(k8, 2))) {
+					rt.byteVecPush(out, b13);
+					return rt.OK;
+				}
+				return rt.Err(b13);
+			});
+			if (r4.ok) {
+				_84 = undefined;
+			} else {
+				_84 = r4.error;
+			}
+			put(out, _84);
+			rt.byteVecPush(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }).len() & 0xff);
 		}
-		rt.iterExtendBytes(out, rt.iterSlice(_53), undefined, true);
-		rt.byteVecPush(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }).len() & 0xff);
 	} else if (pick === 5) {
 		if (!(rt.usizeRem(k, 2) === 0)) {
-			rt.byteVecPush(out, rt.ownedCount(rt.iterMap(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b7: rt.u8): rt.u8 => {
-				return b7 ^ 1;
+			rt.byteVecPush(out, rt.ownedCount(rt.iterMap(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b12: rt.u8): rt.u8 => {
+				return b12 ^ 1;
 			})) & 0xff);
 		} else {
 			rt.byteVecPush(out, rt.ownedCount(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })) & 0xff);
@@ -592,10 +639,22 @@ export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: r
 			put(out, rt.ownedLast(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })));
 		}
 	} else if (pick === 7) {
-		if (!(rt.usizeRem(k, 2) === 0)) {
-			rt.iterForEach(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b6: rt.u8): undefined => {
-				rt.byteVecPush(out, b6);
-			}, true);
+		if (!(rt.usizeRem(k, 4) === 0)) {
+			if (!(rt.usizeRem(k, 4) === 1)) {
+				const _140: Overrides.Overrides = it;
+				const _141: (a0: rt.u8) => boolean = (b11: rt.u8): boolean => {
+					return rt.u8Rem(b11, 3) === rt.u8Rem(k8, 3);
+				};
+				const _139: [rt.ByteVec, rt.ByteVec] = rt.iterPartition(rt.iterFrom(_140, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _141, [new rt.ByteVec() as rt.ByteVec, new rt.ByteVec() as rt.ByteVec], rt.byteVecPart(), true);
+				const a4: rt.ByteVec = _139[0];
+				const b4: rt.ByteVec = _139[1];
+				putVec(out, a4);
+				putVec(out, b4);
+			} else {
+				rt.iterForEach(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b10: rt.u8): undefined => {
+					rt.byteVecPush(out, b10);
+				}, true);
+			}
 		} else {
 			rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (a0: rt.u8): rt.u32 => {
 				return a0 as rt.u32;
@@ -603,8 +662,8 @@ export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: r
 		}
 	} else if (pick === 8) {
 		if (!(rt.usizeRem(k, 2) === 0)) {
-			put(out, rt.iterMinByKey(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b5: rt.u8): rt.u8 => {
-				return rt.u8Rem(b5, 3);
+			put(out, rt.iterMinByKey(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), (b9: rt.u8): rt.u8 => {
+				return rt.u8Rem(b9, 3);
 			}, rt.lt, true));
 		} else {
 			put(out, rt.iterMax(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), rt.lt, true));
@@ -617,39 +676,53 @@ export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: r
 		}
 	} else if (pick === 10) {
 		if (!(rt.usizeRem(k, 2) === 0)) {
-			const _118: Overrides.Overrides = it;
-			const _119: rt.usize = rt.usizeDiv(k, 2);
-			put(out, rt.ownedLast(rt.iterSkip(rt.iterFrom(_118, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _119)));
+			const _175: Overrides.Overrides = it;
+			const _176: rt.usize = rt.usizeDiv(k, 2);
+			put(out, rt.ownedLast(rt.iterSkip(rt.iterFrom(_175, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _176)));
 		} else {
-			const _113: Overrides.Overrides = it;
-			const _114: rt.usize = rt.usizeDiv(k, 2);
-			rt.byteVecPush(out, rt.ownedCount(rt.iterSkip(rt.iterFrom(_113, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _114)) & 0xff);
+			const _170: Overrides.Overrides = it;
+			const _171: rt.usize = rt.usizeDiv(k, 2);
+			rt.byteVecPush(out, rt.ownedCount(rt.iterSkip(rt.iterFrom(_170, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _171)) & 0xff);
 		}
 	} else if (pick === 11) {
-		const _121: rt.usize = rt.usizeRem(k, 4);
-		if (_121 === 0) {
-			rt.byteVecPush(out, rt.iterFold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 1, (a6: rt.u8, b4: rt.u8): rt.u8 => {
-				return rt.u8WrappingMul(a6, 5) ^ b4;
+		const _178: rt.usize = rt.usizeRem(k, 4);
+		if (_178 === 0) {
+			rt.byteVecPush(out, rt.iterFold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 1, (a8: rt.u8, b8: rt.u8): rt.u8 => {
+				return rt.u8WrappingMul(a8, 5) ^ b8;
 			}, true));
-		} else if (_121 === 1) {
+		} else if (_178 === 1) {
 			put(out, rt.iterNth(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), rt.usizeDiv(k, 4)));
-		} else if (_121 === 2) {
+		} else if (_178 === 2) {
 			put(out, rt.ownedLast(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }))));
 		} else {
-			rt.byteVecPush(out, rt.iterRfold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 1, (a5: rt.u8, b3: rt.u8): rt.u8 => {
-				return rt.u8WrappingMul(a5, 5) ^ b3;
+			rt.byteVecPush(out, rt.iterRfold(rt.iterRev(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })), 1, (a7: rt.u8, b7: rt.u8): rt.u8 => {
+				return rt.u8WrappingMul(a7, 5) ^ b7;
 			}, true));
 		}
 	} else if (pick === 12) {
-		const _139: Overrides.Overrides = it;
-		const _140: rt.usize = rt.usizeDiv(k, 2);
-		const skip: rt.Iter<rt.u8> = rt.iterSkip(rt.iterFrom(_139, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _140);
+		const _196: Overrides.Overrides = it;
+		const _197: rt.usize = rt.usizeDiv(k, 2);
+		const skip: rt.Iter<rt.u8> = rt.iterSkip(rt.iterFrom(_196, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _197);
 		put(out, rt.iterToOption(skip.next()));
 		put(out, rt.iterToOption(skip.nextBack()));
 	} else if (pick === 13) {
-		const _150: Overrides.Overrides = it;
-		const _151: rt.usize = rt.usizeAdd(rt.usizeDiv(k, 4), 1);
-		putVec(out, rt.iterToByteVec(rt.iterStepBy(rt.iterFrom(_150, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _151), "next"));
+		if (!(rt.usizeRem(k, 2) === 0)) {
+			const _216: Overrides.Overrides = it;
+			const _217: (a0: rt.Place<rt.u8>, a1: rt.u8) => rt.u8 | undefined = (s: rt.Place<rt.u8>, b5: rt.u8): rt.u8 | undefined => {
+				s.v = s.v ^ b5;
+				return thenSome$0d5am30(s.v !== rt.u8Div(k8, 2), s.v);
+			};
+			const scan: rt.Iter<rt.u8> = rt.iterScan(rt.iterFrom(_216, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), 0, _217, true);
+			putVec(out, rt.iterToByteVec(rt.iterBorrow(scan), "next"));
+			put(out, rt.iterToOption(scan.next()));
+			rt.byteVecPush(out, rt.iterFold(scan, 0, (a6: rt.u8, b6: rt.u8): rt.u8 => {
+				return a6 ^ b6;
+			}, true));
+		} else {
+			const _210: Overrides.Overrides = it;
+			const _211: rt.usize = rt.usizeAdd(rt.usizeDiv(k, 4), 1);
+			putVec(out, rt.iterToByteVec(rt.iterStepBy(rt.iterFrom(_210, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _211), "next"));
+		}
 	} else if (pick === 14) {
 		if (!(rt.usizeRem(k, 2) === 0)) {
 			const peek: rt.Peekable<rt.u8> = rt.iterPeekable(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }));
@@ -659,9 +732,9 @@ export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: r
 			put(out, rt.ownedLast(rt.iterFuse(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }))));
 		}
 	} else {
-		const _175: rt.usize = rt.usizeDiv(k, 2);
-		rt.byteVecPush(out, rt.iterFold(rt.iterTake(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _175), 0, (a4: rt.u8, _3: rt.u8): rt.u8 => {
-			return rt.u8Add(a4, 1);
+		const _249: rt.usize = rt.usizeDiv(k, 2);
+		rt.byteVecPush(out, rt.iterFold(rt.iterTake(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }), _249), 0, (a5: rt.u8, _3: rt.u8): rt.u8 => {
+			return rt.u8Add(a5, 1);
 		}));
 		put(out, rt.iterLast(rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) })));
 		rt.byteVecPush(out, rt.iterFrom(it, Overrides.next$iter_Iterator, undefined, { hint: Overrides.sizeHint$iter_Iterator, nth: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nth$iter_Iterator(it, n)), last: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.last$iter_Iterator(it)), back: (it: Overrides.Overrides) => rt.iterFromOption(Overrides.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Overrides.Overrides, n) => rt.iterFromOption(Overrides.nthBack$iter_DoubleEndedIterator(it, n)) }).len() & 0xff);
