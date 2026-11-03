@@ -8,8 +8,6 @@
   keyword. A name already ending in `_` takes another, so `data_` is `data__` beside
   `data`'s `data_`. A name starting with a digit, such as a tuple's `_0`, keeps its leading
   `_`.
-- A C++ name already ending in `_` takes another, as C's does, so a field `new_` is
-  `new__` beside `new`'s `new_`.
 - C++ objects own their handle through `std::unique_ptr`, or `std::shared_ptr` where
   copies may share one value. A `Clone` type whose copies may not, such as moq's
   producers and consumers, no longer copies: `T copy = t;` is `T copy = t.clone();`, and

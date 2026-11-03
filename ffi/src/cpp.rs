@@ -1456,8 +1456,7 @@ fn cpp_int(int: Int) -> &'static str {
 }
 
 /// A name C++ would read as a keyword with `_` appended, and one starting with a digit
-/// with `_` prepended, as C's are; a name already ending in `_` takes another, so no two
-/// names escape to one.
+/// with `_` prepended, as C's are.
 pub fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"alignas",
@@ -1559,22 +1558,14 @@ pub fn escape(name: &str) -> String {
 	];
 	match name.chars().next() {
 		Some(c) if c.is_ascii_digit() => format!("_{name}"),
-		_ if name.ends_with('_') || KEYWORDS.contains(&name) => format!("{name}_"),
+		_ if KEYWORDS.contains(&name) => format!("{name}_"),
 		_ => name.to_string(),
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{escape, parameter};
-
-	#[test]
-	fn escapes_keep_names_apart() {
-		// A keyword, and a name already as its escape would make it, such as fields `new` and `new_`.
-		assert_eq!(escape("new"), "new_");
-		assert_eq!(escape("new_"), "new__");
-		assert_eq!(escape("0"), "_0");
-	}
+	use super::parameter;
 
 	#[test]
 	fn parameters_keep_apart_from_what_they_would_hide() {
@@ -1588,6 +1579,6 @@ mod tests {
 		assert_eq!(parameter("raw_", taken), "raw__");
 		assert_eq!(parameter("c_out_", taken), "c_out__");
 		assert_eq!(parameter("x1_", taken), "x1__");
-		assert_eq!(parameter("x_", taken), "x__");
+		assert_eq!(parameter("x_", taken), "x_");
 	}
 }
