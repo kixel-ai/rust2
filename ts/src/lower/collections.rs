@@ -651,11 +651,9 @@ fn hash<'tcx>(
 				Some(v) => clone_fn(b, v, span),
 				None => Expr::undefined(),
 			};
+			values.extend([k, v]);
 			let s = held_state(b, coll).map(|s| clone_fn(b, s, span));
-			Expr::rt(
-				"hashClone",
-				super::iter::tail(values, [k, v].into_iter().chain(s).collect()),
-			)
+			Expr::rt("hashClone", super::iter::tail(values, s.into_iter().collect()))
 		}
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
