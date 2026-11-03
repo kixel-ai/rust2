@@ -349,7 +349,7 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 			let bytes = Expr::rt("stringAsBytes", args.collect());
 			return Ok(Some(Expr::rt("bytesFromString", vec![bytes])));
 		}
-		(Some(Std::Bytes), _) if is_bytes_ref(from) => return Ok(args.next()),
+		(Some(Std::Bytes), _) if is_bytes_ref(from) => "bytesStatic",
 		(Some(Std::Bytes), _) => return Ok(None),
 		(Some(Std::BytesMut), _) => {
 			let bytes = match as_slice(b, from.peel_refs(), args.next().expect("an operand")) {
@@ -422,8 +422,8 @@ fn bytes_own<'tcx>(
 	let mut args = args.into_iter();
 	Some(match name {
 		"new" => Expr::rt("bytesNew", vec![]),
-		// A `&'static [u8]` never changes, so the slice is the `Bytes`.
-		"from_static" => args.next()?,
+		// A `&'static [u8]` never changes, so the slice is the `Bytes`, which counts no storage.
+		"from_static" => Expr::rt("bytesStatic", vec![args.next()?]),
 		"copy_from_slice" => Expr::rt("bytesCopyFromSlice", vec![args.next()?]),
 		"len" => args.next()?.member("length"),
 		"is_empty" => args.next()?.member("length").binary("===", Expr::lit("0")),
@@ -450,13 +450,14 @@ fn bytes_own<'tcx>(
 			}
 			let as_ref = trait_fn(tcx, rustc_span::sym::AsRef)?;
 			let slice = Ty::new_slice(tcx, tcx.types.u8);
-			b.call_def(
+			let bytes = b.call_def(
 				as_ref,
 				tcx.mk_args(&[owner.into(), slice.into()]),
 				vec![args.next()?],
 				call.span,
 				out,
-			)
+			);
+			Expr::rt("bytesStatic", vec![bytes])
 		}
 		_ => return None,
 	})

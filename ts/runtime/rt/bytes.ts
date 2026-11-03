@@ -65,9 +65,19 @@ export class Shared {
 	}
 }
 
-/** Whether `b` is the one handle of its storage, as `Bytes::is_unique` says. */
+/**
+ * Whether `b` is the one handle of its storage, as `Bytes::is_unique` says. An empty
+ * `String`'s bytes are static unless it had capacity, which JS keeps none of.
+ */
 export function bytesIsUnique(b: Bytes): boolean {
-	return b instanceof CountedBytes && b.shared.refs === 1;
+	if (!(b instanceof CountedBytes)) return false;
+	if (!b.shared.sure && b.shared.data.length === 0) sure(b.shared, "whether a handle is the last");
+	return b.shared.refs === 1;
+}
+
+/** A `Bytes` of the bytes `s` lends, which counts no storage, as `from_static` and `from_owner` make. */
+export function bytesStatic(s: ByteSlice): Bytes {
+	return s instanceof CountedBytes ? new ByteSlice(s.data, s.start, s.length) : s;
 }
 
 /** Drop a `Bytes`, which counts its storage down. */

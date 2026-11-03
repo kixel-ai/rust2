@@ -2868,7 +2868,7 @@ export function writeAll$Vec_u8(buf: rt.ByteVec, dataData: Uint8Array, dataStart
 				rt.byteVecPutFill(buf, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const src3 = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const src3 = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.byteVecExtendFromSlice(buf, src3);
 			rt.bytesDrop(src3);
 		} else if (_18 === 14) {
@@ -2960,7 +2960,7 @@ export function writeAll$boxed_Box_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: U
 				rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const src3 = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const src3 = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.byteVecPutChunked(buf.v, src3);
 			rt.bytesDrop(src3);
 		} else if (_18 === 14) {
@@ -3052,7 +3052,7 @@ export function writeAll$boxed_Box_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, da
 				rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const src3 = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const src3 = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.bytesMutPutChunked(buf.v, src3);
 			rt.bytesDrop(src3);
 		} else if (_18 === 14) {
@@ -3144,7 +3144,7 @@ export function writeAll$bytes_BytesMut(buf: rt.BytesMut, dataData: Uint8Array, 
 				rt.bytesMutPutFill(buf, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const _44: rt.ByteSlice = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const _44: rt.ByteSlice = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.bytesMutPutStorage(buf, _44);
 		} else if (_18 === 14) {
 			const _47: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.bytes(70).fill(op2)), 0, rt.usizeRem(n2 as rt.usize, 71));
@@ -3235,7 +3235,7 @@ export function writeAll$mut_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Ar
 				rt.byteVecPutFillChunked(buf.v, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const src3 = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const src3 = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.byteVecPutChunked(buf.v, src3);
 			rt.bytesDrop(src3);
 		} else if (_18 === 14) {
@@ -3327,7 +3327,7 @@ export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData
 				rt.bytesMutPutFillChunked(buf.v, n2, 4294967295);
 			}
 		} else if (_18 === 13) {
-			const src3 = rt.byteSliceFrom(Uint8Array.of(112, 117, 116));
+			const src3 = rt.bytesStatic(rt.byteSliceFrom(Uint8Array.of(112, 117, 116)));
 			rt.bytesMutPutChunked(buf.v, src3);
 			rt.bytesDrop(src3);
 		} else if (_18 === 14) {
@@ -3370,14 +3370,14 @@ export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData
 /**
  * `Bytes`' own edits, through a `&mut`, and `slice_ref` of a part of it, and whether each
  * part is the last handle of the storage: a promotable `Bytes` truncated to nothing gives
- * it up, and none of its clones is promotable.
+ * it up, none of its clones is promotable, and a `Bytes` of what it lends holds none.
  */
 export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
 	let part!: rt.ByteSlice;
 	if (dataLen >= 2) {
 		let bytes: rt.ByteSlice = rt.bytesCopyFromSlice(new rt.ByteSlice(dataData, dataStart + 2, dataLen - 2));
 		const a: rt.usize = rt.usizeRem(dataData[dataStart + 1] as rt.usize, rt.usizeAdd(dataLen - 2, 2));
-		const _17: rt.u8 = rt.u8Rem(dataData[dataStart], 8);
+		const _17: rt.u8 = rt.u8Rem(dataData[dataStart], 9);
 		if (_17 === 0) {
 			part = rt.bytesSplitTo(rt.place(() => bytes, (value8) => bytes = value8), a);
 		} else if (_17 === 1) {
@@ -3399,15 +3399,20 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			let clone: rt.ByteSlice = rt.bytesClone(bytes);
 			rt.bytesTruncate(rt.place(() => clone, (value2) => clone = value2), a);
 			part = clone;
-		} else {
+		} else if (_17 === 7) {
 			const clone2: rt.ByteSlice = rt.bytesClone(bytes);
 			rt.bytesTruncate(rt.place(() => bytes, (value) => bytes = value), a);
 			part = clone2;
+		} else {
+			const _46: rt.Place<rt.ByteSlice> = { v: rt.bytesClone(bytes) };
+			rt.bytesDrop(rt.bytesStatic(_46.v));
+			rt.bytesDrop(rt.bytesStatic(rt.byteSliceRange(_46.v, 0)));
+			part = rt.bytesStatic(_46.v);
 		}
-		const _53: boolean = rt.bytesIsUnique(part);
-		const _56: boolean = rt.bytesIsUnique(bytes);
-		const _58: rt.ByteSlice = part;
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(_58, f), (f: rt.Formatter) => rt.bytesDebug(bytes, f), (f: rt.Formatter) => rt.fmtBool(_53, f), (f: rt.Formatter) => rt.fmtBool(_56, f)];
+		const _65: boolean = rt.bytesIsUnique(part);
+		const _68: boolean = rt.bytesIsUnique(bytes);
+		const _70: rt.ByteSlice = part;
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(_70, f), (f: rt.Formatter) => rt.bytesDebug(bytes, f), (f: rt.Formatter) => rt.fmtBool(_65, f), (f: rt.Formatter) => rt.fmtBool(_68, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3]])));
 		rt.bytesDrop(part);
 		rt.bytesDrop(bytes);

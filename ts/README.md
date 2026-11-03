@@ -648,8 +648,8 @@ of them:
   `rt/bytes.ts`, panicking as `bytes` does, and so do `split_to`, `split_off`,
   `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. A `String`'s
   bytes are in storage of its capacity, which JS keeps none of, so what reads it, taking
-  the storage as a `BytesMut` or a `Vec<u8>` or truncating to nothing what may be
-  promotable, throws. `slice_ref` of
+  the storage as a `BytesMut` or a `Vec<u8>`, truncating to nothing what may be
+  promotable, or asking whether an empty one's are the last handle, throws. `slice_ref` of
   bytes from other storage throws, since Rust may share what JS copied, as a `&'static
   str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
   reads its owner's bytes once, as `bytes` does, and is refused for an owner that drops,

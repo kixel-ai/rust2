@@ -16,6 +16,9 @@ unsure(() => rt.bytesToByteVec(string()));
 // Promotable only if the `String` had no room to spare, which gives the storage up.
 unsure(() => rt.bytesTruncate({ v: string() }, 0 as rt.usize));
 
+// An empty one's are static unless it had capacity.
+unsure(() => rt.bytesIsUnique(rt.bytesFromString(rt.stringAsBytes(""))));
+
 // Another handle of it holds it, so either copies.
 const shared = string();
 const other = rt.bytesClone(shared);

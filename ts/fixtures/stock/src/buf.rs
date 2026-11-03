@@ -620,14 +620,14 @@ fn write_all<B: BufMut>(buf: &mut B, data: &[u8]) {
 
 /// `Bytes`' own edits, through a `&mut`, and `slice_ref` of a part of it, and whether each
 /// part is the last handle of the storage: a promotable `Bytes` truncated to nothing gives
-/// it up, and none of its clones is promotable.
+/// it up, none of its clones is promotable, and a `Bytes` of what it lends holds none.
 pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 	let [kind, a, rest @ ..] = data else {
 		return;
 	};
 	let mut bytes = Bytes::copy_from_slice(rest);
 	let a = *a as usize % (rest.len() + 2);
-	let part = match kind % 8 {
+	let part = match kind % 9 {
 		0 => bytes.split_to(a),
 		1 => bytes.split_off(a),
 		2 => {
@@ -651,10 +651,17 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 			clone.truncate(a);
 			clone
 		}
-		_ => {
+		7 => {
 			let clone = bytes.clone();
 			bytes.truncate(a);
 			clone
+		}
+		// Bytes it lends, which count none of its storage.
+		_ => {
+			let owner: &'static Bytes = Box::leak(Box::new(bytes.clone()));
+			drop(Bytes::from_static(owner));
+			drop(Bytes::from(&owner[..]));
+			Bytes::from_owner(owner)
 		}
 	};
 	out.extend_from_slice(format!("{part:?} {bytes:?} {} {}", part.is_unique(), bytes.is_unique()).as_bytes());
