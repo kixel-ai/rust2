@@ -3,6 +3,7 @@
 
 #[path = "../../harness.rs"]
 pub mod harness;
+mod located;
 mod panics;
 #[cfg(target_arch = "wasm32")]
 #[path = "../../../wasm.rs"]
@@ -20,5 +21,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("panics::called", panics::called),
 		("panics::awaited", panics::awaited),
 		("panics::raised", panics::raised),
+		("located::called", located::called),
+		("located::read", located::read),
+		("located::panicked", located::panicked),
 	]
 }

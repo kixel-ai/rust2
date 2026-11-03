@@ -22,6 +22,7 @@ export * from "./rt/float.ts";
 export * from "./rt/hash.ts";
 export * from "./rt/int.ts";
 export * from "./rt/iter.ts";
+export * from "./rt/location.ts";
 export * from "./rt/rand.ts";
 export * from "./rt/sort.ts";
 export * from "./rt/str.ts";

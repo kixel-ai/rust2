@@ -2544,7 +2544,10 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if let Some((inner, _)) = cell_of(b, ty) => held(inner),
 		ty::Adt(_, args) if derived_std(b, ty) => args.types().all(held),
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
-		ty::Adt(..) => library::string(b.t.tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration)),
+		ty::Adt(..) => {
+			library::string(b.t.tcx, ty)
+				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration | Std::Location))
+		}
 		_ => false,
 	}
 }
@@ -2769,6 +2772,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		ty::Adt(..) if library::string(tcx, ty) => Expr::Rt("cmpStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("cmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationCmp".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationCmp".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rt("cmpNothing".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| cmp_fn(b, t, partial, span)).collect();
@@ -2844,6 +2848,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			Expr::Rt("same".into())
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationEq".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| eq_fn(b, t, span)).collect();
 			Expr::rt("eqTuple", vec![Expr::Array(fns)])
@@ -3075,6 +3080,7 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 		// Its derived `Hash` writes its `i8` discriminant.
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("hashI8".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationHash".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationHash".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rt("hashNothing".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| hash_fn(b, t, hasher, span)).collect();

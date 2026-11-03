@@ -19,6 +19,9 @@ pub struct Body<'b, 'a, 'tcx> {
 	/// Where the function hands back its `Ok`'s parts, by [`Translator::slotted`], until
 	/// its own body takes it.
 	pub slotted: Option<super::mir::Slotted<'tcx>>,
+	/// The function the call being lowered calls, if it takes its caller's location, and
+	/// the location the call passes, until a call of it takes it.
+	pub site: Option<(Instance<'tcx>, Expr)>,
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
@@ -28,6 +31,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			names: FxHashSet::default(),
 			parted: Vec::new(),
 			slotted: None,
+			site: None,
 		}
 	}
 
@@ -102,6 +106,10 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		if let ty::InstanceKind::Virtual(method, _) = instance.def
 			&& self.t.dispatches(instance)
 		{
+			let mut args = args;
+			if super::caller::tracks(tcx, instance) {
+				args.push(self.caller_arg(instance, span));
+			}
 			return self.virtual_call(method, gargs.type_at(0), args, span);
 		}
 		// An `async` body's `Future::poll`, which its future has itself.
@@ -116,8 +124,12 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			&& self.t.lowers(self.t.typing_env_pub(), instance)
 		{
 			let values: Vec<Expr> = args.into_iter().map(Expr::typed).collect();
-			// An `async fn` that only makes its future: the future, made here.
+			// An `async fn` that only makes its future: the future, made here. Its body is
+			// the future's, so its caller's location is never read.
 			if let Some(class) = super::mir::coroutine::of_async_fn(self.t, instance, span) {
+				if self.site.as_ref().is_some_and(|(at, _)| *at == instance) {
+					self.site = None;
+				}
 				return Expr::New(Box::new(Expr::Sym(class)), values);
 			}
 			let call = self.direct_call(instance, values, span, out);
@@ -262,10 +274,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) -> Expr {
 		let parted = self.t.parted(instance);
-		let values = match parted.is_empty() {
+		let mut values = match parted.is_empty() {
 			true => values,
 			false => self.slice_args(values, &parted, out),
 		};
+		if super::caller::tracks(self.t.tcx, instance) {
+			values.push(self.caller_arg(instance, span));
+		}
 		Expr::Sym(self.t.callee(instance, span)).call(values)
 	}
 
@@ -357,6 +372,16 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		}
 		// A binding's export, or a function whose body translates, is named directly.
 		if let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs) {
+			// Std's `Fn` impls call it from their own source, whose location it would take.
+			if super::caller::tracks(tcx, instance) {
+				let path = tcx.def_path_str(def_id);
+				return self.err(
+					span,
+					format!(
+						"`{path}`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source"
+					),
+				);
+			}
 			let sym = match self.t.bound_fn(instance, span) {
 				Some(sym) => Some(sym),
 				// One that takes byte slices as their parts, hands back its `Ok`'s parts, or is a

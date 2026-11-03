@@ -1694,7 +1694,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.bare_closure(Ty::new_closure(tcx, def_id, instance.args), span)
 			}
 			ty::InstanceKind::Item(def_id) | ty::InstanceKind::Shim(ty::ShimKind::Reify(def_id, _)) => {
-				self.b.fn_value(def_id, instance.args, span)
+				let item = Instance::new_raw(def_id, instance.args);
+				match self.b.reified(item, span) {
+					Some(reified) => reified,
+					None => self.b.fn_value(def_id, instance.args, span),
+				}
 			}
 			// A closure coerced to a function pointer calls it once.
 			ty::InstanceKind::Shim(ty::ShimKind::ClosureOnce { .. }) => match instance.args.type_at(0).kind() {

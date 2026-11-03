@@ -228,7 +228,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let def_id = method.def_id;
 		let sig = self.sig(def_id, method_args(tcx, def_id, ty));
 		// The methods it holds are declared, so their `()` is `void`.
-		let params = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
+		let mut params: Vec<Type> = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
+		if super::caller::tracks_virtual(tcx, def_id) {
+			params.push(super::caller::param_ty());
+		}
 		let func = Type::Func(params, Box::new(self.ret_ty(sig.output(), span)));
 		let object = self.objects.get_mut(&principal).expect("a made object");
 		object.methods[index].ty = Some(func);
@@ -329,14 +332,32 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return;
 		};
 		let mut b = Body::new(self);
-		let params: Vec<Param> = sig.inputs()[1..]
+		let mut params: Vec<Param> = sig.inputs()[1..]
 			.iter()
 			.map(|input| Param {
 				name: b.fresh("a"),
 				ty: Some(b.t.ty(*input, span)),
 			})
 			.collect();
-		let values = params.iter().map(|p| Expr::ident(&p.name));
+		let values: Vec<Expr> = params.iter().map(|p| Expr::ident(&p.name)).collect();
+		// The impl takes the location the object's caller passed, or, if only it tracks its
+		// caller, its own, as rustc's shim passes.
+		if let Ok(Some(imp)) = Instance::try_resolve(tcx, b.t.typing_env_pub(), method.def_id, args)
+			&& super::caller::tracks(tcx, imp)
+		{
+			let location = match super::caller::tracks_virtual(tcx, method.def_id) {
+				true => {
+					let caller = b.fresh("caller");
+					params.push(Param {
+						name: caller.clone(),
+						ty: Some(super::caller::param_ty()),
+					});
+					Expr::ident(caller)
+				}
+				false => super::caller::location(tcx, tcx.def_span(imp.def_id())),
+			};
+			b.site = Some((imp, location));
+		}
 		let mut body = Vec::new();
 		let call = b.call_def(
 			method.def_id,
