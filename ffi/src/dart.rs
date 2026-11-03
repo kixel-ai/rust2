@@ -18,9 +18,9 @@
 //!
 //! Dart runs code only on its isolate's thread, so Rust reaches Dart from any other through
 //! [`runtime/dart.rs`](../runtime/dart.rs): a waker posts to the isolate's port, and a call
-//! into a closure or a trait's implementation waits for the isolate to run it. A call that
-//! lends a closure or gives an implementation runs on a thread of its own, while the
-//! isolate's runs those calls.
+//! into a closure or a trait's implementation waits for the isolate to run it. Each call
+//! into Rust runs on a thread of its own while Rust holds an implementation or a lent
+//! closure, while the isolate's runs those calls.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -130,7 +130,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"ffi.Pointer<ffi.Void> p0",
 			"void",
 		),
-		("dart_run", "ffi.Int64", "ffi.Void", "int p0", "void"),
+		(
+			"dart_run",
+			"ffi.Pointer<ffi.Void>",
+			"ffi.Void",
+			"ffi.Pointer<ffi.Void> p0",
+			"void",
+		),
 		(
 			"dart_owner_free",
 			"ffi.Pointer<ffi.Void>",
@@ -194,7 +200,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_relay_free(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_free(relay.cast()) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_relay_drop(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_drop(relay) }}\n}}\n\n\
-		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_run(message: i64) {{\n\tunsafe {{ runtime::run_posted(message) }}\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_run(home: *const c_void) {{\n\tunsafe {{ runtime::run(&*home.cast()) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_owner_free(owner: *mut c_void) {{\n\tunsafe {{ rt::Buf {{ ptr: std::ptr::null(), len: 0, owner }}.free() }}\n}}\n\n\
 		unsafe extern \"C\" {{\n\tfn malloc(len: usize) -> *mut c_void;\n\tfn free(ptr: *mut c_void);\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {p}_dart_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
@@ -626,11 +632,14 @@ impl<'a> Gen<'a> {
 		local
 	}
 
-	/// The `@Native` binding of a C function by name, parameters, and return.
-	/// The Dart function calling `call` through a thunk that runs it on a thread of its own
-	/// while the isolate's runs each call into Dart, which takes the isolate's home first.
+	/// The Dart function calling `call` through a thunk that serves the isolate while it
+	/// waits, as [`runtime/dart.rs`](../runtime/dart.rs)'s `Home::serve` does, which takes
+	/// the isolate's home first.
 	fn served(&mut self, call: &Sig) -> String {
 		let name = format!("{}_dart_serve_{}", self.abi.prefix, self.bare(&call.name));
+		if self.natives.contains_key(&name) {
+			return format!("_{name}");
+		}
 		let mut params = vec![Ty::Data];
 		params.extend(call.params.iter().map(|(_, ty)| ty.clone()));
 		let decls: Vec<String> = (call.params.iter().enumerate())
@@ -648,6 +657,17 @@ impl<'a> Gen<'a> {
 		self.native_fn(&name, params, call.ret.clone())
 	}
 
+	/// [`Self::served`] of a C function by name, parameters, and return.
+	fn served_fn(&mut self, name: &str, params: Vec<Ty>, ret: Ty) -> String {
+		let sig = Sig {
+			name: name.to_string(),
+			params: params.into_iter().map(|ty| (String::new(), ty)).collect(),
+			ret,
+		};
+		self.served(&sig)
+	}
+
+	/// The `@Native` binding of a C function by name, parameters, and return.
 	fn native_fn(&mut self, name: &str, params: Vec<Ty>, ret: Ty) -> String {
 		let sig = Sig {
 			name: name.to_string(),
@@ -1131,36 +1151,36 @@ impl<'a> Gen<'a> {
 		};
 		if t.display {
 			members.push("toString".to_string());
-			let f = self.native_fn(&format!("{c}_to_string"), vec![recv.clone()], Ty::Buf);
+			let f = self.served_fn(&format!("{c}_to_string"), vec![recv.clone()], Ty::Buf);
 			let (pre, arg) = this(self, "this");
 			body.push(format!(
-				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}({arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}(_n.home, {arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		if t.debug {
 			members.push("debug".to_string());
-			let f = self.native_fn(&format!("{c}_debug"), vec![recv.clone()], Ty::Buf);
+			let f = self.served_fn(&format!("{c}_debug"), vec![recv.clone()], Ty::Buf);
 			let (pre, arg) = this(self, "this");
 			body.push(format!(
-				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}({arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}(_n.home, {arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
-			let f = self.native_fn(&format!("{c}_clone"), vec![recv.clone()], recv.clone());
+			let f = self.served_fn(&format!("{c}_clone"), vec![recv.clone()], recv.clone());
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\treturn {name}._({f}(a_.hold(this)));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\treturn {name}._({f}(_n.home, a_.hold(this)));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		// A Dart enum compares by identity, as a plain Rust enum does, and may not override `==`.
 		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
 		if t.eq && !plain {
 			members.push("hashCode".to_string());
-			let f = self.native_fn(&format!("{c}_eq"), vec![recv.clone(), recv.clone()], Ty::Bool);
+			let f = self.served_fn(&format!("{c}_eq"), vec![recv.clone(), recv.clone()], Ty::Bool);
 			let (pa, a) = this(self, "this");
 			let (pb, b) = this(self, "other");
 			body.push(format!(
-				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}return {f}({a}, {b});\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n\n\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
+				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}return {f}(_n.home, {a}, {b});\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n\n\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
 			));
 		}
 		if t.default {
@@ -1172,10 +1192,10 @@ impl<'a> Gen<'a> {
 				},
 				false => c_ty.clone(),
 			};
-			let f = self.native_fn(&format!("{c}_default"), vec![], ret);
+			let f = self.served_fn(&format!("{c}_default"), vec![], ret);
 			let value = match object {
-				true => format!("{name}._({f}())"),
-				false => self.lift(ty, &format!("{f}()")),
+				true => format!("{name}._({f}(_n.home))"),
+				false => self.lift(ty, &format!("{f}(_n.home)")),
 			};
 			body.push(format!(
 				"\t/// Rust's `Default`.\n\tfactory {name}.default_() {{\n\t\t_n.check();\n\t\treturn {value};\n\t}}\n"
@@ -1341,17 +1361,16 @@ impl<'a> Gen<'a> {
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
-		let free = self.native_fn(
-			&format!("{c}_free"),
-			vec![Ty::Handle {
-				name: c.clone(),
-				constant: false,
-			}],
-			Ty::Void,
-		);
+		let handle = vec![Ty::Handle {
+			name: c.clone(),
+			constant: false,
+		}];
+		// The garbage collector's free runs with no isolate to serve.
+		let fin = self.native_fn(&format!("{c}_free"), handle.clone(), Ty::Void);
+		let free = self.served_fn(&format!("{c}_free"), handle, Ty::Void);
 		let mut members = vec!["close".to_string()];
 		let mut body = vec![format!(
-			"\tstatic final _fin = ffi.NativeFinalizer(ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({free}));\n\n\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_fin.attach(this, raw.cast(), detach: this);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() {{\n\t\t_fin.detach(this);\n\t\t{free}(_raw);\n\t}}\n"
+			"\tstatic final _fin = ffi.NativeFinalizer(ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({fin}));\n\n\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_fin.attach(this, raw.cast(), detach: this);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() {{\n\t\t_fin.detach(this);\n\t\t{free}(_n.home, _raw);\n\t}}\n"
 		)];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		let owner = Ty::Handle {
@@ -1657,7 +1676,10 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let mut params = Vec::new();
-		let mut serve = false;
+		// Each implementation and waker is given to Rust as the call evaluates its arguments,
+		// so every other one that may throw is lowered before, and a call that throws gives
+		// Rust nothing.
+		let mut gave = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
@@ -1671,22 +1693,26 @@ impl<'a> Gen<'a> {
 					let (relay, trampoline) = self.closure(&param.ty, lent, ret);
 					args.push(relay);
 					args.push(format!("a_.lend({name}, {trampoline})"));
-					serve = true;
 				}
 				(Type::Callback(i, _), _) => {
 					let cb = abi.callback(*i);
-					let v = format!("c{k}_");
-					pre.push(format!(
-						"final {v} = a_<_Callback>();\n_n.give({v}.ref, _tables_{}, {name}, {name}.close);",
-						self.bare(&cb)
-					));
-					args.push(format!("{v}.ref"));
-					// Rust may call the implementation from another thread before the call
-					// returns, or a poll of its future does, as it may a closure.
-					serve = true;
+					args.push(format!("_n.give(_tables_{}, {name}, {name}.close)", self.bare(&cb)));
+					gave = true;
 				}
-				(Type::Waker, _) => args.push(format!("_n.wakerOf({name})")),
-				(ty, c) if Self::scalar(c) => args.push(self.lower(ty, &name)),
+				(Type::Waker, _) => {
+					args.push(format!("_n.wakerOf({name})"));
+					gave = true;
+				}
+				(ty, c) if Self::scalar(c) => {
+					let lowered = self.lower(ty, &name);
+					if gave {
+						let v = format!("c{k}_");
+						pre.push(format!("final {v} = {lowered};"));
+						args.push(v);
+					} else {
+						args.push(lowered);
+					}
+				}
 				(ty, c) => {
 					let v = format!("c{k}_");
 					let nt = self.nt(c);
@@ -1704,30 +1730,18 @@ impl<'a> Gen<'a> {
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 		let ok_dt = self.dt(&ok);
 
-		// A call that lends a closure or gives an implementation, and each poll of its
-		// future, runs on a thread of its own, while the isolate's runs each call into Dart.
-		let call_fn = match serve {
-			true => {
-				args.insert(0, "_n.home".to_string());
-				self.served(&export.call)
-			}
-			false => self.native(&export.call),
-		};
+		// Each call, and each poll and free of its future, serves the isolate while it waits.
+		args.insert(0, "_n.home".to_string());
+		let call_fn = self.served(&export.call);
 
 		let mut body = Vec::new();
 		let ret_type;
 		if let Some((_, poll, free)) = &export.future {
 			ret_type = format!("Cancelable<{ok_dt}>");
 			// The poll, which completes the future.
-			let mut poll_args = vec!["f".to_string(), "w".to_string()];
-			let poll_fn = match serve {
-				true => {
-					poll_args.insert(0, "_n.home".to_string());
-					self.served(poll)
-				}
-				false => self.native(poll),
-			};
-			let free_fn = self.native(free);
+			let mut poll_args = vec!["_n.home".to_string(), "f".to_string(), "w".to_string()];
+			let poll_fn = self.served(poll);
+			let free_fn = self.served(free);
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut stmts: Vec<String> = Vec::new();
 			for (n, ty) in &poll_outs {

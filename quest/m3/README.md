@@ -17,10 +17,11 @@ generic std gap is planned here even when moq never calls it.
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
 - [The capacity of a BytesMut](/quest/m3/ts-bytes-capacity.md) - `BytesMut::capacity` and what reads it translate with `bytes`' values
-- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Iterator` and `dyn Error`'s downcasts translate, so a consumer neither rewrites nor binds them
+- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Error`'s downcasts, `dyn FusedIterator`, and `Arc<dyn Iterator>` translate, so a consumer neither rewrites nor binds them
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
+- [A boxed iterator folds as std's box does](/quest/m3/ts-box-folds.md) - a `Box<I>` reads by `next` where std's `Iterator` for `Box<I>` forwards nothing else
 - [by_ref of a mutable reference to an iterator](/quest/m3/ts-by-ref-place.md) - `Iterator::by_ref` of a `&mut I` in a local translates
 - [mem::take as a function value](/quest/m3/ts-take-value.md) - `mem::take`, `replace`, and `swap` passed as a function value translate
 - [Debug of a RefCell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, and `RefMut` translates as std's writes them
@@ -30,7 +31,6 @@ generic std gap is planned here even when moq never calls it.
 - [Drop order in std's folds and iterators](/quest/m3/ts-drop-order.md) - the values that drop still refused in std's consumers and collects drop as std's do
 - [A slice of one value behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8`, or of an object no place names, translate
 - [std's calls of a closure that have no mapping](/quest/m3/ts-closure-calls.md) - `try_fold`, `partition`, `repeat_with`, `sort_by_cached_key`, and `LazyCell::new` translate, dropping what their closures own as std's do
-- [A closure that drops given to a string's edit or search](/quest/m3/ts-string-closures.md) - `String::retain` and `str`'s searches by a closure that owns a value that drops translate
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [Folds from the back, and a crate's own folds](/quest/m3/ts-iter-back-folds.md) - `rfold` and `try_rfold` translate, and so does a crate's iterator that overrides `fold` or `nth_back`
@@ -53,3 +53,4 @@ generic std gap is planned here even when moq never calls it.
 - [A box's clone_from, and a vector's AsRef and AsMut](/quest/m3/ts-box-vec-conversions.md) - `clone_from` of a `Box<String>` and `AsRef<[T]>` of a `Vec` translate
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
 - [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - an enum `Hasher`, whose `&mut` is a place, hashes as a struct one does
+- [A reference to a closure as a string pattern](/quest/m3/ts-closure-patterns.md) - `s.contains(&f)` and `s.split(&mut f)` translate, leaving the closure to its owner to drop

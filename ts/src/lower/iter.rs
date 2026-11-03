@@ -46,6 +46,20 @@ impl<'tcx> Translator<'_, 'tcx> {
 		tcx.try_normalize_erasing_regions(self.typing_env_pub(), ty::Unnormalized::new_wip(projection))
 			.ok()
 	}
+
+	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`, or
+	/// `dyn ExactSizeIterator`, whose JS value is an `rt.Iter` of its items.
+	pub fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let ty::Dynamic(preds, ..) = ty.kind() else {
+			return None;
+		};
+		let principal = preds.principal_def_id()?;
+		let name = library::std_path(self.tcx, principal).pop()?;
+		if !matches!(name.as_str(), "Iterator" | "DoubleEndedIterator" | "ExactSizeIterator") {
+			return None;
+		}
+		self.iter_item(ty)
+	}
 }
 
 /// The crate's own iterator a `ty` is, through any references: its `next`, whose
@@ -140,12 +154,58 @@ pub fn next<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, iter: Expr) -> Expr 
 	}
 }
 
+impl<'tcx> Body<'_, '_, 'tcx> {
+	/// `value`, a `&`, `&mut`, or `Box` of an iterator unsized to `to`, the same pointer to a
+	/// `dyn Iterator`: an `rt.iterDyn` of the `rt.Iter` it is, which reads it by the methods
+	/// std's vtable has and else by `next`, as std's defaults read a trait object, and drops
+	/// it if the box owned it. An upcast from another is the same `rt.Iter`.
+	pub fn dyn_iter(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+		let Some(pointee) = from.builtin_deref(true).filter(|_| to.builtin_deref(true).is_some()) else {
+			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
+		};
+		if self.t.dyn_iter(pointee).is_some() {
+			return value;
+		}
+		// Another trait object, whose object has its trait's methods and is no `rt.Iter`.
+		if pointee.is_trait() {
+			return self.err(
+				span,
+				format!("an upcast from `{pointee}` to `{to}`, which is not supported yet"),
+			);
+		}
+		// A census over type parameters: only an instance decides what the pointee is.
+		if self.t.polymorphic() && pointee.has_param() {
+			return Expr::undefined();
+		}
+		// What a box owns iterates as itself, and what a reference borrows as a `&mut` does,
+		// which `into_iter` makes of a shared one. A raw pointer can be an `rt.Place`, which
+		// no `rt.Iter` reads through.
+		let ty = match from.kind() {
+			_ if from.is_box() => pointee,
+			ty::Ref(..) => from,
+			_ => {
+				return self.err(
+					span,
+					format!("a coercion of `{from}` to `{to}`, which is not supported yet"),
+				);
+			}
+		};
+		match into_iter(self, ty, value, span) {
+			Some(it) => Expr::rt("iterDyn", vec![it]),
+			None => self.err(
+				span,
+				format!("a coercion of `{from}` to `{to}`, which is not supported yet"),
+			),
+		}
+	}
+}
+
 /// What `IntoIterator::into_iter` makes of `value`, a `ty`: an `rt.Iter`, or `None` for a
 /// type without a mapping. One that owns what it yields, by value, is given what drops
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	let (ty, value) = peel_mut(ty, value);
+	let (ty, value) = peel_iter(b, ty, value);
 	let (ty, value) = match unbox_ref(tcx, ty) {
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
@@ -353,6 +413,49 @@ pub fn peel_mut<'tcx>(mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
 	(ty, value)
 }
 
+/// `value`, a `ty`, read through each `&`, `&mut`, and box, in any order, that std's
+/// `Iterator` for `&mut I` and `Box<I>` forward through, down to the iterator: a `&mut` to it
+/// and that `&mut`'s JS value where a reference was read, else the iterator itself, and a
+/// box of a trait object where none was, which drops it. JS holds a box as what it holds.
+pub fn peel_iter<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, mut value: Expr) -> (Ty<'tcx>, Expr) {
+	let tcx = b.t.tcx;
+	let held = |ty: Ty<'tcx>, borrowed: bool| {
+		ty.boxed_ty()
+			.filter(|held| b.t.iter_item(*held).is_some() && (borrowed || !held.is_trait()))
+	};
+	let mut borrowed = false;
+	loop {
+		if let Some(inner) = held(ty, borrowed) {
+			ty = inner;
+			continue;
+		}
+		let ty::Ref(region, inner, mutability) = *ty.kind() else {
+			return (ty, value);
+		};
+		let mut end = inner;
+		while let Some(held) = held(end, true) {
+			end = held;
+		}
+		// A reference to what is no iterator, such as a slice, iterates as it is.
+		if b.t.iter_item(end).is_none() {
+			return (ty, value);
+		}
+		borrowed = true;
+		if end.is_ref() {
+			value = b.t.pointee_value(ty, value);
+			ty = inner;
+			continue;
+		}
+		// The last reference: a `&mut` to the iterator is the place of the boxes before it, as
+		// JS erases them, or the iterator itself, as a shared reference is too.
+		return match (b.t.needs_place(end), mutability) {
+			(true, ty::Mutability::Mut) => (Ty::new_mut_ref(tcx, region, end), value),
+			(false, _) => (Ty::new_mut_ref(tcx, region, end), b.t.pointee_value(ty, value)),
+			(true, ty::Mutability::Not) => (ty, value),
+		};
+	}
+}
+
 /// Refuse iterating `ty`, an iterator, if a binding stands in for it: it is no `rt.Iter`,
 /// which std's adaptors and `for` take every iterator but the crate's own for.
 fn not_bound<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) {
@@ -481,7 +584,9 @@ pub fn call<'tcx>(
 	let item = b.t.iter_item(self_ty.peel_refs())?;
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
-	let (self_ty, recv) = peel_mut(self_ty, values.next()?);
+	// What it reads through boxes and references, while std picks each specialization by
+	// `self_ty`, which a box implements none of.
+	let (iter_ty, recv) = peel_iter(b, self_ty, values.next()?);
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);
@@ -489,13 +594,13 @@ pub fn call<'tcx>(
 	// `next` by the protocol, as an `Option`.
 	if matches!(name, "next" | "next_back" | "nth_back") {
 		let item = match name {
-			"next" => next(b, self_ty, recv),
-			"next_back" => match own_back(b, self_ty, recv.clone()) {
+			"next" => next(b, iter_ty, recv),
+			"next_back" => match own_back(b, iter_ty, recv.clone()) {
 				Some(back) => back,
 				None => recv.member("nextBack").call(Vec::new()),
 			},
 			_ => {
-				let recv = into_iter(b, self_ty, recv, span)?;
+				let recv = into_iter(b, iter_ty, recv, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
@@ -507,7 +612,7 @@ pub fn call<'tcx>(
 		return Some(recv);
 	}
 
-	let recv = into_iter(b, self_ty, recv, span)?;
+	let recv = into_iter(b, iter_ty, recv, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
 		let of = match owner {
@@ -1145,6 +1250,21 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "sources", "from_fn", "FromFn"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
+			| [
+				"str",
+				"iter",
+				"Split"
+					| "RSplit"
+					| "SplitTerminator"
+					| "RSplitTerminator"
+					| "SplitN"
+					| "RSplitN"
+					| "SplitInclusive"
+					| "Matches"
+					| "RMatches"
+					| "MatchIndices"
+					| "RMatchIndices"
+			]
 			| [
 				"slice",
 				"iter",

@@ -49,7 +49,7 @@ final class Cancelled implements Exception {
 final class Cancelable<T> implements Future<T> {
   final dasync.Completer<T> _done = dasync.Completer<T>();
   ffi.Pointer<ffi.Void> _f;
-  final void Function(ffi.Pointer<ffi.Void>) _free;
+  final void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) _free;
 
   /// Poll once, completing this if it finished: whether it did.
   final bool Function(ffi.Pointer<ffi.Void>, _Waker, Cancelable<T>) _poll;
@@ -98,7 +98,7 @@ final class Cancelable<T> implements Future<T> {
   void _error(Object error) => _done.completeError(error);
 
   void _finish() {
-    _free(_f);
+    _free(_n.home, _f);
     _f = ffi.nullptr;
     if (_token != 0) {
       _n.forget(_token);
@@ -403,7 +403,7 @@ final class _Native {
       case 1:
         _drops.remove(token)?.call();
       default:
-        _dartRun(m);
+        _dartRun(home);
     }
   }
 
@@ -456,8 +456,7 @@ final class _Native {
 
   /// `implementation` given to Rust through `tables`, until Rust drops it, which calls its
   /// `close`.
-  void give(
-    _Callback dst,
+  _Callback give(
     (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, String) tables,
     Object implementation,
     void Function() close,
@@ -472,8 +471,9 @@ final class _Native {
         abort('${tables.$3}::close', e, s);
       }
     };
-    dst.vtable = tables.$1;
-    dst.data = _dartRelay(home, tables.$2, token);
+    return ffi.Struct.create<_Callback>()
+      ..vtable = tables.$1
+      ..data = _dartRelay(home, tables.$2, token);
   }
 
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.
