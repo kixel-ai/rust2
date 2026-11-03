@@ -12,10 +12,11 @@ import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
 import { drop as dispose, dropAll, type Pending } from "./rt/task.ts";
 
 import { AtIndex } from "./rt/collections.ts";
-import { UNPRINTABLE } from "./rt/unicode.ts";
+import { escapeDebug } from "./rt/char.ts";
 export * from "./rt/alloc.ts";
 export * from "./rt/ascii.ts";
 export * from "./rt/bytes.ts";
+export * from "./rt/char.ts";
 export * from "./rt/collections.ts";
 export * from "./rt/float.ts";
 export * from "./rt/hash.ts";
@@ -2208,47 +2209,6 @@ function closePretty(f: Formatter, close: string): FmtResult {
 }
 
 // `Debug` and `Display` of what std defines them for. A string's `Display` is `fmtPad`.
-
-/** Where each run of `UNPRINTABLE` starts and ends, in order, once one is looked up. */
-let unprintableBounds: Uint32Array | undefined;
-
-/** Whether `Debug` writes `point` as `\u{..}`, by std's Unicode rather than the engine's. */
-function unprintable(point: number): boolean {
-	if (unprintableBounds === undefined) {
-		unprintableBounds = new Uint32Array(UNPRINTABLE.length);
-		let at = 0;
-		for (let i = 0; i < UNPRINTABLE.length; i++) unprintableBounds[i] = at += UNPRINTABLE[i];
-	}
-	// How many bounds are at most `point`: odd inside a run.
-	let lo = 0;
-	let hi = unprintableBounds.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		if (unprintableBounds[mid] <= point) lo = mid + 1;
-		else hi = mid;
-	}
-	return (lo & 1) === 1;
-}
-
-/** One char of `Debug` of a string, which escapes `"`, or of a char, which escapes `'`. */
-function escapeDebug(c: string, quote: '"' | "'"): string {
-	switch (c) {
-		case quote:
-			return `\\${quote}`;
-		case "\\":
-			return "\\\\";
-		case "\n":
-			return "\\n";
-		case "\t":
-			return "\\t";
-		case "\r":
-			return "\\r";
-		case "\0":
-			return "\\0";
-	}
-	const point = c.codePointAt(0)!;
-	return unprintable(point) ? `\\u{${point.toString(16)}}` : c;
-}
 
 /** `format!`, from `alloc::fmt::format`. */
 export function fmtFormat(args: Arguments): string {

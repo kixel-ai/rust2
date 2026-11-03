@@ -799,6 +799,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					false,
 				)
 			}
+			// The `&mut str` is the bytes it wrote, which a write through it changes in place.
+			("char", "encode_utf8") => {
+				let values = self.operands(false, &[], args, dest.ty(&self.mir.local_decls, tcx).ty, span, out);
+				done(Expr::rt("charEncodeUtf8", values), true)
+			}
 			("str", "split_at_mut" | "split_at_mut_checked") => {
 				let values = self.operands(false, &[], args, dest.ty(&self.mir.local_decls, tcx).ty, span, out);
 				let f = match name.as_str() {

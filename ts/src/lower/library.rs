@@ -44,6 +44,12 @@ pub enum Std {
 	ParseBoolError,
 	/// `rt.ParseCharError`: `{ kind }`, its `CharErrorKind`'s name.
 	ParseCharError,
+	/// `rt.CharTryFromError`: why `char::try_from` a `u32` failed.
+	CharTryFromError,
+	/// `rt.TryFromCharError`: why `u8::try_from` or `u16::try_from` a `char` failed.
+	TryFromCharError,
+	/// `rt.DecodeUtf16Error`: `{ code }`, the unpaired surrogate.
+	DecodeUtf16Error,
 	ParseFloatError,
 	TryFromFloatSecsError,
 	/// `rt.Formatter`.
@@ -194,6 +200,9 @@ impl Std {
 				| Self::ParseIntError
 				| Self::ParseBoolError
 				| Self::ParseCharError
+				| Self::CharTryFromError
+				| Self::TryFromCharError
+				| Self::DecodeUtf16Error
 				| Self::ParseFloatError
 				| Self::TryFromFloatSecsError
 				| Self::FmtError
@@ -306,6 +315,9 @@ impl Std {
 			| ["time", "TryFromFloatSecsErrorKind"] => Some(Self::ErrorKind),
 			["str", "error", "ParseBoolError"] => Some(Self::ParseBoolError),
 			["char", "convert", "ParseCharError"] => Some(Self::ParseCharError),
+			["char", "convert", "CharTryFromError"] => Some(Self::CharTryFromError),
+			["char", "TryFromCharError"] => Some(Self::TryFromCharError),
+			["char", "decode", "DecodeUtf16Error"] => Some(Self::DecodeUtf16Error),
 			["fmt", "Formatter"] => Some(Self::Formatter),
 			["fmt", "Arguments"] => Some(Self::Arguments),
 			["fmt", "Error"] => Some(Self::FmtError),
@@ -717,7 +729,8 @@ pub fn inherent_std(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Std> {
 /// errors, or a `Result`'s or a `Poll`'s derived `PartialOrd::partial_cmp` and `Ord::cmp`,
 /// or `cmp`'s `max` and `min` and their `_by` and `_by_key` forms, or what
 /// parses an integer, a `NonZero`, or a `bool`: `str::parse` of one, its `FromStr`,
-/// `from_str_radix`, and what they call, `char::to_digit` and the radix's panic among it.
+/// `from_str_radix`, and what they call, `char::to_digit` and the radix's panic among it, and
+/// `char::is_digit`, which calls it.
 /// Not one taking a `&mut` or a raw pointer, whose writes the crate's analysis of what it
 /// writes into would miss, nor an `unsafe` one, nor one mapped below as one expression or
 /// as the runtime's panic.
@@ -816,7 +829,7 @@ pub fn may_from_mir(tcx: TyCtxt<'_>, did: DefId) -> bool {
 		// Of an integer or a `bool`, which the instance says.
 		ty::Str => name.as_str() == "parse",
 		ty::Bool => name.as_str() == "from_str",
-		ty::Char => name.as_str() == "to_digit",
+		ty::Char => matches!(name.as_str(), "to_digit" | "is_digit"),
 		_ => false,
 	};
 	if parses {
@@ -1564,6 +1577,12 @@ fn mapping<'tcx>(
 					Box::new(Expr::rt("Err", vec![from_value])),
 				));
 			}
+			if to.is_char() && from == tcx.types.u32 {
+				return Some(Expr::rt("charTryFrom", args));
+			}
+			if from.is_char() && (to == tcx.types.u8 || to == tcx.types.u16) {
+				return Some(Expr::rt(format!("{to}TryFromChar"), args));
+			}
 			let (Some(int), Some(_)) = (Int::of(to), Int::of(from)) else {
 				return None;
 			};
@@ -1691,6 +1710,8 @@ fn mapping<'tcx>(
 				ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::FromUtf8Error) => {
 					Expr::rt("fromUtf8ErrorClone", vec![value])
 				}
+				// Never changed once made.
+				ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::DecodeUtf16Error) => value,
 				// Another that holds nothing.
 				ty::Adt(adt, _) if empty_iter(tcx, adt.did()) => b.zero_sized_std(ty, Vec::new(), span).ok()?,
 				// Through the reference, a slice of the bytes.
@@ -2418,6 +2439,20 @@ fn mapping<'tcx>(
 		}
 		// Searches by whitespace, as std's are by `char::is_whitespace`.
 		("char", "is_whitespace") => Expr::rt("charIsWhitespace", args),
+		// By std's own Unicode tables, which the engine's may trail.
+		(
+			"char",
+			"is_alphabetic" | "is_lowercase" | "is_uppercase" | "is_alphanumeric" | "is_control" | "is_numeric"
+			| "to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "len_utf8"
+			| "len_utf16" | "encode_utf16" | "from_digit",
+		) => Expr::rt_of("char", &super::camel(&name)).call(args),
+		// `char::decode_utf16` of what it is given, either as a method or as `char`'s function.
+		("char", "decode_utf16") => {
+			let mut values = args;
+			let it = super::iter::into_iter(b, targ(gargs, 0), values.pop()?, span)?;
+			Expr::rt("charDecodeUtf16", vec![it])
+		}
+		("DecodeUtf16Error", "unpaired_surrogate") => args.pop()?.member("code"),
 		("str", "trim" | "trim_start" | "trim_end") => {
 			let f = format!("{}_matches", name);
 			Expr::rt_of("str", &super::camel(&f)).call(vec![args.pop()?, Expr::Rt("charIsWhitespace".into())])

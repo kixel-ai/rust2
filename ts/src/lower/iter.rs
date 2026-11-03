@@ -1455,6 +1455,10 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		]
 		| ["ascii", "EscapeDefault"]
 		| ["slice", "ascii", "EscapeAscii"]
+		| [
+			"char",
+			"ToLowercase" | "ToUppercase" | "EscapeUnicode" | "EscapeDebug" | "EscapeDefault",
+		]
 		| ["option", "Iter"]
 		| ["result", "Iter"]
 		| ["ops", "range", "Range" | "RangeFrom" | "RangeInclusive"]
@@ -1513,7 +1517,8 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 			"adapters",
 			_,
 			"Enumerate" | "Skip" | "Take" | "StepBy" | "Fuse" | "Rev" | "Copied" | "Cloned" | "Cycle",
-		] => parts(vec![("i", clones(b, arg(0)?, span)?)]),
+		]
+		| ["char", "decode", "DecodeUtf16"] => parts(vec![("i", clones(b, arg(0)?, span)?)]),
 		["iter", "adapters", _, "Chain" | "Zip"] => {
 			parts(vec![("i", clones(b, arg(0)?, span)?), ("o", clones(b, arg(1)?, span)?)])
 		}

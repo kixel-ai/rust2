@@ -78,7 +78,7 @@ and each type a module of its own beside it, holding the type and its functions
 (`coding/decode.Decoder.ts`), each with a `.ts.map` source map into the Rust it came
 from. `rt.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rt/iter.ts`, `str`'s searches
-in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
+in `rt/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rt/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings in `rt/char.ts`, collections in `rt/collections.ts`, hashing in `rt/hash.ts`, ownership, atomics, and async in
 `rt/task.ts`, `f64`'s and `f32`'s methods in `rt/float.ts`, `Duration` in `rt/time.ts`, and `Layout` and memory from `alloc` in `rt/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
@@ -197,6 +197,16 @@ and a `String`, are std's. A `u8` and a `char` share each runtime function, `rt.
 `make_ascii_uppercase` and `make_ascii_lowercase` of a byte, a char, or a string write
 the other case where the `&mut` borrows it, a part of a `String` included. `escape_ascii`'s iterators read from either
 end, size themselves as std's do, and write what they have left by `Display`, unpadded.
+
+`char`'s Unicode classes and case maps read std's Unicode tables, which the runtime
+carries in `rt/unicode.ts`, not the engine's, so they hold of the chars std's do whatever
+the engine's Unicode version. `to_lowercase`, `to_uppercase`, and the escapes read from
+either end, size themselves as std's do, and write what they have left by `Display`,
+unpadded, as `escape_debug` of a char it leaves as it is writes that char even once it has
+yielded it. `encode_utf8` lends the `&mut str` of the bytes it wrote, which a write through
+it changes in place, and `encode_utf16` a view of its units. `char::decode_utf16`,
+`char::from_digit`, `char::try_from` a `u32`, and `u8`'s and `u16`'s `try_from` a `char` are
+std's, their errors and panics included.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
