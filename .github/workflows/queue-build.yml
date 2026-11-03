@@ -1,0 +1,32 @@
+name: Queue build
+
+# The merge queue's build of a group, on the host's self-hosted runner. Only
+# queue.yml calls it. Once queue.yml calls it at main and the rust2-queue runner
+# group admits only this workflow at refs/heads/main, no other workflow can
+# reach the runner, an approved fork run's included; a PR's edit to this file
+# then runs only after it lands.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    # A caller's own event decides this, so a pull request's workflow that
+    # calls this file still gets no runner.
+    if: github.event_name == 'merge_group'
+    runs-on: [self-hosted, rust2-queue]
+    # Below the queue's 90-minute response window, so a hung build reports
+    # before the group expires.
+    timeout-minutes: 60
+    env:
+      BASE: ${{ github.event.merge_group.base_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check and test the merge group
+        run: nix develop --command quest gate just ci "$BASE"
