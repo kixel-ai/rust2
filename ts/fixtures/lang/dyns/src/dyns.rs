@@ -9,6 +9,7 @@
 //! `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or
 //! `dyn FusedIterator` of std's iterators or the crate's own, borrowed, boxed, or shared,
 //! reads by its vtable's methods and folds by `next`, dropping what it owns in std's order.
+//! A box of an iterator reads by what std's box forwards and folds by `next` too.
 
 use std::any::Any;
 use std::cell::RefCell;
@@ -1061,4 +1062,142 @@ pub fn pointers(data: &[u8], out: &mut Vec<u8>) {
 	let boxed: Box<dyn Fn(u8) -> u8> = Box::new(move |x| x ^ *b);
 	let g: Arc<dyn Fn(u8) -> u8> = Arc::from(boxed);
 	put(out, &format!("{} {}", f(*b), g(*a)));
+}
+
+/// A tag of `t`, below 0x80, which logs it with the high bit set as it is made.
+fn made(t: u8) -> Tagged {
+	DROPS.with_borrow_mut(|d| d.push(t | 0x80));
+	Tagged(t)
+}
+
+/// A skip of a zip std reads by index, of items that log as they are made and dropped, the
+/// left side's below 0x40 and the right's above: its `next` skips through the zip's `nth`,
+/// which makes and drops each skipped pair a side at a time, where its folds make the pair
+/// whole.
+fn skipped(data: &[u8]) -> impl DoubleEndedIterator<Item = (Tagged, Tagged)> + ExactSizeIterator + '_ {
+	let (n, rest) = data.split_first().map_or((0, data), |(n, rest)| (*n, rest));
+	let (left, right) = rest.split_at(usize::from(n) % (rest.len() + 1));
+	let left = left.iter().map(|&t| made(t & 0x3f));
+	left.zip(right.iter().map(|&t| made(t & 0x3f | 0x40)))
+		.skip(usize::from(n % 3))
+}
+
+fn tags(pair: Option<(Tagged, Tagged)>) -> Option<(u8, u8)> {
+	pair.map(|p| (p.0.0, p.1.0))
+}
+
+/// A box of an iterator, owned, behind a `&mut`, of a `&mut`, of a box, and as a trait
+/// object: std's `Iterator` for `Box<I>` forwards `next`, `size_hint`, `nth`, `last`, and
+/// the double-ended and exact-size methods to `I`, and reads by `next` for the rest, its
+/// `advance_by` and folds included.
+pub fn boxes(data: &[u8], out: &mut Vec<u8>) {
+	let it = || Box::new(skipped(data));
+
+	// What it forwards.
+	let mut boxed = it();
+	let hint = (boxed.size_hint(), boxed.len());
+	let ends = (tags(boxed.next()), tags(boxed.next_back()));
+	let nths = (tags(boxed.nth(1)), tags(boxed.nth_back(0)));
+	dropped(out);
+	put(out, &format!("{hint:?} {ends:?} {nths:?} "));
+	drop(boxed);
+	dropped(out);
+	put(out, &format!("{:?} ", tags(it().last())));
+	dropped(out);
+	put(out, &format!("{:?} ", tags(Box::new(it()).last())));
+	dropped(out);
+
+	// What it reads by `next`.
+	put(out, &format!("{} ", it().count()));
+	dropped(out);
+	let sum = it().fold(0u32, |n, (x, y)| n.wrapping_mul(7).wrapping_add(u32::from(x.0 ^ y.0)));
+	dropped(out);
+	put(out, &format!("{sum} "));
+	it().for_each(|(x, y)| put(out, &format!("{} {} ", x.0, y.0)));
+	dropped(out);
+	let found = it().position(|(x, _)| x.0 % 2 == 1);
+	dropped(out);
+	put(out, &format!("{found:?} "));
+	let found = tags(it().find(|(_, y)| y.0 % 3 == 0));
+	dropped(out);
+	put(out, &format!("{found:?} {} ", it().any(|(x, _)| x.0 > 8)));
+	dropped(out);
+	put(out, &format!("{:?} ", tags(it().max_by_key(|p| p.1.0))));
+	dropped(out);
+	let all: Vec<(u8, u8)> = it().collect::<Vec<_>>().into_iter().map(|p| (p.0.0, p.1.0)).collect();
+	dropped(out);
+	put(out, &format!("{all:?} "));
+	let back = it()
+		.rev()
+		.fold(0u32, |n, (x, y)| n.wrapping_mul(5).wrapping_add(u32::from(x.0 ^ y.0)));
+	dropped(out);
+	put(
+		out,
+		&format!(
+			"{back} {} ",
+			it().map(|(x, y)| u32::from(x.0) + u32::from(y.0)).sum::<u32>()
+		),
+	);
+	dropped(out);
+	put(out, &format!("{} {} ", it().skip(1).count(), it().step_by(2).count()));
+	dropped(out);
+	// `Chain::nth` advances its first half by `advance_by`, which the box reads by `next`.
+	put(out, &format!("{:?} ", tags(it().chain(None).nth(1))));
+	dropped(out);
+
+	// Behind a `&mut`, which forwards to the box, and so reads by `next` too, `last` included.
+	let mut boxed = it();
+	let last = tags((&mut boxed).last());
+	dropped(out);
+	put(out, &format!("{last:?} "));
+	let mut boxed = it();
+	let nth = tags((&mut boxed).chain(None).nth(1));
+	dropped(out);
+	let n = (&mut boxed).count();
+	dropped(out);
+	put(out, &format!("{nth:?} {n} "));
+	let mut boxed = it();
+	let first = tags(boxed.next());
+	let sum = (&mut boxed).fold(0u32, |n, (x, y)| n.wrapping_add(u32::from(x.0 ^ y.0)));
+	dropped(out);
+	put(out, &format!("{first:?} {sum} "));
+	drop(boxed);
+	dropped(out);
+
+	// Of items that never drop: `last` is still what the box holds, whose zip folds no more
+	// pairs than its size hint, where `next` reads its left side once more.
+	let n = data.first().map_or(0, |n| n % 4);
+	let seen = RefCell::new(Vec::new());
+	let logged = || {
+		let seen = &seen;
+		let left = (0..n).chain(n..n + 2).map(move |x| {
+			seen.borrow_mut().push(x);
+			x
+		});
+		Box::new(left.zip(0..n % 3))
+	};
+	let last = logged().last();
+	let mut boxed = logged();
+	put(out, &format!("{last:?} {:?} {:?} ", (&mut boxed).last(), seen.borrow()));
+
+	// A box of a `&mut`, whose `last` is the borrow's, which folds what it borrows.
+	let mut held = skipped(data);
+	put(out, &format!("{:?} ", tags(Box::new(&mut held).last())));
+	dropped(out);
+	let mut held = skipped(data);
+	put(out, &format!("{} ", Box::new(&mut held).count()));
+	dropped(out);
+
+	// A box of a trait object, which reads by `next` where the object reads by its vtable.
+	let erased = || -> Box<dyn Iterator<Item = (Tagged, Tagged)> + '_> { Box::new(skipped(data)) };
+	put(out, &format!("{:?} ", tags(erased().chain(None).nth(1))));
+	dropped(out);
+	put(out, &format!("{:?} {} ", tags(erased().last()), erased().count()));
+	dropped(out);
+	let mut boxed = erased();
+	let lent: &mut dyn Iterator<Item = (Tagged, Tagged)> = &mut *boxed;
+	put(out, &format!("{:?} ", tags(lent.chain(None).nth(1))));
+	dropped(out);
+	drop(boxed);
+	dropped(out);
 }

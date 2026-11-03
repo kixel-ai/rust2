@@ -62,4 +62,3 @@ arenas keep under Go's lent `Bytes` is the consumer's to fix with its global all
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
 - [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
 - [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit
-- [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
