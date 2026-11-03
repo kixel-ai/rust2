@@ -797,7 +797,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::Pending, _) => Expr::Rt("NEVER".into()),
 				(Std::WakerVTable, _) => Expr::rt("wakerVTable", values),
 				(Std::RawWaker, _) => {
-					let [data, vtable] = <[Expr; 2]>::try_from(values).expect("a `RawWaker`'s two fields");
+					let [data, vtable] = <[Expr; 2]>::try_from(values).expect("a raw waker's two fields");
 					crate::lower::task::raw_waker(data, vtable)
 				}
 				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
