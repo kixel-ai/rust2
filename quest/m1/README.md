@@ -2,8 +2,8 @@
 
 ## Goal
 
-The work moq is waiting on: the UniFFI fork its bindings switch to, and the exporter
-that replaces it.
+The work moq is waiting on: the exporter that replaces the UniFFI fork moq
+builds its bindings with today.
 
 ## Plan
 
@@ -14,7 +14,8 @@ fork stays in maintenance and keeps building moq's bindings until then; its feat
 are folded into the [exporter's](/quest/m1/ffi-export/README.md). The
 [binding benchmark](/bench/ffi/README.md) continues as the exporter's baseline.
 
+Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m2/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
+
 ## Required
 
-- [Waiting: publish the UniFFI fork](/quest/m1/uniffi-release.md) - the fork publishes to crates.io under `rust2-*` names, once the maintainer decides it should
 - [Exporter](/quest/m1/ffi-export/README.md) - moq's bindings exported from its crates' `pub` API, replacing the fork
