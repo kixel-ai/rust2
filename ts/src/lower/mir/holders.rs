@@ -717,7 +717,9 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a value of `ty` may hold a pointer, or one behind it, to a value `to` holds
-	/// for, as what it points at is peeled; or one its type doesn't tell.
+	/// for, as what it points at is peeled; or one its type doesn't tell. A vector's buffer
+	/// is its own allocation, never a part of another value, so only what its elements hold
+	/// may point at one.
 	fn points_to(&self, ty: Ty<'tcx>, to: impl Fn(Ty<'tcx>) -> bool) -> bool {
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![ty];
@@ -733,10 +735,45 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 					}
 					stack.push(pointee);
 				}
+				ty::Adt(adt, args)
+					if crate::lower::library::std_path(self.t.tcx, adt.did()) == ["raw_vec", "RawVec"] =>
+				{
+					stack.extend(args.types())
+				}
 				_ => match self.fields(ty) {
 					Some(fields) => stack.extend(fields),
 					None => return true,
 				},
+			}
+		}
+		false
+	}
+
+	/// Whether code given a shared reference to a value of `ty` may change what it holds or
+	/// reaches: through an `UnsafeCell` in a field, behind a pointer, or in a type argument,
+	/// as a hash map's buffer holds its entries; or in one its type doesn't tell. A type
+	/// parameter's value holds none the body can read a pointer out of but through the
+	/// crate's code, which [`Self::origins`] follows on its own.
+	fn mutable_through_shared(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.t.tcx;
+		let mut seen = FxHashSet::default();
+		let mut stack = vec![ty];
+		while let Some(ty) = stack.pop() {
+			if !seen.insert(ty) {
+				continue;
+			}
+			match ty.kind() {
+				ty::Adt(adt, _) if tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell) => return true,
+				ty::Adt(_, args) => stack.extend(args.types()),
+				ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => {
+					stack.push(*pointee);
+					continue;
+				}
+				_ => {}
+			}
+			match self.fields(ty) {
+				Some(fields) => stack.extend(fields),
+				None => return true,
 			}
 		}
 		false
@@ -1023,6 +1060,9 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 								{
 									defs[borrowed].lent.push(to)
 								}
+								// A shared borrow changes nothing but through an `UnsafeCell`.
+								Rvalue::Ref(_, BorrowKind::Shared | BorrowKind::Fake(_), place)
+									if !self.mutable_through_shared(place.ty(&mir.local_decls, self.t.tcx).ty) => {}
 								Rvalue::Ref(_, _, place) | Rvalue::RawPtr(_, place) if !place.is_indirect() => {
 									defs[place.local].other = true
 								}
