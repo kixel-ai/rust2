@@ -778,6 +778,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
 				}
 				(Std::RangeFull, _) => Expr::undefined(),
+				(Std::Pending, _) => Expr::Rt("NEVER".into()),
 				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),

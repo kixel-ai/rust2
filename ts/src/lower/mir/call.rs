@@ -630,7 +630,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if !ty.is_sized(tcx, self.b.t.typing_env_pub()) {
 					return None;
 				}
-				if !library::clone_from_clones(self.b.t, ty) {
+				// std's keeps a waker that would wake the same task, cloning and dropping none.
+				let waker = self.b.t.std_of(ty) == Some(Std::Waker);
+				if !waker && !library::clone_from_clones(self.b.t, ty) {
 					let msg = format!(
 						"`{owner}::{name}` of `{ty}`, whose `clone_from` is its own, which is not supported yet"
 					);
@@ -641,11 +643,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => (&args[1].node, &args[0].node),
 				};
 				let place = self.borrowed_place(target, span, out)?;
-				let source = self.operand(source, span, out);
+				let mut source = self.operand(source, span, out);
+				let mut cloned = Vec::new();
+				if waker && !super::cfg::pure(&source) {
+					source = self.b.spill(source, "source", out);
+				}
 				let clone = crate::lower::collections::trait_fn(tcx, "Clone", "clone");
-				let clone = self
-					.b
-					.call_def(clone, tcx.mk_args(&[ty.into()]), vec![source], span, out);
+				let clone = self.b.call_def(
+					clone,
+					tcx.mk_args(&[ty.into()]),
+					vec![source.clone()],
+					span,
+					&mut cloned,
+				);
 				// std's `Vec` keeps the target's buffer, grown if it holds fewer, as it does
 				// through a box.
 				let own = library::unboxed(self.b.t, ty);
@@ -656,9 +666,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => clone,
 				};
 				let drops = self.b.t.drops(ty);
-				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, out);
+				let current = place.0.clone();
+				let old = self.swap_out(place, ty, clone, drops.then_some("old"), span, &mut cloned);
 				if drops && let Some(drop) = self.b.t.drop_value(old, ty, span) {
-					out.push(StmtKind::Expr(drop).at(None));
+					cloned.push(StmtKind::Expr(drop).at(None));
+				}
+				match waker {
+					true => out.push(
+						StmtKind::If {
+							cond: Expr::rt("willWake", vec![current, source]).not(),
+							then: cloned,
+							els: Vec::new(),
+						}
+						.at(None),
+					),
+					false => out.extend(cloned),
 				}
 				done(Expr::undefined(), false)
 			}

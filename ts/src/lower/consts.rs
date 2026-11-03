@@ -174,6 +174,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 							Expr::New(Box::new(Expr::Rt("Range".into())), values)
 						}
 						(Std::RangeFull, _) => Expr::undefined(),
+						(Std::Pending, _) => Expr::Rt("NEVER".into()),
 						(Std::ParseIntError, _) => {
 							Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())])
 						}

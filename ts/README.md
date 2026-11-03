@@ -142,8 +142,8 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `AtomicU32` and the others of `bool` and integers, `AtomicPtr<T>` | `rt.Atomic<T>`, the `rt.Place` of its value; an `atomic::Ordering` is its discriminant, and one an operation can't take panics as std's does. An `AtomicPtr` compares pointers only to what JS keeps as an object or bytes, as raw pointers do |
 | `async fn` | a function returning `rt.Future<T>`: a class of its own, its coroutine's state machine |
 | async closure | a closure returning the future of each call, with what makes the future of a call that consumes it if it owns a value that drops and `Fn` or `FnMut` call it |
-| `Poll<T>`, `Waker`, `Context` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read |
-| `pin!(x)`, `poll_fn(f)`, `future::pending()` | `x`; `rt.PollFn`, which drops `f` with itself; `rt.NEVER` |
+| `Poll<T>`, `Waker`, `Context` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read, and `clone_from` keeps where the waker it has `will_wake` the source |
+| `pin!(x)`, `poll_fn(f)`, `future::pending()`, `future::ready(v)` | `x`; `rt.PollFn`, which drops `f` with itself; `rt.NEVER`, which every `Pending` is; `rt.Ready`, whose first poll or `into_inner` takes `v` and a later one panics, and which drops `v` with itself unless one took it |
 | `Box::pin(x)`, `dyn Future<Output = T>` | `x`; `rt.Future<T>`: an `async` body or std's future as it is, and another future as an `rt.DynFuture` over its `poll`, which drops it with itself unless borrowed |
 | `bytes::Bytes` | `rt.ByteSlice`, as `&[u8]` is: its clones and slices share bytes that never change |
 | `bytes::BytesMut` | `rt.BytesMut`: a window of storage, which what it splits off and freezes share without overlapping |
@@ -438,7 +438,7 @@ A collection keeps Rust's key semantics. A hash map or set keeps a key that is a
 number, string, or boolean in a JS `Map`, which compares those as Rust's `Eq` does, and
 finds any other key, a 64-bit one past 2^53 included, through its translated `Hash` and
 `Eq`; a B-tree orders every key by its translated `Ord`. std's impls are the runtime's: an
-`Option` orders `None` first, an `Arc` compares, orders, and hashes as what it holds,
+`Option` orders `None` first, an `Option` and a `Poll` hash their variant and then what they hold, an `Arc` compares, orders, and hashes as what it holds,
 so a map of `Arc<str>` finds a `&str`, a `Cell` and a `RefCell` compare and order as
 what they hold, a `RefCell` borrowing each, a one-time cell compares its `Option`, and
 arrays, slices, and vectors, of bytes or of other elements, order by their elements and then their length, and compare and hash alike
@@ -969,7 +969,7 @@ method taking a closure tells it, or its accumulator or what it finds, apart fro
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
 drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
 its closure a reference to a `[u8; N]`,
-a pointer's address (`{:p}`), `write!` with a placeholder into
+a pointer's address (`{:p}`) and `Debug` of a `Waker` or a `Context`, which writes addresses, `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,

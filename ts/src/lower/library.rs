@@ -116,6 +116,8 @@ pub enum Std {
 	PollFn,
 	/// `future::Pending`: `rt.NEVER`, a future never ready.
 	Pending,
+	/// `rt.Ready`: `future::ready`'s future, which owns its value until a poll takes it.
+	Ready,
 	/// `rt.Range`, an iterator with `start` and `end` fields.
 	Range,
 	/// `rt.RangeInclusive`.
@@ -336,6 +338,7 @@ impl Std {
 			["mem", "manually_drop", "ManuallyDrop"] => Some(Self::ManuallyDrop),
 			["future", "poll_fn", "PollFn"] => Some(Self::PollFn),
 			["future", "pending", "Pending"] => Some(Self::Pending),
+			["future", "ready", "Ready"] => Some(Self::Ready),
 			["task", "wake", "RawWakerVTable"] => Some(Self::WakerVTable),
 			["convert", "Infallible"] => Some(Self::Infallible),
 			// A thread-local on wasm32 is never destroyed, so `try_with` never fails.
@@ -1451,9 +1454,9 @@ fn mapping<'tcx>(
 			let mut values = args;
 			let value = values.pop()?;
 			// One between strings, such as into a `Cow<str>` or out of one, keeps the text, and
-			// `Some` of a value is the value.
+			// `Some` or `Ready` of a value is the value.
 			let some = matches!(to.kind(), ty::Adt(adt, args)
-				if Std::of(tcx, adt.did()) == Some(Std::Option) && args.type_at(0) == targ(gargs, 1));
+				if matches!(Std::of(tcx, adt.did()), Some(Std::Option | Std::Poll)) && args.type_at(0) == targ(gargs, 1));
 			if to == from || some {
 				return Some(value);
 			}

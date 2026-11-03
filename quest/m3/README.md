@@ -24,7 +24,7 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
 - [Debug of std's iterator adaptors](/quest/m3/ts-iter-adaptor-debug.md) - `Debug` of `Map`, `Zip`, `Peekable`, `DecodeUtf16`, and the other adaptors writes what std's does
-- [The rest of std::future and std::task](/quest/m3/ts-future-task.md) - `future::ready`, `Debug` and `Hash` of a `Poll`, and `Waker::clone_from` translate
+- [Wakers made from a RawWaker](/quest/m3/ts-raw-waker.md) - `Waker::from_raw` and the rest of the raw waker API translate, each vtable call where std makes it
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
