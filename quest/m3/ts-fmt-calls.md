@@ -31,7 +31,8 @@ difference. A writer that counts calls or fails partway, like a capped buffer, c
   `write_str`. std reads the value before writing `Cell { value: `, and
   [#484](https://github.com/moq-dev/rust2/pull/484) lowers it that way, but only such a writer
   can observe the order. Likewise a `OnceCell`, `OnceLock`, `LazyCell`, and `LazyLock` set or
-  forced as their name is written: std reads each after its name, as the runtime does.
+  forced as their name or `(` is written: std reads each between the two, as the runtime
+  does.
 - Rejected: allowing placeholders with the runtime's chunking. The bytes match, but a
   crate's `write_str` would see calls std doesn't make.
 

@@ -1081,11 +1081,17 @@ export function onceDebug<T>(cell: OnceCell<T, None | undefined>, f: Formatter, 
 
 /**
  * `Debug` of a one-time cell named `name`: its `value` if it is `held`, or else `<uninit>`,
- * unpadded. Both are read once the name is written, which a writer may set the cell from.
+ * unpadded. Both are read between writing the name and `(`, as std reads them, since a
+ * writer may set the cell from either.
  */
 function heldDebug<T>(f: Formatter, name: string, held: () => boolean, value: () => T, debug: Debug<T>): FmtResult {
-	const field = (f: Formatter) => (held() ? debug(value(), f) : f.out.writeStr("<uninit>"));
-	return debugTupleFinish(debugTupleField(fmtDebugTuple(f, name), field));
+	const tuple = fmtDebugTuple(f, name);
+	let field = (f: Formatter) => f.out.writeStr("<uninit>");
+	if (held()) {
+		const v = value();
+		field = (f: Formatter) => debug(v, f);
+	}
+	return debugTupleFinish(debugTupleField(tuple, field));
 }
 
 /** `Once`: a `OnceLock` that holds `true` once its function has run. */
