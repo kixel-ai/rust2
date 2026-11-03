@@ -241,7 +241,7 @@ memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the byte
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2297:17
 memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2298:21
 memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another at fixtures/reject/src/lib.rs:2300:17
-overriding `Iterator::fold` with its accumulator in an `Option` or a `Poll`, which is not supported yet at fixtures/reject/src/lib.rs:125:2
+overriding `Iterator::fold` with its accumulator in an `Option` or a `Poll`, which is not supported yet at fixtures/reject/src/lib.rs:126:3
 overriding `DoubleEndedIterator::rfind`, which std's adaptors call in place of `next` or beside it at fixtures/reject/src/lib.rs:150:2
 a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `Escaped`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1020:43
 a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `Called`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:1034:28
@@ -258,3 +258,6 @@ a raw pointer to `(u8, u8)` in `([Cloned; 2], (u8, u8))`, which the crate may pu
 a raw pointer to `(u8, u8)` in `(Dropped, (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2321:23
 a raw pointer to `(u8, u8)` in `([Greatest; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2377:13
 a raw pointer to `(u8, u8)` in `([Touched; 2], (u8, u8))`, which the crate may put another object in place of at fixtures/reject/src/lib.rs:2321:23
+overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2422:3
+overriding `Iterator::fold` with a constant generic over its accumulator or closure, which is not supported yet at fixtures/reject/src/lib.rs:2446:11
+overriding `Iterator::fold` with a drop of its accumulator, which is not supported yet at fixtures/reject/src/lib.rs:2469:3

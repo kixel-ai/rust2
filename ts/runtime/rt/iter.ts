@@ -2031,12 +2031,13 @@ class FromNext<S, T> extends Iter<T> implements Disposable {
 
 	/**
 	 * Its own `fold` or `rfold`, which takes it by value: given `f` as a closure that drops
-	 * what it owns by `release`, as the crate's drops the closure std gives it.
+	 * what it owns by `release`, as the crate's drops the closure std gives it, and nothing
+	 * without it, as a loan of `f` does.
 	 */
 	private folds<A>(fold: (source: S, acc: never, f: never) => unknown, acc: A, f: (acc: A, item: T) => A, release: (() => void) | undefined): A {
 		this.drop = undefined;
-		const g = release === undefined ? f : closure((acc: A, item: T) => f(acc, item), release);
-		return (fold as (source: S, acc: A, f: (acc: A, item: T) => A) => A)(this.source, acc, g);
+		const g = (acc: A, item: T) => f(acc, item);
+		return (fold as (source: S, acc: A, f: (acc: A, item: T) => A) => A)(this.source, acc, release === undefined ? g : closure(g, release));
 	}
 
 	/** Its own `count` or `last`, which takes it by value. */

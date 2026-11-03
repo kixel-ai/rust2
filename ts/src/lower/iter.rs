@@ -81,9 +81,8 @@ const BY_VALUE: [(&str, &str); 4] = [
 /// Refuse an `impl Iterator` of the crate, whose `next` is `next_fn`, that std's adaptors
 /// would read other than through the methods in `OWN`: one whose `Iterator` or
 /// `DoubleEndedIterator` impl overrides another, such as `find`, which they call in its
-/// place, or whose own `fold` or `rfold` holds its accumulator in an `Option` or a `Poll`,
-/// as `fold_args` translates it for one that can't tell an `rt.None` or `rt.Pending`
-/// accumulator apart.
+/// place, or whose own `fold` or `rfold` tells its accumulator or closure apart from the
+/// ones `fold_args` translates it for.
 pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 	let tcx = t.tcx;
 	let Some(imp) = tcx.impl_of_assoc(next_fn) else {
@@ -112,45 +111,155 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 					tcx.def_span(item.def_id),
 					format!("overriding `{tr}::{name}`, which std's adaptors call in place of `next` or beside it"),
 				);
-			} else if matches!(name.as_str(), "fold" | "rfold") && wraps_acc(tcx, item.def_id) {
-				t.err(
-					tcx.def_span(item.def_id),
-					format!(
-						"overriding `{tr}::{name}` with its accumulator in an `Option` or a `Poll`, which is not supported yet"
-					),
-				);
+			} else if matches!(name.as_str(), "fold" | "rfold")
+				&& let Some((span, what)) = erases(tcx, item.def_id)
+			{
+				t.err(span, format!("overriding `{tr}::{name}` with {what}, which is not supported yet"));
 			}
 		}
 	}
 }
 
-/// Whether the crate's own `fold` or `rfold`, `def_id`, holds its accumulator, its first type
-/// parameter, in an `Option` or a `Poll`.
-fn wraps_acc(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
+/// Where the crate's own `fold` or `rfold`, `def_id`, or a closure in it, tells its
+/// accumulator `B` or closure `F` apart from the others it is generic over, and how: by an
+/// `Option` or a `Poll` of `B`, whose `None` or `Pending` is the one of whichever `B` it is
+/// translated for; a call generic over either, but `F`'s, a `drop` of `F`, and std's
+/// iterators', which take any; a constant generic over either, such as its size; or a drop of
+/// `B`, which drops as the one it is translated for does.
+fn erases(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(Span, &'static str)> {
+	use rustc_middle::mir::visit::Visitor;
+	use rustc_middle::mir::{self, AggregateKind, BasicBlock, BasicBlockData, ConstOperand, Location, Rvalue, TerminatorKind};
+
+	struct Erases<'a, 'tcx> {
+		tcx: TyCtxt<'tcx>,
+		mir: &'a mir::Body<'tcx>,
+		/// The indices of `B` and `F`.
+		params: [u32; 2],
+		closures: Vec<DefId>,
+		found: Option<(Span, &'static str)>,
+	}
+	impl<'tcx> Erases<'_, 'tcx> {
+		fn mentions(&self, arg: ty::GenericArg<'tcx>) -> bool {
+			arg.walk().any(|a| matches!(a.as_type().map(Ty::kind), Some(ty::Param(p)) if self.params.contains(&p.index)))
+		}
+
+		/// Whether `ty` is `F`.
+		fn is_f(&self, ty: Ty<'tcx>) -> bool {
+			matches!(ty.kind(), ty::Param(p) if p.index == self.params[1])
+		}
+
+		/// Whether a call of `def_id` for `args` takes any `B` and `F`.
+		fn takes_any(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+			let tcx = self.tcx;
+			if tcx.is_diagnostic_item(rustc_span::sym::mem_drop, def_id) {
+				return self.is_f(args.type_at(0));
+			}
+			tcx.trait_of_assoc(def_id).is_some_and(|tr| {
+				tcx.is_fn_trait(tr) || [core_trait(tcx, "Iterator"), core_trait(tcx, "DoubleEndedIterator")].contains(&Some(tr))
+			})
+		}
+
+		fn find(&mut self, span: Span, what: &'static str) {
+			self.found.get_or_insert((span, what));
+		}
+	}
+	impl<'tcx> Visitor<'tcx> for Erases<'_, 'tcx> {
+		fn visit_basic_block_data(&mut self, bb: BasicBlock, data: &BasicBlockData<'tcx>) {
+			// A panic aborts on wasm32 before its cleanup runs.
+			if !data.is_cleanup {
+				self.super_basic_block_data(bb, data);
+			}
+		}
+
+		fn visit_rvalue(&mut self, rvalue: &Rvalue<'tcx>, loc: Location) {
+			if let Rvalue::Aggregate(kind, _) = rvalue
+				&& let AggregateKind::Closure(closure, _) = **kind
+			{
+				self.closures.push(closure);
+			}
+			self.super_rvalue(rvalue, loc);
+		}
+
+		fn visit_terminator(&mut self, term: &mir::Terminator<'tcx>, loc: Location) {
+			let span = term.source_info.span;
+			match &term.kind {
+				TerminatorKind::Call { func, args, .. } => {
+					if let Some((callee, callee_args)) = func.const_fn_def()
+						&& !self.takes_any(callee, callee_args)
+						&& callee_args.iter().any(|a| self.mentions(a))
+					{
+						self.find(span, "a call generic over its accumulator or closure");
+					}
+					for arg in args {
+						self.visit_operand(&arg.node, loc);
+					}
+					return;
+				}
+				TerminatorKind::Drop { place, .. } => {
+					let ty = place.ty(self.mir, self.tcx).ty;
+					if !self.is_f(ty) && self.mentions(ty.into()) {
+						self.find(span, "a drop of its accumulator");
+					}
+				}
+				_ => {}
+			}
+			self.super_terminator(term, loc);
+		}
+
+		fn visit_const_operand(&mut self, c: &ConstOperand<'tcx>, _: Location) {
+			let args = match c.const_ {
+				mir::Const::Unevaluated(uv, _) => uv.args,
+				_ => ty::List::empty(),
+			};
+			if self.mentions(c.const_.ty().into()) || args.iter().any(|a| self.mentions(a)) {
+				self.find(c.span, "a constant generic over its accumulator or closure");
+			}
+		}
+	}
+
 	let generics = tcx.generics_of(def_id);
-	let Some(acc) = generics
+	let mut params = generics
 		.own_params
 		.iter()
-		.find(|p| matches!(p.kind, ty::GenericParamDefKind::Type { .. }))
-	else {
-		return false;
-	};
-	tcx.optimized_mir(def_id).local_decls.iter().any(|local| {
-		local.ty.walk().filter_map(|arg| arg.as_type()).any(|t| match t.kind() {
-			ty::Adt(adt, args) => {
-				matches!(Std::of(tcx, adt.did()), Some(Std::Option | Std::Poll))
-					&& matches!(args.type_at(0).kind(), ty::Param(p) if p.index == acc.index)
+		.filter(|p| matches!(p.kind, ty::GenericParamDefKind::Type { .. }))
+		.map(|p| p.index);
+	let params = [params.next()?, params.next()?];
+	let mut bodies = vec![def_id];
+	while let Some(def_id) = bodies.pop() {
+		let mir = tcx.optimized_mir(def_id);
+		for local in &mir.local_decls {
+			let wraps = local.ty.walk().filter_map(|arg| arg.as_type()).any(|t| match t.kind() {
+				ty::Adt(adt, args) => {
+					matches!(Std::of(tcx, adt.did()), Some(Std::Option | Std::Poll))
+						&& matches!(args.type_at(0).kind(), ty::Param(p) if p.index == params[0])
+				}
+				_ => false,
+			});
+			if wraps {
+				return Some((local.source_info.span, "its accumulator in an `Option` or a `Poll`"));
 			}
-			_ => false,
-		})
-	})
+		}
+		let mut erases = Erases {
+			tcx,
+			mir,
+			params,
+			closures: Vec::new(),
+			found: None,
+		};
+		erases.visit_body(mir);
+		if erases.found.is_some() {
+			return erases.found;
+		}
+		bodies.extend(erases.closures);
+	}
+	None
 }
 
-/// The generic arguments the crate's own `fold` or `rfold` of `item`s is translated for:
-/// the accumulator, as an `Option<u32>`, whose `None` in an `Option` of it is `rt.None`
-/// and which nothing else tells apart from any other value, as a body generic over it
-/// can't, and the closure, as a `Box<dyn FnMut(acc, item) -> acc>`, whose JS value is the
-/// function `rt.iterFrom` gives it and which drops what std's closure owns as it drops.
+/// The generic arguments the crate's own `fold` or `rfold` of `item`s is translated for,
+/// which a body `erases` doesn't refuse can't tell apart from any others: the accumulator,
+/// as an `Option<u32>`, and the closure, as a `Box<dyn FnMut(acc, item) -> acc>`, whose JS
+/// value is the function `rt.iterFrom` gives it and which drops what std's closure owns as
+/// it drops.
 fn fold_args<'tcx>(tcx: TyCtxt<'tcx>, item: Ty<'tcx>) -> Option<[Ty<'tcx>; 2]> {
 	let lang = tcx.lang_items();
 	let acc = Ty::new_option(tcx, tcx.types.u32);

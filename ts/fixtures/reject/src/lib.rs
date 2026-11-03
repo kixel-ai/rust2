@@ -2407,3 +2407,70 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 	}
 	tagged_slots!(slots)
 }
+
+/// An iterator whose own `fold` tells its accumulator apart by a helper generic over it.
+pub struct Keeps;
+
+impl Iterator for Keeps {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		keep(init)
+	}
+}
+
+#[inline(never)]
+fn keep<T>(x: T) -> T {
+	Some(x).unwrap()
+}
+
+pub fn keeps() -> usize {
+	Keeps.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` tells its accumulator apart by its size.
+pub struct Sizes;
+
+impl Iterator for Sizes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		assert!(const { size_of::<B>() } > 0);
+		init
+	}
+}
+
+pub fn sizes() -> usize {
+	Sizes.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` drops its accumulator, as the one it is translated for drops.
+pub struct Discards;
+
+impl Iterator for Discards {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	#[allow(clippy::empty_loop)]
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		{
+			let _held = init;
+		}
+		loop {}
+	}
+}
+
+pub fn discards() -> usize {
+	Discards.map(|b| b + 1).count()
+}

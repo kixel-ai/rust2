@@ -892,8 +892,10 @@ copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as `partition`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
-those, such as `find` or `for_each`, or whose own `fold` or `rfold` holds its accumulator in an
-`Option` or a `Poll`,
+those, such as `find` or `for_each`, or whose own `fold` or `rfold` tells its accumulator or
+closure apart from another, by an `Option` or a `Poll` of it, a call or constant generic over it
+other than calling or dropping the closure or passing them to std's iterators, or a drop of the
+accumulator,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes
