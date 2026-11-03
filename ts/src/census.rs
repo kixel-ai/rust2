@@ -162,6 +162,7 @@ const VERBATIM: &[&str] = &[
 	"Ord",
 	"Pending",
 	"Pointer",
+	"Poll",
 	"Ready",
 	"Reborrow",
 	"Result",

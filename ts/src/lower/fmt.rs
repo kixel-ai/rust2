@@ -468,6 +468,11 @@ pub fn std_impl<'tcx>(
 					[vec![value, f, name, held], none.into_iter().collect()].concat(),
 				)
 			}
+			// Its value, or `<uninit>` before it is forced and while its function runs.
+			(std @ (Std::LazyCell | Std::LazyLock), Trait::Debug) => {
+				let held = b.fmt_fn(tr, args.type_at(0), span);
+				value.member("debug").call(vec![f, Expr::Str(format!("{std:?}")), held])
+			}
 			(Std::ParseCharError, Trait::Debug) => rt("parseCharErrorDebug", vec![value, f]),
 			(Std::ParseCharError, Trait::Display) => rt("parseCharErrorDisplay", vec![value, f]),
 			(Std::ParseFloatError, Trait::Debug) => rt("parseFloatErrorDebug", vec![value, f]),

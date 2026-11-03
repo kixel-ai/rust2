@@ -27,18 +27,16 @@ generic std gap is planned here even when moq never calls it.
 - [std's calls of a closure that have no mapping](/quest/m3/ts-closure-calls.md) - `try_fold`, `partition`, `repeat_with`, `sort_by_cached_key`, and `LazyCell::new` translate, dropping what their closures own as std's do
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
-- [Folds from the back, and a crate's own folds](/quest/m3/ts-iter-back-folds.md) - `rfold` and `try_rfold` translate, and so does a crate's iterator that overrides `fold` or `nth_back`
+- [A crate's own find and for_each](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `find`, `rfind`, `find_map`, or `for_each` translates, each called where std's adaptors and consumers call it
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate
 - [A reversed zip's per-pair cost](/quest/m3/ts-zip-rev-overhead.md) - a reversed by-index zip costs per pair what a forward one does, or the gap is explained
 - [Whole writes into a lazy cell or thread-local key](/quest/m3/ts-lazy-writes.md) - a whole write through a `&mut` to a `LazyCell`, `LazyLock`, or `LocalKey` keeps its state
-- [Debug of a LazyCell or a LazyLock](/quest/m3/ts-lazy-debug.md) - `{:?}` of a `LazyCell` and a `LazyLock` writes its value or `<uninit>`, as std's do
 - [Type errors at the Rust that made them](/quest/m3/ts-span-precision.md) - a `tsc` error on output names the tail expression or call argument that made it
 - [An empty iterator of mutable references](/quest/m3/ts-empty-places.md) - `iter::empty::<&mut T>()` given to `zip` or `chain` translates
 - [An Option of numbers in the result slot](/quest/m3/ts-option-slot.md) - `varint_opt`'s `Option` comes back through the slot with no object per call
-- [Dropping a crate's generic type inside another](/quest/m3/ts-nested-generic-drop.md) - an `LruCache` holding a `LinkedHashMap` drops as rustc's glue does
 - [Fresh writes through a zip, a copy, and a repeat](/quest/m3/ts-fresh-shapes.md) - zipping a `Vec<[T; N]>`, reading a `T` out of `Zip::next`, and `copied` or `vec![x; n]` over a `Copy` type translate
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
