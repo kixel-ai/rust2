@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -820,18 +820,11 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 /**
  * `Cell::from_mut` of the object or the bytes a `&mut` is: a read is a copy, as a `Cell`
  * only moves or copies its value out, and a write lands in place, a JS array's taking
- * the new one's length.
+ * the new one's length. A read copies as `objectCopy` copies to `depth`.
  */
-export function cellIn<T extends object>(p: T): Cell<T> {
-	const copy = (): T => {
-		if (ArrayBuffer.isView(p) || Array.isArray(p)) return (p as unknown as T[]).slice() as T;
-		return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
-	};
-	const write = (value: T): void => {
-		if (Array.isArray(p)) vecAssign(p, value as unknown[]);
-		else ptrWrite(p, value);
-	};
-	return cellOfPlace(place(copy, write));
+export function cellIn<T extends object>(p: T, depth = 0): Cell<T> {
+	const write = partPlace(p);
+	return cellOfPlace(place(() => objectCopy(p, depth), (value) => (write.v = value)));
 }
 
 /**

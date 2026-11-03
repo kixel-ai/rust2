@@ -226,29 +226,17 @@ struct Held<T> {
 	value: T,
 }
 
-/// Runs each conversion of the type `kind` picks, but for `u8`, whose `&mut` no slice can
-/// view, and [`searched`] of those that order.
+/// Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
+/// no slice can view, and [`searched`] of those that order.
 pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match kind % 14 {
-		0 => {
-			ordered::<u32>(data, out);
-			lent_through::<u32>(data, out);
-		}
+		0 => ordered::<u32>(data, out),
 		1 => ordered::<u64>(data, out),
-		2 => {
-			ordered::<String>(data, out);
-			lent_through::<String>(data, out);
-		}
-		3 => {
-			ordered::<Option<u16>>(data, out);
-			lent_through::<Option<u16>>(data, out);
-		}
+		2 => ordered::<String>(data, out),
+		3 => ordered::<Option<u16>>(data, out),
 		4 => ordered::<[u8; 0]>(data, out),
 		5 => ordered::<[u8; 1]>(data, out),
-		6 => {
-			ordered::<[u8; 3]>(data, out);
-			lent_through::<[u8; 3]>(data, out);
-		}
+		6 => ordered::<[u8; 3]>(data, out),
 		7 => ordered::<[u8; 40]>(data, out),
 		8 => ordered::<[u32; 2]>(data, out),
 		9 => ordered::<Named>(data, out),
@@ -263,6 +251,7 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			LOG.with(|log| RefCell::borrow_mut(log).clear());
 			converted::<Logged>(data, out);
 			lent_one::<Logged>(data, out);
+			lent_through::<Logged>(data, out);
 			searched::<Logged>(data, out);
 		}
 	}
@@ -274,6 +263,7 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 fn ordered<T: Value + Ord>(data: &[u8], out: &mut Vec<u8>) {
 	converted::<T>(data, out);
 	lent_one::<T>(data, out);
+	lent_through::<T>(data, out);
 	searched::<T>(data, out);
 }
 
@@ -294,18 +284,74 @@ fn write_first<T: Value>(s: &mut [T], value: T) -> T {
 	old
 }
 
-/// A slice of what a `&mut` whose place only the caller knows points at, written through:
-/// one to a value JS copies or to an array of bytes, which a whole write reaches, unlike
-/// an object's slot.
-fn lent_param<T: Value>(to: &mut T, value: T) -> T {
-	write_first(std::slice::from_mut(to), value)
+/// `mem::replace` of the first array, as a function given any slice of them makes it.
+fn replace_first<T>(s: &mut [[T; 1]], value: [T; 1]) -> [T; 1] {
+	std::mem::replace(&mut s[0], value)
 }
 
-/// [`lent_param`] of an element.
+/// A slice of what a `&mut` whose place only the caller knows points at: written whole,
+/// read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+/// another slice's element, as an array, of a reference to it, by a cell, and nested in
+/// arrays, and written in place.
+fn lent_param<T: Value>(to: &mut T, data: &[u8], out: &mut Vec<u8>) {
+	let s = std::slice::from_mut(to);
+	write_first(s, T::make(data, 18)).put(out);
+	let mut other = T::make(data, 19);
+	std::mem::swap(&mut s[0], &mut other);
+	other.put(out);
+	std::mem::swap(&mut other, &mut s[0]);
+	other.put(out);
+	let mut v = vec![T::make(data, 20), T::make(data, 21)];
+	let t = &mut v[..];
+	std::mem::swap(&mut s[0], &mut t[1]);
+	std::mem::swap(&mut t[0], &mut s[0]);
+	t[0].put(out);
+	t[1].put(out);
+	let a = std::array::from_mut(&mut s[0]);
+	std::mem::replace(a, [T::make(data, 22)])[0].put(out);
+	// A reference moves out as it is, still pointing at the element.
+	let mut by = T::make(data, 23);
+	let mut r = &mut s[0];
+	let [old] = std::mem::replace(std::array::from_mut(&mut r), [&mut by]);
+	*old = T::make(data, 24);
+	r.put(out);
+	s[0].put(out);
+	// A cell of the element, and of an array of it.
+	Cell::from_mut(&mut s[0]).replace(T::make(data, 25)).put(out);
+	let [old] = Cell::from_mut(std::array::from_mut(&mut s[0])).replace([T::make(data, 26)]);
+	old.put(out);
+	// Nested: a slice of an array of it, and a cell of an array of an array of it.
+	let a = std::array::from_mut(&mut s[0]);
+	let [old] = replace_first(std::slice::from_mut(a), [T::make(data, 27)]);
+	old.put(out);
+	let b = std::array::from_mut(std::array::from_mut(&mut s[0]));
+	let [[old]] = Cell::from_mut(b).replace([[T::make(data, 28)]]);
+	old.put(out);
+	s[0].clone_from(&other);
+	s[0].put(out);
+}
+
+/// [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+/// read after.
 fn lent_through<T: Value>(data: &[u8], out: &mut Vec<u8>) {
+	let mut a = T::make(data, 0);
+	let mut held = Held {
+		value: T::make(data, 1),
+	};
 	let mut v = vec![T::make(data, 2), T::make(data, 4)];
-	lent_param(&mut v[1], T::make(data, 18)).put(out);
+	lent_param(&mut a, data, out);
+	lent_param(&mut held.value, data, out);
+	lent_param(&mut v[1], data, out);
+	lent_nested(&mut &mut v[0], data, out);
+	a.put(out);
+	held.value.put(out);
+	v[0].put(out);
 	v[1].put(out);
+}
+
+/// [`lent_param`] of what a `&mut` to a `&mut` points at.
+fn lent_nested<T: Value>(to: &mut &mut T, data: &[u8], out: &mut Vec<u8>) {
+	lent_param(*to, data, out);
 }
 
 /// A cell of what a `&mut` whose place only the caller knows points at, written through.
