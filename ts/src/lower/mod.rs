@@ -1333,13 +1333,26 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a JS value of `ty` is a copy that no JS value can point at, such as a number
 	/// or a reference, or an object its clones may share, as an `Arc`'s and a `Waker`'s are,
 	/// pinned or boxed too, which JS erases, so a `&mut` to it is an `rt.Place`: where the
-	/// value is, read and written through `v`.
+	/// value is, read and written through `v`. A `LocalKey`'s copies share its storage too.
 	pub fn needs_place(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		if self.object_kind(ty).is_none() {
 			return true;
 		}
-		matches!(self.std_of(self.erased(ty)), Some(Std::Arc | Std::Waker))
+		matches!(
+			self.std_of(self.erased(ty)),
+			Some(Std::Arc | Std::Waker | Std::LocalKey)
+		)
+	}
+
+	/// Whether `ty`'s JS value, through the `Pin`s and `Box`es JS erases, is of an `rt` class
+	/// that keeps its state private, which `rt.ptrWrite` moves in by its `$move`.
+	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
+		use library::Std;
+		matches!(
+			self.std_of(self.erased(ty)),
+			Some(Std::PollFn | Std::LazyCell | Std::LazyLock)
+		)
 	}
 
 	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s and `Box`es.
@@ -1356,20 +1369,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// The kind of a `pointee`'s object, through the `Pin`s and `Box`es JS erases, where a
 	/// whole value of it can be written into the object in place: one only its owner
-	/// holds, unlike an `Arc`'s, which its clones share, and whose parts `Object.assign`
-	/// copies, unlike a binding's, the private fields of an `rt.PollFn`, an `rt.LazyCell`,
-	/// an `rt.LocalKey`, or a future, or a trait object's, whatever class it is.
+	/// holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose state
+	/// a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
+	/// class it is.
 	pub fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
 		use library::Std;
 		let erased = self.erased(pointee);
 		let hidden = match erased.kind() {
-			ty::Adt(adt, _) => {
-				self.bound_drops(adt.did()).is_some()
-					|| matches!(
-						Std::of(self.tcx, adt.did()),
-						Some(Std::PollFn | Std::LazyCell | Std::LazyLock | Std::LocalKey)
-					)
-			}
+			ty::Adt(adt, _) => self.bound_drops(adt.did()).is_some(),
 			ty::Dynamic(..) | ty::Closure(..) => true,
 			// A `Uint8Array`'s length never changes, as a boxed slice's may.
 			ty::Slice(elem) => matches!(elem.kind(), ty::Uint(ty::UintTy::U8)),
@@ -1379,7 +1386,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let shared = match erased.kind() {
 			ty::Adt(adt, _) => matches!(
 				Std::of(self.tcx, adt.did()),
-				Some(Std::Arc | Std::Waker | Std::Context | Std::MutexGuard | Std::Ref | Std::RefMut)
+				Some(Std::Arc | Std::Waker | Std::LocalKey | Std::Context | Std::MutexGuard | Std::Ref | Std::RefMut)
 			),
 			ty::Ref(..) | ty::Coroutine(..) => true,
 			_ => false,
@@ -1651,6 +1658,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::BorrowError => Type::Rt("BorrowError", vec![]),
 				library::Std::BorrowMutError => Type::Rt("BorrowMutError", vec![]),
 				library::Std::ParseCharError => Type::Rt("ParseCharError", vec![]),
+				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
+				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
+				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),
 				library::Std::ParseFloatError => Type::Rt("ParseFloatError", vec![]),
 				library::Std::TryFromFloatSecsError => Type::Rt("TryFromFloatSecsError", vec![]),
 				library::Std::Formatter => Type::Rt("Formatter", vec![]),

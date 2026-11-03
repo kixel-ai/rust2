@@ -18,6 +18,7 @@ pub const RUNTIME: &[(&str, &str)] = &[
 	("rt/alloc.ts", include_str!("../runtime/rt/alloc.ts")),
 	("rt/ascii.ts", include_str!("../runtime/rt/ascii.ts")),
 	("rt/bytes.ts", include_str!("../runtime/rt/bytes.ts")),
+	("rt/char.ts", include_str!("../runtime/rt/char.ts")),
 	("rt/collections.ts", include_str!("../runtime/rt/collections.ts")),
 	("rt/float.ts", include_str!("../runtime/rt/float.ts")),
 	("rt/hash.ts", include_str!("../runtime/rt/hash.ts")),

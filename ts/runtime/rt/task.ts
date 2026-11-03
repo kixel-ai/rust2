@@ -1224,6 +1224,15 @@ export class LazyCell<T> {
 		this.#f = f;
 	}
 
+	/** Moves its state into `to`, or into a new cell of its class. */
+	$move(to?: this): this {
+		const into = to ?? new (this.constructor as new (f: (() => T) | undefined) => this)(this.#f);
+		into.#f = this.#f;
+		into.#value = this.#value;
+		into.#init = this.#init;
+		return into;
+	}
+
 	/** `force` and `Deref::deref`: the value, which the function makes the first time. */
 	force(): T {
 		if (this.#init) return this.#value as T;
@@ -1409,12 +1418,20 @@ export interface Future<T> extends Disposable {
  * drops at all: a borrowed `f` does not.
  */
 export class PollFn<T> implements Future<T> {
-	readonly #f: (cx: Context) => Poll<T>;
-	readonly #drop: ((f: (cx: Context) => Poll<T>) => void) | undefined;
+	#f: (cx: Context) => Poll<T>;
+	#drop: ((f: (cx: Context) => Poll<T>) => void) | undefined;
 
 	constructor(f: (cx: Context) => Poll<T>, drop?: (f: (cx: Context) => Poll<T>) => void) {
 		this.#f = f;
 		this.#drop = drop;
+	}
+
+	/** Moves its function into `to`, or into a new future. */
+	$move(to?: this): this {
+		if (to === undefined) return new PollFn(this.#f, this.#drop) as this;
+		to.#f = this.#f;
+		to.#drop = this.#drop;
+		return to;
 	}
 
 	poll(cx: Context): Poll<T> {

@@ -11,14 +11,6 @@ pub fn replace_guard<'a>(dst: &mut std::sync::MutexGuard<'a, u8>, src: std::sync
 	*dst = src;
 }
 
-/// A boxed `PollFn` is the `rt.PollFn`, whose callback is private where a copy can't reach.
-pub fn replace_boxed_poll_fn(
-	dst: &mut std::pin::Pin<Box<std::future::PollFn<fn(&mut std::task::Context<'_>) -> std::task::Poll<u8>>>>,
-	src: std::pin::Pin<Box<std::future::PollFn<fn(&mut std::task::Context<'_>) -> std::task::Poll<u8>>>>,
-) -> std::pin::Pin<Box<std::future::PollFn<fn(&mut std::task::Context<'_>) -> std::task::Poll<u8>>>> {
-	std::mem::replace(dst, src)
-}
-
 /// A boxed byte array is a `Uint8Array`, which a replacement can't copy out as an object.
 pub fn replace_boxed_bytes(
 	dst: &mut std::pin::Pin<Box<[u8; 2]>>,

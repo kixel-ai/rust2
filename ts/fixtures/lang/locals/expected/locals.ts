@@ -8,7 +8,7 @@ import { mapOr$18ipla0 as result_mapOr$18ipla0 } from "./core/result.ts";
 import * as Noisy from "./locals.Noisy.ts";
 import type * as Polling from "./locals.Polling.ts";
 import type * as Twin from "./locals.Twin.ts";
-import { set$0st49po, get$0x8wyln, get$1ei2eoj, take$09yi5f2, replace$0kxb7te, withBorrow$1qygtee, withBorrow$1k8k9m1, withBorrow$0r4ucls, withBorrow$1t1sbub, withBorrow$15ql9sa, take$1x34chv, take$122f15k, replace$0bb3zeq, replace$1xk72wn } from "./std/thread/local.ts";
+import { set$0st49po, set$0xuu1fw, get$0x8wyln, get$1ei2eoj, get$18ignl5, take$09yi5f2, replace$0kxb7te, withBorrow$1qygtee, withBorrow$1k8k9m1, withBorrow$0r4ucls, withBorrow$1t1sbub, withBorrow$15ql9sa, take$1x34chv, take$122f15k, replace$0bb3zeq, replace$1xk72wn } from "./std/thread/local.ts";
 
 export const COUNT: rt.LocalKey<rt.Cell<rt.u32>> = /* @__PURE__ */ new rt.LocalKey(COUNT$init, false);
 
@@ -20,6 +20,12 @@ export const HELD: rt.LocalKey<rt.RefCell<Noisy.Noisy | undefined>> = /* @__PURE
 
 export function HELD$init(): rt.RefCell<Noisy.Noisy | undefined> {
 	return new rt.RefCell(undefined as Noisy.Noisy | undefined);
+}
+
+export const LEFT: rt.LocalKey<rt.Cell<rt.u8>> = /* @__PURE__ */ new rt.LocalKey(LEFT$init, false);
+
+export function LEFT$init(): rt.Cell<rt.u8> {
+	return new rt.Cell(1);
 }
 
 export const LOG: rt.LocalKey<rt.RefCell<rt.ByteVec>> = /* @__PURE__ */ new rt.LocalKey((): rt.RefCell<rt.ByteVec> => {
@@ -43,6 +49,14 @@ export const POLLING: rt.LocalKey<Polling.Polling> = /* @__PURE__ */ new rt.Loca
 
 export function POLLING$init(): Polling.Polling {
 	return { current: new rt.Cell(undefined as [rt.u64, rt.u64] | undefined), held: new rt.RefCell(new rt.ByteVec()) };
+}
+
+export const RIGHT: rt.LocalKey<rt.Cell<rt.u8>> = /* @__PURE__ */ new rt.LocalKey((): rt.Cell<rt.u8> => {
+	return RIGHT$init(undefined);
+}, true);
+
+export function RIGHT$init(_1: undefined): rt.Cell<rt.u8> {
+	return new rt.Cell(2);
 }
 
 export const TALLY: rt.LocalKey<rt.RefCell<rt.u32>> = /* @__PURE__ */ new rt.LocalKey((): rt.RefCell<rt.u32> => {
@@ -259,6 +273,44 @@ export const NEXT$serial: rt.LocalKey<rt.Cell<[rt.u8, rt.u8]>> = /* @__PURE__ */
 
 export function NEXT$init$serial(): rt.Cell<[rt.u8, rt.u8]> {
 	return new rt.Cell([0, 4] as [rt.u8, rt.u8]);
+}
+
+/** `*r = v`, through the reference. */
+export function assign$thread_LocalKey_Cell_u8(r: rt.Place<rt.LocalKey<rt.Cell<rt.u8>>>, v: rt.LocalKey<rt.Cell<rt.u8>>): void {
+	r.v = v;
+}
+
+/**
+ * Each byte a copy of `LEFT` written whole with `RIGHT` by each way std moves a value, or
+ * not at all, after which adding the byte through the copy changes only the key it names.
+ * Each puts what the replaced copy names, then what each key holds. A key is used only
+ * through a `&'static`, so each copy is leaked.
+ */
+export function keys(data: rt.ByteSlice, out: rt.ByteVec): void {
+	for (const op of rt.byteSliceView(data)) {
+		const key: rt.Place<rt.LocalKey<rt.Cell<rt.u8>>> = { v: LEFT };
+		const _12: rt.u8 = rt.u8Rem(op, 5);
+		if (_12 === 0) {
+			assign$thread_LocalKey_Cell_u8(key, RIGHT);
+		} else if (_12 === 1) {
+			const old = key.v;
+			key.v = RIGHT;
+			rt.byteVecPush(out, get$18ignl5({ v: old }.v));
+		} else if (_12 === 2) {
+			const other: rt.Place<rt.LocalKey<rt.Cell<rt.u8>>> = { v: RIGHT };
+			const swapped = key.v;
+			key.v = other.v;
+			other.v = swapped;
+			rt.byteVecPush(out, get$18ignl5(other.v));
+		} else if (_12 === 3) {
+			rt.cellSet(rt.cellOfPlace(key), RIGHT);
+		}
+		const _28: rt.u8 = rt.u8WrappingAdd(get$18ignl5(key.v), op);
+		set$0xuu1fw(key.v, _28);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(get$18ignl5(LEFT), get$18ignl5(RIGHT))), undefined, true);
+	}
+	set$0xuu1fw(LEFT, 1);
+	set$0xuu1fw(RIGHT, 2);
 }
 
 //# sourceMappingURL=locals.ts.map

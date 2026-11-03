@@ -5,12 +5,16 @@
 //! `LazyLock`, and `Once`, crossbeam-epoch's own `OnceLock` over an `UnsafeCell`, and one
 //! pointing at a static of a module that reads it back; and `const`s holding cells, each
 //! use of which is a value of its own, as lock_api's `RawMutex::INIT` is, and each lazy one
-//! printed before and after it is forced, and from within its own function. Each case leaves
+//! printed before and after it is forced, and from within its own function; and lazy cells
+//! and locks written whole through a `&mut`, forced or not, each way std moves a value.
+//! Each case leaves
 //! every static as it found it, or reads only what it holds whatever ran before, so a fresh
 //! instance and a reused one agree.
 
-use std::cell::{Cell, LazyCell, RefCell, UnsafeCell};
-use std::mem::MaybeUninit;
+use std::cell::{Cell, LazyCell, RefCell, RefMut, UnsafeCell};
+use std::fmt::Debug;
+use std::mem::{self, MaybeUninit};
+use std::ops::Deref;
 use std::ptr;
 use std::rc::Rc;
 use std::sync::atomic::Ordering::{AcqRel, Acquire, Relaxed, SeqCst};
@@ -466,4 +470,96 @@ pub fn lazies(data: &[u8], out: &mut Vec<u8>) {
 		};
 		out.extend_from_slice(text.as_bytes());
 	}
+}
+
+thread_local! {
+	/// The ids of the `Dropped`s dropped, in order.
+	static DROPS: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Logs its id when it drops.
+#[derive(Debug)]
+struct Dropped(u8);
+
+impl Drop for Dropped {
+	fn drop(&mut self) {
+		DROPS.with_borrow_mut(|drops| drops.push(self.0));
+	}
+}
+
+/// A lazy cell or lock whose function owns a `Dropped` of `id`, which drops once it has
+/// run, or with the cell if it never does, and makes one of `id + 10` and the count forced.
+macro_rules! lazy {
+	($name:ident, $ty:ident) => {
+		fn $name(id: u8) -> $ty<Dropped, impl FnOnce() -> Dropped> {
+			let held = Dropped(id);
+			$ty::new(move || Dropped(held.0 + 10 + FORCED.fetch_add(1, Relaxed)))
+		}
+	};
+}
+
+lazy!(cell, LazyCell);
+lazy!(lock, LazyLock);
+
+/// `*r = v`, through the reference.
+fn assign<T>(r: &mut T, v: T) {
+	*r = v;
+}
+
+/// Each byte a lazy cell or lock written whole through a `&mut` by each way std moves a
+/// value, after each, the one written and the one given, is forced or not; then it is
+/// printed, forced, and dropped, and each `Dropped` dropped meanwhile put in order.
+pub fn writes(data: &[u8], out: &mut Vec<u8>) {
+	for &op in data {
+		match op % 2 {
+			0 => written(op / 2, cell, out),
+			_ => written(op / 2, lock, out),
+		}
+		out.extend(DROPS.take());
+		out.push(FORCED.swap(0, Relaxed));
+	}
+}
+
+fn written<L: Deref<Target = Dropped> + Debug>(op: u8, make: fn(u8) -> L, out: &mut Vec<u8>) {
+	let mut a = make(1);
+	let mut b = make(2);
+	if op & 1 != 0 {
+		out.push(a.0);
+	}
+	if op & 2 != 0 {
+		out.push(b.0);
+	}
+	let text = |l: &L| format!("{l:?}|");
+	match (op >> 2) % 7 {
+		0 => assign(&mut a, b),
+		1 => {
+			let old = mem::replace(&mut a, b);
+			out.extend_from_slice(text(&old).as_bytes());
+		}
+		2 => {
+			mem::swap(&mut a, &mut b);
+			out.extend_from_slice(text(&b).as_bytes());
+			out.push(b.0);
+		}
+		3 => {
+			let old = Cell::from_mut(&mut a).replace(b);
+			out.extend_from_slice(text(&old).as_bytes());
+		}
+		4 => Cell::from_mut(&mut a).set(b),
+		// A box is what it holds.
+		5 => {
+			let mut boxed = Box::new(a);
+			assign(&mut boxed, Box::new(b));
+			a = *boxed;
+		}
+		// Through a guard of the part.
+		_ => {
+			let held = RefCell::new((0u8, a));
+			assign(&mut *RefMut::map(held.borrow_mut(), |p| &mut p.1), b);
+			a = held.into_inner().1;
+		}
+	}
+	out.extend_from_slice(text(&a).as_bytes());
+	out.push(a.0);
+	out.extend_from_slice(text(&a).as_bytes());
 }
