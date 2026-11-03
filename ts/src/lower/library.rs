@@ -1705,7 +1705,9 @@ fn mapping<'tcx>(
 				}
 				_ if let Some(elem) = cow_slice(tcx, ty) => cow_cloned(b, "Clone", value, elem, span),
 				// Each element cloned in order, as `[T; N]`'s `Clone` does.
-				ty::Array(elem, _) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => slice_clone(b, value, *elem, span),
+				ty::Array(elem, _) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => {
+					slice_clone(b, value, *elem, span)
+				}
 				ty::Tuple(tys) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => {
 					let clones = tys.iter().map(|t| super::collections::clone_fn(b, t, span)).collect();
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
