@@ -944,6 +944,195 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	put(out, &format!("{it:?}"));
 }
 
+/// std's iterator adaptors' `Debug`, each its fields in std's order through what it wraps,
+/// with no closure: consumed from either end, so each writes the state it keeps, as a
+/// `Peekable` its peeked item and a `Skip` what it has left to skip, plain and pretty.
+pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let (front, back) = (usize::from(at(0) % 4), usize::from(at(1) % 3));
+	fn ends<I: DoubleEndedIterator>(mut it: I, front: usize, back: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		for _ in 0..back {
+			it.next_back();
+		}
+		it
+	}
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let bytes = &data[..data.len().min(6)];
+
+	// Those that write only what they wrap.
+	let it = ends(bytes.iter().map(|b| b + 1), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = ends(bytes.iter().filter(|&&b| b % 2 == 0), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(bytes.iter().filter_map(|&b| b.checked_sub(9)), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends(bytes.iter().inspect(|_| {}), front, back);
+	put(out, &format!("{it:?}"));
+	let it = fronts(bytes.iter().map_while(|&b| b.checked_sub(3)), front);
+	put(out, &format!("{it:?}"));
+	let it = ends(bytes.iter().rev(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(bytes.iter().copied(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:02x?}"));
+	let it = ends(bytes.iter().cloned(), front, back);
+	put(out, &format!("{it:?}"));
+	let words: Vec<String> = bytes.iter().map(|b| b.to_string()).collect();
+	let it = ends(words.iter().cloned(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let pairs: Vec<[u8; 2]> = data.chunks_exact(2).take(3).map(|c| [c[0], c[1]]).collect();
+	let it = ends(pairs.iter().copied(), front, back);
+	put(out, &format!("{it:?}"));
+
+	// Those that write a count, a flag, or a state beside it.
+	let it = ends(bytes.iter().enumerate(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let mut it = bytes.iter().skip(at(2).into());
+	put(out, &format!("{it:?}|{it:#?}"));
+	it.next_back();
+	put(out, &format!("{it:?}"));
+	it.next();
+	put(out, &format!("{it:?}"));
+	let it = ends(bytes.iter().take(usize::from(at(2) % 8)), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut it = bytes.iter().skip_while(|&&b| b % 3 != 0);
+	put(out, &format!("{it:?}"));
+	it.next();
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut it = bytes.iter().take_while(|&&b| b % 5 != 0);
+	put(out, &format!("{it:?}"));
+	for _ in 0..front {
+		it.next();
+	}
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(
+		bytes.iter().scan(0u32, |sum, &b| {
+			*sum += u32::from(b);
+			Some(*sum)
+		}),
+		front,
+	);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = fronts(
+		bytes.iter().scan(String::new(), |s, &b| {
+			s.push(char::from(b'a' + b % 26));
+			(b % 7 != 0).then(|| s.len())
+		}),
+		front,
+	);
+	put(out, &format!("{it:?}"));
+
+	// A peeked item, `None` peeked, and none peeked.
+	let mut it = ends(bytes.iter().peekable(), front, back);
+	put(out, &format!("{it:?}"));
+	it.peek();
+	put(out, &format!("{it:?}|{it:#?}"));
+	it.next();
+	put(out, &format!("{it:?}"));
+	let mut it = bytes[..bytes.len().min(1)].iter().peekable();
+	it.next();
+	it.peek();
+	put(out, &format!("{it:?}|{it:#?}"));
+
+	// Both halves, until each runs out from its end.
+	let it = ends(
+		bytes[..2.min(bytes.len())].iter().chain(&bytes[2.min(bytes.len())..]),
+		front,
+		back,
+	);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut it = bytes[..1.min(bytes.len())].iter().chain([7u8, 8].iter());
+	it.next_back();
+	it.next_back();
+	it.next_back();
+	put(out, &format!("{it:?}"));
+	// A zip of two that read by index writes no field; another writes both.
+	let it = ends(bytes.iter().zip(data.iter().map(|b| b ^ 1)), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(bytes.iter().zip(bytes.iter().rev()), front, back);
+	put(out, &format!("{it:?}"));
+	let text: String = bytes
+		.iter()
+		.map(|&b| ['a', 'é', '中', '🦀'][usize::from(b % 4)])
+		.collect();
+	let it = fronts(text.chars().zip(bytes.iter()), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(bytes.iter().cycle(), front + usize::from(at(2) % 8));
+	put(out, &format!("{it:?}|{it:#?}"));
+
+	// What a `fuse` keeps of a `FusedIterator` past its end, and drops of another.
+	let it = fronts(bytes.iter().fuse(), front + 6);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(bytes.iter().step_by(2).fuse(), front + 2);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(bytes.iter().map_while(|&b| (b % 4 != 0).then_some(b)).fuse(), front * 2);
+	put(out, &format!("{it:?}"));
+
+	// A step through a slice, and through ranges, std counting down the end of an unsigned
+	// one no wider than a `usize`.
+	let step = usize::from(at(3) % 4) + 1;
+	let it = ends(bytes.iter().step_by(step), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let (lo, hi) = (at(4) % 16, at(5));
+	let it = ends((lo..hi).step_by(step), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts((u32::from(lo)..u32::from(hi)).step_by(step), front);
+	put(out, &format!("{it:?}"));
+	let it = ends((usize::from(lo)..usize::from(hi)).step_by(step), front, back);
+	put(out, &format!("{it:?}|{it:x?}"));
+	let it = ends((u16::from(lo)..u16::from(hi)).step_by(step), front, back);
+	put(out, &format!("{it:?}"));
+	let it = ends((i32::from(lo)..i32::from(hi)).step_by(step), front, back);
+	put(out, &format!("{it:?}"));
+	let it = fronts((u64::from(lo)..u64::from(hi)).step_by(step), front);
+	put(out, &format!("{it:?}"));
+	// A step past the type's greatest, and a start that wraps past it.
+	let it = fronts((250u8..255).step_by(300), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts((250u8..255).step_by(usize::from(at(3)) + 1), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts((hi..255).step_by(step + 200), front);
+	put(out, &format!("{it:?}"));
+
+	// Each source item's iterator, from the front and the back.
+	let lists: Vec<Vec<u8>> = bytes.chunks(2).map(<[u8]>::to_vec).collect();
+	let it = ends(lists.iter().flatten(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(lists.iter().flat_map(|v| v.iter()), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(lists.iter().flatten().fuse(), front + 6);
+	put(out, &format!("{it:?}"));
+
+	// What a unit after a leading surrogate leaves buffered.
+	let units: Vec<u16> = bytes
+		.iter()
+		.map(|&b| [0x61, 0xd800, 0xdc00, 0xe9, 0xdbff][usize::from(b % 5)])
+		.collect();
+	let it = fronts(char::decode_utf16(units.iter().copied()), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	let it = fronts(char::decode_utf16(vec![0xd800, 0x61, 0x62]), usize::from(at(2) % 3));
+	put(out, &format!("{it:?}"));
+
+	// Adaptors of adaptors, with every option passed down.
+	let it = ends(
+		bytes.iter().map(|&b| Pair(b, -1)).enumerate().skip(1).rev().take(3),
+		front,
+		back,
+	);
+	put(out, &format!("{it:?}|{it:#?}|{it:>4?}"));
+	let mut it = bytes.iter().copied().peekable();
+	it.peek();
+	let it = it.zip(1u8..).filter(|p| p.0 != 0).chain(vec![(9, 9)]);
+	put(out, &format!("{it:?}|{it:#?}"));
+}
+
 /// An error only a TypeScript caller prints, as moq's callers print its errors: nothing
 /// translated formats it, so its `Display` and `Debug` come along as `printable`.
 #[derive(Debug)]

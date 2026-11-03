@@ -742,7 +742,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	for (const _168 of pairs) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(_168[0], option_unwrapOr$0r2bmpr(_168[1], 238))));
 	}
-	const iter10: rt.Iter<rt.u32> = rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), false, 2);
+	const iter10: rt.Iter<rt.u32> = rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 2);
 	while (true) {
 		const _186: rt.u32 | rt.Done = iter10.next();
 		if (_186 === rt.DONE) {

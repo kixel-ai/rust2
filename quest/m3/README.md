@@ -25,9 +25,9 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
 - [str's case maps and Unicode escapes](/quest/m3/ts-str-unicode.md) - `str::to_lowercase`, `to_uppercase`, the escapes, and `encode_utf16` translate by std's Unicode tables, final sigma included
-- [Debug of std's iterator adaptors](/quest/m3/ts-iter-adaptor-debug.md) - `Debug` of `Map`, `Zip`, `Peekable`, `DecodeUtf16`, and the other adaptors writes what std's does
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
+- [Debug of std's other iterators](/quest/m3/ts-iter-source-debug.md) - `Debug` of `Once`, `Repeat`, `FromFn`, an array's `IntoIter`, and std's other iterators writes what std's does
 - [A crate's own collect, eq, partial_cmp, and by_ref](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `collect`, `eq`, `partial_cmp`, or `by_ref` translates, each called where std calls it
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number

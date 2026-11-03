@@ -83,7 +83,7 @@ export function arrays(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, unit === unit ? 1 : 0);
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(a), (x: rt.u16): Uint8Array => {
 			return rt.u16ToBeBytes(x).reverse();
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 }
 
@@ -174,7 +174,7 @@ export function inline(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_mapOr$1nlkf9b(p, Uint8Array.of(0, 0), (_2: [rt.u8, rt.u8]): Uint8Array => {
 				return Uint8Array.of(_2[0], _2[1]);
 			});
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	}
 	drop$elements_Inline_sync_Arc_u8(held);
 	rt.byteVecPush(out, shared.strong & 0xff);
@@ -195,7 +195,7 @@ export function inline(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return option_mapOr$1nlkf9b(p2, Uint8Array.of(0, 0), (_25: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(_25[0], _25[1]);
 		});
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	drop$elements_Inline_Option_tuple2_u8_u8(pairs);
 	shared[Symbol.dispose]();
 }
@@ -515,7 +515,7 @@ export function emptyParts(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function emit(values: rt.u32[], out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(values), (x: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 }
 
 //# sourceMappingURL=elements.ts.map

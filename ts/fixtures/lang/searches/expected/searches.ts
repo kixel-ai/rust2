@@ -38,7 +38,7 @@ export function front$ref_str_str_Matches_array2_char(it: rt.Iter<string>, out: 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -68,7 +68,7 @@ export function front$ref_str_str_Matches_char(it: rt.Iter<string>, out: rt.Byte
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -98,7 +98,7 @@ export function front$ref_str_str_Matches_ref_slice_char(it: rt.Iter<string>, ou
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -128,7 +128,7 @@ export function front$ref_str_str_Matches_ref_str(it: rt.Iter<string>, out: rt.B
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -158,7 +158,7 @@ export function front$ref_str_str_Matches_searches_searches_closure1(it: rt.Iter
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -188,7 +188,7 @@ export function front$ref_str_str_RMatches_array2_char(it: rt.Iter<string>, out:
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -218,7 +218,7 @@ export function front$ref_str_str_RMatches_char(it: rt.Iter<string>, out: rt.Byt
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -248,7 +248,7 @@ export function front$ref_str_str_RMatches_ref_slice_char(it: rt.Iter<string>, o
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -278,7 +278,7 @@ export function front$ref_str_str_RMatches_ref_str(it: rt.Iter<string>, out: rt.
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -308,7 +308,7 @@ export function front$ref_str_str_RMatches_searches_searches_closure1(it: rt.Ite
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -338,7 +338,7 @@ export function front$ref_str_str_RSplitN_array2_char(it: rt.Iter<string>, out: 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -368,7 +368,7 @@ export function front$ref_str_str_RSplitN_char(it: rt.Iter<string>, out: rt.Byte
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -398,7 +398,7 @@ export function front$ref_str_str_RSplitN_ref_slice_char(it: rt.Iter<string>, ou
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -428,7 +428,7 @@ export function front$ref_str_str_RSplitN_ref_str(it: rt.Iter<string>, out: rt.B
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -458,7 +458,7 @@ export function front$ref_str_str_RSplitN_searches_searches_closure1(it: rt.Iter
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -488,7 +488,7 @@ export function front$ref_str_str_RSplitTerminator_array2_char(it: rt.Iter<strin
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -518,7 +518,7 @@ export function front$ref_str_str_RSplitTerminator_char(it: rt.Iter<string>, out
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -548,7 +548,7 @@ export function front$ref_str_str_RSplitTerminator_ref_slice_char(it: rt.Iter<st
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -578,7 +578,7 @@ export function front$ref_str_str_RSplitTerminator_ref_str(it: rt.Iter<string>, 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -608,7 +608,7 @@ export function front$ref_str_str_RSplitTerminator_searches_searches_closure1(it
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -638,7 +638,7 @@ export function front$ref_str_str_RSplit_array2_char(it: rt.Iter<string>, out: r
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -668,7 +668,7 @@ export function front$ref_str_str_RSplit_char(it: rt.Iter<string>, out: rt.ByteV
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -698,7 +698,7 @@ export function front$ref_str_str_RSplit_ref_slice_char(it: rt.Iter<string>, out
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -728,7 +728,7 @@ export function front$ref_str_str_RSplit_ref_str(it: rt.Iter<string>, out: rt.By
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -758,7 +758,7 @@ export function front$ref_str_str_RSplit_searches_searches_closure1(it: rt.Iter<
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -788,7 +788,7 @@ export function front$ref_str_str_SplitInclusive_array2_char(it: rt.Iter<string>
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -818,7 +818,7 @@ export function front$ref_str_str_SplitInclusive_char(it: rt.Iter<string>, out: 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -848,7 +848,7 @@ export function front$ref_str_str_SplitInclusive_ref_slice_char(it: rt.Iter<stri
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -878,7 +878,7 @@ export function front$ref_str_str_SplitInclusive_ref_str(it: rt.Iter<string>, ou
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -908,7 +908,7 @@ export function front$ref_str_str_SplitInclusive_searches_searches_closure1(it: 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -938,7 +938,7 @@ export function front$ref_str_str_SplitN_array2_char(it: rt.Iter<string>, out: r
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -968,7 +968,7 @@ export function front$ref_str_str_SplitN_char(it: rt.Iter<string>, out: rt.ByteV
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -998,7 +998,7 @@ export function front$ref_str_str_SplitN_ref_slice_char(it: rt.Iter<string>, out
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1028,7 +1028,7 @@ export function front$ref_str_str_SplitN_ref_str(it: rt.Iter<string>, out: rt.By
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1058,7 +1058,7 @@ export function front$ref_str_str_SplitN_searches_searches_closure1(it: rt.Iter<
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1088,7 +1088,7 @@ export function front$ref_str_str_SplitTerminator_array2_char(it: rt.Iter<string
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1118,7 +1118,7 @@ export function front$ref_str_str_SplitTerminator_char(it: rt.Iter<string>, out:
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1148,7 +1148,7 @@ export function front$ref_str_str_SplitTerminator_ref_slice_char(it: rt.Iter<str
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1178,7 +1178,7 @@ export function front$ref_str_str_SplitTerminator_ref_str(it: rt.Iter<string>, o
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1208,7 +1208,7 @@ export function front$ref_str_str_SplitTerminator_searches_searches_closure1(it:
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1238,7 +1238,7 @@ export function front$ref_str_str_Split_array2_char(it: rt.Iter<string>, out: rt
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1268,7 +1268,7 @@ export function front$ref_str_str_Split_char(it: rt.Iter<string>, out: rt.ByteVe
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1298,7 +1298,7 @@ export function front$ref_str_str_Split_ref_slice_char(it: rt.Iter<string>, out:
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1328,7 +1328,7 @@ export function front$ref_str_str_Split_ref_str(it: rt.Iter<string>, out: rt.Byt
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1358,7 +1358,7 @@ export function front$ref_str_str_Split_searches_searches_closure1(it: rt.Iter<s
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<string> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: string | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1388,7 +1388,7 @@ export function front$tuple2_usize_ref_str_str_MatchIndices_array2_char(it: rt.I
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1418,7 +1418,7 @@ export function front$tuple2_usize_ref_str_str_MatchIndices_char(it: rt.Iter<[rt
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1448,7 +1448,7 @@ export function front$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(it: r
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1478,7 +1478,7 @@ export function front$tuple2_usize_ref_str_str_MatchIndices_ref_str(it: rt.Iter<
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1508,7 +1508,7 @@ export function front$tuple2_usize_ref_str_str_MatchIndices_searches_searches_cl
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1538,7 +1538,7 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_array2_char(it: rt.
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1568,7 +1568,7 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_char(it: rt.Iter<[r
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1598,7 +1598,7 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(it: 
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1628,7 +1628,7 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_ref_str(it: rt.Iter
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
@@ -1658,7 +1658,7 @@ export function front$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_c
 		}
 	}
 	rt.byteVecPush(out, n & 0xff);
-	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy));
+	const iter: rt.Iter<[rt.usize, string]> = rt.iterFlatten(rt.iterOption(copy), undefined, true);
 	while (true) {
 		const _24: [rt.usize, string] | rt.Done = iter.next();
 		if (_24 === rt.DONE) {

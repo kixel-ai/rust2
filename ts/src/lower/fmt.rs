@@ -339,6 +339,12 @@ pub fn std_impl<'tcx>(
 		{
 			e
 		}
+		ty::Adt(adt, args)
+			if tr == Trait::Debug
+				&& let Some(e) = adaptor_debug(b, adt.did(), args, &value, &f, span, out) =>
+		{
+			e
+		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
 			(Std::String | Std::Cow, Trait::Display) if library::string(tcx, ty) => Expr::rt("fmtPad", vec![f, value]),
 			(Std::String | Std::Cow, Trait::Debug) if library::string(tcx, ty) => rt("str", vec![value, f]),
@@ -624,6 +630,104 @@ fn iter_debug<'tcx>(
 		call.push(Expr::Array(wraps));
 	}
 	Some(Expr::rt("fmtIter", call))
+}
+
+/// `Debug` of one of std's iterator adaptors, as std's derived or written impl writes it:
+/// its fields in order, each iterator it wraps by that iterator's own `Debug`, and none of
+/// its closures; or `None` for another type.
+fn adaptor_debug<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	did: DefId,
+	args: ty::GenericArgsRef<'tcx>,
+	value: &Expr,
+	f: &Expr,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Option<Expr> {
+	let tcx = b.t.tcx;
+	let path = library::std_path(tcx, did);
+	let path: Vec<&str> = path.iter().map(String::as_str).collect();
+	let arg = |n: usize| args.types().nth(n);
+	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let name = |name: &str| Expr::Str(name.into());
+	Some(match path.as_slice() {
+		[
+			"iter",
+			"adapters",
+			_,
+			adaptor @ ("Map" | "Filter" | "FilterMap" | "Inspect" | "MapWhile" | "Rev"),
+		] => call("fmtAdaptor", vec![name(adaptor), b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		// A `copied` that JS reads its items as is is its iterator itself.
+		["iter", "adapters", "copied", "Copied"]
+			if let ty::Ref(_, item, _) = b.t.iter_item(arg(0)?)?.kind()
+				&& super::iter::copies_itself(b.t, *item) =>
+		{
+			let it = b.fmt_value(Trait::Debug, arg(0)?, value.clone(), span, out);
+			let call = vec![
+				f.clone(),
+				name("Copied"),
+				Expr::Array(vec![name("it")]),
+				Expr::Array(vec![it]),
+			];
+			Expr::rt_of("fmt", "debugStructFields").call(call)
+		}
+		["iter", "adapters", _, adaptor @ ("Copied" | "Cloned")] => {
+			let inner = b.fmt_fn(Trait::Debug, arg(0)?, span);
+			call("fmtAdaptor", vec![name(adaptor), inner, name("it")])
+		}
+		["iter", "adapters", "enumerate", "Enumerate"] => {
+			call("fmtEnumerate", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)])
+		}
+		["iter", "adapters", _, adaptor @ ("Skip" | "Take")] => {
+			call("fmtCounted", vec![name(adaptor), b.fmt_fn(Trait::Debug, arg(0)?, span)])
+		}
+		["iter", "adapters", _, adaptor @ ("SkipWhile" | "TakeWhile")] => {
+			call("fmtFlagged", vec![name(adaptor), b.fmt_fn(Trait::Debug, arg(0)?, span)])
+		}
+		["iter", "adapters", "scan", "Scan"] => {
+			let inner = b.fmt_fn(Trait::Debug, arg(0)?, span);
+			call("fmtScan", vec![inner, b.fmt_fn(Trait::Debug, arg(1)?, span)])
+		}
+		["iter", "adapters", "peekable", "Peekable"] => {
+			let inner = b.fmt_fn(Trait::Debug, arg(0)?, span);
+			let item = b.t.iter_item(arg(0)?)?;
+			call("fmtPeekable", vec![inner, b.fmt_fn(Trait::Debug, item, span)])
+		}
+		["iter", "adapters", "step_by", "StepBy"] => call("fmtStepBy", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		["iter", "adapters", "chain", "Chain"] => {
+			let a = b.fmt_fn(Trait::Debug, arg(0)?, span);
+			call("fmtChain", vec![a, b.fmt_fn(Trait::Debug, arg(1)?, span)])
+		}
+		// std's specializes it to write neither of two it reads by index.
+		["iter", "adapters", "zip", "Zip"] => {
+			let (a, other) = (arg(0)?, arg(1)?);
+			match [a, other]
+				.iter()
+				.all(|&ty| super::iter::implements(b.t, ty, "TrustedRandomAccessNoCoerce"))
+			{
+				true => call("fmtZip", Vec::new()),
+				false => {
+					let a = b.fmt_fn(Trait::Debug, a, span);
+					call("fmtZip", vec![a, b.fmt_fn(Trait::Debug, other, span)])
+				}
+			}
+		}
+		["iter", "adapters", "cycle", "Cycle"] => call("fmtCycle", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		["iter", "adapters", "fuse", "Fuse"] => call("fmtFuse", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		// Its `FlattenCompat`'s source and the iterator of each item, as its field's type
+		// names them.
+		["iter", "adapters", "flatten", adaptor @ ("Flatten" | "FlatMap")] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let ty::Adt(_, compat) = b.t.field_ty(field.did, args).kind() else {
+				return None;
+			};
+			let source = b.fmt_fn(Trait::Debug, compat.type_at(0), span);
+			let inner = b.fmt_fn(Trait::Debug, compat.type_at(1), span);
+			call("fmtFlatten", vec![name(adaptor), source, inner])
+		}
+		["char", "decode", "DecodeUtf16"] => call("fmtDecodeUtf16", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		_ => return None,
+	})
 }
 
 /// One part of a `format_args!` template.

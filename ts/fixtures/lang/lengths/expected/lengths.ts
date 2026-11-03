@@ -161,22 +161,22 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 0)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 1)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 17)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 3)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), undefined, true);
 }
 
 /**
@@ -1406,7 +1406,7 @@ export function swapped$u32_0(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), false, 0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 0)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1457,7 +1457,7 @@ export function swapped$u32_1(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), false, 1)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 1)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1508,7 +1508,7 @@ export function swapped$u32_17(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byt
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), false, 17)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 17)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1559,7 +1559,7 @@ export function swapped$u32_3(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), false, 3)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 3)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1612,7 +1612,7 @@ export function swapped$u8_0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 0)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), (_2: rt.u8): rt.u8 => {
 					return ((_2 as rt.u32)) & 0xff;
 				}), undefined, true);
 			}
@@ -1665,7 +1665,7 @@ export function swapped$u8_1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 1)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), (_2: rt.u8): rt.u8 => {
 					return ((_2 as rt.u32)) & 0xff;
 				}), undefined, true);
 			}
@@ -1718,7 +1718,7 @@ export function swapped$u8_17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.By
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 17)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), (_2: rt.u8): rt.u8 => {
 					return ((_2 as rt.u32)) & 0xff;
 				}), undefined, true);
 			}
@@ -1771,7 +1771,7 @@ export function swapped$u8_3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 3)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), (_2: rt.u8): rt.u8 => {
 					return ((_2 as rt.u32)) & 0xff;
 				}), undefined, true);
 			}

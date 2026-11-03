@@ -38,4 +38,11 @@ export function then$1btzga3(self: boolean, f: () => rt.u8): rt.u8 | undefined {
 	return f();
 }
 
+export function then$0uwf92a(self: boolean, f: () => rt.usize): rt.usize | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
 //# sourceMappingURL=bool.ts.map

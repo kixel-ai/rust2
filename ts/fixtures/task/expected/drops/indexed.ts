@@ -178,7 +178,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			_240[0][1][1][Symbol.dispose]();
 			return _028;
 		});
-		f = rt.ownedCount(rt.iterZip(rt.iterFuse(rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard)), new rt.Range(0, 1), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
+		f = rt.ownedCount(rt.iterZip(rt.iterFuse(rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), true), new rt.Range(0, 1), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
 		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n6, f), (f: rt.Formatter) => rt.fmtOption(e, f, (value: [rt.usize, rt.u32, rt.i32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f), (f: rt.Formatter) => rt.i32Debug(value[2], f)], f)), (f2: rt.Formatter) => rt.usizeDisplay(f, f2)];
 		Log.note(log, rt.fmtFormat(["adapted ", args32[0], " ", args32[1], " ", args32[2]]));
 	} else if (_16 === 5) {

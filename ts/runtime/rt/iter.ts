@@ -22,10 +22,10 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capOf, capReserve, capSet, Err, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capOf, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
-import { charStep, intToBig, type Limbs, lt as wideLt, type Step } from "./int.ts";
+import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
 import { closure, drop as dispose, dropRange } from "./task.ts";
 
 /** What `next` returns once an iterator is exhausted, which no item is. */
@@ -871,9 +871,17 @@ export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item:
 	return new ScanIter(it, state, f, copied, drop, none);
 }
 
-/** `Iterator::step_by`, panicking on a step of 0, and dropping what it steps over by `drop`. */
-export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>): Iter<T> {
-	return new StepByIter(it, step, drop);
+/**
+ * `Iterator::step_by`, panicking on a step of 0, and dropping what it steps over by `drop`.
+ * Of a `Range` of an unsigned integer no wider than a `usize`, whose greatest is `max`, it
+ * counts down the range's end, as std's specializes it to.
+ */
+export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>, max?: number): Iter<T> {
+	if (max === undefined) return new StepByIter(it, step, drop);
+	if (step === 0) panic("assertion failed: step != 0");
+	const range = it as never as Range<number>;
+	range.end = Math.ceil(range.sizeHint()[0] / step);
+	return new RangeStepBy(range, step - 1, max) as never as Iter<T>;
 }
 
 /**
@@ -920,7 +928,7 @@ export function iterPeekable<T>(it: Iter<T>, drop?: Drop<T>): Peekable<T> {
  * source drops once it ends unless it is `fused`, as `fuse` does. `size` and `oneShot`
  * are as `flatten`'s.
  */
-export function iterFlatMap<T, V>(it: Iter<T>, f: (item: T) => Iter<V>): Iter<V>;
+export function iterFlatMap<T, V>(it: Iter<T>, f: (item: T) => Iter<V>, into?: undefined, fused?: boolean, size?: number, oneShot?: boolean): Iter<V>;
 export function iterFlatMap<T, U, V>(it: Iter<T>, f: (item: T) => U, into?: (value: U) => Iter<V>, fused?: boolean, size?: number, oneShot?: boolean): Iter<V>;
 export function iterFlatMap<T, U, V>(it: Iter<T>, f: (item: T) => U, into?: (value: U) => Iter<V>, fused = false, size?: number, oneShot = false): Iter<V> {
 	return new FlattenIter(new MapIter(it, f), into ?? (itself as (value: U) => Iter<V>), fused, size, oneShot);
@@ -931,10 +939,98 @@ export function iterFlatMap<T, U, V>(it: Iter<T>, f: (item: T) => U, into?: (val
  * `flat_map`'s, `size` is each item's length if it is an array, and `oneShot` says each
  * item's iterator has at most one item, as std's size hint specializes on.
  */
-export function iterFlatten<V>(it: Iter<Iter<V>>): Iter<V>;
+export function iterFlatten<V>(it: Iter<Iter<V>>, into?: undefined, fused?: boolean, size?: number, oneShot?: boolean): Iter<V>;
 export function iterFlatten<T, V>(it: Iter<T>, into?: (value: T) => Iter<V>, fused?: boolean, size?: number, oneShot?: boolean): Iter<V>;
 export function iterFlatten<T, V>(it: Iter<T>, into?: (value: T) => Iter<V>, fused = false, size?: number, oneShot = false): Iter<V> {
 	return new FlattenIter(it, into ?? (itself as (value: T) => Iter<V>), fused, size, oneShot);
+}
+
+// Debug. Each writes what std's `Debug` of an adaptor writes: its fields in std's order,
+// each iterator it wraps, an `I`, by the function given for its type, and no closure.
+
+/** `Debug` of an adaptor std writes as the iterator it wraps alone, under `field`. */
+export function fmtAdaptor<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>, field = "iter"): FmtResult {
+	return fmtDebugStructFields(f, name, [field], [(f) => inner((it as Adaptor<unknown, unknown>).inner as I, f)]);
+}
+
+/** `Debug` of an `Enumerate`: its iterator and the index it yields next. */
+export function fmtEnumerate<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	const e = it as EnumerateIter<unknown>;
+	return fmtDebugStructFields(f, "Enumerate", ["iter", "count"], [(f) => inner(e.inner as I, f), (f) => usizeDebug(e.index, f)]);
+}
+
+/** `Debug` of a `Skip` or a `Take`, `name`: its iterator and how many it has left to skip or take. */
+export function fmtCounted<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>): FmtResult {
+	const c = it as SkipIter<unknown> | TakeIter<unknown>;
+	return fmtDebugStructFields(f, name, ["iter", "n"], [(f) => inner(c.inner as I, f), (f) => usizeDebug(c.n, f)]);
+}
+
+/** `Debug` of a `SkipWhile` or a `TakeWhile`, `name`: its iterator and whether its closure has failed. */
+export function fmtFlagged<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>): FmtResult {
+	const w = it as SkipWhileIter<unknown> | TakeWhileIter<unknown>;
+	return fmtDebugStructFields(f, name, ["iter", "flag"], [(f) => inner(w.inner as I, f), (f) => fmtBool(w.flag, f)]);
+}
+
+/** `Debug` of a `Scan`: its iterator and its state, by `state`. */
+export function fmtScan<I, S>(it: Iter<unknown>, f: Formatter, inner: Debug<I>, state: Debug<S>): FmtResult {
+	const s = it as ScanIter<unknown, S, unknown>;
+	return fmtDebugStructFields(f, "Scan", ["iter", "state"], [(f) => inner(s.inner as I, f), (f) => state(s.state, f)]);
+}
+
+/** `Debug` of a `Peekable`: its iterator and what it peeked, `Some` of the item by `item` or of `None`. */
+export function fmtPeekable<I, T>(it: Peekable<T>, f: Formatter, inner: Debug<I>, item: Debug<T>): FmtResult {
+	const some = (f: Formatter, value: Fmt): FmtResult => fmtDebugTupleFields(f, "Some", [value]);
+	const peeked = (f: Formatter): FmtResult => {
+		if (!it.peeked) return f.out.writeStr("None");
+		const held = it.item;
+		return some(f, (f) => (held === DONE ? f.out.writeStr("None") : some(f, (f) => item(held, f))));
+	};
+	return fmtDebugStructFields(f, "Peekable", ["iter", "peeked"], [(f) => inner(it.inner as I, f), peeked]);
+}
+
+/** `Debug` of a `StepBy`: its iterator, its step less one, and whether it has yet to take its first item. */
+export function fmtStepBy<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	const s = it as StepByIter<unknown> | RangeStepBy;
+	const fields = [(f: Formatter) => inner(s.inner as I, f), (f: Formatter) => usizeDebug(s.step, f), (f: Formatter) => fmtBool(s.firstTake, f)];
+	return fmtDebugStructFields(f, "StepBy", ["iter", "step_minus_one", "first_take"], fields);
+}
+
+/** `Debug` of a `Chain`: each of its iterators, by `a` and `b`, until it has dropped it. */
+export function fmtChain<A, B>(it: Iter<unknown>, f: Formatter, a: Debug<A>, b: Debug<B>): FmtResult {
+	const c = it as ChainIter<unknown>;
+	return fmtDebugStructFields(f, "Chain", ["a", "b"], [(f) => fmtOption(c.a as A | undefined, f, a), (f) => fmtOption(c.b as B | undefined, f, b)]);
+}
+
+/**
+ * `Debug` of a `Zip`: each of its iterators, by `a` and `b`, or neither, as std's writes a
+ * zip of two `TrustedRandomAccessNoCoerce` ones, without them.
+ */
+export function fmtZip<A, B>(it: Iter<unknown>, f: Formatter, a?: Debug<A>, b?: Debug<B>): FmtResult {
+	const z = it as ZipIter<unknown, unknown>;
+	if (a === undefined || b === undefined) return fmtDebugStructFields(f, "Zip", [], []);
+	return fmtDebugStructFields(f, "Zip", ["a", "b"], [(f) => a(z.a as A, f), (f) => b(z.b as B, f)]);
+}
+
+/** `Debug` of a `Cycle`: the iterator as it was, and the one it reads. */
+export function fmtCycle<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	const c = it as CycleIter<unknown>;
+	return fmtDebugStructFields(f, "Cycle", ["orig", "iter"], [(f) => inner(c.orig as I, f), (f) => inner(c.iter as I, f)]);
+}
+
+/** `Debug` of a `Fuse`: its iterator, until it has dropped it. */
+export function fmtFuse<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	return fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption((it as FuseIter<unknown>).inner as I | undefined, f, inner)]);
+}
+
+/**
+ * `Debug` of a `Flatten` or a `FlatMap`, `name`: its `FlattenCompat`, of its source fused,
+ * by `source`, and the iterators it reads from the front and the back, by `inner`.
+ */
+export function fmtFlatten<S, I>(it: Iter<unknown>, f: Formatter, name: string, source: Debug<S>, inner: Debug<I>): FmtResult {
+	const flat = it as FlattenIter<unknown, unknown>;
+	const fused = (f: Formatter): FmtResult => fmtDebugStructFields(f, "Fuse", ["iter"], [(f) => fmtOption(flat.outer as S | undefined, f, source)]);
+	const fields = [fused, (f: Formatter) => fmtOption(flat.front as I | undefined, f, inner), (f: Formatter) => fmtOption(flat.back as I | undefined, f, inner)];
+	return fmtDebugStructFields(f, name, ["inner"], [(f) => fmtDebugStructFields(f, "FlattenCompat", ["iter", "frontiter", "backiter"], fields)]);
 }
 
 // Consumers. Each that takes an iterator by value that `drops` takes it as std's does: by
@@ -3494,7 +3590,7 @@ class TakeIter<T> extends Adaptor<T, T> {
 
 class SkipWhileIter<T> extends Calling<T, T, (item: T) => boolean> {
 	private readonly drop: Drop<T> | undefined;
-	private flag = false;
+	flag = false;
 
 	constructor(inner: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>) {
 		super(inner, f);
@@ -3551,7 +3647,7 @@ class SkipWhileIter<T> extends Calling<T, T, (item: T) => boolean> {
 
 class TakeWhileIter<T> extends Calling<T, T, (item: T) => boolean> {
 	private readonly drop: Drop<T> | undefined;
-	private flag = false;
+	flag = false;
 
 	constructor(inner: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>) {
 		super(inner, f);
@@ -3625,7 +3721,7 @@ class MapWhileIter<T, U> extends Calling<T, U, (item: T) => U | undefined | None
  * returns `None`: its `next` reads on after, but a fold, by `try_fold`, stops there.
  */
 class ScanIter<T, S, U> extends Calling<T, U, (state: never, item: T) => U | undefined | None> {
-	private state: S;
+	state: S;
 	private readonly at: S | Place<S>;
 	private readonly drop: Drop<S> | undefined;
 	/** The `Option`'s `None` that `f` returns. */
@@ -3798,6 +3894,53 @@ class StepByIter<T> extends Adaptor<T, T> {
 		acc = foldBy(steps, false, acc, f, release);
 		dispose(this.inner);
 		return acc;
+	}
+}
+
+/**
+ * std's `StepBy` of a `Range` of an unsigned integer no wider than a `usize`, whose
+ * greatest is `max`: its range's end counts the items it has left, and its start is the
+ * next from the front, which steps past `max` back to 0 only once it has none left.
+ */
+class RangeStepBy extends Adaptor<number, number> {
+	declare readonly inner: Range<number>;
+	readonly step: number;
+	readonly firstTake = true;
+	private readonly max: number;
+
+	/** Of `inner`, whose end already counts its items, by a step of `step` and one. */
+	constructor(inner: Range<number>, step: number, max: number) {
+		super(inner);
+		this.step = step;
+		this.max = max;
+	}
+
+	override clone(): Iter<number> {
+		return new RangeStepBy(this.inner.clone(), this.step, this.max);
+	}
+
+	next(): number | Done {
+		const r = this.inner;
+		if (r.end === 0) return DONE;
+		const item = r.start;
+		r.start = (item + Math.min(this.step + 1, this.max)) % (this.max + 1);
+		r.end--;
+		return item;
+	}
+
+	override nextBack(): number | Done {
+		const r = this.inner;
+		if (r.end === 0) return DONE;
+		r.end--;
+		return r.start + (this.step + 1) * r.end;
+	}
+
+	override len(): number {
+		return this.inner.end;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.inner.end);
 	}
 }
 

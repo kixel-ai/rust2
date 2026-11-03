@@ -81,7 +81,7 @@ export function spills(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(Spill.asSlice$u32(ints)), (x: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.byteVecPush(out, ints.cap & 0xff);
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(Spill.asSlice$Option_tuple2_u8_u16(pairs)), (p: [rt.u8, rt.u16] | undefined): rt.u8 => {
 		return option_mapOr$0hi5qhf(p, 0, (_2: [rt.u8, rt.u16]): rt.u8 => {
@@ -116,7 +116,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const words: rt.Place<rt.u32> = slots;
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.ptrSlice(words, data.length)), (x: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.dealloc(rt.allocBytes(words, 4, "u32"));
 	const pointer2 = rt.alloc(rt.resultUnwrap(rt.layoutFromSizeAlign(9, 4), rt.fmtLayoutErrorDebug));
 	const pair: rt.Place<rt.u32> = rt.allocAs(rt.optionUnwrap(pointer2 === rt.NULL ? undefined : pointer2), 4, "u32");
@@ -129,7 +129,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const grown2: rt.Place<rt.u32> = rt.allocAs(rt.optionUnwrap(pointer3 === rt.NULL ? undefined : pointer3), 4, "u32");
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice([grown2.v, rt.ptrAdd(grown2, 1).v]), (x2: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x2).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 4), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.dealloc(rt.allocBytes(grown2, 4, "u32"));
 	const one: rt.Layout = { size: 1, align: 1 };
 	const pointer4 = rt.alloc(one);

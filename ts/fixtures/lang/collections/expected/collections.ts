@@ -73,7 +73,7 @@ export function hashMaps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const _4: rt.u8 = rt.u8Rem(kind, 4);
 	if (_4 === 0) {
 		const map: rt.HashMap<rt.u8, rt.u16> = rt.hashNew() as rt.HashMap<rt.u8, rt.u16>;
-		const iter: rt.Iter<rt.usize> = rt.iterStepBy(new rt.Range(0, data.length), 2);
+		const iter: rt.Iter<rt.usize> = rt.iterStepBy(new rt.Range(0, data.length), 2, undefined, 4294967295);
 		while (true) {
 			const _13: rt.usize | rt.Done = iter.next();
 			if (_13 === rt.DONE) {
@@ -643,7 +643,7 @@ export function btreeMaps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	const _4: rt.u8 = rt.u8Rem(kind, 4);
 	if (_4 === 0) {
 		const map: rt.BTreeMap<rt.u8, rt.u8> = rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, rt.u8>;
-		const iter: rt.Iter<rt.usize> = rt.iterStepBy(new rt.Range(0, data.length), 2);
+		const iter: rt.Iter<rt.usize> = rt.iterStepBy(new rt.Range(0, data.length), 2, undefined, 4294967295);
 		while (true) {
 			const _13: rt.usize | rt.Done = iter.next();
 			if (_13 === rt.DONE) {
@@ -1284,7 +1284,7 @@ export function stores(data: rt.ByteSlice, out: rt.ByteVec): void {
 	v[at8][1] = v[at8][1] ^ 16;
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v), (p: [rt.u8, rt.u8]): Uint8Array => {
 		return Uint8Array.of(p[0], p[1]);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(changed[0], changed[1], old[0], old[1])));
 	const tally: Tally.Tally = { n: a as rt.u16 };
 	const q: rt.VecDeque<Tally.Tally> = rt.dequeNew(2) as rt.VecDeque<Tally.Tally>;
@@ -1316,7 +1316,7 @@ export function stores(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return option_mapOr$1nlkf9b(rt.hashGet(hash, k), rt.bytes(2).fill(255), (p2: [rt.u8, rt.u8]): Uint8Array => {
 			return Uint8Array.of(p2[0], p2[1]);
 		});
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const tree: rt.BTreeMap<rt.u8, [rt.u8, rt.u8]> = rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, [rt.u8, rt.u8]>;
 	rt.btreeInsert(tree, 0, copy$tuple2_u8_u8(pair));
 	rt.btreeInsert(tree, 1, copy$tuple2_u8_u8(pair));
@@ -1326,7 +1326,7 @@ export function stores(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.btreeValues(tree), (p3: [rt.u8, rt.u8]): Uint8Array => {
 		return Uint8Array.of(p3[0], p3[1]);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const boxed: [rt.u8, rt.u8] = copy$tuple2_u8_u8(pair);
 	boxed[0] = boxed[0] ^ 1;
 	const holders: Holder.Holder[] = [{ pair: copy$tuple2_u8_u8(pair) }];
@@ -5337,7 +5337,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterFlatten(rt.iterMap(rt.btreeIter(map), (_214: [[ByRef.ByRef], rt.usize]): Uint8Array => {
 		return Uint8Array.of(_214[0][0]._0 & 0xff, _214[1] & 0xff);
-	}), (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}), (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.iterOption(option_map$0ltgf8p(rt.btreeKey(set, xs[rt.idx(xs, 0)]), (x6: ByRef.ByRef): rt.u8 => {
 		return x6._0 & 0xff;
 	})), undefined, true);
@@ -5386,7 +5386,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterFlatten(rt.iterMap(rt.btreeIter(map2), (_222: [[ByVal.ByVal], rt.usize]): Uint8Array => {
 		return Uint8Array.of(_222[0][0]._0 & 0xff, _222[1] & 0xff);
-	}), (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}), (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.iterOption(option_map$1ajptuf(rt.btreeKey(set2, xs2[rt.idx(xs2, 0)]), (x12: ByVal.ByVal): rt.u8 => {
 		return x12._0 & 0xff;
 	})), undefined, true);
@@ -5435,7 +5435,7 @@ export function refOrders(_kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterFlatten(rt.iterMap(rt.btreeIter(map3), (_233: [[Mixed.Mixed], rt.usize]): Uint8Array => {
 		return Uint8Array.of(_233[0][0]._0 & 0xff, _233[1] & 0xff);
-	}), (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}), (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.iterOption(option_map$0i8kclf(rt.btreeKey(set3, xs3[rt.idx(xs3, 0)]), (x18: Mixed.Mixed): rt.u8 => {
 		return x18._0 & 0xff;
 	})), undefined, true);

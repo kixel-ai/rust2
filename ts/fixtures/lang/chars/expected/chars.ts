@@ -570,16 +570,16 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), rt.usizeAdd, 0);
 		const upper: string = rt.stringExtendChars("", rt.iterFlatMap(rt.strChars(s2), (a09: rt.char): rt.Iter<rt.char> => {
 			return rt.charToUppercase(a09);
-		}));
+		}, undefined, true));
 		const lower: string = rt.stringExtendChars("", rt.iterFlatMap(rt.strChars(s2), (a010: rt.char): rt.Iter<rt.char> => {
 			return rt.charToLowercase(a010);
-		}));
+		}, undefined, true));
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(lens, f), (f: rt.Formatter) => rt.usizeDisplay(units, f), (f: rt.Formatter) => rt.fmtPad(f, upper), (f: rt.Formatter) => rt.fmtPad(f, lower)];
 		put(out, rt.fmtFormat([args8[0], "|", args8[1], "|", args8[2], "|", args8[3]]));
 	} else {
 		const escaped: string = rt.stringExtendChars("", rt.iterFlatMap(rt.strChars(s2), (a0: rt.char): rt.Iter<rt.char> => {
 			return rt.charEscapeDefault(a0);
-		}));
+		}, undefined, true));
 		const debug: string = rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.strChars(s2), (a02: rt.char): rt.Iter<rt.char> => {
 			return rt.charEscapeDebug(a02);
 		}), (e: rt.Iter<rt.char>): string => {

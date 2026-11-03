@@ -1039,7 +1039,24 @@ pub fn call<'tcx>(
 			method(&camel, [rest, none.into_iter().collect()].concat())
 		}
 		// What each drops: an item it skips or rejects, or one it peeked.
-		"filter" | "skip_while" | "take_while" | "peekable" | "skip" | "take" | "step_by" => {
+		// std's specializes a step through a `Range` of an unsigned integer no wider than a
+		// `usize`, which on wasm32 is a `u8`, a `u16`, a `u32`, or a `usize`, to count down
+		// the range's end: the runtime is given the integer's greatest.
+		"step_by" => {
+			let dropper = b.t.dropper(item, span);
+			let max = match self_ty.kind() {
+				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Range) => match args.type_at(0).kind() {
+					ty::Uint(uint) => match uint.bit_width().unwrap_or(32) {
+						bits @ ..=32 => Expr::lit(((1u64 << bits) - 1).to_string()),
+						_ => Expr::undefined(),
+					},
+					_ => Expr::undefined(),
+				},
+				_ => Expr::undefined(),
+			};
+			method("stepBy", tail(rest, vec![dropper, max]))
+		}
+		"filter" | "skip_while" | "take_while" | "peekable" | "skip" | "take" => {
 			let dropper = b.t.dropper(item, span);
 			// std's `take` folds a `TrustedRandomAccess` iterator by index, as `next` does
 			// one that has no side effects.
@@ -1049,7 +1066,7 @@ pub fn call<'tcx>(
 			method(&camel, tail(rest, vec![dropper, Expr::lit(indexes.to_string())]))
 		}
 		"fuse" => {
-			let fused = fused(b, self_ty, None);
+			let fused = fused(b, self_ty);
 			method(name, tail(rest, vec![fused]))
 		}
 		// What clones its iterator, as it is made and each time a clone of it ends.
@@ -1272,7 +1289,7 @@ pub fn call<'tcx>(
 		"flat_map" => {
 			let inner = iter_of(b.t, targ(1)?)?;
 			let into = into_fn(b, targ(1)?, span)?.unwrap_or_else(Expr::undefined);
-			let fused = fused(b, self_ty, Some(targ(2)?));
+			let fused = fused(b, self_ty);
 			let size = array_size(b, targ(1)?);
 			let one_shot = Expr::lit(implements(b.t, inner, "OneShot").to_string());
 			method("flatMap", tail(rest, vec![into, fused, size, one_shot]))
@@ -1280,7 +1297,7 @@ pub fn call<'tcx>(
 		"flatten" => {
 			let inner = iter_of(b.t, item)?;
 			let into = into_fn(b, item, span)?.unwrap_or_else(Expr::undefined);
-			let fused = fused(b, self_ty, None);
+			let fused = fused(b, self_ty);
 			let size = array_size(b, item);
 			let one_shot = Expr::lit(implements(b.t, inner, "OneShot").to_string());
 			method("flatten", tail(Vec::new(), vec![into, fused, size, one_shot]))
@@ -1293,6 +1310,9 @@ pub fn call<'tcx>(
 				let clone = tcx.lang_items().clone_fn()?;
 				Some(b.fn_value(clone, tcx.mk_args(&[(*inner).into()]), span))
 			};
+			if name == "copied" && copies_itself(b.t, *inner) {
+				return Some(recv);
+			}
 			// A `Clone` written by hand may do other than copy, even for a `Copy` type. A JS
 			// string is a value already.
 			let copies = name == "copied"
@@ -1415,18 +1435,17 @@ pub(super) fn size_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span
 	layout(b, ty, span).map_or_else(|e| e, |(size, _)| Expr::lit(size.to_string()))
 }
 
+/// Whether `copied` of an iterator of `&inner`s is that iterator itself, as JS reads an
+/// `inner` as its value already.
+pub(super) fn copies_itself<'tcx>(t: &Translator<'_, 'tcx>, inner: Ty<'tcx>) -> bool {
+	!super::byte_array(inner) && !t.needs_copy(inner)
+}
+
 /// Whether an iterator of type `ty` is a `FusedIterator`, which std's `fuse` and `flatten`
-/// keep once it ends rather than drop, and read on from: `true` or `false`. Only one that
-/// drops, with `held` beside it, or holds an iterator of the crate's own, which may yield
-/// again past its end, can tell.
-fn fused<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, held: Option<Ty<'tcx>>) -> Expr {
-	let drops = b.t.drops(ty) || held.is_some_and(|held| b.t.drops(held));
-	let own = (ty.walk().filter_map(|arg| arg.as_type()))
-		.any(|t| matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) && b.t.iter_item(t).is_some());
-	Expr::lit(match (drops || own) && implements(b.t, ty, "FusedIterator") {
-		true => "true",
-		false => "false",
-	})
+/// keep once it ends rather than drop, as their `Debug` shows, and read on from: `true` or
+/// `false`.
+fn fused<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Expr {
+	Expr::lit(implements(b.t, ty, "FusedIterator").to_string())
 }
 
 /// How many items `ty` has, if it is an array or a reference to one, which std's `flatten`

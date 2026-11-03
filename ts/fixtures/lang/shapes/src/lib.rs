@@ -49,5 +49,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("shapes::order", |_, data, out| shapes::order(data, out)),
 		("shapes::flows", |_, data, out| shapes::flows(data, out)),
 		("shapes::uninhabited", |_, data, out| shapes::uninhabited(data, out)),
+		("fmt::adaptors", |_, data, out| fmt::adaptors(data, out)),
 	]
 }

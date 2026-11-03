@@ -4,7 +4,7 @@
 // Each reads std's own Unicode tables, which `rt/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtUnit, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
 import { type char, type u8, type u16, u16Debug, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
@@ -372,31 +372,37 @@ export function charDecodeUtf16(it: Iter<u16>): Iter<Result<char, DecodeUtf16Err
 	return new DecodeUtf16(it);
 }
 
+/** `Debug` of a `DecodeUtf16`: its iterator, by `inner`, and the unit it holds to read next. */
+export function fmtDecodeUtf16<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	const d = it as DecodeUtf16;
+	return fmtDebugStructFields(f, "DecodeUtf16", ["iter", "buf"], [(f) => inner(d.it as I, f), (f) => fmtOption(d.buf, f, u16Debug)]);
+}
+
 /** `char::DecodeUtf16`: `it`, and the unit after a leading surrogate that was no trailing one, which it reads next. */
 class DecodeUtf16 extends Iter<Result<char, DecodeUtf16Error>> implements Disposable {
-	readonly #it: Iter<u16>;
-	#buf: u16 | undefined;
+	readonly it: Iter<u16>;
+	buf: u16 | undefined;
 
 	constructor(it: Iter<u16>, buf?: u16) {
 		super();
-		this.#it = it;
-		this.#buf = buf;
+		this.it = it;
+		this.buf = buf;
 	}
 
 	next(): Result<char, DecodeUtf16Error> | Done {
-		let u = this.#buf;
-		this.#buf = undefined;
+		let u = this.buf;
+		this.buf = undefined;
 		if (u === undefined) {
-			const next = this.#it.next();
+			const next = this.it.next();
 			if (next === DONE) return DONE;
 			u = next;
 		}
 		if (u < 0xd800 || u > 0xdfff) return Ok(u as number as char);
 		if (u >= 0xdc00) return Err(new DecodeUtf16Error(u));
-		const u2 = this.#it.next();
+		const u2 = this.it.next();
 		if (u2 === DONE) return Err(new DecodeUtf16Error(u));
 		if (u2 < 0xdc00 || u2 > 0xdfff) {
-			this.#buf = u2;
+			this.buf = u2;
 			return Err(new DecodeUtf16Error(u));
 		}
 		return Ok((((u & 0x3ff) << 10) + (u2 & 0x3ff) + 0x10000) as char);
@@ -404,19 +410,19 @@ class DecodeUtf16 extends Iter<Result<char, DecodeUtf16Error>> implements Dispos
 
 	/** std's: half `it`'s lower bound, rounded up, and its upper bound, each with the unit it holds. */
 	override sizeHint(): SizeHint {
-		const [low, high] = this.#it.sizeHint();
-		const u = this.#buf;
+		const [low, high] = this.it.sizeHint();
+		const u = this.buf;
 		const [lowBuf, highBuf] = u === undefined ? [0, 0] : u < 0xd800 || u > 0xdfff || high === 0 ? [1, 1] : [0, 1];
 		const upper = high === undefined || high + highBuf > 0xffffffff ? undefined : high + highBuf;
 		return [Math.ceil(low / 2) + lowBuf, upper];
 	}
 
 	override clone(h?: Clones): DecodeUtf16 {
-		return new DecodeUtf16(this.#it.clone(h?.i), this.#buf);
+		return new DecodeUtf16(this.it.clone(h?.i), this.buf);
 	}
 
 	[Symbol.dispose](): void {
-		dispose(this.#it);
+		dispose(this.it);
 	}
 }
 
