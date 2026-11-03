@@ -2435,54 +2435,46 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _66: rt.ByteVec = throughVec;
 		const _67: Pieces.Pieces = pieces();
 		rt.byteVecPutBufChunked(_66, _67, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
-		const _71: rt.BytesMut = throughBuf;
-		const _72: Pieces.Pieces = pieces();
-		rt.bytesMutPutBufChunked(_71, _72, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
-		const _76: Pieces.Pieces = pieces();
-		rt.byteVecPutBufChunked(boxedVec, _76, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
-		const _80: Pieces.Pieces = pieces();
-		rt.bytesMutPutBufChunked(boxedBuf, _80, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
+		const _71: Pieces.Pieces = pieces();
+		rt.byteVecPutBufChunked(boxedVec, _71, Pieces.hasRemaining$bytes_Buf, Pieces.remaining$bytes_Buf, Pieces.chunk$bytes_Buf, Pieces.advance$bytes_Buf as (a0: Pieces.Pieces, a1: rt.usize) => undefined);
 		const zeroes: Zeroes.Zeroes = { _0: pieces() };
 		const taken: rt.BytesMut = rt.bytesMutWithCapacity(0);
 		rt.bytesMutPutBuf(taken, { v: zeroes }, (p: rt.Place<Zeroes.Zeroes>) => Zeroes.hasRemaining$bytes_Buf_mut(p.v), (p: rt.Place<Zeroes.Zeroes>) => Zeroes.remaining$bytes_Buf_mut(p.v), (p: rt.Place<Zeroes.Zeroes>) => Zeroes.chunk$bytes_Buf_mut(p.v), Zeroes.advance$bytes_Buf_mut as (a0: rt.Place<Zeroes.Zeroes>, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf_mut);
 		rt.bytesMutPutBuf(taken, { v: zeroes }, (p: rt.Place<Zeroes.Zeroes>) => Zeroes.hasRemaining$bytes_Buf_mut(p.v), (p: rt.Place<Zeroes.Zeroes>) => Zeroes.remaining$bytes_Buf_mut(p.v), (p: rt.Place<Zeroes.Zeroes>) => Zeroes.chunk$bytes_Buf_mut(p.v), Zeroes.advance$bytes_Buf_mut as (a0: rt.Place<Zeroes.Zeroes>, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf_mut);
-		const _94: Zeroes.Zeroes = { _0: pieces() };
-		rt.bytesMutPutBuf(taken, _94, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
+		const _85: Zeroes.Zeroes = { _0: pieces() };
+		rt.bytesMutPutBuf(taken, _85, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
 		rt.byteVecExtendFromSlice(out, rt.bytesMutView(taken));
-		const part = rt.min(rt.byteSliceRange(data, 2).length, cap);
-		const fits: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceRange(data, 2), 0, part);
+		rt.bytesMutTruncate(taken, 0);
+		const _95: Zeroes.Zeroes = { _0: pieces() };
+		rt.bytesMutPutBuf(taken, _95, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
 		const shared: rt.BytesMut = rt.bytesMutWithCapacity(cap);
-		const _107: rt.ByteSlice = rt.byteSliceRange(fits, 0, rt.usizeDiv(fits.length, 2));
-		rt.bytesMutExtend(shared, _107);
+		const part = rt.usizeDiv(rt.min(rt.byteSliceRange(data, 2).length, cap), 2);
+		const _101: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceRange(data, 2), 0, part);
+		rt.bytesMutExtend(shared, _101);
 		const head: rt.BytesMut = rt.bytesMutSplitTo(shared, rt.usizeDiv(shared.length, 2));
-		const _120: Zeroes.Zeroes = { _0: pieces() };
-		rt.bytesMutPutBuf(head, _120, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
+		const _115: Zeroes.Zeroes = { _0: pieces() };
+		rt.bytesMutPutBuf(head, _115, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
 		const buf2 = shared;
 		const rest: rt.BytesMut = rt.bytesMutSplitTo(buf2, buf2.length);
+		const _122: Zeroes.Zeroes = { _0: pieces() };
+		rt.bytesMutPutBuf(rest, _122, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
 		const _127: Zeroes.Zeroes = { _0: pieces() };
-		rt.bytesMutPutBuf(rest, _127, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
-		const _132: Zeroes.Zeroes = { _0: pieces() };
-		rt.bytesMutPutBuf(shared, _132, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
-		const room: rt.BytesMut = rt.bytesMutWithCapacity(cap);
-		rt.bytesMutSplitTo(room, 0);
-		const _141: rt.BytesMut = room;
-		const _142: Zeroes.Zeroes = { _0: Pieces.new(fits.data, fits.start, fits.length, rt.usizeDiv(fits.length, 2)) };
-		rt.bytesMutPutBufChunked(_141, _142, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined);
-		const iter2: rt.Iter<rt.BytesMut> = rt.iterSlice([head, rest, shared, room]);
+		rt.bytesMutPutBuf(shared, _127, Zeroes.hasRemaining$bytes_Buf, Zeroes.remaining$bytes_Buf, Zeroes.chunk$bytes_Buf, Zeroes.advance$bytes_Buf as (a0: Zeroes.Zeroes, a1: rt.usize) => undefined, Zeroes.copyToBytes$bytes_Buf);
+		const iter2: rt.Iter<rt.BytesMut> = rt.iterSlice([taken, head, rest, shared]);
 		while (true) {
-			const _154: rt.BytesMut | rt.Done = iter2.next();
-			if (_154 === rt.DONE) {
+			const _137: rt.BytesMut | rt.Done = iter2.next();
+			if (_137 === rt.DONE) {
 				break;
 			}
-			rt.byteVecExtendFromSlice(out, rt.bytesMutView(_154));
+			rt.byteVecExtendFromSlice(out, rt.bytesMutView(_137));
 		}
 		const iter3: rt.Iter<rt.ByteVec> = rt.iterSlice([vec, throughVec, boxedVec]);
 		while (true) {
-			const _167: rt.ByteVec | rt.Done = iter3.next();
-			if (_167 === rt.DONE) {
+			const _150: rt.ByteVec | rt.Done = iter3.next();
+			if (_150 === rt.DONE) {
 				break;
 			}
-			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_167.data.length as rt.u32).reverse()));
+			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_150.data.length as rt.u32).reverse()));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(throughVec));
 		rt.byteVecExtendFromSlice(out, rt.bytesMutView(throughBuf));

@@ -409,9 +409,7 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	vec.put(pieces());
 	buf.put(pieces());
 	BufMut::put(&mut &mut through_vec, pieces());
-	BufMut::put(&mut &mut through_buf, pieces());
 	BufMut::put(&mut boxed_vec, pieces());
-	BufMut::put(&mut boxed_buf, pieces());
 	// Into no capacity, `bytes` takes the storage of what `copy_to_bytes` makes, through the
 	// `&mut` it reads past, and into storage that holds any, which this shares, reads chunk
 	// by chunk.
@@ -421,20 +419,19 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	taken.put(&mut zeroes);
 	taken.put(Zeroes(pieces()));
 	out.extend_from_slice(&taken);
-	// Into storage that was shared, whose capacity `bytes` still knows: the front split
-	// off, the rest, which has room or none, and through a `&mut`, what fits in its room.
-	let fits = &data[..data.len().min(cap)];
+	// Emptied, it keeps the capacity it took, however much that is.
+	taken.clear();
+	taken.put(Zeroes(pieces()));
+	// Into storage that was shared: the front split off, and the rest, which has room or
+	// none.
 	let mut shared = BytesMut::with_capacity(cap);
-	shared.put_slice(&fits[..fits.len() / 2]);
+	shared.put_slice(&data[..data.len().min(cap) / 2]);
 	let mut head = shared.split_to(shared.len() / 2);
 	head.put(Zeroes(pieces()));
 	let mut rest = shared.split();
 	rest.put(Zeroes(pieces()));
 	shared.put(Zeroes(pieces()));
-	let mut room = BytesMut::with_capacity(cap);
-	drop(room.split_to(0));
-	BufMut::put(&mut &mut room, Zeroes(Pieces::new(fits, fits.len() / 2)));
-	for buf in [&head, &rest, &shared, &room] {
+	for buf in [&taken, &head, &rest, &shared] {
 		out.extend_from_slice(buf);
 	}
 	for vec in [&vec, &through_vec, &boxed_vec] {

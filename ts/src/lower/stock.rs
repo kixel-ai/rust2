@@ -677,6 +677,13 @@ fn put<'tcx>(
 		let msg = format!("`BufMut::put` of `{ty}`, which is not supported");
 		return Some(b.err(call.span, msg));
 	}
+	// Through a `&mut`, `bytes` advances it by the room left in a `BytesMut`'s capacity.
+	if buffer == Buffer::BytesMut && through {
+		let msg = format!(
+			"`BufMut::put` of `{ty}` into a `BytesMut`, which advances it by the room left in a capacity that depends on whether the other handles of its storage dropped, which is not supported"
+		);
+		return Some(b.err(call.span, msg));
+	}
 	// Moved in, a value JS copies, such as a `&mut` to a buffer, is a place of its own.
 	let src = match b.t.needs_place(ty) {
 		true => Expr::Object(vec![(crate::ts::Key::Name("v".into()), src)]),
@@ -687,10 +694,9 @@ fn put<'tcx>(
 		values.push(buf_method_mut(b, call, ty, name)?);
 	}
 	// Into a `BytesMut`, `bytes` calls its `copy_to_bytes` or its `chunk` and `advance` by
-	// whether the capacity is zero, and through a `&mut`, advances it by the room left.
+	// whether the capacity is zero.
 	let f = match (buffer, through) {
-		(Buffer::BytesMut, true) => "bytesMutPutBufChunked",
-		(Buffer::BytesMut, false) => {
+		(Buffer::BytesMut, _) => {
 			values.push(buf_method_mut(b, call, ty, "copy_to_bytes")?);
 			"bytesMutPutBuf"
 		}

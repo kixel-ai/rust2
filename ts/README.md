@@ -572,8 +572,9 @@ of them:
   `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
   one, reads it through its methods as `bytes` does. Into a `BytesMut`, `bytes` picks
-  those methods by its capacity, which is known while it holds bytes, and else until
-  storage it shared grows or it takes a `Bytes`'s: past that, `put` throws. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
+  those methods by whether its capacity is zero, which is known while it holds bytes or
+  once it reserved or took any, and else until storage it shared grows or it takes a
+  `Bytes`'s: past that, `put` throws. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through
@@ -581,8 +582,8 @@ of them:
   The impls forwarding through a `&mut` or a `Box` translate from `bytes`' MIR, and the
   `BufMut` methods they don't forward map as the buffer's own, but `put` and `put_bytes`,
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of
-  another `Buf` through them into a `BytesMut` throws where its capacity isn't known, or
-  shared storage grows, as `bytes` advances that `Buf` by the room left in the capacity.
+  the crate's own `Buf` through them into a `BytesMut` is refused, as `bytes` advances it
+  by the room left in the capacity.
   The rest of `bytes`, such as the other provided methods of the crate's own `Buf`,
   translates from its MIR, refused where that is.
 - `hashbrown`'s `HashMap` and `HashSet` are std's, which wrap them, and map as std's do,
