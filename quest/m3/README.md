@@ -26,6 +26,7 @@ generic std gap is planned here even when moq never calls it.
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [An adaptor of the crate's own iterator held as a value](/quest/m3/ts-own-iter-value.md) - `map` and the other adaptors of a fieldless enum that implements `Iterator`, taken by value, translate
 - [Debug of std's other iterators](/quest/m3/ts-iter-source-debug.md) - `Debug` of `Once`, `Repeat`, `FromFn`, an array's `IntoIter`, and std's other iterators writes what std's does
+- [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - every step that drops a pushed `Vec`'s length keeps its capacity, as std guarantees
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [A slice's chunks as mutable arrays](/quest/m3/ts-slice-conversions.md) - `as_chunks_mut` and `as_rchunks_mut` translate, writes landing in the slice
@@ -38,3 +39,4 @@ generic std gap is planned here even when moq never calls it.
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
+- [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
