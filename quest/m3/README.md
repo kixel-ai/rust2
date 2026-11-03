@@ -17,7 +17,7 @@ generic std gap is planned here even when moq never calls it.
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
 - [The capacity of a BytesMut](/quest/m3/ts-bytes-capacity.md) - `BytesMut::capacity` and what reads it translate with `bytes`' values
-- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Iterator` and `dyn Error`'s downcasts translate, so a consumer neither rewrites nor binds them
+- [Trait objects](/quest/m3/ts-dyn.md) - `dyn Error`'s downcasts, `dyn FusedIterator`, and `Arc<dyn Iterator>` translate, so a consumer neither rewrites nor binds them
 - [A trait object in a struct's last field](/quest/m3/ts-dyn-tail.md) - `Rc<RefCell<dyn Trait>>` and the like translate, the last field as the object
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
