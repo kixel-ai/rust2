@@ -132,11 +132,11 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
 | `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, with its strong and weak counts, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rt.TryLockError<T>`, tagged as `Bound` is |
-| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s pointer is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; refused for a part of a sized type JS can't write in place, such as a binding's |
+| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s pointer is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
 | `thread_local!`, `LocalKey<T>` | an `rt.LocalKey`, a module's value, which makes its value on first use from the `const` or the expression and never drops it, as wasm32's do; `with` calls its function on that value, `try_with` never fails, the `Cell` and `RefCell` helpers lower from std, and a `RefCell` key's `set` and `with_borrow_mut` borrow it as `borrow_mut` does |
 | `OnceCell<T>`, `OnceLock<T>` | `rt.OnceCell` and `rt.OnceLock`, holding the `Option<T>` in `v`, which is the place `get_mut` lends where JS copies the value; a `OnceLock` initialized from within its own initialization panics, as wasm32's does, and `get_or_try_init`'s error leaves either empty |
 | `Once`, `OnceState` | `rt.Once`, an `rt.OnceLock` that holds `true` once `call_once` or `call_once_force` ran its function, and panics as wasm32's does if run again from within it; `rt.OnceState`, that `Once`, which a panic never poisons, as it aborts |
-| `LazyCell<T>`, `LazyLock<T>` in a `static` or `const` | `rt.LazyCell` and `rt.LazyLock`, which run their function on the first `force` or `Deref`, once; forced from within it, either panics as std's does |
+| `LazyCell<T>`, `LazyLock<T>` | `rt.LazyCell` and `rt.LazyLock`, which run their function on the first `force` or `Deref`, once, and drop it then, or with the cell if it never ran; forced from within it, either panics as std's does |
 | `AtomicU32` and the others of `bool` and integers, `AtomicPtr<T>` | `rt.Atomic<T>`, the `rt.Place` of its value; an `atomic::Ordering` is its discriminant, and one an operation can't take panics as std's does. An `AtomicPtr` compares pointers only to what JS keeps as an object or bytes, as raw pointers do |
 | `async fn` | a function returning `rt.Future<T>`: a class of its own, its coroutine's state machine |
 | async closure | a closure returning the future of each call, with what makes the future of a call that consumes it if it owns a value that drops and `Fn` or `FnMut` call it |
@@ -450,8 +450,10 @@ map's `drain` does, drops those it still holds by `[Symbol.dispose]`, an adaptor
 what it skips or rejects, and a consumer that takes an iterator by value drops it:
 through each `rt.Iter`'s own `fold` where std's folds, which drops each adaptor's closure
 as its fold ends, before what it wraps, as std's does. The crate's own `fold` is given that
-closure as a `Box<dyn FnMut>`, which drops it where its body does. A `try_rfold` drops its
-closure as it returns, leaving what the iterator holds to drop with it. A `Vec`'s `drain` leaves the vector
+closure as a `Box<dyn FnMut>`, which drops it where its body does. `try_fold`, `try_rfold`,
+and `try_for_each` drop their closure as they return, leaving what the iterator holds to drop
+with it. `scan` hands its closure its state, or the state's place where JS copies it, and
+drops the state after the closure, as std's fields drop. A `Vec`'s `drain` leaves the vector
 what precedes its range until it drops, then drops what it still holds and moves the tail
 back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
 
@@ -837,7 +839,9 @@ they need.
   `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
   elements where std's does: JS's `sort` moves `undefined`, a `None`, to the end without
   comparing it, and each engine orders its comparisons differently. A byte slice's sorts
-  by its own `Ord` are its typed array's, whose order nothing observes.
+  by its own `Ord` are its typed array's, whose order nothing observes. `sort_by_cached_key`
+  sorts its keys paired with their indexes by that `sort_unstable`, of the index type std
+  picks by the pairs' sizes.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
@@ -885,13 +889,13 @@ that drops given to a std function that keeps it other than in an iterator or a
 `poll_fn`, or whose mapping doesn't drop it where std's does, and values that drop in some
 iterators ([drop order](/quest/m3/ts-drop-order.md)), a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
-`rt.None`, as `Iterator::scan` of `Option`s does, an `Option` of an `Option` of `()` or another
+`rt.None`, an `Option` of an `Option` of `()` or another
 `Option`, an instance of a generic type whose field is an `Option` of a type parameter
 that can be `undefined`, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
-without a mapping in `src/lower/iter.rs` (such as `partition`), an
+without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
 those, such as `find` or `for_each`, or whose own `fold` or `rfold` tells its accumulator or
 closure apart from another, by an `Option` or a `Poll` of it, a call or constant generic over it
