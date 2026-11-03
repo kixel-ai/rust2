@@ -59,4 +59,20 @@ export function drop$tuple2_sync_Arc_str_u32(_1: [rt.Arc<string>, rt.u32]): void
 	_1[0][Symbol.dispose]();
 }
 
+export const out$f32: { err: unknown } = { err: undefined };
+
+export const out$f64: { err: unknown } = { err: undefined };
+
+export const out$i64: { err: unknown } = { err: undefined };
+
+export const out$i8: { err: unknown } = { err: undefined };
+
+export const out$u128: { err: unknown } = { err: undefined };
+
+export const out$u16: { err: unknown } = { err: undefined };
+
+export const out$u64: { err: unknown } = { err: undefined };
+
+export const out$u8: { err: unknown } = { err: undefined };
+
 //# sourceMappingURL=lib.ts.map

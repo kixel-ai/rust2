@@ -794,8 +794,9 @@ they need.
   of byte slices and scalars, or of numbers alone, such as `Result<(u64, &[u8]), E>` or
   `Result<u64, E>`, whose error is one JS
   value that is never `undefined`, writes the `Ok`'s parts into a module-level slot and returns the error or
-  `undefined`. The slot is shared by every function returning that payload type, named
-  for the first of them in source order with its suffix, as `readOut` or `leadOut$u16`.
+  `undefined`. The slot is shared by every function returning that payload type, in
+  `lib.ts` and named for the type as the shims are, as `out$ref_slice_u8` or `out$u64`, so
+  that reaching another function renames nothing.
   The function writes it at its JS `return`, after its drops, and its caller reads it at
   once, so one that returns another's result as is returns the call. The slot's fields
   start as `undefined`, so V8 keeps them tagged. When the `Ok`'s first part is a number,

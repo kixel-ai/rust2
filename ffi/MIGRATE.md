@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A C field or parameter named as a C or C++ keyword, or as one the header generates such
+  as `err` or `data`, takes a trailing `_` rather than a leading one, as C++'s names do:
+  moq's `catalog::H264::inline` is the field `inline_`, since MSVC reads `_inline` as a
+  keyword. A name already ending in `_` takes another, so `data_` is `data__` beside
+  `data`'s `data_`. A name starting with a digit, such as a tuple's `_0`, keeps its leading
+  `_`.
 - C++ objects own their handle through `std::unique_ptr`, or `std::shared_ptr` where
   copies may share one value. A `Clone` type whose copies may not, such as moq's
   producers and consumers, no longer copies: `T copy = t;` is `T copy = t.clone();`, and
