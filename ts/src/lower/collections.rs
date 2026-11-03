@@ -3168,6 +3168,23 @@ pub fn collect<'tcx>(
 	Some(match std {
 		Std::HashMap | Std::HashSet => {
 			let state = new_state(b, ty, span);
+			// hashbrown's map takes its items before it makes its hasher, where std's and
+			// hashbrown's set make it first.
+			let first = std == Std::HashMap
+				&& state.is_some()
+				&& !iter.is_path()
+				&& matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()));
+			if first {
+				let name = b.fresh("items");
+				let target = hash_new(b, ty, state, span)?;
+				let made = hash_extend(b, ty, target, Expr::ident(&name), from, span);
+				let param = Param {
+					name,
+					ty: Some(b.t.ty(from, span)),
+				};
+				let body = vec![StmtKind::Return(Some(made)).at(None)];
+				return Some(Expr::Arrow(vec![param], b.t.ty(ty, span), body).call(vec![iter]));
+			}
 			let target = hash_new(b, ty, state, span)?;
 			hash_extend(b, ty, target, iter, from, span)
 		}

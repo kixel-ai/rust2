@@ -148,6 +148,11 @@ export function drop$maps_Held_maps_Logged(_1: Held.Held<Logged.Logged>): void {
 	_1.last[Symbol.dispose]();
 }
 
+export function drop$tuple2_hashbrown_HashMap_u8_u8_maps_Made_hashbrown_HashSet_u8_maps_Made(_1: [rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>]): void {
+	rt.hashDrop(_1[0], undefined, undefined, rt.drop);
+	rt.hashDrop(_1[1], undefined, undefined, rt.drop);
+}
+
 export function drop$tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1: [LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, Logged.Logged]): void {
 	drop$hashlink_LinkedHashSet_maps_Logged(_1[0]);
 	_1[1][Symbol.dispose]();

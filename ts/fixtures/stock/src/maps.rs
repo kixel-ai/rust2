@@ -665,3 +665,52 @@ pub fn own_hasher(data: &[u8], out: &mut Vec<u8>) {
 	drop((pairs, set, copy));
 	out.extend_from_slice(&log.take());
 }
+
+thread_local! {
+	/// What each [`Made`] did, in order.
+	static MADE: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A `BuildHasher` of the crate's own, numbered, which logs each one `Default` makes and
+/// each drop.
+struct Made(u8);
+
+impl BuildHasher for Made {
+	type Hasher = std::hash::DefaultHasher;
+
+	fn build_hasher(&self) -> Self::Hasher {
+		std::hash::DefaultHasher::new()
+	}
+}
+
+impl Default for Made {
+	fn default() -> Self {
+		MADE.with(|made| made.borrow_mut().push(b'n'));
+		Made(0)
+	}
+}
+
+impl Drop for Made {
+	fn drop(&mut self) {
+		MADE.with(|made| made.borrow_mut().extend([b'x', self.0]));
+	}
+}
+
+/// `hashbrown`'s `from_iter` of a map or set that holds a `BuildHasher` of the crate's own:
+/// a map's takes the source's items, which drops its hasher, before it makes its own, and a
+/// set's after.
+pub fn own_from_iter(data: &[u8], out: &mut Vec<u8>) {
+	MADE.with(|made| made.borrow_mut().clear());
+	let mut map: HashMap<u8, u8, Made> = HashMap::with_hasher(Made(1));
+	let mut set: HashSet<u8, Made> = HashSet::with_hasher(Made(2));
+	for &b in data {
+		map.insert(b % 8, b);
+		set.insert(b % 8);
+	}
+	let map: HashMap<u8, u8, Made> = HashMap::from_iter(map);
+	let set: HashSet<u8, Made> = HashSet::from_iter(set);
+	put(out, map.len());
+	put(out, set.len());
+	drop((map, set));
+	out.extend_from_slice(&MADE.with(|made| made.take()));
+}
