@@ -26,6 +26,8 @@ roots = [
     "futures::generic_pending",
     "futures::nested_poll",
     "futures::pending_output",
+    "futures::ready_pending",
+    "futures::waker_debug",
     "iters::backs",
     "iters::discards",
     "iters::disposes",
