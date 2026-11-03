@@ -36,6 +36,7 @@ fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
 fixtures/reject/src/config.rs:generic+2:2: a cast from `u64` to `f16`
 fixtures/reject/src/fmt.rs:chunks_address+1:2: `Debug` of a `ChunksMut`, whose slice std writes as an address, which JS has no counterpart of
 fixtures/reject/src/fmt.rs:pointer+1:2: `Pointer` formatting, as in `{:p}`, is not supported
+fixtures/reject/src/fmt.rs:split_state+1:2: `Debug` of a `str::Split`, whose searcher std writes with its state in UTF-8 bytes, which the runtime does not keep yet
 fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or not made in place, written to `fmt::Sink`'s own `fmt::Write`, which is not supported yet: std splits what a placeholder writes into `write_str` calls the runtime does not make
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
 fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`

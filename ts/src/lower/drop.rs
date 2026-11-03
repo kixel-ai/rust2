@@ -102,9 +102,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => match adt.has_dtor(tcx) {
 					// What owns its items, an `IntoIter` or a `Drain`, drops those it still holds.
 					true => args.types().any(|t| self.drops(t)),
-					// A `str` search's holds its pattern inside std's searcher, which no `rt.Iter`
-					// stands for.
-					false if super::iter::holds_closure(tcx, adt.did()) => args.types().any(|t| self.drops(t)),
+					// A `str` search's holds its pattern inside std's searcher, and a `RepeatN` its
+					// element inside a struct of its own, which no `rt.Iter` stands for.
+					false
+						if super::iter::holds_closure(tcx, adt.did())
+							|| library::std_path(tcx, adt.did()) == ["iter", "sources", "repeat_n", "RepeatN"] =>
+					{
+						args.types().any(|t| self.drops(t))
+					}
 					false => self.fields_drop(*adt, args, true),
 				},
 				Some(_) => false,

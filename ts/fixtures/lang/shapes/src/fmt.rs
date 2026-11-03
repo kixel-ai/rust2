@@ -6,7 +6,7 @@
 #![allow(dead_code, reason = "fields only `Debug` reads")]
 
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::fmt::{self, Debug, Display};
 use std::ops::{Range, RangeToInclusive};
 use std::rc::Rc;
@@ -1576,6 +1576,23 @@ pub fn sources(data: &[u8], out: &mut Vec<u8>) {
 	let it = std::iter::once(b).chain([at(3), at(4)]).map(|x| x / 2);
 	put(out, &format!("{it:?}|{it:#?}"));
 
+	// What a `Repeat` and a `RepeatN` hold, and whether a `OnceWith` still holds its
+	// closure, which std writes unpadded.
+	let it = std::iter::repeat(b);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(
+		out,
+		&format!("{:?}", ends(std::iter::repeat(Pair(b, 7)).take(3), front, back)),
+	);
+	let n = usize::from(at(3) % 4);
+	let it = ends(std::iter::repeat_n(b, n), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut it = std::iter::repeat_n(Pair(b, 8), n);
+	it.nth(usize::from(at(4) % 4));
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(std::iter::once_with(|| b), front % 2, back % 2);
+	put(out, &format!("{it:?}|{it:#?}|{it:>20?}"));
+
 	// The bytes before the front, and the chars left.
 	let text: String = bytes
 		.iter()
@@ -1671,5 +1688,70 @@ pub fn sources(data: &[u8], out: &mut Vec<u8>) {
 			one.symmetric_difference(&other),
 			one.union(&other)
 		),
+	);
+}
+
+/// A `BTreeSet`'s set operations' `Debug`, each the way std picked to make it and what that
+/// reads: merged, each key of the smaller looked up in a set 16 times its size, or answered
+/// by where the sets meet, fresh and part read, plain and pretty. And each `ExtractIf`'s: a
+/// list's the item it reads next, a hash map's and set's nothing.
+pub fn sets(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let front = usize::from(at(0) % 4);
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let b = at(1) % 64;
+	let small: BTreeSet<u8> = data
+		.iter()
+		.skip(2)
+		.take(usize::from(at(2) % 4))
+		.map(|&x| x % 64)
+		.collect();
+	let large: BTreeSet<u8> = (0..usize::from(at(3) % 3) * 24)
+		.map(|i| (i as u8).wrapping_mul(at(4) | 1) % 64)
+		.collect();
+	// Sets where one's least key is the other's greatest.
+	let low: BTreeSet<u8> = [b, b + 1, b + 2].into();
+	let high: BTreeSet<u8> = [b + 2, b + 70].into();
+	for (x, y) in [
+		(&small, &large),
+		(&large, &small),
+		(&small, &small),
+		(&low, &high),
+		(&high, &low),
+	] {
+		let it = fronts(x.difference(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.intersection(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.union(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.symmetric_difference(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+	}
+	let pairs: BTreeSet<(u8, char)> = data.iter().take(3).map(|&x| (x % 4, 'p')).collect();
+	let more: BTreeSet<(u8, char)> = data.iter().skip(1).take(3).map(|&x| (x % 4, 'q')).collect();
+	let it = fronts(pairs.union(&more), front);
+	put(out, &format!("{it:?}|{it:x?}"));
+	let it = fronts(pairs.difference(&more), front);
+	put(out, &format!("{it:#?}"));
+
+	let mut list: LinkedList<u8> = data.iter().take(6).copied().collect();
+	let it = fronts(list.extract_if(|x| *x % 2 == 0), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	drop(it);
+	let mut pairs: LinkedList<Pair> = data.iter().take(3).map(|&x| Pair(x, 2)).collect();
+	let it = fronts(pairs.extract_if(|p| p.0 % 3 == 0), front);
+	put(out, &format!("{it:?}"));
+	drop(it);
+	let mut map: HashMap<u8, u8> = data.iter().map(|&x| (x, x)).collect();
+	let mut set: HashSet<u8> = data.iter().copied().collect();
+	put(
+		out,
+		&format!("{:?}|{:#?}", map.extract_if(|k, _| *k > 9), set.extract_if(|k| *k > 9)),
 	);
 }
