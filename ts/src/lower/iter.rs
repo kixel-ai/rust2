@@ -47,15 +47,19 @@ impl<'tcx> Translator<'_, 'tcx> {
 			.ok()
 	}
 
-	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`, or
-	/// `dyn ExactSizeIterator`, whose JS value is an `rt.Iter` of its items.
+	/// `Iterator::Item` of `ty`, if it is a `dyn Iterator`, `dyn DoubleEndedIterator`,
+	/// `dyn ExactSizeIterator`, or `dyn FusedIterator`, whose JS value is an `rt.Iter` of its
+	/// items.
 	pub fn dyn_iter(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
 		let principal = preds.principal_def_id()?;
 		let name = library::std_path(self.tcx, principal).pop()?;
-		if !matches!(name.as_str(), "Iterator" | "DoubleEndedIterator" | "ExactSizeIterator") {
+		if !matches!(
+			name.as_str(),
+			"Iterator" | "DoubleEndedIterator" | "ExactSizeIterator" | "FusedIterator"
+		) {
 			return None;
 		}
 		self.iter_item(ty)
@@ -516,6 +520,11 @@ pub fn call<'tcx>(
 			let value = args.pop()?;
 			return into_iter(b, targ(0)?, value, span);
 		}
+		// The `&mut` it was given, an `rt.Place` where that points at a `&mut`.
+		("Iterator", "by_ref") => {
+			not_bound(b, targ(0)?, span);
+			return args.pop();
+		}
 		_ => {}
 	}
 	match path.as_slice() {
@@ -607,11 +616,6 @@ pub fn call<'tcx>(
 		};
 		return Some(Expr::rt("iterToOption", [item].into_iter().chain(none).collect()));
 	}
-	// The same object, borrowed.
-	if name == "by_ref" {
-		return Some(recv);
-	}
-
 	let recv = into_iter(b, iter_ty, recv, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {

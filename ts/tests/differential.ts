@@ -5,9 +5,10 @@
 //
 // A harness, or a hand-written caller wrapping one, exports `run(input: rt.ByteSlice):
 // Vec<u8>`, and may export `cases`, inputs it names, which run with the generated ones,
-// `ops`, the bytes that pick each of its cases, if not the first byte alone,
-// and `within(input, native, translated)`, which accepts outputs that differ only where
-// Rust leaves the result to the platform, as libm's are.
+// `ops`, the bytes that pick each of its cases, if not the first byte alone, and
+// `within(input, native, translated)`, which accepts outputs that differ only where Rust
+// leaves the result to the platform, as libm's are. [cases] random inputs run, or that
+// many per op of a harness that exports `ops`.
 // The wasm build exports `input`, `run`, and `output` around the crate's entry, which
 // `wasm.ts` calls. A panic traps natively and throws `Panic` in
 // TypeScript, and the two agree only if their messages do. An abort traps natively
@@ -81,15 +82,17 @@ function display(outcome: Outcome): string {
 }
 
 const cases: Uint8Array[] = [new Uint8Array(0)];
-const ops: Uint8Array[] = harness.ops ?? Array.from({ length: 256 }, (_, op) => Uint8Array.of(op));
+const named: Uint8Array[] | undefined = harness.ops;
+const ops: Uint8Array[] = named ?? Array.from({ length: 256 }, (_, op) => Uint8Array.of(op));
 if (new Set(ops.map((op) => Buffer.from(op).toString("hex"))).size !== ops.length) throw new Error("two ops are the same bytes, so one of them never runs");
 // Every op with every short tail, so each path's edges are covered exhaustively.
 for (const op of ops) {
 	cases.push(op);
 	for (let b = 0; b < 256; b += 17) cases.push(Uint8Array.of(...op, b));
 }
-// Full-width values through the first ops: each u64 boundary 2^k - 1, 2^k, 2^k + 1.
-for (const op of ops.slice(0, 8)) {
+// Full-width values through the first ops: each u64 boundary 2^k - 1, 2^k, 2^k + 1. A
+// harness that names its ops names these inputs itself, for the ops that take them.
+for (const op of named ? [] : ops.slice(0, 8)) {
 	for (let k = 0n; k <= 64n; k++) {
 		for (const delta of [-1n, 0n, 1n]) {
 			const value = ((1n << k) + delta) & 0xffffffffffffffffn;
@@ -103,7 +106,7 @@ for (const op of ops.slice(0, 8)) {
 }
 // A harness's own cases, which name what they cover.
 if (Array.isArray(harness.cases)) for (const input of harness.cases) cases.push(input);
-for (let i = 0; i < count; i++) {
+for (let i = 0; i < count * (named?.length ?? 1); i++) {
 	const len = Number(next() % 48n);
 	const input = new Uint8Array(len + 1);
 	input[0] = byte();

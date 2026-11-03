@@ -1,12 +1,11 @@
-# [L] Trait objects
+# [M] Trait objects
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates the trait objects it still refuses, `dyn FusedIterator`
-and `Arc<dyn Iterator>`, those of std's other traits such as `dyn Hasher` and
-`dyn fmt::Write`, of a generic trait, and of a trait with an associated type, and
-`Any::type_id`, with Rust's dispatch and drop order, proven by differential tests against
-native Rust, so a consumer neither rewrites nor binds them.
+[rust2-ts](/ts/README.md) translates the trait objects it still refuses, those of std's
+other traits such as `dyn Hasher` and `dyn fmt::Write`, of a generic trait, and of a trait
+with an associated type, and `Any::type_id`, with Rust's dispatch and drop order, proven by
+differential tests against native Rust, so a consumer neither rewrites nor binds them.
 
 ## Plan
 
@@ -16,7 +15,8 @@ config, so trait objects move from never to not yet.
 - `dyn Debug` and `dyn Display` translate as functions writing their value, behind `&`,
   `&mut`, `Box`, `Arc`, and `Rc`, `dyn Future`
   as an `rt.Future`, `dyn Any` as the class a downcast checks for, `dyn Fn*` as the
-  closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, and the translated
+  closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, behind `&`, `&mut`,
+  `Box`, `Arc`, and `Rc`, and the translated
   crates' traits as an object with the trait's methods. Build the rest on those.
 - `dyn Error` translates as an object of `source`, `Debug`, and `Display`, whose downcasts
   check the class of the value's own type, which every trait object of the type shares.

@@ -1,0 +1,2 @@
+package = "lang-counts-fixture"
+roots = ["harness::run", "harness::op"]

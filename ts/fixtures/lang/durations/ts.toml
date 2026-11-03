@@ -1,0 +1,2 @@
+package = "lang-durations-fixture"
+roots = ["harness::run", "harness::op"]
