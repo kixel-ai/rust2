@@ -278,6 +278,10 @@ pub fn std_impl<'tcx>(
 		ty::Dynamic(preds, ..) if preds.principal_def_id().and_then(|did| Trait::of(tcx, did)) == Some(tr) => {
 			value.call(vec![f])
 		}
+		// Its name and no fields, unpadded, whatever it holds.
+		ty::Dynamic(..) if tr == Trait::Debug && super::dynamic::is_any_object(tcx, ty) => {
+			rt("writeStr", vec![f, Expr::Str("Any { .. }".into())])
+		}
 		// Unpadded, naming its type as `type_name` does.
 		ty::Adt(adt, args) if tr == Trait::Debug && adt.is_phantom_data() => {
 			let name = rustc_const_eval::util::type_name(tcx, args.type_at(0));
@@ -400,12 +404,10 @@ pub fn std_impl<'tcx>(
 			}
 			(Std::Ordering, Trait::Debug) => rt("ordering", vec![value, f]),
 			// Erased to what it holds.
-			(Std::Reverse, Trait::Debug) => {
+			(std @ (Std::Reverse | Std::AssertUnwindSafe), Trait::Debug) => {
 				let held = b.fmt_value(tr, args.type_at(0), value, span, out);
-				rt(
-					"debugTupleFields",
-					vec![f, Expr::Str("Reverse".into()), Expr::Array(vec![held])],
-				)
+				let name = format!("{std:?}");
+				rt("debugTupleFields", vec![f, Expr::Str(name), Expr::Array(vec![held])])
 			}
 			(Std::ControlFlow, Trait::Debug) => {
 				let go = b.fmt_fn(tr, args.type_at(1), span);

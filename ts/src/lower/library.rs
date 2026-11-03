@@ -143,6 +143,8 @@ pub enum Std {
 	Wrapping,
 	/// What it holds, whose arithmetic saturates at its bounds.
 	Saturating,
+	/// What it holds, which it only marks as safe to unwind through.
+	AssertUnwindSafe,
 	/// A `format_args!` argument: a function writing its value, `rt.Fmt`.
 	Argument,
 	/// A raw pointer to its pointee, as `pointer` has it.
@@ -360,6 +362,7 @@ impl Std {
 			["cell", "lazy", "LazyCell"] => Some(Self::LazyCell),
 			["sync", "lazy_lock", "LazyLock"] => Some(Self::LazyLock),
 			["cmp", "Reverse"] => Some(Self::Reverse),
+			["panic", "unwind_safe", "AssertUnwindSafe"] => Some(Self::AssertUnwindSafe),
 			["collections", "binary_heap", "PeekMut"] => Some(Self::PeekMut),
 			["ops", "range", "Bound"] => Some(Self::Bound),
 			["num", "nonzero", "NonZero"] => Some(Self::NonZero),
@@ -473,14 +476,16 @@ pub fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// What a value of `ty` is in JS if `ty` wraps one value it is represented as: `Reverse<T>`'s,
-/// `NonZero<T>`'s, `Wrapping<T>`'s, and `Saturating<T>`'s `T`, which differ only in their
-/// order, range, and arithmetic, a pattern type's base, and the field of each of core's
-/// `niche_types` structs that hold one.
+/// `NonZero<T>`'s, `Wrapping<T>`'s, `Saturating<T>`'s, and `AssertUnwindSafe<T>`'s `T`, which
+/// differ only in their order, range, arithmetic, and unwind safety, a pattern type's base,
+/// and the field of each of core's `niche_types` structs that hold one.
 pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		ty::Pat(base, _) => Some(*base),
 		ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
-			Some(Std::Reverse | Std::NonZero | Std::Wrapping | Std::Saturating) => Some(args.type_at(0)),
+			Some(Std::Reverse | Std::NonZero | Std::Wrapping | Std::Saturating | Std::AssertUnwindSafe) => {
+				Some(args.type_at(0))
+			}
 			Some(_) => None,
 			None => {
 				let path = std_path(tcx, adt.did());
@@ -491,6 +496,30 @@ pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 				Some(field.ty(tcx, args).skip_norm_wip())
 			}
 		},
+		_ => None,
+	}
+}
+
+/// Why a `Location` is refused.
+pub const LOCATION: &str =
+	"a panic's `Location`, which needs each `#[track_caller]` function's caller, which is not supported yet";
+
+/// Whether `did` is std's `panic::Location`.
+pub fn location(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	matches!(
+		std_path(tcx, did)
+			.iter()
+			.map(String::as_str)
+			.collect::<Vec<_>>()
+			.as_slice(),
+		["panic", "location", "Location"]
+	)
+}
+
+/// What `ty` holds if it is an `AssertUnwindSafe`.
+pub fn unwind_safe<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::AssertUnwindSafe) => Some(args.type_at(0)),
 		_ => None,
 	}
 }
@@ -954,6 +983,8 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("Result", "unwrap" | "expect" | "unwrap_err")
 		| ("Vec", "insert")
 		| ("RangeInclusive", "new")
+		| ("panic", "panic_any" | "resume_unwind")
+		| ("rt", "begin_panic")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
 		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
@@ -975,7 +1006,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		_ if maps_guard(owner, name) => &[],
 		// A guard it leaks or downgrades keeps its borrow or lock.
 		("Ref" | "RefMut", "leak") | ("RwLockWriteGuard", "downgrade") => &[],
-		("Once", "call_once" | "call_once_force") => &[0],
+		("Once", "call_once" | "call_once_force") | ("panic", "catch_unwind") => &[0],
 		("Arc" | "Rc", "new_cyclic") => &[1],
 		// `pop_if::<F>` drops its test uncalled if there is no element.
 		("Vec", "pop_if") => &[2],
@@ -1148,9 +1179,9 @@ struct Closures<'tcx> {
 	spent: Vec<Expr>,
 }
 
-/// What an argument of type `ty` that std calls holds, through any references and boxes,
-/// whether a reference lends it, and `value`, the argument, read as that: a `&mut` to a
-/// function JS copies is its place, so std calls the function it holds.
+/// What an argument of type `ty` that std calls holds, through any references, boxes, and
+/// `AssertUnwindSafe`s, whether a reference lends it, and `value`, the argument, read as
+/// that: a `&mut` to a function JS copies is its place, so std calls the function it holds.
 pub fn called_through<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	ty: Ty<'tcx>,
@@ -1166,7 +1197,9 @@ pub fn called_through<'tcx>(
 				lent = true;
 				inner
 			}
-			ty::Adt(adt, args) if Std::of(t.tcx, adt.did()) == Some(Std::Box) => args.type_at(0),
+			ty::Adt(adt, args) if matches!(Std::of(t.tcx, adt.did()), Some(Std::Box | Std::AssertUnwindSafe)) => {
+				args.type_at(0)
+			}
 			_ => break,
 		};
 	}
@@ -1451,6 +1484,13 @@ fn mapping<'tcx>(
 	let range = matches!(inherent_std(tcx, call.def_id), Some(Std::Range | Std::RangeInclusive));
 
 	let e = match (owner.as_str(), name.as_str()) {
+		// An `AssertUnwindSafe` is what it holds.
+		("From", "from") if unwind_safe(tcx, targ(gargs, 0)).is_some() => args.pop()?,
+		("Default", "default") if let Some(held) = self_ty().and_then(|t| unwind_safe(tcx, t)) => {
+			let default = super::collections::trait_fn(tcx, "Default", "default");
+			return Some(b.call_def(default, tcx.mk_args(&[held.into()]), args, span, out));
+		}
+
 		// Conversions.
 		("From", "from") => {
 			// A `NonZero` converts as its integer.
@@ -1965,9 +2005,9 @@ fn mapping<'tcx>(
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
-		// Copies of each run of `N` as an array, which a shared borrow can't tell from the
-		// slice's own elements.
-		("slice", "as_chunks" | "as_rchunks") => {
+		// Each run of `N` as an array: shared, a copy, which a shared borrow can't tell from
+		// the slice's own elements, and mutable, the runtime's view of where the slice holds it.
+		("slice", "as_chunks" | "as_rchunks" | "as_chunks_mut" | "as_rchunks_mut") => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));
@@ -2448,7 +2488,7 @@ fn mapping<'tcx>(
 			match ty.kind() {
 				ty::Adt(adt, vargs) => match Std::of(tcx, adt.did()) {
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
-					Some(Std::String | Std::Box | Std::ManuallyDrop) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe) => v,
 					Some(Std::Cow) if string(tcx, ty) => v,
 					Some(Std::Cow) if let Some(elem) = cow_slice(tcx, ty) => cow_deref(v, elem),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
@@ -2635,7 +2675,30 @@ fn mapping<'tcx>(
 				None => Expr::rt("panicFmt", vec![message]),
 			}
 		}
-		("panicking", "panic") | ("rt", "begin_panic") => Expr::rt("panic", args),
+		("panicking", "panic") => Expr::rt("panic", args),
+		// The hook writes a payload of text, and `Box<dyn Any>` for any other.
+		("panic", "panic_any") | ("rt", "begin_panic") => {
+			let payload = targ(gargs, 0);
+			match matches!(payload.kind(), ty::Ref(_, s, _) if s.is_str()) || b.t.std_of(payload) == Some(Std::String) {
+				true => Expr::rt("panic", args),
+				false => Expr::rt("panic", vec![Expr::Str("Box<dyn Any>".into())]),
+			}
+		}
+		// A panic aborts, so `catch_unwind` never catches one. Its call consumes the function,
+		// so nothing drops it.
+		("panic", "catch_unwind") => return Some(Expr::result(true, args.pop()?.call(Vec::new()))),
+		("panic", "resume_unwind") => Expr::rt("resumeUnwind", Vec::new()),
+		("Location", _)
+			if impl_self(tcx, call.def_id)
+				.is_some_and(|t| matches!(t.kind(), ty::Adt(adt, _) if location(tcx, adt.did()))) =>
+		{
+			return Some(b.err(span, LOCATION));
+		}
+		("panicking", "set_hook" | "take_hook") => {
+			let why =
+				format!("`panic::{name}`, whose hook reads each panic's `Location`, which panics don't carry yet");
+			return Some(b.err(span, why));
+		}
 		("panicking", "panic_explicit") => Expr::rt("panic", vec![Expr::Str("explicit panic".into())]),
 		("panicking", "panic_display" | "unreachable_display") => {
 			let value = args.pop()?;

@@ -106,7 +106,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `ControlFlow<B, C>` | `rt.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
 | tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
 | `Cow<[T]>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice` |
-| `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
+| `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, or an object whose parts kept as objects are there, holding `undefined` |
 | `ManuallyDrop<T>` | `T`, which nothing drops but its own `drop`; its `Debug`, comparisons, and constants are refused |
@@ -163,7 +163,12 @@ read that needs the slice whole makes it there. A caller passes bytes as
 of it. A mutable part of a slice of other values, as
 `&mut v[a..b]`, `split_at_mut`, `chunks_mut`, and `split_mut` lend it, is a `Proxy` of an
 array whose elements are the slice's, read and written where they are, since a JS array
-has no views.
+has no views. `as_chunks_mut` and `as_rchunks_mut` lend their runs as such a `Proxy` too,
+of a view of each run, a `Uint8Array` one for bytes, and a whole write of a run copies
+into it. Before that write, a view of other values that a read took detaches to a copy of
+what it held. A byte run's view can't, so it is copied wherever it is read by value: the
+call counts as a write into the bytes, which has translated code copy each `[u8; N]` it
+reads, and the runtime's swaps, rotations, and sorts move copies of the runs.
 
 `usize` is 32 bits, as on wasm32, so it is exact in a `number`. Arithmetic is checked as
 a debug build checks it, so translated code panics where native code would: it never
@@ -171,7 +176,11 @@ wraps silently. A panic throws `rt.Panic`, with the message native Rust panics w
 aborts as wasm32's does: it runs no cleanup, so what the translation held is undefined
 after one, as a wasm trap leaves it, and a caller that catches `rt.Panic` must not use it
 again. An abort without a panic, as std's for an `RwLock` locked again while held,
-throws `rt.Abort`, a `Panic` with std's abort message.
+throws `rt.Abort`, a `Panic` with std's abort message. So `catch_unwind` only ever returns
+`Ok`, `resume_unwind` throws `rt.Abort` without running the hook, and `panic_any` panics
+with its payload if that is text, or `Box<dyn Any>` as std's hook writes any other. A
+`Location`, and with it `set_hook` and `take_hook`, is refused: translated panics carry
+none.
 
 Each integer type is its own type to `tsc`, named as Rust's: `rt.u8` is a `number` with a
 type-only brand, so a `u16` where a `u8` goes fails the type check, while a plain
@@ -287,7 +296,7 @@ its length, as std's do. `Debug` of std's iterator adaptors, `Map` through `Flat
 `DecodeUtf16`, and a `str`'s escapes, writes their fields as std's does, each iterator it
 wraps by its own `Debug`, no closure, and the state each keeps, such as what a `Peekable` peeked, what a
 `Skip` has left to skip, and the countdown std's `StepBy` of a small unsigned range keeps
-in its end. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+in its end. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
@@ -321,7 +330,9 @@ and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `co
 `find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
 adaptors and consumers call them: a filter's `next` calls `find`, an `extend` into a hash or
 B-tree collection, a `String`, or a tuple calls `for_each`, `max` calls `reduce`, and
-`is_sorted` calls `is_sorted_by`, which calls `all`. Its
+`is_sorted` calls `is_sorted_by`, which calls `all`. One whose JS value is copied, such as an
+enum's, it holds as an `rt.Place` of its own, which its `next` and std's methods taking
+`&mut self` write through, as they do the place a `&mut` to it is. Its
 own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
 `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
 `partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
@@ -550,7 +561,7 @@ whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
-a.v : undefined`. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
+a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
 back the `Arc<T>` the object was made from, or, of one made from a box, an `rt.ArcDyn` of
 the value sharing its count.
@@ -849,6 +860,13 @@ they need.
   `rt.ByteSlice` too, its bytes read in place: the decode workloads then took 0.72 times
   a view's time in Chrome, 0.67 in Firefox, 0.87 in Node, and 0.71 in Bun at the
   geometric mean, with the A/A route within 0.03, and encode no slower.
+- A run of bytes `as_chunks_mut` lends is a `Uint8Array` view, which a whole write of
+  another run can't detach, so a read of one by value copies it (decided with the
+  maintainer on 2026-11-03). moq writes its runs by element and reads none whole, so it
+  pays nothing. `just ts bench`'s `packets/` workloads, moq-mux's continuity counters over
+  188-byte packets, measured the copy at 430 ns a packet in Node, 84 in Bun, 1930 in
+  Chrome, and 800 in Firefox, against 280, 114, 1300, and 375 for the hand-written
+  route's `slice`.
 - A local built of byte slices and scalars, in tuples, `Option`s, `Result`s, and
   `ControlFlow`s, is a JS value per part: a slice's `data`, `start`, and `length`, and an
   enum's variant as a flag, when nothing borrows or writes into it and only std's splits,
@@ -1102,12 +1120,14 @@ frame headers decoded as they arrive a few bytes at a time, which prices a decod
 comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 256, and
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
-whose cross products do too, and integers sorted, searched for their greatest and least,
-and kept in a `BinaryHeap`. Each runs four ways: natively, as wasm32 at the
+whose cross products do too, integers sorted, searched for their greatest and least,
+and kept in a `BinaryHeap`, and TS packets numbered through `as_chunks_mut` as moq-mux
+numbers them, each also read by value, a copy of its bytes. Each runs four ways: natively, as wasm32 at the
 size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, and typed arrays and a heap of its own in `bench/order.ts`), and translated; every route's output must match
+timescales, typed arrays and a heap of its own in `bench/order.ts`, and offsets into one
+`Uint8Array` in `bench/packets.ts`), and translated; every route's output must match
 native Rust's first. The JS routes run minified, the same bundles whose size it reports,
 in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the

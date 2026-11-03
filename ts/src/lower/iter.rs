@@ -536,6 +536,7 @@ fn folds_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span: Span) -> Expr {
 	let item = b.t.iter_item(ty.peel_refs());
 	let none = item.and_then(|item| b.t.none_arg(item));
+	let held = held(b, ty);
 	let mut props = Vec::new();
 	for (tr, name) in &OWN[1..] {
 		if !owned && !BORROWED.contains(&(tr, name)) {
@@ -557,28 +558,28 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 			);
 			continue;
 		}
-		let sym = Expr::Sym(b.t.instance(instance));
+		let mut sym = Expr::Sym(b.t.instance(instance));
+		let args: &[&str] = match *name {
+			"size_hint" | "len" | "count" | "last" | "next_back" => &[],
+			"nth" | "nth_back" => &["n"],
+			"fold" | "rfold" => &["acc", "f"],
+			_ => &["f"],
+		};
+		// One held by its place, which a method not taking `&mut self` reads the value of.
+		let receiver = b.t.sig(instance.def_id(), instance.args).inputs()[0];
+		if held && receiver.ref_mutability() != Some(ty::Mutability::Mut) {
+			sym = through_place(b, ty, sym, args, span);
+		}
 		// Each that returns an `Option` of an item, as the protocol returns it: an item or
 		// `rt.DONE`.
 		let method = match *name {
 			"next_back" | "nth" | "nth_back" | "last" | "find" | "rfind" | "reduce" => {
-				let arg = match *name {
-					"nth" | "nth_back" => Some("n"),
-					"find" | "rfind" | "reduce" => Some("f"),
-					_ => None,
-				};
-				let args = [Expr::ident("it")].into_iter().chain(arg.map(Expr::ident)).collect();
-				let option = [sym.call(args)].into_iter().chain(none.clone()).collect();
-				let it = Param {
-					name: "it".into(),
-					ty: Some(b.t.ty(ty.peel_refs(), span)),
-				};
-				// `n` and `f` are typed by their place in `rt.Own`.
-				let params = [it].into_iter().chain(arg.map(|arg| Param {
-					name: arg.into(),
-					ty: None,
-				}));
-				Expr::Lambda(params.collect(), Box::new(Expr::rt("iterFromOption", option)))
+				let call = [Expr::ident("it")]
+					.into_iter()
+					.chain(args.iter().map(|&arg| Expr::ident(arg)));
+				let option = [sym.call(call.collect())].into_iter().chain(none.clone()).collect();
+				let params = source_params(b, ty, args, span);
+				Expr::Lambda(params, Box::new(Expr::rt("iterFromOption", option)))
 			}
 			_ => sym,
 		};
@@ -593,6 +594,47 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		true => Expr::undefined(),
 		false => Expr::Object(props),
 	}
+}
+
+/// Whether `rt.iterFrom` holds the crate's own iterator of type `ty`, through references, as
+/// an `rt.Place`, as its `next` reads one whose JS value is copied, such as an enum's.
+fn held<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	b.t.needs_place(ty.peel_refs())
+}
+
+/// Whether `ty` is an iterator of the crate's own whose `&mut` is an `rt.Place`, which std's
+/// methods taking `&mut self` read through, as its `next` does.
+pub fn held_own<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	matches!(ty.kind(), ty::Adt(adt, _) if t.own(adt.did())) && t.iter_item(ty).is_some() && t.needs_place(ty)
+}
+
+/// The parameters of a function of the source of `rt.iterFrom` holding the crate's own
+/// iterator of type `ty`, then `args`, which are typed by their place in `rt.Own`.
+fn source_params<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &[&str], span: Span) -> Vec<Param> {
+	let it = b.t.ty(ty.peel_refs(), span);
+	let it = match held(b, ty) {
+		true => Type::Rt("Place", vec![it]),
+		false => it,
+	};
+	let it = Param {
+		name: "it".into(),
+		ty: Some(it),
+	};
+	let args = args.iter().map(|arg| Param {
+		name: (*arg).into(),
+		ty: None,
+	});
+	[it].into_iter().chain(args).collect()
+}
+
+/// `f` of the value in the place `rt.iterFrom` holds the crate's own iterator of type `ty`
+/// by, then `args`.
+fn through_place<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, args: &[&str], span: Span) -> Expr {
+	let call = [Expr::ident("it").member("v")]
+		.into_iter()
+		.chain(args.iter().map(|&arg| Expr::ident(arg)));
+	let params = source_params(b, ty, args, span);
+	Expr::Lambda(params, Box::new(f.call(call.collect())))
 }
 
 /// `iter.next_back()` of the crate's own iterator of type `ty`, as the protocol returns it:
@@ -725,9 +767,19 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		return Some(match own_next(b, ty) {
 			Some(instance) => {
 				let next = Expr::Sym(b.t.instance(instance));
+				// One owned whose `next` reads its place is moved into a place of its own.
+				let placed = owned && held(b, ty);
 				let drop = match owned && b.t.drops(ty) {
+					true if placed => {
+						let drop = b.t.dropper(ty, span);
+						through_place(b, ty, drop, &[], span)
+					}
 					true => b.t.dropper(ty, span),
 					false => Expr::undefined(),
+				};
+				let value = match placed {
+					true => Expr::Object(vec![(Key::Name("v".into()), value)]),
+					false => value,
 				};
 				let own = own_methods(b, ty, owned, span);
 				Expr::rt("iterFrom", tail(vec![value, next], vec![drop, own]))
@@ -1055,6 +1107,15 @@ pub fn call<'tcx>(
 	}
 
 	let self_ty = match (owner, name) {
+		// The crate's own iterator, which a method taking `&mut self` borrows.
+		("Iterator" | "DoubleEndedIterator" | "ExactSizeIterator", _)
+			if !targ(0)?.is_ref()
+				&& own_next(b, targ(0)?).is_some()
+				&& let receiver = b.t.sig(call.def_id, gargs).inputs()[0]
+				&& receiver.ref_mutability() == Some(ty::Mutability::Mut) =>
+		{
+			receiver
+		}
 		("Iterator" | "DoubleEndedIterator" | "ExactSizeIterator", _) => targ(0)?,
 		("Peekable", "peek" | "peek_mut" | "next_if" | "next_if_eq")
 			if library::inherent_std(tcx, call.def_id) == Some(Std::Peekable) =>
@@ -1628,7 +1689,20 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 	let tcx = b.t.tcx;
 	let value = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| super::collections::clone_fn(b, ty, span);
 	if own_next(b, ty).is_some() {
-		return Some(parts(vec![("v", value(b, ty))]));
+		// A place of its own for the clone of one held by its place.
+		let clone = match (held(b, ty), value(b, ty)) {
+			(true, clone) => {
+				let v = Expr::ident("it").member("v");
+				let v = match undefined(&clone) {
+					true => v,
+					false => clone.call(vec![v]),
+				};
+				let params = source_params(b, ty, &[], span);
+				Expr::Lambda(params, Box::new(Expr::Object(vec![(Key::Name("v".into()), v)])))
+			}
+			(false, clone) => clone,
+		};
+		return Some(parts(vec![("v", clone)]));
 	}
 	let ty::Adt(adt, args) = ty.kind() else {
 		return None;
