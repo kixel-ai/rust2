@@ -2002,10 +2002,10 @@ export function utf16(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args4[0]]));
 	const le: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const be: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u2);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const _57: [rt.ByteSlice, rt.ByteSlice] = [rt.byteSliceRange(rt.byteVecSlice(le), 0), rt.byteSliceRange(rt.byteVecSlice(be), 0)];
 	const iter: rt.Iter<[rt.ByteSlice, rt.ByteSlice]> = rt.iterSlice([_57, [option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(le), 1), rt.byteSliceFrom(Uint8Array.of())), option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(be), 1), rt.byteSliceFrom(Uint8Array.of()))] as [rt.ByteSlice, rt.ByteSlice], [data, data] as [rt.ByteSlice, rt.ByteSlice]]);
 	while (true) {
