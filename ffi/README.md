@@ -536,13 +536,12 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   the isolate alive, as a timer does.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
-  other through the isolate's port, and waits for its event loop to run the call. A call
-  that lends a closure or gives an implementation, and each poll of its future, runs on a
-  thread of its own, acting as the caller's for the handles it borrows, while the
-  isolate's thread runs what Rust calls into Dart. Any other call, a future's `cancel()`
-  included, holds the isolate's thread, so it deadlocks if Rust waits in it on another
-  thread calling an implementation it kept, such as one a method calls from a thread it
-  joins, or one a future's destructor calls.
+  other through the isolate's port, and waits for its event loop to run the call. While
+  Rust holds an implementation or a lent closure of the isolate, each call into Rust, a
+  future's poll and `cancel()` included, runs on a thread of its own, acting as the
+  caller's for the handles it borrows, while the isolate's thread runs what Rust calls
+  into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
+  on can call into Dart.
 - **The contract** is checked at the first call, before any other: a Dart file and a
   library from different builds throw a `StateError`.
 

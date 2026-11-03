@@ -656,6 +656,47 @@ impl Logger {
 	pub fn write(&self, line: &str) -> bool {
 		self.sink.log(0, line)
 	}
+
+	/// [`Logger::write`] on another thread, which the call waits on.
+	pub fn write_from_thread(&self, line: &str) -> bool {
+		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
+	}
+}
+
+/// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
+pub struct LogThread {
+	thread: std::thread::JoinHandle<bool>,
+}
+
+impl LogThread {
+	pub fn new(log: Box<dyn Log>, line: String) -> Self {
+		Self {
+			thread: std::thread::spawn(move || log.log(0, &line)),
+		}
+	}
+
+	/// Whether the line was kept.
+	pub fn join(self) -> bool {
+		self.thread.join().expect("the thread finishes")
+	}
+}
+
+/// A future that never finishes, whose drop logs a line to `log` on another thread it
+/// waits on.
+pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
+	let guard = LogOnDrop(log);
+	async move {
+		let _guard = guard;
+		std::future::pending().await
+	}
+}
+
+struct LogOnDrop(Box<dyn Log>);
+
+impl Drop for LogOnDrop {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
+	}
 }
 
 /// A list: every field is `pub`, but it holds itself, which C cannot hold in place, so it

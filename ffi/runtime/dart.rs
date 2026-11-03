@@ -1,17 +1,19 @@
 //! The runtime the `dart` feature builds for `dart/<prefix>.dart`: what an isolate needs
 //! of Rust that `dart:ffi` lacks.
 //!
-//! A wake, a dropped waker, and a call into Dart or an implementation dropped on another
-//! thread each reach the isolate as an integer posted to its port, which never blocks and
-//! which a port closed with its isolate drops. Dart runs code only on the thread in its
-//! isolate, so a call into Dart from any other thread waits for the isolate to run it: from
-//! its event loop, or, while it waits in a call that lends a closure or gives an
-//! implementation, from that wait, since such a call runs on a thread of its own.
+//! A wake and a dropped waker each reach the isolate as an integer posted to its port,
+//! which never blocks and which a port closed with its isolate drops. Dart runs code only
+//! on the thread in its isolate, so a call into Dart from any other thread, and the drop of
+//! an implementation there, waits in the isolate's queue for it to run: from its event
+//! loop, which the port tells of each, or, while it waits in a call from Dart, from that
+//! wait. A call waits so only while Rust holds an implementation or a lent closure of the
+//! isolate, any of which another thread may call: then it runs on a thread of its own.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::ffi::{CStr, c_char, c_void};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::panic::AssertUnwindSafe;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
 
 use crate::rt;
@@ -19,7 +21,7 @@ use crate::rt;
 /// What an integer posted to an isolate's port asks, in its low two bits.
 const WAKE: i64 = 0;
 const DROP: i64 = 1;
-const JOB: i64 = 2;
+const RUN: i64 = 2;
 
 /// What Rust calls of Dart's API.
 struct Api {
@@ -95,15 +97,11 @@ pub struct Home {
 	isolate: usize,
 	/// What tells Dart, on its thread, that Rust dropped the implementation of a token.
 	dropped: unsafe extern "C" fn(i64),
-	queue: Mutex<Queue>,
+	/// How many relays Rust holds: the implementations and lent closures of the isolate it
+	/// may call from another thread.
+	relays: AtomicUsize,
+	tasks: Mutex<VecDeque<Task>>,
 	ready: Condvar,
-}
-
-#[derive(Default)]
-struct Queue {
-	tasks: VecDeque<Task>,
-	/// How many calls of the isolate's run on a thread of their own while it serves.
-	serving: usize,
 }
 
 /// The isolate the calling thread is in, whose port is `port` and which `dropped` tells
@@ -115,28 +113,19 @@ pub fn home(port: i64, dropped: unsafe extern "C" fn(i64)) -> &'static Home {
 		port,
 		isolate,
 		dropped,
-		queue: Mutex::default(),
+		relays: AtomicUsize::new(0),
+		tasks: Mutex::default(),
 		ready: Condvar::new(),
 	}))
 }
 
-/// What the isolate runs while it serves.
+/// What the isolate runs on its thread for another.
 enum Task {
 	/// A call into Dart another thread waits on.
 	Call(Arc<Job>),
 	/// An implementation of this token Rust dropped, which nothing waits on, since a
 	/// `NativeFinalizer` may drop it on a thread the garbage collector holds.
 	Drop(i64),
-}
-
-impl Task {
-	/// The message posting it to the isolate's port.
-	fn message(self) -> i64 {
-		match self {
-			Task::Call(job) => job.message(),
-			Task::Drop(token) => (token << 2) | DROP,
-		}
-	}
 }
 
 impl Home {
@@ -151,8 +140,28 @@ impl Home {
 		unsafe { (api().isolate)() as usize == self.isolate }
 	}
 
-	fn lock(&self) -> MutexGuard<'_, Queue> {
-		self.queue.lock().unwrap_or_else(|e| e.into_inner())
+	fn lock(&self) -> MutexGuard<'_, VecDeque<Task>> {
+		self.tasks.lock().unwrap_or_else(|e| e.into_inner())
+	}
+
+	/// Queue `task` for a wait in a call from Dart to run, and tell the event loop to run
+	/// it if none does first, returning whether the isolate is alive to.
+	fn push(&self, task: Task) -> bool {
+		self.lock().push_back(task);
+		self.ready.notify_all();
+		self.post(RUN)
+	}
+
+	/// Run `task` on the isolate's thread.
+	///
+	/// # Safety
+	/// Called from Dart in this isolate.
+	unsafe fn run(&self, task: Task) {
+		match task {
+			Task::Call(job) => job.run(),
+			// SAFETY: the caller's contract.
+			Task::Drop(token) => unsafe { (self.dropped)(token) },
+		}
 	}
 
 	/// Run `f`, which calls into Dart, on this isolate's thread: at once if called there,
@@ -176,14 +185,8 @@ impl Home {
 			done: Mutex::new(false),
 			ran: Condvar::new(),
 		});
-		{
-			let mut queue = self.lock();
-			if queue.serving > 0 {
-				queue.tasks.push_back(Task::Call(job.clone()));
-				self.ready.notify_all();
-			} else if !self.post(job.clone().message()) {
-				rt::fail(what, "the Dart isolate it calls into has exited");
-			}
+		if !self.push(Task::Call(job.clone())) {
+			rt::fail(what, "the Dart isolate it calls into has exited");
 		}
 		let mut done = job.done.lock().unwrap_or_else(|e| e.into_inner());
 		while !*done {
@@ -193,75 +196,96 @@ impl Home {
 		out.expect("the job ran")
 	}
 
-	/// Run `f`, a call from Dart that lends a closure or gives an implementation, or a poll
-	/// of its future, on a thread of its own while this one, the isolate's, runs each call
-	/// into Dart and each drop until `f` returns. `f`'s thread acts as this one does for the
-	/// handles it borrows, as does this one for each job's.
+	/// Run `f`, a call from Dart, at once if Rust holds no relay of this isolate, since
+	/// then nothing it waits on can call into Dart. Else run it on a thread of its own while
+	/// this one, the isolate's, runs each task queued until `f` returns. `f`'s thread acts
+	/// as this one does for the handles it borrows, as does this one for each job's.
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `f` is a call through the C ABI.
 	pub unsafe fn serve<R>(&self, f: impl FnOnce() -> R) -> R {
+		// Only this thread makes a relay, so none appears before `f` returns.
+		if self.relays.load(Ordering::Acquire) == 0 {
+			return f();
+		}
 		let caller = rt::thread();
 		let done = AtomicBool::new(false);
-		let f = Sent(f);
-		self.lock().serving += 1;
-		let result = std::thread::scope(|scope| {
-			let done = &done;
-			let worker = scope.spawn(move || {
-				let f = f.into_inner();
-				ACTING.set(caller);
-				let result = Sent(f());
-				let _queue = self.lock();
-				done.store(true, Ordering::Release);
-				self.ready.notify_all();
-				result
-			});
-			let mut queue = self.lock();
-			loop {
-				if let Some(task) = queue.tasks.pop_front() {
-					drop(queue);
-					match task {
-						Task::Call(job) => job.run(),
-						// SAFETY: on the isolate's thread, in a call from Dart.
-						Task::Drop(token) => unsafe { (self.dropped)(token) },
-					}
-					queue = self.lock();
-				} else if done.load(Ordering::Acquire) {
-					break;
-				} else {
-					queue = self.ready.wait(queue).unwrap_or_else(|e| e.into_inner());
-				}
+		let mut f = Some(f);
+		let mut out = None;
+		let mut run = || {
+			ACTING.set(caller);
+			let f = f.take().expect("a call runs once");
+			out = Some(std::panic::catch_unwind(AssertUnwindSafe(f)));
+			let _tasks = self.lock();
+			done.store(true, Ordering::Release);
+			self.ready.notify_all();
+		};
+		let run: &mut (dyn FnMut() + '_) = &mut run;
+		// SAFETY: this thread waits below until the call ran, so `run` outlives its use.
+		Worker::lend(Run(unsafe { std::mem::transmute(run) }));
+		let mut tasks = self.lock();
+		loop {
+			if let Some(task) = tasks.pop_front() {
+				drop(tasks);
+				// SAFETY: the caller's contract.
+				unsafe { self.run(task) };
+				tasks = self.lock();
+			} else if done.load(Ordering::Acquire) {
+				break;
+			} else {
+				tasks = self.ready.wait(tasks).unwrap_or_else(|e| e.into_inner());
 			}
-			queue.serving -= 1;
-			// What no other wait will run goes to the event loop.
-			if queue.serving == 0 {
-				for task in queue.tasks.drain(..) {
-					if !self.post(task.message()) {
-						rt::fail("dart", "the Dart isolate it calls into has exited");
-					}
-				}
-			}
-			drop(queue);
-			worker.join()
-		});
-		match result {
-			Ok(result) => result.into_inner(),
+		}
+		drop(tasks);
+		match out.expect("the call ran") {
+			Ok(result) => result,
 			Err(panic) => std::panic::resume_unwind(panic),
 		}
 	}
 }
 
-/// A value moved to another thread that the sender waits on, so it never touches it
-/// meanwhile.
-struct Sent<T>(T);
+/// The workers parked for a call to run, shared by every isolate: a spawn per call costs
+/// about three times a handoff to one.
+static IDLE: Mutex<Vec<Arc<Worker>>> = Mutex::new(Vec::new());
 
-// SAFETY: see above.
-unsafe impl<T> Send for Sent<T> {}
+/// A thread that runs a call from Dart while the isolate's thread serves.
+struct Worker {
+	call: Mutex<Option<Run>>,
+	ready: Condvar,
+}
 
-impl<T> Sent<T> {
-	/// The value, through a method, so a closure captures `Sent` whole.
-	fn into_inner(self) -> T {
-		self.0
+impl Worker {
+	/// Run `run` on an idle worker, or a new one if none is.
+	fn lend(run: Run) {
+		let idle = IDLE.lock().unwrap_or_else(|e| e.into_inner()).pop();
+		let worker = idle.unwrap_or_else(|| {
+			let worker = Arc::new(Worker {
+				call: Mutex::new(None),
+				ready: Condvar::new(),
+			});
+			let parked = worker.clone();
+			std::thread::spawn(move || parked.park());
+			worker
+		});
+		*worker.call.lock().unwrap_or_else(|e| e.into_inner()) = Some(run);
+		worker.ready.notify_one();
+	}
+
+	/// Run each call lent to this worker, idle between them.
+	fn park(self: Arc<Self>) {
+		loop {
+			let mut call = self.call.lock().unwrap_or_else(|e| e.into_inner());
+			let Run(run) = loop {
+				match call.take() {
+					Some(run) => break run,
+					None => call = self.ready.wait(call).unwrap_or_else(|e| e.into_inner()),
+				}
+			};
+			drop(call);
+			// SAFETY: the lending thread waits until it ran.
+			unsafe { (*run)() };
+			IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(self.clone());
+		}
 	}
 }
 
@@ -287,11 +311,6 @@ pub struct Job {
 }
 
 impl Job {
-	/// The message posting it to the isolate, which [`run_posted`] takes.
-	fn message(self: Arc<Self>) -> i64 {
-		((Arc::into_raw(self) as i64) << 2) | JOB
-	}
-
 	fn run(&self) {
 		let run = self.run.lock().unwrap_or_else(|e| e.into_inner()).take();
 		if let Some(Run(run)) = run {
@@ -305,14 +324,16 @@ impl Job {
 	}
 }
 
-/// Run the job the isolate's port received as `message`.
+/// Run the task the isolate's port was told of, unless a wait in a call ran it already.
 ///
 /// # Safety
-/// `message` is a job's, received once.
-pub unsafe fn run_posted(message: i64) {
-	// SAFETY: the caller's contract: `Job::message` made it.
-	let job = unsafe { Arc::from_raw((message >> 2) as *const Job) };
-	job.run();
+/// Called from Dart in `home`'s isolate.
+pub unsafe fn run(home: &Home) {
+	let task = home.lock().pop_front();
+	if let Some(task) = task {
+		// SAFETY: the caller's contract.
+		unsafe { home.run(task) };
+	}
 }
 
 /// A waker posting its token to the isolate's port: to wake, and once dropped.
@@ -355,6 +376,7 @@ pub struct Relay {
 /// A relay for the isolate's `token`, which Dart frees after the call it lends it for, or
 /// Rust once it drops the implementation it is the data of.
 pub fn relay(home: &'static Home, f: *const c_void, token: i64) -> *mut Relay {
+	home.relays.fetch_add(1, Ordering::Relaxed);
 	Box::into_raw(Box::new(Relay {
 		f,
 		token: token as *mut c_void,
@@ -368,12 +390,13 @@ pub fn relay(home: &'static Home, f: *const c_void, token: i64) -> *mut Relay {
 /// `relay` came from [`relay`], freed once.
 pub unsafe fn relay_free(relay: *mut Relay) {
 	// SAFETY: the caller's contract.
-	drop(unsafe { Box::from_raw(relay) });
+	let relay = unsafe { Box::from_raw(relay) };
+	relay.home.relays.fetch_sub(1, Ordering::Release);
 }
 
 /// An implementation's `free`: tell the isolate Rust dropped it, so its `close` runs before
 /// the call that dropped it returns, on the isolate's thread or one the call serves, or
-/// else through its port. A `NativeFinalizer` runs with no current isolate, so a drop it
+/// else from its event loop. A `NativeFinalizer` runs with no current isolate, so a drop it
 /// makes never runs Dart at once.
 ///
 /// # Safety
@@ -383,15 +406,11 @@ pub unsafe extern "C" fn relay_drop(relay: *mut c_void) {
 	let relay = unsafe { Box::from_raw(relay.cast::<Relay>()) };
 	let token = relay.token as i64;
 	let home = relay.home;
+	home.relays.fetch_sub(1, Ordering::Release);
 	if home.here() {
 		// SAFETY: on the isolate's thread, in a call from Dart.
 		return unsafe { (home.dropped)(token) };
 	}
-	let mut queue = home.lock();
-	if queue.serving > 0 {
-		queue.tasks.push_back(Task::Drop(token));
-		home.ready.notify_all();
-	} else {
-		home.post(Task::Drop(token).message());
-	}
+	// An isolate that exited has nothing left to close.
+	home.push(Task::Drop(token));
 }
