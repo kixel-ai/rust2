@@ -63,6 +63,12 @@ export function drop$Option_tuple2_maps_Logged_maps_Logged(_1: [Logged.Logged, L
 	}
 }
 
+export function drop$Option_tuple2_tuple2_u8_u8_maps_Logged(_1: [[rt.u8, rt.u8], Logged.Logged] | undefined): void {
+	if (_1 !== undefined) {
+		drop$tuple2_tuple2_u8_u8_maps_Logged(_1);
+	}
+}
+
 export function drop$Option_tuple2_u16_maps_Logged(_1: [rt.u16, Logged.Logged] | undefined): void {
 	if (_1 !== undefined) {
 		drop$tuple2_u16_maps_Logged(_1);
@@ -142,6 +148,11 @@ export function drop$maps_Held_maps_Logged(_1: Held.Held<Logged.Logged>): void {
 	_1.last[Symbol.dispose]();
 }
 
+export function drop$tuple2_hashbrown_HashMap_u8_u8_maps_Made_hashbrown_HashSet_u8_maps_Made(_1: [rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>]): void {
+	rt.hashDrop(_1[0], undefined, undefined, rt.drop);
+	rt.hashDrop(_1[1], undefined, undefined, rt.drop);
+}
+
 export function drop$tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1: [LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, Logged.Logged]): void {
 	drop$hashlink_LinkedHashSet_maps_Logged(_1[0]);
 	_1[1][Symbol.dispose]();
@@ -160,8 +171,18 @@ export function drop$tuple2_sync_Arc_str_u32(_1: [rt.Arc<string>, rt.u32]): void
 	_1[0][Symbol.dispose]();
 }
 
+export function drop$tuple2_tuple2_u8_u8_maps_Logged(_1: [[rt.u8, rt.u8], Logged.Logged]): void {
+	_1[1][Symbol.dispose]();
+}
+
 export function drop$tuple2_u16_maps_Logged(_1: [rt.u16, Logged.Logged]): void {
 	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple3_hashbrown_HashMap_tuple2_u8_u8_u32_maps_Seeded_hashbrown_HashSet_u8_maps_Seeded_hashbrown_HashSet_u8_maps_Seeded(_1: [rt.HashMap<[rt.u8, rt.u8], rt.u32>, rt.HashSet<rt.u8>, rt.HashSet<rt.u8>]): void {
+	rt.hashDrop(_1[0], undefined, undefined, rt.drop);
+	rt.hashDrop(_1[1], undefined, undefined, rt.drop);
+	rt.hashDrop(_1[2], undefined, undefined, rt.drop);
 }
 
 export class of$buf_Counted {
