@@ -357,6 +357,17 @@ pub(super) fn searched(log: &Log, id: u32, arg: u8) {
 			let parts: Vec<&str> = text.split(&mut counted).collect();
 			log.note(format!("counted {found:?} {parts:?} {}", (*counted)('x')));
 			drop(counted);
+			// A clone of an iterator clones the box it owns, with what its closure counted.
+			let mut calls = 0;
+			let mut split = text.split(Box::new(move |c: char| {
+				calls += 1;
+				sep(c) && calls != 2
+			}));
+			let cloned = split.clone();
+			log.note(format!("first {:?}", split.next()));
+			let rest: Vec<&str> = cloned.collect();
+			log.note(format!("cloned {rest:?} {:?}", split.next()));
+			drop(split);
 			// A `Box<dyn Fn>` borrowed by `&`, and a boxed function pointer, by value.
 			let g = guard(7);
 			let shared: Box<dyn Fn(char) -> bool> = Box::new(move |c| sep(c) && g.id() > 0);
