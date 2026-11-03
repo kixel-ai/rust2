@@ -208,8 +208,44 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// type without a mapping. One that owns what it yields, by value, is given what drops
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
+	let (peeled, value) = peel_iter(b, ty, value);
+	let it = peeled_into_iter(b, peeled, value, span)?;
+	Some(boxes(b, ty, it))
+}
+
+/// `it`, the `rt.Iter` of what `peel_iter` read a `ty` through, read through `ty`'s boxes
+/// as std's `Iterator` for `Box<I>` reads one: by what it forwards, and else by `next`.
+/// Boxes before the first reference are one `rt.iterBox`, and a box past it makes that
+/// reference fold by `next` too, whatever the box holds.
+fn boxes<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, it: Expr) -> Expr {
+	let held = |ty: Ty<'tcx>| ty.boxed_ty().filter(|held| b.t.iter_item(*held).is_some());
+	let outer = held(ty).is_some();
+	while let Some(inner) = held(ty) {
+		ty = inner;
+	}
+	let mut end = ty;
+	let borrowed = loop {
+		if held(end).is_some() {
+			break true;
+		}
+		match *end.kind() {
+			ty::Ref(_, inner, _) => end = inner,
+			_ => break false,
+		}
+	};
+	let it = match borrowed {
+		true => Expr::rt("iterBorrow", vec![Expr::rt("iterBox", vec![it])]),
+		false => it,
+	};
+	match outer {
+		true => Expr::rt("iterBox", vec![it]),
+		false => it,
+	}
+}
+
+/// `into_iter` of `value`, a `ty` `peel_iter` read through.
+fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	let (ty, value) = peel_iter(b, ty, value);
 	let (ty, value) = match unbox_ref(tcx, ty) {
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
@@ -594,8 +630,10 @@ pub fn call<'tcx>(
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
 	// What it reads through boxes and references, while std picks each specialization by
-	// `self_ty`, which a box implements none of.
-	let (iter_ty, recv) = peel_iter(b, self_ty, values.next()?);
+	// `self_ty`, which a box implements none of. `into_iter` peels `self_ty` itself, to tell
+	// a box apart.
+	let first = values.next()?;
+	let (iter_ty, recv) = peel_iter(b, self_ty, first.clone());
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);
@@ -609,14 +647,14 @@ pub fn call<'tcx>(
 				None => recv.member("nextBack").call(Vec::new()),
 			},
 			_ => {
-				let recv = into_iter(b, iter_ty, recv, span)?;
+				let recv = into_iter(b, self_ty, first, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
 		};
 		return Some(Expr::rt("iterToOption", [item].into_iter().chain(none).collect()));
 	}
-	let recv = into_iter(b, iter_ty, recv, span)?;
+	let recv = into_iter(b, self_ty, first, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
 		let of = match owner {
