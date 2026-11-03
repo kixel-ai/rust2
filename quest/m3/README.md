@@ -37,3 +37,4 @@ generic std gap is planned here even when moq never calls it.
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
 - [A std map with a crate's own BuildHasher](/quest/m3/ts-map-own-hasher.md) - std's and hashbrown's maps built with a crate's own hasher translate for keys that are JS objects
+- [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
