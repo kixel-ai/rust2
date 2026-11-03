@@ -283,6 +283,14 @@ pub fn call<'tcx>(
 		("MutexGuard" | "MappedMutexGuard", "map" | "filter_map") => guard_map(b, call, name, "mutex", args, out),
 		("Ref", "clone") => Expr::rt("refClone", args),
 		("RefCell", "replace") => Expr::rt("refCellReplace", args),
+		// With the value's place where JS would copy it.
+		("RefCell", "replace_with") => {
+			let copied = b.t.needs_place(call.args.type_at(0));
+			Expr::rt(
+				"refCellReplaceWith",
+				super::iter::tail(args, vec![Expr::lit(copied.to_string())]),
+			)
+		}
 		("RefCell", "take") => {
 			let ty = call.args.type_at(0);
 			let f = super::collections::trait_fn(tcx, "Default", "default");
@@ -324,6 +332,7 @@ pub fn call<'tcx>(
 		}
 		("Atomic", _) => return atomic(b, call, name, args),
 		("LazyCell" | "LazyLock", "force") => first(args).member("force").call(vec![]),
+		("LazyCell" | "LazyLock", "new") => Expr::New(Box::new(Expr::Rt(owner.into())), args),
 		("OnceCell" | "OnceLock", _) => return once(b, call, name, args),
 		// A `OnceLock` of `true`, which nothing poisons, as a panic aborts.
 		("Once", "new") => once_unrun(),
@@ -523,6 +532,7 @@ fn cell<'tcx>(
 		"get" => b.t.copied(first(args).member("v"), ty, call.span),
 		"into_inner" => first(args).member("v"),
 		"replace" => Expr::rt("cellReplace", args),
+		"update" => Expr::rt("cellUpdate", args),
 		// With what drops the value it replaces.
 		"set" => {
 			let Some(droppers) = b.t.droppers([ty], call.span) else {

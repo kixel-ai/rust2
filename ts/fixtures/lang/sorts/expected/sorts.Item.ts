@@ -25,6 +25,10 @@ export function eq$cmp_PartialEq_unit(self: Item<undefined>, other: Item<undefin
 	return self.key === other.key;
 }
 
+export function partialCmp$cmp_PartialOrd_u8(self: Item<rt.u8>, other: Item<rt.u8>): rt.Ordering | undefined {
+	return cmp$cmp_Ord_u8(self, other);
+}
+
 export function lt$cmp_PartialOrd_Cell_u32(self: Item<rt.Cell<rt.u32>>, other: Item<rt.Cell<rt.u32>>): boolean {
 	note(60, self.tag, other.tag);
 	return self.key < other.key;
@@ -81,6 +85,11 @@ export function cmp$cmp_Ord_array30_u32(self: Item<rt.u32[]>, other: Item<rt.u32
 }
 
 export function cmp$cmp_Ord_sorts_Held(self: Item<Held.Held>, other: Item<Held.Held>): rt.Ordering {
+	note(99, self.tag, other.tag);
+	return rt.cmp(self.key, other.key);
+}
+
+export function cmp$cmp_Ord_u8(self: Item<rt.u8>, other: Item<rt.u8>): rt.Ordering {
 	note(99, self.tag, other.tag);
 	return rt.cmp(self.key, other.key);
 }

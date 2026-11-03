@@ -532,6 +532,27 @@ export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
 	return old;
 }
 
+/**
+ * `RefCell::replace_with`: its value, which what `f` returns of it, or of its place if
+ * `copied`, where JS copies it, replaces, exclusively borrowed until then.
+ */
+export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, copied = false): T {
+	refCellBorrowMut(cell);
+	const at = copied
+		? place(
+				() => cell.value,
+				(v) => {
+					cell.value = v;
+				},
+			)
+		: cell.value;
+	const replacement = f(at as never);
+	const old = cell.value;
+	cell.value = replacement;
+	refMutRelease(cell);
+	return old;
+}
+
 /** `Debug` of a `RefCell`: its value, borrowed while it is written, or `<borrowed>` unpadded while borrowed exclusively. */
 export function refCellDebug<T>(cell: RefCell<T>, f: Formatter, debug: Debug<T>): FmtResult {
 	const b = fmtDebugStruct(f, "RefCell");
@@ -809,6 +830,11 @@ export function cellReplace<T>(cell: Cell<T>, v: T): T {
 	const old = cell.v;
 	cell.v = v;
 	return old;
+}
+
+/** `Cell::update`: what `f` returns of its value, in its place. */
+export function cellUpdate<T>(cell: Cell<T>, f: (v: T) => T): void {
+	cell.v = f(cell.v);
 }
 
 /** `Cell::set`: `v` in place of the value it held, which `dropOld` drops after. */
