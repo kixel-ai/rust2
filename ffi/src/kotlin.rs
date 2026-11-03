@@ -92,8 +92,6 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#![allow(non_snake_case, non_upper_case_globals, unused_mut, unused_unsafe, clippy::all)]\n\n\
 		mod rt;\n\n\
 		use std::ffi::c_void;\n\
-		use std::mem::MaybeUninit;\n\
-		use std::sync::OnceLock;\n\n\
 		use rt::*;\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn JNI_OnLoad(vm: *mut JavaVM, _: *mut c_void) -> jint {{\n\
@@ -1331,7 +1329,7 @@ impl<'a> Gen<'a> {
 		);
 		let _ = write!(
 			self.glue,
-			"static M_{trampoline}: OnceLock<usize> = OnceLock::new();\n\nunsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
+			"static M_{trampoline}: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\nunsafe extern \"C\" fn {trampoline}({}) -> {rust_ret} {{\n\trt::upcall(\"{what}\", |env| {{\n\t\tlet id = rt::method(env, &M_{trampoline}, c\"{dispatcher}\", c\"{sig}\");\n\t\tlet args = [{}];\n\t\t{invoke}\n\t\tlet _ = &ret;\n\t\t{back}\n\t}})\n}}\n\n",
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);
@@ -1793,7 +1791,7 @@ impl<'a> Gen<'a> {
 		};
 		let types = types.into_iter().chain(err_ty);
 		for ((name, _), ty) in outs.iter().zip(types) {
-			decl.push(format!("let mut o_{name} = MaybeUninit::zeroed();"));
+			decl.push(format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"));
 			ptrs.push(format!("o_{name}.as_mut_ptr()"));
 			let put = format!("{};", put(ty, &format!("o_{name}.assume_init()")));
 			match name.as_str() {
@@ -1965,7 +1963,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Duration => "crate::rt::Duration".to_string(),
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
-		Ty::Handle { .. } => "*const c_void".to_string(),
+		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
 		other => {
 			let _ = abi;
 			unreachable!("{other:?} is never lent to a trampoline")
