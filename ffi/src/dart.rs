@@ -8,7 +8,7 @@
 //! returning it is a constructor, which may share its name with a field: an object's `new`
 //! its unnamed one (`Counter('c', 1)`), and any other a named one (`Position.group`). Its
 //! other functions are static members. An object is a final class owning its
-//! handle, freed by `close` or a `NativeFinalizer`; a record a final class; an enum a Dart
+//! handle, freed by `close` or the garbage collector; a record a final class; an enum a Dart
 //! enum, or with data a sealed class of a final class per variant; a tuple a record; a
 //! trait an abstract class, whose `close` Rust calls once it drops an implementation; a
 //! closure a function type; a future a `Cancelable`, a `Future` that cancels; an error a
@@ -653,6 +653,35 @@ impl<'a> Gen<'a> {
 			args.join(", ")
 		);
 		self.native_fn(&name, params, call.ret.clone())
+	}
+
+	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
+	/// giving the garbage collector a Dart object owning it to free it with, and one taking
+	/// that back and freeing it, serving the isolate meanwhile.
+	fn owned(&mut self, c: &str, handle: &Ty) -> (String, String) {
+		let p = &self.abi.prefix;
+		let bare = self.bare(c);
+		let own = format!("{p}_dart_own_{bare}");
+		let free = format!("{p}_dart_free_{bare}");
+		let raw = rs(handle);
+		let _ = write!(
+			self.glue,
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {own}(object: *mut c_void, raw: *mut c_void) -> *mut c_void {{\n\t// The garbage collector's free runs with no isolate to serve.\n\tunsafe extern \"C\" fn finalize(_: *mut c_void, raw: *mut c_void) {{\n\t\tunsafe {{ crate::{c}_free(raw.cast()) }}\n\t}}\n\tunsafe {{ runtime::own(object, raw, finalize) }}\n}}\n\n\
+			#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {free}(home: *const c_void, own: *mut c_void, object: *mut c_void, raw: {raw}) {{\n\tunsafe {{ runtime::disown(own, object) }};\n\tlet home = unsafe {{ &*home.cast::<runtime::Home>() }};\n\tunsafe {{ home.serve(move || crate::{c}_free(raw)) }}\n}}\n\n"
+		);
+		self.natives.insert(
+			own.clone(),
+			format!(
+				"@ffi.Native<ffi.Pointer<ffi.Void> Function(ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{own}')\nexternal ffi.Pointer<ffi.Void> _{own}(Object p0, ffi.Pointer<ffi.Void> p1);\n\n"
+			),
+		);
+		self.natives.insert(
+			free.clone(),
+			format!(
+				"@ffi.Native<ffi.Void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Handle, ffi.Pointer<ffi.Void>)>(symbol: '{free}')\nexternal void _{free}(ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Void> p1, Object p2, ffi.Pointer<ffi.Void> p3);\n\n"
+			),
+		);
+		(format!("_{own}"), format!("_{free}"))
 	}
 
 	/// [`Self::served`] of a C function by name, parameters, and return.
@@ -1363,12 +1392,10 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		}];
-		// The garbage collector's free runs with no isolate to serve.
-		let fin = self.native_fn(&format!("{c}_free"), handle.clone(), Ty::Void);
-		let free = self.served_fn(&format!("{c}_free"), handle, Ty::Void);
+		let (own, free) = self.owned(&c, &handle[0]);
 		let mut members = vec!["close".to_string()];
 		let mut body = vec![format!(
-			"\tstatic final _fin = ffi.NativeFinalizer(ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>({fin}));\n\n\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_fin.attach(this, raw.cast(), detach: this);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() {{\n\t\t_fin.detach(this);\n\t\t{free}(_n.home, _raw);\n\t}}\n"
+			"\t{name}._(ffi.Pointer<ffi.Void> raw) : super(raw, true) {{\n\t\t_own = {own}(this, raw);\n\t}}\n\n\t{name}._lent(ffi.Pointer<ffi.Void> raw) : super(raw, false);\n\n\t@override\n\tString get _type => '{name}';\n\n\t@override\n\tvoid _free() => {free}(_n.home, _own, this, _raw);\n"
 		)];
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
 		let owner = Ty::Handle {

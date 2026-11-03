@@ -493,7 +493,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   with a name the runtime declares, fails the export: give it a `rename`.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
   holds it, and a second does nothing; one never closed is freed once the garbage
-  collector finds it unreachable, through a `NativeFinalizer`. Any call that meets a
+  collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
   closed object, as its receiver or anywhere in its arguments, throws a `StateError`
   before Rust sees it, and moves none of the call's other arguments. An isolate cannot
   send an object to another, so no `close()` races a call. A `self` method, or passing the

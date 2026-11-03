@@ -212,6 +212,9 @@ abstract base class _Object implements ffi.Finalizable {
   bool _closed = false;
   final bool _owned;
 
+  /// The garbage collector's hold of an owned one's handle, until freed.
+  ffi.Pointer<ffi.Void> _own = ffi.nullptr;
+
   _Object(this._raw, this._owned);
 
   String get _type;
