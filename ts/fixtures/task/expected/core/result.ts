@@ -100,6 +100,13 @@ export function mapOrElse$196aho3(self: rt.Result<Guard.Guard, Guard.Guard>, def
 	return default_(self.error);
 }
 
+export function mapErr$0nvqjog(self: rt.Result<rt.u32, Guard.Guard>, op: (a0: Guard.Guard) => rt.u32): rt.Result<rt.u32, rt.u32> {
+	if (self.ok) {
+		return self as rt.Result<rt.u32, rt.u32>;
+	}
+	return rt.Err(op(self.error));
+}
+
 export function mapErr$1c43xsx(self: rt.Result<rt.u32, rt.u32>, op: (a0: rt.u32) => rt.u32): rt.Result<rt.u32, rt.u32> {
 	let _0!: rt.Result<rt.u32, rt.u32>;
 	let _9: boolean = false;

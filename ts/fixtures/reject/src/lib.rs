@@ -112,7 +112,7 @@ pub fn swap_guards<'a>(a: &mut std::sync::MutexGuard<'a, u8>, b: &mut std::sync:
 	std::mem::swap(a, b);
 }
 
-/// An iterator whose `fold` std's adaptors would call in place of its `next`.
+/// An iterator whose own `fold` holds its accumulator in an `Option`, of an `rt.None` or not.
 pub struct Folds;
 
 impl Iterator for Folds {
@@ -123,7 +123,7 @@ impl Iterator for Folds {
 	}
 
 	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
-		init
+		Some(init).unwrap()
 	}
 }
 
@@ -131,7 +131,7 @@ pub fn folds() -> usize {
 	Folds.map(|b| b + 1).count()
 }
 
-/// An iterator whose `nth_back` std's adaptors would call in place of its `next_back`.
+/// An iterator whose `rfind` std's adaptors would call in place of its `next_back`.
 pub struct Backs;
 
 impl Iterator for Backs {
@@ -147,13 +147,13 @@ impl DoubleEndedIterator for Backs {
 		None
 	}
 
-	fn nth_back(&mut self, _n: usize) -> Option<u8> {
+	fn rfind<P: FnMut(&u8) -> bool>(&mut self, _p: P) -> Option<u8> {
 		Some(0)
 	}
 }
 
-pub fn backs() -> usize {
-	Backs.rev().skip(1).count()
+pub fn backs() -> Option<u8> {
+	Backs.rev().find(|&b| b == 0)
 }
 
 /// JS compares objects by identity, not by `PartialOrd`.
@@ -2393,4 +2393,158 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 		slot.write((fill, (at, !at)));
 	}
 	tagged_slots!(slots)
+}
+
+/// An iterator whose own `fold` tells its accumulator apart by a helper generic over it,
+/// in a closure.
+pub struct Keeps;
+
+impl Iterator for Keeps {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		let kept = |x| keep(x);
+		kept(init)
+	}
+}
+
+#[inline(never)]
+fn keep<T>(x: T) -> T {
+	Some(x).unwrap()
+}
+
+pub fn keeps() -> usize {
+	Keeps.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` tells its accumulator apart by its size.
+pub struct Sizes;
+
+impl Iterator for Sizes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		assert!(const { size_of::<B>() } > 0);
+		init
+	}
+}
+
+pub fn sizes() -> usize {
+	Sizes.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` drops its accumulator, as the one it is translated for drops.
+pub struct Discards;
+
+impl Iterator for Discards {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	#[allow(clippy::empty_loop)]
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		{
+			let _held = init;
+		}
+		loop {}
+	}
+}
+
+pub fn discards() -> usize {
+	Discards.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` drops its accumulator by `drop`, which only its closure can be.
+pub struct Disposes;
+
+impl Iterator for Disposes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	#[allow(clippy::empty_loop)]
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, f: F) -> B {
+		drop(f);
+		drop(init);
+		loop {}
+	}
+}
+
+pub fn disposes() -> usize {
+	Disposes.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` tells its accumulator apart by an iterator of the crate over it.
+pub struct Probes;
+
+impl Iterator for Probes {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
+		assert!(Probe(&init).count() > 0);
+		init
+	}
+}
+
+/// Counts its type parameter's size.
+pub struct Probe<'a, T>(&'a T);
+
+impl<T> Iterator for Probe<'_, T> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn count(self) -> usize {
+		size_of::<T>()
+	}
+}
+
+pub fn probes() -> usize {
+	Probes.map(|b| b + 1).count()
+}
+
+/// An iterator whose own `fold` tells its closure apart by the size of a closure holding it.
+pub struct Measures;
+
+impl Iterator for Measures {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, f: F) -> B {
+		let held = move || {
+			let _held = &f;
+		};
+		assert!(measure(held) > 0);
+		init
+	}
+}
+
+#[inline(never)]
+fn measure<T>(_x: T) -> usize {
+	size_of::<T>()
+}
+
+pub fn measures() -> usize {
+	Measures.map(|b| b + 1).count()
 }

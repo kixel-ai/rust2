@@ -1369,13 +1369,13 @@ export function walkFront$collections_hash_set_Iter_u8(it: rt.Iter<rt.u8>, steps
 
 /** As `walk`, of an iterator that reads only from the front. */
 export function walkFront$hints_Countdown(it: hints_Countdown.Countdown, steps: rt.u8, out: rt.ByteVec): void {
-	put(out, rt.iterFrom(it, (it: hints_Countdown.Countdown) => hints_Countdown.next$iter_Iterator(it)).sizeHint());
+	put(out, rt.iterFrom(it, hints_Countdown.next$iter_Iterator).sizeHint());
 	const _9: rt.u8 = rt.u8Rem(steps, 4);
 	let iterStart: rt.u8 = 0;
 	const iterEnd: rt.u8 = _9;
 	while (iterStart++ < iterEnd) {
 		rt.iterToOption(hints_Countdown.next$iter_Iterator(it));
-		put(out, rt.iterFrom(it, (it: hints_Countdown.Countdown) => hints_Countdown.next$iter_Iterator(it)).sizeHint());
+		put(out, rt.iterFrom(it, hints_Countdown.next$iter_Iterator).sizeHint());
 	}
 }
 
@@ -1702,7 +1702,6 @@ export function u32Of(n: rt.u64): rt.u32 {
  * front or the back by the third byte's other bits.
  */
 export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	let it!: rt.Peekable<rt.u64>;
 	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
 		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), 0);
 	};
@@ -1779,7 +1778,7 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else {
 			const _131: Endless.Endless = { _0: n };
 			const _132: rt.usize = rt.usizeRem(rt.u64Low(n), 9);
-			walkFront$iter_Chain_iter_Take_hints_Endless_ops_Range_u64(rt.iterChain(rt.iterTake(rt.iterFrom(_131, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), _132), new rt.Range(0, m, rt.u64Step)), steps, out);
+			walkFront$iter_Chain_iter_Take_hints_Endless_ops_Range_u64(rt.iterChain(rt.iterTake(rt.iterFrom(_131, Endless.next$iter_Iterator), _132), new rt.Range(0, m, rt.u64Step)), steps, out);
 		}
 	} else if (_37 === 5) {
 		const _136: rt.u8 = rt.u8Rem(arm, 4);
@@ -1788,11 +1787,11 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_136 === 1) {
 			const _142: Endless.Endless = { _0: n };
 			const _143: rt.Range<rt.u32> = new rt.Range(0, u32Of(m));
-			walkFront$iter_Zip_hints_Endless_ops_Range_u32(rt.iterZip(rt.iterFrom(_142, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), _143), steps, out);
+			walkFront$iter_Zip_hints_Endless_ops_Range_u32(rt.iterZip(rt.iterFrom(_142, Endless.next$iter_Iterator), _143), steps, out);
 		} else if (_136 === 2) {
 			walk$iter_Zip_slice_Iter_u8_iter_Skip_slice_Iter_u8(rt.iterZip(rt.iterSlice(rt.byteSliceView(bytes)), rt.iterSkip(rt.iterSlice(rt.byteSliceView(bytes)), 1), [false, false]), steps, out);
 		} else {
-			walkFront$iter_Zip_ops_Range_u32_hints_Endless(rt.iterZip(new rt.Range(0, u32Of(n)), rt.iterFrom({ _0: n }, (it: Endless.Endless) => Endless.next$iter_Iterator(it))), steps, out);
+			walkFront$iter_Zip_ops_Range_u32_hints_Endless(rt.iterZip(new rt.Range(0, u32Of(n)), rt.iterFrom({ _0: n }, Endless.next$iter_Iterator)), steps, out);
 		}
 	} else if (_37 === 6) {
 		const _153: rt.u8 = rt.u8Rem(arm, 4);
@@ -1801,11 +1800,11 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_153 === 1) {
 			walk$iter_Take_ops_Range_u32(rt.iterTake(new rt.Range(0, u32Of(n)), rt.u64Low(m)), steps, out);
 		} else if (_153 === 2) {
-			walkFront$iter_Take_hints_Endless(rt.iterTake(rt.iterFrom({ _0: n }, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), rt.u64Low(m)), steps, out);
+			walkFront$iter_Take_hints_Endless(rt.iterTake(rt.iterFrom({ _0: n }, Endless.next$iter_Iterator), rt.u64Low(m)), steps, out);
 		} else {
 			const _166: Endless.Endless = { _0: n };
 			const _167: rt.usize = rt.usizeRem(rt.u64Low(m), 9);
-			walkFront$iter_Skip_hints_Endless(rt.iterSkip(rt.iterFrom(_166, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), _167), steps, out);
+			walkFront$iter_Skip_hints_Endless(rt.iterSkip(rt.iterFrom(_166, Endless.next$iter_Iterator), _167), steps, out);
 		}
 	} else if (_37 === 7) {
 		const step: rt.usize = rt.usizeAdd(rt.usizeRem(at(1) as rt.usize, 7), 1);
@@ -1842,7 +1841,7 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return rt.u64CheckedSub(i17, 1);
 			}), steps, out);
 		} else {
-			walkFront$iter_Filter_hints_Endless_hints_hints_closure6(rt.iterFilter(rt.iterFrom({ _0: n }, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), (_250: rt.u64): boolean => {
+			walkFront$iter_Filter_hints_Endless_hints_hints_closure6(rt.iterFilter(rt.iterFrom({ _0: n }, Endless.next$iter_Iterator), (_250: rt.u64): boolean => {
 				return true;
 			}), steps, out);
 		}
@@ -1866,16 +1865,16 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_37 === 10) {
 		const _219: rt.u8 = rt.u8Rem(arm, 4);
 		if (_219 === 0) {
-			walkFront$iter_Fuse_hints_Endless(rt.iterFuse(rt.iterFrom({ _0: n }, (it: Endless.Endless) => Endless.next$iter_Iterator(it))), steps, out);
+			walkFront$iter_Fuse_hints_Endless(rt.iterFuse(rt.iterFrom({ _0: n }, Endless.next$iter_Iterator)), steps, out);
 		} else if (_219 === 1) {
-			walkFront$iter_Fuse_iter_Take_hints_Endless(rt.iterFuse(rt.iterTake(rt.iterFrom({ _0: n }, (it: Endless.Endless) => Endless.next$iter_Iterator(it)), 2)), steps, out);
+			walkFront$iter_Fuse_iter_Take_hints_Endless(rt.iterFuse(rt.iterTake(rt.iterFrom({ _0: n }, Endless.next$iter_Iterator), 2)), steps, out);
 		} else if (_219 === 2) {
 			walk$iter_Fuse_ops_Range_u64(rt.iterFuse(new rt.Range(0, n, rt.u64Step)), steps, out);
 		} else {
-			walkFront$iter_Fuse_hints_Countdown(rt.iterFuse(rt.iterFrom({ _0: rt.u64Low(n) & 0xff }, (it: hints_Countdown.Countdown) => hints_Countdown.next$iter_Iterator(it))), steps, out);
+			walkFront$iter_Fuse_hints_Countdown(rt.iterFuse(rt.iterFrom({ _0: rt.u64Low(n) & 0xff }, hints_Countdown.next$iter_Iterator)), steps, out);
 		}
 	} else if (_37 === 11) {
-		it = rt.iterPeekable(rt.iterChain(new rt.Range(0, n, rt.u64Step), new rt.Range(0, m, rt.u64Step)));
+		const it: rt.Peekable<rt.u64> = rt.iterPeekable(rt.iterChain(new rt.Range(0, n, rt.u64Step), new rt.Range(0, m, rt.u64Step)));
 		put(out, it.sizeHint());
 		const _240: rt.u8 = rt.u8Rem(steps, 4);
 		let iterStart: rt.u8 = 0;

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `rt.iterFrom` takes `hint`, `back`, and `len` in one `rt.Own` record after `drop`,
+  which also holds the crate's own `nth`, `fold`, and the rest, as in
+  `rt.iterFrom(source, next, drop, { hint, back, len })`.
 - `rt.sliceSort` is the stable sorts and takes the element's size in bytes on wasm32 and
   whether it is `Freeze` after the test, as in `rt.sliceSort(v, rt.lt, 4, true)`;
   `rt.sliceSortUnstable` is the unstable ones and takes whether it is `Copy` too.

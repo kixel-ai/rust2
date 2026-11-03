@@ -1,6 +1,7 @@
 //! The crate's own iterators that read from the back, know their length, and say they stay
-//! ended, with their own size hints: std's adaptors and consumers call each method where
-//! native's do, and `fuse` reads on past the end of one that says it stays ended.
+//! ended, with their own size hints, `nth`s, folds, `count`, and `last`: std's adaptors and
+//! consumers call each method where native's do, and `fuse` reads on past the end of one
+//! that says it stays ended.
 
 use std::cell::RefCell;
 use std::iter::FusedIterator;
@@ -87,6 +88,72 @@ impl ExactSizeIterator for Counted<'_> {
 	}
 }
 
+/// A `Run` with its own `nth`, `nth_back`, `fold`, `rfold`, `count`, and `last`, each logged
+/// as `N`, `B`, `f`, `r`, `c`, and `L`, which std's adaptors and consumers call in place of
+/// `next` and `next_back`. Its `count` reads nothing, and its `last` reads from the back.
+struct Overrides<'a>(Run<'a>);
+
+impl Iterator for Overrides<'_> {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.0.next()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.0.size_hint()
+	}
+
+	fn nth(&mut self, n: usize) -> Option<u8> {
+		self.0.logged(b'N');
+		for _ in 0..n {
+			self.0.next()?;
+		}
+		self.0.next()
+	}
+
+	fn fold<B, F: FnMut(B, u8) -> B>(mut self, init: B, mut f: F) -> B {
+		self.0.logged(b'f');
+		let mut acc = init;
+		while let Some(b) = self.0.next() {
+			acc = f(acc, b);
+		}
+		acc
+	}
+
+	fn count(self) -> usize {
+		self.0.logged(b'c');
+		usize::from(self.0.left())
+	}
+
+	fn last(mut self) -> Option<u8> {
+		self.0.logged(b'L');
+		self.0.next_back()
+	}
+}
+
+impl DoubleEndedIterator for Overrides<'_> {
+	fn next_back(&mut self) -> Option<u8> {
+		self.0.next_back()
+	}
+
+	fn nth_back(&mut self, n: usize) -> Option<u8> {
+		self.0.logged(b'B');
+		for _ in 0..n {
+			self.0.next_back()?;
+		}
+		self.0.next_back()
+	}
+
+	fn rfold<B, F: FnMut(B, u8) -> B>(mut self, init: B, mut f: F) -> B {
+		self.0.logged(b'r');
+		// Through std's fold, by a closure holding `f`.
+		std::iter::from_fn(|| self.0.next_back()).fold(init, move |acc, b| f(acc, b))
+	}
+}
+
+impl ExactSizeIterator for Overrides<'_> {}
+
 /// Yields every other call to `next`, from either end, ending between: a `FusedIterator`
 /// that isn't, which std's `fuse` reads on from as it would one that is.
 struct Flicker(u8);
@@ -140,7 +207,8 @@ fn put_vec(out: &mut Vec<u8>, v: Vec<u8>) {
 
 /// The run `data`'s first byte picks steps through with each of its other bytes, read
 /// directly, through `&mut`, or by std's adaptors, and consumed by the third byte's pick,
-/// with what each read and each call of its methods logged.
+/// by `consumed`, or by `folded` past the fifth `kind`, with what each read and each call
+/// of its methods logged.
 pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let [shape, consume, steps @ ..] = data else {
 		return;
@@ -170,9 +238,14 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 	let k = usize::from(consume >> 4);
-	match kind % 4 {
-		0 => consumed(run, consume % 16, k, out),
-		1 => consumed(Counted(run), consume % 16, k, out),
+	let (pick, folds) = (consume % 16, kind % 10 >= 5);
+	match kind % 5 {
+		0 if folds => folded(run, pick, k, &log, out),
+		1 if folds => folded(Counted(run), pick, k, &log, out),
+		4 if folds => folded(Overrides(run), pick, k, &log, out),
+		0 => consumed(run, pick, k, out),
+		1 => consumed(Counted(run), pick, k, out),
+		4 => consumed(Overrides(run), pick, k, out),
 		2 => fuses(*consume, out),
 		_ => {
 			// Mixed from either end, by the bits of `consume`, until they meet.
@@ -245,6 +318,100 @@ fn consumed<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(mut it: I, pi
 			put(out, peek.peek().copied());
 			out.push(peek.len() as u8);
 			out.extend(peek.rev());
+		}
+	}
+}
+
+/// `it`, consumed by std's fold, or a consumer or adaptor that folds it or reads it by its
+/// `nth`, `count`, or `last`, picked by `pick`, with `k` its count where it takes one. One
+/// fold panics past `k` items, with what was logged so far.
+fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
+	mut it: I,
+	pick: u8,
+	k: usize,
+	log: &RefCell<Vec<u8>>,
+	out: &mut Vec<u8>,
+) {
+	let k8 = k as u8;
+	match pick {
+		0 => out.push(it.fold(1u8, |a, b| a.wrapping_mul(3) ^ b)),
+		1 => out.push(it.rfold(1u8, |a, b| {
+			assert!(k < 15 || b != 2, "rfold at {b} after {:?}", log.borrow().as_slice());
+			a.wrapping_mul(3) ^ b
+		})),
+		// Each `try_rfold` breaks at an item, then the rest are read on by `next`.
+		2 if k % 2 == 0 => {
+			put(out, it.try_rfold(0u8, |a, b| (b != k8).then_some(a ^ b)));
+			out.extend(it);
+		}
+		// Of an `Option` accumulator, whose `Some(None)` goes on and whose `None` breaks.
+		2 => {
+			let r = it.try_rfold(None, |a: Option<u8>, b| match b % 3 {
+				0 => None,
+				1 => Some(None),
+				_ => Some(a.or(Some(b))),
+			});
+			out.extend(match r {
+				Some(a) => [0, a.unwrap_or(0xff)],
+				None => [1, 0],
+			});
+			out.extend(it);
+		}
+		3 => {
+			let r: Result<u8, u8> = it.try_rfold(0u8, |a, b| if b % 4 == k8 % 4 { Err(b) } else { Ok(a ^ b) });
+			out.extend(match r {
+				Ok(a) => [0, a],
+				Err(b) => [1, b],
+			});
+			put(out, it.next());
+		}
+		4 => {
+			use std::ops::ControlFlow;
+			let r = it.by_ref().rev().try_rfold(0u8, |a, b| match b > k8 {
+				true => ControlFlow::Break(b),
+				false => ControlFlow::Continue(a ^ b),
+			});
+			out.extend(match r {
+				ControlFlow::Continue(a) => [0, a],
+				ControlFlow::Break(b) => [1, b],
+			});
+			out.push(it.len() as u8);
+		}
+		5 if k % 2 == 0 => out.push(it.count() as u8),
+		5 => out.push(it.map(|b| b ^ 1).count() as u8),
+		6 if k % 2 == 0 => put(out, it.last()),
+		6 => put(out, it.rev().last()),
+		7 if k % 2 == 0 => out.push(it.map(u32::from).sum::<u32>() as u8),
+		7 => it.for_each(|b| out.push(b)),
+		8 if k % 2 == 0 => put(out, it.max()),
+		8 => put(out, it.min_by_key(|b| b % 3)),
+		9 if k % 2 == 0 => out.push(it.chain([7, 8]).count() as u8),
+		9 => put(out, it.chain([7, 8]).last()),
+		10 if k % 2 == 0 => out.push(it.skip(k / 2).count() as u8),
+		10 => put(out, it.skip(k / 2).last()),
+		11 => match k % 4 {
+			0 => out.push(it.rev().fold(1u8, |a, b| a.wrapping_mul(5) ^ b)),
+			1 => put(out, it.rev().nth(k / 4)),
+			2 => put(out, it.rev().last()),
+			_ => out.push(it.rev().rfold(1u8, |a, b| a.wrapping_mul(5) ^ b)),
+		},
+		12 => {
+			let mut skip = it.skip(k / 2);
+			put(out, skip.next());
+			put(out, skip.next_back());
+		}
+		13 => put_vec(out, it.step_by(k / 4 + 1).collect()),
+		14 if k % 2 == 0 => put(out, it.fuse().last()),
+		14 => {
+			let mut peek = it.peekable();
+			put(out, peek.peek().copied());
+			out.push(peek.count() as u8);
+		}
+		// Through `&mut`, which reads by `try_fold` rather than its by-value methods.
+		_ => {
+			out.push((&mut it).take(k / 2).fold(0u8, |a, _| a + 1));
+			put(out, (&mut it).last());
+			out.push(it.len() as u8);
 		}
 	}
 }

@@ -429,7 +429,7 @@ export const cases: Uint8Array[] = [
 	...Array.from({ length: 6 }, (_, arg) => script(["cells", arg])),
 	// Each scenario of adaptors' closures that drop, folded either way.
 	...Array.from({ length: 42 }, (_, arg) => script(["folded", arg])),
-	...Array.from({ length: 9 }, (_, arg) => script(["rfolded", arg])),
+	...Array.from({ length: 18 }, (_, arg) => script(["rfolded", arg])),
 	// Where std drops values inside its iterators and formatting.
 	...[...Array.from({ length: 10 }, (_, arg) => arg), 19, 29].map((arg) => script(["inside", arg])),
 	// Where std drops a closure given to a consumer or an entry.

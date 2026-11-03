@@ -185,5 +185,11 @@ roots = [
     "dropped_slots",
     "ranked_slots",
     "touched_slots",
+    "keeps",
+    "sizes",
+    "discards",
+    "disposes",
+    "probes",
+    "measures",
 ]
 printable = ["Meters"]

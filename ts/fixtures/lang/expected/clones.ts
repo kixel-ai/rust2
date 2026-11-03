@@ -6602,7 +6602,6 @@ export function turns$vec_IntoIter_u8_clones_iters_closure18_clones_iters_closur
 export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _263!: [rt.ByteSlice, rt.ByteSlice];
 	let _269!: rt.usize;
-	let it!: rt.Peekable<rt.u8>;
 	const plan: Plan.Plan = { dataData: data.data, dataStart: data.start, dataLen: data.length, at: kind as rt.usize };
 	const n: rt.usize = option_mapOr$1surhce(rt.byteSliceFirst(data), 1, (_2: rt.u8): rt.u8 => {
 		return rt.u8Add(rt.u8Rem(_2, 4), 1);
@@ -6893,7 +6892,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, plan, (x35: rt.u8): rt.u8 => {
 			return x35;
 		}, out);
-		turns$iter_Map_clones_Countdown_clones_iters_closure100_clones_iters_closure101_clones_iters_closure102(rt.iterMap(rt.iterFrom({ _0: rt.u8Mul(n & 0xff, 3) }, (it: clones_Countdown.Countdown) => clones_Countdown.next$iter_Iterator(it)), (x36: rt.u8): rt.u8 => {
+		turns$iter_Map_clones_Countdown_clones_iters_closure100_clones_iters_closure101_clones_iters_closure102(rt.iterMap(rt.iterFrom({ _0: rt.u8Mul(n & 0xff, 3) }, clones_Countdown.next$iter_Iterator), (x36: rt.u8): rt.u8 => {
 			return x36 ^ 7;
 		}), (it33: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it33.next());
@@ -6902,7 +6901,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, out);
 		const _236: clones_Countdown.Countdown = { _0: rt.u8Mul(n & 0xff, 3) };
 		const _240: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
-		turns$iter_Zip_clones_Countdown_slice_Iter_u8_clones_iters_closure103_clones_iters_closure104(rt.iterZip(rt.iterFrom(_236, (it: clones_Countdown.Countdown) => clones_Countdown.next$iter_Iterator(it)), _240), (it34: rt.Iter<[rt.u8, rt.u8]>): [rt.u8, rt.u8] | undefined => {
+		turns$iter_Zip_clones_Countdown_slice_Iter_u8_clones_iters_closure103_clones_iters_closure104(rt.iterZip(rt.iterFrom(_236, clones_Countdown.next$iter_Iterator), _240), (it34: rt.Iter<[rt.u8, rt.u8]>): [rt.u8, rt.u8] | undefined => {
 			return rt.iterToOption(it34.next());
 		}, plan, (_261: [rt.u8, rt.u8]): rt.u8 => {
 			return _261[0] ^ _261[1];
@@ -7007,7 +7006,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, true);
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.refCellReplace(log, new rt.ByteVec())), undefined, true);
 	} else if (_9 === 8) {
-		it = rt.iterPeekable(rt.iterSlice(rt.byteSliceView(data)));
+		const it: rt.Peekable<rt.u8> = rt.iterPeekable(rt.iterSlice(rt.byteSliceView(data)));
 		let iterStart5: rt.usize = 0;
 		const iterEnd5: rt.usize = n;
 		while (iterStart5++ < iterEnd5) {
