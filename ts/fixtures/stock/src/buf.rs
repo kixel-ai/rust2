@@ -6,8 +6,10 @@ use std::rc::Rc;
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-/// A `BytesMut` split, frozen, grown, and written, ending with every piece's bytes: a
-/// write to one that reached another would show.
+/// A `BytesMut` split, frozen, grown, written, and joined, its handles and `Bytes` dropped,
+/// cloned, and taken back, ending with every piece's bytes and capacity: a write to one
+/// that reached another would show, and so would a capacity `bytes` reclaimed only once the
+/// other handles of its storage dropped.
 pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 	let mut ops = Ops(data);
 	let mut buf = BytesMut::with_capacity(ops.byte() as usize % 24);
@@ -15,7 +17,7 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 	let mut frozen: Vec<Bytes> = Vec::new();
 	while let Some(op) = ops.next() {
 		let n = ops.byte() as usize;
-		match op % 18 {
+		match op % 27 {
 			0 => buf.extend_from_slice(ops.take(n % 12)),
 			1 => buf.put_u8(n as u8),
 			2 => buf.put_u16(n as u16 * 257),
@@ -28,9 +30,8 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 			5 => buf.truncate(n % (buf.len() + 2)),
 			6 => buf.resize(n % 40, n as u8),
 			// Past what a vector holds, by overflowing `usize` or not, counting what it read
-			// past: each panics as `Vec` does. Storage that was shared throws there instead,
-			// so these reserve into a vector of their own.
-			7 if n % 2 == 0 => {
+			// past: each panics as `Vec` does, or as `bytes` does of shared storage.
+			7 if n % 4 == 0 => {
 				let mut fresh = BytesMut::from(ops.take(n % 6));
 				let read = n % (fresh.len() + 1);
 				fresh.advance(read);
@@ -39,6 +40,13 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 					0 => usize::MAX - n,
 					1 => isize::MAX as usize - len + 1,
 					_ => isize::MAX as usize + 1 - read - len,
+				});
+			}
+			7 if n % 4 == 2 => {
+				let len = buf.len();
+				buf.reserve(match n % 8 {
+					2 => usize::MAX,
+					_ => isize::MAX as usize - len + 1,
 				});
 			}
 			7 => buf.reserve(n),
@@ -64,26 +72,84 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 				}
 			}
 			16 => buf.put(Bytes::copy_from_slice(ops.take(n % 5))),
-			_ => {
+			17 => {
 				let mut source = BytesMut::from(ops.take(n % 6));
 				// Its own `Buf`, read into a `BufMut`, then the rest whole.
 				let first = source.get_u8_checked();
 				buf.put_u8(first);
 				buf.put(source);
 			}
+			18 => pieces.push(buf.split_off(n % (buf.capacity() + 2))),
+			19 => out.push(buf.try_reclaim(n) as u8),
+			20 => {
+				if let Some(piece) = pieces.pop() {
+					match buf.try_unsplit(piece) {
+						Ok(()) => out.push(1),
+						Err(piece) => {
+							out.push(0);
+							pieces.push(piece);
+						}
+					}
+				}
+			}
+			// Any one of them dropped, which may leave another the last of its storage.
+			21 if n % 2 == 0 && !pieces.is_empty() => drop(pieces.swap_remove(n / 2 % pieces.len())),
+			21 if !frozen.is_empty() => drop(frozen.swap_remove(n / 2 % frozen.len())),
+			22 => {
+				if let Some(bytes) = frozen.get(n % (frozen.len() + 1)) {
+					frozen.push(bytes.clone());
+				}
+			}
+			// A `Bytes` taken back, which takes its storage if it is the last handle of it.
+			23 => {
+				if let Some(bytes) = frozen.pop() {
+					match n % 3 {
+						0 => pieces.push(BytesMut::from(bytes)),
+						1 => match bytes.try_into_mut() {
+							Ok(piece) => pieces.push(piece),
+							Err(bytes) => {
+								out.push(2);
+								frozen.push(bytes);
+							}
+						},
+						_ => {
+							let vec: Vec<u8> = bytes.into();
+							out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
+							out.extend_from_slice(&vec);
+						}
+					}
+				}
+			}
+			// A promotable `Bytes` truncated to nothing gives its storage up.
+			24 => {
+				if let Some(bytes) = frozen.last_mut() {
+					match n % 3 {
+						0 => bytes.truncate(n / 3 % (bytes.len() + 1)),
+						1 => bytes.clear(),
+						_ => out.push(bytes.is_unique() as u8),
+					}
+				}
+			}
+			25 => {
+				if let Some(piece) = pieces.last_mut() {
+					std::mem::swap(&mut buf, piece);
+				}
+			}
+			_ => out.extend_from_slice(&(buf.capacity() as u32).to_le_bytes()),
 		}
 	}
 	let tail = BytesMut::from(&b"tail"[..]);
 	out.push((buf == tail) as u8);
 	out.push((buf.clone() == buf[..]) as u8);
-	out.extend_from_slice(format!("{buf:?} {}\n", buf.len()).as_bytes());
+	out.extend_from_slice(format!("{buf:?} {} {}\n", buf.len(), buf.capacity()).as_bytes());
 	for piece in &pieces {
-		out.extend_from_slice(format!("{piece:?}\n").as_bytes());
+		out.extend_from_slice(format!("{piece:?} {}\n", piece.capacity()).as_bytes());
 	}
 	for bytes in &frozen {
-		out.extend_from_slice(format!("{bytes:?}\n").as_bytes());
+		out.extend_from_slice(format!("{bytes:?} {}\n", bytes.is_unique()).as_bytes());
 	}
 	let vec: Vec<u8> = buf.into();
+	out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
 	out.extend_from_slice(&vec);
 }
 
@@ -135,24 +201,79 @@ fn read<B: Buf + ?Sized>(buf: &mut B, n: usize) -> u128 {
 	}
 }
 
-/// `reserve` at the edges of `rt.BytesMut`'s limit for storage that was shared, 512 MiB
-/// counting what it read past: a vector of its own grows as `Vec` does on either side of
-/// it, and shared storage grows up to it. Only the inputs `caller.ts` names reach these,
-/// as each allocates that much.
-pub fn reserves(data: &[u8], out: &mut Vec<u8>) {
-	const LIMIT: usize = 1 << 29;
-	let &[b'e', b'd', b'g', b'e', kind, read] = data else {
+/// A `BytesMut` read past the furthest a vector reads past on wasm32, 128 MiB, or just
+/// that far, which makes its storage shared with no other handle, then frozen full, which
+/// is promotable only of a vector, and taken back through a clone, and grown or reclaimed.
+/// Only the inputs `caller.ts` names reach these, as each allocates that much.
+pub fn far(data: &[u8], out: &mut Vec<u8>) {
+	const MAX_VEC_POS: usize = (1 << 27) - 1;
+	let &[b'f', b'a', b'r', past, op] = data else {
 		return;
 	};
-	let mut buf = BytesMut::from(&b"edges"[..]);
-	let read = usize::from(read) % 5;
-	buf.advance(read);
-	let head = (kind % 2 == 1).then(|| buf.split_to(0));
-	let past = usize::from(kind / 2 % 2);
-	buf.reserve(LIMIT + past - read - buf.len());
-	buf.put_slice(b"!");
+	let mut buf = BytesMut::with_capacity(MAX_VEC_POS + 64);
+	buf.resize(MAX_VEC_POS + 8, 1);
+	buf.advance(MAX_VEC_POS + usize::from(past % 2));
+	if op & 4 != 0 {
+		buf.resize(buf.capacity(), 2);
+		let mut bytes = buf.freeze();
+		let clone = bytes.clone();
+		bytes.clear();
+		buf = BytesMut::from(clone);
+	}
+	match op % 4 {
+		0 => buf.reserve(100),
+		1 => out.push(buf.try_reclaim(1 << 20) as u8),
+		2 => {
+			drop(buf.split_off(buf.len()));
+			buf.reserve(4);
+		}
+		_ => {
+			let vec: Vec<u8> = buf.split().into();
+			out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
+		}
+	}
+	out.extend_from_slice(&(buf.capacity() as u32).to_le_bytes());
 	out.extend_from_slice(&buf);
-	out.push(head.is_some() as u8);
+}
+
+/// A `BytesMut` reclaimed and reserved for after each of the other handles of its storage
+/// dropped or not, by the bits of `kept`: what it split off its end, a `Bytes` frozen of
+/// what it split off its front, and a clone of that. `bytes` reclaims the storage only once
+/// no other handle holds it, and the `Bytes` taken back takes it only then too.
+pub fn reclaims(data: &[u8], out: &mut Vec<u8>) {
+	let &[cap, kept, add, read] = data else {
+		return;
+	};
+	let (cap, add) = (usize::from(cap) * 8, usize::from(add));
+	let mut buf = BytesMut::with_capacity(cap);
+	buf.put_bytes(7, cap / 2);
+	buf.advance(usize::from(read) % (buf.len() + 1));
+	let head = buf.split_to(buf.len() / 3);
+	let mut tail = Some(buf.split_off(buf.len()));
+	let mut frozen = Some(head.freeze());
+	let mut clone = frozen.clone();
+	if kept & 1 == 0 {
+		drop(tail.take());
+	}
+	if kept & 2 == 0 {
+		drop(frozen.take());
+	}
+	if kept & 4 == 0 {
+		drop(clone.take());
+	}
+	let capacity = |buf: &BytesMut, out: &mut Vec<u8>| out.extend_from_slice(&(buf.capacity() as u32).to_le_bytes());
+	out.push(buf.try_reclaim(add) as u8);
+	capacity(&buf, out);
+	buf.reserve(add * 2);
+	capacity(&buf, out);
+	if let Some(bytes) = frozen.take() {
+		capacity(&BytesMut::from(bytes), out);
+	}
+	drop(tail);
+	if let Some(bytes) = clone {
+		capacity(&BytesMut::from(bytes), out);
+	}
+	out.extend_from_slice(&buf);
 }
 
 /// A buffer of the crate's own, in pieces: `Buf`'s provided methods read across them.
@@ -394,12 +515,12 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	// Each first in turn, so each one's panic is reached.
 	for i in 0..6 {
 		match first.wrapping_add(i) % 6 {
-			0 => write_all(&mut vec, data, cap > 0),
-			1 => write_all(&mut buf, data, cap > 0),
-			2 => write_all(&mut &mut through_vec, data, cap > 0),
-			3 => write_all(&mut &mut through_buf, data, cap > 0),
-			4 => write_all(&mut boxed_vec, data, cap > 0),
-			_ => write_all(&mut boxed_buf, data, cap > 0),
+			0 => write_all(&mut vec, data),
+			1 => write_all(&mut buf, data),
+			2 => write_all(&mut &mut through_vec, data),
+			3 => write_all(&mut &mut through_buf, data),
+			4 => write_all(&mut boxed_vec, data),
+			_ => write_all(&mut boxed_buf, data),
 		}
 	}
 	// A buffer of the crate's own, in chunks as long as the room `chunk_mut` gives, and
@@ -413,6 +534,9 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	for vec in [&vec, &through_vec, &boxed_vec] {
 		out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
 	}
+	for buf in [&buf, &through_buf, &boxed_buf] {
+		out.extend_from_slice(&(buf.capacity() as u32).to_le_bytes());
+	}
 	out.extend_from_slice(&through_vec);
 	out.extend_from_slice(&through_buf);
 	out.push((*boxed_vec == through_vec) as u8);
@@ -421,16 +545,33 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	out.push((vec.remaining_mut() == buf.remaining_mut()) as u8);
 	out.push(buf.has_remaining_mut() as u8);
 	out.extend_from_slice(&vec);
+	// Into a `BytesMut` of no capacity, each kind of buffer, which it copies out whole first.
+	let half = &data[..data.len() / 2];
+	for kind in 0..6 {
+		let mut fresh = BytesMut::new();
+		match kind {
+			0 => fresh.put(half),
+			1 => fresh.put(Bytes::copy_from_slice(half)),
+			2 => fresh.put(BytesMut::from(half)),
+			3 => fresh.put(Pieces::new(half, half.len() / 2)),
+			4 => fresh.put(Provided(Pieces::new(half, half.len() / 2))),
+			_ => fresh.put(Bytes::copy_from_slice(half).chain(half)),
+		}
+		out.extend_from_slice(&(fresh.capacity() as u32).to_le_bytes());
+		fresh.put_u8(kind);
+		out.extend_from_slice(&(fresh.capacity() as u32).to_le_bytes());
+		out.extend_from_slice(&fresh);
+	}
 }
 
-/// A write by each pair of `data`'s bytes, and with `overflow`, one past what a vector holds.
-fn write_all<B: BufMut>(buf: &mut B, data: &[u8], overflow: bool) {
+/// A write by each pair of `data`'s bytes, one past what a vector holds included.
+fn write_all<B: BufMut>(buf: &mut B, data: &[u8]) {
 	let mut data = data;
 	while let [op, n, rest @ ..] = data {
 		data = rest;
 		let (op, n) = (*op, *n);
 		let v = u64::from(n) * 0x0101_0101_0101_0101;
-		match op % 20 {
+		match op % 23 {
 			0 => buf.put_u8(n),
 			1 => buf.put_i8(n as i8),
 			2 => buf.put_u16(v as u16),
@@ -443,10 +584,10 @@ fn write_all<B: BufMut>(buf: &mut B, data: &[u8], overflow: bool) {
 			9 => buf.put_uint(v, n as usize % 10),
 			10 => buf.put_int_le(v as i64, n as usize % 10),
 			11 => buf.put_slice(&[op, n]),
-			// Past what a vector holds, which panics as `Vec` does directly, and as
-			// `remaining_mut` says through a `&mut`. Not from zero capacity, where a `put`
-			// of a `Bytes` takes its storage, which `rt.BytesMut` refuses to reserve past.
-			12 if n == 0xff && overflow => buf.put_bytes(n, usize::MAX),
+			// Past what a vector holds, which panics as `Vec` does directly, as `bytes` does
+			// of storage a `put` at zero capacity took, and as `remaining_mut` says through a
+			// `&mut`.
+			12 if n == 0xff => buf.put_bytes(n, usize::MAX),
 			12 => buf.put_bytes(n, n as usize % 100),
 			13 => buf.put(Bytes::from_static(b"put")),
 			14 => buf.put(&[op; 70][..usize::from(n) % 71]),
@@ -454,20 +595,26 @@ fn write_all<B: BufMut>(buf: &mut B, data: &[u8], overflow: bool) {
 			16 => buf.put_f32(f32::from(n) / 3.0),
 			17 => buf.put_int(v as i64, n as usize % 10),
 			18 => buf.put_uint_le(v, n as usize % 10),
-			_ => buf.put_f64(f64::from(n) / 3.0),
+			19 => buf.put_f64(f64::from(n) / 3.0),
+			// The crate's own buffers, which a `BytesMut` of no capacity copies out whole.
+			20 => buf.put(Pieces::new(&[op, n, op], usize::from(n) % 4)),
+			21 => buf.put(Provided(Pieces::new(&[n; 5], usize::from(n) % 6))),
+			_ => buf.put(Bytes::copy_from_slice(&[n; 2]).chain(&[op][..usize::from(n) % 2])),
 		}
 		buf.put_u8(buf.has_remaining_mut() as u8 + (buf.remaining_mut() % 7) as u8);
 	}
 }
 
-/// `Bytes`' own edits, through a `&mut`, and `slice_ref` of a part of it.
+/// `Bytes`' own edits, through a `&mut`, and `slice_ref` of a part of it, and whether each
+/// part is the last handle of the storage: a promotable `Bytes` truncated to nothing gives
+/// it up, and none of its clones is promotable.
 pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 	let [kind, a, rest @ ..] = data else {
 		return;
 	};
 	let mut bytes = Bytes::copy_from_slice(rest);
 	let a = *a as usize % (rest.len() + 2);
-	let part = match kind % 6 {
+	let part = match kind % 8 {
 		0 => bytes.split_to(a),
 		1 => bytes.split_off(a),
 		2 => {
@@ -482,12 +629,22 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 			let sub = &bytes[a.min(rest.len())..];
 			bytes.slice_ref(sub)
 		}
-		_ => {
+		5 => {
 			bytes.advance(a);
 			bytes.copy_to_bytes(a / 2)
 		}
+		6 => {
+			let mut clone = bytes.clone();
+			clone.truncate(a);
+			clone
+		}
+		_ => {
+			let clone = bytes.clone();
+			bytes.truncate(a);
+			clone
+		}
 	};
-	out.extend_from_slice(format!("{part:?} {bytes:?}").as_bytes());
+	out.extend_from_slice(format!("{part:?} {bytes:?} {} {}", part.is_unique(), bytes.is_unique()).as_bytes());
 }
 
 /// `Chain`s of buffers of each kind, nested, and as and of `dyn Buf`s: `copy_to_bytes` of a

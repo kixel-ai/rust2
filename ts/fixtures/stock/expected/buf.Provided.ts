@@ -618,6 +618,31 @@ export function chunk$bytes_Buf_mut(self: Provided): rt.ByteSlice {
 }
 
 /**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut(self: rt.Place<Provided>, len: rt.usize): rt.ByteSlice {
+	return rt.bufCopyToBytes(self.v, len, remaining$bytes_Buf, chunk$bytes_Buf, advance$bytes_Buf as (a0: Provided, a1: rt.usize) => undefined);
+}
+
+/**
  * Returns true if there are any more bytes to consume
  *
  * This is equivalent to `self.remaining() != 0`.

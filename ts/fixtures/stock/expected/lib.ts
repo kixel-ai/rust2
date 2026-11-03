@@ -51,6 +51,12 @@ export function copy$tuple2_u16_u32(v: [rt.u16, rt.u32]): [rt.u16, rt.u32] {
 	return [v[0], v[1]];
 }
 
+export function drop$Option_bytes_Bytes(_1: rt.ByteSlice | undefined): void {
+	if (_1 !== undefined) {
+		rt.bytesDrop(_1);
+	}
+}
+
 export function drop$Option_tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1: [LinkedHashSet.LinkedHashSet<Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>, Logged.Logged] | undefined): void {
 	if (_1 !== undefined) {
 		drop$tuple2_hashlink_LinkedHashSet_maps_Logged_maps_Logged(_1);
@@ -67,6 +73,43 @@ export function drop$Option_tuple2_u16_maps_Logged(_1: [rt.u16, Logged.Logged] |
 	if (_1 !== undefined) {
 		drop$tuple2_u16_maps_Logged(_1);
 	}
+}
+
+export function drop$bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes(_1: Chain.Chain<Buf.Buf, rt.ByteSlice>): void {
+	rt.drop(_1.a);
+	rt.bytesDrop(_1.b);
+}
+
+export function drop$bytes_buf_Chain_buf_Provided_bytes_Bytes(_1: Chain.Chain<Provided.Provided, rt.ByteSlice>): void {
+	rt.bytesDrop(_1.b);
+}
+
+export function drop$bytes_buf_Chain_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(_1: Chain.Chain<rt.ByteSlice, Chain.Chain<Provided.Provided, rt.ByteSlice>>): void {
+	rt.bytesDrop(_1.a);
+}
+
+export function drop$bytes_buf_Chain_bytes_Bytes_ref_slice_u8(_1: Chain.Chain<rt.ByteSlice, rt.ByteSlice>): void {
+	rt.bytesDrop(_1.a);
+}
+
+export function drop$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(_1: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>): void {
+	drop$bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes(_1.a);
+}
+
+export function drop$bytes_buf_Chain_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(_1: Chain.Chain<Chain.Chain<rt.ByteSlice, rt.ByteSlice>, Pieces.Pieces>): void {
+	drop$bytes_buf_Chain_ref_slice_u8_bytes_Bytes(_1.a);
+}
+
+export function drop$bytes_buf_Chain_bytes_buf_Take_bytes_Bytes_buf_Pieces(_1: Chain.Chain<Take.Take<rt.ByteSlice>, Pieces.Pieces>): void {
+	drop$bytes_buf_Take_bytes_Bytes(_1.a);
+}
+
+export function drop$bytes_buf_Chain_ref_slice_u8_bytes_Bytes(_1: Chain.Chain<rt.ByteSlice, rt.ByteSlice>): void {
+	rt.bytesDrop(_1.b);
+}
+
+export function drop$bytes_buf_Take_bytes_Bytes(_1: Take.Take<rt.ByteSlice>): void {
+	rt.bytesDrop(_1.inner);
 }
 
 export function drop$hashlink_LinkedHashMap_maps_Logged_maps_Logged(_1: LinkedHashMap.LinkedHashMap<Logged.Logged, Logged.Logged, DefaultHashBuilder.DefaultHashBuilder>): void {
@@ -767,6 +810,10 @@ export class of$bytes_Bytes {
 		this.v = v;
 	}
 
+	[Symbol.dispose](): void {
+		rt.bytesDrop(this.v);
+	}
+
 	advance$Buf(a: rt.usize): void {
 		return rt.bytesAdvance(this, a);
 	}
@@ -899,6 +946,10 @@ export class of$bytes_BytesMut {
 
 	constructor(v: rt.BytesMut) {
 		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
 	}
 
 	advance$Buf(a: rt.usize): void {
@@ -1146,7 +1197,7 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 	}
 
 	[Symbol.dispose](): void {
-		this.v[Symbol.dispose]();
+		drop$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
 
 	advance$Buf(a: rt.usize): void {
@@ -1257,6 +1308,10 @@ export class of$bytes_buf_Take_bytes_Bytes {
 
 	constructor(v: Take.Take<rt.ByteSlice>) {
 		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$bytes_buf_Take_bytes_Bytes(this.v);
 	}
 
 	advance$Buf(a: rt.usize): void {
@@ -1611,6 +1666,10 @@ export class ofPlace$bytes_Bytes {
 
 	constructor(v: rt.Place<rt.ByteSlice>) {
 		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		rt.bytesDrop(this.v.v);
 	}
 
 	advance$Buf(a: rt.usize): void {

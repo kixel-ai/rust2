@@ -52,13 +52,12 @@ fn once_recursive() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
-/// A `BytesMut` whose storage was shared throws on a reserve past its limit, which
-/// `reserve.ts` checks.
+/// What reads the capacity of a `String`'s bytes throws, which `capacity.ts` checks.
 #[test]
-fn bytes_mut_reserve() {
+fn string_bytes_capacity() {
 	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 		.join("tests")
-		.join("reserve.ts");
+		.join("capacity.ts");
 	let output = Command::new("node")
 		.arg(script)
 		.output()

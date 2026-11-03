@@ -19,7 +19,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("buf::reads", crate::buf::reads),
 		("buf::writes", crate::buf::writes),
 		("buf::edits", crate::buf::edits),
-		("buf::reserves", crate::buf::reserves),
+		("buf::far", crate::buf::far),
 		("buf::dyns", crate::buf::dyns),
 		("maps::map", crate::maps::map),
 		("maps::table", crate::maps::table),
@@ -29,6 +29,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("buf::chains", crate::buf::chains),
 		("maps::nested", crate::maps::nested),
 		("buf::late", crate::buf::late),
+		("buf::reclaims", crate::buf::reclaims),
 	]
 }
 

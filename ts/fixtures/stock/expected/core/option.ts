@@ -80,4 +80,11 @@ export function mapOr$1noewr3(self: [rt.u16, rt.Place<rt.u32>] | undefined, defa
 	return f(self);
 }
 
+export function clone$0ey9vhe(self: rt.ByteSlice | undefined): rt.ByteSlice | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return rt.bytesClone(self);
+}
+
 //# sourceMappingURL=option.ts.map
