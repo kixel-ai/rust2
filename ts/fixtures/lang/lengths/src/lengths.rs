@@ -2,8 +2,8 @@
 //! arrays of bytes, of a type parameter's values, and of arrays, each at a length of none,
 //! one, and more. Their writes are judged in the bounds of the body making them, as
 //! filling memory nothing points into yet or giving what they replace another object,
-//! through what std's iterators give back and what `copied` and `vec![x; n]` make of a
-//! `Copy` type whose `Clone` logs and panics.
+//! through what std's iterators and a vector's accessors give back and what `copied` and
+//! `vec![x; n]` make of a `Copy` type whose `Clone` logs and panics.
 
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -210,25 +210,26 @@ impl Put for Loud {
 	}
 }
 
-/// A value and a pair of tags kept as an object, of no byte held in place.
+/// A value and a pair of tags kept as an object.
 #[derive(Clone, Copy)]
-struct Row<T>(T, (u16, u16));
+struct Row<T>(T, (u8, u8));
 
-/// The first row of a vector of `$len` written whole and its tags changed through a pointer
-/// to them, the second's changed in place, and each row put.
+/// A vector's length, its first row written whole and its tags changed through a pointer
+/// to them, the second's changed in place, and each row put as the vector is moved out.
 macro_rules! rewritten {
-	($rows:ident, $len:expr, $x:expr, $out:ident) => {
-		if $len > 0 {
-			$rows[0] = Row($x, (0x3031, 0x3233));
-			let tags = &raw mut $rows[0].1;
-			unsafe { (*tags).0 ^= 0x1010 }
+	($rows:ident, $x:expr, $out:ident) => {
+		$out.push($rows.len() as u8);
+		if let Some(first) = $rows.first_mut() {
+			*first = Row($x, (0x30, 0x31));
+			let tags = &raw mut first.1;
+			unsafe { (*tags).0 ^= 0x10 }
 		}
-		if $len > 1 {
-			$rows[1].1.1 ^= 0x2020;
+		if let Some(Row(_, (_, b))) = $rows.get_mut(1) {
+			*b ^= 0x20;
 		}
 		for Row(value, (a, b)) in $rows {
 			value.put($out);
-			$out.extend(a.to_le_bytes().into_iter().chain(b.to_le_bytes()));
+			$out.extend([a, b]);
 		}
 	};
 }
@@ -236,14 +237,14 @@ macro_rules! rewritten {
 /// [`repeated`]'s body, over `$x`'s type.
 macro_rules! repeated {
 	($data:ident, $x:expr, $y:expr, $out:ident) => {{
-		let rows = [Row($y, (0x0102, 0x0304)), Row($x, (0x0506, 0x0708))];
+		let rows = [Row($y, (0x01, 0x02)), Row($x, (0x03, 0x04))];
 		let mut copies: Vec<_> = rows.iter().copied().collect();
-		rewritten!(copies, 2, $x, $out);
-		let mut repeats = vec![Row($x, (0x090a, 0x0b0c)); 1 + $data.len() % 3];
-		rewritten!(repeats, 1 + $data.len() % 3, $x, $out);
-		for Row(value, (a, b)) in &rows {
+		rewritten!(copies, $x, $out);
+		let mut repeats = vec![Row($x, (0x05, 0x06)); 1 + $data.len() % 3];
+		rewritten!(repeats, $x, $out);
+		for Row(value, (a, b)) in rows {
 			value.put($out);
-			$out.extend(a.to_le_bytes().into_iter().chain(b.to_le_bytes()));
+			$out.extend([a, b]);
 		}
 	}};
 }

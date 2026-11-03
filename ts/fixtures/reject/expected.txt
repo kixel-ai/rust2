@@ -74,8 +74,10 @@ fixtures/reject/src/kept.rs:lent_kept+4:46: a raw pointer to `std::cell::UnsafeC
 fixtures/reject/src/kept.rs:lent_kept+6:22: `std::iter::once` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/kept.rs:mapped_kept+4:39: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Mapped`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:pushed_part_kept+4:22: a raw pointer to `(u16, u16)` in `kept::Pushed`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:reaimed+2:13: a raw pointer to `(u16, u16)` in `kept::Reaimed`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:ref_replaced+2:32: a raw pointer to `kept::ByRefReplace` in `(u16, kept::ByRefReplace)`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:ref_taken+2:32: a raw pointer to `kept::ByRefTake` in `(u16, kept::ByRefTake)`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:reversed+3:13: a raw pointer to `(u16, u16)` in `kept::Reversed`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:uninit_rewritten+3:47: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Rewritten`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:written_through_alias+3:29: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Aliased`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:written_through_loaded+3:29: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Loaded`, which the crate may put another object in place of
