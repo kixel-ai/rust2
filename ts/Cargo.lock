@@ -396,6 +396,10 @@ name = "lang-shapes-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-shares-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-singles-fixture"
 version = "0.0.0"
 

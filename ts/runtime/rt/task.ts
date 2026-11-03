@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -186,6 +186,19 @@ export function arcDowncast<T, U, C>(
 		downcasts.set(arc, typed);
 	}
 	return Ok(typed);
+}
+
+/** The `Arc<[u8]>` each `From` of an `Arc<str>` gives, which is one allocation. */
+const strBytes = new WeakMap<Arc<string>, Arc<ByteSlice>>();
+
+/** `Arc<[u8]>::from` an `Arc<str>`: its bytes, sharing its count as std shares the allocation. */
+export function arcStrBytes(arc: Arc<string>): Arc<ByteSlice> {
+	let bytes = strBytes.get(arc);
+	if (bytes === undefined) {
+		bytes = new ArcDyn(arc, stringAsBytes(arc.value));
+		strBytes.set(arc, bytes);
+	}
+	return bytes;
 }
 
 /**
