@@ -2015,6 +2015,17 @@ fn mapping<'tcx>(
 		{
 			args.pop()?
 		}
+		// A `Vec` as its slice, as `as_slice` has it, or as itself.
+		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
+			if let ty::Adt(_, vargs) = targ(gargs, 0).kind()
+				&& b.t.std_of(targ(gargs, 0)) == Some(Std::Vec) =>
+		{
+			let v = args.pop()?;
+			match targ(gargs, 1).is_slice() {
+				true => vec_view(v, vargs.type_at(0)),
+				false => v,
+			}
+		}
 		// `Ord::cmp` of each element it compares with `x`, in std's order.
 		("slice", "binary_search") => {
 			let elem = targ(gargs, 0);
@@ -2818,11 +2829,23 @@ fn clone_into<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, path: &str, span
 	super::collections::clone_fn(b, elem, span)
 }
 
+/// What `ty` holds through std's boxes of sized values, whose `clone_from` is that of what
+/// they hold.
+pub(super) fn unboxed<'tcx>(t: &Translator<'_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'tcx> {
+	while let Some(inner) = ty.boxed_ty()
+		&& inner.is_sized(t.tcx, t.typing_env_pub())
+	{
+		ty = inner;
+	}
+	ty
+}
+
 /// Whether `clone_from` of `ty` clones, and drops what it writes over, as
 /// `*self = source.clone()` would: `Clone`'s own, and std's own over such types, where it
-/// only reuses memory, if nothing drops or it is an `Option`'s.
+/// only reuses memory, if nothing drops or it is an `Option`'s, or a box's of one.
 pub(super) fn clone_from_clones<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	let tcx = t.tcx;
+	let ty = unboxed(t, ty);
 	let clone_from = super::collections::trait_fn(tcx, "Clone", "clone_from");
 	let resolved = Instance::try_resolve(tcx, t.typing_env_pub(), clone_from, tcx.mk_args(&[ty.into()]));
 	let Some(instance) = resolved.ok().flatten() else {
