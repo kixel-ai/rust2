@@ -572,7 +572,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const old2 = wide;
 			wide = _34;
 			wide = rt.iterToArray(rt.iterMap(rt.iterFilter(rt.iterSlice(old2), (_25: rt.u32): boolean => {
-				return _25 > ((b4 as rt.u32));
+				return _25 > (b4 as rt.u32);
 			}), (x3: rt.u32): rt.u32 => {
 				return rt.u32Div(x3, 2);
 			}), "next", 4, false, 4);
@@ -809,7 +809,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_281 === rt.DONE) {
 			break;
 		}
-		_281[1].v = rt.u32Add(_281[1].v, (((_281[0] as rt.u32)) << 8) >>> 0);
+		_281[1].v = rt.u32Add(_281[1].v, ((_281[0] as rt.u32) << 8) >>> 0);
 	}
 	let nested = rt.None as rt.u8 | undefined | rt.None;
 	l39: for (const b3 of rt.byteSliceView(data)) {
@@ -1261,7 +1261,7 @@ export function toRefs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, bytes.length & 0xff);
 		let tail2: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 1))), (_2: rt.u8): rt.u32 => {
-			return (((_2 as rt.u32)) << 8) >>> 0;
+			return ((_2 as rt.u32) << 8) >>> 0;
 		}), undefined, 4, true);
 		while (tail2.length >= 1) {
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(tail2[0])));

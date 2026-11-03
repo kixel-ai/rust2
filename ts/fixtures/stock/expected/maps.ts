@@ -307,11 +307,11 @@ export function numbers(n: rt.HashTable<rt.u32>, kind: rt.u8, op: rt.u8, key: rt
 				captured[Symbol.dispose]();
 			}), rt.drop);
 			put(out, drops.v as rt.usize);
-			put(out, rt.tableOrInsert(e, (((key as rt.u32)) << 16) >>> 0).v as rt.usize);
+			put(out, rt.tableOrInsert(e, ((key as rt.u32) << 16) >>> 0).v as rt.usize);
 		} else if (_12 === 1) {
 			const _34: rt.Place<rt.u32> | undefined = rt.tableFindMut(n, h, ours);
 			if (_34 === undefined) {
-				put(out, rt.tableInsertUnique(n, h, (((key as rt.u32)) << 16) >>> 0, rehash).v as rt.usize);
+				put(out, rt.tableInsertUnique(n, h, ((key as rt.u32) << 16) >>> 0, rehash).v as rt.usize);
 			} else {
 				_34.v = rt.u32Add(_34.v, 2);
 			}
@@ -448,9 +448,9 @@ export function capacity(dataData: Uint8Array, dataStart: number, dataLen: numbe
 						rt.hashAdd(s, arg);
 						const v: rt.u32 = arg as rt.u32;
 						const _104: rt.u64 = rt.hashOne(rt.buildHasher(hasher), v, rt.hash32);
-						if (!((rt.tableFind(t, _104, (_2: rt.u32): boolean => {
+						if (!(rt.tableFind(t, _104, (_2: rt.u32): boolean => {
 							return _2 === v;
-						}) === undefined))) {
+						}) === undefined)) {
 							break b8;
 						}
 						const _110: rt.u64 = rt.hashOne(rt.buildHasher(hasher), v, rt.hash32);

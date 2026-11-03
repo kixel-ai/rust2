@@ -232,7 +232,7 @@ export function anys(log: Log.Log, id: rt.u32): void {
 	Log.note(log, "dropped");
 	b[Symbol.dispose]();
 	const _149: Any.Any = slot;
-	const part5 = ((_149 instanceof of$drops_Held ? _149.v : _149 instanceof ofPlace$drops_Held ? _149.v.v : undefined)) !== undefined;
+	const part5 = (_149 instanceof of$drops_Held ? _149.v : _149 instanceof ofPlace$drops_Held ? _149.v.v : undefined) !== undefined;
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part5, f)];
 	Log.note(log, rt.fmtFormat(["slot ", args12[0]]));
 	rt.drop(slot);

@@ -70,7 +70,7 @@ function new_(data: rt.ByteSlice): Fault {
 		return { tag: "Code", _0: (at(1) << 8) | at(2) } as Fault;
 	}
 	if (_3 === 2) {
-		return { tag: "TooLarge", size: (((((at(1) as rt.usize)) << 24) >>> 0) | at(2) as rt.usize) >>> 0, max: at(3) as rt.usize } as Fault;
+		return { tag: "TooLarge", size: ((((at(1) as rt.usize) << 24) >>> 0) | at(2) as rt.usize) >>> 0, max: at(3) as rt.usize } as Fault;
 	}
 	return { tag: "At", _0: { _0: at(1), _1: rt.i64Shl((at(2) << 24) >> 24 as rt.i64, 40) } } as Fault;
 }

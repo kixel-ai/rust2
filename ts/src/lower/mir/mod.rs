@@ -331,6 +331,8 @@ struct Pending {
 	decl: bool,
 	/// Whether reading it again, wherever and however often, reads the same.
 	rereads: bool,
+	/// The Rust it is made from, which the source map names wherever it folds.
+	loc: Option<ts::Loc>,
 }
 
 pub struct Fx<'m, 'b, 'a, 'tcx> {
@@ -1901,6 +1903,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Where the MIR statement or terminator being lowered is, for the source map.
+	fn here(&mut self) -> Option<ts::Loc> {
+		let span = self.mir.source_info(self.at).span;
+		self.b.t.loc(span)
+	}
+
 	/// The value held back for `local`, if it is.
 	fn held(&self, local: Local) -> Option<&Pending> {
 		let name = self.var(local)?;
@@ -2081,8 +2089,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut kept = Vec::new();
 		for (i, p) in pending.into_iter().enumerate() {
 			if fold[i] {
+				let value = located(p.value, p.loc);
 				for stmt in &mut stmts {
-					if subst_stmt(stmt, &p.name, &p.value) {
+					if subst_stmt(stmt, &p.name, &value) {
 						break;
 					}
 				}
@@ -2109,8 +2118,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => p.value,
 		};
 		out.push(match p.decl {
-			true => StmtKind::decl(false, p.name, None, Some(value)).at(None),
-			false => StmtKind::Expr(Expr::ident(&p.name).assign(value)).at(None),
+			true => StmtKind::decl(false, p.name, None, Some(value)).at(p.loc),
+			false => StmtKind::Expr(Expr::ident(&p.name).assign(value)).at(p.loc),
 		});
 	}
 
@@ -2179,6 +2188,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
 		let copy = std::mem::take(&mut self.copy_on_flush);
+		let loc = self.here();
 		self.pending.push(Pending {
 			name,
 			value,
@@ -2190,6 +2200,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			copy,
 			decl: false,
 			rereads,
+			loc,
 		});
 	}
 
@@ -2199,6 +2210,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.order += 1;
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
+		let loc = self.here();
 		self.pending.push(Pending {
 			name: flag,
 			value,
@@ -2210,6 +2222,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			copy: false,
 			decl: false,
 			rereads: false,
+			loc,
 		});
 	}
 
@@ -2264,6 +2277,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					copy: false,
 					decl: true,
 					rereads: false,
+					loc: p.loc,
 				},
 			);
 			held += 1;
@@ -2330,12 +2344,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.set_stepped(local, value, out);
 			return;
 		}
+		let loc = self.here();
 		match self.slots[local].clone() {
 			Slot::Var(name) => {
 				if self.uses[local] == 0 {
 					// Nothing reads it: only its effects run.
 					if effect {
-						self.emit(vec![StmtKind::Expr(value).at(None)], false, out);
+						self.emit(vec![StmtKind::Expr(value).at(loc)], false, out);
 					}
 					return;
 				}
@@ -2375,7 +2390,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return;
 				}
 				self.assigned[local] = true;
-				let stmt = StmtKind::Expr(Expr::ident(&name).assign(value)).at(None);
+				let stmt = StmtKind::Expr(Expr::ident(&name).assign(value)).at(loc);
 				self.emit(vec![stmt], false, out);
 				// An aggregate assigned once and never changed: its operands, as emitted,
 				// read in place of its fields.
@@ -2392,7 +2407,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			Slot::Unit => {
 				if effect {
-					self.emit(vec![StmtKind::Expr(value).at(None)], false, out);
+					self.emit(vec![StmtKind::Expr(value).at(loc)], false, out);
 				}
 			}
 			Slot::Alias(_) | Slot::Discr(_) | Slot::Flag(_) => unreachable!("set by their own assignment"),
@@ -2677,6 +2692,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			TerminatorKind::Return if !self.mir.local_decls[mir::RETURN_PLACE].ty.is_never() => {
 				let ret = self.mir.local_decls[mir::RETURN_PLACE].ty;
+				// At the tail it returns, if it is held back, rather than the body's end.
+				let loc = match self.held(mir::RETURN_PLACE) {
+					Some(p) => p.loc,
+					None => self.b.t.loc(span),
+				};
 				let value = match self.zero_sized(ret) {
 					true => None,
 					false => {
@@ -2687,7 +2707,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						Some(value)
 					}
 				};
-				let loc = self.b.t.loc(span);
 				self.emit(vec![StmtKind::Return(value).at(loc)], false, out);
 				self.flush(out);
 				Exit::End
@@ -3445,6 +3464,15 @@ fn reads_only(name: &str) -> bool {
 	)
 }
 
+/// `value` under `loc` if it is a call, which the source map names where it folds, as it
+/// does a call with effects where it is made.
+fn located(value: Expr, loc: Option<ts::Loc>) -> Expr {
+	match (loc, &value) {
+		(Some(loc), Expr::Call(..) | Expr::New(..)) => Expr::Located(loc, Box::new(value)),
+		_ => value,
+	}
+}
+
 /// Replace the one read of `name` in `stmt` with `value`; whether it was there.
 fn subst_stmt(stmt: &mut Stmt, name: &str, value: &Expr) -> bool {
 	match &mut stmt.kind {
@@ -4134,11 +4162,13 @@ fn return_assigned(stmts: &mut Vec<Stmt>, returnable: &FxHashSet<String>) -> boo
 	if !moves {
 		return false;
 	}
-	let StmtKind::Expr(Expr::Assign(_, value)) = stmts.remove(at).kind else {
+	let assigned = stmts.remove(at);
+	let StmtKind::Expr(Expr::Assign(_, value)) = assigned.kind else {
 		unreachable!("found above")
 	};
 	let last = stmts.last_mut().expect("the return");
 	last.kind = StmtKind::Return(Some(*value));
+	last.loc = assigned.loc.or(last.loc);
 	true
 }
 

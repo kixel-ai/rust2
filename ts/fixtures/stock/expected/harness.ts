@@ -239,10 +239,10 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 					inRange = rt.i64Le(x6, hi3);
 				}
 			} else if (_10 === 7) {
-				inRange = ((rt.randRange(0, { end: b }.end, 8, false) as rt.u8)) < b;
+				inRange = (rt.randRange(0, { end: b }.end, 8, false) as rt.u8) < b;
 			} else if (_10 === 8) {
 				const hi4: rt.u64 = rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, a as rt.u64);
-				if (!(((rt.randRangeToInclusive({ end: b, inclusive: true }.end, 8) as rt.u8)) <= b)) {
+				if (!((rt.randRangeToInclusive({ end: b, inclusive: true }.end, 8) as rt.u8) <= b)) {
 					inRange = false;
 				} else {
 					inRange = rt.u64Le(rt.randRangeToInclusive({ end: hi4, inclusive: true }.end, 64) as rt.u64, hi4);

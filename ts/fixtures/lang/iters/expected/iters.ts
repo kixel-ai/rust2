@@ -132,7 +132,7 @@ export function adaptors(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return Uint8Array.of(b3, ~b3 & 0xff);
 					}), undefined, 2, true);
 					const copies: Uint8Array[] = rt.iterToArray(rt.iterCopied(rt.iterLend(rt.iterSlice(pairs), rt.byteSliceFrom), rt.byteSliceToArray), undefined, 2, true);
-					if (!((copies.length === 0))) {
+					if (!(copies.length === 0)) {
 						const _174: rt.ByteSlice = rt.byteSliceFrom(copies[rt.idx(copies, 0)]);
 						_174.data[_174.start] = 85;
 					}
@@ -422,7 +422,7 @@ export function peekedOthers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		});
 	};
 	const _159: (a0: rt.u8) => rt.u16[] = (b2: rt.u8): rt.u16[] => {
-		return rt.vecFromElem((((rt.u8Rem(b2, 2) as rt.u16)) << 9) & 0xffff, rt.u8Rem(b2, 3) as rt.usize, undefined);
+		return rt.vecFromElem(((rt.u8Rem(b2, 2) as rt.u16) << 9) & 0xffff, rt.u8Rem(b2, 3) as rt.usize, undefined);
 	};
 	const words: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): string => {
 		return _3(_2);
@@ -6581,7 +6581,7 @@ export function adapted(a: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 	}
 	rt.byteVecPush(out, option_mapOr$02k4ito(rt.iterPosition(new rt.RangeFrom(lo, rt.u8Step), (i2: rt.u8): boolean => {
-		return ((i2 as rt.usize)) >= rt.usizeAdd(n, lo as rt.usize);
+		return (i2 as rt.usize) >= rt.usizeAdd(n, lo as rt.usize);
 	}), 238, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}));

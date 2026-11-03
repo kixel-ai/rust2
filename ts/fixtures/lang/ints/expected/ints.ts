@@ -3080,7 +3080,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind2 = 4;
 							}
-							if (!((e.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over = e.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over = true;
@@ -3129,7 +3129,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind3 = 4;
 						}
-						if (!((e2.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e2.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over2 = e2.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over2 = true;
@@ -3178,7 +3178,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind4 = 4;
 									}
-									if (!((e3.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e3.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over3 = e3.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over3 = true;
@@ -3200,7 +3200,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix6: rt.u32 = (((first as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix6: rt.u32 = ((first as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest, 1), (b24: rt.u8): boolean => {
 						return (b24 & 1) === 1;
 					})) {
@@ -3232,7 +3232,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind5 = 4;
 						}
-						if (!((e4.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e4.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over4 = e4.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over4 = true;
@@ -3290,7 +3290,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind6 = 4;
 							}
-							if (!((e5.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e5.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over5 = e5.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over5 = true;
@@ -3339,7 +3339,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind7 = 4;
 						}
-						if (!((e6.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e6.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over6 = e6.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over6 = true;
@@ -3388,7 +3388,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind8 = 4;
 									}
-									if (!((e7.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e7.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over7 = e7.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over7 = true;
@@ -3410,7 +3410,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix13: rt.u32 = (((first2 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest2), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix13: rt.u32 = ((first2 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest2), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest2, 1), (b23: rt.u8): boolean => {
 						return (b23 & 1) === 1;
 					})) {
@@ -3442,7 +3442,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind9 = 4;
 						}
-						if (!((e8.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e8.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over8 = e8.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over8 = true;
@@ -3500,7 +3500,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind10 = 4;
 							}
-							if (!((e9.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e9.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over9 = e9.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over9 = true;
@@ -3549,7 +3549,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind11 = 4;
 						}
-						if (!((e10.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e10.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over10 = e10.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over10 = true;
@@ -3598,7 +3598,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind12 = 4;
 									}
-									if (!((e11.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e11.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over11 = e11.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over11 = true;
@@ -3620,7 +3620,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix20: rt.u32 = (((first3 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest3), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix20: rt.u32 = ((first3 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest3), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest3, 1), (b22: rt.u8): boolean => {
 						return (b22 & 1) === 1;
 					})) {
@@ -3652,7 +3652,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind13 = 4;
 						}
-						if (!((e12.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e12.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over12 = e12.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over12 = true;
@@ -3710,7 +3710,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind14 = 4;
 							}
-							if (!((e13.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e13.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over13 = e13.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over13 = true;
@@ -3759,7 +3759,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind15 = 4;
 						}
-						if (!((e14.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e14.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over14 = e14.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over14 = true;
@@ -3808,7 +3808,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind16 = 4;
 									}
-									if (!((e15.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e15.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over15 = e15.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over15 = true;
@@ -3830,7 +3830,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix27: rt.u32 = (((first4 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest4), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix27: rt.u32 = ((first4 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest4), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest4, 1), (b21: rt.u8): boolean => {
 						return (b21 & 1) === 1;
 					})) {
@@ -3862,7 +3862,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind17 = 4;
 						}
-						if (!((e16.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e16.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over16 = e16.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over16 = true;
@@ -3920,7 +3920,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind18 = 4;
 							}
-							if (!((e17.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e17.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over17 = e17.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over17 = true;
@@ -3969,7 +3969,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind19 = 4;
 						}
-						if (!((e18.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e18.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over18 = e18.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over18 = true;
@@ -4018,7 +4018,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind20 = 4;
 									}
-									if (!((e19.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e19.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over19 = e19.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over19 = true;
@@ -4040,7 +4040,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix34: rt.u32 = (((first5 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest5), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix34: rt.u32 = ((first5 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest5), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest5, 1), (b20: rt.u8): boolean => {
 						return (b20 & 1) === 1;
 					})) {
@@ -4072,7 +4072,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind21 = 4;
 						}
-						if (!((e20.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e20.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over20 = e20.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over20 = true;
@@ -4130,7 +4130,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind22 = 4;
 							}
-							if (!((e21.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e21.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over21 = e21.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over21 = true;
@@ -4179,7 +4179,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind23 = 4;
 						}
-						if (!((e22.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e22.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over22 = e22.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over22 = true;
@@ -4228,7 +4228,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind24 = 4;
 									}
-									if (!((e23.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e23.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over23 = e23.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over23 = true;
@@ -4250,7 +4250,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix41: rt.u32 = (((first6 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest6), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix41: rt.u32 = ((first6 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest6), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest6, 1), (b19: rt.u8): boolean => {
 						return (b19 & 1) === 1;
 					})) {
@@ -4282,7 +4282,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind25 = 4;
 						}
-						if (!((e24.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e24.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over24 = e24.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over24 = true;
@@ -4340,7 +4340,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind26 = 4;
 							}
-							if (!((e25.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e25.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over25 = e25.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over25 = true;
@@ -4389,7 +4389,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind27 = 4;
 						}
-						if (!((e26.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e26.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over26 = e26.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over26 = true;
@@ -4438,7 +4438,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind28 = 4;
 									}
-									if (!((e27.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e27.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over27 = e27.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over27 = true;
@@ -4460,7 +4460,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix48: rt.u32 = (((first7 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest7), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix48: rt.u32 = ((first7 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest7), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest7, 1), (b18: rt.u8): boolean => {
 						return (b18 & 1) === 1;
 					})) {
@@ -4492,7 +4492,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind29 = 4;
 						}
-						if (!((e28.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e28.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over28 = e28.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over28 = true;
@@ -4550,7 +4550,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind30 = 4;
 							}
-							if (!((e29.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e29.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over29 = e29.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over29 = true;
@@ -4599,7 +4599,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind31 = 4;
 						}
-						if (!((e30.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e30.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over30 = e30.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over30 = true;
@@ -4648,7 +4648,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind32 = 4;
 									}
-									if (!((e31.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e31.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over31 = e31.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over31 = true;
@@ -4670,7 +4670,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix55: rt.u32 = (((first8 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest8), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix55: rt.u32 = ((first8 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest8), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest8, 1), (b17: rt.u8): boolean => {
 						return (b17 & 1) === 1;
 					})) {
@@ -4702,7 +4702,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind33 = 4;
 						}
-						if (!((e32.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e32.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over32 = e32.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over32 = true;
@@ -4760,7 +4760,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind34 = 4;
 							}
-							if (!((e33.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e33.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over33 = e33.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over33 = true;
@@ -4809,7 +4809,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind35 = 4;
 						}
-						if (!((e34.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e34.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over34 = e34.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over34 = true;
@@ -4858,7 +4858,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind36 = 4;
 									}
-									if (!((e35.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e35.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over35 = e35.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over35 = true;
@@ -4880,7 +4880,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix62: rt.u32 = (((first9 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest9), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix62: rt.u32 = ((first9 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest9), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest9, 1), (b16: rt.u8): boolean => {
 						return (b16 & 1) === 1;
 					})) {
@@ -4912,7 +4912,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind37 = 4;
 						}
-						if (!((e36.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e36.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over36 = e36.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over36 = true;
@@ -4970,7 +4970,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind38 = 4;
 							}
-							if (!((e37.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e37.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over37 = e37.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over37 = true;
@@ -5019,7 +5019,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind39 = 4;
 						}
-						if (!((e38.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e38.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over38 = e38.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over38 = true;
@@ -5068,7 +5068,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind40 = 4;
 									}
-									if (!((e39.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e39.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over39 = e39.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over39 = true;
@@ -5090,7 +5090,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix69: rt.u32 = (((first10 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest10), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix69: rt.u32 = ((first10 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest10), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest10, 1), (b15: rt.u8): boolean => {
 						return (b15 & 1) === 1;
 					})) {
@@ -5122,7 +5122,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind41 = 4;
 						}
-						if (!((e40.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e40.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over40 = e40.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over40 = true;
@@ -5180,7 +5180,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind42 = 4;
 							}
-							if (!((e41.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e41.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over41 = e41.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over41 = true;
@@ -5229,7 +5229,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind43 = 4;
 						}
-						if (!((e42.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e42.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over42 = e42.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over42 = true;
@@ -5278,7 +5278,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind44 = 4;
 									}
-									if (!((e43.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e43.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over43 = e43.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over43 = true;
@@ -5300,7 +5300,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix76: rt.u32 = (((first11 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest11), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix76: rt.u32 = ((first11 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest11), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest11, 1), (b14: rt.u8): boolean => {
 						return (b14 & 1) === 1;
 					})) {
@@ -5332,7 +5332,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind45 = 4;
 						}
-						if (!((e44.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e44.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over44 = e44.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over44 = true;
@@ -5390,7 +5390,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							} else {
 								kind46 = 4;
 							}
-							if (!((e45.kind === "PosOverflow" as rt.IntErrorKind))) {
+							if (!(e45.kind === "PosOverflow" as rt.IntErrorKind)) {
 								over45 = e45.kind !== "NegOverflow" as rt.IntErrorKind;
 							} else {
 								over45 = true;
@@ -5439,7 +5439,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind47 = 4;
 						}
-						if (!((e46.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e46.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over46 = e46.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over46 = true;
@@ -5488,7 +5488,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 									} else {
 										kind48 = 4;
 									}
-									if (!((e47.kind === "PosOverflow" as rt.IntErrorKind))) {
+									if (!(e47.kind === "PosOverflow" as rt.IntErrorKind)) {
 										over47 = e47.kind !== "NegOverflow" as rt.IntErrorKind;
 									} else {
 										over47 = true;
@@ -5510,7 +5510,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 							}
 						}
 					}
-					const radix83: rt.u32 = (((first12 as rt.u32)) | ((((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest12), 0) as rt.u32)) << 24) >>> 0)) >>> 0;
+					const radix83: rt.u32 = ((first12 as rt.u32) | (((option_unwrapOr$0r2bmpr(rt.byteSliceFirst(rest12), 0) as rt.u32) << 24) >>> 0)) >>> 0;
 					if (isSomeAnd$09tpccf(rt.byteSliceGet(rest12, 1), (b13: rt.u8): boolean => {
 						return (b13 & 1) === 1;
 					})) {
@@ -5542,7 +5542,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 						} else {
 							kind49 = 4;
 						}
-						if (!((e48.kind === "PosOverflow" as rt.IntErrorKind))) {
+						if (!(e48.kind === "PosOverflow" as rt.IntErrorKind)) {
 							over48 = e48.kind !== "NegOverflow" as rt.IntErrorKind;
 						} else {
 							over48 = true;
@@ -5591,57 +5591,57 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u8ToBeBytes((named as { ok: true; value: rt.u8 }).value)));
 			const into: rt.Result<rt.u8, never> = rt.Ok(v);
 			const w2: rt.u8 = (into as { ok: true; value: rt.u8 }).value;
-			rt.byteVecPush(out, ((result_eq$12e5exx(into, named) ? 1 : 0)) | ((((w2 === v ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$12e5exx(into, named) ? 1 : 0) | (((w2 === v ? 1 : 0) << 1) & 0xff));
 			const named2: rt.Result<rt.u16, never> = rt.Ok(v as rt.u16);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes((named2 as { ok: true; value: rt.u16 }).value)));
 			const into2: rt.Result<rt.u16, never> = rt.Ok(v as rt.u16);
 			const w4: rt.u16 = (into2 as { ok: true; value: rt.u16 }).value;
-			rt.byteVecPush(out, ((result_eq$08241oi(into2, named2) ? 1 : 0)) | ((((w4 === v as rt.u16 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$08241oi(into2, named2) ? 1 : 0) | (((w4 === v as rt.u16 ? 1 : 0) << 1) & 0xff));
 			const named3: rt.Result<rt.u32, never> = rt.Ok(v as rt.u32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes((named3 as { ok: true; value: rt.u32 }).value)));
 			const into3: rt.Result<rt.u32, never> = rt.Ok(v as rt.u32);
 			const w6: rt.u32 = (into3 as { ok: true; value: rt.u32 }).value;
-			rt.byteVecPush(out, ((result_eq$0nbftnc(into3, named3) ? 1 : 0)) | ((((w6 === v as rt.u32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0nbftnc(into3, named3) ? 1 : 0) | (((w6 === v as rt.u32 ? 1 : 0) << 1) & 0xff));
 			const named4: rt.Result<rt.u64, never> = rt.Ok(v as rt.u64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes((named4 as { ok: true; value: rt.u64 }).value)));
 			const into4: rt.Result<rt.u64, never> = rt.Ok(v as rt.u64);
 			const w8: rt.u64 = (into4 as { ok: true; value: rt.u64 }).value;
-			rt.byteVecPush(out, ((result_eq$1gq81ib(into4, named4) ? 1 : 0)) | ((((rt.u64Eq(w8, v as rt.u64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1gq81ib(into4, named4) ? 1 : 0) | (((rt.u64Eq(w8, v as rt.u64) ? 1 : 0) << 1) & 0xff));
 			const named5: rt.Result<rt.u128, never> = rt.Ok(v as rt.u128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes((named5 as { ok: true; value: rt.u128 }).value)));
 			const into5: rt.Result<rt.u128, never> = rt.Ok(v as rt.u128);
 			const w10: rt.u128 = (into5 as { ok: true; value: rt.u128 }).value;
-			rt.byteVecPush(out, ((result_eq$06vyx9e(into5, named5) ? 1 : 0)) | ((((rt.u128Eq(w10, v as rt.u128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$06vyx9e(into5, named5) ? 1 : 0) | (((rt.u128Eq(w10, v as rt.u128) ? 1 : 0) << 1) & 0xff));
 			const named6: rt.Result<rt.usize, never> = rt.Ok(v as rt.usize);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.usizeToBeBytes((named6 as { ok: true; value: rt.usize }).value)));
 			const into6: rt.Result<rt.usize, never> = rt.Ok(v as rt.usize);
 			const w12: rt.usize = (into6 as { ok: true; value: rt.usize }).value;
-			rt.byteVecPush(out, ((result_eq$1xhgva4(into6, named6) ? 1 : 0)) | ((((w12 === v as rt.usize ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1xhgva4(into6, named6) ? 1 : 0) | (((w12 === v as rt.usize ? 1 : 0) << 1) & 0xff));
 			const named7: rt.Result<rt.i16, never> = rt.Ok(v as rt.i16);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i16ToBeBytes((named7 as { ok: true; value: rt.i16 }).value)));
 			const into7: rt.Result<rt.i16, never> = rt.Ok(v as rt.i16);
 			const w14: rt.i16 = (into7 as { ok: true; value: rt.i16 }).value;
-			rt.byteVecPush(out, ((result_eq$1mi4cle(into7, named7) ? 1 : 0)) | ((((w14 === v as rt.i16 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1mi4cle(into7, named7) ? 1 : 0) | (((w14 === v as rt.i16 ? 1 : 0) << 1) & 0xff));
 			const named8: rt.Result<rt.i32, never> = rt.Ok(v as rt.i32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i32ToBeBytes((named8 as { ok: true; value: rt.i32 }).value)));
 			const into8: rt.Result<rt.i32, never> = rt.Ok(v as rt.i32);
 			const w16: rt.i32 = (into8 as { ok: true; value: rt.i32 }).value;
-			rt.byteVecPush(out, ((result_eq$1ukayff(into8, named8) ? 1 : 0)) | ((((w16 === v as rt.i32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1ukayff(into8, named8) ? 1 : 0) | (((w16 === v as rt.i32 ? 1 : 0) << 1) & 0xff));
 			const named9: rt.Result<rt.i64, never> = rt.Ok(v as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named9 as { ok: true; value: rt.i64 }).value)));
 			const into9: rt.Result<rt.i64, never> = rt.Ok(v as rt.i64);
 			const w18: rt.i64 = (into9 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into9, named9) ? 1 : 0)) | ((((rt.i64Eq(w18, v as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into9, named9) ? 1 : 0) | (((rt.i64Eq(w18, v as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named10: rt.Result<rt.i128, never> = rt.Ok(v as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named10 as { ok: true; value: rt.i128 }).value)));
 			const into10: rt.Result<rt.i128, never> = rt.Ok(v as rt.i128);
 			const w20: rt.i128 = (into10 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into10, named10) ? 1 : 0)) | ((((rt.i128Eq(w20, v as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into10, named10) ? 1 : 0) | (((rt.i128Eq(w20, v as rt.i128) ? 1 : 0) << 1) & 0xff));
 			const named11: rt.Result<rt.isize, never> = rt.Ok(v as rt.isize);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.isizeToBeBytes((named11 as { ok: true; value: rt.isize }).value)));
 			const into11: rt.Result<rt.isize, never> = rt.Ok(v as rt.isize);
 			const w22: rt.isize = (into11 as { ok: true; value: rt.isize }).value;
-			rt.byteVecPush(out, ((result_eq$0w2dfat(into11, named11) ? 1 : 0)) | ((((w22 === v as rt.isize ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0w2dfat(into11, named11) ? 1 : 0) | (((w22 === v as rt.isize ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 1) {
 		const buf2: Uint8Array = rt.bytes(2);
@@ -5658,42 +5658,42 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes((named12 as { ok: true; value: rt.u16 }).value)));
 			const into12: rt.Result<rt.u16, never> = rt.Ok(v2);
 			const w24: rt.u16 = (into12 as { ok: true; value: rt.u16 }).value;
-			rt.byteVecPush(out, ((result_eq$08241oi(into12, named12) ? 1 : 0)) | ((((w24 === v2 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$08241oi(into12, named12) ? 1 : 0) | (((w24 === v2 ? 1 : 0) << 1) & 0xff));
 			const named13: rt.Result<rt.u32, never> = rt.Ok(v2 as rt.u32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes((named13 as { ok: true; value: rt.u32 }).value)));
 			const into13: rt.Result<rt.u32, never> = rt.Ok(v2 as rt.u32);
 			const w26: rt.u32 = (into13 as { ok: true; value: rt.u32 }).value;
-			rt.byteVecPush(out, ((result_eq$0nbftnc(into13, named13) ? 1 : 0)) | ((((w26 === v2 as rt.u32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0nbftnc(into13, named13) ? 1 : 0) | (((w26 === v2 as rt.u32 ? 1 : 0) << 1) & 0xff));
 			const named14: rt.Result<rt.u64, never> = rt.Ok(v2 as rt.u64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes((named14 as { ok: true; value: rt.u64 }).value)));
 			const into14: rt.Result<rt.u64, never> = rt.Ok(v2 as rt.u64);
 			const w28: rt.u64 = (into14 as { ok: true; value: rt.u64 }).value;
-			rt.byteVecPush(out, ((result_eq$1gq81ib(into14, named14) ? 1 : 0)) | ((((rt.u64Eq(w28, v2 as rt.u64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1gq81ib(into14, named14) ? 1 : 0) | (((rt.u64Eq(w28, v2 as rt.u64) ? 1 : 0) << 1) & 0xff));
 			const named15: rt.Result<rt.u128, never> = rt.Ok(v2 as rt.u128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes((named15 as { ok: true; value: rt.u128 }).value)));
 			const into15: rt.Result<rt.u128, never> = rt.Ok(v2 as rt.u128);
 			const w30: rt.u128 = (into15 as { ok: true; value: rt.u128 }).value;
-			rt.byteVecPush(out, ((result_eq$06vyx9e(into15, named15) ? 1 : 0)) | ((((rt.u128Eq(w30, v2 as rt.u128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$06vyx9e(into15, named15) ? 1 : 0) | (((rt.u128Eq(w30, v2 as rt.u128) ? 1 : 0) << 1) & 0xff));
 			const named16: rt.Result<rt.usize, never> = rt.Ok(v2 as rt.usize);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.usizeToBeBytes((named16 as { ok: true; value: rt.usize }).value)));
 			const into16: rt.Result<rt.usize, never> = rt.Ok(v2 as rt.usize);
 			const w32: rt.usize = (into16 as { ok: true; value: rt.usize }).value;
-			rt.byteVecPush(out, ((result_eq$1xhgva4(into16, named16) ? 1 : 0)) | ((((w32 === v2 as rt.usize ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1xhgva4(into16, named16) ? 1 : 0) | (((w32 === v2 as rt.usize ? 1 : 0) << 1) & 0xff));
 			const named17: rt.Result<rt.i32, never> = rt.Ok(v2 as rt.i32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i32ToBeBytes((named17 as { ok: true; value: rt.i32 }).value)));
 			const into17: rt.Result<rt.i32, never> = rt.Ok(v2 as rt.i32);
 			const w34: rt.i32 = (into17 as { ok: true; value: rt.i32 }).value;
-			rt.byteVecPush(out, ((result_eq$1ukayff(into17, named17) ? 1 : 0)) | ((((w34 === v2 as rt.i32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1ukayff(into17, named17) ? 1 : 0) | (((w34 === v2 as rt.i32 ? 1 : 0) << 1) & 0xff));
 			const named18: rt.Result<rt.i64, never> = rt.Ok(v2 as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named18 as { ok: true; value: rt.i64 }).value)));
 			const into18: rt.Result<rt.i64, never> = rt.Ok(v2 as rt.i64);
 			const w36: rt.i64 = (into18 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into18, named18) ? 1 : 0)) | ((((rt.i64Eq(w36, v2 as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into18, named18) ? 1 : 0) | (((rt.i64Eq(w36, v2 as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named19: rt.Result<rt.i128, never> = rt.Ok(v2 as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named19 as { ok: true; value: rt.i128 }).value)));
 			const into19: rt.Result<rt.i128, never> = rt.Ok(v2 as rt.i128);
 			const w38: rt.i128 = (into19 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into19, named19) ? 1 : 0)) | ((((rt.i128Eq(w38, v2 as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into19, named19) ? 1 : 0) | (((rt.i128Eq(w38, v2 as rt.i128) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 2) {
 		const buf3: Uint8Array = rt.bytes(4);
@@ -5710,27 +5710,27 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes((named20 as { ok: true; value: rt.u32 }).value)));
 			const into20: rt.Result<rt.u32, never> = rt.Ok(v3);
 			const w40: rt.u32 = (into20 as { ok: true; value: rt.u32 }).value;
-			rt.byteVecPush(out, ((result_eq$0nbftnc(into20, named20) ? 1 : 0)) | ((((w40 === v3 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0nbftnc(into20, named20) ? 1 : 0) | (((w40 === v3 ? 1 : 0) << 1) & 0xff));
 			const named21: rt.Result<rt.u64, never> = rt.Ok(v3 as rt.u64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes((named21 as { ok: true; value: rt.u64 }).value)));
 			const into21: rt.Result<rt.u64, never> = rt.Ok(v3 as rt.u64);
 			const w42: rt.u64 = (into21 as { ok: true; value: rt.u64 }).value;
-			rt.byteVecPush(out, ((result_eq$1gq81ib(into21, named21) ? 1 : 0)) | ((((rt.u64Eq(w42, v3 as rt.u64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1gq81ib(into21, named21) ? 1 : 0) | (((rt.u64Eq(w42, v3 as rt.u64) ? 1 : 0) << 1) & 0xff));
 			const named22: rt.Result<rt.u128, never> = rt.Ok(v3 as rt.u128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes((named22 as { ok: true; value: rt.u128 }).value)));
 			const into22: rt.Result<rt.u128, never> = rt.Ok(v3 as rt.u128);
 			const w44: rt.u128 = (into22 as { ok: true; value: rt.u128 }).value;
-			rt.byteVecPush(out, ((result_eq$06vyx9e(into22, named22) ? 1 : 0)) | ((((rt.u128Eq(w44, v3 as rt.u128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$06vyx9e(into22, named22) ? 1 : 0) | (((rt.u128Eq(w44, v3 as rt.u128) ? 1 : 0) << 1) & 0xff));
 			const named23: rt.Result<rt.i64, never> = rt.Ok(v3 as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named23 as { ok: true; value: rt.i64 }).value)));
 			const into23: rt.Result<rt.i64, never> = rt.Ok(v3 as rt.i64);
 			const w46: rt.i64 = (into23 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into23, named23) ? 1 : 0)) | ((((rt.i64Eq(w46, v3 as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into23, named23) ? 1 : 0) | (((rt.i64Eq(w46, v3 as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named24: rt.Result<rt.i128, never> = rt.Ok(v3 as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named24 as { ok: true; value: rt.i128 }).value)));
 			const into24: rt.Result<rt.i128, never> = rt.Ok(v3 as rt.i128);
 			const w48: rt.i128 = (into24 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into24, named24) ? 1 : 0)) | ((((rt.i128Eq(w48, v3 as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into24, named24) ? 1 : 0) | (((rt.i128Eq(w48, v3 as rt.i128) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 3) {
 		const buf4: Uint8Array = rt.bytes(8);
@@ -5747,17 +5747,17 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes((named25 as { ok: true; value: rt.u64 }).value)));
 			const into25: rt.Result<rt.u64, never> = rt.Ok(v4);
 			const w50: rt.u64 = (into25 as { ok: true; value: rt.u64 }).value;
-			rt.byteVecPush(out, ((result_eq$1gq81ib(into25, named25) ? 1 : 0)) | ((((rt.u64Eq(w50, v4) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1gq81ib(into25, named25) ? 1 : 0) | (((rt.u64Eq(w50, v4) ? 1 : 0) << 1) & 0xff));
 			const named26: rt.Result<rt.u128, never> = rt.Ok(rt.u128Cast(v4));
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes((named26 as { ok: true; value: rt.u128 }).value)));
 			const into26: rt.Result<rt.u128, never> = rt.Ok(rt.u128Cast(v4));
 			const w52: rt.u128 = (into26 as { ok: true; value: rt.u128 }).value;
-			rt.byteVecPush(out, ((result_eq$06vyx9e(into26, named26) ? 1 : 0)) | ((((rt.u128Eq(w52, rt.u128Cast(v4)) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$06vyx9e(into26, named26) ? 1 : 0) | (((rt.u128Eq(w52, rt.u128Cast(v4)) ? 1 : 0) << 1) & 0xff));
 			const named27: rt.Result<rt.i128, never> = rt.Ok(rt.i128Cast(v4));
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named27 as { ok: true; value: rt.i128 }).value)));
 			const into27: rt.Result<rt.i128, never> = rt.Ok(rt.i128Cast(v4));
 			const w54: rt.i128 = (into27 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into27, named27) ? 1 : 0)) | ((((rt.i128Eq(w54, rt.i128Cast(v4)) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into27, named27) ? 1 : 0) | (((rt.i128Eq(w54, rt.i128Cast(v4)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 4) {
 		const buf5: Uint8Array = rt.bytes(16);
@@ -5774,7 +5774,7 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u128ToBeBytes((named28 as { ok: true; value: rt.u128 }).value)));
 			const into28: rt.Result<rt.u128, never> = rt.Ok(v5);
 			const w56: rt.u128 = (into28 as { ok: true; value: rt.u128 }).value;
-			rt.byteVecPush(out, ((result_eq$06vyx9e(into28, named28) ? 1 : 0)) | ((((rt.u128Eq(w56, v5) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$06vyx9e(into28, named28) ? 1 : 0) | (((rt.u128Eq(w56, v5) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 5) {
 		const buf6: Uint8Array = rt.bytes(4);
@@ -5791,7 +5791,7 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.usizeToBeBytes((named29 as { ok: true; value: rt.usize }).value)));
 			const into29: rt.Result<rt.usize, never> = rt.Ok(v6);
 			const w58: rt.usize = (into29 as { ok: true; value: rt.usize }).value;
-			rt.byteVecPush(out, ((result_eq$1xhgva4(into29, named29) ? 1 : 0)) | ((((w58 === v6 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1xhgva4(into29, named29) ? 1 : 0) | (((w58 === v6 ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 6) {
 		const buf7: Uint8Array = Uint8Array.of(0);
@@ -5808,32 +5808,32 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i8ToBeBytes((named30 as { ok: true; value: rt.i8 }).value)));
 			const into30: rt.Result<rt.i8, never> = rt.Ok(v7);
 			const w60: rt.i8 = (into30 as { ok: true; value: rt.i8 }).value;
-			rt.byteVecPush(out, ((result_eq$1hd8lo9(into30, named30) ? 1 : 0)) | ((((w60 === v7 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hd8lo9(into30, named30) ? 1 : 0) | (((w60 === v7 ? 1 : 0) << 1) & 0xff));
 			const named31: rt.Result<rt.i16, never> = rt.Ok(v7 as rt.i16);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i16ToBeBytes((named31 as { ok: true; value: rt.i16 }).value)));
 			const into31: rt.Result<rt.i16, never> = rt.Ok(v7 as rt.i16);
 			const w62: rt.i16 = (into31 as { ok: true; value: rt.i16 }).value;
-			rt.byteVecPush(out, ((result_eq$1mi4cle(into31, named31) ? 1 : 0)) | ((((w62 === v7 as rt.i16 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1mi4cle(into31, named31) ? 1 : 0) | (((w62 === v7 as rt.i16 ? 1 : 0) << 1) & 0xff));
 			const named32: rt.Result<rt.i32, never> = rt.Ok(v7 as rt.i32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i32ToBeBytes((named32 as { ok: true; value: rt.i32 }).value)));
 			const into32: rt.Result<rt.i32, never> = rt.Ok(v7 as rt.i32);
 			const w64: rt.i32 = (into32 as { ok: true; value: rt.i32 }).value;
-			rt.byteVecPush(out, ((result_eq$1ukayff(into32, named32) ? 1 : 0)) | ((((w64 === v7 as rt.i32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1ukayff(into32, named32) ? 1 : 0) | (((w64 === v7 as rt.i32 ? 1 : 0) << 1) & 0xff));
 			const named33: rt.Result<rt.i64, never> = rt.Ok(v7 as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named33 as { ok: true; value: rt.i64 }).value)));
 			const into33: rt.Result<rt.i64, never> = rt.Ok(v7 as rt.i64);
 			const w66: rt.i64 = (into33 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into33, named33) ? 1 : 0)) | ((((rt.i64Eq(w66, v7 as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into33, named33) ? 1 : 0) | (((rt.i64Eq(w66, v7 as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named34: rt.Result<rt.i128, never> = rt.Ok(v7 as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named34 as { ok: true; value: rt.i128 }).value)));
 			const into34: rt.Result<rt.i128, never> = rt.Ok(v7 as rt.i128);
 			const w68: rt.i128 = (into34 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into34, named34) ? 1 : 0)) | ((((rt.i128Eq(w68, v7 as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into34, named34) ? 1 : 0) | (((rt.i128Eq(w68, v7 as rt.i128) ? 1 : 0) << 1) & 0xff));
 			const named35: rt.Result<rt.isize, never> = rt.Ok(v7 as rt.isize);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.isizeToBeBytes((named35 as { ok: true; value: rt.isize }).value)));
 			const into35: rt.Result<rt.isize, never> = rt.Ok(v7 as rt.isize);
 			const w70: rt.isize = (into35 as { ok: true; value: rt.isize }).value;
-			rt.byteVecPush(out, ((result_eq$0w2dfat(into35, named35) ? 1 : 0)) | ((((w70 === v7 as rt.isize ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0w2dfat(into35, named35) ? 1 : 0) | (((w70 === v7 as rt.isize ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 7) {
 		const buf8: Uint8Array = rt.bytes(2);
@@ -5850,27 +5850,27 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i16ToBeBytes((named36 as { ok: true; value: rt.i16 }).value)));
 			const into36: rt.Result<rt.i16, never> = rt.Ok(v8);
 			const w72: rt.i16 = (into36 as { ok: true; value: rt.i16 }).value;
-			rt.byteVecPush(out, ((result_eq$1mi4cle(into36, named36) ? 1 : 0)) | ((((w72 === v8 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1mi4cle(into36, named36) ? 1 : 0) | (((w72 === v8 ? 1 : 0) << 1) & 0xff));
 			const named37: rt.Result<rt.i32, never> = rt.Ok(v8 as rt.i32);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i32ToBeBytes((named37 as { ok: true; value: rt.i32 }).value)));
 			const into37: rt.Result<rt.i32, never> = rt.Ok(v8 as rt.i32);
 			const w74: rt.i32 = (into37 as { ok: true; value: rt.i32 }).value;
-			rt.byteVecPush(out, ((result_eq$1ukayff(into37, named37) ? 1 : 0)) | ((((w74 === v8 as rt.i32 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1ukayff(into37, named37) ? 1 : 0) | (((w74 === v8 as rt.i32 ? 1 : 0) << 1) & 0xff));
 			const named38: rt.Result<rt.i64, never> = rt.Ok(v8 as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named38 as { ok: true; value: rt.i64 }).value)));
 			const into38: rt.Result<rt.i64, never> = rt.Ok(v8 as rt.i64);
 			const w76: rt.i64 = (into38 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into38, named38) ? 1 : 0)) | ((((rt.i64Eq(w76, v8 as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into38, named38) ? 1 : 0) | (((rt.i64Eq(w76, v8 as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named39: rt.Result<rt.i128, never> = rt.Ok(v8 as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named39 as { ok: true; value: rt.i128 }).value)));
 			const into39: rt.Result<rt.i128, never> = rt.Ok(v8 as rt.i128);
 			const w78: rt.i128 = (into39 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into39, named39) ? 1 : 0)) | ((((rt.i128Eq(w78, v8 as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into39, named39) ? 1 : 0) | (((rt.i128Eq(w78, v8 as rt.i128) ? 1 : 0) << 1) & 0xff));
 			const named40: rt.Result<rt.isize, never> = rt.Ok(v8 as rt.isize);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.isizeToBeBytes((named40 as { ok: true; value: rt.isize }).value)));
 			const into40: rt.Result<rt.isize, never> = rt.Ok(v8 as rt.isize);
 			const w80: rt.isize = (into40 as { ok: true; value: rt.isize }).value;
-			rt.byteVecPush(out, ((result_eq$0w2dfat(into40, named40) ? 1 : 0)) | ((((w80 === v8 as rt.isize ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0w2dfat(into40, named40) ? 1 : 0) | (((w80 === v8 as rt.isize ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 8) {
 		const buf9: Uint8Array = rt.bytes(4);
@@ -5887,17 +5887,17 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i32ToBeBytes((named41 as { ok: true; value: rt.i32 }).value)));
 			const into41: rt.Result<rt.i32, never> = rt.Ok(v9);
 			const w82: rt.i32 = (into41 as { ok: true; value: rt.i32 }).value;
-			rt.byteVecPush(out, ((result_eq$1ukayff(into41, named41) ? 1 : 0)) | ((((w82 === v9 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1ukayff(into41, named41) ? 1 : 0) | (((w82 === v9 ? 1 : 0) << 1) & 0xff));
 			const named42: rt.Result<rt.i64, never> = rt.Ok(v9 as rt.i64);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named42 as { ok: true; value: rt.i64 }).value)));
 			const into42: rt.Result<rt.i64, never> = rt.Ok(v9 as rt.i64);
 			const w84: rt.i64 = (into42 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into42, named42) ? 1 : 0)) | ((((rt.i64Eq(w84, v9 as rt.i64) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into42, named42) ? 1 : 0) | (((rt.i64Eq(w84, v9 as rt.i64) ? 1 : 0) << 1) & 0xff));
 			const named43: rt.Result<rt.i128, never> = rt.Ok(v9 as rt.i128);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named43 as { ok: true; value: rt.i128 }).value)));
 			const into43: rt.Result<rt.i128, never> = rt.Ok(v9 as rt.i128);
 			const w86: rt.i128 = (into43 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into43, named43) ? 1 : 0)) | ((((rt.i128Eq(w86, v9 as rt.i128) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into43, named43) ? 1 : 0) | (((rt.i128Eq(w86, v9 as rt.i128) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 9) {
 		const buf10: Uint8Array = rt.bytes(8);
@@ -5914,12 +5914,12 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i64ToBeBytes((named44 as { ok: true; value: rt.i64 }).value)));
 			const into44: rt.Result<rt.i64, never> = rt.Ok(v10);
 			const w88: rt.i64 = (into44 as { ok: true; value: rt.i64 }).value;
-			rt.byteVecPush(out, ((result_eq$1hy1is1(into44, named44) ? 1 : 0)) | ((((rt.i64Eq(w88, v10) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$1hy1is1(into44, named44) ? 1 : 0) | (((rt.i64Eq(w88, v10) ? 1 : 0) << 1) & 0xff));
 			const named45: rt.Result<rt.i128, never> = rt.Ok(rt.i128Cast(v10));
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named45 as { ok: true; value: rt.i128 }).value)));
 			const into45: rt.Result<rt.i128, never> = rt.Ok(rt.i128Cast(v10));
 			const w90: rt.i128 = (into45 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into45, named45) ? 1 : 0)) | ((((rt.i128Eq(w90, rt.i128Cast(v10)) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into45, named45) ? 1 : 0) | (((rt.i128Eq(w90, rt.i128Cast(v10)) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 10) {
 		const buf11: Uint8Array = rt.bytes(16);
@@ -5936,7 +5936,7 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.i128ToBeBytes((named46 as { ok: true; value: rt.i128 }).value)));
 			const into46: rt.Result<rt.i128, never> = rt.Ok(v11);
 			const w92: rt.i128 = (into46 as { ok: true; value: rt.i128 }).value;
-			rt.byteVecPush(out, ((result_eq$0pee78b(into46, named46) ? 1 : 0)) | ((((rt.i128Eq(w92, v11) ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0pee78b(into46, named46) ? 1 : 0) | (((rt.i128Eq(w92, v11) ? 1 : 0) << 1) & 0xff));
 		}
 	} else if (_4 === 11) {
 		const buf12: Uint8Array = rt.bytes(4);
@@ -5953,7 +5953,7 @@ export function widenings(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.isizeToBeBytes((named47 as { ok: true; value: rt.isize }).value)));
 			const into47: rt.Result<rt.isize, never> = rt.Ok(v12);
 			const w94: rt.isize = (into47 as { ok: true; value: rt.isize }).value;
-			rt.byteVecPush(out, ((result_eq$0w2dfat(into47, named47) ? 1 : 0)) | ((((w94 === v12 ? 1 : 0)) << 1) & 0xff));
+			rt.byteVecPush(out, (result_eq$0w2dfat(into47, named47) ? 1 : 0) | (((w94 === v12 ? 1 : 0) << 1) & 0xff));
 		}
 	} else {
 		const buf13: Uint8Array = Uint8Array.of(0);
