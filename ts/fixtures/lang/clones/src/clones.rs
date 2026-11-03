@@ -982,6 +982,22 @@ fn repeated<T: Clone>(x: T, n: usize) -> Vec<T> {
 	vec![x; n]
 }
 
+/// Logs its id as it is cloned, as `Logged` does, but drops as nothing.
+struct Counted<'a> {
+	id: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Clone for Counted<'_> {
+	fn clone(&self) -> Self {
+		self.log.borrow_mut().push(0x80 | self.id);
+		Self {
+			id: self.id.wrapping_add(1),
+			log: self.log,
+		}
+	}
+}
+
 /// `iter::repeat`, `repeat_n`, and `once_with` of values that clone and drop themselves:
 /// each item a clone of the element, but `repeat_n`'s last, which is the element, read
 /// from either end, skipped, counted, and dropped part read, a `Take` of a `Repeat` read
@@ -1061,6 +1077,18 @@ pub fn sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.map(|x| x.id())
 				.collect();
 			out.extend(taken);
+			flush(&log, out);
+			// Through an adaptor, which reaches its own `count` and `last` even of items that
+			// never drop.
+			let counted = |id: u8| Counted { id, log: &log };
+			let it = std::iter::repeat_n(counted(at(7)), n(8)).chain(std::iter::empty());
+			out.push(it.count() as u8);
+			flush(&log, out);
+			let it = std::iter::empty().chain(std::iter::repeat_n(counted(at(9)), n(10)));
+			out.push(it.last().map_or(0xee, |c| c.id));
+			flush(&log, out);
+			let it = std::iter::repeat_n(logged(at(11)), n(12)).fuse();
+			out.push(it.count() as u8);
 			flush(&log, out);
 			let mut zero = std::iter::repeat_n(logged(at(6)), 0);
 			flush(&log, out);

@@ -1220,17 +1220,21 @@ pub fn call<'tcx>(
 			method(name, tail(rest, vec![clones]))
 		}
 		// `rt.owned<Name>`, which drops what `self_ty` holds and its items by `dropper` as
-		// std's own does, where either drops, or counts a `Cycle` as std's `Take::count`
-		// does, by its `advance_by`, which stops at a clone that yields nothing where
-		// `try_fold` reads on: else `rt.iter<Name>`, so a bundle that never drops doesn't
-		// carry it.
+		// std's own does, where either drops, counts a `Cycle` as std's `Take::count` does,
+		// by its `advance_by`, which stops at a clone that yields nothing where `try_fold`
+		// reads on, or reaches a `Repeat`'s or a `RepeatN`'s own, which clone nothing: else
+		// `rt.iter<Name>`, so a bundle that never drops doesn't carry it.
 		"count" | "last" => {
 			let dropper = b.t.dropper(item, span);
 			let none: Vec<Expr> = none.into_iter().filter(|_| name == "last").collect();
-			let cycles = name == "count"
-				&& (self_ty.walk().filter_map(|arg| arg.as_type()))
-					.any(|t| std_iter_path(tcx, t).is_some_and(|p| p == ["iter", "adapters", "cycle", "Cycle"]));
-			match drops_iter(b, self_ty, span) || !undefined(&dropper) || cycles {
+			let held: Vec<Vec<String>> = (self_ty.walk().filter_map(|arg| arg.as_type()))
+				.filter_map(|t| std_iter_path(tcx, t))
+				.collect();
+			let cycles = name == "count" && held.iter().any(|p| p == &["iter", "adapters", "cycle", "Cycle"]);
+			let repeats = held.iter().any(|p| {
+				p == &["iter", "sources", "repeat", "Repeat"] || p == &["iter", "sources", "repeat_n", "RepeatN"]
+			});
+			match drops_iter(b, self_ty, span) || !undefined(&dropper) || cycles || repeats {
 				true => Some(Expr::rt_of("owned", name).call(tail(vec![recv.clone()], [vec![dropper], none].concat()))),
 				false => method(name, none),
 			}

@@ -1137,7 +1137,6 @@ function each<T>(it: Iter<T>, f: (item: T) => void, take: Take | undefined): voi
 
 /** `Iterator::count` of an iterator that drops nothing. */
 export function iterCount<T>(it: Iter<T>): number {
-	if (it instanceof RepeatIter || it instanceof RepeatNIter) return count(it, undefined);
 	const folded = it.folded(true);
 	let n = 0;
 	while (folded.next() !== DONE) n++;
@@ -1150,7 +1149,6 @@ export function iterLast<T>(it: Iter<T>, none: None): T | None;
 export function iterLast<T>(it: Iter<T>, none?: None): T | undefined | None {
 	// std's of a box: what it holds, by its own.
 	while (it instanceof Boxed) it = it.inner;
-	if (it instanceof RepeatIter || it instanceof RepeatNIter) return iterToOption(last(it, undefined), none);
 	const folded = it.folded(true);
 	let final: T | Done = DONE;
 	for (let item = folded.next(); item !== DONE; item = folded.next()) final = item;
