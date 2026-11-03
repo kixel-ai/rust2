@@ -129,9 +129,9 @@ pub fn chars(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// Chars whose case maps to more than one char or none, crosses the BMP's edge, or is
-/// title case, and those each escape treats apart: quotes, controls, a grapheme extender,
-/// and the unprintable.
-const SPECIAL: [char; 24] = [
+/// title case, those each escape treats apart: quotes, controls, a grapheme extender, and
+/// the unprintable, and the byte order mark, which a UTF-8 decoder may strip.
+const SPECIAL: [char; 25] = [
 	'a',
 	'Z',
 	'ß',
@@ -155,6 +155,7 @@ const SPECIAL: [char; 24] = [
 	'\u{7f}',
 	'\u{301}',
 	'\u{e000}',
+	'\u{feff}',
 	'😀',
 ];
 

@@ -325,7 +325,7 @@ export function walk$char_ToUppercase(out: rt.ByteVec, it: rt.Iter<rt.char>): vo
 export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const iter: rt.Iter<rt.char> = rt.iterChain(rt.iterFilterMap(rt.iterSlice(scalars(data)), (a0: rt.u32): rt.char | undefined => {
 		return rt.charFromU32(a0);
-	}), rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 128512]));
+	}), rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 65279, 128512]));
 	while (true) {
 		const _11: rt.char | rt.Done = iter.next();
 		if (_11 === rt.DONE) {
@@ -361,7 +361,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const iter: rt.Iter<rt.char> = rt.iterChain(rt.iterFilterMap(rt.iterSlice(scalars(data)), (a0: rt.u32): rt.char | undefined => {
 		return rt.charFromU32(a0);
-	}), rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 128512]));
+	}), rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 65279, 128512]));
 	while (true) {
 		const _10: rt.char | rt.Done = iter.next();
 		if (_10 === rt.DONE) {
@@ -539,7 +539,7 @@ export function converts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
  */
 export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let s: string = text(data);
-	s = rt.stringExtendChars(s, rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 128512]));
+	s = rt.stringExtendChars(s, rt.iterSlice([97, 90, 223, 304, 305, 453, 912, 64259, 329, 7838, 66600, 66560, 931, 39, 34, 92, 0, 9, 13, 10, 127, 769, 57344, 65279, 128512]));
 	const s2: string = s;
 	const _9: rt.u8 = rt.u8Rem(kind, 3);
 	if (_9 === 0) {

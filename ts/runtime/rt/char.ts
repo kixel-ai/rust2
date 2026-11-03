@@ -41,7 +41,8 @@ class Runs {
 }
 
 const encoder = /* @__PURE__ */ new TextEncoder();
-const decoder = /* @__PURE__ */ new TextDecoder();
+// A byte order mark is a char of the string, as std keeps it.
+const decoder = /* @__PURE__ */ new TextDecoder("utf-8", { ignoreBOM: true });
 
 const unprintable = /* @__PURE__ */ new Runs(UNPRINTABLE);
 const alphabetic = /* @__PURE__ */ new Runs(ALPHABETIC);
