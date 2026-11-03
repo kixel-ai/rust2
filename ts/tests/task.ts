@@ -452,7 +452,7 @@ export const cases: Uint8Array[] = [
 	// What a `LinkedList` drops, and when.
 	...Array.from({ length: 8 }, (_, arg) => script(["lists", arg])),
 	// Where std drops a closure given to a string's search or edit.
-	...Array.from({ length: 5 }, (_, arg) => script(["searched", arg])),
+	...Array.from({ length: 9 }, (_, arg) => script(["searched", arg])),
 	// Wakers' identities, as kio's `Polling` keeps one: a task's own across its polls, then
 	// another task's in between.
 	script(["open", 0], ["wakers", 0], ["run", 0], ["send", 3], ["run", 0], ["close", 0], ["run", 0]),
