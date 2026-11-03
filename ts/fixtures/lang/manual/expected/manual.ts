@@ -121,13 +121,13 @@ export function needsDrops(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return rt.fmtToString((f: rt.Formatter) => rt.u8Display(b2, f));
 	}), undefined, 12, true))).reverse()), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$u8(rt.byteSliceToByteVec(data))).reverse()), undefined, true);
-	const iter: rt.Iter<string> = rt.iterSlice(["lang_manual_fixture::manual::ByHand", "core::option::Option<&[alloc::string::String]>", "lang_manual_fixture::manual::needs_drops::{{closure}}", "[u8]"]);
+	const iter: rt.Iter<string> = rt.iterSlice(["lang_manual_fixture::manual::ByHand", "core::option::Option<&[alloc::string::String]>", "lang_manual_fixture::manual::needs_drops::{{closure}}", "[u8]", nameOf$u8(), nameOf$String()]);
 	while (true) {
-		const _71: string | rt.Done = iter.next();
-		if (_71 === rt.DONE) {
+		const _73: string | rt.Done = iter.next();
+		if (_73 === rt.DONE) {
 			break;
 		}
-		put(out, _71);
+		put(out, _73);
 	}
 }
 
@@ -139,6 +139,16 @@ export function needsDropOf$manual_needs_drops_closure1(_1: () => rt.usize): boo
 /** Whether the value's type needs dropping. */
 export function needsDropOf$manual_needs_drops_closure2(_1: () => rt.usize): boolean {
 	return false;
+}
+
+/** `T`'s name, as a generic body names it. */
+export function nameOf$String(): string {
+	return "alloc::string::String";
+}
+
+/** `T`'s name, as a generic body names it. */
+export function nameOf$u8(): string {
+	return "u8";
 }
 
 /**

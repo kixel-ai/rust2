@@ -148,6 +148,8 @@ pub fn needs_drops(data: &[u8], out: &mut Vec<u8>) {
 		type_name::<Option<&[String]>>(),
 		type_name_of_val(&named),
 		type_name_of_val(data),
+		name_of::<u8>(),
+		name_of::<String>(),
 	] {
 		crate::harness::put(out, name);
 	}
@@ -156,6 +158,11 @@ pub fn needs_drops(data: &[u8], out: &mut Vec<u8>) {
 /// Whether the value's type needs dropping.
 fn needs_drop_of<T>(_: &T) -> bool {
 	needs_drop::<T>()
+}
+
+/// `T`'s name, as a generic body names it.
+fn name_of<T: ?Sized>() -> &'static str {
+	type_name::<T>()
 }
 
 /// How many items a generic body drops one by one, as std's collections do only of a type
