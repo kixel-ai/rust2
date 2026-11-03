@@ -752,7 +752,7 @@ export function addresses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	let _48!: boolean;
 	let _52: boolean = false;
 	let wide: rt.Arc<rt.u16[]> = new rt.Arc(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u16 => {
-		return (((_2 as rt.u16)) << 4) & 0xffff;
+		return ((_2 as rt.u16) << 4) & 0xffff;
 	}), undefined, 2, true));
 	let bytes: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data)));
 	const other: [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>] | undefined = then$1kj52rc(rt.u8Rem(kind, 3) === 1, (): [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>] => {
@@ -782,14 +782,14 @@ export function addresses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		return rt.u16ToBeBytes(w).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
 	putBytes(part2, out);
-	if (!((other !== undefined))) {
+	if (!(other !== undefined)) {
 		_52 = false;
 		_48 = isSomeAnd$0uiydx2(weak, (_26: [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>]): boolean => {
 			let _07!: boolean;
 			const a: rt.Weak<rt.u16[]> = _26[0];
 			const b2: rt.Weak<rt.ByteSlice> = _26[1];
 			const _7: rt.Arc<rt.u16[]> | undefined = rt.weakUpgrade(a);
-			if (!((_7 === undefined))) {
+			if (!(_7 === undefined)) {
 				rt.drop(_7);
 				_07 = false;
 			} else {

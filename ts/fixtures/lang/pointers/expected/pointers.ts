@@ -2413,7 +2413,7 @@ export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const a: rt.u8 = _6.data[_6.start];
 			const b: rt.u8 = _6.data[_6.start + 1];
 			const c: rt.u8 = _6.data[_6.start + 2];
-			const pair: [rt.u16, rt.u8] = [((((a as rt.u16)) << 8) & 0xffff) | b as rt.u16, c];
+			const pair: [rt.u16, rt.u8] = [(((a as rt.u16) << 8) & 0xffff) | b as rt.u16, c];
 			const spot: Spot.Spot = { at: copy$tuple2_u16_u8(pair), tag: a ^ c };
 			const bytes: Uint8Array = Uint8Array.of(a, b, c);
 			const _27: [rt.Arc<[rt.u16, rt.u8]>, rt.Arc<[rt.u16, rt.u8]>] = [new rt.Arc(copy$tuple2_u16_u8(pair)), new rt.Arc(copy$tuple2_u16_u8(pair))];
@@ -2487,7 +2487,7 @@ export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 				const r: rt.Weak<[rt.u16, rt.u8] | undefined> = _24[0];
 				const a2: rt.Weak<Spot.Spot> = _24[1];
 				const _7: rt.Arc<[rt.u16, rt.u8] | undefined> | undefined = rt.weakUpgrade(r);
-				if (!((_7 !== undefined))) {
+				if (!(_7 !== undefined)) {
 					rt.drop(_7);
 					const _10: rt.Arc<Spot.Spot> | undefined = rt.weakUpgrade(a2);
 					_04 = _10 !== undefined;
@@ -2503,7 +2503,7 @@ export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 				let _05!: boolean;
 				const r2: rt.Arc<[rt.u16, rt.u8] | undefined> = _25[0];
 				const a3: rt.Arc<Spot.Spot> = _25[1];
-				if (!((rt.optionUnwrap(r2.value) === rt.optionUnwrap(maybe.value)))) {
+				if (!(rt.optionUnwrap(r2.value) === rt.optionUnwrap(maybe.value))) {
 					_05 = a3.value.at === spotted.value.at;
 				} else {
 					_05 = true;
