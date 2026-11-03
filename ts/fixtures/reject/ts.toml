@@ -21,6 +21,7 @@ roots = [
     "clones::refilled",
     "clones::slice_of_object",
     "clones::touched_slots",
+    "clones::stashed_slots",
     "clones::vec_clone_from",
     "config::generic",
     "fmt::pointer",
