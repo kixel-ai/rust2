@@ -214,7 +214,7 @@ const guard = <V>(r: Run<V>) => r.f.Guard.new(r.exec.tasks.length, r.f.Log.clone
  * Each step and its name, which a script's op picks modulo their count: `harness.rs`'s
  * `steps`, in the same order.
  */
-export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
+const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 	[
 		"open",
 		(r) => {
@@ -371,6 +371,25 @@ export function harness<V>(f: Fixture<V>): (input: Uint8Array) => Bytes {
 		});
 		return f.Log.text(log);
 	};
+}
+
+/** Each step's name and the byte that picks it. */
+export const ops = new Map(steps.map(([name], i): [string, Uint8Array] => [name, Uint8Array.of(i)]));
+
+/** The steps that drive what others spawn, the only ones a step's random scripts mix in. */
+export const drivers = ["open", "send", "close", "clone", "run", "step", "poll", "drop"];
+
+/**
+ * Step `name`'s script from the bytes generated for it: the step with the first byte, then
+ * a step per pair, `name` for an odd first byte or else a driver, with the second. Mixing
+ * in only drivers keeps a step's scripts as they are when other steps are added.
+ */
+export function input(name: string, tail: Uint8Array): Uint8Array {
+	const picks: [string, number][] = [[name, tail[0] ?? 0]];
+	for (let i = 1; i < tail.length; i += 2) {
+		picks.push([tail[i] & 1 ? name : drivers[(tail[i] >> 1) % drivers.length], tail[i + 1] ?? 0]);
+	}
+	return script(...picks);
 }
 
 /** A script of steps, each by name and with its argument. */

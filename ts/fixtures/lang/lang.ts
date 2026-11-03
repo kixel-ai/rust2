@@ -14,12 +14,12 @@ export function op(name: string): number[] {
 	return [at >> 8, at & 0xff];
 }
 
-/** The bytes that pick each case, through `op`, which panics for one past what two bytes pick. */
-export const ops: Uint8Array[] = cases().map(([name]) => Uint8Array.from(op(name)));
+/** Each case's name and the bytes that pick it, through `op`, which panics for one past what two bytes pick. */
+export const ops = new Map(cases().map(([name]): [string, Uint8Array] => [name, Uint8Array.from(op(name))]));
 
 /** Which case the first two bytes of `input` pick. */
 export function picked(input: Uint8Array): number {
-	return ((input[0] << 8) | input[1]) % ops.length;
+	return ((input[0] << 8) | input[1]) % ops.size;
 }
 
 /** A double's bits, big-endian, as `floats` takes them. */
