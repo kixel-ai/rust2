@@ -136,6 +136,13 @@ export function map$04djm2e(self: [[Guard.Guard, Guard.Guard], rt.u32] | undefin
 	return f(self);
 }
 
+export function map$1s61o75(self: [[[Guard.Guard, Guard.Guard], rt.u32], rt.u32] | undefined, f: (a0: [[[Guard.Guard, Guard.Guard], rt.u32], rt.u32]) => [rt.u32, rt.u32, rt.u32, rt.u32]): [rt.u32, rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1uj27tb(self: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32] | undefined, f: (a0: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32]) => [rt.usize, rt.u32, rt.u32, rt.u32]): [rt.usize, rt.u32, rt.u32, rt.u32] | undefined {
 	if (self === undefined) {
 		return undefined;

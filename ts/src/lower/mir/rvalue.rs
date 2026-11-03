@@ -359,6 +359,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				num::cast(self.b, operand, from, to, span)
 			}
 			CastKind::PointerCoercion(coercion, _) => match coercion {
+				// A raw pointer, as the `&mut` it is in JS unsizes.
+				PointerCoercion::Unsize
+					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| dynamic::unsized_object(tcx, t)) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.raw_object(value, from, to, span)
+				}
 				PointerCoercion::Unsize if let Some(tr) = self.b.fmt_object(to) => {
 					let value = self.operand(op, span, out);
 					let value = self.path(value, "arg", out);

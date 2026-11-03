@@ -71,7 +71,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `value`, a `from` that is a future, as an `rt.Future`: itself if it is one already,
 	/// and else an `rt.DynFuture` over its `Future` impl, which drops it with itself unless
 	/// `borrowed`. A borrowed one that is `dropped` must not drop what it borrows.
-	fn future_object(&mut self, from: Ty<'tcx>, value: Expr, borrowed: bool, dropped: bool, span: Span) -> Expr {
+	pub fn future_object(&mut self, from: Ty<'tcx>, value: Expr, borrowed: bool, dropped: bool, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let object = match from.kind() {
 			ty::Dynamic(..) | ty::Coroutine(..) => true,
@@ -566,6 +566,8 @@ fn cell<'tcx>(
 		"new" => Expr::New(Box::new(Expr::Rt("Cell".into())), args),
 		"get" => b.t.copied(first(args).member("v"), ty, call.span),
 		"into_inner" => first(args).member("v"),
+		// As its `UnsafeCell`'s `get` and `get_mut`, the same `rt.Cell`.
+		"as_ptr" | "get_mut" => return Err(args),
 		"replace" => Expr::rt("cellReplace", args),
 		"update" => Expr::rt("cellUpdate", args),
 		// With what drops the value it replaces.
