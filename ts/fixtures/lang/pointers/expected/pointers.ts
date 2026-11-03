@@ -436,8 +436,9 @@ export function cells(data: rt.ByteSlice, out: rt.ByteVec): void {
 			_67._1 = _67._1 ^ 128;
 			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before2._0, before2._1, between._0, between._1, pair.v._0, pair.v._1)), undefined, true);
 		} else if (_23 === 3) {
+			const _85: rt.char = rt.u8Add(97, rt.u8Rem(n, 26)) as rt.char;
 			const _83: rt.Place<string> = text;
-			_83.v = _83.v + String.fromCodePoint(rt.u8Add(97, rt.u8Rem(n, 26)) as rt.char);
+			_83.v = _83.v + String.fromCodePoint(_85);
 			const _91: rt.Place<string> = text;
 			_91.v = _91.v + "!";
 			rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.stringAsBytes(text.v))), undefined, true);

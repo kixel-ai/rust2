@@ -678,25 +678,41 @@ export function edits(kind: rt.u8, dataData: Uint8Array, dataStart: number, data
 		const b: rt.u8 = _25[2];
 		const _39: rt.u8 = rt.u8Div(op, 64);
 		if (_39 === 0) {
-			edit(rt.place(() => named.name, (value2) => named.name = value2), op, a, b, out);
+			edit(rt.place(() => named.name, (value10) => named.name = value10), op, a, b, out);
 		} else if (_39 === 1) {
-			const _42: rt.u8 = rt.u8Rem(op, 6);
+			const _42: rt.u8 = rt.u8Rem(op, 8);
 			if (_42 === 0) {
-				s = s + "é/";
+				const _44: rt.Place<string> = rt.place(() => s, (value9) => s = value9);
+				_44.v = _44.v + "é/";
 			} else if (_42 === 1) {
 				const _47: rt.usize = offset(s, a);
-				s = rt.stringTruncate(s, _47);
+				const _46: rt.Place<string> = rt.place(() => s, (value8) => s = value8);
+				_46.v = rt.stringTruncate(_46.v, _47);
 			} else if (_42 === 2) {
-				const edit2 = rt.stringPop(s);
-				s = edit2[0];
-				putChar(out, edit2[1]);
+				const _51: rt.Place<string> = rt.place(() => s, (value7) => s = value7);
+				const edit4 = rt.stringPop(_51.v);
+				_51.v = edit4[0];
+				putChar(out, edit4[1]);
 			} else if (_42 === 3) {
 				const _53: rt.usize = offset(s, a);
-				s = rt.stringInsertStr(s, _53, "😀");
+				const _56: string = "😀";
+				const _52: rt.Place<string> = rt.place(() => s, (value6) => s = value6);
+				_52.v = rt.stringInsertStr(_52.v, _53, _56);
 			} else if (_42 === 4) {
+				const _60: rt.Place<string> = rt.place(() => s, (value5) => s = value5);
 				const _61: rt.usize = offset(s, a);
-				const edit_ = rt.stringSplitOff(s, _61);
-				s = edit_[0];
+				const edit3 = rt.stringSplitOff(_60.v, _61);
+				_60.v = edit3[0];
+				put(out, edit3[1]);
+			} else if (_42 === 5) {
+				const _66: rt.Place<string> = rt.place(() => s, (value4) => s = value4);
+				const edit2 = rt.stringRemove(_66.v, 0);
+				_66.v = edit2[0];
+				putChar(out, edit2[1]);
+			} else if (_42 === 6) {
+				const _70: rt.Place<string> = rt.place(() => s, (value3) => s = value3);
+				const edit_ = rt.stringSplitOff(_70.v, 1);
+				_70.v = edit_[0];
 				put(out, edit_[1]);
 			} else {
 				s = "";
@@ -707,7 +723,8 @@ export function edits(kind: rt.u8, dataData: Uint8Array, dataStart: number, data
 		put(out, s);
 		put(out, named.name);
 	}
-	put(out, s + "😀" + named.name);
+	s = s + "😀" + named.name;
+	put(out, s);
 }
 
 /**
@@ -1447,8 +1464,8 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const m: rt.u32 = _7[1];
 	const sub: rt.usize = rt.usizeDiv(option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, 1), 0) as rt.usize, [0, 5, 8, 9, 2147483645, 2147483648, 4294967295].length);
 	let t: string = "aé";
-	const _25: rt.Place<string> = rt.place(() => t, (value) => t = value);
 	const _26: string = text(option_unwrapOr$1rbuegs(rt.byteSliceGetRange(data, 2), rt.byteSliceFrom(Uint8Array.of())));
+	const _25: rt.Place<string> = rt.place(() => t, (value) => t = value);
 	_25.v = _25.v + _26;
 	const calls: rt.Cell<rt.usize> = new rt.Cell(0);
 	const f: (a0: rt.u32) => rt.char = (_2: rt.u32): rt.char => {
@@ -1465,20 +1482,20 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const _38: rt.u8 = rt.u8Rem(kind, 10);
 	if (_38 === 0) {
-		const _40: rt.Place<string> = rt.place(() => t, (value13) => t = value13);
 		const _41: rt.Iter<rt.char> = rt.iterMap(new rt.Range(0, n), f);
+		const _40: rt.Place<string> = rt.place(() => t, (value13) => t = value13);
 		_40.v = rt.stringExtendChars(_40.v, _41);
 	} else if (_38 === 1) {
 		t = rt.stringExtendChars("", rt.iterMap(rt.iterChain(new rt.RangeInclusive(0, n, rt.u32Step), new rt.Range(0, n)), f));
 	} else if (_38 === 2) {
-		const _48: rt.Place<string> = rt.place(() => t, (value12) => t = value12);
 		const _49: rt.Iter<rt.char> = rt.iterSkip(rt.iterMap(new rt.Range(0, rt.u64Or(rt.u64Shl(n as rt.u64, 8), m as rt.u64), rt.u64Step), (i4: rt.u64): rt.char => {
 			return f(rt.u64Low(i4));
 		}), m as rt.usize);
+		const _48: rt.Place<string> = rt.place(() => t, (value12) => t = value12);
 		_48.v = rt.stringExtendChars(_48.v, _49);
 	} else if (_38 === 3) {
-		const _61: rt.Place<string> = rt.place(() => t, (value11) => t = value11);
 		const _62: rt.Iter<rt.char> = rt.iterTake(rt.iterMap(new rt.Range(0, n), f), m as rt.usize, undefined, true);
+		const _61: rt.Place<string> = rt.place(() => t, (value11) => t = value11);
 		_61.v = rt.stringExtendChars(_61.v, _62);
 	} else if (_38 === 4) {
 		const _66: rt.Place<string> = rt.place(() => t, (value10) => t = value10);
@@ -1492,45 +1509,45 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		_66.v = rt.stringExtendChars(_66.v, _67);
 	} else if (_38 === 5) {
 		if (rt.u32Rem(m, 2) === 0) {
-			const _78: rt.Place<string> = rt.place(() => t, (value9) => t = value9);
 			const _79: rt.Iter<rt.char> = rt.iterChain(rt.iterMap(new rt.Range(0, n), f), rt.iterMap(new rt.Range(0, m), f));
+			const _78: rt.Place<string> = rt.place(() => t, (value9) => t = value9);
 			_78.v = rt.stringExtendChars(_78.v, _79);
 		} else {
-			const _84: rt.Place<string> = rt.place(() => t, (value8) => t = value8);
 			const _85: rt.Iter<rt.char> = rt.iterMap(rt.iterZip(new rt.Range(0, n), new rt.Range(0, m), [false, false]), (_211: [rt.u32, rt.u32]): rt.char => {
 				return f(_211[0]);
 			});
+			const _84: rt.Place<string> = rt.place(() => t, (value8) => t = value8);
 			_84.v = rt.stringExtendChars(_84.v, _85);
 		}
 	} else if (_38 === 6) {
-		const _91: rt.Place<string> = rt.place(() => t, (value7) => t = value7);
 		const _92: rt.Iter<rt.char> = rt.iterFlatMap(new rt.Range(0, n), (i2: rt.u32): rt.char[] => {
 			return [f(i2), f(i2)];
 		}, (value: rt.char[]) => rt.iterSlice(value), false, 2);
+		const _91: rt.Place<string> = rt.place(() => t, (value7) => t = value7);
 		_91.v = rt.stringExtendChars(_91.v, _92);
 	} else if (_38 === 7) {
-		const _96: rt.Place<string> = rt.place(() => t, (value6) => t = value6);
 		const _97: rt.Iter<rt.char> = rt.iterChain(rt.iterChain(rt.iterChain(rt.iterChain(rt.iterMap(new rt.Range(0, rt.u32SaturatingSub(n, 5)), f), rt.iterOnce(120)), rt.iterOption(121)), rt.strChars("é😀")), rt.iterSlice([122]));
+		const _96: rt.Place<string> = rt.place(() => t, (value6) => t = value6);
 		_96.v = rt.stringExtendChars(_96.v, _97);
 	} else if (_38 === 8) {
 		const _112: rt.usize = rt.usizeRem(sub, 3);
 		if (_112 === 0) {
-			const _114: rt.Place<string> = rt.place(() => t, (value5) => t = value5);
 			const _115: rt.Iter<rt.char> = rt.iterMap(new rt.Range({ hi: 0x10000000, lo: 0 } as rt.u64, rt.u64Add({ hi: 0x10000000, lo: 0 } as rt.u64, n as rt.u64), rt.u64Step), (_210: rt.u64): rt.char => {
 				return f(0);
 			});
+			const _114: rt.Place<string> = rt.place(() => t, (value5) => t = value5);
 			_114.v = rt.stringExtendChars(_114.v, _115);
 		} else if (_112 === 1) {
-			const _128: rt.Place<string> = rt.place(() => t, (value4) => t = value4);
 			const _129: rt.Iter<rt.char> = rt.iterMap(new rt.Range(rt.i128Neg(rt.i128Shl(1, 100)), rt.i128Add(rt.i128Neg(rt.i128Shl(1, 100)), n as rt.i128), rt.i128Step), (_27: rt.i128): rt.char => {
 				return f(0);
 			});
+			const _128: rt.Place<string> = rt.place(() => t, (value4) => t = value4);
 			_128.v = rt.stringExtendChars(_128.v, _129);
 		} else {
-			const _146: rt.Place<string> = rt.place(() => t, (value3) => t = value3);
 			const _147: rt.Iter<rt.char> = rt.iterMap(new rt.RangeInclusive({ hi: 0x10000000, lo: 0 } as rt.u64, rt.u64Add({ hi: 0x10000000, lo: 0 } as rt.u64, n as rt.u64), rt.u64Step), (_24: rt.u64): rt.char => {
 				return f(0);
 			});
+			const _146: rt.Place<string> = rt.place(() => t, (value3) => t = value3);
 			_146.v = rt.stringExtendChars(_146.v, _147);
 		}
 	} else {
@@ -1538,8 +1555,9 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return _23[1];
 		}))));
 		putChar(out, rt.peekablePeek(chars));
+		const _173: rt.Peekable<rt.char> = chars;
 		const _172: rt.Place<string> = rt.place(() => t, (value2) => t = value2);
-		_172.v = rt.stringExtendChars(_172.v, chars);
+		_172.v = rt.stringExtendChars(_172.v, _173);
 	}
 	put(out, t);
 }
