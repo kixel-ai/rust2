@@ -2,6 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$array_u8, copy$mem_MaybeUninit_mem_ManuallyDrop_tuple2_u8_u16, copy$tuple2_u8_u16 } from "./lib.ts";
+import { put } from "./harness.ts";
 import * as ByHand from "./manual.ByHand.ts";
 
 /** A value's `ManuallyDrop`, as a generic one makes it, which only an instance lays out. */
@@ -75,6 +76,99 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	rt.byteVecPush(out, shared.strong & 0xff);
 	shared[Symbol.dispose]();
+}
+
+/** Whether `T` needs dropping, as rustc says of each instance. */
+export function needs$String(): boolean {
+	return true;
+}
+
+/** Whether `T` needs dropping, as rustc says of each instance. */
+export function needs$manual_ByHand(): boolean {
+	return true;
+}
+
+/** Whether `T` needs dropping, as rustc says of each instance. */
+export function needs$u8(): boolean {
+	return false;
+}
+
+/** Whether `T` needs dropping, as rustc says of each instance. */
+export function needs$unit(): boolean {
+	return false;
+}
+
+/**
+ * Whether each type needs dropping, of values JS copies or drops nothing of, such as a
+ * `String`, held by hand, in an empty array, and of a closure by what it captures; what a
+ * generic body that branches on it does, as std's collections do; and types' names.
+ */
+export function needsDrops(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const captured = rt.stringExtendChars("", rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.char => {
+		return _2 as rt.char;
+	}));
+	const named: () => rt.usize = (): rt.usize => {
+		return rt.stringLen(captured);
+	};
+	const copied: () => rt.usize = (): rt.usize => {
+		return data.length;
+	};
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([false, false, true, false, false, false, true, true, true, true, true, true, false, true, true, false, true, false, false, true, false, false, false, true, true, false, needs$String(), needs$u8(), needs$manual_ByHand(), needs$unit(), needsDropOf$manual_needs_drops_closure1(named), needsDropOf$manual_needs_drops_closure2(copied)], (a0: boolean): rt.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rt.byteVecPush(out, (named() & 0xff) ^ (copied() & 0xff));
+	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$String(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): string => {
+		return rt.fmtToString((f: rt.Formatter) => rt.u8Display(b2, f));
+	}), undefined, 12, true))).reverse()), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$u8(rt.byteSliceToByteVec(data))).reverse()), undefined, true);
+	const iter: rt.Iter<string> = rt.iterSlice(["lang_manual_fixture::manual::ByHand", "core::option::Option<&[alloc::string::String]>", "lang_manual_fixture::manual::needs_drops::{{closure}}", "[u8]"]);
+	while (true) {
+		const _71: string | rt.Done = iter.next();
+		if (_71 === rt.DONE) {
+			break;
+		}
+		put(out, _71);
+	}
+}
+
+/** Whether the value's type needs dropping. */
+export function needsDropOf$manual_needs_drops_closure1(_1: () => rt.usize): boolean {
+	return true;
+}
+
+/** Whether the value's type needs dropping. */
+export function needsDropOf$manual_needs_drops_closure2(_1: () => rt.usize): boolean {
+	return false;
+}
+
+/**
+ * How many items a generic body drops one by one, as std's collections do only of a type
+ * that needs dropping, and forgets the rest.
+ */
+export function droppedByHand$String(items: string[]): rt.u32 {
+	if (!true) {
+		return 0;
+	}
+	let n: rt.u32 = 0;
+	for (const _7 of items) {
+		n = rt.u32Add(n, 1);
+	}
+	return n;
+}
+
+/**
+ * How many items a generic body drops one by one, as std's collections do only of a type
+ * that needs dropping, and forgets the rest.
+ */
+export function droppedByHand$u8(items: rt.ByteVec): rt.u32 {
+	if (!false) {
+		return 0;
+	}
+	let n: rt.u32 = 0;
+	for (const _7 of rt.byteVecView(items)) {
+		n = rt.u32Add(n, 1);
+	}
+	return n;
 }
 
 //# sourceMappingURL=manual.ts.map

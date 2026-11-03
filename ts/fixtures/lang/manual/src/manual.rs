@@ -1,8 +1,14 @@
 //! `ManuallyDrop`: a value nothing drops but its own `drop`, given back by `into_inner`
 //! and `take`, cloned, and read and written through it as `Deref` and `DerefMut` lend it,
-//! as crossbeam-epoch's `Local` holds its collector and futures-util a waker.
+//! as crossbeam-epoch's `Local` holds its collector and futures-util a waker; and
+//! `needs_drop` and `type_name`, which rustc answers for each instance.
 
-use std::mem::{ManuallyDrop, MaybeUninit};
+use std::any::{type_name, type_name_of_val};
+use std::cell::Cell;
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::mem::{ManuallyDrop, MaybeUninit, needs_drop};
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// The crate's struct holding values by hand, which its `Drop` drops one of.
@@ -84,4 +90,85 @@ pub fn arcs(data: &[u8], out: &mut Vec<u8>) {
 	// What the `Vec` holds by hand it never drops.
 	drop(kept);
 	out.push(Arc::strong_count(&shared) as u8);
+}
+
+/// Whether `T` needs dropping, as rustc says of each instance.
+fn needs<T: ?Sized>() -> bool {
+	needs_drop::<T>()
+}
+
+/// Whether each type needs dropping, of values JS copies or drops nothing of, such as a
+/// `String`, held by hand, in an empty array, and of a closure by what it captures; what a
+/// generic body that branches on it does, as std's collections do; and types' names.
+pub fn needs_drops(data: &[u8], out: &mut Vec<u8>) {
+	let text: String = data.iter().map(|&b| char::from(b)).collect();
+	let named = move || text.len();
+	let copied = move || data.len();
+	let flags = [
+		needs_drop::<u8>(),
+		needs_drop::<u128>(),
+		needs_drop::<String>(),
+		needs_drop::<&String>(),
+		needs_drop::<&mut Vec<u8>>(),
+		needs_drop::<str>(),
+		needs_drop::<[String]>(),
+		needs_drop::<dyn Debug>(),
+		needs_drop::<Vec<u8>>(),
+		needs_drop::<Box<u8>>(),
+		needs_drop::<Rc<u8>>(),
+		needs_drop::<Arc<u8>>(),
+		needs_drop::<Option<u8>>(),
+		needs_drop::<Option<String>>(),
+		needs_drop::<Result<u8, String>>(),
+		needs_drop::<(u8, u16)>(),
+		needs_drop::<(u8, String)>(),
+		needs_drop::<[u8; 4]>(),
+		needs_drop::<[String; 0]>(),
+		needs_drop::<[String; 2]>(),
+		needs_drop::<ManuallyDrop<String>>(),
+		needs_drop::<MaybeUninit<String>>(),
+		needs_drop::<PhantomData<String>>(),
+		needs_drop::<Cell<String>>(),
+		needs_drop::<ByHand>(),
+		needs_drop::<fn(String)>(),
+		needs::<String>(),
+		needs::<u8>(),
+		needs::<ByHand>(),
+		needs::<()>(),
+		needs_drop_of(&named),
+		needs_drop_of(&copied),
+	];
+	out.extend(flags.map(u8::from));
+	out.push(named() as u8 ^ copied() as u8);
+	let strings: Vec<String> = data.iter().map(|b| b.to_string()).collect();
+	out.extend(dropped_by_hand(strings).to_le_bytes());
+	out.extend(dropped_by_hand(data.to_vec()).to_le_bytes());
+	for name in [
+		type_name::<ByHand>(),
+		type_name::<Option<&[String]>>(),
+		type_name_of_val(&named),
+		type_name_of_val(data),
+	] {
+		crate::harness::put(out, name);
+	}
+}
+
+/// Whether the value's type needs dropping.
+fn needs_drop_of<T>(_: &T) -> bool {
+	needs_drop::<T>()
+}
+
+/// How many items a generic body drops one by one, as std's collections do only of a type
+/// that needs dropping, and forgets the rest.
+fn dropped_by_hand<T>(items: Vec<T>) -> u32 {
+	if !needs_drop::<T>() {
+		std::mem::forget(items);
+		return 0;
+	}
+	let mut n = 0;
+	for item in items {
+		drop(item);
+		n += 1;
+	}
+	n
 }
