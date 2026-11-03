@@ -8,14 +8,19 @@ Rust.
 
 ## Plan
 
-Found carrying capacity through every vector: these have no mapping, and std's bodies move
-elements through raw pointers, so each refuses with its span:
+Found by a probe calling each stable method: these have no mapping, and std's bodies move
+elements through raw pointers, so each refuses with its span.
 
-- `Vec::append`, `resize`, `resize_with`, `split_off`, `extend_from_within`, and
-  `try_reserve`, and `VecDeque`'s `append`, `resize`, and `split_off`.
-- `From<VecDeque<T>>` for `Vec<T>`.
-- `VecDeque::range_mut` of items JS copies, which `range` and `iter_mut` translate but its
-  places do not.
+- `try_reserve` and `try_reserve_exact`, of a `Vec` and a `VecDeque`, which need a
+  `TryReserveError` of the runtime's with std's `Debug`, `Display`, `Eq`, and `Error`. Its
+  `AllocError` is the allocator's, which JS has none of, so whether one is ever returned,
+  or the call refused where it could be, is open.
+- `VecDeque::rotate_left`, `rotate_right`, `swap`, `make_contiguous`, `binary_search`,
+  `binary_search_by`, `binary_search_by_key`, and `partition_point`, each placing its
+  items where std's does, which `as_slices` shows.
+- `Vec::splice`, `extract_if` of elements JS copies, `into_flattened`, `leak`, and
+  `spare_capacity_mut`; the last two hand out memory past the length, which may stay
+  refused.
 
 A vector's capacity follows only std's guarantees, at least its length and what
 `with_capacity` and `reserve` ask for, and doubles as it grows (decided with the
