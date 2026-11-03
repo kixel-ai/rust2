@@ -780,7 +780,7 @@ export function addresses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	const part2 = _40.derefBytes(false);
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(part), (w: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(w).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	putBytes(part2, out);
 	if (!(other !== undefined)) {
 		_52 = false;
