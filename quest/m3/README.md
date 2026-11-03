@@ -24,7 +24,6 @@ generic std gap is planned here even when moq never calls it.
 - [A slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
-- [An adaptor of the crate's own iterator held as a value](/quest/m3/ts-own-iter-value.md) - `map` and the other adaptors of a fieldless enum that implements `Iterator`, taken by value, translate
 - [Debug of std's other iterators](/quest/m3/ts-iter-source-debug.md) - `Debug` of `Once`, `Repeat`, `FromFn`, an array's `IntoIter`, and std's other iterators writes what std's does
 - [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - every step that drops a pushed `Vec`'s length keeps its capacity, as std guarantees
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
@@ -33,6 +32,7 @@ generic std gap is planned here even when moq never calls it.
 - [Repeated values that drop](/quest/m3/ts-vec-from-elem-drops.md) - `vec![x; n]` translates where `x` drops, cloned and dropped as std's `from_elem` does
 - [A vector's capacity where clone_from writes it in a container](/quest/m3/ts-clone-from-capacity.md) - a `Vec` an array, slice, `Option`, or list clones over keeps its capacity as std's does
 - [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
+- [Cow's clone_from, Reverse's clone, and Option::as_slice](/quest/m3/ts-std-stragglers.md) - three std methods still refused translate as std's behave
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `try_reserve`, a deque's rotations and searches, and `Vec::splice` translate
 - [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair

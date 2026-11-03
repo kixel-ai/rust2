@@ -36,5 +36,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("iters::compares", iters::compares),
 		("iters::option_items", |_, data, out| iters::option_items(data, out)),
 		("iters::lent", |_, data, out| iters::lent(data, out)),
+		("iters::by_value", iters::by_value),
 	]
 }

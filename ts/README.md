@@ -315,7 +315,9 @@ and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `co
 `find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
 adaptors and consumers call them: a filter's `next` calls `find`, an `extend` into a hash or
 B-tree collection, a `String`, or a tuple calls `for_each`, `max` calls `reduce`, and
-`is_sorted` calls `is_sorted_by`, which calls `all`. Its
+`is_sorted` calls `is_sorted_by`, which calls `all`. One whose JS value is copied, such as an
+enum's, it holds as an `rt.Place` of its own, which its `next` and std's methods taking
+`&mut self` write through, as they do the place a `&mut` to it is. Its
 own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
 `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
 `partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
