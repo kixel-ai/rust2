@@ -6,7 +6,7 @@
 //! and written through guards mapped and filtered to parts of their values, a mutex's
 //! included, and locked again while a guard holds them, which aborts as wasm32's does;
 //! write guards downgraded, which keep the lock read; guards mapped to the whole of the
-//! bytes a lock holds; and each lock's guards printed.
+//! bytes a lock holds; and each lock and its guards printed.
 
 use std::fmt;
 use std::sync::{
@@ -523,4 +523,37 @@ fn held<T>(lock: &RwLock<T>) -> u8 {
 	let read = matches!(lock.try_read(), Err(TryLockError::WouldBlock));
 	let write = matches!(lock.try_write(), Err(TryLockError::WouldBlock));
 	u8::from(read) << 1 | u8::from(write)
+}
+
+/// Each lock printed by `Debug` as std writes it, never poisoned, and `<locked>` with no
+/// options while a guard holds a mutex or writes a read-write lock, plain, pretty, and
+/// padded, its value the operand: free, held, read, and nested in an `Arc` and each other.
+pub fn shown(data: &[u8], out: &mut Vec<u8>) {
+	let mutex = Arc::new(Mutex::new(0u8));
+	let lock = RwLock::new(vec![Mutex::new('a')]);
+	for &op in data {
+		let v = op >> 2;
+		let text = match op % 4 {
+			0 => {
+				*mutex.lock().unwrap() = v;
+				let free = format!("{mutex:?} {mutex:#?} {mutex:>4?}");
+				let _held = mutex.lock().unwrap();
+				format!("{free} {mutex:?} {mutex:#?} {mutex:>12?}")
+			}
+			1 => {
+				lock.write().unwrap().push(Mutex::new(char::from(b'a' + v % 26)));
+				let free = format!("{lock:?} {lock:#?}");
+				let read = lock.read().unwrap();
+				let shared = format!("{lock:?}");
+				let _held = read[0].lock().unwrap();
+				format!("{free} {shared} {lock:?} {lock:#?}")
+			}
+			2 => {
+				let _held = lock.write().unwrap();
+				format!("{lock:?} {lock:#?} {lock:>12?}")
+			}
+			_ => format!("{:?}", RwLock::new(Mutex::new(String::from("s")))),
+		};
+		out.extend_from_slice(text.as_bytes());
+	}
 }

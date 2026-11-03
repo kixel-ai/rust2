@@ -2004,9 +2004,9 @@ export function maps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	let m: rt.HashMap<rt.u16, [rt.u64, rt.u8]> = _8[0];
 	let s: rt.HashSet<rt.u8> = _8[1];
+	const floor: rt.usize = rt.usizeMul(made, (kind & 1) as rt.usize);
 	const _22: rt.usize[] = [rt.hashLen(m), rt.hashLen(s)];
 	const _27: rt.usize[] = [rt.hashCapacity(m), rt.hashCapacity(s)];
-	const floor: rt.usize = rt.usizeMul(made, (kind & 1) as rt.usize);
 	_18(out, _22, _27, Array.from({ length: 2 }, (): rt.usize => {
 		return floor;
 	}));

@@ -591,9 +591,8 @@ export function order(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const len: rt.usize = data.length;
 	const _83: rt.ByteSlice = logged(data, out);
 	const _85: rt.usize = rt.min(mark(out, 14), len);
-	const _87: rt.usize = rt.usizeDiv(rt.min(mark(out, 15), len), 2);
+	const _82: rt.ByteSlice = rt.byteSliceRange(_83, rt.usizeDiv(rt.min(mark(out, 15), len), 2), _85);
 	const _103: rt.usize = sum;
-	const _82: rt.ByteSlice = rt.byteSliceRange(_83, _87, _85);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rt.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rt.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rt.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rt.Formatter) => rt.usizeDisplay(_64, f), (f: rt.Formatter) => rt.usizeDisplay(_63, f), (f: rt.Formatter) => rt.usizeDisplay(_103, f), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_82), f, rt.u8Debug)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]])));
 	const _125: rt.usize = mark(out, 16);

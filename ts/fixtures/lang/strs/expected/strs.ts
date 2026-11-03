@@ -526,8 +526,7 @@ export function odd(c: rt.char): boolean {
 /** One edit of `s` by `op`, taking offsets and text from `a` and `b`, through a `&mut`. */
 export function edit(s: rt.Place<string>, op: rt.u8, a: rt.u8, b: rt.u8, out: rt.ByteVec): void {
 	let capacity!: rt.usize;
-	const part = rt.u8Rem(a, 4) as rt.usize;
-	const piece: string = text(rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(a, b, a ^ b)), 0, part));
+	const piece: string = text(rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(a, b, a ^ b)), 0, rt.u8Rem(a, 4) as rt.usize));
 	const _17: [rt.usize, rt.usize] = [offset(s.v, a), offset(s.v, b)];
 	const i: rt.usize = _17[0];
 	const j: rt.usize = _17[1];

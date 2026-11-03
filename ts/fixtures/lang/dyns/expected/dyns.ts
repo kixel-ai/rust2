@@ -149,16 +149,16 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		}
 		const _167: Tri.Tri = tri;
 		const at2 = rt.idx(shapes, 0);
-		const _175: rt.u32 = sum;
 		const _165: Shown.Shown = { _0: (f: rt.Formatter) => Tri.fmt$fmt_Debug(_167, f) };
 		const _169: rt.u32 = shapes[at2].larger$Shape(b as rt.u32);
+		const _175: rt.u32 = sum;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_175, f), (f: rt.Formatter) => Shown.fmt$fmt_Debug(_165, f), (f: rt.Formatter) => rt.u32Display(_169, f)];
 		put(out, rt.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]));
 		for (const s2 of shapes) {
 			sum = rt.u32WrappingAdd(sum, s2.intoArea$Shape());
 		}
-		const _204: rt.u32 = sum;
 		const _203: rt.u32 = new Shape.of$u32(n).intoArea$Shape();
+		const _204: rt.u32 = sum;
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_204, f), (f: rt.Formatter) => rt.u32Display(_203, f)];
 		put(out, rt.fmtFormat([args12[0], " ", args12[1]]));
 	}
@@ -406,8 +406,8 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const _54: boolean = bump(new Any.ofPlace$dyns_Tri(rt.place(() => tri, (value) => tri = value)), b);
 		const _57: boolean = bump(new Any.ofPlace$u32(rt.place(() => n, (value2) => n = value2)), a);
 		let _63: rt.u8 = 0;
-		const _72: Tri.Tri = tri;
 		const hit: [boolean, boolean, boolean, boolean] = [_51, _54, _57, bump(new Any.ofPlace$u8(rt.place(() => _63, (value3) => _63 = value3)), a)];
+		const _72: Tri.Tri = tri;
 		const arg = sq.side;
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u16Display(arg, f), (f: rt.Formatter) => Tri.fmt$fmt_Debug(_72, f), (f: rt.Formatter) => rt.u32Display(n, f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(hit[0], f), (f: rt.Formatter) => rt.fmtBool(hit[1], f), (f: rt.Formatter) => rt.fmtBool(hit[2], f), (f: rt.Formatter) => rt.fmtBool(hit[3], f)], f)];
 		put(out, rt.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " "]));
