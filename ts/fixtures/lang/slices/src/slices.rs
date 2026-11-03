@@ -1069,6 +1069,24 @@ pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let (rest, chunks) = words[start..].as_rchunks::<2>();
 			out.extend(chunks.last().map(|c| digest_words(c)));
 			out.push(digest_words(rest));
+			// A run of bytes is where the slice holds it, and a copy of one is its own.
+			let (a, _) = bytes.as_chunks::<2>();
+			let (_, b) = bytes[1..].as_rchunks::<2>();
+			let same = [
+				a.first()
+					.zip(bytes.first_chunk::<2>())
+					.is_some_and(|(x, y)| std::ptr::eq(x, y)),
+				a.first()
+					.zip(bytes.as_chunks::<2>().0.first())
+					.is_some_and(|(x, y)| std::ptr::eq(x, y)),
+				b.last().zip(a.last()).is_some_and(|(x, y)| std::ptr::eq(x, y)),
+			];
+			out.extend(same.map(u8::from));
+			let kept = a.first().copied();
+			if let Some(x) = bytes.first_mut() {
+				*x ^= 0xff;
+			}
+			out.extend(kept.into_iter().flatten());
 		}
 		2 => {
 			let owned = Vec::from(data);

@@ -1292,19 +1292,18 @@ export function byteSliceSplitAtChecked(s: ByteSlice, n: number): [ByteSlice, By
 	return [new ByteSlice(s.data, s.start, n), new ByteSlice(s.data, s.start + n, s.length - n)];
 }
 
-/** `as_chunks` of bytes: copies of each run of `n` from the front, and the rest, panicking at a size of 0. */
+/** `as_chunks` of bytes: views of each run of `n` from the front, and the rest, panicking at a size of 0. */
 export function byteSliceAsChunks(s: ByteSlice, n: number): [Uint8Array[], ByteSlice] {
 	const count = chunkCount(s.length, n);
-	const runsOf = runs(count, n, (start, end) => s.data.slice(s.start + start, s.start + end));
-	return [runsOf, new ByteSlice(s.data, s.start + count * n, s.length - count * n)];
+	const at = s.start;
+	return [runs(count, n, (start, end) => s.data.subarray(at + start, at + end)), new ByteSlice(s.data, at + count * n, s.length - count * n)];
 }
 
-/** `as_rchunks` of bytes: the rest, and copies of each run of `n` up to the back, panicking at a size of 0. */
+/** `as_rchunks` of bytes: the rest, and views of each run of `n` up to the back, panicking at a size of 0. */
 export function byteSliceAsRchunks(s: ByteSlice, n: number): [ByteSlice, Uint8Array[]] {
 	const count = chunkCount(s.length, n);
-	const rest = s.length - count * n;
-	const runsOf = runs(count, n, (start, end) => s.data.slice(s.start + rest + start, s.start + rest + end));
-	return [new ByteSlice(s.data, s.start, rest), runsOf];
+	const at = s.start + s.length - count * n;
+	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(at + start, at + end))];
 }
 
 /** `first`: the first byte, or `undefined` if empty. */
