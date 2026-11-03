@@ -88,6 +88,18 @@ export function text$Option_ref_unit(out: rt.ByteVec, value: undefined | rt.None
 }
 
 /** What `{:?}` writes of `value`. */
+export function text$Result_usize_usize(out: rt.ByteVec, value: rt.Result<rt.usize, rt.usize>): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(value, f, rt.usizeDebug, rt.usizeDebug)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$String(out: rt.ByteVec, value: string): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(value, f)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
 export function text$collections_vec_deque_Drain_String(out: rt.ByteVec, value: rt.Iter<string>): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtDequeDrain(value, f, rt.usizeDebug)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
@@ -178,6 +190,42 @@ export function text$collections_vec_deque_Iter_unit(out: rt.ByteVec, value: rt.
 }
 
 /** What `{:?}` writes of `value`. */
+export function text$mut_slice_String(out: rt.ByteVec, value: string[]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.fmtStr)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$mut_slice_rings_Big(out: rt.ByteVec, value: Big.Big[]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f))];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$mut_slice_u32(out: rt.ByteVec, value: rt.u32[]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.u32Debug)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$mut_slice_u8(out: rt.ByteVec, value: rt.ByteSlice): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(value), f, rt.u8Debug)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$mut_slice_unit(out: rt.ByteVec, value: undefined[]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.fmtUnit)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$rings_Big(out: rt.ByteVec, value: Big.Big): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => Big.fmt$fmt_Debug(value, f)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
 export function text$tuple2_ref_slice_String_ref_slice_String(out: rt.ByteVec, value: [string[], string[]]): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(value[1], f, rt.fmtStr)], f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
@@ -204,6 +252,24 @@ export function text$tuple2_ref_slice_u8_ref_slice_u8(out: rt.ByteVec, value: [r
 /** What `{:?}` writes of `value`. */
 export function text$tuple2_ref_slice_unit_ref_slice_unit(out: rt.ByteVec, value: [undefined[], undefined[]]): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, rt.fmtUnit), (f: rt.Formatter) => rt.fmtList(value[1], f, rt.fmtUnit)], f)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$u32(out: rt.ByteVec, value: rt.u32): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Debug(value, f)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$u8(out: rt.ByteVec, value: rt.u8): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Debug(value, f)];
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
+}
+
+/** What `{:?}` writes of `value`. */
+export function text$unit(out: rt.ByteVec, _value: undefined): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUnit(undefined, f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
@@ -239,7 +305,7 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 30);
+			const _46: rt.u8 = rt.u8Rem(op, 35);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_String(arg));
@@ -314,10 +380,31 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 					bump$rings_Item_String(_156);
 				}
 				text$collections_vec_deque_IterMut_String(out, it);
-			} else {
+			} else if (_46 === 29) {
 				const v: string[] = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 12));
 				q = rt.dequeFromVec(v, 12) as rt.VecDeque<string>;
+			} else if (_46 === 30) {
+				rt.dequeRotate(q, at);
+			} else if (_46 === 31) {
+				rt.dequeRotate(q, at, true);
+			} else if (_46 === 32) {
+				if (!(q.n === 0)) {
+					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
+				}
+			} else if (_46 === 33) {
+				const s: string[] = rt.dequeMakeContiguous(q);
+				const _190: rt.Place<string> | undefined = rt.sliceFirstMut(s);
+				if (_190 !== undefined) {
+					bump$rings_Item_String(_190);
+				}
+				const _194: rt.Place<string> | undefined = rt.sliceLastMut(s);
+				if (_194 !== undefined) {
+					bump$rings_Item_String(_194);
+				}
+				text$mut_slice_String(out, s);
+			} else {
+				searched$String(q, arg, out);
 			}
 		}
 		put(out, q.n);
@@ -359,7 +446,7 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 30);
+			const _46: rt.u8 = rt.u8Rem(op, 35);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, Big.make$rings_Item(arg));
@@ -434,10 +521,31 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 					Big.bump$rings_Item(_156);
 				}
 				text$collections_vec_deque_IterMut_rings_Big(out, it);
-			} else {
+			} else if (_46 === 29) {
 				const v: Big.Big[] = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 1101));
 				q = rt.dequeFromVec(v, 1101) as rt.VecDeque<Big.Big>;
+			} else if (_46 === 30) {
+				rt.dequeRotate(q, at);
+			} else if (_46 === 31) {
+				rt.dequeRotate(q, at, true);
+			} else if (_46 === 32) {
+				if (!(q.n === 0)) {
+					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
+				}
+			} else if (_46 === 33) {
+				const s: Big.Big[] = rt.dequeMakeContiguous(q);
+				const _190: Big.Big | undefined = rt.sliceFirst(s);
+				if (_190 !== undefined) {
+					Big.bump$rings_Item(_190);
+				}
+				const _194: Big.Big | undefined = rt.sliceLast(s);
+				if (_194 !== undefined) {
+					Big.bump$rings_Item(_194);
+				}
+				text$mut_slice_rings_Big(out, s);
+			} else {
+				searched$rings_Big(q, arg, out);
 			}
 		}
 		put(out, q.n);
@@ -479,7 +587,7 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 30);
+			const _46: rt.u8 = rt.u8Rem(op, 35);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_u32(arg));
@@ -554,10 +662,31 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 					bump$rings_Item_u32(_156);
 				}
 				text$collections_vec_deque_IterMut_u32(out, it);
-			} else {
+			} else if (_46 === 29) {
 				const v: rt.u32[] = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 4));
 				q = rt.dequeFromVec(v, 4) as rt.VecDeque<rt.u32>;
+			} else if (_46 === 30) {
+				rt.dequeRotate(q, at);
+			} else if (_46 === 31) {
+				rt.dequeRotate(q, at, true);
+			} else if (_46 === 32) {
+				if (!(q.n === 0)) {
+					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
+				}
+			} else if (_46 === 33) {
+				const s: rt.u32[] = rt.dequeMakeContiguous(q);
+				const _190: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(s);
+				if (_190 !== undefined) {
+					bump$rings_Item_u32(_190);
+				}
+				const _194: rt.Place<rt.u32> | undefined = rt.sliceLastMut(s);
+				if (_194 !== undefined) {
+					bump$rings_Item_u32(_194);
+				}
+				text$mut_slice_u32(out, s);
+			} else {
+				searched$u32(q, arg, out);
 			}
 		}
 		put(out, q.n);
@@ -599,7 +728,7 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 30);
+			const _46: rt.u8 = rt.u8Rem(op, 35);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_u8(arg));
@@ -674,10 +803,31 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 					bump$rings_Item_u8(_156);
 				}
 				text$collections_vec_deque_IterMut_u8(out, it);
-			} else {
+			} else if (_46 === 29) {
 				const v: rt.ByteVec = rt.byteVecFromVec(rt.dequeToVec(q));
 				put(out, v.data.length);
 				q = rt.dequeFromVec(rt.byteVecToVec(v), 1, true) as rt.VecDeque<rt.u8>;
+			} else if (_46 === 30) {
+				rt.dequeRotate(q, at);
+			} else if (_46 === 31) {
+				rt.dequeRotate(q, at, true);
+			} else if (_46 === 32) {
+				if (!(q.n === 0)) {
+					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
+				}
+			} else if (_46 === 33) {
+				const s: rt.ByteSlice = rt.dequeByteMakeContiguous(q);
+				const _190: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(s));
+				if (_190 !== undefined) {
+					bump$rings_Item_u8(_190);
+				}
+				const _194: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(s));
+				if (_194 !== undefined) {
+					bump$rings_Item_u8(_194);
+				}
+				text$mut_slice_u8(out, s);
+			} else {
+				searched$u8(q, arg, out);
 			}
 		}
 		put(out, q.n);
@@ -720,7 +870,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 30);
+			const _46: rt.u8 = rt.u8Rem(op, 35);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					const _50: rt.VecDeque<undefined> = q;
@@ -804,10 +954,31 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 					bump$rings_Item_unit(_156);
 				}
 				text$collections_vec_deque_IterMut_unit(out, it);
-			} else {
+			} else if (_46 === 29) {
 				const v: undefined[] = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 0));
 				q = rt.dequeFromVec(v, 0) as rt.VecDeque<undefined>;
+			} else if (_46 === 30) {
+				rt.dequeRotate(q, at);
+			} else if (_46 === 31) {
+				rt.dequeRotate(q, at, true);
+			} else if (_46 === 32) {
+				if (!(q.n === 0)) {
+					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
+				}
+			} else if (_46 === 33) {
+				const s: undefined[] = rt.dequeMakeContiguous(q);
+				const _190: rt.Place<undefined> | undefined = rt.sliceFirstMut(s);
+				if (_190 !== undefined) {
+					bump$rings_Item_unit(_190);
+				}
+				const _194: rt.Place<undefined> | undefined = rt.sliceLastMut(s);
+				if (_194 !== undefined) {
+					bump$rings_Item_unit(_194);
+				}
+				text$mut_slice_unit(out, s);
+			} else {
+				searched$unit(q, arg, out);
 			}
 		}
 		put(out, q.n);
@@ -1510,6 +1681,121 @@ export function mutated$unit(q: rt.VecDeque<undefined>, arg: rt.u8, out: rt.Byte
 		bump$rings_Item_unit(_29);
 	}
 	text$collections_vec_deque_IterMut_unit(out, it);
+}
+
+/**
+ * Where each binary search finds an item `arg` makes, of items that need not be sorted,
+ * and each item it probes.
+ */
+export function searched$String(q: rt.VecDeque<string>, arg: rt.u8, out: rt.ByteVec): void {
+	const x: string = make$rings_Item_String(arg);
+	text$Result_usize_usize(out, rt.dequeBinarySearch(q, x, rt.cmpStr));
+	text$Result_usize_usize(out, rt.dequeBinarySearchBy(q, (y: string): rt.Ordering => {
+		text$String(out, y);
+		return rt.cmpStr(y, x);
+	}));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(x, f)];
+	text$Result_usize_usize(out, rt.dequeBinarySearchByKey(q, rt.fmtFormat([args2[0]]), (y2: string): string => {
+		text$String(out, y2);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(y2, f)];
+		return rt.fmtFormat([args4[0]]);
+	}, rt.cmpStr));
+	put(out, rt.dequePartitionPoint(q, (y3: string): boolean => {
+		text$String(out, y3);
+		return rt.cmpStr(y3, x) === -1;
+	}));
+}
+
+/**
+ * Where each binary search finds an item `arg` makes, of items that need not be sorted,
+ * and each item it probes.
+ */
+export function searched$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8, out: rt.ByteVec): void {
+	const x: Big.Big = Big.make$rings_Item(arg);
+	text$Result_usize_usize(out, rt.dequeBinarySearch(q, x, Big.cmp$cmp_Ord));
+	text$Result_usize_usize(out, rt.dequeBinarySearchBy(q, (y: Big.Big): rt.Ordering => {
+		text$rings_Big(out, y);
+		return Big.cmp$cmp_Ord(y, x);
+	}));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => Big.fmt$fmt_Debug(x, f)];
+	text$Result_usize_usize(out, rt.dequeBinarySearchByKey(q, rt.fmtFormat([args2[0]]), (y2: Big.Big): string => {
+		text$rings_Big(out, y2);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => Big.fmt$fmt_Debug(y2, f)];
+		return rt.fmtFormat([args4[0]]);
+	}, rt.cmpStr));
+	put(out, rt.dequePartitionPoint(q, (y3: Big.Big): boolean => {
+		text$rings_Big(out, y3);
+		return Big.partialCmp$cmp_PartialOrd(y3, x) === -1;
+	}));
+}
+
+/**
+ * Where each binary search finds an item `arg` makes, of items that need not be sorted,
+ * and each item it probes.
+ */
+export function searched$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8, out: rt.ByteVec): void {
+	const x: rt.u32 = make$rings_Item_u32(arg);
+	text$Result_usize_usize(out, rt.dequeBinarySearch(q, x, rt.cmp));
+	text$Result_usize_usize(out, rt.dequeBinarySearchBy(q, (y: rt.u32): rt.Ordering => {
+		text$u32(out, y);
+		return rt.cmp(y, x);
+	}));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Debug(x, f)];
+	text$Result_usize_usize(out, rt.dequeBinarySearchByKey(q, rt.fmtFormat([args2[0]]), (y2: rt.u32): string => {
+		text$u32(out, y2);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Debug(y2, f)];
+		return rt.fmtFormat([args4[0]]);
+	}, rt.cmpStr));
+	put(out, rt.dequePartitionPoint(q, (y3: rt.u32): boolean => {
+		text$u32(out, y3);
+		return y3 < x;
+	}));
+}
+
+/**
+ * Where each binary search finds an item `arg` makes, of items that need not be sorted,
+ * and each item it probes.
+ */
+export function searched$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8, out: rt.ByteVec): void {
+	const x: rt.u8 = make$rings_Item_u8(arg);
+	text$Result_usize_usize(out, rt.dequeBinarySearch(q, x, rt.cmp));
+	text$Result_usize_usize(out, rt.dequeBinarySearchBy(q, (y: rt.u8): rt.Ordering => {
+		text$u8(out, y);
+		return rt.cmp(y, x);
+	}));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Debug(x, f)];
+	text$Result_usize_usize(out, rt.dequeBinarySearchByKey(q, rt.fmtFormat([args2[0]]), (y2: rt.u8): string => {
+		text$u8(out, y2);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Debug(y2, f)];
+		return rt.fmtFormat([args4[0]]);
+	}, rt.cmpStr));
+	put(out, rt.dequePartitionPoint(q, (y3: rt.u8): boolean => {
+		text$u8(out, y3);
+		return y3 < x;
+	}));
+}
+
+/**
+ * Where each binary search finds an item `arg` makes, of items that need not be sorted,
+ * and each item it probes.
+ */
+export function searched$unit(q: rt.VecDeque<undefined>, arg: rt.u8, out: rt.ByteVec): void {
+	make$rings_Item_unit(arg);
+	text$Result_usize_usize(out, rt.dequeBinarySearch(q, undefined, rt.cmpNothing));
+	text$Result_usize_usize(out, rt.dequeBinarySearchBy(q, (y: undefined): rt.Ordering => {
+		text$unit(out, y);
+		return rt.cmpNothing(y, undefined);
+	}));
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUnit(undefined, f)];
+	text$Result_usize_usize(out, rt.dequeBinarySearchByKey(q, rt.fmtFormat([args2[0]]), (y2: undefined): string => {
+		text$unit(out, y2);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUnit(undefined, f)];
+		return rt.fmtFormat([args4[0]]);
+	}, rt.cmpStr));
+	put(out, rt.dequePartitionPoint(q, (y3: undefined): boolean => {
+		text$unit(out, y3);
+		return rt.cmpNothing(y3, undefined) === -1;
+	}));
 }
 
 /** `q`'s `Iter`, written before and after each of three reads `arg` picks. */

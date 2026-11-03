@@ -1096,16 +1096,20 @@ export function sliceContains<T>(s: ArrayLike<T>, x: T, eq: (a: T, b: T) => bool
  * equal elements gives std's index.
  */
 export function sliceBinarySearchBy<T>(s: ArrayLike<T>, f: (item: T) => Ordering): Result<usize, usize> {
-	let size = s.length;
+	return searchBy(s, 0, s.length, f);
+}
+
+/** `sliceBinarySearchBy` of the `size` elements of `s` from `start`, whose indices are from it. */
+export function searchBy<T>(s: ArrayLike<T>, start: number, size: number, f: (item: T) => Ordering): Result<usize, usize> {
 	if (size === 0) return Err(0);
 	let base = 0;
 	while (size > 1) {
 		const half = Math.floor(size / 2);
 		const mid = base + half;
-		if (f(s[mid]!) !== 1) base = mid;
+		if (f(s[start + mid]!) !== 1) base = mid;
 		size -= half;
 	}
-	const order = f(s[base]!);
+	const order = f(s[start + base]!);
 	return order === 0 ? Ok(base) : Err(order === -1 ? base + 1 : base);
 }
 
@@ -1552,6 +1556,27 @@ export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size:
 export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
 	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
 	return vecExact(v.splice(at), size);
+}
+
+/**
+ * `Vec::into_flattened` of arrays of `n` `size`-byte elements: their elements in order,
+ * with room for `n` times as many as it had room for arrays, as std's keeps its buffer.
+ */
+export function vecIntoFlattened<T>(v: (T[] & Capped)[] & Capped, n: number, size: number): T[] {
+	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow");
+	const out: T[] & Capped = v.flat() as T[];
+	capSet(out, out.length, vecCapacity(v, size * n) * n, size);
+	return out;
+}
+
+/** `Vec::into_flattened` of byte arrays of `n`. */
+export function byteVecIntoFlattened(v: Uint8Array[] & Capped, n: number): ByteVec {
+	const out = new ByteVec(vecCapacity(v, n) * n);
+	for (const a of v) {
+		out.data.set(a, out.length);
+		out.length += n;
+	}
+	return out;
 }
 
 /** `Clone` of a tuple, by `clone` of each field in order, `undefined` for one whose value is itself. */

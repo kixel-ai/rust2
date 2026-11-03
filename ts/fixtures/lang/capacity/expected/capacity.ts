@@ -74,6 +74,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 	let v!: rt.u64[][];
 	let _177!: rt.u8;
 	let newLen!: rt.usize;
+	let end!: rt.usize;
 	const size: rt.usize = 1280;
 	const _9: [rt.u8, rt.ByteSlice] = [0, rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of()), 0)];
 	const _7: [rt.u8, rt.ByteSlice] = option_mapOr$1ttssgs((dataLen !== 0 ? [dataData[dataStart], new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, _9, (_2: [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] => {
@@ -97,7 +98,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 35);
+		const _42: rt.u8 = rt.u8Rem(op, 38);
 		if (_42 === 0 || _42 === 1) {
 			v.push(copy$array_u64(make(arg)));
 		} else if (_42 === 2) {
@@ -105,7 +106,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 35) === 3) {
+			if (rt.u8Rem(op, 38) === 3) {
 				rt.vecReserve(v, additional, 1280);
 			} else {
 				rt.vecReserveExact(v, additional, 1280);
@@ -129,8 +130,8 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				Known.loose(k);
 			}
 		} else if (_42 === 10) {
-			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i2: rt.u8): boolean => {
-				return rt.u8Rem(i2, 3) !== 0;
+			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
+				return rt.u8Rem(i4, 3) !== 0;
 			}), make), "next", 1280);
 		} else if (_42 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 1280, true);
@@ -141,7 +142,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.loose(k);
 		} else if (_42 === 14) {
 			const keep: () => boolean = alternate();
-			rt.vecRetain(v, (_210: rt.u64[]): boolean => {
+			rt.vecRetain(v, (_211: rt.u64[]): boolean => {
 				return keep();
 			});
 			Known.loose(k);
@@ -156,7 +157,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.remade(k, true);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_29: rt.u64[]): boolean => {
+			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_210: rt.u64[]): boolean => {
 				return keep2();
 			}), "next", 1280, false, 1280);
 			Known.remade(k, k.exact);
@@ -211,7 +212,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			v = rt.vecFromElem(copy$array_u64(make(arg)), rt.u8Rem(arg, 6) as rt.usize, copy$array_u64);
 			Known.remade(k, false);
 		} else if (_42 === 25) {
-			rt.vecPopIf(v, (_28: rt.u64[]): boolean => {
+			rt.vecPopIf(v, (_29: rt.u64[]): boolean => {
 				return rt.u8Rem(arg, 2) === 1;
 			});
 			Known.loose(k);
@@ -240,16 +241,16 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.put({ exact: false, floor: 0 }, out, other.length, rt.vecCapacity(other, 1280));
 		} else if (_42 === 30 || _42 === 31) {
 			const len2: rt.usize = v.length;
-			b4: {
+			b7: {
 				if ((arg >> 5) === 6) {
 					if (size > 0) {
 						newLen = rt.usizeAdd(rt.usizeAdd(rt.usizeDiv(2147483647, size), 1), (arg & 7) as rt.usize);
-						break b4;
+						break b7;
 					}
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 35) === 30) {
+			if (rt.u8Rem(op, 38) === 30) {
 				rt.vecResize(v, newLen, copy$array_u64(make(arg)), 1280, copy$array_u64);
 			} else {
 				rt.vecResizeWith(v, newLen, (): rt.u64[] => {
@@ -272,10 +273,59 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.reserved(k, len3, rt.usizeSub(len3, start));
 		} else if (_42 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 1280) as rt.VecDeque<rt.u64[]>);
+		} else if (_42 === 35) {
+			const len4: rt.usize = v.length;
+			const start2: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len4, 1));
+			if ((arg & 128) === 0) {
+				end = rt.usizeAdd(start2, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len4, start2), 1)));
+			} else {
+				end = len4;
+			}
+			const _425: rt.usize = ((arg >> 5) & 3) as rt.usize;
+			if (!(_425 < 4)) {
+				rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _425);
+			}
+			const n2: rt.usize = [0, 2, 6, 17][_425];
+			const _431: rt.u8 = (arg >> 3) & 3;
+			if (_431 === 0) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 1280, true));
+			} else if (_431 === 1) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+					return rt.u8Rem(i3, 4) !== 1;
+				}), make), 1280));
+			} else if (_431 === 2) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+					return rt.u8Rem(i2, 2) === 0;
+				})), make), 1280));
+			} else {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(copy$array_u64(make(arg)), n2, copy$array_u64)), 1280, true));
+			}
+		} else if (_42 === 36) {
+			const keep3: () => boolean = alternate();
+			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_26: rt.u64[]): boolean => {
+				return keep3();
+			}), rt.u8Rem(arg, 5) as rt.usize));
+			Known.loose(k);
+		} else if (_42 === 37) {
+			const pairs: rt.u64[][][] = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 2560);
+			const iter4: rt.Iter<rt.u64[][]> = rt.sliceChunksExact(v, 2);
+			while (true) {
+				const _497: rt.u64[][] | rt.Done = iter4.next();
+				if (_497 === rt.DONE) {
+					break;
+				}
+				rt.idx(_497, 0);
+				const _504: rt.u64[] = copy$array_u64(copy$array_u64(_497[0]));
+				rt.idx(_497, 1);
+				const _503: rt.u64[][] = [_504, copy$array_u64(copy$array_u64(_497[1]))];
+				pairs.push(_503);
+			}
+			const flat: rt.u64[][] = rt.vecIntoFlattened(pairs, 2, 1280);
+			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 1280));
 		}
-		const _403: rt.usize = v.length;
-		const _405: rt.usize = rt.vecCapacity(v, 1280);
-		Known.put(k, out, _403, _405);
+		const _525: rt.usize = v.length;
+		const _527: rt.usize = rt.vecCapacity(v, 1280);
+		Known.put(k, out, _525, _527);
 	}
 }
 
@@ -283,6 +333,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 	let v!: [rt.u64, rt.u8][];
 	let _177!: rt.u8;
 	let newLen!: rt.usize;
+	let end!: rt.usize;
 	const size: rt.usize = 16;
 	const _9: [rt.u8, rt.ByteSlice] = [0, rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of()), 0)];
 	const _7: [rt.u8, rt.ByteSlice] = option_mapOr$1ttssgs((dataLen !== 0 ? [dataData[dataStart], new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, _9, (_2: [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] => {
@@ -306,7 +357,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 35);
+		const _42: rt.u8 = rt.u8Rem(op, 38);
 		if (_42 === 0 || _42 === 1) {
 			v.push(copy$tuple2_u64_u8(make(arg)));
 		} else if (_42 === 2) {
@@ -314,7 +365,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 35) === 3) {
+			if (rt.u8Rem(op, 38) === 3) {
 				rt.vecReserve(v, additional, 16);
 			} else {
 				rt.vecReserveExact(v, additional, 16);
@@ -338,8 +389,8 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				Known.loose(k);
 			}
 		} else if (_42 === 10) {
-			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i2: rt.u8): boolean => {
-				return rt.u8Rem(i2, 3) !== 0;
+			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
+				return rt.u8Rem(i4, 3) !== 0;
 			}), make), "next", 16);
 		} else if (_42 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 16, true);
@@ -350,7 +401,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.loose(k);
 		} else if (_42 === 14) {
 			const keep: () => boolean = alternate();
-			rt.vecRetain(v, (_210: [rt.u64, rt.u8]): boolean => {
+			rt.vecRetain(v, (_211: [rt.u64, rt.u8]): boolean => {
 				return keep();
 			});
 			Known.loose(k);
@@ -365,7 +416,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.remade(k, true);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_29: [rt.u64, rt.u8]): boolean => {
+			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_210: [rt.u64, rt.u8]): boolean => {
 				return keep2();
 			}), "next", 16, false, 16);
 			Known.remade(k, k.exact);
@@ -420,7 +471,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			v = rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), rt.u8Rem(arg, 6) as rt.usize, copy$tuple2_u64_u8);
 			Known.remade(k, false);
 		} else if (_42 === 25) {
-			rt.vecPopIf(v, (_28: [rt.u64, rt.u8]): boolean => {
+			rt.vecPopIf(v, (_29: [rt.u64, rt.u8]): boolean => {
 				return rt.u8Rem(arg, 2) === 1;
 			});
 			Known.loose(k);
@@ -449,16 +500,16 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.put({ exact: false, floor: 0 }, out, other.length, rt.vecCapacity(other, 16));
 		} else if (_42 === 30 || _42 === 31) {
 			const len2: rt.usize = v.length;
-			b4: {
+			b7: {
 				if ((arg >> 5) === 6) {
 					if (size > 0) {
 						newLen = rt.usizeAdd(rt.usizeAdd(rt.usizeDiv(2147483647, size), 1), (arg & 7) as rt.usize);
-						break b4;
+						break b7;
 					}
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 35) === 30) {
+			if (rt.u8Rem(op, 38) === 30) {
 				rt.vecResize(v, newLen, copy$tuple2_u64_u8(make(arg)), 16, copy$tuple2_u64_u8);
 			} else {
 				rt.vecResizeWith(v, newLen, (): [rt.u64, rt.u8] => {
@@ -481,10 +532,59 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.reserved(k, len3, rt.usizeSub(len3, start));
 		} else if (_42 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 16) as rt.VecDeque<[rt.u64, rt.u8]>);
+		} else if (_42 === 35) {
+			const len4: rt.usize = v.length;
+			const start2: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len4, 1));
+			if ((arg & 128) === 0) {
+				end = rt.usizeAdd(start2, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len4, start2), 1)));
+			} else {
+				end = len4;
+			}
+			const _425: rt.usize = ((arg >> 5) & 3) as rt.usize;
+			if (!(_425 < 4)) {
+				rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _425);
+			}
+			const n2: rt.usize = [0, 2, 6, 17][_425];
+			const _431: rt.u8 = (arg >> 3) & 3;
+			if (_431 === 0) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 16, true));
+			} else if (_431 === 1) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+					return rt.u8Rem(i3, 4) !== 1;
+				}), make), 16));
+			} else if (_431 === 2) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+					return rt.u8Rem(i2, 2) === 0;
+				})), make), 16));
+			} else {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), n2, copy$tuple2_u64_u8)), 16, true));
+			}
+		} else if (_42 === 36) {
+			const keep3: () => boolean = alternate();
+			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_26: [rt.u64, rt.u8]): boolean => {
+				return keep3();
+			}), rt.u8Rem(arg, 5) as rt.usize));
+			Known.loose(k);
+		} else if (_42 === 37) {
+			const pairs: [rt.u64, rt.u8][][] = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 32);
+			const iter4: rt.Iter<[rt.u64, rt.u8][]> = rt.sliceChunksExact(v, 2);
+			while (true) {
+				const _497: [rt.u64, rt.u8][] | rt.Done = iter4.next();
+				if (_497 === rt.DONE) {
+					break;
+				}
+				rt.idx(_497, 0);
+				const _504: [rt.u64, rt.u8] = copy$tuple2_u64_u8(copy$tuple2_u64_u8(_497[0]));
+				rt.idx(_497, 1);
+				const _503: [rt.u64, rt.u8][] = [_504, copy$tuple2_u64_u8(copy$tuple2_u64_u8(_497[1]))];
+				pairs.push(_503);
+			}
+			const flat: [rt.u64, rt.u8][] = rt.vecIntoFlattened(pairs, 2, 16);
+			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 16));
 		}
-		const _403: rt.usize = v.length;
-		const _405: rt.usize = rt.vecCapacity(v, 16);
-		Known.put(k, out, _403, _405);
+		const _525: rt.usize = v.length;
+		const _527: rt.usize = rt.vecCapacity(v, 16);
+		Known.put(k, out, _525, _527);
 	}
 }
 
@@ -492,6 +592,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 	let v!: rt.u16[];
 	let _177!: rt.u8;
 	let newLen!: rt.usize;
+	let end!: rt.usize;
 	const size: rt.usize = 2;
 	const _9: [rt.u8, rt.ByteSlice] = [0, rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of()), 0)];
 	const _7: [rt.u8, rt.ByteSlice] = option_mapOr$1ttssgs((dataLen !== 0 ? [dataData[dataStart], new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, _9, (_2: [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] => {
@@ -515,7 +616,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 35);
+		const _42: rt.u8 = rt.u8Rem(op, 38);
 		if (_42 === 0 || _42 === 1) {
 			v.push(make(arg));
 		} else if (_42 === 2) {
@@ -523,7 +624,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 35) === 3) {
+			if (rt.u8Rem(op, 38) === 3) {
 				rt.vecReserve(v, additional, 2);
 			} else {
 				rt.vecReserveExact(v, additional, 2);
@@ -547,8 +648,8 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				Known.loose(k);
 			}
 		} else if (_42 === 10) {
-			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i2: rt.u8): boolean => {
-				return rt.u8Rem(i2, 3) !== 0;
+			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
+				return rt.u8Rem(i4, 3) !== 0;
 			}), make), "next", 2);
 		} else if (_42 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 2, true);
@@ -559,7 +660,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.loose(k);
 		} else if (_42 === 14) {
 			const keep: () => boolean = alternate();
-			rt.vecRetain(v, (_210: rt.u16): boolean => {
+			rt.vecRetain(v, (_211: rt.u16): boolean => {
 				return keep();
 			});
 			Known.loose(k);
@@ -574,7 +675,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.remade(k, true);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_29: rt.u16): boolean => {
+			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_210: rt.u16): boolean => {
 				return keep2();
 			}), "next", 2, false, 2);
 			Known.remade(k, k.exact);
@@ -629,7 +730,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			v = rt.vecFromElem(make(arg), rt.u8Rem(arg, 6) as rt.usize, undefined);
 			Known.remade(k, false);
 		} else if (_42 === 25) {
-			rt.vecPopIfMut(v, (_28: rt.Place<rt.u16>): boolean => {
+			rt.vecPopIfMut(v, (_29: rt.Place<rt.u16>): boolean => {
 				return rt.u8Rem(arg, 2) === 1;
 			});
 			Known.loose(k);
@@ -658,16 +759,16 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.put({ exact: false, floor: 0 }, out, other.length, rt.vecCapacity(other, 2));
 		} else if (_42 === 30 || _42 === 31) {
 			const len2: rt.usize = v.length;
-			b4: {
+			b7: {
 				if ((arg >> 5) === 6) {
 					if (size > 0) {
 						newLen = rt.usizeAdd(rt.usizeAdd(rt.usizeDiv(2147483647, size), 1), (arg & 7) as rt.usize);
-						break b4;
+						break b7;
 					}
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 35) === 30) {
+			if (rt.u8Rem(op, 38) === 30) {
 				rt.vecResize(v, newLen, make(arg), 2, undefined);
 			} else {
 				rt.vecResizeWith(v, newLen, (): rt.u16 => {
@@ -690,10 +791,59 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.reserved(k, len3, rt.usizeSub(len3, start));
 		} else if (_42 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 2) as rt.VecDeque<rt.u16>);
+		} else if (_42 === 35) {
+			const len4: rt.usize = v.length;
+			const start2: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len4, 1));
+			if ((arg & 128) === 0) {
+				end = rt.usizeAdd(start2, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len4, start2), 1)));
+			} else {
+				end = len4;
+			}
+			const _425: rt.usize = ((arg >> 5) & 3) as rt.usize;
+			if (!(_425 < 4)) {
+				rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _425);
+			}
+			const n2: rt.usize = [0, 2, 6, 17][_425];
+			const _431: rt.u8 = (arg >> 3) & 3;
+			if (_431 === 0) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 2, true));
+			} else if (_431 === 1) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+					return rt.u8Rem(i3, 4) !== 1;
+				}), make), 2));
+			} else if (_431 === 2) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+					return rt.u8Rem(i2, 2) === 0;
+				})), make), 2));
+			} else {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(make(arg), n2, undefined)), 2, true));
+			}
+		} else if (_42 === 36) {
+			const keep3: () => boolean = alternate();
+			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_26: rt.Place<rt.u16>): boolean => {
+				return keep3();
+			}), rt.u8Rem(arg, 5) as rt.usize));
+			Known.loose(k);
+		} else if (_42 === 37) {
+			const pairs: rt.u16[][] = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 4);
+			const iter4: rt.Iter<rt.u16[]> = rt.sliceChunksExact(v, 2);
+			while (true) {
+				const _497: rt.u16[] | rt.Done = iter4.next();
+				if (_497 === rt.DONE) {
+					break;
+				}
+				rt.idx(_497, 0);
+				const _504: rt.u16 = _497[0];
+				rt.idx(_497, 1);
+				const _503: rt.u16[] = [_504, _497[1]];
+				pairs.push(_503);
+			}
+			const flat: rt.u16[] = rt.vecIntoFlattened(pairs, 2, 2);
+			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 2));
 		}
-		const _403: rt.usize = v.length;
-		const _405: rt.usize = rt.vecCapacity(v, 2);
-		Known.put(k, out, _403, _405);
+		const _525: rt.usize = v.length;
+		const _527: rt.usize = rt.vecCapacity(v, 2);
+		Known.put(k, out, _525, _527);
 	}
 }
 
@@ -701,6 +851,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 	let v!: rt.ByteVec;
 	let _177!: rt.u8;
 	let newLen!: rt.usize;
+	let end!: rt.usize;
 	const size: rt.usize = 1;
 	const _9: [rt.u8, rt.ByteSlice] = [0, rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of()), 0)];
 	const _7: [rt.u8, rt.ByteSlice] = option_mapOr$1ttssgs((dataLen !== 0 ? [dataData[dataStart], new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, _9, (_2: [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] => {
@@ -724,7 +875,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 35);
+		const _42: rt.u8 = rt.u8Rem(op, 38);
 		if (_42 === 0 || _42 === 1) {
 			rt.byteVecPush(v, make(arg));
 		} else if (_42 === 2) {
@@ -732,7 +883,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 35) === 3) {
+			if (rt.u8Rem(op, 38) === 3) {
 				rt.byteVecReserve(v, additional);
 			} else {
 				rt.byteVecReserveExact(v, additional);
@@ -756,8 +907,8 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				Known.loose(k);
 			}
 		} else if (_42 === 10) {
-			rt.iterExtendBytes(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i2: rt.u8): boolean => {
-				return rt.u8Rem(i2, 3) !== 0;
+			rt.iterExtendBytes(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
+				return rt.u8Rem(i4, 3) !== 0;
 			}), make), "next");
 		} else if (_42 === 11) {
 			rt.iterExtendBytes(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, true);
@@ -768,7 +919,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.loose(k);
 		} else if (_42 === 14) {
 			const keep: () => boolean = alternate();
-			rt.byteVecRetain(v, (_210: rt.u8): boolean => {
+			rt.byteVecRetain(v, (_211: rt.u8): boolean => {
 				return keep();
 			});
 			Known.loose(k);
@@ -783,7 +934,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.remade(k, true);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToByteVec(rt.iterFilter(rt.byteVecIntoIter(v), (_29: rt.u8): boolean => {
+			v = rt.iterToByteVec(rt.iterFilter(rt.byteVecIntoIter(v), (_210: rt.u8): boolean => {
 				return keep2();
 			}), "next", false, 1);
 			Known.remade(k, k.exact);
@@ -836,7 +987,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			v = rt.byteVecOf(make(arg), rt.u8Rem(arg, 6) as rt.usize);
 			Known.remade(k, false);
 		} else if (_42 === 25) {
-			rt.byteVecPopIf(v, (_28: rt.Place<rt.u8>): boolean => {
+			rt.byteVecPopIf(v, (_29: rt.Place<rt.u8>): boolean => {
 				return rt.u8Rem(arg, 2) === 1;
 			});
 			Known.loose(k);
@@ -865,16 +1016,16 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.put({ exact: false, floor: 0 }, out, other.length, other.data.length);
 		} else if (_42 === 30 || _42 === 31) {
 			const len2: rt.usize = v.length;
-			b4: {
+			b7: {
 				if ((arg >> 5) === 6) {
 					if (size > 0) {
 						newLen = rt.usizeAdd(rt.usizeAdd(rt.usizeDiv(2147483647, size), 1), (arg & 7) as rt.usize);
-						break b4;
+						break b7;
 					}
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 35) === 30) {
+			if (rt.u8Rem(op, 38) === 30) {
 				rt.byteVecResize(v, newLen, make(arg));
 			} else {
 				rt.byteVecResizeWith(v, newLen, (): rt.u8 => {
@@ -897,6 +1048,55 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.reserved(k, len3, rt.usizeSub(len3, start));
 		} else if (_42 === 34) {
 			v = rt.byteVecFromVec(rt.dequeToVec(rt.dequeFromVec(rt.byteVecToVec(v), 1, true) as rt.VecDeque<rt.u8>));
+		} else if (_42 === 35) {
+			const len4: rt.usize = v.length;
+			const start2: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len4, 1));
+			if ((arg & 128) === 0) {
+				end = rt.usizeAdd(start2, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len4, start2), 1)));
+			} else {
+				end = len4;
+			}
+			const _425: rt.usize = ((arg >> 5) & 3) as rt.usize;
+			if (!(_425 < 4)) {
+				rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _425);
+			}
+			const n2: rt.usize = [0, 2, 6, 17][_425];
+			const _431: rt.u8 = (arg >> 3) & 3;
+			if (_431 === 0) {
+				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), true));
+			} else if (_431 === 1) {
+				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+					return rt.u8Rem(i3, 4) !== 1;
+				}), make)));
+			} else if (_431 === 2) {
+				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+					return rt.u8Rem(i2, 2) === 0;
+				})), make)));
+			} else {
+				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.byteVecIntoIter(rt.byteVecOf(make(arg), n2)), true));
+			}
+		} else if (_42 === 36) {
+			const keep3: () => boolean = alternate();
+			rt.ownedCount(rt.iterTake(rt.byteVecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_26: rt.Place<rt.u8>): boolean => {
+				return keep3();
+			}), rt.u8Rem(arg, 5) as rt.usize));
+			Known.loose(k);
+		} else if (_42 === 37) {
+			const pairs: Uint8Array[] = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 2);
+			const iter4: rt.Iter<rt.ByteSlice> = rt.byteSliceChunksExact(rt.byteVecSlice(v), 2);
+			while (true) {
+				const _497: rt.ByteSlice | rt.Done = iter4.next();
+				if (_497 === rt.DONE) {
+					break;
+				}
+				rt.idx(_497, 0);
+				const _504: rt.u8 = _497.data[_497.start];
+				rt.idx(_497, 1);
+				const _503: Uint8Array = Uint8Array.of(_504, _497.data[_497.start + 1]);
+				pairs.push(_503);
+			}
+			const flat: rt.ByteVec = rt.byteVecIntoFlattened(pairs, 2);
+			Known.put(Known.new(0), out, flat.length, flat.data.length);
 		}
 		Known.put(k, out, v.length, v.data.length);
 	}
@@ -906,6 +1106,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 	let v!: undefined[];
 	let _177!: rt.u8;
 	let newLen!: rt.usize;
+	let end!: rt.usize;
 	const size: rt.usize = 0;
 	const _9: [rt.u8, rt.ByteSlice] = [0, rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of()), 0)];
 	const _7: [rt.u8, rt.ByteSlice] = option_mapOr$1ttssgs((dataLen !== 0 ? [dataData[dataStart], new rt.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, _9, (_2: [rt.u8, rt.ByteSlice]): [rt.u8, rt.ByteSlice] => {
@@ -929,7 +1130,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 35);
+		const _42: rt.u8 = rt.u8Rem(op, 38);
 		if (_42 === 0 || _42 === 1) {
 			const _44: undefined[] = v;
 			make(arg);
@@ -939,7 +1140,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 35) === 3) {
+			if (rt.u8Rem(op, 38) === 3) {
 				rt.vecReserve(v, additional, 0);
 			} else {
 				rt.vecReserveExact(v, additional, 0);
@@ -966,8 +1167,8 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				Known.loose(k);
 			}
 		} else if (_42 === 10) {
-			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i2: rt.u8): boolean => {
-				return rt.u8Rem(i2, 3) !== 0;
+			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
+				return rt.u8Rem(i4, 3) !== 0;
 			}), make), "next", 0);
 		} else if (_42 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 0, true);
@@ -980,7 +1181,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.loose(k);
 		} else if (_42 === 14) {
 			const keep: () => boolean = alternate();
-			rt.vecRetain(v, (_210: undefined): boolean => {
+			rt.vecRetain(v, (_211: undefined): boolean => {
 				return keep();
 			});
 			Known.loose(k);
@@ -995,7 +1196,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.remade(k, true);
 		} else if (_42 === 18) {
 			const keep2: () => boolean = alternate();
-			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_29: undefined): boolean => {
+			v = rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_210: undefined): boolean => {
 				return keep2();
 			}), "next", 0);
 			Known.remade(k, k.exact);
@@ -1051,7 +1252,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			v = rt.vecFromElem(undefined, rt.u8Rem(arg, 6) as rt.usize, undefined);
 			Known.remade(k, false);
 		} else if (_42 === 25) {
-			rt.vecPopIfMut(v, (_28: rt.Place<undefined>): boolean => {
+			rt.vecPopIfMut(v, (_29: rt.Place<undefined>): boolean => {
 				return rt.u8Rem(arg, 2) === 1;
 			}, undefined, rt.None);
 			Known.loose(k);
@@ -1080,16 +1281,16 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.put({ exact: false, floor: 0 }, out, other.length, rt.vecCapacity(other, 0));
 		} else if (_42 === 30 || _42 === 31) {
 			const len2: rt.usize = v.length;
-			b4: {
+			b7: {
 				if ((arg >> 5) === 6) {
 					if (size > 0) {
 						newLen = rt.usizeAdd(rt.usizeAdd(rt.usizeDiv(2147483647, size), 1), (arg & 7) as rt.usize);
-						break b4;
+						break b7;
 					}
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 35) === 30) {
+			if (rt.u8Rem(op, 38) === 30) {
 				const _351: undefined[] = v;
 				make(arg);
 				rt.vecResize(_351, newLen, undefined, 0, undefined);
@@ -1114,10 +1315,61 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.reserved(k, len3, rt.usizeSub(len3, start));
 		} else if (_42 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 0) as rt.VecDeque<undefined>);
+		} else if (_42 === 35) {
+			const len4: rt.usize = v.length;
+			const start2: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len4, 1));
+			if ((arg & 128) === 0) {
+				end = rt.usizeAdd(start2, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len4, start2), 1)));
+			} else {
+				end = len4;
+			}
+			const _425: rt.usize = ((arg >> 5) & 3) as rt.usize;
+			if (!(_425 < 4)) {
+				rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _425);
+			}
+			const n2: rt.usize = [0, 2, 6, 17][_425];
+			const _431: rt.u8 = (arg >> 3) & 3;
+			if (_431 === 0) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 0, true));
+			} else if (_431 === 1) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+					return rt.u8Rem(i3, 4) !== 1;
+				}), make), 0));
+			} else if (_431 === 2) {
+				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+					return rt.u8Rem(i2, 2) === 0;
+				})), make), 0));
+			} else {
+				const _462: undefined[] = v;
+				make(arg);
+				rt.drop(rt.vecSplice(_462, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(undefined, n2, undefined)), 0, true));
+			}
+		} else if (_42 === 36) {
+			const keep3: () => boolean = alternate();
+			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_26: rt.Place<undefined>): boolean => {
+				return keep3();
+			}), rt.u8Rem(arg, 5) as rt.usize));
+			Known.loose(k);
+		} else if (_42 === 37) {
+			const pairs: undefined[][] = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 0);
+			const iter4: rt.Iter<undefined[]> = rt.sliceChunksExact(v, 2);
+			while (true) {
+				const _497: undefined[] | rt.Done = iter4.next();
+				if (_497 === rt.DONE) {
+					break;
+				}
+				rt.idx(_497, 0);
+				_497[0];
+				rt.idx(_497, 1);
+				_497[1];
+				pairs.push([undefined, undefined]);
+			}
+			const flat: undefined[] = rt.vecIntoFlattened(pairs, 2, 0);
+			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 0));
 		}
-		const _403: rt.usize = v.length;
-		const _405: rt.usize = rt.vecCapacity(v, 0);
-		Known.put(k, out, _403, _405);
+		const _525: rt.usize = v.length;
+		const _527: rt.usize = rt.vecCapacity(v, 0);
+		Known.put(k, out, _525, _527);
 	}
 }
 

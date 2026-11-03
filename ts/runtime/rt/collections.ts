@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -29,7 +29,10 @@ import {
 	iterEmpty,
 	iterFilter,
 	iterFold,
+	iterExtend,
+	iterExtendBytes,
 	iterForEach,
+	iterHeld,
 	iterMap,
 	iterOnce,
 	iterSlice,
@@ -2984,6 +2987,123 @@ export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
 	q.n++;
 }
 
+/** `swap` of items `i` and `j`, each checked as std's asserts. */
+export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
+	if (i >= q.n) panic("assertion failed: i < self.len()");
+	if (j >= q.n) panic("assertion failed: j < self.len()");
+	const a = at(q, i);
+	const b = at(q, j);
+	const item = q.b[a];
+	q.b[a] = q.b[b];
+	q.b[b] = item;
+}
+
+/**
+ * `rotate_left` of `n`, or with `right`, `rotate_right`: as std's, the shorter side moved
+ * around the end of its slots, the first items past the last or the last before the first.
+ */
+export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
+	if (n > q.n) panic("assertion failed: n <= self.len()");
+	const k = q.n - n;
+	if ((n <= k) !== right) rotateLeft(q, right ? k : n);
+	else rotateRight(q, right ? n : k);
+}
+
+/** The first `mid` items moved past the last, as std's `rotate_left_inner`. */
+function rotateLeft<T>(q: VecDeque<T>, mid: number): void {
+	// Each slot written is free or one already read.
+	const end = at(q, q.n);
+	for (let i = 0; i < mid; i++) {
+		const from = at(q, i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, end + i)] = item;
+	}
+	q.h = at(q, mid);
+}
+
+/**
+ * The last `k` items moved before the first, as std's `rotate_right_inner`, whose head
+ * steps back by `wrap_sub` even of none, which moves zero-sized items' `usize::MAX` slots'.
+ */
+function rotateRight<T>(q: VecDeque<T>, k: number): void {
+	const h = wrap(q, q.h - k + q.b.length);
+	// Back to front, so each slot written is free or one already read.
+	for (let i = k - 1; i >= 0; i--) {
+		const from = at(q, q.n - k + i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, h + i)] = item;
+	}
+	q.h = h;
+}
+
+/**
+ * The head `make_contiguous` leaves: where it was if the items do not wrap, else the
+ * front if the free slots hold the head's part, after the tail's part if they hold that,
+ * and else after the free slots or at the front, by which part is shorter, as std's.
+ * Zero-sized items' is the front.
+ */
+function contiguous<T>(q: VecDeque<T>): number {
+	const cap = q.b.length;
+	if (q.s === 0) return 0;
+	if (q.h <= cap - q.n) return q.h;
+	const free = cap - q.n;
+	const head = cap - q.h;
+	const tail = q.n - head;
+	if (free >= head) return 0;
+	if (free >= tail) return tail;
+	return head > tail ? free : 0;
+}
+
+/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return sliceView(q.b as T[], q.h, q.h + q.n);
+}
+
+/** `make_contiguous` of bytes, viewing the deque's. */
+export function dequeByteMakeContiguous(q: VecDeque<number>): ByteSlice {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return new ByteSlice(q.b as unknown as Uint8Array, q.h, q.n);
+}
+
+/**
+ * `binary_search_by`: by `f` of the second slice's first item, std's search of that slice
+ * if it is less, or else of the first slice, as `as_slices` splits them.
+ */
+export function dequeBinarySearchBy<T>(q: VecDeque<T>, f: (item: T) => Ordering): Result<usize, usize> {
+	const front = firstEnd(q, 0, q.n);
+	const order = front < q.n ? f(q.b[0] as T) : 1;
+	if (order === 0) return Ok(front);
+	if (order === 1) return searchBy(q.b as T[], at(q, 0), front, f);
+	const found = searchBy(q.b as T[], 0, q.n - front, f);
+	return found.ok ? Ok(found.value + front) : Err(found.error + front);
+}
+
+/** `binary_search`: by `cmp` of each item it probes with `x`. */
+export function dequeBinarySearch<T>(q: VecDeque<T>, x: T, cmp: (a: T, b: T) => Ordering): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => cmp(item, x));
+}
+
+/** `binary_search_by_key`: by `cmp` of the key `f` makes of each item it probes with `b`, dropping the key after. */
+export function dequeBinarySearchByKey<T, K>(q: VecDeque<T>, b: K, f: (item: T) => K, cmp: (a: K, b: K) => Ordering, drop?: (key: K) => void): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => {
+		const key = f(item);
+		const order = cmp(key, b);
+		drop?.(key);
+		return order;
+	});
+}
+
+/** `partition_point`: where the items `pred` holds for end, by std's search. */
+export function dequePartitionPoint<T>(q: VecDeque<T>, pred: (item: T) => boolean): usize {
+	const found = dequeBinarySearchBy(q, (item) => (pred(item) ? -1 : 1));
+	return found.ok ? found.value : found.error;
+}
+
 /**
  * Where the first of the two slices of `q`'s items `start..end` ends, as std's
  * `slice_ranges` splits them at the end of its slots.
@@ -3378,12 +3498,12 @@ export function vecDrain<T>(v: T[], r: Bounds<number>, drop?: (item: T) => void)
 
 /** A `Vec`'s drain: of `rest`, what followed the range's start, the range, then the tail. */
 class VecDrain<T> extends Iter<T> implements Disposable {
-	private readonly v: T[];
-	private readonly rest: T[];
+	protected readonly v: T[];
+	protected readonly rest: T[];
 	private front = 0;
 	private back: number;
 	/** Where the tail starts in `rest`. */
-	private readonly tail: number;
+	protected readonly tail: number;
 	private readonly drop: ((item: T) => void) | undefined;
 
 	constructor(v: T[], rest: T[], tail: number, drop?: (item: T) => void) {
@@ -3416,12 +3536,185 @@ class VecDrain<T> extends Iter<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		const from = this.front;
-		this.front = this.back;
-		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+		this.dropRest();
 		for (let i = this.tail; i < this.rest.length; i++) this.v.push(this.rest[i]);
 		this.rest.length = this.tail;
 	}
+
+	/** Drop what it has not yielded, as std's `Drain` drops it before the tail moves back. */
+	protected dropRest(): void {
+		const from = this.front;
+		this.front = this.back;
+		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+	}
+}
+
+/**
+ * `Vec::splice` of `size`-byte elements: a drain of `r` that, once dropped, drops what it
+ * has not yielded and fills the gap from `items`, as std's: after a drain to the end, by
+ * `extend`, which reserves for a `trusted`, `TrustedLen`, iterator as it does; else by
+ * each item until the gap is full, then the tail moved past room for `items`' lower bound,
+ * reserved for the whole vector, and then past room for the rest, collected. The tail moves
+ * back to the last item, and `items` drops last if it `drops`.
+ */
+export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, items: Iter<T>, size: number, trusted = false, drops = false, drop?: (item: T) => void): Iter<T> {
+	const [start, end] = boundsRange(r, v.length);
+	const cap = vecCapacity(v, size);
+	return new VecSplice(v, v.splice(start), end - start, drop, items, size, cap, trusted, drops);
+}
+
+class VecSplice<T> extends VecDrain<T> {
+	readonly items: Iter<T>;
+	private readonly size: number;
+	/** The vector's capacity, which its length, cut to the drain's start, no longer gives. */
+	private cap: number;
+	private readonly trusted: boolean;
+	private readonly drops: boolean;
+
+	constructor(v: T[], rest: T[], tail: number, drop: ((item: T) => void) | undefined, items: Iter<T>, size: number, cap: number, trusted: boolean, drops: boolean) {
+		super(v, rest, tail, drop);
+		this.items = items;
+		this.size = size;
+		this.cap = cap;
+		this.trusted = trusted;
+		this.drops = drops;
+	}
+
+	override [Symbol.dispose](): void {
+		this.dropRest();
+		const v = this.v as T[] & Capped;
+		const tailLen = this.rest.length - this.tail;
+		if (tailLen === 0) {
+			capSet(v, v.length, this.cap, this.size);
+			iterExtend(v, this.items, undefined, this.size, this.trusted);
+		} else {
+			this.splice(tailLen);
+			for (let i = this.tail; i < this.rest.length; i++) v.push(this.rest[i]);
+			capSet(v, v.length, this.cap, this.size);
+		}
+		this.rest.length = this.tail;
+		if (this.drops) dispose(this.items);
+	}
+
+	/** Each item of `items` pushed into the gap before the tail of `tailLen`, which moves as std's `move_tail` moves it. */
+	private splice(tailLen: number): void {
+		const v = this.v;
+		let tailStart = v.length + this.tail;
+		const fill = (from: Iter<T>) => {
+			while (v.length < tailStart) {
+				const item = from.next();
+				if (item === DONE) return false;
+				v.push(item);
+			}
+			return true;
+		};
+		const moveTail = (additional: number) => {
+			this.cap = capReserve(tailStart + tailLen, this.cap, additional, this.size);
+			tailStart += additional;
+		};
+		if (!fill(this.items)) return;
+		const lower = this.items.sizeHint()[0];
+		if (lower > 0) {
+			moveTail(lower);
+			if (!fill(this.items)) return;
+		}
+		const collected: T[] = [];
+		for (let item = this.items.next(); item !== DONE; item = this.items.next()) collected.push(item);
+		if (collected.length === 0) return;
+		moveTail(collected.length);
+		fill(iterSlice(collected));
+	}
+}
+
+/** `Debug` of a `Vec`'s `Splice`, as std's derives: its drain, of what it has not yielded, each by `debug`, and the iterator it fills from by `items`. */
+export function fmtVecSplice<T, I>(it: Iter<T>, f: Formatter, debug: Debug<T>, items: Debug<I>): FmtResult {
+	const drain = (f: Formatter) => fmtDebugTupleFields(f, "Drain", [(f) => fmtList(it.remaining() as Iterable<T>, f, debug)]);
+	const held = iterHeld<I>((it as unknown as { items: Iter<unknown> }).items);
+	return fmtDebugStructFields(f, "Splice", ["drain", "replace_with"], [drain, (f) => items(held, f)]);
+}
+
+/**
+ * `Vec::extract_if`: each element of `start..end` that `f` returns true for, taken out as
+ * it is read, front to back, with each it keeps moved back over the gaps, as std's; once
+ * dropped, those after the last it read moved back too, and `f` dropped. `f` is given each
+ * element or, with `places`, its place. Of a `Vec<u8>`, `a` is its bytes and `v` the vector.
+ */
+class VecExtractIf<T> extends Iter<T> implements Disposable {
+	private readonly v: { length: number };
+	private readonly a: T[];
+	private idx: number;
+	private readonly end: number;
+	private del = 0;
+	private readonly old: number;
+	private readonly f: (item: T | Place<T>) => boolean;
+	private readonly places: boolean;
+
+	constructor(v: { length: number }, a: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean) {
+		super();
+		this.v = v;
+		this.a = a;
+		this.old = v.length;
+		[this.idx, this.end] = boundsRange(r, v.length);
+		this.f = f;
+		this.places = places;
+	}
+
+	next(): T | Done {
+		while (this.idx < this.end) {
+			const i = this.idx;
+			const taken = this.f(this.places ? new AtIndex(this.a, i) : this.a[i]);
+			this.idx++;
+			if (taken) {
+				this.del++;
+				return this.a[i];
+			}
+			if (this.del > 0) this.a[i - this.del] = this.a[i];
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		return [0, this.end - this.idx];
+	}
+
+	/** What `Debug` writes of it: those it kept, those it has left to read, and those past its range. */
+	parts(): [Iterable<T>, Iterable<T>, Iterable<T>] {
+		const part = (start: number, end: number) => (this.a instanceof Uint8Array ? this.a.subarray(start, end) : this.a.slice(start, end)) as Iterable<T>;
+		return [part(0, this.idx - this.del), part(this.idx, this.end), part(this.end, this.old)];
+	}
+
+	[Symbol.dispose](): void {
+		if (this.del > 0) for (let i = this.idx; i < this.old; i++) this.a[i - this.del] = this.a[i];
+		this.v.length = this.old - this.del;
+		this.del = 0;
+		this.idx = this.end;
+		dispose(this.f);
+	}
+}
+
+/** `Vec::extract_if` of the elements within `r`, handing `f` each. */
+export function vecExtractIf<T>(v: T[], r: Bounds<number>, f: (item: T) => boolean): Iter<T> {
+	return new VecExtractIf(v, v, r, f as (item: T | Place<T>) => boolean, false);
+}
+
+/** `vecExtractIf` of elements JS copies: `f` takes the place of each. */
+export function vecExtractIfMut<T>(v: T[], r: Bounds<number>, f: (item: Place<T>) => boolean): Iter<T> {
+	return new VecExtractIf(v, v, r, f as (item: T | Place<T>) => boolean, true);
+}
+
+/** `Vec::extract_if` of bytes, whose places `f` takes. */
+export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean): Iter<number> {
+	return new VecExtractIf(v, v.data as unknown as number[], r, f as (item: number | Place<number>) => boolean, true);
+}
+
+/** `Debug` of a `Vec`'s `ExtractIf`, its parts each by `debug`, as std's. */
+export function fmtVecExtractIf<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const parts = (it as VecExtractIf<T>).parts();
+	let b = fmtDebugStruct(f, "ExtractIf");
+	["retained", "remainder", "skipped_tail"].forEach((name, i) => {
+		b = debugStructField(b, name, (f) => fmtList(parts[i], f, debug));
+	});
+	return debugStructFinishNonExhaustive(b);
 }
 
 /** `Vec::extend_from_within` of `size`-byte elements: room reserved for those within `r`, then a clone of each by `clone` pushed in order. */
@@ -3449,13 +3742,13 @@ export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
 
 /** A `Vec<u8>`'s drain, which reads the range from the vector's storage in place. */
 class ByteVecDrain extends Iter<number> implements Disposable {
-	private readonly v: ByteVec;
+	protected readonly v: ByteVec;
 	private readonly start: number;
-	private front: number;
-	private back: number;
-	private readonly end: number;
+	protected front: number;
+	protected back: number;
+	protected readonly end: number;
 	/** The vector's length before the drain, or -1 once the tail moved back. */
-	private length: number;
+	protected length: number;
 
 	constructor(v: ByteVec, start: number, end: number, length: number) {
 		super();
@@ -3492,6 +3785,73 @@ class ByteVecDrain extends Iter<number> implements Disposable {
 		this.v.data.copyWithin(this.start, this.end, this.length);
 		this.v.length = this.start + this.length - this.end;
 		this.length = -1;
+	}
+}
+
+/** `Vec::splice` of bytes, as `vecSplice`. */
+export function byteVecSplice(v: ByteVec, r: Bounds<number>, items: Iter<number>, trusted = false, drops = false): Iter<number> {
+	const [start, end] = boundsRange(r, v.length);
+	const length = v.length;
+	v.length = start;
+	return new ByteVecSplice(v, start, end, length, items, trusted, drops);
+}
+
+class ByteVecSplice extends ByteVecDrain {
+	readonly items: Iter<number>;
+	private readonly trusted: boolean;
+	private readonly drops: boolean;
+
+	constructor(v: ByteVec, start: number, end: number, length: number, items: Iter<number>, trusted: boolean, drops: boolean) {
+		super(v, start, end, length);
+		this.items = items;
+		this.trusted = trusted;
+		this.drops = drops;
+	}
+
+	override [Symbol.dispose](): void {
+		if (this.length < 0) return;
+		this.front = this.back;
+		const v = this.v;
+		const tailLen = this.length - this.end;
+		this.length = -1;
+		if (tailLen === 0) iterExtendBytes(v, this.items, undefined, this.trusted);
+		else {
+			let tailStart = this.end;
+			const fill = (from: Iter<number>) => {
+				while (v.length < tailStart) {
+					const byte = from.next();
+					if (byte === DONE) return false;
+					v.data[v.length++] = byte;
+				}
+				return true;
+			};
+			// Room reserved for the whole vector, its tail included, as std's `move_tail`.
+			const moveTail = (additional: number) => {
+				const filled = v.length;
+				v.length = tailStart + tailLen;
+				byteVecReserve(v, additional);
+				v.length = filled;
+				v.data.copyWithin(tailStart + additional, tailStart, tailStart + tailLen);
+				tailStart += additional;
+			};
+			const spliced = () => {
+				if (!fill(this.items)) return;
+				const lower = this.items.sizeHint()[0];
+				if (lower > 0) {
+					moveTail(lower);
+					if (!fill(this.items)) return;
+				}
+				const collected: number[] = [];
+				for (let byte = this.items.next(); byte !== DONE; byte = this.items.next()) collected.push(byte);
+				if (collected.length === 0) return;
+				moveTail(collected.length);
+				fill(iterSlice(collected));
+			};
+			spliced();
+			v.data.copyWithin(v.length, tailStart, tailStart + tailLen);
+			v.length += tailLen;
+		}
+		if (this.drops) dispose(this.items);
 	}
 }
 
