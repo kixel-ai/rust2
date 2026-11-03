@@ -1218,10 +1218,15 @@ pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			rewrite!(words.as_rchunks_mut::<2>().1, out, |c| digest_words(c), [7, 8], [9, 10]);
 			let (_, chunks) = bytes.as_rchunks_mut::<4>();
 			rewrite!(chunks, out, |c| digest(c), [1, 2, 3, 4], [5; 4]);
-			// Runs of runs, whose inner runs are views of the bytes too.
+			// Runs of runs, and of runs of runs, whose inner runs are views of the bytes too.
 			let (pairs, _) = bytes.as_chunks_mut::<2>();
 			let (quads, _) = pairs.as_chunks_mut::<2>();
 			rewrite!(quads, out, |c| c[0][0] ^ c[1][1], [[1, 2], [3, 4]], [[5, 6], [7, 8]]);
+			let (pairs, _) = bytes.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			let (octets, _) = quads.as_chunks_mut::<2>();
+			let one = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
+			rewrite!(octets, out, |c| c[0][0][0] ^ c[1][1][1], one, [[[9; 2]; 2]; 2]);
 			let (pairs, _) = words.as_chunks_mut::<2>();
 			let (quads, _) = pairs.as_chunks_mut::<2>();
 			rewrite!(

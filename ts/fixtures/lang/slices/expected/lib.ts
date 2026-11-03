@@ -13,6 +13,10 @@ export function copy$Option_array2_u8(v: Uint8Array | undefined): Uint8Array | u
 	return v === undefined ? v : copy$array_u8(v);
 }
 
+export function copy$array_array2_array2_u8(v: Uint8Array[][]): Uint8Array[][] {
+	return v.map(copy$array_array2_u8);
+}
+
 export function copy$array_array2_u16(v: rt.u16[][]): rt.u16[][] {
 	return v.map(copy$array_u16);
 }
