@@ -985,7 +985,9 @@ just ts census                # census moq-net and kio at the same revision
 Each fixture under `fixtures/` is translated and compared with its `expected/` snapshot,
 then type-checked with `tsc`. A fixture with a `harness::run(&[u8]) -> Vec<u8>` is also
 built natively for wasm32 and run beside its translation on the same inputs by
-`tests/differential.ts`, which fails on any difference in output or panic messages.
+`tests/differential.ts`, which fails on any difference in output or panic messages. A
+harness that names its cases draws each case's inputs from a stream seeded by its name,
+so adding, removing, or reordering a case changes no other case's inputs.
 
 - `codec` vendors moq-net's sync codec, which a harness outside the crate could not reach,
   and writes its errors' `Display` and `Debug`. It is also translated without
