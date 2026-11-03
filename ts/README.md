@@ -123,6 +123,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
+| a pointer to a struct whose last field unsizes to a trait object: `Rc<RefCell<dyn Trait>>`, `Arc<Mutex<dyn Trait>>`, `Arc<RwLock<dyn Trait>>`, the crate's own `&Tail<dyn Trait>` | `rt.tailDyn` of the struct it was made from: the same struct, whose other fields, borrows, and lock are that struct's own, and whose last field is the trait object a `&mut` to that field would be, made where it is read |
 | `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
@@ -485,7 +486,10 @@ last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. An `Rc` is 
 and a `Pin` the pointer it holds. A `Weak<T>` unsized to a `Weak<dyn Trait>` keeps the
 `Arc<T>` and makes the `rt.ArcDyn` as it upgrades, since the value of `new_cyclic`'s
 `Weak` is not there yet as it unsizes. `Arc::from` or `Rc::from` of a box is an `rt.Arc`
-of what the box is, which drops it with the last clone. A `dyn Buf`'s object holds no
+of what the box is, which drops it with the last clone. A pointer to a struct whose last
+field unsizes to a trait object, such as `RefCell<dyn Trait>`, is an `rt.tailDyn` view of
+the struct it was made from, behind an `rt.ArcDyn` in an `Arc`, and two such pointers are
+equal if their views are of one struct. A `dyn Buf`'s object holds no
 `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,

@@ -241,6 +241,7 @@ fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::Addr
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::Ipv4Addr` from another crate
 fixtures/reject/src/values.rs:addr_parsed+1:4: unsupported call to `core::str::<impl str>::parse::<std::net::Ipv4Addr>`
 fixtures/reject/src/values.rs:ascii_octal+1:4: unsupported call to `core::num::<impl u8>::is_ascii_octdigit`
+fixtures/reject/src/values.rs:cell_unsized+1:2: a coercion to `&std::cell::Cell<dyn objects::Reading>`, which is not supported yet
 fixtures/reject/src/values.rs:dangling_enum+1:11: a dangling pointer to `values::Only`, a value of no bytes made of more than structs and tuples
 fixtures/reject/src/values.rs:float+0:14: unsupported type `f16`
 fixtures/reject/src/values.rs:float+0:25: unsupported type `f16`
@@ -256,7 +257,6 @@ fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::M
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None`
 fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
-fixtures/reject/src/values.rs:tail_read+1:30: a coercion to `&values::Tail<dyn objects::Reading>`, which is not supported yet
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

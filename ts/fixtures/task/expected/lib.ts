@@ -385,6 +385,10 @@ export class ofPlace$drops_Held {
 	constructor(v: rt.Place<Held.Held>) {
 		this.v = v;
 	}
+
+	[Symbol.dispose](): void {
+		drop$drops_Held(this.v.v);
+	}
 }
 
 export const out$u32: { err: unknown } = { err: undefined };

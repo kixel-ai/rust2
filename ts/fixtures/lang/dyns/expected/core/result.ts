@@ -3,6 +3,7 @@
 import * as rt from "../rt.ts";
 import { drop$Result_sync_Arc_u32_sync_Arc_dyn_Any_marker_Sync_marker_Send, drop$Result_tuple2_usize_u32_Rc_dyn_Any, drop$Result_tuple2_usize_u8_sync_Arc_dyn_Any_marker_Sync_marker_Send, drop$Result_u16_boxed_Box_dyn_Any } from "../lib.ts";
 import type * as Any from "../core/any.Any.ts";
+import type * as Shape from "../dyns.Shape.ts";
 import type * as Square from "../dyns.Square.ts";
 
 export function ok$00p9ap8(self: rt.Result<rt.Arc<rt.u32>, rt.Arc<Any.Any>>): rt.Arc<rt.u32> | undefined {
@@ -75,11 +76,25 @@ export function map$1p3mw15(self: rt.Result<Square.Square, Any.Any>, op: (a0: Sq
 	return self as rt.Result<rt.u16, Any.Any>;
 }
 
+export function map$1wuk0uc(self: rt.Result<rt.RefCell<Shape.Shape>, rt.BorrowError>, op: (a0: rt.RefCell<Shape.Shape>) => rt.u8): rt.Result<rt.u8, rt.BorrowError> {
+	if (self.ok) {
+		return rt.Ok(op(self.value));
+	}
+	return self as rt.Result<rt.u8, rt.BorrowError>;
+}
+
 export function map$0zujxcv(self: rt.Result<rt.Arc<[rt.u8, rt.u8]>, rt.Arc<Any.Any>>, op: (a0: rt.Arc<[rt.u8, rt.u8]>) => [rt.usize, rt.u8]): rt.Result<[rt.usize, rt.u8], rt.Arc<Any.Any>> {
 	if (self.ok) {
 		return rt.Ok(op(self.value));
 	}
 	return self as rt.Result<[rt.usize, rt.u8], rt.Arc<Any.Any>>;
+}
+
+export function unwrapOr$09hp2h5(self: rt.Result<rt.u8, rt.BorrowError>, default_: rt.u8): rt.u8 {
+	if (self.ok) {
+		return self.value;
+	}
+	return default_;
 }
 
 //# sourceMappingURL=result.ts.map
