@@ -14,8 +14,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// What tells this instance apart from others of its item, after a `$`: the items it is
 	/// nested in below its module, the trait it implements with the trait's type arguments,
 	/// then its self type and its own type arguments, each as [`ty`] spells it. In its
-	/// type's module, `owned`, the type goes without saying, but not its arguments nor the
-	/// references to it: `fmt_Display_copy_Pair` for `Wrap<copy::Pair>`'s `Display::fmt`.
+	/// type's module, `owned`, the type goes without saying, but not its arguments nor, after
+	/// them, the references to it: `fmt_Display_copy_Pair` for `Wrap<copy::Pair>`'s
+	/// `Display::fmt`, and `bytes_Buf_u8_mut` for `&mut Wrap<u8>`'s `Buf::chunk`.
 	/// It depends on the instance alone, so reaching another renames nothing; empty for a
 	/// function of its module that is neither generic, of a type, nor of a trait.
 	pub(super) fn suffix(&self, instance: Instance<'tcx>, owned: bool) -> String {
@@ -41,9 +42,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 				inner = *pointee;
 			}
 			match inner.kind() {
+				// The references after the arguments, which no spelling of a type ends in, so
+				// `&mut Take<T>`'s differ from `Take<&mut T>`'s.
 				ty::Adt(_, args) if owned => {
-					parts.extend(refs);
 					parts.extend(args.types().map(|t| ty(tcx, t)));
+					parts.extend(refs);
 				}
 				_ => parts.push(ty(tcx, self_ty)),
 			}

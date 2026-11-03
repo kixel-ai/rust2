@@ -5,6 +5,9 @@ import { out$f32, out$f64, out$i64, out$i8, out$u64, out$u8 } from "./lib.ts";
 import * as Pieces from "./buf.Pieces.ts";
 import { panicAdvance, panicDoesNotFit } from "./bytes.ts";
 import { signExtend } from "./bytes/buf/buf_impl.ts";
+import * as Chain from "./bytes/buf/chain.Chain.ts";
+import { new_$mut_buf_Provided as take_new_$mut_buf_Provided } from "./bytes/buf/take.ts";
+import type * as Take from "./bytes/buf/take.Take.ts";
 import type * as TryGetError from "./bytes.TryGetError.ts";
 import { unwrapOrElse$1wp5sd9 as result_unwrapOrElse$1wp5sd9, unwrapOrElse$0s2lrc9 as result_unwrapOrElse$0s2lrc9 } from "./core/result.ts";
 
@@ -1149,6 +1152,132 @@ export function tryGetF64Ne$bytes_Buf(self: Provided): rt.f64 | undefined {
 }
 
 /**
+ * Creates an adaptor which will read at most `limit` bytes from `self`.
+ *
+ * This function returns a new instance of `Buf` which will read at most
+ * `limit` bytes.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::{Buf, BufMut};
+ *
+ * let mut buf = b"hello world"[..].take(5);
+ * let mut dst = vec![];
+ *
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b"hello");
+ *
+ * let mut buf = buf.into_inner();
+ * dst.clear();
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b" world");
+ * ```
+ */
+export function take$bytes_Buf_mut(self: Provided, limit: rt.usize): Take.Take<Provided> {
+	return take_new_$mut_buf_Provided(self, limit);
+}
+
+/**
+ * Creates an adaptor which will chain this buffer with another.
+ *
+ * The returned `Buf` instance will first consume all bytes from `self`.
+ * Afterwards the output is equivalent to the output of next.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut chain = b"hello "[..].chain(&b"world"[..]);
+ *
+ * let full = chain.copy_to_bytes(11);
+ * assert_eq!(full.chunk(), b"hello world");
+ * ```
+ */
+export function chain$bytes_Buf_bytes_Bytes(self: Provided, next: rt.ByteSlice): Chain.Chain<Provided, rt.ByteSlice> {
+	return Chain.new$buf_Provided_bytes_Bytes(self, next);
+}
+
+/**
+ * Creates an adaptor which will chain this buffer with another.
+ *
+ * The returned `Buf` instance will first consume all bytes from `self`.
+ * Afterwards the output is equivalent to the output of next.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut chain = b"hello "[..].chain(&b"world"[..]);
+ *
+ * let full = chain.copy_to_bytes(11);
+ * assert_eq!(full.chunk(), b"hello world");
+ * ```
+ */
+export function chain$bytes_Buf_mut_ref_slice_u8(self: Provided, next: rt.Place<rt.ByteSlice>): Chain.Chain<Provided, rt.Place<rt.ByteSlice>> {
+	return Chain.new$buf_Provided_mut_ref_slice_u8(self, next);
+}
+
+/**
+ * Creates an adaptor which will chain this buffer with another.
+ *
+ * The returned `Buf` instance will first consume all bytes from `self`.
+ * Afterwards the output is equivalent to the output of next.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut chain = b"hello "[..].chain(&b"world"[..]);
+ *
+ * let full = chain.copy_to_bytes(11);
+ * assert_eq!(full.chunk(), b"hello world");
+ * ```
+ */
+export function chain$bytes_Buf_ref_slice_u8(self: Provided, next: rt.ByteSlice): Chain.Chain<Provided, rt.ByteSlice> {
+	return Chain.new$buf_Provided_ref_slice_u8(self, next);
+}
+
+/**
+ * Advance the internal cursor of the Buf
+ *
+ * The next call to `chunk()` will return a slice starting `cnt` bytes
+ * further into the underlying buffer.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.chunk(), &b"hello world"[..]);
+ *
+ * buf.advance(6);
+ *
+ * assert_eq!(buf.chunk(), &b"world"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function **may** panic if `cnt > self.remaining()`.
+ *
+ * # Implementer notes
+ *
+ * It is recommended for implementations of `advance` to panic if `cnt >
+ * self.remaining()`. If the implementation does not panic, the call must
+ * behave as if `cnt == self.remaining()`.
+ *
+ * A call with `cnt == 0` should never panic and be a no-op.
+ */
+export function advance$bytes_Buf_mut(self: rt.Place<Provided>, cnt: rt.usize): void {
+	advance$bytes_Buf(self.v, cnt);
+}
+
+/**
  * Returns a slice starting at the current position and of length between 0
  * and `Buf::remaining()`. Note that this *can* return a shorter slice (this
  * allows non-continuous internal representation).
@@ -1180,6 +1309,31 @@ export function tryGetF64Ne$bytes_Buf(self: Provided): rt.f64 | undefined {
  */
 export function chunk$bytes_Buf_mut(self: Provided): rt.ByteSlice {
 	return chunk$bytes_Buf(self);
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut(self: rt.Place<Provided>, len: rt.usize): rt.ByteSlice {
+	return rt.bufCopyToBytes(self.v, len, remaining$bytes_Buf, chunk$bytes_Buf, advance$bytes_Buf as (a0: Provided, a1: rt.usize) => undefined);
 }
 
 /**

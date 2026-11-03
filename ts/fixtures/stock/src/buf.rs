@@ -200,6 +200,7 @@ impl Buf for Pieces {
 
 	// Its own, as moq's buffers have: the provided one reads through a `Take<&mut Self>`.
 	fn copy_to_bytes(&mut self, len: usize) -> Bytes {
+		assert!(len <= self.remaining(), "`len` greater than remaining");
 		let mut out = BytesMut::with_capacity(len);
 		while out.len() < len {
 			let take = self.chunk().len().min(len - out.len());
@@ -225,6 +226,28 @@ impl Buf for Provided {
 
 	fn advance(&mut self, cnt: usize) {
 		self.0.advance(cnt);
+	}
+}
+
+/// Pieces whose `copy_to_bytes` gives zeros, so what `put` reads it by shows.
+struct Zeroes(Pieces);
+
+impl Buf for Zeroes {
+	fn remaining(&self) -> usize {
+		self.0.remaining()
+	}
+
+	fn chunk(&self) -> &[u8] {
+		self.0.chunk()
+	}
+
+	fn advance(&mut self, cnt: usize) {
+		self.0.advance(cnt);
+	}
+
+	fn copy_to_bytes(&mut self, len: usize) -> Bytes {
+		self.0.advance(len);
+		Bytes::from(vec![0; len])
 	}
 }
 
@@ -380,10 +403,24 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 			_ => write_all(&mut boxed_buf, data, cap > 0),
 		}
 	}
-	// A buffer of the crate's own, in chunks as long as the room `chunk_mut` gives.
-	vec.put(Pieces::new(data, data.len() / 2));
-	BufMut::put(&mut &mut through_vec, Pieces::new(data, data.len() / 2));
-	BufMut::put(&mut boxed_vec, Pieces::new(data, data.len() / 2));
+	// A buffer of the crate's own, chunk by chunk, through a `&mut` or a `Box` in chunks as
+	// long as the room `chunk_mut` gives.
+	let pieces = || Pieces::new(data, data.len() / 2);
+	vec.put(pieces());
+	buf.put(pieces());
+	BufMut::put(&mut &mut through_vec, pieces());
+	BufMut::put(&mut &mut through_buf, pieces());
+	BufMut::put(&mut boxed_vec, pieces());
+	BufMut::put(&mut boxed_buf, pieces());
+	// Into no capacity, `bytes` takes the storage of what `copy_to_bytes` makes, through the
+	// `&mut` it reads past, and into storage that holds any, which this shares, reads chunk
+	// by chunk.
+	let mut zeroes = Zeroes(pieces());
+	let mut taken = BytesMut::new();
+	taken.put(&mut zeroes);
+	taken.put(&mut zeroes);
+	taken.put(Zeroes(pieces()));
+	out.extend_from_slice(&taken);
 	for vec in [&vec, &through_vec, &boxed_vec] {
 		out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
 	}
@@ -462,6 +499,64 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 		}
 	};
 	out.extend_from_slice(format!("{part:?} {bytes:?}").as_bytes());
+}
+
+/// `Chain`s of buffers of each kind, nested, and as and of `dyn Buf`s: `copy_to_bytes` of a
+/// length picked about where the first half ends, which takes from either half or copies
+/// across both, then the reads of `reads` across them.
+pub fn chains(data: &[u8], out: &mut Vec<u8>) {
+	let [kind, cut, pick, ops @ ..] = data else {
+		return;
+	};
+	let (ops, input) = ops.split_at(ops.len() / 2);
+	let cut = *cut as usize % (input.len() + 1);
+	let (a, b) = input.split_at(cut);
+	let (b1, b2) = b.split_at(b.len() / 2);
+	let bytes = Bytes::copy_from_slice;
+	// Where each chain's halves end, the inner one's of a nested chain too.
+	let at = [a.len(), a.len() + b1.len()];
+	let rest = match kind % 9 {
+		0 => chained(at, &mut bytes(a).chain(b), pick, ops, out),
+		1 => chained(at, &mut a.chain(BytesMut::from(b)), pick, ops, out),
+		2 => chained(at, &mut Pieces::new(a, a.len() / 2).chain(Provided(Pieces::new(b, 1))), pick, ops, out),
+		3 => chained(at, &mut Provided(Pieces::new(a, 1)).chain(bytes(b)), pick, ops, out),
+		4 => chained(at, &mut bytes(input).take(cut).chain(Pieces::new(b, 0)), pick, ops, out),
+		5 => chained(at, &mut a.chain(bytes(b1)).chain(Pieces::new(b2, 1)), pick, ops, out),
+		6 => chained(at, &mut bytes(a).chain(Provided(Pieces::new(b1, 0)).chain(b2)), pick, ops, out),
+		7 => {
+			let first: Box<dyn Buf> = Box::new(Pieces::new(a, 1));
+			let mut chain: Box<dyn Buf> = Box::new(first.chain(bytes(b1)).chain(b2));
+			chained(at, &mut *chain, pick, ops, out)
+		}
+		// A half lent through a `&mut`, which reads past what it lends.
+		_ => {
+			let mut last = b;
+			let mut chain = Provided(Pieces::new(a, 0)).chain(&mut last);
+			let buf: &mut dyn Buf = &mut chain;
+			let rest = chained(at, buf, pick, ops, out);
+			out.push(last.len() as u8);
+			rest
+		}
+	};
+	out.extend_from_slice(&rest);
+}
+
+/// `copy_to_bytes` of a length by `pick`: where a half ends by `at`, one more or less, all
+/// of it, one past it, which panics, or any, then `read_all` of the rest.
+fn chained<B: Buf + ?Sized>(at: [usize; 2], buf: &mut B, pick: &u8, ops: &[u8], out: &mut Vec<u8>) -> Vec<u8> {
+	let all = buf.remaining();
+	let len = match pick % 8 {
+		0 => at[0],
+		1 => at[0] + 1,
+		2 => at[0].saturating_sub(1),
+		3 => at[1],
+		4 => at[1] + 1,
+		5 => all,
+		6 => all + 1,
+		_ => usize::from(pick / 8) % (all + 2),
+	};
+	out.extend_from_slice(&buf.copy_to_bytes(len));
+	read_all(buf, ops, out)
 }
 
 /// The bytes of a case's input, taken from the front.

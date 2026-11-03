@@ -437,6 +437,41 @@ export function bytesMutPutStorage(b: BytesMut, s: Bytes): void {
 	bytesMutExtend(b, s);
 }
 
+/**
+ * `BufMut::put` into a `BytesMut` of a `Buf` the crate implements: at zero capacity, its
+ * `copy_to_bytes` of all of it, whose storage `bytes` takes, and else each chunk in turn.
+ */
+export function bytesMutPutBuf<B>(
+	b: BytesMut,
+	src: B,
+	hasRemaining: (src: B) => boolean,
+	remaining: (src: B) => usize,
+	chunk: (src: B) => ByteSlice,
+	advance: (src: B, cnt: usize) => void,
+	copyToBytes: (src: B, len: usize) => Bytes,
+): void {
+	if (!hasRemaining(src)) return;
+	// A capacity is at least the length.
+	if (b.length === 0 && !b.exact) unsureCapacity();
+	if (b.length === 0 && b.cap === 0) {
+		bytesMutPutStorage(b, copyToBytes(src, remaining(src)));
+		return;
+	}
+	bytesMutReserve(b, remaining(src));
+	while (hasRemaining(src)) {
+		const s = chunk(src);
+		bytesMutExtend(b, s);
+		advance(src, s.length as usize);
+	}
+}
+
+/** Where `put` reads a capacity of storage that was shared, which nothing here knows. */
+function unsureCapacity(): never {
+	throw new Error(
+		"rust2-ts: `BufMut::put` of a `Buf` into a `BytesMut` whose storage was shared, which picks the methods it calls by a capacity that depends on whether other handles of it dropped",
+	);
+}
+
 /** `BytesMut::extend_from_slice`, and `BufMut::put_slice`. */
 export function bytesMutExtend(b: BytesMut, s: ByteSlice): void {
 	bytesMutReserve(b, s.length);
@@ -507,6 +542,26 @@ export function bytesMutPutChunked(b: BytesMut, s: ByteSlice): void {
 		copyBytes(b.data, b.start + b.length, s.data, s.start + done, n);
 		b.length += n;
 		done += n;
+	}
+}
+
+/** The provided `BufMut::put` into a `BytesMut` of a `Buf` the crate implements, each chunk cut to the room left. */
+export function bytesMutPutBufChunked<B>(
+	b: BytesMut,
+	src: B,
+	hasRemaining: (src: B) => boolean,
+	remaining: (src: B) => usize,
+	chunk: (src: B) => ByteSlice,
+	advance: (src: B, cnt: usize) => void,
+): void {
+	if (remaining(src) > ISIZE_MAX - b.length) panicAdvance(remaining(src), ISIZE_MAX - b.length);
+	while (hasRemaining(src)) {
+		const s = chunk(src);
+		if (!b.exact) unsureCapacity();
+		const n = Math.min(bytesMutRoom(b), s.length);
+		copyBytes(b.data, b.start + b.length, s.data, s.start, n);
+		b.length += n;
+		advance(src, n as usize);
 	}
 }
 
