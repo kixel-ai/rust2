@@ -975,12 +975,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether the call at `at` given `arg` as a `ty`, a mutable reference or pointer to a
-	/// type that may be kept as an object, fills memory nothing points into yet there.
+	/// type that holds by value one that may be kept as an object, as an array's iterator
+	/// does, fills memory nothing points into yet there.
 	fn fills_fresh(&mut self, ty: Ty<'tcx>, arg: &mir::Operand<'tcx>, at: Location, made: Option<Local>) -> bool {
 		let (ty::Ref(_, inner, ty::Mutability::Mut) | ty::RawPtr(inner, ty::Mutability::Mut)) = *ty.kind() else {
 			return false;
 		};
-		self.inline(inner)
+		!self.parts(inner).is_empty()
 			&& arg
 				.place()
 				.and_then(|p| p.as_local())

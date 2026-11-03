@@ -54,6 +54,14 @@ export function copy$array_array3_u8(v: Uint8Array[]): Uint8Array[] {
 	return v.map(copy$array_u8);
 }
 
+export function copy$array_lengths_Row_lengths_Loud(v: Row.Row<Loud.Loud>[]): Row.Row<Loud.Loud>[] {
+	return v.map(copy$lengths_Row_lengths_Loud);
+}
+
+export function copy$array_lengths_Row_u8(v: Row.Row<rt.u8>[]): Row.Row<rt.u8>[] {
+	return v.map(copy$lengths_Row_u8);
+}
+
 export function copy$array_lengths_Tagged_u32(v: Tagged.Tagged<rt.u32>[]): Tagged.Tagged<rt.u32>[] {
 	return v.slice();
 }
@@ -67,11 +75,11 @@ export function copy$array_u8(v: Uint8Array): Uint8Array {
 }
 
 export function copy$lengths_Row_lengths_Loud(v: Row.Row<Loud.Loud>): Row.Row<Loud.Loud> {
-	return new Row.Row(v._0, copy$tuple2_u16_u16(v._1));
+	return new Row.Row(v._0, copy$tuple2_u8_u8(v._1));
 }
 
 export function copy$lengths_Row_u8(v: Row.Row<rt.u8>): Row.Row<rt.u8> {
-	return new Row.Row(v._0, copy$tuple2_u16_u16(v._1));
+	return new Row.Row(v._0, copy$tuple2_u8_u8(v._1));
 }
 
 export function copy$lengths_Tagged_array0_u32(v: Tagged.Tagged<rt.u32[]>): Tagged.Tagged<rt.u32[]> {
@@ -274,7 +282,7 @@ export function copy$mem_MaybeUninit_tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt
 	return [v[0], v[1]];
 }
 
-export function copy$tuple2_u16_u16(v: [rt.u16, rt.u16]): [rt.u16, rt.u16] {
+export function copy$tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt.u8] {
 	return [v[0], v[1]];
 }
 
