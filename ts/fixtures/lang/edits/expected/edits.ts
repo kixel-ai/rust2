@@ -1017,7 +1017,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_121.value));
 		rt.refRelease(_121);
 		const v2: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_234: rt.u8): rt.u16 => {
-			return (((_234 as rt.u16)) << 4) & 0xffff;
+			return ((_234 as rt.u16) << 4) & 0xffff;
 		}), undefined, 2, true);
 		const _127: rt.u8 = (kind >> 3) & 3;
 		if (_127 === 0) {
