@@ -532,6 +532,18 @@ impl Drop for Logged<'_> {
 	}
 }
 
+/// The crate's own iterator, counting down to zero.
+struct Down(u8);
+
+impl Iterator for Down {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+}
+
 /// `f` of `place` and `value`, as a function value of two parameters is called.
 fn apply<T, U, R>(f: impl FnOnce(&mut T, U) -> R, place: &mut T, value: U) -> R {
 	f(place, value)
@@ -539,7 +551,8 @@ fn apply<T, U, R>(f: impl FnOnce(&mut T, U) -> R, place: &mut T, value: U) -> R 
 
 /// `mem::take`, `replace`, and `swap` passed as function values: to an iterator's `map`, to
 /// a generic function, and as `fn` pointers, of bytes JS keeps in a place, of objects it
-/// writes in place, and of values that drop.
+/// writes in place, and of values that drop; and other function values that a call
+/// lowers differently, as `next`.
 pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(0);
 	match kind % 4 {
@@ -584,6 +597,20 @@ pub fn values(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let mut bytes = data.to_vec();
 			bytes.iter_mut().for_each(u8::make_ascii_uppercase);
 			out.extend_from_slice(&bytes);
+			// A value of std's `next` returns `None` past the end, as its call does.
+			let next: fn(&mut std::vec::IntoIter<u8>) -> Option<u8> = Iterator::next;
+			let mut it = bytes.into_iter();
+			while let Some(b) = next(&mut it) {
+				out.push(b);
+			}
+			out.push(next(&mut it).is_none() as u8);
+			// And of the crate's own.
+			let next: fn(&mut Down) -> Option<u8> = Down::next;
+			let mut down = Down(at(0) % 4);
+			while let Some(b) = next(&mut down) {
+				out.push(b);
+			}
+			out.push(next(&mut down).is_none() as u8);
 		}
 		2 => {
 			let (mut a, mut b) = (at(0), at(1));

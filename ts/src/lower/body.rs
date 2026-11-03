@@ -353,11 +353,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		if let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs) {
 			let sym = match self.t.bound_fn(instance, span) {
 				Some(sym) => Some(sym),
-				// One that takes byte slices as their parts, or hands back its `Ok`'s parts, is wrapped
-				// to take and return them whole.
+				// One that takes byte slices as their parts, hands back its `Ok`'s parts, or is a
+				// `next`, which returns an item or `rt.DONE`, is wrapped to take and return what
+				// a call does.
 				None => (self.t.lowers(self.t.typing_env_pub(), instance)
 					&& self.t.parted(instance).is_empty()
-					&& self.t.slotted(instance).is_none())
+					&& self.t.slotted(instance).is_none()
+					&& !super::iter::is_next(tcx, instance.def_id()))
 				.then(|| self.t.callee(instance, span)),
 			};
 			if let Some(sym) = sym {

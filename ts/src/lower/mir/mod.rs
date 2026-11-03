@@ -367,7 +367,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	assigned: IndexVec<Local, bool>,
 	span: Span,
 	pub labels: u32,
-	/// Whether this is an `Iterator::next`, which returns an item or `rt.DONE`.
+	/// Whether this is an `Iterator::next`'s body, which returns an item or `rt.DONE`.
 	next: bool,
 	/// Blocks whose only statement is `unreachable`.
 	unreachable: FxHashSet<BasicBlock>,
@@ -490,7 +490,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			assigned: IndexVec::from_elem_n(false, n),
 			span,
 			labels: 0,
-			next: crate::lower::iter::is_next(tcx, mir.source.def_id()),
+			// A shim of `next`, such as its value's, returns the `Option` its callers take.
+			next: matches!(mir.source.instance, ty::InstanceKind::Item(_))
+				&& crate::lower::iter::is_next(tcx, mir.source.def_id()),
 			unreachable: FxHashSet::default(),
 			rereadable_parts: None,
 			redirect: FxHashMap::default(),
