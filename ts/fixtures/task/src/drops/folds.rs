@@ -405,13 +405,19 @@ pub(super) fn folded(log: &Log, id: u32, arg: u8) {
 	}
 }
 
-/// Run scenario `arg % 9` of what folds back to front and through what wraps a closure
-/// beside another, as `folded` does.
+/// Run scenario `arg % 18` of what folds back to front and through what wraps a closure
+/// beside another, as `folded` does, of `rfold` and `try_rfold` themselves, and of a
+/// crate's iterator with folds of its own. The last panics in a `try_rfold`, with what
+/// dropped before.
 pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 	let guard = |n: u32| Guard::new(id + n, log.clone());
 	let guards = |from: u32, to: u32| (from..to).map(guard).collect::<Vec<_>>();
 	let (c, d, e) = (guard(10), guard(11), guard(12));
-	match arg % 9 {
+	let pile = |from: u32, to: u32| Pile {
+		held: guards(from, to),
+		log: log.clone(),
+	};
+	match arg % 18 {
 		0 => {
 			let n: u32 = guards(1, 5)
 				.into_iter()
@@ -536,7 +542,7 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 				.count();
 			log.note(format!("fuse {n} {m} {}", e.id()));
 		}
-		_ => {
+		8 => {
 			// What is left between the front and back iterators, folded.
 			let mut flat = guards(1, 4)
 				.into_iter()
@@ -550,6 +556,189 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 			let n = flat.map(move |g| g.id() + d.id()).count();
 			log.note(format!("flat {n} {}", e.id()));
 		}
+		9 => {
+			// `rfold` through a closure that owns a guard, of an accumulator that drops.
+			let kept = guards(1, 6)
+				.into_iter()
+				.map(move |g| {
+					log.note(format!("map {} {}", g.id(), c.id()));
+					g
+				})
+				.rfold(Some(guard(20)), move |kept, g| {
+					log.note(format!("rfold {} {}", g.id(), d.id()));
+					if g.id() % 2 == 1 { Some(g) } else { kept }
+				});
+			// Of an iterator that drops nothing, by a closure that does.
+			let n = [1u32, 2, 3].iter().rfold(0, move |n, &k| n * 10 + k + e.id() - e.id());
+			log.note(format!("rfold {:?} {n}", kept.map(|g| g.id())));
+		}
+		10 => {
+			// `try_rfold` breaks by `None`, dropping its closure as it returns, before what the
+			// iterator still holds, which drops with it.
+			let mut held = guards(1, 6).into_iter();
+			let sum = held.try_rfold(0, move |n, g| {
+				log.note(format!("try {} {}", g.id(), c.id()));
+				(g.id() != id + 3).then(|| n + g.id() - id)
+			});
+			log.note(format!("tried {sum:?} {}", held.len()));
+			let rest = held.try_rfold(0, move |n, g| Some(n + g.id() + d.id() - d.id()));
+			log.note(format!("rest {rest:?} {}", e.id()));
+		}
+		11 => {
+			// By `Err`, through a `map` whose closure it borrows, which drops with the map.
+			let mut mapped = guards(1, 6).into_iter().map(move |g| {
+				log.note(format!("map {} {}", g.id(), c.id()));
+				g
+			});
+			let r: Result<u32, Guard> =
+				mapped.try_rfold(0, move |n, g| if g.id() == id + 2 { Err(g) } else { Ok(n + g.id() + d.id() - d.id()) });
+			log.note(format!("tried {:?}", r.map_err(|g| g.id())));
+			drop(mapped);
+			log.note(format!("dropped {}", e.id()));
+		}
+		12 => {
+			use std::ops::ControlFlow;
+			// By `Break`, through a chain, which drops each half it ends as it goes.
+			let mut chained = guards(1, 3).into_iter().chain(guards(3, 6)).rev();
+			let r = chained.try_rfold(0, move |n, g| match g.id() == id + 4 {
+				true => ControlFlow::Break(g),
+				false => ControlFlow::Continue(n + g.id() + c.id() - c.id()),
+			});
+			let broke = match r {
+				ControlFlow::Break(g) => Some(g.id()),
+				ControlFlow::Continue(_) => None,
+			};
+			log.note(format!("broke {broke:?}"));
+			let n = chained.try_rfold(0, |n, g| ControlFlow::<(), u32>::Continue(n + g.id() - id));
+			log.note(format!("rest {n:?} {} {}", d.id(), e.id()));
+		}
+		13 => {
+			// Of nothing: each closure drops before the iterator, or as `try_rfold` returns.
+			let none = guards(1, 1).into_iter().rfold(guard(20), move |acc, _| {
+				log.note(format!("never {}", c.id()));
+				acc
+			});
+			let mut empty = guards(1, 1).into_iter().map(move |g| g.id() + d.id());
+			let tried = empty.try_rfold(0u32, move |n, k| {
+				log.note(format!("never {}", e.id()));
+				n.checked_add(k)
+			});
+			log.note(format!("empty {} {tried:?}", none.id()));
+		}
+		14 => {
+			// A crate's own `fold` and `count`, which std's `map` and `for_each` call, drop
+			// what they hold, and the closure std gives the fold, where their bodies do.
+			let n = pile(1, 5)
+				.map(move |g| {
+					log.note(format!("map {} {}", g.id(), c.id()));
+					g.id() - id
+				})
+				.fold(0, |n, k| n * 10 + k);
+			log.note(format!("fold {n}"));
+			pile(5, 8).for_each(move |g| log.note(format!("each {} {}", g.id(), d.id())));
+			let m = pile(1, 4).map(move |g| g.id() + e.id()).count();
+			log.note(format!("count {m} {}", pile(4, 6).count()));
+		}
+		15 => {
+			// Its own `last`, `rfold` through `rev`, and `nth` through `skip`.
+			let last = pile(1, 4).last();
+			let back = pile(4, 7).rev().last();
+			let skipped = pile(7, 9).skip(1).last();
+			log.note(format!("last {:?} {:?} {:?}", last.map(|g| g.id()), back.map(|g| g.id()), skipped.map(|g| g.id())));
+			let kept = pile(1, 6).rev().map(move |g| (g, c.id())).fold(None, |_, (g, _)| Some(g));
+			log.note(format!("rev {:?} {} {}", kept.map(|g| g.id()), d.id(), e.id()));
+		}
+		16 => {
+			// Its own `nth_back` through `rev`, `count` through `chain`, and its `fold`, not
+			// called through `&mut`.
+			let mut held = pile(1, 6);
+			log.note(format!("nth {:?}", held.by_ref().rev().nth(1).map(|g| g.id())));
+			let n = (&mut held).map(move |g| g.id() + c.id() - c.id()).fold(0, |n, k| n + k);
+			log.note(format!("borrowed {n} {}", held.held.len()));
+			let m = pile(6, 8).chain(guards(8, 10)).count();
+			log.note(format!("chain {m} {} {}", d.id(), e.id()));
+		}
+		_ => {
+			let a = guard(20);
+			guards(1, 6).into_iter().try_rfold(0, move |n, g| {
+				assert!(g.id() != id + 3, "try_rfold of g{} with g{} after\n{}", g.id(), a.id(), String::from_utf8(log.text()).unwrap());
+				Some(n + g.id())
+			});
+		}
+	}
+}
+
+/// Guards popped from the back of a `Vec`, with its own `nth`, `nth_back`, folds, `count`,
+/// and `last`, each of which notes it was called. Its folds stop short of the last guard
+/// and drop their closure before they note they folded, and the rest drop with it.
+struct Pile {
+	held: Vec<Guard>,
+	log: Log,
+}
+
+impl Iterator for Pile {
+	type Item = Guard;
+
+	fn next(&mut self) -> Option<Guard> {
+		self.held.pop()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		(self.held.len(), Some(self.held.len()))
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Guard> {
+		self.log.note(format!("pile nth {n}"));
+		for _ in 0..n {
+			drop(self.held.pop()?);
+		}
+		self.held.pop()
+	}
+
+	fn fold<B, F: FnMut(B, Guard) -> B>(mut self, init: B, mut f: F) -> B {
+		self.log.note("pile fold".into());
+		let mut acc = init;
+		while self.held.len() > 1 {
+			acc = f(acc, self.held.pop().unwrap());
+		}
+		drop(f);
+		self.log.note("pile folded".into());
+		acc
+	}
+
+	fn count(self) -> usize {
+		self.log.note(format!("pile count {}", self.held.len()));
+		self.held.len()
+	}
+
+	fn last(mut self) -> Option<Guard> {
+		self.log.note("pile last".into());
+		(!self.held.is_empty()).then(|| self.held.remove(0))
+	}
+}
+
+impl DoubleEndedIterator for Pile {
+	fn next_back(&mut self) -> Option<Guard> {
+		(!self.held.is_empty()).then(|| self.held.remove(0))
+	}
+
+	fn nth_back(&mut self, n: usize) -> Option<Guard> {
+		self.log.note(format!("pile nth_back {n}"));
+		for _ in 0..n {
+			drop(self.next_back()?);
+		}
+		self.next_back()
+	}
+
+	fn rfold<B, F: FnMut(B, Guard) -> B>(mut self, init: B, mut f: F) -> B {
+		self.log.note("pile rfold".into());
+		let mut acc = init;
+		while self.held.len() > 1 {
+			acc = f(acc, self.held.remove(0));
+		}
+		drop(f);
+		self.log.note("pile rfolded".into());
+		acc
 	}
 }
 

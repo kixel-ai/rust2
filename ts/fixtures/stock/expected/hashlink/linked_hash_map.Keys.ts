@@ -25,7 +25,7 @@ export function nextBack$iter_DoubleEndedIterator_u16_u32(self: Keys<rt.u16, rt.
 }
 
 export function len$iter_ExactSizeIterator_u16_u32(self: Keys<rt.u16, rt.u32>): rt.usize {
-	return rt.iterFrom(self.inner, (it: linked_hash_map_Iter.Iter<rt.u16, rt.u32>) => linked_hash_map_Iter.next$iter_Iterator_u16_u32(it), undefined, (it: linked_hash_map_Iter.Iter<rt.u16, rt.u32>) => linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32(it), (it: linked_hash_map_Iter.Iter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it))).len();
+	return rt.iterFrom(self.inner, linked_hash_map_Iter.next$iter_Iterator_u16_u32, undefined, { hint: linked_hash_map_Iter.sizeHint$iter_Iterator_u16_u32, back: (it: linked_hash_map_Iter.Iter<rt.u16, rt.u32>) => rt.iterFromOption(linked_hash_map_Iter.nextBack$iter_DoubleEndedIterator_u16_u32(it)) }).len();
 }
 
 //# sourceMappingURL=linked_hash_map.Keys.ts.map

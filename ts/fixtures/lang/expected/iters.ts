@@ -1643,7 +1643,7 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, _13);
 	}
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.iterSum(rt.iterMap(rt.iterFrom({ left, step }, (it: iters_Countdown.Countdown) => iters_Countdown.next$iter_Iterator(it)), (n4: rt.u8): rt.u64 => {
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.iterSum(rt.iterMap(rt.iterFrom({ left, step }, iters_Countdown.next$iter_Iterator), (n4: rt.u8): rt.u64 => {
 		return rt.u64Div(rt.u64Mul(n4 as rt.u64, 1000), 7);
 	}), rt.u64Add, 0))));
 	const down: iters_Countdown.Countdown = { left, step };
@@ -1658,9 +1658,9 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 	}
 	rt.byteVecPush(out, down.left);
-	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFrom({ inner: rt.iterSlice(rt.byteSliceView(data)) }, (it: Evens.Evens) => Evens.next$iter_Iterator(it)), "next")));
+	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFrom({ inner: rt.iterSlice(rt.byteSliceView(data)) }, Evens.next$iter_Iterator), "next")));
 	const byRef: Evens.Evens = { inner: rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, rt.min(data.length, 1)))) };
-	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterTake(rt.iterFrom(byRef, (it: Evens.Evens) => Evens.next$iter_Iterator(it)), 2), "next")));
+	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterTake(rt.iterFrom(byRef, Evens.next$iter_Iterator), 2), "next")));
 	const iter2: Evens.Evens = byRef;
 	while (true) {
 		const _60: rt.u8 | rt.Done = Evens.next$iter_Iterator(iter2);
@@ -1674,9 +1674,9 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 	}
-	rt.byteVecPush(out, rt.iterCount(rt.iterFrom(byRef, (it: Evens.Evens) => Evens.next$iter_Iterator(it))) & 0xff);
-	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFrom(new Halving.Halving(left), (it: Halving.Halving<rt.u8>) => Halving.next$iter_Iterator_u8(it)), "next")));
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.iterSum(rt.iterFrom(new Halving.Halving(rt.u64Mul(left as rt.u64, 4294967297)), (it: Halving.Halving<rt.u64>) => Halving.next$iter_Iterator_u64(it)), rt.u64Add, 0))));
+	rt.byteVecPush(out, rt.iterCount(rt.iterFrom(byRef, Evens.next$iter_Iterator)) & 0xff);
+	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFrom(new Halving.Halving(left), Halving.next$iter_Iterator_u8), "next")));
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.iterSum(rt.iterFrom(new Halving.Halving(rt.u64Mul(left as rt.u64, 4294967297)), Halving.next$iter_Iterator_u64), rt.u64Add, 0))));
 }
 
 /**

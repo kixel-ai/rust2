@@ -279,7 +279,8 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
 moves read steps in place, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
-std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, and `len` where std's adaptors
+std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
+and of one it owns its own `fold`, `rfold`, `count`, and `last`, where std's adaptors
 call them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
@@ -447,7 +448,9 @@ drop it where std's do. So do iterators: one that owns its items, as a `Vec`'s `
 map's `drain` does, drops those it still holds by `[Symbol.dispose]`, an adaptor drops
 what it skips or rejects, and a consumer that takes an iterator by value drops it:
 through each `rt.Iter`'s own `fold` where std's folds, which drops each adaptor's closure
-as its fold ends, before what it wraps, as std's does. A `Vec`'s `drain` leaves the vector
+as its fold ends, before what it wraps, as std's does. The crate's own `fold` is given that
+closure as a `Box<dyn FnMut>`, which drops it where its body does. A `try_rfold` drops its
+closure as it returns, leaving what the iterator holds to drop with it. A `Vec`'s `drain` leaves the vector
 what precedes its range until it drops, then drops what it still holds and moves the tail
 back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
 
@@ -880,7 +883,8 @@ copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as `partition`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
-`size_hint` and `len`, such as `fold` or `nth_back`,
+those, such as `find` or `for_each`, or whose own `fold` or `rfold` holds its accumulator in an
+`Option` or a `Poll`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate, or chars, a mutable `str` slice, a copy of a closure that changes

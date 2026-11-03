@@ -4,6 +4,8 @@ import * as rt from "../rt.ts";
 import { drop$Option_tuple2_tuple2_model_Guard_model_Guard_model_Guard as lib_drop$Option_tuple2_tuple2_model_Guard_model_Guard_model_Guard, drop$tuple2_i32_model_Guard as lib_drop$tuple2_i32_model_Guard, drop$tuple2_model_Guard_i32 as lib_drop$tuple2_model_Guard_i32, drop$tuple2_model_Guard_model_Guard as lib_drop$tuple2_model_Guard_model_Guard, drop$tuple2_model_Guard_u64 as lib_drop$tuple2_model_Guard_u64, drop$tuple2_tuple2_model_Guard_model_Guard_model_Guard as lib_drop$tuple2_tuple2_model_Guard_model_Guard_model_Guard, drop$tuple2_usize_model_Guard as lib_drop$tuple2_usize_model_Guard } from "../lib.ts";
 import { thenSome$0zvoczk, thenSome$1af3oea, then$06wuxll, then$1xpp3sz, then$0ea5h05 } from "../core/bool.ts";
 import { map$0ccnsmq as option_map$0ccnsmq, map$1raha9y as option_map$1raha9y, map$0lq7mno as option_map$0lq7mno, map$01pvlgn as option_map$01pvlgn, map$14zg54s as option_map$14zg54s, mapOr$01ozsk3 as option_mapOr$01ozsk3 } from "../core/option.ts";
+import { mapErr$0nvqjog as result_mapErr$0nvqjog } from "../core/result.ts";
+import * as Pile from "../drops/folds.Pile.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
@@ -933,353 +935,734 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 }
 
 /**
- * Run scenario `arg % 9` of what folds back to front and through what wraps a closure
- * beside another, as `folded` does.
+ * Run scenario `arg % 18` of what folds back to front and through what wraps a closure
+ * beside another, as `folded` does, of `rfold` and `try_rfold` themselves, and of a
+ * crate's iterator with folds of its own. The last panics in a `try_rfold`, with what
+ * dropped before.
  */
 export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	let n!: rt.u32;
 	let f!: Guard.Guard;
-	let _344: boolean = false;
-	let _343: boolean = false;
-	const guard: (a0: rt.u32) => Guard.Guard = (n7: rt.u32): Guard.Guard => {
-		return Guard.new(rt.u32Add(id, n7), Log.clone$Clone(log));
+	let broke!: rt.u32 | undefined;
+	let _733: boolean = false;
+	let _732: boolean = false;
+	let _731: boolean = false;
+	const guard: (a0: rt.u32) => Guard.Guard = (n11: rt.u32): Guard.Guard => {
+		return Guard.new(rt.u32Add(id, n11), Log.clone$Clone(log));
 	};
 	const guards: (a0: rt.u32, a1: rt.u32) => Guard.Guard[] = (from: rt.u32, to: rt.u32): Guard.Guard[] => {
 		return rt.iterToArray(rt.iterMap(new rt.Range(from, to), guard), undefined, 8, true);
 	};
 	const _11: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(10), guard(11), guard(12)];
+	_733 = true;
 	const c: Guard.Guard = _11[0];
-	_344 = true;
+	_732 = true;
 	const d: Guard.Guard = _11[1];
-	_343 = true;
+	_731 = true;
 	const e: Guard.Guard = _11[2];
-	const _21: rt.u8 = rt.u8Rem(arg, 9);
-	if (_21 === 0) {
-		const _27: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
-		const captured24 = c;
-		const _25: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterMap(_27, rt.closure((g27: Guard.Guard): Guard.Guard => {
-			const _917: rt.u32 = Guard.id(g27);
-			const _1216: rt.u32 = Guard.id(captured24);
-			const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_917, f), (f: rt.Formatter) => rt.u32Display(_1216, f)];
-			Log.note(log, rt.fmtFormat(["map ", args36[0], " ", args36[1]]));
-			return g27;
+	const pile: (a0: rt.u32, a1: rt.u32) => Pile.Pile = (from2: rt.u32, to2: rt.u32): Pile.Pile => {
+		return new Pile.Pile(guards(from2, to2), Log.clone$Clone(log));
+	};
+	const _23: rt.u8 = rt.u8Rem(arg, 18);
+	if (_23 === 0) {
+		const _29: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured46 = c;
+		const _27: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterMap(_29, rt.closure((g51: Guard.Guard): Guard.Guard => {
+			const _926: rt.u32 = Guard.id(g51);
+			const _1225: rt.u32 = Guard.id(captured46);
+			const args84: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_926, f), (f: rt.Formatter) => rt.u32Display(_1225, f)];
+			Log.note(log, rt.fmtFormat(["map ", args84[0], " ", args84[1]]));
+			return g51;
 		}, (): void => {
-			captured24[Symbol.dispose]();
+			captured46[Symbol.dispose]();
 		})));
-		_344 = false;
-		const captured25 = id;
-		const captured26 = d;
-		const n: rt.u32 = rt.iterSum(rt.iterMap(_25, rt.closure((g28: Guard.Guard): rt.u32 => {
-			const _029: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g28), captured25), Guard.id(captured26)), Guard.id(captured26));
-			g28[Symbol.dispose]();
-			return _029;
+		_732 = false;
+		const captured47 = id;
+		const captured48 = d;
+		n = rt.iterSum(rt.iterMap(_27, rt.closure((g52: Guard.Guard): rt.u32 => {
+			const _058: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g52), captured47), Guard.id(captured48)), Guard.id(captured48));
+			g52[Symbol.dispose]();
+			return _058;
 		}, (): void => {
-			captured26[Symbol.dispose]();
+			captured48[Symbol.dispose]();
 		})), rt.u32Add, 0, true);
-		const _39: rt.u32 = Guard.id(e);
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n, f), (f: rt.Formatter) => rt.u32Display(_39, f)];
+		const _41: rt.u32 = Guard.id(e);
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n, f), (f: rt.Formatter) => rt.u32Display(_41, f)];
 		Log.note(log, rt.fmtFormat(["map ", args2[0], " ", args2[1]]));
-	} else if (_21 === 1) {
-		const _51: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
-		const captured19 = c;
-		const _49: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterFilter(_51, rt.closure((g23: Guard.Guard): boolean => {
-			return Guard.id(g23) !== Guard.id(captured19);
+	} else if (_23 === 1) {
+		const _53: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured41 = c;
+		const _51: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterFilter(_53, rt.closure((g47: Guard.Guard): boolean => {
+			return Guard.id(g47) !== Guard.id(captured41);
 		}, (): void => {
-			captured19[Symbol.dispose]();
+			captured41[Symbol.dispose]();
 		}), rt.drop));
-		_344 = false;
-		const captured20 = id;
-		const captured21 = d;
-		const n2: rt.u32 = rt.iterSum(rt.iterMap(_49, rt.closure((g24: Guard.Guard): rt.u32 => {
-			const _025: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g24), captured20), Guard.id(captured21)), Guard.id(captured21));
-			g24[Symbol.dispose]();
-			return _025;
+		_732 = false;
+		const captured42 = id;
+		const captured43 = d;
+		const n2: rt.u32 = rt.iterSum(rt.iterMap(_51, rt.closure((g48: Guard.Guard): rt.u32 => {
+			const _054: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g48), captured42), Guard.id(captured43)), Guard.id(captured43));
+			g48[Symbol.dispose]();
+			return _054;
 		}, (): void => {
-			captured21[Symbol.dispose]();
+			captured43[Symbol.dispose]();
 		})), rt.u32Add, 0, true);
 		f = guard(13);
-		const _64: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
-		_343 = false;
-		const captured22 = e;
-		const _62: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterFilterMap(_64, rt.closure((g25: Guard.Guard): Guard.Guard | undefined => {
-			return thenSome$0zvoczk(Guard.id(g25) !== Guard.id(captured22), g25);
+		const _66: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
+		_731 = false;
+		const captured44 = e;
+		const _64: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterFilterMap(_66, rt.closure((g49: Guard.Guard): Guard.Guard | undefined => {
+			return thenSome$0zvoczk(Guard.id(g49) !== Guard.id(captured44), g49);
 		}, (): void => {
-			captured22[Symbol.dispose]();
+			captured44[Symbol.dispose]();
 		})));
-		const captured23 = f;
-		const m: rt.usize = rt.ownedCount(rt.iterMap(_62, rt.closure((g26: Guard.Guard): rt.u32 => {
-			const _027: rt.u32 = rt.u32Add(Guard.id(g26), Guard.id(captured23));
-			g26[Symbol.dispose]();
-			return _027;
+		const captured45 = f;
+		const m: rt.usize = rt.ownedCount(rt.iterMap(_64, rt.closure((g50: Guard.Guard): rt.u32 => {
+			const _056: rt.u32 = rt.u32Add(Guard.id(g50), Guard.id(captured45));
+			g50[Symbol.dispose]();
+			return _056;
 		}, (): void => {
-			captured23[Symbol.dispose]();
+			captured45[Symbol.dispose]();
 		})));
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n2, f), (f: rt.Formatter) => rt.usizeDisplay(m, f)];
 		Log.note(log, rt.fmtFormat(["filter ", args4[0], " ", args4[1]]));
-	} else if (_21 === 2) {
-		const _85: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 4), rt.drop);
-		const captured15 = c;
-		const _84: rt.Iter<Guard.Guard> = rt.iterInspect(_85, rt.closure((g19: Guard.Guard): undefined => {
-			const _914: rt.u32 = Guard.id(g19);
-			const _1112: rt.u32 = Guard.id(captured15);
-			const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_914, f), (f: rt.Formatter) => rt.u32Display(_1112, f)];
-			Log.note(log, rt.fmtFormat(["inspect ", args32[0], " ", args32[1]]));
+	} else if (_23 === 2) {
+		const _87: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 4), rt.drop);
+		_733 = false;
+		const captured37 = c;
+		const _86: rt.Iter<Guard.Guard> = rt.iterInspect(_87, rt.closure((g43: Guard.Guard): undefined => {
+			const _923: rt.u32 = Guard.id(g43);
+			const _1134: rt.u32 = Guard.id(captured37);
+			const args80: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_923, f), (f: rt.Formatter) => rt.u32Display(_1134, f)];
+			Log.note(log, rt.fmtFormat(["inspect ", args80[0], " ", args80[1]]));
 		}, (): void => {
-			captured15[Symbol.dispose]();
+			captured37[Symbol.dispose]();
 		}));
-		_344 = false;
-		const captured16 = d;
-		const n3: rt.usize = rt.ownedCount(rt.iterMap(_84, rt.closure((g20: Guard.Guard): rt.u32 => {
-			const _022: rt.u32 = rt.u32Add(Guard.id(g20), Guard.id(captured16));
-			g20[Symbol.dispose]();
-			return _022;
+		_732 = false;
+		const captured38 = d;
+		const n3: rt.usize = rt.ownedCount(rt.iterMap(_86, rt.closure((g44: Guard.Guard): rt.u32 => {
+			const _051: rt.u32 = rt.u32Add(Guard.id(g44), Guard.id(captured38));
+			g44[Symbol.dispose]();
+			return _051;
 		}, (): void => {
-			captured16[Symbol.dispose]();
+			captured38[Symbol.dispose]();
 		})));
 		const f2: Guard.Guard = guard(13);
-		const _98: rt.Iter<Guard.Guard> = rt.iterSlice(guards(4, 8), rt.drop);
-		_343 = false;
-		const captured17 = e;
-		const _96: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterInspect(_98, rt.closure((g21: Guard.Guard): undefined => {
-			const _915: rt.u32 = Guard.id(g21);
-			const _1113: rt.u32 = Guard.id(captured17);
-			const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_915, f), (f: rt.Formatter) => rt.u32Display(_1113, f)];
-			Log.note(log, rt.fmtFormat(["inspect ", args34[0], " ", args34[1]]));
+		const _100: rt.Iter<Guard.Guard> = rt.iterSlice(guards(4, 8), rt.drop);
+		_731 = false;
+		const captured39 = e;
+		const _98: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterInspect(_100, rt.closure((g45: Guard.Guard): undefined => {
+			const _924: rt.u32 = Guard.id(g45);
+			const _1137: rt.u32 = Guard.id(captured39);
+			const args82: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_924, f), (f: rt.Formatter) => rt.u32Display(_1137, f)];
+			Log.note(log, rt.fmtFormat(["inspect ", args82[0], " ", args82[1]]));
 		}, (): void => {
-			captured17[Symbol.dispose]();
+			captured39[Symbol.dispose]();
 		})));
-		const captured18 = f2;
-		const m2: rt.usize = rt.ownedCount(rt.iterMap(_96, rt.closure((g22: Guard.Guard): rt.u32 => {
-			const _023: rt.u32 = rt.u32Add(Guard.id(g22), Guard.id(captured18));
-			g22[Symbol.dispose]();
-			return _023;
+		const captured40 = f2;
+		const m2: rt.usize = rt.ownedCount(rt.iterMap(_98, rt.closure((g46: Guard.Guard): rt.u32 => {
+			const _052: rt.u32 = rt.u32Add(Guard.id(g46), Guard.id(captured40));
+			g46[Symbol.dispose]();
+			return _052;
 		}, (): void => {
-			captured18[Symbol.dispose]();
+			captured40[Symbol.dispose]();
 		})));
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.usizeDisplay(m2, f)];
 		Log.note(log, rt.fmtFormat(["inspect ", args6[0], " ", args6[1]]));
-	} else if (_21 === 3) {
-		const _120: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+	} else if (_23 === 3) {
+		const _122: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured36 = c;
+		const _133: [rt.usize, rt.u32] | undefined = option_map$14zg54s(rt.ownedLast(rt.iterRev(rt.iterEnumerate(rt.iterMap(_122, rt.closure((g41: Guard.Guard): Guard.Guard => {
+			const _922: rt.u32 = Guard.id(g41);
+			const _1223: rt.u32 = Guard.id(captured36);
+			const args78: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_922, f), (f: rt.Formatter) => rt.u32Display(_1223, f)];
+			Log.note(log, rt.fmtFormat(["map ", args78[0], " ", args78[1]]));
+			return g41;
+		}, (): void => {
+			captured36[Symbol.dispose]();
+		})))), lib_drop$tuple2_usize_model_Guard), (_230: [rt.usize, Guard.Guard]): [rt.usize, rt.u32] => {
+			const i: rt.usize = _230[0];
+			const g42: Guard.Guard = _230[1];
+			const _050: [rt.usize, rt.u32] = [i, Guard.id(g42)];
+			g42[Symbol.dispose]();
+			return _050;
+		});
+		const _135: rt.u32 = Guard.id(d);
+		const _138: rt.u32 = Guard.id(e);
+		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_133, f, (value: [rt.usize, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.u32Display(_135, f), (f: rt.Formatter) => rt.u32Display(_138, f)];
+		Log.note(log, rt.fmtFormat(["enumerate ", args8[0], " ", args8[1], " ", args8[2]]));
+	} else if (_23 === 4) {
+		const _150: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured34 = c;
+		const n4: rt.usize = rt.ownedCount(rt.iterRev(rt.iterRev(rt.iterMap(_150, rt.closure((g39: Guard.Guard): rt.u32 => {
+			const _046: rt.u32 = rt.u32Add(Guard.id(g39), Guard.id(captured34));
+			g39[Symbol.dispose]();
+			return _046;
+		}, (): void => {
+			captured34[Symbol.dispose]();
+		})))));
+		const _158: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
+		_732 = false;
+		const captured35 = d;
+		const m3: rt.u32 = rt.iterFold(rt.iterSkip(rt.iterMap(_158, rt.closure((g40: Guard.Guard): rt.u32 => {
+			const _047: rt.u32 = rt.u32Add(Guard.id(g40), Guard.id(captured35));
+			g40[Symbol.dispose]();
+			return _047;
+		}, (): void => {
+			captured35[Symbol.dispose]();
+		})), 1), 0, (n22: rt.u32, k5: rt.u32): rt.u32 => {
+			return rt.u32Add(n22, k5);
+		}, true);
+		const _169: rt.u32 = Guard.id(e);
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n4, f), (f: rt.Formatter) => rt.u32Display(m3, f), (f: rt.Formatter) => rt.u32Display(_169, f)];
+		Log.note(log, rt.fmtFormat(["twice ", args10[0], " ", args10[1], " ", args10[2]]));
+	} else if (_23 === 5) {
+		const _183: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured32 = c;
+		const _181: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.iterMap(_183, rt.closure((g35: Guard.Guard): Guard.Guard => {
+			const _920: rt.u32 = Guard.id(g35);
+			const _1221: rt.u32 = Guard.id(captured32);
+			const args76: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_920, f), (f: rt.Formatter) => rt.u32Display(_1221, f)];
+			Log.note(log, rt.fmtFormat(["map ", args76[0], " ", args76[1]]));
+			return g35;
+		}, (): void => {
+			captured32[Symbol.dispose]();
+		})), 2, rt.drop);
+		_732 = false;
+		const captured33 = d;
+		const _199: rt.u32 | undefined = option_map$1raha9y(rt.iterFold(rt.iterMap(_181, rt.closure((g36: Guard.Guard): [Guard.Guard, rt.u32] => {
+			return [g36, Guard.id(captured33)] as [Guard.Guard, rt.u32];
+		}, (): void => {
+			captured33[Symbol.dispose]();
+		})), guard(20), (kept7: Guard.Guard | undefined, _347: [Guard.Guard, rt.u32]): Guard.Guard | undefined => {
+			let _044!: Guard.Guard | undefined;
+			let _1222: boolean = false;
+			let _1126: boolean = false;
+			_1222 = true;
+			_1126 = true;
+			const g37: Guard.Guard = _347[0];
+			if (!(rt.u32Rem(Guard.id(g37), 2) === 1)) {
+				_1222 = false;
+				_044 = kept7;
+			} else {
+				_1126 = false;
+				_044 = g37;
+			}
+			if (_1126) {
+				g37[Symbol.dispose]();
+			}
+			_1126 = false;
+			if (_1222) {
+				rt.drop(kept7);
+				return _044;
+			}
+			return _044;
+		}, true), (g38: Guard.Guard): rt.u32 => {
+			const _045: rt.u32 = Guard.id(g38);
+			g38[Symbol.dispose]();
+			return _045;
+		});
+		const _201: rt.u32 = Guard.id(e);
+		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_199, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_201, f)];
+		Log.note(log, rt.fmtFormat(["step ", args12[0], " ", args12[1]]));
+	} else if (_23 === 6) {
+		const _213: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
+		_733 = false;
+		const captured30 = c;
+		const _210: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterStepBy(rt.iterMap(_213, rt.closure((g31: Guard.Guard): Guard.Guard => {
+			const _918: rt.u32 = Guard.id(g31);
+			const _1219: rt.u32 = Guard.id(captured30);
+			const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_918, f), (f: rt.Formatter) => rt.u32Display(_1219, f)];
+			Log.note(log, rt.fmtFormat(["map ", args74[0], " ", args74[1]]));
+			return g31;
+		}, (): void => {
+			captured30[Symbol.dispose]();
+		})), 2, rt.drop));
+		_732 = false;
+		const captured31 = d;
+		const _229: rt.u32 | undefined = option_map$1raha9y(rt.iterFold(rt.iterMap(_210, rt.closure((g32: Guard.Guard): [Guard.Guard, rt.u32] => {
+			return [g32, Guard.id(captured31)] as [Guard.Guard, rt.u32];
+		}, (): void => {
+			captured31[Symbol.dispose]();
+		})), guard(20), (kept6: Guard.Guard | undefined, _344: [Guard.Guard, rt.u32]): Guard.Guard | undefined => {
+			let _040!: Guard.Guard | undefined;
+			let _1220: boolean = false;
+			let _1121: boolean = false;
+			_1220 = true;
+			_1121 = true;
+			const g33: Guard.Guard = _344[0];
+			if (!(rt.u32Rem(Guard.id(g33), 2) === 1)) {
+				_1220 = false;
+				_040 = kept6;
+			} else {
+				_1121 = false;
+				_040 = g33;
+			}
+			if (_1121) {
+				g33[Symbol.dispose]();
+			}
+			_1121 = false;
+			if (_1220) {
+				rt.drop(kept6);
+				return _040;
+			}
+			return _040;
+		}, true), (g34: Guard.Guard): rt.u32 => {
+			const _041: rt.u32 = Guard.id(g34);
+			g34[Symbol.dispose]();
+			return _041;
+		});
+		const _231: rt.u32 = Guard.id(e);
+		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_229, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_231, f)];
+		Log.note(log, rt.fmtFormat(["step ", args14[0], " ", args14[1]]));
+	} else if (_23 === 7) {
+		const _241: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
+		_733 = false;
+		const captured27 = id;
+		const captured28 = c;
+		const n5: rt.u32 = rt.iterSum(rt.iterFuse(rt.iterMap(_241, rt.closure((g29: Guard.Guard): rt.u32 => {
+			const _036: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g29), captured27), Guard.id(captured28)), Guard.id(captured28));
+			g29[Symbol.dispose]();
+			return _036;
+		}, (): void => {
+			captured28[Symbol.dispose]();
+		})), true), rt.u32Add, 0, true);
+		const _250: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
+		_732 = false;
+		const captured29 = d;
+		const m4: rt.usize = rt.ownedCount(rt.iterRev(rt.iterFuse(rt.iterMap(_250, rt.closure((g30: Guard.Guard): rt.u32 => {
+			const _037: rt.u32 = rt.u32Add(Guard.id(g30), Guard.id(captured29));
+			g30[Symbol.dispose]();
+			return _037;
+		}, (): void => {
+			captured29[Symbol.dispose]();
+		})), true)));
+		const _261: rt.u32 = Guard.id(e);
+		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n5, f), (f: rt.Formatter) => rt.usizeDisplay(m4, f), (f: rt.Formatter) => rt.u32Display(_261, f)];
+		Log.note(log, rt.fmtFormat(["fuse ", args16[0], " ", args16[1], " ", args16[2]]));
+	} else if (_23 === 8) {
+		const _273: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 4), rt.drop);
+		_733 = false;
+		const captured23 = c;
+		const captured24 = guard;
+		const captured25 = id;
+		const flat: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterMap(_273, rt.closure((g25: Guard.Guard): Guard.Guard[] => {
+			const _916: rt.u32 = Guard.id(g25);
+			const _1217: rt.u32 = Guard.id(captured23);
+			const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_916, f), (f: rt.Formatter) => rt.u32Display(_1217, f)];
+			Log.note(log, rt.fmtFormat(["map ", args72[0], " ", args72[1]]));
+			const v: Guard.Guard[] = [];
+			const _2211: Guard.Guard = captured24(rt.u32Add(rt.u32Sub(Guard.id(g25), captured25), 3));
+			v.push(_2211);
+			v.push(g25);
+			return v;
+		}, (): void => {
+			captured23[Symbol.dispose]();
+		})), (value: Guard.Guard[]) => rt.iterSlice(value, rt.drop), true);
+		const part8 = option_map$1raha9y(rt.iterToOption(flat.next()), (g26: Guard.Guard): rt.u32 => {
+			const _033: rt.u32 = Guard.id(g26);
+			g26[Symbol.dispose]();
+			return _033;
+		});
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["ends ", args18[0]]));
+		const part9 = option_map$1raha9y(rt.iterToOption(flat.nextBack()), (g27: Guard.Guard): rt.u32 => {
+			const _034: rt.u32 = Guard.id(g27);
+			g27[Symbol.dispose]();
+			return _034;
+		});
+		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part9, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["ends ", args20[0]]));
+		const _306: rt.Iter<Guard.Guard> = flat;
+		_732 = false;
+		const captured26 = d;
+		const n6: rt.usize = rt.ownedCount(rt.iterMap(_306, rt.closure((g28: Guard.Guard): rt.u32 => {
+			const _035: rt.u32 = rt.u32Add(Guard.id(g28), Guard.id(captured26));
+			g28[Symbol.dispose]();
+			return _035;
+		}, (): void => {
+			captured26[Symbol.dispose]();
+		})));
+		const _314: rt.u32 = Guard.id(e);
+		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n6, f), (f: rt.Formatter) => rt.u32Display(_314, f)];
+		Log.note(log, rt.fmtFormat(["flat ", args22[0], " ", args22[1]]));
+	} else if (_23 === 9) {
+		const _324: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
+		_733 = false;
+		const captured20 = c;
+		const _323: rt.Iter<Guard.Guard> = rt.iterMap(_324, rt.closure((g22: Guard.Guard): Guard.Guard => {
+			const _914: rt.u32 = Guard.id(g22);
+			const _1215: rt.u32 = Guard.id(captured20);
+			const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_914, f), (f: rt.Formatter) => rt.u32Display(_1215, f)];
+			Log.note(log, rt.fmtFormat(["map ", args68[0], " ", args68[1]]));
+			return g22;
+		}, (): void => {
+			captured20[Symbol.dispose]();
+		}));
+		const _329: Guard.Guard | undefined = guard(20);
+		_732 = false;
+		const captured21 = d;
+		const kept3: Guard.Guard | undefined = rt.iterRfold(_323, _329, rt.closure((kept5: Guard.Guard | undefined, g23: Guard.Guard): Guard.Guard | undefined => {
+			let _029!: Guard.Guard | undefined;
+			let _304: boolean = false;
+			let _296: boolean = false;
+			_304 = true;
+			_296 = true;
+			const _1014: rt.u32 = Guard.id(g23);
+			const _1316: rt.u32 = Guard.id(captured21);
+			const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_1014, f), (f: rt.Formatter) => rt.u32Display(_1316, f)];
+			Log.note(log, rt.fmtFormat(["rfold ", args70[0], " ", args70[1]]));
+			if (!(rt.u32Rem(Guard.id(g23), 2) === 1)) {
+				_304 = false;
+				_029 = kept5;
+			} else {
+				_296 = false;
+				_029 = g23;
+			}
+			if (_296) {
+				g23[Symbol.dispose]();
+			}
+			if (_304) {
+				rt.drop(kept5);
+				return _029;
+			}
+			return _029;
+		}, (): void => {
+			captured21[Symbol.dispose]();
+		}), true, true);
+		const _335: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3]);
+		_731 = false;
+		const captured22 = e;
+		const n7: rt.u32 = rt.iterRfold(_335, 0, rt.closure((n21: rt.u32, _326: rt.u32): rt.u32 => {
+			return rt.u32Sub(rt.u32Add(rt.u32Add(rt.u32Mul(n21, 10), _326), Guard.id(captured22)), Guard.id(captured22));
+		}, (): void => {
+			captured22[Symbol.dispose]();
+		}), undefined, true);
+		const _345: rt.u32 | undefined = option_map$1raha9y(kept3, (g24: Guard.Guard): rt.u32 => {
+			const _031: rt.u32 = Guard.id(g24);
+			g24[Symbol.dispose]();
+			return _031;
+		});
+		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_345, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(n7, f)];
+		Log.note(log, rt.fmtFormat(["rfold ", args24[0], " ", args24[1]]));
+	} else if (_23 === 10) {
+		const held: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
+		_733 = false;
+		const captured17 = c;
+		const captured18 = id;
+		const sum: rt.u32 | undefined = rt.iterTryRfold(held, 0, rt.closure((n19: rt.u32, g20: Guard.Guard): rt.u32 | undefined => {
+			const _1012: rt.u32 = Guard.id(g20);
+			const _1314: rt.u32 = Guard.id(captured17);
+			const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_1012, f), (f: rt.Formatter) => rt.u32Display(_1314, f)];
+			Log.note(log, rt.fmtFormat(["try ", args66[0], " ", args66[1]]));
+			const _025: rt.u32 | undefined = then$0ea5h05(Guard.id(g20) !== rt.u32Add(captured18, 3), (): rt.u32 => {
+				return rt.u32Sub(rt.u32Add(n19, Guard.id(g20)), captured18);
+			});
+			g20[Symbol.dispose]();
+			return _025;
+		}, (): void => {
+			captured17[Symbol.dispose]();
+		}), true, true);
+		const _365: rt.usize = held.len();
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(sum, f, rt.u32Debug), (f: rt.Formatter) => rt.usizeDisplay(_365, f)];
+		Log.note(log, rt.fmtFormat(["tried ", args26[0], " ", args26[1]]));
+		_732 = false;
+		const captured19 = d;
+		const rest: rt.u32 | undefined = rt.iterTryRfold(held, 0, rt.closure((n20: rt.u32, g21: Guard.Guard): rt.u32 | undefined => {
+			const _027: rt.u32 | undefined = rt.u32Sub(rt.u32Add(rt.u32Add(n20, Guard.id(g21)), Guard.id(captured19)), Guard.id(captured19));
+			g21[Symbol.dispose]();
+			return _027;
+		}, (): void => {
+			captured19[Symbol.dispose]();
+		}), true, true);
+		const _382: rt.u32 = Guard.id(e);
+		const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(rest, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_382, f)];
+		Log.note(log, rt.fmtFormat(["rest ", args28[0], " ", args28[1]]));
+		rt.drop(held);
+	} else if (_23 === 11) {
+		const _391: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
+		_733 = false;
 		const captured14 = c;
-		const _131: [rt.usize, rt.u32] | undefined = option_map$14zg54s(rt.ownedLast(rt.iterRev(rt.iterEnumerate(rt.iterMap(_120, rt.closure((g17: Guard.Guard): Guard.Guard => {
-			const _913: rt.u32 = Guard.id(g17);
-			const _1214: rt.u32 = Guard.id(captured14);
-			const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_913, f), (f: rt.Formatter) => rt.u32Display(_1214, f)];
-			Log.note(log, rt.fmtFormat(["map ", args30[0], " ", args30[1]]));
+		const mapped: rt.Iter<Guard.Guard> = rt.iterMap(_391, rt.closure((g17: Guard.Guard): Guard.Guard => {
+			const _911: rt.u32 = Guard.id(g17);
+			const _1212: rt.u32 = Guard.id(captured14);
+			const args64: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_911, f), (f: rt.Formatter) => rt.u32Display(_1212, f)];
+			Log.note(log, rt.fmtFormat(["map ", args64[0], " ", args64[1]]));
 			return g17;
 		}, (): void => {
 			captured14[Symbol.dispose]();
-		})))), lib_drop$tuple2_usize_model_Guard), (_2: [rt.usize, Guard.Guard]): [rt.usize, rt.u32] => {
-			const i: rt.usize = _2[0];
-			const g18: Guard.Guard = _2[1];
-			const _021: [rt.usize, rt.u32] = [i, Guard.id(g18)];
-			g18[Symbol.dispose]();
-			return _021;
-		});
-		const _133: rt.u32 = Guard.id(d);
-		const _136: rt.u32 = Guard.id(e);
-		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_131, f, (value: [rt.usize, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.u32Display(_133, f), (f: rt.Formatter) => rt.u32Display(_136, f)];
-		Log.note(log, rt.fmtFormat(["enumerate ", args8[0], " ", args8[1], " ", args8[2]]));
-	} else if (_21 === 4) {
-		const _148: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
-		const captured12 = c;
-		const n4: rt.usize = rt.ownedCount(rt.iterRev(rt.iterRev(rt.iterMap(_148, rt.closure((g15: Guard.Guard): rt.u32 => {
-			const _017: rt.u32 = rt.u32Add(Guard.id(g15), Guard.id(captured12));
-			g15[Symbol.dispose]();
-			return _017;
+		}));
+		_732 = false;
+		const captured15 = id;
+		const captured16 = d;
+		const part5 = result_mapErr$0nvqjog(rt.iterTryRfold(mapped, 0, rt.closure((n18: rt.u32, g18: Guard.Guard): rt.Result<rt.u32, Guard.Guard> => {
+			let _023!: rt.Result<rt.u32, Guard.Guard>;
+			let _233: boolean = false;
+			_233 = true;
+			if (!(Guard.id(g18) === rt.u32Add(captured15, 2))) {
+				_023 = rt.Ok(rt.u32Sub(rt.u32Add(rt.u32Add(n18, Guard.id(g18)), Guard.id(captured16)), Guard.id(captured16)));
+			} else {
+				_233 = false;
+				_023 = rt.Err(g18);
+			}
+			if (_233) {
+				g18[Symbol.dispose]();
+				return _023;
+			}
+			return _023;
 		}, (): void => {
-			captured12[Symbol.dispose]();
-		})))));
-		const _156: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
-		_344 = false;
-		const captured13 = d;
-		const m3: rt.u32 = rt.iterFold(rt.iterSkip(rt.iterMap(_156, rt.closure((g16: Guard.Guard): rt.u32 => {
-			const _018: rt.u32 = rt.u32Add(Guard.id(g16), Guard.id(captured13));
-			g16[Symbol.dispose]();
-			return _018;
+			captured16[Symbol.dispose]();
+		}), undefined, true), (g19: Guard.Guard): rt.u32 => {
+			const _024: rt.u32 = Guard.id(g19);
+			g19[Symbol.dispose]();
+			return _024;
+		});
+		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(part5, f, rt.u32Debug, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["tried ", args30[0]]));
+		rt.drop(mapped);
+		const part6 = Guard.id(e);
+		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part6, f)];
+		Log.note(log, rt.fmtFormat(["dropped ", args32[0]]));
+	} else if (_23 === 12) {
+		const chained: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterChain(rt.iterSlice(guards(1, 3), rt.drop), rt.iterSlice(guards(3, 6), rt.drop)));
+		_733 = false;
+		const captured12 = id;
+		const captured13 = c;
+		const r2: rt.Result<rt.u32, Guard.Guard> = rt.iterTryRfold(chained, 0, rt.closure((n16: rt.u32, g15: Guard.Guard): rt.Result<rt.u32, Guard.Guard> => {
+			let _020!: rt.Result<rt.u32, Guard.Guard>;
+			let _232: boolean = false;
+			_232 = true;
+			if (!(Guard.id(g15) === rt.u32Add(captured12, 4))) {
+				_020 = rt.Ok(rt.u32Sub(rt.u32Add(rt.u32Add(n16, Guard.id(g15)), Guard.id(captured13)), Guard.id(captured13)));
+			} else {
+				_232 = false;
+				_020 = rt.Err(g15);
+			}
+			if (_232) {
+				g15[Symbol.dispose]();
+				return _020;
+			}
+			return _020;
 		}, (): void => {
 			captured13[Symbol.dispose]();
-		})), 1), 0, (n8: rt.u32, k: rt.u32): rt.u32 => {
-			return rt.u32Add(n8, k);
-		}, true);
-		const _167: rt.u32 = Guard.id(e);
-		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n4, f), (f: rt.Formatter) => rt.u32Display(m3, f), (f: rt.Formatter) => rt.u32Display(_167, f)];
-		Log.note(log, rt.fmtFormat(["twice ", args10[0], " ", args10[1], " ", args10[2]]));
-	} else if (_21 === 5) {
-		const _181: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
-		const captured10 = c;
-		const _179: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.iterMap(_181, rt.closure((g11: Guard.Guard): Guard.Guard => {
-			const _911: rt.u32 = Guard.id(g11);
-			const _1212: rt.u32 = Guard.id(captured10);
-			const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_911, f), (f: rt.Formatter) => rt.u32Display(_1212, f)];
-			Log.note(log, rt.fmtFormat(["map ", args28[0], " ", args28[1]]));
-			return g11;
-		}, (): void => {
-			captured10[Symbol.dispose]();
-		})), 2, rt.drop);
-		_344 = false;
-		const captured11 = d;
-		const _197: rt.u32 | undefined = option_map$1raha9y(rt.iterFold(rt.iterMap(_179, rt.closure((g12: Guard.Guard): [Guard.Guard, rt.u32] => {
-			return [g12, Guard.id(captured11)] as [Guard.Guard, rt.u32];
-		}, (): void => {
-			captured11[Symbol.dispose]();
-		})), guard(20), (kept4: Guard.Guard | undefined, _315: [Guard.Guard, rt.u32]): Guard.Guard | undefined => {
-			let _015!: Guard.Guard | undefined;
-			let _1213: boolean = false;
-			let _1111: boolean = false;
-			_1213 = true;
-			_1111 = true;
-			const g13: Guard.Guard = _315[0];
-			if (!(rt.u32Rem(Guard.id(g13), 2) === 1)) {
-				_1213 = false;
-				_015 = kept4;
-			} else {
-				_1111 = false;
-				_015 = g13;
-			}
-			if (_1111) {
-				g13[Symbol.dispose]();
-			}
-			_1111 = false;
-			if (_1213) {
-				rt.drop(kept4);
-				return _015;
-			}
-			return _015;
-		}, true), (g14: Guard.Guard): rt.u32 => {
-			const _016: rt.u32 = Guard.id(g14);
-			g14[Symbol.dispose]();
-			return _016;
+		}), undefined, true);
+		if (r2.ok) {
+			broke = undefined;
+		} else {
+			const g: Guard.Guard = r2.error;
+			broke = Guard.id(g);
+			g[Symbol.dispose]();
+		}
+		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(broke, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["broke ", args34[0]]));
+		const n8: rt.Result<rt.u32, undefined> = rt.iterTryRfold(chained, 0, (n17: rt.u32, g16: Guard.Guard): rt.Result<rt.u32, undefined> => {
+			const _021: rt.Result<rt.u32, undefined> = rt.Ok(rt.u32Sub(rt.u32Add(n17, Guard.id(g16)), id));
+			g16[Symbol.dispose]();
+			return _021;
 		});
-		const _199: rt.u32 = Guard.id(e);
-		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_197, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_199, f)];
-		Log.note(log, rt.fmtFormat(["step ", args12[0], " ", args12[1]]));
-	} else if (_21 === 6) {
-		const _211: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
-		const captured8 = c;
-		const _208: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterStepBy(rt.iterMap(_211, rt.closure((g7: Guard.Guard): Guard.Guard => {
-			const _94: rt.u32 = Guard.id(g7);
-			const _1210: rt.u32 = Guard.id(captured8);
-			const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_94, f), (f: rt.Formatter) => rt.u32Display(_1210, f)];
-			Log.note(log, rt.fmtFormat(["map ", args26[0], " ", args26[1]]));
-			return g7;
-		}, (): void => {
-			captured8[Symbol.dispose]();
-		})), 2, rt.drop));
-		_344 = false;
-		const captured9 = d;
-		const _227: rt.u32 | undefined = option_map$1raha9y(rt.iterFold(rt.iterMap(_208, rt.closure((g8: Guard.Guard): [Guard.Guard, rt.u32] => {
-			return [g8, Guard.id(captured9)] as [Guard.Guard, rt.u32];
+		const _461: rt.u32 = Guard.id(d);
+		const _464: rt.u32 = Guard.id(e);
+		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtControlFlow(n8, f, rt.u32Debug, rt.fmtUnit), (f: rt.Formatter) => rt.u32Display(_461, f), (f: rt.Formatter) => rt.u32Display(_464, f)];
+		Log.note(log, rt.fmtFormat(["rest ", args36[0], " ", args36[1], " ", args36[2]]));
+		rt.drop(chained);
+	} else if (_23 === 13) {
+		const _474: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 1), rt.drop);
+		const _478: Guard.Guard = guard(20);
+		_733 = false;
+		const captured9 = c;
+		const none: Guard.Guard = rt.iterRfold(_474, _478, rt.closure((acc: Guard.Guard, _316: Guard.Guard): Guard.Guard => {
+			const part3 = Guard.id(captured9);
+			const args60: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
+			Log.note(log, rt.fmtFormat(["never ", args60[0]]));
+			_316[Symbol.dispose]();
+			return acc;
 		}, (): void => {
 			captured9[Symbol.dispose]();
-		})), guard(20), (kept3: Guard.Guard | undefined, _311: [Guard.Guard, rt.u32]): Guard.Guard | undefined => {
-			let _011!: Guard.Guard | undefined;
-			let _1211: boolean = false;
-			let _1110: boolean = false;
-			_1211 = true;
-			_1110 = true;
-			const g9: Guard.Guard = _311[0];
-			if (!(rt.u32Rem(Guard.id(g9), 2) === 1)) {
-				_1211 = false;
-				_011 = kept3;
-			} else {
-				_1110 = false;
-				_011 = g9;
-			}
-			if (_1110) {
-				g9[Symbol.dispose]();
-			}
-			_1110 = false;
-			if (_1211) {
-				rt.drop(kept3);
-				return _011;
-			}
-			return _011;
-		}, true), (g10: Guard.Guard): rt.u32 => {
-			const _012: rt.u32 = Guard.id(g10);
-			g10[Symbol.dispose]();
-			return _012;
-		});
-		const _229: rt.u32 = Guard.id(e);
-		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_227, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_229, f)];
-		Log.note(log, rt.fmtFormat(["step ", args14[0], " ", args14[1]]));
-	} else if (_21 === 7) {
-		const _239: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 5), rt.drop);
-		const captured5 = id;
-		const captured6 = c;
-		const n5: rt.u32 = rt.iterSum(rt.iterFuse(rt.iterMap(_239, rt.closure((g5: Guard.Guard): rt.u32 => {
-			const _07: rt.u32 = rt.u32Sub(rt.u32Add(rt.u32Sub(Guard.id(g5), captured5), Guard.id(captured6)), Guard.id(captured6));
-			g5[Symbol.dispose]();
-			return _07;
+		}), true, true);
+		const _483: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 1), rt.drop);
+		_732 = false;
+		const captured10 = d;
+		const empty: rt.Iter<rt.u32> = rt.iterMap(_483, rt.closure((g14: Guard.Guard): rt.u32 => {
+			const _018: rt.u32 = rt.u32Add(Guard.id(g14), Guard.id(captured10));
+			g14[Symbol.dispose]();
+			return _018;
 		}, (): void => {
-			captured6[Symbol.dispose]();
-		})), true), rt.u32Add, 0, true);
-		const _248: rt.Iter<Guard.Guard> = rt.iterSlice(guards(5, 8), rt.drop);
-		_344 = false;
+			captured10[Symbol.dispose]();
+		}));
+		_731 = false;
+		const captured11 = e;
+		const tried: rt.u32 | undefined = rt.iterTryRfold(empty, 0, rt.closure((n15: rt.u32, k3: rt.u32): rt.u32 | undefined => {
+			const part4 = Guard.id(captured11);
+			const args62: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part4, f)];
+			Log.note(log, rt.fmtFormat(["never ", args62[0]]));
+			return rt.u32CheckedAdd(n15, k3);
+		}, (): void => {
+			captured11[Symbol.dispose]();
+		}), true, true);
+		const _497: rt.u32 = Guard.id(none);
+		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_497, f), (f: rt.Formatter) => rt.fmtOption(tried, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["empty ", args38[0], " ", args38[1]]));
+		rt.drop(empty);
+		none[Symbol.dispose]();
+	} else if (_23 === 14) {
+		const _507: Pile.Pile = pile(1, 5);
+		_733 = false;
+		const captured5 = c;
+		const captured6 = id;
+		const _510: (a0: Guard.Guard) => rt.u32 = rt.closure((g11: Guard.Guard): rt.u32 => {
+			const _94: rt.u32 = Guard.id(g11);
+			const _1210: rt.u32 = Guard.id(captured5);
+			const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_94, f), (f: rt.Formatter) => rt.u32Display(_1210, f)];
+			Log.note(log, rt.fmtFormat(["map ", args56[0], " ", args56[1]]));
+			const _014: rt.u32 = rt.u32Sub(Guard.id(g11), captured6);
+			g11[Symbol.dispose]();
+			return _014;
+		}, (): void => {
+			captured5[Symbol.dispose]();
+		});
+		const part2 = rt.iterFold(rt.iterMap(rt.iterFrom(_507, Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }), _510), 0, (n14: rt.u32, k2: rt.u32): rt.u32 => {
+			return rt.u32Add(rt.u32Mul(n14, 10), k2);
+		}, true);
+		const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part2, f)];
+		Log.note(log, rt.fmtFormat(["fold ", args40[0]]));
+		const _522: Pile.Pile = pile(5, 8);
+		_732 = false;
 		const captured7 = d;
-		const m4: rt.usize = rt.ownedCount(rt.iterRev(rt.iterFuse(rt.iterMap(_248, rt.closure((g6: Guard.Guard): rt.u32 => {
-			const _08: rt.u32 = rt.u32Add(Guard.id(g6), Guard.id(captured7));
-			g6[Symbol.dispose]();
-			return _08;
+		const _525: (a0: Guard.Guard) => undefined = rt.closure((g12: Guard.Guard): undefined => {
+			const _84: rt.u32 = Guard.id(g12);
+			const _1110: rt.u32 = Guard.id(captured7);
+			const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_84, f), (f: rt.Formatter) => rt.u32Display(_1110, f)];
+			Log.note(log, rt.fmtFormat(["each ", args58[0], " ", args58[1]]));
+			g12[Symbol.dispose]();
 		}, (): void => {
 			captured7[Symbol.dispose]();
-		})), true)));
-		const _259: rt.u32 = Guard.id(e);
-		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n5, f), (f: rt.Formatter) => rt.usizeDisplay(m4, f), (f: rt.Formatter) => rt.u32Display(_259, f)];
-		Log.note(log, rt.fmtFormat(["fuse ", args16[0], " ", args16[1], " ", args16[2]]));
-	} else {
-		const _271: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 4), rt.drop);
-		const captured = c;
-		const captured2 = guard;
-		const captured3 = id;
-		const flat: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterMap(_271, rt.closure((g: Guard.Guard): Guard.Guard[] => {
-			const _9: rt.u32 = Guard.id(g);
-			const _122: rt.u32 = Guard.id(captured);
-			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_9, f), (f: rt.Formatter) => rt.u32Display(_122, f)];
-			Log.note(log, rt.fmtFormat(["map ", args24[0], " ", args24[1]]));
-			const v: Guard.Guard[] = [];
-			const _225: Guard.Guard = captured2(rt.u32Add(rt.u32Sub(Guard.id(g), captured3), 3));
-			v.push(_225);
-			v.push(g);
-			return v;
-		}, (): void => {
-			captured[Symbol.dispose]();
-		})), (value: Guard.Guard[]) => rt.iterSlice(value, rt.drop), true);
-		const part2 = option_map$1raha9y(rt.iterToOption(flat.next()), (g2: Guard.Guard): rt.u32 => {
-			const _04: rt.u32 = Guard.id(g2);
-			g2[Symbol.dispose]();
-			return _04;
 		});
-		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part2, f, rt.u32Debug)];
-		Log.note(log, rt.fmtFormat(["ends ", args18[0]]));
-		const part3 = option_map$1raha9y(rt.iterToOption(flat.nextBack()), (g3: Guard.Guard): rt.u32 => {
+		rt.iterForEach(rt.iterFrom(_522, Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }), _525, true, true);
+		const _528: Pile.Pile = pile(1, 4);
+		_731 = false;
+		const captured8 = e;
+		const _531: (a0: Guard.Guard) => rt.u32 = rt.closure((g13: Guard.Guard): rt.u32 => {
+			const _016: rt.u32 = rt.u32Add(Guard.id(g13), Guard.id(captured8));
+			g13[Symbol.dispose]();
+			return _016;
+		}, (): void => {
+			captured8[Symbol.dispose]();
+		});
+		const m5: rt.usize = rt.ownedCount(rt.iterMap(rt.iterFrom(_528, Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }), _531));
+		const _538: rt.usize = Pile.count$iter_Iterator(pile(4, 6));
+		const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(m5, f), (f: rt.Formatter) => rt.usizeDisplay(_538, f)];
+		Log.note(log, rt.fmtFormat(["count ", args42[0], " ", args42[1]]));
+	} else if (_23 === 15) {
+		const last2: Guard.Guard | undefined = Pile.last$iter_Iterator(pile(1, 4));
+		const back: Guard.Guard | undefined = rt.ownedLast(rt.iterRev(rt.iterFrom(pile(4, 7), Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 })), rt.drop);
+		const skipped: Guard.Guard | undefined = rt.ownedLast(rt.iterSkip(rt.iterFrom(pile(7, 9), Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }), 1, rt.drop), rt.drop);
+		const _568: rt.u32 | undefined = option_map$1raha9y(last2, (g5: Guard.Guard): rt.u32 => {
+			const _08: rt.u32 = Guard.id(g5);
+			g5[Symbol.dispose]();
+			return _08;
+		});
+		const _570: rt.u32 | undefined = option_map$1raha9y(back, (g6: Guard.Guard): rt.u32 => {
+			const _09: rt.u32 = Guard.id(g6);
+			g6[Symbol.dispose]();
+			return _09;
+		});
+		const _572: rt.u32 | undefined = option_map$1raha9y(skipped, (g7: Guard.Guard): rt.u32 => {
+			const _010: rt.u32 = Guard.id(g7);
+			g7[Symbol.dispose]();
+			return _010;
+		});
+		const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_568, f, rt.u32Debug), (f: rt.Formatter) => rt.fmtOption(_570, f, rt.u32Debug), (f: rt.Formatter) => rt.fmtOption(_572, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["last ", args44[0], " ", args44[1], " ", args44[2]]));
+		const _581: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterFrom(pile(1, 6), Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }));
+		_733 = false;
+		const captured4 = c;
+		const _593: rt.u32 | undefined = option_map$1raha9y(rt.iterFold(rt.iterMap(_581, rt.closure((g8: Guard.Guard): [Guard.Guard, rt.u32] => {
+			return [g8, Guard.id(captured4)] as [Guard.Guard, rt.u32];
+		}, (): void => {
+			captured4[Symbol.dispose]();
+		})), undefined as Guard.Guard | undefined, (_2: Guard.Guard | undefined, _312: [Guard.Guard, rt.u32]): Guard.Guard | undefined => {
+			const _012: Guard.Guard | undefined = _312[0];
+			rt.drop(_2);
+			return _012;
+		}, true), (g10: Guard.Guard): rt.u32 => {
+			const _013: rt.u32 = Guard.id(g10);
+			g10[Symbol.dispose]();
+			return _013;
+		});
+		const _595: rt.u32 = Guard.id(d);
+		const _598: rt.u32 = Guard.id(e);
+		const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_593, f, rt.u32Debug), (f: rt.Formatter) => rt.u32Display(_595, f), (f: rt.Formatter) => rt.u32Display(_598, f)];
+		Log.note(log, rt.fmtFormat(["rev ", args46[0], " ", args46[1], " ", args46[2]]));
+	} else if (_23 === 16) {
+		const held2: Pile.Pile = pile(1, 6);
+		const part = option_map$1raha9y(rt.iterNth(rt.iterRev(rt.iterFrom(held2, Pile.next$iter_Iterator, undefined, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)) })), 1, rt.drop), (g3: Guard.Guard): rt.u32 => {
 			const _05: rt.u32 = Guard.id(g3);
 			g3[Symbol.dispose]();
 			return _05;
 		});
-		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part3, f, rt.u32Debug)];
-		Log.note(log, rt.fmtFormat(["ends ", args20[0]]));
-		const _304: rt.Iter<Guard.Guard> = flat;
-		_344 = false;
-		const captured4 = d;
-		const n6: rt.usize = rt.ownedCount(rt.iterMap(_304, rt.closure((g4: Guard.Guard): rt.u32 => {
-			const _06: rt.u32 = rt.u32Add(Guard.id(g4), Guard.id(captured4));
+		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part, f, rt.u32Debug)];
+		Log.note(log, rt.fmtFormat(["nth ", args48[0]]));
+		_733 = false;
+		const captured3 = c;
+		const n10: rt.u32 = rt.iterFold(rt.iterMap(rt.iterFrom(held2, Pile.next$iter_Iterator, undefined, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)) }), rt.closure((g4: Guard.Guard): rt.u32 => {
+			const _06: rt.u32 = rt.u32Sub(rt.u32Add(Guard.id(g4), Guard.id(captured3)), Guard.id(captured3));
 			g4[Symbol.dispose]();
 			return _06;
 		}, (): void => {
-			captured4[Symbol.dispose]();
-		})));
-		const _312: rt.u32 = Guard.id(e);
-		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n6, f), (f: rt.Formatter) => rt.u32Display(_312, f)];
-		Log.note(log, rt.fmtFormat(["flat ", args22[0], " ", args22[1]]));
+			captured3[Symbol.dispose]();
+		})), 0, (n13: rt.u32, k: rt.u32): rt.u32 => {
+			return rt.u32Add(n13, k);
+		}, true);
+		const _635: rt.usize = held2.held.length;
+		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n10, f), (f: rt.Formatter) => rt.usizeDisplay(_635, f)];
+		Log.note(log, rt.fmtFormat(["borrowed ", args50[0], " ", args50[1]]));
+		const _645: Pile.Pile = pile(6, 8);
+		const _648: Guard.Guard[] = guards(8, 10);
+		const m6: rt.usize = rt.ownedCount(rt.iterChain(rt.iterFrom(_645, Pile.next$iter_Iterator, rt.drop, { hint: Pile.sizeHint$iter_Iterator, nth: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nth$iter_Iterator(it, n)), fold: Pile.fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32, count: Pile.count$iter_Iterator, last: (it: Pile.Pile) => rt.iterFromOption(Pile.last$iter_Iterator(it)), back: (it: Pile.Pile) => rt.iterFromOption(Pile.nextBack$iter_DoubleEndedIterator(it)), nthBack: (it: Pile.Pile, n) => rt.iterFromOption(Pile.nthBack$iter_DoubleEndedIterator(it, n)), rfold: Pile.rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32 }), rt.iterSlice(_648, rt.drop)), rt.drop);
+		const _657: rt.u32 = Guard.id(d);
+		const _660: rt.u32 = Guard.id(e);
+		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(m6, f), (f: rt.Formatter) => rt.u32Display(_657, f), (f: rt.Formatter) => rt.u32Display(_660, f)];
+		Log.note(log, rt.fmtFormat(["chain ", args52[0], " ", args52[1], " ", args52[2]]));
+		held2[Symbol.dispose]();
+	} else {
+		const a: Guard.Guard = guard(20);
+		const _674: rt.Iter<Guard.Guard> = rt.iterSlice(guards(1, 6), rt.drop);
+		const captured = id;
+		const captured2 = a;
+		rt.iterTryRfold(_674, 0, rt.closure((n12: rt.u32, g2: Guard.Guard): rt.u32 | undefined => {
+			if (!(Guard.id(g2) !== rt.u32Add(captured, 3))) {
+				const _145: rt.u32 = Guard.id(g2);
+				const _172: rt.u32 = Guard.id(captured2);
+				const _202: string = rt.resultUnwrap(rt.stringFromUtf8(Log.text(log)), rt.fmtFromUtf8ErrorDebug);
+				const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_145, f), (f: rt.Formatter) => rt.u32Display(_172, f), (f: rt.Formatter) => rt.fmtPad(f, _202)];
+				rt.panicFmt(["try_rfold of g", args54[0], " with g", args54[1], " after\n", args54[2]]);
+			} else {
+				const _04: rt.u32 | undefined = rt.u32Add(n12, Guard.id(g2));
+				g2[Symbol.dispose]();
+				return _04;
+			}
+		}, (): void => {
+			captured2[Symbol.dispose]();
+		}), true, true);
+		rt.drop(_674);
 	}
-	if (_343) {
+	if (_731) {
 		e[Symbol.dispose]();
 	}
-	_343 = false;
-	if (_344) {
+	_731 = false;
+	if (_732) {
 		d[Symbol.dispose]();
 	}
-	_344 = false;
+	_732 = false;
+	if (_733) {
+		c[Symbol.dispose]();
+	}
+	_733 = false;
 }
 
 /** `last` and `min` of `Option`s, by what drops: a `None` item apart from no items. */

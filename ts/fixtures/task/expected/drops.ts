@@ -1274,8 +1274,8 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 }
 
 /**
- * Run scenario `arg % 9` of what folds back to front, and through what wraps a closure
- * beside another.
+ * Run scenario `arg % 18` of what folds back to front, through what wraps a closure beside
+ * another, and through a crate's iterator with folds of its own. The last panics in a fold.
  */
 export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	folds_rfolded(log, id, arg);

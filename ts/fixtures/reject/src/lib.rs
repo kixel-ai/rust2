@@ -112,7 +112,7 @@ pub fn swap_guards<'a>(a: &mut std::sync::MutexGuard<'a, u8>, b: &mut std::sync:
 	std::mem::swap(a, b);
 }
 
-/// An iterator whose `fold` std's adaptors would call in place of its `next`.
+/// An iterator whose own `fold` holds its accumulator in an `Option`, of an `rt.None` or not.
 pub struct Folds;
 
 impl Iterator for Folds {
@@ -123,7 +123,7 @@ impl Iterator for Folds {
 	}
 
 	fn fold<B, F: FnMut(B, u8) -> B>(self, init: B, _f: F) -> B {
-		init
+		Some(init).unwrap()
 	}
 }
 
@@ -131,7 +131,7 @@ pub fn folds() -> usize {
 	Folds.map(|b| b + 1).count()
 }
 
-/// An iterator whose `nth_back` std's adaptors would call in place of its `next_back`.
+/// An iterator whose `rfind` std's adaptors would call in place of its `next_back`.
 pub struct Backs;
 
 impl Iterator for Backs {
@@ -147,13 +147,13 @@ impl DoubleEndedIterator for Backs {
 		None
 	}
 
-	fn nth_back(&mut self, _n: usize) -> Option<u8> {
+	fn rfind<P: FnMut(&u8) -> bool>(&mut self, _p: P) -> Option<u8> {
 		Some(0)
 	}
 }
 
-pub fn backs() -> usize {
-	Backs.rev().skip(1).count()
+pub fn backs() -> Option<u8> {
+	Backs.rev().find(|&b| b == 0)
 }
 
 /// JS compares objects by identity, not by `PartialOrd`.

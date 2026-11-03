@@ -21,7 +21,7 @@ export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
  */
 export function read$cycles_Countdown_cycles_cycles_closure4(it: cycles_Countdown.Countdown, steps: rt.ByteSlice, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
 	let item!: rt.u8 | undefined;
-	const it2: rt.Iter<rt.u8> = rt.iterCycle(rt.iterFrom(it, (it: cycles_Countdown.Countdown) => cycles_Countdown.next$iter_Iterator(it)), { v: cycles_Countdown.clone$Clone });
+	const it2: rt.Iter<rt.u8> = rt.iterCycle(rt.iterFrom(it, cycles_Countdown.next$iter_Iterator), { v: cycles_Countdown.clone$Clone });
 	const _8: [rt.usize, rt.usize | undefined] = it2.sizeHint();
 	const lower: rt.usize = _8[0];
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(lower & 0xff, (lower >>> 24) & 0xff, option_mapOr$02k4ito(_8[1], 254, (n2: rt.usize): rt.u8 => {

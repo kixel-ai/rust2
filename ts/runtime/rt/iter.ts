@@ -26,7 +26,7 @@ import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, lt as wideLt, type Step } from "./int.ts";
-import { drop as dispose, dropRange } from "./task.ts";
+import { closure, drop as dispose, dropRange } from "./task.ts";
 
 /** What `next` returns once an iterator is exhausted, which no item is. */
 export const DONE: unique symbol = /* @__PURE__ */ Symbol("DONE");
@@ -543,12 +543,29 @@ export function iterSuccessors<T>(first: T | undefined | None, succ: (item: T) =
 }
 
 /**
- * An `impl Iterator` of the translated crate, which `next` calls the `next` of, and `drop`
- * drops. `hint`, `back`, and `len` call its own `size_hint`, `next_back`, and `len`, where
- * it has them.
+ * The methods of std's iterator traits an iterator of the translated crate has of its own,
+ * beside `next`, each a function of its source: `iterFrom` calls each where std's
+ * adaptors and consumers do. `fold`, `rfold`, `count`, and `last` take it by value.
  */
-export function iterFrom<S, T>(source: S, next: (source: S) => T | Done, drop?: Drop<S>, hint?: (source: S) => SizeHint, back?: (source: S) => T | Done, len?: (source: S) => number): Iter<T> {
-	return new FromNext(source, next, drop, hint, back, len);
+export interface Own<S, T> {
+	readonly hint?: (source: S) => SizeHint;
+	readonly back?: (source: S) => T | Done;
+	readonly len?: (source: S) => number;
+	readonly nth?: (source: S, n: number) => T | Done;
+	readonly nthBack?: (source: S, n: number) => T | Done;
+	/** Of one accumulator type in Rust, which only moves the one it is given, as any it is called with. */
+	readonly fold?: (source: S, acc: never, f: never) => unknown;
+	readonly rfold?: (source: S, acc: never, f: never) => unknown;
+	readonly count?: (source: S) => number;
+	readonly last?: (source: S) => T | Done;
+}
+
+/**
+ * An `impl Iterator` of the translated crate, which `next` calls the `next` of, `drop`
+ * drops, and `own` reads by the methods it has of its own.
+ */
+export function iterFrom<S, T>(source: S, next: (source: S) => T | Done, drop?: Drop<S>, own?: Own<S, T>): Iter<T> {
+	return new FromNext(source, next, drop, own);
 }
 
 /** An iterator borrowed by `&mut`, which std's adaptors take as one: its items, but never it to drop. */
@@ -985,6 +1002,39 @@ export function iterFold<T, A>(it: Iter<T>, init: A, f: (acc: A, item: T) => A, 
 	return it.fold(init, f, owns ? () => dispose(f) : undefined);
 }
 
+/** `DoubleEndedIterator::rfold`, from the back, as `iterFold`. */
+export function iterRfold<T, A>(it: Iter<T>, init: A, f: (acc: A, item: T) => A, drops = false, owns = false): A {
+	if (!drops) {
+		const folded = it.folded(true);
+		let acc = init;
+		for (let item = folded.nextBack(); item !== DONE; item = folded.nextBack()) acc = f(acc, item);
+		if (owns) dispose(f);
+		return acc;
+	}
+	return it.rfold(init, f, owns ? () => dispose(f) : undefined);
+}
+
+/**
+ * `DoubleEndedIterator::try_rfold`, from the back as `try_rfold` steps it, until `f`
+ * breaks: by an `Option`'s `None`, `none` where that is `rt.None`, if `option`, and else by
+ * an `rt.Result`'s `Err`, as a `Result` or a `ControlFlow` breaks. It returns what broke, or
+ * the accumulator as the type continues with it. If it `owns` `f`, `f` drops as it returns.
+ */
+export function iterTryRfold<T, A, R>(it: Iter<T>, init: A, f: (acc: A, item: T) => R, option = false, owns = false, none?: None): R {
+	const folded = it.folded();
+	let acc = init;
+	for (let item = folded.nextBack(); item !== DONE; item = folded.nextBack()) {
+		const step = f(acc, item);
+		if (option ? step === none : !(step as Result<A, unknown>).ok) {
+			if (owns) dispose(f);
+			return step;
+		}
+		acc = option ? (step as unknown as A) : (step as { value: A }).value;
+	}
+	if (owns) dispose(f);
+	return (option ? acc : Ok(acc)) as R;
+}
+
 /** `Iterator::for_each`, which drops `f` if it `owns` it, as `iterFold` does. */
 export function iterForEach<T>(it: Iter<T>, f: (item: T) => void, drops = false, owns = false): void {
 	if (!drops) {
@@ -1392,6 +1442,7 @@ export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>, none?: None): T | unde
 
 /** `count`, dropping each item by `drop`, and then `it`, as std's of its kind does. */
 function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
+	if (it instanceof FromNext && it.own?.count !== undefined) return it.taken(it.own.count);
 	if (it instanceof EnumerateIter) return count(it.inner, items(drop));
 	if (it instanceof ChainIter) {
 		// std's: each iterator's own `count`, the first's first.
@@ -1448,6 +1499,7 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
  * does. By `fold`, each item drops as the next replaces it.
  */
 function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
+	if (it instanceof FromNext && it.own?.last !== undefined) return it.taken(it.own.last);
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
 		// std's, of a `Vec`'s or an array's, and of a B-tree's `into_keys` and
 		// `into_values`: the last item, and then the rest drop with it.
@@ -1919,25 +1971,21 @@ class OptionIter<T> extends Iter<T> implements Disposable {
 }
 
 /**
- * An iterator whose `next` is a function of its source, which `drop` drops, as are its
- * `size_hint`, `next_back`, and `len` where it has them.
+ * An iterator whose `next` is a function of its source, which `drop` drops, and which `own`
+ * reads by the methods it has of its own.
  */
 class FromNext<S, T> extends Iter<T> implements Disposable {
 	private readonly source: S;
 	private readonly step: (source: S) => T | Done;
 	private drop: Drop<S> | undefined;
-	private readonly hint: ((source: S) => SizeHint) | undefined;
-	private readonly back: ((source: S) => T | Done) | undefined;
-	private readonly exact: ((source: S) => number) | undefined;
+	readonly own: Own<S, T> | undefined;
 
-	constructor(source: S, step: (source: S) => T | Done, drop?: Drop<S>, hint?: (source: S) => SizeHint, back?: (source: S) => T | Done, exact?: (source: S) => number) {
+	constructor(source: S, step: (source: S) => T | Done, drop?: Drop<S>, own?: Own<S, T>) {
 		super();
 		this.source = source;
 		this.step = step;
 		this.drop = drop;
-		this.hint = hint;
-		this.back = back;
-		this.exact = exact;
+		this.own = own;
 	}
 
 	next(): T | Done {
@@ -1946,21 +1994,60 @@ class FromNext<S, T> extends Iter<T> implements Disposable {
 
 	/** Only an iterator with its own `next_back` is read from the back. */
 	override nextBack(): T | Done {
-		return (this.back as (source: S) => T | Done)(this.source);
+		return (this.own?.back as (source: S) => T | Done)(this.source);
+	}
+
+	/** Its own, which drops what it skips itself. */
+	override nth(n: number, drop?: Drop<T>): T | Done {
+		const nth = this.own?.nth;
+		return nth === undefined ? super.nth(n, drop) : nth(this.source, n);
+	}
+
+	override nthBack(n: number, drop?: Drop<T>): T | Done {
+		const nthBack = this.own?.nthBack;
+		return nthBack === undefined ? super.nthBack(n, drop) : nthBack(this.source, n);
 	}
 
 	override sizeHint(): SizeHint {
-		return this.hint === undefined ? super.sizeHint() : this.hint(this.source);
+		const hint = this.own?.hint;
+		return hint === undefined ? super.sizeHint() : hint(this.source);
 	}
 
 	/** Its own, or std's, of its size hint. */
 	override len(): number {
-		return this.exact === undefined ? hintLen(this) : this.exact(this.source);
+		const len = this.own?.len;
+		return len === undefined ? hintLen(this) : len(this.source);
+	}
+
+	override fold<A>(acc: A, f: (acc: A, item: T) => A, release?: () => void): A {
+		const fold = this.own?.fold;
+		return fold === undefined ? super.fold(acc, f, release) : this.folds(fold, acc, f, release);
+	}
+
+	override rfold<A>(acc: A, f: (acc: A, item: T) => A, release?: () => void): A {
+		const rfold = this.own?.rfold;
+		return rfold === undefined ? super.rfold(acc, f, release) : this.folds(rfold, acc, f, release);
+	}
+
+	/**
+	 * Its own `fold` or `rfold`, which takes it by value: given `f` as a closure that drops
+	 * what it owns by `release`, as the crate's drops the closure std gives it.
+	 */
+	private folds<A>(fold: (source: S, acc: never, f: never) => unknown, acc: A, f: (acc: A, item: T) => A, release: (() => void) | undefined): A {
+		this.drop = undefined;
+		const g = release === undefined ? f : closure((acc: A, item: T) => f(acc, item), release);
+		return (fold as (source: S, acc: A, f: (acc: A, item: T) => A) => A)(this.source, acc, g);
+	}
+
+	/** Its own `count` or `last`, which takes it by value. */
+	taken<R>(f: (source: S) => R): R {
+		this.drop = undefined;
+		return f(this.source);
 	}
 
 	/** Its source cloned by `h.v`, as the crate's own `Clone` of it. */
 	override clone(h?: Clones): Iter<T> {
-		return new FromNext(cloned(this.source, h?.v), this.step, this.drop, this.hint, this.back, this.exact);
+		return new FromNext(cloned(this.source, h?.v), this.step, this.drop, this.own);
 	}
 
 	[Symbol.dispose](): void {
