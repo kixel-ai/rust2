@@ -9,6 +9,8 @@
 //! `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or
 //! `dyn FusedIterator` of std's iterators or the crate's own, borrowed, boxed, or shared,
 //! reads by its vtable's methods and folds by `next`, dropping what it owns in std's order.
+//! A struct whose last field is a trait object, a `RefCell`, a `Mutex`, an `RwLock`, or the
+//! crate's own, shares its fields, borrows, and lock with the value it was made from.
 
 use std::any::Any;
 use std::cell::RefCell;
@@ -18,7 +20,7 @@ use std::iter::FusedIterator;
 use std::pin::Pin;
 use std::rc::{self, Rc};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Weak};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use crate::harness::put;
 
@@ -1061,4 +1063,244 @@ pub fn pointers(data: &[u8], out: &mut Vec<u8>) {
 	let boxed: Box<dyn Fn(u8) -> u8> = Box::new(move |x| x ^ *b);
 	let g: Arc<dyn Fn(u8) -> u8> = Arc::from(boxed);
 	put(out, &format!("{} {}", f(*b), g(*a)));
+}
+
+/// A struct whose last field unsizes, as a `RefCell`'s and a `Mutex`'s does: the fields
+/// before it stay where they are, and drop before it.
+struct Tail<T: ?Sized> {
+	count: u8,
+	head: Noisy,
+	value: T,
+}
+
+/// Through a `&mut` to a struct whose last field is a trait object.
+fn bump_tail(t: &mut Tail<dyn Shape>, by: u8) -> u32 {
+	t.count = t.count.wrapping_add(by);
+	t.head.grow(by);
+	t.value.grow(by);
+	t.value.area()
+}
+
+pub fn tails(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, c, rest @ ..] = data else {
+		return;
+	};
+	let (a, b, c) = (*a, *b, *c);
+	let log = Rc::new(RefCell::new(Vec::new()));
+
+	// Each `Rc<RefCell<dyn Shape>>` shares its cell, and the cell's borrows, with the
+	// value's own `Rc`.
+	let sq = Rc::new(RefCell::new(Square { side: u16::from(a) }));
+	let n = Rc::new(RefCell::new(u32::from(b)));
+	let tri = Rc::new(RefCell::new(Tri::Tall(c)));
+	let shapes: Vec<Rc<RefCell<dyn Shape>>> = vec![
+		sq.clone(),
+		n.clone(),
+		tri.clone(),
+		Rc::new(RefCell::new(Noisy(a ^ b, log.clone()))),
+	];
+	for (i, s) in shapes.iter().enumerate() {
+		s.borrow_mut().grow(c.wrapping_add(i as u8));
+	}
+	let areas: Vec<u32> = shapes.iter().map(|s| s.borrow().area()).collect();
+	put(
+		out,
+		&format!("{areas:?} {} {} {:?} ", sq.borrow().side, n.borrow(), tri.borrow()),
+	);
+	{
+		let held = n.borrow_mut();
+		let shared = shapes[0].borrow();
+		put(
+			out,
+			&format!(
+				"{} {} {} ",
+				shapes[1].try_borrow().is_err(),
+				sq.try_borrow_mut().is_err(),
+				shapes[0].try_borrow().map(|s| s.sides()).unwrap_or(0),
+			),
+		);
+		drop(held);
+		drop(shared);
+		let r = shapes[2].borrow();
+		put(out, &format!("{} {} ", tri.try_borrow_mut().is_err(), r.sides()));
+	}
+	put(
+		out,
+		&format!("{} {} ", Rc::strong_count(&sq), Rc::strong_count(&shapes[1])),
+	);
+
+	// A `dyn Named`, written through its `Debug`, and upcast inside the cell.
+	let named: Rc<RefCell<dyn Named>> = Rc::new(RefCell::new(Tri::Flat));
+	named.borrow_mut().grow(b);
+	let upcast: Rc<RefCell<dyn Shape>> = named.clone();
+	upcast.borrow_mut().grow(a);
+	put(
+		out,
+		&format!("{:?} {} {} ", named, named.borrow().label(), upcast.borrow().area()),
+	);
+	{
+		let _held = named.borrow_mut();
+		put(out, &format!("{named:?} "));
+	}
+
+	// Dropped by the last `Rc` of either kind.
+	let noisy = Rc::new(RefCell::new(Noisy(c, log.clone())));
+	let shape: Rc<RefCell<dyn Shape>> = noisy.clone();
+	let weak: rc::Weak<RefCell<dyn Shape>> = Rc::downgrade(&shape);
+	drop(noisy);
+	put(
+		out,
+		&format!("{:?} {:?} ", log.borrow(), weak.upgrade().map(|s| s.borrow().area())),
+	);
+	drop(shape);
+	put(out, &format!("{:?} {} ", log.borrow(), weak.upgrade().is_none()));
+	drop(shapes);
+	put(out, &format!("{:?} ", log.borrow()));
+	log.borrow_mut().clear();
+
+	// An `Arc<Mutex<dyn Shape>>` and an `Arc<RwLock<dyn Shape>>` lock the value's own.
+	let m = Arc::new(Mutex::new(Tri::Flat));
+	let locked: Arc<Mutex<dyn Shape>> = m.clone();
+	locked.lock().unwrap().grow(b);
+	{
+		let _guard = m.lock().unwrap();
+		put(out, &format!("{} ", locked.try_lock().is_err()));
+	}
+	let weak: Weak<Mutex<dyn Shape>> = Arc::downgrade(&locked);
+	let area = weak.upgrade().map(|l| l.lock().unwrap().area());
+	put(
+		out,
+		&format!("{:?} {area:?} {} ", m.lock().unwrap(), Arc::strong_count(&m)),
+	);
+	let rw = Arc::new(RwLock::new(u32::from(c)));
+	let lock: Arc<RwLock<dyn Shape>> = rw.clone();
+	lock.write().unwrap().grow(a);
+	{
+		let _read = rw.read().unwrap();
+		put(
+			out,
+			&format!("{} {} ", lock.try_write().is_err(), lock.read().unwrap().area()),
+		);
+	}
+	put(out, &format!("{} ", rw.read().unwrap()));
+
+	// The crate's own struct, borrowed, changed in place, nested in a cell, and boxed.
+	let mut t = Tail {
+		count: a,
+		head: Noisy(b, log.clone()),
+		value: u32::from(c),
+	};
+	let area = bump_tail(&mut t, b);
+	let shared: &Tail<dyn Shape> = &t;
+	put(
+		out,
+		&format!(
+			"{area} {} {} {} {} ",
+			shared.count,
+			shared.head.0,
+			shared.value.area(),
+			t.value
+		),
+	);
+	let cell = Rc::new(RefCell::new(Tail {
+		count: b,
+		head: Noisy(a, log.clone()),
+		value: Square { side: u16::from(b) },
+	}));
+	let nested: Rc<RefCell<Tail<dyn Shape>>> = cell.clone();
+	let area = bump_tail(&mut nested.borrow_mut(), c);
+	put(
+		out,
+		&format!("{area} {} {} ", cell.borrow().count, cell.borrow().value.side),
+	);
+	drop(cell);
+	drop(t);
+	put(out, &format!("{:?} ", log.borrow()));
+	drop(nested);
+	let boxed: Box<Tail<dyn Shape>> = Box::new(Tail {
+		count: c,
+		head: Noisy(c, log.clone()),
+		value: Noisy(c.wrapping_add(1), log.clone()),
+	});
+	put(out, &format!("{} ", boxed.value.area()));
+	drop(boxed);
+	put(out, &format!("{:?} ", log.borrow()));
+
+	// Pinned, and a `Weak` unsized from one of the value's own type.
+	let pinned: Pin<Box<Tail<dyn Shape>>> = Box::pin(Tail {
+		count: a,
+		head: Noisy(a, log.clone()),
+		value: Tri::Tall(b),
+	});
+	let own = Rc::new(RefCell::new(u32::from(a)));
+	let weak: rc::Weak<RefCell<u32>> = Rc::downgrade(&own);
+	let weak: rc::Weak<RefCell<dyn Shape>> = weak;
+	if let Some(s) = weak.upgrade() {
+		s.borrow_mut().grow(c);
+	}
+	put(
+		out,
+		&format!(
+			"{} {} {} {} ",
+			pinned.count,
+			pinned.value.area(),
+			own.borrow(),
+			rc::Weak::strong_count(&weak)
+		),
+	);
+	drop(pinned);
+	put(out, &format!("{:?} ", log.borrow()));
+	let boxed: Box<RefCell<dyn Shape>> = Box::new(RefCell::new(Noisy(b, log.clone())));
+	let shared: Rc<RefCell<dyn Shape>> = Rc::from(boxed);
+	let again = shared.clone();
+	again.borrow_mut().grow(a);
+	drop(shared);
+	put(out, &format!("{} {:?} ", again.borrow().area(), log.borrow()));
+	drop(again);
+	put(out, &format!("{:?} ", log.borrow()));
+
+	// Of std's traits: a function, a writer of `Debug`, a `dyn Any`, and an iterator.
+	let mut sum = 0u32;
+	{
+		let f: Rc<RefCell<dyn FnMut(u8)>> = Rc::new(RefCell::new(|x: u8| sum = sum.wrapping_add(u32::from(x))));
+		for &x in rest {
+			(f.borrow_mut())(x);
+		}
+	}
+	let shown: &RefCell<dyn Debug> = &RefCell::new(Tri::Tall(c));
+	let any: Box<Tail<dyn Any>> = Box::new(Tail {
+		count: b,
+		head: Noisy(b, log.clone()),
+		value: u32::from(c),
+	});
+	let it: Arc<Mutex<dyn Iterator<Item = u8>>> = Arc::new(Mutex::new(rest.iter().copied().rev()));
+	let next = it.lock().unwrap().next();
+	put(
+		out,
+		&format!(
+			"{sum} {shown:?} {:?} {} {next:?} {:?} ",
+			any.value.downcast_ref::<u32>(),
+			any.value.is::<u8>(),
+			it.lock().unwrap().next(),
+		),
+	);
+
+	// A borrow or a lock that conflicts, through the trait object, panics as it does natively.
+	match rest.first().map(|x| x % 4) {
+		Some(0) => {
+			let _shared = n.borrow();
+			let dynamic: Rc<RefCell<dyn Shape>> = n.clone();
+			dynamic.borrow_mut().grow(1);
+		}
+		Some(1) => {
+			let dynamic: Rc<RefCell<dyn Shape>> = n.clone();
+			let _held = dynamic.borrow_mut();
+			put(out, &format!("{}", n.borrow()));
+		}
+		Some(2) => {
+			let _guard = m.lock().unwrap();
+			put(out, &format!("{}", locked.lock().unwrap().area()));
+		}
+		_ => put(out, &format!("{}", n.borrow())),
+	}
 }

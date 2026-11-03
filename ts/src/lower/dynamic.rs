@@ -5,6 +5,9 @@
 //! class of its type's own, shared by every trait object of the type, whose methods call
 //! that type's impls and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
 //! drops the value. An `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A
+//! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
+//! `rt.tailDyn` view of the struct it was made from, whose last field is that field's
+//! object. A
 //! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
 //! class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
@@ -16,11 +19,11 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
-use super::Translator;
 use super::body::Body;
 use super::library::Std;
+use super::{AdtRepr, StructField, Translator};
 use crate::program::{SymKind, Symbol};
-use crate::ts::{self, Expr, FieldId, FieldInit, Item, Param, Stmt, StmtKind, SymId, Type};
+use crate::ts::{self, Expr, FieldId, FieldInit, Item, Key, Param, Stmt, StmtKind, SymId, Type};
 
 /// A trait that objects of it translate for: its type, and its methods in vtable order.
 #[derive(Clone)]
@@ -409,6 +412,18 @@ pub fn is_any_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_any(tcx, p))
 }
 
+/// Whether `ty` is a trait object, or a struct whose last field, through any structs it is
+/// in, is one.
+pub fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
+	while let ty::Adt(adt, args) = ty.kind()
+		&& adt.is_struct()
+		&& let Some(last) = adt.non_enum_variant().tail_opt()
+	{
+		ty = last.ty(tcx, args).skip_norm_wip();
+	}
+	ty.is_trait()
+}
+
 /// The trait of the trait object `ty`.
 fn principal(ty: Ty<'_>) -> Option<DefId> {
 	match ty.kind() {
@@ -458,9 +473,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return unsupported(self);
 		};
-		// The pointer itself, not a struct whose last field unsizes.
 		if !object.is_trait() {
-			return unsupported(self);
+			let view = match from.is_raw_ptr() {
+				true => None,
+				false => self.tail_object(value, pointee, object, from.is_box(), span),
+			};
+			return view.unwrap_or_else(|| unsupported(self));
 		}
 		// A box holds one as a `Uint8Array` and a reference as an `rt.ByteSlice`, which one
 		// class's methods can't both take.
@@ -512,6 +530,104 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			Some(class) => Expr::New(Box::new(Expr::Sym(class.sym)), vec![value]),
 			None => Expr::undefined(),
 		}
+	}
+
+	/// `value`, a `from` reference or box, unsized to `to`: the same pointer to a trait object,
+	/// or to a struct whose last field is one.
+	fn unsize(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+		if let Some(tr) = self.fmt_object(to) {
+			return self.fmt_value(tr, from, value, span, out);
+		}
+		match to.builtin_deref(true) {
+			Some(object) if self.t.dyn_iter(object).is_some() => self.dyn_iter(from, to, value, span),
+			_ => self.object_of(value, from, to, span),
+		}
+	}
+
+	/// `value`, a `from`, a struct whose last field unsizes, as the struct `to` of the trait
+	/// object: an `rt.tailDyn` view of it, whose last field is the object a `&mut` to that
+	/// field would unsize to, made wherever it is read, so it reads and changes the field in
+	/// place, and whose other fields, a cell's borrows, and a mutex's lock are `value`'s own.
+	/// A box of it drops as one of `value` does. `None` if the struct is none it can view.
+	fn tail_object(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, owned: bool, span: Span) -> Option<Expr> {
+		let tcx = self.t.tcx;
+		if self.t.polymorphic() && from.has_param() {
+			return Some(Expr::undefined());
+		}
+		let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
+			return None;
+		};
+		let name = self.fresh("value");
+		let v = Expr::ident(&name);
+		let (key, read, lent, held) = match Std::of(tcx, adt.did()) {
+			// `rt.RefCell` holds a `RefCell` or an `RwLock`.
+			Some(Std::RefCell | Std::Mutex) => {
+				let held = (from_args.type_at(0), to_args.type_at(0));
+				let place = Expr::rt("valuePlace", vec![v.clone()]);
+				(Key::Name("value".into()), v.clone().member("value"), place, held)
+			}
+			None if adt.is_struct() && self.t.own(adt.did()) => {
+				let last = adt
+					.non_enum_variant()
+					.tail_opt()
+					.expect("an unsized struct's last field");
+				let AdtRepr::Struct { fields, .. } = self.t.adt(*adt, span).repr else {
+					return None;
+				};
+				let Some(&StructField::Whole(id)) = fields.last() else {
+					return None;
+				};
+				let held = (
+					last.ty(tcx, from_args).skip_norm_wip(),
+					last.ty(tcx, to_args).skip_norm_wip(),
+				);
+				let at = v.clone().field(id);
+				let read = self.t.held_field(at.clone(), last.did, from_args, span);
+				let value = self.fresh("value");
+				let set = Expr::Lambda(
+					vec![Param {
+						name: value.clone(),
+						ty: None,
+					}],
+					Box::new(at.assign(Expr::ident(value))),
+				);
+				let place = Expr::rt("place", vec![Expr::Lambda(Vec::new(), Box::new(read.clone())), set]);
+				(Key::Field(id), read, place, held)
+			}
+			_ => return None,
+		};
+		let (field_from, field_to) = held;
+		// A future polled in place through a struct is not supported yet.
+		if self.t.dyn_future(field_to).is_some() {
+			return None;
+		}
+		let lent = match self.t.needs_place(field_from) {
+			true => lent,
+			false => read,
+		};
+		let erased = tcx.lifetimes.re_erased;
+		let (ref_from, ref_to) = (
+			Ty::new_mut_ref(tcx, erased, field_from),
+			Ty::new_mut_ref(tcx, erased, field_to),
+		);
+		let mut body = Vec::new();
+		let object = self.unsize(lent, ref_from, ref_to, span, &mut body);
+		let param = Param {
+			name,
+			ty: Some(self.t.ty(from, span)),
+		};
+		let make = match body.is_empty() {
+			true => Expr::Lambda(vec![param], Box::new(object)),
+			false => {
+				body.push(StmtKind::Return(Some(object)).at(None));
+				Expr::Arrow(vec![param], self.t.ty(field_to, span), body)
+			}
+		};
+		let args = [value, Expr::Object(vec![(key, make)])]
+			.into_iter()
+			.chain(owned.then(|| self.t.drop_fn(from, span)).flatten())
+			.collect();
+		Some(Expr::rt("tailDyn", args))
 	}
 
 	/// `value`, a `from` pointing at a function, as a `dyn Fn*` of `kind`: the function
