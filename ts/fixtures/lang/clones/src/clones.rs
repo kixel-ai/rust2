@@ -765,6 +765,15 @@ pub fn clone_froms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			ids(&c, out);
 			b[..].clone_into(&mut a);
 			flush(&log, out);
+			// Pushed, so its capacity is more than its length.
+			let mut d = Vec::new();
+			for i in 0..5 {
+				d.push(logged(at(12 + i)));
+			}
+			d.clone_from(&b);
+			flush(&log, out);
+			out.push(d.capacity() as u8);
+			drop(d);
 			drop((a, b, c));
 			flush(&log, out);
 		}

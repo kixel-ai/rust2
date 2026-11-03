@@ -1277,7 +1277,10 @@ export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clo
  * `cloneOver`, and then the rest of `src` cloned onto its end.
  */
 export function vecCloneFrom<T>(v: T[] & Capped, src: ArrayLike<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	// Its buffer, kept as it is cut, where its length was all that said how big it is.
+	const cap = vecCapacity(v, size);
 	vecTruncate(v, src.length, drop);
+	capSet(v, v.length, cap, size);
 	const kept = v.length;
 	for (let i = 0; i < kept; i++) v[i] = cloneOver(v[i], src[i], clone, drop, over);
 	vecReserve(v, src.length - kept, size);
