@@ -1826,8 +1826,8 @@ pub fn extend<'tcx>(
 		let drops = super::iter::iter_drops(b, iter, span);
 		let each = Expr::Lambda(Vec::new(), Box::new(Expr::undefined()));
 		return Some(Expr::rt(
-			"iterFold",
-			super::iter::tail(vec![items, Expr::undefined(), each], vec![drops]),
+			"iterForEach",
+			super::iter::tail(vec![items, each], vec![drops]),
 		));
 	}
 	if let ty::Tuple(_) = coll.kind() {

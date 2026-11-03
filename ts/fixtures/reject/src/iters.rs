@@ -19,29 +19,72 @@ pub fn folds() -> usize {
 	Folds.map(|b| b + 1).count()
 }
 
-/// An iterator whose `rfind` std's adaptors would call in place of its `next_back`.
+/// An iterator of `[u8; N]`s whose own `rfind` std's adaptors call, which gives its
+/// predicate a slice of each array where std's gives the array.
 pub struct Backs;
 
 impl Iterator for Backs {
-	type Item = u8;
+	type Item = [u8; 2];
 
-	fn next(&mut self) -> Option<u8> {
+	fn next(&mut self) -> Option<[u8; 2]> {
 		None
 	}
 }
 
 impl DoubleEndedIterator for Backs {
-	fn next_back(&mut self) -> Option<u8> {
+	fn next_back(&mut self) -> Option<[u8; 2]> {
 		None
 	}
 
-	fn rfind<P: FnMut(&u8) -> bool>(&mut self, _p: P) -> Option<u8> {
-		Some(0)
+	fn rfind<P: FnMut(&[u8; 2]) -> bool>(&mut self, mut p: P) -> Option<[u8; 2]> {
+		let b = [0, 1];
+		p(&b).then_some(b)
 	}
 }
 
-pub fn backs() -> Option<u8> {
-	Backs.rev().find(|&b| b == 0)
+pub fn backs() -> Option<[u8; 2]> {
+	Backs.rev().find(|b| b[0] == 0)
+}
+
+/// An iterator whose own `collect`, which std's `FromIterator` of a `BTreeSet` calls, is
+/// still refused.
+pub struct Collects;
+
+impl Iterator for Collects {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn collect<B: FromIterator<u8>>(self) -> B {
+		B::from_iter([1])
+	}
+}
+
+pub fn collects() -> std::collections::BTreeSet<u8> {
+	Collects.collect()
+}
+
+/// An iterator whose own `find_map` drops what it finds, as the one it is translated for
+/// doesn't.
+pub struct Finds;
+
+impl Iterator for Finds {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn find_map<B, F: FnMut(u8) -> Option<B>>(&mut self, mut f: F) -> Option<B> {
+		let _ = f(0);
+		f(1)
+	}
+}
+
+pub fn finds() -> Vec<u8> {
+	Finds.filter_map(|b| (b > 0).then_some(b)).collect()
 }
 
 pub struct Part(pub u64);

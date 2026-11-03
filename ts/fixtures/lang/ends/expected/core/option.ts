@@ -2,6 +2,13 @@
 
 import * as rt from "../rt.ts";
 
+export function isNoneOr$1s1o3ss(self: rt.u8 | undefined, f: (a0: rt.u8) => boolean): boolean {
+	if (self === undefined) {
+		return true;
+	}
+	return f(self);
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
