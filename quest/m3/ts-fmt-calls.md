@@ -27,6 +27,10 @@ difference. A writer that counts calls or fails partway, like a capped buffer, c
   each run it leaves as is, empty or not, and each escape a `write_str`.
 - Add `writeChar` to the runtime's `Write`, so a crate's own `write_char` override runs.
 - Measure what the extra calls cost `format!` into a `String`.
+- Add a differential case for `Debug` of a `Cell` into a writer that sets that cell in
+  `write_str`. std reads the value before writing `Cell { value: `, and
+  [#484](https://github.com/moq-dev/rust2/pull/484) lowers it that way, but only such a writer
+  can observe the order.
 - Rejected: allowing placeholders with the runtime's chunking. The bytes match, but a
   crate's `write_str` would see calls std doesn't make.
 
