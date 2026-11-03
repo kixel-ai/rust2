@@ -1,12 +1,5 @@
 //! Iterators and collections of the crate's own that override what std's adaptors call.
 
-/// `scan` of items that can be `undefined`: its closure's `None` and `Some(None)` would both be.
-pub fn scanned(v: &[u8]) -> usize {
-	v.iter()
-		.scan(Vec::<u8>::new(), |_, &b| Some((b > 1).then_some(b)))
-		.count()
-}
-
 /// An iterator whose own `fold` holds its accumulator in an `Option`, of an `rt.None` or not.
 pub struct Folds;
 
@@ -49,11 +42,6 @@ impl DoubleEndedIterator for Backs {
 
 pub fn backs() -> Option<u8> {
 	Backs.rev().find(|&b| b == 0)
-}
-
-/// `scan` of `()`s: its closure's `None` and `Some(())` would both be `undefined`.
-pub fn scanned_unit(v: &[u8]) -> usize {
-	v.iter().scan(Vec::<u8>::new(), |_, _| Some(())).count()
 }
 
 pub struct Part(pub u64);

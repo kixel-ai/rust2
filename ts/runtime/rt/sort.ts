@@ -10,6 +10,7 @@
 // panic aborts, never shows.
 
 import { panic } from "../rt.ts";
+import { drop as dispose } from "./task.ts";
 
 type Slice<T> = { [i: number]: T; length: number };
 type Less<T> = (a: T, b: T) => boolean;
@@ -65,6 +66,32 @@ export function sliceSortUnstable<T>(s: Slice<T>, less: Less<T>, size: number, f
 	const smallSort = freeze && copy && size <= 8 ? smallSortNetwork : freeze && size * 48 <= 4096 ? smallSortGeneral : smallSortInsertion;
 	const c: Sort<T> = { s, less, size, freeze, small: smallSort === smallSortInsertion ? 16 : 32, smallSort, buf: scratch(s, 48), room: 0 };
 	quicksortUnstable(c, 0, n, false, undefined, 2 * log2(n));
+}
+
+/**
+ * `sort_by_cached_key`: `key` of each element in order, paired with its index, and then
+ * `key` dropped if the sort `owns` it, the pairs, `size` bytes long on wasm32, sorted by
+ * `sort_unstable` by `lt`, which then permute `s`, and drop by `drop`.
+ */
+export function sliceSortByCachedKey<T, K>(s: Slice<T>, key: (item: T) => K, lt: Less<[K, number]>, size: number, freeze: boolean, copy: boolean, owns = false, drop?: (key: K) => void): void {
+	const n = s.length;
+	if (n < 2) {
+		if (owns) dispose(key);
+		return;
+	}
+	const indices: [K, number][] = [];
+	for (let i = 0; i < n; i++) indices.push([key(s[i]), i]);
+	if (owns) dispose(key);
+	sliceSortUnstable(indices, lt, size, freeze, copy);
+	for (let i = 0; i < n; i++) {
+		let index = indices[i][1];
+		while (index < i) index = indices[index][1];
+		indices[i][1] = index;
+		const t = s[i];
+		s[i] = s[index];
+		s[index] = t;
+	}
+	if (drop !== undefined) for (const [k] of indices) drop(k);
 }
 
 /** `sort_by_key`'s test: `lt` of the keys `key` makes of each, the first's first. */

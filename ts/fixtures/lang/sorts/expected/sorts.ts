@@ -409,6 +409,12 @@ export function sorted$Cell_u32_sorts_sorts_closure1(keys: rt.u16[], pad: () => 
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 8, false, false);
 	put$Cell_u32(v6, out);
+	const v7: Item.Item<rt.Cell<rt.u32>>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<rt.Cell<rt.u32>>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$Cell_u32(v7, out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -443,6 +449,12 @@ export function sorted$array10_u32_sorts_sorts_closure3(keys: rt.u16[], pad: () 
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 44, true, true);
 	put$array10_u32(v6, out);
+	const v7: Item.Item<rt.u32[]>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<rt.u32[]>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$array10_u32(v7, out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -477,6 +489,12 @@ export function sorted$array22_u32_sorts_sorts_closure4(keys: rt.u16[], pad: () 
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 92, true, true);
 	put$array22_u32(v6, out);
+	const v7: Item.Item<rt.u32[]>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<rt.u32[]>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$array22_u32(v7, out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -511,6 +529,12 @@ export function sorted$array30_u32_sorts_sorts_closure5(keys: rt.u16[], pad: () 
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 124, true, true);
 	put$array30_u32(v6, out);
+	const v7: Item.Item<rt.u32[]>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<rt.u32[]>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$array30_u32(v7, out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -545,6 +569,12 @@ export function sorted$sorts_Held_sorts_sorts_closure2(keys: rt.u16[], pad: () =
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 6, true, false);
 	put$sorts_Held(v6, out);
+	const v7: Item.Item<Held.Held>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<Held.Held>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$sorts_Held(v7, out);
 }
 
 /** Each sort of `keys` as items padded by `pad`, and what it tested and left. */
@@ -579,6 +609,12 @@ export function sorted$unit_sorts_sorts_closure0(keys: rt.u16[], pad: () => unde
 		return rt.u16Rem(x2.key, 3);
 	}, rt.lt), 4, true, true);
 	put$unit(v6, out);
+	const v7: Item.Item<undefined>[] = items();
+	rt.sliceSortByCachedKey(v7, (x3: Item.Item<undefined>): Item.Item<rt.u8> => {
+		note(107, x3.tag, 0);
+		return new Item.Item(rt.u16Rem(x3.key, 5), x3.tag, 0);
+	}, rt.cmpLt(rt.cmpTuple<[Item.Item<rt.u8>, rt.usize], rt.Ordering | undefined>([Item.partialCmp$cmp_PartialOrd_u8, rt.cmp])), 12, true, true);
+	put$unit(v7, out);
 }
 
 /**

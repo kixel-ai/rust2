@@ -953,6 +953,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		// `is_sorted_by::<F>` drops its comparator before the last item, as `all` takes it.
 		("Iterator", "is_sorted_by") => &[1],
 		("LocalKey", "with" | "try_with" | "initialize_with" | "with_borrow_mut") => &[1],
+		("Cell", "update") | ("RefCell", "replace_with") => &[1],
 		_ => return None,
 	})
 }
@@ -967,6 +968,9 @@ fn releases(owner: &str, name: &str) -> bool {
 			"Iterator",
 			"for_each"
 				| "fold"
+				| "try_fold"
+				| "try_for_each"
+				| "partition"
 				| "reduce"
 				| "max_by"
 				| "min_by"
@@ -978,6 +982,7 @@ fn releases(owner: &str, name: &str) -> bool {
 				| "partial_cmp_by"
 		) | ("DoubleEndedIterator", "rfold" | "try_rfold")
 			| ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
+			| ("slice", "sort_by_cached_key")
 	)
 }
 
@@ -1015,7 +1020,8 @@ fn takes_none(owner: &str, name: &str) -> bool {
 			) | (
 				"Iterator",
 				"max_by" | "min_by" | "reduce" | "find_map" | "filter_map" | "map_while"
-			) | ("Peekable", "peek" | "next_if" | "next_if_eq")
+			) | ("Iterator", "try_fold" | "try_for_each" | "scan")
+				| ("Peekable", "peek" | "next_if" | "next_if_eq")
 				| (
 					"OnceCell" | "OnceLock",
 					"get" | "get_mut" | "set" | "get_or_init" | "get_or_try_init" | "take" | "into_inner"
@@ -1181,16 +1187,22 @@ fn called_closures<'tcx>(
 		}
 		let mentions = |t: Ty<'tcx>| t.walk().any(|a| a.as_type() == Some(input));
 		if mentions(output) {
-			// An `rt.Iter` drops the closure it holds, and an `rt.PollFn` one it owns.
+			// An `rt.Iter` drops the closure it holds, an `rt.PollFn` one it owns, and an
+			// `rt.LazyCell` one it never calls, and one it calls through `FnOnce` as it does.
 			let holder = match output.kind() {
 				ty::Adt(adt, args) if args.types().any(|a| a == input) => Some(adt.did()),
 				_ => None,
 			};
 			let iter = holder.is_some_and(|did| super::iter::holds_closure(tcx, did));
+			let holds = holder.and_then(|did| Std::of(tcx, did));
+			let lazy = matches!(holds, Some(Std::LazyCell | Std::LazyLock));
 			if lent && iter && i < args.len() {
 				let f = std::mem::replace(&mut args[i], Expr::undefined());
 				args[i] = Expr::rt("lent", vec![f]);
-			} else if !lent && !iter && holder.and_then(|did| Std::of(tcx, did)) != Some(Std::PollFn) {
+			} else if lazy && !lent && called != ty::ClosureKind::FnOnce && i < args.len() {
+				let f = std::mem::replace(&mut args[i], Expr::undefined());
+				args[i] = Expr::rt("once", vec![f]);
+			} else if !lent && !iter && !lazy && holds != Some(Std::PollFn) {
 				closures.leaked = closures.leaked.or(Some(ty));
 			}
 			continue;
@@ -2107,6 +2119,25 @@ fn mapping<'tcx>(
 				}
 				false => Expr::rt("sliceSort", values),
 			}
+		}
+		// By `sort_unstable` of each key `f` makes paired with its index, a `usize`, as a
+		// `u32` is no smaller on wasm32, `f` dropped once it made them, and then the keys
+		// dropped.
+		("slice", "sort_by_cached_key") => {
+			let (elem, key) = (targ(gargs, 0), targ(gargs, 1));
+			let mut values = args.into_iter();
+			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let f = values.next()?;
+			let pair = Ty::new_tup(tcx, &[key, tcx.types.usize]);
+			let lt = super::collections::test_fn(b, pair, "lt", span);
+			let [size, freeze] = sort_of(b, pair, span);
+			let copy = Expr::lit(b.t.is_copy(key).to_string());
+			let owns = Expr::lit(b.t.drops(targ(gargs, 2)).to_string());
+			let drop = b.t.dropper(key, span);
+			Expr::rt(
+				"sliceSortByCachedKey",
+				super::iter::tail(vec![s, f, lt, size, freeze, copy], vec![owns, drop]),
+			)
 		}
 		// Whether each element and the next are in order, as `sort` would leave them: by
 		// `PartialOrd::le` in std's chunks, or as the slice's iterator's `is_sorted_by` and
@@ -3410,14 +3441,18 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 				vec![default_value(b, args.type_at(0), span, out)?],
 			),
 			Std::OnceCell | Std::OnceLock => super::task::once_new(b, ty),
-			// An empty slice or text, its own.
-			Std::Box if !args.type_at(0).is_sized(tcx, b.t.typing_env_pub()) => {
-				return default_value(
+			// An empty slice or text, its own, or an `Arc`'s.
+			std @ (Std::Box | Std::Arc) if !args.type_at(0).is_sized(tcx, b.t.typing_env_pub()) => {
+				let empty = default_value(
 					b,
 					Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, args.type_at(0)),
 					span,
 					out,
-				);
+				)?;
+				match std {
+					Std::Arc => Expr::New(Box::new(Expr::Rt("Arc".into())), vec![empty]),
+					_ => empty,
+				}
 			}
 			Std::Box | Std::Wrapping | Std::Saturating => part(b, args.type_at(0), out),
 			Std::Arc => Expr::New(Box::new(Expr::Rt("Arc".into())), vec![part(b, args.type_at(0), out)]),

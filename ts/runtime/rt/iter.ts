@@ -557,6 +557,11 @@ export function iterFromFn<T>(f: () => T | undefined | None, none?: None): Iter<
 	return new FromNext(f, (f) => iterFromOption(f(), none), dispose);
 }
 
+/** `iter::repeat_with`: `f` called for each item, endlessly, which drops with it. */
+export function iterRepeatWith<T>(f: () => T): Iter<T> {
+	return new FromNext(f, (f) => f(), dispose, { hint: () => [USIZE_MAX, undefined] });
+}
+
 /**
  * `iter::successors`: `first`, then `succ` of each item, called as that item is yielded.
  * The item it holds next drops by `drop`, and then `succ`, as std's fields drop.
@@ -817,6 +822,16 @@ export function iterMapWhile<T, U>(it: Iter<T>, f: (item: T) => U | undefined | 
 	return new MapWhileIter(it, f, none);
 }
 
+/**
+ * `Iterator::scan`, which hands `f` its state, as its place if `copied`, where JS copies it,
+ * and drops it by `drop` after `f`, as std's fields drop.
+ */
+export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item: T) => U | undefined, copied?: boolean, drop?: Drop<S>): Iter<U>;
+export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item: T) => U | None, copied: boolean | undefined, drop: Drop<S> | undefined, none: None): Iter<U>;
+export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item: T) => U | undefined | None, copied = false, drop?: Drop<S>, none?: None): Iter<U> {
+	return new ScanIter(it, state, f, copied, drop, none);
+}
+
 /** `Iterator::step_by`, panicking on a step of 0, and dropping what it steps over by `drop`. */
 export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>): Iter<T> {
 	return new StepByIter(it, step, drop);
@@ -1071,23 +1086,39 @@ export function iterRfold<T, A>(it: Iter<T>, init: A, f: (acc: A, item: T) => A,
 }
 
 /**
- * `DoubleEndedIterator::try_rfold`, from the back as `try_rfold` steps it, until `f`
- * breaks: by an `Option`'s `None`, `none` where that is `rt.None`, if `option`, and else by
- * an `rt.Result`'s `Err`, as a `Result` or a `ControlFlow` breaks. It returns what broke, or
- * the accumulator as the type continues with it. If it `owns` `f`, `f` drops as it returns.
+ * `Iterator::try_fold`, as `try_fold` steps it, until `f` breaks: by an `Option`'s `None`,
+ * `none` where that is `rt.None`, if `option`, and else by an `rt.Result`'s `Err`, as a
+ * `Result` or a `ControlFlow` breaks. It returns what broke, or the accumulator as the type
+ * continues with it. If it `owns` `f`, `f` drops as it returns.
  */
+export function iterTryFold<T, A, R>(it: Iter<T>, init: A, f: (acc: A, item: T) => R, option = false, owns = false, none?: None): R {
+	return tryFold(it, false, init, f, option, none, owns ? () => dispose(f) : undefined);
+}
+
+/** `DoubleEndedIterator::try_rfold`, from the back, as `iterTryFold`. */
 export function iterTryRfold<T, A, R>(it: Iter<T>, init: A, f: (acc: A, item: T) => R, option = false, owns = false, none?: None): R {
+	return tryFold(it, true, init, f, option, none, owns ? () => dispose(f) : undefined);
+}
+
+/** `Iterator::try_for_each`, as `iterTryFold` of `()`. */
+export function iterTryForEach<T, R>(it: Iter<T>, f: (item: T) => R, option = false, owns = false, none?: None): R {
+	return tryFold(it, false, undefined, (_, item: T) => f(item), option, none, owns ? () => dispose(f) : undefined);
+}
+
+/** `iterTryFold`, or from the back if `back`, which ends by `release`. */
+function tryFold<T, A, R>(it: Iter<T>, back: boolean, init: A, f: (acc: A, item: T) => R, option: boolean, none: None | undefined, release: (() => void) | undefined): R {
 	const folded = it.folded();
+	const read = back ? () => folded.nextBack() : () => folded.next();
 	let acc = init;
-	for (let item = folded.nextBack(); item !== DONE; item = folded.nextBack()) {
+	for (let item = read(); item !== DONE; item = read()) {
 		const step = f(acc, item);
 		if (option ? step === none : !(step as Result<A, unknown>).ok) {
-			if (owns) dispose(f);
+			release?.();
 			return step;
 		}
 		acc = option ? (step as unknown as A) : (step as { value: A }).value;
 	}
-	if (owns) dispose(f);
+	release?.();
 	return (option ? acc : Ok(acc)) as R;
 }
 
@@ -3398,6 +3429,64 @@ class MapWhileIter<T, U> extends Calling<T, U, (item: T) => U | undefined | None
 
 	override sizeHint(): SizeHint {
 		return fewer(this.inner);
+	}
+}
+
+/**
+ * `Scan`, which hands `f` its state, or its place, and yields what `f` returns until it
+ * returns `None`: its `next` reads on after, but a fold, by `try_fold`, stops there.
+ */
+class ScanIter<T, S, U> extends Calling<T, U, (state: never, item: T) => U | undefined | None> {
+	private state: S;
+	private readonly at: S | Place<S>;
+	private readonly drop: Drop<S> | undefined;
+	/** The `Option`'s `None` that `f` returns. */
+	private readonly none: None | undefined;
+	private stateDropped = false;
+
+	constructor(inner: Iter<T>, state: S, f: (state: never, item: T) => U | undefined | None, copied: boolean, drop?: Drop<S>, none?: None) {
+		super(inner, f);
+		this.state = state;
+		this.at = copied
+			? place(
+					() => this.state,
+					(v) => {
+						this.state = v;
+					},
+				)
+			: state;
+		this.drop = drop;
+		this.none = none;
+	}
+
+	next(): U | Done {
+		return this.scan(this.inner.next());
+	}
+
+	/** std's folds read its iterator as its `try_fold` does. */
+	override folded(): Iter<U> {
+		const inner = this.inner.folded();
+		if (inner === this.inner) return this;
+		return new Folded(
+			() => this.scan(inner.next()),
+			() => this.nextBack(),
+		);
+	}
+
+	/** What `f` makes of `item`, which ends it at `None`. */
+	private scan(item: T | Done): U | Done {
+		return item === DONE ? DONE : iterFromOption(this.f(this.at as never, item), this.none);
+	}
+
+	override sizeHint(): SizeHint {
+		return fewer(this.inner);
+	}
+
+	override [Symbol.dispose](): void {
+		super[Symbol.dispose]();
+		if (this.stateDropped) return;
+		this.stateDropped = true;
+		this.drop?.(this.state);
 	}
 }
 
