@@ -1,6 +1,7 @@
 //! Clones of std's iterators and adaptors, and of closures: each read on from where the
 //! original was, independently of it, the two read in turns from either end after partial
-//! reads, with what they own cloned and dropped as std's do.
+//! reads, with what they own cloned and dropped as std's do. And clones of arrays, each
+//! element by its own `Clone`.
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
@@ -531,4 +532,140 @@ fn closures(data: &[u8], plan: &mut Plan<'_>, out: &mut Vec<u8>) {
 	let it = data.iter().map(shared);
 	let clone = it.clone().rev();
 	out.extend(it.zip(clone).map(|(x, y)| x ^ y));
+}
+
+/// Clones of the bytes' ids, which panic, saying which, on one of them.
+struct Fussy(u8);
+
+impl Clone for Fussy {
+	fn clone(&self) -> Self {
+		if self.0 % 3 == 0 {
+			panic!("cloning {}", self.0);
+		}
+		Fussy(self.0)
+	}
+}
+
+/// A derived `Clone`, which clones each field in order.
+#[derive(Clone)]
+struct Pair {
+	left: [Logged; 2],
+	tag: String,
+}
+
+/// `x` cloned where only its bound says it clones.
+fn cloned<T: Clone>(x: &T) -> T {
+	x.clone()
+}
+
+/// Arrays of values that clone and drop themselves, each element cloned in order as std's
+/// are: by `clone`, `to_owned`, and `clone_from` and `clone_into`, which clone each element
+/// over its own and drop what that wrote over, of none, nested, and as an `Option`, a tuple,
+/// a derived `Clone`, a `Vec`, and a generic function clone theirs.
+pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let logged = |id: u8| Logged { id, log: log.clone() };
+	let at = |i: usize| data.get(i).copied().unwrap_or((i as u8).wrapping_mul(0x30)) & 0x7e;
+	let three = || [logged(at(0)), logged(at(1)), logged(at(2))];
+	let ids = |a: &[Logged], out: &mut Vec<u8>| out.extend(a.iter().map(Logged::id));
+	match kind % 8 {
+		0 => {
+			let a = three();
+			let b = a.clone();
+			flush(&log, out);
+			ids(&b, out);
+			drop(a);
+			flush(&log, out);
+			let c = b.to_owned();
+			drop(b);
+			flush(&log, out);
+			let none: [Logged; 0] = [];
+			let other = none.clone();
+			ids(&c, out);
+			drop((none, other, c));
+			flush(&log, out);
+		}
+		1 => {
+			let mut a = three();
+			let b = [logged(at(3)), logged(at(4)), logged(at(5))];
+			a.clone_from(&b);
+			flush(&log, out);
+			ids(&a, out);
+			let mut c = [logged(at(6)), logged(at(7)), logged(at(8))];
+			b.clone_into(&mut c);
+			flush(&log, out);
+			ids(&c, out);
+			drop((a, b, c));
+			flush(&log, out);
+		}
+		2 => {
+			let some = Some([logged(at(0)), logged(at(1))]);
+			let none: Option<[Logged; 2]> = None;
+			let (x, y) = (some.clone(), none.clone());
+			flush(&log, out);
+			out.push(y.is_none() as u8);
+			ids(x.as_ref().unwrap(), out);
+			drop(some);
+			flush(&log, out);
+			drop(x);
+			flush(&log, out);
+		}
+		3 => {
+			let tuple = ([logged(at(0)), logged(at(1))], String::from("t"), logged(at(2)));
+			let copy = tuple.clone();
+			flush(&log, out);
+			ids(&copy.0, out);
+			drop(tuple);
+			flush(&log, out);
+			let pair = Pair {
+				left: [logged(at(3)), logged(at(4))],
+				tag: format!("{}", at(5)),
+			};
+			let other = pair.clone();
+			flush(&log, out);
+			ids(&other.left, out);
+			out.extend(other.tag.bytes());
+			drop((copy, pair));
+			flush(&log, out);
+			drop(other);
+			flush(&log, out);
+		}
+		4 => {
+			let grid = [[logged(at(0)), logged(at(1))], [logged(at(2)), logged(at(3))]];
+			let copy = grid.clone();
+			flush(&log, out);
+			drop(grid);
+			flush(&log, out);
+			ids(&copy[1], out);
+			let words = [String::from("a"), at(4).to_string(), String::new()];
+			let vecs = [data.to_vec(), vec![at(5)]];
+			let (words2, mut vecs2) = (words.clone(), vecs.clone());
+			vecs2[0].push(1);
+			out.extend(words2.concat().bytes());
+			out.extend(vecs.iter().chain(&vecs2).flatten());
+			drop(copy);
+			flush(&log, out);
+		}
+		5 => {
+			let rows = vec![[logged(at(0)), logged(at(1))], [logged(at(2)), logged(at(3))]];
+			let copy = rows.clone();
+			flush(&log, out);
+			let generic = cloned(&copy[0]);
+			flush(&log, out);
+			let mut sum = 0u8;
+			for row in rows.iter().cloned() {
+				sum = sum.wrapping_add(row[0].id() ^ row[1].id());
+			}
+			out.push(sum);
+			flush(&log, out);
+			drop((rows, copy, generic));
+			flush(&log, out);
+		}
+		// Panics on the first element whose clone does: those before cloned in order.
+		_ => {
+			let fussy = [Fussy(at(0)), Fussy(at(1)), Fussy(at(2))];
+			let copy = fussy.clone();
+			out.extend(copy.iter().map(|f| f.0));
+		}
+	}
 }

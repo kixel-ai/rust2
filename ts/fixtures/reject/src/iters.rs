@@ -46,24 +46,23 @@ pub fn backs() -> Option<[u8; 2]> {
 	Backs.rev().find(|b| b[0] == 0)
 }
 
-/// An iterator whose own `collect`, which std's `FromIterator` of a `BTreeSet` calls, is
-/// still refused.
-pub struct Collects;
+/// An iterator whose own `map`, which std's `flat_map` calls, is still refused.
+pub struct Maps;
 
-impl Iterator for Collects {
+impl Iterator for Maps {
 	type Item = u8;
 
 	fn next(&mut self) -> Option<u8> {
 		None
 	}
 
-	fn collect<B: FromIterator<u8>>(self) -> B {
-		B::from_iter([1])
+	fn map<B, F: FnMut(u8) -> B>(self, _: F) -> std::iter::Map<Self, F> {
+		unreachable!()
 	}
 }
 
-pub fn collects() -> std::collections::BTreeSet<u8> {
-	Collects.collect()
+pub fn maps() -> Vec<u8> {
+	Maps.flat_map(|b| [b]).collect()
 }
 
 /// An iterator whose own `find_map` drops what it finds, as the one it is translated for

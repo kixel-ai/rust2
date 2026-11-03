@@ -4,7 +4,7 @@ import * as rt from "./rt.ts";
 import * as buf_Counted from "./buf.Counted.ts";
 import * as Pieces from "./buf.Pieces.ts";
 import * as Provided from "./buf.Provided.ts";
-import { tryCopyToSlice$bytes_Buf_bytes_Bytes, tryCopyToSlice$bytes_Buf_bytes_BytesMut, tryCopyToSlice$bytes_Buf_ref_slice_u8, tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_ref_slice_u8, tryGetI8$bytes_Buf_bytes_Bytes, tryGetI8$bytes_Buf_bytes_BytesMut, tryGetI8$bytes_Buf_ref_slice_u8, tryGetUint$bytes_Buf_bytes_Bytes, tryGetUint$bytes_Buf_bytes_BytesMut, tryGetUint$bytes_Buf_ref_slice_u8, tryGetUintLe$bytes_Buf_bytes_Bytes, tryGetUintLe$bytes_Buf_bytes_BytesMut, tryGetUintLe$bytes_Buf_ref_slice_u8, tryGetUintNe$bytes_Buf_bytes_Bytes, tryGetUintNe$bytes_Buf_bytes_BytesMut, tryGetUintNe$bytes_Buf_ref_slice_u8, tryGetInt$bytes_Buf_bytes_Bytes, tryGetInt$bytes_Buf_bytes_BytesMut, tryGetInt$bytes_Buf_ref_slice_u8, tryGetIntLe$bytes_Buf_bytes_Bytes, tryGetIntLe$bytes_Buf_bytes_BytesMut, tryGetIntLe$bytes_Buf_ref_slice_u8, tryGetIntNe$bytes_Buf_bytes_Bytes, tryGetIntNe$bytes_Buf_bytes_BytesMut, tryGetIntNe$bytes_Buf_ref_slice_u8, tryGetF32$bytes_Buf_bytes_Bytes, tryGetF32$bytes_Buf_bytes_BytesMut, tryGetF32$bytes_Buf_ref_slice_u8, tryGetF32Le$bytes_Buf_bytes_Bytes, tryGetF32Le$bytes_Buf_bytes_BytesMut, tryGetF32Le$bytes_Buf_ref_slice_u8, tryGetF32Ne$bytes_Buf_bytes_Bytes, tryGetF32Ne$bytes_Buf_bytes_BytesMut, tryGetF32Ne$bytes_Buf_ref_slice_u8, tryGetF64$bytes_Buf_bytes_Bytes, tryGetF64$bytes_Buf_bytes_BytesMut, tryGetF64$bytes_Buf_ref_slice_u8, tryGetF64Le$bytes_Buf_bytes_Bytes, tryGetF64Le$bytes_Buf_bytes_BytesMut, tryGetF64Le$bytes_Buf_ref_slice_u8, tryGetF64Ne$bytes_Buf_bytes_Bytes, tryGetF64Ne$bytes_Buf_bytes_BytesMut, tryGetF64Ne$bytes_Buf_ref_slice_u8 } from "./bytes/buf/buf_impl.ts";
+import { tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_ref_slice_u8 } from "./bytes/buf/buf_impl.ts";
 import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
 import * as Take from "./bytes/buf/take.Take.ts";
@@ -212,44 +212,16 @@ export class of$buf_Counted {
 		return buf_Counted.copyToSlice$bytes_Buf(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return buf_Counted.getF32$bytes_Buf(this.v);
-	}
-
 	getF32Le$Buf(): rt.f32 {
 		return buf_Counted.getF32Le$bytes_Buf(this.v);
-	}
-
-	getF32Ne$Buf(): rt.f32 {
-		return buf_Counted.getF32Ne$bytes_Buf(this.v);
 	}
 
 	getF64$Buf(): rt.f64 {
 		return buf_Counted.getF64$bytes_Buf(this.v);
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return buf_Counted.getF64Le$bytes_Buf(this.v);
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return buf_Counted.getF64Ne$bytes_Buf(this.v);
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI16$Buf(): rt.i16 {
-		return rt.bufGet(this.v, 2, false, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -264,23 +236,7 @@ export class of$buf_Counted {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, false, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -288,27 +244,11 @@ export class of$buf_Counted {
 		return buf_Counted.getI8$bytes_Buf(this.v);
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return buf_Counted.getInt$bytes_Buf(this.v, a);
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return buf_Counted.getIntLe$bytes_Buf(this.v, a);
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return buf_Counted.getIntNe$bytes_Buf(this.v, a);
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, false, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -316,36 +256,12 @@ export class of$buf_Counted {
 		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, false, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -356,14 +272,6 @@ export class of$buf_Counted {
 		return buf_Counted.getUint$bytes_Buf(this.v, a);
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return buf_Counted.getUintLe$bytes_Buf(this.v, a);
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return buf_Counted.getUintNe$bytes_Buf(this.v, a);
-	}
-
 	hasRemaining$Buf(): boolean {
 		return buf_Counted.hasRemaining$bytes_Buf(this.v);
 	}
@@ -372,187 +280,21 @@ export class of$buf_Counted {
 		return buf_Counted.remaining$bytes_Buf(this.v);
 	}
 
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return buf_Counted.tryCopyToSlice$bytes_Buf(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF32$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF32Le$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF32Ne$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF64$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF64Le$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetF64Ne$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetI8$bytes_Buf(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetInt$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetIntLe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetIntNe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
 	}
 
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, buf_Counted.remaining$bytes_Buf, buf_Counted.chunk$bytes_Buf, buf_Counted.advance$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.usize) => undefined, buf_Counted.copyToSlice$bytes_Buf as (a0: buf_Counted.Counted, a1: rt.ByteSlice) => undefined);
 	}
 
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = buf_Counted.tryGetU8$bytes_Buf(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetUint$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetUintLe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = buf_Counted.tryGetUintNe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -952,44 +694,16 @@ export class of$buf_Provided {
 		return Provided.copyToSlice$bytes_Buf(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return Provided.getF32$bytes_Buf(this.v);
-	}
-
 	getF32Le$Buf(): rt.f32 {
 		return Provided.getF32Le$bytes_Buf(this.v);
-	}
-
-	getF32Ne$Buf(): rt.f32 {
-		return Provided.getF32Ne$bytes_Buf(this.v);
 	}
 
 	getF64$Buf(): rt.f64 {
 		return Provided.getF64$bytes_Buf(this.v);
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return Provided.getF64Le$bytes_Buf(this.v);
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return Provided.getF64Ne$bytes_Buf(this.v);
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI16$Buf(): rt.i16 {
-		return rt.bufGet(this.v, 2, false, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -1004,23 +718,7 @@ export class of$buf_Provided {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, false, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -1028,27 +726,11 @@ export class of$buf_Provided {
 		return Provided.getI8$bytes_Buf(this.v);
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return Provided.getInt$bytes_Buf(this.v, a);
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return Provided.getIntLe$bytes_Buf(this.v, a);
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return Provided.getIntNe$bytes_Buf(this.v, a);
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, false, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -1056,36 +738,12 @@ export class of$buf_Provided {
 		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, false, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -1096,14 +754,6 @@ export class of$buf_Provided {
 		return Provided.getUint$bytes_Buf(this.v, a);
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return Provided.getUintLe$bytes_Buf(this.v, a);
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return Provided.getUintNe$bytes_Buf(this.v, a);
-	}
-
 	hasRemaining$Buf(): boolean {
 		return Provided.hasRemaining$bytes_Buf(this.v);
 	}
@@ -1112,187 +762,21 @@ export class of$buf_Provided {
 		return Provided.remaining$bytes_Buf(this.v);
 	}
 
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return Provided.tryCopyToSlice$bytes_Buf(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Provided.tryGetF32$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Provided.tryGetF32Le$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Provided.tryGetF32Ne$bytes_Buf(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Provided.tryGetF64$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Provided.tryGetF64Le$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Provided.tryGetF64Ne$bytes_Buf(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = Provided.tryGetI8$bytes_Buf(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Provided.tryGetInt$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Provided.tryGetIntLe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Provided.tryGetIntNe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
 	}
 
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Provided.remaining$bytes_Buf, Provided.chunk$bytes_Buf, Provided.advance$bytes_Buf as (a0: Provided.Provided, a1: rt.usize) => undefined, Provided.copyToSlice$bytes_Buf as (a0: Provided.Provided, a1: rt.ByteSlice) => undefined);
 	}
 
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = Provided.tryGetU8$bytes_Buf(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Provided.tryGetUint$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Provided.tryGetUintLe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Provided.tryGetUintNe$bytes_Buf(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -1320,15 +804,7 @@ export class of$bytes_Bytes {
 		return rt.bytesCopyToSlice(this, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this, 4, false));
-	}
-
 	getF32Le$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this, 4, true));
-	}
-
-	getF32Ne$Buf(): rt.f32 {
 		return rt.f32FromBeBytes(rt.bytesRead(this, 4, true));
 	}
 
@@ -1336,28 +812,8 @@ export class of$bytes_Bytes {
 		return rt.f64FromBeBytes(rt.bytesRead(this, 8, false));
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.i128FromBeBytes(rt.bytesRead(this, 16, false));
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getI16$Buf(): rt.i16 {
-		return (rt.bytesReadWord(this, 2, false) << 16) >> 16 as rt.i16;
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -1372,23 +828,7 @@ export class of$bytes_Bytes {
 		return (rt.bytesReadWord(this, 4, false) | 0) as rt.i32;
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this, 4, true) | 0) as rt.i32;
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this, 4, true) | 0) as rt.i32;
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this, 8, false));
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesRead(this, 8, true));
 	}
 
@@ -1396,27 +836,11 @@ export class of$bytes_Bytes {
 		return (rt.bytesReadWord(this, 1, false) << 24) >> 24 as rt.i8;
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, false));
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, true));
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, true));
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this, 16, false));
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.u128FromBeBytes(rt.bytesRead(this, 16, true));
 	}
 
@@ -1424,36 +848,12 @@ export class of$bytes_Bytes {
 		return rt.bytesReadWord(this, 2, false) as rt.u16;
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bytesReadWord(this, 2, true) as rt.u16;
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bytesReadWord(this, 2, true) as rt.u16;
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bytesReadWord(this, 4, false) as rt.u32;
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bytesReadWord(this, 4, true) as rt.u32;
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bytesReadWord(this, 4, true) as rt.u32;
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.u64FromBeBytes(rt.bytesRead(this, 8, false));
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this, 8, true));
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -1464,180 +864,12 @@ export class of$bytes_Bytes {
 		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, false));
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, true));
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, true));
-	}
-
 	hasRemaining$Buf(): boolean {
 		return this.v.length !== 0;
 	}
 
 	remaining$Buf(): rt.usize {
 		return this.v.length;
-	}
-
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return tryCopyToSlice$bytes_Buf_bytes_Bytes(this, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Le$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Ne$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Le$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Ne$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, false, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, false, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, false, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, false, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
 	}
 
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
@@ -1652,68 +884,8 @@ export class of$bytes_Bytes {
 		});
 	}
 
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = tryGetI8$bytes_Buf_bytes_Bytes(this);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetInt$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntLe$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntNe$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this, 16, false, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
 			return a02;
@@ -1736,123 +908,9 @@ export class of$bytes_Bytes {
 		});
 	}
 
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, false, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, false, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = tryGetU8$bytes_Buf_bytes_Bytes(this);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUint$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintLe$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintNe$bytes_Buf_bytes_Bytes(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -1880,15 +938,7 @@ export class of$bytes_BytesMut {
 		return rt.bytesMutCopyToSlice(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesMutRead(this.v, 4, false));
-	}
-
 	getF32Le$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesMutRead(this.v, 4, true));
-	}
-
-	getF32Ne$Buf(): rt.f32 {
 		return rt.f32FromBeBytes(rt.bytesMutRead(this.v, 4, true));
 	}
 
@@ -1896,28 +946,8 @@ export class of$bytes_BytesMut {
 		return rt.f64FromBeBytes(rt.bytesMutRead(this.v, 8, false));
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.i128FromBeBytes(rt.bytesMutRead(this.v, 16, false));
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesMutRead(this.v, 16, true));
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesMutRead(this.v, 16, true));
-	}
-
-	getI16$Buf(): rt.i16 {
-		return (rt.bytesMutReadWord(this.v, 2, false) << 16) >> 16 as rt.i16;
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -1932,23 +962,7 @@ export class of$bytes_BytesMut {
 		return (rt.bytesMutReadWord(this.v, 4, false) | 0) as rt.i32;
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return (rt.bytesMutReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return (rt.bytesMutReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesMutRead(this.v, 8, false));
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
 	}
 
@@ -1956,27 +970,11 @@ export class of$bytes_BytesMut {
 		return (rt.bytesMutReadWord(this.v, 1, false) << 24) >> 24 as rt.i8;
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, true, false));
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, true, true));
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, true, true));
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesMutRead(this.v, 16, false));
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesMutRead(this.v, 16, true));
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.u128FromBeBytes(rt.bytesMutRead(this.v, 16, true));
 	}
 
@@ -1984,36 +982,12 @@ export class of$bytes_BytesMut {
 		return rt.bytesMutReadWord(this.v, 2, false) as rt.u16;
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bytesMutReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bytesMutReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bytesMutReadWord(this.v, 4, false) as rt.u32;
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bytesMutReadWord(this.v, 4, true) as rt.u32;
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bytesMutReadWord(this.v, 4, true) as rt.u32;
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.u64FromBeBytes(rt.bytesMutRead(this.v, 8, false));
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesMutRead(this.v, 8, true));
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -2024,180 +998,12 @@ export class of$bytes_BytesMut {
 		return rt.u64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, false, false));
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, false, true));
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesMutReadInt(this.v, 8, a, false, true));
-	}
-
 	hasRemaining$Buf(): boolean {
 		return this.v.length !== 0;
 	}
 
 	remaining$Buf(): rt.usize {
 		return this.v.length;
-	}
-
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return tryCopyToSlice$bytes_Buf_bytes_BytesMut(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Le$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Ne$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Le$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Ne$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
 	}
 
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
@@ -2212,68 +1018,8 @@ export class of$bytes_BytesMut {
 		});
 	}
 
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = tryGetI8$bytes_Buf_bytes_BytesMut(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetInt$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntLe$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntNe$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (a0: rt.BytesMut): rt.usize => {
 			return a0.length;
 		}, (a02: rt.BytesMut): rt.ByteSlice => {
 			return rt.bytesMutView(a02);
@@ -2296,123 +1042,9 @@ export class of$bytes_BytesMut {
 		});
 	}
 
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (a0: rt.BytesMut): rt.usize => {
-			return a0.length;
-		}, (a02: rt.BytesMut): rt.ByteSlice => {
-			return rt.bytesMutView(a02);
-		}, (a03: rt.BytesMut, a1: rt.usize): undefined => {
-			rt.bytesMutAdvance(a03, a1);
-		}, (a04: rt.BytesMut, a12: rt.ByteSlice): undefined => {
-			rt.bytesMutCopyToSlice(a04, a12);
-		});
-	}
-
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = tryGetU8$bytes_Buf_bytes_BytesMut(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUint$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintLe$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintNe$bytes_Buf_bytes_BytesMut(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -2440,44 +1072,16 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return Chain.getF32$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-	}
-
 	getF32Le$Buf(): rt.f32 {
 		return Chain.getF32Le$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-	}
-
-	getF32Ne$Buf(): rt.f32 {
-		return Chain.getF32Ne$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 	}
 
 	getF64$Buf(): rt.f64 {
 		return Chain.getF64$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return Chain.getF64Le$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return Chain.getF64Ne$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI16$Buf(): rt.i16 {
-		return rt.bufGet(this.v, 2, false, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -2492,23 +1096,7 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, false, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -2516,27 +1104,11 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return Chain.getI8$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return Chain.getInt$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return Chain.getIntLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return Chain.getIntNe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, false, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -2544,36 +1116,12 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, false, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -2584,14 +1132,6 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return Chain.getUint$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return Chain.getUintLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return Chain.getUintNe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-	}
-
 	hasRemaining$Buf(): boolean {
 		return Chain.hasRemaining$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 	}
@@ -2600,187 +1140,21 @@ export class of$bytes_buf_Chain_buf_Provided_mut_ref_slice_u8 {
 		return Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 	}
 
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return Chain.tryCopyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32Le$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32Ne$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64Le$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64Ne$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = Chain.tryGetI8$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetInt$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetIntLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetIntNe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
 	}
 
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8, Chain.advance$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8 as (a0: Chain.Chain<Provided.Provided, rt.Place<rt.ByteSlice>>, a1: rt.ByteSlice) => undefined);
 	}
 
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = Chain.tryGetU8$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUint$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUintLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUintNe$bytes_Buf_buf_Provided_mut_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -2812,44 +1186,16 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return Chain.getF32$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-	}
-
 	getF32Le$Buf(): rt.f32 {
 		return Chain.getF32Le$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-	}
-
-	getF32Ne$Buf(): rt.f32 {
-		return Chain.getF32Ne$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
 
 	getF64$Buf(): rt.f64 {
 		return Chain.getF64$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return Chain.getF64Le$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return Chain.getF64Ne$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI16$Buf(): rt.i16 {
-		return rt.bufGet(this.v, 2, false, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -2864,23 +1210,7 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, false, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -2888,27 +1218,11 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return Chain.getI8$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return Chain.getInt$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return Chain.getIntLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return Chain.getIntNe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, false, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -2916,36 +1230,12 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, false, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -2956,14 +1246,6 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return Chain.getUint$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return Chain.getUintLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return Chain.getUintNe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-	}
-
 	hasRemaining$Buf(): boolean {
 		return Chain.hasRemaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
@@ -2972,187 +1254,21 @@ export class of$bytes_buf_Chain_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_By
 		return Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 	}
 
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return Chain.tryCopyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32Le$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Chain.tryGetF32Ne$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64Le$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Chain.tryGetF64Ne$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = Chain.tryGetI8$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetInt$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetIntLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Chain.tryGetIntNe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
 	}
 
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Chain.remaining$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.chunk$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8, Chain.advance$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.usize) => undefined, Chain.copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8 as (a0: Chain.Chain<Chain.Chain<Buf.Buf, rt.ByteSlice>, rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = Chain.tryGetU8$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUint$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUintLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Chain.tryGetUintNe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -3180,44 +1296,16 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return Take.copyToSlice$bytes_Buf_bytes_Bytes(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return Take.getF32$bytes_Buf_bytes_Bytes(this.v);
-	}
-
 	getF32Le$Buf(): rt.f32 {
 		return Take.getF32Le$bytes_Buf_bytes_Bytes(this.v);
-	}
-
-	getF32Ne$Buf(): rt.f32 {
-		return Take.getF32Ne$bytes_Buf_bytes_Bytes(this.v);
 	}
 
 	getF64$Buf(): rt.f64 {
 		return Take.getF64$bytes_Buf_bytes_Bytes(this.v);
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return Take.getF64Le$bytes_Buf_bytes_Bytes(this.v);
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return Take.getF64Ne$bytes_Buf_bytes_Bytes(this.v);
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.bufGet(this.v, 16, true, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI16$Buf(): rt.i16 {
-		return rt.bufGet(this.v, 2, false, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -3232,23 +1320,7 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return rt.bufGet(this.v, 4, true, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, false, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -3256,27 +1328,11 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return Take.getI8$bytes_Buf_bytes_Bytes(this.v);
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return Take.getInt$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return Take.getIntLe$bytes_Buf_bytes_Bytes(this.v, a);
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return Take.getIntNe$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, false, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
@@ -3284,36 +1340,12 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bufGet(this.v, 2, true, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, false, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.bufGet(this.v, 8, true, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -3324,14 +1356,6 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return Take.getUint$bytes_Buf_bytes_Bytes(this.v, a);
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return Take.getUintLe$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return Take.getUintNe$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
 	hasRemaining$Buf(): boolean {
 		return Take.hasRemaining$bytes_Buf_bytes_Bytes(this.v);
 	}
@@ -3340,164 +1364,16 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		return Take.remaining$bytes_Buf_bytes_Bytes(this.v);
 	}
 
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return Take.tryCopyToSlice$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Take.tryGetF32$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Take.tryGetF32Le$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = Take.tryGetF32Ne$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Take.tryGetF64$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Take.tryGetF64Le$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = Take.tryGetF64Ne$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = Take.tryGetI8$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Take.tryGetInt$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Take.tryGetIntLe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = Take.tryGetIntNe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
 	}
 
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
 	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, Take.remaining$bytes_Buf_bytes_Bytes, Take.chunk$bytes_Buf_bytes_Bytes, Take.advance$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_bytes_Bytes as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
 	}
 
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
@@ -3505,22 +1381,114 @@ export class of$bytes_buf_Take_bytes_Bytes {
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
+}
 
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Take.tryGetUint$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
+export class of$bytes_buf_Take_ref_slice_u8 {
+	v: Take.Take<rt.ByteSlice>;
+
+	constructor(v: Take.Take<rt.ByteSlice>) {
+		this.v = v;
 	}
 
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Take.tryGetUintLe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
+	advance$Buf(a: rt.usize): void {
+		return Take.advance$bytes_Buf_ref_slice_u8(this.v, a);
 	}
 
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = Take.tryGetUintNe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
+	chunk$Buf(): rt.ByteSlice {
+		return Take.chunk$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	copyToBytes$Buf(a: rt.usize): rt.ByteSlice {
+		return Take.copyToBytes$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	copyToSlice$Buf(a: rt.ByteSlice): void {
+		return Take.copyToSlice$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	getF32Le$Buf(): rt.f32 {
+		return Take.getF32Le$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getF64$Buf(): rt.f64 {
+		return Take.getF64$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getI128$Buf(): rt.i128 {
+		return rt.bufGet(this.v, 16, false, rt.i128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI16Le$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI16Ne$Buf(): rt.i16 {
+		return rt.bufGet(this.v, 2, true, rt.i16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI32$Buf(): rt.i32 {
+		return rt.bufGet(this.v, 4, false, rt.i32FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI64Le$Buf(): rt.i64 {
+		return rt.bufGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getI8$Buf(): rt.i8 {
+		return Take.getI8$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getIntLe$Buf(a: rt.usize): rt.i64 {
+		return Take.getIntLe$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	getU128Le$Buf(): rt.u128 {
+		return rt.bufGet(this.v, 16, true, rt.u128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU16$Buf(): rt.u16 {
+		return rt.bufGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU32Le$Buf(): rt.u32 {
+		return rt.bufGet(this.v, 4, true, rt.u32FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU64$Buf(): rt.u64 {
+		return rt.bufGet(this.v, 8, false, rt.u64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	getU8$Buf(): rt.u8 {
+		return Take.getU8$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	getUint$Buf(a: rt.usize): rt.u64 {
+		return Take.getUint$bytes_Buf_ref_slice_u8(this.v, a);
+	}
+
+	hasRemaining$Buf(): boolean {
+		return Take.hasRemaining$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	remaining$Buf(): rt.usize {
+		return Take.remaining$bytes_Buf_ref_slice_u8(this.v);
+	}
+
+	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU16$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
+		return rt.bufTryGet(this.v, 2, false, rt.u16FromBeBytes, Take.remaining$bytes_Buf_ref_slice_u8, Take.chunk$bytes_Buf_ref_slice_u8, Take.advance$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.usize) => undefined, Take.copyToSlice$bytes_Buf_ref_slice_u8 as (a0: Take.Take<rt.ByteSlice>, a1: rt.ByteSlice) => undefined);
+	}
+
+	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
+		const part = Take.tryGetU8$bytes_Buf_ref_slice_u8(this.v);
+		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -3548,15 +1516,7 @@ export class of$ref_slice_u8 {
 		return rt.bytesCopyToSlice(this, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this, 4, false));
-	}
-
 	getF32Le$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this, 4, true));
-	}
-
-	getF32Ne$Buf(): rt.f32 {
 		return rt.f32FromBeBytes(rt.bytesRead(this, 4, true));
 	}
 
@@ -3564,28 +1524,8 @@ export class of$ref_slice_u8 {
 		return rt.f64FromBeBytes(rt.bytesRead(this, 8, false));
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.i128FromBeBytes(rt.bytesRead(this, 16, false));
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getI16$Buf(): rt.i16 {
-		return (rt.bytesReadWord(this, 2, false) << 16) >> 16 as rt.i16;
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -3600,23 +1540,7 @@ export class of$ref_slice_u8 {
 		return (rt.bytesReadWord(this, 4, false) | 0) as rt.i32;
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this, 4, true) | 0) as rt.i32;
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this, 4, true) | 0) as rt.i32;
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this, 8, false));
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesRead(this, 8, true));
 	}
 
@@ -3624,27 +1548,11 @@ export class of$ref_slice_u8 {
 		return (rt.bytesReadWord(this, 1, false) << 24) >> 24 as rt.i8;
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, false));
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, true));
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this, 8, a, true, true));
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this, 16, false));
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this, 16, true));
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.u128FromBeBytes(rt.bytesRead(this, 16, true));
 	}
 
@@ -3652,36 +1560,12 @@ export class of$ref_slice_u8 {
 		return rt.bytesReadWord(this, 2, false) as rt.u16;
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bytesReadWord(this, 2, true) as rt.u16;
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bytesReadWord(this, 2, true) as rt.u16;
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bytesReadWord(this, 4, false) as rt.u32;
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bytesReadWord(this, 4, true) as rt.u32;
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bytesReadWord(this, 4, true) as rt.u32;
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.u64FromBeBytes(rt.bytesRead(this, 8, false));
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this, 8, true));
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this, 8, true));
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -3692,180 +1576,12 @@ export class of$ref_slice_u8 {
 		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, false));
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, true));
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this, 8, a, false, true));
-	}
-
 	hasRemaining$Buf(): boolean {
 		return this.v.length !== 0;
 	}
 
 	remaining$Buf(): rt.usize {
 		return this.v.length;
-	}
-
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return tryCopyToSlice$bytes_Buf_ref_slice_u8(this, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Le$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Ne$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Le$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Ne$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, false, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, false, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, false, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, false, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
 	}
 
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
@@ -3880,68 +1596,8 @@ export class of$ref_slice_u8 {
 		});
 	}
 
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = tryGetI8$bytes_Buf_ref_slice_u8(this);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetInt$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntLe$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntNe$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this, 16, false, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
 			return a02;
@@ -3964,123 +1620,9 @@ export class of$ref_slice_u8 {
 		});
 	}
 
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, false, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, false, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = tryGetU8$bytes_Buf_ref_slice_u8(this);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUint$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintLe$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintNe$bytes_Buf_ref_slice_u8(this, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -4108,15 +1650,7 @@ export class ofPlace$bytes_Bytes {
 		return rt.bytesCopyToSlice(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, false));
-	}
-
 	getF32Le$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, true));
-	}
-
-	getF32Ne$Buf(): rt.f32 {
 		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, true));
 	}
 
@@ -4124,28 +1658,8 @@ export class ofPlace$bytes_Bytes {
 		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, false));
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, false));
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getI16$Buf(): rt.i16 {
-		return (rt.bytesReadWord(this.v, 2, false) << 16) >> 16 as rt.i16;
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -4160,23 +1674,7 @@ export class ofPlace$bytes_Bytes {
 		return (rt.bytesReadWord(this.v, 4, false) | 0) as rt.i32;
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, false));
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, true));
 	}
 
@@ -4184,27 +1682,11 @@ export class ofPlace$bytes_Bytes {
 		return (rt.bytesReadWord(this.v, 1, false) << 24) >> 24 as rt.i8;
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, false));
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, true));
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, true));
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, false));
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, true));
 	}
 
@@ -4212,36 +1694,12 @@ export class ofPlace$bytes_Bytes {
 		return rt.bytesReadWord(this.v, 2, false) as rt.u16;
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bytesReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bytesReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bytesReadWord(this.v, 4, false) as rt.u32;
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bytesReadWord(this.v, 4, true) as rt.u32;
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bytesReadWord(this.v, 4, true) as rt.u32;
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, false));
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, true));
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -4252,180 +1710,12 @@ export class ofPlace$bytes_Bytes {
 		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, false));
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, true));
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, true));
-	}
-
 	hasRemaining$Buf(): boolean {
 		return this.v.v.length !== 0;
 	}
 
 	remaining$Buf(): rt.usize {
 		return this.v.v.length;
-	}
-
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return tryCopyToSlice$bytes_Buf_bytes_Bytes(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Le$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Ne$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Le$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Ne$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
 	}
 
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
@@ -4440,68 +1730,8 @@ export class ofPlace$bytes_Bytes {
 		});
 	}
 
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = tryGetI8$bytes_Buf_bytes_Bytes(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetInt$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntLe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntNe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
 			return a02;
@@ -4524,123 +1754,9 @@ export class ofPlace$bytes_Bytes {
 		});
 	}
 
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.bytesAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = tryGetU8$bytes_Buf_bytes_Bytes(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUint$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintLe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintNe$bytes_Buf_bytes_Bytes(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }
@@ -4668,15 +1784,7 @@ export class ofPlace$ref_slice_u8 {
 		return rt.bytesCopyToSlice(this.v, a);
 	}
 
-	getF32$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, false));
-	}
-
 	getF32Le$Buf(): rt.f32 {
-		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, true));
-	}
-
-	getF32Ne$Buf(): rt.f32 {
 		return rt.f32FromBeBytes(rt.bytesRead(this.v, 4, true));
 	}
 
@@ -4684,28 +1792,8 @@ export class ofPlace$ref_slice_u8 {
 		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, false));
 	}
 
-	getF64Le$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getF64Ne$Buf(): rt.f64 {
-		return rt.f64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
 	getI128$Buf(): rt.i128 {
 		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, false));
-	}
-
-	getI128Le$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getI128Ne$Buf(): rt.i128 {
-		return rt.i128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getI16$Buf(): rt.i16 {
-		return (rt.bytesReadWord(this.v, 2, false) << 16) >> 16 as rt.i16;
 	}
 
 	getI16Le$Buf(): rt.i16 {
@@ -4720,23 +1808,7 @@ export class ofPlace$ref_slice_u8 {
 		return (rt.bytesReadWord(this.v, 4, false) | 0) as rt.i32;
 	}
 
-	getI32Le$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI32Ne$Buf(): rt.i32 {
-		return (rt.bytesReadWord(this.v, 4, true) | 0) as rt.i32;
-	}
-
-	getI64$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, false));
-	}
-
 	getI64Le$Buf(): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getI64Ne$Buf(): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesRead(this.v, 8, true));
 	}
 
@@ -4744,27 +1816,11 @@ export class ofPlace$ref_slice_u8 {
 		return (rt.bytesReadWord(this.v, 1, false) << 24) >> 24 as rt.i8;
 	}
 
-	getInt$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, false));
-	}
-
 	getIntLe$Buf(a: rt.usize): rt.i64 {
 		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, true));
 	}
 
-	getIntNe$Buf(a: rt.usize): rt.i64 {
-		return rt.i64FromBeBytes(rt.bytesReadInt(this.v, 8, a, true, true));
-	}
-
-	getU128$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, false));
-	}
-
 	getU128Le$Buf(): rt.u128 {
-		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, true));
-	}
-
-	getU128Ne$Buf(): rt.u128 {
 		return rt.u128FromBeBytes(rt.bytesRead(this.v, 16, true));
 	}
 
@@ -4772,36 +1828,12 @@ export class ofPlace$ref_slice_u8 {
 		return rt.bytesReadWord(this.v, 2, false) as rt.u16;
 	}
 
-	getU16Le$Buf(): rt.u16 {
-		return rt.bytesReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU16Ne$Buf(): rt.u16 {
-		return rt.bytesReadWord(this.v, 2, true) as rt.u16;
-	}
-
-	getU32$Buf(): rt.u32 {
-		return rt.bytesReadWord(this.v, 4, false) as rt.u32;
-	}
-
 	getU32Le$Buf(): rt.u32 {
-		return rt.bytesReadWord(this.v, 4, true) as rt.u32;
-	}
-
-	getU32Ne$Buf(): rt.u32 {
 		return rt.bytesReadWord(this.v, 4, true) as rt.u32;
 	}
 
 	getU64$Buf(): rt.u64 {
 		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, false));
-	}
-
-	getU64Le$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, true));
-	}
-
-	getU64Ne$Buf(): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesRead(this.v, 8, true));
 	}
 
 	getU8$Buf(): rt.u8 {
@@ -4812,180 +1844,12 @@ export class ofPlace$ref_slice_u8 {
 		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, false));
 	}
 
-	getUintLe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, true));
-	}
-
-	getUintNe$Buf(a: rt.usize): rt.u64 {
-		return rt.u64FromBeBytes(rt.bytesReadInt(this.v, 8, a, false, true));
-	}
-
 	hasRemaining$Buf(): boolean {
 		return this.v.v.length !== 0;
 	}
 
 	remaining$Buf(): rt.usize {
 		return this.v.v.length;
-	}
-
-	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
-		return tryCopyToSlice$bytes_Buf_ref_slice_u8(this.v, a);
-	}
-
-	tryGetF32$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Le$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Le$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF32Ne$Buf(): rt.Result<rt.f32, TryGetError.TryGetError> {
-		const part = tryGetF32Ne$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f32, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f32.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Le$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Le$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetF64Ne$Buf(): rt.Result<rt.f64, TryGetError.TryGetError> {
-		const part = tryGetF64Ne$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.f64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$f64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetI128$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, false, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Le$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI128Ne$Buf(): rt.Result<rt.i128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.i128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, false, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Le$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI16Ne$Buf(): rt.Result<rt.i16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.i16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Le$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI32Ne$Buf(): rt.Result<rt.i32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.i32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI64$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
 	}
 
 	tryGetI64Le$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
@@ -5000,68 +1864,8 @@ export class ofPlace$ref_slice_u8 {
 		});
 	}
 
-	tryGetI64Ne$Buf(): rt.Result<rt.i64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.i64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetI8$Buf(): rt.Result<rt.i8, TryGetError.TryGetError> {
-		const part = tryGetI8$bytes_Buf_ref_slice_u8(this.v);
-		const result: rt.Result<rt.i8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetInt$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetInt$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntLe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntLe$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetIntNe$Buf(a: rt.usize): rt.Result<rt.i64, TryGetError.TryGetError> {
-		const part = tryGetIntNe$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.i64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$i64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
 	tryGetU128$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
 		return rt.bufTryGet(this.v, 16, false, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Le$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU128Ne$Buf(): rt.Result<rt.u128, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 16, true, rt.u128FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
 			return a0.length;
 		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
 			return a02;
@@ -5084,123 +1888,9 @@ export class ofPlace$ref_slice_u8 {
 		});
 	}
 
-	tryGetU16Le$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU16Ne$Buf(): rt.Result<rt.u16, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 2, true, rt.u16FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, false, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Le$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU32Ne$Buf(): rt.Result<rt.u32, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 4, true, rt.u32FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, false, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Le$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
-	tryGetU64Ne$Buf(): rt.Result<rt.u64, TryGetError.TryGetError> {
-		return rt.bufTryGet(this.v, 8, true, rt.u64FromBeBytes, (p: rt.Place<rt.ByteSlice>) => ((a0: rt.ByteSlice): rt.usize => {
-			return a0.length;
-		})(p.v), (p: rt.Place<rt.ByteSlice>) => ((a02: rt.ByteSlice): rt.ByteSlice => {
-			return a02;
-		})(p.v), (a03: rt.Place<rt.ByteSlice>, a1: rt.usize): undefined => {
-			rt.byteSliceAdvance(a03, a1);
-		}, (a04: rt.Place<rt.ByteSlice>, a12: rt.ByteSlice): undefined => {
-			rt.bytesCopyToSlice(a04, a12);
-		});
-	}
-
 	tryGetU8$Buf(): rt.Result<rt.u8, TryGetError.TryGetError> {
 		const part = tryGetU8$bytes_Buf_ref_slice_u8(this.v);
 		const result: rt.Result<rt.u8, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u8.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUint$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUint$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintLe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintLe$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
-		return result;
-	}
-
-	tryGetUintNe$Buf(a: rt.usize): rt.Result<rt.u64, TryGetError.TryGetError> {
-		const part = tryGetUintNe$bytes_Buf_ref_slice_u8(this.v, a);
-		const result: rt.Result<rt.u64, TryGetError.TryGetError> = part === undefined ? rt.Err(out$u64.err as TryGetError.TryGetError) : rt.Ok(part);
 		return result;
 	}
 }

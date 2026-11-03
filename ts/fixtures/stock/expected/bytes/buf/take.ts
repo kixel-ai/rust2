@@ -38,4 +38,8 @@ export function new_$mut_ref_slice_u8(inner: rt.Place<rt.ByteSlice>, limit: rt.u
 	return new Take.Take(inner, limit);
 }
 
+export function new_$ref_slice_u8(inner: rt.ByteSlice, limit: rt.usize): Take.Take<rt.ByteSlice> {
+	return new Take.Take(inner, limit);
+}
+
 //# sourceMappingURL=take.ts.map

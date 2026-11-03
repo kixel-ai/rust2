@@ -606,8 +606,9 @@ export function iterSuccessors<T>(first: T | undefined | None, succ: (item: T) =
 /**
  * The methods of std's iterator traits an iterator of the translated crate has of its own,
  * beside `next`, each a function of its source: `iterFrom` calls each where std's
- * adaptors and consumers do. `fold`, `rfold`, `count`, `last`, `forEach`, and `reduce`
- * take it by value. Each that takes a closure is given a function of what std's is given.
+ * adaptors and consumers do. `fold`, `rfold`, `count`, `last`, `forEach`, `reduce`, and
+ * `isSortedBy` take it by value. Each that takes a closure is given a function of what
+ * std's is given.
  */
 export interface Own<S, T> {
 	readonly hint?: (source: S) => SizeHint;
@@ -627,6 +628,7 @@ export interface Own<S, T> {
 	readonly forEach?: (source: S, f: never) => void;
 	readonly reduce?: (source: S, f: never) => T | Done;
 	readonly all?: (source: S, f: never) => boolean;
+	readonly isSortedBy?: (source: S, f: never) => boolean;
 }
 
 /**
@@ -1337,7 +1339,8 @@ function best<T, K>(
  * then as `all` folds, or by the translated crate's own `all`, stopping at the first it
  * fails. Each item drops by `drop` as the next replaces it, or after the one it failed
  * against; then `compare` by `dropCompare`, as `all` drops it, the last item, and `it`, if
- * `drops`.
+ * `drops`. The translated crate's own `is_sorted_by`, which `is_sorted` calls, takes `it`
+ * by value in its place.
  */
 export function iterIsSortedBy<T>(
 	it: Iter<T>,
@@ -1346,6 +1349,12 @@ export function iterIsSortedBy<T>(
 	drop?: Drop<T>,
 	dropCompare?: Drop<(a: T, b: T) => boolean>,
 ): boolean {
+	if (it instanceof FromNext && it.own?.isSortedBy !== undefined) {
+		const sorted = it.own.isSortedBy as (source: unknown, f: (a: T, b: T) => boolean) => boolean;
+		const dropped = dropCompare;
+		const release = dropped === undefined ? undefined : () => dropped(compare);
+		return it.taken((source) => sorted(source, lend(compare, release)));
+	}
 	let last = it.next();
 	let sorted = true;
 	if (last !== DONE && it instanceof FromNext && it.own?.all !== undefined) {
@@ -1465,28 +1474,6 @@ export function iterEq<T, U>(a: Iter<T>, b: Iter<U>, eq: (x: T, y: U) => boolean
 	if (dropsOther) dispose(b);
 	if (drops) dispose(a);
 	return equal;
-}
-
-/** `Iterator::lt`: whether `iterCmp` by `partial_cmp` is `Less`. */
-export function iterLt<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	return iterCmp(a, b, cmp, ...rest) === -1;
-}
-
-/** `Iterator::le`: whether `iterCmp` by `partial_cmp` is `Less` or `Equal`. */
-export function iterLe<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	const order = iterCmp(a, b, cmp, ...rest);
-	return order !== undefined && order <= 0;
-}
-
-/** `Iterator::gt`: whether `iterCmp` by `partial_cmp` is `Greater`. */
-export function iterGt<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	return iterCmp(a, b, cmp, ...rest) === 1;
-}
-
-/** `Iterator::ge`: whether `iterCmp` by `partial_cmp` is `Greater` or `Equal`. */
-export function iterGe<T, U>(a: Iter<T>, b: Iter<U>, cmp: (x: T, y: U) => Ordering | undefined, ...rest: Compared<T, U>): boolean {
-	const order = iterCmp(a, b, cmp, ...rest);
-	return order !== undefined && order >= 0;
 }
 
 /**
@@ -3019,6 +3006,8 @@ class ZipFold<A, B> extends Iter<[A, B]> {
 class TrustedZipIter<A, B> extends ZipIter<A, B> {
 	private index = 0;
 	private end: number;
+	/** Whether both sides hold just the pairs left, as a read from the back trims them to and reading pairs keeps. */
+	private even = false;
 	/** Whether each side may have side effects. */
 	private readonly effects: readonly [boolean, boolean];
 	/** Each side as it reads it by index. */
@@ -3038,6 +3027,7 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		const it = new TrustedZipIter(this.a.clone(h?.i), this.b.clone(h?.o), this.effects, this.dropA, this.dropB);
 		it.index = this.index;
 		it.end = this.end;
+		it.even = this.even;
 		return it;
 	}
 
@@ -3081,9 +3071,12 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 	 */
 	override nextBack(): [A, B] | Done {
 		if (this.index >= this.end) return DONE;
-		const left = this.end - this.index;
-		trim(this.a, this.a.len() - left, this.effects[0], this.dropA);
-		trim(this.b, this.b.len() - left, this.effects[1], this.dropB);
+		if (!this.even) {
+			const left = this.end - this.index;
+			trim(this.a, this.a.len() - left, this.effects[0], this.dropA);
+			trim(this.b, this.b.len() - left, this.effects[1], this.dropB);
+			this.even = true;
+		}
 		this.end--;
 		return [this.ia.nextBack() as A, this.ib.nextBack() as B];
 	}
@@ -3094,13 +3087,19 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		if (a === this.a && b === this.b) return this;
 		const back = (): [A, B] | Done => {
 			if (this.index >= this.end) return DONE;
-			const left = this.end - this.index;
-			a.advanceBackBy(this.a.len() - left);
-			b.advanceBackBy(this.b.len() - left);
+			if (!this.even) {
+				const left = this.end - this.index;
+				a.advanceBackBy(this.a.len() - left);
+				b.advanceBackBy(this.b.len() - left);
+				this.even = true;
+			}
 			this.end--;
 			return [a.nextBack() as A, b.nextBack() as B];
 		};
-		const skip = (n: number) => void (this.end -= n);
+		const skip = (n: number) => {
+			this.end -= n;
+			this.even = false;
+		};
 		return new Indexed(() => this.next(), back, skip);
 	}
 
@@ -3122,6 +3121,7 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		trim(this.a, this.a.len() - left, false, this.dropA);
 		trim(this.b, this.b.len() - left, false, this.dropB);
 		this.end -= skip;
+		this.even = true;
 		return n - skip;
 	}
 

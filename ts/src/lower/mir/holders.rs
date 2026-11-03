@@ -48,7 +48,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		let memo = RefCell::default();
-		let held = Trace::new(self.b.t, self.mir, self.b.t.typing_env_pub(), &memo).holders(made.local, false, true);
+		let held =
+			Trace::new(self.b.t, self.mir, self.b.t.typing_env_pub(), &memo).holders(made.local, Holds::Pointers, true);
 		held.escapes.is_empty().then_some(held.all)
 	}
 }
@@ -91,6 +92,9 @@ pub(in crate::lower) struct Held {
 	elems: DenseBitSet<Local>,
 	/// The local the pointers point to, if they are made of it rather than held in it.
 	value: Option<Local>,
+	/// Whether a value of a type parameter may itself be one of the pointers, as [`Holds`]
+	/// tells.
+	params: bool,
 	/// Whether a value read through a holder holds the pointers too, as [`Trace::holders`]
 	/// takes `loads`.
 	loads: bool,
@@ -115,6 +119,20 @@ struct Defs<'x, 'tcx> {
 enum Def<'x, 'tcx> {
 	Assign(&'x Rvalue<'tcx>),
 	Call(&'x Operand<'tcx>, &'x [Spanned<Operand<'tcx>>]),
+}
+
+/// What the root of [`Trace::holders`] holds.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in crate::lower) enum Holds {
+	/// The pointers, each in a value whose type shows one. Neither std's code nor a body
+	/// generic over a type parameter makes a value of it out of a pointer, but by reading
+	/// one through a pointer cast to point at it.
+	Pointers,
+	/// The pointers, a type parameter's value among them, as a parameter of a function
+	/// generic over it may be one.
+	Any,
+	/// What the pointers point at, which are made of it.
+	Value,
 }
 
 /// How much of what a pointer was made for one may point at, finest last.
@@ -165,20 +183,21 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		}
 	}
 
-	/// The locals that may hold the pointer `root` holds, or with `value`, one to `root`
-	/// itself, or what is made of it: a copy, a cast, a reference or pointer made through
-	/// it, a value read through it that could hold one, or what std or the crate returns
-	/// given one. Without `loads`, a value read through a pointer that points at no holder,
-	/// as std's `ptr::read` reads one, holds none of them: what the pointer points at holds
-	/// it only once it is put in memory, which is an escape. Only a pointer read after
-	/// counts then, not one into memory a holder reaches.
-	pub fn holders(&self, root: Local, value: bool, loads: bool) -> Held {
+	/// The locals that may hold the pointer `root` holds, or one to `root` itself, as
+	/// `holds` tells, or what is made of it: a copy, a cast, a reference or pointer made
+	/// through it, a value read through it that could hold one, or what std or the crate
+	/// returns given one. Without `loads`, a value read through a pointer that points at no
+	/// holder, as std's `ptr::read` reads one, holds none of them: what the pointer points
+	/// at holds it only once it is put in memory, which is an escape. Only a pointer read
+	/// after counts then, not one into memory a holder reaches.
+	pub fn holders(&self, root: Local, holds: Holds, loads: bool) -> Held {
 		let mir = self.mir;
 		let mut held = Held {
 			all: DenseBitSet::new_empty(mir.local_decls.len()),
 			parts: DenseBitSet::new_empty(mir.local_decls.len()),
 			elems: DenseBitSet::new_empty(mir.local_decls.len()),
-			value: value.then_some(root),
+			value: (holds == Holds::Value).then_some(root),
+			params: holds == Holds::Any,
 			loads,
 			behind: DenseBitSet::new_empty(mir.local_decls.len()),
 			escapes: Vec::new(),
@@ -288,9 +307,11 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether `to`, given a pointer at `level` of what it points at, newly holds it; `None`
-	/// if that is memory, reached through a pointer.
+	/// if that is memory, reached through a pointer. A value of a type parameter, which a
+	/// pointer is only as [`Holds`] tells, holds one only if read as a part.
 	fn held_in(&self, to: Place<'tcx>, level: Level, held: &mut Held) -> Option<bool> {
-		if !self.carries(to.ty(&self.mir.local_decls, self.t.tcx).ty) {
+		let ty = to.ty(&self.mir.local_decls, self.t.tcx).ty;
+		if !self.carries(ty) || level != Level::Part && !held.params && !self.shows_pointer(ty) {
 			return Some(false);
 		}
 		if !own(to) {
@@ -400,7 +421,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		let kept = key
 			.1
 			.iter()
-			.any(|&param| !callee.holders(param, false, key.2).escapes.is_empty());
+			.any(|&param| !callee.holders(param, Holds::Any, key.2).escapes.is_empty());
 		self.memo.borrow_mut().kept.insert(key, kept);
 		kept
 	}
@@ -496,7 +517,10 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 						return true;
 					};
 					let trait_ref = tcx.instantiate_bound_regions_with_erased(clause).trait_ref;
-					if !trait_ref.args.types().any(|t| self.runs_own_code(t)) || calls_nothing(tcx, trait_ref.def_id) {
+					if !trait_ref.args.types().any(|t| self.runs_own_code(t))
+						|| calls_nothing(tcx, trait_ref.def_id)
+						|| tcx.is_lang_item(trait_ref.def_id, rustc_attr_ir::LangItem::Copy) && copies(tcx, did)
+					{
 						return true;
 					}
 					let Ok(trait_ref) =
@@ -513,6 +537,18 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				});
 		self.memo.borrow_mut().inert.insert(key, inert);
 		inert
+	}
+
+	/// Whether a call of `def_id` with `args` is `vec![x; n]` of a value that shows no pointer
+	/// and whose drop runs none of the crate's code. It runs the crate's code only as its
+	/// element's `Clone`, which it gives the value it moves into the vector last, never the
+	/// memory it returns, and which returns no pointer std's code could keep.
+	fn repeats(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+		let tcx = self.t.tcx;
+		crate::lower::library::is_std(tcx, def_id)
+			&& matches!(crate::lower::library::key(tcx, def_id), Some((owner, name)) if owner == "vec" && name == "from_elem")
+			&& !self.shows_pointer(args.type_at(0))
+			&& !self.drops_own_code(args.type_at(0))
 	}
 
 	/// Whether std's function `did` takes or returns what could run code that its generic
@@ -551,15 +587,14 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether dropping a value of `ty` may run the crate's code: it has drop glue and holds
-	/// what [`Self::runs_own_code`] counts, but a type parameter whose bounds in the body's
-	/// environment leave it no drop glue, as `Copy` does.
+	/// what [`Self::runs_own_code`] counts that has drop glue of its own in the body's
+	/// environment, which a `Copy` type, the crate's or a type parameter bound by it, has not.
 	fn drops_own_code(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		ty.needs_drop(tcx, self.env)
-			&& self.t.reaches(self.env, ty, |t| match t.kind() {
-				ty::Param(_) => t.needs_drop(tcx, self.env),
-				_ => self.own_code(t),
-			})
+			&& self
+				.t
+				.reaches(self.env, ty, |t| t.needs_drop(tcx, self.env) && self.own_code(t))
 	}
 
 	/// Whether `ty` itself, not what it holds, is what [`Self::runs_own_code`] counts.
@@ -645,8 +680,8 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		};
 		sources.into_iter().all(|source| {
 			let held = match source {
-				Source::Fresh(root) => self.holders(root, false, true),
-				Source::Local(root) => self.holders(root, true, true),
+				Source::Fresh(root) => self.holders(root, Holds::Pointers, true),
+				Source::Local(root) => self.holders(root, Holds::Value, true),
 				Source::Param(_) | Source::Static => return false,
 			};
 			if held.escapes.iter().any(|&escape| self.reaches(escape, at)) {
@@ -901,7 +936,9 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 									_ => _ = sources.insert(source),
 								}
 							}
-						} else if self.runs_std(def_id, gargs.skip_binder(), args) {
+						} else if self.runs_std(def_id, gargs.skip_binder(), args)
+							|| self.repeats(def_id, gargs.skip_binder())
+						{
 							sources.insert(Source::Fresh(local));
 							reached(args, &mut stack)?;
 						} else {
@@ -1095,6 +1132,15 @@ fn calls_nothing(tcx: ty::TyCtxt<'_>, trait_id: DefId) -> bool {
 			.in_definition_order()
 			.all(|item| !matches!(item.kind, ty::AssocKind::Fn { .. }))
 	})
+}
+
+/// Whether std's `did` is a `copied` or of the `Copied` iterator, which copy what a `Copy`
+/// bound gives them rather than run its `Clone`, unlike `Extend<&T>` for a set, which
+/// clones under the same bound.
+fn copies(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
+	let path = crate::lower::library::std_path(tcx, did);
+	path.last().is_some_and(|name| name == "copied")
+		|| path.starts_with(&["iter".into(), "adapters".into(), "copied".into()])
 }
 
 /// `ty` as storage, which an array shares with a slice of its element.

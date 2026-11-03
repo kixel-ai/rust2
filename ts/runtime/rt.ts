@@ -130,6 +130,20 @@ export const NULL: never = null as never;
 /** A dangling raw pointer, `NonNull::dangling`, of any type: nothing reads through it. */
 export const DANGLING: never = /* @__PURE__ */ Object.freeze({}) as never;
 
+/** The raw pointer `p` unsized by `make`, or `p` itself if it is null or dangling, which point at nothing. */
+export function rawUnsize<P, Q>(p: P, make: (p: P) => Q): Q {
+	return p === NULL || p === DANGLING ? (p as never) : make(p);
+}
+
+/**
+ * `rawUnsize` of `p`, the place of a value, to the place of what `make` makes of whatever
+ * value is there as it is read, so it may be uninitialized or replaced until then. Nothing
+ * writes an unsized value whole.
+ */
+export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<U> {
+	return rawUnsize(p, (p) => place(() => make(p.v), unreachable));
+}
+
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
@@ -1203,6 +1217,42 @@ export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clo
 	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
 }
 
+/** `Vec::append` of `size`-byte elements: room reserved for `other`'s, which then move over in order, leaving it empty. */
+export function vecAppend<T>(v: T[] & Capped, other: T[], size: number): void {
+	vecReserve(v, other.length, size);
+	for (let i = 0; i < other.length; i++) v.push(other[i]);
+	other.length = 0;
+}
+
+/**
+ * `Vec::resize` of `size`-byte elements to `len`: past its length, room reserved for the
+ * rest, then `len - 1` clones of `value` by `clone` and `value` itself; else truncated,
+ * each element cut dropping in order, and then `value`.
+ */
+export function vecResize<T>(v: T[] & Capped, len: number, value: T, size: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+	if (len <= v.length) {
+		vecTruncate(v, len, drop);
+		drop?.(value);
+		return;
+	}
+	vecReserve(v, len - v.length, size);
+	while (v.length < len - 1) v.push(clone === undefined ? value : clone(value));
+	v.push(value);
+}
+
+/** `Vec::resize_with` of `size`-byte elements to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
+export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size: number, drop?: (item: T) => void): void {
+	if (len <= v.length) return vecTruncate(v, len, drop);
+	vecReserve(v, len - v.length, size);
+	while (v.length < len) v.push(f());
+}
+
+/** `Vec::split_off` of `size`-byte elements: those from `at` on, moved to a new vector with room for exactly them. */
+export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
+	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
+	return vecExact(v.splice(at), size);
+}
+
 /** `Clone` of a tuple, by `clone` of each field in order, `undefined` for one whose value is itself. */
 export function tupleClone<T extends readonly unknown[]>(t: T, clones: readonly (((value: never) => unknown) | undefined)[]): T {
 	const out: unknown[] = [];
@@ -1773,6 +1823,45 @@ export function byteVecReserve(v: ByteVec, additional: number): void {
 export function byteVecReserveExact(v: ByteVec, additional: number): void {
 	const cap = capReserveExact(v.length, v.data.length, additional, 1);
 	if (cap !== v.data.length) realloc(v, cap);
+}
+
+/** `Vec::append` of bytes. */
+export function byteVecAppend(v: ByteVec, other: ByteVec): void {
+	byteVecReserve(v, other.length);
+	copyBytes(v.data, v.length, other.data, 0, other.length);
+	v.length += other.length;
+	other.length = 0;
+}
+
+/** `Vec::resize` of bytes. */
+export function byteVecResize(v: ByteVec, len: number, byte: number): void {
+	if (len <= v.length) {
+		v.length = len;
+		return;
+	}
+	byteVecReserve(v, len - v.length);
+	v.data.fill(byte, v.length, len);
+	v.length = len;
+}
+
+/** `Vec::resize_with` of bytes. */
+export function byteVecResizeWith(v: ByteVec, len: number, f: () => number): void {
+	if (len <= v.length) {
+		v.length = len;
+		return;
+	}
+	byteVecReserve(v, len - v.length);
+	while (v.length < len) v.data[v.length++] = f();
+}
+
+/** `Vec::split_off` of bytes. */
+export function byteVecSplitOff(v: ByteVec, at: number): ByteVec {
+	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
+	const other = new ByteVec(v.length - at);
+	copyBytes(other.data, 0, v.data, at, v.length - at);
+	other.length = v.length - at;
+	v.length = at;
+	return other;
 }
 
 /** `Vec::shrink_to` of bytes, and `shrink_to_fit` of 0. */

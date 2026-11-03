@@ -53,4 +53,22 @@ const gets = [0, 0x10].flatMap((text) => {
 	);
 });
 
-export const cases: Uint8Array[] = [...edits, ...drains, ...iters, ...splitEnds, ...hinted, ...gets];
+/**
+ * `strs::unicode`'s case maps of a capital sigma (0) alone, twice, and beside a cased char
+ * (`A` 3, `ǅ` 5, `\u{10400}` 6), a case-ignorable one (`.` 11, `\u{345}` 15, which is cased
+ * too, `\u{1d167}` 17), and one that is neither (space 18, `1` 19, `中` 20), each before and
+ * after it; and its escapes and UTF-16 of every char of its alphabet, and of a grapheme
+ * extender (14, 17) first and later.
+ */
+const sigmas = [
+	[0], [0, 0], [3, 0], [0, 3], [3, 0, 3], [3, 0, 0], [3, 0, 0, 18, 0], [3, 0, 18, 3], [5, 0], [6, 0], [19, 0], [20, 0, 20], [9, 0],
+	[11, 0], [3, 11, 0], [3, 0, 11], [3, 0, 11, 4], [15, 0], [3, 15, 0], [3, 0, 15], [3, 0, 15, 4], [3, 17, 0], [3, 0, 17], [3, 0, 17, 3],
+	[3, 0, 2], [3, 12, 13, 14, 16, 0, 12, 4],
+];
+const every = Array.from({ length: 32 }, (_, i) => i);
+const unicode = [
+	...sigmas.map((data) => Uint8Array.of(...op("strs::unicode"), 0, ...data)),
+	...[1, 2, 3, 4].flatMap((kind) => [every, [14, 3, 14], [17, 14, 0]].map((data) => Uint8Array.of(...op("strs::unicode"), kind, ...data))),
+];
+
+export const cases: Uint8Array[] = [...edits, ...drains, ...iters, ...splitEnds, ...hinted, ...gets, ...unicode];

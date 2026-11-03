@@ -733,7 +733,7 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["cmp ", args8[0]]));
 	} else if (_16 === 4) {
 		const cmp2: rt.Ordering | undefined = rt.iterCmp(rt.iterSlice(keys([1, 3, 5]), rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
-		const lt: boolean = rt.iterLt(rt.iterSlice(keys([6]), rt.drop), rt.iterSlice(keys([6]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
+		const lt: boolean = rt.iterCmp(rt.iterSlice(keys([6]), rt.drop), rt.iterSlice(keys([6]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop) === -1;
 		const _153: rt.i8 = _12(cmp2);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(_153, f), (f: rt.Formatter) => rt.fmtBool(lt, f)];
 		Log.note(log, rt.fmtFormat(["partial_cmp ", args10[0], " ", args10[1]]));

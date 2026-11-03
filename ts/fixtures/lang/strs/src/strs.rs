@@ -1,8 +1,9 @@
 //! `str` and `String` over `char`: iterated from both ends, searched by a `char`, a
 //! predicate, or a `&str`, trimmed, split, sliced by byte offsets, built a char at a
-//! time, edited in place, and parsed into a `bool`, a `char`, or a `NonZero`. Text is made of chars of every UTF-8 width and those next to UTF-16's surrogates,
-//! so byte offsets and code units part. Predicates log each char they are called with, so
-//! where a search stops is output too.
+//! time, edited in place, parsed into a `bool`, a `char`, or a `NonZero`, mapped by case,
+//! escaped, and encoded as and decoded from UTF-16. Text is made of chars of every UTF-8
+//! width and those next to UTF-16's surrogates, so byte offsets and code units part.
+//! Predicates log each char they are called with, so where a search stops is output too.
 
 use std::ops::Bound;
 
@@ -1016,4 +1017,212 @@ pub fn gets(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			put(out, &string);
 		}
 	}
+}
+
+/// Chars `str`'s Unicode methods treat apart: a capital sigma, twice as likely, and its
+/// final form; cased chars, title case and past the BMP among them; case-ignorable ones,
+/// one cased too and one past the BMP; chars neither; those whose case maps to more than
+/// one; and those each escape treats apart, a grapheme extender and the unprintable among
+/// them.
+pub const UNICODE: [char; 32] = [
+	'Σ',
+	'Σ',
+	'ς',
+	'A',
+	'a',
+	'ǅ',
+	'\u{10400}',
+	'ß',
+	'İ',
+	'ΐ',
+	'ﬃ',
+	'.',
+	'\'',
+	':',
+	'\u{301}',
+	'\u{345}',
+	'\u{ad}',
+	'\u{1d167}',
+	' ',
+	'1',
+	'中',
+	'😀',
+	'é',
+	'"',
+	'\\',
+	'\n',
+	'\t',
+	'\0',
+	'\u{7f}',
+	'\u{e000}',
+	'\u{feff}',
+	'\u{10ffff}',
+];
+
+/// An iterator's size hint, and then each item it yields with its `Display` and size hint
+/// before it, and what a clone and its consumers read partway.
+fn walk<I>(out: &mut Vec<u8>, mut it: I, put_item: fn(&mut Vec<u8>, I::Item))
+where
+	I: Iterator + Clone,
+{
+	let copy = it.clone();
+	loop {
+		let (low, high) = it.size_hint();
+		put_offset(out, Some(low));
+		put_offset(out, high);
+		match it.next() {
+			Some(item) => put_item(out, item),
+			None => break,
+		}
+	}
+	put_offset(out, Some(copy.clone().count()));
+	let mut rest = copy.clone();
+	rest.nth(2).into_iter().for_each(|item| put_item(out, item));
+	put_offset(out, Some(rest.size_hint().0));
+	rest.last().into_iter().for_each(|item| put_item(out, item));
+}
+
+/// An escape's `Display`, which no width pads, then what `walk` reads, then its `Display`
+/// after each char.
+fn escaped<I>(out: &mut Vec<u8>, mut it: I)
+where
+	I: Iterator<Item = char> + Clone + std::fmt::Display,
+{
+	put(out, &format!("{it}|{it:>40}"));
+	walk(out, it.clone(), |out, c| put_char(out, Some(c)));
+	while it.next().is_some() {
+		put(out, &it.to_string());
+	}
+}
+
+/// `str`'s case maps, escapes, and UTF-16 over text of `UNICODE`, by method and as function
+/// values: a final sigma by the chars around it, each escape's `Display` before and partway,
+/// and each iterator's size hints as it goes.
+pub fn unicode(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let s: String = data.iter().map(|&b| UNICODE[usize::from(b % 32)]).collect();
+	let words: Vec<&str> = s.split(' ').collect();
+	match kind % 5 {
+		0 => {
+			put(out, &s.to_lowercase());
+			put(out, &s.to_uppercase());
+			// Each word apart, where a sigma at its end is final.
+			let lower: Vec<String> = words.iter().copied().map(str::to_lowercase).collect();
+			let upper: Vec<String> = words.iter().copied().map(str::to_uppercase).collect();
+			put(out, &format!("{lower:?}|{upper:?}"));
+		}
+		1 => {
+			escaped(out, s.escape_debug());
+			let each: Vec<String> = words
+				.iter()
+				.copied()
+				.map(str::escape_debug)
+				.map(|e| e.to_string())
+				.collect();
+			put(out, &format!("{each:?}|{s:?}"));
+		}
+		2 => {
+			escaped(out, s.escape_default());
+			let each: Vec<String> = words
+				.iter()
+				.copied()
+				.map(str::escape_default)
+				.map(|e| e.to_string())
+				.collect();
+			put(out, &format!("{each:?}"));
+		}
+		3 => {
+			escaped(out, s.escape_unicode());
+			let each: Vec<usize> = words
+				.iter()
+				.copied()
+				.map(str::escape_unicode)
+				.map(Iterator::count)
+				.collect();
+			put(out, &format!("{each:?}"));
+		}
+		_ => {
+			let it = s.encode_utf16();
+			put(out, &format!("{it:?}|{it:#?}|{it:>30?}"));
+			walk(out, it.clone(), |out, u| out.extend_from_slice(&u.to_be_bytes()));
+			let units: Vec<u16> = it.collect();
+			let each: Vec<usize> = words
+				.iter()
+				.copied()
+				.map(str::encode_utf16)
+				.map(Iterator::count)
+				.collect();
+			let back: String = char::decode_utf16(units.iter().copied()).map(Result::unwrap).collect();
+			put(out, &format!("{units:?}|{each:?}|{}", back == s));
+		}
+	}
+}
+
+/// UTF-16 units at a surrogate's edges and beside them, a pair among them, so random input
+/// pairs a leading surrogate with a trailing one, leaves either alone, or ends on one.
+const UNITS: [u16; 16] = [
+	0, 0x41, 0xe9, 0xd7ff, 0xd800, 0xd801, 0xdbff, 0xdc00, 0xdc01, 0xdfff, 0xe000, 0xfeff, 0xfffd, 0xffff, 0xd83d,
+	0xde00,
+];
+
+/// What a `String` from UTF-16 is, or its error's `Display`, padded or not, and `Debug`.
+fn put_utf16(out: &mut Vec<u8>, r: Result<String, std::string::FromUtf16Error>) {
+	match r {
+		Ok(s) => put(out, &format!("{s:?}")),
+		Err(e) => put(
+			out,
+			&format!("{e}|{e:>40}|{e:-<12}|{e:?}|{e:#?}|{}", e.to_string().len()),
+		),
+	}
+}
+
+/// A `String` from UTF-16 units, by `from_utf16` and `from_utf16_lossy`, and from their bytes
+/// either way round, by `from_utf16le` and `from_utf16be` and their lossy forms, of an even
+/// and an odd number of bytes, as methods and as function values. Units are of `UNITS`, or
+/// the input's raw bytes in pairs.
+pub fn utf16(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let units: Vec<u16> = match kind % 2 {
+		0 => data.iter().map(|&b| UNITS[usize::from(b % 16)]).collect(),
+		_ => data
+			.chunks(2)
+			.map(|p| u16::from_be_bytes([p[0], *p.get(1).unwrap_or(&0)]))
+			.collect(),
+	};
+	put_utf16(out, String::from_utf16(&units));
+	put(out, &format!("{:?}", String::from_utf16_lossy(&units)));
+	put(out, &format!("{:?}", String::from_utf16(&units)));
+	let le: Vec<u8> = units.iter().flat_map(|u| u.to_le_bytes()).collect();
+	let be: Vec<u8> = units.iter().flat_map(|u| u.to_be_bytes()).collect();
+	// Whole, a byte in, which is odd and shifts every unit, and the input's own bytes.
+	for (le, be) in [
+		(&le[..], &be[..]),
+		(le.get(1..).unwrap_or(&[]), be.get(1..).unwrap_or(&[])),
+		(data, data),
+	] {
+		put_utf16(out, String::from_utf16le(le));
+		put_utf16(out, String::from_utf16be(be));
+		put(
+			out,
+			&format!(
+				"{:?}|{:?}",
+				String::from_utf16le_lossy(le),
+				String::from_utf16be_lossy(be)
+			),
+		);
+	}
+	let decode: [fn(&[u8]) -> Result<String, std::string::FromUtf16Error>; 2] =
+		[String::from_utf16le, String::from_utf16be];
+	let lossy: [fn(&[u8]) -> String; 2] = [String::from_utf16le_lossy, String::from_utf16be_lossy];
+	for (decode, lossy) in decode.into_iter().zip(lossy) {
+		put_utf16(out, decode(data));
+		put(out, &lossy(data));
+	}
+	let parts: Vec<&[u16]> = units.split(|&u| u == 0).collect();
+	let each: Vec<String> = parts.iter().copied().map(String::from_utf16_lossy).collect();
+	let ok: Vec<bool> = parts
+		.iter()
+		.copied()
+		.map(String::from_utf16)
+		.map(|r| r.is_ok())
+		.collect();
+	put(out, &format!("{each:?}|{ok:?}"));
 }
