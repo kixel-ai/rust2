@@ -476,7 +476,8 @@ fn own_instance<'tcx>(
 
 /// The crate's own `collect` into a `Vec` of its `item`s of the crate's own iterator of type
 /// `source`, which std's `FromIterator` of `coll` calls first if `coll` is a `Box<[T]>`,
-/// `Rc<[T]>`, `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap`, and the `Vec`'s type. A
+/// `Rc<[T]>`, `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap`, and the `Vec`'s type, but
+/// for a `TrustedLen` one into an `Rc<[T]>` or an `Arc<[T]>`, which std's reads itself. A
 /// reference to one collects by its `Iterator`'s default, which never calls the crate's.
 fn own_collect<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -489,7 +490,8 @@ fn own_collect<'tcx>(
 		return None;
 	};
 	let by_vec = match Std::of(tcx, adt.did())? {
-		Std::Box | Std::Arc => matches!(args.type_at(0).kind(), ty::Slice(_)),
+		Std::Box => matches!(args.type_at(0).kind(), ty::Slice(_)),
+		Std::Arc => matches!(args.type_at(0).kind(), ty::Slice(_)) && !implements(b.t, source, "TrustedLen"),
 		Std::BTreeMap | Std::BTreeSet | Std::BinaryHeap => true,
 		_ => false,
 	};
