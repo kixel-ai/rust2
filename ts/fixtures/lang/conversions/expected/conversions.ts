@@ -175,29 +175,25 @@ export function LOG$init(_1: undefined): rt.Arc<rt.RefCell<rt.ByteVec>> {
 }
 
 /**
- * Runs each conversion of the type `kind` picks, but for `u8`, whose `&mut` no slice can
- * view, and [`searched`] of those that order.
+ * Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
+ * no slice can view, and [`searched`] of those that order.
  */
 export function conversions(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _5: rt.u8 = rt.u8Rem(kind, 14);
 	if (_5 === 0) {
 		ordered$u32(data, out);
-		lentThrough$u32(data, out);
 	} else if (_5 === 1) {
 		ordered$u64(data, out);
 	} else if (_5 === 2) {
 		ordered$String(data, out);
-		lentThrough$String(data, out);
 	} else if (_5 === 3) {
 		ordered$Option_u16(data, out);
-		lentThrough$Option_u16(data, out);
 	} else if (_5 === 4) {
 		ordered$array0_u8(data, out);
 	} else if (_5 === 5) {
 		ordered$array1_u8(data, out);
 	} else if (_5 === 6) {
 		ordered$array3_u8(data, out);
-		lentThrough$array3_u8(data, out);
 	} else if (_5 === 7) {
 		ordered$array40_u8(data, out);
 	} else if (_5 === 8) {
@@ -219,6 +215,7 @@ export function conversions(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): v
 		})(LOG.get());
 		converted$conversions_Logged(data, out);
 		lentOne$conversions_Logged(data, out);
+		lentThrough$conversions_Logged(data, out);
 		searched$conversions_Logged(data, out);
 	}
 	measured(data, out);
@@ -229,6 +226,7 @@ export function conversions(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): v
 export function ordered$Option_u16(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$Option_u16(data, out);
 	lentOne$Option_u16(data, out);
+	lentThrough$Option_u16(data, out);
 	searched$Option_u16(data, out);
 }
 
@@ -236,6 +234,7 @@ export function ordered$Option_u16(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$String(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$String(data, out);
 	lentOne$String(data, out);
+	lentThrough$String(data, out);
 	searched$String(data, out);
 }
 
@@ -243,6 +242,7 @@ export function ordered$String(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$Vec_u32(data, out);
 	lentOne$Vec_u32(data, out);
+	lentThrough$Vec_u32(data, out);
 	searched$Vec_u32(data, out);
 }
 
@@ -250,6 +250,7 @@ export function ordered$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$Vec_u8(data, out);
 	lentOne$Vec_u8(data, out);
+	lentThrough$Vec_u8(data, out);
 	searched$Vec_u8(data, out);
 }
 
@@ -257,6 +258,7 @@ export function ordered$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$array0_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$array0_u8(data, out);
 	lentOne$array0_u8(data, out);
+	lentThrough$array0_u8(data, out);
 	searched$array0_u8(data, out);
 }
 
@@ -264,6 +266,7 @@ export function ordered$array0_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$array1_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$array1_u8(data, out);
 	lentOne$array1_u8(data, out);
+	lentThrough$array1_u8(data, out);
 	searched$array1_u8(data, out);
 }
 
@@ -271,6 +274,7 @@ export function ordered$array1_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$array2_u32(data, out);
 	lentOne$array2_u32(data, out);
+	lentThrough$array2_u32(data, out);
 	searched$array2_u32(data, out);
 }
 
@@ -278,6 +282,7 @@ export function ordered$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$array3_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$array3_u8(data, out);
 	lentOne$array3_u8(data, out);
+	lentThrough$array3_u8(data, out);
 	searched$array3_u8(data, out);
 }
 
@@ -285,6 +290,7 @@ export function ordered$array3_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$array40_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$array40_u8(data, out);
 	lentOne$array40_u8(data, out);
+	lentThrough$array40_u8(data, out);
 	searched$array40_u8(data, out);
 }
 
@@ -292,6 +298,7 @@ export function ordered$array40_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$conversions_Named(data, out);
 	lentOne$conversions_Named(data, out);
+	lentThrough$conversions_Named(data, out);
 	searched$conversions_Named(data, out);
 }
 
@@ -299,6 +306,7 @@ export function ordered$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec): 
 export function ordered$u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$u32(data, out);
 	lentOne$u32(data, out);
+	lentThrough$u32(data, out);
 	searched$u32(data, out);
 }
 
@@ -306,6 +314,7 @@ export function ordered$u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 export function ordered$u64(data: rt.ByteSlice, out: rt.ByteVec): void {
 	converted$u64(data, out);
 	lentOne$u64(data, out);
+	lentThrough$u64(data, out);
 	searched$u64(data, out);
 }
 
@@ -478,10 +487,7 @@ export function writeFirst$String(s: string[], value: string): string {
 /** A whole write into what a slice holds, as a function given any slice makes it. */
 export function writeFirst$Vec_u32(s: rt.u32[][], value: rt.u32[]): rt.u32[] {
 	rt.idx(s, 0);
-	const _8: rt.u32[] = rt.vecExact(value.slice(), 4);
-	const old2 = s[0];
-	s[0] = _8;
-	const old: rt.u32[] = old2;
+	const old: rt.u32[] = rt.sliceReplace(s, 0, rt.vecExact(value.slice(), 4));
 	const _10: rt.u32[] = value;
 	rt.idx(s, 0);
 	s[0] = _10;
@@ -491,10 +497,7 @@ export function writeFirst$Vec_u32(s: rt.u32[][], value: rt.u32[]): rt.u32[] {
 /** A whole write into what a slice holds, as a function given any slice makes it. */
 export function writeFirst$Vec_u8(s: rt.ByteVec[], value: rt.ByteVec): rt.ByteVec {
 	rt.idx(s, 0);
-	const _8: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(value));
-	const old2 = s[0];
-	s[0] = _8;
-	const old: rt.ByteVec = old2;
+	const old: rt.ByteVec = rt.sliceReplace(s, 0, rt.byteVecFrom(rt.byteVecView(value)));
 	const _10: rt.ByteVec = value;
 	rt.idx(s, 0);
 	s[0] = _10;
@@ -532,10 +535,7 @@ export function writeFirst$array1_u8(s: Uint8Array[], value: Uint8Array): Uint8A
 export function writeFirst$array2_u32(s: rt.u32[][], value: rt.u32[]): rt.u32[] {
 	value = copy$array_u32(value);
 	rt.idx(s, 0);
-	const _8: rt.u32[] = copy$array_u32(copy$array_u32(value));
-	const old2 = s[0];
-	s[0] = _8;
-	const old: rt.u32[] = old2;
+	const old: rt.u32[] = rt.sliceReplace(s, 0, copy$array_u32(copy$array_u32(value)));
 	const _10: rt.u32[] = value;
 	rt.idx(s, 0);
 	s[0] = _10;
@@ -575,10 +575,7 @@ export function writeFirst$array40_u8(s: Uint8Array[], value: Uint8Array): Uint8
 /** A whole write into what a slice holds, as a function given any slice makes it. */
 export function writeFirst$conversions_Logged(s: Logged.Logged[], value: Logged.Logged): Logged.Logged {
 	rt.idx(s, 0);
-	const _8: Logged.Logged = Logged.clone$Clone(value);
-	const old2 = s[0];
-	s[0] = _8;
-	const old: Logged.Logged = old2;
+	const old: Logged.Logged = rt.sliceReplace(s, 0, Logged.clone$Clone(value));
 	const _10: Logged.Logged = value;
 	rt.idx(s, 0);
 	s[0][Symbol.dispose]();
@@ -589,10 +586,7 @@ export function writeFirst$conversions_Logged(s: Logged.Logged[], value: Logged.
 /** A whole write into what a slice holds, as a function given any slice makes it. */
 export function writeFirst$conversions_Named(s: Named.Named[], value: Named.Named): Named.Named {
 	rt.idx(s, 0);
-	const _8: Named.Named = Named.clone$Clone(value);
-	const old2 = s[0];
-	s[0] = _8;
-	const old: Named.Named = old2;
+	const old: Named.Named = rt.sliceReplace(s, 0, Named.clone$Clone(value));
 	const _10: Named.Named = value;
 	rt.idx(s, 0);
 	s[0] = _10;
@@ -626,73 +620,900 @@ export function writeFirst$u64(s: rt.u64[], value: rt.u64): rt.u64 {
 }
 
 /**
- * A slice of what a `&mut` whose place only the caller knows points at, written through:
- * one to a value JS copies or to an array of bytes, which a whole write reaches, unlike
- * an object's slot.
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
  */
-export function lentParam$Option_u16(to: rt.Place<rt.u16 | undefined>, value: rt.u16 | undefined): rt.u16 | undefined {
-	return writeFirst$Option_u16(rt.sliceOfPlace(to), value);
+export function lentParam$Option_u16(to: rt.Place<rt.u16 | undefined>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Array<rt.u16 | undefined> = rt.sliceOfPlace(to);
+	put$conversions_Value_Option_u16(writeFirst$Option_u16(s, make$conversions_Value_Option_u16(data, 18)), out);
+	let other: rt.u16 | undefined = make$conversions_Value_Option_u16(data, 19);
+	rt.idx(s, 0);
+	const swapped = s[0];
+	s[0] = other;
+	other = swapped;
+	put$conversions_Value_Option_u16(other, out);
+	rt.idx(s, 0);
+	const swapped2 = other;
+	other = s[0];
+	s[0] = swapped2;
+	put$conversions_Value_Option_u16(other, out);
+	const v: Array<rt.u16 | undefined> = [make$conversions_Value_Option_u16(data, 20), make$conversions_Value_Option_u16(data, 21)];
+	const t: Array<rt.u16 | undefined> = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	const swapped3 = s[0];
+	s[0] = t[1];
+	t[1] = swapped3;
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	const swapped4 = t[0];
+	t[0] = s[0];
+	s[0] = swapped4;
+	rt.idx(t, 0);
+	put$conversions_Value_Option_u16(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_Option_u16(t[1], out);
+	rt.idx(s, 0);
+	const a: Array<rt.u16 | undefined> = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: Array<rt.u16 | undefined> = [make$conversions_Value_Option_u16(data, 22)];
+	put$conversions_Value_Option_u16(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = other;
+	rt.idx(s, 0);
+	put$conversions_Value_Option_u16(s[0], out);
 }
 
 /**
- * A slice of what a `&mut` whose place only the caller knows points at, written through:
- * one to a value JS copies or to an array of bytes, which a whole write reaches, unlike
- * an object's slot.
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
  */
-export function lentParam$String(to: rt.Place<string>, value: string): string {
-	return writeFirst$String(rt.sliceOfPlace(to), value);
+export function lentParam$String(to: rt.Place<string>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: string[] = rt.sliceOfPlace(to);
+	put$conversions_Value_String(writeFirst$String(s, make$conversions_Value_String(data, 18)), out);
+	let other: string = make$conversions_Value_String(data, 19);
+	rt.idx(s, 0);
+	const swapped = s[0];
+	s[0] = other;
+	other = swapped;
+	put$conversions_Value_String(other, out);
+	rt.idx(s, 0);
+	const swapped2 = other;
+	other = s[0];
+	s[0] = swapped2;
+	put$conversions_Value_String(other, out);
+	const v: string[] = [make$conversions_Value_String(data, 20), make$conversions_Value_String(data, 21)];
+	const t: string[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	const swapped3 = s[0];
+	s[0] = t[1];
+	t[1] = swapped3;
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	const swapped4 = t[0];
+	t[0] = s[0];
+	s[0] = swapped4;
+	rt.idx(t, 0);
+	put$conversions_Value_String(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_String(t[1], out);
+	rt.idx(s, 0);
+	const a: string[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: string[] = [make$conversions_Value_String(data, 22)];
+	put$conversions_Value_String(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = other;
+	rt.idx(s, 0);
+	put$conversions_Value_String(s[0], out);
 }
 
 /**
- * A slice of what a `&mut` whose place only the caller knows points at, written through:
- * one to a value JS copies or to an array of bytes, which a whole write reaches, unlike
- * an object's slot.
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
  */
-export function lentParam$array3_u8(to: rt.ByteSlice, value: Uint8Array): Uint8Array {
-	return writeFirst$array3_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(to))), value);
+export function lentParam$Vec_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: rt.u32[][] = rt.sliceIn(to);
+	put$conversions_Value_Vec_u32(writeFirst$Vec_u32(s, make$conversions_Value_Vec_u32(data, 18)), out);
+	let other: rt.u32[] = make$conversions_Value_Vec_u32(data, 19);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_Vec_u32(other, out);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_Vec_u32(other, out);
+	const v: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 20), make$conversions_Value_Vec_u32(data, 21)];
+	const t: rt.u32[][] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	rt.sliceSwapAcross(s, 0, t, 1);
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	rt.sliceSwapAcross(t, 0, s, 0);
+	rt.idx(t, 0);
+	put$conversions_Value_Vec_u32(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_Vec_u32(t[1], out);
+	rt.idx(s, 0);
+	const a: rt.u32[][] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 22)];
+	put$conversions_Value_Vec_u32(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = rt.vecClonedInto(rt.vecExact(other.slice(), 4), s[0], 4);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u32(s[0], out);
 }
 
 /**
- * A slice of what a `&mut` whose place only the caller knows points at, written through:
- * one to a value JS copies or to an array of bytes, which a whole write reaches, unlike
- * an object's slot.
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
  */
-export function lentParam$u32(to: rt.Place<rt.u32>, value: rt.u32): rt.u32 {
-	return writeFirst$u32(rt.sliceOfPlace(to), value);
+export function lentParam$Vec_u8(to: rt.ByteVec, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: rt.ByteVec[] = rt.sliceIn(to);
+	put$conversions_Value_Vec_u8(writeFirst$Vec_u8(s, make$conversions_Value_Vec_u8(data, 18)), out);
+	let other: rt.ByteVec = make$conversions_Value_Vec_u8(data, 19);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_Vec_u8(other, out);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_Vec_u8(other, out);
+	const v: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 20), make$conversions_Value_Vec_u8(data, 21)];
+	const t: rt.ByteVec[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	rt.sliceSwapAcross(s, 0, t, 1);
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	rt.sliceSwapAcross(t, 0, s, 0);
+	rt.idx(t, 0);
+	put$conversions_Value_Vec_u8(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_Vec_u8(t[1], out);
+	rt.idx(s, 0);
+	const a: rt.ByteVec[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 22)];
+	put$conversions_Value_Vec_u8(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(other)), s[0]);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u8(s[0], out);
 }
 
-/** [`lent_param`] of an element. */
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$array0_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(writeFirst$array0_u8(s, make$conversions_Value_array0_u8(data, 18))), out);
+	const other: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 19));
+	rt.idx(s, 0);
+	rt.byteSliceFrom(s[0]);
+	rt.byteSliceFrom(other);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(other), out);
+	rt.byteSliceFrom(other);
+	rt.idx(s, 0);
+	rt.byteSliceFrom(s[0]);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(other), out);
+	const t: Uint8Array[] = copy$array_array0_u8([make$conversions_Value_array0_u8(data, 20), make$conversions_Value_array0_u8(data, 21)]).map(copy$array_u8);
+	rt.idx(s, 0);
+	rt.byteSliceFrom(s[0]);
+	rt.idx(t, 1);
+	rt.byteSliceFrom(t[1]);
+	rt.idx(t, 0);
+	rt.byteSliceFrom(t[0]);
+	rt.idx(s, 0);
+	rt.byteSliceFrom(s[0]);
+	rt.idx(t, 0);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(t[0]), out);
+	rt.idx(t, 1);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(t[1]), out);
+	rt.idx(s, 0);
+	rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
+	const _76: Uint8Array[] = [copy$array_u8(make$conversions_Value_array0_u8(data, 22))];
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(_76[0]), out);
+	rt.idx(s, 0);
+	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
+	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	rt.idx(s, 0);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(s[0]), out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$array1_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(writeFirst$array1_u8(s, make$conversions_Value_array1_u8(data, 18))), out);
+	const other: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 19));
+	rt.idx(s, 0);
+	const _11: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _16: rt.ByteSlice = rt.byteSliceFrom(other);
+	const swapped = rt.byteSliceToArray(_11);
+	_11.data.set(rt.byteSliceToArray(_16), _11.start);
+	_16.data.set(swapped, _16.start);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(other), out);
+	const _20: rt.ByteSlice = rt.byteSliceFrom(other);
+	rt.idx(s, 0);
+	const _21: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped2 = rt.byteSliceToArray(_20);
+	_20.data.set(rt.byteSliceToArray(_21), _20.start);
+	_21.data.set(swapped2, _21.start);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(other), out);
+	const t: Uint8Array[] = copy$array_array1_u8([make$conversions_Value_array1_u8(data, 20), make$conversions_Value_array1_u8(data, 21)]).map(copy$array_u8);
+	rt.idx(s, 0);
+	const _35: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	rt.idx(t, 1);
+	const _40: rt.ByteSlice = rt.byteSliceFrom(t[1]);
+	const swapped3 = rt.byteSliceToArray(_35);
+	_35.data.set(rt.byteSliceToArray(_40), _35.start);
+	_40.data.set(swapped3, _40.start);
+	rt.idx(t, 0);
+	const _46: rt.ByteSlice = rt.byteSliceFrom(t[0]);
+	rt.idx(s, 0);
+	const _51: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped4 = rt.byteSliceToArray(_46);
+	_46.data.set(rt.byteSliceToArray(_51), _46.start);
+	_51.data.set(swapped4, _51.start);
+	rt.idx(t, 0);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(t[0]), out);
+	rt.idx(t, 1);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(t[1]), out);
+	rt.idx(s, 0);
+	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
+	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array1_u8(data, 22))];
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	rt.idx(s, 0);
+	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
+	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	rt.idx(s, 0);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(s[0]), out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$array2_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: rt.u32[][] = rt.sliceIn(to);
+	put$conversions_Value_array2_u32(writeFirst$array2_u32(s, make$conversions_Value_array2_u32(data, 18)), out);
+	let other: rt.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 19));
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_array2_u32(other, out);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	put$conversions_Value_array2_u32(other, out);
+	const t: rt.u32[][] = copy$array_array2_u32([make$conversions_Value_array2_u32(data, 20), make$conversions_Value_array2_u32(data, 21)]).map(copy$array_u32);
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	rt.sliceSwapAcross(s, 0, t, 1);
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	rt.sliceSwapAcross(t, 0, s, 0);
+	rt.idx(t, 0);
+	put$conversions_Value_array2_u32(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_array2_u32(t[1], out);
+	rt.idx(s, 0);
+	const a: rt.u32[][] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: rt.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 22))];
+	put$conversions_Value_array2_u32(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = copy$array_u32(other);
+	rt.idx(s, 0);
+	put$conversions_Value_array2_u32(s[0], out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$array3_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(writeFirst$array3_u8(s, make$conversions_Value_array3_u8(data, 18))), out);
+	const other: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 19));
+	rt.idx(s, 0);
+	const _11: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _16: rt.ByteSlice = rt.byteSliceFrom(other);
+	const swapped = rt.byteSliceToArray(_11);
+	_11.data.set(rt.byteSliceToArray(_16), _11.start);
+	_16.data.set(swapped, _16.start);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(other), out);
+	const _20: rt.ByteSlice = rt.byteSliceFrom(other);
+	rt.idx(s, 0);
+	const _21: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped2 = rt.byteSliceToArray(_20);
+	_20.data.set(rt.byteSliceToArray(_21), _20.start);
+	_21.data.set(swapped2, _21.start);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(other), out);
+	const t: Uint8Array[] = copy$array_array3_u8([make$conversions_Value_array3_u8(data, 20), make$conversions_Value_array3_u8(data, 21)]).map(copy$array_u8);
+	rt.idx(s, 0);
+	const _35: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	rt.idx(t, 1);
+	const _40: rt.ByteSlice = rt.byteSliceFrom(t[1]);
+	const swapped3 = rt.byteSliceToArray(_35);
+	_35.data.set(rt.byteSliceToArray(_40), _35.start);
+	_40.data.set(swapped3, _40.start);
+	rt.idx(t, 0);
+	const _46: rt.ByteSlice = rt.byteSliceFrom(t[0]);
+	rt.idx(s, 0);
+	const _51: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped4 = rt.byteSliceToArray(_46);
+	_46.data.set(rt.byteSliceToArray(_51), _46.start);
+	_51.data.set(swapped4, _51.start);
+	rt.idx(t, 0);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(t[0]), out);
+	rt.idx(t, 1);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(t[1]), out);
+	rt.idx(s, 0);
+	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
+	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array3_u8(data, 22))];
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	rt.idx(s, 0);
+	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
+	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	rt.idx(s, 0);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(s[0]), out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$array40_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(writeFirst$array40_u8(s, make$conversions_Value_array40_u8(data, 18))), out);
+	const other: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 19));
+	rt.idx(s, 0);
+	const _11: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _16: rt.ByteSlice = rt.byteSliceFrom(other);
+	const swapped = rt.byteSliceToArray(_11);
+	_11.data.set(rt.byteSliceToArray(_16), _11.start);
+	_16.data.set(swapped, _16.start);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(other), out);
+	const _20: rt.ByteSlice = rt.byteSliceFrom(other);
+	rt.idx(s, 0);
+	const _21: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped2 = rt.byteSliceToArray(_20);
+	_20.data.set(rt.byteSliceToArray(_21), _20.start);
+	_21.data.set(swapped2, _21.start);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(other), out);
+	const t: Uint8Array[] = copy$array_array40_u8([make$conversions_Value_array40_u8(data, 20), make$conversions_Value_array40_u8(data, 21)]).map(copy$array_u8);
+	rt.idx(s, 0);
+	const _35: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	rt.idx(t, 1);
+	const _40: rt.ByteSlice = rt.byteSliceFrom(t[1]);
+	const swapped3 = rt.byteSliceToArray(_35);
+	_35.data.set(rt.byteSliceToArray(_40), _35.start);
+	_40.data.set(swapped3, _40.start);
+	rt.idx(t, 0);
+	const _46: rt.ByteSlice = rt.byteSliceFrom(t[0]);
+	rt.idx(s, 0);
+	const _51: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const swapped4 = rt.byteSliceToArray(_46);
+	_46.data.set(rt.byteSliceToArray(_51), _46.start);
+	_51.data.set(swapped4, _51.start);
+	rt.idx(t, 0);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(t[0]), out);
+	rt.idx(t, 1);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(t[1]), out);
+	rt.idx(s, 0);
+	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
+	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array40_u8(data, 22))];
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	rt.idx(s, 0);
+	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
+	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	rt.idx(s, 0);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(s[0]), out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$conversions_Logged(to: Logged.Logged, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Logged.Logged[] = rt.sliceIn(to);
+	const _7: Logged.Logged = writeFirst$conversions_Logged(s, Logged.make$conversions_Value(data, 18));
+	Logged.put$conversions_Value(_7, out);
+	_7[Symbol.dispose]();
+	let other: Logged.Logged = Logged.make$conversions_Value(data, 19);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	Logged.put$conversions_Value(other, out);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	Logged.put$conversions_Value(other, out);
+	const v: Logged.Logged[] = [Logged.make$conversions_Value(data, 20), Logged.make$conversions_Value(data, 21)];
+	const t: Logged.Logged[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	rt.sliceSwapAcross(s, 0, t, 1);
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	rt.sliceSwapAcross(t, 0, s, 0);
+	rt.idx(t, 0);
+	Logged.put$conversions_Value(t[0], out);
+	rt.idx(t, 1);
+	Logged.put$conversions_Value(t[1], out);
+	rt.idx(s, 0);
+	const a: Logged.Logged[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: Logged.Logged[] = [Logged.make$conversions_Value(data, 22)];
+	const _76: Logged.Logged[] = rt.replaceIn(a, _77);
+	Logged.put$conversions_Value(_76[0], out);
+	rt.dropAll(_76);
+	rt.idx(s, 0);
+	rt.sliceReplace(s, 0, Logged.clone$Clone(other))[Symbol.dispose]();
+	rt.idx(s, 0);
+	Logged.put$conversions_Value(s[0], out);
+	rt.dropAll(v);
+	other[Symbol.dispose]();
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$conversions_Named(to: Named.Named, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: Named.Named[] = rt.sliceIn(to);
+	Named.put$conversions_Value(writeFirst$conversions_Named(s, Named.make$conversions_Value(data, 18)), out);
+	let other: Named.Named = Named.make$conversions_Value(data, 19);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	Named.put$conversions_Value(other, out);
+	rt.idx(s, 0);
+	other = rt.sliceReplace(s, 0, other);
+	Named.put$conversions_Value(other, out);
+	const v: Named.Named[] = [Named.make$conversions_Value(data, 20), Named.make$conversions_Value(data, 21)];
+	const t: Named.Named[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	rt.sliceSwapAcross(s, 0, t, 1);
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	rt.sliceSwapAcross(t, 0, s, 0);
+	rt.idx(t, 0);
+	Named.put$conversions_Value(t[0], out);
+	rt.idx(t, 1);
+	Named.put$conversions_Value(t[1], out);
+	rt.idx(s, 0);
+	const a: Named.Named[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: Named.Named[] = [Named.make$conversions_Value(data, 22)];
+	Named.put$conversions_Value(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = Named.clone$Clone(other);
+	rt.idx(s, 0);
+	Named.put$conversions_Value(s[0], out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$u32(to: rt.Place<rt.u32>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: rt.u32[] = rt.sliceOfPlace(to);
+	put$conversions_Value_u32(writeFirst$u32(s, make$conversions_Value_u32(data, 18)), out);
+	let other: rt.u32 = make$conversions_Value_u32(data, 19);
+	rt.idx(s, 0);
+	const swapped = s[0];
+	s[0] = other;
+	other = swapped;
+	put$conversions_Value_u32(other, out);
+	rt.idx(s, 0);
+	const swapped2 = other;
+	other = s[0];
+	s[0] = swapped2;
+	put$conversions_Value_u32(other, out);
+	const v: rt.u32[] = [make$conversions_Value_u32(data, 20), make$conversions_Value_u32(data, 21)];
+	const t: rt.u32[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	const swapped3 = s[0];
+	s[0] = t[1];
+	t[1] = swapped3;
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	const swapped4 = t[0];
+	t[0] = s[0];
+	s[0] = swapped4;
+	rt.idx(t, 0);
+	put$conversions_Value_u32(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_u32(t[1], out);
+	rt.idx(s, 0);
+	const a: rt.u32[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: rt.u32[] = [make$conversions_Value_u32(data, 22)];
+	put$conversions_Value_u32(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = other;
+	rt.idx(s, 0);
+	put$conversions_Value_u32(s[0], out);
+}
+
+/**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, and as an array, and written in place.
+ */
+export function lentParam$u64(to: rt.Place<rt.u64>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	const s: rt.u64[] = rt.sliceOfPlace(to);
+	put$conversions_Value_u64(writeFirst$u64(s, make$conversions_Value_u64(data, 18)), out);
+	let other: rt.u64 = make$conversions_Value_u64(data, 19);
+	rt.idx(s, 0);
+	const swapped = s[0];
+	s[0] = other;
+	other = swapped;
+	put$conversions_Value_u64(other, out);
+	rt.idx(s, 0);
+	const swapped2 = other;
+	other = s[0];
+	s[0] = swapped2;
+	put$conversions_Value_u64(other, out);
+	const v: rt.u64[] = [make$conversions_Value_u64(data, 20), make$conversions_Value_u64(data, 21)];
+	const t: rt.u64[] = v;
+	rt.idx(s, 0);
+	rt.idx(t, 1);
+	const swapped3 = s[0];
+	s[0] = t[1];
+	t[1] = swapped3;
+	rt.idx(t, 0);
+	rt.idx(s, 0);
+	const swapped4 = t[0];
+	t[0] = s[0];
+	s[0] = swapped4;
+	rt.idx(t, 0);
+	put$conversions_Value_u64(t[0], out);
+	rt.idx(t, 1);
+	put$conversions_Value_u64(t[1], out);
+	rt.idx(s, 0);
+	const a: rt.u64[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
+	const _77: rt.u64[] = [make$conversions_Value_u64(data, 22)];
+	put$conversions_Value_u64(rt.replaceIn(a, _77)[0], out);
+	rt.idx(s, 0);
+	s[0] = other;
+	rt.idx(s, 0);
+	put$conversions_Value_u64(s[0], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
 export function lentThrough$Option_u16(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let a: rt.u16 | undefined = make$conversions_Value_Option_u16(data, 0);
+	const held: Held.Held<rt.u16 | undefined> = new Held.Held(make$conversions_Value_Option_u16(data, 1));
 	const v: Array<rt.u16 | undefined> = [make$conversions_Value_Option_u16(data, 2), make$conversions_Value_Option_u16(data, 4)];
+	lentParam$Option_u16(rt.place(() => a, (value) => a = value), data, out);
+	lentParam$Option_u16(rt.place(() => held.value, (value2) => held.value = value2), data, out);
 	const at = rt.idx(v, 1);
-	const _12: rt.u16 | undefined = make$conversions_Value_Option_u16(data, 18);
-	put$conversions_Value_Option_u16(lentParam$Option_u16(rt.place(() => v[at], (value) => v[at] = value), _12), out);
+	lentParam$Option_u16(rt.place(() => v[at], (value3) => v[at] = value3), data, out);
+	const at2 = rt.idx(v, 0);
+	let _19: rt.Place<rt.u16 | undefined> = rt.place(() => v[at2], (value4) => v[at2] = value4);
+	lentNested$Option_u16(rt.place(() => _19, (value5) => _19 = value5), data, out);
+	put$conversions_Value_Option_u16(a, out);
+	put$conversions_Value_Option_u16(held.value, out);
+	put$conversions_Value_Option_u16(v[rt.idx(v, 0)], out);
 	put$conversions_Value_Option_u16(v[rt.idx(v, 1)], out);
 }
 
-/** [`lent_param`] of an element. */
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
 export function lentThrough$String(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let a: string = make$conversions_Value_String(data, 0);
+	const held: Held.Held<string> = new Held.Held(make$conversions_Value_String(data, 1));
 	const v: string[] = [make$conversions_Value_String(data, 2), make$conversions_Value_String(data, 4)];
+	lentParam$String(rt.place(() => a, (value) => a = value), data, out);
+	lentParam$String(rt.place(() => held.value, (value2) => held.value = value2), data, out);
 	const at = rt.idx(v, 1);
-	const _12: string = make$conversions_Value_String(data, 18);
-	put$conversions_Value_String(lentParam$String(rt.place(() => v[at], (value) => v[at] = value), _12), out);
+	lentParam$String(rt.place(() => v[at], (value3) => v[at] = value3), data, out);
+	const at2 = rt.idx(v, 0);
+	let _19: rt.Place<string> = rt.place(() => v[at2], (value4) => v[at2] = value4);
+	lentNested$String(rt.place(() => _19, (value5) => _19 = value5), data, out);
+	put$conversions_Value_String(a, out);
+	put$conversions_Value_String(held.value, out);
+	put$conversions_Value_String(v[rt.idx(v, 0)], out);
 	put$conversions_Value_String(v[rt.idx(v, 1)], out);
 }
 
-/** [`lent_param`] of an element. */
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: rt.u32[] = make$conversions_Value_Vec_u32(data, 0);
+	const held: Held.Held<rt.u32[]> = new Held.Held(make$conversions_Value_Vec_u32(data, 1));
+	const v: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 2), make$conversions_Value_Vec_u32(data, 4)];
+	lentParam$Vec_u32(a, data, out);
+	lentParam$Vec_u32(held.value, data, out);
+	lentParam$Vec_u32(v[rt.idx(v, 1)], data, out);
+	let _19: rt.u32[] = v[rt.idx(v, 0)];
+	lentNested$Vec_u32(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_Vec_u32(a, out);
+	put$conversions_Value_Vec_u32(held.value, out);
+	put$conversions_Value_Vec_u32(v[rt.idx(v, 0)], out);
+	put$conversions_Value_Vec_u32(v[rt.idx(v, 1)], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: rt.ByteVec = make$conversions_Value_Vec_u8(data, 0);
+	const held: Held.Held<rt.ByteVec> = new Held.Held(make$conversions_Value_Vec_u8(data, 1));
+	const v: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 2), make$conversions_Value_Vec_u8(data, 4)];
+	lentParam$Vec_u8(a, data, out);
+	lentParam$Vec_u8(held.value, data, out);
+	lentParam$Vec_u8(v[rt.idx(v, 1)], data, out);
+	let _19: rt.ByteVec = v[rt.idx(v, 0)];
+	lentNested$Vec_u8(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_Vec_u8(a, out);
+	put$conversions_Value_Vec_u8(held.value, out);
+	put$conversions_Value_Vec_u8(v[rt.idx(v, 0)], out);
+	put$conversions_Value_Vec_u8(v[rt.idx(v, 1)], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$array0_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 0));
+	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array0_u8(data, 1)));
+	const v: Uint8Array[] = copy$array_array0_u8([make$conversions_Value_array0_u8(data, 2), make$conversions_Value_array0_u8(data, 4)]).map(copy$array_u8);
+	lentParam$array0_u8(rt.byteSliceFrom(a), data, out);
+	lentParam$array0_u8(rt.byteSliceFrom(held.value), data, out);
+	lentParam$array0_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), data, out);
+	let _19: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 0)]);
+	lentNested$array0_u8(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(a), out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(held.value), out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(v[rt.idx(v, 0)]), out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$array1_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 0));
+	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array1_u8(data, 1)));
+	const v: Uint8Array[] = copy$array_array1_u8([make$conversions_Value_array1_u8(data, 2), make$conversions_Value_array1_u8(data, 4)]).map(copy$array_u8);
+	lentParam$array1_u8(rt.byteSliceFrom(a), data, out);
+	lentParam$array1_u8(rt.byteSliceFrom(held.value), data, out);
+	lentParam$array1_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), data, out);
+	let _19: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 0)]);
+	lentNested$array1_u8(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(a), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(held.value), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(v[rt.idx(v, 0)]), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: rt.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 0));
+	const held: Held.Held<rt.u32[]> = new Held.Held(copy$array_u32(make$conversions_Value_array2_u32(data, 1)));
+	const v: rt.u32[][] = copy$array_array2_u32([make$conversions_Value_array2_u32(data, 2), make$conversions_Value_array2_u32(data, 4)]).map(copy$array_u32);
+	lentParam$array2_u32(a, data, out);
+	lentParam$array2_u32(held.value, data, out);
+	lentParam$array2_u32(v[rt.idx(v, 1)], data, out);
+	let _19: rt.u32[] = v[rt.idx(v, 0)];
+	lentNested$array2_u32(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_array2_u32(a, out);
+	put$conversions_Value_array2_u32(held.value, out);
+	put$conversions_Value_array2_u32(v[rt.idx(v, 0)], out);
+	put$conversions_Value_array2_u32(v[rt.idx(v, 1)], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
 export function lentThrough$array3_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 0));
+	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array3_u8(data, 1)));
 	const v: Uint8Array[] = copy$array_array3_u8([make$conversions_Value_array3_u8(data, 2), make$conversions_Value_array3_u8(data, 4)]).map(copy$array_u8);
-	put$conversions_Value_array3_u8(rt.byteSliceFrom(lentParam$array3_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), make$conversions_Value_array3_u8(data, 18))), out);
+	lentParam$array3_u8(rt.byteSliceFrom(a), data, out);
+	lentParam$array3_u8(rt.byteSliceFrom(held.value), data, out);
+	lentParam$array3_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), data, out);
+	let _19: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 0)]);
+	lentNested$array3_u8(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(a), out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(held.value), out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(v[rt.idx(v, 0)]), out);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
 }
 
-/** [`lent_param`] of an element. */
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$array40_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 0));
+	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array40_u8(data, 1)));
+	const v: Uint8Array[] = copy$array_array40_u8([make$conversions_Value_array40_u8(data, 2), make$conversions_Value_array40_u8(data, 4)]).map(copy$array_u8);
+	lentParam$array40_u8(rt.byteSliceFrom(a), data, out);
+	lentParam$array40_u8(rt.byteSliceFrom(held.value), data, out);
+	lentParam$array40_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), data, out);
+	let _19: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 0)]);
+	lentNested$array40_u8(rt.place(() => _19, (value) => _19 = value), data, out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(a), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(held.value), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(v[rt.idx(v, 0)]), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Logged.Logged = Logged.make$conversions_Value(data, 0);
+	const held: Held.Held<Logged.Logged> = new Held.Held(Logged.make$conversions_Value(data, 1));
+	const v: Logged.Logged[] = [Logged.make$conversions_Value(data, 2), Logged.make$conversions_Value(data, 4)];
+	lentParam$conversions_Logged(a, data, out);
+	lentParam$conversions_Logged(held.value, data, out);
+	lentParam$conversions_Logged(v[rt.idx(v, 1)], data, out);
+	let _19: Logged.Logged = v[rt.idx(v, 0)];
+	lentNested$conversions_Logged(rt.place(() => _19, (value) => _19 = value), data, out);
+	Logged.put$conversions_Value(a, out);
+	Logged.put$conversions_Value(held.value, out);
+	Logged.put$conversions_Value(v[rt.idx(v, 0)], out);
+	Logged.put$conversions_Value(v[rt.idx(v, 1)], out);
+	rt.dropAll(v);
+	held[Symbol.dispose]();
+	a[Symbol.dispose]();
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const a: Named.Named = Named.make$conversions_Value(data, 0);
+	const held: Held.Held<Named.Named> = new Held.Held(Named.make$conversions_Value(data, 1));
+	const v: Named.Named[] = [Named.make$conversions_Value(data, 2), Named.make$conversions_Value(data, 4)];
+	lentParam$conversions_Named(a, data, out);
+	lentParam$conversions_Named(held.value, data, out);
+	lentParam$conversions_Named(v[rt.idx(v, 1)], data, out);
+	let _19: Named.Named = v[rt.idx(v, 0)];
+	lentNested$conversions_Named(rt.place(() => _19, (value) => _19 = value), data, out);
+	Named.put$conversions_Value(a, out);
+	Named.put$conversions_Value(held.value, out);
+	Named.put$conversions_Value(v[rt.idx(v, 0)], out);
+	Named.put$conversions_Value(v[rt.idx(v, 1)], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
 export function lentThrough$u32(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let a: rt.u32 = make$conversions_Value_u32(data, 0);
+	const held: Held.Held<rt.u32> = new Held.Held(make$conversions_Value_u32(data, 1));
 	const v: rt.u32[] = [make$conversions_Value_u32(data, 2), make$conversions_Value_u32(data, 4)];
+	lentParam$u32(rt.place(() => a, (value) => a = value), data, out);
+	lentParam$u32(rt.place(() => held.value, (value2) => held.value = value2), data, out);
 	const at = rt.idx(v, 1);
-	const _12: rt.u32 = make$conversions_Value_u32(data, 18);
-	put$conversions_Value_u32(lentParam$u32(rt.place(() => v[at], (value) => v[at] = value), _12), out);
+	lentParam$u32(rt.place(() => v[at], (value3) => v[at] = value3), data, out);
+	const at2 = rt.idx(v, 0);
+	let _19: rt.Place<rt.u32> = rt.place(() => v[at2], (value4) => v[at2] = value4);
+	lentNested$u32(rt.place(() => _19, (value5) => _19 = value5), data, out);
+	put$conversions_Value_u32(a, out);
+	put$conversions_Value_u32(held.value, out);
+	put$conversions_Value_u32(v[rt.idx(v, 0)], out);
 	put$conversions_Value_u32(v[rt.idx(v, 1)], out);
+}
+
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$u64(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let a: rt.u64 = make$conversions_Value_u64(data, 0);
+	const held: Held.Held<rt.u64> = new Held.Held(make$conversions_Value_u64(data, 1));
+	const v: rt.u64[] = [make$conversions_Value_u64(data, 2), make$conversions_Value_u64(data, 4)];
+	lentParam$u64(rt.place(() => a, (value) => a = value), data, out);
+	lentParam$u64(rt.place(() => held.value, (value2) => held.value = value2), data, out);
+	const at = rt.idx(v, 1);
+	lentParam$u64(rt.place(() => v[at], (value3) => v[at] = value3), data, out);
+	const at2 = rt.idx(v, 0);
+	let _19: rt.Place<rt.u64> = rt.place(() => v[at2], (value4) => v[at2] = value4);
+	lentNested$u64(rt.place(() => _19, (value5) => _19 = value5), data, out);
+	put$conversions_Value_u64(a, out);
+	put$conversions_Value_u64(held.value, out);
+	put$conversions_Value_u64(v[rt.idx(v, 0)], out);
+	put$conversions_Value_u64(v[rt.idx(v, 1)], out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$Option_u16(to: rt.Place<rt.Place<rt.u16 | undefined>>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$Option_u16(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$String(to: rt.Place<rt.Place<string>>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$String(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$Vec_u32(to: rt.Place<rt.u32[]>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$Vec_u32(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$Vec_u8(to: rt.Place<rt.ByteVec>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$Vec_u8(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$array0_u8(to: rt.Place<rt.ByteSlice>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$array0_u8(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$array1_u8(to: rt.Place<rt.ByteSlice>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$array1_u8(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$array2_u32(to: rt.Place<rt.u32[]>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$array2_u32(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$array3_u8(to: rt.Place<rt.ByteSlice>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$array3_u8(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$array40_u8(to: rt.Place<rt.ByteSlice>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$array40_u8(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$conversions_Logged(to: rt.Place<Logged.Logged>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$conversions_Logged(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$conversions_Named(to: rt.Place<Named.Named>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$conversions_Named(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$u32(to: rt.Place<rt.Place<rt.u32>>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$u32(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$u64(to: rt.Place<rt.Place<rt.u64>>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	lentParam$u64(to.v, data, out);
 }
 
 /** A cell of what a `&mut` whose place only the caller knows points at, written through. */
@@ -1458,9 +2279,7 @@ export function converted$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec
 	_116[0] = _114;
 	const _124: Logged.Logged[] = array;
 	rt.idx(_124, 2);
-	const old8 = _124[2];
-	_124[2] = Logged.clone$Clone(c);
-	old8[Symbol.dispose]();
+	rt.sliceReplace(_124, 2, Logged.clone$Clone(c))[Symbol.dispose]();
 	for (const _134 of array) {
 		Logged.put$conversions_Value(_134, out);
 	}
@@ -1819,10 +2638,7 @@ export function lentOne$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u32[][] = rt.sliceOfPlace(rt.place(() => a, (value) => a = value));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
-	const _28: rt.u32[] = make$conversions_Value_Vec_u32(data, 5);
-	const old4 = s[0];
-	s[0] = _28;
-	put$conversions_Value_Vec_u32(old4, out);
+	put$conversions_Value_Vec_u32(rt.sliceReplace(s, 0, make$conversions_Value_Vec_u32(data, 5)), out);
 	put$conversions_Value_Vec_u32(a, out);
 	const borrowed = held;
 	put$conversions_Value_Vec_u32(writeFirst$Vec_u32(rt.sliceOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_Vec_u32(data, 7)), out);
@@ -1856,10 +2672,7 @@ export function lentOne$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.ByteVec[] = rt.sliceOfPlace(rt.place(() => a, (value) => a = value));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
-	const _28: rt.ByteVec = make$conversions_Value_Vec_u8(data, 5);
-	const old4 = s[0];
-	s[0] = _28;
-	put$conversions_Value_Vec_u8(old4, out);
+	put$conversions_Value_Vec_u8(rt.sliceReplace(s, 0, make$conversions_Value_Vec_u8(data, 5)), out);
 	put$conversions_Value_Vec_u8(a, out);
 	const borrowed = held;
 	put$conversions_Value_Vec_u8(writeFirst$Vec_u8(rt.sliceOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_Vec_u8(data, 7)), out);
@@ -1890,18 +2703,18 @@ export function lentOne$array0_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const c: Uint8Array = _6[2];
 	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array0_u8(data, 1)));
 	const v: Uint8Array[] = copy$array_array0_u8([make$conversions_Value_array0_u8(data, 2), make$conversions_Value_array0_u8(data, 4)]).map(copy$array_u8);
-	const s: Uint8Array[] = rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))));
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
 	rt.byteSliceFrom(s[0]);
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(copy$array_u8(make$conversions_Value_array0_u8(data, 5))), out);
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(a), out);
-	put$conversions_Value_array0_u8(rt.byteSliceFrom(writeFirst$array0_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(held.value)))), make$conversions_Value_array0_u8(data, 7))), out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(writeFirst$array0_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(held.value))), make$conversions_Value_array0_u8(data, 7))), out);
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(held.value), out);
-	put$conversions_Value_array0_u8(rt.byteSliceFrom(writeFirst$array0_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)])))), make$conversions_Value_array0_u8(data, 8))), out);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(writeFirst$array0_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)]))), make$conversions_Value_array0_u8(data, 8))), out);
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
-	rt.sliceFill(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(c)))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
-	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))))), rt.byteSliceFrom);
+	rt.sliceFill(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(c))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
+	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)))), rt.byteSliceFrom);
 	while (true) {
 		const _61: rt.ByteSlice | rt.Done = iter.next();
 		if (_61 === rt.DONE) {
@@ -1924,7 +2737,7 @@ export function lentOne$array1_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const c: Uint8Array = _6[2];
 	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array1_u8(data, 1)));
 	const v: Uint8Array[] = copy$array_array1_u8([make$conversions_Value_array1_u8(data, 2), make$conversions_Value_array1_u8(data, 4)]).map(copy$array_u8);
-	const s: Uint8Array[] = rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))));
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
 	const _23: rt.ByteSlice = rt.byteSliceFrom(s[0]);
@@ -1933,12 +2746,12 @@ export function lentOne$array1_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	_23.data.set(_28, _23.start);
 	put$conversions_Value_array1_u8(rt.byteSliceFrom(old4), out);
 	put$conversions_Value_array1_u8(rt.byteSliceFrom(a), out);
-	put$conversions_Value_array1_u8(rt.byteSliceFrom(writeFirst$array1_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(held.value)))), make$conversions_Value_array1_u8(data, 7))), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(writeFirst$array1_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(held.value))), make$conversions_Value_array1_u8(data, 7))), out);
 	put$conversions_Value_array1_u8(rt.byteSliceFrom(held.value), out);
-	put$conversions_Value_array1_u8(rt.byteSliceFrom(writeFirst$array1_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)])))), make$conversions_Value_array1_u8(data, 8))), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(writeFirst$array1_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)]))), make$conversions_Value_array1_u8(data, 8))), out);
 	put$conversions_Value_array1_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
-	rt.sliceFill(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(c)))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
-	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))))), rt.byteSliceFrom);
+	rt.sliceFill(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(c))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
+	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)))), rt.byteSliceFrom);
 	while (true) {
 		const _61: rt.ByteSlice | rt.Done = iter.next();
 		if (_61 === rt.DONE) {
@@ -1964,10 +2777,7 @@ export function lentOne$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u32[][] = rt.sliceOfPlace(rt.place(() => a, (value) => a = value));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
-	const _28: rt.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 5));
-	const old4 = s[0];
-	s[0] = _28;
-	put$conversions_Value_array2_u32(old4, out);
+	put$conversions_Value_array2_u32(rt.sliceReplace(s, 0, copy$array_u32(make$conversions_Value_array2_u32(data, 5))), out);
 	put$conversions_Value_array2_u32(a, out);
 	const borrowed = held;
 	put$conversions_Value_array2_u32(writeFirst$array2_u32(rt.sliceOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_array2_u32(data, 7)), out);
@@ -1996,7 +2806,7 @@ export function lentOne$array3_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const c: Uint8Array = _6[2];
 	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array3_u8(data, 1)));
 	const v: Uint8Array[] = copy$array_array3_u8([make$conversions_Value_array3_u8(data, 2), make$conversions_Value_array3_u8(data, 4)]).map(copy$array_u8);
-	const s: Uint8Array[] = rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))));
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
 	const _23: rt.ByteSlice = rt.byteSliceFrom(s[0]);
@@ -2005,12 +2815,12 @@ export function lentOne$array3_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	_23.data.set(_28, _23.start);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(old4), out);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(a), out);
-	put$conversions_Value_array3_u8(rt.byteSliceFrom(writeFirst$array3_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(held.value)))), make$conversions_Value_array3_u8(data, 7))), out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(writeFirst$array3_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(held.value))), make$conversions_Value_array3_u8(data, 7))), out);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(held.value), out);
-	put$conversions_Value_array3_u8(rt.byteSliceFrom(writeFirst$array3_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)])))), make$conversions_Value_array3_u8(data, 8))), out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(writeFirst$array3_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)]))), make$conversions_Value_array3_u8(data, 8))), out);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
-	rt.sliceFill(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(c)))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
-	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))))), rt.byteSliceFrom);
+	rt.sliceFill(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(c))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
+	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)))), rt.byteSliceFrom);
 	while (true) {
 		const _61: rt.ByteSlice | rt.Done = iter.next();
 		if (_61 === rt.DONE) {
@@ -2033,7 +2843,7 @@ export function lentOne$array40_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const c: Uint8Array = _6[2];
 	const held: Held.Held<Uint8Array> = new Held.Held(copy$array_u8(make$conversions_Value_array40_u8(data, 1)));
 	const v: Uint8Array[] = copy$array_array40_u8([make$conversions_Value_array40_u8(data, 2), make$conversions_Value_array40_u8(data, 4)]).map(copy$array_u8);
-	const s: Uint8Array[] = rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))));
+	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
 	const _23: rt.ByteSlice = rt.byteSliceFrom(s[0]);
@@ -2042,12 +2852,12 @@ export function lentOne$array40_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	_23.data.set(_28, _23.start);
 	put$conversions_Value_array40_u8(rt.byteSliceFrom(old4), out);
 	put$conversions_Value_array40_u8(rt.byteSliceFrom(a), out);
-	put$conversions_Value_array40_u8(rt.byteSliceFrom(writeFirst$array40_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(held.value)))), make$conversions_Value_array40_u8(data, 7))), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(writeFirst$array40_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(held.value))), make$conversions_Value_array40_u8(data, 7))), out);
 	put$conversions_Value_array40_u8(rt.byteSliceFrom(held.value), out);
-	put$conversions_Value_array40_u8(rt.byteSliceFrom(writeFirst$array40_u8(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)])))), make$conversions_Value_array40_u8(data, 8))), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(writeFirst$array40_u8(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(v[rt.idx(v, 1)]))), make$conversions_Value_array40_u8(data, 8))), out);
 	put$conversions_Value_array40_u8(rt.byteSliceFrom(v[rt.idx(v, 1)]), out);
-	rt.sliceFill(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(c)))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
-	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceOfPlace(rt.bytesPlace(rt.byteSliceView(rt.byteSliceFrom(a))))), rt.byteSliceFrom);
+	rt.sliceFill(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(c))), copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(b))), copy$array_u8);
+	const iter: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(a)))), rt.byteSliceFrom);
 	while (true) {
 		const _61: rt.ByteSlice | rt.Done = iter.next();
 		if (_61 === rt.DONE) {
@@ -2073,10 +2883,7 @@ export function lentOne$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec):
 	const s: Logged.Logged[] = rt.sliceOfPlace(rt.place(() => a, (value) => a = value));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
-	const _28: Logged.Logged = Logged.make$conversions_Value(data, 5);
-	const old4 = s[0];
-	s[0] = _28;
-	const old: Logged.Logged = old4;
+	const old: Logged.Logged = rt.sliceReplace(s, 0, Logged.make$conversions_Value(data, 5));
 	Logged.put$conversions_Value(old, out);
 	Logged.put$conversions_Value(a, out);
 	const borrowed = held;
@@ -2121,10 +2928,7 @@ export function lentOne$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec): 
 	const s: Named.Named[] = rt.sliceOfPlace(rt.place(() => a, (value) => a = value));
 	rt.byteVecPush(out, s.length & 0xff);
 	rt.idx(s, 0);
-	const _28: Named.Named = Named.make$conversions_Value(data, 5);
-	const old4 = s[0];
-	s[0] = _28;
-	Named.put$conversions_Value(old4, out);
+	Named.put$conversions_Value(rt.sliceReplace(s, 0, Named.make$conversions_Value(data, 5)), out);
 	Named.put$conversions_Value(a, out);
 	const borrowed = held;
 	Named.put$conversions_Value(writeFirst$conversions_Named(rt.sliceOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), Named.make$conversions_Value(data, 7)), out);

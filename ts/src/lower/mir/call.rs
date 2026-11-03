@@ -12,6 +12,7 @@ use super::{Fx, Slot};
 use crate::lower::fmt::{self, Piece};
 use crate::lower::lend::{self, Plan};
 use crate::lower::library::{self, Flow, Std};
+use crate::lower::ObjectKind;
 use crate::lower::num::Int;
 use crate::ts::{Expr, Stmt, StmtKind};
 
@@ -529,15 +530,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(self.swap_out(place, ty, value, base, span, out), base.is_some())
 			}
 			("mem", "swap") => {
+				let ty = targ(0)?;
 				let a = self.borrowed_place(&args[0].node, span, out)?;
 				let c = self.borrowed_place(&args[1].node, span, out)?;
+				let in_object = |b: &Borrowed<'tcx>| b.1.is_some_and(|p| self.in_object(p));
+				// Which of two elements is written in place is known only as it runs.
+				if !in_object(&a)
+					&& !in_object(&c)
+					&& let (Some((s, i)), Some((t, j))) = (self.element_in(&a, ty), self.element_in(&c, ty))
+				{
+					out.push(StmtKind::Expr(Expr::rt("sliceSwapAcross", vec![s, i, t, j])).at(None));
+					return done(Expr::undefined(), false);
+				}
 				// An object written in place gives a copy of what it held, so it goes first:
 				// a place given the object itself would share what then changes in it.
-				let (a, c) = match c.1.is_some_and(|p| self.in_object(p)) {
+				let first = in_object(&c) || !in_object(&a) && self.element_in(&c, ty).is_some();
+				let (a, c) = match first {
 					true => (c, a),
 					false => (a, c),
 				};
-				let old = self.swap_out(a, targ(0)?, c.0.clone(), Some("swapped"), span, out);
+				let old = self.swap_out(a, ty, c.0.clone(), Some("swapped"), span, out);
 				self.set_borrowed(&c, old, span, out);
 				done(Expr::undefined(), false)
 			}
@@ -1230,9 +1242,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `slice::from_mut`, `array::from_mut`, or with `cell`, `Cell::from_mut` of `op`, a
 	/// `&mut` to a `ty`: of the `rt.Place` it is or of the place it names, or else in place
 	/// of the bytes or the object it is, which a cell reads a copy of, as a `Cell` only
-	/// moves or copies a value out. A slice of an object no place names is refused, as a
-	/// whole write of its element would give the slice another object, not the place, as
-	/// is a cell of an object JS can't write a whole value into.
+	/// moves or copies a value out, and a slice writes its element into. A slice of one
+	/// byte no array holds is refused, as is either of an object JS can't write a whole
+	/// value into.
 	fn one_of(
 		&mut self,
 		cell: bool,
@@ -1257,10 +1269,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if self.in_bytes(deref) {
 			let slice = self.place_expr(deref, span, out);
 			let view = Expr::rt("byteSliceView", vec![slice]);
-			return Some(match cell {
-				true => Expr::rt("cellIn", vec![view]),
-				false => of(Expr::rt("bytesPlace", vec![view])),
-			});
+			return Some(Expr::rt(if cell { "cellIn" } else { "sliceIn" }, vec![view]));
 		}
 		if let Slot::Alias(Some(target)) = &self.slots[place.local]
 			&& assignable(target)
@@ -1274,15 +1283,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let made = self.operand(op, span, out);
 			return Some(of(made));
 		}
-		if cell && self.b.t.write_in(ty).is_some() {
+		if self.b.t.write_in(ty).is_some() {
 			let object = self.operand(op, span, out);
-			return Some(Expr::rt("cellIn", vec![object]));
+			return Some(Expr::rt(if cell { "cellIn" } else { "sliceIn" }, vec![object]));
 		}
 		Some(self.err(
 			span,
-			format!(
-				"a slice or a cell of a mutable reference to `{ty}` that names no place, which a whole write would replace only there"
-			),
+			format!("a slice or a cell of a mutable reference to `{ty}` that names no place, which JS can't write in place"),
 		))
 	}
 
@@ -1607,6 +1614,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return Expr::undefined();
 		};
 		let name = self.b.fresh(base);
+		if let Some((slice, index)) = self.element_in(&place, ty) {
+			let old = Expr::rt("sliceReplace", vec![slice, index, value]);
+			out.push(StmtKind::decl(false, name.clone(), None, Some(old)).at(None));
+			return Expr::ident(name);
+		}
 		// TypeScript widens `rt.None` read from a place narrowed to it into a `symbol`.
 		let declared = self.b.t.erases_to(ty).none.then(|| self.b.t.ty(ty, span));
 		out.push(StmtKind::decl(false, name.clone(), declared, Some(place.0.clone())).at(None));
@@ -1619,6 +1631,32 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		dest.as_local()
 			.is_none_or(|local| self.uses[local] != 0)
 			.then_some(base)
+	}
+
+	/// The slice and the index of `place`, an element of objects of what a reference
+	/// points at, which may be a slice of one object that `slice::from_mut` makes, whose
+	/// whole write lands in the object, not its slot.
+	fn element_in(&self, (read, place): &Borrowed<'tcx>, ty: Ty<'tcx>) -> Option<(Expr, Expr)> {
+		if self.b.t.write_in(ty).is_none_or(|kind| kind == ObjectKind::Bytes) {
+			return None;
+		}
+		let target = self.through_aliases((*place)?);
+		let [base @ .., ProjectionElem::Deref, ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. }] =
+			target.projection.as_slice()
+		else {
+			return None;
+		};
+		if !Place::ty_from(target.local, base, &self.mir.local_decls, self.tcx).ty.is_ref() {
+			return None;
+		}
+		let mut read = read;
+		while let Expr::Located(_, inner) = read {
+			read = inner;
+		}
+		let Expr::Index(slice, index) = read else {
+			unreachable!("an element's path is an index: {read:?}")
+		};
+		Some(((**slice).clone(), (**index).clone()))
 	}
 
 	/// Set what a `&mut` borrows to `value`.
