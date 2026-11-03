@@ -287,7 +287,10 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 				match arg >> 3 & 3 {
 					0 => drop(v.splice(start..end, (0..n as u8).map(make))),
 					1 => drop(v.splice(start..end, (0..n as u8).filter(|i| i % 4 != 1).map(make))),
-					2 => drop(v.splice(start..end, (0..n as u8).chain((0..n as u8).filter(|i| i % 2 == 0)).map(make))),
+					2 => drop(v.splice(
+						start..end,
+						(0..n as u8).chain((0..n as u8).filter(|i| i % 2 == 0)).map(make),
+					)),
 					_ => drop(v.splice(start..end, vec![make(arg); n])),
 				}
 			}

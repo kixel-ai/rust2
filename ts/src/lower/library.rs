@@ -2500,7 +2500,8 @@ fn mapping<'tcx>(
 			// std's reads the items through their own `by_ref`, which an override may give
 			// another iterator in place of.
 			let by_ref = super::collections::trait_fn(tcx, "Iterator", "by_ref");
-			if let Ok(Some(instance)) = Instance::try_resolve(tcx, b.t.typing_env_pub(), by_ref, tcx.mk_args(&[iter.into()]))
+			if let Ok(Some(instance)) =
+				Instance::try_resolve(tcx, b.t.typing_env_pub(), by_ref, tcx.mk_args(&[iter.into()]))
 				&& instance.def_id() != by_ref
 			{
 				return Some(b.err(
@@ -2539,7 +2540,10 @@ fn mapping<'tcx>(
 			let elem = targ(gargs, 0);
 			let n = gargs.consts().next()?;
 			let Some(n) = n.try_to_target_usize(tcx) else {
-				return Some(b.err(span, format!("`Vec::into_flattened` of arrays of `{n}`, which is not known")));
+				return Some(b.err(
+					span,
+					format!("`Vec::into_flattened` of arrays of `{n}`, which is not known"),
+				));
 			};
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));

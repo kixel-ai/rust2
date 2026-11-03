@@ -976,7 +976,13 @@ fn within(a: u8, b: u8, len: usize) -> std::ops::Range<usize> {
 
 /// `v.splice(r, items)`, read `read % 4` times from alternate ends and then dropped, each
 /// step marked.
-fn spliced<'a>(v: &mut Vec<Tracked<'a>>, r: std::ops::Range<usize>, items: impl IntoIterator<Item = Tracked<'a>>, read: u8, log: &RefCell<Vec<u8>>) {
+fn spliced<'a>(
+	v: &mut Vec<Tracked<'a>>,
+	r: std::ops::Range<usize>,
+	items: impl IntoIterator<Item = Tracked<'a>>,
+	read: u8,
+	log: &RefCell<Vec<u8>>,
+) {
 	let mut s = v.splice(r, items);
 	for i in 0..read % 4 {
 		let t = match i % 2 {
@@ -1044,7 +1050,14 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			for x in &w {
 				out.extend(x.to_be_bytes());
 			}
-			let named: Vec<Named> = data.iter().take(5).map(|&b| Named { id: u16::from(b), name: text(&[b]) }).collect();
+			let named: Vec<Named> = data
+				.iter()
+				.take(5)
+				.map(|&b| Named {
+					id: u16::from(b),
+					name: text(&[b]),
+				})
+				.collect();
 			let mut named = named;
 			let taken: Vec<Named> = named
 				.extract_if(.., |n| {
@@ -1095,7 +1108,13 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					1 => spliced(&mut v, r, (0..n).filter(|i| i % 2 == 0).map(make), read, &log),
 					2 => {
 						let first: Vec<Tracked> = (0..n % 3).map(|i| tracked(0xc0 + i)).collect();
-						spliced(&mut v, r, first.into_iter().chain((0..n).filter(|i| i % 2 == 1).map(make)), read, &log)
+						spliced(
+							&mut v,
+							r,
+							first.into_iter().chain((0..n).filter(|i| i % 2 == 1).map(make)),
+							read,
+							&log,
+						)
 					}
 					_ => {
 						let items: Vec<Tracked> = (0..n).map(make).collect();
@@ -1121,7 +1140,14 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			let mut bytes = data.to_vec();
 			let r = within(at(7), at(8), bytes.len());
-			let mut s = bytes.splice(r, data.iter().rev().take(usize::from(at(9) % 8)).copied().filter(|b| b % 2 == 0));
+			let mut s = bytes.splice(
+				r,
+				data.iter()
+					.rev()
+					.take(usize::from(at(9) % 8))
+					.copied()
+					.filter(|b| b % 2 == 0),
+			);
 			let back = s.next_back();
 			out.extend(format!("{s:?}").as_bytes());
 			drop(s);
@@ -1140,7 +1166,11 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 		2 => {
 			{
-				let pairs: Vec<[Tracked; 2]> = data.chunks_exact(2).take(3).map(|c| [tracked(c[0]), tracked(c[1])]).collect();
+				let pairs: Vec<[Tracked; 2]> = data
+					.chunks_exact(2)
+					.take(3)
+					.map(|c| [tracked(c[0]), tracked(c[1])])
+					.collect();
 				let mut flat = pairs.into_flattened();
 				mark(0xf0);
 				flat.truncate(usize::from(at(0) % 4));
@@ -1154,7 +1184,10 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				out.extend(ids(leaked));
 			}
 			out.extend_from_slice(&log.borrow());
-			let words: Vec<[u16; 3]> = data.chunks_exact(3).map(|c| [u16::from(c[0]), u16::from(c[1]), u16::from(c[2])]).collect();
+			let words: Vec<[u16; 3]> = data
+				.chunks_exact(3)
+				.map(|c| [u16::from(c[0]), u16::from(c[1]), u16::from(c[2])])
+				.collect();
 			let mut flat = words.into_flattened();
 			for (i, x) in flat.iter_mut().enumerate().step_by(2) {
 				*x += i as u16;
@@ -1166,7 +1199,10 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.iter()
 				.take(4)
 				.map(|&b| {
-					let n = Named { id: u16::from(b), name: text(&[b]) };
+					let n = Named {
+						id: u16::from(b),
+						name: text(&[b]),
+					};
 					[n.clone(), n]
 				})
 				.collect();
@@ -1266,7 +1302,14 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let (a, b) = bytes.as_slices();
 			out.push(a.len() as u8);
 			out.push(b.len() as u8);
-			let mut named: VecDeque<Named> = data.iter().take(6).map(|&b| Named { id: u16::from(b), name: text(&[b]) }).collect();
+			let mut named: VecDeque<Named> = data
+				.iter()
+				.take(6)
+				.map(|&b| Named {
+					id: u16::from(b),
+					name: text(&[b]),
+				})
+				.collect();
 			wrap(&mut named, at(2));
 			named.make_contiguous().sort_by_key(|n| n.id);
 			let probe = u16::from(at(3));
