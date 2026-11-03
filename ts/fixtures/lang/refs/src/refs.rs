@@ -935,8 +935,8 @@ fn parity(b: u8) -> Result<u8, u8> {
 }
 
 /// A `&mut` to a `Vec`, an `Option`, or a `Result` of bytes that an adaptor is given,
-/// beside items of no places, lends each element as its place to write through. One a
-/// consumer is given compares as values.
+/// beside items of no places or an empty iterator, lends each element as its place to write
+/// through. One a consumer is given compares as values.
 pub fn adapted(data: &[u8], out: &mut Vec<u8>) {
 	let mut v = data.to_vec();
 	let mut opt = data.first().copied();
@@ -956,6 +956,22 @@ pub fn adapted(data: &[u8], out: &mut Vec<u8>) {
 	}
 	for x in None.into_iter().chain(&mut v).chain(&mut opt).chain(&mut res) {
 		*x = x.wrapping_add(5);
+	}
+	// An empty iterator lends nothing, on either side.
+	for x in std::iter::empty().chain(&mut v).chain(std::iter::empty()) {
+		*x = x.rotate_left(3);
+	}
+	for (x, y) in v.iter_mut().zip(std::iter::empty::<&mut u8>()) {
+		std::mem::swap(x, y);
+	}
+	for (x, y) in std::iter::empty::<&mut u8>().zip(&mut opt) {
+		*x ^= *y;
+		*y = 0;
+	}
+	let lists = <std::collections::linked_list::IterMut<'_, u8>>::default();
+	let owned = <std::collections::linked_list::IntoIter<&mut u8>>::default();
+	for x in std::iter::Empty::default().chain(&mut v).chain(lists).chain(owned) {
+		*x = x.wrapping_sub(1);
 	}
 	out.extend(&v);
 	out.extend(opt);

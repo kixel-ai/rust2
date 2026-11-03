@@ -4,33 +4,33 @@ import * as rt from "../rt.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
-/** Run scenario `arg % 3`. */
+/** Run scenario `arg % 5`. */
 export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	let f!: Guard.Guard;
-	const guard: (a0: rt.u32) => Guard.Guard = (n2: rt.u32): Guard.Guard => {
-		return Guard.new(rt.u32Add(id, n2), Log.clone$Clone(log));
+	const guard: (a0: rt.u32) => Guard.Guard = (n3: rt.u32): Guard.Guard => {
+		return Guard.new(rt.u32Add(id, n3), Log.clone$Clone(log));
 	};
 	const text: string = "a,b;c,,d";
-	const _7: rt.u8 = rt.u8Rem(arg, 3);
+	const _7: rt.u8 = rt.u8Rem(arg, 5);
 	if (_7 === 0) {
-		const captured28 = guard(1);
-		const _13: (a0: rt.char) => boolean = rt.closure((c27: rt.char): boolean => {
-			if (!(c27 === 59)) {
+		const captured33 = guard(1);
+		const _13: (a0: rt.char) => boolean = rt.closure((c31: rt.char): boolean => {
+			if (!(c31 === 59)) {
 				return false;
 			}
-			return Guard.id(captured28) > 0;
+			return Guard.id(captured33) > 0;
 		}, (): void => {
-			captured28[Symbol.dispose]();
+			captured33[Symbol.dispose]();
 		});
 		const found: boolean = rt.dropAfter(_13, () => rt.strContains(text, _13));
-		const captured29 = guard(2);
-		const _18: (a0: rt.char) => boolean = rt.closure((c28: rt.char): boolean => {
-			if (!(c28 === 122)) {
+		const captured34 = guard(2);
+		const _18: (a0: rt.char) => boolean = rt.closure((c32: rt.char): boolean => {
+			if (!(c32 === 122)) {
 				return false;
 			}
-			return Guard.id(captured29) > 0;
+			return Guard.id(captured34) > 0;
 		}, (): void => {
-			captured29[Symbol.dispose]();
+			captured34[Symbol.dispose]();
 		});
 		const missing: boolean = rt.dropAfter(_18, () => rt.strContains(text, _18));
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(found, f), (f: rt.Formatter) => rt.fmtBool(missing, f)];
@@ -38,61 +38,14 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const _33: [Guard.Guard, Guard.Guard] = [guard(3), guard(4)];
 		const c: Guard.Guard = _33[0];
 		const d: Guard.Guard = _33[1];
-		const captured30 = (c29: rt.char): boolean => {
-			if (!(c29 === 44)) {
-				return c29 === 59;
-			}
-			return true;
-		};
-		const captured31 = d;
-		const _42: (a0: rt.char) => boolean = rt.closure((c30: rt.char): boolean => {
-			if (!captured30(c30)) {
-				return false;
-			}
-			return Guard.id(captured31) > 0;
-		}, (): void => {
-			captured31[Symbol.dispose]();
-		});
-		const _41: rt.usize | undefined = rt.dropAfter(_42, () => rt.strFind(text, _42));
-		const captured32 = (c31: rt.char): boolean => {
-			if (!(c31 === 44)) {
-				return c31 === 59;
-			}
-			return true;
-		};
-		const captured33 = c;
-		const _44: (a0: rt.char) => boolean = rt.closure((ch2: rt.char): boolean => {
-			if (!captured32(ch2)) {
-				return false;
-			}
-			return Guard.id(captured33) > 0;
-		}, (): void => {
-			captured33[Symbol.dispose]();
-		});
-		const part7 = [_41, rt.dropAfter(_44, () => rt.strRfind(text, _44))] as [rt.usize | undefined, rt.usize | undefined];
-		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part7[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(part7[1], f, rt.usizeDebug)], f)];
-		Log.note(log, rt.fmtFormat(["find ", args4[0]]));
-		const _57: [Guard.Guard, Guard.Guard] = [guard(5), guard(6)];
-		const e: Guard.Guard = _57[0];
-		f = _57[1];
-		const captured34 = e;
-		const _66: (a0: rt.char) => boolean = rt.closure((c32: rt.char): boolean => {
-			if (!(c32 === 97)) {
-				return false;
-			}
-			return Guard.id(captured34) > 0;
-		}, (): void => {
-			captured34[Symbol.dispose]();
-		});
-		const _65: boolean = rt.dropAfter(_66, () => rt.strStartsWith(text, _66));
 		const captured35 = (c33: rt.char): boolean => {
 			if (!(c33 === 44)) {
 				return c33 === 59;
 			}
 			return true;
 		};
-		const captured36 = f;
-		const _68: (a0: rt.char) => boolean = rt.closure((c34: rt.char): boolean => {
+		const captured36 = d;
+		const _42: (a0: rt.char) => boolean = rt.closure((c34: rt.char): boolean => {
 			if (!captured35(c34)) {
 				return false;
 			}
@@ -100,165 +53,212 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured36[Symbol.dispose]();
 		});
-		const part8 = [_65, rt.dropAfter(_68, () => rt.strEndsWith(text, _68))] as [boolean, boolean];
-		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(part8[0], f), (f: rt.Formatter) => rt.fmtBool(part8[1], f)], f)];
-		Log.note(log, rt.fmtFormat(["ends ", args6[0]]));
-		const _81: [Guard.Guard, Guard.Guard] = [guard(7), guard(8)];
-		const g: Guard.Guard = _81[0];
-		const h: Guard.Guard = _81[1];
-		const captured37 = g;
-		const _90: (a0: rt.char) => boolean = rt.closure((c35: rt.char): boolean => {
-			if (!(c35 === 97)) {
-				return false;
+		const _41: rt.usize | undefined = rt.dropAfter(_42, () => rt.strFind(text, _42));
+		const captured37 = (c35: rt.char): boolean => {
+			if (!(c35 === 44)) {
+				return c35 === 59;
 			}
-			return Guard.id(captured37) > 0;
-		}, (): void => {
-			captured37[Symbol.dispose]();
-		});
-		const _89: string | undefined = rt.dropAfter(_90, () => rt.strStripPrefix(text, _90));
-		const captured38 = h;
-		const _92: (a0: rt.char) => boolean = rt.closure((c36: rt.char): boolean => {
-			if (!(c36 === 97)) {
+			return true;
+		};
+		const captured38 = c;
+		const _44: (a0: rt.char) => boolean = rt.closure((ch2: rt.char): boolean => {
+			if (!captured37(ch2)) {
 				return false;
 			}
 			return Guard.id(captured38) > 0;
 		}, (): void => {
 			captured38[Symbol.dispose]();
 		});
-		const part9 = [_89, rt.dropAfter(_92, () => rt.strStripSuffix(text, _92))] as [string | undefined, string | undefined];
-		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part9[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(part9[1], f, rt.fmtStr)], f)];
-		Log.note(log, rt.fmtFormat(["strip ", args8[0]]));
-		const _105: [Guard.Guard, Guard.Guard] = [guard(9), guard(10)];
-		const i: Guard.Guard = _105[0];
-		const j: Guard.Guard = _105[1];
-		const captured39 = (c37: rt.char): boolean => {
+		const part10 = [_41, rt.dropAfter(_44, () => rt.strRfind(text, _44))] as [rt.usize | undefined, rt.usize | undefined];
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part10[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(part10[1], f, rt.usizeDebug)], f)];
+		Log.note(log, rt.fmtFormat(["find ", args4[0]]));
+		const _57: [Guard.Guard, Guard.Guard] = [guard(5), guard(6)];
+		const e: Guard.Guard = _57[0];
+		f = _57[1];
+		const captured39 = e;
+		const _66: (a0: rt.char) => boolean = rt.closure((c36: rt.char): boolean => {
+			if (!(c36 === 97)) {
+				return false;
+			}
+			return Guard.id(captured39) > 0;
+		}, (): void => {
+			captured39[Symbol.dispose]();
+		});
+		const _65: boolean = rt.dropAfter(_66, () => rt.strStartsWith(text, _66));
+		const captured40 = (c37: rt.char): boolean => {
 			if (!(c37 === 44)) {
 				return c37 === 59;
 			}
 			return true;
 		};
-		const captured40 = i;
-		const _114: (a0: rt.char) => boolean = rt.closure((c38: rt.char): boolean => {
-			if (!captured39(c38)) {
+		const captured41 = f;
+		const _68: (a0: rt.char) => boolean = rt.closure((c38: rt.char): boolean => {
+			if (!captured40(c38)) {
 				return false;
 			}
-			return Guard.id(captured40) > 0;
+			return Guard.id(captured41) > 0;
 		}, (): void => {
-			captured40[Symbol.dispose]();
+			captured41[Symbol.dispose]();
 		});
-		const _113: [string, string] | undefined = rt.dropAfter(_114, () => rt.strSplitOnce(text, _114));
-		const captured41 = (c39: rt.char): boolean => {
-			if (!(c39 === 44)) {
-				return c39 === 59;
-			}
-			return true;
-		};
-		const captured42 = j;
-		const _116: (a0: rt.char) => boolean = rt.closure((c40: rt.char): boolean => {
-			if (!captured41(c40)) {
+		const part11 = [_65, rt.dropAfter(_68, () => rt.strEndsWith(text, _68))] as [boolean, boolean];
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(part11[0], f), (f: rt.Formatter) => rt.fmtBool(part11[1], f)], f)];
+		Log.note(log, rt.fmtFormat(["ends ", args6[0]]));
+		const _81: [Guard.Guard, Guard.Guard] = [guard(7), guard(8)];
+		const g: Guard.Guard = _81[0];
+		const h: Guard.Guard = _81[1];
+		const captured42 = g;
+		const _90: (a0: rt.char) => boolean = rt.closure((c39: rt.char): boolean => {
+			if (!(c39 === 97)) {
 				return false;
 			}
 			return Guard.id(captured42) > 0;
 		}, (): void => {
 			captured42[Symbol.dispose]();
 		});
-		const part10 = [_113, rt.dropAfter(_116, () => rt.strRsplitOnce(text, _116))] as [[string, string] | undefined, [string, string] | undefined];
-		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part10[0], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(part10[1], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f)];
-		Log.note(log, rt.fmtFormat(["once ", args10[0]]));
-		const _130: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(11), guard(12), guard(13)];
-		const k: Guard.Guard = _130[0];
-		const l: Guard.Guard = _130[1];
-		const m: Guard.Guard = _130[2];
-		const _142: string = ",a,";
-		const captured43 = k;
-		const _143: (a0: rt.char) => boolean = rt.closure((c41: rt.char): boolean => {
-			if (!(c41 === 44)) {
+		const _89: string | undefined = rt.dropAfter(_90, () => rt.strStripPrefix(text, _90));
+		const captured43 = h;
+		const _92: (a0: rt.char) => boolean = rt.closure((c40: rt.char): boolean => {
+			if (!(c40 === 97)) {
 				return false;
 			}
 			return Guard.id(captured43) > 0;
 		}, (): void => {
 			captured43[Symbol.dispose]();
 		});
-		const _141: string = rt.dropAfter(_143, () => rt.strTrimMatches(_142, _143));
-		const captured44 = l;
-		const _145: string = ",a,";
-		const _146: (a0: rt.char) => boolean = rt.closure((c42: rt.char): boolean => {
-			if (!(c42 === 44)) {
-				return false;
+		const part12 = [_89, rt.dropAfter(_92, () => rt.strStripSuffix(text, _92))] as [string | undefined, string | undefined];
+		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part12[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(part12[1], f, rt.fmtStr)], f)];
+		Log.note(log, rt.fmtFormat(["strip ", args8[0]]));
+		const _105: [Guard.Guard, Guard.Guard] = [guard(9), guard(10)];
+		const i: Guard.Guard = _105[0];
+		const j: Guard.Guard = _105[1];
+		const captured44 = (c41: rt.char): boolean => {
+			if (!(c41 === 44)) {
+				return c41 === 59;
 			}
-			return Guard.id(captured44) > 0;
-		}, (): void => {
-			captured44[Symbol.dispose]();
-		});
-		const _144: string = rt.dropAfter(_146, () => rt.strTrimStartMatches(_145, _146));
-		const captured45 = m;
-		const _148: string = ",a,";
-		const _149: (a0: rt.char) => boolean = rt.closure((c43: rt.char): boolean => {
-			if (!(c43 === 44)) {
+			return true;
+		};
+		const captured45 = i;
+		const _114: (a0: rt.char) => boolean = rt.closure((c42: rt.char): boolean => {
+			if (!captured44(c42)) {
 				return false;
 			}
 			return Guard.id(captured45) > 0;
 		}, (): void => {
 			captured45[Symbol.dispose]();
 		});
-		const part11 = [_141, _144, rt.dropAfter(_149, () => rt.strTrimEndMatches(_148, _149))] as [string, string, string];
-		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(part11[0], f), (f: rt.Formatter) => rt.fmtStr(part11[1], f), (f: rt.Formatter) => rt.fmtStr(part11[2], f)], f)];
-		Log.note(log, rt.fmtFormat(["trim ", args12[0]]));
-		const _162: [Guard.Guard, Guard.Guard] = [guard(14), guard(15)];
-		const n: Guard.Guard = _162[0];
-		const o: Guard.Guard = _162[1];
-		const captured46 = (c44: rt.char): boolean => {
-			if (!(c44 === 44)) {
-				return c44 === 59;
+		const _113: [string, string] | undefined = rt.dropAfter(_114, () => rt.strSplitOnce(text, _114));
+		const captured46 = (c43: rt.char): boolean => {
+			if (!(c43 === 44)) {
+				return c43 === 59;
 			}
 			return true;
 		};
-		const captured47 = n;
-		const _171: (a0: rt.char) => boolean = rt.closure((c45: rt.char): boolean => {
-			if (!captured46(c45)) {
+		const captured47 = j;
+		const _116: (a0: rt.char) => boolean = rt.closure((c44: rt.char): boolean => {
+			if (!captured46(c44)) {
 				return false;
 			}
 			return Guard.id(captured47) > 0;
 		}, (): void => {
 			captured47[Symbol.dispose]();
 		});
-		const _172: string = "+";
-		const _170: string = rt.dropAfter(_171, () => rt.strReplace(text, _171, _172));
-		const captured48 = (c46: rt.char): boolean => {
-			if (!(c46 === 44)) {
-				return c46 === 59;
+		const part13 = [_113, rt.dropAfter(_116, () => rt.strRsplitOnce(text, _116))] as [[string, string] | undefined, [string, string] | undefined];
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part13[0], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(part13[1], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f)];
+		Log.note(log, rt.fmtFormat(["once ", args10[0]]));
+		const _130: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(11), guard(12), guard(13)];
+		const k: Guard.Guard = _130[0];
+		const l: Guard.Guard = _130[1];
+		const m: Guard.Guard = _130[2];
+		const _142: string = ",a,";
+		const captured48 = k;
+		const _143: (a0: rt.char) => boolean = rt.closure((c45: rt.char): boolean => {
+			if (!(c45 === 44)) {
+				return false;
 			}
-			return true;
-		};
-		const captured49 = o;
-		const _174: (a0: rt.char) => boolean = rt.closure((c47: rt.char): boolean => {
-			if (!captured48(c47)) {
+			return Guard.id(captured48) > 0;
+		}, (): void => {
+			captured48[Symbol.dispose]();
+		});
+		const _141: string = rt.dropAfter(_143, () => rt.strTrimMatches(_142, _143));
+		const captured49 = l;
+		const _145: string = ",a,";
+		const _146: (a0: rt.char) => boolean = rt.closure((c46: rt.char): boolean => {
+			if (!(c46 === 44)) {
 				return false;
 			}
 			return Guard.id(captured49) > 0;
 		}, (): void => {
 			captured49[Symbol.dispose]();
 		});
-		const _175: string = "+";
-		const part12 = [_170, rt.dropAfter(_174, () => rt.strReplace(text, _174, _175, 2))] as [string, string];
-		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(part12[0], f), (f: rt.Formatter) => rt.fmtStr(part12[1], f)], f)];
-		Log.note(log, rt.fmtFormat(["replace ", args14[0]]));
-	} else if (_7 === 1) {
-		const a2: Guard.Guard = guard(1);
-		const captured6 = (c6: rt.char): boolean => {
-			if (!(c6 === 44)) {
-				return c6 === 59;
+		const _144: string = rt.dropAfter(_146, () => rt.strTrimStartMatches(_145, _146));
+		const captured50 = m;
+		const _148: string = ",a,";
+		const _149: (a0: rt.char) => boolean = rt.closure((c47: rt.char): boolean => {
+			if (!(c47 === 44)) {
+				return false;
+			}
+			return Guard.id(captured50) > 0;
+		}, (): void => {
+			captured50[Symbol.dispose]();
+		});
+		const part14 = [_141, _144, rt.dropAfter(_149, () => rt.strTrimEndMatches(_148, _149))] as [string, string, string];
+		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(part14[0], f), (f: rt.Formatter) => rt.fmtStr(part14[1], f), (f: rt.Formatter) => rt.fmtStr(part14[2], f)], f)];
+		Log.note(log, rt.fmtFormat(["trim ", args12[0]]));
+		const _162: [Guard.Guard, Guard.Guard] = [guard(14), guard(15)];
+		const n: Guard.Guard = _162[0];
+		const o: Guard.Guard = _162[1];
+		const captured51 = (c48: rt.char): boolean => {
+			if (!(c48 === 44)) {
+				return c48 === 59;
 			}
 			return true;
 		};
-		const captured7 = a2;
-		const split: rt.Iter<string> = rt.strSplit(text, rt.closure((c7: rt.char): boolean => {
-			if (!captured6(c7)) {
+		const captured52 = n;
+		const _171: (a0: rt.char) => boolean = rt.closure((c49: rt.char): boolean => {
+			if (!captured51(c49)) {
 				return false;
 			}
-			return Guard.id(captured7) > 0;
+			return Guard.id(captured52) > 0;
 		}, (): void => {
-			captured7[Symbol.dispose]();
+			captured52[Symbol.dispose]();
+		});
+		const _172: string = "+";
+		const _170: string = rt.dropAfter(_171, () => rt.strReplace(text, _171, _172));
+		const captured53 = (c50: rt.char): boolean => {
+			if (!(c50 === 44)) {
+				return c50 === 59;
+			}
+			return true;
+		};
+		const captured54 = o;
+		const _174: (a0: rt.char) => boolean = rt.closure((c51: rt.char): boolean => {
+			if (!captured53(c51)) {
+				return false;
+			}
+			return Guard.id(captured54) > 0;
+		}, (): void => {
+			captured54[Symbol.dispose]();
+		});
+		const _175: string = "+";
+		const part15 = [_170, rt.dropAfter(_174, () => rt.strReplace(text, _174, _175, 2))] as [string, string];
+		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(part15[0], f), (f: rt.Formatter) => rt.fmtStr(part15[1], f)], f)];
+		Log.note(log, rt.fmtFormat(["replace ", args14[0]]));
+	} else if (_7 === 1) {
+		const a2: Guard.Guard = guard(1);
+		const captured11 = (c10: rt.char): boolean => {
+			if (!(c10 === 44)) {
+				return c10 === 59;
+			}
+			return true;
+		};
+		const captured12 = a2;
+		const split: rt.Iter<string> = rt.strSplit(text, rt.closure((c11: rt.char): boolean => {
+			if (!captured11(c11)) {
+				return false;
+			}
+			return Guard.id(captured12) > 0;
+		}, (): void => {
+			captured12[Symbol.dispose]();
 		}));
 		const _197: string | undefined = rt.iterToOption(split.next());
 		const _200: string | undefined = rt.iterToOption(split.nextBack());
@@ -266,73 +266,73 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["split ", args16[0], " ", args16[1]]));
 		rt.drop(split);
 		const b2: Guard.Guard = guard(2);
-		const captured8 = (c8: rt.char): boolean => {
-			if (!(c8 === 44)) {
-				return c8 === 59;
-			}
-			return true;
-		};
-		const captured9 = b2;
-		const part3 = rt.iterToArray(rt.strRsplit(text, rt.closure((c9: rt.char): boolean => {
-			if (!captured8(c9)) {
-				return false;
-			}
-			return Guard.id(captured9) > 0;
-		}, (): void => {
-			captured9[Symbol.dispose]();
-		})), "next", 8);
-		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3, f, rt.fmtStr)];
-		Log.note(log, rt.fmtFormat(["rsplit ", args18[0]]));
-		const _227: [Guard.Guard, Guard.Guard] = [guard(3), guard(4)];
-		const c2: Guard.Guard = _227[0];
-		const d2: Guard.Guard = _227[1];
-		const captured10 = (c10: rt.char): boolean => {
-			if (!(c10 === 44)) {
-				return c10 === 59;
-			}
-			return true;
-		};
-		const captured11 = d2;
-		const _235: rt.usize = rt.ownedCount(rt.strSplitn(text, 2, rt.closure((c11: rt.char): boolean => {
-			if (!captured10(c11)) {
-				return false;
-			}
-			return Guard.id(captured11) > 0;
-		}, (): void => {
-			captured11[Symbol.dispose]();
-		})));
-		const captured12 = (c12: rt.char): boolean => {
+		const captured13 = (c12: rt.char): boolean => {
 			if (!(c12 === 44)) {
 				return c12 === 59;
 			}
 			return true;
 		};
-		const captured13 = c2;
-		const part4 = [_235, rt.ownedLast(rt.strRsplitn(text, 3, rt.closure((ch: rt.char): boolean => {
-			if (!captured12(ch)) {
+		const captured14 = b2;
+		const part6 = rt.iterToArray(rt.strRsplit(text, rt.closure((c13: rt.char): boolean => {
+			if (!captured13(c13)) {
 				return false;
 			}
-			return Guard.id(captured13) > 0;
+			return Guard.id(captured14) > 0;
 		}, (): void => {
-			captured13[Symbol.dispose]();
-		})))] as [rt.usize, string | undefined];
-		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(part4[0], f), (f: rt.Formatter) => rt.fmtOption(part4[1], f, rt.fmtStr)], f)];
-		Log.note(log, rt.fmtFormat(["splitn ", args20[0]]));
-		const e2: Guard.Guard = guard(5);
-		const captured14 = (c13: rt.char): boolean => {
-			if (!(c13 === 44)) {
-				return c13 === 59;
+			captured14[Symbol.dispose]();
+		})), "next", 8);
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["rsplit ", args18[0]]));
+		const _227: [Guard.Guard, Guard.Guard] = [guard(3), guard(4)];
+		const c2: Guard.Guard = _227[0];
+		const d2: Guard.Guard = _227[1];
+		const captured15 = (c14: rt.char): boolean => {
+			if (!(c14 === 44)) {
+				return c14 === 59;
 			}
 			return true;
 		};
-		const captured15 = e2;
-		const iter: rt.Iter<string> = rt.strSplitTerminator(text, rt.closure((c14: rt.char): boolean => {
-			if (!captured14(c14)) {
+		const captured16 = d2;
+		const _235: rt.usize = rt.ownedCount(rt.strSplitn(text, 2, rt.closure((c15: rt.char): boolean => {
+			if (!captured15(c15)) {
 				return false;
 			}
-			return Guard.id(captured15) > 0;
+			return Guard.id(captured16) > 0;
 		}, (): void => {
-			captured15[Symbol.dispose]();
+			captured16[Symbol.dispose]();
+		})));
+		const captured17 = (c16: rt.char): boolean => {
+			if (!(c16 === 44)) {
+				return c16 === 59;
+			}
+			return true;
+		};
+		const captured18 = c2;
+		const part7 = [_235, rt.ownedLast(rt.strRsplitn(text, 3, rt.closure((ch: rt.char): boolean => {
+			if (!captured17(ch)) {
+				return false;
+			}
+			return Guard.id(captured18) > 0;
+		}, (): void => {
+			captured18[Symbol.dispose]();
+		})))] as [rt.usize, string | undefined];
+		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(part7[0], f), (f: rt.Formatter) => rt.fmtOption(part7[1], f, rt.fmtStr)], f)];
+		Log.note(log, rt.fmtFormat(["splitn ", args20[0]]));
+		const e2: Guard.Guard = guard(5);
+		const captured19 = (c17: rt.char): boolean => {
+			if (!(c17 === 44)) {
+				return c17 === 59;
+			}
+			return true;
+		};
+		const captured20 = e2;
+		const iter: rt.Iter<string> = rt.strSplitTerminator(text, rt.closure((c18: rt.char): boolean => {
+			if (!captured19(c18)) {
+				return false;
+			}
+			return Guard.id(captured20) > 0;
+		}, (): void => {
+			captured20[Symbol.dispose]();
 		}));
 		while (true) {
 			const _258: string | rt.Done = iter.next();
@@ -348,77 +348,77 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}
 		rt.drop(iter);
 		const f2: Guard.Guard = guard(6);
-		const captured16 = (c15: rt.char): boolean => {
-			if (!(c15 === 44)) {
-				return c15 === 59;
-			}
-			return true;
-		};
-		const captured17 = f2;
-		const terminated: rt.Iter<string> = rt.strRsplitTerminator(text, rt.closure((c16: rt.char): boolean => {
-			if (!captured16(c16)) {
-				return false;
-			}
-			return Guard.id(captured17) > 0;
-		}, (): void => {
-			captured17[Symbol.dispose]();
-		}));
-		const part5 = rt.iterNth(terminated, 1);
-		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part5, f, rt.fmtStr)];
-		Log.note(log, rt.fmtFormat(["rsplit_terminator ", args24[0]]));
-		rt.drop(terminated);
-		const g2: Guard.Guard = guard(7);
-		const captured18 = (c17: rt.char): boolean => {
-			if (!(c17 === 44)) {
-				return c17 === 59;
-			}
-			return true;
-		};
-		const captured19 = g2;
-		const part6 = rt.iterToArray(rt.iterMap(rt.iterRev(rt.strSplitInclusive(text, rt.closure((c18: rt.char): boolean => {
-			if (!captured18(c18)) {
-				return false;
-			}
-			return Guard.id(captured19) > 0;
-		}, (): void => {
-			captured19[Symbol.dispose]();
-		}))), (s2: string): string => {
-			return rt.strTrimEndMatches(s2, ",");
-		}), "next", 8);
-		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6, f, rt.fmtStr)];
-		Log.note(log, rt.fmtFormat(["split_inclusive ", args26[0]]));
-		const _314: [Guard.Guard, Guard.Guard] = [guard(8), guard(9)];
-		const h2: Guard.Guard = _314[0];
-		const i2: Guard.Guard = _314[1];
-		const captured20 = (c19: rt.char): boolean => {
+		const captured21 = (c19: rt.char): boolean => {
 			if (!(c19 === 44)) {
 				return c19 === 59;
 			}
 			return true;
 		};
-		const captured21 = h2;
-		const matched: rt.Iter<string> = rt.strMatches(text, rt.closure((c20: rt.char): boolean => {
-			if (!captured20(c20)) {
+		const captured22 = f2;
+		const terminated: rt.Iter<string> = rt.strRsplitTerminator(text, rt.closure((c20: rt.char): boolean => {
+			if (!captured21(c20)) {
 				return false;
 			}
-			return Guard.id(captured21) > 0;
+			return Guard.id(captured22) > 0;
 		}, (): void => {
-			captured21[Symbol.dispose]();
+			captured22[Symbol.dispose]();
 		}));
-		const captured22 = (c21: rt.char): boolean => {
+		const part8 = rt.iterNth(terminated, 1);
+		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["rsplit_terminator ", args24[0]]));
+		rt.drop(terminated);
+		const g2: Guard.Guard = guard(7);
+		const captured23 = (c21: rt.char): boolean => {
 			if (!(c21 === 44)) {
 				return c21 === 59;
 			}
 			return true;
 		};
-		const captured23 = i2;
-		const _325: rt.Iter<string> = rt.strRmatches(text, rt.closure((c22: rt.char): boolean => {
-			if (!captured22(c22)) {
+		const captured24 = g2;
+		const part9 = rt.iterToArray(rt.iterMap(rt.iterRev(rt.strSplitInclusive(text, rt.closure((c22: rt.char): boolean => {
+			if (!captured23(c22)) {
 				return false;
 			}
-			return Guard.id(captured23) > 0;
+			return Guard.id(captured24) > 0;
 		}, (): void => {
-			captured23[Symbol.dispose]();
+			captured24[Symbol.dispose]();
+		}))), (s2: string): string => {
+			return rt.strTrimEndMatches(s2, ",");
+		}), "next", 8);
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part9, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["split_inclusive ", args26[0]]));
+		const _314: [Guard.Guard, Guard.Guard] = [guard(8), guard(9)];
+		const h2: Guard.Guard = _314[0];
+		const i2: Guard.Guard = _314[1];
+		const captured25 = (c23: rt.char): boolean => {
+			if (!(c23 === 44)) {
+				return c23 === 59;
+			}
+			return true;
+		};
+		const captured26 = h2;
+		const matched: rt.Iter<string> = rt.strMatches(text, rt.closure((c24: rt.char): boolean => {
+			if (!captured25(c24)) {
+				return false;
+			}
+			return Guard.id(captured26) > 0;
+		}, (): void => {
+			captured26[Symbol.dispose]();
+		}));
+		const captured27 = (c25: rt.char): boolean => {
+			if (!(c25 === 44)) {
+				return c25 === 59;
+			}
+			return true;
+		};
+		const captured28 = i2;
+		const _325: rt.Iter<string> = rt.strRmatches(text, rt.closure((c26: rt.char): boolean => {
+			if (!captured27(c26)) {
+				return false;
+			}
+			return Guard.id(captured28) > 0;
+		}, (): void => {
+			captured28[Symbol.dispose]();
 		}));
 		const last: string | undefined = rt.iterToOption(_325.next());
 		rt.drop(_325);
@@ -429,74 +429,74 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const _345: [Guard.Guard, Guard.Guard] = [guard(10), guard(11)];
 		const j2: Guard.Guard = _345[0];
 		const k2: Guard.Guard = _345[1];
-		const captured24 = (c23: rt.char): boolean => {
-			if (!(c23 === 44)) {
-				return c23 === 59;
+		const captured29 = (c27: rt.char): boolean => {
+			if (!(c27 === 44)) {
+				return c27 === 59;
 			}
 			return true;
 		};
-		const captured25 = j2;
-		const _355: rt.Iter<[rt.usize, string]> = rt.strMatchIndices(text, rt.closure((c24: rt.char): boolean => {
-			if (!captured24(c24)) {
+		const captured30 = j2;
+		const _355: rt.Iter<[rt.usize, string]> = rt.strMatchIndices(text, rt.closure((c28: rt.char): boolean => {
+			if (!captured29(c28)) {
 				return false;
 			}
-			return Guard.id(captured25) > 0;
+			return Guard.id(captured30) > 0;
 		}, (): void => {
-			captured25[Symbol.dispose]();
+			captured30[Symbol.dispose]();
 		}));
 		const _353: [rt.usize, string] | undefined = rt.iterNth(_355, 2);
-		const captured26 = (c25: rt.char): boolean => {
-			if (!(c25 === 44)) {
-				return c25 === 59;
+		const captured31 = (c29: rt.char): boolean => {
+			if (!(c29 === 44)) {
+				return c29 === 59;
 			}
 			return true;
 		};
-		const captured27 = k2;
-		const _359: rt.Iter<[rt.usize, string]> = rt.strRmatchIndices(text, rt.closure((c26: rt.char): boolean => {
-			if (!captured26(c26)) {
+		const captured32 = k2;
+		const _359: rt.Iter<[rt.usize, string]> = rt.strRmatchIndices(text, rt.closure((c30: rt.char): boolean => {
+			if (!captured31(c30)) {
 				return false;
 			}
-			return Guard.id(captured27) > 0;
+			return Guard.id(captured32) > 0;
 		}, (): void => {
-			captured27[Symbol.dispose]();
+			captured32[Symbol.dispose]();
 		}));
 		const indices: [[rt.usize, string] | undefined, [rt.usize, string] | undefined] = [_353, rt.iterToOption(_359.next())];
 		rt.drop(_359);
 		rt.drop(_355);
 		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(indices[0], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(indices[1], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f)];
 		Log.note(log, rt.fmtFormat(["indices ", args30[0]]));
-	} else {
+	} else if (_7 === 2) {
 		const a3: Guard.Guard = guard(1);
 		let s: string = text;
-		const captured = a3;
-		const captured2 = (c4: rt.char): boolean => {
-			if (!(c4 === 44)) {
-				return c4 === 59;
+		const captured6 = a3;
+		const captured7 = (c8: rt.char): boolean => {
+			if (!(c8 === 44)) {
+				return c8 === 59;
 			}
 			return true;
 		};
-		const _377: (a0: rt.char) => boolean = rt.closure((c5: rt.char): boolean => {
-			const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCharDisplay(c5, f)];
-			Guard.note(captured, rt.fmtFormat(["retain ", args40[0]]));
-			return !captured2(c5);
+		const _377: (a0: rt.char) => boolean = rt.closure((c9: rt.char): boolean => {
+			const args78: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCharDisplay(c9, f)];
+			Guard.note(captured6, rt.fmtFormat(["retain ", args78[0]]));
+			return !captured7(c9);
 		}, (): void => {
-			captured[Symbol.dispose]();
+			captured6[Symbol.dispose]();
 		});
 		s = rt.stringRetain(s, _377);
 		rt.drop(_377);
 		const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, s)];
 		Log.note(log, rt.fmtFormat(["retained ", args32[0]]));
 		const b3: Guard.Guard = guard(2);
-		let captured3: rt.i32 = 0;
-		const captured4 = b3;
+		let captured8: rt.i32 = 0;
+		const captured9 = b3;
 		const everyOther: (a0: rt.char) => boolean = rt.closure((_2: rt.char): boolean => {
-			captured3 = rt.i32Add(captured3, 1);
-			if (!(rt.i32Rem(captured3, 2) === 0)) {
-				return Guard.id(captured4) === 0;
+			captured8 = rt.i32Add(captured8, 1);
+			if (!(rt.i32Rem(captured8, 2) === 0)) {
+				return Guard.id(captured9) === 0;
 			}
 			return true;
 		}, (): void => {
-			captured4[Symbol.dispose]();
+			captured9[Symbol.dispose]();
 		});
 		s = rt.stringRetain(s, everyOther);
 		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, s)];
@@ -507,16 +507,149 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(everyOther);
 		const c3: Guard.Guard = guard(3);
 		let empty: string = "";
-		const captured5 = c3;
+		const captured10 = c3;
 		const _426: (a0: rt.char) => boolean = rt.closure((_23: rt.char): boolean => {
-			return Guard.id(captured5) > 0;
+			return Guard.id(captured10) > 0;
 		}, (): void => {
-			captured5[Symbol.dispose]();
+			captured10[Symbol.dispose]();
 		});
 		empty = rt.stringRetain(empty, _426);
 		rt.drop(_426);
 		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(empty, f)];
 		Log.note(log, rt.fmtFormat(["empty ", args38[0]]));
+	} else if (_7 === 3) {
+		const a4: Guard.Guard = guard(1);
+		const captured4 = (c6: rt.char): boolean => {
+			if (!(c6 === 44)) {
+				return c6 === 59;
+			}
+			return true;
+		};
+		const captured5 = a4;
+		const f3: (a0: rt.char) => boolean = rt.closure((c7: rt.char): boolean => {
+			if (!captured4(c7)) {
+				return false;
+			}
+			return Guard.id(captured5) > 0;
+		}, (): void => {
+			captured5[Symbol.dispose]();
+		});
+		const part3 = [rt.strContains(text, f3), rt.strFind(text, f3), rt.strRfind(text, f3)] as [boolean, rt.usize | undefined, rt.usize | undefined];
+		const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(part3[0], f), (f: rt.Formatter) => rt.fmtOption(part3[1], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(part3[2], f, rt.usizeDebug)], f)];
+		Log.note(log, rt.fmtFormat(["contains ", args40[0]]));
+		const ends2: [boolean, boolean] = [rt.strStartsWith(text, f3), rt.strEndsWith(text, f3)];
+		const stripped2: [string | undefined, string | undefined] = [rt.strStripPrefix(text, f3), rt.strStripSuffix(",a", f3)];
+		const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(ends2[0], f), (f: rt.Formatter) => rt.fmtBool(ends2[1], f)], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(stripped2[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(stripped2[1], f, rt.fmtStr)], f)];
+		Log.note(log, rt.fmtFormat(["ends ", args42[0], " ", args42[1]]));
+		const once2: [[string, string] | undefined, [string, string] | undefined] = [rt.strSplitOnce(text, f3), rt.strRsplitOnce(text, f3)];
+		const trimmed2: [string, string, string] = [rt.strTrimMatches(",a,", f3), rt.strTrimStartMatches(",a,", f3), rt.strTrimEndMatches(",a,", f3)];
+		const replaced2: [string, string] = [rt.strReplace(text, f3, "+"), rt.strReplace(text, f3, "+", 2)];
+		const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(once2[0], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(once2[1], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(trimmed2[0], f), (f: rt.Formatter) => rt.fmtStr(trimmed2[1], f), (f: rt.Formatter) => rt.fmtStr(trimmed2[2], f)], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(replaced2[0], f), (f: rt.Formatter) => rt.fmtStr(replaced2[1], f)], f)];
+		Log.note(log, rt.fmtFormat(["once ", args44[0], " ", args44[1], " ", args44[2]]));
+		const split2: rt.Iter<string> = rt.strSplit(text, rt.lent(f3));
+		const _525: string | undefined = rt.iterToOption(split2.next());
+		const _528: string | undefined = rt.iterToOption(split2.nextBack());
+		const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_525, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_528, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["split ", args46[0], " ", args46[1]]));
+		const rsplit2: string[] = rt.iterToArray(rt.strRsplit(text, rt.lent(f3)), "next", 8);
+		const counts2: [rt.usize, string | undefined] = [rt.iterCount(rt.strSplitn(text, 2, rt.lent(f3))), rt.iterLast(rt.strRsplitn(text, 3, rt.lent(f3)))];
+		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts2[0], f), (f: rt.Formatter) => rt.fmtOption(counts2[1], f, rt.fmtStr)], f)];
+		Log.note(log, rt.fmtFormat(["rsplit ", args48[0], " ", args48[1]]));
+		const terminated2: [string | undefined, string | undefined] = [rt.iterNth(rt.strSplitTerminator(text, rt.lent(f3)), 3), rt.iterNth(rt.strRsplitTerminator(text, rt.lent(f3)), 1)];
+		const inclusive2: string[] = rt.iterToArray(rt.iterRev(rt.strSplitInclusive(text, rt.lent(f3))), "next", 8);
+		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated2[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated2[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive2, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["terminated ", args50[0], " ", args50[1]]));
+		const matched2: rt.Iter<string> = rt.strMatches(text, rt.lent(f3));
+		const last2: string | undefined = rt.iterToOption(rt.strRmatches(text, rt.lent(f3)).next());
+		const _596: string | undefined = rt.iterToOption(matched2.next());
+		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_596, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(last2, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["matches ", args52[0], " ", args52[1]]));
+		const part4 = [rt.iterNth(rt.strMatchIndices(text, rt.lent(f3)), 2), rt.iterToOption(rt.strRmatchIndices(text, rt.lent(f3)).next())] as [[rt.usize, string] | undefined, [rt.usize, string] | undefined];
+		const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part4[0], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(part4[1], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f)];
+		Log.note(log, rt.fmtFormat(["indices ", args54[0]]));
+		const parts: rt.Iter<string> = rt.strSplit(text, rt.lent(f3));
+		parts.next();
+		const rest: string[] = rt.iterToArray(parts.clone(), "next", 8);
+		const _638: string | undefined = rt.iterToOption(parts.next());
+		const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rest, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_638, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["cloned ", args56[0], " ", args56[1]]));
+		const spaced: string[] = rt.iterToArray(rt.strSplit("a b\tc", (a0: rt.char): boolean => {
+			return rt.charIsWhitespace(a0);
+		}), "next", 8);
+		const _658: boolean = f3(59);
+		const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(spaced, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_658, f)];
+		Log.note(log, rt.fmtFormat(["spaced ", args58[0], " ", args58[1]]));
+		rt.drop(f3);
+		Log.note(log, "dropped");
+	} else {
+		const a5: Guard.Guard = guard(1);
+		let captured: rt.i32 = 0;
+		const captured2 = (c4: rt.char): boolean => {
+			if (!(c4 === 44)) {
+				return c4 === 59;
+			}
+			return true;
+		};
+		const captured3 = a5;
+		const f4: (a0: rt.char) => boolean = rt.closure((c5: rt.char): boolean => {
+			captured = rt.i32Add(captured, 1);
+			if (captured2(c5)) {
+				if (rt.i32Rem(captured, 3) !== 0) {
+					return Guard.id(captured3) > 0;
+				}
+			}
+			return false;
+		}, (): void => {
+			captured3[Symbol.dispose]();
+		});
+		const found3: [boolean, rt.usize | undefined, rt.usize | undefined] = [rt.strContains(text, f4), rt.strFind(text, f4), rt.strRfind(text, f4)];
+		const _688: boolean = f4(120);
+		const args60: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(found3[0], f), (f: rt.Formatter) => rt.fmtOption(found3[1], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtOption(found3[2], f, rt.usizeDebug)], f), (f: rt.Formatter) => rt.fmtBool(_688, f)];
+		Log.note(log, rt.fmtFormat(["contains ", args60[0], " ", args60[1]]));
+		const ends3: [boolean, boolean] = [rt.strStartsWith(text, f4), rt.strEndsWith(text, f4)];
+		const stripped3: [string | undefined, string | undefined] = [rt.strStripPrefix(",a", f4), rt.strStripSuffix(",a", f4)];
+		const _715: boolean = f4(120);
+		const args62: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtBool(ends3[0], f), (f: rt.Formatter) => rt.fmtBool(ends3[1], f)], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(stripped3[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(stripped3[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtBool(_715, f)];
+		Log.note(log, rt.fmtFormat(["ends ", args62[0], " ", args62[1], " ", args62[2]]));
+		const once3: [[string, string] | undefined, [string, string] | undefined] = [rt.strSplitOnce(text, f4), rt.strRsplitOnce(text, f4)];
+		const trimmed3: [string, string] = [rt.strTrimMatches(",,a,,", f4), rt.strTrimStartMatches(",,a", f4)];
+		const replaced3: [string, string] = [rt.strReplace(text, f4, "+"), rt.strReplace(text, f4, "+", 2)];
+		const end: string = rt.strTrimEndMatches(",a,,", f4);
+		const _754: boolean = f4(120);
+		const args64: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(once3[0], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(once3[1], f, (value: [string, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(trimmed3[0], f), (f: rt.Formatter) => rt.fmtStr(trimmed3[1], f)], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtStr(replaced3[0], f), (f: rt.Formatter) => rt.fmtStr(replaced3[1], f)], f), (f: rt.Formatter) => rt.fmtStr(end, f), (f: rt.Formatter) => rt.fmtBool(_754, f)];
+		Log.note(log, rt.fmtFormat(["once ", args64[0], " ", args64[1], " ", args64[2], " ", args64[3], " ", args64[4]]));
+		const split3: rt.Iter<string> = rt.strSplit(text, rt.lent(f4));
+		const _777: string | undefined = rt.iterToOption(split3.next());
+		const _780: string | undefined = rt.iterToOption(split3.nextBack());
+		const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_777, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_780, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["split ", args66[0], " ", args66[1]]));
+		const rsplit3: string[] = rt.iterToArray(rt.strRsplit(text, rt.lent(f4)), "next", 8);
+		const n2: rt.usize = rt.iterCount(rt.strSplitn(text, 2, rt.lent(f4)));
+		const last3: string | undefined = rt.iterLast(rt.strRsplitn(text, 3, rt.lent(f4)));
+		const _804: boolean = f4(120);
+		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit3, f, rt.fmtStr), (f: rt.Formatter) => rt.usizeDisplay(n2, f), (f: rt.Formatter) => rt.fmtOption(last3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_804, f)];
+		Log.note(log, rt.fmtFormat(["rsplit ", args68[0], " ", args68[1], " ", args68[2], " ", args68[3]]));
+		const forward: string | undefined = rt.iterNth(rt.strSplitTerminator(text, rt.lent(f4)), 3);
+		const back: string | undefined = rt.iterNth(rt.strRsplitTerminator(text, rt.lent(f4)), 1);
+		const inclusive3: string[] = rt.iterToArray(rt.iterRev(rt.strSplitInclusive(text, rt.lent(f4))), "next", 8);
+		const _835: boolean = f4(120);
+		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(forward, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(back, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(inclusive3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_835, f)];
+		Log.note(log, rt.fmtFormat(["terminated ", args70[0], " ", args70[1], " ", args70[2], " ", args70[3]]));
+		const part2 = rt.iterToOption(rt.strMatches(text, rt.lent(f4)).next());
+		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part2, f, rt.fmtStr)];
+		Log.note(log, rt.fmtFormat(["matches ", args72[0]]));
+		const last4: string | undefined = rt.iterToOption(rt.strRmatches(text, rt.lent(f4)).next());
+		const indices3: [[rt.usize, string] | undefined, [rt.usize, string] | undefined] = [rt.iterNth(rt.strMatchIndices(text, rt.lent(f4)), 2), rt.iterToOption(rt.strRmatchIndices(text, rt.lent(f4)).next())];
+		const _883: boolean = f4(120);
+		const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(last4, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(indices3[0], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(indices3[1], f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))], f), (f: rt.Formatter) => rt.fmtBool(_883, f)];
+		Log.note(log, rt.fmtFormat(["indices ", args74[0], " ", args74[1], " ", args74[2]]));
+		let lent: (a0: rt.char) => boolean = f4;
+		const parts2: string[] = rt.iterToArray(rt.strSplit(text, rt.lent(rt.place(() => lent, (value) => lent = value).v)), "next", 8);
+		const _904: boolean = f4(120);
+		const args76: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(parts2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_904, f)];
+		Log.note(log, rt.fmtFormat(["lent ", args76[0], " ", args76[1]]));
+		rt.drop(f4);
+		Log.note(log, "dropped");
 	}
 }
 

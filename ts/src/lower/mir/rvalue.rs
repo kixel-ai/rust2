@@ -10,6 +10,7 @@ use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
 use rustc_span::Span;
 
 use super::{Capture, Env, Fx, Slot};
+use crate::lower::dynamic;
 use crate::lower::library::Std;
 use crate::lower::num::{self, Int};
 use crate::lower::pointer::Pointee;
@@ -371,6 +372,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.weak_object(value, pointee, object, span, out)
 				}
+				// A struct whose last field unsizes, as a view of it.
+				PointerCoercion::Unsize
+					if to
+						.builtin_deref(true)
+						.is_some_and(|t| t.is_adt() && dynamic::unsized_object(tcx, t)) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.object_of(value, from, to, span)
+				}
 				// A future, as the `rt.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
 					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_future(part).is_some()) =>
@@ -449,9 +459,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// `arc`, an `Arc` of `pointee` unsized to one of the trait object `object`: an
-	/// `rt.ArcDyn` sharing its count, over what a box of its value unsizes to, or the same
-	/// `Arc` upcast.
+	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
+	/// of one: an `rt.ArcDyn` sharing its count, over what a box of its value unsizes to, or
+	/// the same `Arc` upcast.
 	fn arc_object(&mut self, arc: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		// An upcast of a function is the same `rt.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
@@ -480,7 +490,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// `weak`, a `Weak` of `pointee` unsized to one of the trait object `object`: `rt.weakDyn`
+	/// `weak`, a `Weak` of `pointee` unsized to one of `object`, as `arc_object`: `rt.weakDyn`
 	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
 	/// upcast, which `arc_object` checks.
 	fn weak_object(
@@ -1065,22 +1075,25 @@ fn unsized_to<'tcx>(from: Ty<'tcx>, to: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	}
 }
 
-/// What an `Arc` unsized to an `Arc` of a trait object points at, and that object.
+/// What an `Arc` unsized to an `Arc` of a trait object, or of a struct of one, points at,
+/// and that object or struct.
 fn arc_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
 	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
 		return None;
 	};
 	let object = to_args.type_at(0);
-	(Std::of(tcx, adt.did()) == Some(Std::Arc) && object.is_trait()).then(|| (from_args.type_at(0), object))
+	(Std::of(tcx, adt.did()) == Some(Std::Arc) && dynamic::unsized_object(tcx, object))
+		.then(|| (from_args.type_at(0), object))
 }
 
-/// What a `Weak` unsized to a `Weak` of a trait object points at, and that object.
+/// What a `Weak` unsized as `arc_object` is points at, and that object or struct.
 fn weak_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
 	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
 		return None;
 	};
 	let object = to_args.type_at(0);
-	(Std::of(tcx, adt.did()) == Some(Std::Weak) && object.is_trait()).then(|| (from_args.type_at(0), object))
+	(Std::of(tcx, adt.did()) == Some(Std::Weak) && dynamic::unsized_object(tcx, object))
+		.then(|| (from_args.type_at(0), object))
 }
 
 /// `from` and `to`, each the pointer the `Pin` it is holds, if both are pins.

@@ -28,14 +28,9 @@ pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseErr
 	s.parse()
 }
 
-pub struct Tail<T: ?Sized> {
-	pub value: T,
-}
-
-/// A struct whose last field unsizes to a trait object.
-pub fn tail_read(t: &Tail<u8>) -> u8 {
-	let r: &Tail<dyn Reading> = t;
-	r.value.read()
+/// A `Cell` whose value unsizes to a trait object, which nothing can read through.
+pub fn cell_unsized(c: &std::cell::Cell<u8>) -> &std::cell::Cell<dyn Reading> {
+	c
 }
 
 /// A union whose fields overlap in values JS keeps apart.
@@ -87,12 +82,10 @@ fn reclone<const N: usize>(a: Option<Block<N>>) -> Option<Block<N>> {
 }
 
 /// `LinkedList`'s unstable `retain`, which no mapping covers, as none does its other
-/// unstable methods; its `clone_from` of items whose own `clone_from` it would call; and
-/// an empty `IterMut` of bytes, whose places nothing makes.
-pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) -> usize {
+/// unstable methods; and its `clone_from` of items whose own `clone_from` it would call.
+pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) {
 	l.retain(|x| *x > 1);
 	r.clone_from(&std::collections::LinkedList::new());
-	std::collections::linked_list::IterMut::<u8>::default().count()
 }
 
 /// `ManuallyDrop`'s impls beyond holding a value: compared, formatted, and a constant.
