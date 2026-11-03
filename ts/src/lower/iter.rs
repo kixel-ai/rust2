@@ -115,7 +115,9 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 			} else if matches!(name.as_str(), "fold" | "rfold") && wraps_acc(tcx, item.def_id) {
 				t.err(
 					tcx.def_span(item.def_id),
-					format!("overriding `{tr}::{name}` with its accumulator in an `Option` or a `Poll`, which is not supported yet"),
+					format!(
+						"overriding `{tr}::{name}` with its accumulator in an `Option` or a `Poll`, which is not supported yet"
+					),
 				);
 			}
 		}
@@ -126,7 +128,11 @@ pub fn check_impl(t: &mut Translator<'_, '_>, next_fn: DefId) {
 /// parameter, in an `Option` or a `Poll`.
 fn wraps_acc(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 	let generics = tcx.generics_of(def_id);
-	let Some(acc) = generics.own_params.iter().find(|p| matches!(p.kind, ty::GenericParamDefKind::Type { .. })) else {
+	let Some(acc) = generics
+		.own_params
+		.iter()
+		.find(|p| matches!(p.kind, ty::GenericParamDefKind::Type { .. }))
+	else {
 		return false;
 	};
 	tcx.optimized_mir(def_id).local_decls.iter().any(|local| {
@@ -228,7 +234,10 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 					ty: Some(b.t.ty(ty.peel_refs(), span)),
 				};
 				// `n` is typed by its place in `rt.Own`.
-				let params = [it].into_iter().chain(n.map(|n| Param { name: n.into(), ty: None }));
+				let params = [it].into_iter().chain(n.map(|n| Param {
+					name: n.into(),
+					ty: None,
+				}));
 				Expr::Lambda(params.collect(), Box::new(Expr::rt("iterFromOption", option)))
 			}
 			_ => sym,
@@ -682,7 +691,10 @@ pub fn call<'tcx>(
 		"try_rfold" => {
 			let (option, none) = try_flow(b, targ(3)?)?;
 			let owns = flag(b.t.drops(targ(2)?));
-			method(&camel, tail(rest, [flag(option), owns].into_iter().chain(none).collect()))
+			method(
+				&camel,
+				tail(rest, [flag(option), owns].into_iter().chain(none).collect()),
+			)
 		}
 		// std's `Sum` and `Product` are of the type or a reference to it: another is the crate's.
 		"sum" | "product" if item.peel_refs() != targ(1)? => None,

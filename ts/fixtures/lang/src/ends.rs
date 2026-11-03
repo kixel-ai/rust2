@@ -328,7 +328,13 @@ fn consumed<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(mut it: I, pi
 /// `it`, consumed by std's fold, or a consumer or adaptor that folds it or reads it by its
 /// `nth`, `count`, or `last`, picked by `pick`, with `k` its count where it takes one. One
 /// fold panics past `k` items, with what was logged so far.
-fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(mut it: I, pick: u8, k: usize, log: &RefCell<Vec<u8>>, out: &mut Vec<u8>) {
+fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
+	mut it: I,
+	pick: u8,
+	k: usize,
+	log: &RefCell<Vec<u8>>,
+	out: &mut Vec<u8>,
+) {
 	let k8 = k as u8;
 	match pick {
 		0 => out.push(it.fold(1u8, |a, b| a.wrapping_mul(3) ^ b)),

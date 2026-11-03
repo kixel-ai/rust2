@@ -590,8 +590,13 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 				log.note(format!("map {} {}", g.id(), c.id()));
 				g
 			});
-			let r: Result<u32, Guard> =
-				mapped.try_rfold(0, move |n, g| if g.id() == id + 2 { Err(g) } else { Ok(n + g.id() + d.id() - d.id()) });
+			let r: Result<u32, Guard> = mapped.try_rfold(0, move |n, g| {
+				if g.id() == id + 2 {
+					Err(g)
+				} else {
+					Ok(n + g.id() + d.id() - d.id())
+				}
+			});
 			log.note(format!("tried {:?}", r.map_err(|g| g.id())));
 			drop(mapped);
 			log.note(format!("dropped {}", e.id()));
@@ -644,8 +649,16 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 			let last = pile(1, 4).last();
 			let back = pile(4, 7).rev().last();
 			let skipped = pile(7, 9).skip(1).last();
-			log.note(format!("last {:?} {:?} {:?}", last.map(|g| g.id()), back.map(|g| g.id()), skipped.map(|g| g.id())));
-			let kept = pile(1, 6).rev().map(move |g| (g, c.id())).fold(None, |_, (g, _)| Some(g));
+			log.note(format!(
+				"last {:?} {:?} {:?}",
+				last.map(|g| g.id()),
+				back.map(|g| g.id()),
+				skipped.map(|g| g.id())
+			));
+			let kept = pile(1, 6)
+				.rev()
+				.map(move |g| (g, c.id()))
+				.fold(None, |_, (g, _)| Some(g));
 			log.note(format!("rev {:?} {} {}", kept.map(|g| g.id()), d.id(), e.id()));
 		}
 		16 => {
@@ -661,7 +674,13 @@ pub(super) fn rfolded(log: &Log, id: u32, arg: u8) {
 		_ => {
 			let a = guard(20);
 			guards(1, 6).into_iter().try_rfold(0, move |n, g| {
-				assert!(g.id() != id + 3, "try_rfold of g{} with g{} after\n{}", g.id(), a.id(), String::from_utf8(log.text()).unwrap());
+				assert!(
+					g.id() != id + 3,
+					"try_rfold of g{} with g{} after\n{}",
+					g.id(),
+					a.id(),
+					String::from_utf8(log.text()).unwrap()
+				);
 				Some(n + g.id())
 			});
 		}
