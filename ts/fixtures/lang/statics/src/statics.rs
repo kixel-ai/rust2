@@ -4,11 +4,12 @@
 //! an atomic, an `AtomicPtr` as parking_lot keeps its table in, std's `OnceLock`,
 //! `LazyLock`, and `Once`, crossbeam-epoch's own `OnceLock` over an `UnsafeCell`, and one
 //! pointing at a static of a module that reads it back; and `const`s holding cells, each
-//! use of which is a value of its own, as lock_api's `RawMutex::INIT` is. Each case leaves
+//! use of which is a value of its own, as lock_api's `RawMutex::INIT` is, and each lazy one
+//! printed before and after it is forced, and from within its own function. Each case leaves
 //! every static as it found it, or reads only what it holds whatever ran before, so a fresh
 //! instance and a reused one agree.
 
-use std::cell::{Cell, LazyCell, UnsafeCell};
+use std::cell::{Cell, LazyCell, RefCell, UnsafeCell};
 use std::mem::MaybeUninit;
 use std::ptr;
 use std::rc::Rc;
@@ -386,5 +387,83 @@ pub fn onces(data: &[u8], out: &mut Vec<u8>) {
 				out.push(Rc::strong_count(&owned) as u8);
 			}
 		}
+	}
+}
+
+/// `Debug` of a lazy cell or lock, plain, pretty, and padded.
+macro_rules! shown {
+	($lazy:expr) => {
+		format!("{0:?} {0:#?} {0:>6?}|", $lazy)
+	};
+}
+
+/// Each use a cell of its own, made of nothing, which JS can't tell from unset.
+#[allow(clippy::declare_interior_mutable_const, reason = "each use is a cell of its own")]
+const UNIT: LazyCell<()> = LazyCell::new(|| ());
+/// Each use a lock of its own, holding `None`.
+#[allow(clippy::declare_interior_mutable_const, reason = "each use is a lock of its own")]
+const NOTHING: LazyLock<Option<u8>> = LazyLock::new(|| None);
+/// Each use a lock of its own, holding what `{:#?}` writes over lines.
+#[allow(clippy::declare_interior_mutable_const, reason = "each use is a lock of its own")]
+const WORDS: LazyLock<Vec<&str>> = LazyLock::new(|| vec!["a", "bc"]);
+
+/// What `Debug` writes of it while its own function runs.
+static SHOWN: LazyLock<String> = LazyLock::new(shown);
+
+fn shown() -> String {
+	format!("{SHOWN:?} {SHOWN:#?} {SHOWN:>12?}")
+}
+
+thread_local! {
+	/// The cell `SELF_SHOWN`'s function prints, while it is forced.
+	static FORCING: RefCell<Option<Rc<LazyCell<String>>>> = const { RefCell::new(None) };
+}
+
+/// Each use a cell of its own, holding what `Debug` writes of the cell `FORCING` holds.
+#[allow(clippy::declare_interior_mutable_const, reason = "each use is a cell of its own")]
+const SELF_SHOWN: LazyCell<String> = LazyCell::new(|| FORCING.with_borrow(|me| shown!(me.as_ref().unwrap())));
+
+/// Each lazy cell and lock printed by `Debug` as std writes it, plain, pretty, and padded:
+/// `<uninit>` unpadded before it is forced, and while its function runs, as printing it
+/// forces neither; then its value, padded and pretty as its own `Debug` writes it.
+pub fn lazies(data: &[u8], out: &mut Vec<u8>) {
+	for &op in data {
+		let text = match op % 6 {
+			0 => {
+				let cell = LAZY;
+				let before = shown!(cell);
+				let forced = FORCED.load(Relaxed);
+				_ = *cell;
+				_ = FORCED.swap(0, Relaxed);
+				format!("{before}{forced}{}", shown!(cell))
+			}
+			1 => {
+				let cell = UNIT;
+				let before = shown!(cell);
+				*cell;
+				format!("{before}{}", shown!(cell))
+			}
+			2 => {
+				let lock = NOTHING;
+				let before = shown!(lock);
+				_ = *lock;
+				format!("{before}{}", shown!(lock))
+			}
+			3 => {
+				let lock = WORDS;
+				let before = shown!(lock);
+				_ = lock.len();
+				format!("{before}{}", shown!(lock))
+			}
+			4 => format!("{} {}", *SHOWN, shown!(SHOWN)),
+			_ => {
+				let cell = Rc::new(SELF_SHOWN);
+				FORCING.set(Some(Rc::clone(&cell)));
+				let text = format!("{} {}", **cell, shown!(cell));
+				FORCING.take();
+				text
+			}
+		};
+		out.extend_from_slice(text.as_bytes());
 	}
 }
