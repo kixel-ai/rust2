@@ -909,8 +909,9 @@ pub fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
 		.collect()
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword, with `_`
-/// prepended.
+/// A name that C or C++, which includes the header, would read as a keyword with `_`
+/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
+/// `_inline`, `_asm`, and `_try` as keywords too.
 pub fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -1016,9 +1017,10 @@ pub fn escape(name: &str) -> String {
 	let out = name
 		.strip_prefix("out")
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-	match out || KEYWORDS.contains(&name) || name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-		true => format!("_{name}"),
-		false => name.to_string(),
+	match name.chars().next() {
+		Some(c) if c.is_ascii_digit() => format!("_{name}"),
+		_ if out || KEYWORDS.contains(&name) => format!("{name}_"),
+		_ => name.to_string(),
 	}
 }
 
