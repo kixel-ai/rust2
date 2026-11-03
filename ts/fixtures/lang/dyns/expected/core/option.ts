@@ -25,9 +25,23 @@ export function map$1i542n2(self: rt.Arc<Shape.Shape> | undefined, f: (a0: rt.Ar
 	return f(self);
 }
 
+export function map$0oedb57(self: rt.Arc<rt.Iter<rt.u8>> | undefined, f: (a0: rt.Arc<rt.Iter<rt.u8>>) => [rt.usize, rt.usize | undefined]): [rt.usize, rt.usize | undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$08a6hpg(self: Tagged.Tagged | undefined, f: (a0: Tagged.Tagged) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1qfllpb(self: rt.Iter<rt.u8> | undefined, f: (a0: rt.Iter<rt.u8>) => rt.u8 | undefined): rt.u8 | undefined | rt.None {
+	if (self === undefined) {
+		return rt.None;
 	}
 	return f(self);
 }
@@ -42,6 +56,20 @@ export function map$0j05j69(self: rt.Arc<rt.u32> | undefined, f: (a0: rt.Arc<rt.
 export function mapOr$06rr3sb(self: rt.u8 | undefined, default_: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8 | undefined): rt.u8 | undefined {
 	if (self === undefined) {
 		return default_;
+	}
+	return f(self);
+}
+
+export function andThen$0v0bj8w(self: rt.Iter<Tagged.Tagged> | undefined, f: (a0: rt.Iter<Tagged.Tagged>) => Tagged.Tagged | undefined): Tagged.Tagged | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function andThen$0ntiuws(self: rt.Iter<rt.u8> | undefined, f: (a0: rt.Iter<rt.u8>) => rt.u8 | undefined): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
 	}
 	return f(self);
 }

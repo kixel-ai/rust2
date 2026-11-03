@@ -6,14 +6,15 @@
 //! was made of, borrowed, boxed, or shared. A `dyn Fn*` of a closure, a function, or a
 //! function pointer calls it, changing what it captured, borrowed, boxed, or shared. An
 //! `Rc`, a `Weak`, a `Pin`, and an `Rc` or an `Arc` made from a box hold one too. A
-//! `dyn Iterator`, `dyn DoubleEndedIterator`, or `dyn ExactSizeIterator` of std's
-//! iterators or the crate's own, borrowed or boxed, reads by its vtable's methods and
-//! folds by `next`, dropping what it owns in std's order.
+//! `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or
+//! `dyn FusedIterator` of std's iterators or the crate's own, borrowed, boxed, or shared,
+//! reads by its vtable's methods and folds by `next`, dropping what it owns in std's order.
 
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug};
+use std::iter::FusedIterator;
 use std::pin::Pin;
 use std::rc::{self, Rc};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -732,7 +733,94 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 	// Returned through a trait object of the crate's own trait.
 	let split: &dyn Chunks = &Lease(rest.to_vec(), usize::from(b % 4) + 1);
 	let lens: Vec<usize> = split.chunks().map(<[u8]>::len).collect();
-	put(out, &format!("{lens:?} {}", split.chunks().count()));
+	put(out, &format!("{lens:?} {} ", split.chunks().count()));
+
+	// Fused: through the object, a `fuse` keeps an iterator that resumes at its end, and the
+	// crate's own fused iterator, done.
+	let mut fused = Resuming(a % 4).fuse();
+	put(out, &format!("{} ", drain(&mut fused)));
+	let mut resuming = Resuming(b % 4);
+	let up: &mut dyn Iterator<Item = u8> = &mut resuming;
+	put(
+		out,
+		&format!("{:?} ", (up.next(), up.next(), up.next(), up.next(), up.next())),
+	);
+	let mut boxed: Box<dyn FusedIterator<Item = u8>> = Box::new(Countdown(a % 8));
+	put(out, &format!("{} ", drain(&mut *boxed)));
+	drop(boxed);
+	dropped(out);
+
+	// Shared: the vtable's `&self` methods through any `Arc`, `next` only through the one
+	// `get_mut` lends, and the items left drop with the last `Arc`.
+	let concrete = Arc::new(tagged(front).into_iter());
+	let mut shared: Arc<dyn Iterator<Item = Tagged>> = concrete;
+	let other = shared.clone();
+	let weak = Arc::downgrade(&other);
+	put(
+		out,
+		&format!("{:?} {} ", other.size_hint(), Arc::get_mut(&mut shared).is_none()),
+	);
+	drop(other);
+	drop(weak);
+	let taken = Arc::get_mut(&mut shared).and_then(|it| it.next()).map(|t| t.0);
+	dropped(out);
+	put(out, &format!("{taken:?} "));
+	drop(shared);
+	dropped(out);
+	let exact: Rc<dyn ExactSizeIterator<Item = u8>> = Rc::new(back.to_vec().into_iter());
+	let mut up: Rc<dyn Iterator<Item = u8>> = exact.clone();
+	put(
+		out,
+		&format!("{} {:?} ", exact.len(), Rc::get_mut(&mut up).map(|it| it.next())),
+	);
+	drop(exact);
+	let next = Rc::get_mut(&mut up).and_then(|it| it.next());
+	put(out, &format!("{next:?} {:?} ", up.size_hint()));
+	let boxed: Box<dyn Iterator<Item = u8>> = Box::new(Countdown(b % 8));
+	let mut from_box: Arc<dyn Iterator<Item = u8>> = Arc::from(boxed);
+	let first = Arc::get_mut(&mut from_box).and_then(|it| it.next());
+	put(out, &format!("{first:?} "));
+	drop(from_box);
+	dropped(out);
+	let counted = Rc::new(Countdown(a % 8));
+	let weak: rc::Weak<Countdown> = Rc::downgrade(&counted);
+	let weak: rc::Weak<dyn Iterator<Item = u8>> = weak;
+	put(out, &format!("{:?} ", weak.upgrade().map(|it| it.size_hint())));
+	drop(counted);
+	put(out, &format!("{} ", weak.upgrade().is_none()));
+	dropped(out);
+	let mut pinned: Pin<Box<dyn Iterator<Item = u8> + Unpin>> = Box::pin(Countdown(b % 8));
+	put(out, &format!("{:?}", pinned.as_mut().next()));
+	drop(pinned);
+	dropped(out);
+}
+
+/// Counts down to its end, then starts over, as a fused iterator never does.
+struct Resuming(u8);
+
+impl Iterator for Resuming {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		match self.0.checked_sub(1) {
+			Some(n) => {
+				self.0 = n;
+				Some(n)
+			}
+			None => {
+				self.0 = 2;
+				None
+			}
+		}
+	}
+}
+
+impl FusedIterator for Countdown {}
+
+/// What `it` yields up to its end and twice past it.
+fn drain(it: &mut dyn FusedIterator<Item = u8>) -> String {
+	let items: Vec<u8> = (&mut *it).collect();
+	format!("{items:?} {:?} {:?}", it.next(), it.next())
 }
 
 /// A shape that notes its id in a log as it drops.
