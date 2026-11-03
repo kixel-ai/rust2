@@ -16,4 +16,11 @@ export function mapOr$1e4a1e0(self: rt.Ordering | undefined, default_: rt.u8, f:
 	return f(self);
 }
 
+export function okOr$1qu2qk5(self: rt.ByteSlice | undefined, err: rt.u8): rt.Result<rt.ByteSlice, rt.u8> {
+	if (self === undefined) {
+		return rt.Err(err);
+	}
+	return rt.Ok(self);
+}
+
 //# sourceMappingURL=option.ts.map

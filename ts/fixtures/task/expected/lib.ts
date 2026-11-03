@@ -290,4 +290,6 @@ export function drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker(_1: [rt.
 	_1[3][Symbol.dispose]();
 }
 
+export const out$u32: { err: unknown } = { err: undefined };
+
 //# sourceMappingURL=lib.ts.map

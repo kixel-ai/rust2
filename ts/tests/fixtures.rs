@@ -272,12 +272,12 @@ fn shake(out: &Path) {
 			"usizeSub",
 			// The translation's, and the caller.
 			"new_",
-			"sliceOut",
+			"out$ref_slice_u8",
+			"out$u8",
 			"run",
 			"short",
 			"slice",
 			"u8",
-			"u8Out",
 		];
 		let mut want: Vec<String> = want.map(unnumbered).to_vec();
 		want.sort_unstable();
