@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$Result_array0_u8_u8, copy$Result_array1_u8_u8, copy$Result_array5_u8_u8, drop$Result_results_Logged_results_Logged, out$u8 } from "./lib.ts";
-import { unwrapOr$17ntxfo as option_unwrapOr$17ntxfo, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$1w5qtj7 as option_mapOr$1w5qtj7, mapOr$02k4ito as option_mapOr$02k4ito } from "./core/option.ts";
+import { unwrapOr$17ntxfo as option_unwrapOr$17ntxfo, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$18ph0j9 as option_mapOr$18ph0j9, mapOr$02k4ito as option_mapOr$02k4ito } from "./core/option.ts";
 import { map$03hz3l7 as result_map$03hz3l7 } from "./core/result.ts";
 import * as Logged from "./results.Logged.ts";
 
@@ -250,7 +250,7 @@ export function units(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.iterToOption(it.next()) !== undefined ? 1 : 0);
 	}
 	for (const _36 of results) {
-		rt.byteVecPush(out, option_mapOr$1w5qtj7(rt.iterToOption(rt.iterResult(_36).next(), rt.None), 160, (_26: undefined): rt.u8 => {
+		rt.byteVecPush(out, option_mapOr$18ph0j9(rt.iterToOption(rt.iterResult(_36).next(), rt.None), 160, (_26: undefined): rt.u8 => {
 			return 161;
 		}));
 		rt.byteVecPush(out, rt.iterToOption(rt.iterResult(_36).nextBack(), rt.None) !== rt.None ? 1 : 0);
