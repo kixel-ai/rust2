@@ -1570,14 +1570,16 @@ export function byteSliceToByteVec(s: ByteSlice): ByteVec {
 	return v;
 }
 
-/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them; `clone` is `undefined` where a clone is the value. */
-export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined): T[] {
+/** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them, or `value` dropped where `n` is 0; `clone` is `undefined` where a clone is the value. */
+export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): T[] {
 	const v: T[] & Capped = [];
-	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
-	if (n > 0) {
-		v.push(value);
-		v.cap = n;
+	if (n === 0) {
+		drop?.(value);
+		return v;
 	}
+	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
+	v.push(value);
+	v.cap = n;
 	return v;
 }
 
