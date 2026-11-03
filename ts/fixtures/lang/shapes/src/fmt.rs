@@ -1192,6 +1192,20 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let mut borrowed = &mut toggle;
 	let it = (&mut borrowed).map(|x| x);
 	put(out, &format!("{it:?}"));
+	// The crate's own iterator through boxes and references, in each order std forwards.
+	let mut boxed = Box::new(toggle);
+	let it = fronts((&mut boxed).map(|x| x), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(Box::new(&mut boxed).map(|x| x), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts(Box::new(&mut toggle).map(|x| x), front);
+	put(out, &format!("{it:?}"));
+	let mut nested = Box::new(Box::new(Countdown(at(4) % 5)));
+	let mut nested = &mut nested;
+	let it = fronts((&mut nested).map(|n| n), front);
+	put(out, &format!("{it:?}"));
+	let it = fronts(Box::new(Box::new(Countdown(at(5) % 5))).map(|n| n), front);
+	put(out, &format!("{it:?}"));
 	let mut own = Countdown(at(3) % 5);
 	let it = fronts(own.by_ref().peekable(), front);
 	put(out, &format!("{it:?}"));

@@ -672,9 +672,9 @@ fn adaptor_debug<'tcx>(
 	let arg = |n: usize| args.types().nth(n);
 	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
 	let name = |name: &str| Expr::Str(name.into());
-	// What writes an iterator it wraps, as `rt.iterHeld` reads it.
+	// What writes an iterator it wraps, as the adaptor holds it and `rt.iterHeld` reads it.
 	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| {
-		let ty = held(b, ty);
+		let (ty, _) = super::iter::peel_iter(b, ty, Expr::undefined());
 		b.fmt_fn(Trait::Debug, ty, span)
 	};
 	Some(match path.as_slice() {
@@ -756,24 +756,6 @@ fn adaptor_debug<'tcx>(
 		}
 		_ => return None,
 	})
-}
-
-/// The iterator an adaptor's field of type `ty` holds, through the references and boxes
-/// whose `Debug` is what they point at, as `rt.iterHeld` reads it: the crate's own as its
-/// `next` reads it, through the reference to it, which a value JS copies is the place of.
-fn held<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'tcx> {
-	loop {
-		let inner = match *ty.kind() {
-			ty::Ref(_, inner, _) => inner,
-			_ if let Some(inner) = ty.boxed_ty() => inner,
-			_ => return ty,
-		};
-		// `own_next` reads through references, which the next step peels.
-		if ty.is_ref() && !inner.is_ref() && super::iter::own_next(b, inner).is_some() {
-			return ty;
-		}
-		ty = inner;
-	}
 }
 
 /// One part of a `format_args!` template.
