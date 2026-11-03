@@ -203,26 +203,28 @@ impl Home {
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `f` is a call through the C ABI.
-	pub unsafe fn serve<R>(&self, f: impl FnOnce() -> R) -> R {
+	pub unsafe fn serve<R>(&'static self, f: impl FnOnce() -> R) -> R {
 		// Only this thread makes a relay, so none appears before `f` returns.
 		if self.relays.load(Ordering::Acquire) == 0 {
 			return f();
 		}
 		let caller = rt::thread();
-		let done = AtomicBool::new(false);
+		let done = Arc::new(AtomicBool::new(false));
 		let mut f = Some(f);
 		let mut out = None;
 		let mut run = || {
 			ACTING.set(caller);
 			let f = f.take().expect("a call runs once");
 			out = Some(std::panic::catch_unwind(AssertUnwindSafe(f)));
-			let _tasks = self.lock();
-			done.store(true, Ordering::Release);
-			self.ready.notify_all();
 		};
 		let run: &mut (dyn FnMut() + '_) = &mut run;
-		// SAFETY: this thread waits below until the call ran, so `run` outlives its use.
-		Worker::lend(Run(unsafe { std::mem::transmute(run) }));
+		// SAFETY: this thread waits below until `run` returned, so it outlives its use.
+		let run = Run(unsafe { std::mem::transmute(run) });
+		Worker::lend(Lent {
+			run,
+			home: self,
+			done: done.clone(),
+		});
 		let mut tasks = self.lock();
 		loop {
 			if let Some(task) = tasks.pop_front() {
@@ -250,13 +252,20 @@ static IDLE: Mutex<Vec<Arc<Worker>>> = Mutex::new(Vec::new());
 
 /// A thread that runs a call from Dart while the isolate's thread serves.
 struct Worker {
-	call: Mutex<Option<Run>>,
+	call: Mutex<Option<Lent>>,
 	ready: Condvar,
 }
 
+/// A call lent to a worker, which tells `home` once `run` returned by setting `done`.
+struct Lent {
+	run: Run,
+	home: &'static Home,
+	done: Arc<AtomicBool>,
+}
+
 impl Worker {
-	/// Run `run` on an idle worker, or a new one if none is.
-	fn lend(run: Run) {
+	/// Run `call` on an idle worker, or a new one if none is.
+	fn lend(call: Lent) {
 		let idle = IDLE.lock().unwrap_or_else(|e| e.into_inner()).pop();
 		let worker = idle.unwrap_or_else(|| {
 			let worker = Arc::new(Worker {
@@ -267,7 +276,7 @@ impl Worker {
 			std::thread::spawn(move || parked.park());
 			worker
 		});
-		*worker.call.lock().unwrap_or_else(|e| e.into_inner()) = Some(run);
+		*worker.call.lock().unwrap_or_else(|e| e.into_inner()) = Some(call);
 		worker.ready.notify_one();
 	}
 
@@ -275,15 +284,19 @@ impl Worker {
 	fn park(self: Arc<Self>) {
 		loop {
 			let mut call = self.call.lock().unwrap_or_else(|e| e.into_inner());
-			let Run(run) = loop {
+			let Lent { run, home, done } = loop {
 				match call.take() {
-					Some(run) => break run,
+					Some(lent) => break lent,
 					None => call = self.ready.wait(call).unwrap_or_else(|e| e.into_inner()),
 				}
 			};
 			drop(call);
-			// SAFETY: the lending thread waits until it ran.
-			unsafe { (*run)() };
+			// SAFETY: the lending thread waits until `done`.
+			unsafe { (*run.0)() };
+			let tasks = home.lock();
+			done.store(true, Ordering::Release);
+			drop(tasks);
+			home.ready.notify_all();
 			IDLE.lock().unwrap_or_else(|e| e.into_inner()).push(self.clone());
 		}
 	}
