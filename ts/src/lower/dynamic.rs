@@ -2,12 +2,15 @@
 //! dispatchable functions, its supertraits' included, named as an impl's function is,
 //! for its trait (`area$Shape`), and taking the arguments after `self`. That is the
 //! trait's type, which a TS caller can implement. A coercion to one wraps the value in a
-//! class of its type's own, whose methods call that type's impl and whose
-//! `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by, drops the value. An
-//! `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A `dyn Any` has no
-//! methods, and a downcast checks for the class of the type it names. A `dyn Fn`,
+//! class of its type's own, shared by every trait object of the type, whose methods call
+//! that type's impls and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
+//! drops the value. An `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A
+//! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
+//! class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
 //! would the closure itself.
+
+use std::collections::hash_map::Entry;
 
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TyCtxt, TypeVisitableExt};
@@ -212,56 +215,35 @@ impl<'tcx> Translator<'_, 'tcx> {
 				.is_none_or(|principal| super::fmt::Trait::of(self.tcx, principal).is_none())
 	}
 
-	/// The class wrapping a `from` as the trait object `to`, held as `held`, made the first
-	/// time.
+	/// The class wrapping a `from` held as `held`, made the first time, with the methods of
+	/// the trait object `to`. One class serves every trait object of its type, so a downcast
+	/// finds it whichever trait's object the value became.
 	pub fn object_class(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, held: Held, span: Span) -> Option<Class> {
 		let tcx = self.tcx;
 		let from = tcx.erase_and_anonymize_regions(from);
 		let to = tcx.erase_and_anonymize_regions(to);
 		let object = self.object(to, span)?;
-		let key = (from, object.sym, held);
-		if let Some(&class) = self.object_classes.get(&key) {
-			return Some(class);
-		}
-		let trait_sym = &self.program.syms[object.sym];
-		// Named for the type it wraps after a `$`, `Shape.of$copy_Pair`, which no type's
-		// module the trait's imports is bound as.
-		let sym = self.program.sym(Symbol {
-			module: trait_sym.module.clone(),
-			base: match held {
-				Held::Value => "of".into(),
-				Held::Place => "ofPlace".into(),
-			},
-			suffix: super::names::ty(tcx, from),
-			owner: None,
-			kind: SymKind::Struct,
-			order: trait_sym.order,
-			span,
-			instance: String::new(),
-			name: String::new(),
-			alias: None,
-		});
-		let v = self.program.field(sym, "v".into());
-		self.object_classes.insert(key, Class { sym, v });
-		let ty = self.ty(from, span);
-		let field_ty = match held {
-			Held::Value => ty,
-			Held::Place => Type::Rt("Place", vec![ty]),
+		let class = match self.object_classes.get(&(from, held)) {
+			Some(&class) => class,
+			None => self.new_object_class(from, held, span),
 		};
-		self.program.items.push(Item::Struct {
-			sym,
-			params: Vec::new(),
-			fields: vec![ts::Field {
-				id: v,
-				ty: field_ty,
-				doc: None,
-				init: FieldInit::Ctor,
-			}],
-			ctor: ts::Ctor::Positional,
-			doc: None,
-		});
+		let Class { sym, v } = class;
 		let value = Expr::This.field(v);
 		for method in &object.methods {
+			match self.class_methods.entry((sym, method.name.clone())) {
+				Entry::Occupied(called) if *called.get() == method.def_id => continue,
+				Entry::Occupied(_) => {
+					let msg = format!(
+						"`{from}` as `{to}`, whose class has another trait's method named `{}`, which is not supported yet",
+						method.name
+					);
+					self.err(span, msg);
+					continue;
+				}
+				Entry::Vacant(entry) => {
+					entry.insert(method.def_id);
+				}
+			}
 			let args = method_args(tcx, method.def_id, from);
 			let sig = self.sig(method.def_id, args);
 			let receiver = match self.receiver(sig.inputs()[0], from, held, value.clone()) {
@@ -304,8 +286,50 @@ impl<'tcx> Translator<'_, 'tcx> {
 				doc: None,
 			});
 		}
+		Some(class)
+	}
+
+	/// The class wrapping a `from` held as `held`, with no trait's methods yet: in `lib.ts`,
+	/// as a copy is, named for the type after a `$`, `of$copy_Pair`.
+	fn new_object_class(&mut self, from: Ty<'tcx>, held: Held, span: Span) -> Class {
+		let tcx = self.tcx;
+		let sym = self.program.sym(Symbol {
+			module: Vec::new(),
+			base: match held {
+				Held::Value => "of".into(),
+				Held::Place => "ofPlace".into(),
+			},
+			suffix: super::names::ty(tcx, from),
+			owner: None,
+			kind: SymKind::Struct,
+			order: 0,
+			span,
+			instance: ty::print::with_no_trimmed_paths!(from.to_string()),
+			name: String::new(),
+			alias: None,
+		});
+		let v = self.program.field(sym, "v".into());
+		let class = Class { sym, v };
+		self.object_classes.insert((from, held), class);
+		let ty = self.ty(from, span);
+		let field_ty = match held {
+			Held::Value => ty,
+			Held::Place => Type::Rt("Place", vec![ty]),
+		};
+		self.program.items.push(Item::Struct {
+			sym,
+			params: Vec::new(),
+			fields: vec![ts::Field {
+				id: v,
+				ty: field_ty,
+				doc: None,
+				init: FieldInit::Ctor,
+			}],
+			ctor: ts::Ctor::Positional,
+			doc: None,
+		});
 		if held == Held::Value
-			&& let Some(dropped) = self.drop_value(value, from, span)
+			&& let Some(dropped) = self.drop_value(Expr::This.field(v), from, span)
 		{
 			let dispose = self.method(sym, "[Symbol.dispose]".into());
 			self.program.methods.entry(sym).or_default().push(ts::Function {
@@ -317,7 +341,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 				doc: None,
 			});
 		}
-		Some(Class { sym, v })
+		class
 	}
 
 	/// A method `base` of the class `owner`.
@@ -468,15 +492,9 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
 		}
-		// An upcast, from a trait object, which has its supertraits' methods already. One
-		// to `dyn Any` would need the class of the value's own type, which a downcast checks.
+		// An upcast, from a trait object, which has its supertraits' methods already, and is
+		// of the class of its value's own type that a downcast checks for.
 		if pointee.is_trait() {
-			if is_any_object(self.t.tcx, object) && principal(pointee) != principal(object) {
-				return self.err(
-					span,
-					format!("an upcast from `{pointee}` to `{object}`, which is not supported yet"),
-				);
-			}
 			return value;
 		}
 		// A census over type parameters can't make the class: only an instance decides
@@ -533,9 +551,9 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	}
 }
 
-/// A call of `dyn Any`'s `is`, `downcast_ref`, or `downcast_mut`, or of `Box`'s, `Arc`'s, or
-/// `Rc`'s `downcast`, each of which checks for the class a coercion wrapped a value of its type
-/// in, or its arguments back if it is none of these.
+/// A call of `dyn Any`'s or `dyn Error`'s `is`, `downcast_ref`, or `downcast_mut`, or of a
+/// `Box`'s, `Arc`'s, or `Rc`'s `downcast`, each of which checks for the class a coercion
+/// wrapped a value of its type in, or its arguments back if it is none of these.
 pub fn call<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &super::library::Call<'tcx>,
@@ -547,7 +565,8 @@ pub fn call<'tcx>(
 	let tcx = b.t.tcx;
 	if !matches!(
 		(owner, name),
-		("dyn Any", "is" | "downcast_ref" | "downcast_mut") | ("Box" | "Arc" | "Rc", "downcast")
+		("dyn Any" | "dyn Error", "is" | "downcast_ref" | "downcast_mut")
+			| ("Box" | "Arc" | "Rc" | "dyn Error", "downcast")
 	) {
 		return Err(args);
 	}
@@ -557,7 +576,7 @@ pub fn call<'tcx>(
 		ty::Adt(_, args) => args.type_at(0),
 		_ => receiver.builtin_deref(true).unwrap_or(receiver),
 	};
-	if !is_any_object(tcx, object) {
+	if !is_any_object(tcx, object) && !is_error_object(tcx, object) {
 		return Err(args);
 	}
 	let span = call.span;
@@ -566,7 +585,7 @@ pub fn call<'tcx>(
 		return Ok(None);
 	};
 	// A `&mut` to a value JS copies is the place it is in, which a class of its own holds.
-	let place = match b.t.needs_place(to) && owner == "dyn Any" {
+	let place = match b.t.needs_place(to) && owner.starts_with("dyn ") && name != "downcast" {
 		true => b.t.object_class(to, object, Held::Place, span),
 		false => None,
 	};
@@ -594,7 +613,7 @@ pub fn call<'tcx>(
 			};
 			Expr::Cond(Box::new(is(value)), Box::new(get(value, Held::Value)), Box::new(rest))
 		}
-		_ if owner == "Box" => Expr::Cond(
+		_ if owner != "Arc" && owner != "Rc" => Expr::Cond(
 			Box::new(is(value)),
 			Box::new(Expr::result(true, o.clone().field(value.v))),
 			Box::new(Expr::result(false, o.clone())),

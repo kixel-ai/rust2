@@ -2,6 +2,22 @@
 
 import * as rt from "./rt.ts";
 import { returns } from "./returns.ts";
+import * as At from "./returns.At.ts";
+import type * as returns_Error from "./returns.Error.ts";
+
+export class of$returns_At {
+	v: At.At;
+
+	constructor(v: At.At) {
+		this.v = v;
+	}
+
+	split$Split(a: rt.ByteSlice): rt.Result<[rt.ByteSlice, rt.ByteSlice], returns_Error.Error> {
+		const err = At.split$returns_Split(this.v, a.data, a.start, a.length);
+		const result: rt.Result<[rt.ByteSlice, rt.ByteSlice], returns_Error.Error> = err !== undefined ? rt.Err(err as returns_Error.Error) : rt.Ok([new rt.ByteSlice(out$tuple2_ref_slice_u8_ref_slice_u8.p_0Data, out$tuple2_ref_slice_u8_ref_slice_u8.p_0Start, out$tuple2_ref_slice_u8_ref_slice_u8.p_0Len), new rt.ByteSlice(out$tuple2_ref_slice_u8_ref_slice_u8.p_1Data, out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start, out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len)] as [rt.ByteSlice, rt.ByteSlice]);
+		return result;
+	}
+}
 
 export const out$bool: { p: boolean } = { p: undefined as never };
 

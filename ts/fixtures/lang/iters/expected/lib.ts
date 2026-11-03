@@ -3,6 +3,14 @@
 import * as rt from "./rt.ts";
 import { adaptors, consumers, reducers, peekedOthers, skips, ranked, ranges, options, optionItems, own, values, returned, zips, zipsBack, rangeFroms, rangeMethods, compares, lent } from "./iters.ts";
 
+export class of$u8 {
+	v: rt.u8;
+
+	constructor(v: rt.u8) {
+		this.v = v;
+	}
+}
+
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
