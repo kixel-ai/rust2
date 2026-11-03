@@ -622,7 +622,8 @@ export function writeFirst$u64(s: rt.u64[], value: rt.u64): rt.u64 {
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$Option_u16(to: rt.Place<rt.u16 | undefined>, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Array<rt.u16 | undefined> = rt.sliceOfPlace(to);
@@ -658,6 +659,19 @@ export function lentParam$Option_u16(to: rt.Place<rt.u16 | undefined>, data: rt.
 	const a: Array<rt.u16 | undefined> = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: Array<rt.u16 | undefined> = [make$conversions_Value_Option_u16(data, 22)];
 	put$conversions_Value_Option_u16(rt.replaceIn(a, _77)[0], out);
+	let by: rt.u16 | undefined = make$conversions_Value_Option_u16(data, 23);
+	rt.idx(s, 0);
+	let r: rt.Place<rt.u16 | undefined> = rt.place(() => s[0], (value2) => s[0] = value2);
+	const _89: rt.Place<rt.u16 | undefined>[] = rt.sliceOfPlace(rt.place(() => r, (value3) => r = value3));
+	const _91: rt.Place<rt.u16 | undefined>[] = [rt.place(() => by, (value4) => by = value4)];
+	rt.replaceIn(_89, _91)[0].v = make$conversions_Value_Option_u16(data, 24);
+	put$conversions_Value_Option_u16(r.v, out);
+	rt.idx(s, 0);
+	put$conversions_Value_Option_u16(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_Option_u16(rt.cellReplace(rt.cellOfPlace(rt.place(() => s[0], (value5) => s[0] = value5)), make$conversions_Value_Option_u16(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_Option_u16(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value6) => s[0] = value6))), [make$conversions_Value_Option_u16(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = other;
 	rt.idx(s, 0);
@@ -667,7 +681,8 @@ export function lentParam$Option_u16(to: rt.Place<rt.u16 | undefined>, data: rt.
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$String(to: rt.Place<string>, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: string[] = rt.sliceOfPlace(to);
@@ -703,6 +718,19 @@ export function lentParam$String(to: rt.Place<string>, data: rt.ByteSlice, out: 
 	const a: string[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: string[] = [make$conversions_Value_String(data, 22)];
 	put$conversions_Value_String(rt.replaceIn(a, _77)[0], out);
+	let by: string = make$conversions_Value_String(data, 23);
+	rt.idx(s, 0);
+	let r: rt.Place<string> = rt.place(() => s[0], (value2) => s[0] = value2);
+	const _89: rt.Place<string>[] = rt.sliceOfPlace(rt.place(() => r, (value3) => r = value3));
+	const _91: rt.Place<string>[] = [rt.place(() => by, (value4) => by = value4)];
+	rt.replaceIn(_89, _91)[0].v = make$conversions_Value_String(data, 24);
+	put$conversions_Value_String(r.v, out);
+	rt.idx(s, 0);
+	put$conversions_Value_String(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_String(rt.cellReplace(rt.cellOfPlace(rt.place(() => s[0], (value5) => s[0] = value5)), make$conversions_Value_String(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_String(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value6) => s[0] = value6))), [make$conversions_Value_String(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = other;
 	rt.idx(s, 0);
@@ -712,7 +740,8 @@ export function lentParam$String(to: rt.Place<string>, data: rt.ByteSlice, out: 
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$Vec_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u32[][] = rt.sliceIn(to);
@@ -739,7 +768,20 @@ export function lentParam$Vec_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.Byte
 	rt.idx(s, 0);
 	const a: rt.u32[][] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 22)];
-	put$conversions_Value_Vec_u32(rt.replaceIn(a, _77)[0], out);
+	put$conversions_Value_Vec_u32(rt.replaceIn(a, _77, true)[0], out);
+	const by: rt.u32[] = make$conversions_Value_Vec_u32(data, 23);
+	rt.idx(s, 0);
+	let r: rt.u32[] = s[0];
+	const _89: rt.u32[][] = rt.sliceOfPlace(rt.place(() => r, (value2) => r = value2));
+	const _91: rt.u32[][] = [by];
+	rt.vecAssign(rt.replaceIn(_89, _91)[0], make$conversions_Value_Vec_u32(data, 24));
+	put$conversions_Value_Vec_u32(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u32(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u32(rt.cellReplace(rt.cellIn(s[0]), make$conversions_Value_Vec_u32(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u32(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value3) => s[0] = value3)), true), [make$conversions_Value_Vec_u32(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = rt.vecClonedInto(rt.vecExact(other.slice(), 4), s[0], 4);
 	rt.idx(s, 0);
@@ -749,7 +791,8 @@ export function lentParam$Vec_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.Byte
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$Vec_u8(to: rt.ByteVec, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.ByteVec[] = rt.sliceIn(to);
@@ -776,7 +819,20 @@ export function lentParam$Vec_u8(to: rt.ByteVec, data: rt.ByteSlice, out: rt.Byt
 	rt.idx(s, 0);
 	const a: rt.ByteVec[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 22)];
-	put$conversions_Value_Vec_u8(rt.replaceIn(a, _77)[0], out);
+	put$conversions_Value_Vec_u8(rt.replaceIn(a, _77, true)[0], out);
+	const by: rt.ByteVec = make$conversions_Value_Vec_u8(data, 23);
+	rt.idx(s, 0);
+	let r: rt.ByteVec = s[0];
+	const _89: rt.ByteVec[] = rt.sliceOfPlace(rt.place(() => r, (value2) => r = value2));
+	const _91: rt.ByteVec[] = [by];
+	Object.assign(rt.replaceIn(_89, _91)[0], make$conversions_Value_Vec_u8(data, 24));
+	put$conversions_Value_Vec_u8(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u8(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u8(rt.cellReplace(rt.cellIn(s[0]), make$conversions_Value_Vec_u8(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_Vec_u8(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value3) => s[0] = value3)), true), [make$conversions_Value_Vec_u8(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(other)), s[0]);
 	rt.idx(s, 0);
@@ -786,7 +842,8 @@ export function lentParam$Vec_u8(to: rt.ByteVec, data: rt.ByteSlice, out: rt.Byt
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$array0_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
@@ -817,10 +874,25 @@ export function lentParam$array0_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 	rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
 	const _76: Uint8Array[] = [copy$array_u8(make$conversions_Value_array0_u8(data, 22))];
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(_76[0]), out);
+	const by: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 23));
 	rt.idx(s, 0);
-	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
-	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
-	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	let r: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _89: rt.ByteSlice[] = rt.sliceOfPlace(rt.place(() => r, (value) => r = value));
+	const _91: rt.ByteSlice[] = [rt.byteSliceFrom(by)];
+	const _88: rt.ByteSlice[] = rt.replaceIn(_89, _91);
+	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 24));
+	_88[0].data.set(_93, _88[0].start);
+	put$conversions_Value_array0_u8(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(s[0]), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), copy$array_u8(make$conversions_Value_array0_u8(data, 25)))), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array0_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), true), [copy$array_u8(make$conversions_Value_array0_u8(data, 26))])[0]), out);
+	rt.idx(s, 0);
+	const _126: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _131: rt.ByteSlice = rt.byteSliceFrom(other);
+	_126.data.set(rt.byteSliceToArray(_131), _126.start);
 	rt.idx(s, 0);
 	put$conversions_Value_array0_u8(rt.byteSliceFrom(s[0]), out);
 }
@@ -828,7 +900,8 @@ export function lentParam$array0_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$array1_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
@@ -870,11 +943,26 @@ export function lentParam$array1_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 	rt.idx(s, 0);
 	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array1_u8(data, 22))];
-	put$conversions_Value_array1_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(rt.replaceIn(a, _77, true)[0]), out);
+	const by: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 23));
 	rt.idx(s, 0);
-	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
-	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
-	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	let r: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _89: rt.ByteSlice[] = rt.sliceOfPlace(rt.place(() => r, (value) => r = value));
+	const _91: rt.ByteSlice[] = [rt.byteSliceFrom(by)];
+	const _88: rt.ByteSlice[] = rt.replaceIn(_89, _91);
+	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 24));
+	_88[0].data.set(_93, _88[0].start);
+	put$conversions_Value_array1_u8(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(s[0]), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), copy$array_u8(make$conversions_Value_array1_u8(data, 25)))), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array1_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), true), [copy$array_u8(make$conversions_Value_array1_u8(data, 26))])[0]), out);
+	rt.idx(s, 0);
+	const _126: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _131: rt.ByteSlice = rt.byteSliceFrom(other);
+	_126.data.set(rt.byteSliceToArray(_131), _126.start);
 	rt.idx(s, 0);
 	put$conversions_Value_array1_u8(rt.byteSliceFrom(s[0]), out);
 }
@@ -882,7 +970,8 @@ export function lentParam$array1_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$array2_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u32[][] = rt.sliceIn(to);
@@ -908,7 +997,20 @@ export function lentParam$array2_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.B
 	rt.idx(s, 0);
 	const a: rt.u32[][] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: rt.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 22))];
-	put$conversions_Value_array2_u32(rt.replaceIn(a, _77)[0], out);
+	put$conversions_Value_array2_u32(rt.replaceIn(a, _77, true)[0], out);
+	const by: rt.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 23));
+	rt.idx(s, 0);
+	let r: rt.u32[] = s[0];
+	const _89: rt.u32[][] = rt.sliceOfPlace(rt.place(() => r, (value2) => r = value2));
+	const _91: rt.u32[][] = [by];
+	Object.assign(rt.replaceIn(_89, _91)[0], copy$array_u32(make$conversions_Value_array2_u32(data, 24)));
+	put$conversions_Value_array2_u32(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_array2_u32(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_array2_u32(rt.cellReplace(rt.cellIn(s[0]), copy$array_u32(make$conversions_Value_array2_u32(data, 25))), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array2_u32(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value3) => s[0] = value3)), true), [copy$array_u32(make$conversions_Value_array2_u32(data, 26))])[0], out);
 	rt.idx(s, 0);
 	s[0] = copy$array_u32(other);
 	rt.idx(s, 0);
@@ -918,7 +1020,8 @@ export function lentParam$array2_u32(to: rt.u32[], data: rt.ByteSlice, out: rt.B
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$array3_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
@@ -960,11 +1063,26 @@ export function lentParam$array3_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 	rt.idx(s, 0);
 	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array3_u8(data, 22))];
-	put$conversions_Value_array3_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(rt.replaceIn(a, _77, true)[0]), out);
+	const by: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 23));
 	rt.idx(s, 0);
-	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
-	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
-	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	let r: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _89: rt.ByteSlice[] = rt.sliceOfPlace(rt.place(() => r, (value) => r = value));
+	const _91: rt.ByteSlice[] = [rt.byteSliceFrom(by)];
+	const _88: rt.ByteSlice[] = rt.replaceIn(_89, _91);
+	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 24));
+	_88[0].data.set(_93, _88[0].start);
+	put$conversions_Value_array3_u8(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(s[0]), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), copy$array_u8(make$conversions_Value_array3_u8(data, 25)))), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array3_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), true), [copy$array_u8(make$conversions_Value_array3_u8(data, 26))])[0]), out);
+	rt.idx(s, 0);
+	const _126: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _131: rt.ByteSlice = rt.byteSliceFrom(other);
+	_126.data.set(rt.byteSliceToArray(_131), _126.start);
 	rt.idx(s, 0);
 	put$conversions_Value_array3_u8(rt.byteSliceFrom(s[0]), out);
 }
@@ -972,7 +1090,8 @@ export function lentParam$array3_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: r
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$array40_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Uint8Array[] = rt.sliceIn(rt.byteSliceView(to));
@@ -1014,11 +1133,26 @@ export function lentParam$array40_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: 
 	rt.idx(s, 0);
 	const a: Uint8Array[] = rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array40_u8(data, 22))];
-	put$conversions_Value_array40_u8(rt.byteSliceFrom(rt.replaceIn(a, _77)[0]), out);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(rt.replaceIn(a, _77, true)[0]), out);
+	const by: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 23));
 	rt.idx(s, 0);
-	const _82: rt.ByteSlice = rt.byteSliceFrom(s[0]);
-	const _87: rt.ByteSlice = rt.byteSliceFrom(other);
-	_82.data.set(rt.byteSliceToArray(_87), _82.start);
+	let r: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _89: rt.ByteSlice[] = rt.sliceOfPlace(rt.place(() => r, (value) => r = value));
+	const _91: rt.ByteSlice[] = [rt.byteSliceFrom(by)];
+	const _88: rt.ByteSlice[] = rt.replaceIn(_89, _91);
+	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 24));
+	_88[0].data.set(_93, _88[0].start);
+	put$conversions_Value_array40_u8(r, out);
+	rt.idx(s, 0);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(s[0]), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), copy$array_u8(make$conversions_Value_array40_u8(data, 25)))), out);
+	rt.idx(s, 0);
+	put$conversions_Value_array40_u8(rt.byteSliceFrom(rt.cellReplace(rt.cellIn(rt.sliceIn(rt.byteSliceView(rt.byteSliceFrom(s[0]))), true), [copy$array_u8(make$conversions_Value_array40_u8(data, 26))])[0]), out);
+	rt.idx(s, 0);
+	const _126: rt.ByteSlice = rt.byteSliceFrom(s[0]);
+	const _131: rt.ByteSlice = rt.byteSliceFrom(other);
+	_126.data.set(rt.byteSliceToArray(_131), _126.start);
 	rt.idx(s, 0);
 	put$conversions_Value_array40_u8(rt.byteSliceFrom(s[0]), out);
 }
@@ -1026,7 +1160,8 @@ export function lentParam$array40_u8(to: rt.ByteSlice, data: rt.ByteSlice, out: 
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$conversions_Logged(to: Logged.Logged, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Logged.Logged[] = rt.sliceIn(to);
@@ -1055,13 +1190,34 @@ export function lentParam$conversions_Logged(to: Logged.Logged, data: rt.ByteSli
 	rt.idx(s, 0);
 	const a: Logged.Logged[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: Logged.Logged[] = [Logged.make$conversions_Value(data, 22)];
-	const _76: Logged.Logged[] = rt.replaceIn(a, _77);
+	const _76: Logged.Logged[] = rt.replaceIn(a, _77, true);
 	Logged.put$conversions_Value(_76[0], out);
 	rt.dropAll(_76);
+	const by: Logged.Logged = Logged.make$conversions_Value(data, 23);
+	rt.idx(s, 0);
+	let r: Logged.Logged = s[0];
+	const _89: Logged.Logged[] = rt.sliceOfPlace(rt.place(() => r, (value2) => r = value2));
+	const _91: Logged.Logged[] = [by];
+	const _88: Logged.Logged[] = rt.replaceIn(_89, _91);
+	const _93: Logged.Logged = Logged.make$conversions_Value(data, 24);
+	_88[0][Symbol.dispose]();
+	Object.assign(_88[0], _93);
+	Logged.put$conversions_Value(r, out);
+	rt.idx(s, 0);
+	Logged.put$conversions_Value(s[0], out);
+	rt.idx(s, 0);
+	const _104: Logged.Logged = rt.cellReplace(rt.cellIn(s[0]), Logged.make$conversions_Value(data, 25));
+	Logged.put$conversions_Value(_104, out);
+	_104[Symbol.dispose]();
+	rt.idx(s, 0);
+	const old: Logged.Logged = rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value3) => s[0] = value3)), true), [Logged.make$conversions_Value(data, 26)])[0];
+	Logged.put$conversions_Value(old, out);
 	rt.idx(s, 0);
 	rt.sliceReplace(s, 0, Logged.clone$Clone(other))[Symbol.dispose]();
 	rt.idx(s, 0);
 	Logged.put$conversions_Value(s[0], out);
+	old[Symbol.dispose]();
+	by[Symbol.dispose]();
 	rt.dropAll(v);
 	other[Symbol.dispose]();
 }
@@ -1069,7 +1225,8 @@ export function lentParam$conversions_Logged(to: Logged.Logged, data: rt.ByteSli
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$conversions_Named(to: Named.Named, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: Named.Named[] = rt.sliceIn(to);
@@ -1096,7 +1253,20 @@ export function lentParam$conversions_Named(to: Named.Named, data: rt.ByteSlice,
 	rt.idx(s, 0);
 	const a: Named.Named[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: Named.Named[] = [Named.make$conversions_Value(data, 22)];
-	Named.put$conversions_Value(rt.replaceIn(a, _77)[0], out);
+	Named.put$conversions_Value(rt.replaceIn(a, _77, true)[0], out);
+	const by: Named.Named = Named.make$conversions_Value(data, 23);
+	rt.idx(s, 0);
+	let r: Named.Named = s[0];
+	const _89: Named.Named[] = rt.sliceOfPlace(rt.place(() => r, (value2) => r = value2));
+	const _91: Named.Named[] = [by];
+	Object.assign(rt.replaceIn(_89, _91)[0], Named.make$conversions_Value(data, 24));
+	Named.put$conversions_Value(r, out);
+	rt.idx(s, 0);
+	Named.put$conversions_Value(s[0], out);
+	rt.idx(s, 0);
+	Named.put$conversions_Value(rt.cellReplace(rt.cellIn(s[0]), Named.make$conversions_Value(data, 25)), out);
+	rt.idx(s, 0);
+	Named.put$conversions_Value(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value3) => s[0] = value3)), true), [Named.make$conversions_Value(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = Named.clone$Clone(other);
 	rt.idx(s, 0);
@@ -1106,7 +1276,8 @@ export function lentParam$conversions_Named(to: Named.Named, data: rt.ByteSlice,
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$u32(to: rt.Place<rt.u32>, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u32[] = rt.sliceOfPlace(to);
@@ -1142,6 +1313,19 @@ export function lentParam$u32(to: rt.Place<rt.u32>, data: rt.ByteSlice, out: rt.
 	const a: rt.u32[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: rt.u32[] = [make$conversions_Value_u32(data, 22)];
 	put$conversions_Value_u32(rt.replaceIn(a, _77)[0], out);
+	let by: rt.u32 = make$conversions_Value_u32(data, 23);
+	rt.idx(s, 0);
+	let r: rt.Place<rt.u32> = rt.place(() => s[0], (value2) => s[0] = value2);
+	const _89: rt.Place<rt.u32>[] = rt.sliceOfPlace(rt.place(() => r, (value3) => r = value3));
+	const _91: rt.Place<rt.u32>[] = [rt.place(() => by, (value4) => by = value4)];
+	rt.replaceIn(_89, _91)[0].v = make$conversions_Value_u32(data, 24);
+	put$conversions_Value_u32(r.v, out);
+	rt.idx(s, 0);
+	put$conversions_Value_u32(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_u32(rt.cellReplace(rt.cellOfPlace(rt.place(() => s[0], (value5) => s[0] = value5)), make$conversions_Value_u32(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_u32(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value6) => s[0] = value6))), [make$conversions_Value_u32(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = other;
 	rt.idx(s, 0);
@@ -1151,7 +1335,8 @@ export function lentParam$u32(to: rt.Place<rt.u32>, data: rt.ByteSlice, out: rt.
 /**
  * A slice of what a `&mut` whose place only the caller knows points at: written whole,
  * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
- * another slice's element, and as an array, and written in place.
+ * another slice's element, as an array, of a reference to it, and by a cell, and written
+ * in place.
  */
 export function lentParam$u64(to: rt.Place<rt.u64>, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const s: rt.u64[] = rt.sliceOfPlace(to);
@@ -1187,6 +1372,19 @@ export function lentParam$u64(to: rt.Place<rt.u64>, data: rt.ByteSlice, out: rt.
 	const a: rt.u64[] = rt.sliceOfPlace(rt.place(() => s[0], (value) => s[0] = value));
 	const _77: rt.u64[] = [make$conversions_Value_u64(data, 22)];
 	put$conversions_Value_u64(rt.replaceIn(a, _77)[0], out);
+	let by: rt.u64 = make$conversions_Value_u64(data, 23);
+	rt.idx(s, 0);
+	let r: rt.Place<rt.u64> = rt.place(() => s[0], (value2) => s[0] = value2);
+	const _89: rt.Place<rt.u64>[] = rt.sliceOfPlace(rt.place(() => r, (value3) => r = value3));
+	const _91: rt.Place<rt.u64>[] = [rt.place(() => by, (value4) => by = value4)];
+	rt.replaceIn(_89, _91)[0].v = make$conversions_Value_u64(data, 24);
+	put$conversions_Value_u64(r.v, out);
+	rt.idx(s, 0);
+	put$conversions_Value_u64(s[0], out);
+	rt.idx(s, 0);
+	put$conversions_Value_u64(rt.cellReplace(rt.cellOfPlace(rt.place(() => s[0], (value5) => s[0] = value5)), make$conversions_Value_u64(data, 25)), out);
+	rt.idx(s, 0);
+	put$conversions_Value_u64(rt.cellReplace(rt.cellIn(rt.sliceOfPlace(rt.place(() => s[0], (value6) => s[0] = value6))), [make$conversions_Value_u64(data, 26)])[0], out);
 	rt.idx(s, 0);
 	s[0] = other;
 	rt.idx(s, 0);
@@ -1740,7 +1938,7 @@ export function converted$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	a = rt.vecClonedInto(rt.vecExact(copied.slice(), 4), a, 4);
 	put$conversions_Value_Vec_u32(copied, out);
 	put$conversions_Value_Vec_u32(a, out);
-	const cell: rt.Cell<rt.u32[]> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
+	const cell: rt.Cell<rt.u32[]> = rt.cellIn(c);
 	const old: rt.u32[] = rt.cellReplace(cell, make$conversions_Value_Vec_u32(data, 10));
 	rt.cellSet(cell, make$conversions_Value_Vec_u32(data, 11));
 	put$conversions_Value_Vec_u32(old, out);
@@ -1749,8 +1947,7 @@ export function converted$Vec_u32(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _91: rt.u32[] = make$conversions_Value_Vec_u32(data, 12);
 	put$conversions_Value_Vec_u32(setThrough$Vec_u32(v[at5], _91), out);
 	put$conversions_Value_Vec_u32(v[rt.idx(v, 0)], out);
-	const borrowed = held;
-	rt.cellSet(rt.cellOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_Vec_u32(data, 17));
+	rt.cellSet(rt.cellIn(held.value), make$conversions_Value_Vec_u32(data, 17));
 	put$conversions_Value_Vec_u32(held.value, out);
 	const array: rt.u32[][] = [make$conversions_Value_Vec_u32(data, 13), make$conversions_Value_Vec_u32(data, 14), make$conversions_Value_Vec_u32(data, 15)];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([array.length, array.length], (n: rt.usize): rt.u8 => {
@@ -1803,7 +2000,7 @@ export function converted$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	a = rt.byteVecClonedInto(rt.byteVecFrom(rt.byteVecView(copied)), a);
 	put$conversions_Value_Vec_u8(copied, out);
 	put$conversions_Value_Vec_u8(a, out);
-	const cell: rt.Cell<rt.ByteVec> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
+	const cell: rt.Cell<rt.ByteVec> = rt.cellIn(c);
 	const old: rt.ByteVec = rt.cellReplace(cell, make$conversions_Value_Vec_u8(data, 10));
 	rt.cellSet(cell, make$conversions_Value_Vec_u8(data, 11));
 	put$conversions_Value_Vec_u8(old, out);
@@ -1812,8 +2009,7 @@ export function converted$Vec_u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _91: rt.ByteVec = make$conversions_Value_Vec_u8(data, 12);
 	put$conversions_Value_Vec_u8(setThrough$Vec_u8(v[at5], _91), out);
 	put$conversions_Value_Vec_u8(v[rt.idx(v, 0)], out);
-	const borrowed = held;
-	rt.cellSet(rt.cellOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_Vec_u8(data, 17));
+	rt.cellSet(rt.cellIn(held.value), make$conversions_Value_Vec_u8(data, 17));
 	put$conversions_Value_Vec_u8(held.value, out);
 	const array: rt.ByteVec[] = [make$conversions_Value_Vec_u8(data, 13), make$conversions_Value_Vec_u8(data, 14), make$conversions_Value_Vec_u8(data, 15)];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([array.length, array.length], (n: rt.usize): rt.u8 => {
@@ -2021,7 +2217,7 @@ export function converted$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void 
 	a = copy$array_u32(copied);
 	put$conversions_Value_array2_u32(copied, out);
 	put$conversions_Value_array2_u32(a, out);
-	const cell: rt.Cell<rt.u32[]> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
+	const cell: rt.Cell<rt.u32[]> = rt.cellIn(c);
 	const old: rt.u32[] = rt.cellReplace(cell, copy$array_u32(make$conversions_Value_array2_u32(data, 10)));
 	rt.cellSet(cell, copy$array_u32(make$conversions_Value_array2_u32(data, 11)));
 	put$conversions_Value_array2_u32(old, out);
@@ -2030,8 +2226,7 @@ export function converted$array2_u32(data: rt.ByteSlice, out: rt.ByteVec): void 
 	const _91: rt.u32[] = make$conversions_Value_array2_u32(data, 12);
 	put$conversions_Value_array2_u32(setThrough$array2_u32(v[at5], _91), out);
 	put$conversions_Value_array2_u32(v[rt.idx(v, 0)], out);
-	const borrowed = held;
-	rt.cellSet(rt.cellOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), copy$array_u32(make$conversions_Value_array2_u32(data, 17)));
+	rt.cellSet(rt.cellIn(held.value), copy$array_u32(make$conversions_Value_array2_u32(data, 17)));
 	put$conversions_Value_array2_u32(held.value, out);
 	const array: rt.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 13)), copy$array_u32(make$conversions_Value_array2_u32(data, 14)), copy$array_u32(make$conversions_Value_array2_u32(data, 15))];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([array.length, array.length], (n: rt.usize): rt.u8 => {
@@ -2254,7 +2449,7 @@ export function converted$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec
 	old7[Symbol.dispose]();
 	Logged.put$conversions_Value(copied, out);
 	Logged.put$conversions_Value(a, out);
-	const cell: rt.Cell<Logged.Logged> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
+	const cell: rt.Cell<Logged.Logged> = rt.cellIn(c);
 	const old: Logged.Logged = rt.cellReplace(cell, Logged.make$conversions_Value(data, 10));
 	rt.cellSet(cell, Logged.make$conversions_Value(data, 11), rt.drop);
 	Logged.put$conversions_Value(old, out);
@@ -2265,8 +2460,7 @@ export function converted$conversions_Logged(data: rt.ByteSlice, out: rt.ByteVec
 	Logged.put$conversions_Value(_88, out);
 	_88[Symbol.dispose]();
 	Logged.put$conversions_Value(v[rt.idx(v, 0)], out);
-	const borrowed = held;
-	rt.cellSet(rt.cellOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), Logged.make$conversions_Value(data, 17), rt.drop);
+	rt.cellSet(rt.cellIn(held.value), Logged.make$conversions_Value(data, 17), rt.drop);
 	Logged.put$conversions_Value(held.value, out);
 	const array: Logged.Logged[] = [Logged.make$conversions_Value(data, 13), Logged.make$conversions_Value(data, 14), Logged.make$conversions_Value(data, 15)];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([array.length, array.length], (n: rt.usize): rt.u8 => {
@@ -2330,7 +2524,7 @@ export function converted$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec)
 	a = Named.clone$Clone(copied);
 	Named.put$conversions_Value(copied, out);
 	Named.put$conversions_Value(a, out);
-	const cell: rt.Cell<Named.Named> = rt.cellOfPlace(rt.place(() => c, (value) => c = value));
+	const cell: rt.Cell<Named.Named> = rt.cellIn(c);
 	const old: Named.Named = rt.cellReplace(cell, Named.make$conversions_Value(data, 10));
 	rt.cellSet(cell, Named.make$conversions_Value(data, 11));
 	Named.put$conversions_Value(old, out);
@@ -2339,8 +2533,7 @@ export function converted$conversions_Named(data: rt.ByteSlice, out: rt.ByteVec)
 	const _91: Named.Named = Named.make$conversions_Value(data, 12);
 	Named.put$conversions_Value(setThrough$conversions_Named(v[at5], _91), out);
 	Named.put$conversions_Value(v[rt.idx(v, 0)], out);
-	const borrowed = held;
-	rt.cellSet(rt.cellOfPlace(rt.place(() => borrowed.value, (value2) => borrowed.value = value2)), Named.make$conversions_Value(data, 17));
+	rt.cellSet(rt.cellIn(held.value), Named.make$conversions_Value(data, 17));
 	Named.put$conversions_Value(held.value, out);
 	const array: Named.Named[] = [Named.make$conversions_Value(data, 13), Named.make$conversions_Value(data, 14), Named.make$conversions_Value(data, 15)];
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([array.length, array.length], (n: rt.usize): rt.u8 => {

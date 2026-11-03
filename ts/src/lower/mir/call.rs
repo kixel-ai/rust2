@@ -1274,6 +1274,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let view = Expr::rt("byteSliceView", vec![slice]);
 			return Some(Expr::rt(if cell { "cellIn" } else { "sliceIn" }, vec![view]));
 		}
+		// A cell of an object reads a copy wherever it is, as its place may be one a write
+		// lands in, such as an element of a slice of one.
+		if cell && self.b.t.write_in(ty).is_some() {
+			let mut made = vec![self.operand(op, span, out)];
+			made.extend(self.copies_each(ty).then(|| Expr::lit("true")));
+			return Some(Expr::rt("cellIn", made));
+		}
 		if let Slot::Alias(Some(target)) = &self.slots[place.local]
 			&& assignable(target)
 			&& self.alias_of_place(place.local)
@@ -1288,7 +1295,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		if self.b.t.write_in(ty).is_some() {
 			let object = self.operand(op, span, out);
-			return Some(Expr::rt(if cell { "cellIn" } else { "sliceIn" }, vec![object]));
+			return Some(Expr::rt("sliceIn", vec![object]));
 		}
 		Some(self.err(
 			span,
@@ -1605,7 +1612,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	) -> Expr {
 		// The object written in place gives what it held as an object of its own.
 		if place.1.is_some_and(|p| self.in_object(p)) {
-			let old = Expr::rt("replaceIn", vec![place.0, value]);
+			let mut made = vec![place.0, value];
+			made.extend(self.copies_each(ty).then(|| Expr::lit("true")));
+			let old = Expr::rt("replaceIn", made);
 			let Some(base) = base else {
 				out.push(StmtKind::Expr(old).at(None));
 				return Expr::undefined();
@@ -1668,6 +1677,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			unreachable!("an element's path is an index: {read:?}")
 		};
 		Some(((**slice).clone(), (**index).clone()))
+	}
+
+	/// Whether `ty` is an array of objects a write may land in, which a copy of a view of
+	/// one copies too, unlike references, which move as they are.
+	fn copies_each(&self, ty: Ty<'tcx>) -> bool {
+		matches!(ty.kind(), ty::Array(elem, _) if self.b.t.write_in(*elem).is_some())
 	}
 
 	/// Set what a `&mut` borrows to `value`.

@@ -420,10 +420,11 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
 
 /**
  * `mem::replace` of what a `&mut` to an object points at, in place: `value`'s fields, or
- * its items and capacity for a JS array, moved into `p`, and what `p` held returned as an object of its own.
+ * its items and capacity for a JS array, moved into `p`, and what `p` held returned as an
+ * object of its own, copied as `objectCopy` copies with `each`.
  */
-export function replaceIn<T extends object>(p: T, value: T): T {
-	const old = objectCopy(p);
+export function replaceIn<T extends object>(p: T, value: T, each = false): T {
+	const old = objectCopy(p, each);
 	if (Array.isArray(p)) vecAssign(p, value as unknown[]);
 	else Object.assign(p, value);
 	return old;
@@ -431,20 +432,15 @@ export function replaceIn<T extends object>(p: T, value: T): T {
 
 /**
  * A copy of the object `p`, one object deep: its fields, its bytes, or its items and
- * capacity for a JS array, whose objects a write may land in, as a `sliceIn`'s, are
- * copied too.
+ * capacity for a JS array. With `each`, its items are objects a write may land in, as a
+ * `sliceIn`'s, which a view of one gets copies of too.
  */
-export function objectCopy<T extends object>(p: T): T {
+export function objectCopy<T extends object>(p: T, each = false): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
 		const old: unknown[] & Capped = p.slice();
 		if ((p as Capped).cap !== undefined) old.cap = (p as Capped).cap;
-		if (writesIn(p)) {
-			for (let i = 0; i < old.length; i++) {
-				const item = old[i];
-				if (typeof item === "object" && item !== null) old[i] = objectCopy(item);
-			}
-		}
+		if (each && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object);
 		return old as T;
 	}
 	return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);

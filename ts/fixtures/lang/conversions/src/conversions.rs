@@ -286,7 +286,8 @@ fn write_first<T: Value>(s: &mut [T], value: T) -> T {
 
 /// A slice of what a `&mut` whose place only the caller knows points at: written whole,
 /// read out by `mem::replace` and by `mem::swap` either way round, with a local, with
-/// another slice's element, and as an array, and written in place.
+/// another slice's element, as an array, of a reference to it, and by a cell, and written
+/// in place.
 fn lent_param<T: Value>(to: &mut T, data: &[u8], out: &mut Vec<u8>) {
 	let s = std::slice::from_mut(to);
 	write_first(s, T::make(data, 18)).put(out);
@@ -303,6 +304,17 @@ fn lent_param<T: Value>(to: &mut T, data: &[u8], out: &mut Vec<u8>) {
 	t[1].put(out);
 	let a = std::array::from_mut(&mut s[0]);
 	std::mem::replace(a, [T::make(data, 22)])[0].put(out);
+	// A reference moves out as it is, still pointing at the element.
+	let mut by = T::make(data, 23);
+	let mut r = &mut s[0];
+	let [old] = std::mem::replace(std::array::from_mut(&mut r), [&mut by]);
+	*old = T::make(data, 24);
+	r.put(out);
+	s[0].put(out);
+	// A cell of the element, and of an array of it.
+	Cell::from_mut(&mut s[0]).replace(T::make(data, 25)).put(out);
+	let [old] = Cell::from_mut(std::array::from_mut(&mut s[0])).replace([T::make(data, 26)]);
+	old.put(out);
 	s[0].clone_from(&other);
 	s[0].put(out);
 }
