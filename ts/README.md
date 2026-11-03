@@ -213,6 +213,10 @@ capital sigma, which `to_lowercase` writes final at the end of a word, as std re
 cased and case-ignorable neighbors. `escape_debug`, `escape_default`, and `escape_unicode`
 are std's `flat_map` of each char's, sized as it is, and write what they have left by
 `Display`, unpadded. `encode_utf16` is sized as std's, and `Debug` of it is `EncodeUtf16 { .. }`.
+`String::from_utf16` and `from_utf16_lossy`, and `from_utf16le`, `from_utf16be`, and
+their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired surrogate
+fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
+becomes U+FFFD, and so does an odd byte at the end.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
