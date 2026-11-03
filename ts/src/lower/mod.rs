@@ -211,11 +211,11 @@ pub struct Translator<'a, 'tcx> {
 	census: bool,
 	/// Refusals collected until translation settles, then reported or counted.
 	refusals: Option<Vec<(Span, String)>>,
-	/// Reads of a `Bytes`' capacity, refused once translation settles in each crate of
-	/// `string_bytes`, as [`Self::string_capacity`] notes them.
+	/// Reads of a `Bytes`' capacity, refused once translation settles if `string_bytes`, as
+	/// [`Self::string_capacity`] notes them.
 	capacity_reads: Vec<(Span, String)>,
-	/// The crates that make a `Bytes` or a `Vec<u8>` of a `String`'s bytes, whose capacity JS keeps none of.
-	string_bytes: rustc_data_structures::fx::FxHashSet<CrateNum>,
+	/// Whether a crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes, whose capacity JS keeps none of.
+	string_bytes: bool,
 	/// Whether each type's drop does something JS can see, as [`Self::drops`] found.
 	drops: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
 	/// The types [`Self::drops`] is still deciding, and whether the query open now read one.
@@ -481,7 +481,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			census,
 			refusals: Some(Vec::new()),
 			capacity_reads: Vec::new(),
-			string_bytes: Default::default(),
+			string_bytes: false,
 			drops: Default::default(),
 			drops_open: Default::default(),
 			drops_cycle: false,
@@ -635,36 +635,27 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// The crate whose source `span` is in, where a macro's expansion is its call's.
-	fn crate_at(&self, span: Span) -> CrateNum {
-		self.tcx
-			.sess
-			.source_map()
-			.lookup_source_file(span.source_callsite().lo())
-			.cnum
-	}
-
 	/// Note a `Bytes` or a `Vec<u8>` made of a `String`'s bytes, whose capacity JS keeps none
-	/// of, so its crate is refused what [`Self::string_capacity`] notes.
-	pub fn string_bytes(&mut self, span: Span) {
-		let (span, _) = self.sited(span, String::new());
-		self.string_bytes.insert(self.crate_at(span));
+	/// of, so every crate is refused what [`Self::string_capacity`] notes: the bytes may
+	/// reach any of them.
+	pub fn string_bytes(&mut self) {
+		self.string_bytes = true;
 	}
 
 	/// Note `what`, which reads the capacity of a `Bytes`' storage, refused once translation
-	/// settles if its crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes. Elsewhere a
-	/// `String`'s bytes read as a vector's whose capacity is its length.
+	/// settles if any crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes.
 	pub fn string_capacity(&mut self, span: Span, what: &str) {
 		let msg = format!(
-			"`{what}` in a crate that makes bytes of a String, whose capacity JS keeps none of, which is not supported"
+			"`{what}` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported"
 		);
 		let read = self.sited(span, msg);
 		self.capacity_reads.push(read);
 	}
 
 	fn refuse_capacity_reads(&mut self) {
-		for (span, msg) in std::mem::take(&mut self.capacity_reads) {
-			if self.string_bytes.contains(&self.crate_at(span)) {
+		let reads = std::mem::take(&mut self.capacity_reads);
+		if self.string_bytes {
+			for (span, msg) in reads {
 				self.refuse(span, msg);
 			}
 		}

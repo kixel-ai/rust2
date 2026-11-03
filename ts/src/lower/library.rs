@@ -1510,7 +1510,7 @@ fn mapping<'tcx>(
 			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
 			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
 				if !from.is_ref() {
-					b.t.string_bytes(span);
+					b.t.string_bytes();
 				}
 				return Some(Expr::rt(
 					"stringIntoBytes",
@@ -2526,7 +2526,7 @@ fn mapping<'tcx>(
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
 		("String", "into_bytes") => {
-			b.t.string_bytes(span);
+			b.t.string_bytes();
 			Expr::rt("stringIntoBytes", args)
 		}
 		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
