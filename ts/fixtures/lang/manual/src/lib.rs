@@ -15,5 +15,8 @@ use harness::Case;
 /// Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
 /// their count, so a case added at the end moves no other.
 fn cases() -> Vec<(&'static str, Case)> {
-	vec![("manual::arcs", |_, data, out| manual::arcs(data, out))]
+	vec![
+		("manual::arcs", |_, data, out| manual::arcs(data, out)),
+		("manual::needs_drops", |_, data, out| manual::needs_drops(data, out)),
+	]
 }

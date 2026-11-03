@@ -128,8 +128,7 @@ export function fill(self: Encoder, prefix: Prefix.Prefix): rt.Result<undefined,
 				const size2: Uint8Array = rt.bytes(9);
 				rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(size2), 0, len), rt.byteSliceRange(rt.byteVecSlice(self.buf), end));
 				rt.byteVecTruncate(self.buf, rt.usizeSub(rt.usizeAdd(end, len), 1));
-				const _58: rt.usize = rt.usizeSub(rt.usizeAdd(body, len), 1);
-				rt.byteSliceCopyWithin(rt.byteVecSlice(self.buf), body, end, _58);
+				rt.byteSliceCopyWithin(rt.byteVecSlice(self.buf), body, end, rt.usizeSub(rt.usizeAdd(body, len), 1));
 				const _84: rt.ByteVec = self.buf;
 				const part2 = rt.usizeSub(body, 1);
 				const part3 = rt.usizeAdd(rt.usizeSub(body, 1), len);

@@ -157,8 +157,7 @@ export function layouts(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 		const word: Uint8Array = rt.bytes(4);
-		const part = rt.min(_6.length, 4);
-		rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(word), 0, part), rt.byteSliceRange(_6, 0, rt.min(_6.length, 4)));
+		rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(word), 0, rt.min(_6.length, 4)), rt.byteSliceRange(_6, 0, rt.min(_6.length, 4)));
 		const size: rt.usize = rt.u32FromBeBytes(word.slice().reverse()) as rt.usize;
 		const b: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceGet(_6, 4), 0);
 		if ((b & 128) === 0) {

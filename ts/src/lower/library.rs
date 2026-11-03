@@ -2464,6 +2464,13 @@ fn mapping<'tcx>(
 			let layout = tcx.layout_of(env.as_query_input(targ(gargs, 0))).ok()?;
 			Expr::lit(layout.align.abi.bytes().to_string())
 		}
+		// rustc's answers for the instance, which a JS value that drops nothing, such as a
+		// `String`'s, leaves as they are.
+		("mem", "needs_drop") => {
+			let needs = targ(gargs, 0).needs_drop(tcx, b.t.typing_env_pub());
+			Expr::lit(needs.to_string())
+		}
+		("any", "type_name" | "type_name_of_val") => Expr::Str(rustc_const_eval::util::type_name(tcx, targ(gargs, 0))),
 		// What wasm32 lays out the value in: its type's, or a slice's elements' or a `str`'s
 		// bytes'. A trait object's is its vtable's, which is left to the refusal of any other call.
 		("mem", "size_of_val" | "align_of_val") => {
