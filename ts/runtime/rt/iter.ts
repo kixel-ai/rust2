@@ -598,6 +598,11 @@ export function iterBorrow<T>(it: Iter<T>): Iter<T> {
 	return new Borrowed(it);
 }
 
+/** A box of the sized iterator `it`, read as std's `Iterator` for `Box<I>` reads it. */
+export function iterBoxed<T>(it: Iter<T>): Iter<T> {
+	return new Boxed(it);
+}
+
 /**
  * A `dyn Iterator` of `it`: what std's vtable has, as `it` does it, and the rest by `next`, as
  * std's default methods read a trait object. It drops `it` as it drops.
@@ -916,6 +921,7 @@ export function iterCount<T>(it: Iter<T>): number {
 export function iterLast<T>(it: Iter<T>): T | undefined;
 export function iterLast<T>(it: Iter<T>, none: None): T | None;
 export function iterLast<T>(it: Iter<T>, none?: None): T | undefined | None {
+	if (it instanceof Boxed) return iterLast(it.inner, none as None);
 	const folded = it.folded(true);
 	let last: T | Done = DONE;
 	for (let item = folded.next(); item !== DONE; item = folded.next()) last = item;
@@ -1545,6 +1551,7 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
  */
 function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
 	if (it instanceof FromNext && it.own?.last !== undefined) return it.taken(it.own.last);
+	if (it instanceof Boxed) return last(it.inner, drop);
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
 		// std's, of a `Vec`'s or an array's, and of a B-tree's `into_keys` and
 		// `into_values`: the last item, and then the rest drop with it.
@@ -2186,6 +2193,56 @@ class Dyn<T> extends Iter<T> implements Disposable {
 
 	override nthBack(n: number, drop?: Drop<T>): T | Done {
 		return this.inner.nthBack(n, drop);
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.inner);
+	}
+}
+
+/**
+ * A box of a sized iterator, which forwards only what std's `impl Iterator for Box<I>`
+ * does, `last` included, as std's specializes it for a sized `I`, and reads the rest by
+ * `next` and `next_back`. It drops `inner` as it drops.
+ */
+class Boxed<T> extends Iter<T> implements Disposable {
+	readonly inner: Iter<T>;
+
+	constructor(inner: Iter<T>) {
+		super();
+		this.inner = inner;
+	}
+
+	override sizeHint(): SizeHint {
+		return this.inner.sizeHint();
+	}
+
+	next(): T | Done {
+		return this.inner.next();
+	}
+
+	nextBack(): T | Done {
+		return this.inner.nextBack();
+	}
+
+	len(): number {
+		return this.inner.len();
+	}
+
+	override nth(n: number, drop?: Drop<T>): T | Done {
+		return this.inner.nth(n, drop);
+	}
+
+	override nthBack(n: number, drop?: Drop<T>): T | Done {
+		return this.inner.nthBack(n, drop);
+	}
+
+	remaining(): Iterable<unknown> {
+		return this.inner.remaining();
+	}
+
+	clone(h?: Clones): Iter<T> {
+		return new Boxed(this.inner.clone(h));
 	}
 
 	[Symbol.dispose](): void {
