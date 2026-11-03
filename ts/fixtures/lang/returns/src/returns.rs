@@ -311,7 +311,7 @@ fn numbers(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		sum = sum.wrapping_mul(31).wrapping_add(n as u64);
 		rest = &rest[n as usize + 1..];
 	}
-	out.extend_from_slice(&sum.to_be_bytes());
+	sum.put(out);
 }
 
 pub fn returns(kind: u8, data: &[u8], out: &mut Vec<u8>) {
@@ -512,11 +512,57 @@ fn opt_late(data: &[u8], other: &[u8]) -> Result<Option<u64>, Error> {
 	opt_u64(data)
 }
 
+/// A number's bytes, as each case writes it.
+trait Put {
+	fn put(self, out: &mut Vec<u8>);
+}
+
+macro_rules! put {
+	($($t:ty),*) => {$(
+		impl Put for $t {
+			fn put(self, out: &mut Vec<u8>) {
+				out.extend_from_slice(&self.to_be_bytes());
+			}
+		}
+	)*};
+}
+
+put!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
+
+impl Put for usize {
+	fn put(self, out: &mut Vec<u8>) {
+		(self as u64).put(out);
+	}
+}
+
+impl Put for bool {
+	fn put(self, out: &mut Vec<u8>) {
+		out.push(self as u8);
+	}
+}
+
+impl Put for char {
+	fn put(self, out: &mut Vec<u8>) {
+		(self as u32).put(out);
+	}
+}
+
 /// A float's bits, or its sign alone if it is a NaN, whose payload is the engine's.
-fn put_float(out: &mut Vec<u8>, bits: u64, nan: bool, negative: bool) {
-	match nan {
-		true => out.extend_from_slice(&[0x7f, negative as u8]),
-		false => out.extend_from_slice(&bits.to_be_bytes()),
+impl Put for f32 {
+	fn put(self, out: &mut Vec<u8>) {
+		match self.is_nan() {
+			true => out.extend_from_slice(&[0x7f, self.is_sign_negative() as u8]),
+			false => self.to_bits().put(out),
+		}
+	}
+}
+
+impl Put for f64 {
+	fn put(self, out: &mut Vec<u8>) {
+		match self.is_nan() {
+			true => out.extend_from_slice(&[0x7f, self.is_sign_negative() as u8]),
+			false => self.to_bits().put(out),
+		}
 	}
 }
 
@@ -524,38 +570,39 @@ fn put_float(out: &mut Vec<u8>, bits: u64, nan: bool, negative: bool) {
 /// written again.
 pub fn options(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	macro_rules! push {
-		($r:expr, |$v:ident| $put:expr) => {
+		($r:expr) => {
 			match $r {
-				Ok(Some($v)) => {
+				Ok(Some(v)) => {
 					out.push(1);
-					$put;
+					v.put(out);
 				}
 				Ok(None) => out.push(0),
 				Err(e) => out.extend_from_slice(&[0xee, e.code()]),
 			}
 		};
 	}
-	push!(opt_u8(data), |v| out.push(v));
-	push!(opt_u16(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_u32(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_u64(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_u128(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_usize(data), |v| out.extend_from_slice(&(v as u64).to_be_bytes()));
-	push!(opt_i8(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_i16(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_i32(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_i64(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_i128(data), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_f32(data), |v| put_float(out, v.to_bits().into(), v.is_nan(), v.is_sign_negative()));
-	push!(opt_f64(data), |v| put_float(out, v.to_bits(), v.is_nan(), v.is_sign_negative()));
-	push!(opt_bool(data), |v| out.push(v as u8));
+	push!(opt_u8(data));
+	push!(opt_u16(data));
+	push!(opt_u32(data));
+	push!(opt_u64(data));
+	push!(opt_u128(data));
+	push!(opt_usize(data));
+	push!(opt_i8(data));
+	push!(opt_i16(data));
+	push!(opt_i32(data));
+	push!(opt_i64(data));
+	push!(opt_i128(data));
+	push!(opt_f32(data));
+	push!(opt_f64(data));
+	push!(opt_bool(data));
 	match opt_char(data) {
-		Ok(Some(c)) => out.extend_from_slice(&(c as u32).to_be_bytes()),
+		Ok(Some(c)) => c.put(out),
 		Ok(None) => out.push(0),
 		Err(b) => out.extend_from_slice(&[0xee, b]),
 	}
-	push!(opt_again(data, kind % 2 == 0), |v| out.extend_from_slice(&v.to_be_bytes()));
-	push!(opt_late(data, &data[data.len().min(1)..]), |v| out.extend_from_slice(&v.to_be_bytes()));
+	let tail = &data[data.len().min(1)..];
+	push!(opt_again(data, kind % 2 == 0));
+	push!(opt_late(data, tail));
 	match opt_first(data) {
 		Ok((n, len)) => out.extend_from_slice(&[n.map_or(0xaa, |n| n), len as u8]),
 		Err(e) => out.push(e.code()),
@@ -563,7 +610,7 @@ pub fn options(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match opt_last(data) {
 		Ok((len, n)) => {
 			out.push(len as u8);
-			out.extend_from_slice(&n.unwrap_or(-1).to_be_bytes());
+			n.unwrap_or(-1).put(out);
 		}
 		Err(e) => out.push(e.code()),
 	}
@@ -572,18 +619,22 @@ pub fn options(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		Err(e) => out.push(e.code()),
 	}
 	// Both held while the slot is written again between them.
-	let (x, y) = (opt_u64(data), opt_u64(&data[data.len().min(1)..]));
+	let (x, y) = (opt_u64(data), opt_u64(tail));
 	match (x, y) {
-		(Ok(Some(x)), Ok(Some(y))) => out.extend_from_slice(&(x ^ y).to_be_bytes()),
+		(Ok(Some(x)), Ok(Some(y))) => (x ^ y).put(out),
 		(x, y) => out.extend_from_slice(&[x.is_ok() as u8, y.is_ok() as u8, (x == y) as u8]),
 	}
 	// Kept whole: in a collection, and through a function as a value.
 	let kept: Vec<Result<Option<u64>, Error>> = (0..3).map(|i| opt_u64(&data[data.len().min(i)..])).collect();
 	for r in kept {
-		push!(r, |v| out.extend_from_slice(&v.to_be_bytes()));
+		push!(r);
 	}
-	let f: fn(&[u8]) -> Result<Option<i64>, Error> = if kind % 2 == 0 { opt_i64 } else { |d| opt_i64(&d[d.len().min(1)..]) };
-	push!(f(data), |v| out.extend_from_slice(&v.to_be_bytes()));
+	let f: fn(&[u8]) -> Result<Option<i64>, Error> = if kind % 2 == 0 {
+		opt_i64
+	} else {
+		|d| opt_i64(&d[d.len().min(1)..])
+	};
+	push!(f(data));
 	// A loop that calls again while the last result is still read.
 	let mut rest = data;
 	let mut sum = 0u32;
@@ -591,5 +642,5 @@ pub fn options(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		sum = sum.wrapping_mul(31).wrapping_add(n);
 		rest = &rest[(n as usize % 5).min(rest.len()).max(1)..];
 	}
-	out.extend_from_slice(&sum.to_be_bytes());
+	sum.put(out);
 }
