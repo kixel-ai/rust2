@@ -4,9 +4,9 @@
 
 [rust2-ts](/ts/README.md) translates `BytesMut::capacity`, `split_off`, `try_reclaim`,
 `try_unsplit`, and `spare_capacity_mut` with `bytes`' values, and `BufMut::put` of the
-crate's own `Buf` into a `BytesMut` through a `&mut` or a `Box`, and into an empty one
-whose shared storage grew or that took a `Bytes`'s, and `rt.BytesMut` drops its 512 MiB limit on `reserve` for storage
-that was shared, proven by differential tests against native Rust.
+crate's own `Buf` into a `BytesMut`, directly and through a `&mut` or a `Box`, and
+`rt.BytesMut` drops its 512 MiB limit on `reserve` for storage that was shared, proven
+by differential tests against native Rust.
 
 ## Plan
 
@@ -17,9 +17,7 @@ capacity depends on whether the `Bytes` it froze and the handles it split off dr
 refuses these. moq calls none of them. For the same reason, once its storage was shared
 or taken from a `Bytes`, `reserve` throws a `rust2-ts:` error past 512 MiB, counting what
 the handle read past, where `bytes`' panic, or its growing instead, depends on which
-handles dropped, and `put` of a `Buf` read through its methods into an empty one throws
-once storage it shared grew or it took a `Bytes`'s, where `bytes` picks those methods by
-whether the capacity is zero. Exact capacity removes these.
+handles dropped. Exact capacity removes that limit.
 
 - Count the live handles of a storage, as `rt.Arc` counts
   an `Arc`'s, which makes a `Bytes` a value that drops.

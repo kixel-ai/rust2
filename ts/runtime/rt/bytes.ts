@@ -311,10 +311,9 @@ function widen(read: Uint8Array, size: number, signed: boolean): Uint8Array {
 
 /**
  * `bytes::BytesMut`: `length` bytes of `data` from `start`, with room up to `cap` before
- * the bytes another handle or a frozen `Bytes` holds. Once storage it shared grows, or
- * it takes a `Bytes`'s, its capacity isn't `bytes`', which depends on whether other
- * handles of that storage dropped, so translation refuses what reads it, and `put` of a
- * `Buf`, which picks its methods by whether it is zero, throws where none says.
+ * the bytes another handle or a frozen `Bytes` holds. Once its storage was shared or
+ * taken from a `Bytes`, its capacity isn't `bytes`', which depends on whether other
+ * handles of that storage dropped, so translation refuses what reads it.
  */
 export class BytesMut {
 	data: Uint8Array;
@@ -327,29 +326,20 @@ export class BytesMut {
 	 * `bytes`' own, so it grows and panics as `Vec` does.
 	 */
 	exact: boolean;
-	/**
-	 * Whether `cap` is `bytes`' capacity, as it is until storage that was shared grows or
-	 * it takes a `Bytes`'s, whose capacity depends on whether other handles of it dropped.
-	 */
-	sure: boolean;
-	/** What `bytes`' capacity is at least, which it reserved or took. */
-	least: number;
 
-	constructor(data: Uint8Array, start: number, length: number, cap: number, exact: boolean, sure: boolean) {
+	constructor(data: Uint8Array, start: number, length: number, cap: number, exact: boolean) {
 		this.data = data;
 		this.start = start;
 		this.length = length;
 		this.cap = cap;
 		this.exact = exact;
-		this.sure = sure;
-		this.least = cap;
 	}
 }
 
 /** `BytesMut::with_capacity`, `new` of 0. */
 export function bytesMutWithCapacity(capacity: usize): BytesMut {
 	if (capacity > ISIZE_MAX) panic("capacity overflow");
-	return new BytesMut(bytes(capacity), 0, 0, capacity, true, true);
+	return new BytesMut(bytes(capacity), 0, 0, capacity, true);
 }
 
 /** `BytesMut::zeroed`. */
@@ -372,7 +362,7 @@ export function bytesMutFrom(s: ByteSlice): BytesMut {
  * reading past as much of it as the `Bytes` did.
  */
 export function bytesMutFromBytes(s: Bytes): BytesMut {
-	const b = new BytesMut(bytes(s.start + s.length), s.start, s.length, s.length, false, false);
+	const b = new BytesMut(bytes(s.start + s.length), s.start, s.length, s.length, false);
 	copyBytes(b.data, s.start, s.data, s.start, s.length);
 	return b;
 }
@@ -403,7 +393,6 @@ export function bytesMutReserve(b: BytesMut, additional: usize): void {
 			`rust2-ts: \`BytesMut::reserve\` past ${BYTES_MUT_UNSURE_LIMIT} bytes of storage that was shared, whose panic depends on whether other handles of it dropped`,
 		);
 	}
-	b.least = Math.max(b.least, b.length + additional);
 	if (additional <= b.cap - b.length) return;
 	const needed = b.length + additional;
 	if (!b.exact) {
@@ -413,7 +402,6 @@ export function bytesMutReserve(b: BytesMut, additional: usize): void {
 		copyBytes(data, b.start, b.data, b.start, b.length);
 		b.data = data;
 		b.cap = cap;
-		b.sure = false;
 		return;
 	}
 	// Its bytes move to the front where that alone makes the room.
@@ -439,21 +427,19 @@ export function bytesMutReserve(b: BytesMut, additional: usize): void {
  */
 export function bytesMutPutStorage(b: BytesMut, s: Bytes): void {
 	if (s.length === 0) return;
-	if (b.sure ? b.cap === 0 : b.length === 0) {
+	if (b.exact ? b.cap === 0 : b.length === 0) {
 		const start = Math.max(b.start, s.start);
 		b.data = bytes(start + s.length);
 		b.start = start;
 		b.cap = s.length;
 		b.exact = false;
-		b.sure = false;
-		b.least = 0;
 	}
 	bytesMutExtend(b, s);
 }
 
 /**
- * `BufMut::put` into a `BytesMut` of a `Buf` the crate implements: at zero capacity, its
- * `copy_to_bytes` of all of it, whose storage `bytes` takes, and else each chunk in turn.
+ * `BufMut::put` of a `Buf` read through its own methods into a `BytesMut` that `bytes`
+ * just made with a capacity, which isn't 0, so it reserves and copies chunk by chunk.
  */
 export function bytesMutPutBuf<B>(
 	b: BytesMut,
@@ -462,13 +448,10 @@ export function bytesMutPutBuf<B>(
 	remaining: (src: B) => usize,
 	chunk: (src: B) => ByteSlice,
 	advance: (src: B, cnt: usize) => void,
-	copyToBytes: (src: B, len: usize) => Bytes,
 ): void {
 	if (!hasRemaining(src)) return;
-	if (b.length === 0 && b.least === 0 && !b.sure) unsureCapacity();
-	if (b.length === 0 && b.least === 0 && b.cap === 0) {
-		bytesMutPutStorage(b, copyToBytes(src, remaining(src)));
-		return;
+	if (!b.exact || b.cap === 0) {
+		throw new Error("rust2-ts: `BufMut::put` of a `Buf` into a `BytesMut` that `bytes` did not just make with a capacity");
 	}
 	bytesMutReserve(b, remaining(src));
 	while (hasRemaining(src)) {
@@ -476,13 +459,6 @@ export function bytesMutPutBuf<B>(
 		bytesMutExtend(b, s);
 		advance(src, s.length as usize);
 	}
-}
-
-/** Where `put` reads whether a capacity that depends on whether other handles of its storage dropped is zero. */
-function unsureCapacity(): never {
-	throw new Error(
-		"rust2-ts: `BufMut::put` of a `Buf` into an empty `BytesMut` that grew storage it shared or took a `Bytes`'s, which picks the methods it calls by whether a capacity that depends on whether other handles of it dropped is zero",
-	);
 }
 
 /** `BytesMut::extend_from_slice`, and `BufMut::put_slice`. */
@@ -575,11 +551,10 @@ export function bytesMutResize(b: BytesMut, len: usize, value: number): void {
 /** `BytesMut::split_to`: the first `at` bytes, sharing the storage, leaving the rest. */
 export function bytesMutSplitTo(b: BytesMut, at: usize): BytesMut {
 	if (at > b.length) panic(`split_to out of bounds: ${at} <= ${b.length}`);
-	const head = new BytesMut(b.data, b.start, at, at, false, true);
+	const head = new BytesMut(b.data, b.start, at, at, false);
 	b.start += at;
 	b.length -= at;
 	b.cap -= at;
-	b.least = Math.max(b.least - at, 0);
 	b.exact = false;
 	return head;
 }
@@ -592,16 +567,12 @@ export function bytesMutUnsplit(b: BytesMut, other: BytesMut): void {
 		b.length = other.length;
 		b.cap = other.cap;
 		b.exact = other.exact;
-		b.sure = other.sure;
-		b.least = other.least;
 		return;
 	}
 	if (other.cap === 0) return;
 	if (!b.exact && !other.exact && b.data === other.data && b.start + b.length === other.start) {
 		b.length += other.length;
 		b.cap += other.cap;
-		b.sure &&= other.sure;
-		b.least += other.least;
 		return;
 	}
 	bytesMutExtend(b, bytesMutView(other));
@@ -613,7 +584,6 @@ export function bytesMutAdvance(b: BytesMut, cnt: usize): void {
 	b.start += cnt;
 	b.length -= cnt;
 	b.cap -= cnt;
-	b.least = Math.max(b.least - cnt, 0);
 	if (b.start > MAX_VEC_POS) b.exact = false;
 }
 

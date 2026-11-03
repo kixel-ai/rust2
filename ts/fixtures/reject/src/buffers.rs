@@ -19,6 +19,12 @@ pub fn bytes_mut_capacity(n: usize) -> usize {
 	buf.capacity()
 }
 
+/// `bytes` reads a `Buf` of the crate's own into a `BytesMut` by its `copy_to_bytes` only
+/// at zero capacity.
+pub fn bytes_mut_put(buf: &mut bytes::BytesMut, src: Counted) {
+	bytes::BufMut::put(buf, src);
+}
+
 /// Through a `&mut`, `bytes` advances it by the room left in the `BytesMut`'s capacity.
 pub fn bytes_mut_put_through(mut buf: &mut bytes::BytesMut, src: Counted) {
 	bytes::BufMut::put(&mut buf, src);

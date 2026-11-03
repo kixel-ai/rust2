@@ -575,10 +575,10 @@ of them:
   `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
   `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
-  one, reads it through its methods as `bytes` does. Into a `BytesMut`, `bytes` picks
-  those methods by whether its capacity is zero, which is known while it holds bytes or
-  once it reserved or took any, and else until storage it shared grows or it takes a
-  `Bytes`'s: past that, `put` throws. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
+  one, into a `Vec<u8>` reads it through its methods as `bytes` does. Into a `BytesMut`
+  it is refused, as `bytes` picks those methods by its capacity, but for `bytes`' own, as
+  `Chain::copy_to_bytes` makes, each into a `BytesMut` it just made with a capacity,
+  which reads it chunk by chunk. The provided `copy_to_bytes` of the crate's own `Buf`, whose `BytesMut` has
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through

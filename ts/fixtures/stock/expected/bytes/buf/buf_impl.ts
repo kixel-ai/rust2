@@ -2622,31 +2622,6 @@ export function chunk$bytes_Buf_mut_ref_slice_u8(self: rt.Place<rt.ByteSlice>): 
  *
  * This function panics if `len > self.remaining()`.
  */
-export function copyToBytes$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(self: rt.Place<rt.Place<Buf.Buf>>, len: rt.usize): rt.ByteSlice {
-	return copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.v, len);
-}
-
-/**
- * Consumes `len` bytes inside self and returns new instance of `Bytes`
- * with this data.
- *
- * This function may be optimized by the underlying type to avoid actual
- * copies. For example, `Bytes` implementation will do a shallow copy
- * (ref-count increment).
- *
- * # Examples
- *
- * ```
- * use bytes::Buf;
- *
- * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
- * assert_eq!(&bytes[..], &b"hello"[..]);
- * ```
- *
- * # Panics
- *
- * This function panics if `len > self.remaining()`.
- */
 export function copyToBytes$bytes_Buf_mut_bytes_Bytes(self: rt.Place<rt.Place<rt.ByteSlice>>, len: rt.usize): rt.ByteSlice {
 	return rt.bytesSplitTo(self.v, len);
 }
@@ -2672,58 +2647,8 @@ export function copyToBytes$bytes_Buf_mut_bytes_Bytes(self: rt.Place<rt.Place<rt
  *
  * This function panics if `len > self.remaining()`.
  */
-export function copyToBytes$bytes_Buf_mut_bytes_BytesMut(self: rt.Place<rt.BytesMut>, len: rt.usize): rt.ByteSlice {
-	return rt.bytesMutFreeze(rt.bytesMutSplitTo(self.v, len));
-}
-
-/**
- * Consumes `len` bytes inside self and returns new instance of `Bytes`
- * with this data.
- *
- * This function may be optimized by the underlying type to avoid actual
- * copies. For example, `Bytes` implementation will do a shallow copy
- * (ref-count increment).
- *
- * # Examples
- *
- * ```
- * use bytes::Buf;
- *
- * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
- * assert_eq!(&bytes[..], &b"hello"[..]);
- * ```
- *
- * # Panics
- *
- * This function panics if `len > self.remaining()`.
- */
 export function copyToBytes$bytes_Buf_mut_dyn_bytes_Buf(self: rt.Place<Buf.Buf>, len: rt.usize): rt.ByteSlice {
 	return self.v.copyToBytes$Buf(len);
-}
-
-/**
- * Consumes `len` bytes inside self and returns new instance of `Bytes`
- * with this data.
- *
- * This function may be optimized by the underlying type to avoid actual
- * copies. For example, `Bytes` implementation will do a shallow copy
- * (ref-count increment).
- *
- * # Examples
- *
- * ```
- * use bytes::Buf;
- *
- * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
- * assert_eq!(&bytes[..], &b"hello"[..]);
- * ```
- *
- * # Panics
- *
- * This function panics if `len > self.remaining()`.
- */
-export function copyToBytes$bytes_Buf_mut_mut_ref_slice_u8(self: rt.Place<rt.Place<rt.Place<rt.ByteSlice>>>, len: rt.usize): rt.ByteSlice {
-	return copyToBytes$bytes_Buf_mut_ref_slice_u8(self.v, len);
 }
 
 /**

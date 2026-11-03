@@ -677,10 +677,17 @@ fn put<'tcx>(
 		let msg = format!("`BufMut::put` of `{ty}`, which is not supported");
 		return Some(b.err(call.span, msg));
 	}
-	// Through a `&mut`, `bytes` advances it by the room left in a `BytesMut`'s capacity.
-	if buffer == Buffer::BytesMut && through {
+	// Into a `BytesMut`, `bytes` calls its `copy_to_bytes` or its `chunk` and `advance` by
+	// whether the capacity is zero, and through a `&mut`, advances it by the room left. Its
+	// own `put`s, as `Chain::copy_to_bytes` makes, are each into a `BytesMut` it just made
+	// with a capacity that isn't zero, which reads it chunk by chunk.
+	if buffer == Buffer::BytesMut && (through || !in_bytes(tcx, call.span)) {
+		let how = match through {
+			true => "advances it by the room left in a capacity",
+			false => "picks the methods it calls by a capacity",
+		};
 		let msg = format!(
-			"`BufMut::put` of `{ty}` into a `BytesMut`, which advances it by the room left in a capacity that depends on whether the other handles of its storage dropped, which is not supported"
+			"`BufMut::put` of `{ty}` into a `BytesMut`, which {how} that depends on whether the other handles of its storage dropped, which is not supported"
 		);
 		return Some(b.err(call.span, msg));
 	}
@@ -693,17 +700,18 @@ fn put<'tcx>(
 	for name in ["has_remaining", "remaining", "chunk", "advance"] {
 		values.push(buf_method_mut(b, call, ty, name)?);
 	}
-	// Into a `BytesMut`, `bytes` calls its `copy_to_bytes` or its `chunk` and `advance` by
-	// whether the capacity is zero.
 	let f = match (buffer, through) {
-		(Buffer::BytesMut, _) => {
-			values.push(buf_method_mut(b, call, ty, "copy_to_bytes")?);
-			"bytesMutPutBuf"
-		}
+		(Buffer::BytesMut, _) => "bytesMutPutBuf",
 		(_, true) => "byteVecPutBufChunked",
 		(_, false) => "byteVecPutBuf",
 	};
 	Some(Expr::rt(f, values))
+}
+
+/// Whether `span` is in `bytes`' own source.
+fn in_bytes(tcx: TyCtxt<'_>, span: rustc_span::Span) -> bool {
+	let file = tcx.sess.source_map().lookup_source_file(span.lo());
+	file.cnum != rustc_hir::def_id::LOCAL_CRATE && tcx.crate_name(file.cnum).as_str() == "bytes"
 }
 
 /// `Buf::copy_to_bytes` as `bytes` provides it, of a buffer the mapping doesn't read: it
@@ -785,7 +793,7 @@ fn provided_get<'tcx>(
 /// `rt.Place` of one JS copies for a `&self` method.
 fn buf_method_mut<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, ty: Ty<'tcx>, name: &str) -> Option<Expr> {
 	let f = buf_method(b, call, ty, name)?;
-	if !b.t.needs_place(ty) || matches!(name, "advance" | "copy_to_slice" | "copy_to_bytes") {
+	if !b.t.needs_place(ty) || matches!(name, "advance" | "copy_to_slice") {
 		return Some(f);
 	}
 	let param = crate::ts::Param {

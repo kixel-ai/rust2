@@ -229,28 +229,6 @@ impl Buf for Provided {
 	}
 }
 
-/// Pieces whose `copy_to_bytes` gives zeros, so what `put` reads it by shows.
-struct Zeroes(Pieces);
-
-impl Buf for Zeroes {
-	fn remaining(&self) -> usize {
-		self.0.remaining()
-	}
-
-	fn chunk(&self) -> &[u8] {
-		self.0.chunk()
-	}
-
-	fn advance(&mut self, cnt: usize) {
-		self.0.advance(cnt);
-	}
-
-	fn copy_to_bytes(&mut self, len: usize) -> Bytes {
-		self.0.advance(len);
-		Bytes::from(vec![0; len])
-	}
-}
-
 /// The same reads off a `Bytes`, a `BytesMut`, a `&[u8]`, buffers in pieces, a `Take`, and
 /// each through the impl forwarding through a `&mut`: each scalar, and what remains.
 pub fn reads(data: &[u8], out: &mut Vec<u8>) {
@@ -403,37 +381,14 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 			_ => write_all(&mut boxed_buf, data, cap > 0),
 		}
 	}
-	// A buffer of the crate's own, chunk by chunk, through a `&mut` or a `Box` in chunks as
-	// long as the room `chunk_mut` gives.
+	// A buffer of the crate's own, in chunks as long as the room `chunk_mut` gives, and
+	// through a `&mut` to it, which it reads past.
 	let pieces = || Pieces::new(data, data.len() / 2);
-	vec.put(pieces());
-	buf.put(pieces());
+	let mut lent = pieces();
+	vec.put(&mut lent);
+	vec.put(&mut lent);
 	BufMut::put(&mut &mut through_vec, pieces());
-	BufMut::put(&mut boxed_vec, pieces());
-	// Into no capacity, `bytes` takes the storage of what `copy_to_bytes` makes, through the
-	// `&mut` it reads past, and into storage that holds any, which this shares, reads chunk
-	// by chunk.
-	let mut zeroes = Zeroes(pieces());
-	let mut taken = BytesMut::new();
-	taken.put(&mut zeroes);
-	taken.put(&mut zeroes);
-	taken.put(Zeroes(pieces()));
-	out.extend_from_slice(&taken);
-	// Emptied, it keeps the capacity it took, however much that is.
-	taken.clear();
-	taken.put(Zeroes(pieces()));
-	// Into storage that was shared: the front split off, and the rest, which has room or
-	// none.
-	let mut shared = BytesMut::with_capacity(cap);
-	shared.put_slice(&data[..data.len().min(cap) / 2]);
-	let mut head = shared.split_to(shared.len() / 2);
-	head.put(Zeroes(pieces()));
-	let mut rest = shared.split();
-	rest.put(Zeroes(pieces()));
-	shared.put(Zeroes(pieces()));
-	for buf in [&taken, &head, &rest, &shared] {
-		out.extend_from_slice(buf);
-	}
+	BufMut::put(&mut boxed_vec, &mut pieces());
 	for vec in [&vec, &through_vec, &boxed_vec] {
 		out.extend_from_slice(&(vec.capacity() as u32).to_le_bytes());
 	}
