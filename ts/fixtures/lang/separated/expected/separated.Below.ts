@@ -23,7 +23,7 @@ export function test(self: Below, b: rt.u8): boolean {
 	const _6: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(self.log);
 	rt.byteVecPush(_6.value, b);
 	rt.refMutRelease(_6);
-	return ((b as rt.u16)) < self.bound;
+	return (b as rt.u16) < self.bound;
 }
 
 export function drop$ops_Drop(self: Below): void {

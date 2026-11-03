@@ -30,7 +30,7 @@ export function new$tuple2_u8_Rc_unit(): Lock<[rt.u8, rt.Arc<undefined>]> {
 export function getOrInit$Rc_unit_statics_onces_closure6(self: Lock<rt.Arc<undefined>>, f: () => rt.Arc<undefined>): rt.Arc<undefined> {
 	let _14: boolean = false;
 	_14 = true;
-	if (!((self.once.v === true))) {
+	if (!(self.once.v === true)) {
 		const slot: rt.Place<rt.Arc<undefined>> = self.value;
 		_14 = false;
 		const captured = f;
@@ -50,7 +50,7 @@ export function getOrInit$Rc_unit_statics_onces_closure6(self: Lock<rt.Arc<undef
 export function getOrInit$Rc_unit_statics_onces_closure7(self: Lock<rt.Arc<undefined>>, f: () => rt.Arc<undefined>): rt.Arc<undefined> {
 	let _14: boolean = false;
 	_14 = true;
-	if (!((self.once.v === true))) {
+	if (!(self.once.v === true)) {
 		const slot: rt.Place<rt.Arc<undefined>> = self.value;
 		_14 = false;
 		const captured = f;
@@ -68,7 +68,7 @@ export function getOrInit$Rc_unit_statics_onces_closure7(self: Lock<rt.Arc<undef
 }
 
 export function getOrInit$statics_Collector_statics_onces_closure5(self: Lock<Collector.Collector>, f: () => Collector.Collector): Collector.Collector {
-	if (!((self.once.v === true))) {
+	if (!(self.once.v === true)) {
 		const slot: Collector.Collector = self.value.v;
 		const captured = f;
 		rt.onceCall(self.once, (): undefined => {
@@ -81,7 +81,7 @@ export function getOrInit$statics_Collector_statics_onces_closure5(self: Lock<Co
 export function getOrInit$tuple2_u8_Rc_unit_statics_onces_closure8(self: Lock<[rt.u8, rt.Arc<undefined>]>, f: () => [rt.u8, rt.Arc<undefined>]): [rt.u8, rt.Arc<undefined>] {
 	let _14: boolean = false;
 	_14 = true;
-	if (!((self.once.v === true))) {
+	if (!(self.once.v === true)) {
 		const slot: [rt.u8, rt.Arc<undefined>] = self.value.v;
 		_14 = false;
 		const captured = f;
@@ -102,7 +102,7 @@ export function getOrInit$tuple2_u8_Rc_unit_statics_onces_closure8(self: Lock<[r
 export function getOrInit$tuple2_u8_Rc_unit_statics_onces_closure9(self: Lock<[rt.u8, rt.Arc<undefined>]>, f: () => [rt.u8, rt.Arc<undefined>]): [rt.u8, rt.Arc<undefined>] {
 	let _14: boolean = false;
 	_14 = true;
-	if (!((self.once.v === true))) {
+	if (!(self.once.v === true)) {
 		const slot: [rt.u8, rt.Arc<undefined>] = self.value.v;
 		_14 = false;
 		const captured = f;

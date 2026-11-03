@@ -91,7 +91,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else if (_20 === 14) {
 				rt.bytesMutPutFill(buf, n & 0xff, rt.usizeRem(n, 9));
 			} else if (_20 === 15) {
-				if (!((buf.length === 0))) {
+				if (!(buf.length === 0)) {
 					const at: rt.usize = rt.usizeRem(n, buf.length);
 					const _136: rt.ByteSlice = rt.bytesMutView(buf);
 					rt.idx(_136, at);
@@ -461,19 +461,19 @@ export function read$bytes_Bytes(buf: rt.Place<rt.ByteSlice>, n: rt.usize): rt.u
 		return _3(part4);
 	}
 	if (_4 === 0) {
-		return ((rt.bytesReadWord(buf, 1, false) as rt.u8)) as rt.u128;
+		return (rt.bytesReadWord(buf, 1, false) as rt.u8) as rt.u128;
 	}
 	if (_4 === 1) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 1, false) << 24) >> 24 as rt.i8);
 	}
 	if (_4 === 2) {
-		return ((rt.bytesReadWord(buf, 2, false) as rt.u16)) as rt.u128;
+		return (rt.bytesReadWord(buf, 2, false) as rt.u16) as rt.u128;
 	}
 	if (_4 === 3) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 2, true) << 16) >> 16 as rt.i16);
 	}
 	if (_4 === 4) {
-		return ((rt.bytesReadWord(buf, 4, true) as rt.u32)) as rt.u128;
+		return (rt.bytesReadWord(buf, 4, true) as rt.u32) as rt.u128;
 	}
 	if (_4 === 5) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 4, false) | 0) as rt.i32);
@@ -569,19 +569,19 @@ export function read$bytes_BytesMut(buf: rt.BytesMut, n: rt.usize): rt.u128 {
 		return _3(part4);
 	}
 	if (_4 === 0) {
-		return ((rt.bytesMutReadWord(buf, 1, false) as rt.u8)) as rt.u128;
+		return (rt.bytesMutReadWord(buf, 1, false) as rt.u8) as rt.u128;
 	}
 	if (_4 === 1) {
 		return rt.u128Cast((rt.bytesMutReadWord(buf, 1, false) << 24) >> 24 as rt.i8);
 	}
 	if (_4 === 2) {
-		return ((rt.bytesMutReadWord(buf, 2, false) as rt.u16)) as rt.u128;
+		return (rt.bytesMutReadWord(buf, 2, false) as rt.u16) as rt.u128;
 	}
 	if (_4 === 3) {
 		return rt.u128Cast((rt.bytesMutReadWord(buf, 2, true) << 16) >> 16 as rt.i16);
 	}
 	if (_4 === 4) {
-		return ((rt.bytesMutReadWord(buf, 4, true) as rt.u32)) as rt.u128;
+		return (rt.bytesMutReadWord(buf, 4, true) as rt.u32) as rt.u128;
 	}
 	if (_4 === 5) {
 		return rt.u128Cast((rt.bytesMutReadWord(buf, 4, false) | 0) as rt.i32);
@@ -1873,19 +1873,19 @@ export function read$ref_slice_u8(buf: rt.Place<rt.ByteSlice>, n: rt.usize): rt.
 		return _3(part4);
 	}
 	if (_4 === 0) {
-		return ((rt.bytesReadWord(buf, 1, false) as rt.u8)) as rt.u128;
+		return (rt.bytesReadWord(buf, 1, false) as rt.u8) as rt.u128;
 	}
 	if (_4 === 1) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 1, false) << 24) >> 24 as rt.i8);
 	}
 	if (_4 === 2) {
-		return ((rt.bytesReadWord(buf, 2, false) as rt.u16)) as rt.u128;
+		return (rt.bytesReadWord(buf, 2, false) as rt.u16) as rt.u128;
 	}
 	if (_4 === 3) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 2, true) << 16) >> 16 as rt.i16);
 	}
 	if (_4 === 4) {
-		return ((rt.bytesReadWord(buf, 4, true) as rt.u32)) as rt.u128;
+		return (rt.bytesReadWord(buf, 4, true) as rt.u32) as rt.u128;
 	}
 	if (_4 === 5) {
 		return rt.u128Cast((rt.bytesReadWord(buf, 4, false) | 0) as rt.i32);
@@ -2438,7 +2438,7 @@ export function writes(dataData: Uint8Array, dataStart: number, dataLen: number,
 		rt.byteVecPush(out, rt.eqBytes(boxedVec, throughVec) ? 1 : 0);
 		rt.byteVecPush(out, rt.byteSliceEq(rt.bytesMutView(boxedBuf), rt.bytesMutView(throughBuf)) ? 1 : 0);
 		rt.byteVecPush(out, rt.byteSliceEq(rt.byteVecSlice(vec), rt.bytesMutView(buf)) ? 1 : 0);
-		rt.byteVecPush(out, ((0x7fffffff - vec.length as rt.usize)) === 0x7fffffff - buf.length as rt.usize ? 1 : 0);
+		rt.byteVecPush(out, (0x7fffffff - vec.length as rt.usize) === 0x7fffffff - buf.length as rt.usize ? 1 : 0);
 		rt.byteVecPush(out, buf.length < 0x7fffffff ? 1 : 0);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(vec));
 	}
@@ -2518,7 +2518,7 @@ export function writeAll$Vec_u8(buf: rt.ByteVec, dataData: Uint8Array, dataStart
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.byteVecPutInt(buf, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.byteVecPutBytes(buf, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_Vec_u8(buf), 7) & 0xff);
@@ -2600,7 +2600,7 @@ export function writeAll$boxed_Box_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: U
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8(buf), 7) & 0xff);
@@ -2682,7 +2682,7 @@ export function writeAll$boxed_Box_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, da
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut(buf), 7) & 0xff);
@@ -2764,7 +2764,7 @@ export function writeAll$bytes_BytesMut(buf: rt.BytesMut, dataData: Uint8Array, 
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.bytesMutPutInt(buf, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutBytes(buf, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.bytesMutPutBytes(buf, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_bytes_BytesMut(buf), 7) & 0xff);
@@ -2846,7 +2846,7 @@ export function writeAll$mut_Vec_u8(buf: rt.Place<rt.ByteVec>, dataData: Uint8Ar
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.byteVecPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.byteVecPutBytes(buf.v, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_Vec_u8(buf), 7) & 0xff);
@@ -2928,7 +2928,7 @@ export function writeAll$mut_bytes_BytesMut(buf: rt.Place<rt.BytesMut>, dataData
 				const _65: rt.usize = rt.usizeRem(n2 as rt.usize, 10);
 				rt.bytesMutPutInt(buf.v, rt.u64ToBeBytes(v), _65, true);
 			} else {
-				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes(((n2 as rt.f64)) / 3.0), false);
+				rt.bytesMutPutBytes(buf.v, rt.f64ToBeBytes((n2 as rt.f64) / 3.0), false);
 			}
 		}
 		const _71: rt.u8 = rt.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rt.usizeRem(remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut(buf), 7) & 0xff);

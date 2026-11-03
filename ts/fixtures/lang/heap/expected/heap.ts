@@ -70,7 +70,7 @@ export function spills(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _26: rt.Arc<rt.u8> = rt.arcClone(shared);
 			rt.resultUnwrap(Spill.push$sync_Arc_u8(arcs, _26), (value: Fault.Fault, f: rt.Formatter) => Fault.fmt$fmt_Debug(value, f));
 		} else if (_17 === 2) {
-			const _30: [rt.u8, rt.u16] | undefined = thenSome$0j2n934((b & 8) !== 0, [b, (((b as rt.u16)) << 4) & 0xffff] as [rt.u8, rt.u16]);
+			const _30: [rt.u8, rt.u16] | undefined = thenSome$0j2n934((b & 8) !== 0, [b, ((b as rt.u16) << 4) & 0xffff] as [rt.u8, rt.u16]);
 			rt.resultUnwrap(Spill.push$Option_tuple2_u8_u16(pairs, _30), (value: Fault.Fault, f: rt.Formatter) => Fault.fmt$fmt_Debug(value, f));
 		} else {
 			const cap: rt.usize = rt.usizeAdd(rt.usizeRem(b >> 2 as rt.usize, 5), 1);
@@ -111,7 +111,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		const i: rt.usize = _16[0];
 		const b: rt.u8 = _16[1];
-		rt.ptrAdd(slots, i).v = (((((b as rt.u32)) << 8) >>> 0) | 1) >>> 0;
+		rt.ptrAdd(slots, i).v = ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rt.Place<rt.u32> = slots;
 	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.ptrSlice(words, data.length)), (x: rt.u32): Uint8Array => {

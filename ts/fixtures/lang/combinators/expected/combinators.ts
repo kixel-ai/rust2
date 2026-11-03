@@ -72,7 +72,7 @@ export function options(a: rt.u8 | undefined, b: rt.u8 | undefined, limit: rt.u8
 	}) !== undefined ? 1 : 0);
 	push(result_map$132mdj8(option_okOrElse$1v98j0a(b, (): rt.u16 => {
 		rt.byteVecPush(out, 167);
-		return (((limit as rt.u16)) << 1) & 0xffff;
+		return ((limit as rt.u16) << 1) & 0xffff;
 	}), (x10: rt.u8): rt.u8 => {
 		return x10 ^ limit;
 	}), out);

@@ -275,7 +275,7 @@ export function readLeadingOnes(bufData: Uint8Array, bufStart: number, bufLen: n
 			}
 		} else if (_9 === 4) {
 			if (bufLen >= 5) {
-				_8_0 = fromHalves(((bufData[bufStart] & 7)) as rt.u32, ((bufData[bufStart + 1] << 24) | (bufData[bufStart + 2] << 16) | (bufData[bufStart + 3] << 8) | bufData[bufStart + 4]) >>> 0);
+				_8_0 = fromHalves((bufData[bufStart] & 7) as rt.u32, ((bufData[bufStart + 1] << 24) | (bufData[bufStart + 2] << 16) | (bufData[bufStart + 3] << 8) | bufData[bufStart + 4]) >>> 0);
 				_8_1Data = bufData;
 				_8_1Start = bufStart + 5;
 				_8_1Len = bufLen - 5;

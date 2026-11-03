@@ -53,7 +53,7 @@ export interface Named {
 function new_(s: string, id: rt.u8): Named {
 	let name!: string;
 	const trimmed: string = rt.strTrimEndMatches(s, "/");
-	if (!((trimmed.length === 0))) {
+	if (!(trimmed.length === 0)) {
 		name = trimmed;
 	} else {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(id, f)];
