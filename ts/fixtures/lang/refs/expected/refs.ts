@@ -1388,8 +1388,8 @@ export function parity(b: rt.u8): rt.u8 | undefined {
 
 /**
  * A `&mut` to a `Vec`, an `Option`, or a `Result` of bytes that an adaptor is given,
- * beside items of no places, lends each element as its place to write through. One a
- * consumer is given compares as values.
+ * beside items of no places or an empty iterator, lends each element as its place to write
+ * through. One a consumer is given compares as values.
  */
 export function adapted(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const v: rt.ByteVec = rt.byteSliceToByteVec(data);
@@ -1439,6 +1439,50 @@ export function adapted(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		_76.v = rt.u8WrappingAdd(_76.v, 5);
 	}
+	rt.iterEmpty();
+	const _84: rt.Iter<rt.Place<rt.u8>> = rt.iterChain(rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>, rt.iterSliceMut(rt.byteVecView(v)));
+	rt.iterEmpty();
+	const iter6: rt.Iter<rt.Place<rt.u8>> = rt.iterChain(_84, rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>);
+	while (true) {
+		const _89: rt.Place<rt.u8> | rt.Done = iter6.next();
+		if (_89 === rt.DONE) {
+			break;
+		}
+		_89.v = rt.intRotateLeft(_89.v, 3, 8, false);
+	}
+	const _97: rt.Iter<rt.Place<rt.u8>> = rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(v)));
+	rt.iterEmpty();
+	const iter7: rt.Iter<[rt.Place<rt.u8>, rt.Place<rt.u8>]> = rt.iterZip(_97, rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>, "len");
+	while (true) {
+		const _102: [rt.Place<rt.u8>, rt.Place<rt.u8>] | rt.Done = iter7.next();
+		if (_102 === rt.DONE) {
+			break;
+		}
+		const swapped2 = _102[0].v;
+		_102[0].v = _102[1].v;
+		_102[1].v = swapped2;
+	}
+	rt.iterEmpty();
+	const iter8: rt.Iter<[rt.Place<rt.u8>, rt.Place<rt.u8>]> = rt.iterZip(rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>, rt.iterOption(rt.optionAsMut(rt.place(() => opt, (value7) => opt = value7))), "len");
+	while (true) {
+		const _113: [rt.Place<rt.u8>, rt.Place<rt.u8>] | rt.Done = iter8.next();
+		if (_113 === rt.DONE) {
+			break;
+		}
+		_113[0].v = _113[0].v ^ _113[1].v;
+		_113[1].v = 0;
+	}
+	const lists: rt.Iter<rt.Place<rt.u8>> = rt.listIter(rt.listNew());
+	const owned: rt.Iter<rt.Place<rt.u8>> = rt.listIter(rt.listNew());
+	rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>;
+	const iter9: rt.Iter<rt.Place<rt.u8>> = rt.iterChain(rt.iterChain(rt.iterChain(rt.iterEmpty() as rt.Iter<rt.Place<rt.u8>>, rt.iterSliceMut(rt.byteVecView(v))), lists), owned);
+	while (true) {
+		const _128: rt.Place<rt.u8> | rt.Done = iter9.next();
+		if (_128 === rt.DONE) {
+			break;
+		}
+		_128.v = rt.u8WrappingSub(_128.v, 1);
+	}
 	rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(v)), undefined, true);
 	rt.iterExtendBytes(out, rt.iterOption(opt), undefined, true);
 	rt.iterExtendBytes(out, rt.iterChain(rt.iterResult(res), rt.iterOption(err$1nqzzwu(asRef$0ssaoss(res)))), undefined, true);
@@ -1446,10 +1490,10 @@ export function adapted(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let other: rt.u8 | undefined = option_map$0cs071d(opt, (x: rt.u8): rt.u8 => {
 		return x ^ 1;
 	});
-	const _114: boolean = rt.iterEq(rt.iterOption(opt), rt.iterOption(rt.optionAsMut(rt.place(() => other, (value7) => other = value7))), (a04: rt.u8, a14: rt.Place<rt.u8>): boolean => {
+	const _166: boolean = rt.iterEq(rt.iterOption(opt), rt.iterOption(rt.optionAsMut(rt.place(() => other, (value8) => other = value8))), (a04: rt.u8, a14: rt.Place<rt.u8>): boolean => {
 		return a04 === a14.v;
 	}, true);
-	const _118: boolean = rt.iterEq(rt.iterResult(res), rt.iterOption(rt.optionAsMut(rt.place(() => opt, (value8) => opt = value8))), (a05: rt.u8, a15: rt.Place<rt.u8>): boolean => {
+	const _170: boolean = rt.iterEq(rt.iterResult(res), rt.iterOption(rt.optionAsMut(rt.place(() => opt, (value9) => opt = value9))), (a05: rt.u8, a15: rt.Place<rt.u8>): boolean => {
 		return a05 === a15.v;
 	}, true);
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.iterEq(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(copy))), rt.iterSliceMut(rt.byteVecView(v)), (a0: rt.u8, a1: rt.Place<rt.u8>): boolean => {
@@ -1458,7 +1502,7 @@ export function adapted(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return a02 === a12.v;
 	}, true), rt.iterEq(rt.iterSkip(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(copy))), 1), rt.iterSliceMut(rt.byteVecView(v)), (a03: rt.u8, a13: rt.Place<rt.u8>): boolean => {
 		return a03 === a13.v;
-	}, true), _114, _118, !rt.iterEq(rt.iterSlice(rt.byteSliceView(data)), rt.iterOption(rt.resultAsMut(rt.place(() => res, (value9) => res = value9))), (a06: rt.u8, a16: rt.Place<rt.u8>): boolean => {
+	}, true), _166, _170, !rt.iterEq(rt.iterSlice(rt.byteSliceView(data)), rt.iterOption(rt.resultAsMut(rt.place(() => res, (value10) => res = value10))), (a06: rt.u8, a16: rt.Place<rt.u8>): boolean => {
 		return a06 === a16.v;
 	}, true)], (a07: boolean): rt.u8 => {
 		return a07 ? 1 : 0;
