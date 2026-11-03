@@ -516,6 +516,11 @@ pub fn call<'tcx>(
 			let value = args.pop()?;
 			return into_iter(b, targ(0)?, value, span);
 		}
+		// The `&mut` it was given, an `rt.Place` where that points at a `&mut`.
+		("Iterator", "by_ref") => {
+			not_bound(b, targ(0)?, span);
+			return args.pop();
+		}
 		_ => {}
 	}
 	match path.as_slice() {
@@ -607,11 +612,6 @@ pub fn call<'tcx>(
 		};
 		return Some(Expr::rt("iterToOption", [item].into_iter().chain(none).collect()));
 	}
-	// The same object, borrowed.
-	if name == "by_ref" {
-		return Some(recv);
-	}
-
 	let recv = into_iter(b, iter_ty, recv, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
