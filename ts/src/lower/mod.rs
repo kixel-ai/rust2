@@ -248,7 +248,7 @@ pub struct Translator<'a, 'tcx> {
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// The trait of each trait object, by its principal trait.
-	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object>,
+	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object<'tcx>>,
 	/// The class wrapping each type, held each way, as every trait object.
 	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, dynamic::Held), dynamic::Class>,
 	/// The trait method each of those classes' methods calls, by class and name.
@@ -1507,7 +1507,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			ty::Dynamic(..) if let Some(f) = self.dyn_fn(ty) => self.fn_ty(&f.inputs, f.output, span),
 			ty::Dynamic(..) => match self.object(ty, span) {
-				Some(object) => Type::Sym(object.sym, Vec::new()),
+				Some(sym) => Type::Sym(sym, Vec::new()),
 				None => Type::Builtin("unknown"),
 			},
 			_ if self.deferred(ty) => Type::Builtin("unknown"),
