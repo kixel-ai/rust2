@@ -26,16 +26,16 @@ export function cases(): Array<(a0: rt.ByteSlice, a1: rt.ByteVec) => undefined> 
 		decodeScript(a0.data, a0.start, a0.length, a1);
 	}, (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		encodeScript(a02.data, a02.start, a02.length, a12);
-	}, zigzag as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, sizes as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, (a05: rt.ByteSlice, a15: rt.ByteVec): undefined => {
-		roundtrip$coding_version_Versions(a05.data, a05.start, a05.length, a15);
+	}, zigzag as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, sizes as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, (a03: rt.ByteSlice, a13: rt.ByteVec): undefined => {
+		roundtrip$coding_version_Versions(a03.data, a03.start, a03.length, a13);
+	}, (a04: rt.ByteSlice, a14: rt.ByteVec): undefined => {
+		roundtripLite$lite_group_Group(a04.data, a04.start, a04.length, a14);
+	}, (a05: rt.ByteSlice, a15: rt.ByteVec): undefined => {
+		roundtripLite$lite_probe_Probe(a05.data, a05.start, a05.length, a15);
 	}, (a06: rt.ByteSlice, a16: rt.ByteVec): undefined => {
-		roundtripLite$lite_group_Group(a06.data, a06.start, a06.length, a16);
+		encodeMessages(a06.data, a06.start, a06.length, a16);
 	}, (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
-		roundtripLite$lite_probe_Probe(a07.data, a07.start, a07.length, a17);
-	}, (a08: rt.ByteSlice, a18: rt.ByteVec): undefined => {
-		encodeMessages(a08.data, a08.start, a08.length, a18);
-	}, (a09: rt.ByteSlice, a19: rt.ByteVec): undefined => {
-		errors(a09.data, a09.start, a09.length, a19);
+		errors(a07.data, a07.start, a07.length, a17);
 	}];
 }
 

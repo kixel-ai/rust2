@@ -730,6 +730,18 @@ void closedObjects() {
   closed(() => api.Board([('open', open), ('closed', c)]), 'Counter', 'a closed object in a tuple');
   check(open.get() == 3, 'a call that throws moves none of its other arguments');
 
+  // Nor gives Rust an implementation beside an argument that throws, which would keep it
+  // unclosed and force each later call through a thread of its own.
+  check(api.onFirstThread(), 'a call while Rust holds no implementation');
+  final spared = CountLog();
+  throws<RangeError>(() => api.logCounts(spared, 256, open, []), 'an integer out of range after an implementation');
+  closed(() => api.logCounts(spared, 0, c, []), 'Counter', 'a closed object after an implementation');
+  closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
+  check(spared.closes == 0, 'a call that throws gives Rust no implementation');
+  check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
+  check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
+  check(spared.lines == 1 && spared.closes == 1, 'an implementation given once is closed once');
+
   // An async call.
   final channel = api.Channel();
   channel.close();

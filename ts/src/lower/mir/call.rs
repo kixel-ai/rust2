@@ -63,10 +63,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let self_ty = gargs.skip_binder().type_at(0);
 				let (iter_ty, recv) = match args[0].node.place() {
 					// Through std's `Iterator` for `&mut I` and `Box<I>`: what the last `&mut`
-					// points at, read through the `rt.Place` of each `&mut` to a `&mut` before it.
-					Some(p) if self_ty.is_ref() || crate::lower::iter::through_mut(self_ty) => {
+					// points at, read through each reference and box before it.
+					Some(p) if self_ty.is_ref() || self_ty.boxed_ty().is_some() => {
 						let value = self.place_expr(tcx.mk_place_deref(p), span, &mut pre);
-						let (last, value) = crate::lower::iter::peel_mut(self_ty, value);
+						let (last, value) = crate::lower::iter::peel_iter(self.b, self_ty, value);
 						(last.builtin_deref(true).unwrap_or(last), value)
 					}
 					_ => (self_ty, self.operand_frozen(&args[0].node, span, &mut pre)),
@@ -260,7 +260,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 			};
 			if let ty::FnDef(inner, inner_args) = *callee_ty.peel_refs().kind() {
-				return self.b.call_def(inner, inner_args.skip_binder(), values, span, out);
+				let inner_args = inner_args.skip_binder();
+				// std's that takes a `&mut` is called as its value, which lowers the call as a
+				// written one does, given the `&mut`s as they are passed.
+				if self.b.t.mapped(inner, inner_args)
+					&& !matches!(tcx.def_kind(inner), rustc_hir::def::DefKind::Ctor(..))
+					&& (self.b.t.sig(inner, inner_args).inputs().iter())
+						.any(|i| matches!(i.kind(), ty::Ref(_, _, rustc_ast::Mutability::Mut)))
+				{
+					return self.b.fn_value(inner, inner_args, span).call(values);
+				}
+				return self.b.call_def(inner, inner_args, values, span, out);
 			}
 			// A `&mut` to a function JS copies, such as a box of one, or to a reference to one, as
 			// std's impls for a `&mut` and a box forward through, is its place: call what is
@@ -371,8 +381,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// Mappings that lend an element JS copies as its place, as a map's `get_mut` does, the
 		// item a `Peekable` peeked, the place a `&mut dyn Any` wraps, a `RefCell` key's value,
 		// a `Result`'s payload, the value of an `Arc`, a lock, or a cell, what a write guard
-		// lends its map or its leak, or what `zip` makes of the collection it is given by
-		// `into_iter`, as the free `zip` does of either.
+		// lends its map or its leak, the `&mut` an iterator's `by_ref` is given, or what `zip`
+		// makes of the collection it is given by `into_iter`, as the free `zip` does of either.
 		let lends = match library::key(tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("slice", "get_mut" | "first_mut" | "last_mut" | "iter_mut" | "split_first_mut" | "split_last_mut")
@@ -385,7 +395,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ("Mutex" | "RwLock" | "RefCell" | "OnceCell" | "OnceLock", "get_mut")
 				| ("RefMut", "leak")
 				| ("RefCell", "undo_leak" | "replace_with")
-				| ("Iterator", "scan")
+				| ("Iterator", "by_ref" | "scan")
 				| (
 					"RefMut" | "MutexGuard" | "MappedMutexGuard" | "RwLockWriteGuard" | "MappedRwLockWriteGuard",
 					"map" | "filter_map" | "try_map" | "map_split",
@@ -614,9 +624,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				);
 				done(next, true)
 			}
-			// A JS string can't change in place, so what the `&mut` borrows gets a new one.
+			// A JS string can't change in place, so what the `&mut` borrows gets a new one. A
+			// `Cow<str>` is its text, as a `String` is.
 			("String", "push" | "push_str") | ("AddAssign", "add_assign")
-				if owner == "String" || targ(0).is_some_and(|t| self.b.t.std_of(t) == Some(Std::String)) =>
+				if owner == "String"
+					|| (targ(0).is_some_and(|t| library::string(tcx, t)) && !self.b.t.translated(def_id, gargs)) =>
 			{
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let text = self.operand(&args[1].node, span, out);
@@ -659,16 +671,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(Expr::rt("stringReserve", values), true)
 			}
 			("String", "shrink_to_fit" | "shrink_to") => done(Expr::undefined(), false),
-			("String", "retain") if targ(0).is_some_and(|f| self.b.t.drops(f)) => {
-				let f = targ(0)?;
-				done(
-					self.err(
-						span,
-						format!("passing `{f}`, which drops, to `String::{name}`, which is not supported yet"),
-					),
-					false,
-				)
-			}
 			// The edited string, from the runtime with what it takes after the string.
 			(
 				"String",
@@ -682,9 +684,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let c = values.pop()?;
 					values.push(library::char_text(c));
 				}
+				// `retain` drops a closure it owns as it returns, after the edit.
+				let mut spent = None;
 				if name == "retain" {
 					let f = std::mem::replace(&mut values[1], Expr::undefined());
-					values[1] = library::called_through(self.b.t, targ(0)?, Some(f)).2?;
+					let (owned, lent, f) = library::called_through(self.b.t, targ(0)?, Some(f));
+					let mut f = f?;
+					if !lent && self.b.t.drops(owned) {
+						f = self.path(f, "f", out);
+						spent = self.b.t.drop_value(f.clone(), owned, span);
+					}
+					values[1] = f;
 				}
 				// A range std reads the bounds of, as `bounds` makes any `RangeBounds` one.
 				if matches!(name.as_str(), "replace_range" | "extend_from_within") {
@@ -706,6 +716,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => Expr::rt("stringExtendFromWithin", values),
 				};
 				self.set_borrowed(&place, edited, span, out);
+				out.extend(spent.map(|drop| StmtKind::Expr(drop).at(None)));
 				done(Expr::undefined(), false)
 			}
 			// The runtime gives the edited string and what the edit returns.

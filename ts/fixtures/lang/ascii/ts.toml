@@ -1,0 +1,2 @@
+package = "lang-ascii-fixture"
+roots = ["harness::run", "harness::op"]

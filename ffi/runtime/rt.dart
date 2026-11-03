@@ -456,8 +456,7 @@ final class _Native {
 
   /// `implementation` given to Rust through `tables`, until Rust drops it, which calls its
   /// `close`.
-  void give(
-    _Callback dst,
+  _Callback give(
     (ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, String) tables,
     Object implementation,
     void Function() close,
@@ -472,8 +471,9 @@ final class _Native {
         abort('${tables.$3}::close', e, s);
       }
     };
-    dst.vtable = tables.$1;
-    dst.data = _dartRelay(home, tables.$2, token);
+    return ffi.Struct.create<_Callback>()
+      ..vtable = tables.$1
+      ..data = _dartRelay(home, tables.$2, token);
   }
 
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.

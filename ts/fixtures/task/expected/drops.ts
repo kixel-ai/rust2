@@ -16,6 +16,7 @@ import { run as lists_run } from "./drops/lists.ts";
 import { boxed as objects_boxed, shared, anys, fns } from "./drops/objects.ts";
 import { run as once_run } from "./drops/once.ts";
 import { released as released_released } from "./drops/released.ts";
+import { searched as searched_searched } from "./drops/searched.ts";
 import * as Held from "./drops.Held.ts";
 import * as Key from "./drops.Key.ts";
 import * as Named from "./drops.Named.ts";
@@ -1318,6 +1319,11 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
  */
 export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	released_released(log, id, arg);
+}
+
+/** Run scenario `arg % 3` of where std drops a closure given to a string's search or edit. */
+export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	searched_searched(log, id, arg);
 }
 
 /** Run scenario `arg % 9` of what std's comparisons of iterators drop. */

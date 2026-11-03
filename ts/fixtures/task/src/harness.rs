@@ -177,6 +177,9 @@ fn steps() -> Vec<(&'static str, Step)> {
 				exec.spawn(closures::closures(channels[c].consumer(), guard));
 			}
 		}),
+		("searched", |log, exec, _, arg| {
+			drops::searched(log, 1000 * exec.len() as u32, arg)
+		}),
 	]
 }
 

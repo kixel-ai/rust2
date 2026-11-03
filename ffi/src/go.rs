@@ -59,7 +59,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, 
 		// built with {p}.h, through CGO_LDFLAGS.\n\
 		package {p}\n\n\
 		/*\n#cgo CFLAGS: -I${{SRCDIR}}/../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
-		extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n"
+		extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
+		static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n"
 	);
 	for decl in &g.decls {
 		out.push_str(decl);
@@ -67,11 +68,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, 
 	}
 	let _ = write!(
 		out,
-		"*/\nimport \"C\"\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
+		"*/\nimport \"C\"\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
 		// The runtime's names for the export's C types and functions.\n\
 		type (\n\tcBuf      = C.{p}_buf\n\tcWaker    = C.{p}_waker\n\tcDuration = C.{p}_duration\n\tcAddr     = C.{p}_socket_addr\n)\n\n\
 		var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
 		func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
+		// cBufsFree frees bufs, which are not empty, in one call.\n\
+		func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 		// A Go file and a library from different builds must not mix: checked when the package\n\
 		// loads, before any other call.\n\
 		func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"{p}.go and the library are from different builds\")\n\t}}\n}}\n\n\
@@ -1785,6 +1788,7 @@ fn local(name: &str) -> String {
 		"netip",
 		"runtime",
 		"strconv",
+		"sync",
 		"atomic",
 		"time",
 		"unsafe",

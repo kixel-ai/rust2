@@ -1,4 +1,4 @@
 # The census's: no roots, so every item is one.
 package = "reject-fixture"
 roots = []
-printable = ["Meters"]
+printable = ["config::Meters"]

@@ -1,1 +1,1 @@
-`alike::one::<fmt::Error>` and `alike::one::<std::fmt::Error>` would both be named `one$alike_fmt_Error` in lib.ts at fixtures/crates/src/lib.rs:18:2
+fixtures/crates/src/lib.rs:alike+1:2: `alike::one::<fmt::Error>` and `alike::one::<std::fmt::Error>` would both be named `one$alike_fmt_Error` in lib.ts

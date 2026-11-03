@@ -194,7 +194,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Whether `instance` is a call through a trait object's method, whose wrapper takes
 	/// its arguments as the crate's functions do. A `&dyn Debug` or `&dyn Display` is a
-	/// function writing its value instead, and a `dyn Future` an `rt.Future`.
+	/// function writing its value instead, a `dyn Future` an `rt.Future`, and a
+	/// `dyn Iterator` an `rt.Iter`.
 	pub fn dispatches(&self, instance: Instance<'tcx>) -> bool {
 		let ty::InstanceKind::Virtual(..) = instance.def else {
 			return false;
@@ -204,6 +205,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return false;
 		};
 		self.dyn_future(object).is_none()
+			&& self.dyn_iter(object).is_none()
 			&& self.dyn_fn(object).is_none()
 			&& preds
 				.principal_def_id()

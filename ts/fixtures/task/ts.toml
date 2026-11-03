@@ -24,6 +24,7 @@ roots = [
     "drops::released",
     "drops::compared",
     "drops::lists",
+    "drops::searched",
     "futures::helpers",
     "futures::boxed",
     "futures::wakers",

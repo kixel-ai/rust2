@@ -64,6 +64,7 @@ export interface Fixture<V> {
 		indexed(log: Log, id: number, arg: number): void;
 		compared(log: Log, id: number, arg: number): void;
 		lists(log: Log, id: number, arg: number): void;
+		searched(log: Log, id: number, arg: number): void;
 	};
 	futures: {
 		helpers(rx: Consumer, guard: Guard): Future<V>;
@@ -346,6 +347,7 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 			if (c !== undefined) r.exec.spawn(r.f.closures.closures(r.f.Channel.consumer(r.channels[c]), guard(r)));
 		},
 	],
+	["searched", (r, arg) => r.f.drops.searched(r.log, 1000 * r.exec.tasks.length, arg)],
 ];
 
 /** The script runner, as `harness.rs` runs it natively. */
@@ -445,6 +447,8 @@ export const cases: Uint8Array[] = [
 	...Array.from({ length: 9 }, (_, arg) => script(["compared", arg])),
 	// What a `LinkedList` drops, and when.
 	...Array.from({ length: 8 }, (_, arg) => script(["lists", arg])),
+	// Where std drops a closure given to a string's search or edit.
+	...Array.from({ length: 3 }, (_, arg) => script(["searched", arg])),
 	// Wakers' identities, as kio's `Polling` keeps one: a task's own across its polls, then
 	// another task's in between.
 	script(["open", 0], ["wakers", 0], ["run", 0], ["send", 3], ["run", 0], ["close", 0], ["run", 0]),

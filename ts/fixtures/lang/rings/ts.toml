@@ -1,0 +1,2 @@
+package = "lang-rings-fixture"
+roots = ["harness::run", "harness::op"]

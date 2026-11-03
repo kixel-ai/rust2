@@ -10,6 +10,10 @@ import * as Wrap from "./drops.Wrap.ts";
 import type * as Guard from "./model.Guard.ts";
 import type * as Tally from "./model.Tally.ts";
 
+export function copy$array_u32(v: rt.u32[]): rt.u32[] {
+	return v.slice();
+}
+
 export function copy$model_Tally(v: Tally.Tally): Tally.Tally {
 	return { n: v.n };
 }
@@ -75,6 +79,12 @@ export function drop$Result_boxed_Box_model_Guard_boxed_Box_dyn_Any(_1: rt.Resul
 		_1.value[Symbol.dispose]();
 	} else {
 		rt.drop(_1.error);
+	}
+}
+
+export function drop$Result_cell_Ref_u32_cell_BorrowError(_1: rt.Result<rt.RefCell<rt.u32>, rt.BorrowError>): void {
+	if (_1.ok) {
+		rt.refRelease(_1.value);
 	}
 }
 
