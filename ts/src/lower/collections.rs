@@ -1971,6 +1971,29 @@ pub fn tuple_extend<'tcx>(
 	Some(Expr::rt(f, [vec![target], rest].concat()))
 }
 
+/// `Iterator::partition` of `items`, an iterator of `item`s, by `f`, into two defaults of
+/// `coll`, as std's makes them, each extended as a tuple's `Extend` extends it: `flags` say
+/// whether the iterator drops and whether `f` drops as its fold ends.
+pub fn partition<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	coll: Ty<'tcx>,
+	item: Ty<'tcx>,
+	items: Expr,
+	f: Expr,
+	flags: Vec<Expr>,
+	span: Span,
+) -> Option<Expr> {
+	let part = part(b, coll, item, span)?;
+	let left = default(b, coll, span)?;
+	let left = empty(b, left, coll, span);
+	let right = default(b, coll, span)?;
+	let right = empty(b, right, coll, span);
+	Some(Expr::rt(
+		"iterPartition",
+		super::iter::tail(vec![items, f, Expr::Array(vec![left, right]), part], flags),
+	))
+}
+
 /// The `rt.Part` a tuple's `Extend` adds `item`s to a collection of type `coll` by, or to a
 /// tuple of them, which is one too: `None` for any other.
 fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: Span) -> Option<Expr> {

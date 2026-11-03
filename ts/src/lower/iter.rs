@@ -834,6 +834,7 @@ pub fn call<'tcx>(
 			let none = b.t.none_arg(targ(0)?);
 			return Some(Expr::rt("iterFromFn", [args, none.into_iter().collect()].concat()));
 		}
+		["iter", "sources", "repeat_with", "repeat_with"] => return Some(Expr::rt("iterRepeatWith", args)),
 		// What drops the item it holds next.
 		["iter", "sources", "successors", "successors"] => {
 			let droppers = [b.t.dropper(targ(0)?, span)].into_iter().chain(b.t.none_arg(targ(0)?));
@@ -964,15 +965,31 @@ pub fn call<'tcx>(
 			let owns = flag(b.t.drops(targ(gargs.types().count() - 1)?));
 			method(&camel, tail(rest, vec![drops, owns]))
 		}
-		// `try_rfold::<B, F, R>`, which drops its closure as it returns, but not the
-		// iterator, which it borrows.
-		"try_rfold" => {
-			let (option, none) = try_flow(b, targ(3)?)?;
-			let owns = flag(b.t.drops(targ(2)?));
+		// `try_fold::<B, F, R>` and `try_for_each::<F, R>`, which drop their closure as they
+		// return, but not the iterator, which they borrow.
+		"try_fold" | "try_rfold" | "try_for_each" => {
+			let n = gargs.types().count();
+			let (option, none) = try_flow(b, targ(n - 1)?)?;
+			let owns = flag(b.t.drops(targ(n - 2)?));
 			method(
 				&camel,
 				tail(rest, [flag(option), owns].into_iter().chain(none).collect()),
 			)
+		}
+		// `partition::<B, F>`, into two of `B`'s defaults.
+		"partition" => {
+			let f = rest.into_iter().next()?;
+			let flags = vec![iter_drops(b, self_ty, span), flag(b.t.drops(targ(2)?))];
+			super::collections::partition(b, targ(1)?, item, recv.clone(), f, flags, span)
+		}
+		// `scan::<St, B, F>`, whose state is lent as its place where JS copies it, and drops
+		// after the closure.
+		"scan" => {
+			let state = targ(1)?;
+			let copied = flag(b.t.needs_place(state));
+			let dropper = b.t.dropper(state, span);
+			let none = b.t.none_arg(targ(2)?);
+			method(name, tail(rest, [copied, dropper].into_iter().chain(none).collect()))
 		}
 		// std's `Sum` and `Product` are of the type or a reference to it: another is the crate's.
 		"sum" | "product" if item.peel_refs() != targ(1)? => None,
@@ -1544,7 +1561,9 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			_,
 			"Map" | "Filter" | "FilterMap" | "SkipWhile" | "TakeWhile" | "MapWhile" | "Inspect"
 		] | ["iter", "adapters", "flatten", "FlatMap"]
+			| ["iter", "adapters", "scan", "Scan"]
 			| ["iter", "sources", "from_fn", "FromFn"]
+			| ["iter", "sources", "repeat_with", "RepeatWith"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
 			| [

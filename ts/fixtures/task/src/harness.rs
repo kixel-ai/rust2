@@ -132,6 +132,9 @@ fn steps() -> Vec<(&'static str, Step)> {
 		("rfolded", |log, exec, _, arg| {
 			drops::rfolded(log, 1000 * exec.len() as u32, arg)
 		}),
+		("called", |log, exec, _, arg| {
+			drops::called(log, 1000 * exec.len() as u32, arg)
+		}),
 		("watch", |log, exec, channels, arg| {
 			if let Some(c) = pick(channels.len(), arg) {
 				let guard = Guard::new(exec.len() as u32, log.clone());

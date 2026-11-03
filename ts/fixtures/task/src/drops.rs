@@ -22,6 +22,7 @@ macro_rules! list {
 	}};
 }
 
+mod called;
 mod closures;
 mod flattened;
 mod folds;
@@ -724,6 +725,12 @@ fn arcs(log: &Log, id: u32) {
 /// closures that drop, and of zips of items that drop.
 pub fn folded(log: &Log, id: u32, arg: u8) {
 	folds::folded(log, id, arg);
+}
+
+/// Run scenario `arg % 12` of std's calls of a closure that owns a guard. The last panics
+/// in a `try_fold`.
+pub fn called(log: &Log, id: u32, arg: u8) {
+	called::called(log, id, arg);
 }
 
 /// Run scenario `arg % 18` of what folds back to front, through what wraps a closure beside
