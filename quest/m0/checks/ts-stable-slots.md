@@ -7,6 +7,9 @@ that reads or writes it, and `stable_names` covers it on the `names` fixture.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-02: m0, since unstable names churn snapshots and
+conflict merges, which this epic exists to cut.
+
 Found while moving `stable_names` to its own fixture on 2026-11-02. A slot of `Ok` parts is
 named for the first function in source order among those translation reaches that share
 it, so a root reaching an earlier one renames it: with `read` reached, `readOut`; once
