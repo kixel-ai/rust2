@@ -28,6 +28,7 @@ fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in
 fixtures/reject/src/config.rs:Meters+0:1: a printable type must implement `Display` or `Debug`
 fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
 fixtures/reject/src/config.rs:generic+2:2: a cast from `u64` to `f16`
+fixtures/reject/src/fmt.rs:chunks_address+1:2: `Debug` of a `ChunksMut`, whose slice std writes as an address, which JS has no counterpart of
 fixtures/reject/src/fmt.rs:pointer+1:2: `Pointer` formatting, as in `{:p}`, is not supported
 fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or not made in place, written to `fmt::Sink`'s own `fmt::Write`, which is not supported yet: std splits what a placeholder writes into `write_str` calls the runtime does not make
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`

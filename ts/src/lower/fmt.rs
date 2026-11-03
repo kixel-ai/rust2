@@ -549,7 +549,8 @@ pub fn std_impl<'tcx>(
 
 /// `Debug` of one of std's iterators that lists the items it has left, as std writes
 /// them, or `None` for another type. A deque's `Iter` and `IterMut` write the two slices of
-/// its ring buffer they have left, and its `Drain` its counts.
+/// its ring buffer they have left, and its `Drain` its counts; an `Option`'s iterator the
+/// item it has left as an `Option`, and a slice's parts what is left of the slice.
 fn iter_debug<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	did: DefId,
@@ -559,9 +560,9 @@ fn iter_debug<'tcx>(
 	span: Span,
 ) -> Option<Expr> {
 	/// What std writes around the list: a tuple struct's name, or a struct's and its field's.
-	enum Wrap {
-		Tuple(&'static str),
-		Struct(&'static str, &'static str),
+	enum Wrap<'a> {
+		Tuple(&'a str),
+		Struct(&'a str, &'a str),
 	}
 	/// What it lists: a type argument, the map entry of the first two, or a `BTreeSet`'s
 	/// entry of its key and `SetValZST`.
@@ -575,14 +576,93 @@ fn iter_debug<'tcx>(
 	let tcx = b.t.tcx;
 	let path = library::std_path(tcx, did);
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
+	let listed = |wraps: &[Wrap]| {
+		let wraps = (wraps.iter()).map(|wrap| match *wrap {
+			Tuple(name) => Expr::Str(name.into()),
+			Struct(name, field) => Expr::Array(vec![Expr::Str(name.into()), Expr::Str(field.into())]),
+		});
+		Expr::Array(wraps.collect())
+	};
+	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let write = |text: String| Some(Expr::rt("fmtWriteStr", vec![f.clone(), Expr::Str(text)]));
+	// The item it has left, if any, as std's `Option` inside `wraps`: a reference as it is
+	// held, a `&mut` to a value JS copies its place.
+	let option = |b: &mut Body<'_, '_, 'tcx>, wraps: &[Wrap]| {
+		let item = b.t.iter_item(Ty::new_adt(tcx, tcx.adt_def(did), args))?;
+		let debug = b.fmt_fn(Trait::Debug, item, span);
+		Some(call("fmtIterOption", vec![debug, listed(wraps)]))
+	};
+	// What writes a slice of its parts.
+	let slice =
+		|b: &mut Body<'_, '_, 'tcx>| Some(b.fmt_fn(Trait::Debug, Ty::new_slice(tcx, args.types().next()?), span));
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
+		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
 		// Without its fields, which neither `#` nor a width changes.
-		["str", "iter", "EncodeUtf16"] => {
-			return Some(Expr::rt(
-				"fmtWriteStr",
-				vec![f.clone(), Expr::Str("EncodeUtf16 { .. }".into())],
+		["str", "iter", "EncodeUtf16"] | ["iter", "sources", "repeat_with", "RepeatWith"] => {
+			return write(format!("{} {{ .. }}", tcx.item_name(did)));
+		}
+		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
+		["iter", "sources", "successors", "Successors"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtSuccessors", vec![debug]));
+		}
+		["iter", "sources", "once", "Once"] => {
+			return option(
+				b,
+				&[
+					Struct("Once", "inner"),
+					Struct("IntoIter", "inner"),
+					Struct("Item", "opt"),
+				],
+			);
+		}
+		["option", name @ ("Iter" | "IterMut" | "IntoIter")] => {
+			return option(b, &[Struct(name, "inner"), Struct("Item", "opt")]);
+		}
+		["result", name @ ("Iter" | "IterMut" | "IntoIter")] => return option(b, &[Struct(name, "inner")]),
+		[
+			"slice",
+			"iter",
+			name @ ("Windows" | "Chunks" | "ChunksExact" | "RChunks" | "RChunksExact"),
+		] => {
+			let slice = slice(b)?;
+			return Some(call("fmtParts", vec![slice, Expr::Str((*name).into())]));
+		}
+		[
+			"slice",
+			"iter",
+			"ChunksMut" | "ChunksExactMut" | "RChunksMut" | "RChunksExactMut",
+		] => {
+			let name = tcx.item_name(did);
+			return Some(b.err(
+				span,
+				format!("`Debug` of a `{name}`, whose slice std writes as an address, which JS has no counterpart of"),
 			));
+		}
+		// A `splitn`'s is a `GenericSplitN` of the split it is named for.
+		[
+			"slice",
+			"iter",
+			name @ ("Split" | "SplitMut" | "SplitInclusive" | "SplitInclusiveMut" | "RSplit" | "RSplitMut" | "SplitN"
+			| "SplitNMut" | "RSplitN" | "RSplitNMut"),
+		] => {
+			let split = name.replacen('N', "", 1);
+			let n = (split != *name).then(|| Expr::Str((*name).into()));
+			let taken = Expr::lit(name.ends_with("Mut").to_string());
+			let rest = [slice(b)?, Expr::Str(split), taken].into_iter().chain(n);
+			return Some(call("fmtSplit", rest.collect()));
+		}
+		// The list of what a clone of it yields.
+		[
+			"collections",
+			"hash",
+			"set",
+			"Difference" | "Intersection" | "SymmetricDifference" | "Union",
+		] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(call("fmtIterClone", vec![debug]));
 		}
 		[
 			"collections",
@@ -611,6 +691,7 @@ fn iter_debug<'tcx>(
 		| ["collections", "btree", "set", "Iter"] => (Arg(0), &[Tuple("Iter")]),
 		["slice", "iter", "IterMut"] => (Arg(0), &[Tuple("IterMut")]),
 		["vec", "into_iter", "IntoIter"]
+		| ["array", "iter", "IntoIter"]
 		| ["collections", "binary_heap", "IntoIter"]
 		| ["collections", "vec_deque", "into_iter", "IntoIter"]
 		| ["collections", "linked_list", "IntoIter"] => (Arg(0), &[Tuple("IntoIter")]),
@@ -642,17 +723,11 @@ fn iter_debug<'tcx>(
 		SetVal => Expr::rt("fmtSetVal", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
 		Byte => b.fmt_fn(Trait::Debug, tcx.types.u8, span),
 	};
-	let wraps: Vec<Expr> = (wraps.iter())
-		.map(|wrap| match *wrap {
-			Tuple(name) => Expr::Str(name.into()),
-			Struct(name, field) => Expr::Array(vec![Expr::Str(name.into()), Expr::Str(field.into())]),
-		})
-		.collect();
-	let mut call = vec![value.clone(), f.clone(), debug];
+	let mut rest = vec![debug];
 	if !wraps.is_empty() {
-		call.push(Expr::Array(wraps));
+		rest.push(listed(wraps));
 	}
-	Some(Expr::rt("fmtIter", call))
+	Some(call("fmtIter", rest))
 }
 
 /// `Debug` of one of std's iterator adaptors, as std's derived or written impl writes it:

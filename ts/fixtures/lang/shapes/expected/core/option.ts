@@ -57,6 +57,13 @@ export function map$18z3v8h(self: Dir.Dir | undefined, _: (a0: Dir.Dir) => rt.u8
 	return from$convert_From_shapes_Dir_u8(self);
 }
 
+export function map$0phsnvg(self: rt.u8 | undefined, _: (a0: rt.u8) => rt.u8 | undefined): rt.u8 | undefined | rt.None {
+	if (self === undefined) {
+		return rt.None;
+	}
+	return self;
+}
+
 export function mapOr$1a3irjf(self: rt.ByteVec | undefined, default_: rt.u8, f: (a0: rt.ByteVec) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
@@ -104,6 +111,13 @@ export function okOr$1vxk0yk(self: rt.u8 | undefined, err: rt.u8): rt.Result<rt.
 		return rt.Err(err);
 	}
 	return rt.Ok(self);
+}
+
+export function andThen$1bd14ex(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8 | undefined | rt.None): rt.u8 | undefined | rt.None {
+	if (self === undefined) {
+		return rt.None;
+	}
+	return f(self);
 }
 
 export function clone$0hmts8n(self: rt.u16[] | undefined): rt.u16[] | undefined {

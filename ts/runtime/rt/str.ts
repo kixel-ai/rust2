@@ -6,9 +6,9 @@
 // well formed, so a pattern's text matches where its UTF-8 would, never across a
 // surrogate pair.
 
-import { type ByteSlice, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugStructFields, fmtPad, Ok, type Place, panic, panicFmt, type Result, stringLen } from "../rt.ts";
+import { type ByteSlice, Err, type FmtResult, type Formatter, fmtCharDebug, fmtChars, fmtDebugStructFields, fmtDebugTupleFields, fmtPad, fmtStr, Ok, type Place, panic, panicFmt, type Result, stringLen } from "../rt.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
-import type { char, u8, u16, usize } from "./int.ts";
+import { type char, type u8, type u16, type usize, usizeDebug } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 
@@ -261,45 +261,52 @@ class EncodeUtf16 extends Iter<u16> {
 	}
 }
 
+/** `Debug` of a `CharIndices`: the bytes before its front, and its `Chars`. */
+export function fmtCharIndices(it: Iter<unknown>, f: Formatter): FmtResult {
+	const c = it as CharIndices;
+	return fmtDebugStructFields(f, "CharIndices", ["front_offset", "iter"], [(f) => usizeDebug(c.front as usize, f), (f) => fmtChars(c.chars, f)]);
+}
+
 /** `str::char_indices`. */
 export function strCharIndices(s: string): Iter<[usize, char]> {
 	return new CharIndices(new Chars(s));
 }
 
 class CharIndices extends Iter<[usize, char]> {
-	readonly #chars: Chars;
-	// The bytes before the front, and before the back once it first moves.
-	#front = 0;
+	readonly chars: Chars;
+	/** The bytes before the front. */
+	front = 0;
+	// The bytes before the back, once it first moves.
 	#back = -1;
 
 	constructor(chars: Chars) {
 		super();
-		this.#chars = chars;
+		this.chars = chars;
 	}
 
 	next(): [usize, char] | Done {
-		const c = this.#chars.next();
+		const c = this.chars.next();
 		if (c === DONE) return DONE;
-		const at = this.#front;
-		this.#front += charLen(c);
+		const at = this.front;
+		this.front += charLen(c);
 		return [at as usize, c];
 	}
 
 	override nextBack(): [usize, char] | Done {
-		if (this.#back < 0) this.#back = this.#front + stringLen(this.#chars.rest());
-		const c = this.#chars.nextBack();
+		if (this.#back < 0) this.#back = this.front + stringLen(this.chars.rest());
+		const c = this.chars.nextBack();
 		if (c === DONE) return DONE;
 		this.#back -= charLen(c);
 		return [this.#back as usize, c];
 	}
 
 	override sizeHint(): SizeHint {
-		return this.#chars.sizeHint();
+		return this.chars.sizeHint();
 	}
 
 	override clone(): Iter<[usize, char]> {
-		const it = new CharIndices(this.#chars.clone() as Chars);
-		it.#front = this.#front;
+		const it = new CharIndices(this.chars.clone() as Chars);
+		it.front = this.front;
 		it.#back = this.#back;
 		return it;
 	}
@@ -1043,6 +1050,11 @@ export function stringDrain(s: Place<string>, r: Bounds<number>): Iter<char> {
 /** `Drain::as_str`: the chars `drain` has yet to yield. */
 export function stringDrainAsStr(drain: Iter<char>): string {
 	return (drain as Chars).rest();
+}
+
+/** `Debug` of a `String`'s `Drain`: the chars it has yet to yield. */
+export function fmtStringDrain(drain: Iter<unknown>, f: Formatter): FmtResult {
+	return fmtDebugTupleFields(f, "Drain", [(f) => fmtStr((drain as Chars).rest(), f)]);
 }
 
 class StringDrain extends Chars implements Disposable {

@@ -281,7 +281,12 @@ its length, as std's do. `Debug` of std's iterator adaptors, `Map` through `Flat
 `DecodeUtf16`, and a `str`'s escapes, writes their fields as std's does, each iterator it
 wraps by its own `Debug`, no closure, and the state each keeps, such as what a `Peekable` peeked, what a
 `Skip` has left to skip, and the countdown std's `StepBy` of a small unsigned range keeps
-in its end. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
+in its end. So does `Debug` of std's sources, `Once`, `FromFn`, `RepeatWith`, and
+`Successors`, an `Option`'s, a `Result`'s, and an array's iterators, a `CharIndices`, a
+`String`'s `Drain`, and a slice's `Windows`, chunks, and splits, each writing what is left of
+its slice as std's does, emptied where std's `nth` past the end empties a `Windows`; a hash
+set's operations write the list a clone yields. A slice's `chunks_mut` and its forms are
+refused, as std writes their slice's address. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and

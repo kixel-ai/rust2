@@ -2570,6 +2570,17 @@ export function fmtIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wra
 	return wrapIn(f, wraps, (f) => fmtList(it.remaining() as Iterable<T>, f, debug));
 }
 
+/** `Debug` of an `Option`'s, a `Result`'s, or a `Once`'s iterator: the item `it` has left, if any, as an `Option` inside `wraps`, outermost first. */
+export function fmtIterOption<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[]): FmtResult {
+	const items = [...it.remaining()] as T[];
+	return wrapIn(f, wraps, (f) => (items.length === 0 ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(items[0], f)])));
+}
+
+/** `Debug` of what std writes as the list of what a clone of it yields: a `HashSet`'s set operations. */
+export function fmtIterClone<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	return fmtList(it.clone(), f, debug);
+}
+
 /** `Debug` of a `LinkedList`'s `Iter` or `IterMut`, `name`: the list it has left, then its length by `len`. */
 export function fmtListIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, len: Debug<usize>, name: string): FmtResult {
 	const list: Fmt = (f) => fmtList(it.remaining() as Iterable<T>, f, debug);

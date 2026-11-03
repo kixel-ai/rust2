@@ -31,6 +31,7 @@ fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `(clones::Dropped, (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/config.rs:Meters+0:1: a printable type must implement `Display` or `Debug`
 fixtures/reject/src/config.rs:generic+0:1: a root must not be generic
+fixtures/reject/src/fmt.rs:chunks_address+1:11: `Debug` of a `ChunksMut`, whose slice std writes as an address, which JS has no counterpart of
 fixtures/reject/src/fmt.rs:pointer+1:11: `Pointer` formatting, as in `{:p}`, is not supported
 fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or not made in place, written to `fmt::Sink`'s own `fmt::Write`, which is not supported yet: std splits what a placeholder writes into `write_str` calls the runtime does not make
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`

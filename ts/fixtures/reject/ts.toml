@@ -21,6 +21,7 @@ roots = [
     "clones::stashed_slots",
     "clones::touched_slots",
     "config::generic",
+    "fmt::chunks_address",
     "fmt::pointer",
     "fmt::written",
     "futures::generic_pending",
