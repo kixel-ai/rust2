@@ -26,7 +26,6 @@ fixtures/reject/src/clones.rs:kept_slots+5:2: a raw pointer to `(u8, u8)` in `([
 fixtures/reject/src/clones.rs:moved_slots+5:2: a raw pointer to `(u8, u8)` in `(clones::Dropped, (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:recloned+1:4: `slice::clone_from_slice` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/clones.rs:refilled+1:4: `slice::fill` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
-fixtures/reject/src/clones.rs:slice_of_object+1:2: a slice or a cell of a mutable reference to `clones::Reused` that names no place, which a whole write would replace only there
 fixtures/reject/src/clones.rs:vec_clone_from+1:4: `Clone::clone_from` of `std::vec::Vec<clones::Reused>`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/config.rs:Meters+0:1: a printable type must implement `Display` or `Debug`
 fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
@@ -82,7 +81,6 @@ fixtures/reject/src/keys.rs:keyed_across+1:11: unsupported call to `std::ops::Ra
 fixtures/reject/src/keys.rs:keyed_across+1:32: unsupported call to `<std::ops::RangeFrom<u8> as std::ops::RangeBounds<u8>>::contains::<keys::Key>`
 fixtures/reject/src/keys.rs:place_bounds+1:9: unsupported call to `std::ops::Range::<&mut u8>::is_empty`
 fixtures/reject/src/keys.rs:places_sorted+1:15: unsupported call to `<std::slice::IterMut<'_, u8> as std::iter::Iterator>::is_sorted`
-fixtures/reject/src/keys.rs:ranked_cells+1:22: `collect` of `std::collections::BTreeMap<std::cell::Cell<keys::Ranked>, places::Noisy>`, which sorts by `std::cell::Cell<keys::Ranked>`'s own `Ord`, of entries that drop, which is not supported yet
 fixtures/reject/src/keys.rs:set_keys+1:75: comparing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
 fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
 fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`
@@ -218,9 +216,9 @@ fixtures/reject/src/rebound.rs:retargeted+5:10: a raw pointer to `rebound::Targe
 fixtures/reject/src/rebound.rs:swap_retargeted+6:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:swapped_in_loop+8:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:unboxed_rebound+2:16: a reference to `rebound::Unboxed`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
-fixtures/reject/src/statics.rs:key_celled+1:2: a slice or a cell of a mutable reference to `std::thread::LocalKey<u32>` that names no place, which a whole write would replace only there
+fixtures/reject/src/statics.rs:key_celled+1:2: a slice or a cell of a mutable reference to `std::thread::LocalKey<u32>` that names no place, which JS can't write in place
 fixtures/reject/src/statics.rs:lazy_assigned+1:2: an assignment through a reference to `std::sync::LazyLock<u32>`
-fixtures/reject/src/statics.rs:lazy_celled+1:3: a slice or a cell of a mutable reference to `std::cell::LazyCell<u32>` that names no place, which a whole write would replace only there
+fixtures/reject/src/statics.rs:lazy_celled+1:3: a slice or a cell of a mutable reference to `std::cell::LazyCell<u32>` that names no place, which JS can't write in place
 fixtures/reject/src/statics.rs:pointer_statics+3:15: comparing pointers to `u32` in an atomic, which JS has no address of
 fixtures/reject/src/statics.rs:pointer_statics+4:3: a constant of type `&u32`, a pointer into memory translation can't name
 fixtures/reject/src/statics.rs:statics+1:11: a mutable static, which any code may write
