@@ -952,16 +952,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(target, true);
 				};
 				let none = target.clone().binary("===", self.b.t.none(inner));
-				let some = match () {
-					_ if self.b.t.needs_place(inner) => {
-						Expr::rt("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
-					}
-					_ if self.b.t.zero_sized(inner) => Expr::Array(vec![target]),
-					_ if self.b.t.write_in(inner).is_some() => Expr::rt("sliceIn", vec![target]),
-					_ => self.err(
+				let some = if self.b.t.needs_place(inner) {
+					Expr::rt("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
+				} else if self.b.t.write_in(inner).is_some() {
+					Expr::rt("sliceIn", vec![target])
+				} else {
+					self.err(
 						span,
 						format!("`Option::as_mut_slice` of `Option<{inner}>`, whose payload JS can't write in place"),
-					),
+					)
 				};
 				done(
 					Expr::Cond(Box::new(none), Box::new(Expr::Array(vec![])), Box::new(some)),
