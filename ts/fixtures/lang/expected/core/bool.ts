@@ -7,6 +7,13 @@ import type * as Hop from "../keys.Hop.ts";
 import type * as Way from "../keys.Way.ts";
 import type * as Void from "../shapes.Void.ts";
 
+export function thenSome$185ufyt(self: boolean, t: rt.u8 | undefined): rt.u8 | undefined | rt.None {
+	if (!self) {
+		return rt.None;
+	}
+	return t;
+}
+
 export function thenSome$0ztng9q(self: boolean, t: rt.Result<rt.u16, Void.Void>): rt.Result<rt.u16, Void.Void> | undefined {
 	if (!self) {
 		return undefined;

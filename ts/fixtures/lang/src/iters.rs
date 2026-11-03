@@ -827,6 +827,20 @@ pub fn option_items(data: &[u8], out: &mut Vec<u8>) {
 	while let Some(found) = first_present(&mut it) {
 		out.push(found);
 	}
+	// `scan` of items whose `None` is `rt.None`, each ending where its closure's `None` is.
+	let mut sum = 0u8;
+	let scanned: Vec<Option<u8>> = data
+		.iter()
+		.scan(&mut sum, |n, &b| {
+			**n = n.wrapping_add(b);
+			(b % 5 != 4).then_some((b % 2 == 0).then_some(**n))
+		})
+		.collect();
+	for a in scanned {
+		out.push(a.unwrap_or(0xad));
+	}
+	out.push(sum);
+	out.push(data.iter().scan((), |_, &b| (b % 5 != 4).then_some(())).count() as u8);
 	let mut weighed = Weighed {
 		inner: data.iter(),
 		weight: 0,

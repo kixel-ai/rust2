@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$iters_Bumped, copy$tuple2_u8_u8 } from "./lib.ts";
-import { thenSome$0d5am30, thenSome$0b23a33 } from "./core/bool.ts";
+import { thenSome$185ufyt, thenSome$0d5am30, thenSome$0b23a33, thenSome$1j8foe9 } from "./core/bool.ts";
 import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$00uis1j as option_unwrapOr$00uis1j, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$14m5xjm as option_unwrapOr$14m5xjm, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, map$1uo1d4o as option_map$1uo1d4o, map$1httady as option_map$1httady, map$0p22lts as option_map$0p22lts, map$0of9gds as option_map$0of9gds, map$1c7zybz as option_map$1c7zybz, map$0cs071d as option_map$0cs071d, mapOr$0lcrgk1 as option_mapOr$0lcrgk1, mapOr$1kiffmd as option_mapOr$1kiffmd, mapOr$1a3irjf as option_mapOr$1a3irjf, mapOr$0sl5app as option_mapOr$0sl5app, mapOr$0atjiti as option_mapOr$0atjiti, mapOr$0okqj9y as option_mapOr$0okqj9y, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$1lznlgz as option_mapOr$1lznlgz, mapOr$0tmtgfi as option_mapOr$0tmtgfi, mapOr$0ev76sb as option_mapOr$0ev76sb, mapOr$1surhce as option_mapOr$1surhce, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$02k4ito as option_mapOr$02k4ito, mapOr$0a96v80 as option_mapOr$0a96v80, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$1vjqo89 as option_mapOr$1vjqo89, mapOr$1h04da8 as option_mapOr$1h04da8, mapOr$0f73bb7 as option_mapOr$0f73bb7, mapOr$06gg5x7 as option_mapOr$06gg5x7, mapOr$1dmz9kd as option_mapOr$1dmz9kd, mapOr$1sxa8ki as option_mapOr$1sxa8ki, asDeref$0w8at8i as option_asDeref$0w8at8i, filter$0v80fk8 } from "./core/option.ts";
 import { unwrapOr$01jdcm7 as result_unwrapOr$01jdcm7 } from "./core/result.ts";
 import * as Badge from "./iters.Badge.ts";
@@ -1500,8 +1500,8 @@ export function optionItems(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_111 === rt.DONE) {
 			break;
 		}
-		rt.byteVecPush(out, option_mapOr$1sxa8ki(_111, 167, (a4: rt.u32): rt.u8 => {
-			return a4 & 0xff;
+		rt.byteVecPush(out, option_mapOr$1sxa8ki(_111, 167, (a5: rt.u32): rt.u8 => {
+			return a5 & 0xff;
 		}));
 	}
 	rt.byteVecPush(out, present$unit(units));
@@ -1550,11 +1550,24 @@ export function optionItems(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 	}
+	let sum: rt.u8 = 0;
+	for (const _179 of rt.iterToArray(rt.iterScan(rt.iterSlice(rt.byteSliceView(data)), rt.place(() => sum, (value) => sum = value), (n: rt.Place<rt.Place<rt.u8>>, _310: rt.u8): rt.u8 | undefined | rt.None => {
+		const b9: rt.u8 = _310;
+		const _55: rt.u8 = rt.u8WrappingAdd(n.v.v, b9);
+		n.v.v = _55;
+		return thenSome$185ufyt(rt.u8Rem(b9, 5) !== 4, thenSome$0d5am30(rt.u8Rem(b9, 2) === 0, n.v.v));
+	}, true, undefined, rt.None), "next", 2)) {
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(_179, 173));
+	}
+	rt.byteVecPush(out, sum);
+	rt.byteVecPush(out, rt.iterCount(rt.iterScan(rt.iterSlice(rt.byteSliceView(data)), undefined, (_25: rt.Place<undefined>, _311: rt.u8): undefined | rt.None => {
+		return thenSome$1j8foe9(rt.u8Rem(_311, 5) !== 4, undefined);
+	}, true, undefined, rt.None)) & 0xff);
 	const weighed: Weighed.Weighed = { inner: rt.iterSlice(rt.byteSliceView(data)), weight: 0 };
 	while (true) {
-		const _174: rt.u8 | rt.Done = Weighed.next$iter_Iterator(weighed);
-		if (_174 !== rt.DONE) {
-			rt.byteVecPush(out, _174);
+		const _194: rt.u8 | rt.Done = Weighed.next$iter_Iterator(weighed);
+		if (_194 !== rt.DONE) {
+			rt.byteVecPush(out, _194);
 		} else {
 			break;
 		}

@@ -31,13 +31,6 @@ pub fn generic_unit(value: Option<()>) -> bool {
 	Maybe { value }.value.is_some()
 }
 
-/// `scan` of items that can be `undefined`: its closure's `None` and `Some(None)` would both be.
-pub fn scanned(v: &[u8]) -> usize {
-	v.iter()
-		.scan(Vec::<u8>::new(), |_, &b| Some((b > 1).then_some(b)))
-		.count()
-}
-
 pub struct Noisy(pub u8);
 
 impl Drop for Noisy {
@@ -181,11 +174,6 @@ pub fn copied_closure(n: u8) -> u8 {
 	};
 	let mut h = g;
 	g().wrapping_add(h())
-}
-
-/// `scan` of `()`s: its closure's `None` and `Some(())` would both be `undefined`.
-pub fn scanned_unit(v: &[u8]) -> usize {
-	v.iter().scan(Vec::<u8>::new(), |_, _| Some(())).count()
 }
 
 /// A key the runtime has no `Hash` and `Eq` of.
