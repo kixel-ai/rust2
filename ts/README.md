@@ -124,7 +124,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
 | `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
-| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
+| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
@@ -318,7 +318,8 @@ one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics 
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
 `insert`, `retain`, `replace_range`, and the rest, assign the edited one to the local or
 field the `&mut` borrows, taking and checking byte offsets as std does, and `retain` then
-drops its closure. A `&mut str` is
+drops its closure. `+`, of a `String` or a `Cow<str>`, is JS's `+` of the moved text, as
+`+=` is. A `&mut str` is
 the `rt.Place` of its `String` wherever that is, and a part of one, from `&mut s[a..b]`,
 `get_mut`, or `split_at_mut`, is `rt.strPart(p, a, b)`, a place of its own that writes the
 whole string anew, checking its offsets as `&s[a..b]` does. `as_bytes_mut`,
@@ -462,11 +463,13 @@ A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behi
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
-caller can implement. A coercion wraps the value in a class of its type's, named for
-the type as a suffix spells it, `new Shape.of$dyns_Square(sq)`, whose methods call that
-type's impl; one from a `&mut` to a value JS copies holds its `rt.Place`, as
-`Shape.ofPlace$dyns_Square`, so `&mut self` writes where the value is. An upcast is the
-same object. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
+caller can implement. A coercion wraps the value in a class of its type's from `lib.ts`,
+named for the type as a suffix spells it, `new of$dyns_Square(sq)`, which every trait's
+object of the type shares, whose methods call that type's impls; one from a `&mut` to a
+value JS copies holds its `rt.Place`, as `ofPlace$dyns_Square`, so `&mut self` writes
+where the value is. An upcast, to `dyn Any` too, is the same object. Objects of two traits
+of one name, with a method of one name, are refused for one type, whose class can't hold
+both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rt.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
@@ -478,7 +481,7 @@ of what the box is, which drops it with the last clone. A `dyn Buf`'s object hol
 `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
-`downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof Any.of$dyns_Square ?
+`downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
 a.v : undefined`. A `&mut` one of a value JS copies is the class holding its `rt.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
 back the `Arc<T>` the object was made from, or, of one made from a box, an `rt.ArcDyn` of
@@ -491,10 +494,12 @@ after the call, as an `FnOnce` closure's body drops what it owns, and a box of a
 reference to one is `rt.lent` of it, which never drops it.
 
 A `dyn Error` is such an object of `source` and its supertraits' `Debug` and `Display`,
-`Error.of$errors_Leaf` from `core/error.Error.ts`, whose `source` is `None` for a type
-that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` converts by,
-makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
-is `From` a string, which boxes std's own private error type.
+`of$errors_Leaf`, whose `source` is `None` for a type that keeps `Error`'s own. `From` an
+error into a `Box<dyn Error>`, which `?` converts by, makes one. Its `is`,
+`downcast_ref`, `downcast_mut`, and a box's `downcast` check for the class as `dyn Any`'s
+do, which a value upcast from the crate's own trait is of too. Its deprecated
+`description` and `cause` are refused, and so is `From` a string, which boxes std's own
+private error type.
 
 A `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or `dyn FusedIterator`
 behind `&`, `&mut`, `Box`, `Arc`, or `Rc` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
@@ -510,8 +515,7 @@ or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `
 `Box`, `Arc`, or `Rc`, `dyn Future`,
 `dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
-as a struct's last field, is refused, and so are an upcast to `dyn Any` and
-`Any::type_id`.
+as a struct's last field, is refused, and so is `Any::type_id`.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the

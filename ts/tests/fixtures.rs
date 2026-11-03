@@ -390,6 +390,7 @@ mod lang {
 		clones,
 		collections,
 		combinators,
+		constants,
 		conversions,
 		counts,
 		cows,

@@ -21,7 +21,3 @@ Lowering std's primitive impls from their MIR may cover most of these, since the
 the operator itself. Measure that against a mapping per trait.
 
 Public API: the translator's output.
-
-## Related
-
-- [Adding to a String](/quest/m3/ts-string-add.md) - `String + &str`, an operator impl of a std type rather than a primitive's
