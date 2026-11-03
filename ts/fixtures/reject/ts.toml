@@ -20,6 +20,7 @@ roots = [
     "clones::recloned",
     "clones::refilled",
     "clones::slice_of_object",
+    "clones::stashed_slots",
     "clones::touched_slots",
     "clones::vec_clone_from",
     "config::generic",
