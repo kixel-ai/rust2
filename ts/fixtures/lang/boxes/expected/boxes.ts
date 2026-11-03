@@ -954,9 +954,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, 8, true);
 		const _368: Logged.Logged[] = l2;
 		if (_368.length >= 2) {
-			const swapped = _368[0];
-			_368[0] = _368[_368.length - 1];
-			_368[_368.length - 1] = swapped;
+			rt.sliceSwapAcross(_368, 0, _368, _368.length - 1);
 		}
 		ids(l2, out);
 		let o: rt.u8 | undefined = rt.byteSliceFirst(data2);

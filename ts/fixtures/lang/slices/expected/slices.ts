@@ -1705,9 +1705,7 @@ export function ranges(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _539: [Pair.Pair[], Pair.Pair[]] | undefined = rt.sliceSplitAtMutChecked(pairs, 2);
 			if (_539 !== undefined) {
 				rt.idx(_539[1], 0);
-				const swapped = _539[0][0];
-				_539[0][0] = _539[1][0];
-				_539[1][0] = swapped;
+				rt.sliceSwapAcross(_539[0], 0, _539[1], 0);
 				_539[0][1].a = 3;
 			}
 			const _556: [rt.u32[], rt.u32[]] | undefined = rt.sliceSplitLastChunkMut(array, 2);
