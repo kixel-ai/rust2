@@ -146,7 +146,7 @@ export function needsDropOf$manual_needs_drops_closure2(_1: () => rt.usize): boo
  * that needs dropping, and forgets the rest.
  */
 export function droppedByHand$String(items: string[]): rt.u32 {
-	if (!true) {
+	if (false) {
 		return 0;
 	}
 	let n: rt.u32 = 0;
@@ -161,7 +161,7 @@ export function droppedByHand$String(items: string[]): rt.u32 {
  * that needs dropping, and forgets the rest.
  */
 export function droppedByHand$u8(items: rt.ByteVec): rt.u32 {
-	if (!false) {
+	if (true) {
 		return 0;
 	}
 	let n: rt.u32 = 0;
