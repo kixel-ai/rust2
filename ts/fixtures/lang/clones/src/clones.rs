@@ -565,7 +565,7 @@ fn cloned<T: Clone>(x: &T) -> T {
 pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let log = Rc::new(RefCell::new(Vec::new()));
 	let logged = |id: u8| Logged { id, log: log.clone() };
-	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8 * 0x30) & 0x7e;
+	let at = |i: usize| data.get(i).copied().unwrap_or((i as u8).wrapping_mul(0x30)) & 0x7e;
 	let three = || [logged(at(0)), logged(at(1)), logged(at(2))];
 	let ids = |a: &[Logged], out: &mut Vec<u8>| out.extend(a.iter().map(Logged::id));
 	match kind % 8 {

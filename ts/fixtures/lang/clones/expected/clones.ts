@@ -7637,7 +7637,7 @@ export function arrays(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		return new Logged.Logged(id, rt.arcClone(log));
 	};
 	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
-		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), rt.u8Mul(i & 0xff, 48)) & 126;
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), rt.u8WrappingMul(i & 0xff, 48)) & 126;
 	};
 	const three: () => Logged.Logged[] = (): Logged.Logged[] => {
 		return [logged(at(0)), logged(at(1)), logged(at(2))];
