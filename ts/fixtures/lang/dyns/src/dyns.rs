@@ -1459,6 +1459,37 @@ pub fn tails(data: &[u8], out: &mut Vec<u8>) {
 	drop(cell);
 	put(out, &format!("{:?} ", log.borrow()));
 
+	// Two made of one value are one pointer, and two of two values two.
+	{
+		let t = Tail {
+			count: a,
+			head: Noisy(a, log.clone()),
+			value: u32::from(b),
+		};
+		let apart = Tail {
+			count: a,
+			head: Noisy(b, log.clone()),
+			value: u32::from(b),
+		};
+		let (p, q, o): (&Tail<dyn Shape>, &Tail<dyn Shape>, &Tail<dyn Shape>) = (&t, &t, &apart);
+		let cell = Rc::new(RefCell::new(u32::from(c)));
+		let (r, s): (Rc<RefCell<dyn Shape>>, Rc<RefCell<dyn Shape>>) = (cell.clone(), cell.clone());
+		let other: Rc<RefCell<dyn Shape>> = Rc::new(RefCell::new(u32::from(c)));
+		let (u, v) = (Rc::downgrade(&r), Rc::downgrade(&s));
+		put(
+			out,
+			&format!(
+				"{} {} {} {} {} ",
+				std::ptr::eq(p, q),
+				std::ptr::eq(p, o),
+				Rc::ptr_eq(&r, &s),
+				Rc::ptr_eq(&r, &other),
+				rc::Weak::ptr_eq(&u, &v),
+			),
+		);
+	}
+	log.borrow_mut().clear();
+
 	// Of std's traits: a function, a writer of `Debug`, a `dyn Any`, and an iterator.
 	let mut sum = 0u32;
 	{

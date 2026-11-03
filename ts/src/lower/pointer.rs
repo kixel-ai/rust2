@@ -902,6 +902,8 @@ pub fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>,
 	match b.t.incomparable(ty) {
 		Some(why) if !null(&x) && !null(&y) => b.err(span, why),
 		_ if b.t.pointee(ty) == Pointee::Bytes && !null(&x) && !null(&y) => Expr::rt("byteSliceSame", vec![x, y]),
+		// Each is a view of the struct it was made from.
+		_ if !ty.is_trait() && super::dynamic::unsized_object(b.t.tcx, ty) => Expr::rt("tailSame", vec![x, y]),
 		_ => x.binary("===", y),
 	}
 }

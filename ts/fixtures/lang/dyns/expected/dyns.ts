@@ -1596,8 +1596,8 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 			_61.value.grow$Shape(_63);
 			rt.refMutRelease(_61);
 		}
-		const areas: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(shapes), (s2: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
-			const _5: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s2.value);
+		const areas: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(shapes), (s3: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
+			const _5: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s3.value);
 			const _0: rt.u32 = _5.value.area$Shape();
 			rt.refRelease(_5);
 			return _0;
@@ -1620,9 +1620,9 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _114: boolean = !_116.ok;
 		const _123: rt.Result<rt.RefCell<Square.Square>, rt.BorrowMutError> = rt.refCellTryBorrowMut(sq.value);
 		const _121: boolean = !_123.ok;
-		const _127: rt.u8 = result_unwrapOr$09hp2h5(result_map$1wuk0uc(rt.refCellTryBorrow(shapes[rt.idx(shapes, 0)].value), (s3: rt.RefCell<Shape.Shape>): rt.u8 => {
-			const _02: rt.u8 = s3.value.sides$Shape();
-			rt.refRelease(s3);
+		const _127: rt.u8 = result_unwrapOr$09hp2h5(result_map$1wuk0uc(rt.refCellTryBorrow(shapes[rt.idx(shapes, 0)].value), (s4: rt.RefCell<Shape.Shape>): rt.u8 => {
+			const _02: rt.u8 = s4.value.sides$Shape();
+			rt.refRelease(s4);
 			return _02;
 		}), 0);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_114, f), (f: rt.Formatter) => rt.fmtBool(_121, f), (f: rt.Formatter) => rt.u8Display(_127, f)];
@@ -1674,11 +1674,11 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const weak: rt.Weak<rt.RefCell<Shape.Shape>> = new rt.Weak(shape);
 		noisy[Symbol.dispose]();
 		const _268: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log.value);
-		const _272: rt.u32 | undefined = option_map$1p9q0qv(rt.weakUpgrade(weak), (s4: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
-			const _52: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s4.value);
+		const _272: rt.u32 | undefined = option_map$1p9q0qv(rt.weakUpgrade(weak), (s5: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
+			const _52: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s5.value);
 			const _03: rt.u32 = _52.value.area$Shape();
 			rt.refRelease(_52);
-			s4[Symbol.dispose]();
+			s5[Symbol.dispose]();
 			return _03;
 		});
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_268.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_272, f, rt.u32Debug)];
@@ -1881,81 +1881,116 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _797: string = rt.fmtFormat([args50[0], " "]);
 		rt.refRelease(_801);
 		put(out, _797);
+		const t2: Tail.Tail<rt.u32> = new Tail.Tail(a, new Noisy.Noisy(a, rt.arcClone(log)), b as rt.u32);
+		const apart: Tail.Tail<rt.u32> = new Tail.Tail(a, new Noisy.Noisy(b, rt.arcClone(log)), b as rt.u32);
+		const _822: Tail.Tail<Shape.Shape> = rt.tailDyn(t2, { value: (value32: Tail.Tail<rt.u32>) => new ofPlace$u32(rt.place(() => value32.value, (value33) => value32.value = value33)) });
+		const _824: Tail.Tail<Shape.Shape> = rt.tailDyn(t2, { value: (value34: Tail.Tail<rt.u32>) => new ofPlace$u32(rt.place(() => value34.value, (value35) => value34.value = value35)) });
+		const _826: Tail.Tail<Shape.Shape> = rt.tailDyn(apart, { value: (value36: Tail.Tail<rt.u32>) => new ofPlace$u32(rt.place(() => value36.value, (value37) => value36.value = value37)) });
+		const cell3: rt.Arc<rt.RefCell<rt.u32>> = new rt.Arc(new rt.RefCell(c as rt.u32));
+		const _835: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(cell3);
+		const _834: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_835, rt.tailDyn(_835.value, { value: (value38: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value38)) }));
+		const _838: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(cell3);
+		const _833: [rt.Arc<rt.RefCell<Shape.Shape>>, rt.Arc<rt.RefCell<Shape.Shape>>] = [_834, new rt.ArcDyn(_838, rt.tailDyn(_838.value, { value: (value39: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value39)) }))];
+		const r2: rt.Arc<rt.RefCell<Shape.Shape>> = _834;
+		const s2: rt.Arc<rt.RefCell<Shape.Shape>> = _833[1];
+		const _841: rt.Arc<rt.RefCell<rt.u32>> = new rt.Arc(new rt.RefCell(c as rt.u32));
+		const other: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_841, rt.tailDyn(_841.value, { value: (value40: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value40)) }));
+		const _846: [rt.Weak<rt.RefCell<Shape.Shape>>, rt.Weak<rt.RefCell<Shape.Shape>>] = [new rt.Weak(r2), new rt.Weak(s2)];
+		const u: rt.Weak<rt.RefCell<Shape.Shape>> = _846[0];
+		const v: rt.Weak<rt.RefCell<Shape.Shape>> = _846[1];
+		const _859: boolean = rt.tailSame(_822, _824);
+		const _863: boolean = rt.tailSame(_822, _826);
+		const _867: boolean = rt.arcPtrEq(r2, s2);
+		const _871: boolean = rt.arcPtrEq(r2, other);
+		const _875: boolean = rt.arcPtrEq(u.arc, v.arc);
+		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_859, f), (f: rt.Formatter) => rt.fmtBool(_863, f), (f: rt.Formatter) => rt.fmtBool(_867, f), (f: rt.Formatter) => rt.fmtBool(_871, f), (f: rt.Formatter) => rt.fmtBool(_875, f)];
+		put(out, rt.fmtFormat([args52[0], " ", args52[1], " ", args52[2], " ", args52[3], " ", args52[4], " "]));
+		v[Symbol.dispose]();
+		u[Symbol.dispose]();
+		other[Symbol.dispose]();
+		s2[Symbol.dispose]();
+		r2[Symbol.dispose]();
+		cell3[Symbol.dispose]();
+		apart[Symbol.dispose]();
+		t2[Symbol.dispose]();
+		const _889: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log.value);
+		rt.byteVecClear(_889.value);
+		rt.refMutRelease(_889);
 		let sum: rt.u32 = 0;
-		const _810: rt.Arc<rt.RefCell<(a0: rt.u8) => undefined>> = new rt.Arc(new rt.RefCell((x2: rt.u8): undefined => {
+		const _894: rt.Arc<rt.RefCell<(a0: rt.u8) => undefined>> = new rt.Arc(new rt.RefCell((x2: rt.u8): undefined => {
 			sum = rt.u32WrappingAdd(sum, x2 as rt.u32);
 		}));
-		f = new rt.ArcDyn(_810, rt.tailDyn(_810.value, { value: (value32: rt.RefCell<(a0: rt.u8) => undefined>) => value32.value }));
+		f = new rt.ArcDyn(_894, rt.tailDyn(_894.value, { value: (value41: rt.RefCell<(a0: rt.u8) => undefined>) => value41.value }));
 		for (const x of rt.byteSliceView(rt.byteSliceRange(data, 3))) {
-			const _823: rt.RefCell<(a0: rt.u8) => undefined> = rt.refCellBorrowMut(f.value);
-			_823.value(x);
-			rt.refMutRelease(_823);
+			const _907: rt.RefCell<(a0: rt.u8) => undefined> = rt.refCellBorrowMut(f.value);
+			_907.value(x);
+			rt.refMutRelease(_907);
 		}
 		f[Symbol.dispose]();
-		const shown: rt.RefCell<rt.Fmt> = rt.tailDyn(new rt.RefCell({ tag: "Tall", _0: c } as Tri.Tri), { value: (value33: rt.RefCell<Tri.Tri>): rt.Fmt => {
-			const arg8 = rt.valuePlace(value33);
+		const shown: rt.RefCell<rt.Fmt> = rt.tailDyn(new rt.RefCell({ tag: "Tall", _0: c } as Tri.Tri), { value: (value42: rt.RefCell<Tri.Tri>): rt.Fmt => {
+			const arg8 = rt.valuePlace(value42);
 			return (f: rt.Formatter) => Tri.fmt$fmt_Debug(arg8.v, f);
 		} });
-		const any: Tail.Tail<Any.Any> = rt.tailDyn(new Tail.Tail(b, new Noisy.Noisy(b, rt.arcClone(log)), c as rt.u32), { value: (value34: Tail.Tail<rt.u32>) => new ofPlace$u32(rt.place(() => value34.value, (value35) => value34.value = value35)) }, rt.drop);
-		const _839: rt.Arc<rt.Mutex<rt.Iter<rt.u8>>> = new rt.Arc(new rt.Mutex(rt.iterRev(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 3))))));
-		const it: rt.Arc<rt.Mutex<rt.Iter<rt.u8>>> = new rt.ArcDyn(_839, rt.tailDyn(_839.value, { value: (value36: rt.Mutex<rt.Iter<rt.u8>>) => rt.iterDyn(rt.iterBorrow(value36.value)) }));
-		const _847: rt.Mutex<rt.Iter<rt.u8>> = rt.mutexLock(it.value);
-		const next: rt.u8 | undefined = rt.iterToOption(_847.value.next());
-		rt.mutexUnlock(_847);
-		const _859: rt.u32 | undefined = any.value instanceof of$u32 ? any.value.v : any.value instanceof ofPlace$u32 ? any.value.v.v : undefined;
-		const _862: boolean = any.value instanceof of$u8 || any.value instanceof ofPlace$u8;
-		const _868: rt.Mutex<rt.Iter<rt.u8>> = rt.mutexLock(it.value);
-		const _865: rt.u8 | undefined = rt.iterToOption(_868.value.next());
-		const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.refCellDebug(shown, f, (value: rt.Fmt, f: rt.Formatter) => value(f)), (f: rt.Formatter) => rt.fmtOption(_859, f, rt.u32Debug), (f: rt.Formatter) => rt.fmtBool(_862, f), (f: rt.Formatter) => rt.fmtOption(next, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_865, f, rt.u8Debug)];
-		const _855: string = rt.fmtFormat([args52[0], " ", args52[1], " ", args52[2], " ", args52[3], " ", args52[4], " ", args52[5], " "]);
-		rt.mutexUnlock(_868);
-		put(out, _855);
-		const _884: rt.u8 | undefined = option_map$0cs071d(rt.byteSliceFirst(rt.byteSliceRange(data, 3)), (x3: rt.u8): rt.u8 => {
+		const any: Tail.Tail<Any.Any> = rt.tailDyn(new Tail.Tail(b, new Noisy.Noisy(b, rt.arcClone(log)), c as rt.u32), { value: (value43: Tail.Tail<rt.u32>) => new ofPlace$u32(rt.place(() => value43.value, (value44) => value43.value = value44)) }, rt.drop);
+		const _923: rt.Arc<rt.Mutex<rt.Iter<rt.u8>>> = new rt.Arc(new rt.Mutex(rt.iterRev(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 3))))));
+		const it: rt.Arc<rt.Mutex<rt.Iter<rt.u8>>> = new rt.ArcDyn(_923, rt.tailDyn(_923.value, { value: (value45: rt.Mutex<rt.Iter<rt.u8>>) => rt.iterDyn(rt.iterBorrow(value45.value)) }));
+		const _931: rt.Mutex<rt.Iter<rt.u8>> = rt.mutexLock(it.value);
+		const next: rt.u8 | undefined = rt.iterToOption(_931.value.next());
+		rt.mutexUnlock(_931);
+		const _943: rt.u32 | undefined = any.value instanceof of$u32 ? any.value.v : any.value instanceof ofPlace$u32 ? any.value.v.v : undefined;
+		const _946: boolean = any.value instanceof of$u8 || any.value instanceof ofPlace$u8;
+		const _952: rt.Mutex<rt.Iter<rt.u8>> = rt.mutexLock(it.value);
+		const _949: rt.u8 | undefined = rt.iterToOption(_952.value.next());
+		const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.refCellDebug(shown, f, (value: rt.Fmt, f: rt.Formatter) => value(f)), (f: rt.Formatter) => rt.fmtOption(_943, f, rt.u32Debug), (f: rt.Formatter) => rt.fmtBool(_946, f), (f: rt.Formatter) => rt.fmtOption(next, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(_949, f, rt.u8Debug)];
+		const _939: string = rt.fmtFormat([args54[0], " ", args54[1], " ", args54[2], " ", args54[3], " ", args54[4], " ", args54[5], " "]);
+		rt.mutexUnlock(_952);
+		put(out, _939);
+		const _968: rt.u8 | undefined = option_map$0cs071d(rt.byteSliceFirst(rt.byteSliceRange(data, 3)), (x3: rt.u8): rt.u8 => {
 			return rt.u8Rem(x3, 4);
 		});
 		b6: {
-			if (_884 !== undefined) {
-				if (_884 === 0) {
+			if (_968 !== undefined) {
+				if (_968 === 0) {
 					const _shared: rt.RefCell<rt.u32> = rt.refCellBorrow(n.value);
-					const _891: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(n);
-					const dynamic: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_891, rt.tailDyn(_891.value, { value: (value38: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value38)) }));
-					const _896: rt.RefCell<Shape.Shape> = rt.refCellBorrowMut(dynamic.value);
-					_896.value.grow$Shape(1);
-					rt.refMutRelease(_896);
+					const _975: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(n);
+					const dynamic: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_975, rt.tailDyn(_975.value, { value: (value47: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value47)) }));
+					const _980: rt.RefCell<Shape.Shape> = rt.refCellBorrowMut(dynamic.value);
+					_980.value.grow$Shape(1);
+					rt.refMutRelease(_980);
 					dynamic[Symbol.dispose]();
 					rt.refRelease(_shared);
 					break b6;
 				}
-				if (_884 === 1) {
-					const _900: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(n);
-					const dynamic2: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_900, rt.tailDyn(_900.value, { value: (value37: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value37)) }));
+				if (_968 === 1) {
+					const _984: rt.Arc<rt.RefCell<rt.u32>> = rt.arcClone(n);
+					const dynamic2: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_984, rt.tailDyn(_984.value, { value: (value46: rt.RefCell<rt.u32>) => new ofPlace$u32(rt.valuePlace(value46)) }));
 					const _held2: rt.RefCell<Shape.Shape> = rt.refCellBorrowMut(dynamic2.value);
-					const _913: rt.RefCell<rt.u32> = rt.refCellBorrow(n.value);
-					const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_913.value, f)];
-					const _909: string = rt.fmtFormat([args54[0]]);
-					rt.refRelease(_913);
-					put(out, _909);
+					const _997: rt.RefCell<rt.u32> = rt.refCellBorrow(n.value);
+					const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_997.value, f)];
+					const _993: string = rt.fmtFormat([args56[0]]);
+					rt.refRelease(_997);
+					put(out, _993);
 					rt.refMutRelease(_held2);
 					dynamic2[Symbol.dispose]();
 					break b6;
 				}
-				if (_884 === 2) {
+				if (_968 === 2) {
 					const _guard2: rt.Mutex<Tri.Tri> = rt.mutexLock(m.value);
-					const _935: rt.Mutex<Shape.Shape> = rt.mutexLock(locked.value);
-					const part3 = _935.value.area$Shape();
-					const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
-					const _928: string = rt.fmtFormat([args56[0]]);
-					rt.mutexUnlock(_935);
-					put(out, _928);
+					const _1019: rt.Mutex<Shape.Shape> = rt.mutexLock(locked.value);
+					const part3 = _1019.value.area$Shape();
+					const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
+					const _1012: string = rt.fmtFormat([args58[0]]);
+					rt.mutexUnlock(_1019);
+					put(out, _1012);
 					rt.mutexUnlock(_guard2);
 					break b6;
 				}
 			}
-			const _950: rt.RefCell<rt.u32> = rt.refCellBorrow(n.value);
-			const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_950.value, f)];
-			const _946: string = rt.fmtFormat([args58[0]]);
-			rt.refRelease(_950);
-			put(out, _946);
+			const _1034: rt.RefCell<rt.u32> = rt.refCellBorrow(n.value);
+			const args60: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_1034.value, f)];
+			const _1030: string = rt.fmtFormat([args60[0]]);
+			rt.refRelease(_1034);
+			put(out, _1030);
 		}
 		it[Symbol.dispose]();
 		any[Symbol.dispose]();

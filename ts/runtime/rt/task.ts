@@ -331,6 +331,19 @@ export function tailDyn<T extends object, F extends { readonly [P in keyof T]?: 
 	return new Proxy(value, new Tail(key, object, () => by?.(value))) as never;
 }
 
+/** Whether two `tailDyn` views, or views of them, are of one struct. */
+export function tailSame(x: object, y: object): boolean {
+	return tailed(x) === tailed(y);
+}
+
+/** What a `tailDyn` view reads as the struct it is of. */
+const TAILED: unique symbol = /* @__PURE__ */ Symbol("tailed");
+
+function tailed(view: object): object {
+	for (let of: object | undefined; (of = (view as { [TAILED]?: object })[TAILED]) !== undefined; ) view = of;
+	return view;
+}
+
 /** What `tailDyn` makes: a view whose last field is made as it is read, and whose drop is `dispose`. */
 class Tail<T extends object, U> implements ProxyHandler<T> {
 	private readonly key: PropertyKey;
@@ -346,6 +359,7 @@ class Tail<T extends object, U> implements ProxyHandler<T> {
 	get(target: T, key: PropertyKey): unknown {
 		if (key === this.key) return this.object(target);
 		if (key === Symbol.dispose) return this.dispose;
+		if (key === TAILED) return target;
 		return Reflect.get(target, key);
 	}
 }

@@ -480,7 +480,10 @@ last of which drops the value. `Arc::ptr_eq` compares the `Arc<T>`s. An `Rc` is 
 and a `Pin` the pointer it holds. A `Weak<T>` unsized to a `Weak<dyn Trait>` keeps the
 `Arc<T>` and makes the `rt.ArcDyn` as it upgrades, since the value of `new_cyclic`'s
 `Weak` is not there yet as it unsizes. `Arc::from` or `Rc::from` of a box is an `rt.Arc`
-of what the box is, which drops it with the last clone. A `dyn Buf`'s object holds no
+of what the box is, which drops it with the last clone. A pointer to a struct whose last
+field unsizes to a trait object, such as `RefCell<dyn Trait>`, is an `rt.tailDyn` view of
+the struct it was made from, behind an `rt.ArcDyn` in an `Arc`, and two such pointers are
+equal if their views are of one struct. A `dyn Buf`'s object holds no
 `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
