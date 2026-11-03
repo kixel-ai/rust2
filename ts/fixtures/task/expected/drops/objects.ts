@@ -121,9 +121,9 @@ export function shared(log: Log.Log, id: rt.u32): void {
 	rt.arcDrop(wrap, lib_drop$drops_Wrap_u32);
 	rt.dropAll(parts);
 	const part3 = option_mapOr$0lu2pr2(rt.weakUpgrade(weak), 0, (p2: rt.Arc<Part.Part>): rt.u32 => {
-		const _03: rt.u32 = p2.value.id$Part();
+		const _04: rt.u32 = p2.value.id$Part();
 		p2[Symbol.dispose]();
-		return _03;
+		return _04;
 	});
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part3, f)];
 	Log.note(log, rt.fmtFormat(["weak ", args8[0]]));
