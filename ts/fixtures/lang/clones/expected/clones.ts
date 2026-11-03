@@ -7754,7 +7754,7 @@ export function arrays(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const vecs2: rt.ByteVec[] = _308[1];
 		rt.byteVecPush(vecs2[0], 1);
 		rt.iterExtendBytes(out, rt.strBytes(rt.strsJoin(words2, "")), undefined, true);
-		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterChain(rt.iterSlice(vecs), rt.iterSlice(vecs2)), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value))), "next");
+		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterChain(rt.iterSlice(vecs), rt.iterSlice(vecs2)), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)), true), "next");
 		rt.dropAll(copy2, drop$array2_clones_Logged);
 		flush(log.value, out);
 	} else if (_14 === 5) {
