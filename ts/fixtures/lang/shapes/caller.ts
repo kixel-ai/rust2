@@ -7,7 +7,7 @@ import { be, edges, op, ops as picks, run as harness } from "./lang.ts";
 import * as rt from "./rt.ts";
 
 /** The bytes that pick each case, and a `Fault`'s first byte. */
-export const ops: Uint8Array[] = [...picks, Uint8Array.of(0xff)];
+export const ops = new Map<string, Uint8Array>([...picks, ["fmt::Fault", Uint8Array.of(0xff)]]);
 
 export function run(input: rt.ByteSlice): rt.ByteVec {
 	if (rt.byteSliceFirst(input) !== 0xff) return harness(input);

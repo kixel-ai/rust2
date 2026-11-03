@@ -19,5 +19,3 @@ Each child reports its CPU saved, cold and warm, against `origin/main`.
 ## Required
 
 - [A warm gate](/quest/m0/checks/cache.md) - the land gate builds through mbx, as moq's does
-- [Fixtures that merge](/quest/m0/checks/fixture-layout.md) - `lang` splits by module, and `reject`'s snapshots key by item, not line
-- [A case's inputs stay as cases are added](/quest/m0/checks/case-inputs.md) - each differential case's generated inputs are seeded by its name
