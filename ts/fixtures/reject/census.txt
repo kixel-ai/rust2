@@ -243,7 +243,6 @@ fixtures/reject/src/values.rs:float+1:2: arithmetic on `f16`
 fixtures/reject/src/values.rs:generic_unit+1:2: `values::Maybe<()>` is not supported: its field `value` is `Option<T>`, typed `T | undefined`, whose `None` would be `rt.None` as `Option<()>`
 fixtures/reject/src/values.rs:lists+1:4: `std::collections::LinkedList::<T, A>::retain` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/values.rs:lists+2:4: `clone_from` of `std::collections::LinkedList<clones::Reused>`, whose items' `clone_from` is their own, which is not supported yet
-fixtures/reject/src/values.rs:lists+3:2: `std::default::Default::default` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/values.rs:manual_impls+2:2: unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt`
 fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq`
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`
