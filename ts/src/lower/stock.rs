@@ -472,7 +472,7 @@ fn bytes_mut(
 ) -> Option<Expr> {
 	// Its `[MaybeUninit<u8>]` is an array of its own in JS, which writes into wouldn't reach.
 	if name == "spare_capacity_mut" {
-		let msg = "`BytesMut::spare_capacity_mut`, whose `[MaybeUninit<u8>]` JS holds apart from the storage, which is not supported";
+		let msg = "`BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported";
 		return Some(b.err(call.span, msg.to_string()));
 	}
 	let mut args = args.into_iter();
