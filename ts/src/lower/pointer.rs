@@ -398,8 +398,8 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// rather than what it points at: a `MaybeUninit`'s or a `ManuallyDrop`'s, which it points
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
-/// whole `Result`, and a well-known crate's, such as a `Bytes` that `Buf::advance` moves
-/// past its front.
+/// whole `Result`, an iterator's that `by_ref` returns, and a well-known crate's, such as a
+/// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
 	def_id: rustc_hir::def_id::DefId,
@@ -410,6 +410,7 @@ fn takes_place<'tcx>(
 		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop")
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
+			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
 	) || super::stock::is_stock(t.tcx, def_id)
 }

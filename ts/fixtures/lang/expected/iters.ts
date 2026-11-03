@@ -9500,4 +9500,56 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	rt.refRelease(_1004);
 }
 
+/**
+ * `by_ref` of a `&mut` to an iterator held in a local, of a `&mut` to that, and of a
+ * `&mut dyn Iterator`: each advances the iterator it points at, which the original reads
+ * on from where the borrow stopped, and writing through what it returns rebinds the local.
+ */
+export function lent(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const n: rt.usize = option_mapOr$1t0muvr(rt.byteSliceFirst(data), 0, (_2: rt.u8): rt.usize => {
+		return rt.u8Rem(_2, 4) as rt.usize;
+	});
+	const it: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
+	const lent: rt.Iter<rt.u8> = it;
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterBorrow(lent), n), undefined, true);
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(lent.next()), 170));
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterBorrow(it), 1), undefined, true);
+	let once: rt.Iter<rt.u8> = it;
+	const twice: rt.Place<rt.Iter<rt.u8>> = rt.place(() => once, (value2) => once = value2);
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterNth(rt.iterBorrow(twice.v), n), 187));
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(twice.v.next()), 204));
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(it.next()), 221));
+	const own: iters_Countdown.Countdown = { left: rt.u8Mul(n & 0xff, 3), step: 2 };
+	const other: iters_Countdown.Countdown = { left: 9, step: 4 };
+	let held: iters_Countdown.Countdown = own;
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(iters_Countdown.next$iter_Iterator(held)), 170));
+	held = other;
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(iters_Countdown.next$iter_Iterator(held)), 187));
+	rt.iterExtendBytes(out, rt.iterFrom(own, (it: iters_Countdown.Countdown) => iters_Countdown.next$iter_Iterator(it)), "next");
+	rt.iterExtendBytes(out, rt.iterFrom(other, (it: iters_Countdown.Countdown) => iters_Countdown.next$iter_Iterator(it)), "next");
+	const range: rt.Range<rt.u8> = new rt.Range(0, rt.u8Mul(n & 0xff, 3));
+	let erased: rt.Iter<rt.u8> = rt.iterDyn(rt.iterBorrow(range));
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterStepBy(rt.iterBorrow(erased), 2), 2), "next");
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(erased.next()), 238));
+	rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.iterToOption(erased.next()), 238));
+	rt.iterExtendBytes(out, range, undefined, true);
+	let boxed: rt.Iter<rt.u8> = rt.iterDyn(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))));
+	rt.iterExtendBytes(out, rt.iterTake(rt.iterBorrow(boxed), n), "next");
+	rt.iterExtendBytes(out, rt.iterTake(boxed, 1), "next");
+	const rest: rt.Iter<rt.u8> = rt.iterSlice(rt.byteSliceView(data));
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(halves$mut_iter_Copied_slice_Iter_u8(rest, n)), undefined, true);
+	rt.iterExtendBytes(out, rest, undefined, true);
+	rt.iterExtendBytes(out, rt.byteVecIntoIter(halves$iter_Copied_slice_Iter_u8(rt.iterSlice(rt.byteSliceView(data)), n)), undefined, true);
+}
+
+/** The first `n` items, then one more. */
+export function halves$iter_Copied_slice_Iter_u8(it: rt.Iter<rt.u8>, n: rt.usize): rt.ByteVec {
+	return rt.byteSlicesJoin([rt.iterToByteVec(rt.iterTake(rt.iterBorrow(it), n), undefined, true), rt.iterToByteVec(rt.iterTake(it, 1), undefined, true)], undefined, rt.byteVecSlice);
+}
+
+/** The first `n` items, then one more. */
+export function halves$mut_iter_Copied_slice_Iter_u8(it: rt.Iter<rt.u8>, n: rt.usize): rt.ByteVec {
+	return rt.byteSlicesJoin([rt.iterToByteVec(rt.iterTake(rt.iterBorrow(it), n), undefined, true), rt.iterToByteVec(rt.iterTake(rt.iterBorrow(it), 1), undefined, true)], undefined, rt.byteVecSlice);
+}
+
 //# sourceMappingURL=iters.ts.map

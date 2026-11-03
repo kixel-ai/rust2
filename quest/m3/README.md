@@ -22,7 +22,6 @@ generic std gap is planned here even when moq never calls it.
 - [bytes' Chain as a Buf object](/quest/m3/ts-buf-chain.md) - `Chain::copy_to_bytes` across both halves translates, and with it a `Chain` as a `dyn Buf`
 - [A Buf object's size](/quest/m3/ts-dyn-buf-size.md) - a `dyn Buf` object holds only the methods some call dispatches to
 - [A boxed iterator folds as std's box does](/quest/m3/ts-box-folds.md) - a `Box<I>` reads by `next` where std's `Iterator` for `Box<I>` forwards nothing else
-- [by_ref of a mutable reference to an iterator](/quest/m3/ts-by-ref-place.md) - `Iterator::by_ref` of a `&mut I` in a local translates
 - [mem::take as a function value](/quest/m3/ts-take-value.md) - `mem::take`, `replace`, and `swap` passed as a function value translate
 - [Debug of a RefCell](/quest/m3/ts-refcell-debug.md) - `{:?}` of a `RefCell`, `Ref`, and `RefMut` translates as std's writes them
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
