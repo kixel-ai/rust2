@@ -1325,4 +1325,48 @@ export function equal(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.hashDrop(left, undefined, undefined, rt.drop);
 }
 
+/**
+ * `hashbrown::HashMap` and `HashSet` with `BuildHasherDefault` of std's `DefaultHasher`,
+ * made by `default` and `from_iter`, whose `hasher` hashes as `DefaultHasher::new` does.
+ */
+export function defaultHasher(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _25!: rt.u8;
+	let _32!: rt.u8;
+	const pairs: rt.HashMap<[rt.u8, rt.u8], rt.u32> = rt.hashNew(rt.hashing(rt.hashTuple([rt.hash8, rt.hash8]), rt.eqTuple([rt.same, rt.same])), undefined) as rt.HashMap<[rt.u8, rt.u8], rt.u32>;
+	const _5: rt.Iter<rt.u8> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b3: rt.u8): rt.u8 => {
+		return rt.u8Rem(b3, 8);
+	});
+	const set: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, _5, undefined, undefined, 469762048);
+	for (const b of rt.byteSliceView(data)) {
+		const _16: [rt.u8, rt.u8] = [rt.u8Rem(b, 4), rt.u8Rem(b, 3)];
+		const _13: rt.Place<rt.u32> = rt.entryOrInsertMut(rt.entry(pairs, _16), 0);
+		_13.v = rt.u32Add(_13.v, 1);
+	}
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = 4;
+	l3: while ((_25 = iterStart++) < iterEnd) {
+		const a: rt.u8 = _25;
+		let iterStart2: rt.u8 = 0;
+		const iterEnd2: rt.u8 = 3;
+		while (true) {
+			if (!((_32 = iterStart2++) < iterEnd2)) {
+				continue l3;
+			}
+			put(out, option_unwrapOr$11c0we2(rt.hashGet(pairs, [a, _32] as [rt.u8, rt.u8]), 0) as rt.usize);
+		}
+	}
+	put(out, rt.hashLen(set));
+	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(rt.hasher(), [first, 0] as [rt.u8, rt.u8], rt.hashTuple([rt.hash8, rt.hash8]))).reverse()));
+	rt.hashClone(set, undefined, undefined, (_a0: undefined): undefined => {
+		return undefined;
+	}).s as undefined;
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(rt.hasher(), first, rt.hash8)).reverse()));
+	rt.byteVecPush(out, true ? 1 : 0);
+	const _79: rt.HashMap<[rt.u8, rt.u8], rt.u32> = rt.hashClone(pairs, undefined, undefined, (_a02: undefined): undefined => {
+		return undefined;
+	});
+	rt.byteVecPush(out, rt.hashEq(rt.same)(pairs, _79) ? 1 : 0);
+}
+
 //# sourceMappingURL=maps.ts.map
