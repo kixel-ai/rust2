@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -2088,7 +2088,7 @@ export function btreeValues<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (
 /**
  * A range of keys or indices, as its value is: `a..b`, `a..=b`, `a..` as `{ start }`, `..b`
  * as `{ end }`, `..` as `undefined`, and `(Bound<K>, Bound<K>)` as its pair. Any other
- * `RangeBounds` is a function returning its `start_bound` and `end_bound`, called where
+ * `RangeBounds` is a `BoundsOf`, whose `start_bound` and `end_bound` are called where
  * std's calls them.
  */
 export type Bounds<K> =
@@ -2097,22 +2097,33 @@ export type Bounds<K> =
 	| { readonly start: K }
 	| { readonly end: K; readonly inclusive?: true }
 	| BoundPair<K>
-	| (() => BoundPair<K>)
+	| BoundsOf<K>
 	| undefined;
 
 type BoundPair<K> = readonly [RangeBound<K>, RangeBound<K>];
 
+/** Another `RangeBounds`: its `start_bound` and `end_bound`, each read as it is called. */
+interface BoundsOf<K> {
+	readonly startBound: () => RangeBound<K>;
+	readonly endBound: () => RangeBound<K>;
+}
+
 const UNBOUNDED: RangeBound<never> = { tag: "Unbounded" };
 
-/** Another `RangeBounds`, `r`, as `Bounds` reads it: by `start` and then `end`, once read. */
-export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): () => BoundPair<K> {
-	return () => [start(r), end(r)];
+/** Another `RangeBounds`, `r`, as `Bounds` reads it, by `start` and `end`. */
+export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): BoundsOf<K> {
+	return { startBound: () => start(r), endBound: () => end(r) };
+}
+
+/** Whether `r` is a `BoundsOf`: a field test, as `inclusive`'s is. */
+function other<K>(r: Bounds<K>): r is BoundsOf<K> {
+	return typeof r === "object" && "endBound" in r;
 }
 
 /** `RangeBounds`: `start_bound`, then `end_bound`. */
 function bounds<K>(r: Bounds<K>): BoundPair<K> {
 	if (r === undefined) return [UNBOUNDED, UNBOUNDED];
-	if (typeof r === "function") return r();
+	if (other(r)) return [r.startBound(), r.endBound()];
 	if (Array.isArray(r)) return r as BoundPair<K>;
 	if (inclusive(r)) return [rangeInclusiveStartBound(r), rangeInclusiveEndBound(r)];
 	const start: RangeBound<K> = "start" in r ? { tag: "Included", _0: r.start } : UNBOUNDED;
@@ -2161,6 +2172,132 @@ function edge<K, V>(m: BTreeMap<K, V>, key: K, past: boolean): [Leaf<K, V>, numb
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
 	return [l, i < 0 ? ~i : past ? i + 1 : i];
+}
+
+/**
+ * `extract_if` of a B-tree: from the first key `r` starts at, each entry `f` returns true
+ * for, taken out as it is read, in key order, as `[key, value]`, or of a set its key, up to
+ * the first key past `r`'s end, which `r` is read for at each key and found past by `le` and
+ * `lt`, a key of the crate's own's `PartialOrd`, or else by the map's order. `f` is given
+ * each key and value or, with `places`, the value's place, and drops with the iterator,
+ * then `r`, by `drop`; what it has not read stays.
+ */
+class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
+	private readonly m: BTreeMap<K, V>;
+	/** The leaf of the entry it reads next, and its index, until it stops, as std's cursor. */
+	l: Leaf<K, V> | undefined;
+	i = 0;
+	private readonly r: Bounds<K>;
+	private readonly f: (key: K, value: V | Place<V>) => boolean;
+	private readonly places: boolean;
+	private readonly keys: boolean;
+	private readonly le: Test<K> | undefined;
+	private readonly lt: Test<K> | undefined;
+	private readonly drop: (() => void) | undefined;
+
+	constructor(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V | Place<V>) => boolean, places: boolean, keys: boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void) {
+		super();
+		this.m = m;
+		this.r = r;
+		this.f = f;
+		this.places = places;
+		this.keys = keys;
+		this.le = le;
+		this.lt = lt;
+		this.drop = drop;
+		// std's reads the start only of a map with its root node.
+		if (!m.r) return;
+		const start = other(r) ? r.startBound() : bounds(r)[0];
+		if (start.tag === "Unbounded") this.at(end(m, false), 0);
+		else this.at(...edge(m, start._0, start.tag === "Excluded"));
+	}
+
+	/** Moves to index `i` of `l`, or to the next leaf's first where `i` is past `l`'s last. */
+	private at(l: Leaf<K, V>, i: number): void {
+		if (i === l.k.length && l.next !== undefined) {
+			l = l.next;
+			i = 0;
+		}
+		this.l = l;
+		this.i = i;
+	}
+
+	/** Whether `key` is within the end of `r`. */
+	private within(key: K): boolean {
+		const r = this.r;
+		const stop = other(r) ? r.endBound() : bounds(r)[1];
+		if (stop.tag === "Unbounded") return true;
+		if (stop.tag === "Included") return this.le !== undefined ? this.le(key, stop._0) : this.m.c(key, stop._0) <= 0;
+		return this.lt !== undefined ? this.lt(key, stop._0) : this.m.c(key, stop._0) < 0;
+	}
+
+	next(): T | Done {
+		const m = this.m;
+		for (let l = this.l; l !== undefined; l = this.l) {
+			let i = this.i;
+			// Stopped where it ends, past the end of `r`, or by a panic, as std's is.
+			this.l = undefined;
+			if (i === l.k.length) return DONE;
+			const key = l.k[i];
+			if (!this.within(key)) return DONE;
+			if (!this.f(key, this.places ? new AtIndex(l.v, i) : l.v[i])) {
+				this.at(l, i + 1);
+				continue;
+			}
+			const value = l.v[i];
+			// A leaf that takes from or merges with another moves what is left of it, which is
+			// then found again by the key it took out.
+			const settles = l.k.length <= MIN && m.h > 0;
+			removeAt(m, l, i);
+			if (settles) {
+				l = leafOf(m, key);
+				i = ~search(l.k, key, m.c);
+			}
+			this.at(l, i);
+			return (this.keys ? key : [key, value]) as T;
+		}
+		return DONE;
+	}
+
+	/** std's, which counts what it read and kept, too. */
+	override sizeHint(): SizeHint {
+		return [0, this.m.n];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.f);
+		this.drop?.();
+	}
+}
+
+/** `Debug` of a B-tree's `ExtractIf`: the entry it reads next, if any, or of a set, with no `value`, its key. */
+export function fmtBTreeExtractIf<K, V>(it: Iter<unknown>, f: Formatter, key: Debug<K>, value?: Debug<V>): FmtResult {
+	const { l, i } = it as BTreeExtractIf<K, V, unknown>;
+	let peek: Fmt = (f) => f.out.writeStr("None");
+	if (l !== undefined && i < l.k.length) {
+		const k: Fmt = (f) => key(l.k[i], f);
+		const kv: Fmt = value === undefined ? k : (f) => fmtTuple([k, (f) => value(l.v[i], f)], f);
+		peek = (f) => fmtDebugTupleFields(f, "Some", [kv]);
+	}
+	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
+}
+
+/**
+ * `BTreeMap::extract_if`, handing `f` each key and value, with what `BTreeExtractIf` takes:
+ * a key of the crate's own's `le` and `lt`, and what drops a range that drops.
+ */
+export function btreeExtractIf<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, false, false, le, lt, drop);
+}
+
+/** `BTreeMap::extract_if` of values JS copies: `f` takes the place of each. */
+export function btreeExtractIfMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: Place<V>) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, true, false, le, lt, drop);
+}
+
+/** `BTreeSet::extract_if`, handing `f` each key. */
+export function btreeExtractKeysIf<K>(m: BTreeSet<K>, r: Bounds<K>, f: (key: K) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<K> {
+	return new BTreeExtractIf(m, r, f as (key: K) => boolean, false, true, le, lt, drop);
 }
 
 /**
