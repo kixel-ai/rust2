@@ -472,7 +472,10 @@ calls a key's `Hash`, `Eq`, or `Ord`. A map or set built with any `BuildHasher` 
 `RandomState` holds it, which `hasher` lends, `Default` and `collect` make, and `clone`
 clones before what the map holds; it drops before the map's entries, and at once from
 `into_iter`, `into_keys`, and `into_values`, as hashbrown's does. No key goes through it:
-the runtime's own hasher finds them, so it builds no hasher for the map.
+the runtime's own hasher finds them, so it builds no hasher for the map. A lookup calls
+`eq` of the key looked up by, given the key held, as std's does. Two maps or sets compare
+as std's: their lengths, then each entry of the left looked up in the right, and its
+value's `==` of the one found.
 
 A `DefaultHasher` is std's SipHash-1-3, and `Hash` writes into it what std's impls write,
 so `DefaultHasher::new`'s hash of a value is native's. `RandomState::new` keys it as std

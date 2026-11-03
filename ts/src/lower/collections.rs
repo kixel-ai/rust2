@@ -133,11 +133,11 @@ pub fn call<'tcx>(
 					let eq = eq.call(args);
 					return Ok(Some(if name == "eq" { eq } else { eq.not() }));
 				}
-				let kind = b.t.std_of(t) == Some(Std::ErrorKind);
+				let comparable = matches!(b.t.std_of(t), Some(Std::ErrorKind | Std::HashMap | Std::HashSet));
 				if matches!(t.kind(), ty::Bool | ty::Int(_) | ty::Uint(_))
 					|| library::nothing(tcx, t)
 					|| bytes(b, t)
-					|| !(std_key(b, t) || kind)
+					|| !(std_key(b, t) || comparable)
 					|| !alike(b, t, rhs)
 				{
 					return Err(args);
@@ -2825,6 +2825,9 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rt("eqSeq", vec![not_ne_fn(b, item, span)]),
 		// A list's iterator compares its items by `==`.
 		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rt("eqList", vec![eq_fn(b, item, span)]),
+		// A map compares its values by `==`, and a set holds none.
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashMap) => Expr::rt("hashEq", vec![eq_fn(b, arg(ty, 1), span)]),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashSet) => Expr::rt("hashEq", vec![]),
 		_ if bytes(b, ty) => Expr::Rt("eqBytes".into()),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => {
 			let eq = eq_fn(b, inner, span);

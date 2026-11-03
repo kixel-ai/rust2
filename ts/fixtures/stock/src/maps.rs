@@ -734,3 +734,47 @@ pub fn own_from_iter(data: &[u8], out: &mut Vec<u8>) {
 	drop((hinted, keys));
 	out.extend_from_slice(&MADE.with(|made| made.take()));
 }
+
+/// `==` and `!=` of `hashbrown`'s maps and sets, as std's: equal lengths, then each entry
+/// of the left found in the right with an equal value, whatever the `BuildHasher` of each,
+/// its own seeded apart on each side, or the default. The right is of the same bytes in
+/// another order, so a key given twice keeps the value it was given last; or of all but the
+/// last, or of one byte flipped.
+pub fn equal(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let reversed: Vec<u8> = data.iter().rev().copied().collect();
+	let flipped: Vec<u8> = data
+		.iter()
+		.enumerate()
+		.map(|(i, &b)| if i == data.len() / 2 { b ^ 0x21 } else { b })
+		.collect();
+	let shorter = &data[..data.len().saturating_sub(1)];
+	let pairs = |seed: u8, bytes: &[u8]| {
+		let mut m = HashMap::with_hasher(Seeded(seed, &log));
+		for &b in bytes {
+			m.insert((b % 8, b % 3 == 0), b >> 5);
+		}
+		m
+	};
+	let keys = |seed: u8, bytes: &[u8]| {
+		let mut s = HashSet::with_hasher(Seeded(seed, &log));
+		s.extend(bytes.iter().map(|b| b % 16));
+		s
+	};
+	let numbers = |bytes: &[u8]| {
+		bytes
+			.iter()
+			.map(|&b| (u16::from(b % 8), u32::from(b)))
+			.collect::<HashMap<u16, u32>>()
+	};
+	let (left, set, counts) = (pairs(1, data), keys(1, data), numbers(data));
+	for bytes in [&reversed[..], data, shorter, &flipped] {
+		let right = pairs(2, bytes);
+		out.push(u8::from(left == right));
+		out.push(u8::from(right != left));
+		let other = keys(2, bytes);
+		out.push(u8::from(set == other));
+		out.push(u8::from(other != set));
+		out.push(u8::from(counts == numbers(bytes)));
+	}
+}

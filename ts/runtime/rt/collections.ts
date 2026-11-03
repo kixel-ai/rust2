@@ -468,10 +468,13 @@ function hashed<K, V>(m: HashMap<K, V>, key: K): boolean {
 	return m.h !== undefined && (m.h.all || typeof key === "object");
 }
 
-/** The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given. */
+/**
+ * The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given, which
+ * compares by `key`'s `eq`, as std's lookups do.
+ */
 function slot<K, V>(m: HashMap<K, V>, key: K, hash?: number): Slot<K, V> | undefined {
 	const h = m.h as Hashing<K>;
-	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(s.k, key)) return s;
+	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(key, s.k)) return s;
 	return undefined;
 }
 
@@ -1093,6 +1096,22 @@ export function hashClone<K, V>(
 		for (let s: Slot<K, V> | undefined = first; s !== undefined; s = s.next) add(out, key(s.k), value(s.v), hash);
 	}
 	return out;
+}
+
+/**
+ * `PartialEq::eq` of hash maps, by their values' `eq`, or of sets, without one: as std's,
+ * equal lengths, then each entry of `a` found in `b`, by the key and then the value of
+ * `a`'s `eq`. The runtime's order decides which entries it compares before one differs.
+ */
+export function hashEq<V>(eq?: (a: V, b: V) => boolean): <K>(a: HashMap<K, V>, b: HashMap<K, V>) => boolean {
+	return <K>(a: HashMap<K, V>, b: HashMap<K, V>) => {
+		if (hashLen(a) !== hashLen(b)) return false;
+		for (const [key, value] of hashIter(a)) {
+			const found = hashGetKeyValue(b, key);
+			if (found === undefined || (eq !== undefined && !eq(value, found[1]))) return false;
+		}
+		return true;
+	};
 }
 
 // Set operations of hash sets, as std's: each walks one set's keys in the runtime's
