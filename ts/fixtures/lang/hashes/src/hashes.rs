@@ -582,7 +582,10 @@ pub fn copied(data: &[u8], out: &mut Vec<u8>) {
 	let n = wide(data, 0, 2) as u16;
 	let mut local = Switch::Log(&log);
 	hash_into(&mut local, data);
-	let mut holder = Holder { tag: n as u8, h: Switch::Log(&log) };
+	let mut holder = Holder {
+		tag: n as u8,
+		h: Switch::Log(&log),
+	};
 	holder.h.write_u8(n as u8 | 1);
 	n.hash(&mut holder.h);
 	hash_into(&mut holder.h, &data[data.len() / 2..]);
