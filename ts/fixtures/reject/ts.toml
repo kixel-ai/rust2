@@ -179,13 +179,13 @@ roots = [
     "values::ascii_octal",
     "values::bits",
     "values::block_cloned",
+    "values::cell_unsized",
     "values::dangling_enum",
     "values::float",
     "values::generic_unit",
     "values::lists",
     "values::manual_impls",
     "values::nested",
-    "values::tail_read",
     "values::units_compared",
 ]
 printable = ["config::Meters"]
