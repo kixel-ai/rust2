@@ -12,9 +12,8 @@ Found probing std's consumers for [drop order](/quest/m3/ts-drop-order.md) in
 [#438](https://github.com/moq-dev/rust2/pull/438). Of a closure that owns nothing, each of
 these is refused today:
 
-- `Iterator::try_fold`, `try_for_each`, and `partition`. Folds from the back, `rfold` and
-  `try_rfold`, are [#436](https://github.com/moq-dev/rust2/pull/436)'s
-  [`ts-iter-back-folds`](https://github.com/moq-dev/rust2/blob/quest/m2/ts-model/iter-traits/quest/m3/ts-iter-back-folds.md).
+- `Iterator::try_fold`, `try_for_each`, and `partition`. `rt.iterTryRfold` already folds
+  from the back as `try_rfold` does, breaking by an `Option`, `Result`, or `ControlFlow`.
 - `iter::repeat_with`, and `Iterator::scan` of a state JS copies, which is refused as a
   `&mut` its mapping would copy.
 - `slice::sort_by_cached_key`.

@@ -800,7 +800,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		read(rt.iterDyn(rt.iterBorrow(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 2))))), out);
 		read(rt.iterDyn(rt.iterBorrow(new rt.Range(a, b))), out);
 		const down: Countdown.Countdown = new Countdown.Countdown(rt.u8Rem(a, 16));
-		read(rt.iterDyn(rt.iterFrom(down, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it))), out);
+		read(rt.iterDyn(rt.iterFrom(down, Countdown.next$iter_Iterator)), out);
 		dropped(out);
 		down[Symbol.dispose]();
 		dropped(out);
@@ -858,7 +858,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
 		put(out, rt.fmtFormat([args10[0], " "]));
 		dropped(out);
-		const own: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 16)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop));
+		const own: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 16)), Countdown.next$iter_Iterator, rt.drop));
 		let sum: rt.u32 = 0;
 		const iter: rt.Iter<rt.u8> = rt.iterBox(own);
 		while (true) {
@@ -872,20 +872,20 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(sum, f)];
 		put(out, rt.fmtFormat([args12[0], " "]));
 		dropped(out);
-		const nested: rt.Iter<rt.u8> = rt.iterDyn(rt.iterBox(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(a, 8)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
+		const nested: rt.Iter<rt.u8> = rt.iterDyn(rt.iterBox(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(a, 8)), Countdown.next$iter_Iterator, rt.drop)));
 		const inner: Countdown.Countdown = new Countdown.Countdown(rt.u8Rem(b, 8));
-		const first: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(inner, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it))))).next());
+		const first: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(inner, Countdown.next$iter_Iterator)))).next());
 		const second: rt.u8 | undefined = rt.iterToOption(Countdown.next$iter_Iterator(inner));
 		const erased: rt.Iter<rt.u8> = rt.iterDyn(new rt.Range(rt.u8Rem(a, 4), rt.u8Rem(b, 8)));
 		const third: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterBorrow(erased)))).next());
 		const doubled: Countdown.Countdown = new Countdown.Countdown(rt.u8Rem(a, 8));
-		const fourth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(doubled, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it))))).next());
-		const mapped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterBox(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)), (x3: rt.u8): rt.u8 => {
+		const fourth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(doubled, Countdown.next$iter_Iterator)))).next());
+		const mapped: rt.ByteVec = rt.iterToByteVec(rt.iterMap(rt.iterBox(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), Countdown.next$iter_Iterator, rt.drop)), (x3: rt.u8): rt.u8 => {
 			return x3 ^ 1;
 		}), "next");
 		const _233: rt.ByteVec = rt.iterToByteVec(rt.iterBox(nested), "next");
 		const _235: rt.usize = rt.ownedCount(rt.iterBox(erased));
-		const _238: rt.usize = rt.ownedCount(rt.iterBox(rt.iterFrom(doubled, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
+		const _238: rt.usize = rt.ownedCount(rt.iterBox(rt.iterFrom(doubled, Countdown.next$iter_Iterator, rt.drop)));
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteVecView(_233), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(first, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(second, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(third, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(fourth, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(mapped), f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(_235, f), (f: rt.Formatter) => rt.usizeDisplay(_238, f)];
 		put(out, rt.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " ", args14[6], " ", args14[7], " "]));
 		dropped(out);
@@ -894,15 +894,15 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _262: [Countdown.Countdown, rt.Range<rt.u8>] = [new Countdown.Countdown(rt.u8Rem(a, 8)), new rt.Range(rt.u8Rem(a, 4), rt.u8Rem(b, 8))];
 		const own2: Countdown.Countdown = _262[0];
 		const range: rt.Range<rt.u8> = _262[1];
-		const hints: [rt.usize, rt.usize | undefined][] = rt.arrayMap([rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(own2, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it))))), rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterBorrow(range))))], (it: rt.Iter<rt.u8>): [rt.usize, rt.usize | undefined] => {
+		const hints: [rt.usize, rt.usize | undefined][] = rt.arrayMap([rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(own2, Countdown.next$iter_Iterator)))), rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterBorrow(range))))], (it: rt.Iter<rt.u8>): [rt.usize, rt.usize | undefined] => {
 			return it.sizeHint();
 		});
 		let held: Countdown.Countdown = new Countdown.Countdown(rt.u8Rem(b, 8));
 		let lent2: rt.Place<Countdown.Countdown> = rt.place(() => held, (value4) => held = value4);
 		const layered: rt.Place<rt.Place<Countdown.Countdown>> = rt.place(() => lent2, (value5) => lent2 = value5);
-		const fifth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(layered.v.v, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it))))).next());
+		const fifth: rt.u8 | undefined = rt.iterToOption(rt.iterDyn(rt.iterBorrow(rt.iterBox(rt.iterFrom(layered.v.v, Countdown.next$iter_Iterator)))).next());
 		const sixth: rt.u8 | undefined = rt.iterToOption(Countdown.next$iter_Iterator(layered.v.v));
-		const _301: rt.usize = rt.ownedCount(rt.iterBox(rt.iterFrom(held, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
+		const _301: rt.usize = rt.ownedCount(rt.iterBox(rt.iterFrom(held, Countdown.next$iter_Iterator, rt.drop)));
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(hints, f, (value: [rt.usize, rt.usize | undefined], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtOption(value[1], f, rt.usizeDebug)], f)), (f: rt.Formatter) => rt.fmtOption(fifth, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(sixth, f, rt.u8Debug), (f: rt.Formatter) => rt.usizeDisplay(_301, f)];
 		put(out, rt.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", args16[3], " "]));
 		dropped(out);
@@ -931,15 +931,15 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _369: rt.usize = rt.ownedCount(rt.iterBox(split.chunks$Chunks()));
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lens_, f, rt.usizeDebug), (f: rt.Formatter) => rt.usizeDisplay(_369, f)];
 		put(out, rt.fmtFormat([args20[0], " ", args20[1], " "]));
-		const part3 = drain(rt.iterDyn(rt.iterBorrow(rt.iterFuse(rt.iterFrom({ _0: rt.u8Rem(a, 4) }, (it: Resuming.Resuming) => Resuming.next$iter_Iterator(it))))));
+		const part3 = drain(rt.iterDyn(rt.iterBorrow(rt.iterFuse(rt.iterFrom({ _0: rt.u8Rem(a, 4) }, Resuming.next$iter_Iterator)))));
 		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part3)];
 		put(out, rt.fmtFormat([args22[0], " "]));
 		const resuming: Resuming.Resuming = { _0: rt.u8Rem(b, 4) };
-		const up: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(resuming, (it: Resuming.Resuming) => Resuming.next$iter_Iterator(it)));
+		const up: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(resuming, Resuming.next$iter_Iterator));
 		const part4 = [rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next()), rt.iterToOption(up.next())] as [rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined, rt.u8 | undefined];
 		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(part4[0], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[1], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[2], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[3], f, rt.u8Debug), (f: rt.Formatter) => rt.fmtOption(part4[4], f, rt.u8Debug)], f)];
 		put(out, rt.fmtFormat([args24[0], " "]));
-		const boxed3: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(a, 8)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop));
+		const boxed3: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(a, 8)), Countdown.next$iter_Iterator, rt.drop));
 		const part5 = drain(boxed3);
 		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part5)];
 		put(out, rt.fmtFormat([args26[0], " "]));
@@ -983,7 +983,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _530: [rt.usize, rt.usize | undefined] = up2.value.sizeHint();
 		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(next, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(_530[0], f), (f: rt.Formatter) => rt.fmtOption(_530[1], f, rt.usizeDebug)], f)];
 		put(out, rt.fmtFormat([args34[0], " ", args34[1], " "]));
-		const fromBox: rt.Arc<rt.Iter<rt.u8>> = new rt.Arc(rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
+		const fromBox: rt.Arc<rt.Iter<rt.u8>> = new rt.Arc(rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), Countdown.next$iter_Iterator, rt.drop)));
 		const part6 = option_andThen$0ntiuws(rt.arcGetMut(fromBox), (it5: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it5.next());
 		});
@@ -993,7 +993,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		dropped(out);
 		const counted2: rt.Arc<Countdown.Countdown> = new rt.Arc(new Countdown.Countdown(rt.u8Rem(a, 8)));
 		const weak3: rt.Weak<rt.Iter<rt.u8>> = rt.weakDyn(new rt.Weak(counted2), (arc: rt.Arc<Countdown.Countdown>): rt.Arc<rt.Iter<rt.u8>> => {
-			return new rt.ArcDyn(arc, rt.iterDyn(rt.iterFrom(arc.value, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
+			return new rt.ArcDyn(arc, rt.iterDyn(rt.iterFrom(arc.value, Countdown.next$iter_Iterator, rt.drop)));
 		});
 		const part7 = option_map$0oedb57(rt.weakUpgrade(weak3), (it6: rt.Arc<rt.Iter<rt.u8>>): [rt.usize, rt.usize | undefined] => {
 			const _018: [rt.usize, rt.usize | undefined] = it6.value.sizeHint();
@@ -1010,7 +1010,7 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.drop(_596);
 		put(out, _590);
 		dropped(out);
-		const pinned: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop));
+		const pinned: rt.Iter<rt.u8> = rt.iterDyn(rt.iterFrom(new Countdown.Countdown(rt.u8Rem(b, 8)), Countdown.next$iter_Iterator, rt.drop));
 		const part9 = rt.iterToOption(pinned.next());
 		const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part9, f, rt.u8Debug)];
 		put(out, rt.fmtFormat([args42[0]]));

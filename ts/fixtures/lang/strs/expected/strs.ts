@@ -1240,7 +1240,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterEmpty();
 		put(out, rt.stringExtendChars("", rt.iterEmpty() as rt.Iter<rt.char>));
 		put(out, rt.stringExtendChars("", rt.iterOption(rt.charFromU32(kind as rt.u32))));
-		put(out, rt.stringExtendChars("", rt.iterFrom({ items: chars, nexts }, (it: Counted.Counted<rt.char>) => Counted.next$iter_Iterator_char(it))));
+		put(out, rt.stringExtendChars("", rt.iterFrom({ items: chars, nexts }, Counted.next$iter_Iterator_char)));
 	} else if (_21 === 1) {
 		put(out, rt.stringExtend("", rt.iterSlice(parts)));
 		put(out, rt.stringExtend("", rt.iterRev(rt.strSplit(s, "/"))));
@@ -1263,7 +1263,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.stringFromStrings(rt.iterMap(rt.iterSlice(owned), (p7: string): string => {
 			return p7;
 		})));
-		put(out, rt.stringFromStrings(rt.iterFrom({ items: owned, nexts }, (it: Counted.Counted<string>) => Counted.next$iter_Iterator_String(it))));
+		put(out, rt.stringFromStrings(rt.iterFrom({ items: owned, nexts }, Counted.next$iter_Iterator_String)));
 	} else if (_21 === 2) {
 		let t: string = "é";
 		const _153: rt.char[] = chars;
@@ -1274,7 +1274,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterEmpty();
 		named.name = rt.stringExtendChars(named.name, rt.iterEmpty() as rt.Iter<rt.char>);
 		const counted3: Counted.Counted<rt.char> = { items: chars, nexts };
-		t = rt.stringExtendChars(t, rt.iterFrom(counted3, (it: Counted.Counted<rt.char>) => Counted.next$iter_Iterator_char(it)));
+		t = rt.stringExtendChars(t, rt.iterFrom(counted3, Counted.next$iter_Iterator_char));
 		put(out, t);
 	} else {
 		let t2: string = "";
@@ -1294,7 +1294,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterEmpty();
 		named.name = rt.stringExtend(named.name, rt.iterEmpty() as rt.Iter<string>);
 		const counted4: Counted.Counted<string> = { items: parts, nexts };
-		t2 = rt.stringExtend(t2, rt.iterFrom(counted4, (it: Counted.Counted<string>) => Counted.next$iter_Iterator_ref_str(it)));
+		t2 = rt.stringExtend(t2, rt.iterFrom(counted4, Counted.next$iter_Iterator_ref_str));
 		put(out, t2);
 	}
 	put(out, named.name);

@@ -28,7 +28,7 @@ generic std gap is planned here even when moq never calls it.
 - [std's calls of a closure that have no mapping](/quest/m3/ts-closure-calls.md) - `try_fold`, `partition`, `repeat_with`, `sort_by_cached_key`, and `LazyCell::new` translate, dropping what their closures own as std's do
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
-- [Folds from the back, and a crate's own folds](/quest/m3/ts-iter-back-folds.md) - `rfold` and `try_rfold` translate, and so does a crate's iterator that overrides `fold` or `nth_back`
+- [A crate's own find and for_each](/quest/m3/ts-iter-own-calls.md) - a crate's iterator that overrides `find`, `rfind`, `find_map`, or `for_each` translates, each called where std's adaptors and consumers call it
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Rc and Arc of a slice](/quest/m3/ts-shared-slices.md) - `Rc<[T]>` and `Arc<[T]>` from a `Vec`, a slice, or an iterator translate

@@ -958,7 +958,8 @@ fn releases(owner: &str, name: &str) -> bool {
 				| "eq_by"
 				| "cmp_by"
 				| "partial_cmp_by"
-		) | ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
+		) | ("DoubleEndedIterator", "rfold" | "try_rfold")
+			| ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
 	)
 }
 
@@ -1002,7 +1003,7 @@ fn takes_none(owner: &str, name: &str) -> bool {
 					"get" | "get_mut" | "set" | "get_or_init" | "get_or_try_init" | "take" | "into_inner"
 				)
 				| ("Arc" | "Rc", "into_inner")
-				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind")
+				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind" | "try_rfold")
 				| ("dyn Any" | "dyn Error", "downcast_ref" | "downcast_mut")
 				| ("ptr", "as_ref" | "as_mut")
 				| ("from_fn", "from_fn")
