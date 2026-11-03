@@ -10,7 +10,8 @@ Clang on Linux and Apple Clang on macOS.
 
 - Read the next nightly's run, and fix what it finds at the source, in the generator or the
   recipes, never by loosening flags.
-- Its runs so far stopped compiling `ffi/tests/fixtures.rs`, so nothing after that has run
-  on Windows yet: the exporter, a rustc driver; cl's flags and its lookup of `link.exe`
-  from Git Bash, where Git's `/usr/bin/link` may shadow it; the standin's paths; and
-  MSVC's `/W4` warnings with no GCC or Clang counterpart.
+- The exporter runs on Windows, and `tests/api.cpp` and `moq/moq.cpp` compile with the
+  job's cl (19.51) at each standard the checks build, as Compiler Explorer's cl shows.
+  Nothing has linked or run there yet: cl's lookup of `link.exe` from Git Bash, where Git's
+  `/usr/bin/link` may shadow it; the native libraries rustc prints; the transcripts; and the
+  job's Python step, between the C++ checks and `just ffi moq-cpp`.

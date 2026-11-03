@@ -540,7 +540,11 @@ public:
 
 	// Poll once: the output when ready, else nothing, and `w` is woken when it is worth
 	// polling again. Polling after it is ready aborts.
-	poll_t<output> poll(const waker &w);
+	poll_t<output> poll(const waker &w) {
+		detail::slot<output> out;
+		poll_into(w, out);
+		return out.release();
+	}
 
 	// Block the calling thread until the output is ready.
 	output get() &&;
@@ -792,13 +796,6 @@ void future<Op>::poll_into(const waker &w, detail::slot<output> &out) {
 	detail::c_waker raw = n == last_ ? detail::lend(n) : detail::give(n);
 	last_ = n;
 	Op::poll(raw_, raw, out);
-}
-
-template <class Op>
-poll_t<typename future<Op>::output> future<Op>::poll(const waker &w) {
-	detail::slot<output> out;
-	poll_into(w, out);
-	return out.release();
 }
 
 template <class Op>
