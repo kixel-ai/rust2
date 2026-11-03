@@ -106,7 +106,7 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 	for step in rest.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let at = usize::from(arg) % (q.len() + 1);
-		match op % 24 {
+		match op % 30 {
 			0..=3 => q.push_back(T::make(arg)),
 			4 | 5 => q.push_front(T::make(arg)),
 			6 => drop(q.pop_front()),
@@ -133,7 +133,34 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 			20 => q.extend((0..arg % 8).map(T::make)),
 			21 => q.clear(),
 			22 => q = remade(q, arg),
-			_ => mutated(&mut q, arg, out),
+			23 => mutated(&mut q, arg, out),
+			24 => appended(&mut q, arg, out),
+			25 => q.resize(usize::from(arg) % 16, T::make(arg)),
+			26 => q.resize_with(usize::from(arg) % 16, || T::make(arg)),
+			27 => {
+				let tail = q.split_off(at);
+				put(out, tail.capacity());
+				text(out, &tail.as_slices());
+			}
+			// Bumped through `range_mut` read from either end.
+			28 => {
+				let start = usize::from(arg & 7) % (q.len() + 1);
+				let end = start + usize::from(arg >> 3 & 7) % (q.len() - start + 1);
+				let mut it = q.range_mut(start..end);
+				if let Some(x) = it.next() {
+					x.bump();
+				}
+				if let Some(x) = it.next_back() {
+					x.bump();
+				}
+				text(out, &it);
+			}
+			// Into a `Vec`, which std's makes of its buffer once contiguous, and back.
+			_ => {
+				let v = Vec::from(q);
+				put(out, v.capacity());
+				q = VecDeque::from(v);
+			}
 		}
 		put(out, q.len());
 		put(out, q.capacity());
@@ -199,6 +226,23 @@ fn remade<T: Item>(q: VecDeque<T>, arg: u8) -> VecDeque<T> {
 			}
 		}
 	}
+}
+
+/// Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+/// it, which shows where its head is once pushed at both ends.
+fn appended<T: Item>(q: &mut VecDeque<T>, arg: u8, out: &mut Vec<u8>) {
+	let mut other = VecDeque::with_capacity(usize::from(arg % 4));
+	for i in 0..arg >> 2 & 7 {
+		match i % 3 {
+			2 => other.push_front(T::make(i)),
+			_ => other.push_back(T::make(i)),
+		}
+	}
+	q.append(&mut other);
+	put(out, other.capacity());
+	other.push_front(T::make(arg));
+	other.push_back(T::make(arg));
+	text(out, &other.as_slices());
 }
 
 /// A drain of a range `arg` picks, written as it is read from either end and then dropped.
