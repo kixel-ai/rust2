@@ -52,11 +52,11 @@ export function map$0p22lts(self: rt.u8 | undefined, f: (a0: rt.u8) => undefined
 	return undefined;
 }
 
-export function mapOr$1w5qtj7(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
+export function mapOr$18ph0j9(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
 	if (self === rt.None) {
 		return default_;
 	}
-	return f(self);
+	return f(undefined);
 }
 
 export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a0: rt.usize) => rt.u8): rt.u8 {

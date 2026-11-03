@@ -2,6 +2,11 @@
 
 import * as rt from "./rt.ts";
 import * as Fnv from "./hashes.Fnv.ts";
+import * as Tally from "./hashes.Tally.ts";
+
+export function clone$Clone(self: Key): Key {
+	return { _0: self._0, _1: self._1 };
+}
 
 export function eq$cmp_PartialEq(self: Key, other: Key): boolean {
 	if (!(self._0 === other._0)) {
@@ -18,6 +23,11 @@ export function hash$Hash_hash_DefaultHasher(self: Key, state: rt.Hasher): void 
 export function hash$Hash_hashes_Fnv(self: Key, state: Fnv.Fnv): void {
 	rt.hash16(self._0, new rt.OwnHasher(state, Fnv.hasher$hash_Hasher));
 	rt.hashStr(self._1, new rt.OwnHasher(state, Fnv.hasher$hash_Hasher));
+}
+
+export function hash$Hash_hashes_Tally(self: Key, state: Tally.Tally): void {
+	rt.hash16(self._0, new rt.OwnHasher(state, Tally.hasher$hash_Hasher));
+	rt.hashStr(self._1, new rt.OwnHasher(state, Tally.hasher$hash_Hasher));
 }
 
 export function partialCmp$cmp_PartialOrd(self: Key, other: Key): rt.Ordering | undefined {

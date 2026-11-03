@@ -10,6 +10,10 @@ export interface Fnv {
 	_0: rt.u64;
 }
 
+export function default$Default(): Fnv {
+	return { _0: { hi: 0xcbf29ce4, lo: 0x84222325 } as rt.u64 };
+}
+
 export function finish$hash_Hasher(self: Fnv): rt.u64 {
 	return self._0;
 }

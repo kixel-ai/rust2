@@ -28,6 +28,8 @@ import * as Sided from "./hashes.Sided.ts";
 import * as Small from "./hashes.Small.ts";
 import * as Spread from "./hashes.Spread.ts";
 import * as Switch from "./hashes.Switch.ts";
+import * as Tallied from "./hashes.Tallied.ts";
+import * as Tally from "./hashes.Tally.ts";
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
 export function digest$Option_Option_u8(value: rt.u8 | undefined | rt.None, out: rt.ByteVec): void {
@@ -1347,6 +1349,101 @@ export function equal(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _193: hashes_Index.Index = _175(data);
 	const part13 = rt.byteVecSlice(flipped);
 	rt.byteVecPush(out, !hashes_Index.eq$cmp_PartialEq(_193, _175(part13)) ? 1 : 0);
+}
+
+/**
+ * `BuildHasherDefault`, made by `new`, `Default`, and `Clone`, which all compare equal and
+ * print alike whatever their `Hasher`, and each builds its hasher by the hasher's own
+ * `Default`, once per hash. Then hash maps and sets that hold one, which find their keys
+ * whatever it hashes them to, and say only sorted what they hold, as std's order is its own.
+ */
+export function defaults(data: rt.ByteSlice, out: rt.ByteVec): void {
+	((events: rt.RefCell<rt.ByteVec>): undefined => {
+		const _5: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(events);
+		rt.byteVecClear(_5.value);
+		rt.refMutRelease(_5);
+	})(EVENTS.get());
+	const first: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 7);
+	Tallied.default$Default();
+	const held: Tallied.Tallied = { tag: first, state: undefined };
+	const cloned: Tallied.Tallied = Tallied.clone$Clone(held);
+	rt.byteVecPush(out, true ? 1 : 0);
+	rt.byteVecPush(out, false ? 1 : 0);
+	rt.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, cloned) ? 1 : 0);
+	const _36: Tallied.Tallied = Tallied.default$Default();
+	rt.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, _36) ? 1 : 0);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "BuildHasherDefault"), (f: rt.Formatter) => rt.fmtOption(undefined, f, (_value: undefined, f: rt.Formatter) => rt.fmtWriteStr(f, "BuildHasherDefault"), rt.None), (f: rt.Formatter) => Tallied.fmt$fmt_Debug(cloned, f), (f: rt.Formatter) => Tallied.fmt$fmt_Debug(held, f)];
+	put(out, rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", rt.fmtSpec({ alternate: true }, args2[3])]));
+	const word: string = result_unwrapOr$01jdcm7(rt.strFromUtf8(data), "✓");
+	const n: rt.u16 = rt.u128Low(wide(data, 0, 2)) & 0xffff;
+	const built: Tally.Tally = Tally.default$Default();
+	rt.hash16(n, new rt.OwnHasher(built, Tally.hasher$hash_Hasher));
+	const _66: rt.u64 = Tally.finish$hash_Hasher(built);
+	const _68: rt.u64 = rt.hashOne(new rt.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), n, rt.hash16, undefined, rt.drop);
+	const _70: rt.u64 = rt.hashOne(new rt.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), word, rt.hashStr, undefined, rt.drop);
+	const _74: [rt.u8, string] = [n & 0xff, word];
+	const _72: rt.u64 = rt.hashOne(new rt.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _74, rt.hashTuple([rt.hash8, rt.hashStr]), undefined, rt.drop);
+	const _79: Key.Key = { _0: n, _1: word };
+	const hashes: rt.u64[] = [_66, _68, _70, _72, rt.hashOne(new rt.OwnHasher(Tally.default$Default(), Tally.hasher$hash_Hasher), _79, rt.hashOwn(Key.hash$Hash_hashes_Tally as (a0: Key.Key, a1: Tally.Tally) => undefined), undefined, rt.drop)];
+	built[Symbol.dispose]();
+	const iter: rt.Iter<rt.u64> = rt.iterSlice(hashes);
+	while (true) {
+		const _85: rt.u64 | rt.Done = iter.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(_85).reverse()));
+	}
+	const keyed: rt.HashMap<Key.Key, rt.u8> = rt.hashNew(rt.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rt.Hasher) => undefined, Key.eq$cmp_PartialEq), undefined) as rt.HashMap<Key.Key, rt.u8>;
+	const seen: rt.HashSet<rt.u8> = rt.hashWithCapacity(data.length, 469762048, undefined, undefined) as rt.HashSet<rt.u8>;
+	const iter2: rt.Iter<[rt.usize, rt.u8]> = rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data)));
+	while (true) {
+		const _101: [rt.usize, rt.u8] | rt.Done = iter2.next();
+		if (_101 === rt.DONE) {
+			break;
+		}
+		const i: rt.usize = _101[0];
+		const b: rt.u8 = _101[1];
+		const _110: rt.u16 = rt.u8Rem(b, 8) as rt.u16;
+		const bounds = rt.sliceIndexBounds(new rt.RangeInclusive(i, i, rt.usizeStep), data.length);
+		const _109: Key.Key = { _0: _110, _1: text(rt.byteSliceRange(data, bounds[0], bounds[1])) };
+		const _106: rt.Place<rt.u8> = rt.entryOrInsertWithMut(rt.entry(keyed, _109), (): rt.u8 => {
+			return 0;
+		});
+		_106.v = rt.u8Add(_106.v, 1);
+		rt.byteVecPush(out, rt.hashAdd(seen, rt.u8Rem(b, 16)) ? 1 : 0);
+		const _128: Key.Key = { _0: (rt.u8Rem(b, 8) ^ 1) as rt.u16, _1: text(rt.byteSliceFrom(Uint8Array.of(b ^ 1))) };
+		rt.byteVecPush(out, rt.hashContains(keyed, _128) ? 1 : 0);
+	}
+	const entries: [Key.Key, rt.u8][] = rt.iterToArray(rt.hashIter(keyed), "next", 8);
+	rt.sliceSort(entries, rt.cmpLt(rt.cmpTuple<[Key.Key, rt.u8], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 8, true);
+	for (const _147 of entries) {
+		rt.byteVecPush(out, _147[0]._0 & 0xff);
+		put(out, _147[0]._1);
+		rt.byteVecPush(out, _147[1]);
+	}
+	const probe: Key.Key = { _0: first as rt.u16, _1: text(rt.byteSliceFrom(Uint8Array.of(first))) };
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(new rt.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), probe, rt.hashOwn(Key.hash$Hash_hashes_Fnv as (a0: Key.Key, a1: Fnv.Fnv) => undefined))).reverse()));
+	rt.hashClone(seen, undefined, undefined, (_a0: undefined): undefined => {
+		return undefined;
+	}).s as undefined;
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.hashOne(new rt.OwnHasher(Fnv.default$Default(), Fnv.hasher$hash_Hasher), first, rt.hash8)).reverse()));
+	rt.byteVecPush(out, true ? 1 : 0);
+	const _195: rt.HashMap<Key.Key, rt.u8> = rt.hashClone(keyed, Key.clone$Clone, undefined, (_a02: undefined): undefined => {
+		return undefined;
+	});
+	rt.byteVecPush(out, rt.hashEq(rt.same)(keyed, _195) ? 1 : 0);
+	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "BuildHasherDefault")];
+	put(out, rt.fmtFormat([args4[0]]));
+	const _212: rt.Iter<rt.u8> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): rt.u8 => {
+		return rt.u8Rem(b2, 4);
+	});
+	const small: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, _212, undefined, undefined, 469762048);
+	rt.byteVecPush(out, rt.hashLen(rt.hashExtendKeys(rt.hashNew(undefined, undefined) as rt.HashSet<rt.u8>, rt.hashUnion(small, seen), undefined, undefined, 469762048)) & 0xff);
+	rt.byteVecPush(out, rt.hashIsSubset(small, seen) ? 1 : 0);
+	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(((events2: rt.RefCell<rt.ByteVec>): rt.ByteVec => {
+		return rt.refCellReplace(events2, new rt.ByteVec());
+	})(EVENTS.get())));
 }
 
 //# sourceMappingURL=hashes.ts.map

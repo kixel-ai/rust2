@@ -486,6 +486,10 @@ export class of$buf_Pieces {
 		return Pieces.remaining$bytes_Buf(this.v);
 	}
 
+	skip$Leased(a: Buf.Buf): void {
+		return Pieces.skip$buf_Leased(this.v, a);
+	}
+
 	tryCopyToSlice$Buf(a: rt.ByteSlice): rt.Result<undefined, TryGetError.TryGetError> {
 		return Pieces.tryCopyToSlice$bytes_Buf(this.v, a);
 	}

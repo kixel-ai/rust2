@@ -5,7 +5,7 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::RandomState;
-use std::hash::BuildHasher;
+use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher};
 use std::sync::Arc;
 
 use hashbrown::hash_table::{Entry, HashTable};
@@ -777,4 +777,26 @@ pub fn equal(data: &[u8], out: &mut Vec<u8>) {
 		out.push(u8::from(other != set));
 		out.push(u8::from(counts == numbers(bytes)));
 	}
+}
+
+/// `hashbrown::HashMap` and `HashSet` with `BuildHasherDefault` of std's `DefaultHasher`,
+/// made by `default` and `from_iter`, whose `hasher` hashes as `DefaultHasher::new` does.
+pub fn default_hasher(data: &[u8], out: &mut Vec<u8>) {
+	type Build = BuildHasherDefault<DefaultHasher>;
+	let mut pairs: HashMap<(u8, u8), u32, Build> = HashMap::default();
+	let set: HashSet<u8, Build> = data.iter().map(|b| b % 8).collect();
+	for &b in data {
+		*pairs.entry((b % 4, b % 3)).or_insert(0) += 1;
+	}
+	for a in 0..4 {
+		for b in 0..3 {
+			put(out, pairs.get(&(a, b)).copied().unwrap_or(0) as usize);
+		}
+	}
+	put(out, set.len());
+	let first = data.first().copied().unwrap_or(0);
+	out.extend_from_slice(&pairs.hasher().hash_one((first, 0u8)).to_le_bytes());
+	out.extend_from_slice(&set.clone().hasher().hash_one(first).to_le_bytes());
+	out.push(u8::from(*set.hasher() == Build::default()));
+	out.push(u8::from(pairs == pairs.clone()));
 }
