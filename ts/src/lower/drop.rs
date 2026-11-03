@@ -151,8 +151,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether whatever holds a `ty` can drop it without knowing its type, through the
 	/// `[Symbol.dispose]` its JS value has, as an `Arc` and a generic class's glue do. A
-	/// class whose glue that needs is given it.
-	fn disposable(&mut self, ty: Ty<'tcx>, span: Span) -> bool {
+	/// class whose glue that needs is given it there, at `glue`; `None` only asks.
+	fn disposable(&mut self, ty: Ty<'tcx>, glue: Option<Span>) -> bool {
 		if !self.drops(ty) {
 			return self.inert(ty);
 		}
@@ -176,17 +176,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Reverse
 					| Std::Wrapping
 					| Std::Saturating,
-				) => self.disposable(args.type_at(0), span),
+				) => self.disposable(args.type_at(0), glue),
 				// An `rt.Iter` drops what it was given to.
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
-				// A generic `Drop` impl has an instance per type, which one class's glue can't call.
-				None if adt.is_struct() && !self.generic_dtor(*adt) => {
-					if !args.types().all(|t| self.disposable(t, span)) {
+				None if self.shared_glue(*adt) => {
+					if !args.types().all(|t| self.disposable(t, glue)) {
 						return false;
 					}
-					let info = self.adt(*adt, span);
-					self.glue(*adt, &info, span);
+					if let Some(span) = glue {
+						let info = self.adt(*adt, span);
+						self.glue(*adt, &info, span);
+					}
 					true
 				}
 				None => false,
@@ -243,9 +244,86 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	/// Whether `adt` is generic and implements `Drop`.
-	fn generic_dtor(&self, adt: AdtDef<'tcx>) -> bool {
-		adt.has_dtor(self.tcx) && self.tcx.generics_of(adt.did()).requires_monomorphization(self.tcx)
+	/// Whether one class's glue drops every instance of `adt`: a struct each of whose
+	/// fields drops alike in every instance, without a generic `Drop` impl, which has an
+	/// instance per type. Each instance of another drops by its own glue, rustc's.
+	fn shared_glue(&mut self, adt: AdtDef<'tcx>) -> bool {
+		let tcx = self.tcx;
+		if !adt.is_struct() || adt.has_dtor(tcx) && tcx.generics_of(adt.did()).requires_monomorphization(tcx) {
+			return false;
+		}
+		if let Some(&shared) = self.shared_glues.get(&adt.did()) {
+			return shared;
+		}
+		// A struct that holds itself drops alike through that field if through the rest.
+		if !self.shared_open.insert(adt.did()) {
+			return true;
+		}
+		let shared = adt.all_fields().all(|field| {
+			let ty = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
+			self.uniform(tcx.erase_and_anonymize_regions(ty))
+		});
+		self.shared_open.remove(&adt.did());
+		// A `true` that read a struct still being decided holds only once that one is.
+		if !shared || self.shared_open.is_empty() {
+			self.shared_glues.insert(adt.did(), shared);
+		}
+		shared
+	}
+
+	/// Whether [`Self::drop_value`] drops a `ty` over type parameters, as a generic class's
+	/// glue holds one, alike in every instance: not where only an instance's glue can, as
+	/// for an enum, or a type with a generic `Drop` impl.
+	fn uniform(&mut self, ty: Ty<'tcx>) -> bool {
+		if !(ty.has_param() || ty.has_aliases()) || !self.drops(ty) {
+			return true;
+		}
+		if let Some(elem) = self.elements(ty) {
+			return self.uniform(elem);
+		}
+		if self.disposable(ty, None) {
+			return true;
+		}
+		let (adt, args) = match ty.kind() {
+			ty::Adt(adt, args) => (*adt, *args),
+			// Each element in order.
+			ty::Tuple(tys) => return tys.iter().all(|t| self.uniform(t)),
+			_ => return false,
+		};
+		// What the runtime is given to drop each key, value, or item, or what it holds.
+		let held = |t: &mut Self, n: usize| args.types().take(n).all(|arg| t.uniform(arg));
+		match Std::of(self.tcx, adt.did()) {
+			Some(Std::MutexGuard | Std::Ref | Std::RefMut | Std::PeekMut) => true,
+			Some(Std::Entry) if self.tcx.item_name(adt.did()).as_str() == "OccupiedEntry" => true,
+			Some(Std::OnceCell | Std::OnceLock) => self.uniform(Ty::new_option(self.tcx, args.type_at(0))),
+			Some(Std::Cow) => library::cow_slice(self.tcx, ty).is_none_or(|elem| self.uniform(elem)),
+			Some(Std::LazyCell | Std::LazyLock | Std::HashMap | Std::BTreeMap) => held(self, 2),
+			Some(
+				Std::Arc
+				| Std::Mutex
+				| Std::RefCell
+				| Std::Cell
+				| Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError
+				| Std::HashSet
+				| Std::HashTable
+				| Std::BTreeSet
+				| Std::VecDeque
+				| Std::LinkedList
+				| Std::BinaryHeap
+				| Std::Range
+				| Std::RangeInclusive
+				| Std::RangeFrom
+				| Std::RangeTo
+				| Std::RangeToInclusive
+				| Std::Entry,
+			) => held(self, 1),
+			_ => false,
+		}
 	}
 
 	/// Whether dropping a `ty` through its JS value's `[Symbol.dispose]` does nothing. A
@@ -299,12 +377,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// An array or `Vec`, or one in an `Option` or a box, which is it or `undefined`.
 		if let Some(elem) = self.elements(ty) {
 			let mut args = vec![value];
-			if !self.disposable(elem, span) {
+			if !self.disposable(elem, Some(span)) {
 				args.push(self.drop_fn(elem, span)?);
 			}
 			return Some(Expr::rt("dropAll", args));
 		}
-		if self.disposable(ty, span) {
+		if self.disposable(ty, Some(span)) {
 			return Some(match self.always_disposes(ty) {
 				true => value.index(Expr::ident("Symbol").member("dispose")).call(Vec::new()),
 				false => Expr::rt("drop", vec![value]),
@@ -351,7 +429,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Std::Cow => {
 					let elem = library::cow_slice(self.tcx, ty)?;
 					let mut args = vec![value];
-					if !self.disposable(elem, span) {
+					if !self.disposable(elem, Some(span)) {
 						args.push(self.drop_fn(elem, span)?);
 					}
 					("cowDrop", args)
@@ -364,7 +442,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					};
 					let bounds = Expr::Array(vec![value.clone().member(lo), value.member(hi)]);
 					let mut args = vec![bounds];
-					if !self.disposable(arg(0), span) {
+					if !self.disposable(arg(0), Some(span)) {
 						args.push(self.drop_fn(arg(0), span)?);
 					}
 					("dropAll", args)
@@ -424,7 +502,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if !self.drops(ty) {
 			return None;
 		}
-		if self.disposable(ty, span) {
+		if self.disposable(ty, Some(span)) {
 			return Some(Expr::Rt("drop".into()));
 		}
 		// A tuple over type parameters, as a generic class's glue holds, has no glue of
@@ -527,15 +605,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The `[Symbol.dispose]` of a class: its `Drop` impl, then each field that drops.
 	fn glue(&mut self, adt: AdtDef<'tcx>, info: &Adt, span: Span) {
 		let tcx = self.tcx;
-		if !self.glued.insert(adt.did()) {
-			return;
-		}
-		// An enum drops by rustc's glue, which switches on its variant, and a generic `Drop`
-		// impl has an instance per type: each instance drops by glue of its own.
+		// An enum drops by rustc's glue, which switches on its variant, as does each instance
+		// of a struct that drops alike in none.
 		let AdtRepr::Struct { fields, .. } = &info.repr else {
 			return;
 		};
-		if self.generic_dtor(adt) {
+		if !self.shared_glue(adt) || !self.glued.insert(adt.did()) {
 			return;
 		}
 		let mut steps = Vec::new();

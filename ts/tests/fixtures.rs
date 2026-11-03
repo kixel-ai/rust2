@@ -396,6 +396,7 @@ mod lang {
 		cows,
 		cycles,
 		defaults,
+		drops,
 		durations,
 		dyns,
 		edits,
