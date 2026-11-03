@@ -574,26 +574,39 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		}
 	}
 
-	/// `p`, a `from` raw pointer, unsized to `to` as a `&mut` to what it points at is, unless
-	/// it is null or dangling, which stays itself.
+	/// `p`, a `from` raw pointer, unsized to `to`, unless it is null or dangling, which stays
+	/// itself: what a box of the object it points at unsizes to, which drops it as the box
+	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to, in the
+	/// `rt.Place` a raw pointer to `to`'s pointee is, if it is one.
 	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		};
 		let name = self.fresh("p");
-		// An `rt.Place` of a library type, such as an iterator, whose `&mut` is the object.
-		let lent = match self.t.raw_place(from).is_some() && !self.t.needs_place(pointee) {
-			true => Expr::ident(&name).member("v"),
-			false => Expr::ident(&name),
-		};
 		let erased = tcx.lifetimes.re_erased;
-		let (from, to) = (
-			Ty::new_mut_ref(tcx, erased, pointee),
-			Ty::new_mut_ref(tcx, erased, object),
-		);
+		let (lent, ptr_from, ptr_to) = match self.t.needs_place(pointee) {
+			true => (
+				Expr::ident(&name),
+				Ty::new_mut_ref(tcx, erased, pointee),
+				Ty::new_mut_ref(tcx, erased, object),
+			),
+			// An `rt.Place` of a library type, such as an iterator or a cell, holds the object.
+			false => (
+				match self.t.raw_place(from) {
+					Some(_) => Expr::ident(&name).member("v"),
+					None => Expr::ident(&name),
+				},
+				Ty::new_box(tcx, pointee),
+				Ty::new_box(tcx, object),
+			),
+		};
 		let mut body = Vec::new();
-		let made = self.unsize(lent, from, to, span, &mut body);
+		let made = self.unsize(lent, ptr_from, ptr_to, span, &mut body);
+		let made = match self.t.raw_place(to).is_some() && !self.t.needs_place(object) {
+			true => Expr::Object(vec![(Key::Name("v".into()), made)]),
+			false => made,
+		};
 		let param = Param { name, ty: None };
 		let make = match body.is_empty() {
 			true => Expr::Lambda(vec![param], Box::new(made)),

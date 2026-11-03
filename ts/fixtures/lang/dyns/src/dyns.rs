@@ -1718,6 +1718,43 @@ pub fn rests(data: &[u8], out: &mut Vec<u8>) {
 	);
 	drop(t);
 	put(out, &format!("{:?} ", log.borrow()));
+	// To a cell of one, read and written in place.
+	let mut sq = Cell::new(Square { side: u16::from(c) });
+	let mut tri = RefCell::new(Tri::Tall(a));
+	let p: *mut Cell<dyn Shape> = &raw mut sq;
+	let q: *mut RefCell<dyn Shape> = &raw mut tri;
+	let areas = unsafe {
+		(*p).get_mut().grow(b);
+		(*q).borrow_mut().grow(c);
+		((*p).get_mut().area(), (*q).borrow().area())
+	};
+	put(out, &format!("{areas:?} {} {:?} ", sq.get_mut().side, tri.borrow()));
+	// Owned again by `Box::from_raw`, which drops what it points at once.
+	let (ticks, noisy, tail) = (
+		Box::into_raw(Box::new(Ticks {
+			left: b % 3,
+			polls: 0,
+			log: log.clone(),
+		})),
+		Box::into_raw(Box::new(Noisy(a, log.clone()))),
+		Box::into_raw(Box::new(Tail {
+			count: b,
+			head: Noisy(b, log.clone()),
+			value: Noisy(c, log.clone()),
+		})),
+	);
+	let (ticks, noisy, tail): (*mut dyn Future<Output = u8>, *mut dyn Shape, *mut Tail<dyn Shape>) =
+		(ticks, noisy, tail);
+	let mut cx = Context::from_waker(Waker::noop());
+	let polled = unsafe { Pin::new_unchecked(&mut *ticks) }.poll(&mut cx).is_ready();
+	unsafe {
+		(*noisy).grow(c);
+		drop(Box::from_raw(ticks));
+		drop(Box::from_raw(noisy));
+		drop(Box::from_raw(tail));
+	}
+	put(out, &format!("{polled} {:?} ", log.borrow()));
+	log.borrow_mut().clear();
 	// Of std's traits: an iterator read through it, a `Debug` written, and a null pointer,
 	// which stays null.
 	let mut range = a % 8..b % 8;
