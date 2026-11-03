@@ -1189,6 +1189,9 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let mut toggle = if at(3) % 2 == 0 { Toggle::Ready } else { Toggle::Done };
 	let it = (&mut toggle).map(|x| x);
 	put(out, &format!("{it:?}|{it:#?}"));
+	let mut borrowed = &mut toggle;
+	let it = (&mut borrowed).map(|x| x);
+	put(out, &format!("{it:?}"));
 	let mut own = Countdown(at(3) % 5);
 	let it = fronts(own.by_ref().peekable(), front);
 	put(out, &format!("{it:?}"));

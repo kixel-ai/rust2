@@ -766,7 +766,8 @@ fn held<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'tcx> {
 			_ if let Some(inner) = ty.boxed_ty() => inner,
 			_ => return ty,
 		};
-		if ty.is_ref() && super::iter::own_next(b, inner).is_some() {
+		// `own_next` reads through references, which the next step peels.
+		if ty.is_ref() && !inner.is_ref() && super::iter::own_next(b, inner).is_some() {
 			return ty;
 		}
 		ty = inner;
