@@ -9,7 +9,7 @@ import type { Ordering } from "./rt/collections.ts";
 import type { ParseFloatError } from "./rt/float.ts";
 import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
-import { drop as dispose, dropAll, type Pending } from "./rt/task.ts";
+import { drop as dispose, dropAll, MOVE, type Moved, type Pending } from "./rt/task.ts";
 
 import { AtIndex } from "./rt/collections.ts";
 import { UNPRINTABLE } from "./rt/unicode.ts";
@@ -417,12 +417,23 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 	return new ByteSlice(Uint8Array.from({ length: len }, (_, i) => at.array[at.index + i]), 0, len);
 }
 
+function moved(p: object): p is Moved {
+	return MOVE in p;
+}
+
+/** A new object holding what the object `p` holds, one object deep. */
+export function objectCopy<T extends object>(p: T): T {
+	if (moved(p)) return p[MOVE]();
+	return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
+}
+
 /**
  * `ptr::write` of `value` through a pointer to an object: `value` copied into it, one
- * object deep, so every pointer to it sees the write.
+ * object deep, or moved by `MOVE`, so every pointer to it sees the write.
  */
 export function ptrWrite<T extends object>(p: T, value: T): void {
 	if (ArrayBuffer.isView(p)) (p as unknown as Uint8Array).set(value as unknown as Uint8Array);
+	else if (moved(value)) value[MOVE](p as T & Moved);
 	else Object.assign(p, value);
 }
 
@@ -437,8 +448,8 @@ export function replaceIn<T extends object>(p: T, value: T): T {
 		vecAssign(p, value as unknown[]);
 		return old as T;
 	}
-	const old = Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
-	Object.assign(p, value);
+	const old = objectCopy(p);
+	ptrWrite(p, value);
 	return old;
 }
 

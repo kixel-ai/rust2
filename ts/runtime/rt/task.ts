@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 
 // Drops
 
@@ -825,7 +825,7 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 export function cellIn<T extends object>(p: T): Cell<T> {
 	const copy = (): T => {
 		if (ArrayBuffer.isView(p) || Array.isArray(p)) return (p as unknown as T[]).slice() as T;
-		return Object.assign(Object.create(Object.getPrototypeOf(p)) as T, p);
+		return objectCopy(p);
 	};
 	const write = (value: T): void => {
 		if (Array.isArray(p)) vecAssign(p, value as unknown[]);
@@ -1207,6 +1207,18 @@ export function onceIsPoisoned(_state: OnceState): boolean {
 }
 
 /**
+ * The method that moves the state of an object whose class keeps it private, where
+ * copying its fields can't reach: into `to`, or else into a new object of its class,
+ * which it returns. Defined here, as its classes' keys need it before `rt.ts` runs.
+ */
+export const MOVE: unique symbol = /* @__PURE__ */ Symbol("move");
+
+/** An object whose class keeps its state private, which `MOVE` moves. */
+export interface Moved {
+	[MOVE](to?: this): this;
+}
+
+/**
  * `LazyCell<T>`: the function that makes its value until the first `force` runs it, once,
  * and then that value. Forced from within that function, it panics as std's does.
  */
@@ -1218,6 +1230,15 @@ export class LazyCell<T> {
 
 	constructor(f: () => T) {
 		this.#f = f;
+	}
+
+	/** Moves its state into `to`, or into a new cell of its class. */
+	[MOVE](to?: this): this {
+		const into = to ?? new (this.constructor as new (f: (() => T) | undefined) => this)(this.#f);
+		into.#f = this.#f;
+		into.#value = this.#value;
+		into.#init = this.#init;
+		return into;
 	}
 
 	/** `force` and `Deref::deref`: the value, which the function makes the first time. */
@@ -1405,12 +1426,20 @@ export interface Future<T> extends Disposable {
  * drops at all: a borrowed `f` does not.
  */
 export class PollFn<T> implements Future<T> {
-	readonly #f: (cx: Context) => Poll<T>;
-	readonly #drop: ((f: (cx: Context) => Poll<T>) => void) | undefined;
+	#f: (cx: Context) => Poll<T>;
+	#drop: ((f: (cx: Context) => Poll<T>) => void) | undefined;
 
 	constructor(f: (cx: Context) => Poll<T>, drop?: (f: (cx: Context) => Poll<T>) => void) {
 		this.#f = f;
 		this.#drop = drop;
+	}
+
+	/** Moves its function into `to`, or into a new future. */
+	[MOVE](to?: this): this {
+		if (to === undefined) return new PollFn(this.#f, this.#drop) as this;
+		to.#f = this.#f;
+		to.#drop = this.#drop;
+		return to;
 	}
 
 	poll(cx: Context): Poll<T> {

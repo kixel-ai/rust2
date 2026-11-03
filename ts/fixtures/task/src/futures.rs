@@ -5,7 +5,7 @@
 use std::cell::Cell;
 use std::future::{self, Future};
 use std::pin::{Pin, pin};
-use std::ptr;
+use std::{mem, ptr};
 use std::sync::Arc;
 use std::task::{Context, Poll, RawWakerVTable, Wake, Waker};
 
@@ -208,7 +208,8 @@ type Boxed<'a> = Pin<Box<dyn Future<Output = u64> + 'a>>;
 
 /// Boxed futures over a channel: `Box::pin` of an async fn, awaited, and of a `&mut` to a
 /// `poll_fn` and to a `&mut` to it, whose box drops without dropping it, and a `&mut dyn
-/// Future` of a `&mut` to it, then a queue of
+/// Future` of a `&mut` to it; `poll_fn`s written whole through a `&mut`, boxed or not, by
+/// each way std moves one, each written one's guard dropping first; then a queue of
 /// `Pin<Box<dyn Future>>`s of an async block, kio's `Pending`, a struct of the crate's,
 /// and a `poll_fn`, each owning a guard. A `poll_fn` boxed in a [`Forward`] polls the
 /// queue in turn through [`poll_unsized`], as moq's tasks do through kio's
@@ -234,6 +235,13 @@ pub async fn boxed(mut rx: Consumer, guard: Guard) -> u64 {
 	let lent = lent + direct.await + (&mut lend).await;
 	guard.note(&format!("lent {lent}"));
 	drop(lend);
+	let mut written = owning(Guard::new(id + 10, log.clone()));
+	let mut other = owning(Guard::new(id + 40, log.clone()));
+	let old = rewrite(&mut written, &mut other, owning, &guard);
+	let mut boxed = Box::pin(owning(Guard::new(id + 60, log.clone())));
+	put(&mut boxed, Box::pin(owning(Guard::new(id + 70, log.clone()))));
+	let moved = written.await + old.await + other.await + boxed.await;
+	guard.note(&format!("moved {moved}"));
 	let (block, waiting, ready) = (
 		Guard::new(id + 500, log.clone()),
 		Guard::new(id + 600, log.clone()),
@@ -282,6 +290,28 @@ pub async fn boxed(mut rx: Consumer, guard: Guard) -> u64 {
 	let total = forward.await;
 	guard.note(&format!("boxed {total}"));
 	total
+}
+
+/// A `poll_fn` that owns `guard`, ready with its id.
+fn owning(guard: Guard) -> future::PollFn<impl FnMut(&mut Context<'_>) -> Poll<u64>> {
+	future::poll_fn(move |_| Poll::Ready(u64::from(guard.id())))
+}
+
+/// `written` and `other` written whole through their `&mut`s with `poll_fn`s `make` makes
+/// of guards past `guard`'s id: by assignment, `mem::replace`, whose old one it returns,
+/// `mem::swap`, and `Cell::set`.
+fn rewrite<F>(
+	written: &mut future::PollFn<F>,
+	other: &mut future::PollFn<F>,
+	make: fn(Guard) -> future::PollFn<F>,
+	guard: &Guard,
+) -> future::PollFn<F> {
+	let made = |n: u32| make(Guard::new(guard.id() + n, guard.log().clone()));
+	put(written, made(20));
+	let old = mem::replace(written, made(30));
+	mem::swap(written, other);
+	Cell::from_mut(other).set(made(50));
+	old
 }
 
 /// Polls `future`, sized or not, as kio's `Waiter::poll_future` does.
