@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import type * as Any from "./core/any.Any.ts";
-import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, tails } from "./dyns.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails } from "./dyns.ts";
 import * as Guarded from "./dyns.Guarded.ts";
 import * as Held from "./dyns.Held.ts";
 import * as Hits from "./dyns.Hits.ts";
@@ -11,6 +11,7 @@ import * as Looped from "./dyns.Looped.ts";
 import * as Noisy from "./dyns.Noisy.ts";
 import type * as Shape from "./dyns.Shape.ts";
 import * as Square from "./dyns.Square.ts";
+import type * as Tagged from "./dyns.Tagged.ts";
 import * as Tri from "./dyns.Tri.ts";
 
 export function drop$Result_Rc_dyns_Noisy_Rc_dyn_Any(_1: rt.Result<rt.Arc<Noisy.Noisy>, rt.Arc<Any.Any>>): void {
@@ -143,6 +144,11 @@ export function drop$sync_TryLockError_sync_RwLockWriteGuard_dyn_dyns_Shape(_1: 
 	if (_1.tag === "Poisoned") {
 		rt.refMutRelease((_1 as { tag: "Poisoned"; _0: rt.RefCell<Shape.Shape> })._0);
 	}
+}
+
+export function drop$tuple2_dyns_Tagged_dyns_Tagged(_1: [Tagged.Tagged, Tagged.Tagged]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
 }
 
 export class of$Option_u8 {
@@ -594,20 +600,22 @@ export class ofPlace$unit {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["dyns::dyns", (_24: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+	return [["dyns::dyns", (_27: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		dyns(data.data, data.start, data.length, out);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::shared", (_25: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::shared", (_28: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		shared(data2.data, data2.start, data2.length, out2);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::anys", (_26: rt.u8, data3: rt.ByteSlice, out3: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::anys", (_29: rt.u8, data3: rt.ByteSlice, out3: rt.ByteVec): undefined => {
 		anys(data3.data, data3.start, data3.length, out3);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::fns", (_27: rt.u8, data4: rt.ByteSlice, out4: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::fns", (_210: rt.u8, data4: rt.ByteSlice, out4: rt.ByteVec): undefined => {
 		fns(data4, out4);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::pointers", (_28: rt.u8, data5: rt.ByteSlice, out5: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::pointers", (_211: rt.u8, data5: rt.ByteSlice, out5: rt.ByteVec): undefined => {
 		pointers(data5.data, data5.start, data5.length, out5);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::iters", (_29: rt.u8, data6: rt.ByteSlice, out6: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::iters", (_212: rt.u8, data6: rt.ByteSlice, out6: rt.ByteVec): undefined => {
 		iters(data6, out6);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::tails", (_210: rt.u8, data7: rt.ByteSlice, out7: rt.ByteVec): undefined => {
-		tails(data7, out7);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::boxes", (_213: rt.u8, data7: rt.ByteSlice, out7: rt.ByteVec): undefined => {
+		boxes(data7, out7);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::tails", (_214: rt.u8, data8: rt.ByteSlice, out8: rt.ByteVec): undefined => {
+		tails(data8, out8);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 

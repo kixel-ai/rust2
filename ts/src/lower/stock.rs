@@ -645,7 +645,7 @@ fn buf_mut<'tcx>(
 
 /// `BufMut::put` of a `Buf` into a buffer the mapping writes, `through` a `&mut` or a
 /// `Box` by the provided body: all of it, read whole from a buffer the mapping reads, and
-/// otherwise through its own methods, as `bytes` reads it into a `Vec<u8>`.
+/// otherwise through its own methods, as `bytes` reads it.
 fn put<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	call: &Call<'tcx>,
@@ -672,15 +672,16 @@ fn put<'tcx>(
 		};
 		return Some(Expr::rt(f, vec![this, bytes]));
 	}
-	// `put` drops it between calls of its methods, which only an object JS can call them on
-	// can stand for.
-	if b.t.drops(ty) || b.t.needs_place(ty) {
+	// `put` drops it, which the runtime's never does.
+	if b.t.drops(ty) {
 		let msg = format!("`BufMut::put` of `{ty}`, which is not supported");
 		return Some(b.err(call.span, msg));
 	}
 	// Into a `BytesMut`, `bytes` calls its `copy_to_bytes` or its `chunk` and `advance` by
-	// whether the capacity is zero, and through a `&mut`, advances it by the room left.
-	if buffer == Buffer::BytesMut {
+	// whether the capacity is zero, and through a `&mut`, advances it by the room left. Its
+	// own `put`s, as `Chain::copy_to_bytes` makes, are each into a `BytesMut` it just made
+	// with a capacity that isn't zero, which reads it chunk by chunk.
+	if buffer == Buffer::BytesMut && (through || !in_bytes(tcx, call.span)) {
 		let how = match through {
 			true => "advances it by the room left in a capacity",
 			false => "picks the methods it calls by a capacity",
@@ -690,17 +691,27 @@ fn put<'tcx>(
 		);
 		return Some(b.err(call.span, msg));
 	}
-	let (has, remaining, chunk, advance) = (
-		buf_method(b, call, ty, "has_remaining")?,
-		buf_method(b, call, ty, "remaining")?,
-		buf_method(b, call, ty, "chunk")?,
-		buf_method(b, call, ty, "advance")?,
-	);
-	let f = match through {
-		true => "byteVecPutBufChunked",
-		false => "byteVecPutBuf",
+	// Moved in, a value JS copies, such as a `&mut` to a buffer, is a place of its own.
+	let src = match b.t.needs_place(ty) {
+		true => Expr::Object(vec![(crate::ts::Key::Name("v".into()), src)]),
+		false => src,
 	};
-	Some(Expr::rt(f, vec![this, src, has, remaining, chunk, advance]))
+	let mut values = vec![this, src];
+	for name in ["has_remaining", "remaining", "chunk", "advance"] {
+		values.push(buf_method_mut(b, call, ty, name)?);
+	}
+	let f = match (buffer, through) {
+		(Buffer::BytesMut, _) => "bytesMutPutBuf",
+		(_, true) => "byteVecPutBufChunked",
+		(_, false) => "byteVecPutBuf",
+	};
+	Some(Expr::rt(f, values))
+}
+
+/// Whether `span` is in `bytes`' own source.
+fn in_bytes(tcx: TyCtxt<'_>, span: rustc_span::Span) -> bool {
+	let file = tcx.sess.source_map().lookup_source_file(span.lo());
+	file.cnum != rustc_hir::def_id::LOCAL_CRATE && tcx.crate_name(file.cnum).as_str() == "bytes"
 }
 
 /// `Buf::copy_to_bytes` as `bytes` provides it, of a buffer the mapping doesn't read: it

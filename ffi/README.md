@@ -493,7 +493,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   with a name the runtime declares, fails the export: give it a `rename`.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
   holds it, and a second does nothing; one never closed is freed once the garbage
-  collector finds it unreachable, through a `NativeFinalizer`. Any call that meets a
+  collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
   closed object, as its receiver or anywhere in its arguments, throws a `StateError`
   before Rust sees it, and moves none of the call's other arguments. An isolate cannot
   send an object to another, so no `close()` races a call. A `self` method, or passing the
@@ -530,8 +530,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   A call that throws before Rust sees it gives Rust none of its implementations.
 - **Closures** lent for a call are Dart functions, which Rust calls only during the call,
   on the isolate's thread. An object it lends lives only for that call of the closure.
-- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it.
-  The call polls it once, and makes a waker only if that poll pends. A wake, from any
+- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
+  an extension type on Dart's own future, which `await` takes its shortest path through.
+  The call polls it once, returning it complete if that poll finished, and makes a waker
+  only if it pends. A wake, from any
   thread, posts to the isolate's port, and its event loop polls again, so a wake never
   polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
   future unless it finished, which cancels it in Rust and loses nothing: the next call
