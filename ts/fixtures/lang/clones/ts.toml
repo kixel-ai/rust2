@@ -1,0 +1,2 @@
+package = "lang-clones-fixture"
+roots = ["harness::run", "harness::op"]
