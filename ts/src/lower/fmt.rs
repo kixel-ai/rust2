@@ -671,7 +671,10 @@ fn adaptor_debug<'tcx>(
 	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
 	let name = |name: &str| Expr::Str(name.into());
 	// What writes an iterator it wraps, as `rt.iterHeld` reads it.
-	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| b.fmt_fn(Trait::Debug, held(ty), span);
+	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| {
+		let ty = held(b, ty);
+		b.fmt_fn(Trait::Debug, ty, span)
+	};
 	Some(match path.as_slice() {
 		[
 			"iter",
@@ -754,14 +757,19 @@ fn adaptor_debug<'tcx>(
 }
 
 /// The iterator an adaptor's field of type `ty` holds, through the references and boxes
-/// whose `Debug` is what they point at, as `rt.iterHeld` reads it.
-fn held(mut ty: Ty<'_>) -> Ty<'_> {
+/// whose `Debug` is what they point at, as `rt.iterHeld` reads it: the crate's own as its
+/// `next` reads it, through the reference to it, which a value JS copies is the place of.
+fn held<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>) -> Ty<'tcx> {
 	loop {
-		ty = match *ty.kind() {
+		let inner = match *ty.kind() {
 			ty::Ref(_, inner, _) => inner,
 			_ if let Some(inner) = ty.boxed_ty() => inner,
 			_ => return ty,
+		};
+		if ty.is_ref() && super::iter::own_next(b, inner).is_some() {
+			return ty;
 		}
+		ty = inner;
 	}
 }
 

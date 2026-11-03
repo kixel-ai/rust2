@@ -68,7 +68,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 /// The crate's own iterator a `ty` is, through any references: its `next`, whose
 /// instance the translation names.
-fn own_next<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Instance<'tcx>> {
+pub(super) fn own_next<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Instance<'tcx>> {
 	own_method(b, ty, "Iterator", "next")
 }
 

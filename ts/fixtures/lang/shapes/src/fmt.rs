@@ -949,6 +949,28 @@ pub fn iters(data: &[u8], out: &mut Vec<u8>) {
 #[derive(Debug)]
 struct Countdown(u8);
 
+/// An iterator of the crate's own that JS holds as a value, which its `next` reads through
+/// its place.
+#[derive(Debug, Clone, Copy)]
+enum Toggle {
+	Ready,
+	Done,
+}
+
+impl Iterator for Toggle {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		match self {
+			Self::Ready => {
+				*self = Self::Done;
+				Some(1)
+			}
+			Self::Done => None,
+		}
+	}
+}
+
 impl Iterator for Countdown {
 	type Item = u8;
 
@@ -1163,6 +1185,9 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let it = fronts((&mut boxed).zip(Box::new(Countdown(4))), front);
 	put(out, &format!("{it:?}"));
 	let it = fronts(Countdown(at(2) % 5).map(|n| n * 2).enumerate(), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut toggle = if at(3) % 2 == 0 { Toggle::Ready } else { Toggle::Done };
+	let it = (&mut toggle).map(|x| x);
 	put(out, &format!("{it:?}|{it:#?}"));
 	let mut own = Countdown(at(3) % 5);
 	let it = fronts(own.by_ref().peekable(), front);
