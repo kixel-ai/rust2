@@ -777,13 +777,6 @@ fn tally_all<T: Tally>(t: &mut T, data: &[u8]) -> u32 {
 	t.total()
 }
 
-/// A tally through more `&mut`s than `run`'s, which only the `stable_names` test reaches:
-/// its impls' instances spell their suffixes alike but for the references, and sort first.
-pub(crate) fn deeper(n: u32) -> u32 {
-	let mut count = n;
-	tally_all(&mut &mut &mut &mut count, &[1])
-}
-
 /// A reader keeping a `&mut` to the slice it reads, which it lends on.
 struct Reader<'a, 'b> {
 	rest: &'b mut &'a [u8],

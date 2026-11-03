@@ -319,8 +319,7 @@ impl fmt::Debug for Hex {
 	}
 }
 
-/// `Display` through `pad`, which keeps the options. Only `added` prints its `Debug`.
-#[derive(Debug)]
+/// `Display` through `pad`, which keeps the options.
 pub struct Padded(&'static str);
 
 impl fmt::Display for Padded {
@@ -990,21 +989,6 @@ impl Fault {
 pub fn printed(data: &[u8]) -> Vec<u8> {
 	let fault = Fault::new(data);
 	format!("{fault}|{fault:>16}|{fault:?}|{fault:#?}").into_bytes()
-}
-
-/// A root only the `stable_names` test adds, reaching another instance of what `run`
-/// reaches one of: a generic method's, a closure's, an impl's of another trait, a std
-/// function's that merges with one `run` reaches and sorts before it, and an impl's over a
-/// deeper `&mut` than `run`'s, which sorts before its others. Its trait object's module shares its name with a type's this
-/// module imports, and sorts first.
-pub fn added(out: &mut Vec<u8>) {
-	out.push(Wrap::new(1u8).into_inner());
-	out.push(1u8.partial_cmp(&2).map_or(7, |o| o as i8 as u8));
-	let mapped = Wrap::new(2u8).map(|b| Pair(b, 0));
-	put(out, &format!("{mapped:?} {:?}", Padded("added")));
-	let shape: &dyn crate::dyns::Shape = &3u32;
-	out.push(shape.sides());
-	out.extend_from_slice(&crate::refs::deeper(4).to_be_bytes());
 }
 
 /// A writer of the crate's own that fails a `write_str` past `cap` bytes, and counts each.
