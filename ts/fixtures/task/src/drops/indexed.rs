@@ -122,7 +122,10 @@ pub(super) fn indexed(log: &Log, id: u32, arg: u8) {
 				.count();
 			log.note(format!("uneven rev {n}"));
 			// From both ends, the sides trimmed by the first read from the back alone.
-			let mut it = v.iter().map(move |&n| made(n)).zip(w[..3].iter().map(move |&n| made(n)));
+			let mut it = v
+				.iter()
+				.map(move |&n| made(n))
+				.zip(w[..3].iter().map(move |&n| made(n)));
 			let id2 = |p: Option<(Guard, Guard)>| p.map(|(a, b)| (a.id() - id, b.id() - id));
 			log.note(format!("ends {:?}", id2(it.next())));
 			log.note(format!("ends {:?}", id2(it.next_back())));
@@ -133,9 +136,8 @@ pub(super) fn indexed(log: &Log, id: u32, arg: u8) {
 			let mut inner = pairs();
 			log.note(format!("inner {:?}", id2(inner.next_back())));
 			let mut it = inner.zip(0..2u32).zip(0..2u32);
-			let id3 = |p: Option<(((Guard, Guard), u32), u32)>| {
-				p.map(|(((a, b), m), n)| (a.id() - id, b.id() - id, m, n))
-			};
+			let id3 =
+				|p: Option<(((Guard, Guard), u32), u32)>| p.map(|(((a, b), m), n)| (a.id() - id, b.id() - id, m, n));
 			log.note(format!("nested {:?}", id3(it.next_back())));
 			log.note(format!("nested {:?}", id3(it.next_back())));
 			log.note(format!("nested {:?}", id3(it.next_back())));
