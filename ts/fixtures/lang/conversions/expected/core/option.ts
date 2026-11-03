@@ -26,24 +26,6 @@ export function clone$14nprly(self: string | undefined): string | undefined {
 	return self;
 }
 
-export function clone$1jyi1nb(self: rt.u32[] | undefined): rt.u32[] | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return ((a0: rt.u32[]): rt.u32[] => {
-		return rt.vecExact(a0.slice(), 4);
-	})(self);
-}
-
-export function clone$1f90hqa(self: rt.ByteVec | undefined): rt.ByteVec | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return ((a0: rt.ByteVec): rt.ByteVec => {
-		return rt.byteVecFrom(rt.byteVecView(a0));
-	})(self);
-}
-
 export function clone$13oewp0(self: Uint8Array | undefined): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;

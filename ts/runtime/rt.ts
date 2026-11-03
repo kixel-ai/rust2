@@ -980,7 +980,7 @@ export type CloneFrom<T> = (old: T, src: T) => T;
  * What `clone_from` of `src` leaves over `old`: `over`'s, where it is its own, or else
  * `src`'s clone, made before `old` drops. `clone` is `undefined` where a clone is the value.
  */
-function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
+export function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
 	if (over !== undefined) return over(old, src);
 	const item = clone === undefined ? src : clone(src);
 	drop?.(old);
@@ -1105,6 +1105,41 @@ function optionOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, dro
 	const item = src === none || clone === undefined ? src : clone(src);
 	if (old !== none) drop?.(old);
 	return item;
+}
+
+/**
+ * `Result::clone_from` of `src` over `old`: of two `Ok`s or two `Err`s, what `src` holds
+ * cloned over what `old` does, as `cloneOver` clones it by each side's own functions, and
+ * else `src`'s clone, made before `old` drops.
+ */
+export function resultCloneFrom<T, E>(
+	old: Result<T, E>,
+	src: Result<T, E>,
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): Result<T, E> {
+	if (old.ok && src.ok) return Ok(cloneOver(old.value, src.value, cloneOk, dropOk, overOk));
+	if (!old.ok && !src.ok) return Err(cloneOver(old.error, src.error, cloneErr, dropErr, overErr));
+	const item: Result<T, E> = src.ok ? Ok(cloneOk === undefined ? src.value : cloneOk(src.value)) : Err(cloneErr === undefined ? src.error : cloneErr(src.error));
+	if (old.ok) dropOk?.(old.value);
+	else dropErr?.(old.error);
+	return item;
+}
+
+/** `resultCloneFrom` as a `CloneFrom`. */
+export function resultCloneFromFn<T, E>(
+	cloneOk?: (value: T) => T,
+	dropOk?: (item: T) => void,
+	overOk?: CloneFrom<T>,
+	cloneErr?: (value: E) => E,
+	dropErr?: (item: E) => void,
+	overErr?: CloneFrom<E>,
+): CloneFrom<Result<T, E>> {
+	return (old, src) => resultCloneFrom(old, src, cloneOk, dropOk, overOk, cloneErr, dropErr, overErr);
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
@@ -1845,18 +1880,20 @@ export function vecShrinkTo<T>(v: T[] & Capped, min: number, size: number): void
 }
 
 /**
- * `clone`, the clone `clone_from` writes over `v`, with the capacity std's keeps of `v`'s
- * for `size`-byte elements: as it was, or grown as `reserve` grows it if it held fewer.
+ * `Vec::clone_from` of `src`, and `clone_into` of a byte slice, over `v`: its buffer, grown
+ * as `reserve` grows it if it holds fewer, holding a copy of `src`'s bytes.
  */
-export function vecClonedInto<T>(clone: T[], v: T[] & Capped, size: number): T[] {
-	capHold(clone, capReserve(0, vecCapacity(v, size), clone.length, size), size);
-	return clone;
+export function byteVecCloneFrom(v: ByteVec, src: ByteVec | ByteSlice): ByteVec {
+	v.length = 0;
+	reserve(v, src.length);
+	copyBytes(v.data, 0, src.data, src instanceof ByteSlice ? src.start : 0, src.length);
+	v.length = src.length;
+	return v;
 }
 
-/** `vecClonedInto` of bytes. */
-export function byteVecClonedInto(clone: ByteVec, v: ByteVec): ByteVec {
-	byteVecReserveExact(clone, capReserve(0, v.data.length, clone.length, 1) - clone.length);
-	return clone;
+/** `byteVecCloneFrom` as a `CloneFrom`. */
+export function byteVecCloneFromFn(): CloneFrom<ByteVec> {
+	return byteVecCloneFrom;
 }
 
 /** `v`, a new `Vec` of `size`-byte elements, with room for exactly what it holds, as std's `clone` makes one. */
