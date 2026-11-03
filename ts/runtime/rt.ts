@@ -626,7 +626,7 @@ export function slicePart<T>(s: T[], start: number, end: number = s.length): T[]
  */
 export function sliceView<T>(s: T[], start: number, end: number): T[] {
 	const outer = (s as { [VIEW]?: View<T> })[VIEW];
-	const view = outer ? new View(outer.s, outer.start + start, end - start) : new View(s, start, end - start);
+	const view = outer ? outer.part(start, end - start) : new View(s, start, end - start);
 	return new Proxy(new Array<T>(end - start), view);
 }
 
@@ -694,14 +694,35 @@ const VIEW = /* @__PURE__ */ Symbol("view");
 
 /** A `sliceView`'s traps: of `length` elements of `s` from `start`. */
 class View<T> implements ProxyHandler<T[]> {
-	readonly s: { [index: number]: T };
-	readonly start: number;
+	s: { [index: number]: T };
+	start: number;
 	readonly length: number;
 
 	constructor(s: { [index: number]: T }, start: number, length: number) {
 		this.s = s;
 		this.start = start;
 		this.length = length;
+	}
+
+	/** The traps of a view of `length` of these elements from `start`. */
+	part(start: number, length: number): View<T> {
+		return new View(this.s, this.start + start, length);
+	}
+
+	/** Element `i` of `s`. */
+	item(i: number): T {
+		return this.s[i];
+	}
+
+	/** A write of element `i` of `s`. */
+	put(i: number, value: T): void {
+		this.s[i] = value;
+	}
+
+	/** Holds a copy of what it views from now on, as a read of the array it views copied it. */
+	detach(): void {
+		this.s = Array.from({ length: this.length }, (_, i) => this.item(this.start + i));
+		this.start = 0;
 	}
 
 	/** Where in `s` the element `key` names is, or -1 if it names none. */
@@ -714,13 +735,13 @@ class View<T> implements ProxyHandler<T[]> {
 	get(target: T[], key: string | symbol): unknown {
 		if (key === VIEW) return this;
 		const i = this.at(key);
-		return i < 0 ? Reflect.get(target, key) : this.s[i];
+		return i < 0 ? Reflect.get(target, key) : this.item(i);
 	}
 
 	set(target: T[], key: string | symbol, value: T): boolean {
 		const i = this.at(key);
 		if (i < 0) return Reflect.set(target, key, value);
-		this.s[i] = value;
+		this.put(i, value);
 		return true;
 	}
 
@@ -735,8 +756,121 @@ class View<T> implements ProxyHandler<T[]> {
 	getOwnPropertyDescriptor(target: T[], key: string | symbol): PropertyDescriptor | undefined {
 		const i = this.at(key);
 		if (i < 0) return Reflect.getOwnPropertyDescriptor(target, key);
-		return { value: this.s[i], writable: true, enumerable: true, configurable: true };
+		return { value: this.item(i), writable: true, enumerable: true, configurable: true };
 	}
+}
+
+/**
+ * `as_chunks_mut`'s slice of arrays: element `i` the view of run `i` of `n` elements of `flat`
+ * from `offset`, made the first time it is read and kept in `views`. A whole write of a run
+ * copies into it, and the view a read took of it first detaches to a copy of what it held,
+ * as Rust's read copied the array.
+ */
+class Runs<T> extends View<T[]> {
+	flat: T[];
+	offset: number;
+	readonly n: number;
+
+	constructor(flat: T[], at: number, n: number, views: T[][], start: number, length: number) {
+		super(views, start, length);
+		this.flat = flat;
+		this.offset = at;
+		this.n = n;
+	}
+
+	override part(start: number, length: number): Runs<T> {
+		return new Runs(this.flat, this.offset, this.n, this.s as T[][], this.start + start, length);
+	}
+
+	override item(i: number): T[] {
+		const from = this.offset + i * this.n;
+		return ((this.s as (T[] | undefined)[])[i] ??= sliceView(this.flat, from, from + this.n));
+	}
+
+	override put(i: number, value: T[]): void {
+		const views = this.s as (T[] | undefined)[];
+		const held = views[i];
+		if (held !== undefined) {
+			(held as { [VIEW]?: View<T> })[VIEW]!.detach();
+			views[i] = undefined;
+		}
+		const from = this.offset + i * this.n;
+		for (let k = 0; k < this.n; k++) this.flat[from + k] = value[k];
+	}
+
+	override detach(): void {
+		const from = this.offset + this.start * this.n;
+		this.flat = this.flat.slice(from, from + this.length * this.n);
+		this.offset = -this.start * this.n;
+		this.s = [];
+	}
+}
+
+/**
+ * `as_chunks_mut` of bytes' slice of arrays: element `i` a `Uint8Array` view of run `i` of
+ * `n` bytes of `data` from `offset`, made the first time it is read and kept in `views`, and a
+ * whole write of a run copied into it. A `Uint8Array` can't detach as `Runs`' views do, so
+ * a read of one by value copies it, as `byValue` has the runtime's own reads do.
+ */
+class ByteRuns extends View<Uint8Array> {
+	data: Uint8Array;
+	offset: number;
+	readonly n: number;
+
+	constructor(data: Uint8Array, at: number, n: number, views: Uint8Array[], start: number, length: number) {
+		super(views, start, length);
+		this.data = data;
+		this.offset = at;
+		this.n = n;
+	}
+
+	override part(start: number, length: number): ByteRuns {
+		return new ByteRuns(this.data, this.offset, this.n, this.s as Uint8Array[], this.start + start, length);
+	}
+
+	override item(i: number): Uint8Array {
+		const from = this.offset + i * this.n;
+		return ((this.s as (Uint8Array | undefined)[])[i] ??= this.data.subarray(from, from + this.n));
+	}
+
+	override put(i: number, value: Uint8Array): void {
+		this.data.set(value, this.offset + i * this.n);
+	}
+
+	override detach(): void {
+		const from = this.offset + this.start * this.n;
+		this.data = this.data.slice(from, from + this.length * this.n);
+		this.offset = -this.start * this.n;
+		this.s = [];
+	}
+
+	override get(target: Uint8Array[], key: string | symbol): unknown {
+		if (key !== "reverse") return super.get(target, key);
+		const s = new Proxy(target, this);
+		return () => byValue(s, (values) => values.reverse());
+	}
+}
+
+/**
+ * `op` of `s`, a slice it reads elements of before writes that may overwrite them: of
+ * copies of each, then each written back, if `s` holds `ByteRuns`' views, which a write
+ * through `s` would change under `op`.
+ */
+export function byValue<T>(s: T[], op: (s: T[]) => void): void {
+	if (!byteRuns(s)) return op(s);
+	const values = Array.from(s as Uint8Array[], (run) => run.slice()) as T[];
+	op(values);
+	for (let i = 0; i < values.length; i++) s[i] = values[i];
+}
+
+/** `x`, an element of `s` read before a write that may overwrite it: a copy if `s` holds `ByteRuns`' views. */
+function held<T>(s: T[], x: T): T {
+	return byteRuns(s) ? ((x as Uint8Array).slice() as T) : x;
+}
+
+/** Whether `s` holds `ByteRuns`' views. */
+function byteRuns(s: object): boolean {
+	return (s as { [VIEW]?: unknown })[VIEW] instanceof ByteRuns;
 }
 
 /** `&mut s[start..end]`: the runtime's view of it, checked as `sliceRange` checks it. */
@@ -786,6 +920,24 @@ export function sliceAsRchunks<T>(s: T[], n: number): [T[], T[][]] {
 	const count = chunkCount(s.length, n);
 	const rest = s.length - count * n;
 	return [slicePart(s, 0, rest), runs(count, n, (start, end) => s.slice(rest + start, rest + end))];
+}
+
+/** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
+export function sliceAsChunksMut<T>(s: T[], n: number): [T[][], T[]] {
+	const count = chunkCount(s.length, n);
+	return [runsOf(s, 0, n, count), sliceView(s, count * n, s.length)];
+}
+
+/** `as_rchunks_mut`: the rest, and each run of `n` elements up to the back as an array, written where the slice holds it, panicking at a size of 0. */
+export function sliceAsRchunksMut<T>(s: T[], n: number): [T[], T[][]] {
+	const count = chunkCount(s.length, n);
+	const rest = s.length - count * n;
+	return [sliceView(s, 0, rest), runsOf(s, rest, n, count)];
+}
+
+/** `count` runs of `n` elements of `s` from `at`, as `Runs` lends them. */
+function runsOf<T>(s: T[], at: number, n: number, count: number): T[][] {
+	return new Proxy(new Array<T[]>(count), new Runs(s, at, n, [], 0, count));
 }
 
 /** How many runs of `n` elements fit in `length`, panicking at a size of 0, as `as_chunks` does. */
@@ -951,7 +1103,7 @@ export function slicePartitionPoint<T>(s: ArrayLike<T>, pred: (item: T) => boole
 
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
 export function sliceSwap<T>(s: T[], a: number, b: number): void {
-	const x = s[idx(s, a)];
+	const x = held(s, s[idx(s, a)]);
 	s[a] = s[idx(s, b)];
 	s[b] = x;
 }
@@ -997,9 +1149,11 @@ export function sliceRotateRight<T>(s: T[], k: number): void {
 /** The elements from `mid` on, then those before it, in place. */
 function rotate<T>(s: T[], mid: number): void {
 	if (mid === 0 || mid === s.length) return;
-	const head = s.slice(0, mid);
-	s.copyWithin(0, mid);
-	for (let i = 0; i < mid; i++) s[s.length - mid + i] = head[i];
+	byValue(s, (s) => {
+		const head = s.slice(0, mid);
+		s.copyWithin(0, mid);
+		for (let i = 0; i < mid; i++) s[s.length - mid + i] = head[i];
+	});
 }
 
 /** `copy_within`: `s[start..end]` copied to index `dest`, panicking out of bounds; `copy` is `undefined` where a copy is the value. */
@@ -1009,8 +1163,9 @@ export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: num
 		s.copyWithin(dest, start, end);
 		return;
 	}
-	const items = s.slice(start, end);
-	for (let i = 0; i < items.length; i++) s[dest + i] = copy(items[i]);
+	// Each copied before any write, which may land in what one views.
+	const items = s.slice(start, end).map(copy);
+	for (let i = 0; i < items.length; i++) s[dest + i] = items[i];
 }
 
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
@@ -1370,6 +1525,24 @@ export function byteSliceAsRchunks(s: ByteSlice, n: number): [ByteSlice, Uint8Ar
 	const count = chunkCount(s.length, n);
 	const at = s.start + s.length - count * n;
 	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(at + start, at + end))];
+}
+
+/** `as_chunks_mut` of bytes: each run of `n` from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
+export function byteSliceAsChunksMut(s: ByteSlice, n: number): [Uint8Array[], ByteSlice] {
+	const count = chunkCount(s.length, n);
+	return [byteRunsOf(s.data, s.start, n, count), new ByteSlice(s.data, s.start + count * n, s.length - count * n)];
+}
+
+/** `as_rchunks_mut` of bytes: the rest, and each run of `n` up to the back as an array, written where the slice holds it, panicking at a size of 0. */
+export function byteSliceAsRchunksMut(s: ByteSlice, n: number): [ByteSlice, Uint8Array[]] {
+	const count = chunkCount(s.length, n);
+	const rest = s.length - count * n;
+	return [new ByteSlice(s.data, s.start, rest), byteRunsOf(s.data, s.start + rest, n, count)];
+}
+
+/** `count` runs of `n` bytes of `data` from `at`, as `ByteRuns` lends them. */
+function byteRunsOf(data: Uint8Array, at: number, n: number, count: number): Uint8Array[] {
+	return new Proxy(new Array<Uint8Array>(count), new ByteRuns(data, at, n, [], 0, count));
 }
 
 /** `first`: the first byte, or `undefined` if empty. */

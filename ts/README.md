@@ -163,7 +163,12 @@ read that needs the slice whole makes it there. A caller passes bytes as
 of it. A mutable part of a slice of other values, as
 `&mut v[a..b]`, `split_at_mut`, `chunks_mut`, and `split_mut` lend it, is a `Proxy` of an
 array whose elements are the slice's, read and written where they are, since a JS array
-has no views.
+has no views. `as_chunks_mut` and `as_rchunks_mut` lend their runs as such a `Proxy` too,
+of a view of each run, a `Uint8Array` one for bytes, and a whole write of a run copies
+into it. Before that write, a view of other values that a read took detaches to a copy of
+what it held. A byte run's view can't, so it is copied wherever it is read by value: the
+call counts as a write into the bytes, which has translated code copy each `[u8; N]` it
+reads, and the runtime's swaps, rotations, and sorts move copies of the runs.
 
 `usize` is 32 bits, as on wasm32, so it is exact in a `number`. Arithmetic is checked as
 a debug build checks it, so translated code panics where native code would: it never
@@ -1088,12 +1093,14 @@ frame headers decoded as they arrive a few bytes at a time, which prices a decod
 comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 256, and
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
-whose cross products do too, and integers sorted, searched for their greatest and least,
-and kept in a `BinaryHeap`. Each runs four ways: natively, as wasm32 at the
+whose cross products do too, integers sorted, searched for their greatest and least,
+and kept in a `BinaryHeap`, and TS packets numbered through `as_chunks_mut` as moq-mux
+numbers them, each also read by value, a copy of its bytes. Each runs four ways: natively, as wasm32 at the
 size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, and typed arrays and a heap of its own in `bench/order.ts`), and translated; every route's output must match
+timescales, typed arrays and a heap of its own in `bench/order.ts`, and offsets into one
+`Uint8Array` in `bench/packets.ts`), and translated; every route's output must match
 native Rust's first. The JS routes run minified, the same bundles whose size it reports,
 in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the

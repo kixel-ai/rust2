@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -109,6 +109,13 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity.
 	["vec", "deque"].forEach((name, selector) => {
 		out.push({ name: `push/${name}`, op: "push", items: count, input: Uint8Array.of(13, selector, ...u64(BigInt(count))) });
+	});
+
+	// `bench.rs`'s op 15: TS packets numbered as moq-mux numbers them, through `as_chunks_mut`,
+	// and each also read by value first, which copies it; as many as a 64 KiB segment holds.
+	const packets = 348;
+	["ts/number", "ts/number-copy"].forEach((name, selector) => {
+		out.push({ name: `packets/${name}`, op: "number", items: packets, input: Uint8Array.of(15, selector, ...u64(BigInt(packets))) });
 	});
 	return out;
 }
