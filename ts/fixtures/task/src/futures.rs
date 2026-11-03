@@ -5,9 +5,9 @@
 use std::cell::Cell;
 use std::future::{self, Future};
 use std::pin::{Pin, pin};
-use std::{mem, ptr};
 use std::sync::Arc;
 use std::task::{Context, Poll, RawWakerVTable, Wake, Waker};
+use std::{mem, ptr};
 
 use kio::Consumer;
 
