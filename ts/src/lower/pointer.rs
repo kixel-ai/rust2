@@ -594,9 +594,10 @@ pub fn call<'tcx>(
 			Some(Pointee::Bytes) if owner == "NonNull" => to_reference(arg()),
 			_ => arg(),
 		},
-		// An `rt.Arc` is its allocation, and its value is where a reference to the value
-		// points, a pointer to which is made as `ptr::from_ref` makes one, but for a value JS
-		// copies, whose place is the `Arc`'s, which `get_mut` writes.
+		// An `rt.Arc` is its allocation, and the place of its value, which is the pointer
+		// to a value JS copies and to `()`, whose pointer is an identity. Otherwise the value
+		// is where a reference to it points, a pointer to which is made as `ptr::from_ref`
+		// makes one.
 		("Arc" | "Rc", "as_ptr") if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) => {
 			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
 		}
@@ -604,7 +605,7 @@ pub fn call<'tcx>(
 			let arc = arg();
 			match kind(b, pointee()) {
 				Some(Pointee::Slice) => raw_of(pointee(), arc.member("value")),
-				Some(Pointee::Place) => Expr::rt("valuePlace", vec![arc]),
+				Some(Pointee::Place) => arc,
 				Some(Pointee::Bytes) => to_pointer(arc.member("value")),
 				_ => arc.member("value"),
 			}

@@ -106,13 +106,24 @@ export function lent<A extends unknown[], R>(f: (...args: A) => R): (...args: A)
 
 // Shared ownership
 
-/** `Arc<T>` and `Rc<T>`: every clone is this one object, counted, as are its `Weak`s. */
-export class Arc<T> implements Disposable {
+/**
+ * `Arc<T>` and `Rc<T>`: every clone is this one object, counted, as are its `Weak`s. It is
+ * its allocation, so it is the place of its value, which `as_ptr` points at.
+ */
+export class Arc<T> implements Disposable, Place<T> {
 	strong = 1;
 	weak = 0;
 	value: T;
 
 	constructor(value: T) {
+		this.value = value;
+	}
+
+	get v(): T {
+		return this.value;
+	}
+
+	set v(value: T) {
 		this.value = value;
 	}
 
@@ -133,6 +144,11 @@ export class ArcDyn<T, U> implements Disposable {
 	constructor(arc: Arc<T>, value: U) {
 		this.arc = arc;
 		this.value = value;
+	}
+
+	/** Its value, as an `Arc`'s place gives it. */
+	get v(): U {
+		return this.value;
 	}
 
 	get strong(): number {

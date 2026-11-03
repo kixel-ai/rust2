@@ -16,4 +16,18 @@ export function then$1i5jtpz(self: boolean, f: () => rt.Arc<Uint8Array>): rt.Arc
 	return f();
 }
 
+export function then$0duifht(self: boolean, f: () => rt.Arc<undefined>): rt.Arc<undefined> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
+export function then$0kpp40i(self: boolean, f: () => rt.Weak<[rt.u8, rt.u8] | undefined>): rt.Weak<[rt.u8, rt.u8] | undefined> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
 //# sourceMappingURL=bool.ts.map

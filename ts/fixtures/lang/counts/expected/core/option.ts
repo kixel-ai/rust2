@@ -129,6 +129,13 @@ export function mapOr$0dgmbpi(self: rt.Arc<ArcNode.ArcNode> | undefined, default
 	return f(self);
 }
 
+export function mapOr$0mmpeqx(self: [rt.u8, rt.u8] | undefined, default_: rt.u8, f: (a0: [rt.u8, rt.u8]) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$06rr3sb(self: rt.u8 | undefined, default_: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8 | undefined): rt.u8 | undefined {
 	if (self === undefined) {
 		return default_;

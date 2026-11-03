@@ -478,14 +478,17 @@ macro_rules! counts {
 		}
 
 		/// Each byte an operation on pools of strong and weak handles of a pair kept as an
-		/// object, the rest of it the handle it picks, and on one of bytes and one of a byte
-		/// JS copies: `make_mut` keeps the allocation `as_ptr` points at only when no other
-		/// handle, strong or weak, shares it, and a read through `as_ptr` sees each write.
+		/// object, the rest of it the handle it picks, and on one of bytes, of a byte JS
+		/// copies, of an `Option` of a pair, and of `()`: `make_mut` keeps the allocation
+		/// `as_ptr` points at only when no other handle, strong or weak, shares it, and a read
+		/// through `as_ptr` sees each write.
 		pub fn $addressed(data: &[u8], out: &mut Vec<u8>) {
 			let mut strong: Vec<$Ptr<(u8, u8)>> = vec![$Ptr::new((0, 1))];
 			let mut weak: Vec<$weak::Weak<(u8, u8)>> = Vec::new();
 			let mut bytes = $Ptr::new([2u8, 3]);
 			let mut number = $Ptr::new(4u8);
+			let mut maybe = $Ptr::new(Some((5u8, 6u8)));
+			let mut unit = $Ptr::new(());
 			for &op in data {
 				let pick = usize::from(op >> 3) % strong.len();
 				match op % 6 {
@@ -518,6 +521,21 @@ macro_rules! counts {
 							*n ^= op;
 						}
 						out.push(unsafe { *at });
+						let kept = (op & 0x40 != 0).then(|| $Ptr::downgrade(&maybe));
+						if let Some(pair) = $Ptr::make_mut(&mut maybe).as_mut() {
+							pair.0 ^= op;
+						}
+						out.push(maybe.map_or(0xfd, |(a, _)| a));
+						drop(kept);
+						let other = $Ptr::new(());
+						let before = $Ptr::as_ptr(&unit);
+						let shadow = (op & 0x80 != 0).then(|| $Ptr::clone(&unit));
+						$Ptr::make_mut(&mut unit);
+						out.extend([
+							u8::from(std::ptr::eq(before, $Ptr::as_ptr(&unit))),
+							u8::from(std::ptr::eq($Ptr::as_ptr(&other), $Ptr::as_ptr(&unit))),
+						]);
+						drop(shadow);
 					}
 				}
 				let picked = &strong[pick % strong.len()];

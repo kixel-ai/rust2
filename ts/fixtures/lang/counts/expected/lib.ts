@@ -8,6 +8,10 @@ import * as Noisy from "./counts.Noisy.ts";
 import * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 
+export function copy$Option_tuple2_u8_u8(v: [rt.u8, rt.u8] | undefined): [rt.u8, rt.u8] | undefined {
+	return v === undefined ? v : copy$tuple2_u8_u8(v);
+}
+
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
