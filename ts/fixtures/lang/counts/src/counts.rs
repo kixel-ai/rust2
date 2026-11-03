@@ -479,15 +479,16 @@ macro_rules! counts {
 
 		/// Each byte an operation on pools of strong and weak handles of a pair kept as an
 		/// object, the rest of it the handle it picks, and on one of bytes, of a byte JS
-		/// copies, of an `Option` of a pair, and of `()`: `make_mut` keeps the allocation
-		/// `as_ptr` points at only when no other handle, strong or weak, shares it, and a read
-		/// through `as_ptr` sees each write.
+		/// copies, of an `Option` of a pair, of a pair nothing writes, and of `()`: `make_mut`
+		/// keeps the allocation `as_ptr` points at only when no other handle, strong or weak,
+		/// shares it, and a read through `as_ptr` sees each write.
 		pub fn $addressed(data: &[u8], out: &mut Vec<u8>) {
 			let mut strong: Vec<$Ptr<(u8, u8)>> = vec![$Ptr::new((0, 1))];
 			let mut weak: Vec<$weak::Weak<(u8, u8)>> = Vec::new();
 			let mut bytes = $Ptr::new([2u8, 3]);
 			let mut number = $Ptr::new(4u8);
 			let mut maybe = $Ptr::new(Some((5u8, 6u8)));
+			let mut unread: $Ptr<(u16, u8)> = $Ptr::new((7, 8));
 			let mut unit = $Ptr::new(());
 			for &op in data {
 				let pick = usize::from(op >> 3) % strong.len();
@@ -526,6 +527,12 @@ macro_rules! counts {
 							pair.0 ^= op;
 						}
 						out.push(maybe.map_or(0xfd, |(a, _)| a));
+						drop(kept);
+						// Moved by a `make_mut` that never writes it, of a type nothing writes.
+						let kept = (op & 0x40 != 0).then(|| $Ptr::downgrade(&unread));
+						let before = $Ptr::as_ptr(&unread);
+						let pair = *$Ptr::make_mut(&mut unread);
+						out.extend([u8::from(std::ptr::addr_eq(before, $Ptr::as_ptr(&unread))), pair.1]);
 						drop(kept);
 						let other = $Ptr::new(());
 						let before = $Ptr::as_ptr(&unit);

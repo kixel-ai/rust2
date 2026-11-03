@@ -30,4 +30,11 @@ export function then$0kpp40i(self: boolean, f: () => rt.Weak<[rt.u8, rt.u8] | un
 	return f();
 }
 
+export function then$0t3e9mp(self: boolean, f: () => rt.Weak<[rt.u16, rt.u8]>): rt.Weak<[rt.u16, rt.u8]> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
 //# sourceMappingURL=bool.ts.map

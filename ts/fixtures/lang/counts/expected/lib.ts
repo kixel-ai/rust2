@@ -28,6 +28,10 @@ export function copy$counts_RcReleasing(v: RcReleasing.RcReleasing): RcReleasing
 	return new RcReleasing.RcReleasing(v.id, v.others, v.log);
 }
 
+export function copy$tuple2_u16_u8(v: [rt.u16, rt.u8]): [rt.u16, rt.u8] {
+	return [v[0], v[1]];
+}
+
 export function copy$tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt.u8] {
 	return [v[0], v[1]];
 }

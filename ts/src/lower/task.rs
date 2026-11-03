@@ -167,11 +167,10 @@ pub fn call<'tcx>(
 						return Ok(Some(Expr::undefined()));
 					};
 					// What moves the value to a new allocation, as std's does when only `Weak`s
-					// share it: a copy where a pointer to it is the object, which compares.
+					// share it: a new object where a pointer to it is the object, which
+					// compares, whether or not the crate writes into it.
 					let moved = match b.t.pointee(value) {
-						super::pointer::Pointee::Object | super::pointer::Pointee::Bytes => {
-							b.t.snapshot_fn(value, call.span)
-						}
+						super::pointer::Pointee::Object | super::pointer::Pointee::Bytes => b.t.shim(value, call.span),
 						super::pointer::Pointee::Place | super::pointer::Pointee::Slice => None,
 					};
 					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();

@@ -155,8 +155,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.shim(ty, span)
 	}
 
-	/// The function copying a `ty`, made the first time.
-	fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	/// The function copying a `ty`, made the first time: a new object of it, whatever the
+	/// crate writes, holding the parts [`Self::snapshot`] copies.
+	pub fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		// An array's copy is the same at every length, so its name has none: `array_u8`.
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
