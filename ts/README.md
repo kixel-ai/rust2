@@ -313,7 +313,8 @@ the same clones, as `rt.iterCycle(it, { v: Item.clone$Clone })`, by which it clo
 iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
-`char`, a `&str`, a predicate or a reference to one, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
+`char`, a `&str`, a predicate (a closure, a function or a function pointer, or a `dyn FnMut`) behind any references and boxes,
+or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
 closure, which it calls on each char it reads, in the order std reads them, and drops a closure it owns as it
 returns, or with the iterator it returns, as `split` does, leaving one it borrows to its owner. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
@@ -933,7 +934,7 @@ other than calling or dropping the closure or passing them to std's iterators ou
 own types, or a drop of the accumulator,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
-`char`, a `&str`, a predicate or a reference to one, or chars, a mutable `str` slice, a copy of a closure that changes
+`char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a
 reference, a switch on or a field of another crate's type without a mapping, and std
