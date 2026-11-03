@@ -3,8 +3,9 @@
 //! is written through a mutable chunk landing in the slice; and `Vec::drain` of
 //! each kind of range, read from both ends, dropped part way, and forgotten, of values
 //! that log when they drop; and a slice's parts by each kind of range and by fixed size,
-//! with what is written through a mutable one landing in the slice; and a slice's edits in
-//! place, of values that log as they are cloned and drop.
+//! with what is written through a mutable one landing in the slice; a slice's edits in
+//! place, of values that log as they are cloned and drop; and a slice's runs as arrays,
+//! and a `Vec` cloned from a slice.
 
 use std::cell::RefCell;
 
@@ -1013,6 +1014,88 @@ pub fn edits(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	out.extend(counted.iter().map(|x| x.n));
 	out.extend(items.iter().map(|x| x.tag));
 	out.extend(array.iter().map(|&x| (x ^ x >> 13) as u8));
+	drop(items);
+	flush(out);
+}
+
+/// How many runs of `N` `data` holds, by `as_chunks`, which panics at none.
+fn runs<const N: usize>(data: &[u8]) -> u8 {
+	data.as_chunks::<N>().0.len() as u8
+}
+
+/// `as_chunks` and `as_rchunks` at one, two, and three elements, of bytes, of other
+/// integers, and of values that log as they drop, of a slice, an empty one, a part, and a
+/// chunk, and at none, which panics; and a `Vec` cloned from a shared and a mutable slice
+/// and array, which later writes to what it cloned leave as they were.
+pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let mut bytes = data.to_vec();
+	let mut words: Vec<u16> = data.iter().map(|&b| b as u16 * 257).collect();
+	let mut items: Vec<Noisy> = data.iter().map(|&tag| Noisy { tag }).collect();
+	let tags = |s: &[Noisy]| s.iter().fold(s.len() as u8, |acc, x| acc.wrapping_mul(31) ^ x.tag);
+	match kind % 4 {
+		0 => {
+			let (chunks, rest) = data.as_chunks::<2>();
+			out.extend(chunks.iter().map(|c| digest(c)));
+			out.extend([chunks.len() as u8, digest(rest)]);
+			let (rest, chunks) = data.as_rchunks::<3>();
+			out.extend(chunks.iter().map(|c| c[0] ^ c[2]));
+			out.extend([chunks.len() as u8, digest(rest)]);
+			let (chunks, rest) = words.as_chunks::<3>();
+			out.extend(chunks.iter().map(|c| digest_words(c)));
+			out.extend([chunks.len() as u8, digest_words(rest)]);
+			let (rest, chunks) = words.as_rchunks::<1>();
+			out.extend(chunks.iter().map(|[w]| (w >> 4) as u8));
+			out.push(rest.len() as u8);
+			let (chunks, rest) = items.as_chunks::<3>();
+			out.extend(chunks.iter().map(|c| tags(c)));
+			out.extend([chunks.len() as u8, tags(rest)]);
+			let (rest, chunks) = items.as_rchunks::<2>();
+			out.extend(chunks.iter().map(|c| tags(c)));
+			out.extend([chunks.len() as u8, tags(rest)]);
+		}
+		// An empty slice, a part, and a chunk of a chunk.
+		1 => {
+			let (none, rest) = data[..0].as_chunks::<4>();
+			out.extend([none.len() as u8, rest.len() as u8]);
+			let (rest, none) = items[..0].as_rchunks::<2>();
+			out.extend([none.len() as u8, rest.len() as u8]);
+			let start = data.len() / 3;
+			let (chunks, rest) = data[start..].as_chunks::<3>();
+			for c in chunks {
+				let (pairs, last) = c.as_chunks::<2>();
+				out.extend([pairs.len() as u8, pairs[0][1] ^ last[0]]);
+			}
+			out.push(digest(rest));
+			let (rest, chunks) = words[start..].as_rchunks::<2>();
+			out.extend(chunks.last().map(|c| digest_words(c)));
+			out.push(digest_words(rest));
+		}
+		2 => {
+			let owned = Vec::from(data);
+			let copied = Vec::from(&mut words[..]);
+			let cloned = Vec::from(&items[..]);
+			let more = Vec::from(&mut items[1.min(data.len())..]);
+			let array = [Noisy { tag: 0x31 }, Noisy { tag: 0x32 }];
+			let mut array_bytes = [data.len() as u8, 7];
+			let from_array = (Vec::from(&array), Vec::from(&mut array_bytes));
+			flush(out);
+			bytes.reverse();
+			words.fill(3);
+			items.clear();
+			array_bytes[0] = 0;
+			flush(out);
+			out.extend([digest(&owned), digest_words(&copied), tags(&cloned), tags(&more)]);
+			out.extend([tags(&from_array.0), digest(&from_array.1), array_bytes[0]]);
+			drop(cloned);
+			drop(from_array);
+			flush(out);
+		}
+		_ => out.push(runs::<0>(data)),
+	}
+	flush(out);
+	out.extend(&bytes);
+	out.extend(words.iter().map(|&w| (w ^ w >> 8) as u8));
+	out.push(tags(&items));
 	drop(items);
 	flush(out);
 }
