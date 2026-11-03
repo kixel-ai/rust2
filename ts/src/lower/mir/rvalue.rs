@@ -755,9 +755,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rt("FmtError".into())), Vec::new()),
-				(std @ (Std::ParseBoolError | Std::BorrowError | Std::BorrowMutError), _) => {
-					Expr::New(Box::new(Expr::Rt(format!("{std:?}"))), Vec::new())
-				}
+				(
+					std @ (Std::ParseBoolError
+					| Std::BorrowError
+					| Std::BorrowMutError
+					| Std::CharTryFromError
+					| Std::TryFromCharError),
+					_,
+				) => Expr::New(Box::new(Expr::Rt(format!("{std:?}"))), Vec::new()),
 				// `ResumeTy`, an async body's context.
 				(Std::Context, _) => values.pop().unwrap_or_else(Expr::undefined),
 				(Std::RangeTo | Std::RangeToInclusive, _) => {

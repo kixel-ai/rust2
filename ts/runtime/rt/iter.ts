@@ -151,6 +151,37 @@ export abstract class Iter<T> implements Iterable<T> {
 	}
 
 	/**
+	 * `find`, as `next` returns it, dropping what `f` rejects by `drop`: as `try_fold` reads
+	 * it, but where its kind forwards std's `find` to an iterator it holds.
+	 */
+	find(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return findItem(this, f, drop);
+	}
+
+	/** `rfind`, as `next_back` returns it, as `find`. */
+	rfind(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return rfindItem(this, f, drop);
+	}
+
+	/**
+	 * Whether its `find`, `rfind`, or `find_map` may be the translated crate's own, which reads
+	 * it other than as `try_fold` does.
+	 */
+	finds(): boolean {
+		return false;
+	}
+
+	/** `find_map` of `f`, whose `None` is `none`, as `next` returns it: as `try_fold` reads it. */
+	findMap<U>(f: (item: T) => U | undefined | None, none?: None): U | Done {
+		const folded = this.folded();
+		for (let item = folded.next(); item !== DONE; item = folded.next()) {
+			const found = f(item);
+			if (found !== none) return found as U;
+		}
+		return DONE;
+	}
+
+	/**
 	 * What std's `try_fold` reads it by, and `try_rfold` by `nextBack`, or its `fold` and
 	 * `rfold` if `fold`: itself, but for an inclusive range, which steps its own way, a zip
 	 * whose `fold` stops at its size hint, and an adaptor that folds either.
@@ -575,7 +606,8 @@ export function iterSuccessors<T>(first: T | undefined | None, succ: (item: T) =
 /**
  * The methods of std's iterator traits an iterator of the translated crate has of its own,
  * beside `next`, each a function of its source: `iterFrom` calls each where std's
- * adaptors and consumers do. `fold`, `rfold`, `count`, and `last` take it by value.
+ * adaptors and consumers do. `fold`, `rfold`, `count`, `last`, `forEach`, and `reduce`
+ * take it by value. Each that takes a closure is given a function of what std's is given.
  */
 export interface Own<S, T> {
 	readonly hint?: (source: S) => SizeHint;
@@ -588,6 +620,13 @@ export interface Own<S, T> {
 	readonly rfold?: (source: S, acc: never, f: never) => unknown;
 	readonly count?: (source: S) => number;
 	readonly last?: (source: S) => T | Done;
+	readonly find?: (source: S, f: never) => T | Done;
+	readonly rfind?: (source: S, f: never) => T | Done;
+	/** Of one found type in Rust, which only moves what it finds, given each boxed in an array. */
+	readonly findMap?: (source: S, f: never) => unknown;
+	readonly forEach?: (source: S, f: never) => void;
+	readonly reduce?: (source: S, f: never) => T | Done;
+	readonly all?: (source: S, f: never) => boolean;
 }
 
 /**
@@ -910,10 +949,13 @@ export function iterFlatten<T, V>(it: Iter<T>, into?: (value: T) => Iter<V>, fus
  */
 export type Take = "next" | "fold" | "index";
 
-/** `it`, taken as `take` says: `f` of each item, and then it dropped. */
+/**
+ * `it`, taken as `take` says: `f` of each item, and then it dropped. Taken by `fold`, it is
+ * read as std's `for_each` reads it.
+ */
 function each<T>(it: Iter<T>, f: (item: T) => void, take: Take | undefined): void {
 	if (take === "fold") {
-		it.fold<void>(undefined, (_, item) => f(item));
+		forEach(it, f);
 		return;
 	}
 	if (take === "index") {
@@ -1000,26 +1042,22 @@ function rfindItem<T>(it: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>): T |
 export function iterFind<T>(it: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>): T | undefined;
 export function iterFind<T>(it: Iter<T>, f: (item: T) => boolean, drop: Drop<T> | undefined, none: None): T | None;
 export function iterFind<T>(it: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(findItem(it, f, drop), none);
+	return iterToOption(it.find(f, drop), none);
 }
 
 /** `Iterator::find_map`. */
 export function iterFindMap<T, U>(it: Iter<T>, f: (item: T) => U | undefined): U | undefined;
 export function iterFindMap<T, U>(it: Iter<T>, f: (item: T) => U | None, none: None): U | None;
 export function iterFindMap<T, U>(it: Iter<T>, f: (item: T) => U | undefined | None, none?: None): U | undefined | None {
-	const folded = it.folded();
-	for (let item = folded.next(); item !== DONE; item = folded.next()) {
-		const found = f(item);
-		if (found !== none) return found;
-	}
-	return none;
+	const found = it.findMap(f, none);
+	return found === DONE ? none : found;
 }
 
 /** `DoubleEndedIterator::rfind`, dropping what `f` rejects by `drop`. */
 export function iterRfind<T>(it: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>): T | undefined;
 export function iterRfind<T>(it: Iter<T>, f: (item: T) => boolean, drop: Drop<T> | undefined, none: None): T | None;
 export function iterRfind<T>(it: Iter<T>, f: (item: T) => boolean, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(rfindItem(it, f, drop), none);
+	return iterToOption(it.rfind(f, drop), none);
 }
 
 /** `Iterator::rposition`: from the back, where its item is counting from the front. */
@@ -1123,14 +1161,36 @@ function tryFold<T, A, R>(it: Iter<T>, back: boolean, init: A, f: (acc: A, item:
 }
 
 /** `Iterator::for_each`, which drops `f` if it `owns` it, as `iterFold` does. */
-export function iterForEach<T>(it: Iter<T>, f: (item: T) => void, drops = false, owns = false): void {
+export function iterForEach<T>(it: Iter<T>, f: (item: T) => void, drops = false, owns = false): undefined {
 	if (!drops) {
 		const folded = it.folded(true);
 		for (let item = folded.next(); item !== DONE; item = folded.next()) f(item);
 		if (owns) dispose(f);
+		return undefined;
+	}
+	forEach(it, f, owns ? () => dispose(f) : undefined);
+	return undefined;
+}
+
+/**
+ * std's `for_each` of `it`, which takes it by value: the translated crate's own, given `f`
+ * as `FromNext`'s folds give theirs, or else by `fold`, which drops `release` as it ends.
+ */
+function forEach<T>(it: Iter<T>, f: (item: T) => void, release?: () => void): void {
+	if (it instanceof FromNext && it.own?.forEach !== undefined) {
+		it.taken((source) => (it.own!.forEach as (source: unknown, f: (item: T) => void) => void)(source, lend(f, release)));
 		return;
 	}
-	it.fold<void>(undefined, (_, item) => f(item), owns ? () => dispose(f) : undefined);
+	it.fold<void>(undefined, (_, item) => f(item), release);
+}
+
+/**
+ * `f`, given to the crate's own method as a closure std owns, which drops `release`'s as the
+ * crate's drops it, or without `release` as a loan of `f`, which drops nothing.
+ */
+function lend<F extends (...args: never[]) => unknown>(f: F, release: (() => void) | undefined): F {
+	const g = ((...args: never[]) => f(...args)) as F;
+	return release === undefined ? g : closure(g, release);
 }
 
 /** `sum`, adding with an integer type's checked `add`, so overflow panics as Rust's does. */
@@ -1215,7 +1275,8 @@ function byCompare<T>(compare: Compare<T>): Lt<T> {
  * rest by `fold`, each tested for `lt` the best's and dropped as it loses. `release` drops
  * the closure std's reduces by as the fold ends, or if `it` is empty, before `it`, or
  * after it if `keyed`, as the `map` std's `_by_key` forms reduce drops its function. Each
- * key drops by `dropKey` just before its item does, and the best's after the fold.
+ * key drops by `dropKey` just before its item does, and the best's after the fold. Unless
+ * `keyed`, std reduces `it` itself, by the translated crate's own `reduce` if it has one.
  */
 function best<T, K>(
 	it: Iter<T>,
@@ -1228,6 +1289,14 @@ function best<T, K>(
 	keyed = false,
 	dropKey?: Drop<K>,
 ): T | Done {
+	if (!keyed && it instanceof FromNext && it.own?.reduce !== undefined) {
+		const pick = (best: T, item: T): T => {
+			const wins = least ? lt(f(item), f(best)) : !lt(f(item), f(best));
+			drop?.(wins ? best : item);
+			return wins ? item : best;
+		};
+		return it.reduced(pick, release);
+	}
 	if (!drops && drop === undefined && dropKey === undefined) {
 		let best = it.next();
 		if (best !== DONE) {
@@ -1265,9 +1334,10 @@ function best<T, K>(
 
 /**
  * `is_sorted_by`: whether `compare` holds of each item and the next, read by `next` and
- * then as `all` folds, stopping at the first it fails. Each item drops by `drop` as the
- * next replaces it, or after the one it failed against; then `compare` by `dropCompare`,
- * as `all` drops it, the last item, and `it`, if `drops`.
+ * then as `all` folds, or by the translated crate's own `all`, stopping at the first it
+ * fails. Each item drops by `drop` as the next replaces it, or after the one it failed
+ * against; then `compare` by `dropCompare`, as `all` drops it, the last item, and `it`, if
+ * `drops`.
  */
 export function iterIsSortedBy<T>(
 	it: Iter<T>,
@@ -1278,7 +1348,22 @@ export function iterIsSortedBy<T>(
 ): boolean {
 	let last = it.next();
 	let sorted = true;
-	if (last !== DONE) {
+	if (last !== DONE && it instanceof FromNext && it.own?.all !== undefined) {
+		const check = (item: T): boolean => {
+			if (!compare(last as T, item)) {
+				drop?.(item);
+				return false;
+			}
+			drop?.(last as T);
+			last = item;
+			return true;
+		};
+		const dropped = dropCompare;
+		const release = dropped === undefined ? undefined : () => dropped(compare);
+		sorted = it.allOwn(check, release);
+		// The crate's `all` dropped it.
+		dropCompare = undefined;
+	} else if (last !== DONE) {
 		const folded = it.folded();
 		for (let item = folded.next(); item !== DONE; item = folded.next()) {
 			if (!compare(last, item)) {
@@ -2137,8 +2222,45 @@ class FromNext<S, T> extends Iter<T> implements Disposable {
 	 */
 	private folds<A>(fold: (source: S, acc: never, f: never) => unknown, acc: A, f: (acc: A, item: T) => A, release: (() => void) | undefined): A {
 		this.drop = undefined;
-		const g = (acc: A, item: T) => f(acc, item);
-		return (fold as (source: S, acc: A, f: (acc: A, item: T) => A) => A)(this.source, acc, release === undefined ? g : closure(g, release));
+		return (fold as (source: S, acc: A, f: (acc: A, item: T) => A) => A)(this.source, acc, lend(f, release));
+	}
+
+	override finds(): boolean {
+		const own = this.own;
+		return own?.find !== undefined || own?.rfind !== undefined || own?.findMap !== undefined;
+	}
+
+	/** Its own, which drops what `f` rejects itself, or std's. */
+	override find(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		const find = this.own?.find as ((source: S, f: (item: T) => boolean) => T | Done) | undefined;
+		return find === undefined ? super.find(f, drop) : find(this.source, lend(f, undefined));
+	}
+
+	override rfind(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		const rfind = this.own?.rfind as ((source: S, f: (item: T) => boolean) => T | Done) | undefined;
+		return rfind === undefined ? super.rfind(f, drop) : rfind(this.source, lend(f, undefined));
+	}
+
+	/** Its own, or std's, given what `f` finds boxed, as it only moves it, so no value of it is its `None`. */
+	override findMap<U>(f: (item: T) => U | undefined | None, none?: None): U | Done {
+		const findMap = this.own?.findMap as ((source: S, f: (item: T) => [U] | undefined) => [U] | undefined) | undefined;
+		if (findMap === undefined) return super.findMap(f, none);
+		const found = findMap(this.source, (item) => {
+			const found = f(item);
+			return found === none ? undefined : [found as U];
+		});
+		return found === undefined ? DONE : found[0];
+	}
+
+	/** Its own `reduce` of `f`, which takes it by value, given `f` as `folds` gives it. */
+	reduced(f: (a: T, b: T) => T, release: (() => void) | undefined): T | Done {
+		this.drop = undefined;
+		return (this.own!.reduce as (source: S, f: (a: T, b: T) => T) => T | Done)(this.source, lend(f, release));
+	}
+
+	/** Its own `all` of `f`, given `f` as `folds` gives it. */
+	allOwn(f: (item: T) => boolean, release: (() => void) | undefined): boolean {
+		return (this.own!.all as (source: S, f: (item: T) => boolean) => boolean)(this.source, lend(f, release));
 	}
 
 	/** Its own `count` or `last`, which takes it by value. */
@@ -2371,8 +2493,9 @@ class FilterIter<T> extends Calling<T, T, (item: T) => boolean> {
 		this.drop = drop;
 	}
 
+	/** std's: its iterator's `find`, and `rfind` from the back. */
 	next(): T | Done {
-		return findItem(this.inner, this.f, this.drop);
+		return this.inner.find(this.f, this.drop);
 	}
 
 	override sizeHint(): SizeHint {
@@ -2380,14 +2503,21 @@ class FilterIter<T> extends Calling<T, T, (item: T) => boolean> {
 	}
 
 	override nextBack(): T | Done {
-		return rfindItem(this.inner, this.f, this.drop);
+		return this.inner.rfind(this.f, this.drop);
 	}
 
-	/** std's `fold` folds its iterator, where `next` reads it as `try_fold` does. */
+	/**
+	 * std's `try_fold` and `fold` read its iterator by its own, as `folded` steps it, where
+	 * `next` reads it by `find`, which the crate's own iterator may have of its own.
+	 */
 	override folded(fold = false): Iter<T> {
-		const inner = fold ? this.inner.folded(true) : this.inner;
-		if (inner === this.inner) return this;
-		return new FilterIter(inner, this.f, this.drop);
+		const inner = this.inner.folded(fold);
+		if (inner === this.inner && !inner.finds()) return this;
+		const { f, drop } = this;
+		return new Folded(
+			() => findItem(inner, f, drop),
+			() => rfindItem(inner, f, drop),
+		);
 	}
 
 	override clone(h?: Clones): Iter<T> {
@@ -2414,6 +2544,15 @@ class FilterIter<T> extends Calling<T, T, (item: T) => boolean> {
 	}
 }
 
+/** The next value `f`, whose `None` is `none`, makes of an item of `it` by `next`, or `nextBack` if `back`. */
+function filterMapped<T, U>(it: Iter<T>, back: boolean, f: (item: T) => U | undefined | None, none: None | undefined): U | Done {
+	for (let item = back ? it.nextBack() : it.next(); item !== DONE; item = back ? it.nextBack() : it.next()) {
+		const mapped = f(item);
+		if (mapped !== none) return mapped as U;
+	}
+	return DONE;
+}
+
 class FilterMapIter<T, U> extends Calling<T, U, (item: T) => U | undefined | None> {
 	/** The `Option`'s `None` that `f` returns. */
 	private readonly none: None | undefined;
@@ -2423,34 +2562,32 @@ class FilterMapIter<T, U> extends Calling<T, U, (item: T) => U | undefined | Non
 		this.none = none;
 	}
 
-	/** std's, by `find_map`, which folds its iterator. */
+	/** std's: its iterator's `find_map`. */
 	next(): U | Done {
-		const inner = this.inner.folded();
-		for (let item = inner.next(); item !== DONE; item = inner.next()) {
-			const mapped = this.f(item);
-			if (mapped !== this.none) return mapped as U;
-		}
-		return DONE;
+		return this.inner.findMap(this.f, this.none);
 	}
 
 	override sizeHint(): SizeHint {
 		return fewer(this.inner);
 	}
 
+	/** std's, by its iterator's `try_rfold`. */
 	override nextBack(): U | Done {
-		const inner = this.inner.folded();
-		for (let item = inner.nextBack(); item !== DONE; item = inner.nextBack()) {
-			const mapped = this.f(item);
-			if (mapped !== this.none) return mapped as U;
-		}
-		return DONE;
+		return filterMapped(this.inner.folded(), true, this.f, this.none);
 	}
 
-	/** std's `fold` folds its iterator, where `next` reads it as `try_fold` does. */
+	/**
+	 * std's `try_fold` and `fold` read its iterator by its own, as `folded` steps it, where
+	 * `next` reads it by `find_map`, which the crate's own iterator may have of its own.
+	 */
 	override folded(fold = false): Iter<U> {
-		const inner = fold ? this.inner.folded(true) : this.inner;
-		if (inner === this.inner) return this;
-		return new FilterMapIter(inner, this.f, this.none);
+		const inner = this.inner.folded(fold);
+		if (inner === this.inner && !inner.finds()) return this;
+		const { f, none } = this;
+		return new Folded(
+			() => filterMapped(inner, false, f, none),
+			() => filterMapped(inner, true, f, none),
+		);
 	}
 
 	override clone(h?: Clones): Iter<U> {
@@ -2700,6 +2837,30 @@ class ChainIter<T> extends Iter<T> implements Disposable {
 			this.endB();
 		}
 		return this.a === undefined ? DONE : this.a.nthBack(n, drop);
+	}
+
+	override finds(): boolean {
+		return this.a?.finds() === true || this.b?.finds() === true;
+	}
+
+	/** std's: the first's `find`, which drops it if it finds none, and then the second's. */
+	override find(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		if (this.a !== undefined) {
+			const item = this.a.find(f, drop);
+			if (item !== DONE) return item;
+			this.endA();
+		}
+		return this.b === undefined ? DONE : this.b.find(f, drop);
+	}
+
+	/** std's: the second's `rfind`, which drops it if it finds none, and then the first's. */
+	override rfind(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		if (this.b !== undefined) {
+			const item = this.b.rfind(f, drop);
+			if (item !== DONE) return item;
+			this.endB();
+		}
+		return this.a === undefined ? DONE : this.a.rfind(f, drop);
 	}
 
 	/** std's: the first's fold and then the second's, which drops `release`'s as it ends. */
@@ -3018,6 +3179,18 @@ class RevIter<T> extends Adaptor<T, T> {
 		return this.inner.nth(n, drop);
 	}
 
+	override finds(): boolean {
+		return this.inner.finds();
+	}
+
+	override find(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return this.inner.rfind(f, drop);
+	}
+
+	override rfind(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return this.inner.find(f, drop);
+	}
+
 	override folded(fold = false): Iter<T> {
 		const inner = this.inner.folded(fold);
 		if (inner === this.inner) return this;
@@ -3334,9 +3507,9 @@ class SkipWhileIter<T> extends Calling<T, T, (item: T) => boolean> {
 		return it;
 	}
 
+	/** std's: its iterator's `find`. */
 	next(): T | Done {
-		return findItem(
-			this.inner,
+		return this.inner.find(
 			(item) => {
 				if (this.flag || !this.f(item)) {
 					this.flag = true;
@@ -3352,10 +3525,13 @@ class SkipWhileIter<T> extends Calling<T, T, (item: T) => boolean> {
 		return fewer(this.inner);
 	}
 
-	/** std's `fold`: its first item by `next`, and then its iterator folded. */
+	/**
+	 * std's `try_fold` and `fold`: its first item by `next`, and then its iterator folded,
+	 * where `next` reads it by `find`, which the crate's own iterator may have of its own.
+	 */
 	override folded(fold = false): Iter<T> {
-		const inner = fold ? this.inner.folded(true) : this.inner;
-		if (inner === this.inner) return this;
+		const inner = this.inner.folded(fold);
+		if (inner === this.inner && !inner.finds()) return this;
 		return new FromNext(inner, (inner) => (this.flag ? inner.next() : this.next()));
 	}
 
@@ -3813,6 +3989,19 @@ class FuseIter<T> extends Iter<T> implements Disposable {
 
 	override nth(n: number, drop?: Drop<T>): T | Done {
 		return this.inner === undefined ? DONE : this.clear(this.inner.nth(n, drop));
+	}
+
+	override finds(): boolean {
+		return this.inner?.finds() === true;
+	}
+
+	/** std's: its iterator's, dropped if it finds none unless it is fused. */
+	override find(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return this.inner === undefined ? DONE : this.clear(this.inner.find(f, drop));
+	}
+
+	override rfind(f: (item: T) => boolean, drop?: Drop<T>): T | Done {
+		return this.inner === undefined ? DONE : this.clear(this.inner.rfind(f, drop));
 	}
 
 	/** std's: its iterator folded, dropped once it ends unless it is fused. */

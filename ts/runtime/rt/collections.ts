@@ -29,6 +29,7 @@ import {
 	iterEmpty,
 	iterFilter,
 	iterFold,
+	iterForEach,
 	iterMap,
 	iterOnce,
 	iterSlice,
@@ -974,7 +975,7 @@ function taken<K, V>(m: HashMap<K, V>): HashMap<K, V> {
 
 /** Extend `c` by `add` of each of `items`, taken as `take` says, as std's `extend` takes the iterator. */
 function extending<C, T>(c: C, items: Iter<T>, add: (item: T) => void, take?: Take): C {
-	if (take === "fold") items.fold<void>(undefined, (_, item) => add(item));
+	if (take === "fold") iterForEach(items, add, true);
 	else {
 		// By `next` where std's reads by it, and else as its `for_each` folds.
 		const read = take === "next" ? items : items.folded(true);

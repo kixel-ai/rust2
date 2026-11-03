@@ -74,6 +74,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			return self.project(e, pty, place, n, span, out);
 		}
+		// Drop glue's pointer read whole, which a `&mut` to a value JS copies is: the place of
+		// the value it drops, which its parameter is.
+		if self.glue_pointer(place.local)
+			&& place.projection.is_empty()
+			&& self.b.t.place_pointee(self.mir.local_decls[place.local].ty).is_some()
+		{
+			let value = self.local_expr(place.local, span);
+			return self.place_of(value, None);
+		}
 		let decls = &self.mir.local_decls;
 		let mut pty = PlaceTy::from_ty(decls[place.local].ty);
 		let mut projection = place.projection.iter().peekable();
@@ -204,8 +213,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Deref => {
 					// Drop glue's pointer is the value it drops.
-					let glue =
-						matches!(self.env, Env::Shim) && place.local.as_u32() == 1 && pty.ty == decls[place.local].ty;
+					let glue = self.glue_pointer(place.local) && pty.ty == decls[place.local].ty;
 					// A box's pointer is the box, which is its contents.
 					let boxed = self.box_pointer(place.local);
 					if self.b.t.place_pointee(ty).is_some() && !glue && !boxed {
@@ -772,6 +780,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Some(ObjectKind::Array) if self.b.t.erased(pointee).is_slice() => {
 						Expr::rt("vecAssign", vec![target, value])
 					}
+					Some(_) if self.b.t.moves_private(pointee) => Expr::rt("ptrWrite", vec![target, value]),
 					Some(_) => Expr::ident("Object").member("assign").call(vec![target, value]),
 					None => self.err(span, format!("an assignment through a reference to `{pointee}`")),
 				},
@@ -1297,12 +1306,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// The `const` item of the thread-local `c` borrows, as `with`'s `&'static self` is: a
-	/// promoted borrow of the key.
+	/// The `const` item of the thread-local `c` is, or borrows, as `with`'s `&'static self`
+	/// is: a promoted borrow of the key. Each copy of a key names the same storage.
 	fn local_key_of(&self, c: &mir::ConstOperand<'tcx>) -> Option<DefId> {
 		let tcx = self.tcx;
-		let ty::Ref(_, key, _) = c.ty().kind() else {
-			return None;
+		let key = match c.ty().kind() {
+			ty::Ref(_, key, _) => *key,
+			_ => c.ty(),
 		};
 		let ty::Adt(adt, _) = key.kind() else {
 			return None;
@@ -1313,7 +1323,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mir::Const::Unevaluated(uv, _) = c.const_ else {
 			return None;
 		};
-		let promoted = &tcx.promoted_mir(uv.def)[uv.promoted?];
+		let Some(promoted) = uv.promoted else {
+			return (key == c.ty()).then_some(uv.def);
+		};
+		let promoted = &tcx.promoted_mir(uv.def)[promoted];
 		promoted
 			.basic_blocks
 			.iter()

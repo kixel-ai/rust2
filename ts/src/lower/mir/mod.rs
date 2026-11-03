@@ -988,6 +988,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(self.const_value(mir::ConstValue::ZeroSized, ty, span))
 	}
 
+	/// Whether `local` is drop glue's pointer, which is the value it drops.
+	fn glue_pointer(&self, local: Local) -> bool {
+		matches!(self.env, Env::Shim) && local.as_u32() == 1
+	}
+
 	/// Whether `local` is a box's pointer, as a box's dereference reads it.
 	fn box_pointer(&self, local: Local) -> bool {
 		matches!(

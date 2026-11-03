@@ -1,9 +1,10 @@
 //! The crate's own iterators that read from the back, know their length, and say they stay
-//! ended, with their own size hints, `nth`s, folds, `count`, and `last`: std's adaptors and
-//! consumers call each method where native's do, and `fuse` reads on past the end of one
-//! that says it stays ended.
+//! ended, with their own size hints, `nth`s, folds, `count`, `last`, finds, `for_each`,
+//! `reduce`, and `all`: std's adaptors and consumers call each method where native's do,
+//! and `fuse` reads on past the end of one that says it stays ended.
 
 use std::cell::RefCell;
+use std::collections::{BTreeSet, LinkedList};
 use std::iter::FusedIterator;
 
 /// The items `front..back`, read from either end, logging each call of its methods: `n`,
@@ -88,9 +89,12 @@ impl ExactSizeIterator for Counted<'_> {
 	}
 }
 
-/// A `Run` with its own `nth`, `nth_back`, `fold`, `rfold`, `count`, and `last`, each logged
-/// as `N`, `B`, `f`, `r`, `c`, and `L`, which std's adaptors and consumers call in place of
-/// `next` and `next_back`. Its `count` reads nothing, and its `last` reads from the back.
+/// A `Run` with its own `nth`, `nth_back`, `fold`, `rfold`, `count`, `last`, `find`, `rfind`,
+/// `find_map`, `for_each`, `reduce`, and `all`, each logged as `N`, `B`, `f`, `r`, `c`, `L`,
+/// `F`, `R`, `M`, `E`, `D`, and `A`, which std's adaptors and consumers call in place of
+/// `next` and `next_back`, and its own `position` and `max`, logged as `P` and `X`, which
+/// only the crate's own calls reach. Its `count` reads nothing, and its `last`, `for_each`,
+/// `reduce`, and `max` read from the back.
 struct Overrides<'a>(Run<'a>);
 
 impl Iterator for Overrides<'_> {
@@ -130,6 +134,69 @@ impl Iterator for Overrides<'_> {
 		self.0.logged(b'L');
 		self.0.next_back()
 	}
+
+	fn find<P: FnMut(&u8) -> bool>(&mut self, mut p: P) -> Option<u8> {
+		self.0.logged(b'F');
+		while let Some(b) = self.0.next() {
+			if p(&b) {
+				return Some(b);
+			}
+		}
+		None
+	}
+
+	fn find_map<B, F: FnMut(u8) -> Option<B>>(&mut self, f: F) -> Option<B> {
+		self.0.logged(b'M');
+		// Through std's, which only moves what it finds.
+		(&mut self.0).find_map(f)
+	}
+
+	fn for_each<F: FnMut(u8)>(mut self, mut f: F) {
+		self.0.logged(b'E');
+		while let Some(b) = self.0.next_back() {
+			f(b);
+		}
+	}
+
+	fn reduce<F: FnMut(u8, u8) -> u8>(mut self, f: F) -> Option<u8> {
+		self.0.logged(b'D');
+		let first = self.0.next_back()?;
+		// Through std's fold, which drops `f` as it ends.
+		Some(std::iter::from_fn(|| self.0.next_back()).fold(first, f))
+	}
+
+	fn all<F: FnMut(u8) -> bool>(&mut self, mut f: F) -> bool {
+		self.0.logged(b'A');
+		while let Some(b) = self.0.next() {
+			if !f(b) {
+				return false;
+			}
+		}
+		true
+	}
+
+	fn position<P: FnMut(u8) -> bool>(&mut self, mut p: P) -> Option<usize> {
+		self.0.logged(b'P');
+		let mut i = 0;
+		while let Some(b) = self.0.next() {
+			if p(b) {
+				return Some(i);
+			}
+			i += 1;
+		}
+		None
+	}
+
+	fn max(mut self) -> Option<u8> {
+		self.0.logged(b'X');
+		let mut best = None;
+		while let Some(b) = self.0.next_back() {
+			if best.is_none_or(|m| b > m) {
+				best = Some(b);
+			}
+		}
+		best
+	}
 }
 
 impl DoubleEndedIterator for Overrides<'_> {
@@ -149,6 +216,12 @@ impl DoubleEndedIterator for Overrides<'_> {
 		self.0.logged(b'r');
 		// Through std's fold, by a closure holding `f`.
 		std::iter::from_fn(|| self.0.next_back()).fold(init, move |acc, b| f(acc, b))
+	}
+
+	fn rfind<P: FnMut(&u8) -> bool>(&mut self, mut p: P) -> Option<u8> {
+		self.0.logged(b'R');
+		// Through std's find, by a closure holding `p`.
+		std::iter::from_fn(|| self.0.next_back()).find(move |b| p(b))
 	}
 }
 
@@ -208,7 +281,8 @@ fn put_vec(out: &mut Vec<u8>, v: Vec<u8>) {
 /// The run `data`'s first byte picks steps through with each of its other bytes, read
 /// directly, through `&mut`, or by std's adaptors, and consumed by the third byte's pick,
 /// by `consumed`, or by `folded` past the fifth `kind`, and boxed, or mapped and boxed, by
-/// either past the tenth, with what each read and each call of its methods logged.
+/// either past the tenth, or by `found` past the fourteenth, by value, borrowed, or boxed,
+/// with what each read and each call of its methods logged.
 pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let [shape, consume, steps @ ..] = data else {
 		return;
@@ -239,7 +313,7 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	let k = usize::from(consume >> 4);
 	let pick = consume % 16;
-	match kind % 14 {
+	match kind % 18 {
 		0 => consumed(run, pick, k, out),
 		1 => consumed(Counted(run), pick, k, out),
 		4 => consumed(Overrides(run), pick, k, out),
@@ -252,6 +326,12 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		11 => folded(Box::new(Overrides(run)), pick, k, &log, out),
 		12 => consumed(Box::new(Overrides(run).map(|b| b)), pick, k, out),
 		13 => folded(Box::new(Overrides(run).map(|b| b)), pick, k, &log, out),
+		// std's `Iterator` for `&mut I` and for a box forward none of `find`, `rfind`,
+		// `find_map`, `for_each`, `reduce`, and `all`.
+		14 => found(Overrides(run), pick, k, &log, out),
+		15 => found(&mut Overrides(run), pick, k, &log, out),
+		16 => found(Box::new(Overrides(run)), pick, k, &log, out),
+		17 => found(run, pick, k, &log, out),
 		2 | 7 => fuses(*consume, out),
 		_ => {
 			// Mixed from either end, by the bits of `consume`, until they meet.
@@ -463,6 +543,138 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 			put(out, (&mut it).last());
 			out.push(it.len() as u8);
 		}
+	}
+}
+
+/// Logs `G` as it drops.
+struct Guard<'a>(&'a RefCell<Vec<u8>>);
+
+impl Drop for Guard<'_> {
+	fn drop(&mut self) {
+		self.0.borrow_mut().push(b'G');
+	}
+}
+
+/// `it`, read by std's adaptors and consumers that call its `find`, `rfind`, `find_map`,
+/// `for_each`, `reduce`, or `all`, or that read it by `try_fold` beside them, picked by
+/// `pick`, with `k` what each tests against.
+fn found<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
+	mut it: I,
+	pick: u8,
+	k: usize,
+	log: &RefCell<Vec<u8>>,
+	out: &mut Vec<u8>,
+) {
+	let k8 = k as u8;
+	match pick {
+		0 => out.extend(it.filter(|b| b % 3 != k8 % 3)),
+		1 => out.extend(it.filter(|b| b % 2 == k8 % 2).rev()),
+		2 => out.extend(it.filter_map(|b| (b % 3 != k8 % 3).then_some(b ^ 0x0f))),
+		3 if k % 2 == 0 => out.extend(it.filter_map(|b| (b % 3 != 1).then_some(b)).rev()),
+		3 => out.extend(it.skip_while(|&b| b < k8 / 2)),
+		4 if k % 2 == 0 => out.extend(it.chain([7, 8]).filter(|b| b % 2 == 1)),
+		4 => out.extend(it.chain([7, 8]).filter(|b| b % 2 == 1).rev()),
+		5 if k % 2 == 0 => out.extend(it.fuse().filter(|b| b % 4 != k8 % 4)),
+		5 => {
+			let mut fused = it.fuse().filter(|b| b % 4 == k8 % 4);
+			put(out, fused.next_back());
+			put(out, fused.next_back());
+			out.extend(fused);
+		}
+		6 if k % 2 == 0 => {
+			let mut rev = it.rev();
+			put(out, rev.find(|&b| b < k8));
+			put(out, rev.rfind(|&b| b < k8));
+			out.extend(rev);
+		}
+		6 => {
+			put(out, it.find(|&b| b > k8 / 2));
+			put(out, it.rfind(|&b| b > k8 / 2));
+			out.extend(it);
+		}
+		7 if k % 2 == 0 => {
+			put(out, it.find_map(|b| (b > k8 / 2).then_some(b ^ 1)));
+			out.extend(it);
+		}
+		// Of a found value whose `None` is `rt.None`.
+		7 => {
+			let found = it.find_map(|b| (b >= k8 / 2).then_some((b % 2 == 0).then_some(b)));
+			out.extend(match found {
+				Some(Some(b)) => [0, b],
+				Some(None) => [1, 0],
+				None => [2, 0],
+			});
+			out.extend(it);
+		}
+		8 if k % 2 == 0 => out.extend(BTreeSet::from_iter(it)),
+		8 => {
+			let mut list = LinkedList::from([0xaa]);
+			list.extend(it);
+			out.extend(list);
+		}
+		9 => put(
+			out,
+			match k % 4 {
+				0 => it.max(),
+				1 => it.min(),
+				2 => it.max_by(|a, b| (a % 3).cmp(&(b % 3))),
+				_ => {
+					let guard = Guard(log);
+					it.min_by(move |a, b| {
+						let _ = &guard;
+						(a % 3).cmp(&(b % 3))
+					})
+				}
+			},
+		),
+		10 if k % 2 == 0 => out.push(it.is_sorted() as u8),
+		10 => {
+			let guard = Guard(log);
+			out.push(it.is_sorted_by(move |a, b| {
+				let _ = &guard;
+				a / 2 <= b / 2
+			}) as u8);
+		}
+		11 => {
+			put(out, it.position(|b| b == k8 / 2).map(|i| i as u8));
+			put(out, it.reduce(|a, b| a.wrapping_mul(3) ^ b));
+		}
+		12 if k % 2 == 0 => {
+			out.push(it.all(|b| b != k8 / 2) as u8);
+			out.extend(it);
+		}
+		12 => it.for_each(|b| out.push(b)),
+		// Each reduces by `next`, then by its fold, as std's adaptors do.
+		13 if k % 2 == 0 => put(out, it.filter(|b| b % 3 != 1).max()),
+		13 => put(out, it.filter_map(|b| (b % 3 != 1).then_some(b)).min()),
+		// Each reads by `try_fold`, which reads on by `next` and never by `find`.
+		14 => {
+			let mut filter = it.filter(|b| b % 2 == 0);
+			out.push(filter.any(|b| b > k8 / 2) as u8);
+			out.extend(filter);
+		}
+		_ => match k % 4 {
+			0 => {
+				let mut skip = it.skip_while(|&b| b < 2);
+				put(out, skip.position(|b| b > k8 / 2).map(|i| i as u8));
+				out.extend(skip);
+			}
+			1 => {
+				let mut filter_map = it.filter_map(|b| (b % 3 != 0).then_some(b));
+				out.push(filter_map.all(|b| b != k8 / 2) as u8);
+				out.extend(filter_map);
+			}
+			2 => {
+				let mut chain = it.chain([7, 8]).filter(|b| b % 2 == 0);
+				put(out, chain.find(|&b| b > k8 / 2));
+				out.extend(chain);
+			}
+			_ => {
+				let mut fused = it.by_ref().fuse().filter(|b| b % 2 == 1);
+				put(out, fused.next());
+				out.extend(it.rev());
+			}
+		},
 	}
 }
 
