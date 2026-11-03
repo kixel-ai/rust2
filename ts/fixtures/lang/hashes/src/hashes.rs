@@ -3,12 +3,13 @@
 //! `RandomState`, whose keys are random on both sides: its case prints only what holds
 //! whatever they are, such as one state hashing equal values alike, and never a hash. A
 //! `Hasher` of the crate's own logs each call `Hash` makes of it. Then hash maps and sets
-//! that hold a `BuildHasher` of the crate's own, and their `==`.
+//! that hold a `BuildHasher` of the crate's own, and their `==`, and `BuildHasherDefault`
+//! of a `Hasher` of the crate's own.
 
 use std::cell::{Cell, RefCell};
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
-use std::hash::{BuildHasher, DefaultHasher, Hash, Hasher, RandomState};
+use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher, Hash, Hasher, RandomState};
 use std::num::NonZero;
 use std::sync::Arc;
 use std::time::Duration;
@@ -630,6 +631,12 @@ fn event(what: u8, n: u8) {
 /// as it likes.
 struct Fnv(u64);
 
+impl Default for Fnv {
+	fn default() -> Self {
+		Fnv(0xcbf2_9ce4_8422_2325)
+	}
+}
+
 impl Hasher for Fnv {
 	fn finish(&self) -> u64 {
 		self.0
@@ -917,4 +924,107 @@ pub fn equal(data: &[u8], out: &mut Vec<u8>) {
 	};
 	out.push((index(data) == index(&reversed)) as u8);
 	out.push((index(data) != index(&flipped)) as u8);
+}
+
+/// A `Hasher` of the crate's own that `BuildHasherDefault` builds, logging each one
+/// `Default` makes, each byte written, each finish, and each drop.
+struct Tally(u64);
+
+impl Default for Tally {
+	fn default() -> Self {
+		event(b'n', 0);
+		Tally(0)
+	}
+}
+
+impl Hasher for Tally {
+	fn finish(&self) -> u64 {
+		event(b'f', self.0 as u8);
+		self.0
+	}
+
+	fn write(&mut self, bytes: &[u8]) {
+		for &b in bytes {
+			event(b'w', b);
+			self.0 = self.0.wrapping_mul(31).wrapping_add(u64::from(b));
+		}
+	}
+}
+
+impl Drop for Tally {
+	fn drop(&mut self) {
+		event(b'd', self.0 as u8);
+	}
+}
+
+/// `BuildHasherDefault` held in a field, its impls derived.
+#[derive(Default, Clone, Debug, PartialEq)]
+struct Tallied {
+	tag: u8,
+	state: BuildHasherDefault<Tally>,
+}
+
+/// One made in a `const`.
+const MADE: BuildHasherDefault<Tally> = BuildHasherDefault::new();
+
+/// `BuildHasherDefault`, made by `new`, `Default`, and `Clone`, which all compare equal and
+/// print alike whatever their `Hasher`, and each builds its hasher by the hasher's own
+/// `Default`, once per hash. Then hash maps and sets that hold one, which find their keys
+/// whatever it hashes them to, and say only sorted what they hold, as std's order is its own.
+pub fn defaults(data: &[u8], out: &mut Vec<u8>) {
+	EVENTS.with(|events| events.borrow_mut().clear());
+	let first = data.first().copied().unwrap_or(7);
+	let made = BuildHasherDefault::<Tally>::new();
+	let copy = made.clone();
+	let held = Tallied {
+		tag: first,
+		..Tallied::default()
+	};
+	let cloned = held.clone();
+	out.push((made == copy) as u8);
+	out.push((MADE != BuildHasherDefault::default()) as u8);
+	out.push((held == cloned) as u8);
+	out.push((held == Tallied::default()) as u8);
+	put(out, &format!("{made:?} {:?} {cloned:?} {held:#?}", Some(&MADE)));
+	let word = std::str::from_utf8(data).unwrap_or("✓");
+	let n = wide(data, 0, 2) as u16;
+	let mut built = made.build_hasher();
+	n.hash(&mut built);
+	let hashes = [
+		built.finish(),
+		made.hash_one(n),
+		copy.hash_one(word),
+		MADE.hash_one((n as u8, word)),
+		cloned.state.hash_one(&Key(n, word.to_string())),
+	];
+	drop(built);
+	for h in hashes {
+		out.extend_from_slice(&h.to_le_bytes());
+	}
+	let mut keyed: HashMap<Key, u8, BuildHasherDefault<Fnv>> = HashMap::default();
+	let mut seen: HashSet<u8, BuildHasherDefault<Fnv>> =
+		HashSet::with_capacity_and_hasher(data.len(), BuildHasherDefault::new());
+	for (i, &b) in data.iter().enumerate() {
+		*keyed.entry(Key(u16::from(b % 8), text(&data[i..=i]))).or_default() += 1;
+		out.push(seen.insert(b % 16) as u8);
+		out.push(keyed.contains_key(&Key(u16::from(b % 8 ^ 1), text(&[b ^ 1]))) as u8);
+	}
+	let mut entries: Vec<(&Key, &u8)> = keyed.iter().collect();
+	entries.sort();
+	for (Key(n, text), count) in entries {
+		out.push(*n as u8);
+		put(out, text);
+		out.push(*count);
+	}
+	let probe = Key(u16::from(first), text(&[first]));
+	out.extend_from_slice(&keyed.hasher().hash_one(&probe).to_le_bytes());
+	out.extend_from_slice(&seen.clone().hasher().hash_one(first).to_le_bytes());
+	out.push((*keyed.hasher() == BuildHasherDefault::default()) as u8);
+	out.push((keyed == keyed.clone()) as u8);
+	put(out, &format!("{:?}", seen.hasher()));
+	let small: HashSet<u8, BuildHasherDefault<Fnv>> = data.iter().map(|b| b % 4).collect();
+	let union = &small | &seen;
+	out.push(union.len() as u8);
+	out.push(small.is_subset(&seen) as u8);
+	out.extend_from_slice(&EVENTS.with(|events| events.take()));
 }

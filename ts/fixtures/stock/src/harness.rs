@@ -32,6 +32,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("maps::own_hasher", crate::maps::own_hasher),
 		("maps::own_from_iter", crate::maps::own_from_iter),
 		("maps::equal", crate::maps::equal),
+		("maps::default_hasher", crate::maps::default_hasher),
 	]
 }
 

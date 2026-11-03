@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { bytesMut, reserves, reads, dyns, late, writes, edits, chains } from "./buf.ts";
 import * as Owner from "./harness.Owner.ts";
-import { map as maps_map, table, capacity, linked, linkedIters, nested, ownHasher, ownFromIter, equal } from "./maps.ts";
+import { map as maps_map, table, capacity, linked, linkedIters, nested, ownHasher, ownFromIter, equal, defaultHasher } from "./maps.ts";
 
 /**
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
@@ -36,7 +36,7 @@ export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefine
 		chains(a012.data, a012.start, a012.length, a112);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::nested", (a013: rt.ByteSlice, a113: rt.ByteVec): undefined => {
 		nested(a013.data, a013.start, a013.length, a113);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::late", late as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_hasher", ownHasher as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_from_iter", ownFromIter as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::equal", equal as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::late", late as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_hasher", ownHasher as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_from_iter", ownFromIter as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::equal", equal as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::default_hasher", defaultHasher as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
 }
 
 /** Run one case. */
