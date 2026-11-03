@@ -255,13 +255,6 @@ pub fn batched(v: Vec<Batched>) -> usize {
 	set.len()
 }
 
-/// A closure that owns a value that drops, given as a `Pattern`, which `contains` would
-/// call but never drop.
-pub fn pattern_closure(s: &str) -> bool {
-	let n = Noisy(1);
-	s.contains(move |c: char| c as u8 == (&n).0)
-}
-
 /// A `Cow<str>` is a JS string, which keeps no variant to match on or ask about.
 pub fn cow_matched(c: std::borrow::Cow<'_, str>) -> String {
 	match c {
@@ -711,12 +704,6 @@ pub fn pointer_statics(p: *mut u32) -> u32 {
 	// Two `rt.Place`s of one place are two objects, which `===` can't tell are one.
 	let _ = SLOT.compare_exchange(p, std::ptr::null_mut(), Relaxed, Relaxed);
 	*NAMED
-}
-
-/// A closure that owns a value that drops, which `String::retain` would call but never drop.
-pub fn string_retained(s: &mut String) {
-	let n = Noisy(1);
-	s.retain(move |c| c as u8 != (&n).0);
 }
 
 /// A census lowers this over `F` and `O`, and `awaited`'s body with it, whose closure names

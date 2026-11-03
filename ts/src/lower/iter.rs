@@ -1146,6 +1146,21 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
 			| [
+				"str",
+				"iter",
+				"Split"
+					| "RSplit"
+					| "SplitTerminator"
+					| "RSplitTerminator"
+					| "SplitN"
+					| "RSplitN"
+					| "SplitInclusive"
+					| "Matches"
+					| "RMatches"
+					| "MatchIndices"
+					| "RMatchIndices"
+			]
+			| [
 				"slice",
 				"iter",
 				"Split"

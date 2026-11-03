@@ -658,16 +658,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(Expr::rt("stringReserve", values), true)
 			}
 			("String", "shrink_to_fit" | "shrink_to") => done(Expr::undefined(), false),
-			("String", "retain") if targ(0).is_some_and(|f| self.b.t.drops(f)) => {
-				let f = targ(0)?;
-				done(
-					self.err(
-						span,
-						format!("passing `{f}`, which drops, to `String::{name}`, which is not supported yet"),
-					),
-					false,
-				)
-			}
 			// The edited string, from the runtime with what it takes after the string.
 			(
 				"String",
@@ -681,9 +671,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let c = values.pop()?;
 					values.push(library::char_text(c));
 				}
+				// `retain` drops a closure it owns as it returns, after the edit.
+				let mut spent = None;
 				if name == "retain" {
 					let f = std::mem::replace(&mut values[1], Expr::undefined());
-					values[1] = library::called_through(self.b.t, targ(0)?, Some(f)).2?;
+					let (owned, lent, f) = library::called_through(self.b.t, targ(0)?, Some(f));
+					let mut f = f?;
+					if !lent && self.b.t.drops(owned) {
+						f = self.path(f, "f", out);
+						spent = self.b.t.drop_value(f.clone(), owned, span);
+					}
+					values[1] = f;
 				}
 				// A range std reads the bounds of, as `bounds` makes any `RangeBounds` one.
 				if matches!(name.as_str(), "replace_range" | "extend_from_within") {
@@ -705,6 +703,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ => Expr::rt("stringExtendFromWithin", values),
 				};
 				self.set_borrowed(&place, edited, span, out);
+				out.extend(spent.map(|drop| StmtKind::Expr(drop).at(None)));
 				done(Expr::undefined(), false)
 			}
 			// The runtime gives the edited string and what the edit returns.
