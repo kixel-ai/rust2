@@ -16,6 +16,13 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
+export function mapOr$13g654t(self: rt.Waker | undefined, default_: rt.Place<undefined>, _: (a0: rt.Waker) => rt.Place<undefined>): rt.Place<undefined> {
+	if (self === undefined) {
+		return default_;
+	}
+	return self.data as rt.Place<undefined>;
+}
+
 export function filter$0v80fk8(self: rt.u8 | undefined, predicate: (a0: rt.u8) => boolean): rt.u8 | undefined {
 	if (self !== undefined) {
 		const x: rt.u8 = self;

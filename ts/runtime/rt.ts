@@ -152,6 +152,45 @@ export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
+/** The types of the pointers cast to `*const ()`, by their JS value, which is its identity. */
+const ERASED = new WeakMap<object, string[]>();
+
+/**
+ * Dangling pointers cast to `*const ()`, by the alignment of their type, which is their
+ * address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s address is.
+ */
+const DANGLING_ERASED = new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+
+/**
+ * `p as *const ()`, of a pointer to a value of Rust type `type`, aligned to `align` bytes:
+ * the same identity, which remembers `type` for a cast back.
+ */
+export function ptrErase(p: object, type: string, align: number): Place<undefined> {
+	if (p === NULL) return NULL;
+	if (p === DANGLING) {
+		let erased = DANGLING_ERASED.get(align);
+		if (erased === undefined) DANGLING_ERASED.set(align, (erased = { v: undefined }));
+		return erased;
+	}
+	const types = ERASED.get(p);
+	if (types === undefined) ERASED.set(p, [type]);
+	else if (!types.includes(type)) types.push(type);
+	return p as Place<undefined>;
+}
+
+/**
+ * `p as *const T`, of a `*const ()`, where `T` is Rust type `type`: the pointer `ptrErase`
+ * erased, which must point at a `type`, since JS keeps no bytes to read as another.
+ */
+export function ptrUnerase(p: Place<undefined>, type: string): unknown {
+	if (p === NULL) return NULL;
+	for (const dangling of DANGLING_ERASED.values()) if (p === dangling) return DANGLING;
+	const types = ERASED.get(p);
+	if (types?.includes(type)) return p;
+	const was = types === undefined ? "a value no cast to `*const ()` erased" : types.map((t) => `\`${t}\``).join(" or ");
+	throw new Error(`rust2-ts: a \`*const ()\` cast back to a pointer to \`${type}\`, which points at ${was}`);
+}
+
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `ByteSlice` of a `[u8; N]`'s bytes.

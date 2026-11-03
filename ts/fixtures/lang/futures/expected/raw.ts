@@ -2,15 +2,16 @@
 
 import * as rt from "./rt.ts";
 import { copy$task_RawWakerVTable, drop$tuple2_task_Waker_task_Waker } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$13g654t as option_mapOr$13g654t } from "./core/option.ts";
 import { eq$0n9bv8t as wake_eq$0n9bv8t, eq$0xaykl8 as wake_eq$0xaykl8 } from "./core/task/wake.ts";
 import * as Counter from "./raw.Counter.ts";
+import type * as Note from "./raw.Note.ts";
 import * as Yields from "./raw.Yields.ts";
 import { set$08o17gp, get$0lasdfu, take$122f15k } from "./std/thread/local.ts";
 
 /** The wakers `kind` picks. */
 export function raw(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	const _5: rt.u8 = rt.u8Rem(kind, 5);
+	const _5: rt.u8 = rt.u8Rem(kind, 6);
 	if (_5 === 0) {
 		calls(data, out);
 	} else if (_5 === 1) {
@@ -19,8 +20,10 @@ export function raw(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		executor(data, out);
 	} else if (_5 === 3) {
 		vtables(data, out);
-	} else {
+	} else if (_5 === 4) {
 		arcs(data, out);
+	} else {
+		erased(data, out);
 	}
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(take$122f15k(LOG)), undefined, true);
 }
@@ -447,6 +450,167 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	drop$tuple2_task_Waker_task_Waker([w, from] as [rt.Waker, rt.Waker]);
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.atomicLoad(count.value._0, 0), count.strong & 0xff)), undefined, true);
 	count[Symbol.dispose]();
+}
+
+/**
+ * The `Note` a waker's data points at, cast back from `*const ()` by `as`, `cast`, or
+ * through a `*mut`.
+ */
+export function noteOf(data: rt.Place<undefined>): Note.Note {
+	let note2!: Note.Note;
+	const _3: rt.u8 = rt.u8Rem((rt.ptrUnerase(data, "raw::Note") as Note.Note).id, 3);
+	if (_3 === 0) {
+		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+	} else if (_3 === 1) {
+		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+	} else {
+		note2 = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+	}
+	const note: Note.Note = note2;
+	const _11: rt.u16 = rt.u16WrappingAdd(note.calls.v, 1);
+	rt.cellSet(note.calls, _11);
+	return note;
+}
+
+/** Each call of a vtable `TABLE`'s function `call` on the `Note` its data points at. */
+export function heard$120(call: rt.u8, data: rt.Place<undefined>): void {
+	const note: Note.Note = noteOf(data);
+	rt.localKeyWithBorrowMut(LOG, (log: rt.ByteVec): undefined => {
+		rt.iterExtendBytes(log, rt.iterSlice(Uint8Array.of(call, 120, note.id, note.calls.v & 0xff)), undefined, true);
+	});
+}
+
+/** Each call of a vtable `TABLE`'s function `call` on the `Note` its data points at. */
+export function heard$121(call: rt.u8, data: rt.Place<undefined>): void {
+	const note: Note.Note = noteOf(data);
+	rt.localKeyWithBorrowMut(LOG, (log: rt.ByteVec): undefined => {
+		rt.iterExtendBytes(log, rt.iterSlice(Uint8Array.of(call, 121, note.id, note.calls.v & 0xff)), undefined, true);
+	});
+}
+
+/** `heard` of `CALL`, as a vtable's function. */
+export function hear$120_114(data: rt.Place<undefined>): void {
+	heard$120(114, data);
+}
+
+/** `heard` of `CALL`, as a vtable's function. */
+export function hear$121_100(data: rt.Place<undefined>): void {
+	heard$121(100, data);
+}
+
+/** `heard` of `CALL`, as a vtable's function. */
+export function hear$121_114(data: rt.Place<undefined>): void {
+	heard$121(114, data);
+}
+
+/** `heard` of `CALL`, as a vtable's function. */
+export function hear$121_119(data: rt.Place<undefined>): void {
+	heard$121(119, data);
+}
+
+/** Each clone a box of a `Note` of its own, which the waker's drop frees. */
+export function boxedClone(data: rt.Place<undefined>): rt.RawWaker {
+	heard$120(99, data);
+	return { data: rt.ptrErase({ id: rt.u8WrappingAdd(noteOf(data).id, 1), calls: new rt.Cell(0) }, "raw::Note", 2), vtable: BOXED };
+}
+
+export function boxedWake(data: rt.Place<undefined>): void {
+	heard$120(119, data);
+	boxedDrop(data);
+}
+
+export function boxedDrop(data: rt.Place<undefined>): void {
+	heard$120(100, data);
+	const note: Note.Note = rt.ptrUnerase(data, "raw::Note") as Note.Note;
+	rt.localKeyWithBorrowMut(LOG, (log: rt.ByteVec): undefined => {
+		rt.byteVecPush(log, note.id);
+	});
+}
+
+export const BOXED: rt.WakerVTable = /* @__PURE__ */ rt.wakerVTable(boxedClone, boxedWake as (a0: rt.Place<undefined>) => undefined, hear$120_114 as (a0: rt.Place<undefined>) => undefined, boxedDrop as (a0: rt.Place<undefined>) => undefined);
+
+/** Wakers of a `Note` the caller keeps, which cloning shares. */
+export function borrowedClone(data: rt.Place<undefined>): rt.RawWaker {
+	heard$121(99, data);
+	return { data, vtable: BORROWED };
+}
+
+export const BORROWED: rt.WakerVTable = /* @__PURE__ */ rt.wakerVTable(borrowedClone, hear$121_119 as (a0: rt.Place<undefined>) => undefined, hear$121_114 as (a0: rt.Place<undefined>) => undefined, hear$121_100 as (a0: rt.Place<undefined>) => undefined);
+
+/**
+ * Waker data cast to `*const ()` by each way std has, from a reference, a `*mut`, a box,
+ * and a `NonNull`, which the vtable's functions cast back and read; and erased pointers
+ * compared, null and dangling ones among them.
+ */
+export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let w!: rt.Waker;
+	const kept: Note.Note = { id: 64, calls: new rt.Cell(0) };
+	const other: Note.Note = { id: 65, calls: new rt.Cell(0) };
+	const shared: rt.Place<undefined> = rt.ptrErase(kept, "raw::Note", 2);
+	rt.byteVecPush(out, shared === rt.ptrErase(kept, "raw::Note", 2) ? 1 : 0);
+	rt.byteVecPush(out, shared === rt.ptrErase(other, "raw::Note", 2) ? 1 : 0);
+	rt.byteVecPush(out, shared === rt.ptrErase(kept, "raw::Note", 2) ? 1 : 0);
+	const first: rt.Waker = new rt.VTableWaker(shared, BORROWED);
+	const second: rt.Waker = new rt.VTableWaker(rt.ptrErase(other, "raw::Note", 2), BORROWED);
+	rt.byteVecPush(out, rt.willWake(first, second) ? 1 : 0);
+	const _47: rt.Waker = new rt.VTableWaker(rt.ptrErase(kept, "raw::Note", 2), BORROWED);
+	rt.byteVecPush(out, rt.willWake(first, _47) ? 1 : 0);
+	_47[Symbol.dispose]();
+	const wakers: rt.Waker[] = [];
+	for (const byte of rt.byteSliceView(data)) {
+		const id: rt.u8 = byte & 63;
+		const _60: rt.u8 = byte >> 6;
+		if (_60 === 0) {
+			w = first.clone();
+		} else if (_60 === 1) {
+			w = second.clone();
+		} else if (_60 === 2) {
+			w = new rt.VTableWaker(rt.ptrErase({ id, calls: new rt.Cell(0) }, "raw::Note", 2), BOXED);
+		} else {
+			w = rt.wakerFromRaw({ data: rt.ptrErase({ id, calls: new rt.Cell(0) }, "raw::Note", 2), vtable: BOXED });
+		}
+		const _80: rt.u8 = rt.u8Rem(byte, 3);
+		if (_80 === 0) {
+			w.wakeByRef();
+		} else if (_80 === 1) {
+			const _84: rt.Waker = w.clone();
+			wakers.push(_84);
+		}
+		if (rt.u8Rem(byte, 4) === 0) {
+			w.wake();
+		} else {
+			wakers.push(w);
+		}
+		rt.byteVecPush(out, noteOf(option_mapOr$13g654t(rt.sliceLast(wakers), shared, (a0: rt.Waker): rt.Place<undefined> => {
+			return a0.data as rt.Place<undefined>;
+		})).id);
+	}
+	while (true) {
+		const _99: rt.Waker | undefined = wakers.pop();
+		if (_99 !== undefined) {
+			const w2: rt.Waker = _99;
+			w2.wakeByRef();
+			w2[Symbol.dispose]();
+		} else {
+			break;
+		}
+	}
+	drop$tuple2_task_Waker_task_Waker([first, second] as [rt.Waker, rt.Waker]);
+	const _110: Note.Note = rt.ptrUnerase(rt.ptrErase(kept, "raw::Note", 2), "raw::Note") as Note.Note;
+	_110.id = _110.id ^ 15;
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(kept.id, kept.calls.v & 0xff, other.calls.v & 0xff)), undefined, true);
+	const null_: rt.Place<undefined> = rt.ptrErase(rt.NULL, "raw::Note", 2);
+	rt.byteVecPush(out, null_ === rt.NULL ? 1 : 0);
+	rt.byteVecPush(out, (rt.ptrUnerase(null_, "raw::Note") as Note.Note) === rt.NULL ? 1 : 0);
+	rt.byteVecPush(out, rt.ptrErase(rt.NULL, "raw::Note", 2) === rt.NULL ? 1 : 0);
+	const unit: rt.Place<undefined> = rt.DANGLING_UNIT;
+	const note2: rt.Place<undefined> = rt.ptrErase(rt.DANGLING, "raw::Note", 2);
+	const byte2: rt.Place<undefined> = rt.ptrErase(rt.DANGLING, "raw::Byte", 1);
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([unit === note2, unit === byte2, note2 === byte2, note2 === rt.NULL], (a02: boolean): rt.u8 => {
+		return a02 ? 1 : 0;
+	})), undefined, true);
+	rt.byteVecPush(out, (rt.ptrUnerase(note2, "raw::Note") as Note.Note) === rt.DANGLING ? 1 : 0);
+	rt.dropAll(wakers);
 }
 
 //# sourceMappingURL=raw.ts.map

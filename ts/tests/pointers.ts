@@ -95,3 +95,22 @@ unsure(() => tail.deref());
 const long = new rt.RawSlice(rt.sliceAsPtr(rows), 10);
 assert.equal(long.length, 10);
 unsure(() => long.deref());
+
+// A `*const ()` cast back to a pointer to another type than any cast to it was from, which
+// Rust reads as bytes JS doesn't keep, and one no cast erased, such as a waker's `Arc`.
+const note = { id: 1 };
+const erased = rt.ptrErase(note, "raw::Note", 2);
+assert.equal(erased, note);
+assert.equal(rt.ptrUnerase(erased, "raw::Note"), note);
+unsure(() => rt.ptrUnerase(erased, "u16"));
+unsure(() => rt.ptrUnerase({ v: undefined }, "raw::Note"));
+// Erased as two types, as a transparent wrapper and what it holds are, it is either.
+rt.ptrErase(note, "raw::Wrapper", 2);
+assert.equal(rt.ptrUnerase(erased, "raw::Wrapper"), note);
+assert.equal(rt.ptrUnerase(erased, "raw::Note"), note);
+// Null and dangling at any type, which no read reaches.
+assert.equal(rt.ptrUnerase(rt.ptrErase(rt.NULL, "raw::Note", 2), "u16"), rt.NULL);
+assert.equal(rt.ptrUnerase(rt.ptrErase(rt.DANGLING, "raw::Note", 2), "u16"), rt.DANGLING);
+assert.equal(rt.ptrErase(rt.DANGLING, "raw::Byte", 1), rt.DANGLING_UNIT);
+assert.notEqual(rt.ptrErase(rt.DANGLING, "raw::Note", 2), rt.DANGLING_UNIT);
+assert.throws(() => rt.ptrUnerase(erased, "u16"), /`\*const \(\)` cast back to a pointer to `u16`, which points at `raw::Note` or `raw::Wrapper`/);

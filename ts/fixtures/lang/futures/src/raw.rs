@@ -2,7 +2,8 @@
 //! the vtable's function as std's does, which each logs: through `Waker::from_raw` and
 //! `Waker::new`, cloned over another by `clone_from`, compared by `will_wake`, dropped
 //! unpolled or forgotten, and polling a future to its end in an executor of its own; vtables
-//! compared by `==`; and `RawWaker::from` an `Arc` of a `Wake` impl.
+//! compared by `==`; `RawWaker::from` an `Arc` of a `Wake` impl; and data cast to `*const
+//! ()` and back, which the vtable's functions read.
 
 use std::cell::{Cell, RefCell};
 use std::future::Future;
@@ -15,12 +16,13 @@ use std::task::{Context, Poll, RawWaker, RawWakerVTable, Wake, Waker};
 
 /// The wakers `kind` picks.
 pub fn raw(kind: u8, data: &[u8], out: &mut Vec<u8>) {
-	match kind % 5 {
+	match kind % 6 {
 		0 => calls(data, out),
 		1 => clones(data, out),
 		2 => executor(data, out),
 		3 => vtables(data, out),
-		_ => arcs(data, out),
+		4 => arcs(data, out),
+		_ => erased(data, out),
 	}
 	out.extend(LOG.take());
 }
@@ -298,4 +300,154 @@ fn arcs(data: &[u8], out: &mut Vec<u8>) {
 	}
 	mem::drop((w, from));
 	out.extend([count.0.load(Ordering::Relaxed), Arc::strong_count(&count) as u8]);
+}
+
+/// What a waker of vtable `BOXED` or `BORROWED` points at, which its functions read.
+struct Note {
+	id: u8,
+	/// Wide enough that a `Note` aligns past `()`.
+	calls: Cell<u16>,
+}
+
+/// One aligned to a byte, whose dangling pointer is `()`'s.
+struct Byte(#[expect(dead_code, reason = "only its alignment is read")] u8);
+
+/// The `Note` a waker's data points at, cast back from `*const ()` by `as`, `cast`, or
+/// through a `*mut`.
+unsafe fn note_of<'a>(data: *const ()) -> &'a Note {
+	let note = match unsafe { (*data.cast::<Note>()).id } % 3 {
+		0 => data as *const Note,
+		1 => data.cast::<Note>(),
+		_ => data.cast_mut() as *mut Note,
+	};
+	let note = unsafe { &*note };
+	note.calls.set(note.calls.get().wrapping_add(1));
+	note
+}
+
+/// Each call of a vtable `TABLE`'s function `call` on the `Note` its data points at.
+fn heard<const TABLE: u8>(call: u8, data: *const ()) {
+	let note = unsafe { note_of(data) };
+	LOG.with_borrow_mut(|log| log.extend([call, TABLE, note.id, note.calls.get() as u8]));
+}
+
+/// `heard` of `CALL`, as a vtable's function.
+unsafe fn hear<const TABLE: u8, const CALL: u8>(data: *const ()) {
+	heard::<TABLE>(CALL, data);
+}
+
+/// Each clone a box of a `Note` of its own, which the waker's drop frees.
+unsafe fn boxed_clone(data: *const ()) -> RawWaker {
+	heard::<b'x'>(b'c', data);
+	let id = unsafe { note_of(data) }.id.wrapping_add(1);
+	let note = Box::into_raw(Box::new(Note {
+		id,
+		calls: Cell::new(0),
+	}));
+	RawWaker::new(note as *const (), &BOXED)
+}
+
+unsafe fn boxed_wake(data: *const ()) {
+	heard::<b'x'>(b'w', data);
+	unsafe { boxed_drop(data) };
+}
+
+unsafe fn boxed_drop(data: *const ()) {
+	heard::<b'x'>(b'd', data);
+	let note = unsafe { Box::from_raw(data as *mut Note) };
+	LOG.with_borrow_mut(|log| log.push(note.id));
+}
+
+static BOXED: RawWakerVTable = RawWakerVTable::new(boxed_clone, boxed_wake, hear::<b'x', b'r'>, boxed_drop);
+
+/// Wakers of a `Note` the caller keeps, which cloning shares.
+unsafe fn borrowed_clone(data: *const ()) -> RawWaker {
+	heard::<b'y'>(b'c', data);
+	RawWaker::new(data, &BORROWED)
+}
+
+static BORROWED: RawWakerVTable = RawWakerVTable::new(
+	borrowed_clone,
+	hear::<b'y', b'w'>,
+	hear::<b'y', b'r'>,
+	hear::<b'y', b'd'>,
+);
+
+/// Waker data cast to `*const ()` by each way std has, from a reference, a `*mut`, a box,
+/// and a `NonNull`, which the vtable's functions cast back and read; and erased pointers
+/// compared, null and dangling ones among them.
+fn erased(data: &[u8], out: &mut Vec<u8>) {
+	let mut kept = Note {
+		id: 0x40,
+		calls: Cell::new(0),
+	};
+	let other = Note {
+		id: 0x41,
+		calls: Cell::new(0),
+	};
+	let shared = &kept as *const Note as *const ();
+	out.push((shared == ptr::from_ref(&kept).cast::<()>()).into());
+	out.push((shared == (&other as *const Note).cast()).into());
+	out.push((shared == NonNull::from(&kept).cast::<()>().as_ptr()).into());
+	let first = unsafe { Waker::new(shared, &BORROWED) };
+	let second = unsafe { Waker::new(ptr::from_ref(&other).cast(), &BORROWED) };
+	out.push(first.will_wake(&second).into());
+	out.push(
+		first
+			.will_wake(&unsafe { Waker::new((&raw const kept).cast(), &BORROWED) })
+			.into(),
+	);
+	let mut wakers = Vec::new();
+	for &byte in data {
+		let id = byte & 0x3f;
+		let w = match byte >> 6 {
+			0 => first.clone(),
+			1 => second.clone(),
+			2 => unsafe {
+				Waker::new(
+					Box::into_raw(Box::new(Note {
+						id,
+						calls: Cell::new(0),
+					})) as *const (),
+					&BOXED,
+				)
+			},
+			_ => {
+				let note = Box::into_raw(Box::new(Note {
+					id,
+					calls: Cell::new(0),
+				}));
+				unsafe { Waker::from_raw(RawWaker::new(note.cast_const().cast(), &BOXED)) }
+			}
+		};
+		match byte % 3 {
+			0 => w.wake_by_ref(),
+			1 => wakers.push(w.clone()),
+			_ => {}
+		}
+		match byte % 4 {
+			0 => w.wake(),
+			_ => wakers.push(w),
+		}
+		out.push(unsafe { note_of(wakers.last().map_or(shared, Waker::data)) }.id);
+	}
+	while let Some(w) = wakers.pop() {
+		w.wake_by_ref();
+	}
+	drop((first, second));
+	// Written through a `*mut` that was a `*mut ()`.
+	let through = &mut kept as *mut Note as *mut ();
+	unsafe { (*through.cast::<Note>()).id ^= 0x0f };
+	out.extend([kept.id, kept.calls.get() as u8, other.calls.get() as u8]);
+	// Null and dangling, which no value is: dangling at its type's alignment, which is
+	// `()`'s for a `Byte`.
+	let null = ptr::null::<Note>() as *const ();
+	out.push(null.is_null().into());
+	out.push((null as *const Note).is_null().into());
+	out.push(ptr::null_mut::<Note>().cast::<()>().is_null().into());
+	let unit = NonNull::<()>::dangling().as_ptr().cast_const();
+	let note = NonNull::<Note>::dangling().as_ptr() as *const ();
+	let byte = NonNull::<Byte>::dangling().cast::<()>().as_ptr().cast_const();
+	out.extend([unit == note, unit == byte, note == byte, note.is_null()].map(u8::from));
+	out.push((note as *const Note == NonNull::<Note>::dangling().as_ptr()).into());
 }

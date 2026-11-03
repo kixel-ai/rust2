@@ -865,6 +865,26 @@ pub fn call<'tcx>(
 	Ok(Some(e))
 }
 
+/// Why a pointer to `ty` can't be erased to a `*const ()`, an identity that compares as
+/// itself, if it can't: one JS reaches through a place, or a view of bytes, is a new one
+/// each borrow, and one to a value of no fixed size loses its size.
+fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
+	if b.t.polymorphic() && ty.has_param() {
+		return None;
+	}
+	if !ty.is_sized(b.t.tcx, b.t.typing_env_pub()) {
+		return Some(format!("a pointer to `{ty}` cast to one to `()`, which loses its size"));
+	}
+	let what = match b.t.pointee(ty) {
+		Pointee::Object => return None,
+		Pointee::Place | Pointee::Slice => "a place",
+		Pointee::Bytes => "a view",
+	};
+	Some(format!(
+		"a pointer to `{ty}` cast to one to `()`, whose JS value is {what} of its own each borrow"
+	))
+}
+
 /// Why pointers to `ty` can't point into an array, if they can't: an element JS keeps as
 /// an object or as bytes is what a pointer to it is, which knows no array it is in. Only an
 /// instance decides what a parameter is.
@@ -881,12 +901,29 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 }
 
 /// The pointer `p` to `from`, as one to `to`: the same pointer, as one to what a
-/// `MaybeUninit` holds or the other way, or the pointer to the first element of the array
-/// or slice it points at.
+/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, or the
+/// pointer to the first element of the array or slice it points at.
 pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
 	if inner == into {
 		return p;
+	}
+	// The type a pointer to it remembers, which a cast back must name, or fails at run time.
+	let key = |t: Ty<'tcx>| Expr::Str(b.t.tcx.erase_and_anonymize_regions(t).to_string());
+	if b.t.identity_pointee(into) {
+		if let Some(why) = unerasable(b, inner) {
+			return b.err(span, why);
+		}
+		let env = b.t.typing_env_pub();
+		let align =
+			b.t.tcx
+				.layout_of(env.as_query_input(inner))
+				.map_or(1, |l| l.align.abi.bytes());
+		return Expr::rt("ptrErase", vec![p, key(inner), Expr::lit(align.to_string())]);
+	}
+	if b.t.identity_pointee(inner) {
+		let restored = Expr::rt("ptrUnerase", vec![p, key(into)]);
+		return Expr::As(Box::new(restored), b.t.pointer_ty(into, span));
 	}
 	let elem = match inner.kind() {
 		ty::Array(elem, _) | ty::Slice(elem) if b.t.uninit_inner(*elem) == into => Some(*elem),

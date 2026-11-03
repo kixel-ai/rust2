@@ -465,3 +465,20 @@ pub fn variable_celled(n: u32) -> u32 {
 	std::cell::Cell::from_mut(&mut pair).set((0, 0));
 	unsafe { (*p).0 + pair.1 }
 }
+
+/// A pointer to a value JS copies, cast to one to `()`, which would be a new identity each
+/// borrow.
+pub fn erased_place(n: u32) -> bool {
+	let p = &raw const n;
+	p as *const () == p.cast()
+}
+
+/// A pointer to a byte array, cast to one to `()`, which would be a new view each borrow.
+pub fn erased_bytes(b: &mut [u8; 4]) -> *mut () {
+	(b as *mut [u8; 4]).cast()
+}
+
+/// A pointer to a trait object, cast to one to `()`, which loses what it points at's size.
+pub fn erased_dyn(d: &dyn std::fmt::Debug) -> *const () {
+	d as *const dyn std::fmt::Debug as *const ()
+}
