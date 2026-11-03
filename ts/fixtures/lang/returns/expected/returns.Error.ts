@@ -2,6 +2,18 @@
 
 import * as rt from "./rt.ts";
 
+export function eq$cmp_PartialEq(self: Error, other: Error): boolean {
+	if (!({ Short: 0, Bad: 1 }[self.tag] === { Short: 0, Bad: 1 }[other.tag])) {
+		return false;
+	}
+	if (self.tag === "Short") {
+		if (other.tag === "Short") {
+			return self._0 === other._0;
+		}
+	}
+	return true;
+}
+
 export type Error = { tag: "Short"; _0: rt.usize } | { tag: "Bad" };
 
 export function code(self: Error): rt.u8 {

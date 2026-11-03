@@ -7,6 +7,8 @@ export function copy$bench_Timestamp(v: Timestamp.Timestamp): Timestamp.Timestam
 	return { value: v.value, scale: v.scale };
 }
 
+export const out$Option_u64: { p: rt.u64 | undefined } = { p: undefined as never };
+
 export const out$bool: { p: boolean } = { p: undefined as never };
 
 export const out$ref_slice_u8: { pData: Uint8Array; pStart: number; pLen: number } = { pData: undefined as never, pStart: undefined as never, pLen: undefined as never };

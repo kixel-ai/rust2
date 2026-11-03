@@ -20,7 +20,7 @@ use rustc_middle::mir::{
 	StatementKind, TerminatorKind,
 };
 use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{self, Ty};
+use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::{Span, Spanned};
 
 use super::Fx;
@@ -32,7 +32,8 @@ use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 pub enum Shape<'tcx> {
 	/// No JS value: `()`.
 	Unit,
-	/// One JS value, held whole: a number, a reference to one, or an error.
+	/// One JS value, held whole: a number, a reference to one, an `Option` of one, or an
+	/// error.
 	Leaf(Ty<'tcx>),
 	/// `&[u8]` or `&[u8; N]`: its bytes, start, and length.
 	Slice,
@@ -136,11 +137,11 @@ impl<'tcx> Shape<'tcx> {
 
 	/// The parts that are JS objects as the local's object holds them: each slice, by its
 	/// bytes, and each value held whole that is no number.
-	fn objects(&self, at: usize, out: &mut Vec<usize>) {
+	fn objects(&self, tcx: TyCtxt<'tcx>, at: usize, out: &mut Vec<usize>) {
 		match self {
 			Shape::Unit => {}
 			Shape::Leaf(ty) => {
-				if !number(*ty) {
+				if !number(tcx, *ty) {
 					out.push(at);
 				}
 			}
@@ -148,14 +149,14 @@ impl<'tcx> Shape<'tcx> {
 			Shape::Tuple(_, fields) => {
 				let mut at = at;
 				for field in fields {
-					field.objects(at, out);
+					field.objects(tcx, at, out);
 					at += field.size();
 				}
 			}
 			Shape::Enum(_, variants) => {
 				let mut at = at + usize::from(self.flagged());
 				for field in variants.iter().flatten().flatten() {
-					field.objects(at, out);
+					field.objects(tcx, at, out);
 					at += field.size();
 				}
 			}
@@ -184,11 +185,20 @@ fn flag_name(ty: Ty<'_>) -> &'static str {
 	}
 }
 
-/// Whether a `ty`'s JS value is a number or flag, which making its object makes nothing of.
-fn number(ty: Ty<'_>) -> bool {
+/// Whether a `ty`'s JS value is a number or flag, which making its object makes nothing of,
+/// or an `Option` of one, which is that or `undefined`.
+fn number<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+	match ty.kind() {
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Option) => plain_number(args.type_at(0)),
+		_ => plain_number(ty),
+	}
+}
+
+/// Whether a `ty`'s JS value is a number or flag.
+fn plain_number(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) => true,
-		ty::Ref(_, inner, _) => number(*inner),
+		ty::Ref(_, inner, _) => plain_number(*inner),
 		_ => false,
 	}
 }
@@ -320,8 +330,9 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 
 	/// Where `instance` hands back its `Ok`'s parts, if it does: a function of the crate's
 	/// that only translated code calls directly, and that returns a `Result` of byte slices
-	/// and scalars, or of numbers alone, whose error is one value that is never
-	/// `undefined`, such as `Result<(u64, &[u8]), E>` or `Result<(i64, u64), E>`, writes
+	/// and scalars, or of numbers alone, an `Option` of one counting as one, whose error is
+	/// one value that is never `undefined`, such as `Result<(u64, &[u8]), E>`,
+	/// `Result<(i64, u64), E>`, or `Result<Option<u64>, E>`, writes
 	/// the `Ok`'s parts into a module-level slot its caller reads at once, and returns its
 	/// error or `undefined`. One whose first part is a number returns that, or `undefined`
 	/// for an error, and writes the error into the slot instead.
@@ -361,7 +372,7 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 		let numbers = !parts.is_empty()
 			&& parts
 				.iter()
-				.all(|(_, part)| matches!(part, Part::Value(t) if number(*t)));
+				.all(|(_, part)| matches!(part, Part::Value(t) if number(self.tcx, *t)));
 		if !shape.has_slice() && !numbers {
 			return None;
 		}
@@ -473,6 +484,14 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			ty::Tuple(tys) => {
 				let fields = tys.iter().map(|t| self.shape(t)).collect::<Option<Vec<_>>>()?;
 				Some(Shape::Tuple(ty, fields))
+			}
+			// That or `undefined`, one JS value, as the number is.
+			ty::Adt(adt, args)
+				if Std::of(tcx, adt.did()) == Some(Std::Option)
+					&& plain_number(args.type_at(0))
+					&& matches!(self.shape(args.type_at(0)), Some(Shape::Leaf(_))) =>
+			{
+				Some(Shape::Leaf(ty))
 			}
 			ty::Adt(adt, args)
 				if matches!(
@@ -1297,7 +1316,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			let mut parts = Vec::new();
 			match made.boxed {
 				true => parts.extend(made.parts.clone()),
-				false => shapes[&made.local].objects(0, &mut parts),
+				false => shapes[&made.local].objects(self.tcx, 0, &mut parts),
 			}
 			parts
 				.into_iter()
