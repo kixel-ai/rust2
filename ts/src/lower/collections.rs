@@ -859,15 +859,22 @@ fn hash_extend<'tcx>(
 	iter: Ty<'tcx>,
 	span: Span,
 ) -> Expr {
-	let mut droppers = entry_droppers(b, coll, span);
-	// By `for_each`.
-	droppers.push(super::iter::iter_take(b, iter, true, span));
-	droppers.push(hash_max(b, coll, span));
 	let f = match b.t.std_of(coll) {
 		Some(Std::HashSet) => "hashExtendKeys",
 		_ => "hashExtend",
 	};
-	Expr::rt(f, super::iter::tail(vec![target, source], droppers))
+	let tail = hash_extend_tail(b, coll, iter, span);
+	Expr::rt(f, super::iter::tail(vec![target, source], tail))
+}
+
+/// What `hashExtend` and its kin take after the collection and the items, of an iterator of
+/// type `iter`: what drops each entry, how it reads them, and the most entries it holds.
+fn hash_extend_tail<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, iter: Ty<'tcx>, span: Span) -> Vec<Expr> {
+	let mut tail = entry_droppers(b, coll, span);
+	// By `for_each`.
+	tail.push(super::iter::iter_take(b, iter, true, span));
+	tail.push(hash_max(b, coll, span));
+	tail
 }
 
 /// The most entries a hash collection of type `coll` holds on wasm32, past which hashbrown's
@@ -3168,24 +3175,18 @@ pub fn collect<'tcx>(
 	Some(match std {
 		Std::HashMap | Std::HashSet => {
 			let state = new_state(b, ty, span);
-			// hashbrown's map takes its items before it makes its hasher, where std's and
-			// hashbrown's set make it first.
-			let first = std == Std::HashMap
-				&& state.is_some()
-				&& !iter.is_path()
-				&& matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()));
-			if first {
-				let name = b.fresh("items");
-				let target = hash_new(b, ty, state, span)?;
-				let made = hash_extend(b, ty, target, Expr::ident(&name), from, span);
-				let param = Param {
-					name,
-					ty: Some(b.t.ty(from, span)),
-				};
-				let body = vec![StmtKind::Return(Some(made)).at(None)];
-				return Some(Expr::Arrow(vec![param], b.t.ty(ty, span), body).call(vec![iter]));
-			}
+			let held = state.is_some();
 			let target = hash_new(b, ty, state, span)?;
+			// hashbrown's map takes its items and reads their size hint before it makes its
+			// hasher, where std's and hashbrown's set make it first.
+			if std == Std::HashMap
+				&& held
+				&& matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()))
+			{
+				let make = Expr::Lambda(Vec::new(), Box::new(target));
+				let tail = hash_extend_tail(b, ty, from, span);
+				return Some(Expr::rt("hashFromIter", super::iter::tail(vec![iter, make], tail)));
+			}
 			hash_extend(b, ty, target, iter, from, span)
 		}
 		Std::BTreeMap | Std::BTreeSet => btree_collect(b, ty, iter, from, trusted, span),

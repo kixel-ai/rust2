@@ -696,9 +696,25 @@ impl Drop for Made {
 	}
 }
 
+/// An iterator of the crate's own that logs each `size_hint`.
+struct Hinted<I>(I);
+
+impl<I: Iterator> Iterator for Hinted<I> {
+	type Item = I::Item;
+
+	fn next(&mut self) -> Option<I::Item> {
+		self.0.next()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		MADE.with(|made| made.borrow_mut().push(b'h'));
+		self.0.size_hint()
+	}
+}
+
 /// `hashbrown`'s `from_iter` of a map or set that holds a `BuildHasher` of the crate's own:
-/// a map's takes the source's items, which drops its hasher, before it makes its own, and a
-/// set's after.
+/// a map's takes the source's items, which drops its hasher, and reads their size hint
+/// before it makes its own, and a set's after.
 pub fn own_from_iter(data: &[u8], out: &mut Vec<u8>) {
 	MADE.with(|made| made.borrow_mut().clear());
 	let mut map: HashMap<u8, u8, Made> = HashMap::with_hasher(Made(1));
@@ -711,6 +727,10 @@ pub fn own_from_iter(data: &[u8], out: &mut Vec<u8>) {
 	let set: HashSet<u8, Made> = HashSet::from_iter(set);
 	put(out, map.len());
 	put(out, set.len());
-	drop((map, set));
+	let hinted: HashMap<u8, u8, Made> = HashMap::from_iter(Hinted(map.into_iter()));
+	let keys: HashSet<u8, Made> = HashSet::from_iter(Hinted(set.into_iter()));
+	put(out, hinted.len());
+	put(out, keys.len());
+	drop((hinted, keys));
 	out.extend_from_slice(&MADE.with(|made| made.take()));
 }

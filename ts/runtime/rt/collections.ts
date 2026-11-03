@@ -1039,6 +1039,29 @@ function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number |
  */
 export function hashExtend<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take, max?: number): HashMap<K, V> {
 	extendReserve(m, items.sizeHint()[0], max);
+	return hashFill(m, items, k, v, take);
+}
+
+/**
+ * hashbrown's `from_iter` of a map, as `hashExtend` into what `make` makes, but which reads
+ * `items`' size hint first, as hashbrown's does before it makes its `BuildHasher`.
+ */
+export function hashFromIter<K, V>(
+	items: Iter<[K, V]>,
+	make: () => HashMap<K, V>,
+	k?: (key: K) => void,
+	v?: (value: V) => void,
+	take?: Take,
+	max?: number,
+): HashMap<K, V> {
+	const n = items.sizeHint()[0];
+	const m = make();
+	extendReserve(m, n, max);
+	return hashFill(m, items, k, v, take);
+}
+
+/** Insert each of `items` into `m`, as `hashExtend` does once it has reserved. */
+function hashFill<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take): HashMap<K, V> {
 	const add = (item: [K, V]) => {
 		const old = hashInsert(m, item[0], item[1], k);
 		if (old !== undefined) v?.(old);

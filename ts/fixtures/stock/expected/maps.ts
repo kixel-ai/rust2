@@ -16,6 +16,7 @@ import * as LruCache from "./hashlink/lru_cache.LruCache.ts";
 import type * as DefaultHashBuilder from "./hashlink.DefaultHashBuilder.ts";
 import * as maps_Counted from "./maps.Counted.ts";
 import * as Held from "./maps.Held.ts";
+import * as Hinted from "./maps.Hinted.ts";
 import * as Logged from "./maps.Logged.ts";
 import * as Made from "./maps.Made.ts";
 import * as Seeded from "./maps.Seeded.ts";
@@ -1219,8 +1220,8 @@ export function MADE$init(): rt.RefCell<rt.ByteVec> {
 
 /**
  * `hashbrown`'s `from_iter` of a map or set that holds a `BuildHasher` of the crate's own:
- * a map's takes the source's items, which drops its hasher, before it makes its own, and a
- * set's after.
+ * a map's takes the source's items, which drops its hasher, and reads their size hint
+ * before it makes its own, and a set's after.
  */
 export function ownFromIter(data: rt.ByteSlice, out: rt.ByteVec): void {
 	((made: rt.RefCell<rt.ByteVec>): undefined => {
@@ -1234,15 +1235,17 @@ export function ownFromIter(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.hashInsert(map, rt.u8Rem(b, 8), b);
 		rt.hashAdd(set, rt.u8Rem(b, 8));
 	}
-	const _24: rt.HashMap<rt.u8, rt.u8> = map;
-	const map2: rt.HashMap<rt.u8, rt.u8> = ((items: rt.Iter<[rt.u8, rt.u8]>): rt.HashMap<rt.u8, rt.u8> => {
-		return rt.hashExtend(rt.hashNew(undefined, Made.default$Default()) as rt.HashMap<rt.u8, rt.u8>, items, undefined, undefined, undefined, 469762048);
-	})(rt.hashIter(_24, undefined, undefined, rt.drop));
+	const map2: rt.HashMap<rt.u8, rt.u8> = rt.hashFromIter(rt.hashIter(map, undefined, undefined, rt.drop), () => rt.hashNew(undefined, Made.default$Default()) as rt.HashMap<rt.u8, rt.u8>, undefined, undefined, undefined, 469762048);
 	const _26: rt.HashSet<rt.u8> = set;
 	const set2: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, Made.default$Default()) as rt.HashSet<rt.u8>, rt.hashKeys(_26, undefined, undefined, rt.drop), undefined, undefined, 469762048);
 	put(out, rt.hashLen(map2));
 	put(out, rt.hashLen(set2));
-	lib_drop$tuple2_hashbrown_HashMap_u8_u8_maps_Made_hashbrown_HashSet_u8_maps_Made([map2, set2] as [rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>]);
+	const hinted: rt.HashMap<rt.u8, rt.u8> = rt.hashFromIter(rt.iterFrom(new Hinted.Hinted(rt.hashIter(map2, undefined, undefined, rt.drop)), Hinted.next$iter_Iterator_hashbrown_hash_map_IntoIter_u8_u8, undefined, { hint: Hinted.sizeHint$iter_Iterator_hashbrown_hash_map_IntoIter_u8_u8 }), () => rt.hashNew(undefined, Made.default$Default()) as rt.HashMap<rt.u8, rt.u8>, undefined, undefined, undefined, 469762048);
+	const _37: Hinted.Hinted<rt.Iter<rt.u8>> = new Hinted.Hinted(rt.hashKeys(set2, undefined, undefined, rt.drop));
+	const keys: rt.HashSet<rt.u8> = rt.hashExtendKeys(rt.hashNew(undefined, Made.default$Default()) as rt.HashSet<rt.u8>, rt.iterFrom(_37, Hinted.next$iter_Iterator_hashbrown_hash_set_IntoIter_u8, undefined, { hint: Hinted.sizeHint$iter_Iterator_hashbrown_hash_set_IntoIter_u8 }), undefined, undefined, 469762048);
+	put(out, rt.hashLen(hinted));
+	put(out, rt.hashLen(keys));
+	lib_drop$tuple2_hashbrown_HashMap_u8_u8_maps_Made_hashbrown_HashSet_u8_maps_Made([hinted, keys] as [rt.HashMap<rt.u8, rt.u8>, rt.HashSet<rt.u8>]);
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(((made2: rt.RefCell<rt.ByteVec>): rt.ByteVec => {
 		return rt.refCellReplace(made2, new rt.ByteVec());
 	})(MADE.get())));
