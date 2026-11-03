@@ -191,6 +191,19 @@ pub fn bytes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			drop(of_twin);
 			counts(&of_str, out);
 			put_bytes(&of_str, out);
+			// Text written once no bytes share it, and pointers converted to themselves.
+			let mut s = Rc::<str>::from(text(data));
+			drop(Rc::<[u8]>::from(s.clone()));
+			if let Some(m) = Rc::get_mut(&mut s) {
+				m.make_ascii_uppercase();
+			}
+			let same = Rc::<str>::from(s.clone());
+			out.push(u8::from(Rc::ptr_eq(&same, &s)));
+			put_bytes(&Rc::<[u8]>::from(s), out);
+			let n = Arc::new(u32::from(data.len() as u8));
+			let same = Arc::<u32>::from(n.clone());
+			out.push(u8::from(Arc::ptr_eq(&same, &n)));
+			out.extend(same.to_le_bytes());
 			let arc_of_str: Arc<[u8]> = Arc::from(Arc::<str>::from(text(data)));
 			put_bytes(&arc_of_str, out);
 			// Back to what owns its bytes, which grows as any does.

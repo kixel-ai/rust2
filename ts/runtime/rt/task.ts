@@ -188,17 +188,21 @@ export function arcDowncast<T, U, C>(
 	return Ok(typed);
 }
 
-/** The `Arc<[u8]>` each `From` of an `Arc<str>` gives, which is one allocation. */
-const strBytes = new WeakMap<Arc<string>, Arc<ByteSlice>>();
+/**
+ * The `Arc<[u8]>` each `From` of an `Arc<str>` gives, which is one allocation, and the text
+ * it was made of. Other text there was written through a unique `Arc<str>`, so no `Arc<[u8]>`
+ * of the old text is left.
+ */
+const strBytes = new WeakMap<Arc<string>, { text: string; bytes: Arc<ByteSlice> }>();
 
 /** `Arc<[u8]>::from` an `Arc<str>`: its bytes, sharing its count as std shares the allocation. */
 export function arcStrBytes(arc: Arc<string>): Arc<ByteSlice> {
-	let bytes = strBytes.get(arc);
-	if (bytes === undefined) {
-		bytes = new ArcDyn(arc, stringAsBytes(arc.value));
-		strBytes.set(arc, bytes);
+	let made = strBytes.get(arc);
+	if (made?.text !== arc.value) {
+		made = { text: arc.value, bytes: new ArcDyn(arc, stringAsBytes(arc.value)) };
+		strBytes.set(arc, made);
 	}
-	return bytes;
+	return made.bytes;
 }
 
 /**

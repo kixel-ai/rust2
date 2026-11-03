@@ -176,6 +176,21 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		ofTwin[Symbol.dispose]();
 		counts$slice_u8(ofStr, out);
 		putBytes(ofStr.value, out);
+		const s2: rt.Arc<string> = new rt.Arc(text(data2));
+		rt.arcStrBytes(rt.arcClone(s2))[Symbol.dispose]();
+		const _121: rt.Place<string> | undefined = rt.arcGetMutPlace(s2);
+		if (_121 !== undefined) {
+			_121.v = rt.strToAsciiUppercase(_121.v);
+		}
+		const same: rt.Arc<string> = rt.arcClone(s2);
+		rt.byteVecPush(out, same === s2 ? 1 : 0);
+		const _137: rt.Arc<rt.ByteSlice> = rt.arcStrBytes(s2);
+		putBytes(_137.value, out);
+		_137[Symbol.dispose]();
+		const n: rt.Arc<rt.u32> = new rt.Arc((data2.length & 0xff) as rt.u32);
+		const same2: rt.Arc<rt.u32> = rt.arcClone(n);
+		rt.byteVecPush(out, same2 === n ? 1 : 0);
+		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(same2.value).reverse()), undefined, true);
 		const arcOfStr: rt.Arc<rt.ByteSlice> = rt.arcStrBytes(new rt.Arc(text(data2)));
 		putBytes(arcOfStr.value, out);
 		const v: rt.ByteVec = rt.byteSliceToByteVec(fromVec.value);
@@ -185,6 +200,9 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		putBytes(rt.byteVecSlice(rt.byteSliceToByteVec(into.value)), out);
 		putBytes(rt.byteSliceFrom(rt.byteSliceToArray(fromBox.value)), out);
 		arcOfStr[Symbol.dispose]();
+		same2[Symbol.dispose]();
+		n[Symbol.dispose]();
+		same[Symbol.dispose]();
 		ofStr[Symbol.dispose]();
 		owned[Symbol.dispose]();
 		borrowed[Symbol.dispose]();
@@ -221,11 +239,11 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const arc: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data2)));
 		rt.byteVecPush(out, rt.byteSliceEq(arc.value, a.value) ? 1 : 0);
 		rt.byteVecPush(out, rt.u64Eq(hash$sync_Arc_slice_u8(arc), hash$Rc_slice_u8(a)) ? 1 : 0);
-		const _244: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(new Uint8Array(0)));
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(a.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(b2.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(arc.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_244.value), f, rt.u8Debug)];
-		const _240: string = rt.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]);
-		_244[Symbol.dispose]();
-		put(out, _240);
+		const _285: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(new Uint8Array(0)));
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(a.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(b2.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(arc.value), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_285.value), f, rt.u8Debug)];
+		const _281: string = rt.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]);
+		_285[Symbol.dispose]();
+		put(out, _281);
 		arc[Symbol.dispose]();
 		b2[Symbol.dispose]();
 		a[Symbol.dispose]();
@@ -249,9 +267,9 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}) ? 1 : 0);
 		rt.byteVecPush(out, weak.arc.strong & 0xff);
 		b3[Symbol.dispose]();
-		const _301: rt.Arc<rt.ByteSlice> | undefined = rt.weakUpgrade(weak);
-		rt.byteVecPush(out, _301 === undefined ? 1 : 0);
-		rt.drop(_301);
+		const _342: rt.Arc<rt.ByteSlice> | undefined = rt.weakUpgrade(weak);
+		rt.byteVecPush(out, _342 === undefined ? 1 : 0);
+		rt.drop(_342);
 		rt.byteVecPush(out, weak.arc.strong & 0xff);
 		const arc2: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteVecSlice(rt.byteSliceToByteVec(data2)));
 		const twin2: rt.Arc<rt.ByteSlice> = rt.arcClone(arc2);
@@ -269,9 +287,9 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		c[Symbol.dispose]();
 	} else {
 		let a3: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data2)));
-		const _332: rt.ByteSlice | undefined = rt.arcGetMut(a3);
-		if (_332 !== undefined) {
-			scramble(_332);
+		const _373: rt.ByteSlice | undefined = rt.arcGetMut(a3);
+		if (_373 !== undefined) {
+			scramble(_373);
 		}
 		putBytes(a3.value, out);
 		const b4: rt.Arc<rt.ByteSlice> = rt.arcClone(a3);
@@ -291,24 +309,24 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		counts$slice_u8(a3, out);
 		putBytes(a3.value, out);
 		const weak2: rt.Weak<rt.ByteSlice> = new rt.Weak(a3);
-		const _379: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.arcMakeMut(rt.place(() => a3, (value3) => a3 = value3), (a03: rt.ByteSlice): rt.ByteSlice => {
+		const _420: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.arcMakeMut(rt.place(() => a3, (value3) => a3 = value3), (a03: rt.ByteSlice): rt.ByteSlice => {
 			return rt.byteSliceFrom(rt.byteSliceToArray(a03));
 		}, rt.drop)));
-		if (_379 !== undefined) {
-			_379.v = 34;
+		if (_420 !== undefined) {
+			_420.v = 34;
 		}
-		const _388: rt.Arc<rt.ByteSlice> | undefined = rt.weakUpgrade(weak2);
-		rt.byteVecPush(out, _388 === undefined ? 1 : 0);
-		rt.drop(_388);
+		const _429: rt.Arc<rt.ByteSlice> | undefined = rt.weakUpgrade(weak2);
+		rt.byteVecPush(out, _429 === undefined ? 1 : 0);
+		rt.drop(_429);
 		putBytes(a3.value, out);
 		let arc3: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data2)));
 		const shared: rt.Arc<rt.ByteSlice> = rt.arcClone(arc3);
 		rt.byteSliceView(rt.arcMakeMut(rt.place(() => arc3, (value4) => arc3 = value4), (a04: rt.ByteSlice): rt.ByteSlice => {
 			return rt.byteSliceFrom(rt.byteSliceToArray(a04));
 		}, rt.drop)).reverse();
-		const _399: rt.ByteSlice | undefined = rt.arcGetMut(arc3);
-		if (_399 !== undefined) {
-			rt.iterForEach(rt.iterSliceMut(rt.byteSliceView(_399)), (x: rt.Place<rt.u8>): undefined => {
+		const _440: rt.ByteSlice | undefined = rt.arcGetMut(arc3);
+		if (_440 !== undefined) {
+			rt.iterForEach(rt.iterSliceMut(rt.byteSliceView(_440)), (x: rt.Place<rt.u8>): undefined => {
 				x.v = x.v ^ 15;
 			});
 		}

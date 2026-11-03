@@ -174,16 +174,21 @@ pub fn call<'tcx>(
 		// An `Arc<[u8]>` of an `Arc<str>`'s bytes, which shares its count, as std's shares its
 		// allocation.
 		("From", "from")
-			if let [_, from] = call.args.as_slice()
+			if let [to, from] = call.args.as_slice()
+				&& let (ty::Adt(_, to), ty::Adt(_, from)) = (to.expect_ty().kind(), from.expect_ty().kind())
 				&& self_std == Some(Std::Arc)
-				&& std_of(from.expect_ty()) == Some(Std::Arc) =>
+				&& std_of(call.args.type_at(1)) == Some(Std::Arc)
+				&& matches!(to.type_at(0).kind(), ty::Slice(e) if matches!(e.kind(), ty::Uint(ty::UintTy::U8)))
+				&& from.type_at(0).is_str() =>
 		{
 			Expr::rt("arcStrBytes", args)
 		}
-		// An `Arc` of a slice or text, of the box `From` makes of the same value.
+		// An `Arc` of a slice or text, of the box `From` makes of the same value, but for the
+		// `Arc` itself.
 		("From", "from")
 			if let [arc, from] = call.args.as_slice()
 				&& self_std == Some(Std::Arc)
+				&& std_of(from.expect_ty()) != Some(Std::Arc)
 				&& let ty::Adt(_, arc) = arc.expect_ty().kind()
 				&& let Some(boxed) = shared_box(tcx, arc.type_at(0)) =>
 		{
