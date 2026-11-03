@@ -9,6 +9,13 @@ export function unwrapOr$17ntxfo(self: rt.Result<rt.u8, rt.u8> | undefined, defa
 	return self;
 }
 
+export function unwrapOr$1j4op5y(self: rt.u16 | undefined, default_: rt.u16): rt.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
@@ -16,11 +23,40 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
-export function mapOr$1w5qtj7(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
+export function map$0ejznqm(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.ByteVec): rt.ByteVec | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0w2t0i1(self: rt.u8 | undefined, _: (a0: rt.u8) => rt.u16): rt.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return self as rt.u16;
+}
+
+export function map$1mcfwnw(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u16): rt.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0p22lts(self: rt.u8 | undefined, f: (a0: rt.u8) => undefined): undefined | rt.None {
+	if (self === undefined) {
+		return rt.None;
+	}
+	f(self);
+	return undefined;
+}
+
+export function mapOr$18ph0j9(self: undefined | rt.None, default_: rt.u8, f: (a0: undefined) => rt.u8): rt.u8 {
 	if (self === rt.None) {
 		return default_;
 	}
-	return f(self);
+	return f(undefined);
 }
 
 export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a0: rt.usize) => rt.u8): rt.u8 {
@@ -28,6 +64,23 @@ export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a
 		return default_;
 	}
 	return f(self);
+}
+
+export function filter$0v80fk8(self: rt.u8 | undefined, predicate: (a0: rt.u8) => boolean): rt.u8 | undefined {
+	if (self !== undefined) {
+		const x: rt.u8 = self;
+		if (predicate(x)) {
+			return x;
+		}
+	}
+	return undefined;
+}
+
+export function clone$1grnave(self: rt.ByteVec | undefined): rt.ByteVec | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return rt.byteVecFrom(rt.byteVecView(self));
 }
 
 //# sourceMappingURL=option.ts.map

@@ -380,6 +380,9 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	redirect: FxHashMap<BasicBlock, BasicBlock>,
 	/// Whether the operands lowered now go to a local nothing changes in place.
 	into_frozen: bool,
+	/// Each argument read from a place for the call being lowered, and its Rust, which
+	/// [`Self::locate_arguments`] locates in the call once std's mappings made it.
+	arguments: Vec<(Expr, ts::Loc)>,
 	/// Whether the value held back next is copied unless it folds into an argument.
 	copy_on_flush: bool,
 	/// Whether a copy lowered now shares what it copies, whatever it reads from.
@@ -499,6 +502,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			rereadable_parts: None,
 			redirect: FxHashMap::default(),
 			into_frozen: false,
+			arguments: Vec::new(),
 			copy_on_flush: false,
 			force_share: false,
 			arg_use: IndexVec::from_elem_n(false, n),

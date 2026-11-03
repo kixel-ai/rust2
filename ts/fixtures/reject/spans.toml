@@ -1,4 +1,4 @@
 # Rust that translates, which the stand-in `tsc` the test puts on `PATH` fails at each
 # `return` and each argument: `spans.txt` holds where each is reported.
 package = "reject-fixture"
-roots = ["spans::tail", "spans::early", "spans::method", "spans::chained"]
+roots = ["spans::tail", "spans::early", "spans::method", "spans::chained", "spans::operators"]

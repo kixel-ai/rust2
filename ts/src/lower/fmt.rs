@@ -292,7 +292,10 @@ pub fn std_impl<'tcx>(
 			if tr == Trait::Debug
 				&& (library::pinned(tcx, adt.did())
 					|| library::empty_iter(tcx, adt.did())
-					|| matches!(Std::of(tcx, adt.did()), Some(Std::Pending | Std::PollFn))) =>
+					|| matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::Pending | Std::PollFn | Std::BuildHasherDefault)
+					)) =>
 		{
 			rt("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
 		}
