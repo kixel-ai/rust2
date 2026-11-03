@@ -1900,11 +1900,10 @@ const ORIGIN: (u16, u8) = (0, 1);
 
 /// Whether pointers to copies of one value nothing writes into are equal: of a pair, a
 /// struct, the pair it holds, and bytes, each allocated twice by `Arc`, `Rc`, `Box`, a
-/// `Vec`, an `Option`, a constant, a clone, and std's copies of each element of a run, a
-/// `Cell`'s `get`, `ptr::read`,
-/// and moved out of one and
-/// allocated again, by hand or by `make_mut`, as `ptr::eq`, `addr_eq`, and `as_ptr`
-/// compare them; a clone of an `Arc` or `Rc` shares its value.
+/// `Vec`, an `Option`, a constant, a clone, std's copies of each element of a run, a
+/// `Cell`'s `get`, and `ptr::read`, and moved out of one and allocated again, by hand or
+/// by `make_mut`, of a slice of bytes too, as `ptr::eq`, `addr_eq`, and `as_ptr` compare
+/// them; a clone of an `Arc` or `Rc` shares its value.
 pub fn distinct(data: &[u8], out: &mut Vec<u8>) {
 	for chunk in data.chunks(3) {
 		let &[a, b, c] = chunk else {
@@ -2006,6 +2005,11 @@ pub fn distinct(data: &[u8], out: &mut Vec<u8>) {
 		let mut spotted = Arc::new(spot);
 		let weak = (c & 1 != 0).then(|| (Rc::downgrade(&maybe), Arc::downgrade(&spotted)));
 		let strong = (c & 2 != 0).then(|| (Rc::clone(&maybe), Arc::clone(&spotted)));
+		let mut run: Arc<[u8]> = Arc::from(vec![a, b, c]);
+		let run_weak = (c & 4 != 0).then(|| Arc::downgrade(&run));
+		Arc::make_mut(&mut run)[0] ^= c;
+		out.extend_from_slice(&run);
+		drop(run_weak);
 		let was: *const (u16, u8) = maybe.as_ref().as_ref().unwrap();
 		let was_at: *const (u16, u8) = &spotted.at;
 		let was_spot = Arc::as_ptr(&spotted);

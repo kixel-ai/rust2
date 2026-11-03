@@ -3,6 +3,13 @@
 import * as rt from "../rt.ts";
 import type * as Spot from "../pointers.Spot.ts";
 
+export function then$1vx3p6m(self: boolean, f: () => rt.Weak<rt.ByteSlice>): rt.Weak<rt.ByteSlice> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
 export function then$04p7jmh(self: boolean, f: () => [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>]): [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>] | undefined {
 	if (!self) {
 		return undefined;

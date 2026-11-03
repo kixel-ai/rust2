@@ -2,7 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_ptr_array4_u8, copy$array_u16, copy$array_u8, copy$array_unit, copy$mem_MaybeUninit_array_u32, copy$mem_MaybeUninit_array_u8, copy$mem_MaybeUninit_tuple2_u8_u8, copy$pointers_Aimed_Cell_u8, copy$pointers_Aimed_array2_u16, copy$pointers_Aimed_array4_u8, copy$pointers_Aimed_pointers_Housed_u8, copy$pointers_Aimed_pointers_Leaning, copy$pointers_Aimed_pointers_Paired, copy$pointers_Aimed_u8, copy$pointers_ByCall, copy$pointers_ByClosure, copy$pointers_ByObject, copy$pointers_Duo, copy$pointers_Halves, copy$pointers_Outer, copy$pointers_Pair, copy$pointers_Spot, copy$tuple2_array2_u32_u8, copy$tuple2_u16_u8, copy$tuple2_u32_u32, copy$tuple2_u8_u8, drop$pointers_List_String, drop$pointers_List_sync_Arc_u8, of$pointers_Bin_pointers_ByObject } from "./lib.ts";
-import { then$04p7jmh, then$1d2br9m } from "./core/bool.ts";
+import { then$1vx3p6m, then$04p7jmh, then$1d2br9m } from "./core/bool.ts";
 import { isSomeAnd$0h2dqit, isSomeAnd$10niqnm, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$1l4p6jc as option_unwrapOr$1l4p6jc, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1cfrse5 as option_map$1cfrse5, mapOr$1j1wsle as option_mapOr$1j1wsle, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$1wxcg5q as option_mapOr$1wxcg5q, filter$0tnmmii } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
 import * as Bin from "./pointers.Bin.ts";
@@ -2396,11 +2396,10 @@ export function lend$u8(to: rt.Place<rt.u8>, n: rt.u8, out: rt.ByteVec): void {
 /**
  * Whether pointers to copies of one value nothing writes into are equal: of a pair, a
  * struct, the pair it holds, and bytes, each allocated twice by `Arc`, `Rc`, `Box`, a
- * `Vec`, an `Option`, a constant, a clone, and std's copies of each element of a run, a
- * `Cell`'s `get`, `ptr::read`,
- * and moved out of one and
- * allocated again, by hand or by `make_mut`, as `ptr::eq`, `addr_eq`, and `as_ptr`
- * compare them; a clone of an `Arc` or `Rc` shares its value.
+ * `Vec`, an `Option`, a constant, a clone, std's copies of each element of a run, a
+ * `Cell`'s `get`, and `ptr::read`, and moved out of one and allocated again, by hand or
+ * by `make_mut`, of a slice of bytes too, as `ptr::eq`, `addr_eq`, and `as_ptr` compare
+ * them; a clone of an `Arc` or `Rc` shares its value.
  */
 export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const iter: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(data, 3);
@@ -2479,39 +2478,51 @@ export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const strong: [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>] | undefined = then$04p7jmh((c & 2) !== 0, (): [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>] => {
 				return [rt.arcClone(maybe), rt.arcClone(spotted)] as [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>];
 			});
+			let run: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteVecSlice(rt.byteVecFrom(Uint8Array.of(a, b, c))));
+			const runWeak: rt.Weak<rt.ByteSlice> | undefined = then$1vx3p6m((c & 4) !== 0, (): rt.Weak<rt.ByteSlice> => {
+				return new rt.Weak(run);
+			});
+			const _484: rt.ByteSlice = rt.arcMakeMut(rt.place(() => run, (value) => run = value), (a0: rt.ByteSlice): rt.ByteSlice => {
+				return rt.byteSliceFrom(rt.byteSliceToArray(a0));
+			}, rt.drop);
+			rt.idx(_484, 0);
+			_484.data[_484.start] = _484.data[_484.start] ^ c;
+			rt.byteVecExtendFromSlice(out, run.value);
+			rt.drop(runWeak);
 			const was: [rt.u16, rt.u8] = rt.optionUnwrap(maybe.value);
 			const wasAt: [rt.u16, rt.u8] = spotted.value.at;
 			const wasSpot: Spot.Spot = spotted.value;
-			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(was === rt.optionUnwrap(rt.arcMakeMutPlace(rt.place(() => maybe, (value) => maybe = value), copy$Option_tuple2_u16_u8, rt.drop, copy$Option_tuple2_u16_u8).v) ? 1 : 0, wasAt === rt.arcMakeMut(rt.place(() => spotted, (value2) => spotted = value2), copy$pointers_Spot, rt.drop, copy$pointers_Spot).at ? 1 : 0, wasSpot === spotted.value ? 1 : 0, isSomeAnd$10niqnm(weak, (_24: [rt.Weak<[rt.u16, rt.u8] | undefined>, rt.Weak<Spot.Spot>]): boolean => {
-				let _04!: boolean;
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(was === rt.optionUnwrap(rt.arcMakeMutPlace(rt.place(() => maybe, (value2) => maybe = value2), copy$Option_tuple2_u16_u8, rt.drop, copy$Option_tuple2_u16_u8).v) ? 1 : 0, wasAt === rt.arcMakeMut(rt.place(() => spotted, (value3) => spotted = value3), copy$pointers_Spot, rt.drop, copy$pointers_Spot).at ? 1 : 0, wasSpot === spotted.value ? 1 : 0, isSomeAnd$10niqnm(weak, (_24: [rt.Weak<[rt.u16, rt.u8] | undefined>, rt.Weak<Spot.Spot>]): boolean => {
+				let _06!: boolean;
 				const r: rt.Weak<[rt.u16, rt.u8] | undefined> = _24[0];
 				const a2: rt.Weak<Spot.Spot> = _24[1];
 				const _7: rt.Arc<[rt.u16, rt.u8] | undefined> | undefined = rt.weakUpgrade(r);
 				if (!(_7 !== undefined)) {
 					rt.drop(_7);
 					const _10: rt.Arc<Spot.Spot> | undefined = rt.weakUpgrade(a2);
-					_04 = _10 !== undefined;
+					_06 = _10 !== undefined;
 					rt.drop(_10);
 				} else {
 					rt.drop(_7);
-					_04 = true;
+					_06 = true;
 				}
 				a2[Symbol.dispose]();
 				r[Symbol.dispose]();
-				return _04;
+				return _06;
 			}) ? 1 : 0, isSomeAnd$0h2dqit(strong, (_25: [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>]): boolean => {
-				let _05!: boolean;
+				let _07!: boolean;
 				const r2: rt.Arc<[rt.u16, rt.u8] | undefined> = _25[0];
 				const a3: rt.Arc<Spot.Spot> = _25[1];
 				if (!(rt.optionUnwrap(r2.value) === rt.optionUnwrap(maybe.value))) {
-					_05 = a3.value.at === spotted.value.at;
+					_07 = a3.value.at === spotted.value.at;
 				} else {
-					_05 = true;
+					_07 = true;
 				}
 				a3[Symbol.dispose]();
 				r2[Symbol.dispose]();
-				return _05;
+				return _07;
 			}) ? 1 : 0)), undefined, true);
+			run[Symbol.dispose]();
 			spotted[Symbol.dispose]();
 			maybe[Symbol.dispose]();
 			rewrapped[Symbol.dispose]();

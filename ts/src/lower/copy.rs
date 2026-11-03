@@ -71,9 +71,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		!self.compared.is_empty() && by_value(self.tcx, self.typing_env(), ty).any(|part| self.addressed(part))
 	}
 
-	/// Whether the runs before compared pointers to a `ty`.
+	/// Whether the runs before compared pointers to a `ty`. A slice shares its storage
+	/// with its arrays, but pointers to one never compare.
 	fn addressed(&self, ty: Ty<'tcx>) -> bool {
-		self.compared.contains(&storage(self.tcx, ty))
+		!ty.is_slice() && self.compared.contains(&storage(self.tcx, ty))
 	}
 
 	/// Whether the crate may give the part of a `ty` kept as a JS object in the field `at`,
