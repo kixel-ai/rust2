@@ -88,7 +88,6 @@ fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u
 fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`
 fixtures/reject/src/objects.rs:any_type_id+1:4: `std::any::Any::type_id` of `dyn std::any::Any`, which is not supported yet
 fixtures/reject/src/objects.rs:any_type_id+1:17: unsupported call to `std::any::TypeId::of::<u8>`
-fixtures/reject/src/objects.rs:any_upcast+1:32: an upcast from `dyn objects::Keyed` to `dyn std::any::Any`, which is not supported yet
 fixtures/reject/src/objects.rs:dyn_size+1:2: unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>`
 fixtures/reject/src/objects.rs:dynamic+0:16: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
 fixtures/reject/src/objects.rs:dynamic+1:4: `dyn std::hash::Hasher`, a trait object of another crate's trait, which is not supported yet
@@ -96,7 +95,7 @@ fixtures/reject/src/objects.rs:first_of+1:26: a trait object of `[u8; 4]`, which
 fixtures/reject/src/objects.rs:generic_object+0:23: `dyn objects::Scaled<u8>`, a trait object of the generic trait `objects::Scaled`, which is not supported yet
 fixtures/reject/src/objects.rs:generic_object+1:4: `dyn objects::Scaled<u8>`, a trait object of the generic trait `objects::Scaled`, which is not supported yet
 fixtures/reject/src/objects.rs:raw_dyn_iter+2:40: a coercion of `*mut std::ops::Range<u8>` to `*mut dyn std::iter::Iterator<Item = u8>`, which is not supported yet
-fixtures/reject/src/objects.rs:weak_any_upcast+1:46: an upcast from `dyn objects::Keyed` to `dyn std::any::Any`, which is not supported yet
+fixtures/reject/src/objects.rs:same_named+2:30: `u8` as `dyn objects::second::Named`, whose class has another trait's method named `name$Named`, which is not supported yet
 fixtures/reject/src/parts.rs:array_part+1:9: a raw pointer to `std::cell::UnsafeCell<u16>` in `parts::InArray`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:array_part_replaced+3:33: a reference through which a raw pointer may be made into `parts::InArray` in `[parts::InArray; 2]`, which the crate may put another object in place of
 fixtures/reject/src/parts.rs:element_replaced+2:20: a reference through which a raw pointer may be made into `std::cell::UnsafeCell<u16>` in `[std::cell::UnsafeCell<u16>; 2]`, which the crate may put another object in place of

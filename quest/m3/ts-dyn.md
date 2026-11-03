@@ -1,10 +1,11 @@
-# [M] Trait objects
+# [L] Trait objects
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates `dyn Error`'s downcasts, with Rust's answers for a
-value upcast from the crate's own trait, proven by differential tests against native Rust,
-so a consumer neither rewrites nor binds them.
+[rust2-ts](/ts/README.md) translates the trait objects it still refuses, those of std's
+other traits such as `dyn Hasher` and `dyn fmt::Write`, of a generic trait, and of a trait
+with an associated type, and `Any::type_id`, with Rust's dispatch and drop order, proven by
+differential tests against native Rust, so a consumer neither rewrites nor binds them.
 
 ## Plan
 
@@ -17,14 +18,14 @@ config, so trait objects move from never to not yet.
   closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, behind `&`, `&mut`,
   `Box`, `Arc`, and `Rc`, and the translated
   crates' traits as an object with the trait's methods. Build the rest on those.
-- `dyn Error` translates as an object of `source`, `Debug`, and `Display`. Its downcasts
-  remain: checking the class of `Error.of$T` as `dyn Any`'s do would miss a value upcast
-  from the crate's own trait over `Error`, whose object is that trait's class, so a
-  downcast needs the class of the value's own type, as an upcast to `dyn Any` does.
+- `dyn Error` translates as an object of `source`, `Debug`, and `Display`, whose downcasts
+  check the class of the value's own type, which every trait object of the type shares.
+  Decided with the maintainer on 2026-11-02: objects of two traits of one name with a
+  method of one name, for one type, stay refused, as that one class can't hold both.
 - `bytes::Buf` is an object of its methods, as the crate's own traits are, decided with the
   maintainer on 2026-11-02, so it works for any implementor.
 - Generic traits and associated types name their arguments in the object's type.
-- `Any::type_id` and `TypeId` have no JS value yet, and an upcast to `dyn Any` would need
-  the class of the value's own type.
+- `Any::type_id` and `TypeId` have no JS value yet. The class of the value's own type
+  stands for its type in a downcast, but `TypeId::of` of a type no object holds has none.
 
 Public API: the translator's output.

@@ -207,8 +207,8 @@ fn put_vec(out: &mut Vec<u8>, v: Vec<u8>) {
 
 /// The run `data`'s first byte picks steps through with each of its other bytes, read
 /// directly, through `&mut`, or by std's adaptors, and consumed by the third byte's pick,
-/// by `consumed`, or by `folded` past the fifth `kind`, with what each read and each call
-/// of its methods logged.
+/// by `consumed`, or by `folded` past the fifth `kind`, and boxed by either past the tenth,
+/// with what each read and each call of its methods logged.
 pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let [shape, consume, steps @ ..] = data else {
 		return;
@@ -238,15 +238,18 @@ pub fn ends(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 	let k = usize::from(consume >> 4);
-	let (pick, folds) = (consume % 16, kind % 10 >= 5);
-	match kind % 5 {
-		0 if folds => folded(run, pick, k, &log, out),
-		1 if folds => folded(Counted(run), pick, k, &log, out),
-		4 if folds => folded(Overrides(run), pick, k, &log, out),
+	let pick = consume % 16;
+	match kind % 12 {
 		0 => consumed(run, pick, k, out),
 		1 => consumed(Counted(run), pick, k, out),
 		4 => consumed(Overrides(run), pick, k, out),
-		2 => fuses(*consume, out),
+		5 => folded(run, pick, k, &log, out),
+		6 => folded(Counted(run), pick, k, &log, out),
+		9 => folded(Overrides(run), pick, k, &log, out),
+		// std's `Iterator` for a box forwards `last` but none of the other by-value overrides.
+		10 => consumed(Box::new(Overrides(run)), pick, k, out),
+		11 => folded(Box::new(Overrides(run)), pick, k, &log, out),
+		2 | 7 => fuses(*consume, out),
 		_ => {
 			// Mixed from either end, by the bits of `consume`, until they meet.
 			let mut bits = *consume;

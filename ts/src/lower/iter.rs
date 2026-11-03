@@ -368,12 +368,13 @@ fn folds_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// The `rt.Own` of the crate's iterator of type `ty`: each method of `OWN` but `next` that
 /// it has of its own, as a function of its source, and those in `BY_VALUE` only if it is
-/// `owned`. `undefined` if it has none.
-fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span: Span) -> Expr {
+/// `owned`, of which only `last` if `boxed`, as std's `Iterator` for a box forwards no other.
+/// `undefined` if it has none.
+fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, boxed: bool, span: Span) -> Expr {
 	let none = b.t.iter_item(ty.peel_refs()).and_then(|item| b.t.none_arg(item));
 	let mut props = Vec::new();
 	for (tr, name) in &OWN[1..] {
-		if !owned && BY_VALUE.contains(&(tr, name)) {
+		if BY_VALUE.contains(&(tr, name)) && (!owned || boxed && *name != "last") {
 			continue;
 		}
 		let Some(instance) = own_method(b, ty, tr, name) else {
@@ -486,10 +487,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	let (ty, value) = peel_iter(b, ty, value);
-	let (ty, value) = match unbox_ref(tcx, ty) {
-		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
-		_ => (ty, value),
+	let (peeled, value) = peel_iter(b, ty, value);
+	// std's `Iterator` for a box forwards only some of the crate's own methods.
+	let boxed = peeled != ty && !peeled.is_ref();
+	let (ty, value) = match unbox_ref(tcx, peeled) {
+		unboxed if unboxed != peeled => (unboxed, b.t.pointee_value(peeled, value)),
+		_ => (peeled, value),
 	};
 	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
 	// room for exactly them.
@@ -511,7 +514,7 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 					true => b.t.dropper(ty, span),
 					false => Expr::undefined(),
 				};
-				let own = own_methods(b, ty, owned, span);
+				let own = own_methods(b, ty, owned, boxed, span);
 				Expr::rt("iterFrom", tail(vec![value, next], vec![drop, own]))
 			}
 			// One borrowed by `&mut`, which std's adaptors may drop once it ends, but which
@@ -847,8 +850,10 @@ pub fn call<'tcx>(
 	not_bound(b, self_ty, span);
 	let mut values = args.into_iter();
 	// What it reads through boxes and references, while std picks each specialization by
-	// `self_ty`, which a box implements none of.
-	let (iter_ty, recv) = peel_iter(b, self_ty, values.next()?);
+	// `self_ty`, which a box implements none of. `into_iter` peels `self_ty` itself, to tell
+	// a box apart.
+	let first = values.next()?;
+	let (iter_ty, recv) = peel_iter(b, self_ty, first.clone());
 	let rest: Vec<Expr> = values.collect();
 	// What a consumer returns for `None`, after its other arguments, where that is `rt.None`.
 	let none = b.t.none_arg(item);
@@ -862,14 +867,14 @@ pub fn call<'tcx>(
 				None => recv.member("nextBack").call(Vec::new()),
 			},
 			_ => {
-				let recv = into_iter(b, iter_ty, recv, span)?;
+				let recv = into_iter(b, self_ty, first, span)?;
 				let droppers = [b.t.dropper(item, span)].into_iter().chain(none).collect();
 				return Some(Expr::rt("iterNthBack", tail([vec![recv], rest].concat(), droppers)));
 			}
 		};
 		return Some(Expr::rt("iterToOption", [item].into_iter().chain(none).collect()));
 	}
-	let recv = into_iter(b, iter_ty, recv, span)?;
+	let recv = into_iter(b, self_ty, first, span)?;
 	// `rt.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
 	let method = |name: &str, args: Vec<Expr>| {
 		let of = match owner {
