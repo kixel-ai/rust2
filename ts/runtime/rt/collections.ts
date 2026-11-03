@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capOf, capReserve, capReserveExact, capSet, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -3515,11 +3515,11 @@ export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
 	return other;
 }
 
-/** `Vec::from` of a deque: its items in order, with its capacity, as std's makes its buffer contiguous and keeps it. */
+/** `Vec::from` of a deque: its items in order, with its capacity, as std's makes its buffer contiguous and keeps it, however the length then drops. */
 export function dequeToVec<T>(q: VecDeque<T>): T[] {
 	const v: T[] & Capped = [];
 	for (let i = 0; i < q.n; i++) v.push(q.b[at(q, i)] as T);
-	capSet(v, v.length, q.b.length, q.s);
+	capHold(v, q.b.length, q.s);
 	return v;
 }
 

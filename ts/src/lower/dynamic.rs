@@ -1,5 +1,6 @@
 //! Trait objects. A `dyn Trait` is a JS object with a method for each of the trait's
-//! dispatchable functions, its supertraits' included, named as an impl's function is,
+//! dispatchable functions, its supertraits' included, or for std's `Error` and `bytes`'
+//! `Buf`, each that a call dispatches to, named as an impl's function is,
 //! for its trait (`area$Shape`), and taking the arguments after `self`. That is the
 //! trait's type, which a TS caller can implement. A coercion to one wraps the value in a
 //! class of its type's own, shared by every trait object of the type, whose methods call
@@ -7,7 +8,7 @@
 //! drops the value. An `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
 //! `rt.tailDyn` view of the struct it was made from, whose last field is that field's
-//! object. A
+//! object. A raw pointer unsizes as a `&mut` to what it points at does. A
 //! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
 //! class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
@@ -25,17 +26,26 @@ use super::{AdtRepr, StructField, Translator};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, FieldId, FieldInit, Item, Key, Param, Stmt, StmtKind, SymId, Type};
 
-/// A trait that objects of it translate for: its type, and its methods in vtable order.
-#[derive(Clone)]
-pub struct Object {
-	pub sym: SymId,
-	pub methods: Vec<Method>,
+/// A trait that objects of it translate for: its type, its methods in vtable order, and
+/// the values its objects wrap.
+pub struct Object<'tcx> {
+	sym: SymId,
+	methods: Vec<Method>,
+	/// Where its type is in the program's items.
+	item: usize,
+	/// The types and holds of the classes its objects wrap values in.
+	classes: Vec<(Ty<'tcx>, Held)>,
 }
 
 #[derive(Clone)]
-pub struct Method {
-	pub def_id: DefId,
-	pub name: String,
+struct Method {
+	def_id: DefId,
+	name: String,
+	/// Its type, once the object holds it: from the start for the trait of a crate that
+	/// translates whole, which a TS caller may call or implement, and else, for std's
+	/// `Error` and `bytes`' `Buf`, at the first call that dispatches to it, so a `dyn Buf`
+	/// holds a few of `Buf`'s many methods.
+	ty: Option<Type>,
 }
 
 /// The class a coercion wraps a value of one type in, and its field holding the value.
@@ -105,8 +115,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 		ty
 	}
 
-	/// The trait of the trait object `ty`, a `dyn Trait`, made the first time.
-	pub fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Object> {
+	/// The type of the trait object `ty`, a `dyn Trait`, made the first time.
+	pub fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<SymId> {
 		let tcx = self.tcx;
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
@@ -119,7 +129,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return None;
 		};
 		if let Some(object) = self.objects.get(&principal) {
-			return Some(object.clone());
+			return Some(object.sym);
 		}
 		// A trait of a crate translated from source is as the crate's own.
 		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) && !is_buf(tcx, principal) {
@@ -176,32 +186,67 @@ impl<'tcx> Translator<'_, 'tcx> {
 					self.err(span, format!("`{ty}`, whose traits have two methods named `{name}`"));
 					return None;
 				}
-				methods.push(Method { def_id, name });
+				methods.push(Method { def_id, name, ty: None });
 			}
 		}
-		let object = Object { sym, methods };
-		// Before its methods' types, which may name it.
-		self.objects.insert(principal, object.clone());
-		let mut members = Vec::new();
-		for method in &object.methods {
-			let args = method_args(tcx, method.def_id, ty);
-			let sig = self.sig(method.def_id, args);
-			// The methods it holds are declared, so their `()` is `void`.
-			let params = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
-			let func = Type::Func(params, Box::new(self.ret_ty(sig.output(), span)));
-			members.push((method.name.clone(), func));
-		}
+		let count = methods.len();
+		self.objects.insert(
+			principal,
+			Object {
+				sym,
+				methods,
+				item: self.program.items.len(),
+				classes: Vec::new(),
+			},
+		);
 		self.program.items.push(Item::Union {
 			sym,
 			params: Vec::new(),
 			// Any object, as a downcast checks for the class of the value's own type.
 			ty: match is_any(tcx, principal) {
 				true => Type::Builtin("object"),
-				false => Type::Object(members),
+				false => Type::Object(Vec::new()),
 			},
 			doc: self.doc(principal),
 		});
-		Some(object)
+		if self.own(principal) && !super::stock::is_stock(tcx, principal) {
+			for index in 0..count {
+				self.hold(principal, index, ty, span);
+			}
+		}
+		Some(sym)
+	}
+
+	/// The object of `principal`, of the trait object `ty`, holding its method `index` from
+	/// now on: in its type, and in each class its objects wrap a value in.
+	fn hold(&mut self, principal: DefId, index: usize, ty: Ty<'tcx>, span: Span) {
+		let tcx = self.tcx;
+		let method = &self.objects[&principal].methods[index];
+		if method.ty.is_some() {
+			return;
+		}
+		let def_id = method.def_id;
+		let sig = self.sig(def_id, method_args(tcx, def_id, ty));
+		// The methods it holds are declared, so their `()` is `void`.
+		let params = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
+		let func = Type::Func(params, Box::new(self.ret_ty(sig.output(), span)));
+		let object = self.objects.get_mut(&principal).expect("a made object");
+		object.methods[index].ty = Some(func);
+		let members = object
+			.methods
+			.iter()
+			.filter_map(|m| Some((m.name.clone(), m.ty.clone()?)))
+			.collect();
+		let classes = object.classes.clone();
+		if let Item::Union {
+			ty: Type::Object(held), ..
+		} = &mut self.program.items[object.item]
+		{
+			*held = members;
+		}
+		for (from, held) in classes {
+			self.class_method(principal, index, from, held, span);
+		}
 	}
 
 	/// Whether `instance` is a call through a trait object's method, whose wrapper takes
@@ -224,78 +269,93 @@ impl<'tcx> Translator<'_, 'tcx> {
 				.is_none_or(|principal| super::fmt::Trait::of(self.tcx, principal).is_none())
 	}
 
-	/// The class wrapping a `from` held as `held`, made the first time, with the methods of
-	/// the trait object `to`. One class serves every trait object of its type, so a downcast
-	/// finds it whichever trait's object the value became.
+	/// The class wrapping a `from` held as `held`, made the first time, with the methods the
+	/// object of the trait object `to` holds, and those it holds later. One class serves
+	/// every trait object of its type, so a downcast finds it whichever trait's object the
+	/// value became.
 	pub fn object_class(&mut self, from: Ty<'tcx>, to: Ty<'tcx>, held: Held, span: Span) -> Option<Class> {
 		let tcx = self.tcx;
 		let from = tcx.erase_and_anonymize_regions(from);
 		let to = tcx.erase_and_anonymize_regions(to);
-		let object = self.object(to, span)?;
+		self.object(to, span)?;
+		let principal = principal(to).expect("an object's trait");
 		let class = match self.object_classes.get(&(from, held)) {
 			Some(&class) => class,
 			None => self.new_object_class(from, held, span),
 		};
-		let Class { sym, v } = class;
-		let value = Expr::This.field(v);
-		for method in &object.methods {
-			match self.class_methods.entry((sym, method.name.clone())) {
-				Entry::Occupied(called) if *called.get() == method.def_id => continue,
-				Entry::Occupied(_) => {
-					let msg = format!(
-						"`{from}` as `{to}`, whose class has another trait's method named `{}`, which is not supported yet",
-						method.name
-					);
-					self.err(span, msg);
-					continue;
-				}
-				Entry::Vacant(entry) => {
-					entry.insert(method.def_id);
-				}
+		let object = self.objects.get_mut(&principal).expect("a made object");
+		if object.classes.contains(&(from, held)) {
+			return Some(class);
+		}
+		object.classes.push((from, held));
+		for index in 0..object.methods.len() {
+			if self.objects[&principal].methods[index].ty.is_some() {
+				self.class_method(principal, index, from, held, span);
 			}
-			let args = method_args(tcx, method.def_id, from);
-			let sig = self.sig(method.def_id, args);
-			let receiver = match self.receiver(sig.inputs()[0], from, held, value.clone()) {
-				Some(receiver) => receiver,
-				None => {
-					let msg = format!(
-						"`{to}` with the receiver `{}`, which is not supported yet",
-						sig.inputs()[0]
-					);
-					self.err(span, msg);
-					continue;
-				}
-			};
-			let mut b = Body::new(self);
-			let params: Vec<Param> = sig.inputs()[1..]
-				.iter()
-				.map(|input| Param {
-					name: b.fresh("a"),
-					ty: Some(b.t.ty(*input, span)),
-				})
-				.collect();
-			let values = params.iter().map(|p| Expr::ident(&p.name));
-			let mut body = Vec::new();
-			let call = b.call_def(
-				method.def_id,
-				args,
-				[receiver].into_iter().chain(values).collect(),
-				span,
-				&mut body,
-			);
-			let ret = self.ret_ty(sig.output(), span);
-			body.push(StmtKind::Return(Some(call.typed())).at(None));
-			let method = self.method(sym, method.name.clone());
-			self.program.methods.entry(sym).or_default().push(ts::Function {
-				sym: method,
-				params,
-				ret,
-				body,
-				loc: None,
-				doc: None,
-			});
 		}
 		Some(class)
+	}
+
+	/// The method `index` of the object of `principal` in the class wrapping a `from` held as
+	/// `held`, which calls the type's impl, made the first time.
+	fn class_method(&mut self, principal: DefId, index: usize, from: Ty<'tcx>, held: Held, span: Span) {
+		let tcx = self.tcx;
+		let Class { sym, v } = self.object_classes[&(from, held)];
+		let method = self.objects[&principal].methods[index].clone();
+		match self.class_methods.entry((sym, method.name.clone())) {
+			Entry::Occupied(called) if *called.get() == method.def_id => return,
+			Entry::Occupied(_) => {
+				let msg = format!(
+					"`{from}` as `dyn {}`, whose class has another trait's method named `{}`, which is not supported yet",
+					tcx.def_path_str(principal),
+					method.name
+				);
+				self.err(span, msg);
+				return;
+			}
+			Entry::Vacant(entry) => {
+				entry.insert(method.def_id);
+			}
+		}
+		let args = method_args(tcx, method.def_id, from);
+		let sig = self.sig(method.def_id, args);
+		let Some(receiver) = self.receiver(sig.inputs()[0], from, held, Expr::This.field(v)) else {
+			let msg = format!(
+				"`dyn {}` with the receiver `{}`, which is not supported yet",
+				tcx.def_path_str(principal),
+				sig.inputs()[0]
+			);
+			self.err(span, msg);
+			return;
+		};
+		let mut b = Body::new(self);
+		let params: Vec<Param> = sig.inputs()[1..]
+			.iter()
+			.map(|input| Param {
+				name: b.fresh("a"),
+				ty: Some(b.t.ty(*input, span)),
+			})
+			.collect();
+		let values = params.iter().map(|p| Expr::ident(&p.name));
+		let mut body = Vec::new();
+		let call = b.call_def(
+			method.def_id,
+			args,
+			[receiver].into_iter().chain(values).collect(),
+			span,
+			&mut body,
+		);
+		let ret = self.ret_ty(sig.output(), span);
+		body.push(StmtKind::Return(Some(call.typed())).at(None));
+		let method = self.method(sym, method.name);
+		self.program.methods.entry(sym).or_default().push(ts::Function {
+			sym: method,
+			params,
+			ret,
+			body,
+			loc: None,
+			doc: None,
+		});
 	}
 
 	/// The class wrapping a `from` held as `held`, with no trait's methods yet: in `lib.ts`,
@@ -434,6 +494,22 @@ pub fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
 	ty.is_trait()
 }
 
+/// What `ty` holds, if it is a `ManuallyDrop`.
+fn manually_dropped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => Some(args.type_at(0)),
+		_ => None,
+	}
+}
+
+/// `ptr`, a reference or box, pointing at `pointee` instead.
+fn repoint<'tcx>(tcx: TyCtxt<'tcx>, ptr: Ty<'tcx>, pointee: Ty<'tcx>) -> Ty<'tcx> {
+	match *ptr.kind() {
+		ty::Ref(region, _, mutability) => Ty::new_ref(tcx, region, pointee, mutability),
+		_ => Ty::new_box(tcx, pointee),
+	}
+}
+
 /// The trait of the trait object `ty`.
 fn principal(ty: Ty<'_>) -> Option<DefId> {
 	match ty.kind() {
@@ -455,10 +531,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// A call of the trait method `def_id` on a trait object, `args[0]`, through the method
 	/// its object has.
 	pub fn virtual_call(&mut self, def_id: DefId, object: Ty<'tcx>, mut args: Vec<Expr>, span: Span) -> Expr {
-		let Some(found) = self.t.object(object, span) else {
+		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
-		};
-		let Some(method) = found.methods.iter().find(|m| m.def_id == def_id) else {
+		}
+		let principal = principal(object).expect("an object's trait");
+		let methods = &self.t.objects[&principal].methods;
+		let Some(index) = methods.iter().position(|m| m.def_id == def_id) else {
 			let tcx = self.t.tcx;
 			if tcx.trait_of_assoc(def_id).is_some_and(|tr| is_any(tcx, tr)) {
 				let msg = format!(
@@ -472,22 +550,27 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 				format!("`{}` is not a method of `{object}`", self.t.tcx.def_path_str(def_id)),
 			);
 		};
+		let name = methods[index].name.clone();
+		self.t.hold(principal, index, object, span);
 		let receiver = args.remove(0);
-		receiver.member(method.name.clone()).call(args)
+		receiver.member(name).call(args)
 	}
 
 	/// `value`, a `&T`, `&mut T`, or `Box<T>`, unsized to `to`, the same pointer to a trait
 	/// object.
 	pub fn object_of(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.t.tcx;
 		let unsupported = |b: &mut Self| b.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return unsupported(self);
 		};
+		// A `ManuallyDrop` is what it holds, which a box of it never drops.
+		if let (Some(held), Some(object)) = (manually_dropped(tcx, pointee), manually_dropped(tcx, object)) {
+			let (from, to) = (repoint(tcx, from, held), repoint(tcx, to, object));
+			return self.object_of(value, from, to, span);
+		}
 		if !object.is_trait() {
-			let view = match from.is_raw_ptr() {
-				true => None,
-				false => self.tail_object(value, pointee, object, from.is_box(), span),
-			};
+			let view = self.tail_object(value, pointee, object, from.is_box(), span);
 			return view.unwrap_or_else(|| unsupported(self));
 		}
 		// A box holds one as a `Uint8Array` and a reference as an `rt.ByteSlice`, which one
@@ -550,7 +633,54 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		}
 		match to.builtin_deref(true) {
 			Some(object) if self.t.dyn_iter(object).is_some() => self.dyn_iter(from, to, value, span),
+			Some(object) if self.t.dyn_future(object).is_some() => self.dyn_future(from, to, value, span),
 			_ => self.object_of(value, from, to, span),
+		}
+	}
+
+	/// `p`, a `from` raw pointer, unsized to `to`, unless it is null or dangling, which stays
+	/// itself: what a box of the object it points at unsizes to, which drops it as the box
+	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to. One
+	/// that is the `rt.Place` of a library value, such as a cell, unsizes to the place of
+	/// what a box of the value there unsizes to as each read finds it, since it may be
+	/// uninitialized or replaced until then.
+	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.t.tcx;
+		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
+			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
+		};
+		let erased = tcx.lifetimes.re_erased;
+		let (ptr_from, ptr_to) = match self.t.needs_place(pointee) {
+			true => (
+				Ty::new_mut_ref(tcx, erased, pointee),
+				Ty::new_mut_ref(tcx, erased, object),
+			),
+			false => (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object)),
+		};
+		let read = !self.t.needs_place(pointee) && self.t.raw_place(from).is_some();
+		if read && (self.t.raw_place(to).is_none() || self.t.needs_place(object)) {
+			return self.err(
+				span,
+				format!(
+					"a coercion of `{from}` to `{to}`, whose object would hold the value there as it is made, not as it is read, which is not supported yet"
+				),
+			);
+		}
+		let name = self.fresh("p");
+		let mut body = Vec::new();
+		let made = self.unsize(Expr::ident(&name), ptr_from, ptr_to, span, &mut body);
+		let param = Param { name, ty: None };
+		let ty = self.t.ty(ptr_to, span);
+		let make = match body.is_empty() {
+			true => Expr::Lambda(vec![param], Box::new(made)),
+			false => {
+				body.push(StmtKind::Return(Some(made)).at(None));
+				Expr::Arrow(vec![param], ty, body)
+			}
+		};
+		match read {
+			true => Expr::rt("rawUnsizePlace", vec![p, make]),
+			false => Expr::rt("rawUnsize", vec![p, make]),
 		}
 	}
 
@@ -575,6 +705,11 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 				let held = (from_args.type_at(0), to_args.type_at(0));
 				let place = Expr::rt("valuePlace", vec![v.clone()]);
 				(Key::Name("value".into()), v.clone().member("value"), place, held)
+			}
+			// `rt.Cell`, a `Cell`'s or an `UnsafeCell`'s, is the place of what it holds.
+			Some(Std::Cell) => {
+				let held = (from_args.type_at(0), to_args.type_at(0));
+				(Key::Name("v".into()), v.clone().member("v"), v.clone(), held)
 			}
 			None if adt.is_struct() && self.t.own(adt.did()) => {
 				let last = adt
@@ -607,10 +742,6 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			_ => return None,
 		};
 		let (field_from, field_to) = held;
-		// A future polled in place through a struct is not supported yet.
-		if self.t.dyn_future(field_to).is_some() {
-			return None;
-		}
 		let lent = match self.t.needs_place(field_from) {
 			true => lent,
 			false => read,
@@ -621,7 +752,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			Ty::new_mut_ref(tcx, erased, field_to),
 		);
 		let mut body = Vec::new();
-		let object = self.unsize(lent, ref_from, ref_to, span, &mut body);
+		// A future made over the field drops it, as a struct's glue drops its last field,
+		// and polls it in place.
+		let object = match self.t.dyn_future(field_to) {
+			Some(_) => self.future_object(field_from, lent, false, true, span),
+			None => self.unsize(lent, ref_from, ref_to, span, &mut body),
+		};
 		let param = Param {
 			name,
 			ty: Some(self.t.ty(from, span)),

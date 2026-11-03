@@ -163,9 +163,8 @@ impl Rng {
 	}
 }
 
-/// The inputs rust2-ts's differential test runs: every op with every short tail, each
-/// u64 boundary through the first `ops` ops with each of `selectors` second bytes, and
-/// `count` random ones.
+/// Every op with every short tail, each u64 boundary through the first `ops` ops with each
+/// of `selectors` second bytes, and `count` random ones from one stream.
 fn cases(ops: u8, selectors: u8, count: usize) -> Vec<Vec<u8>> {
 	let mut cases = vec![Vec::new()];
 	for op in 0..=255u8 {

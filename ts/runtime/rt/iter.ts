@@ -3121,6 +3121,8 @@ class ZipFold<A, B> extends Iter<[A, B]> {
 class TrustedZipIter<A, B> extends ZipIter<A, B> {
 	private index = 0;
 	private end: number;
+	/** Whether both sides hold just the pairs left, as a read from the back trims them to and reading pairs keeps. */
+	private even = false;
 	/** Whether each side may have side effects. */
 	private readonly effects: readonly [boolean, boolean];
 	/** Each side as it reads it by index. */
@@ -3140,6 +3142,7 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		const it = new TrustedZipIter(this.a.clone(h?.i), this.b.clone(h?.o), this.effects, this.dropA, this.dropB);
 		it.index = this.index;
 		it.end = this.end;
+		it.even = this.even;
 		return it;
 	}
 
@@ -3183,9 +3186,12 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 	 */
 	override nextBack(): [A, B] | Done {
 		if (this.index >= this.end) return DONE;
-		const left = this.end - this.index;
-		trim(this.a, this.a.len() - left, this.effects[0], this.dropA);
-		trim(this.b, this.b.len() - left, this.effects[1], this.dropB);
+		if (!this.even) {
+			const left = this.end - this.index;
+			trim(this.a, this.a.len() - left, this.effects[0], this.dropA);
+			trim(this.b, this.b.len() - left, this.effects[1], this.dropB);
+			this.even = true;
+		}
 		this.end--;
 		return [this.ia.nextBack() as A, this.ib.nextBack() as B];
 	}
@@ -3196,13 +3202,19 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		if (a === this.a && b === this.b) return this;
 		const back = (): [A, B] | Done => {
 			if (this.index >= this.end) return DONE;
-			const left = this.end - this.index;
-			a.advanceBackBy(this.a.len() - left);
-			b.advanceBackBy(this.b.len() - left);
+			if (!this.even) {
+				const left = this.end - this.index;
+				a.advanceBackBy(this.a.len() - left);
+				b.advanceBackBy(this.b.len() - left);
+				this.even = true;
+			}
 			this.end--;
 			return [a.nextBack() as A, b.nextBack() as B];
 		};
-		const skip = (n: number) => void (this.end -= n);
+		const skip = (n: number) => {
+			this.end -= n;
+			this.even = false;
+		};
 		return new Indexed(() => this.next(), back, skip);
 	}
 
@@ -3224,6 +3236,7 @@ class TrustedZipIter<A, B> extends ZipIter<A, B> {
 		trim(this.a, this.a.len() - left, false, this.dropA);
 		trim(this.b, this.b.len() - left, false, this.dropB);
 		this.end -= skip;
+		this.even = true;
 		return n - skip;
 	}
 

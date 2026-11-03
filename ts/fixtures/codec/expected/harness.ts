@@ -18,25 +18,25 @@ import * as Probe from "./lite/probe.Probe.ts";
 import type * as lite_version_Version from "./lite/version.Version.ts";
 
 /**
- * Each case, which the first byte picks modulo their count, so a case added at the end
- * moves no other.
+ * Each case's name and what it runs. The first byte picks one modulo their count, so a
+ * case added at the end moves no other.
  */
-export function cases(): Array<(a0: rt.ByteSlice, a1: rt.ByteVec) => undefined> {
-	return [(a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
+export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] {
+	return [["decode_script", (a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
 		decodeScript(a0.data, a0.start, a0.length, a1);
-	}, (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["encode_script", (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		encodeScript(a02.data, a02.start, a02.length, a12);
-	}, zigzag as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, sizes as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined, (a03: rt.ByteSlice, a13: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["zigzag", zigzag as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["sizes", sizes as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["roundtrip", (a03: rt.ByteSlice, a13: rt.ByteVec): undefined => {
 		roundtrip$coding_version_Versions(a03.data, a03.start, a03.length, a13);
-	}, (a04: rt.ByteSlice, a14: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["roundtrip_lite::<Group>", (a04: rt.ByteSlice, a14: rt.ByteVec): undefined => {
 		roundtripLite$lite_group_Group(a04.data, a04.start, a04.length, a14);
-	}, (a05: rt.ByteSlice, a15: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["roundtrip_lite::<Probe>", (a05: rt.ByteSlice, a15: rt.ByteVec): undefined => {
 		roundtripLite$lite_probe_Probe(a05.data, a05.start, a05.length, a15);
-	}, (a06: rt.ByteSlice, a16: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["encode_messages", (a06: rt.ByteSlice, a16: rt.ByteVec): undefined => {
 		encodeMessages(a06.data, a06.start, a06.length, a16);
-	}, (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["errors", (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
 		errors(a07.data, a07.start, a07.length, a17);
-	}];
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
 }
 
 /** Run one case. */
@@ -44,8 +44,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	const out: rt.ByteVec = new rt.ByteVec();
 	if (input.length !== 0) {
 		const op: rt.u8 = input.data[input.start];
-		const cases_: Array<(a0: rt.ByteSlice, a1: rt.ByteVec) => undefined> = cases();
-		cases_[rt.idx(cases_, rt.usizeRem(op as rt.usize, cases_.length))](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
+		const cases_: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] = cases();
+		cases_[rt.idx(cases_, rt.usizeRem(op as rt.usize, cases_.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
 		return out;
 	}
 	return out;
