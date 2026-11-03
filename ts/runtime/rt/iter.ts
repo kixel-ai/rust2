@@ -1054,6 +1054,38 @@ export function fmtFlatten<S, I>(it: Iter<unknown>, f: Formatter, name: string, 
 	return fmtDebugStructFields(f, name, ["inner"], [(f) => fmtDebugStructFields(f, "FlattenCompat", ["iter", "frontiter", "backiter"], fields)]);
 }
 
+/** `Debug` of a `Successors`: the item it yields next, if any. */
+export function fmtSuccessors<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>): FmtResult {
+	const s = it as SuccessorsIter<T>;
+	const next = (f: Formatter): FmtResult => (s.item === s.none ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(s.item as T, f)]));
+	return fmtDebugStructFields(f, "Successors", ["next"], [next]);
+}
+
+/**
+ * `Debug` of a slice's `Windows`, `Chunks`, `ChunksExact`, `RChunks`, or `RChunksExact`,
+ * `name`: what its parts left cover by `slice`, an exact one's remainder, and its size.
+ */
+export function fmtParts<S>(it: Iter<unknown>, f: Formatter, slice: Debug<S>, name: string): FmtResult {
+	const p = it as PartsIter<S>;
+	const [v, size]: Fmt[] = [(f) => slice(p.rest(), f), (f) => usizeDebug(p.size, f)];
+	if (name === "Windows") return fmtDebugStructFields(f, name, ["v", "size"], [v, size]);
+	if (!name.endsWith("Exact")) return fmtDebugStructFields(f, name, ["v", "chunk_size"], [v, size]);
+	return fmtDebugStructFields(f, name, ["v", "rem", "chunk_size"], [v, (f) => slice(p.remainder(), f), size]);
+}
+
+/**
+ * `Debug` of a slice's `Split` or one of its forms, `name`: what is left to split by
+ * `slice`, which a `&mut` one gives up as it finishes if `taken`, and whether it has
+ * finished; inside its `GenericSplitN` beside its count, under `n`, for a `splitn`.
+ */
+export function fmtSplit<S>(it: Iter<unknown>, f: Formatter, slice: Debug<S>, name: string, taken: boolean, n?: string): FmtResult {
+	const s = it as SplitIter<S, unknown>;
+	const split = (f: Formatter): FmtResult => fmtDebugStructFields(f, name, ["v", "finished"], [(f) => slice(s.rest(taken), f), (f) => fmtBool(s.finished, f)]);
+	if (n === undefined) return split(f);
+	const generic = (f: Formatter): FmtResult => fmtDebugStructFields(f, "GenericSplitN", ["iter", "count"], [split, (f) => usizeDebug(s.count as number, f)]);
+	return fmtDebugStructFields(f, n, ["inner"], [generic]);
+}
+
 // Consumers. Each that takes an iterator by value that `drops` takes it as std's does: by
 // its own `fold` where std's folds, which drops what it holds as it goes, or as `take`
 // says, and else by `next`, dropping it once done.
@@ -2020,7 +2052,7 @@ class SliceMutIter<T> extends Iter<Place<T>> {
 class PartsIter<S> extends Iter<S> {
 	private readonly s: S;
 	private readonly length: number;
-	private readonly size: number;
+	readonly size: number;
 	private readonly step: number;
 	private readonly count: number;
 	/** Whether the first part is at the back of the slice, as `rchunks`' is. */
@@ -2029,6 +2061,8 @@ class PartsIter<S> extends Iter<S> {
 	private front = 0;
 	/** How many parts there are, less those taken from the back. */
 	private back: number;
+	/** Whether a read past the end emptied what it has left, as std's `nth` and `next_back` of a `Windows` do. */
+	private cleared = false;
 
 	constructor(s: S, length: number, size: number, step: number, count: number, rev: boolean, part: (s: S, start: number, end: number) => S) {
 		super();
@@ -2055,7 +2089,19 @@ class PartsIter<S> extends Iter<S> {
 		const it = new PartsIter(this.s, this.length, this.size, this.step, this.count, this.rev, this.part);
 		it.front = this.front;
 		it.back = this.back;
+		it.cleared = this.cleared;
 		return it;
+	}
+
+	/** What std's holds of the slice: what the parts it has left cover, or nothing once a read past the end emptied it. */
+	rest(): S {
+		if (this.cleared) return this.part(this.s, 0, 0);
+		if (this.rev) {
+			const start = Math.max(this.length - this.back * this.step, 0);
+			return this.part(this.s, start, Math.max(this.length - this.front * this.step, start));
+		}
+		const end = Math.min(this.back * this.step + this.size - this.step, this.length);
+		return this.part(this.s, Math.min(this.front * this.step, end), end);
 	}
 
 	/** What the parts leave over, at the end the parts don't start from. */
@@ -2069,7 +2115,19 @@ class PartsIter<S> extends Iter<S> {
 	}
 
 	override nextBack(): S | Done {
-		return this.front < this.back ? this.at(--this.back) : DONE;
+		if (this.front < this.back) return this.at(--this.back);
+		this.cleared = true;
+		return DONE;
+	}
+
+	override nth(n: number): S | Done {
+		if (n < this.len()) {
+			this.front += n;
+			return this.next();
+		}
+		this.front = this.back;
+		this.cleared = true;
+		return DONE;
 	}
 
 	override len(): number {
@@ -2086,9 +2144,11 @@ class PartsIter<S> extends Iter<S> {
 		return n - step;
 	}
 
+	/** std's reads by `next_back`, so one past the end empties it. */
 	override advanceBackBy(n: number): number {
 		const step = Math.min(n, this.back - this.front);
 		this.back -= step;
+		if (step < n) this.cleared = true;
 		return n - step;
 	}
 }
@@ -2168,6 +2228,21 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		return this.#part(this.#s, this.#start, this.#finished ? this.#start : this.#end);
 	}
 
+	/** What std's holds of the slice: what is left to split, which only a `&mut` one gives up as it finishes, if `taken`. */
+	rest(taken: boolean): S {
+		return taken ? this.asSlice() : this.#part(this.#s, this.#start, this.#end);
+	}
+
+	/** Whether it has yielded its last part. */
+	get finished(): boolean {
+		return this.#finished;
+	}
+
+	/** How many more parts a `splitn` yields. */
+	get count(): number | undefined {
+		return this.#count;
+	}
+
 	/** The rest, as the last part. */
 	#finish(): S | Done {
 		if (this.#finished) return DONE;
@@ -2241,6 +2316,10 @@ class OptionIter<T> extends Iter<T> implements Disposable {
 
 	override len(): number {
 		return this.some ? 1 : 0;
+	}
+
+	override remaining(): Iterable<T> {
+		return this.some ? [this.item as T] : [];
 	}
 
 	override clone(h?: Clones): Iter<T> {
@@ -2385,11 +2464,11 @@ class FromNext<S, T> extends Iter<T> implements Disposable {
 
 /** `Successors`, holding the item it yields next, which drops once, as `Calling` does. */
 class SuccessorsIter<T> extends Iter<T> implements Disposable {
-	private item: T | undefined | None;
+	item: T | undefined | None;
 	private readonly succ: (item: T) => T | undefined | None;
 	private readonly drop: Drop<T> | undefined;
 	/** The `Option`'s `None`. */
-	private readonly none: None | undefined;
+	readonly none: None | undefined;
 	private dropped = false;
 
 	constructor(first: T | undefined | None, succ: (item: T) => T | undefined | None, drop?: Drop<T>, none?: None) {
