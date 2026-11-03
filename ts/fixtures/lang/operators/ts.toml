@@ -1,0 +1,2 @@
+package = "lang-operators-fixture"
+roots = ["harness::run", "harness::op"]
