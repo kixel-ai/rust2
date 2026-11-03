@@ -132,7 +132,7 @@ export function adaptors(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return Uint8Array.of(b3, ~b3 & 0xff);
 					}), undefined, 2, true);
 					const copies: Uint8Array[] = rt.iterToArray(rt.iterCopied(rt.iterLend(rt.iterSlice(pairs), rt.byteSliceFrom), rt.byteSliceToArray), undefined, 2, true);
-					if (!((copies.length === 0))) {
+					if (!(copies.length === 0)) {
 						const _174: rt.ByteSlice = rt.byteSliceFrom(copies[rt.idx(copies, 0)]);
 						_174.data[_174.start] = 85;
 					}
@@ -422,7 +422,7 @@ export function peekedOthers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		});
 	};
 	const _159: (a0: rt.u8) => rt.u16[] = (b2: rt.u8): rt.u16[] => {
-		return rt.vecFromElem((((rt.u8Rem(b2, 2) as rt.u16)) << 9) & 0xffff, rt.u8Rem(b2, 3) as rt.usize, undefined);
+		return rt.vecFromElem(((rt.u8Rem(b2, 2) as rt.u16) << 9) & 0xffff, rt.u8Rem(b2, 3) as rt.usize, undefined);
 	};
 	const words: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): string => {
 		return _3(_2);
@@ -6581,7 +6581,7 @@ export function adapted(a: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 	}
 	rt.byteVecPush(out, option_mapOr$02k4ito(rt.iterPosition(new rt.RangeFrom(lo, rt.u8Step), (i2: rt.u8): boolean => {
-		return ((i2 as rt.usize)) >= rt.usizeAdd(n, lo as rt.usize);
+		return (i2 as rt.usize) >= rt.usizeAdd(n, lo as rt.usize);
 	}), 238, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}));
@@ -10310,7 +10310,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					return x159;
 				}), rt.same, true) ? 1 : 0;
 			} else if (_74 === 2) {
-				r = rt.iterLt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2142: rt.u8): rt.u8 => {
+				r = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2142: rt.u8): rt.u8 => {
 					const x156: rt.u8 = _2142;
 					const _6200: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 					rt.byteVecPush(_6200.value, x156 ^ 1);
@@ -10322,9 +10322,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					rt.byteVecPush(_6201.value, x157 ^ 2);
 					rt.refMutRelease(_6201);
 					return x157;
-				}), rt.cmp) ? 1 : 0;
+				}), rt.cmp) === -1 ? 1 : 0;
 			} else if (_74 === 3) {
-				r = rt.iterLe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2140: rt.u8): rt.u8 => {
+				const order14 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2140: rt.u8): rt.u8 => {
 					const x154: rt.u8 = _2140;
 					const _6198: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 					rt.byteVecPush(_6198.value, x154 ^ 1);
@@ -10336,9 +10336,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					rt.byteVecPush(_6199.value, x155 ^ 2);
 					rt.refMutRelease(_6199);
 					return x155;
-				}), rt.cmp) ? 1 : 0;
+				}), rt.cmp);
+				r = order14 !== undefined && order14 <= 0 ? 1 : 0;
 			} else if (_74 === 4) {
-				r = rt.iterGt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2138: rt.u8): rt.u8 => {
+				r = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2138: rt.u8): rt.u8 => {
 					const x152: rt.u8 = _2138;
 					const _6196: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 					rt.byteVecPush(_6196.value, x152 ^ 1);
@@ -10350,9 +10351,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					rt.byteVecPush(_6197.value, x153 ^ 2);
 					rt.refMutRelease(_6197);
 					return x153;
-				}), rt.cmp) ? 1 : 0;
+				}), rt.cmp) === 1 ? 1 : 0;
 			} else if (_74 === 5) {
-				r = rt.iterGe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2136: rt.u8): rt.u8 => {
+				const order13 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2136: rt.u8): rt.u8 => {
 					const x150: rt.u8 = _2136;
 					const _6194: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 					rt.byteVecPush(_6194.value, x150 ^ 1);
@@ -10364,7 +10365,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					rt.byteVecPush(_6195.value, x151 ^ 2);
 					rt.refMutRelease(_6195);
 					return x151;
-				}), rt.cmp) ? 1 : 0;
+				}), rt.cmp);
+				r = order13 !== undefined && order13 >= 0 ? 1 : 0;
 			} else if (_74 === 6) {
 				const part14 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2134: rt.u8): rt.u8 => {
 					const x148: rt.u8 = _2134;
@@ -10511,7 +10513,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				}), (_2119: rt.u8): boolean => {
 					return false;
 				});
-				r2 = rt.iterLt(rt.iterBorrow(_261), _263, rt.cmp) ? 1 : 0;
+				r2 = rt.iterCmp(rt.iterBorrow(_261), _263, rt.cmp) === -1 ? 1 : 0;
 			} else if (_238 === 3) {
 				const _271: rt.Iter<rt.u8> = a;
 				const _273: rt.Iter<rt.u8> = rt.iterSkipWhile(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(other))), (_2116: rt.u8): rt.u8 => {
@@ -10523,7 +10525,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				}), (_2117: rt.u8): boolean => {
 					return false;
 				});
-				r2 = rt.iterLe(rt.iterBorrow(_271), _273, rt.cmp) ? 1 : 0;
+				const order12 = rt.iterCmp(rt.iterBorrow(_271), _273, rt.cmp);
+				r2 = order12 !== undefined && order12 <= 0 ? 1 : 0;
 			} else if (_238 === 4) {
 				const _281: rt.Iter<rt.u8> = a;
 				const _283: rt.Iter<rt.u8> = rt.iterSkipWhile(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(other))), (_2114: rt.u8): rt.u8 => {
@@ -10535,7 +10538,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				}), (_2115: rt.u8): boolean => {
 					return false;
 				});
-				r2 = rt.iterGt(rt.iterBorrow(_281), _283, rt.cmp) ? 1 : 0;
+				r2 = rt.iterCmp(rt.iterBorrow(_281), _283, rt.cmp) === 1 ? 1 : 0;
 			} else if (_238 === 5) {
 				const _291: rt.Iter<rt.u8> = a;
 				const _293: rt.Iter<rt.u8> = rt.iterSkipWhile(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(other))), (_2112: rt.u8): rt.u8 => {
@@ -10547,7 +10550,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				}), (_2113: rt.u8): boolean => {
 					return false;
 				});
-				r2 = rt.iterGe(rt.iterBorrow(_291), _293, rt.cmp) ? 1 : 0;
+				const order11 = rt.iterCmp(rt.iterBorrow(_291), _293, rt.cmp);
+				r2 = order11 !== undefined && order11 >= 0 ? 1 : 0;
 			} else if (_238 === 6) {
 				const _303: rt.Iter<rt.u8> = a;
 				const _305: rt.Iter<rt.u8> = rt.iterSkipWhile(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(other))), (_2110: rt.u8): rt.u8 => {
@@ -10635,7 +10639,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				return NaN;
 			}), rt.iterSlice(b), rt.same, true) ? 1 : 0;
 		} else if (_357 === 2) {
-			r3 = rt.iterLt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2101: rt.u8): rt.f32 => {
+			r3 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2101: rt.u8): rt.f32 => {
 				const x122: rt.u8 = _2101;
 				const _7179: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 				rt.byteVecPush(_7179.value, x122 ^ 5);
@@ -10644,9 +10648,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					return Math.fround(x122);
 				}
 				return NaN;
-			}), rt.iterSlice(b), rt.f32PartialCmp) ? 1 : 0;
+			}), rt.iterSlice(b), rt.f32PartialCmp) === -1 ? 1 : 0;
 		} else if (_357 === 3) {
-			r3 = rt.iterLe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2100: rt.u8): rt.f32 => {
+			const order10 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2100: rt.u8): rt.f32 => {
 				const x121: rt.u8 = _2100;
 				const _7178: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 				rt.byteVecPush(_7178.value, x121 ^ 5);
@@ -10655,9 +10659,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					return Math.fround(x121);
 				}
 				return NaN;
-			}), rt.iterSlice(b), rt.f32PartialCmp) ? 1 : 0;
+			}), rt.iterSlice(b), rt.f32PartialCmp);
+			r3 = order10 !== undefined && order10 <= 0 ? 1 : 0;
 		} else if (_357 === 4) {
-			r3 = rt.iterGt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_299: rt.u8): rt.f32 => {
+			r3 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_299: rt.u8): rt.f32 => {
 				const x120: rt.u8 = _299;
 				const _7177: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 				rt.byteVecPush(_7177.value, x120 ^ 5);
@@ -10666,9 +10671,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					return Math.fround(x120);
 				}
 				return NaN;
-			}), rt.iterSlice(b), rt.f32PartialCmp) ? 1 : 0;
+			}), rt.iterSlice(b), rt.f32PartialCmp) === 1 ? 1 : 0;
 		} else if (_357 === 5) {
-			r3 = rt.iterGe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_297: rt.u8): rt.f32 => {
+			const order9 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_297: rt.u8): rt.f32 => {
 				const x119: rt.u8 = _297;
 				const _7176: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 				rt.byteVecPush(_7176.value, x119 ^ 5);
@@ -10677,7 +10682,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 					return Math.fround(x119);
 				}
 				return NaN;
-			}), rt.iterSlice(b), rt.f32PartialCmp) ? 1 : 0;
+			}), rt.iterSlice(b), rt.f32PartialCmp);
+			r3 = order9 !== undefined && order9 >= 0 ? 1 : 0;
 		} else if (_357 === 6) {
 			const part10 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_292: rt.u8): rt.f32 => {
 				const x118: rt.u8 = _292;
@@ -10805,7 +10811,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return x102;
 					}), rt.same, true) ? 1 : 0;
 				} else if (_465 === 2) {
-					r4 = rt.iterLt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_262: rt.u8): rt.u8 => {
+					r4 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_262: rt.u8): rt.u8 => {
 						const x99: rt.u8 = _262;
 						const _6161: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6161.value, x99 ^ 7);
@@ -10816,9 +10822,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6162.value, x100 ^ 8);
 						rt.refMutRelease(_6162);
 						return x100;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === -1 ? 1 : 0;
 				} else if (_465 === 3) {
-					r4 = rt.iterLe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_259: rt.u8): rt.u8 => {
+					const order8 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_259: rt.u8): rt.u8 => {
 						const x97: rt.u8 = _259;
 						const _6159: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6159.value, x97 ^ 7);
@@ -10829,9 +10835,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6160.value, x98 ^ 8);
 						rt.refMutRelease(_6160);
 						return x98;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r4 = order8 !== undefined && order8 <= 0 ? 1 : 0;
 				} else if (_465 === 4) {
-					r4 = rt.iterGt(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_257: rt.u8): rt.u8 => {
+					r4 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_257: rt.u8): rt.u8 => {
 						const x95: rt.u8 = _257;
 						const _6157: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6157.value, x95 ^ 7);
@@ -10842,9 +10849,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6158.value, x96 ^ 8);
 						rt.refMutRelease(_6158);
 						return x96;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === 1 ? 1 : 0;
 				} else if (_465 === 5) {
-					r4 = rt.iterGe(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_252: rt.u8): rt.u8 => {
+					const order7 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_252: rt.u8): rt.u8 => {
 						const x93: rt.u8 = _252;
 						const _6155: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6155.value, x93 ^ 7);
@@ -10855,7 +10862,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6156.value, x94 ^ 8);
 						rt.refMutRelease(_6156);
 						return x94;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r4 = order7 !== undefined && order7 >= 0 ? 1 : 0;
 				} else if (_465 === 6) {
 					const part8 = rt.iterCmp(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_249: rt.u8): rt.u8 => {
 						const x91: rt.u8 = _249;
@@ -10984,7 +10992,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return x74;
 					}), rt.same, true) ? 1 : 0;
 				} else if (_603 === 2) {
-					r5 = rt.iterLt(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x71: rt.u8): rt.u8 => {
+					r5 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x71: rt.u8): rt.u8 => {
 						const _6136: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6136.value, x71 ^ 9);
 						rt.refMutRelease(_6136);
@@ -10995,9 +11003,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6137.value, x72 ^ 10);
 						rt.refMutRelease(_6137);
 						return x72;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === -1 ? 1 : 0;
 				} else if (_603 === 3) {
-					r5 = rt.iterLe(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x69: rt.u8): rt.u8 => {
+					const order6 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x69: rt.u8): rt.u8 => {
 						const _6134: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6134.value, x69 ^ 9);
 						rt.refMutRelease(_6134);
@@ -11008,9 +11016,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6135.value, x70 ^ 10);
 						rt.refMutRelease(_6135);
 						return x70;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r5 = order6 !== undefined && order6 <= 0 ? 1 : 0;
 				} else if (_603 === 4) {
-					r5 = rt.iterGt(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x67: rt.u8): rt.u8 => {
+					r5 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x67: rt.u8): rt.u8 => {
 						const _6132: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6132.value, x67 ^ 9);
 						rt.refMutRelease(_6132);
@@ -11021,9 +11030,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6133.value, x68 ^ 10);
 						rt.refMutRelease(_6133);
 						return x68;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === 1 ? 1 : 0;
 				} else if (_603 === 5) {
-					r5 = rt.iterGe(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x65: rt.u8): rt.u8 => {
+					const order5 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x65: rt.u8): rt.u8 => {
 						const _6130: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6130.value, x65 ^ 9);
 						rt.refMutRelease(_6130);
@@ -11034,7 +11043,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6131.value, x66 ^ 10);
 						rt.refMutRelease(_6131);
 						return x66;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r5 = order5 !== undefined && order5 >= 0 ? 1 : 0;
 				} else if (_603 === 6) {
 					const part6 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x63: rt.u8): rt.u8 => {
 						const _6128: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -11158,7 +11168,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return x46;
 					}), rt.same, true) ? 1 : 0;
 				} else if (_741 === 2) {
-					r6 = rt.iterLt(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x43: rt.u8): rt.u8 => {
+					r6 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x43: rt.u8): rt.u8 => {
 						const _6111: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6111.value, x43 ^ 11);
 						rt.refMutRelease(_6111);
@@ -11168,9 +11178,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6112.value, x44 ^ 12);
 						rt.refMutRelease(_6112);
 						return x44;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === -1 ? 1 : 0;
 				} else if (_741 === 3) {
-					r6 = rt.iterLe(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x41: rt.u8): rt.u8 => {
+					const order4 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x41: rt.u8): rt.u8 => {
 						const _6109: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6109.value, x41 ^ 11);
 						rt.refMutRelease(_6109);
@@ -11180,9 +11190,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6110.value, x42 ^ 12);
 						rt.refMutRelease(_6110);
 						return x42;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r6 = order4 !== undefined && order4 <= 0 ? 1 : 0;
 				} else if (_741 === 4) {
-					r6 = rt.iterGt(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x39: rt.u8): rt.u8 => {
+					r6 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x39: rt.u8): rt.u8 => {
 						const _6107: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6107.value, x39 ^ 11);
 						rt.refMutRelease(_6107);
@@ -11192,9 +11203,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6108.value, x40 ^ 12);
 						rt.refMutRelease(_6108);
 						return x40;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === 1 ? 1 : 0;
 				} else if (_741 === 5) {
-					r6 = rt.iterGe(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x37: rt.u8): rt.u8 => {
+					const order3 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x37: rt.u8): rt.u8 => {
 						const _6105: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_6105.value, x37 ^ 11);
 						rt.refMutRelease(_6105);
@@ -11204,7 +11215,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_6106.value, x38 ^ 12);
 						rt.refMutRelease(_6106);
 						return x38;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r6 = order3 !== undefined && order3 >= 0 ? 1 : 0;
 				} else if (_741 === 6) {
 					const part4 = rt.iterCmp(rt.iterMap(new rt.RangeFrom(lo, rt.u8Step), (x35: rt.u8): rt.u8 => {
 						const _6103: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
@@ -11325,7 +11337,7 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						return x18;
 					}), rt.same, true) ? 1 : 0;
 				} else if (_885 === 2) {
-					r7 = rt.iterLt(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x15: rt.u8): rt.u8 => {
+					r7 = rt.iterCmp(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x15: rt.u8): rt.u8 => {
 						const _654: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_654.value, x15 ^ 13);
 						rt.refMutRelease(_654);
@@ -11335,9 +11347,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_658.value, x16 ^ 14);
 						rt.refMutRelease(_658);
 						return x16;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === -1 ? 1 : 0;
 				} else if (_885 === 3) {
-					r7 = rt.iterLe(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x13: rt.u8): rt.u8 => {
+					const order2 = rt.iterCmp(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x13: rt.u8): rt.u8 => {
 						const _645: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_645.value, x13 ^ 13);
 						rt.refMutRelease(_645);
@@ -11347,9 +11359,10 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_649.value, x14 ^ 14);
 						rt.refMutRelease(_649);
 						return x14;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r7 = order2 !== undefined && order2 <= 0 ? 1 : 0;
 				} else if (_885 === 4) {
-					r7 = rt.iterGt(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x11: rt.u8): rt.u8 => {
+					r7 = rt.iterCmp(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x11: rt.u8): rt.u8 => {
 						const _636: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_636.value, x11 ^ 13);
 						rt.refMutRelease(_636);
@@ -11359,9 +11372,9 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_640.value, x12 ^ 14);
 						rt.refMutRelease(_640);
 						return x12;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp) === 1 ? 1 : 0;
 				} else if (_885 === 5) {
-					r7 = rt.iterGe(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x9: rt.u8): rt.u8 => {
+					const order = rt.iterCmp(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x9: rt.u8): rt.u8 => {
 						const _627: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);
 						rt.byteVecPush(_627.value, x9 ^ 13);
 						rt.refMutRelease(_627);
@@ -11371,7 +11384,8 @@ export function compares(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 						rt.byteVecPush(_631.value, x10 ^ 14);
 						rt.refMutRelease(_631);
 						return x10;
-					}), rt.cmp) ? 1 : 0;
+					}), rt.cmp);
+					r7 = order !== undefined && order >= 0 ? 1 : 0;
 				} else if (_885 === 6) {
 					const part2 = rt.iterCmp(rt.iterMap(rt.iterTake(new rt.RangeFrom(lo, rt.u8Step), data.length), (x7: rt.u8): rt.u8 => {
 						const _618: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(log);

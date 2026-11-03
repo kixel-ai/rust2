@@ -44,6 +44,8 @@ pub enum Std {
 	ParseBoolError,
 	/// `rt.ParseCharError`: `{ kind }`, its `CharErrorKind`'s name.
 	ParseCharError,
+	/// `rt.FromUtf16Error`: `{ kind }`, its `FromUtf16ErrorKind`'s name.
+	FromUtf16Error,
 	/// `rt.CharTryFromError`: why `char::try_from` a `u32` failed.
 	CharTryFromError,
 	/// `rt.TryFromCharError`: why `u8::try_from` or `u16::try_from` a `char` failed.
@@ -292,6 +294,7 @@ impl Std {
 		}
 		match tcx.item_name(did).as_str() {
 			"FromUtf8Error" => return Some(Self::FromUtf8Error),
+			"FromUtf16Error" => return Some(Self::FromUtf16Error),
 			"TryFromIntError" => return Some(Self::TryFromIntError),
 			"ParseFloatError" => return Some(Self::ParseFloatError),
 			"TryFromFloatSecsError" => return Some(Self::TryFromFloatSecsError),
@@ -607,8 +610,8 @@ pub fn referent<'tcx>(
 	Some(tcx.mk_args(&args))
 }
 
-/// A comparison an impl of `PartialEq` or `PartialOrd` inherits from its trait, as a
-/// derived one inherits all but `eq` and `partial_cmp`.
+/// A comparison an impl of `PartialEq`, `PartialOrd`, or `Iterator` inherits from its
+/// trait, as a derived one inherits all but `eq` and `partial_cmp`.
 #[derive(Clone, Copy)]
 pub enum Inherited {
 	Ne,
@@ -619,30 +622,31 @@ pub enum Inherited {
 }
 
 impl Inherited {
-	/// The comparison `instance` is, if it is the trait's own default.
-	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<Self> {
+	/// The comparison `instance` is, if it is the trait's own default, and what it calls,
+	/// with the same generic arguments and operands: the trait's `eq` or `partial_cmp`.
+	pub fn of(tcx: TyCtxt<'_>, instance: Instance<'_>) -> Option<(Self, DefId)> {
 		let ty::InstanceKind::Item(did) = instance.def else {
 			return None;
 		};
 		let tr = tcx.trait_of_assoc(did)?;
 		let inherited = match (tcx.get_diagnostic_name(tr)?.as_str(), tcx.item_name(did).as_str()) {
-			("PartialEq", "ne") => Self::Ne,
-			("PartialOrd", "lt") => Self::Lt,
-			("PartialOrd", "le") => Self::Le,
-			("PartialOrd", "gt") => Self::Gt,
-			("PartialOrd", "ge") => Self::Ge,
+			("PartialEq" | "Iterator", "ne") => Self::Ne,
+			("PartialOrd" | "Iterator", "lt") => Self::Lt,
+			("PartialOrd" | "Iterator", "le") => Self::Le,
+			("PartialOrd" | "Iterator", "gt") => Self::Gt,
+			("PartialOrd" | "Iterator", "ge") => Self::Ge,
 			_ => return None,
 		};
-		Some(inherited)
-	}
-
-	/// What the default calls, with the same generic arguments and operands: `eq` or
-	/// `partial_cmp`.
-	pub fn via(self, tcx: TyCtxt<'_>) -> DefId {
-		match self {
-			Self::Ne => super::collections::trait_fn(tcx, "PartialEq", "eq"),
-			_ => super::collections::trait_fn(tcx, "PartialOrd", "partial_cmp"),
-		}
+		let via = match inherited {
+			Self::Ne => "eq",
+			_ => "partial_cmp",
+		};
+		let via = tcx
+			.associated_items(tr)
+			.filter_by_name_unhygienic(rustc_span::Symbol::intern(via))
+			.next()?
+			.def_id;
+		Some((inherited, via))
 	}
 
 	/// The comparison, from what `via` returned: `!eq`, or whether the `partial_cmp` is
@@ -947,9 +951,14 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("RangeInclusive", "new")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
-		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate` and
-		// `clear` cut.
-		("Vec", "retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear") => &[0],
+		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
+		// `clear`, and a shrinking `resize` and `resize_with` cut, and the value `resize` then
+		// has no slot for.
+		(
+			"Vec",
+			"retain" | "retain_mut" | "dedup" | "dedup_by" | "dedup_by_key" | "truncate" | "clear" | "resize"
+			| "resize_with",
+		) => &[0],
 		// A slice's `fill`, `fill_with`, and `clone_from_slice` drop each element they write
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
@@ -1466,17 +1475,24 @@ fn mapping<'tcx>(
 			{
 				return Some(cow_cloned(b, "IntoOwned", value, elem, span));
 			}
+			// A `Vec` of a deque's items keeps its capacity.
+			if let ty::Adt(_, vargs) = to.kind()
+				&& b.t.std_of(to) == Some(Std::Vec)
+				&& b.t.std_of(from) == Some(Std::VecDeque)
+			{
+				let v = Expr::rt("dequeToVec", vec![value]);
+				return Some(match is_u8(vargs.type_at(0)) {
+					true => Expr::rt("byteVecFromVec", vec![v]),
+					false => v,
+				});
+			}
 			// A `Vec` clones what a slice or an array borrows, as `to_vec` does.
 			if let ty::Adt(_, vargs) = to.kind()
 				&& b.t.std_of(to) == Some(Std::Vec)
 				&& let ty::Ref(_, s, _) = targ(gargs, 1).kind()
 				&& (s.is_slice() || s.is_array())
 			{
-				let elem = vargs.type_at(0);
-				return match is_u8(elem) {
-					true => Some(Expr::rt("byteSliceToByteVec", vec![value])),
-					false => vec_clone(b, value, elem, span),
-				};
+				return Some(slice_to_vec(b, value, vargs.type_at(0), span));
 			}
 			// A boxed slice clones what it borrows, moves an array's or a `Vec`'s elements, owns
 			// the `Vec` a `Cow` gives up, and takes a boxed text's bytes.
@@ -1700,9 +1716,13 @@ fn mapping<'tcx>(
 				}
 				ty::Adt(..) if string(tcx, ty) => value,
 				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Vec) => {
-					return vec_clone(b, value, args.type_at(0), span);
+					return Some(vec_clone(b, value, args.type_at(0), span));
 				}
 				_ if let Some(elem) = cow_slice(tcx, ty) => cow_cloned(b, "Clone", value, elem, span),
+				// Each element cloned in order, as `[T; N]`'s `Clone` does.
+				ty::Array(elem, _) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => {
+					slice_clone(b, value, *elem, span)
+				}
 				ty::Tuple(tys) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => {
 					let clones = tys.iter().map(|t| super::collections::clone_fn(b, t, span)).collect();
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
@@ -2081,15 +2101,15 @@ fn mapping<'tcx>(
 			if is_u8(elem) {
 				return Some(rt2(args, "byteSlice", "fill"));
 			}
-			let clone = clone_into(b, elem, "slice::fill", span);
+			let fns = clone_from_fns(b, elem, span);
 			let mut values = args;
 			// A value its own clone, which nothing drops, is JS's `fill`.
-			if matches!(&clone, Expr::Lit(l) if l == "undefined") && !b.t.drops(elem) {
+			if fns.is_empty() {
 				let slice = values.remove(0);
 				return Some(slice.method("fill", values));
 			}
-			values.push(clone);
-			Expr::rt("sliceFill", values)
+			// Its own droppers, before what clones over a slot.
+			return Some(Expr::rt("sliceFill", [values, fns].concat()));
 		}
 		("slice", "fill_with" | "rotate_left" | "rotate_right") => match is_u8(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
@@ -2109,20 +2129,15 @@ fn mapping<'tcx>(
 		}
 		("slice", "clone_from_slice") => {
 			let mut values = args;
-			values.push(clone_into(b, targ(gargs, 0), "slice::clone_from_slice", span));
-			Expr::rt("sliceCloneFromSlice", values)
+			let fns = clone_from_fns(b, targ(gargs, 0), span);
+			// What clones one, which the runtime takes as `undefined` where it is the value.
+			values.extend(fns.is_empty().then(Expr::undefined));
+			return Some(Expr::rt("sliceCloneFromSlice", [values, fns].concat()));
 		}
 		("PartialEq", "eq") if byte_slice(targ(gargs, 0)) && byte_slice(targ(gargs, 1)) => {
 			Expr::rt("byteSliceEq", args)
 		}
-		("slice", "to_vec") => {
-			let elem = targ(gargs, 0);
-			let slice = args.pop()?;
-			match is_u8(elem) {
-				true => Expr::rt("byteSliceToByteVec", vec![slice]),
-				false => return vec_clone(b, slice, elem, span),
-			}
-		}
+		("slice", "to_vec") => slice_to_vec(b, args.pop()?, targ(gargs, 0), span),
 		("slice", "last" | "swap") => match is_u8(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
@@ -2315,8 +2330,34 @@ fn mapping<'tcx>(
 			}
 			Expr::rt("vecExtendFromSlice", values)
 		}
-		("Vec", "insert" | "remove" | "swap_remove") if is_u8(targ(gargs, 0)) => {
+		("Vec", "insert" | "remove" | "swap_remove" | "append" | "resize" | "resize_with" | "split_off")
+			if is_u8(targ(gargs, 0)) =>
+		{
 			rt2(args, "byteVec", &super::camel(&name))
+		}
+		// Each reserves as std's does, by the size of the elements, and `resize` clones its
+		// value for each slot but the last.
+		("Vec", "append" | "resize" | "resize_with" | "split_off") => {
+			let elem = targ(gargs, 0);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			if name == "resize" {
+				values.push(super::collections::clone_fn(b, elem, span));
+			}
+			rt2(values, "vec", &super::camel(&name))
+		}
+		("Vec", "extend_from_within") => {
+			let elem = targ(gargs, 0);
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.push(ranged.bounds.clone());
+			return Some(ranged.after(match is_u8(elem) {
+				true => Expr::rt("byteVecExtendFromWithin", args),
+				false => {
+					args.push(super::iter::size_of(b, elem, span));
+					args.push(super::collections::clone_fn(b, elem, span));
+					Expr::rt("vecExtendFromWithin", args)
+				}
+			}));
 		}
 		("Vec", "insert" | "remove" | "swap_remove" | "truncate") => rt2(args, "vec", &super::camel(&name)),
 		("Vec", "clear") => {
@@ -2415,6 +2456,11 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
+		(
+			"String",
+			"from_utf16" | "from_utf16_lossy" | "from_utf16le" | "from_utf16le_lossy" | "from_utf16be"
+			| "from_utf16be_lossy",
+		) => Expr::rt_of("string", &super::camel(&name)).call(args),
 		// `str::from_utf8` is `core::str::converts::from_utf8`, or `str`'s own.
 		("converts" | "str", "from_utf8") => Expr::rt("strFromUtf8", args),
 		("Utf8Error", "valid_up_to") => args.pop()?.member("validUpTo"),
@@ -2822,38 +2868,101 @@ fn owned<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, ty: Ty<'tcx>, span: Span
 }
 
 /// The `Box<[elem]>` that `clone_from` of `source` leaves in place of `slot`: `slot`, each
-/// element written by its `clone_from` as `clone_from_slice` writes them, where the lengths
-/// match, and else a clone of `source`, made before `slot`'s elements drop.
+/// element cloned over its own as `clone_from_slice` clones them, where the lengths match,
+/// and else a clone of `source`, made before `slot`'s elements drop.
 pub(super) fn box_slice_clone_from<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	slot: Expr,
 	source: Expr,
 	elem: Ty<'tcx>,
 	span: Span,
-) -> Option<Expr> {
+) -> Expr {
 	if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
-		return Some(Expr::rt("byteBoxSliceCloneFrom", vec![slot, source]));
+		return Expr::rt("byteBoxSliceCloneFrom", vec![slot, source]);
 	}
-	let clone = clone_into(b, elem, "Box::clone_from", span);
-	let drop = b.t.droppers([elem], span)?;
-	let values = super::iter::tail(vec![slot, source], [vec![clone], drop].concat());
-	Some(Expr::rt("boxSliceCloneFrom", values))
+	let fns = clone_from_fns(b, elem, span);
+	Expr::rt("boxSliceCloneFrom", [vec![slot, source], fns].concat())
 }
 
-/// What clones an `elem` into a slot of a slice, as `fill` and `clone_from_slice` do by
-/// `clone_from`: a copy for a `TrivialClone`, or else `clone_fn`, where `clone_from` does
-/// as `*self = source.clone()` does. Refused for any other `clone_from`, naming `path`.
-fn clone_into<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, path: &str, span: Span) -> Expr {
-	if super::iter::implements(b.t, elem, "TrivialClone") {
-		return b.t.copy_fn(elem, span).unwrap_or_else(Expr::undefined);
+/// What `clone_from` of `source` leaves over `old`, a `ty` whose `clone_from` is std's own
+/// over what it holds, as `clone_from_clones` says it is not: `old` itself for an array or
+/// a `Vec`, written in place. Refused for any other `clone_from`.
+pub(super) fn clone_from<'tcx>(b: &mut Body<'_, '_, 'tcx>, old: Expr, source: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	match std_clone_from(b, ty, span) {
+		Ok((name, fns)) => Expr::rt(name, [vec![old, source], fns].concat()),
+		Err(refused) => refused,
 	}
-	if !clone_from_clones(b.t, elem) {
-		return b.err(
+}
+
+/// An `rt.CloneFrom` of a `ty` whose `clone_from` is not `*self = source.clone()`: the
+/// crate's own, or std's over what it holds.
+fn clone_from_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
+	let tcx = b.t.tcx;
+	let own = unboxed(b.t, ty);
+	let clone_from = super::collections::trait_fn(tcx, "Clone", "clone_from");
+	let args = tcx.mk_args(&[own.into()]);
+	if b.t.translated(clone_from, args) {
+		let name = match b.t.needs_place(own) {
+			true => "cloneFromPlaceFn",
+			false => "cloneFromFn",
+		};
+		return Expr::rt(name, vec![b.fn_value(clone_from, args, span)]);
+	}
+	match std_clone_from(b, ty, span) {
+		Ok((name, fns)) => Expr::rt(format!("{name}Fn"), fns),
+		Err(refused) => refused,
+	}
+}
+
+/// The runtime's `clone_from` of a `ty` whose `clone_from` is std's own over what it holds,
+/// and what it takes after the value it writes over and its source.
+fn std_clone_from<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	ty: Ty<'tcx>,
+	span: Span,
+) -> Result<(&'static str, Vec<Expr>), Expr> {
+	let own = unboxed(b.t, ty);
+	if let ty::Array(elem, _) = own.kind() {
+		return Ok(("sliceCloneFromSlice", clone_from_fns(b, *elem, span)));
+	}
+	if let Some(elem) = box_slice(b.t.tcx, own) {
+		return Ok(("boxSliceCloneFrom", clone_from_fns(b, elem, span)));
+	}
+	match own.kind() {
+		ty::Adt(_, args) if b.t.std_of(own) == Some(Std::Vec) => {
+			let elem = args.type_at(0);
+			let size = super::iter::size_of(b, elem, span);
+			Ok(("vecCloneFrom", [vec![size], clone_from_fns(b, elem, span)].concat()))
+		}
+		// Of two `Some`s, what one holds clones over the other's by its own `clone_from`.
+		ty::Adt(_, args) if b.t.std_of(own) == Some(Std::Option) => {
+			let inner = args.type_at(0);
+			let clone = super::collections::clone_fn(b, inner, span);
+			let drop = b.t.dropper(inner, span);
+			let over = clone_from_fn(b, inner, span);
+			let mut fns = vec![clone, drop, over];
+			fns.extend(b.t.none_arg(inner));
+			Ok(("optionCloneFrom", fns))
+		}
+		_ => Err(b.err(
 			span,
-			format!("`{path}` of `{elem}`, whose `clone_from` is its own, which is not supported yet"),
-		);
+			format!("`clone_from` of `{ty}`, whose `clone_from` is its own, which is not supported yet"),
+		)),
 	}
-	super::collections::clone_fn(b, elem, span)
+}
+
+/// What the runtime's clones of `elem`s over others by their `clone_from` take after their
+/// own arguments: what clones one, a copy for a `TrivialClone`; what drops one; and its
+/// `rt.CloneFrom` where its `clone_from` is not `*self = source.clone()`.
+pub(super) fn clone_from_fns<'tcx>(b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, span: Span) -> Vec<Expr> {
+	if super::iter::implements(b.t, elem, "TrivialClone") {
+		return b.t.copy_fn(elem, span).into_iter().collect();
+	}
+	let mut fns = vec![super::collections::clone_fn(b, elem, span), b.t.dropper(elem, span)];
+	if !clone_from_clones(b.t, elem) {
+		fns.push(clone_from_fn(b, elem, span));
+	}
+	trimmed(fns)
 }
 
 /// What `ty` holds through std's boxes of sized values, whose `clone_from` is that of what
@@ -2963,11 +3072,19 @@ pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: T
 	Expr::rt(format!("cow{op}"), args)
 }
 
+/// `to_vec` of `slice`, of `elem`s: a `Vec` of clones of them.
+pub(super) fn slice_to_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![slice]),
+		_ => vec_clone(b, slice, elem, span),
+	}
+}
+
 /// A clone of `value`, a slice, array, or `Vec` of `elem` other than bytes, as a `Vec` with
 /// room for exactly its elements, as std's allocates one.
-fn vec_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, elem: Ty<'tcx>, span: Span) -> Option<Expr> {
+fn vec_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	let v = slice_clone(b, value, elem, span);
-	Some(Expr::rt("vecExact", vec![v, super::iter::size_of(b, elem, span)]))
+	Expr::rt("vecExact", vec![v, super::iter::size_of(b, elem, span)])
 }
 
 /// A clone of `value`, a slice, array, or `Vec` of `elem` other than bytes, as an array: a

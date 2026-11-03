@@ -1,33 +1,6 @@
-//! `clone_from` and `Clone` of the crate's own, which std calls where the translation would not.
+//! Slots written whole past a pointer into them, as std writes them through the crate's own `Clone`, `Drop`, `Ord`, and traits.
 
 use crate::places::Noisy;
-
-pub fn refilled(v: &mut [Reused], r: Reused) {
-	v.fill(r);
-}
-
-/// `clone_from_slice` calls `Reused`'s own `clone_from` for each element.
-pub fn recloned(v: &mut [Reused], w: &[Reused]) {
-	v.clone_from_slice(w);
-}
-
-/// A `clone_from` of its own, which `fill` calls for each slot but the last.
-pub struct Reused(Vec<u8>);
-
-impl Clone for Reused {
-	fn clone(&self) -> Self {
-		Reused(self.0.clone())
-	}
-
-	fn clone_from(&mut self, source: &Self) {
-		self.0.clone_from(&source.0);
-	}
-}
-
-/// `clone_from` of a `Vec` whose elements' is their own.
-pub fn vec_clone_from(v: &mut Vec<Reused>, from: &Vec<Reused>) {
-	v.clone_from(from);
-}
 
 /// The tags of the first of two slots, each written whole as `fill` beside a pair of
 /// tags, then changed through a pointer to them.
@@ -121,4 +94,20 @@ fn given_slots<T: Touch + Copy>(fill: [T; 2]) -> u8 {
 		slot.write((fill, (at, !at)));
 	}
 	tagged_slots!(slots)
+}
+
+/// Slots written whole in a loop after a pointer to the first's tags is kept by a function
+/// generic over what it keeps, which sees the pointer only as a type parameter's value.
+pub fn stashed_slots(fill: [u8; 2]) -> u8 {
+	let mut slots: [std::mem::MaybeUninit<([u8; 2], (u8, u8))>; 2] = [const { std::mem::MaybeUninit::uninit() }; 2];
+	let mut kept = Vec::new();
+	for slot in slots.iter_mut() {
+		slot.write((fill, (0, 1)));
+		stash((unsafe { &raw mut slot.assume_init_mut().1 }, 0), &mut kept);
+	}
+	unsafe { (*kept[0]).0 }
+}
+
+fn stash<T: Copy>(pair: (T, u8), kept: &mut Vec<T>) {
+	kept.push(pair.0);
 }

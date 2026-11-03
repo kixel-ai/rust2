@@ -288,7 +288,8 @@ pub fn lending(std: Std) -> bool {
 /// indices of the collection's type arguments whose runtime function takes what drops each,
 /// after its own arguments: the key `insert` and `entry` are given if an equal one is there
 /// already, the key `remove` takes out, the value `or_insert` is given if one is, and what
-/// `clear`, `retain`, `truncate`, and a deque's `clone_from` and `clone_into` discard. An iterator, and `extend` and `from`, take
+/// `clear`, `retain`, `truncate`, and a deque's `resize`, `resize_with`, `clone_from`, and
+/// `clone_into` discard. An iterator, and `extend` and `from`, take
 /// theirs where they map.
 fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 	let map = matches!(std, Std::HashMap | Std::BTreeMap);
@@ -300,9 +301,10 @@ fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 		(_, "or_insert") if std == Std::Entry => &[1],
 		(_, "clear" | "retain" | "retain_mut") if map => &[0, 1],
 		(_, "clear" | "retain" | "retain_mut") if set => &[0],
-		(_, "clear" | "retain" | "retain_mut" | "truncate" | "clone_from" | "clone_into") if std == Std::VecDeque => {
-			&[0]
-		}
+		(
+			_,
+			"clear" | "retain" | "retain_mut" | "truncate" | "resize" | "resize_with" | "clone_from" | "clone_into",
+		) if std == Std::VecDeque => &[0],
 		(_, "clear") if std == Std::LinkedList => &[0],
 		(_, "clear" | "retain") if std == Std::BinaryHeap => &[0],
 		_ => return None,
@@ -399,7 +401,17 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let coll = impl_self_ty(b, call);
 	let (methods, value): (&[&str], usize) = match std {
 		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if"], 0),
-		Std::VecDeque => (&["get_mut", "front_mut", "back_mut", "iter_mut", "retain_mut"], 0),
+		Std::VecDeque => (
+			&[
+				"get_mut",
+				"front_mut",
+				"back_mut",
+				"iter_mut",
+				"range_mut",
+				"retain_mut",
+			],
+			0,
+		),
 		Std::LinkedList => (
 			&[
 				"front_mut",
@@ -1502,6 +1514,14 @@ fn deque<'tcx>(
 		(_, "swap_remove_front") => Expr::rt("dequeSwapRemove", flagged(values, false, none)),
 		(_, "swap_remove_back") => Expr::rt("dequeSwapRemove", back(values)),
 		(_, "truncate") => Expr::rt("dequeTruncate", values),
+		(_, "append") => Expr::rt("dequeAppend", values),
+		(_, "split_off") => Expr::rt("dequeSplitOff", values),
+		// `resize` clones its value for each slot but the last.
+		(_, "resize") => {
+			values.push(clone_fn(b, item, span));
+			Expr::rt("dequeResize", values)
+		}
+		(_, "resize_with") => Expr::rt("dequeResizeWith", values),
 		(_, "retain_mut") if b.t.needs_place(item) => Expr::rt("dequeRetainMut", values),
 		(_, "retain" | "retain_mut") => Expr::rt("dequeRetain", values),
 		(_, "remove") => Expr::rt("dequeRemove", values),
@@ -1512,10 +1532,14 @@ fn deque<'tcx>(
 		}
 		(_, "iter_mut") if b.t.needs_place(item) => Expr::rt("dequeIterMut", values),
 		(_, "iter" | "iter_mut") => Expr::rt("dequeIter", values),
-		(_, "range") => {
+		(_, "range" | "range_mut") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());
-			ranged.after(Expr::rt("dequeRange", values))
+			let f = match name == "range_mut" && b.t.needs_place(item) {
+				true => "dequeRangeMut",
+				false => "dequeRange",
+			};
+			ranged.after(Expr::rt(f, values))
 		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
@@ -1619,20 +1643,10 @@ fn list<'tcx>(
 			values.push(clone_fn(b, item, span));
 			Expr::rt("listClone", values)
 		}
-		// Each item by its `clone_from`, as `*item = source.clone()` does, which drops what
-		// it writes over.
+		// Each item by its `clone_from`.
 		("Clone", "clone_from") => {
-			if !library::clone_from_clones(b.t, item) {
-				let msg = format!(
-					"`clone_from` of `{coll}`, whose items' `clone_from` is their own, which is not supported yet"
-				);
-				return Some(b.err(span, msg));
-			}
-			let clone = clone_fn(b, item, span);
-			let Some(drop) = b.t.droppers([item], span) else {
-				return Some(Expr::undefined());
-			};
-			Expr::rt("listCloneFrom", super::iter::tail(values, [vec![clone], drop].concat()))
+			let fns = library::clone_from_fns(b, item, span);
+			Expr::rt("listCloneFrom", [values, fns].concat())
 		}
 		// std's specializes `extend` by another list to `append`.
 		("Extend", "extend") if library::targ(call.args, 2) == coll => Expr::rt("listAppend", values),

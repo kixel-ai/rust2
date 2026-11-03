@@ -44,18 +44,18 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::Struct(name) => name.clone(),
 		// A C enum is an `int`.
 		Ty::Enum(_) | Ty::Poll => "i32".to_string(),
-		Ty::Handle { .. } => "*const c_void".to_string(),
+		Ty::Handle { .. } => "*const ::std::ffi::c_void".to_string(),
 		Ty::Future(_) => "*mut rt::Future".to_string(),
 		Ty::Waker => "rt::Waker".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rs(inner)),
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::Fn(params, ret) => {
-			let params: Vec<String> = std::iter::once("*mut c_void".to_string())
+			let params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(params.iter().map(rs))
 				.collect();
 			format!("Option<unsafe extern \"C\" fn({}) -> {}>", params.join(", "), rs(ret))
 		}
-		Ty::Data => "*mut c_void".to_string(),
+		Ty::Data => "*mut ::std::ffi::c_void".to_string(),
 	}
 }
 
@@ -498,7 +498,6 @@ impl Gen<'_> {
 		self.line("#[cfg(feature = \"kotlin\")]\nmod jni;\n");
 		self.line("#[cfg(feature = \"python\")]\nmod python;\n");
 		self.line("#[cfg(feature = \"dart\")]\nmod dart;\n");
-		self.line("use std::ffi::c_void;\n");
 		// An export may export nothing and only enable features in the others, as a
 		// package standing in for a binding crate does, which cargo would call unused.
 		for dependency in self.dependencies.clone() {
@@ -561,11 +560,11 @@ impl Gen<'_> {
 			let name = self.abi.object(i);
 			let path = self.object_path(i);
 			self.line(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *const ::std::ffi::c_void) {{\n\tunsafe {{ rt::Object::<{path}>::free(this) }}\n}}\n"
 			));
 			if object.shared {
 				self.line(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_borrowed(this: *const ::std::ffi::c_void) -> bool {{\n\tunsafe {{ rt::Object::<{path}>::borrowed(this, \"{name}_borrowed\") }}\n}}\n"
 				));
 			}
 			let borrow = self.shared(i);
@@ -587,7 +586,7 @@ impl Gen<'_> {
 
 	/// The functions a type's std traits export; `borrow` reads the receiver `e`.
 	fn traits(&mut self, name: &str, path: &str, traits: Traits, borrow: impl Fn(&str) -> String) {
-		let handle = "*const c_void";
+		let handle = "*const ::std::ffi::c_void";
 		if traits.clone {
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_clone(this: {handle}) -> {handle} {{\n\tlet w = \"{name}_clone\";\n\tlet this = {};\n\trt::Object::new(<{path} as ::std::clone::Clone>::clone(&*this))\n}}\n",
@@ -874,11 +873,11 @@ impl Gen<'_> {
 		let callback = &self.abi.api.callbacks[i];
 		let name = self.abi.callback(i);
 		let path = self.path(&callback.path);
-		let mut table = String::from("\tpub free: Option<unsafe extern \"C\" fn(*mut c_void)>,\n");
+		let mut table = String::from("\tpub free: Option<unsafe extern \"C\" fn(*mut ::std::ffi::c_void)>,\n");
 		let mut methods = String::new();
 		for method in &callback.methods {
 			let method_name = method.name();
-			let c_params: Vec<String> = std::iter::once("*mut c_void".to_string())
+			let c_params: Vec<String> = std::iter::once("*mut ::std::ffi::c_void".to_string())
 				.chain(method.params.iter().map(|p| rs(&self.abi.ty(&p.ty))))
 				.collect();
 			let ret = rs(&self.abi.ty(&method.ok));
@@ -917,7 +916,7 @@ impl Gen<'_> {
 		}
 		self.line(format!("#[repr(C)]\npub struct {name}_vtable {{\n{table}}}\n"));
 		self.line(format!(
-			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub vtable: *const {name}_vtable,\n\tpub data: *mut c_void,\n}}\n"
+			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub vtable: *const {name}_vtable,\n\tpub data: *mut ::std::ffi::c_void,\n}}\n"
 		));
 		self.line(format!(
 			"/// The foreign implementation, which frees its data when dropped.\npub struct Foreign_{name}({name});\n\n// SAFETY: the callback's contract: its functions may be called from any thread.\nunsafe impl Send for Foreign_{name} {{}}\n// SAFETY: as above.\nunsafe impl Sync for Foreign_{name} {{}}\n\nimpl Drop for Foreign_{name} {{\n\tfn drop(&mut self) {{\n\t\tif let Some(free) = unsafe {{ (*self.0.vtable).free }} {{\n\t\t\tunsafe {{ free(self.0.data) }};\n\t\t}}\n\t}}\n}}\n"
@@ -1140,7 +1139,7 @@ impl Gen<'_> {
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
 			self.line(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later}.await;\n\t\t::std::boxed::Box::new(move |outs: &[*mut c_void], err: *mut c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later}.await;\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
 				params.join(", "),
 				self.finish(function, ("v", "rt::READY", "rt::ERROR"))
 			));

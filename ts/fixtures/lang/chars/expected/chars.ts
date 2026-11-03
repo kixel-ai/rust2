@@ -14,7 +14,7 @@ export function scalars(data: rt.ByteSlice): rt.u32[] {
 	const all: rt.u32[] = rt.vecExact([0, 127, 128, 255, 256, 2047, 2048, 55295, 55296, 56319, 56320, 57343, 57344, 65533, 65535, 65536, 1114109, 1114111, 1114112, 4294967295].slice(), 4);
 	let rest: rt.ByteSlice = data;
 	while (true) {
-		if (!((rest.length === 0))) {
+		if (!(rest.length === 0)) {
 			const buf: Uint8Array = rt.bytes(4);
 			const n: rt.usize = rt.min(rest.length, 4);
 			rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(buf), 0, n), rt.byteSliceRange(rest, 0, n));

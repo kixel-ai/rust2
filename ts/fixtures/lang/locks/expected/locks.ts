@@ -323,7 +323,7 @@ export function mapped(data: rt.ByteSlice, out: rt.ByteVec): void {
 			write = false;
 		}
 		drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(_8);
-		rt.byteVecPush(out2, ((((read ? 1 : 0)) << 1) & 0xff) | ((write ? 1 : 0)));
+		rt.byteVecPush(out2, (((read ? 1 : 0) << 1) & 0xff) | (write ? 1 : 0));
 	};
 	for (const op of rt.byteSliceView(data)) {
 		const _13: rt.u8 = rt.u8Rem(op, 4);
@@ -474,7 +474,7 @@ export function mutexMapped(data: rt.ByteSlice, out: rt.ByteVec): void {
 			number2 = false;
 		}
 		drop$Result_sync_MutexGuard_u32_sync_TryLockError_sync_MutexGuard_u32(_8);
-		rt.byteVecPush(out2, ((((tally ? 1 : 0)) << 1) & 0xff) | ((number2 ? 1 : 0)));
+		rt.byteVecPush(out2, (((tally ? 1 : 0) << 1) & 0xff) | (number2 ? 1 : 0));
 	};
 	for (const op of rt.byteSliceView(data)) {
 		const _15: rt.u8 = rt.u8Rem(op, 4);
@@ -812,7 +812,7 @@ export function held$array4_u8(lock: rt.RefCell<Uint8Array>): rt.u8 {
 		write = false;
 	}
 	drop$Result_sync_RwLockWriteGuard_array4_u8_sync_TryLockError_sync_RwLockWriteGuard_array4_u8(_7);
-	return ((((read ? 1 : 0)) << 1) & 0xff) | ((write ? 1 : 0));
+	return (((read ? 1 : 0) << 1) & 0xff) | (write ? 1 : 0);
 }
 
 /** Whether a read of `lock` would block, as 2, and whether a write would, as 1. */
@@ -833,7 +833,7 @@ export function held$locks_Tally(lock: rt.RefCell<Tally.Tally>): rt.u8 {
 		write = false;
 	}
 	drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally(_7);
-	return ((((read ? 1 : 0)) << 1) & 0xff) | ((write ? 1 : 0));
+	return (((read ? 1 : 0) << 1) & 0xff) | (write ? 1 : 0);
 }
 
 /** Whether a read of `lock` would block, as 2, and whether a write would, as 1. */
@@ -854,7 +854,7 @@ export function held$u32(lock: rt.RefCell<rt.u32>): rt.u8 {
 		write = false;
 	}
 	drop$Result_sync_RwLockWriteGuard_u32_sync_TryLockError_sync_RwLockWriteGuard_u32(_7);
-	return ((((read ? 1 : 0)) << 1) & 0xff) | ((write ? 1 : 0));
+	return (((read ? 1 : 0) << 1) & 0xff) | (write ? 1 : 0);
 }
 
 /**

@@ -1,7 +1,5 @@
 //! Values JS can't represent as Rust does.
 
-use crate::clones::Reused;
-use crate::objects::Reading;
 use crate::places::Bare;
 
 pub fn float(a: f16) -> f16 {
@@ -26,11 +24,6 @@ pub fn generic_unit(value: Option<()>) -> bool {
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()
-}
-
-/// A `Cell` whose value unsizes to a trait object, which nothing can read through.
-pub fn cell_unsized(c: &std::cell::Cell<u8>) -> &std::cell::Cell<dyn Reading> {
-	c
 }
 
 /// A union whose fields overlap in values JS keeps apart.
@@ -82,10 +75,9 @@ fn reclone<const N: usize>(a: Option<Block<N>>) -> Option<Block<N>> {
 }
 
 /// `LinkedList`'s unstable `retain`, which no mapping covers, as none does its other
-/// unstable methods; and its `clone_from` of items whose own `clone_from` it would call.
-pub fn lists(l: &mut std::collections::LinkedList<u8>, r: &mut std::collections::LinkedList<Reused>) {
+/// unstable methods.
+pub fn lists(l: &mut std::collections::LinkedList<u8>) {
 	l.retain(|x| *x > 1);
-	r.clone_from(&std::collections::LinkedList::new());
 }
 
 /// `ManuallyDrop`'s impls beyond holding a value: compared, formatted, and a constant.

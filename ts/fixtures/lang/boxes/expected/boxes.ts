@@ -342,7 +342,7 @@ export function boxes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_15 === 4) {
 		const pairs: [rt.u8, rt.u16][] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): [rt.u8, rt.u16] => {
 			const b2: rt.u8 = _2;
-			return [b2, (((b2 as rt.u16)) << 4) & 0xffff] as [rt.u8, rt.u16];
+			return [b2, ((b2 as rt.u16) << 4) & 0xffff] as [rt.u8, rt.u16];
 		}), undefined, 4, true);
 		const boxed3: [rt.u8, rt.u16][] = rt.sliceRange(pairs, 0).map(copy$tuple2_u8_u16);
 		const iter3: rt.Iter<[rt.u8, rt.u16]> = rt.iterSlice(boxed3);
@@ -823,7 +823,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.u16Mul(_216 as rt.u16, 257);
 		}), undefined, 2, true);
 		const v: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data2, 0, rt.usizeSub(data2.length, half)))), (_218: rt.u8): rt.u16 => {
-			return (((_218 as rt.u16)) << 3) & 0xffff;
+			return ((_218 as rt.u16) << 3) & 0xffff;
 		}), undefined, 2, true);
 		w = rt.boxSliceCloneFrom(w, v);
 		w.reverse();

@@ -1537,7 +1537,7 @@ export function lentValues(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 	if (_186 !== undefined) {
 		_186.data[_186.start + 1] = _186.data[_186.start + 1] ^ 128;
 	}
-	if (!((deque.n === 0))) {
+	if (!(deque.n === 0)) {
 		const _201: rt.ByteSlice = rt.byteSliceFrom(rt.dequeIndex(deque, rt.usizeSub(deque.n, 1)));
 		_201.data[_201.start] = _201.data[_201.start] ^ 1;
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceToArray(rt.byteSliceFrom(rt.dequeIndex(deque, 0)))), undefined, true);
@@ -1605,7 +1605,7 @@ export function arrays(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _4: rt.u8 = rt.u8Rem(kind, 9);
 	if (_4 === 0) {
 		keyed$u16_2_keys_arrays_closure0(data, (b8: rt.u8): rt.u16[] => {
-			return [(((rt.u8Rem(b8, 4) as rt.u16)) << 8) & 0xffff, rt.u8Rem(b8, 3) as rt.u16];
+			return [((rt.u8Rem(b8, 4) as rt.u16) << 8) & 0xffff, rt.u8Rem(b8, 3) as rt.u16];
 		}, out);
 	} else if (_4 === 1) {
 		keyed$u64_2_keys_arrays_closure1(data, (b7: rt.u8): rt.u64[] => {
@@ -1789,7 +1789,7 @@ export function keyed$Option_u8_2_keys_arrays_closure5(data: rt.ByteSlice, make:
 		const _512: Array<rt.u8 | undefined> = rt.sliceRange(k6, 0);
 		const _611: Array<rt.u8 | undefined> = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmpOption(rt.cmp))(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -2044,7 +2044,7 @@ export function keyed$bool_2_keys_arrays_closure4(data: rt.ByteSlice, make: (a0:
 		const _512: boolean[] = rt.sliceRange(k6, 0);
 		const _611: boolean[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -2299,7 +2299,7 @@ export function keyed$char_2_keys_arrays_closure3(data: rt.ByteSlice, make: (a0:
 		const _512: rt.char[] = rt.sliceRange(k6, 0);
 		const _611: rt.char[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -2554,7 +2554,7 @@ export function keyed$i32_2_keys_arrays_closure2(data: rt.ByteSlice, make: (a0: 
 		const _512: rt.i32[] = rt.sliceRange(k6, 0);
 		const _611: rt.i32[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -2809,7 +2809,7 @@ export function keyed$keys_Hop_2_keys_arrays_closure6(data: rt.ByteSlice, make: 
 		const _512: Hop.Hop[] = rt.sliceRange(k6, 0);
 		const _611: Hop.Hop[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(Hop.partialCmp$cmp_PartialOrd)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -3065,7 +3065,7 @@ export function keyed$u16_2_keys_arrays_closure0(data: rt.ByteSlice, make: (a0: 
 		const _512: rt.u16[] = rt.sliceRange(k6, 0);
 		const _611: rt.u16[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -3320,7 +3320,7 @@ export function keyed$u32_0_keys_arrays_closure7(data: rt.ByteSlice, make: (a0: 
 		const _512: rt.u32[] = rt.sliceRange(k6, 0);
 		const _611: rt.u32[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -3575,7 +3575,7 @@ export function keyed$u32_275_keys_arrays_closure8(data: rt.ByteSlice, make: (a0
 		const _512: rt.u32[] = rt.sliceRange(k6, 0);
 		const _611: rt.u32[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;
@@ -3830,7 +3830,7 @@ export function keyed$u64_2_keys_arrays_closure1(data: rt.ByteSlice, make: (a0: 
 		const _512: rt.u64[] = rt.sliceRange(k6, 0);
 		const _611: rt.u64[] = rt.sliceRange(probe, 0);
 		const order2 = rt.cmpSlice(rt.cmp)(_512, _611);
-		if (!((order2 !== undefined && order2 >= 0))) {
+		if (!(order2 !== undefined && order2 >= 0)) {
 			return rt.u8Rem(v4.v, 2) === 0;
 		}
 		return true;

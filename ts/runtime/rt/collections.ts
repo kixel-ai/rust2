@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capOf, capReserve, capReserveExact, capSet, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, Err, type FmtResult, type Formatter, fmtDebugTupleFields, fmtList, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -3043,6 +3043,12 @@ export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>): Iter<T> {
 	return dequeSlices(q, false, start, end) as Iter<T>;
 }
 
+/** `range_mut` of items JS copies: the place of each within `r`, as `range` reads them. */
+export function dequeRangeMut<T>(q: VecDeque<T>, r: Bounds<number>): Iter<Place<T>> {
+	const [start, end] = boundsRange(r, q.n);
+	return dequeSlices(q, true, start, end) as Iter<Place<T>>;
+}
+
 /** `iter_mut` of items JS copies: the place of each. */
 export function dequeIterMut<T>(q: VecDeque<T>): Iter<Place<T>> {
 	return dequeSlices(q, true, 0, q.n) as Iter<Place<T>>;
@@ -3354,6 +3360,21 @@ class VecDrain<T> extends Iter<T> implements Disposable {
 	}
 }
 
+/** `Vec::extend_from_within` of `size`-byte elements: room reserved for those within `r`, then a clone of each by `clone` pushed in order. */
+export function vecExtendFromWithin<T>(v: T[] & Capped, r: Bounds<number>, size: number, clone?: (item: T) => T): void {
+	const [start, end] = boundsRange(r, v.length);
+	vecReserve(v, end - start, size);
+	for (let i = start; i < end; i++) v.push(clone === undefined ? v[i] : clone(v[i]));
+}
+
+/** `Vec::extend_from_within` of bytes. */
+export function byteVecExtendFromWithin(v: ByteVec, r: Bounds<number>): void {
+	const [start, end] = boundsRange(r, v.length);
+	byteVecReserve(v, end - start);
+	v.data.copyWithin(v.length, start, end);
+	v.length += end - start;
+}
+
 /** `Vec::drain` of bytes. */
 export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
 	const [start, end] = boundsRange(r, v.length);
@@ -3444,6 +3465,62 @@ export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value
 	dequeClear(q, drop);
 	dequeReserve(q, src.n);
 	for (let i = 0; i < src.n; i++) q.b[at(q, q.n++)] = item(src.b[at(src, i)] as T);
+}
+
+/** `append`: room reserved for `other`'s items, which then move over in order, leaving it empty with its head at the front. */
+export function dequeAppend<T>(q: VecDeque<T>, other: VecDeque<T>): void {
+	dequeReserve(q, other.n);
+	for (let i = 0; i < other.n; i++) {
+		q.b[at(q, q.n + i)] = other.b[at(other, i)];
+		other.b[at(other, i)] = undefined;
+	}
+	q.n += other.n;
+	other.n = 0;
+	other.h = 0;
+}
+
+/**
+ * `resize` to `len`: past its length, room reserved for the rest, then `len - 1` clones of
+ * `value` by `clone` and `value` itself; else truncated, each item cut dropping in order,
+ * and then `value`.
+ */
+export function dequeResize<T>(q: VecDeque<T>, len: number, value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+	if (len <= q.n) {
+		dequeTruncate(q, len, drop);
+		drop?.(value);
+		return;
+	}
+	dequeReserve(q, len - q.n);
+	while (q.n < len - 1) q.b[at(q, q.n++)] = clone === undefined ? value : clone(value);
+	q.b[at(q, q.n++)] = value;
+}
+
+/** `resize_with` to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
+export function dequeResizeWith<T>(q: VecDeque<T>, len: number, f: () => T, drop?: (item: T) => void): void {
+	if (len <= q.n) return dequeTruncate(q, len, drop);
+	dequeReserve(q, len - q.n);
+	while (q.n < len) q.b[at(q, q.n++)] = f();
+}
+
+/** `split_off`: the items from `i` on, moved to a new deque with room for exactly them. */
+export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
+	if (i > q.n) panic("`at` out of bounds");
+	const other = dequeWithCapacity<T>(q.n - i, q.s, holdsBytes(q));
+	for (let j = i; j < q.n; j++) {
+		other.b[j - i] = q.b[at(q, j)];
+		q.b[at(q, j)] = undefined;
+	}
+	other.n = q.n - i;
+	q.n = i;
+	return other;
+}
+
+/** `Vec::from` of a deque: its items in order, with its capacity, as std's makes its buffer contiguous and keeps it, however the length then drops. */
+export function dequeToVec<T>(q: VecDeque<T>): T[] {
+	const v: T[] & Capped = [];
+	for (let i = 0; i < q.n; i++) v.push(q.b[at(q, i)] as T);
+	capHold(v, q.b.length, q.s);
+	return v;
 }
 
 // LinkedList
@@ -3738,13 +3815,18 @@ export function listClone<T>(l: LinkedList<T>, item: (value: T) => T = itself): 
 
 /**
  * `clone_from`: `l`'s items, front to back, each the clone of `source`'s beside it, which
- * drops by `f` what it replaces, as `*elem = source.clone()` does; then those past
+ * drops by `f` what it replaces, as `*elem = source.clone()` does, or else `source`'s
+ * cloned over it by `over`, its own `clone_from`; then those past
  * `source`'s length popped from the back, each dropped as it is; then clones of the rest
  * of `source`'s pushed.
  */
-export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void): void {
+export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): void {
 	let [node, from]: (ListNode<T> | undefined)[] = [l.h, source.h];
 	for (; node !== undefined && from !== undefined; node = node.x, from = from.x) {
+		if (over !== undefined) {
+			node.v = over(node.v, from.v);
+			continue;
+		}
 		const old = node.v;
 		node.v = item(from.v);
 		f?.(old);

@@ -13,7 +13,7 @@ export function bump$rings_Item_u8(self: rt.Place<rt.u8>): void {
 }
 
 export function make$rings_Item_u32(b: rt.u8): rt.u32 {
-	return (((b as rt.u32)) << 12) >>> 0;
+	return ((b as rt.u32) << 12) >>> 0;
 }
 
 export function bump$rings_Item_u32(self: rt.Place<rt.u32>): void {
@@ -239,7 +239,7 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 24);
+			const _46: rt.u8 = rt.u8Rem(op, 30);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_String(arg));
@@ -264,7 +264,7 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 				rt.dequeTruncate(q, rt.usizeRem(arg as rt.usize, 8));
 			} else if (_46 === 13) {
 				let kept: rt.u8 = arg;
-				rt.dequeRetain(q, (_23: string): boolean => {
+				rt.dequeRetain(q, (_25: string): boolean => {
 					kept = rt.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
@@ -288,8 +288,36 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 				rt.dequeClear(q);
 			} else if (_46 === 22) {
 				q = remade$String(q, arg);
-			} else {
+			} else if (_46 === 23) {
 				mutated$String(q, arg, out);
+			} else if (_46 === 24) {
+				appended$String(q, arg, out);
+			} else if (_46 === 25) {
+				rt.dequeResize(q, rt.usizeRem(arg as rt.usize, 16), make$rings_Item_String(arg), undefined);
+			} else if (_46 === 26) {
+				rt.dequeResizeWith(q, rt.usizeRem(arg as rt.usize, 16), (): string => {
+					return make$rings_Item_String(arg);
+				});
+			} else if (_46 === 27) {
+				const tail: rt.VecDeque<string> = rt.dequeSplitOff(q, at);
+				put(out, rt.dequeCapacity(tail));
+				text$tuple2_ref_slice_String_ref_slice_String(out, rt.dequeAsSlices(tail));
+			} else if (_46 === 28) {
+				const start: rt.usize = rt.usizeRem((arg & 7) as rt.usize, rt.usizeAdd(q.n, 1));
+				const it: rt.Iter<rt.Place<string>> = rt.dequeRangeMut(q, new rt.Range(start, rt.usizeAdd(start, rt.usizeRem(((arg >> 3) & 7) as rt.usize, rt.usizeAdd(rt.usizeSub(q.n, start), 1)))));
+				const _151: rt.Place<string> | rt.Done = it.next();
+				if (_151 !== rt.DONE) {
+					bump$rings_Item_String(_151);
+				}
+				const _156: rt.Place<string> | undefined = rt.iterToOption(it.nextBack());
+				if (_156 !== undefined) {
+					bump$rings_Item_String(_156);
+				}
+				text$collections_vec_deque_IterMut_String(out, it);
+			} else {
+				const v: string[] = rt.dequeToVec(q);
+				put(out, rt.vecCapacity(v, 12));
+				q = rt.dequeFromVec(v, 12) as rt.VecDeque<string>;
 			}
 		}
 		put(out, q.n);
@@ -331,7 +359,7 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 24);
+			const _46: rt.u8 = rt.u8Rem(op, 30);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, Big.make$rings_Item(arg));
@@ -356,7 +384,7 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 				rt.dequeTruncate(q, rt.usizeRem(arg as rt.usize, 8));
 			} else if (_46 === 13) {
 				let kept: rt.u8 = arg;
-				rt.dequeRetain(q, (_23: Big.Big): boolean => {
+				rt.dequeRetain(q, (_25: Big.Big): boolean => {
 					kept = rt.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
@@ -380,8 +408,36 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 				rt.dequeClear(q);
 			} else if (_46 === 22) {
 				q = remade$rings_Big(q, arg);
-			} else {
+			} else if (_46 === 23) {
 				mutated$rings_Big(q, arg, out);
+			} else if (_46 === 24) {
+				appended$rings_Big(q, arg, out);
+			} else if (_46 === 25) {
+				rt.dequeResize(q, rt.usizeRem(arg as rt.usize, 16), Big.make$rings_Item(arg), Big.clone$Clone);
+			} else if (_46 === 26) {
+				rt.dequeResizeWith(q, rt.usizeRem(arg as rt.usize, 16), (): Big.Big => {
+					return Big.make$rings_Item(arg);
+				});
+			} else if (_46 === 27) {
+				const tail: rt.VecDeque<Big.Big> = rt.dequeSplitOff(q, at);
+				put(out, rt.dequeCapacity(tail));
+				text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out, rt.dequeAsSlices(tail));
+			} else if (_46 === 28) {
+				const start: rt.usize = rt.usizeRem((arg & 7) as rt.usize, rt.usizeAdd(q.n, 1));
+				const it: rt.Iter<Big.Big> = rt.dequeRange(q, new rt.Range(start, rt.usizeAdd(start, rt.usizeRem(((arg >> 3) & 7) as rt.usize, rt.usizeAdd(rt.usizeSub(q.n, start), 1)))));
+				const _151: Big.Big | rt.Done = it.next();
+				if (_151 !== rt.DONE) {
+					Big.bump$rings_Item(_151);
+				}
+				const _156: Big.Big | undefined = rt.iterToOption(it.nextBack());
+				if (_156 !== undefined) {
+					Big.bump$rings_Item(_156);
+				}
+				text$collections_vec_deque_IterMut_rings_Big(out, it);
+			} else {
+				const v: Big.Big[] = rt.dequeToVec(q);
+				put(out, rt.vecCapacity(v, 1101));
+				q = rt.dequeFromVec(v, 1101) as rt.VecDeque<Big.Big>;
 			}
 		}
 		put(out, q.n);
@@ -423,7 +479,7 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 24);
+			const _46: rt.u8 = rt.u8Rem(op, 30);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_u32(arg));
@@ -448,7 +504,7 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 				rt.dequeTruncate(q, rt.usizeRem(arg as rt.usize, 8));
 			} else if (_46 === 13) {
 				let kept: rt.u8 = arg;
-				rt.dequeRetain(q, (_23: rt.u32): boolean => {
+				rt.dequeRetain(q, (_25: rt.u32): boolean => {
 					kept = rt.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
@@ -472,8 +528,36 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 				rt.dequeClear(q);
 			} else if (_46 === 22) {
 				q = remade$u32(q, arg);
-			} else {
+			} else if (_46 === 23) {
 				mutated$u32(q, arg, out);
+			} else if (_46 === 24) {
+				appended$u32(q, arg, out);
+			} else if (_46 === 25) {
+				rt.dequeResize(q, rt.usizeRem(arg as rt.usize, 16), make$rings_Item_u32(arg), undefined);
+			} else if (_46 === 26) {
+				rt.dequeResizeWith(q, rt.usizeRem(arg as rt.usize, 16), (): rt.u32 => {
+					return make$rings_Item_u32(arg);
+				});
+			} else if (_46 === 27) {
+				const tail: rt.VecDeque<rt.u32> = rt.dequeSplitOff(q, at);
+				put(out, rt.dequeCapacity(tail));
+				text$tuple2_ref_slice_u32_ref_slice_u32(out, rt.dequeAsSlices(tail));
+			} else if (_46 === 28) {
+				const start: rt.usize = rt.usizeRem((arg & 7) as rt.usize, rt.usizeAdd(q.n, 1));
+				const it: rt.Iter<rt.Place<rt.u32>> = rt.dequeRangeMut(q, new rt.Range(start, rt.usizeAdd(start, rt.usizeRem(((arg >> 3) & 7) as rt.usize, rt.usizeAdd(rt.usizeSub(q.n, start), 1)))));
+				const _151: rt.Place<rt.u32> | rt.Done = it.next();
+				if (_151 !== rt.DONE) {
+					bump$rings_Item_u32(_151);
+				}
+				const _156: rt.Place<rt.u32> | undefined = rt.iterToOption(it.nextBack());
+				if (_156 !== undefined) {
+					bump$rings_Item_u32(_156);
+				}
+				text$collections_vec_deque_IterMut_u32(out, it);
+			} else {
+				const v: rt.u32[] = rt.dequeToVec(q);
+				put(out, rt.vecCapacity(v, 4));
+				q = rt.dequeFromVec(v, 4) as rt.VecDeque<rt.u32>;
 			}
 		}
 		put(out, q.n);
@@ -515,7 +599,7 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 24);
+			const _46: rt.u8 = rt.u8Rem(op, 30);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					rt.dequePushBack(q, make$rings_Item_u8(arg));
@@ -540,7 +624,7 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				rt.dequeTruncate(q, rt.usizeRem(arg as rt.usize, 8));
 			} else if (_46 === 13) {
 				let kept: rt.u8 = arg;
-				rt.dequeRetain(q, (_23: rt.u8): boolean => {
+				rt.dequeRetain(q, (_25: rt.u8): boolean => {
 					kept = rt.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
@@ -564,8 +648,36 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				rt.dequeClear(q);
 			} else if (_46 === 22) {
 				q = remade$u8(q, arg);
-			} else {
+			} else if (_46 === 23) {
 				mutated$u8(q, arg, out);
+			} else if (_46 === 24) {
+				appended$u8(q, arg, out);
+			} else if (_46 === 25) {
+				rt.dequeResize(q, rt.usizeRem(arg as rt.usize, 16), make$rings_Item_u8(arg), undefined);
+			} else if (_46 === 26) {
+				rt.dequeResizeWith(q, rt.usizeRem(arg as rt.usize, 16), (): rt.u8 => {
+					return make$rings_Item_u8(arg);
+				});
+			} else if (_46 === 27) {
+				const tail: rt.VecDeque<rt.u8> = rt.dequeSplitOff(q, at);
+				put(out, rt.dequeCapacity(tail));
+				text$tuple2_ref_slice_u8_ref_slice_u8(out, rt.dequeByteSlices(tail));
+			} else if (_46 === 28) {
+				const start: rt.usize = rt.usizeRem((arg & 7) as rt.usize, rt.usizeAdd(q.n, 1));
+				const it: rt.Iter<rt.Place<rt.u8>> = rt.dequeRangeMut(q, new rt.Range(start, rt.usizeAdd(start, rt.usizeRem(((arg >> 3) & 7) as rt.usize, rt.usizeAdd(rt.usizeSub(q.n, start), 1)))));
+				const _151: rt.Place<rt.u8> | rt.Done = it.next();
+				if (_151 !== rt.DONE) {
+					bump$rings_Item_u8(_151);
+				}
+				const _156: rt.Place<rt.u8> | undefined = rt.iterToOption(it.nextBack());
+				if (_156 !== undefined) {
+					bump$rings_Item_u8(_156);
+				}
+				text$collections_vec_deque_IterMut_u8(out, it);
+			} else {
+				const v: rt.ByteVec = rt.byteVecFromVec(rt.dequeToVec(q));
+				put(out, v.data.length);
+				q = rt.dequeFromVec(rt.byteVecToVec(v), 1, true) as rt.VecDeque<rt.u8>;
 			}
 		}
 		put(out, q.n);
@@ -608,7 +720,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 		const arg: rt.u8 = _30[1];
 		const at: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(q.n, 1));
 		b3: {
-			const _46: rt.u8 = rt.u8Rem(op, 24);
+			const _46: rt.u8 = rt.u8Rem(op, 30);
 			if (0 <= _46) {
 				if (_46 <= 3) {
 					const _50: rt.VecDeque<undefined> = q;
@@ -639,7 +751,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 				rt.dequeTruncate(q, rt.usizeRem(arg as rt.usize, 8));
 			} else if (_46 === 13) {
 				let kept: rt.u8 = arg;
-				rt.dequeRetain(q, (_23: undefined): boolean => {
+				rt.dequeRetain(q, (_25: undefined): boolean => {
 					kept = rt.intRotateLeft(kept, 1, 8, false);
 					return (kept & 1) === 1;
 				});
@@ -663,8 +775,39 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 				rt.dequeClear(q);
 			} else if (_46 === 22) {
 				q = remade$unit(q, arg);
-			} else {
+			} else if (_46 === 23) {
 				mutated$unit(q, arg, out);
+			} else if (_46 === 24) {
+				appended$unit(q, arg, out);
+			} else if (_46 === 25) {
+				const _105: rt.VecDeque<undefined> = q;
+				const _106: rt.usize = rt.usizeRem(arg as rt.usize, 16);
+				make$rings_Item_unit(arg);
+				rt.dequeResize(_105, _106, undefined, undefined);
+			} else if (_46 === 26) {
+				rt.dequeResizeWith(q, rt.usizeRem(arg as rt.usize, 16), (): undefined => {
+					make$rings_Item_unit(arg);
+				});
+			} else if (_46 === 27) {
+				const tail: rt.VecDeque<undefined> = rt.dequeSplitOff(q, at);
+				put(out, rt.dequeCapacity(tail));
+				text$tuple2_ref_slice_unit_ref_slice_unit(out, rt.dequeAsSlices(tail));
+			} else if (_46 === 28) {
+				const start: rt.usize = rt.usizeRem((arg & 7) as rt.usize, rt.usizeAdd(q.n, 1));
+				const it: rt.Iter<rt.Place<undefined>> = rt.dequeRangeMut(q, new rt.Range(start, rt.usizeAdd(start, rt.usizeRem(((arg >> 3) & 7) as rt.usize, rt.usizeAdd(rt.usizeSub(q.n, start), 1)))));
+				const _151: rt.Place<undefined> | rt.Done = it.next();
+				if (_151 !== rt.DONE) {
+					bump$rings_Item_unit(_151);
+				}
+				const _156: rt.Place<undefined> | undefined = rt.iterToOption(it.nextBack());
+				if (_156 !== undefined) {
+					bump$rings_Item_unit(_156);
+				}
+				text$collections_vec_deque_IterMut_unit(out, it);
+			} else {
+				const v: undefined[] = rt.dequeToVec(q);
+				put(out, rt.vecCapacity(v, 0));
+				q = rt.dequeFromVec(v, 0) as rt.VecDeque<undefined>;
 			}
 		}
 		put(out, q.n);
@@ -1002,6 +1145,151 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 		_0 = rt.dequeFromIntoIter(it3.clone({ v: rt.itself }), 0) as rt.VecDeque<undefined>;
 	}
 	return _0;
+}
+
+/**
+ * Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+ * it, which shows where its head is once pushed at both ends.
+ */
+export function appended$String(q: rt.VecDeque<string>, arg: rt.u8, out: rt.ByteVec): void {
+	let _16!: rt.u8;
+	const other: rt.VecDeque<string> = rt.dequeWithCapacity(rt.u8Rem(arg, 4) as rt.usize, 12) as rt.VecDeque<string>;
+	const _10: rt.u8 = (arg >> 2) & 7;
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _10;
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rt.u8 = _16;
+		if (rt.u8Rem(i, 3) === 2) {
+			const _23: string = make$rings_Item_String(i);
+			rt.dequePushFront(other, _23);
+		} else {
+			const _25: string = make$rings_Item_String(i);
+			rt.dequePushBack(other, _25);
+		}
+	}
+	rt.dequeAppend(q, other);
+	put(out, rt.dequeCapacity(other));
+	const _33: string = make$rings_Item_String(arg);
+	rt.dequePushFront(other, _33);
+	const _36: string = make$rings_Item_String(arg);
+	rt.dequePushBack(other, _36);
+	text$tuple2_ref_slice_String_ref_slice_String(out, rt.dequeAsSlices(other));
+}
+
+/**
+ * Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+ * it, which shows where its head is once pushed at both ends.
+ */
+export function appended$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8, out: rt.ByteVec): void {
+	let _16!: rt.u8;
+	const other: rt.VecDeque<Big.Big> = rt.dequeWithCapacity(rt.u8Rem(arg, 4) as rt.usize, 1101) as rt.VecDeque<Big.Big>;
+	const _10: rt.u8 = (arg >> 2) & 7;
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _10;
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rt.u8 = _16;
+		if (rt.u8Rem(i, 3) === 2) {
+			const _23: Big.Big = Big.make$rings_Item(i);
+			rt.dequePushFront(other, _23);
+		} else {
+			const _25: Big.Big = Big.make$rings_Item(i);
+			rt.dequePushBack(other, _25);
+		}
+	}
+	rt.dequeAppend(q, other);
+	put(out, rt.dequeCapacity(other));
+	const _33: Big.Big = Big.make$rings_Item(arg);
+	rt.dequePushFront(other, _33);
+	const _36: Big.Big = Big.make$rings_Item(arg);
+	rt.dequePushBack(other, _36);
+	text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out, rt.dequeAsSlices(other));
+}
+
+/**
+ * Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+ * it, which shows where its head is once pushed at both ends.
+ */
+export function appended$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8, out: rt.ByteVec): void {
+	let _16!: rt.u8;
+	const other: rt.VecDeque<rt.u32> = rt.dequeWithCapacity(rt.u8Rem(arg, 4) as rt.usize, 4) as rt.VecDeque<rt.u32>;
+	const _10: rt.u8 = (arg >> 2) & 7;
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _10;
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rt.u8 = _16;
+		if (rt.u8Rem(i, 3) === 2) {
+			const _23: rt.u32 = make$rings_Item_u32(i);
+			rt.dequePushFront(other, _23);
+		} else {
+			const _25: rt.u32 = make$rings_Item_u32(i);
+			rt.dequePushBack(other, _25);
+		}
+	}
+	rt.dequeAppend(q, other);
+	put(out, rt.dequeCapacity(other));
+	const _33: rt.u32 = make$rings_Item_u32(arg);
+	rt.dequePushFront(other, _33);
+	const _36: rt.u32 = make$rings_Item_u32(arg);
+	rt.dequePushBack(other, _36);
+	text$tuple2_ref_slice_u32_ref_slice_u32(out, rt.dequeAsSlices(other));
+}
+
+/**
+ * Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+ * it, which shows where its head is once pushed at both ends.
+ */
+export function appended$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8, out: rt.ByteVec): void {
+	let _16!: rt.u8;
+	const other: rt.VecDeque<rt.u8> = rt.dequeWithCapacity(rt.u8Rem(arg, 4) as rt.usize, 1, true) as rt.VecDeque<rt.u8>;
+	const _10: rt.u8 = (arg >> 2) & 7;
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _10;
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rt.u8 = _16;
+		if (rt.u8Rem(i, 3) === 2) {
+			const _23: rt.u8 = make$rings_Item_u8(i);
+			rt.dequePushFront(other, _23);
+		} else {
+			const _25: rt.u8 = make$rings_Item_u8(i);
+			rt.dequePushBack(other, _25);
+		}
+	}
+	rt.dequeAppend(q, other);
+	put(out, rt.dequeCapacity(other));
+	const _33: rt.u8 = make$rings_Item_u8(arg);
+	rt.dequePushFront(other, _33);
+	const _36: rt.u8 = make$rings_Item_u8(arg);
+	rt.dequePushBack(other, _36);
+	text$tuple2_ref_slice_u8_ref_slice_u8(out, rt.dequeByteSlices(other));
+}
+
+/**
+ * Another deque's items, wrapped as `arg` picks, moved to `q`'s back, and what that leaves
+ * it, which shows where its head is once pushed at both ends.
+ */
+export function appended$unit(q: rt.VecDeque<undefined>, arg: rt.u8, out: rt.ByteVec): void {
+	let _16!: rt.u8;
+	const other: rt.VecDeque<undefined> = rt.dequeWithCapacity(rt.u8Rem(arg, 4) as rt.usize, 0) as rt.VecDeque<undefined>;
+	const _10: rt.u8 = (arg >> 2) & 7;
+	let iterStart: rt.u8 = 0;
+	const iterEnd: rt.u8 = _10;
+	while ((_16 = iterStart++) < iterEnd) {
+		const i: rt.u8 = _16;
+		if (rt.u8Rem(i, 3) === 2) {
+			make$rings_Item_unit(i);
+			rt.dequePushFront(other, undefined);
+		} else {
+			make$rings_Item_unit(i);
+			rt.dequePushBack(other, undefined);
+		}
+	}
+	rt.dequeAppend(q, other);
+	put(out, rt.dequeCapacity(other));
+	make$rings_Item_unit(arg);
+	rt.dequePushFront(other, undefined);
+	make$rings_Item_unit(arg);
+	rt.dequePushBack(other, undefined);
+	text$tuple2_ref_slice_unit_ref_slice_unit(out, rt.dequeAsSlices(other));
 }
 
 /** A drain of a range `arg` picks, written as it is read from either end and then dropped. */

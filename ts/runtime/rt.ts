@@ -130,6 +130,20 @@ export const NULL: never = null as never;
 /** A dangling raw pointer, `NonNull::dangling`, of any type: nothing reads through it. */
 export const DANGLING: never = /* @__PURE__ */ Object.freeze({}) as never;
 
+/** The raw pointer `p` unsized by `make`, or `p` itself if it is null or dangling, which point at nothing. */
+export function rawUnsize<P, Q>(p: P, make: (p: P) => Q): Q {
+	return p === NULL || p === DANGLING ? (p as never) : make(p);
+}
+
+/**
+ * `rawUnsize` of `p`, the place of a value, to the place of what `make` makes of whatever
+ * value is there as it is read, so it may be uninitialized or replaced until then. Nothing
+ * writes an unsized value whole.
+ */
+export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<U> {
+	return rawUnsize(p, (p) => place(() => make(p.v), unreachable));
+}
+
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
@@ -943,20 +957,45 @@ export function sliceSwap<T>(s: T[], a: number, b: number): void {
 }
 
 /**
- * `fill`: a clone of `value` into each slot but the last, each old element dropped once
- * its slot's clone is made, then `value` itself into the last, or `value` dropped if there
- * is none. `clone` is `undefined` where a clone is the value.
+ * `fill`: `value` cloned over each slot but the last by `cloneOver`, then `value` itself
+ * into the last, or `value` dropped if there is none.
  */
-export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+export function sliceFill<T>(s: T[], value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): void {
 	const last = s.length - 1;
 	if (last < 0) return drop?.(value);
-	for (let i = 0; i < last; i++) {
-		const item = clone === undefined ? value : clone(value);
-		drop?.(s[i]);
-		s[i] = item;
-	}
+	for (let i = 0; i < last; i++) s[i] = cloneOver(s[i], value, clone, drop, over);
 	drop?.(s[last]);
 	s[last] = value;
+}
+
+/** A `clone_from` as a function of the value it writes over and its source, returning what takes the old value's place. */
+export type CloneFrom<T> = (old: T, src: T) => T;
+
+/**
+ * What `clone_from` of `src` leaves over `old`: `over`'s, where it is its own, or else
+ * `src`'s clone, made before `old` drops. `clone` is `undefined` where a clone is the value.
+ */
+function cloneOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T {
+	if (over !== undefined) return over(old, src);
+	const item = clone === undefined ? src : clone(src);
+	drop?.(old);
+	return item;
+}
+
+/** A crate's own `clone_from` of an object, `f`, which writes over it in place. */
+export function cloneFromFn<T>(f: (old: T, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(old, src);
+		return old;
+	};
+}
+
+/** A crate's own `clone_from` of a value a `&mut` lends as an `rt.Place`, `f`. */
+export function cloneFromPlaceFn<T>(f: (old: Place<T>, src: T) => void): CloneFrom<T> {
+	return (old, src) => {
+		f(place(() => old, (value) => (old = value)), src);
+		return old;
+	};
 }
 
 /** `fill_with`: `f()` into each slot in order, each old element dropped once its slot's value is made. */
@@ -1013,25 +1052,54 @@ export function sliceCopyFromSlice<T>(dst: T[], src: ArrayLike<T>, copy?: (value
 	for (let i = 0; i < src.length; i++) dst[i] = copy === undefined ? src[i] : copy(src[i]);
 }
 
-/** `clone_from_slice`: each slot's clone in order, each old element dropped once its slot's clone is made, panicking first if the lengths differ. */
-export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+/** `clone_from_slice`: each element cloned over its slot's in order by `cloneOver`, panicking first if the lengths differ. */
+export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
 	if (dst.length !== src.length) panic("destination and source slices have different lengths");
-	for (let i = 0; i < src.length; i++) {
-		const item = clone === undefined ? src[i] : clone(src[i]);
-		drop?.(dst[i]);
-		dst[i] = item;
-	}
+	for (let i = 0; i < src.length; i++) dst[i] = cloneOver(dst[i], src[i], clone, drop, over);
+	return dst;
+}
+
+/** `sliceCloneFromSlice` as a `CloneFrom` of an array. */
+export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => sliceCloneFromSlice(old, src, clone, drop, over);
 }
 
 /** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
-export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void): T[] {
-	if (dst.length === src.length) {
-		sliceCloneFromSlice(dst, src, clone, drop);
-		return dst;
-	}
+export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	if (dst.length === src.length) return sliceCloneFromSlice(dst, src, clone, drop, over);
 	const v = clone === undefined ? src.slice() : src.map(clone);
 	if (drop !== undefined) for (const item of dst) drop(item);
 	return v;
+}
+
+/** `boxSliceCloneFrom` as a `CloneFrom`. */
+export function boxSliceCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => boxSliceCloneFrom(old, src, clone, drop, over);
+}
+
+/**
+ * `Option::clone_from` of `src` over `old`, whose `None` is `none`: of two `Some`s, `over`
+ * of what they hold, and else `src`'s clone, made before `old` drops.
+ */
+export function optionCloneFrom<T>(old: T | undefined, src: T | undefined, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): T | undefined;
+export function optionCloneFrom<T>(old: T | None, src: T | None, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): T | None;
+export function optionCloneFrom<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): T {
+	return optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom` as a `CloneFrom`. */
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>): CloneFrom<T | undefined>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: None): CloneFrom<T | None>;
+export function optionCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none?: None): CloneFrom<T> {
+	return (old, src) => optionOver(old, src, clone, drop, over, none);
+}
+
+/** `optionCloneFrom`, of any `none`. */
+function optionOver<T>(old: T, src: T, clone: ((value: T) => T) | undefined, drop: ((item: T) => void) | undefined, over: CloneFrom<T>, none: unknown): T {
+	if (old !== none && src !== none) return over(old, src);
+	const item = src === none || clone === undefined ? src : clone(src);
+	if (old !== none) drop?.(old);
+	return item;
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
@@ -1201,6 +1269,64 @@ export function vecSwapRemove<T>(v: T[], i: number): T {
 export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
 	vecReserve(v, s.length, size);
 	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
+}
+
+/**
+ * `Vec::clone_from` of `src`, and `clone_into` of a slice, over `v` of `size`-byte
+ * elements, as std's: truncated to `src`'s length, each element it keeps cloned over by
+ * `cloneOver`, and then the rest of `src` cloned onto its end.
+ */
+export function vecCloneFrom<T>(v: T[] & Capped, src: ArrayLike<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
+	// Its buffer, kept as it is cut, where its length was all that said how big it is.
+	const cap = vecCapacity(v, size);
+	vecTruncate(v, src.length, drop);
+	capSet(v, v.length, cap, size);
+	const kept = v.length;
+	for (let i = 0; i < kept; i++) v[i] = cloneOver(v[i], src[i], clone, drop, over);
+	vecReserve(v, src.length - kept, size);
+	for (let i = kept; i < src.length; i++) v.push(clone === undefined ? src[i] : clone(src[i]));
+	return v;
+}
+
+/** `vecCloneFrom` as a `CloneFrom`. */
+export function vecCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+	return (old, src) => vecCloneFrom(old, src, size, clone, drop, over);
+}
+
+/** `Vec::append` of `size`-byte elements: room reserved for `other`'s, which then move over in order, leaving it empty. */
+export function vecAppend<T>(v: T[] & Capped, other: T[], size: number): void {
+	vecReserve(v, other.length, size);
+	for (let i = 0; i < other.length; i++) v.push(other[i]);
+	other.length = 0;
+}
+
+/**
+ * `Vec::resize` of `size`-byte elements to `len`: past its length, room reserved for the
+ * rest, then `len - 1` clones of `value` by `clone` and `value` itself; else truncated,
+ * each element cut dropping in order, and then `value`.
+ */
+export function vecResize<T>(v: T[] & Capped, len: number, value: T, size: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+	if (len <= v.length) {
+		vecTruncate(v, len, drop);
+		drop?.(value);
+		return;
+	}
+	vecReserve(v, len - v.length, size);
+	while (v.length < len - 1) v.push(clone === undefined ? value : clone(value));
+	v.push(value);
+}
+
+/** `Vec::resize_with` of `size`-byte elements to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
+export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size: number, drop?: (item: T) => void): void {
+	if (len <= v.length) return vecTruncate(v, len, drop);
+	vecReserve(v, len - v.length, size);
+	while (v.length < len) v.push(f());
+}
+
+/** `Vec::split_off` of `size`-byte elements: those from `at` on, moved to a new vector with room for exactly them. */
+export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
+	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
+	return vecExact(v.splice(at), size);
 }
 
 /** `Clone` of a tuple, by `clone` of each field in order, `undefined` for one whose value is itself. */
@@ -1773,6 +1899,45 @@ export function byteVecReserve(v: ByteVec, additional: number): void {
 export function byteVecReserveExact(v: ByteVec, additional: number): void {
 	const cap = capReserveExact(v.length, v.data.length, additional, 1);
 	if (cap !== v.data.length) realloc(v, cap);
+}
+
+/** `Vec::append` of bytes. */
+export function byteVecAppend(v: ByteVec, other: ByteVec): void {
+	byteVecReserve(v, other.length);
+	copyBytes(v.data, v.length, other.data, 0, other.length);
+	v.length += other.length;
+	other.length = 0;
+}
+
+/** `Vec::resize` of bytes. */
+export function byteVecResize(v: ByteVec, len: number, byte: number): void {
+	if (len <= v.length) {
+		v.length = len;
+		return;
+	}
+	byteVecReserve(v, len - v.length);
+	v.data.fill(byte, v.length, len);
+	v.length = len;
+}
+
+/** `Vec::resize_with` of bytes. */
+export function byteVecResizeWith(v: ByteVec, len: number, f: () => number): void {
+	if (len <= v.length) {
+		v.length = len;
+		return;
+	}
+	byteVecReserve(v, len - v.length);
+	while (v.length < len) v.data[v.length++] = f();
+}
+
+/** `Vec::split_off` of bytes. */
+export function byteVecSplitOff(v: ByteVec, at: number): ByteVec {
+	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
+	const other = new ByteVec(v.length - at);
+	copyBytes(other.data, 0, v.data, at, v.length - at);
+	other.length = v.length - at;
+	v.length = at;
+	return other;
 }
 
 /** `Vec::shrink_to` of bytes, and `shrink_to_fit` of 0. */

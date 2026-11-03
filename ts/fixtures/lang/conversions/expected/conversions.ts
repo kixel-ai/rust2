@@ -60,7 +60,7 @@ export function put$conversions_Value_String(self: string, out: rt.ByteVec): voi
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_Option_u16(data: rt.ByteSlice, at: rt.usize): rt.u16 | undefined {
 	const b: rt.u8 = byte(data, at);
-	return thenSome$0b23a33(rt.u8Rem(b, 4) !== 0, (((b as rt.u16)) << 4) & 0xffff);
+	return thenSome$0b23a33(rt.u8Rem(b, 4) !== 0, ((b as rt.u16) << 4) & 0xffff);
 }
 
 /** Its bytes. */
@@ -129,7 +129,7 @@ export function put$conversions_Value_array40_u8(self: rt.ByteSlice, out: rt.Byt
 
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_array2_u32(data: rt.ByteSlice, at: rt.usize): rt.u32[] {
-	return [rt.u8Rem(byte(data, at), 4) as rt.u32, (((byte(data, rt.usizeAdd(at, 1)) as rt.u32)) << 20) >>> 0];
+	return [rt.u8Rem(byte(data, at), 4) as rt.u32, ((byte(data, rt.usizeAdd(at, 1)) as rt.u32) << 20) >>> 0];
 }
 
 /** Its bytes. */

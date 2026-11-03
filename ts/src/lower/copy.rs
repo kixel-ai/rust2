@@ -21,7 +21,7 @@ use rustc_mir_dataflow::impls::MaybeLiveLocals;
 use rustc_span::Span;
 
 use super::library::{Flow, Std};
-use super::mir::holders::{Filled, Trace};
+use super::mir::holders::{Filled, Holds, Trace};
 use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
@@ -885,8 +885,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// `ty`, and each type it holds by value, as replaced: a write of a whole `ty` gives
-	/// each part it holds another object, and so each part those hold, at any depth.
+	/// each part it holds another object, and so each part those hold, at any depth. Nothing
+	/// writes a whole unsized value, and what a trait object's methods replace counts where
+	/// it became one.
 	fn replace(&mut self, ty: Ty<'tcx>) {
+		if !ty.is_sized(self.tcx, ty::TypingEnv::post_analysis(self.tcx, self.def_id)) {
+			return;
+		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
 		}
@@ -974,12 +979,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether the call at `at` given `arg` as a `ty`, a mutable reference or pointer to a
-	/// type that may be kept as an object, fills memory nothing points into yet there.
+	/// type that holds by value one that may be kept as an object, as an array's iterator
+	/// does, fills memory nothing points into yet there.
 	fn fills_fresh(&mut self, ty: Ty<'tcx>, arg: &mir::Operand<'tcx>, at: Location, made: Option<Local>) -> bool {
 		let (ty::Ref(_, inner, ty::Mutability::Mut) | ty::RawPtr(inner, ty::Mutability::Mut)) = *ty.kind() else {
 			return false;
 		};
-		self.inline(inner)
+		!self.parts(inner).is_empty()
 			&& arg
 				.place()
 				.and_then(|p| p.as_local())
@@ -1059,7 +1065,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		let Some(made) = made.as_local() else {
 			return true;
 		};
-		let held = self.trace.holders(made, false, false);
+		let held = self.trace.holders(made, Holds::Pointers, false);
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		let raw = |ty: Ty<'tcx>| {
 			ty.is_raw_ptr()

@@ -70,7 +70,7 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					c = rt.iterToOption(it.nextBack());
 				}
 				putChar(out, c);
-				if (!((c === undefined))) {
+				if (!(c === undefined)) {
 					i = rt.usizeAdd(i, 1);
 				} else {
 					rt.byteVecPush(out, rt.iterCount(rt.strChars(s)) & 0xff);
@@ -344,7 +344,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				if (_8 === 3) {
 					const iter3: rt.Iter<string> = rt.iterSuccessors(s, (path: string): string | undefined => {
 						const _73: string = path;
-						return then$0havnzo(!((path.length === 0)), (): string => {
+						return then$0havnzo(!(path.length === 0), (): string => {
 							return option_mapOr$147z9gi(rt.strRfind(_73, "/"), "", (slash: rt.usize): string => {
 								return rt.strSlice(_73, 0, slash);
 							});
@@ -412,7 +412,7 @@ export function digit(c: rt.char): boolean {
 
 /** `/` separates parts, and `\` escapes a `/` or `\` within one. */
 export function unescape(path: string): string[] {
-	if (!((path.length === 0))) {
+	if (!(path.length === 0)) {
 		const parts: string[] = [];
 		let part: string = "";
 		const chars: rt.Iter<rt.char> = rt.strChars(path);
@@ -1251,7 +1251,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, p4)];
 			return rt.fmtFormat([args4[0], args4[0]]);
 		}), (p5: string): boolean => {
-			return !((p5.length === 0));
+			return !(p5.length === 0);
 		})));
 		rt.iterEmpty();
 		put(out, rt.stringFromStrings(rt.iterEmpty() as rt.Iter<string>));
@@ -1955,6 +1955,104 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(units, f, rt.u16Debug), (f: rt.Formatter) => rt.fmtList(each4, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(_164, f)];
 		put(out, rt.fmtFormat([args12[0], "|", args12[1], "|", args12[2]]));
 	}
+}
+
+/** What a `String` from UTF-16 is, or its error's `Display`, padded or not, and `Debug`. */
+export function putUtf16(out: rt.ByteVec, r: rt.Result<string, rt.FromUtf16Error>): void {
+	if (r.ok) {
+		const part = r.value;
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(part, f)];
+		put(out, rt.fmtFormat([args2[0]]));
+	} else {
+		const e: rt.FromUtf16Error = r.error;
+		const _24: rt.usize = rt.stringLen(rt.fmtToString((f: rt.Formatter) => rt.fmtFromUtf16ErrorDisplay(e, f)));
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtFromUtf16ErrorDisplay(e, f), (f: rt.Formatter) => rt.fmtFromUtf16ErrorDebug(e, f), (f: rt.Formatter) => rt.usizeDisplay(_24, f)];
+		put(out, rt.fmtFormat([args4[0], "|", rt.fmtSpec({ align: ">", width: 40 }, args4[0]), "|", rt.fmtSpec({ fill: "-", align: "<", width: 12 }, args4[0]), "|", args4[1], "|", rt.fmtSpec({ alternate: true }, args4[1]), "|", args4[2]]));
+	}
+}
+
+/**
+ * A `String` from UTF-16 units, by `from_utf16` and `from_utf16_lossy`, and from their bytes
+ * either way round, by `from_utf16le` and `from_utf16be` and their lossy forms, of an even
+ * and an odd number of bytes, as methods and as function values. Units are of `UNITS`, or
+ * the input's raw bytes in pairs.
+ */
+export function utf16(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let units!: rt.u16[];
+	if (rt.u8Rem(kind, 2) === 0) {
+		units = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u16 => {
+			const _59: rt.usize = rt.u8Rem(_2, 16) as rt.usize;
+			if (!(_59 < 16)) {
+				rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _59);
+			}
+			return [0, 65, 233, 55295, 55296, 55297, 56319, 56320, 56321, 57343, 57344, 65279, 65533, 65535, 55357, 56832][_59];
+		}), undefined, 2, true);
+	} else {
+		units = rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data, 2), (p: rt.ByteSlice): rt.u16 => {
+			rt.idx(p, 0);
+			return (p.data[p.start] << 8) | option_unwrapOr$0r2bmpr(rt.byteSliceGet(p, 1), 0);
+		}), undefined, 2, true);
+	}
+	putUtf16(out, rt.stringFromUtf16(units));
+	const part3 = rt.stringFromUtf16Lossy(units);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(part3, f)];
+	put(out, rt.fmtFormat([args2[0]]));
+	const part4 = rt.stringFromUtf16(units);
+	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(part4, f, rt.fmtStr, rt.fmtFromUtf16ErrorDebug)];
+	put(out, rt.fmtFormat([args4[0]]));
+	const le: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u: rt.u16): Uint8Array => {
+		return rt.u16ToBeBytes(u).reverse();
+	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	const be: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u2: rt.u16): Uint8Array => {
+		return rt.u16ToBeBytes(u2);
+	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	const _57: [rt.ByteSlice, rt.ByteSlice] = [rt.byteSliceRange(rt.byteVecSlice(le), 0), rt.byteSliceRange(rt.byteVecSlice(be), 0)];
+	const iter: rt.Iter<[rt.ByteSlice, rt.ByteSlice]> = rt.iterSlice([_57, [option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(le), 1), rt.byteSliceFrom(Uint8Array.of())), option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(be), 1), rt.byteSliceFrom(Uint8Array.of()))] as [rt.ByteSlice, rt.ByteSlice], [data, data] as [rt.ByteSlice, rt.ByteSlice]]);
+	while (true) {
+		const _79: [rt.ByteSlice, rt.ByteSlice] | rt.Done = iter.next();
+		if (_79 === rt.DONE) {
+			break;
+		}
+		putUtf16(out, rt.stringFromUtf16le(_79[0]));
+		putUtf16(out, rt.stringFromUtf16be(_79[1]));
+		const _96: string = rt.stringFromUtf16leLossy(_79[0]);
+		const _98: string = rt.stringFromUtf16beLossy(_79[1]);
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStr(_96, f), (f: rt.Formatter) => rt.fmtStr(_98, f)];
+		put(out, rt.fmtFormat([args6[0], "|", args6[1]]));
+	}
+	const lossy: Array<(a0: rt.ByteSlice) => string> = [(a03: rt.ByteSlice): string => {
+		return rt.stringFromUtf16leLossy(a03);
+	}, (a04: rt.ByteSlice): string => {
+		return rt.stringFromUtf16beLossy(a04);
+	}];
+	const iter2: rt.Iter<[(a0: rt.ByteSlice) => rt.Result<string, rt.FromUtf16Error>, (a0: rt.ByteSlice) => string]> = rt.iterZip(rt.iterSlice([(a0: rt.ByteSlice): rt.Result<string, rt.FromUtf16Error> => {
+		return rt.stringFromUtf16le(a0);
+	}, (a02: rt.ByteSlice): rt.Result<string, rt.FromUtf16Error> => {
+		return rt.stringFromUtf16be(a02);
+	}]), rt.iterSlice(lossy), "index");
+	while (true) {
+		const _114: [(a0: rt.ByteSlice) => rt.Result<string, rt.FromUtf16Error>, (a0: rt.ByteSlice) => string] | rt.Done = iter2.next();
+		if (_114 === rt.DONE) {
+			break;
+		}
+		const decode2: (a0: rt.ByteSlice) => rt.Result<string, rt.FromUtf16Error> = _114[0];
+		const lossy2: (a0: rt.ByteSlice) => string = _114[1];
+		putUtf16(out, decode2(data));
+		put(out, lossy2(data));
+	}
+	const parts: rt.u16[][] = rt.iterToArray(rt.sliceSplit(units, (_22: rt.u16): boolean => {
+		return _22 === 0;
+	}), "next", 8);
+	const each: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(parts), (a05: rt.u16[]): string => {
+		return rt.stringFromUtf16Lossy(a05);
+	}), undefined, 12, true);
+	const ok: boolean[] = rt.iterToArray(rt.iterMap(rt.iterMap(rt.iterSlice(parts), (a06: rt.u16[]): rt.Result<string, rt.FromUtf16Error> => {
+		return rt.stringFromUtf16(a06);
+	}), (r: rt.Result<string, rt.FromUtf16Error>): boolean => {
+		return r.ok;
+	}), undefined, 1, true);
+	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(each, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(ok, f, rt.fmtBool)];
+	put(out, rt.fmtFormat([args8[0], "|", args8[1]]));
 }
 
 //# sourceMappingURL=strs.ts.map

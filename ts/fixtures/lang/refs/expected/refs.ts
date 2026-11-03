@@ -572,7 +572,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const old2 = wide;
 			wide = _34;
 			wide = rt.iterToArray(rt.iterMap(rt.iterFilter(rt.iterSlice(old2), (_25: rt.u32): boolean => {
-				return _25 > ((b4 as rt.u32));
+				return _25 > (b4 as rt.u32);
 			}), (x3: rt.u32): rt.u32 => {
 				return rt.u32Div(x3, 2);
 			}), "next", 4, false, 4);
@@ -809,7 +809,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_281 === rt.DONE) {
 			break;
 		}
-		_281[1].v = rt.u32Add(_281[1].v, (((_281[0] as rt.u32)) << 8) >>> 0);
+		_281[1].v = rt.u32Add(_281[1].v, ((_281[0] as rt.u32) << 8) >>> 0);
 	}
 	let nested = rt.None as rt.u8 | undefined | rt.None;
 	l39: for (const b3 of rt.byteSliceView(data)) {
@@ -1261,7 +1261,7 @@ export function toRefs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, bytes.length & 0xff);
 		let tail2: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 1))), (_2: rt.u8): rt.u32 => {
-			return (((_2 as rt.u32)) << 8) >>> 0;
+			return ((_2 as rt.u32) << 8) >>> 0;
 		}), undefined, 4, true);
 		while (tail2.length >= 1) {
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(tail2[0])));
@@ -1552,12 +1552,30 @@ export function compared(split: rt.u8, dataData: Uint8Array, dataStart: number, 
 	const x: rt.f32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(left)), few), undefined, 4, true);
 	const y: rt.f32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(right)), few), undefined, 4, true);
 	let one: rt.u8 | undefined = rt.byteSliceFirst(rt.byteVecSlice(b));
+	const _32: boolean = rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true);
+	const _37: boolean = !rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true);
+	const _42: boolean = rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)) === -1;
+	const order_ = rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp));
+	const _47: boolean = order_ !== undefined && order_ <= 0;
+	const _52: boolean = rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)) === 1;
+	const order2 = rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp));
 	const _74: boolean = rt.iterEq(rt.iterChain(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterOption(rt.optionAsMut(rt.place(() => one, (value) => one = value)))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true);
-	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true), !rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.same), true), rt.iterLt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterLe(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterGt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterGe(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), rt.cellBy(rt.cmp)), rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(b))), (a0: rt.Place<rt.u8>, a1: rt.u8): boolean => {
+	const _57: boolean = order2 !== undefined && order2 >= 0;
+	const _62: boolean = rt.iterEq(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(b))), (a0: rt.Place<rt.u8>, a1: rt.u8): boolean => {
 		return a0.v === a1;
-	}, true), !rt.iterEq(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), (a02: rt.u8, a12: rt.Place<rt.u8>): boolean => {
+	}, true);
+	const _69: boolean = !rt.iterEq(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterSliceMut(rt.byteVecView(b)), (a02: rt.u8, a12: rt.Place<rt.u8>): boolean => {
 		return a02 === a12.v;
-	}, true), _74, rt.iterLt(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(b))), rt.iterChain(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterOption(rt.optionAsMut(rt.place(() => one, (value2) => one = value2)))), rt.cellBy(rt.cmp)), rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true), !rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true), rt.iterLt(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterLe(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterGt(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterGe(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)), rt.iterEq(rt.iterSlice(x), rt.iterSliceMut(y), (a03: rt.f32, a13: rt.Place<rt.f32>): boolean => {
+	}, true);
+	const _81: boolean = rt.iterCmp(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(b))), rt.iterChain(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(a))), rt.iterOption(rt.optionAsMut(rt.place(() => one, (value2) => one = value2)))), rt.cellBy(rt.cmp)) === -1;
+	const _90: boolean = rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true);
+	const _95: boolean = !rt.iterEq(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.same), true);
+	const _100: boolean = rt.iterCmp(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)) === -1;
+	const order3 = rt.iterCmp(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp));
+	const _105: boolean = order3 !== undefined && order3 <= 0;
+	const _110: boolean = rt.iterCmp(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp)) === 1;
+	const order4 = rt.iterCmp(rt.iterSliceMut(x), rt.iterSliceMut(y), rt.cellBy(rt.f32PartialCmp));
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_32, _37, _42, _47, _52, _57, _62, _69, _74, _81, _90, _95, _100, _105, _110, order4 !== undefined && order4 >= 0, rt.iterEq(rt.iterSlice(x), rt.iterSliceMut(y), (a03: rt.f32, a13: rt.Place<rt.f32>): boolean => {
 		return a03 === a13.v;
 	}, true), !rt.iterEq(rt.iterSliceMut(x), rt.iterSlice(y), (a04: rt.Place<rt.f32>, a14: rt.f32): boolean => {
 		return a04.v === a14;

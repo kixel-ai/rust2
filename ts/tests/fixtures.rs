@@ -30,15 +30,22 @@ fn fixture(name: &str) -> PathBuf {
 /// Run the driver on a fixture with `config` and `args`, in its own build directory per
 /// `build`.
 fn driver(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Output {
-	Command::new(env!("CARGO_BIN_EXE_rust2-ts"))
+	driver_command(name, config, args, build)
+		.output()
+		.expect("running rust2-ts")
+}
+
+/// The command [`driver`] runs.
+fn driver_command(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
+	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ts"));
+	command
 		.arg("--config")
 		.arg(config)
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.args(args)
-		.env("CARGO_TARGET_DIR", scratch().join(build))
-		.output()
-		.expect("running rust2-ts")
+		.env("CARGO_TARGET_DIR", scratch().join(build));
+	command
 }
 
 /// Run the driver on a fixture, returning its output directory and what it printed.
@@ -205,8 +212,10 @@ fn codec() {
 	let out = translated("codec");
 	snapshot("codec", &out);
 	std::fs::write(out.join("shake.ts"), SHAKE).unwrap();
+	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
-	differential("codec-fixture", &[], &out, "harness.ts", 20_000);
+	// As many random inputs per case as each had of 20,000 picked by their first byte.
+	differential("codec-fixture", &[], &out, "caller.ts", 2_300);
 	shake(&out);
 }
 
@@ -501,6 +510,17 @@ fn share() {
 	}
 }
 
+/// Each case's generated inputs are its own, which `stable.ts` checks: adding, removing,
+/// or reordering a case changes no other case's.
+#[test]
+fn case_inputs() {
+	let output = Command::new("node")
+		.arg(manifest_dir().join("tests").join("stable.ts"))
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// Futures and drops: the harness is hand-written TS around the translation, whose FIFO
 /// executor logs every poll, wake, and drop as the fixture's native one does.
 #[test]
@@ -523,7 +543,7 @@ import * as futures from "./futures.ts";
 import * as closures from "./closures.ts";
 import {{ harness }} from {harness:?};
 
-export {{ cases, steps }} from {harness:?};
+export {{ cases, input, ops }} from {harness:?};
 const fixture = {{ Pending: rt.Pending, u64: {{ of: rt.u64Of }}, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
 const script = harness(fixture);
 export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
@@ -531,7 +551,8 @@ export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
 	);
 	std::fs::write(out.join("caller.ts"), text).unwrap();
 	typecheck(out);
-	differential("task-fixture", &[], out, "caller.ts", 20_000);
+	// Each step as often in random scripts as its share of 20,000 that mixed every step.
+	differential("task-fixture", &[], out, "caller.ts", 800);
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.
@@ -539,6 +560,128 @@ export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
 fn reject() {
 	let (out, output) = translate("reject");
 	rejected(&out, &output, &fixture("reject").join("expected.txt"));
+}
+
+/// Each error `tsc` finds in translated code is reported at the Rust that made it: a
+/// stand-in `tsc` on `PATH` fails each `return` and each call's argument where `tsc`
+/// reports them, in output that translates.
+#[test]
+fn spans() {
+	let config = fixture("reject").join("spans.toml");
+	let out = scratch().join("spans").join("out");
+	// A build of its own, which `reject`'s, of the same crate, would race.
+	let output = driver("reject", &config, &["--out".as_ref(), out.as_ref()], "spans-build");
+	assert!(
+		output.status.success(),
+		"translating spans failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let mut diagnostics = String::new();
+	// The fixture's own modules, not std's it reaches.
+	for (rel, text) in sources(&out)
+		.into_iter()
+		.filter(|(rel, _)| rel.to_string_lossy().starts_with("spans"))
+	{
+		for (line, col, what) in failures(&text) {
+			diagnostics.push_str(&format!("{}({line},{col}): error {what}\n", rel.display()));
+		}
+	}
+	let bin = scratch().join("spans").join("bin");
+	std::fs::create_dir_all(&bin).unwrap();
+	std::fs::write(bin.join("diagnostics.txt"), diagnostics).unwrap();
+	let tsc = bin.join("tsc");
+	std::fs::write(
+		&tsc,
+		format!(
+			"#!/bin/sh\ncase \"$1\" in --version) echo 'Version 7.0.0' ;; *) cat {:?}; exit 2 ;; esac\n",
+			bin.join("diagnostics.txt")
+		),
+	)
+	.unwrap();
+	std::fs::set_permissions(&tsc, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+	let path =
+		std::env::join_paths(std::iter::once(bin).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())))
+			.unwrap();
+	let output = driver_command("reject", &config, &["--out".as_ref(), out.as_ref()], "spans-build")
+		.env("PATH", path)
+		.output()
+		.expect("running rust2-ts");
+	rejected(&out, &output, &fixture("reject").join("spans.txt"));
+}
+
+/// Where `tsc` would report a mistyped `return` or argument in the module `text`: each
+/// `return`'s keyword, and each argument of a call where it starts, by one-based line and
+/// column, with what is there.
+fn failures(text: &str) -> Vec<(usize, usize, String)> {
+	// Each open bracket, and whether it is a call's.
+	let mut open: Vec<bool> = Vec::new();
+	let mut found = Vec::new();
+	for (i, line) in text.lines().enumerate() {
+		if ["import", "export function", "function", "//"]
+			.iter()
+			.any(|p| line.starts_with(p))
+		{
+			continue;
+		}
+		let chars: Vec<char> = line.chars().collect();
+		// Where an argument starts, once past the spaces after its `(` or `,`.
+		let mut argument = false;
+		let mut at = 0;
+		while at < chars.len() {
+			let c = chars[at];
+			if argument && c != ' ' {
+				argument = false;
+				if c != ')' {
+					let rest: String = chars[at..].iter().collect();
+					found.push((i + 1, at + 1, format!("TS2345: an argument, {}", argument_text(&rest))));
+				}
+			}
+			let word: String = chars[..at]
+				.iter()
+				.rev()
+				.take_while(|c| c.is_alphanumeric() || **c == '_' || **c == '$')
+				.collect();
+			match c {
+				'"' => {
+					at += 1;
+					while at < chars.len() && chars[at] != '"' {
+						at += if chars[at] == '\\' { 2 } else { 1 };
+					}
+				}
+				'r' if word.is_empty() && chars[at..].starts_with(&['r', 'e', 't', 'u', 'r', 'n', ' ']) => {
+					found.push((i + 1, at + 1, "TS2322: a return".to_string()));
+				}
+				'(' => {
+					let keyword = ["if", "while", "for", "switch", "return"]
+						.contains(&word.chars().rev().collect::<String>().as_str());
+					let call = !keyword && at > 0 && (!word.is_empty() || matches!(chars[at - 1], ')' | ']'));
+					open.push(call);
+					argument = call;
+				}
+				'[' | '{' => open.push(false),
+				')' | ']' | '}' => _ = open.pop(),
+				',' if open.last() == Some(&true) => argument = true,
+				_ => {}
+			}
+			at += 1;
+		}
+	}
+	found
+}
+
+/// The argument at the start of `rest`, up to the `,` or `)` that ends it on its line.
+fn argument_text(rest: &str) -> &str {
+	let mut depth = 0;
+	for (i, c) in rest.char_indices() {
+		match c {
+			'(' | '[' | '{' => depth += 1,
+			')' | ']' | '}' if depth == 0 => return &rest[..i],
+			')' | ']' | '}' => depth -= 1,
+			',' if depth == 0 => return &rest[..i],
+			_ => {}
+		}
+	}
+	rest
 }
 
 /// Bindings stand in for what translation refuses, `bytes::Bytes` and the crate's own
@@ -888,8 +1031,9 @@ fn stock() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	snapshot("stock", &out);
-	// A hand-written caller, which names inputs the generated ones never reach.
+	// A hand-written caller, which names the cases and inputs the generated ones never reach.
 	std::fs::copy(fixture("stock").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
-	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 5_000);
+	// As many random inputs per case as each had of 5,000 picked by their first byte.
+	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 320);
 }

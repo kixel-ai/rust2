@@ -154,7 +154,7 @@ export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 export function words(data: rt.ByteSlice): rt.u16[] {
 	return rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data, 2), (c: rt.ByteSlice): rt.u16 => {
 		rt.idx(c, 0);
-		return ((((c.data[c.start] as rt.u16)) << 8) & 0xffff) | rt.optionUnwrap(rt.byteSliceLast(c)) as rt.u16;
+		return (((c.data[c.start] as rt.u16) << 8) & 0xffff) | rt.optionUnwrap(rt.byteSliceLast(c)) as rt.u16;
 	}), undefined, 2, true);
 }
 

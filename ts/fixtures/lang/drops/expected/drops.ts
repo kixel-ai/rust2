@@ -49,7 +49,7 @@ export function ways$drops_Chain_drops_Logged_drops_drops_closure12(make: (a0: r
 		const v: Chain.Chain<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), rt.drop);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			rt.vecSwapRemove(v, 0)[Symbol.dispose]();
 			mark();
 		}
@@ -93,7 +93,7 @@ export function ways$drops_Deep_drops_Logged_drops_drops_closure9(make: (a0: rt.
 		const v: Deep.Deep<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Deep_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_Deep_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -137,7 +137,7 @@ export function ways$drops_InBox_drops_Logged_drops_drops_closure8(make: (a0: rt
 		const v: InBox.InBox<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InBox_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InBox_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -181,7 +181,7 @@ export function ways$drops_InEnum_drops_Logged_drops_drops_closure4(make: (a0: r
 		const v: InEnum.InEnum<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InEnum_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InEnum_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -225,7 +225,7 @@ export function ways$drops_InGuard_drops_Logged_drops_drops_closure3(make: (a0: 
 		const v: InGuard.InGuard<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InGuard_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InGuard_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -269,7 +269,7 @@ export function ways$drops_InOption_drops_Logged_drops_drops_closure6(make: (a0:
 		const v: InOption.InOption<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InOption_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InOption_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -313,7 +313,7 @@ export function ways$drops_InPlain_drops_Logged_drops_drops_closure7(make: (a0: 
 		const v: InPlain.InPlain<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InPlain_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InPlain_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -357,7 +357,7 @@ export function ways$drops_InResult_drops_Logged_drops_drops_closure5(make: (a0:
 		const v: InResult.InResult<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InResult_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_InResult_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -401,7 +401,7 @@ export function ways$drops_Ping_drops_Logged_drops_drops_closure11(make: (a0: rt
 		const v: Ping.Ping<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Ping_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_Ping_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -445,7 +445,7 @@ export function ways$drops_Tree_drops_Logged_drops_drops_closure10(make: (a0: rt
 		const v: Tree.Tree<Logged.Logged>[] = [make(0), make(64), make(128)];
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Tree_drops_Logged);
 		mark();
-		if (!((v.length === 0))) {
+		if (!(v.length === 0)) {
 			drop$drops_Tree_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}

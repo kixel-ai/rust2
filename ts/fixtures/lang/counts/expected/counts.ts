@@ -148,19 +148,19 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			continue;
 		}
 		if (_19 === 1) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const again: rt.Arc<Noisy.Noisy> = rt.arcClone(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 				strong.push(again);
 				continue;
 			}
 		} else if (_19 === 2) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				if ((op & 128) === 0) {
 					rt.vecSwapRemove(strong, rt.usizeRem(pick, strong.length))[Symbol.dispose]();
 					continue;
 				}
 			}
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const _49: Noisy.Noisy | undefined = rt.arcIntoInner(rt.vecSwapRemove(strong, rt.usizeRem(pick, strong.length)));
 				if (_49 === undefined) {
 					rt.byteVecPush(out, 251);
@@ -172,24 +172,24 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 		} else if (_19 === 3) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const _62: rt.Weak<Noisy.Noisy> = new rt.Weak(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 				weak.push(_62);
 				continue;
 			}
 		} else if (_19 === 4) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				const again2: rt.Weak<Noisy.Noisy> = rt.weakClone(weak[rt.idx(weak, rt.usizeRem(pick, weak.length))]);
 				weak.push(again2);
 				continue;
 			}
 		} else if (_19 === 5) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				rt.vecSwapRemove(weak, rt.usizeRem(pick, weak.length))[Symbol.dispose]();
 				continue;
 			}
 		} else if (_19 === 6) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				const _90: rt.Arc<Noisy.Noisy> | undefined = rt.weakUpgrade(weak[rt.idx(weak, rt.usizeRem(pick, weak.length))]);
 				if (_90 === undefined) {
 					rt.byteVecPush(out, 254);
@@ -207,7 +207,7 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 			if (_19 === 8) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const at3 = rt.idx(strong, rt.usizeRem(pick, strong.length));
 					const held: rt.Weak<Noisy.Noisy> | undefined = new rt.Weak(strong[at3]);
 					const kept: ArcHolder.ArcHolder<Noisy.Noisy> = new ArcHolder.ArcHolder(new rt.Weak(strong[at3]));
@@ -231,7 +231,7 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 			} else if (_19 === 9) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const _140: Noisy.Noisy | undefined = rt.arcGetMut(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 					if (_140 === undefined) {
 						rt.byteVecPush(out, 252);
@@ -242,7 +242,7 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 			} else if (_19 === 10) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const at = rt.idx(strong, rt.usizeRem(pick, strong.length));
 					const noisy2: Noisy.Noisy = rt.arcMakeMut(rt.place(() => strong[at], (value) => strong[at] = value), Noisy.clone$Clone, rt.drop);
 					noisy2.id = noisy2.id ^ 32;
@@ -417,17 +417,17 @@ export function clonedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else {
 				const _137: rt.u8 = op >> 6;
 				if (_137 === 0) {
-					if (!((kept.length === 0))) {
+					if (!(kept.length === 0)) {
 						rt.vecRemove(kept, 0)[Symbol.dispose]();
 						break b2;
 					}
 				} else if (_137 === 1) {
-					if (!((shared.length === 0))) {
+					if (!(shared.length === 0)) {
 						rt.vecRemove(shared, 0)[Symbol.dispose]();
 						break b2;
 					}
 				} else if (_137 === 2) {
-					if (!((noisy.length === 0))) {
+					if (!(noisy.length === 0)) {
 						rt.vecRemove(noisy, 0)[Symbol.dispose]();
 						break b2;
 					}
@@ -880,17 +880,17 @@ export function clonedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else {
 				const _137: rt.u8 = op >> 6;
 				if (_137 === 0) {
-					if (!((kept.length === 0))) {
+					if (!(kept.length === 0)) {
 						rt.vecRemove(kept, 0)[Symbol.dispose]();
 						break b2;
 					}
 				} else if (_137 === 1) {
-					if (!((shared.length === 0))) {
+					if (!(shared.length === 0)) {
 						rt.vecRemove(shared, 0)[Symbol.dispose]();
 						break b2;
 					}
 				} else if (_137 === 2) {
-					if (!((noisy.length === 0))) {
+					if (!(noisy.length === 0)) {
 						rt.vecRemove(noisy, 0)[Symbol.dispose]();
 						break b2;
 					}
@@ -1022,19 +1022,19 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			continue;
 		}
 		if (_19 === 1) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const again: rt.Arc<Noisy.Noisy> = rt.arcClone(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 				strong.push(again);
 				continue;
 			}
 		} else if (_19 === 2) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				if ((op & 128) === 0) {
 					rt.vecSwapRemove(strong, rt.usizeRem(pick, strong.length))[Symbol.dispose]();
 					continue;
 				}
 			}
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const _49: Noisy.Noisy | undefined = rt.arcIntoInner(rt.vecSwapRemove(strong, rt.usizeRem(pick, strong.length)));
 				if (_49 === undefined) {
 					rt.byteVecPush(out, 251);
@@ -1046,24 +1046,24 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 		} else if (_19 === 3) {
-			if (!((strong.length === 0))) {
+			if (!(strong.length === 0)) {
 				const _62: rt.Weak<Noisy.Noisy> = new rt.Weak(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 				weak.push(_62);
 				continue;
 			}
 		} else if (_19 === 4) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				const again2: rt.Weak<Noisy.Noisy> = rt.weakClone(weak[rt.idx(weak, rt.usizeRem(pick, weak.length))]);
 				weak.push(again2);
 				continue;
 			}
 		} else if (_19 === 5) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				rt.vecSwapRemove(weak, rt.usizeRem(pick, weak.length))[Symbol.dispose]();
 				continue;
 			}
 		} else if (_19 === 6) {
-			if (!((weak.length === 0))) {
+			if (!(weak.length === 0)) {
 				const _90: rt.Arc<Noisy.Noisy> | undefined = rt.weakUpgrade(weak[rt.idx(weak, rt.usizeRem(pick, weak.length))]);
 				if (_90 === undefined) {
 					rt.byteVecPush(out, 254);
@@ -1081,7 +1081,7 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 			if (_19 === 8) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const at3 = rt.idx(strong, rt.usizeRem(pick, strong.length));
 					const held: rt.Weak<Noisy.Noisy> | undefined = new rt.Weak(strong[at3]);
 					const kept: RcHolder.RcHolder<Noisy.Noisy> = new RcHolder.RcHolder(new rt.Weak(strong[at3]));
@@ -1105,7 +1105,7 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 			} else if (_19 === 9) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const _140: Noisy.Noisy | undefined = rt.arcGetMut(strong[rt.idx(strong, rt.usizeRem(pick, strong.length))]);
 					if (_140 === undefined) {
 						rt.byteVecPush(out, 252);
@@ -1116,7 +1116,7 @@ export function rcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 			} else if (_19 === 10) {
-				if (!((strong.length === 0))) {
+				if (!(strong.length === 0)) {
 					const at = rt.idx(strong, rt.usizeRem(pick, strong.length));
 					const noisy2: Noisy.Noisy = rt.arcMakeMut(rt.place(() => strong[at], (value) => strong[at] = value), Noisy.clone$Clone, rt.drop);
 					noisy2.id = noisy2.id ^ 32;

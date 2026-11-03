@@ -74,6 +74,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(std) => matches!(std, Std::Context | Std::WakerVTable),
 				None => self.bound_drops(adt.did()).is_none(),
 			},
+			// A `&mut` to one is the object too.
+			(Some(ObjectKind::Class), ty::Dynamic(..)) => true,
 			_ => false,
 		};
 		match object {
@@ -107,6 +109,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		{
 			return Some(format!(
 				"comparing pointers to `{ty}`, which a slice lends as a copy of its own"
+			));
+		}
+		if ty.is_trait() {
+			return Some(format!(
+				"comparing pointers to `{ty}`, each an object JS makes of its own as it unsizes"
 			));
 		}
 		match self.pointee(ty) {
@@ -267,7 +274,10 @@ pub fn from_reference<'tcx>(
 		return false;
 	};
 	match (owner.as_str(), name.as_str()) {
-		("UnsafeCell", "get") | ("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("ptr", "from_ref" | "from_mut") => true,
+		("UnsafeCell", "get")
+		| ("Cell", "as_ptr")
+		| ("MaybeUninit", "as_ptr" | "as_mut_ptr")
+		| ("ptr", "from_ref" | "from_mut") => true,
 		("From", "from") | ("Into", "into") => {
 			let (to, from) = match owner.as_str() {
 				"From" => (args.type_at(0), args.type_at(1)),
@@ -312,6 +322,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		| ("MaybeUninit", "new" | "uninit" | "assume_init")
 		| ("ManuallyDrop", "new" | "into_inner")
 		| ("UnsafeCell", "new" | "get" | "raw_get" | "get_mut" | "into_inner")
+		| ("Cell", "as_ptr" | "get_mut")
 		| ("Box", "new") => Some(Derives::Other),
 		("ptr", "read" | "read_unaligned" | "read_volatile")
 		| ("NonNull", "read")
@@ -369,7 +380,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 			(owner.as_str(), name.as_str()),
 			("MaybeUninit", "as_mut_ptr" | "write" | "assume_init_mut" | "assume_init_drop")
 				| ("ManuallyDrop", "drop" | "take")
-				| ("UnsafeCell", "get_mut")
+				| ("UnsafeCell" | "Cell", "get_mut")
 				| ("NonNull" | "ptr", "as_mut")
 				| ("Box", "leak")
 		)
@@ -398,6 +409,7 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 			) | ("Box", "into_raw" | "leak" | "from_raw")
 				| ("ManuallyDrop", "new" | "into_inner" | "drop" | "take")
 				| ("UnsafeCell", "new" | "get" | "get_mut" | "into_inner")
+				| ("Cell", "as_ptr" | "get_mut")
 		) || owner == "Atomic" && super::library::is_std(tcx, def_id)
 	);
 	keeps || from_reference(tcx, def_id, args)
@@ -481,10 +493,14 @@ pub fn call<'tcx>(
 		("ptr", "null" | "null_mut") => Expr::Rt("NULL".into()),
 		// A pointer to `()` is an identity, which the `rt.Place` of a place or a reference
 		// is not. A box of one holds nothing, so its pointer is dangling.
-		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get") if b.t.identity_pointee(pointee()) => b.err(
-			span,
-			"a raw pointer to a place of `()`, which has no address of its own",
-		),
+		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get") | ("Cell", "as_ptr")
+			if b.t.identity_pointee(pointee()) =>
+		{
+			b.err(
+				span,
+				"a raw pointer to a place of `()`, which has no address of its own",
+			)
+		}
 		("ptr", "from_ref") if b.t.identity_pointee(pointee()) => b.err(
 			span,
 			"a raw pointer to a place of `()`, which has no address of its own",
@@ -735,13 +751,13 @@ pub fn call<'tcx>(
 			};
 			b.t.snapshot(value, pointee(), span)
 		}
-		// An `rt.Cell`, which is the place a pointer to a value JS copies is, and holds the
-		// object a pointer to any other is.
+		// An `rt.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
+		// and holds the object a pointer to any other is.
 		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rt("Cell".into())), vec![arg()]),
-		("UnsafeCell", "get") if kind(b, pointee()) == Some(Pointee::Place) => arg(),
-		("UnsafeCell", "get") if bytes(b, pointee()) => to_pointer(arg().member("v")),
-		("UnsafeCell", "get_mut") if b.t.needs_place(pointee()) => arg(),
-		("UnsafeCell", "get" | "get_mut" | "into_inner") => arg().member("v"),
+		("UnsafeCell", "get") | ("Cell", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => arg(),
+		("UnsafeCell", "get") | ("Cell", "as_ptr") if bytes(b, pointee()) => to_pointer(arg().member("v")),
+		("UnsafeCell" | "Cell", "get_mut") if b.t.needs_place(pointee()) => arg(),
+		("UnsafeCell", "get" | "get_mut" | "into_inner") | ("Cell", "as_ptr" | "get_mut") => arg().member("v"),
 		// Pointers into an array: `rt.AtIndex`es, which a `Vec`'s and a slice's give.
 		("slice" | "Vec", "as_ptr" | "as_mut_ptr") => {
 			let elem = targ(gargs, 0);

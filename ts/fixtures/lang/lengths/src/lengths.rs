@@ -1,18 +1,28 @@
 //! Functions generic over an array's length whose calls take values of types holding it:
 //! arrays of bytes, of a type parameter's values, and of arrays, each at a length of none,
 //! one, and more. Their writes are judged in the bounds of the body making them, as
-//! filling memory nothing points into yet or giving what they replace another object.
+//! filling memory nothing points into yet or giving what they replace another object,
+//! through what std's iterators and a vector's accessors give back and what `copied` and
+//! `vec![x; n]` make of a `Copy` type whose `Clone` logs and panics.
 
+use std::cell::RefCell;
 use std::mem::MaybeUninit;
 
 /// Each case at the length `kind` picks.
 pub fn lengths(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	// What a case that panicked left, which a translation outlives, as native Rust's trap does not.
+	CLONES.with_borrow_mut(Vec::clear);
 	match kind % 4 {
 		0 => each::<0>(data, out),
 		1 => each::<1>(data, out),
 		2 => each::<3>(data, out),
 		_ => each::<17>(data, out),
 	}
+	let byte = |at: usize| u16::from(data.get(at).copied().unwrap_or(0));
+	repeated::<u8>(data, 0x41, 0x42, out);
+	repeated::<Loud>(data, Loud(byte(1)), Loud(byte(0)), out);
+	loud(data, out);
+	CLONES.with_borrow_mut(|log| out.extend(log.drain(..)));
 }
 
 fn each<const N: usize>(data: &[u8], out: &mut Vec<u8>) {
@@ -83,8 +93,9 @@ fn recloned<T: Copy + Into<u32>, const N: usize>(rows: &[[T; N]], out: &mut Vec<
 }
 
 /// Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
-/// nothing points into them, the last two again beside a vector's iterator, which std
-/// drops, then changed in place, a pair of tags through a pointer to it, and read back.
+/// nothing points into them, the last two again from the values a vector's iterator gives
+/// beside them, which std drops, then changed in place, a pair of tags through a pointer to
+/// it, and read back.
 fn filled<T: Copy + Put, const N: usize>(data: &[u8], fill: [T; N], out: &mut Vec<u8>) {
 	let mut slots: [MaybeUninit<([T; N], (u8, u8))>; 3] = [const { MaybeUninit::uninit() }; 3];
 	for (slot, at) in slots.iter_mut().zip(0u8..) {
@@ -94,8 +105,12 @@ fn filled<T: Copy + Put, const N: usize>(data: &[u8], fill: [T; N], out: &mut Ve
 	for &v in &fill {
 		picks.push(Some(v));
 	}
-	for (slot, _) in slots.iter_mut().skip(1).zip(picks) {
-		slot.write((fill, (N as u8, 0x5a)));
+	for (slot, pick) in slots.iter_mut().skip(1).zip(picks) {
+		let row = match pick {
+			Some(v) => [v; N],
+			None => fill,
+		};
+		slot.write((row, (N as u8, 0x5a)));
 	}
 	for &byte in data {
 		let slot = unsafe { slots[usize::from(byte) % 3].assume_init_mut() };
@@ -167,4 +182,82 @@ fn swapped<T: Copy + Into<u32>, const N: usize>(data: &[u8], rows: &[[T; N]], ou
 		}
 		out.extend(row.iter().chain(grid.iter().flatten()).map(|&x| x.into() as u8));
 	}
+}
+
+thread_local! {
+	/// The value of each `Loud` cloned, in order.
+	static CLONES: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A `Copy` type whose `Clone`, written by hand, logs its value, panics on `0xff`, and
+/// counts up, so a clone tells from a copy: `copied` never calls it, and `vec![x; n]` calls
+/// it `n - 1` times.
+#[derive(Copy)]
+struct Loud(u16);
+
+#[allow(clippy::non_canonical_clone_impl, reason = "a `Clone` that differs from the copy")]
+impl Clone for Loud {
+	fn clone(&self) -> Self {
+		CLONES.with_borrow_mut(|log| log.extend(self.0.to_le_bytes()));
+		assert_ne!(self.0, 0xff, "a clone of 0xff");
+		Self(self.0.wrapping_add(1))
+	}
+}
+
+impl Put for Loud {
+	fn put(&self, out: &mut Vec<u8>) {
+		out.extend(self.0.to_le_bytes());
+	}
+}
+
+/// A value and a pair of tags kept as an object.
+#[derive(Clone, Copy)]
+struct Row<T>(T, (u8, u8));
+
+/// A vector's length, its first row written whole and its tags changed through a pointer
+/// to them, the second's changed in place, and each row put as the vector is moved out.
+macro_rules! rewritten {
+	($rows:ident, $x:expr, $out:ident) => {
+		$out.push($rows.len() as u8);
+		if let Some(first) = $rows.first_mut() {
+			*first = Row($x, (0x30, 0x31));
+			let tags = &raw mut first.1;
+			unsafe { (*tags).0 ^= 0x10 }
+		}
+		if let Some(Row(_, (_, b))) = $rows.get_mut(1) {
+			*b ^= 0x20;
+		}
+		for Row(value, (a, b)) in $rows {
+			value.put($out);
+			$out.extend([a, b]);
+		}
+	};
+}
+
+/// [`repeated`]'s body, over `$x`'s type.
+macro_rules! repeated {
+	($data:ident, $x:expr, $y:expr, $out:ident) => {{
+		let rows = [Row($y, (0x01, 0x02)), Row($x, (0x03, 0x04))];
+		let mut copies: Vec<_> = rows.iter().copied().collect();
+		rewritten!(copies, $x, $out);
+		let mut repeats = vec![Row($x, (0x05, 0x06)); 1 + $data.len() % 3];
+		rewritten!(repeats, $x, $out);
+		for Row(value, (a, b)) in rows {
+			value.put($out);
+			$out.extend([a, b]);
+		}
+	}};
+}
+
+/// Rows of `T`'s values copied out of an array and repeated by `vec!`, which runs `T`'s
+/// `Clone`, each vector then [`rewritten`], every row kept apart from the others and from
+/// the array's.
+fn repeated<T: Copy + Put>(data: &[u8], x: T, y: T, out: &mut Vec<u8>) {
+	repeated!(data, x, y, out);
+}
+
+/// [`repeated`] of the crate's own type, in a body generic over none.
+fn loud(data: &[u8], out: &mut Vec<u8>) {
+	let byte = |at: usize| u16::from(data.get(at).copied().unwrap_or(0));
+	repeated!(data, Loud(byte(2)), Loud(byte(0)), out);
 }

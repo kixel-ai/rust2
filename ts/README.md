@@ -123,8 +123,8 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
-| a pointer to a struct whose last field unsizes to a trait object: `Rc<RefCell<dyn Trait>>`, `Arc<Mutex<dyn Trait>>`, `Arc<RwLock<dyn Trait>>`, the crate's own `&Tail<dyn Trait>` | `rt.tailDyn` of the struct it was made from: the same struct, whose other fields, borrows, and lock are that struct's own, and whose last field is the trait object a `&mut` to that field would be, made where it is read |
-| `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
+| a pointer to a struct whose last field unsizes to a trait object: `Rc<RefCell<dyn Trait>>`, `Arc<Mutex<dyn Trait>>`, `Arc<RwLock<dyn Trait>>`, `&mut Cell<dyn Trait>`, `Rc<UnsafeCell<dyn Trait>>`, `Arc<Mutex<dyn Future + Unpin>>`, the crate's own `&Tail<dyn Trait>` | `rt.tailDyn` of the struct it was made from: the same struct, whose other fields, borrows, and lock are that struct's own, and whose last field is the trait object a `&mut` to that field would be, made where it is read; a `dyn Future`'s polls the one future in place and drops it with the struct. A `ManuallyDrop<dyn Trait>` is the trait object of what it holds, which a box of it never drops |
+| `dyn Error` | an object of its `fmt$Debug` and `fmt$Display`, and its `source` where a call dispatches to it: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
@@ -134,7 +134,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
 | `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` pointing where a reference to its value does, or at its place where JS copies it, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rt.TryLockError<T>`, tagged as `Bound` is |
-| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s pointer is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
+| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s and `Cell::as_ptr`'s pointer, and `get_mut`'s reference, is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
 | `thread_local!`, `LocalKey<T>` | an `rt.LocalKey`, a module's value that each copy of the key is, which makes its value on first use from the `const` or the expression and never drops it, as wasm32's do; `with` calls its function on that value, `try_with` never fails, the `Cell` and `RefCell` helpers lower from std, and a `RefCell` key's `set` and `with_borrow_mut` borrow it as `borrow_mut` does |
 | `OnceCell<T>`, `OnceLock<T>` | `rt.OnceCell` and `rt.OnceLock`, holding the `Option<T>` in `v`, which is the place `get_mut` lends where JS copies the value; a `OnceLock` initialized from within its own initialization panics, as wasm32's does, and `get_or_try_init`'s error leaves either empty |
 | `Once`, `OnceState` | `rt.Once`, an `rt.OnceLock` that holds `true` once `call_once` or `call_once_force` ran its function, and panics as wasm32's does if run again from within it; `rt.OnceState`, that `Once`, which a panic never poisons, as it aborts |
@@ -213,6 +213,10 @@ capital sigma, which `to_lowercase` writes final at the end of a word, as std re
 cased and case-ignorable neighbors. `escape_debug`, `escape_default`, and `escape_unicode`
 are std's `flat_map` of each char's, sized as it is, and write what they have left by
 `Display`, unpadded. `encode_utf16` is sized as std's, and `Debug` of it is `EncodeUtf16 { .. }`.
+`String::from_utf16` and `from_utf16_lossy`, and `from_utf16le`, `from_utf16be`, and
+their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired surrogate
+fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
+becomes U+FFFD, and so does an odd byte at the end.
 
 An `f64` is a JS number, so its operators are JS's, which round as Rust's do. Where
 JS differs from std, the runtime has std's: `round` halves away from zero, `max` and
@@ -304,11 +308,15 @@ moves read steps in place, as two variables: the array and an index into it, or 
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
-`find`, `rfind`, `find_map`, `for_each`, `reduce`, and `all`, where std's adaptors and consumers
-call them: a filter's `next` calls `find`, an `extend` into a hash or B-tree collection, a
-`String`, or a tuple calls `for_each`, `max` calls `reduce`, and `is_sorted` calls `all`. Its
-own `position`, `max`, and the others std never calls in place of another run only where the
-crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
+`find`, `rfind`, `find_map`, `for_each`, `reduce`, `all`, and `is_sorted_by`, where std's
+adaptors and consumers call them: a filter's `next` calls `find`, an `extend` into a hash or
+B-tree collection, a `String`, or a tuple calls `for_each`, `max` calls `reduce`, and
+`is_sorted` calls `is_sorted_by`, which calls `all`. Its
+own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
+`Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
+`partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
+which std calls only from `Vec::splice`, which is not supported, `position`, `max`, and the
+others std never calls in place of another only where the crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -515,8 +523,16 @@ and a `Pin` the pointer it holds. A `Weak<T>` unsized to a `Weak<dyn Trait>` kee
 of what the box is, which drops it with the last clone. A pointer to a struct whose last
 field unsizes to a trait object, such as `RefCell<dyn Trait>`, is an `rt.tailDyn` view of
 the struct it was made from, behind an `rt.ArcDyn` in an `Arc`, and two such pointers are
-equal if their views are of one struct. A `dyn Buf`'s object holds no
-`chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
+equal if their views are of one struct. A raw pointer unsized to a trait object, or to a
+struct of one, is what a box of the object it points at unsizes to, which drops it as
+`Box::from_raw` of it does, or what a `&mut` to its place does; one to a library value,
+such as a cell, unsizes as each read finds the value there, and stays null or dangling.
+One whose object would hold such a value as it is made, such as a `*mut dyn Iterator` of
+a `*mut Range`, is refused. Pointers to trait objects don't compare, as each coercion
+makes an object of its own. A `dyn Error`'s or `dyn Buf`'s object holds only
+the methods some call through one dispatches to, so each buffer adds those of its impls,
+not all of `Buf`'s; a TS caller sees the same in its type. It holds no `chunks_vectored`,
+whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
@@ -876,7 +892,7 @@ they need.
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
   whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
   where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
-  capacity held for the `Vec`. A `Vec` and `BinaryHeap` hold what std
+  capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
   guarantees of their capacity: at least their length and what `with_capacity`,
   `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
   as through pushes, a `clone_from` into a `Vec` that keeps its own, and a `collect` that
@@ -953,12 +969,12 @@ copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
 own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method std calls in place
-of another other than those, such as `collect`, `eq`, `partial_cmp`, or `by_ref`, or whose own
+of another other than those, such as `map`, which `flat_map` calls, or whose own
 method taking a closure tells it, or its accumulator or what it finds, apart from another, by an
 `Option` or a `Poll` of the accumulator, a call or constant generic over them other than calling
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
-drop of the accumulator or what it finds, or whose own `find` or `rfind` gives its predicate a
-reference to a `[u8; N]`,
+drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
+its closure a reference to a `[u8; N]`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
@@ -981,7 +997,9 @@ just ts census                # census moq-net and kio at the same revision
 Each fixture under `fixtures/` is translated and compared with its `expected/` snapshot,
 then type-checked with `tsc`. A fixture with a `harness::run(&[u8]) -> Vec<u8>` is also
 built natively for wasm32 and run beside its translation on the same inputs by
-`tests/differential.ts`, which fails on any difference in output or panic messages.
+`tests/differential.ts`, which fails on any difference in output or panic messages. A
+harness that names its cases draws each case's inputs from a stream seeded by its name,
+so adding, removing, or reordering a case changes no other case's inputs.
 
 - `codec` vendors moq-net's sync codec, which a harness outside the crate could not reach,
   and writes its errors' `Display` and `Debug`. It is also translated without

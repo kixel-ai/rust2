@@ -2151,9 +2151,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	) -> Option<String> {
 		let tcx = self.tcx;
 		let pointee = tcx.mk_place_deref(reference.place()?);
-		let cell = library::key(tcx, def_id).is_some_and(|(owner, _)| owner == "UnsafeCell");
+		let owner = library::key(tcx, def_id).map(|(owner, _)| owner);
+		let cell = matches!(owner.as_deref(), Some("UnsafeCell" | "Cell"));
 		let held = gargs.type_at(0);
 		let place = match cell && self.b.t.pointee(held) != crate::lower::pointer::Pointee::Place {
+			// A `Cell` holds its value in its `UnsafeCell`.
+			true if owner.as_deref() == Some("Cell")
+				&& let ty::Adt(adt, args) = pointee.ty(&self.mir.local_decls, tcx).ty.kind() =>
+			{
+				let unsafe_cell = adt.non_enum_variant().fields[FieldIdx::ZERO]
+					.ty(tcx, args)
+					.skip_norm_wip();
+				tcx.mk_place_field(
+					tcx.mk_place_field(pointee, FieldIdx::ZERO, unsafe_cell),
+					FieldIdx::ZERO,
+					held,
+				)
+			}
 			true => tcx.mk_place_field(pointee, FieldIdx::ZERO, held),
 			false => pointee,
 		};

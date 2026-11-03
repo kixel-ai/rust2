@@ -49,8 +49,8 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const _50: rt.RangeInclusive<Guard.Guard> = new rt.RangeInclusive(guard(3), guard(4));
 		rt.dropAll([_50.lo, _50.hi]);
 		new rt.RangeFrom(guard(5)).start[Symbol.dispose]();
-		(({ end: guard(6) }.end[Symbol.dispose]()));
-		(({ end: guard(7), inclusive: true }.end[Symbol.dispose]()));
+		({ end: guard(6) }.end[Symbol.dispose]());
+		({ end: guard(7), inclusive: true }.end[Symbol.dispose]());
 		const r: rt.Range<Guard.Guard> = new rt.Range(guard(8), guard(9));
 		const start: Guard.Guard = r.start;
 		const part20 = Guard.id(start);
