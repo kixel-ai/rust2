@@ -485,17 +485,47 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// type without a mapping. One that owns what it yields, by value, is given what drops
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
-	let tcx = b.t.tcx;
-	let boxed = boxes_iter(b, ty);
 	let (peeled, value) = peel_iter(b, ty, value);
-	// A box, by value, which std's `Iterator` for `Box<I>` reads by `next` where it forwards
-	// nothing else.
-	if peeled != ty && !peeled.is_ref() {
-		return into_iter(b, peeled, value, span).map(|it| Expr::rt("iterBoxed", vec![it]));
+	let it = peeled_into_iter(b, peeled, value, span)?;
+	Some(boxes(b, ty, it))
+}
+
+/// `it`, the `rt.Iter` of what `peel_iter` read a `ty` through, read through `ty`'s boxes
+/// as std's `Iterator` for `Box<I>` reads one: by what it forwards, and else by `next`.
+/// Boxes before the first reference are one `rt.iterBox`, and a box past it makes that
+/// reference fold by `next` too, whatever the box holds.
+fn boxes<'tcx>(b: &Body<'_, '_, 'tcx>, mut ty: Ty<'tcx>, it: Expr) -> Expr {
+	let held = |ty: Ty<'tcx>| ty.boxed_ty().filter(|held| b.t.iter_item(*held).is_some());
+	let outer = held(ty).is_some();
+	while let Some(inner) = held(ty) {
+		ty = inner;
 	}
-	let (ty, value) = match unbox_ref(tcx, peeled) {
-		unboxed if unboxed != peeled => (unboxed, b.t.pointee_value(peeled, value)),
-		_ => (peeled, value),
+	let mut end = ty;
+	let borrowed = loop {
+		if held(end).is_some() {
+			break true;
+		}
+		match *end.kind() {
+			ty::Ref(_, inner, _) => end = inner,
+			_ => break false,
+		}
+	};
+	let it = match borrowed {
+		true => Expr::rt("iterBorrow", vec![Expr::rt("iterBox", vec![it])]),
+		false => it,
+	};
+	match outer {
+		true => Expr::rt("iterBox", vec![it]),
+		false => it,
+	}
+}
+
+/// `into_iter` of `value`, a `ty` `peel_iter` read through.
+fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
+	let tcx = b.t.tcx;
+	let (ty, value) = match unbox_ref(tcx, ty) {
+		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
+		_ => (ty, value),
 	};
 	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
 	// room for exactly them.
@@ -522,9 +552,7 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 			}
 			// One borrowed by `&mut`, which std's adaptors may drop once it ends, but which
 			// is its owner's to drop, and which a consumer reads on through the borrow
-			// rather than by its by-value overrides, as `Chain::count` ends both halves. Through
-			// a box, which folds by `next`.
-			None if !owned && boxed => Expr::rt("iterBorrow", vec![Expr::rt("iterBoxed", vec![value])]),
+			// rather than by its by-value overrides, as `Chain::count` ends both halves.
 			None if !owned => Expr::rt("iterBorrow", vec![value]),
 			None => value,
 		});
@@ -650,14 +678,6 @@ pub fn unbox_ref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 			Ty::new_ref(tcx, region, held, mutability)
 		}
 		_ => ty,
-	}
-}
-
-/// Whether `ty`, read through each reference, is a box of an iterator.
-fn boxes_iter<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
-	match *ty.kind() {
-		ty::Ref(_, inner, _) => boxes_iter(b, inner),
-		_ => ty.boxed_ty().is_some_and(|held| b.t.iter_item(held).is_some()),
 	}
 }
 

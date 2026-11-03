@@ -598,17 +598,21 @@ export function iterBorrow<T>(it: Iter<T>): Iter<T> {
 	return new Borrowed(it);
 }
 
-/** A box of the sized iterator `it`, read as std's `Iterator` for `Box<I>` reads it. */
-export function iterBoxed<T>(it: Iter<T>): Iter<T> {
-	return new Boxed(it);
-}
-
 /**
  * A `dyn Iterator` of `it`: what std's vtable has, as `it` does it, and the rest by `next`, as
  * std's default methods read a trait object. It drops `it` as it drops.
  */
 export function iterDyn<T>(it: Iter<T>): Iter<T> {
 	return new Dyn(it);
+}
+
+/**
+ * A `Box` of `it`: what std's `Iterator` for `Box<I>` forwards, `last` among them, as `it`
+ * does it, and the rest by `next`, `advance_by` and the folds included. It drops `it` as it
+ * drops.
+ */
+export function iterBox<T>(it: Iter<T>): Iter<T> {
+	return new Boxed(it);
 }
 
 // How std's `Vec` and `VecDeque` reserve for an iterator they collect or extend by, of
@@ -921,7 +925,8 @@ export function iterCount<T>(it: Iter<T>): number {
 export function iterLast<T>(it: Iter<T>): T | undefined;
 export function iterLast<T>(it: Iter<T>, none: None): T | None;
 export function iterLast<T>(it: Iter<T>, none?: None): T | undefined | None {
-	if (it instanceof Boxed) return iterLast(it.inner, none as None);
+	// std's of a box: what it holds, by its own.
+	while (it instanceof Boxed) it = it.inner;
 	const folded = it.folded(true);
 	let last: T | Done = DONE;
 	for (let item = folded.next(); item !== DONE; item = folded.next()) last = item;
@@ -1551,6 +1556,7 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
  */
 function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
 	if (it instanceof FromNext && it.own?.last !== undefined) return it.taken(it.own.last);
+	// std's of a box: what it holds, by its own.
 	if (it instanceof Boxed) return last(it.inner, drop);
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
 		// std's, of a `Vec`'s or an array's, and of a B-tree's `into_keys` and
@@ -2154,8 +2160,11 @@ class SuccessorsIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/** What std's vtable of an iterator holds, as `inner` does it, which it drops with itself. */
-class Dyn<T> extends Iter<T> implements Disposable {
+/**
+ * An iterator of `inner` that forwards what std's `Iterator` for `Box<I>` and a trait
+ * object's vtable both have, and drops it as it drops.
+ */
+abstract class Forward<T> extends Iter<T> implements Disposable {
 	readonly inner: Iter<T>;
 
 	constructor(inner: Iter<T>) {
@@ -2179,6 +2188,24 @@ class Dyn<T> extends Iter<T> implements Disposable {
 		return this.inner.len();
 	}
 
+	override nth(n: number, drop?: Drop<T>): T | Done {
+		return this.inner.nth(n, drop);
+	}
+
+	override nthBack(n: number, drop?: Drop<T>): T | Done {
+		return this.inner.nthBack(n, drop);
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.inner);
+	}
+}
+
+/** A box, whose `last` is `inner`'s too, which `last` dispatches on. */
+class Boxed<T> extends Forward<T> {}
+
+/** What std's vtable of an iterator holds, as `inner` does it: a box's, and `advance_by` too. */
+class Dyn<T> extends Forward<T> {
 	override advanceBy(n: number, drop?: Drop<T>): number {
 		return this.inner.advanceBy(n, drop);
 	}
@@ -2186,69 +2213,8 @@ class Dyn<T> extends Iter<T> implements Disposable {
 	override advanceBackBy(n: number, drop?: Drop<T>): number {
 		return this.inner.advanceBackBy(n, drop);
 	}
-
-	override nth(n: number, drop?: Drop<T>): T | Done {
-		return this.inner.nth(n, drop);
-	}
-
-	override nthBack(n: number, drop?: Drop<T>): T | Done {
-		return this.inner.nthBack(n, drop);
-	}
-
-	[Symbol.dispose](): void {
-		dispose(this.inner);
-	}
 }
 
-/**
- * A box of a sized iterator, which forwards only what std's `impl Iterator for Box<I>`
- * does, `last` included, as std's specializes it for a sized `I`, and reads the rest by
- * `next` and `next_back`. It drops `inner` as it drops.
- */
-class Boxed<T> extends Iter<T> implements Disposable {
-	readonly inner: Iter<T>;
-
-	constructor(inner: Iter<T>) {
-		super();
-		this.inner = inner;
-	}
-
-	override sizeHint(): SizeHint {
-		return this.inner.sizeHint();
-	}
-
-	next(): T | Done {
-		return this.inner.next();
-	}
-
-	nextBack(): T | Done {
-		return this.inner.nextBack();
-	}
-
-	len(): number {
-		return this.inner.len();
-	}
-
-	override nth(n: number, drop?: Drop<T>): T | Done {
-		return this.inner.nth(n, drop);
-	}
-
-	override nthBack(n: number, drop?: Drop<T>): T | Done {
-		return this.inner.nthBack(n, drop);
-	}
-
-	remaining(): Iterable<unknown> {
-		return this.inner.remaining();
-	}
-
-	clone(h?: Clones): Iter<T> {
-		return new Boxed(this.inner.clone(h));
-	}
-
-	[Symbol.dispose](): void {
-		dispose(this.inner);
-	}
-}
 
 /**
  * An iterator borrowed by `&mut`, which forwards only what std's `impl Iterator for &mut
