@@ -3,8 +3,9 @@
 import * as rt from "./rt.ts";
 import { drop$task_Poll_futures_Logged } from "./lib.ts";
 import { isSomeAnd$09tpccf, filter$0v80fk8 } from "./core/option.ts";
-import { map$0fx224j as poll_map$0fx224j, isReady$1ntq2i8, isPending$1405yze, isPending$0vrdvv1 } from "./core/task/poll.ts";
+import { eq$11qt6c3 as poll_eq$11qt6c3, eq$1h9nnoh as poll_eq$1h9nnoh, map$0fx224j as poll_map$0fx224j, isReady$1ntq2i8, isPending$1405yze, isPending$0vrdvv1 } from "./core/task/poll.ts";
 import * as Count from "./futures.Count.ts";
+import * as Held from "./futures.Held.ts";
 import * as Later from "./futures.Later.ts";
 import * as Logged from "./futures.Logged.ts";
 import { put, text } from "./harness.ts";
@@ -535,39 +536,60 @@ export function hashes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.hashPoll(rt.hashPoll(rt.hash8), rt.OuterPending)(_41, h2);
 	}
 	rt.iterExtendBytes(out, rt.iterSlice(rt.u64ToBeBytes(rt.hashFinish(h2))), undefined, true);
+	const _48: rt.Iter<rt.Poll<rt.u8>> = rt.iterSlice(polls);
+	const set: rt.HashSet<rt.Poll<rt.u8>> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashPoll(rt.hash8), poll_eq$1h9nnoh)) as rt.HashSet<rt.Poll<rt.u8>>, _48, undefined, undefined, 469762048);
+	const _53: rt.Iter<rt.Poll<rt.u8> | rt.OuterPending> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): rt.Poll<rt.u8> | rt.OuterPending => {
+		return nested(_22);
+	});
+	const nests: rt.HashSet<rt.Poll<rt.u8> | rt.OuterPending> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashPoll(rt.hashPoll(rt.hash8), rt.OuterPending), poll_eq$11qt6c3)) as rt.HashSet<rt.Poll<rt.u8> | rt.OuterPending>, _53, undefined, undefined, 469762048);
+	rt.byteVecPush(out, rt.hashLen(set) & 0xff);
+	rt.byteVecPush(out, rt.hashLen(nests) & 0xff);
+	rt.byteVecPush(out, rt.hashContains(set, rt.Pending) ? 1 : 0);
+	rt.byteVecPush(out, rt.hashContains(nests, rt.Pending) ? 1 : 0);
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_23: rt.u8): rt.u8 => {
+		return rt.hashContains(set, _23 as rt.Poll<rt.u8>) ? 1 : 0;
+	}), undefined, true);
 }
 
 /**
  * A waker cloned over another by `clone_from` takes the source's place, unless both would
- * wake the same task, when std keeps the one it had.
+ * wake the same task, when std keeps the one it had: one in a variable and one in a field.
  */
 export function wakers(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let source!: rt.Waker;
 	const a: rt.Arc<Count.Count> = new rt.Arc({ _0: new rt.Atomic(0) });
 	const b: rt.Arc<Count.Count> = new rt.Arc({ _0: new rt.Atomic(0) });
 	let w: rt.Waker = new rt.ArcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc: rt.Arc<Count.Count>) => arc[Symbol.dispose]());
-	for (const _14 of rt.byteSliceView(data)) {
-		const _19: rt.u8 = rt.u8Rem(_14, 3);
-		if (_19 === 0) {
+	const held: Held.Held = new Held.Held(rt.NOOP_WAKER.clone());
+	for (const _17 of rt.byteSliceView(data)) {
+		const _22: rt.u8 = rt.u8Rem(_17, 3);
+		if (_22 === 0) {
 			source = new rt.ArcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc3: rt.Arc<Count.Count>) => arc3[Symbol.dispose]());
-		} else if (_19 === 1) {
+		} else if (_22 === 1) {
 			source = new rt.ArcWaker(rt.arcClone(b), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc2: rt.Arc<Count.Count>) => arc2[Symbol.dispose]());
 		} else {
 			source = rt.NOOP_WAKER.clone();
 		}
-		const _28: rt.Waker = source;
-		if (!rt.willWake(w, _28)) {
+		const _31: rt.Waker = source;
+		if (!rt.willWake(w, _31)) {
 			const old = w;
-			w = _28.clone();
+			w = _31.clone();
 			old[Symbol.dispose]();
+		}
+		if (!rt.willWake(held.waker, w)) {
+			const old2 = held.waker;
+			held.waker = w.clone();
+			old2[Symbol.dispose]();
 		}
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a.strong & 0xff, b.strong & 0xff)), undefined, true);
 		rt.byteVecPush(out, rt.willWake(w, source) ? 1 : 0);
 		w.wakeByRef();
+		held.waker.wakeByRef();
 		source[Symbol.dispose]();
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a.strong & 0xff, b.strong & 0xff)), undefined, true);
 	}
 	w[Symbol.dispose]();
+	held[Symbol.dispose]();
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.atomicLoad(a.value._0, 0), rt.atomicLoad(b.value._0, 0))), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a.strong & 0xff, b.strong & 0xff)), undefined, true);
 	b[Symbol.dispose]();

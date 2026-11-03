@@ -4,6 +4,7 @@
 //! made `From` a value, and hashed; and a waker cloned over another by `clone_from`.
 
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::fmt::Debug;
 use std::future::{Future, IntoFuture, Pending, Ready, pending, poll_fn, ready};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -236,6 +237,14 @@ fn hashes(data: &[u8], out: &mut Vec<u8>) {
 		nested(b).hash(&mut h);
 	}
 	out.extend(h.finish().to_be_bytes());
+	// As a set's keys, `Pending` among them.
+	let set: HashSet<Poll<u8>> = polls.iter().copied().collect();
+	let nests: HashSet<Poll<Poll<u8>>> = data.iter().map(|&b| nested(b)).collect();
+	out.push(set.len() as u8);
+	out.push(nests.len() as u8);
+	out.push(set.contains(&Poll::Pending).into());
+	out.push(nests.contains(&Poll::Ready(Poll::Pending)).into());
+	out.extend(data.iter().map(|&b| u8::from(set.contains(&Poll::Ready(b)))));
 }
 
 /// Counts the wakes through it.
@@ -247,12 +256,20 @@ impl Wake for Count {
 	}
 }
 
+/// A waker a struct holds.
+struct Held {
+	waker: Waker,
+}
+
 /// A waker cloned over another by `clone_from` takes the source's place, unless both would
-/// wake the same task, when std keeps the one it had.
+/// wake the same task, when std keeps the one it had: one in a variable and one in a field.
 fn wakers(data: &[u8], out: &mut Vec<u8>) {
 	let a = Arc::new(Count(AtomicU8::new(0)));
 	let b = Arc::new(Count(AtomicU8::new(0)));
 	let mut w = Waker::from(a.clone());
+	let mut held = Held {
+		waker: Waker::noop().clone(),
+	};
 	for &byte in data {
 		let source = match byte % 3 {
 			0 => Waker::from(a.clone()),
@@ -260,13 +277,16 @@ fn wakers(data: &[u8], out: &mut Vec<u8>) {
 			_ => Waker::noop().clone(),
 		};
 		w.clone_from(&source);
+		held.waker.clone_from(&w);
 		out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 		out.push(w.will_wake(&source).into());
 		w.wake_by_ref();
+		held.waker.wake_by_ref();
 		drop(source);
 		out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 	}
 	drop(w);
+	drop(held);
 	out.extend([a.0.load(Ordering::Relaxed), b.0.load(Ordering::Relaxed)]);
 	out.extend([Arc::strong_count(&a) as u8, Arc::strong_count(&b) as u8]);
 }
