@@ -108,6 +108,12 @@ pub fn cows(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				put(out, c);
 			}
 			put(out, &c.into_owned());
+			// `+` and `+=` of a `&str` and of another `Cow`, which borrow the right side when the
+			// left is empty.
+			let mut joined = cow("", owned) + first + cow(&s, !owned);
+			joined += cow("", !owned);
+			joined += "+";
+			put(out, &joined);
 			let r = match kind & 0x40 {
 				0 => Ok(cow(first, owned)),
 				_ => Err(kind),
