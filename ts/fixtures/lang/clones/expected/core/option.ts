@@ -45,4 +45,11 @@ export function clone$0bhdqd8(self: Logged.Logged[] | undefined): Logged.Logged[
 	return self.map(Logged.clone$Clone);
 }
 
+export function clone$1jx0028(self: Logged.Logged | undefined): Logged.Logged | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return Logged.clone$Clone(self);
+}
+
 //# sourceMappingURL=option.ts.map
