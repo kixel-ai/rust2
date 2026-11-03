@@ -109,7 +109,7 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			}, undefined, rt.None);
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== rt.None ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<rt.u8 | undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u8 | undefined, rt.None> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<rt.u8 | undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u8 | undefined, rt.None> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<rt.u8 | undefined, rt.None> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -297,7 +297,7 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<string>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<string> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<string>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<string> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<string> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -479,7 +479,7 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<rt.u64>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u64> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<rt.u64>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u64> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<rt.u64> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -667,7 +667,7 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<rt.u8>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u8> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<rt.u8>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.u8> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<rt.u8> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -853,7 +853,7 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}, undefined, rt.None);
 			put(out, t3);
 			rt.byteVecPush(out, alias.v !== rt.None ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<undefined, rt.None> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<undefined, rt.None> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<undefined, rt.None> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1039,7 +1039,7 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceCell<rt.ByteVec>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.ByteVec> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceCell<rt.ByteVec>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceCell<rt.ByteVec> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceCell<rt.ByteVec> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1249,7 +1249,7 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			}, undefined, rt.None);
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== rt.None ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<rt.u8 | undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u8 | undefined, rt.None> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<rt.u8 | undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u8 | undefined, rt.None> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<rt.u8 | undefined, rt.None> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1437,7 +1437,7 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<string>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<string> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<string>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<string> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<string> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1619,7 +1619,7 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<rt.u64>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u64> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<rt.u64>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u64> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<rt.u64> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1807,7 +1807,7 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<rt.u8>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u8> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<rt.u8>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.u8> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<rt.u8> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -1993,7 +1993,7 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}, undefined, rt.None);
 			put(out, t3);
 			rt.byteVecPush(out, alias.v !== rt.None ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<undefined, rt.None> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<undefined, rt.None>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<undefined, rt.None> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<undefined, rt.None> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {
@@ -2179,7 +2179,7 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			});
 			put(out, t5);
 			rt.byteVecPush(out, alias.v !== undefined ? 1 : 0);
-			const iter: rt.Iter<rt.OnceLock<rt.ByteVec>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.ByteVec> | undefined) => rt.iterOption(value), false, undefined, true);
+			const iter: rt.Iter<rt.OnceLock<rt.ByteVec>> = rt.iterFlatten(rt.iterSlice([copy, inner2]), (value: rt.OnceLock<rt.ByteVec> | undefined) => rt.iterOption(value), true, undefined, true);
 			while (true) {
 				const _112: rt.OnceLock<rt.ByteVec> | rt.Done = iter.next();
 				if (_112 === rt.DONE) {

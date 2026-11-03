@@ -353,6 +353,12 @@ pub fn std_impl<'tcx>(
 		{
 			e
 		}
+		ty::Adt(adt, args)
+			if tr == Trait::Debug
+				&& let Some(e) = adaptor_debug(b, adt.did(), args, &value, &f, span) =>
+		{
+			e
+		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
 			(Std::String | Std::Cow, Trait::Display) if library::string(tcx, ty) => Expr::rt("fmtPad", vec![f, value]),
 			(Std::String | Std::Cow, Trait::Debug) if library::string(tcx, ty) => rt("str", vec![value, f]),
@@ -647,6 +653,109 @@ fn iter_debug<'tcx>(
 		call.push(Expr::Array(wraps));
 	}
 	Some(Expr::rt("fmtIter", call))
+}
+
+/// `Debug` of one of std's iterator adaptors, as std's derived or written impl writes it:
+/// its fields in order, each iterator it wraps by that iterator's own `Debug`, and none of
+/// its closures; or `None` for another type.
+fn adaptor_debug<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	did: DefId,
+	args: ty::GenericArgsRef<'tcx>,
+	value: &Expr,
+	f: &Expr,
+	span: Span,
+) -> Option<Expr> {
+	let tcx = b.t.tcx;
+	let path = library::std_path(tcx, did);
+	let path: Vec<&str> = path.iter().map(String::as_str).collect();
+	let arg = |n: usize| args.types().nth(n);
+	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let name = |name: &str| Expr::Str(name.into());
+	// What writes an iterator it wraps, as the adaptor holds it and `rt.iterHeld` reads it.
+	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| {
+		let (ty, _) = super::iter::peel_iter(b, ty, Expr::undefined());
+		b.fmt_fn(Trait::Debug, ty, span)
+	};
+	Some(match path.as_slice() {
+		[
+			"iter",
+			"adapters",
+			_,
+			adaptor @ ("Map" | "Filter" | "FilterMap" | "Inspect" | "MapWhile" | "Rev"),
+		] => call("fmtAdaptor", vec![name(adaptor), wrapped(b, arg(0)?)]),
+		// A `copied` that JS reads its items as is is its iterator itself.
+		["iter", "adapters", "copied", "Copied"]
+			if let ty::Ref(_, item, _) = b.t.iter_item(arg(0)?)?.kind()
+				&& super::iter::copies_itself(b.t, *item) =>
+		{
+			call("fmtAround", vec![name("Copied"), name("it"), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", _, adaptor @ ("Copied" | "Cloned")] => {
+			let inner = wrapped(b, arg(0)?);
+			call("fmtAdaptor", vec![name(adaptor), inner, name("it")])
+		}
+		["iter", "adapters", "enumerate", "Enumerate"] => call("fmtEnumerate", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", _, adaptor @ ("Skip" | "Take")] => {
+			call("fmtCounted", vec![name(adaptor), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", _, adaptor @ ("SkipWhile" | "TakeWhile")] => {
+			call("fmtFlagged", vec![name(adaptor), wrapped(b, arg(0)?)])
+		}
+		["iter", "adapters", "scan", "Scan"] => {
+			let inner = wrapped(b, arg(0)?);
+			call("fmtScan", vec![inner, b.fmt_fn(Trait::Debug, arg(1)?, span)])
+		}
+		["iter", "adapters", "peekable", "Peekable"] => {
+			let inner = wrapped(b, arg(0)?);
+			let item = b.t.iter_item(arg(0)?)?;
+			call("fmtPeekable", vec![inner, b.fmt_fn(Trait::Debug, item, span)])
+		}
+		["iter", "adapters", "step_by", "StepBy"] => call("fmtStepBy", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", "chain", "Chain"] => {
+			let a = wrapped(b, arg(0)?);
+			call("fmtChain", vec![a, wrapped(b, arg(1)?)])
+		}
+		// std's specializes it to write neither of two it reads by index.
+		["iter", "adapters", "zip", "Zip"] => {
+			let (a, other) = (arg(0)?, arg(1)?);
+			match [a, other]
+				.iter()
+				.all(|&ty| super::iter::implements(b.t, ty, "TrustedRandomAccessNoCoerce"))
+			{
+				true => call("fmtZip", Vec::new()),
+				false => {
+					let a = wrapped(b, a);
+					call("fmtZip", vec![a, wrapped(b, other)])
+				}
+			}
+		}
+		["iter", "adapters", "cycle", "Cycle"] => call("fmtCycle", vec![wrapped(b, arg(0)?)]),
+		["iter", "adapters", "fuse", "Fuse"] => call("fmtFuse", vec![wrapped(b, arg(0)?)]),
+		// Its `FlattenCompat`'s source and the iterator of each item, as its field's type
+		// names them.
+		["iter", "adapters", "flatten", adaptor @ ("Flatten" | "FlatMap")] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let ty::Adt(_, compat) = b.t.field_ty(field.did, args).kind() else {
+				return None;
+			};
+			let source = wrapped(b, compat.type_at(0));
+			let inner = wrapped(b, compat.type_at(1));
+			call("fmtFlatten", vec![name(adaptor), source, inner])
+		}
+		["char", "decode", "DecodeUtf16"] => call("fmtDecodeUtf16", vec![wrapped(b, arg(0)?)]),
+		// A `str`'s escape is the `flat_map` of its chars it holds.
+		[
+			"str",
+			"iter",
+			escape @ ("EscapeDebug" | "EscapeDefault" | "EscapeUnicode"),
+		] => {
+			let field = tcx.adt_def(did).non_enum_variant().fields.iter().next()?;
+			let inner = b.fmt_fn(Trait::Debug, b.t.field_ty(field.did, args), span);
+			call("fmtAround", vec![name(escape), name("inner"), inner])
+		}
+		_ => return None,
+	})
 }
 
 /// One part of a `format_args!` template.

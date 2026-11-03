@@ -438,7 +438,7 @@ export function ordered(log: Log.Log, id: rt.u32): void {
 			return _06;
 		}));
 	};
-	const iter3: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 3);
+	const iter3: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 3, undefined, 4294967295);
 	while (true) {
 		const _282: rt.u32 | rt.Done = iter3.next();
 		if (_282 === rt.DONE) {
@@ -451,7 +451,7 @@ export function ordered(log: Log.Log, id: rt.u32): void {
 	const _303: rt.usize = rt.btreeLen(many);
 	const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_298, f), (f: rt.Formatter) => rt.usizeDisplay(_303, f)];
 	Log.note(log, rt.fmtFormat(["replaced ", args20[0], " ", args20[1]]));
-	const iter4: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 7);
+	const iter4: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 7, undefined, 4294967295);
 	while (true) {
 		const _314: rt.u32 | rt.Done = iter4.next();
 		if (_314 === rt.DONE) {
@@ -465,7 +465,7 @@ export function ordered(log: Log.Log, id: rt.u32): void {
 	const _336: rt.usize = rt.btreeLen(many);
 	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_331, f), (f: rt.Formatter) => rt.usizeDisplay(_336, f)];
 	Log.note(log, rt.fmtFormat(["taken ", args22[0], " ", args22[1]]));
-	const iter5: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 5);
+	const iter5: rt.Iter<rt.u32> = rt.iterStepBy(new rt.Range(0, 400), 5, undefined, 4294967295);
 	while (true) {
 		const _347: rt.u32 | rt.Done = iter5.next();
 		if (_347 === rt.DONE) {

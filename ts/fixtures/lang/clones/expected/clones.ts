@@ -6841,7 +6841,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, plan, (x42: rt.u8): rt.u8 => {
 			return x42;
 		}, out);
-		turns$iter_Fuse_slice_Iter_u8_clones_iters_closure84_clones_iters_closure0(rt.iterFuse(rt.iterSlice(rt.byteSliceView(data))), (it39: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		turns$iter_Fuse_slice_Iter_u8_clones_iters_closure84_clones_iters_closure0(rt.iterFuse(rt.iterSlice(rt.byteSliceView(data)), true), (it39: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it39.nextBack());
 		}, plan, (x43: rt.u8): rt.u8 => {
 			return x43;
@@ -6858,19 +6858,19 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, out);
 		turns$iter_FlatMap_slice_Chunks_u8_slice_Iter_u8_clones_iters_closure87_clones_iters_closure88_clones_iters_closure0(rt.iterFlatMap(rt.byteSliceChunks(data, n), (c2: rt.ByteSlice): rt.Iter<rt.u8> => {
 			return rt.iterSlice(rt.byteSliceView(c2));
-		}), (it42: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		}, undefined, true), (it42: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it42.nextBack());
 		}, plan, (x46: rt.u8): rt.u8 => {
 			return x46;
 		}, out);
 		turns$iter_Flatten_iter_Map_slice_Chunks_u8_clones_iters_closure89_clones_iters_closure90_clones_iters_closure91(rt.iterFlatten(rt.iterMap(rt.byteSliceChunks(data, n), (c3: rt.ByteSlice): rt.ByteVec => {
 			return rt.byteSliceToByteVec(c3);
-		}), (value: rt.ByteVec) => rt.byteVecIntoIter(value)), (it43: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		}), (value: rt.ByteVec) => rt.byteVecIntoIter(value), true), (it43: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it43.nextBack());
 		}, plan, (x47: rt.u8): rt.u8 => {
 			return x47;
 		}, out);
-		turns$iter_Flatten_slice_Chunks_u8_clones_iters_closure92_clones_iters_closure0(rt.iterFlatten(rt.byteSliceChunks(data, n), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value))), (it44: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		turns$iter_Flatten_slice_Chunks_u8_clones_iters_closure92_clones_iters_closure0(rt.iterFlatten(rt.byteSliceChunks(data, n), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true), (it44: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it44.nextBack());
 		}, plan, (x48: rt.u8): rt.u8 => {
 			return x48;
@@ -7235,7 +7235,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				});
 			}, () => make4(captured4));
 		};
-		turns$iter_FlatMap_slice_Chunks_u8_iter_Map_slice_Iter_u8_clones_iters_closure153_closure0_clones_iters_closure153_clones_iters_closure154_clones_iters_closure155(rt.iterFlatMap(_599, make4(0)), (it6: rt.Iter<rt.u8>): rt.u8 | undefined => {
+		turns$iter_FlatMap_slice_Chunks_u8_iter_Map_slice_Iter_u8_clones_iters_closure153_closure0_clones_iters_closure153_clones_iters_closure154_clones_iters_closure155(rt.iterFlatMap(_599, make4(0), undefined, true), (it6: rt.Iter<rt.u8>): rt.u8 | undefined => {
 			return rt.iterToOption(it6.nextBack());
 		}, plan, (x9: rt.u8): rt.u8 => {
 			return x9;
@@ -7757,7 +7757,7 @@ export function arrays(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const vecs2: rt.ByteVec[] = _308[1];
 		rt.byteVecPush(vecs2[0], 1);
 		rt.iterExtendBytes(out, rt.strBytes(rt.strsJoin(words2, "")), undefined, true);
-		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterChain(rt.iterSlice(vecs), rt.iterSlice(vecs2)), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value))), "next");
+		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterChain(rt.iterSlice(vecs), rt.iterSlice(vecs2)), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)), true), "next");
 		rt.dropAll(copy2, drop$array2_clones_Logged);
 		flush(log.value, out);
 	} else if (_14 === 5) {

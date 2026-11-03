@@ -960,7 +960,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	const _11: (a0: Tracked.Tracked[]) => rt.ByteVec = (v7: Tracked.Tracked[]): rt.ByteVec => {
 		return rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(v7), (t: Tracked.Tracked): Uint8Array => {
 			return Uint8Array.of(t.id, t.copies);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	};
 	const _196: (a0: rt.u16) => Named.Named = (w: rt.u16): Named.Named => {
 		return { id: w, name: text(rt.byteSliceFrom(Uint8Array.of(w & 0xff))) };
@@ -1099,7 +1099,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			_325[1] = rt.u16Add(_325[1], 10);
 		}
 		rt.vecAppend(pairs, moved, 4);
-		const iter6: rt.Iter<rt.u16> = rt.iterFlatten(rt.iterSlice(pairs), (value: rt.u16[]) => rt.iterSlice(value), false, 2);
+		const iter6: rt.Iter<rt.u16> = rt.iterFlatten(rt.iterSlice(pairs), (value: rt.u16[]) => rt.iterSlice(value), true, 2);
 		while (true) {
 			const _339: rt.u16 | rt.Done = iter6.next();
 			if (_339 === rt.DONE) {
@@ -1136,7 +1136,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			_395[1].data[_395[1].start + _400] = _395[1].data[_395[1].start + _400] ^ 255;
 		}
 		rt.vecAppend(keys, rest, 2);
-		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterLend(rt.iterSlice(keys), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 2), undefined, true);
+		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterLend(rt.iterSlice(keys), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 2), undefined, true);
 	} else if (_12 === 2) {
 		const iter9: rt.Iter<rt.ByteSlice> = rt.iterChain(rt.iterMap(new rt.Range(0, rt.min(data.length, 3)), (n3: rt.usize): rt.ByteSlice => {
 			return rt.byteSliceRange(data, 0, n3);
@@ -1209,14 +1209,14 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		mark(242);
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.dequeIter(tail3), (t2: Tracked.Tracked): Uint8Array => {
 			return Uint8Array.of(t2.id, t2.copies);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 		const _587: Tracked.Tracked = tracked(208);
 		rt.dequePushFront(tail3, _587);
 		rt.dequeAppend(q, tail3);
 		rt.byteVecPush(out, tail3.n & 0xff);
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.dequeIter(q), (t3: Tracked.Tracked): Uint8Array => {
 			return Uint8Array.of(t3.id, t3.copies);
-		}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 		mark(243);
 		const v6: Tracked.Tracked[] = rt.dequeToVec(q);
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(v6)), undefined, true);
@@ -1342,7 +1342,7 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			_852[1][_858] = rt.u16Add(_852[1][_858], i5 & 0xffff);
 		}
 		rt.dequeAppend(pairs2, moved2);
-		const iter16: rt.Iter<rt.u16> = rt.iterFlatten(rt.iterSlice(rt.dequeToVec(pairs2)), (value: rt.u16[]) => rt.iterSlice(value), false, 2);
+		const iter16: rt.Iter<rt.u16> = rt.iterFlatten(rt.iterSlice(rt.dequeToVec(pairs2)), (value: rt.u16[]) => rt.iterSlice(value), true, 2);
 		while (true) {
 			const _873: rt.u16 | rt.Done = iter16.next();
 			if (_873 === rt.DONE) {

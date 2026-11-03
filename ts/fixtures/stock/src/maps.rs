@@ -608,3 +608,129 @@ pub fn nested(data: &[u8], out: &mut Vec<u8>) {
 	}
 	out.extend(log.borrow().iter());
 }
+
+/// A `BuildHasher` of the crate's own, numbered, which logs its clone and its drop, and
+/// builds std's `DefaultHasher`.
+struct Seeded<'a>(u8, &'a RefCell<Vec<u8>>);
+
+impl BuildHasher for Seeded<'_> {
+	type Hasher = std::hash::DefaultHasher;
+
+	fn build_hasher(&self) -> Self::Hasher {
+		std::hash::DefaultHasher::new()
+	}
+}
+
+impl Clone for Seeded<'_> {
+	fn clone(&self) -> Self {
+		self.1.borrow_mut().push(b'c');
+		Seeded(self.0 + 1, self.1)
+	}
+}
+
+impl Drop for Seeded<'_> {
+	fn drop(&mut self) {
+		self.1.borrow_mut().extend([b'x', self.0]);
+	}
+}
+
+/// `hashbrown::HashMap` and `HashSet` with a `BuildHasher` of the crate's own, of keys that
+/// are JS objects and keys that are not: each holds its own, which `hasher` lends, clones
+/// it before what it holds, and drops it before them, and at once from `into_iter`. Only
+/// maps of one entry say what they drop, as hashbrown's order is its own.
+pub fn own_hasher(data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let mut pairs: HashMap<(u8, u8), u32, Seeded> = HashMap::with_hasher(Seeded(1, &log));
+	let mut set: HashSet<u8, Seeded> = HashSet::with_capacity_and_hasher(data.len(), Seeded(10, &log));
+	for &b in data {
+		*pairs.entry((b % 4, b % 3)).or_insert(0) += 1;
+		out.push(u8::from(set.insert(b % 8)));
+	}
+	for a in 0..4 {
+		for b in 0..3 {
+			put(out, pairs.get(&(a, b)).copied().unwrap_or(0) as usize);
+		}
+	}
+	out.push(pairs.hasher().0);
+	out.push(set.hasher().0);
+	let mut one: HashMap<(u8, u8), Logged, Seeded> = HashMap::with_hasher(Seeded(20, &log));
+	let first = data.first().copied().unwrap_or(0);
+	one.insert((first, 0), Logged(first, &log));
+	let copy = HashSet::<u8, Seeded>::clone(&set);
+	out.push(copy.hasher().0);
+	let mut entries = one.into_iter();
+	log.borrow_mut().push(b'i');
+	drop(entries.next());
+	drop(entries);
+	drop((pairs, set, copy));
+	out.extend_from_slice(&log.take());
+}
+
+thread_local! {
+	/// What each [`Made`] did, in order.
+	static MADE: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+}
+
+/// A `BuildHasher` of the crate's own, numbered, which logs each one `Default` makes and
+/// each drop.
+struct Made(u8);
+
+impl BuildHasher for Made {
+	type Hasher = std::hash::DefaultHasher;
+
+	fn build_hasher(&self) -> Self::Hasher {
+		std::hash::DefaultHasher::new()
+	}
+}
+
+impl Default for Made {
+	fn default() -> Self {
+		MADE.with(|made| made.borrow_mut().push(b'n'));
+		Made(0)
+	}
+}
+
+impl Drop for Made {
+	fn drop(&mut self) {
+		MADE.with(|made| made.borrow_mut().extend([b'x', self.0]));
+	}
+}
+
+/// An iterator of the crate's own that logs each `size_hint`.
+struct Hinted<I>(I);
+
+impl<I: Iterator> Iterator for Hinted<I> {
+	type Item = I::Item;
+
+	fn next(&mut self) -> Option<I::Item> {
+		self.0.next()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		MADE.with(|made| made.borrow_mut().push(b'h'));
+		self.0.size_hint()
+	}
+}
+
+/// `hashbrown`'s `from_iter` of a map or set that holds a `BuildHasher` of the crate's own:
+/// a map's takes the source's items, which drops its hasher, and reads their size hint
+/// before it makes its own, and a set's after.
+pub fn own_from_iter(data: &[u8], out: &mut Vec<u8>) {
+	MADE.with(|made| made.borrow_mut().clear());
+	let mut map: HashMap<u8, u8, Made> = HashMap::with_hasher(Made(1));
+	let mut set: HashSet<u8, Made> = HashSet::with_hasher(Made(2));
+	for &b in data {
+		map.insert(b % 8, b);
+		set.insert(b % 8);
+	}
+	let map: HashMap<u8, u8, Made> = HashMap::from_iter(map);
+	let set: HashSet<u8, Made> = HashSet::from_iter(set);
+	put(out, map.len());
+	put(out, set.len());
+	let hinted: HashMap<u8, u8, Made> = HashMap::from_iter(Hinted(map.into_iter()));
+	let keys: HashSet<u8, Made> = HashSet::from_iter(Hinted(set.into_iter()));
+	put(out, hinted.len());
+	put(out, keys.len());
+	drop((hinted, keys));
+	out.extend_from_slice(&MADE.with(|made| made.take()));
+}

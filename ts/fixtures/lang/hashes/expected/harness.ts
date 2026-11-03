@@ -37,4 +37,28 @@ export function op(name: string): rt.u16 {
 	}
 }
 
+/** Write `s` and the byte no UTF-8 holds, which ends it. */
+export function put(out: rt.ByteVec, s: string): void {
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(s));
+	rt.byteVecPush(out, 255);
+}
+
+/** A char of the alphabet for each byte, by its low bits. */
+export function text(data: rt.ByteSlice): string {
+	let s: string = "";
+	const iterS: Uint8Array = rt.byteSliceView(data);
+	let iterI: number = 0;
+	while (true) {
+		const _5: rt.u8 | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
+		if (_5 === rt.DONE) {
+			return s;
+		}
+		const _13: rt.usize = rt.u8Rem(_5, 16) as rt.usize;
+		if (!(_13 < 16)) {
+			rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _13);
+		}
+		s = s + String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_13]);
+	}
+}
+
 //# sourceMappingURL=harness.ts.map

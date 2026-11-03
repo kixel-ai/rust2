@@ -1809,9 +1809,9 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const step: rt.usize = rt.usizeAdd(rt.usizeRem(at(1) as rt.usize, 7), 1);
 		const _178: rt.u8 = rt.u8Rem(arm, 4);
 		if (_178 === 0) {
-			walk$iter_StepBy_ops_Range_u32(rt.iterStepBy(new rt.Range(0, u32Of(n)), step), steps, out);
+			walk$iter_StepBy_ops_Range_u32(rt.iterStepBy(new rt.Range(0, u32Of(n)), step, undefined, 4294967295), steps, out);
 		} else if (_178 === 1) {
-			walkFront$iter_StepBy_ops_Range_u32(rt.iterStepBy(new rt.Range(0, u32Of(n)), step), steps, out);
+			walkFront$iter_StepBy_ops_Range_u32(rt.iterStepBy(new rt.Range(0, u32Of(n)), step, undefined, 4294967295), steps, out);
 		} else if (_178 === 2) {
 			walkFront$iter_StepBy_ops_Range_u64(rt.iterStepBy(new rt.Range(0, n, rt.u64Step), step), steps, out);
 		} else {
@@ -1868,7 +1868,7 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_219 === 1) {
 			walkFront$iter_Fuse_iter_Take_hints_Endless(rt.iterFuse(rt.iterTake(rt.iterFrom({ _0: n }, Endless.next$iter_Iterator), 2)), steps, out);
 		} else if (_219 === 2) {
-			walk$iter_Fuse_ops_Range_u64(rt.iterFuse(new rt.Range(0, n, rt.u64Step)), steps, out);
+			walk$iter_Fuse_ops_Range_u64(rt.iterFuse(new rt.Range(0, n, rt.u64Step), true), steps, out);
 		} else {
 			walkFront$iter_Fuse_hints_Countdown(rt.iterFuse(rt.iterFrom({ _0: rt.u64Low(n) & 0xff }, Countdown.next$iter_Iterator)), steps, out);
 		}
@@ -1896,25 +1896,25 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return Array.from({ length: 3 }, (): rt.u64 => {
 					return i15;
 				});
-			}), (value: rt.u64[]) => rt.iterSlice(value), false, 3), steps, out);
+			}), (value: rt.u64[]) => rt.iterSlice(value), true, 3), steps, out);
 		} else if (_267 === 1) {
 			walk$iter_FlatMap_ops_Range_u64_array1_u64_hints_hints_closure10(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (i14: rt.u64): rt.u64[] => {
 				return [i14];
-			}, (value: rt.u64[]) => rt.iterSlice(value), false, 1, true), steps, out);
+			}, (value: rt.u64[]) => rt.iterSlice(value), true, 1, true), steps, out);
 		} else if (_267 === 2) {
-			walk$iter_Flatten_slice_Chunks_u8(rt.iterFlatten(rt.byteSliceChunks(bytes, 2), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value))), steps, out);
+			walk$iter_Flatten_slice_Chunks_u8(rt.iterFlatten(rt.byteSliceChunks(bytes, 2), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true), steps, out);
 		} else if (_267 === 3) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure11(rt.iterFlatten(rt.iterMap(new rt.Range(0, rt.u64Min(n, 9), rt.u64Step), (i13: rt.u64): rt.Range<rt.u64> => {
 				return new rt.Range(0, i13, rt.u64Step);
-			})), steps, out);
+			}), undefined, true), steps, out);
 		} else if (_267 === 5) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure12(rt.iterFlatten(rt.iterMap(new rt.Range(0, rt.u64Min(n, 9), rt.u64Step), (_247: rt.u64): Uint8Array => {
 				return Uint8Array.of();
-			}), (value: Uint8Array) => rt.iterSlice(value), false, 0, true), steps, out);
+			}), (value: Uint8Array) => rt.iterSlice(value), true, 0, true), steps, out);
 		} else if (_267 === 6) {
 			put(out, rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (_i12: rt.u64): rt.u64[] => {
 				return [];
-			}, (value: rt.u64[]) => rt.iterSlice(value), false, 0, true).sizeHint());
+			}, (value: rt.u64[]) => rt.iterSlice(value), true, 0, true).sizeHint());
 		} else {
 			walk$iter_FlatMap_ops_Range_u64_iter_Flatten_array_IntoIter_array2_u64_2_hints_hints_closure14(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (i11: rt.u64): rt.Iter<rt.u64> => {
 				const _514: rt.u64[] = Array.from({ length: 2 }, (): rt.u64 => {
@@ -1922,38 +1922,38 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				});
 				return rt.iterFlatten(rt.iterSlice(Array.from({ length: 2 }, (): rt.u64[] => {
 					return _514;
-				})), (value: rt.u64[]) => rt.iterSlice(value), false, 2);
-			}), steps, out);
+				})), (value: rt.u64[]) => rt.iterSlice(value), true, 2);
+			}, undefined, true), steps, out);
 		}
 	} else if (_37 === 13) {
 		const _290: rt.u8 = rt.u8Rem(arm, 6);
 		if (_290 === 0) {
 			walk$iter_Flatten_iter_Map_ops_Range_u64_hints_hints_closure15(rt.iterFlatten(rt.iterMap(new rt.Range(0, n, rt.u64Step), (i10: rt.u64): rt.u64 | undefined => {
 				return rt.u64CheckedSub(i10, 2);
-			}), (value: rt.u64 | undefined) => rt.iterOption(value), false, undefined, true), steps, out);
+			}), (value: rt.u64 | undefined) => rt.iterOption(value), true, undefined, true), steps, out);
 		} else if (_290 === 1) {
 			walk$iter_FlatMap_ops_Range_u64_Option_u64_hints_hints_closure16(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (i9: rt.u64): rt.u64 | undefined => {
 				return thenSome$1ugl8af(rt.u64Rem(i9, 2) === 0, i9);
-			}, (value: rt.u64 | undefined) => rt.iterOption(value), false, undefined, true), steps, out);
+			}, (value: rt.u64 | undefined) => rt.iterOption(value), true, undefined, true), steps, out);
 		} else if (_290 === 2) {
 			walk$iter_FlatMap_ops_Range_u64_iter_Once_u64_iter_once_u64(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (a0: rt.u64): rt.Iter<rt.u64> => {
 				return rt.iterOnce(a0);
-			}, undefined, false, undefined, true), steps, out);
+			}, undefined, true, undefined, true), steps, out);
 		} else if (_290 === 3) {
 			walk$iter_FlatMap_ops_Range_u64_iter_Filter_option_IntoIter_u64_hints_hints_closure17_closure0_hints_hints_closure17(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (i7: rt.u64): rt.Iter<rt.u64> => {
 				return rt.iterFilter(rt.iterOption(i7), (i8: rt.u64): boolean => {
 					return rt.u64Rem(i8, 2) === 0;
 				});
-			}, undefined, false, undefined, true), steps, out);
+			}, undefined, true, undefined, true), steps, out);
 		} else if (_290 === 4) {
 			walk$iter_Flatten_iter_Map_slice_Iter_u8_hints_hints_closure18(rt.iterFlatten(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_245: rt.u8): Uint8Array => {
 				return Uint8Array.of(_245);
-			}), (value: Uint8Array) => rt.iterSlice(value), false, 1, true), steps, out);
+			}), (value: Uint8Array) => rt.iterSlice(value), true, 1, true), steps, out);
 		} else {
 			walk$iter_Flatten_slice_Iter_array2_u8(rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_244: rt.u8): Uint8Array => {
 				const b5: rt.u8 = _244;
 				return Uint8Array.of(b5, b5);
-			}), undefined, 2, true)), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), false, 2), steps, out);
+			}), undefined, 2, true)), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 2), steps, out);
 		}
 	} else if (_37 === 14) {
 		const _312: rt.u8 = rt.u8Rem(arm, 6);
@@ -2105,7 +2105,7 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return Array.from({ length: 2 }, (): rt.u64 => {
 					return i4;
 				});
-			}), (value: rt.u64[]) => rt.iterSlice(value), false, 2), new rt.Range(0, m, rt.u64Step)), steps, out);
+			}), (value: rt.u64[]) => rt.iterSlice(value), true, 2), new rt.Range(0, m, rt.u64Step)), steps, out);
 		} else {
 			walkFront$iter_Peekable_iter_Filter_ops_Range_u64_hints_hints_closure29(rt.iterPeekable(rt.iterFilter(new rt.Range(0, n, rt.u64Step), (_22: rt.u64): boolean => {
 				return true;
@@ -2126,11 +2126,11 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return Array.from({ length: 2 }, (): rt.u32 => {
 					return i3;
 				});
-			}), (value: rt.u32[]) => rt.iterSlice(value), false, 2), rt.usizeRem(rt.u64Low(m), 9)), steps, out);
+			}), (value: rt.u32[]) => rt.iterSlice(value), true, 2), rt.usizeRem(rt.u64Low(m), 9)), steps, out);
 		} else {
 			walkFront$iter_Take_iter_FlatMap_ops_Range_u64_ops_Range_u64_hints_hints_closure32(rt.iterTake(rt.iterFlatMap(new rt.Range(0, n, rt.u64Step), (i2: rt.u64): rt.Range<rt.u64> => {
 				return new rt.Range(0, i2, rt.u64Step);
-			}), rt.u64Low(m)), steps, out);
+			}, undefined, true), rt.u64Low(m)), steps, out);
 		}
 	}
 }
@@ -2240,9 +2240,9 @@ export function typed$array275_u32_hints_reserves_closure5(kind: rt.u8, data: rt
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }
@@ -2312,9 +2312,9 @@ export function typed$hints_Unit_hints_reserves_closure4(kind: rt.u8, data: rt.B
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_hints_Unit_hints_reserves_closure4(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }
@@ -2384,9 +2384,9 @@ export function typed$tuple2_u64_u8_hints_reserves_closure3(kind: rt.u8, data: r
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple2_u64_u8_hints_reserves_closure3(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }
@@ -2456,9 +2456,9 @@ export function typed$tuple3_u8_u8_u8_hints_reserves_closure2(kind: rt.u8, data:
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_tuple3_u8_u8_u8_hints_reserves_closure2(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }
@@ -2528,9 +2528,9 @@ export function typed$u32_hints_reserves_closure1(kind: rt.u8, data: rt.ByteSlic
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u32_hints_reserves_closure1(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u32_hints_reserves_closure1(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u32_hints_reserves_closure1(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u32_hints_reserves_closure1(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }
@@ -2600,9 +2600,9 @@ export function typed$u8_hints_reserves_closure0(kind: rt.u8, data: rt.ByteSlice
 			return true;
 		}), seed, out);
 	} else if (shape === 3) {
-		fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u8_hints_reserves_closure0(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u8_hints_reserves_closure0(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	} else {
-		fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u8_hints_reserves_closure0(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)])), f), seed, out);
+		fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u8_hints_reserves_closure0(coll, rt.iterMap(rt.iterFlatten(rt.iterSlice([new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, 2, rt.u32Step), new rt.RangeInclusive(0, last, rt.u32Step)]), undefined, true), f), seed, out);
 	}
 	rt.byteVecPush(out, calls.v);
 }

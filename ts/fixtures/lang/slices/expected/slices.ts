@@ -2119,7 +2119,7 @@ export function arrays(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_195 !== undefined) {
 			_195.v = _195.v ^ 255;
 		}
-		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+		rt.iterExtendBytes(out, rt.iterFlatten(rt.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 		const kept2: rt.u16[] | undefined = copy$Option_array2_u16(rt.sliceFirst(rt.sliceAsChunks(words, 2)[0]));
 		const _208: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(words);
 		if (_208 !== undefined) {

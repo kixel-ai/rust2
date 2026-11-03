@@ -1503,7 +1503,7 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else {
 			_70 = rt.usizeAdd(1, rt.usizeRem(m as rt.usize, 2));
 		}
-		const _67: rt.Iter<rt.char> = rt.iterMap(rt.iterStepBy(_69, _70), f);
+		const _67: rt.Iter<rt.char> = rt.iterMap(rt.iterStepBy(_69, _70, undefined, 4294967295), f);
 		_66.v = rt.stringExtendChars(_66.v, _67);
 	} else if (_38 === 5) {
 		if (rt.u32Rem(m, 2) === 0) {
@@ -1521,7 +1521,7 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _91: rt.Place<string> = rt.place(() => t, (value7) => t = value7);
 		const _92: rt.Iter<rt.char> = rt.iterFlatMap(new rt.Range(0, n), (i2: rt.u32): rt.char[] => {
 			return [f(i2), f(i2)];
-		}, (value: rt.char[]) => rt.iterSlice(value), false, 2);
+		}, (value: rt.char[]) => rt.iterSlice(value), true, 2);
 		_91.v = rt.stringExtendChars(_91.v, _92);
 	} else if (_38 === 7) {
 		const _96: rt.Place<string> = rt.place(() => t, (value6) => t = value6);
@@ -1551,7 +1551,7 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else {
 		const chars: rt.Peekable<rt.char> = rt.iterPeekable(rt.iterFuse(rt.iterRev(rt.iterMap(rt.iterEnumerate(rt.iterMap(new rt.Range(0, n), f)), (_23: [rt.usize, rt.char]): rt.char => {
 			return _23[1];
-		}))));
+		})), true));
 		putChar(out, rt.peekablePeek(chars));
 		const _172: rt.Place<string> = rt.place(() => t, (value2) => t = value2);
 		_172.v = rt.stringExtendChars(_172.v, chars);
@@ -2002,10 +2002,10 @@ export function utf16(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args4[0]]));
 	const le: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u).reverse();
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const be: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units), (u2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u2);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2), undefined, true);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const _57: [rt.ByteSlice, rt.ByteSlice] = [rt.byteSliceRange(rt.byteVecSlice(le), 0), rt.byteSliceRange(rt.byteVecSlice(be), 0)];
 	const iter: rt.Iter<[rt.ByteSlice, rt.ByteSlice]> = rt.iterSlice([_57, [option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(le), 1), rt.byteSliceFrom(Uint8Array.of())), option_unwrapOr$1rbuegs(rt.byteSliceGetRange(rt.byteVecSlice(be), 1), rt.byteSliceFrom(Uint8Array.of()))] as [rt.ByteSlice, rt.ByteSlice], [data, data] as [rt.ByteSlice, rt.ByteSlice]]);
 	while (true) {
