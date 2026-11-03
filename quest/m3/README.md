@@ -35,7 +35,6 @@ generic std gap is planned here even when moq never calls it.
 - [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [Python's call cost](/quest/m3/ffi-python-calls.md) - a call on an object costs what BoltFFI's does, or the gap is explained
-- [A map built with BuildHasherDefault](/quest/m3/ts-build-hasher-default.md) - `FxHashMap`-style maps, of `BuildHasherDefault` over a crate's own `Hasher`, translate
 - [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
 - [A panic's Location](/quest/m3/ts-panic-location.md) - `Location::caller` and `#[track_caller]` translate with native Rust's locations
 - [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook

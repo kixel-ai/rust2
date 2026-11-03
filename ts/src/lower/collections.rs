@@ -170,7 +170,9 @@ pub fn call<'tcx>(
 				values.insert(0, own_state(b, h, state, span));
 				return Ok(Some(hasher_call(b, name, values, span, out)));
 			}
-			("BuildHasher", _, Some(Std::RandomState), Some(t)) => (Std::RandomState, t.peel_refs()),
+			("BuildHasher", _, Some(std @ (Std::RandomState | Std::BuildHasherDefault)), Some(t)) => {
+				(std, t.peel_refs())
+			}
 			("BuildHasher", "hash_one", None, Some(s))
 				if let Some(h) = built_hasher(b, s)
 					&& own_hasher(b.t, h) =>
@@ -240,6 +242,7 @@ pub fn call<'tcx>(
 		Std::Ordering => ordering(name, args),
 		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
+		Std::BuildHasherDefault => Some(build_hasher_default(b, call, coll, name, args, out)),
 		_ => return Err(args),
 	};
 	let Some(e) = e else {
@@ -2393,6 +2396,46 @@ fn random_state<'tcx>(
 			Expr::rt("hashOne", args)
 		}
 		_ => b.err(span, format!("`RandomState::{name}`, which is not supported yet")),
+	}
+}
+
+/// A function of `BuildHasherDefault`, or of a trait it implements, which holds nothing:
+/// making one, which `Default` and `Clone` do too, building its hasher by the hasher's own
+/// `Default`, or hashing one value with it as `BuildHasher::hash_one` does, dropping the
+/// value.
+fn build_hasher_default<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	call: &Call<'tcx>,
+	ty: Ty<'tcx>,
+	name: &str,
+	args: Vec<Expr>,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let (tcx, span) = (b.t.tcx, call.span);
+	let ty::Adt(_, gargs) = ty.kind() else {
+		unreachable!("a BuildHasherDefault")
+	};
+	let hasher = gargs.type_at(0);
+	match name {
+		"new" | "default" | "clone" => Expr::undefined(),
+		"build_hasher" => {
+			let default = trait_fn(tcx, "Default", "default");
+			b.call_def(default, tcx.mk_args(&[hasher.into()]), Vec::new(), span, out)
+		}
+		"hash_one" if own_hasher(b.t, hasher) => own_hash_one(b, call, ty, hasher, args, out),
+		"hash_one" if b.t.std_of(hasher) == Some(Std::Hasher) => {
+			let Ok([_, value]) = <[Expr; 2]>::try_from(args) else {
+				unreachable!("hash_one takes a state and a value")
+			};
+			let value_ty = library::targ(call.args, 1);
+			let mut args = vec![Expr::rt("hasher", vec![]), value, hash_fn(b, value_ty, hasher, span)];
+			args.extend(b.t.drop_fn(value_ty, span));
+			Expr::rt("hashOne", args)
+		}
+		_ => b.err(
+			span,
+			format!("`BuildHasherDefault<{hasher}>::{name}`, which is not supported yet"),
+		),
 	}
 }
 

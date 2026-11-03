@@ -183,6 +183,8 @@ pub enum Std {
 	Hasher,
 	/// `rt.RandomState`: the keys of the `DefaultHasher` it builds, never changed once made.
 	RandomState,
+	/// `BuildHasherDefault`, which holds nothing and builds its `Hasher` by `Default`.
+	BuildHasherDefault,
 	/// `rt.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
 	/// `rt.Layout`: its size and alignment, never changed once made.
@@ -373,6 +375,7 @@ impl Std {
 			["num", "saturating", "Saturating"] => Some(Self::Saturating),
 			["hash", "random", "DefaultHasher"] => Some(Self::Hasher),
 			["hash", "random", "RandomState"] => Some(Self::RandomState),
+			["hash", "BuildHasherDefault"] => Some(Self::BuildHasherDefault),
 			["collections", "hash", "map", "Entry" | "OccupiedEntry" | "VacantEntry"]
 			| [
 				"collections",
@@ -425,12 +428,15 @@ impl Flow {
 }
 
 /// Whether `ty` holds nothing, so its value is `undefined`: `()`, `PhantomData`,
-/// `PhantomPinned`, or `..`, whose impls each compare equal and hash nothing.
+/// `PhantomPinned`, `..`, or `BuildHasherDefault`, whose impls each compare equal and hash
+/// nothing.
 pub fn nothing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::Tuple(tys) => tys.is_empty(),
 		ty::Adt(adt, _) => {
-			adt.is_phantom_data() || pinned(tcx, adt.did()) || Std::of(tcx, adt.did()) == Some(Std::RangeFull)
+			adt.is_phantom_data()
+				|| pinned(tcx, adt.did())
+				|| matches!(Std::of(tcx, adt.did()), Some(Std::RangeFull | Std::BuildHasherDefault))
 		}
 		_ => false,
 	}
