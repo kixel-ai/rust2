@@ -1056,7 +1056,10 @@ pub fn call<'tcx>(
 			// drops the rest with it.
 			if !by_key && btree_end(tcx, self_ty, name) && b.t.drops(self_ty) {
 				let back = Expr::lit((name == "max").to_string());
-				return Some(Expr::rt("ownedEnd", [recv.clone(), back].into_iter().chain(none).collect()));
+				return Some(Expr::rt(
+					"ownedEnd",
+					[recv.clone(), back].into_iter().chain(none).collect(),
+				));
 			}
 			if !by_key && btree_end(tcx, self_ty, name) {
 				let end = match name {

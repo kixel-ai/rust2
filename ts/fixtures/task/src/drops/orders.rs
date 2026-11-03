@@ -45,7 +45,12 @@ impl PartialOrd for Ranked {
 impl Ord for Ranked {
 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
 		self.log.note(format!("cmp {} {}", self.id, other.id));
-		assert!(self.rank != 99 && other.rank != 99, "cmp of k{} with k{}", self.id, other.id);
+		assert!(
+			self.rank != 99 && other.rank != 99,
+			"cmp of k{} with k{}",
+			self.id,
+			other.id
+		);
 		self.rank.cmp(&other.rank)
 	}
 }
@@ -76,12 +81,17 @@ impl Ord for Rank {
 
 /// Run scenario `arg % 8`. The last panics in the sort, which aborts before anything drops.
 pub(super) fn orders(log: &Log, id: u32, arg: u8) {
-	let key = |n: u32, rank: u8| Ranked { id: id + n, rank, log: log.clone() };
+	let key = |n: u32, rank: u8| Ranked {
+		id: id + n,
+		rank,
+		log: log.clone(),
+	};
 	// Each key of `n` and its value, a guard of `n + 100`.
 	let entry = |n: u32, rank: u8| (key(n, rank), Guard::new(id + n + 100, log.clone()));
 	// Keys of `ranks`, numbered from 1.
 	let keys = |ranks: &[u8]| -> Vec<Ranked> { (1..).zip(ranks).map(|(n, &rank)| key(n, rank)).collect() };
-	let entries = |ranks: &[u8]| -> Vec<(Ranked, Guard)> { (1..).zip(ranks).map(|(n, &rank)| entry(n, rank)).collect() };
+	let entries =
+		|ranks: &[u8]| -> Vec<(Ranked, Guard)> { (1..).zip(ranks).map(|(n, &rank)| entry(n, rank)).collect() };
 	let set_ids = |s: &BTreeSet<Ranked>| s.iter().map(|k| (k.id - id).to_string()).collect::<Vec<_>>().join(",");
 	let map_ids = |m: &BTreeMap<Ranked, Guard>| {
 		m.iter()
