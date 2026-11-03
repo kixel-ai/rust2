@@ -35,8 +35,8 @@ jobs:
       - name: Gate
         run: nix develop --command just gate
 
-  moq:
-    name: Translate moq-net
+  ts:
+    name: TypeScript package
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
@@ -47,10 +47,6 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/nix
-
-      # moq-net's codec at the pinned moq revision, translated and type-checked.
-      - name: Translate
-        run: nix develop --command just ts moq
 
       # The package moq consumes as a flake input.
       - name: Build

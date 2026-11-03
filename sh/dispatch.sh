@@ -111,7 +111,11 @@ test_uniffi() { just uniffi test; }
 test_driver() { just driver test; }
 test_ffi() { just ffi test; }
 test_go() { just go test; }
-test_ts() { just ts test; }
+# moq-net's translation at the pin, its first consumer, before the slower test build.
+test_ts() {
+    just ts moq
+    just ts test
+}
 
 # Every check runs before any test, so a lint fails before the test builds.
 case "$action" in
