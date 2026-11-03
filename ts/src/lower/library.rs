@@ -1567,7 +1567,7 @@ fn mapping<'tcx>(
 		("Not", "not") if let Some((_, int)) = overflowing(tcx, targ(gargs, 0).peel_refs()) => {
 			num::unary(b, rustc_middle::mir::UnOp::Not, args.pop()?, int, span)
 		}
-		// Operators on references to primitives.
+		// Operators on primitives, called by path, and on references to them.
 		(_, _)
 			if let Some(op) = operator(&owner)
 				&& primitive(targ(gargs, 0).peel_refs()) =>
@@ -1583,6 +1583,13 @@ fn mapping<'tcx>(
 				rty,
 				span,
 			)
+		}
+		("Neg", "neg") | ("Not", "not") if primitive(targ(gargs, 0).peel_refs()) => {
+			let op = match name.as_str() {
+				"neg" => rustc_middle::mir::UnOp::Neg,
+				_ => rustc_middle::mir::UnOp::Not,
+			};
+			num::unary(b, op, args.pop()?, targ(gargs, 0), span)
 		}
 		// Every value of a type holding nothing is equal, and no `!` is ever compared.
 		("PartialEq", "eq" | "ne")
@@ -3260,7 +3267,7 @@ fn compared<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	primitive(ty).then_some(ty)
 }
 
-fn primitive(ty: Ty<'_>) -> bool {
+pub fn primitive(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Bool | ty::Int(_) | ty::Uint(_) | ty::Char) || super::float::is(ty)
 }
 

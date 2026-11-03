@@ -804,11 +804,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				done(Expr::rt(f, values), true)
 			}
-			// A `Wrapping` or a `Saturating` is its integer, so what the `&mut` borrows gets the
-			// wrapped or saturated result.
+			// What the `&mut` borrows gets the result: a primitive's operator's, as `+=` on one
+			// computes, or a `Wrapping`'s or a `Saturating`'s, which is its integer, wrapped or
+			// saturated.
 			(_, _)
 				if let Some(op) = owner.strip_suffix("Assign").and_then(library::operator)
-					&& let Some((overflow, int)) = targ(0).and_then(|t| library::overflowing(tcx, t)) =>
+					&& let Some(ty) = targ(0)
+					&& (library::primitive(ty) || library::overflowing(tcx, ty).is_some()) =>
 			{
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let by = self.operand(&args[1].node, span, out);
@@ -820,7 +822,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					expr: by,
 					value: self.const_int(&args[1].node),
 				};
-				let value = crate::lower::num::overflowing(self.b, overflow, op, l, r, int, span);
+				let value = match library::overflowing(tcx, ty) {
+					Some((overflow, int)) => crate::lower::num::overflowing(self.b, overflow, op, l, r, int, span),
+					None => crate::lower::num::binary(self.b, op, l, r, ty, targ(1)?, span),
+				};
 				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
 			}
