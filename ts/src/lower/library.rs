@@ -2480,6 +2480,10 @@ fn mapping<'tcx>(
 			| "to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "len_utf8"
 			| "len_utf16" | "encode_utf16" | "from_digit",
 		) => Expr::rt_of("char", &super::camel(&name)).call(args),
+		(
+			"str",
+			"to_lowercase" | "to_uppercase" | "escape_unicode" | "escape_debug" | "escape_default" | "encode_utf16",
+		) => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// `char::decode_utf16` of what it is given, either as a method or as `char`'s function.
 		("char", "decode_utf16") => {
 			let mut values = args;
