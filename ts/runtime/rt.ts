@@ -155,13 +155,13 @@ export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
 /** The types of the pointers cast to `*const ()`, by their JS value, which is its identity. */
-const ERASED = new WeakMap<object, string[]>();
+const ERASED = /* @__PURE__ */ new WeakMap<object, string[]>();
 
 /**
  * A `*const ()` at an address no memory is at, as a dangling pointer cast to one is, by
  * that address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s is.
  */
-const ERASED_AT = new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+const ERASED_AT = /* @__PURE__ */ new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
 
 /** The address of `p`, a `*const ()` that is one of `ERASED_AT`'s, if it is. */
 function erasedAddress(p: Place<undefined>): number | undefined {
@@ -267,10 +267,10 @@ class Address implements Place<never> {
 }
 
 /** Each `Address` by its address, while any pointer holds it, so pointers at one compare as one. */
-const ADDRESSES = new Map<number, WeakRef<Address>>();
+const ADDRESSES = /* @__PURE__ */ new Map<number, WeakRef<Address>>();
 
 /** Forget an address once no pointer holds its `Address`. */
-const UNHELD = new FinalizationRegistry<number>((addr) => {
+const UNHELD = /* @__PURE__ */ new FinalizationRegistry<number>((addr) => {
 	if (ADDRESSES.get(addr)?.deref() === undefined) ADDRESSES.delete(addr);
 });
 

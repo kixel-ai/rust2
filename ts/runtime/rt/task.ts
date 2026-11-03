@@ -1453,7 +1453,7 @@ export function wakerFromRaw(raw: RawWaker): Waker {
 }
 
 /** Each `Wake` impl's vtable, by its `wake`, as std makes one per impl. */
-const ARC_VTABLES = new WeakMap<object, WakerVTable>();
+const ARC_VTABLES = /* @__PURE__ */ new WeakMap<object, WakerVTable>();
 
 /**
  * `RawWaker::from(arc)`: data that is `arc`, whose count the waker holds, and the vtable of
