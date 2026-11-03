@@ -141,6 +141,13 @@ pub fn call<'tcx>(
 		("Arc" | "Rc", "new_cyclic") => Expr::rt("arcNewCyclic", args),
 		// JS erases the pin.
 		("Arc" | "Rc", "pin") => Expr::New(Box::new(Expr::Rt("Arc".into())), args),
+		// The object of one of a trait object, which every pointer to it shares. A `dyn Any`'s
+		// may hold a copy of a value JS copies, which `Arc::downcast` would not see written.
+		("Arc" | "Rc", "get_mut")
+			if call.args.type_at(0).is_trait() && !super::dynamic::is_any_object(tcx, call.args.type_at(0)) =>
+		{
+			Expr::rt("arcGetMut", args)
+		}
 		// A `&mut` to the value, which is where it is for one JS copies. `make_mut` takes the
 		// `Arc`'s place, which it may point at a new `Arc`.
 		("Arc" | "Rc", "get_mut" | "make_mut") if call.args.type_at(0).is_sized(tcx, b.t.typing_env_pub()) => {
