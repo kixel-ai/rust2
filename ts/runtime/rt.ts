@@ -130,6 +130,20 @@ export const NULL: never = null as never;
 /** A dangling raw pointer, `NonNull::dangling`, of any type: nothing reads through it. */
 export const DANGLING: never = /* @__PURE__ */ Object.freeze({}) as never;
 
+/** The raw pointer `p` unsized by `make`, or `p` itself if it is null or dangling, which point at nothing. */
+export function rawUnsize<P, Q>(p: P, make: (p: P) => Q): Q {
+	return p === NULL || p === DANGLING ? (p as never) : make(p);
+}
+
+/**
+ * `rawUnsize` of `p`, the place of a value, to the place of what `make` makes of whatever
+ * value is there as it is read, so it may be uninitialized or replaced until then. Nothing
+ * writes an unsized value whole.
+ */
+export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<U> {
+	return rawUnsize(p, (p) => place(() => make(p.v), unreachable));
+}
+
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
