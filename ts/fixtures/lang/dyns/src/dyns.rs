@@ -14,7 +14,8 @@
 //! `Cell`, an `UnsafeCell`, or the crate's own, shares its fields, borrows, and lock with the
 //! value it was made from, a future there polled in place and dropped once. A
 //! `ManuallyDrop` of one drops only by its own `drop`, and a raw pointer unsized to one, or
-//! to a struct of one, reads and writes what it points at, or stays null.
+//! to a struct of one, reads and writes what it points at, drops it as the box made of it,
+//! or stays null.
 
 use std::any::Any;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -1755,15 +1756,19 @@ pub fn rests(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put(out, &format!("{polled} {:?} ", log.borrow()));
 	log.borrow_mut().clear();
-	// Of std's traits: an iterator read through it, a `Debug` written, and a null pointer,
-	// which stays null.
-	let mut range = a % 8..b % 8;
-	let it: *mut dyn Iterator<Item = u8> = &raw mut range;
-	let next = unsafe { (*it).next() };
+	// To a cell not there yet, read only once it is.
+	let mut slot = std::mem::MaybeUninit::<Cell<u32>>::uninit();
+	let thin = slot.as_mut_ptr();
+	let wide: *mut Cell<dyn Shape> = thin;
+	let null = wide.is_null();
+	let area = unsafe {
+		thin.write(Cell::new(u32::from(a)));
+		(*wide).get_mut().grow(b);
+		(*wide).get_mut().area()
+	};
+	put(out, &format!("{null} {area} {} ", unsafe { slot.assume_init() }.get()));
+	// Of std's traits: a `Debug` written, and a null pointer, which stays null.
 	let shown: *const dyn Debug = &raw const side;
 	let null: *const dyn Shape = std::ptr::null::<Square>();
-	put(
-		out,
-		&format!("{next:?} {range:?} {:?} {}", unsafe { &*shown }, null.is_null()),
-	);
+	put(out, &format!("{:?} {}", unsafe { &*shown }, null.is_null()));
 }

@@ -576,46 +576,48 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 
 	/// `p`, a `from` raw pointer, unsized to `to`, unless it is null or dangling, which stays
 	/// itself: what a box of the object it points at unsizes to, which drops it as the box
-	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to, in the
-	/// `rt.Place` a raw pointer to `to`'s pointee is, if it is one.
+	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to. One
+	/// that is the `rt.Place` of a library value, such as a cell, unsizes to the place of
+	/// what a box of the value there unsizes to as each read finds it, since it may be
+	/// uninitialized or replaced until then.
 	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		};
-		let name = self.fresh("p");
 		let erased = tcx.lifetimes.re_erased;
-		let (lent, ptr_from, ptr_to) = match self.t.needs_place(pointee) {
+		let (ptr_from, ptr_to) = match self.t.needs_place(pointee) {
 			true => (
-				Expr::ident(&name),
 				Ty::new_mut_ref(tcx, erased, pointee),
 				Ty::new_mut_ref(tcx, erased, object),
 			),
-			// An `rt.Place` of a library type, such as an iterator or a cell, holds the object.
-			false => (
-				match self.t.raw_place(from) {
-					Some(_) => Expr::ident(&name).member("v"),
-					None => Expr::ident(&name),
-				},
-				Ty::new_box(tcx, pointee),
-				Ty::new_box(tcx, object),
-			),
+			false => (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object)),
 		};
+		let read = !self.t.needs_place(pointee) && self.t.raw_place(from).is_some();
+		if read && (self.t.raw_place(to).is_none() || self.t.needs_place(object)) {
+			return self.err(
+				span,
+				format!(
+					"a coercion of `{from}` to `{to}`, whose object would hold the value there as it is made, not as it is read, which is not supported yet"
+				),
+			);
+		}
+		let name = self.fresh("p");
 		let mut body = Vec::new();
-		let made = self.unsize(lent, ptr_from, ptr_to, span, &mut body);
-		let made = match self.t.raw_place(to).is_some() && !self.t.needs_place(object) {
-			true => Expr::Object(vec![(Key::Name("v".into()), made)]),
-			false => made,
-		};
+		let made = self.unsize(Expr::ident(&name), ptr_from, ptr_to, span, &mut body);
 		let param = Param { name, ty: None };
+		let ty = self.t.ty(ptr_to, span);
 		let make = match body.is_empty() {
 			true => Expr::Lambda(vec![param], Box::new(made)),
 			false => {
 				body.push(StmtKind::Return(Some(made)).at(None));
-				Expr::Arrow(vec![param], self.t.ty(to, span), body)
+				Expr::Arrow(vec![param], ty, body)
 			}
 		};
-		Expr::rt("rawUnsize", vec![p, make])
+		match read {
+			true => Expr::rt("rawUnsizePlace", vec![p, make]),
+			false => Expr::rt("rawUnsize", vec![p, make]),
+		}
 	}
 
 	/// `value`, a `from`, a struct whose last field unsizes, as the struct `to` of the trait

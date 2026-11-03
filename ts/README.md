@@ -524,8 +524,12 @@ of what the box is, which drops it with the last clone. A pointer to a struct wh
 field unsizes to a trait object, such as `RefCell<dyn Trait>`, is an `rt.tailDyn` view of
 the struct it was made from, behind an `rt.ArcDyn` in an `Arc`, and two such pointers are
 equal if their views are of one struct. A raw pointer unsized to a trait object, or to a
-struct of one, is what a `&mut` to its pointee unsizes to, or stays null or dangling;
-pointers to trait objects don't compare, as each coercion makes an object of its own. A `dyn Buf`'s object holds no
+struct of one, is what a box of the object it points at unsizes to, which drops it as
+`Box::from_raw` of it does, or what a `&mut` to its place does; one to a library value,
+such as a cell, unsizes as each read finds the value there, and stays null or dangling.
+One whose object would hold such a value as it is made, such as a `*mut dyn Iterator` of
+a `*mut Range`, is refused. Pointers to trait objects don't compare, as each coercion
+makes an object of its own. A `dyn Buf`'s object holds no
 `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,

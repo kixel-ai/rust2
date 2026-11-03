@@ -94,6 +94,14 @@ pub fn dyn_size(d: &dyn std::fmt::Debug) -> usize {
 	size_of_val(d)
 }
 
+/// A raw pointer to an iterator as one to a trait object, whose object would hold the
+/// `Range` there as it is made, not as it is read.
+pub fn raw_dyn_iter(n: u8) -> Option<u8> {
+	let mut range = 0..n;
+	let p: *mut dyn Iterator<Item = u8> = &raw mut range;
+	unsafe { (&mut *p).next() }
+}
+
 /// Raw pointers to trait objects compared, each an object made where it unsized.
 pub fn dyn_compared(n: &mut u8) -> bool {
 	let p: *mut dyn Reading = n;
