@@ -70,7 +70,6 @@ roots = [
     "keys::keyed_across",
     "keys::place_bounds",
     "keys::places_sorted",
-    "keys::ranked_cells",
     "keys::set_keys",
     "lopsided",
     "missing",

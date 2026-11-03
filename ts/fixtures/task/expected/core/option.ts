@@ -3,6 +3,7 @@
 import * as rt from "../rt.ts";
 import type * as Any from "../core/any.Any.ts";
 import type * as Part from "../drops/objects.Part.ts";
+import type * as Ranked from "../drops/orders.Ranked.ts";
 import type * as Key from "../drops.Key.ts";
 import * as Guard from "../model.Guard.ts";
 
@@ -66,6 +67,13 @@ export function map$0s8hob8(self: Part.Part | undefined, _: (a0: Part.Part) => r
 }
 
 export function map$0782hf5(self: Key.Key | undefined, f: (a0: Key.Key) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1t2fqxi(self: Ranked.Ranked | undefined, f: (a0: Ranked.Ranked) => rt.u32): rt.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
