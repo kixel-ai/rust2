@@ -1772,8 +1772,8 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _60: rt.u8 = rt.u8Rem(kind, 8);
 		if (_60 === 0) {
 			rt.byteSliceFill(rt.byteVecSlice(bytes), c & 0xff);
-			const part18 = a;
-			rt.byteSliceFill(rt.byteSliceRange(rt.byteVecSlice(bytes), part18), 90);
+			const part14 = a;
+			rt.byteSliceFill(rt.byteSliceRange(rt.byteVecSlice(bytes), part14), 90);
 			rt.sliceRangeMut(words, 0, b).fill(rt.u16Mul(c & 0xffff, 257));
 			rt.sliceFill(pairs, { a: 1, b: 2 }, copy$slices_Pair);
 			const _81: Pair.Pair | undefined = rt.sliceFirst(pairs);
@@ -1887,11 +1887,11 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteSliceRotateRight(_258[1], rt.usizeDiv(_258[1].length, 2));
 			rt.sliceRotateLeft(rt.sliceRangeMut(array, 1), c);
 		} else if (_60 === 4) {
-			const part9 = a;
-			rt.byteSliceCopyWithin(rt.byteVecSlice(bytes), part9, b, c);
-			const part10 = a;
+			const _276: rt.ByteSlice = rt.byteVecSlice(bytes);
+			const _278: rt.Range<rt.usize> = new rt.Range(a, b);
+			rt.byteSliceCopyWithin(_276, _278.start, _278.end, c);
 			const _280: rt.u16[] = words;
-			rt.sliceCopyWithin(_280, part10, _280.length, c);
+			rt.sliceCopyWithin(_280, new rt.RangeFrom(a, rt.usizeStep).start, _280.length, c);
 			rt.sliceCopyWithin(pairs, 0, b, c, copy$slices_Pair);
 			const _287: Pair.Pair | undefined = rt.sliceGet(pairs, c);
 			if (_287 !== undefined) {
@@ -1901,16 +1901,13 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const bounds = rt.boundsRange(new rt.RangeInclusive(a, b, rt.usizeStep), _293.length);
 			rt.sliceCopyWithin(_293, bounds[0], bounds[1], c);
 			flush(out);
-			const part11 = rt.min(a, 5);
-			const _302: rt.usize = rt.min(c, 5);
 			const _298: rt.u32[] = array;
-			rt.sliceCopyWithin(_298, part11, _298.length, _302);
-			const part12 = rt.usizeDiv(a, 2);
-			const part13 = rt.usizeDiv(b, 2);
-			const part: rt.u16[] = rt.sliceRangeMut(words, part12);
-			rt.sliceCopyWithin(part, part13, part.length, 0);
+			rt.sliceCopyWithin(_298, new rt.RangeFrom(rt.min(a, 5), rt.usizeStep).start, _298.length, rt.min(c, 5));
+			const part: rt.u16[] = rt.sliceRangeMut(words, rt.usizeDiv(a, 2));
+			rt.sliceCopyWithin(part, new rt.RangeFrom(rt.usizeDiv(b, 2), rt.usizeStep).start, part.length, 0);
 			const _313: rt.ByteSlice = rt.byteVecSlice(bytes);
-			const bounds2 = rt.boundsRange([{ tag: "Excluded", _0: a } as rt.RangeBound<rt.usize>, { tag: "Unbounded" } as rt.RangeBound<rt.usize>] as [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>], _313.length);
+			const _315: [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>] = [{ tag: "Excluded", _0: a } as rt.RangeBound<rt.usize>, { tag: "Unbounded" } as rt.RangeBound<rt.usize>];
+			const bounds2 = rt.boundsRange(_315, _313.length);
 			rt.byteSliceCopyWithin(_313, bounds2[0], bounds2[1], c);
 		} else if (_60 === 5) {
 			const _320: [rt.u16[], rt.u16[]] = rt.sliceSplitAtMut(words, a);
@@ -1923,11 +1920,10 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			if (_350 !== undefined) {
 				_350.b = 48879;
 			}
-			const _357: Counted.Counted[] = rt.sliceRangeMut(counted, a);
-			const part8 = rt.usizeSub(rt.byteSliceRange(data, 3).length, a);
-			rt.sliceCopyFromSlice(_357, rt.sliceRange(rt.iterToArray(rt.iterMap(new rt.Range(0, c), (n9: rt.usize): Counted.Counted => {
+			const other: Counted.Counted[] = rt.iterToArray(rt.iterMap(new rt.Range(0, c), (n9: rt.usize): Counted.Counted => {
 				return { n: n9 & 0xff };
-			}), undefined, 1, true), 0, part8));
+			}), undefined, 1, true);
+			rt.sliceCopyFromSlice(rt.sliceRangeMut(counted, a), rt.sliceRange(other, 0, rt.usizeSub(rt.byteSliceRange(data, 3).length, a)));
 			flush(out);
 			const more: rt.u32[] = Array.from({ length: 3 }, (): rt.u32 => {
 				return 0;
@@ -1954,10 +1950,9 @@ export function edits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			if (_434 !== undefined) {
 				_434.b = 48879;
 			}
-			const part4 = rt.min(b, 3);
 			const _438: rt.u16[] = rt.sliceRangeMut(words, a);
 			const _442: rt.u16[] = [7, 8, 9];
-			rt.sliceCopyFromSlice(_438, rt.sliceRange(_442, 0, part4));
+			rt.sliceCopyFromSlice(_438, rt.sliceRange(_442, 0, rt.min(b, 3)));
 			rt.sliceCloneFromSlice(rt.sliceRangeMut(items, a), rt.sliceRange(source2, 0, rt.min(b, c)), Noisy.clone$Clone, rt.drop);
 			flush(out);
 			rt.sliceCopyFromSlice(rt.sliceRangeMut(pairs, 0, c), [{ a: 1, b: 1 }, { a: 1, b: 1 }], copy$slices_Pair);

@@ -23,5 +23,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("borrows::maps", |_, data, out| borrows::maps(data, out)),
 		("borrows::tries", |_, data, out| borrows::tries(data, out)),
 		("borrows::leaks", |_, data, out| borrows::leaks(data, out)),
+		("borrows::printed", |_, data, out| borrows::printed(data, out)),
 	]
 }

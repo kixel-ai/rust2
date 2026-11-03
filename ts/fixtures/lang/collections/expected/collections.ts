@@ -1727,9 +1727,9 @@ export function optionals(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			} else {
 				read = rt.entryOrInsertMut(rt.entry(map, k), undefined as rt.u8 | undefined).v;
 			}
-			const _56: rt.u8 | undefined | rt.None = read;
 			const _50: rt.u8 | undefined = option_flatten$1nwzx42(read);
 			const _53: boolean = rt.hashContains(map, k);
+			const _56: rt.u8 | undefined | rt.None = read;
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_56, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug), rt.None), (f: rt.Formatter) => rt.fmtOption(_50, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtBool(_53, f)];
 			rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "])));
 		}

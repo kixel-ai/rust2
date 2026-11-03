@@ -258,7 +258,10 @@ and of their iterators and `Chars` the items each has left, in std's wrapper; a 
 swap them, and its `Drain` its counts; a list's `Iter` and `IterMut` write what is left and
 its length, as std's do. `Debug` of `Bound`, `Ordering`, `Reverse`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
-not, writes what it lends by its own `Debug` and `Display`. A caller prints a
+not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
+`RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
+`<locked>` while a guard keeps it from being read, as std's do; an `UnsafeCell` writes only
+its name. A caller prints a
 `printable` type as `to_string()` and `format!("{err:?}")`
 would: `rt.fmtToString((f) => DecodeError.fmt$fmt_Display(err, f))` and
 `rt.fmtFormat([(f) => DecodeError.fmt$fmt_Debug(err, f)])`, after

@@ -485,8 +485,7 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const half: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeDiv(data.length, 2));
 	let c: rt.ByteCow = made(data, owned);
 	rt.byteVecPush(out, rt.byteCowSlice(c).length & 0xff);
-	const part2 = rt.min(rt.byteCowSlice(c).length, 3);
-	rt.byteVecExtendFromSlice(out, rt.byteSliceRange(rt.byteCowSlice(c), 0, part2));
+	rt.byteVecExtendFromSlice(out, rt.byteSliceRange(rt.byteCowSlice(c), 0, rt.min(rt.byteCowSlice(c).length, 3)));
 	const _35: rt.ByteCow = made(half, !owned);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(rt.byteCowSlice(c)), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(rt.byteCowSlice(_35)), f, rt.u8Debug)];
 	put(out, rt.fmtFormat([args2[0], " ", args2[1]]));

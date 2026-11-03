@@ -2109,8 +2109,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		});
 	}
 
-	/// Emit the pending temporaries `e` reads, and those held back before them, so that
-	/// `e` can be read more than once, or later.
+	/// Emit the pending temporaries `e` reads, those held back before them, and those
+	/// after them that do or read anything, so that `e` can be read more than once, or
+	/// later. What `out` gathers is often emitted after, which would run those first.
 	pub(super) fn materialize(&mut self, e: &Expr, out: &mut Vec<Stmt>) {
 		let mut names = Vec::new();
 		reads_of(e, &mut names);
@@ -2124,7 +2125,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return;
 		};
 		let pending = std::mem::take(&mut self.pending);
-		let (flush, keep): (Vec<Pending>, Vec<Pending>) = pending.into_iter().partition(|p| p.order <= last);
+		let (flush, keep): (Vec<Pending>, Vec<Pending>) =
+			(pending.into_iter()).partition(|p| p.order <= last || p.effect || p.memory);
 		self.pending = keep;
 		for p in flush {
 			self.flush_one(p, out);
