@@ -1,14 +1,15 @@
 // `char`'s Unicode classes, case maps, escapes, and encodings, for rust2-ts output, and the
-// iterators they make. `rt.ts` re-exports all of it.
+// iterators they make, and `str`'s case maps and escapes. `rt.ts` re-exports all of it.
 //
 // Each reads std's own Unicode tables, which `rt/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtUnit, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
+import { type ByteSlice, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugTuple, fmtPad, fmtUnit, OK, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
 import { type char, type u8, type u16, u16Debug, type u32, type usize } from "./int.ts";
-import { type Clones, DONE, type Done, Iter, type SizeHint } from "./iter.ts";
+import { type Clones, DONE, type Done, Iter, iterFlatMap, type SizeHint } from "./iter.ts";
+import { strChars } from "./str.ts";
 import { drop as dispose } from "./task.ts";
-import { ALPHABETIC, LOWERCASE, NUMERIC, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
+import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 
 /** A class of chars, as runs from one of `rt/unicode.ts`'s tables, decoded once one is looked up. */
 class Runs {
@@ -49,6 +50,8 @@ const alphabetic = /* @__PURE__ */ new Runs(ALPHABETIC);
 const lowercase = /* @__PURE__ */ new Runs(LOWERCASE);
 const uppercase = /* @__PURE__ */ new Runs(UPPERCASE);
 const numeric = /* @__PURE__ */ new Runs(NUMERIC);
+const titlecase = /* @__PURE__ */ new Runs(TITLECASE);
+const caseIgnorable = /* @__PURE__ */ new Runs(CASE_IGNORABLE);
 
 /** `char::is_alphabetic`: Unicode's `Alphabetic`. */
 export function charIsAlphabetic(c: char): boolean {
@@ -145,6 +148,54 @@ class CaseMap {
 
 const toLowercase = /* @__PURE__ */ new CaseMap(TO_LOWERCASE, TO_LOWERCASE_MULTI);
 const toUppercase = /* @__PURE__ */ new CaseMap(TO_UPPERCASE, TO_UPPERCASE_MULTI);
+
+/** `str::to_lowercase`: each char's, but a capital sigma's at the end of a word, which is final. */
+export function strToLowercase(s: string): string {
+	let out = "";
+	for (let i = 0; i < s.length; ) {
+		const c = s.codePointAt(i) as char;
+		const end = i + (c > 0xffff ? 2 : 1);
+		if (c === 0x3a3) out += finalSigma(s, i, end) ? "ς" : "σ";
+		else out += String.fromCodePoint(...toLowercase.map(c));
+		i = end;
+	}
+	return out;
+}
+
+/**
+ * Whether the sigma from `start` to `end` of `s` ends a word, as Unicode's `Final_Sigma`
+ * says: a cased char before it and none after, past any case-ignorable ones.
+ */
+function finalSigma(s: string, start: number, end: number): boolean {
+	return casedNext(s, start, true) && !casedNext(s, end, false);
+}
+
+/** Whether the first char of `s` from `i` on, or before it if `back`, that is not case-ignorable is cased. */
+function casedNext(s: string, i: number, back: boolean): boolean {
+	while (back ? i > 0 : i < s.length) {
+		if (back) i -= isLowSurrogate(s.charCodeAt(i - 1)) ? 2 : 1;
+		const c = s.codePointAt(i) as number;
+		if (!back) i += c > 0xffff ? 2 : 1;
+		if (!caseIgnorable.has(c)) return lowercase.has(c) || uppercase.has(c) || titlecase.has(c);
+	}
+	return false;
+}
+
+/** Whether `u` is the second half of a surrogate pair. */
+function isLowSurrogate(u: number): boolean {
+	return u >= 0xdc00 && u <= 0xdfff;
+}
+
+/** `str::to_uppercase`: each char's. */
+export function strToUppercase(s: string): string {
+	let out = "";
+	for (let i = 0; i < s.length; ) {
+		const c = s.codePointAt(i) as char;
+		out += String.fromCodePoint(...toUppercase.map(c));
+		i += c > 0xffff ? 2 : 1;
+	}
+	return out;
+}
 
 /** The chars a case map or an escape still has, from either end, exactly sized. */
 abstract class Chars extends Iter<char> {
@@ -274,6 +325,31 @@ export function charEscapeDebug(c: char): Iter<char> {
 	const s = String.fromCodePoint(c);
 	const escaped = c === 0x22 ? '\\"' : escapeDebug(s, "'");
 	return escape(escaped, escaped === s);
+}
+
+/** `str::escape_unicode`: each char's `escape_unicode`, as std's `flat_map` of them. */
+export function strEscapeUnicode(s: string): Iter<char> {
+	return iterFlatMap(strChars(s), charEscapeUnicode, undefined, true);
+}
+
+/** `str::escape_default`: each char's `escape_default`, as std's `flat_map` of them. */
+export function strEscapeDefault(s: string): Iter<char> {
+	return iterFlatMap(strChars(s), charEscapeDefault, undefined, true);
+}
+
+/** `str::escape_debug`: each char's `escape_debug`, as std's `flat_map` of them. */
+export function strEscapeDebug(s: string): Iter<char> {
+	return iterFlatMap(strChars(s), charEscapeDebug, undefined, true);
+}
+
+/** `Display` of a `str`'s escape: what it has left, a char at a time, as std's `write_char` of a clone's. */
+export function fmtStrEscapeDisplay(it: Iter<char>, f: Formatter): FmtResult {
+	const rest = it.clone();
+	for (let c = rest.next(); c !== DONE; c = rest.next()) {
+		const r = f.out.writeStr(String.fromCodePoint(c));
+		if (!r.ok) return r;
+	}
+	return OK;
 }
 
 /** One char of `Debug` of a string, which escapes `"`, or of a char, which escapes `'`. */
