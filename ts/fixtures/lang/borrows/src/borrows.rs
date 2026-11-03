@@ -5,7 +5,8 @@
 //! cloned guards, each released as it drops; guards mapped, filtered, and split to parts
 //! JS copies and parts it doesn't, written through, released as the last drops; and
 //! guards tried on their parts, given back beside an error, and printed; and guards leaked,
-//! which keep the cell borrowed until `undo_leak`, and mapped to the whole of its bytes.
+//! which keep the cell borrowed until `undo_leak`, and mapped to the whole of its bytes;
+//! and each cell printed by `Debug`, borrowed or not.
 
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::sync::{Arc, Mutex};
@@ -718,4 +719,100 @@ fn flush(log: &Mutex<Vec<u8>>, out: &mut Vec<u8>) {
 	let mut log = log.lock().unwrap();
 	out.extend_from_slice(&log);
 	log.clear();
+}
+
+/// What a derived `Debug` writes each cell of as its field.
+#[derive(Debug)]
+struct Shown {
+	cell: Cell<u8>,
+	refcell: RefCell<Vec<u8>>,
+}
+
+/// Writes whether the cell it is in can be borrowed, shared and exclusively, and how it
+/// writes, while the cell writes it.
+struct Probe(std::rc::Weak<RefCell<Probe>>);
+
+impl std::fmt::Debug for Probe {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let cell = self.0.upgrade().unwrap();
+		let shared = cell.try_borrow().is_ok();
+		let exclusive = cell.try_borrow_mut().is_ok();
+		write!(f, "{shared} {exclusive} {}", f.alternate())
+	}
+}
+
+/// Each byte an operation on cells printed by `Debug`, its value the operand: a `RefCell`
+/// free, shared, and borrowed exclusively, which writes `<borrowed>` with no options, plain,
+/// pretty, padded, and as a `&dyn Debug`, and borrowed shared while it writes what it
+/// holds; cells nested in cells, a vector, and a derived `Debug`; guards of cells, which
+/// write the cell they lend; and `Cell`s of `Copy` values and an `UnsafeCell`.
+pub fn printed(data: &[u8], out: &mut Vec<u8>) {
+	let number = RefCell::new(0u32);
+	let nested = RefCell::new(vec![RefCell::new(Some(0u8))]);
+	let pair = Cell::new((0u8, 'a'));
+	let shown = Shown {
+		cell: Cell::new(0),
+		refcell: RefCell::new(Vec::new()),
+	};
+	for &op in data {
+		let v = op >> 3;
+		let text = match op % 8 {
+			0 => {
+				*number.borrow_mut() += u32::from(v);
+				let free = format!("{number:?} {number:#?} {number:>4?}");
+				let shared = number.borrow();
+				let read = format!("{number:?}");
+				drop(shared);
+				let _held = number.borrow_mut();
+				let dynamic: &dyn std::fmt::Debug = &number;
+				format!("{free} {read} {number:?} {number:#?} {number:>16?} {dynamic:?}")
+			}
+			1 => {
+				nested.borrow_mut().push(RefCell::new((v % 3 != 0).then_some(v)));
+				let free = format!("{nested:?} {nested:#?}");
+				let cells = nested.borrow();
+				let _inner = cells[cells.len() - 1].borrow_mut();
+				format!("{free} {nested:?} {nested:#?}")
+			}
+			// A guard writes the cell it lends, borrowed or not.
+			2 => {
+				let outer = RefCell::new(RefCell::new(v));
+				let shared = outer.borrow();
+				let free = format!("{shared:?} {shared:#?}");
+				drop(shared);
+				let exclusive = outer.borrow_mut();
+				let inner = exclusive.borrow_mut();
+				let held = format!("{exclusive:?} {exclusive:#?} {outer:?} {inner:?}");
+				drop(inner);
+				let last = Ref::map(nested.borrow(), |n| &n[0]);
+				format!("{free} {held} {exclusive:?} {last:?}")
+			}
+			3 => {
+				pair.set((pair.get().0.wrapping_add(v), char::from(b'a' + v % 26)));
+				let wide = Cell::new(u64::from(v) << 56);
+				let maybe = Cell::new((v % 2 == 0).then_some(v));
+				let unit = Cell::new(());
+				format!("{pair:?} {pair:#?} {wide:?} {maybe:?} {maybe:#?} {unit:?} {pair:>3?}")
+			}
+			4 => {
+				shown.cell.set(v);
+				shown.refcell.borrow_mut().push(v);
+				let free = format!("{shown:?} {shown:#?}");
+				let _held = shown.refcell.borrow_mut();
+				format!("{free} {shown:?} {shown:#?}")
+			}
+			5 => {
+				let unsafe_cell = std::cell::UnsafeCell::new(v);
+				let in_refcell = RefCell::new(Cell::new(v));
+				format!("{unsafe_cell:?} {unsafe_cell:#?} {in_refcell:?} {in_refcell:#?}")
+			}
+			// Borrowed while it writes what it holds.
+			6 => {
+				let probe = std::rc::Rc::new_cyclic(|me| RefCell::new(Probe(me.clone())));
+				format!("{probe:?} {probe:#?}")
+			}
+			_ => format!("{:?} {:?}", RefCell::new(String::from("s")), RefCell::new([v; 2])),
+		};
+		out.extend_from_slice(text.as_bytes());
+	}
 }

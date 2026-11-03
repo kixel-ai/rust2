@@ -695,8 +695,8 @@ export function givenN$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_173.v = 238;
 	}
 	put$0(out, [copy$array_u8(b)]);
-	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const _190: Uint8Array[] = [rt.byteSliceView(rt.byteSliceFrom(b))];
+	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_192), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(_190, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1]])));
 	if (isSomeAnd$09tpccf(rt.byteSliceFirst(data), (d2: rt.u8): boolean => {
@@ -750,9 +750,8 @@ export function givenN$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const swapped2 = rt.byteSliceToArray(_50);
 	_50.data.set(rt.byteSliceToArray(_52), _50.start);
 	_52.data.set(swapped2, _52.start);
-	const at2 = rt.idx(v, 2);
+	const _54: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 2)]);
 	const _56: Uint8Array = copy$array_u8(b);
-	const _54: rt.ByteSlice = rt.byteSliceFrom(v[at2]);
 	const old3 = rt.byteSliceToArray(_54);
 	_54.data.set(_56, _54.start);
 	const old: Uint8Array = old3;
@@ -813,8 +812,8 @@ export function givenN$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_173.v = 238;
 	}
 	put$1(out, [copy$array_u8(b)]);
-	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const _190: Uint8Array[] = [rt.byteSliceView(rt.byteSliceFrom(b))];
+	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_192), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(_190, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1]])));
 	if (isSomeAnd$09tpccf(rt.byteSliceFirst(data), (d2: rt.u8): boolean => {
@@ -868,9 +867,8 @@ export function givenN$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const swapped2 = rt.byteSliceToArray(_50);
 	_50.data.set(rt.byteSliceToArray(_52), _50.start);
 	_52.data.set(swapped2, _52.start);
-	const at2 = rt.idx(v, 2);
+	const _54: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 2)]);
 	const _56: Uint8Array = copy$array_u8(b);
-	const _54: rt.ByteSlice = rt.byteSliceFrom(v[at2]);
 	const old3 = rt.byteSliceToArray(_54);
 	_54.data.set(_56, _54.start);
 	const old: Uint8Array = old3;
@@ -931,8 +929,8 @@ export function givenN$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_173.v = 238;
 	}
 	put$3(out, [copy$array_u8(b)]);
-	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const _190: Uint8Array[] = [rt.byteSliceView(rt.byteSliceFrom(b))];
+	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_192), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(_190, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1]])));
 	if (isSomeAnd$09tpccf(rt.byteSliceFirst(data), (d2: rt.u8): boolean => {
@@ -986,9 +984,8 @@ export function givenN$40(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const swapped2 = rt.byteSliceToArray(_50);
 	_50.data.set(rt.byteSliceToArray(_52), _50.start);
 	_52.data.set(swapped2, _52.start);
-	const at2 = rt.idx(v, 2);
+	const _54: rt.ByteSlice = rt.byteSliceFrom(v[rt.idx(v, 2)]);
 	const _56: Uint8Array = copy$array_u8(b);
-	const _54: rt.ByteSlice = rt.byteSliceFrom(v[at2]);
 	const old3 = rt.byteSliceToArray(_54);
 	_54.data.set(_56, _54.start);
 	const old: Uint8Array = old3;
@@ -1049,8 +1046,8 @@ export function givenN$40(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_173.v = 238;
 	}
 	put$40(out, [copy$array_u8(b)]);
-	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const _190: Uint8Array[] = [rt.byteSliceView(rt.byteSliceFrom(b))];
+	const _192: rt.ByteSlice = rt.byteSliceFrom(a);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_192), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(_190, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug))];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1]])));
 	if (isSomeAnd$09tpccf(rt.byteSliceFirst(data), (d2: rt.u8): boolean => {

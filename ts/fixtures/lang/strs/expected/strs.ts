@@ -526,8 +526,7 @@ export function odd(c: rt.char): boolean {
 /** One edit of `s` by `op`, taking offsets and text from `a` and `b`, through a `&mut`. */
 export function edit(s: rt.Place<string>, op: rt.u8, a: rt.u8, b: rt.u8, out: rt.ByteVec): void {
 	let capacity!: rt.usize;
-	const part = rt.u8Rem(a, 4) as rt.usize;
-	const piece: string = text(rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(a, b, a ^ b)), 0, part));
+	const piece: string = text(rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(a, b, a ^ b)), 0, rt.u8Rem(a, 4) as rt.usize));
 	const _17: [rt.usize, rt.usize] = [offset(s.v, a), offset(s.v, b)];
 	const i: rt.usize = _17[0];
 	const j: rt.usize = _17[1];
@@ -678,25 +677,40 @@ export function edits(kind: rt.u8, dataData: Uint8Array, dataStart: number, data
 		const b: rt.u8 = _25[2];
 		const _39: rt.u8 = rt.u8Div(op, 64);
 		if (_39 === 0) {
-			edit(rt.place(() => named.name, (value2) => named.name = value2), op, a, b, out);
+			edit(rt.place(() => named.name, (value10) => named.name = value10), op, a, b, out);
 		} else if (_39 === 1) {
-			const _42: rt.u8 = rt.u8Rem(op, 6);
+			const _42: rt.u8 = rt.u8Rem(op, 8);
 			if (_42 === 0) {
-				s = s + "é/";
+				const _44: rt.Place<string> = rt.place(() => s, (value9) => s = value9);
+				_44.v = _44.v + "é/";
 			} else if (_42 === 1) {
+				const _46: rt.Place<string> = rt.place(() => s, (value8) => s = value8);
 				const _47: rt.usize = offset(s, a);
-				s = rt.stringTruncate(s, _47);
+				_46.v = rt.stringTruncate(_46.v, _47);
 			} else if (_42 === 2) {
-				const edit2 = rt.stringPop(s);
-				s = edit2[0];
-				putChar(out, edit2[1]);
+				const _51: rt.Place<string> = rt.place(() => s, (value7) => s = value7);
+				const edit4 = rt.stringPop(_51.v);
+				_51.v = edit4[0];
+				putChar(out, edit4[1]);
 			} else if (_42 === 3) {
+				const _52: rt.Place<string> = rt.place(() => s, (value6) => s = value6);
 				const _53: rt.usize = offset(s, a);
-				s = rt.stringInsertStr(s, _53, "😀");
+				_52.v = rt.stringInsertStr(_52.v, _53, "😀");
 			} else if (_42 === 4) {
+				const _60: rt.Place<string> = rt.place(() => s, (value5) => s = value5);
 				const _61: rt.usize = offset(s, a);
-				const edit_ = rt.stringSplitOff(s, _61);
-				s = edit_[0];
+				const edit3 = rt.stringSplitOff(_60.v, _61);
+				_60.v = edit3[0];
+				put(out, edit3[1]);
+			} else if (_42 === 5) {
+				const _66: rt.Place<string> = rt.place(() => s, (value4) => s = value4);
+				const edit2 = rt.stringRemove(_66.v, 0);
+				_66.v = edit2[0];
+				putChar(out, edit2[1]);
+			} else if (_42 === 6) {
+				const _70: rt.Place<string> = rt.place(() => s, (value3) => s = value3);
+				const edit_ = rt.stringSplitOff(_70.v, 1);
+				_70.v = edit_[0];
 				put(out, edit_[1]);
 			} else {
 				s = "";
@@ -707,7 +721,8 @@ export function edits(kind: rt.u8, dataData: Uint8Array, dataStart: number, data
 		put(out, s);
 		put(out, named.name);
 	}
-	put(out, s + "😀" + named.name);
+	s = s + "😀" + named.name;
+	put(out, s);
 }
 
 /**

@@ -20,9 +20,8 @@ export const SCANNER: Scanner.Scanner = { bufData: Uint8Array.of(120, 121, 122),
 export function fields(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let two!: Glued.Glued;
 	const n: rt.usize = rt.u8Rem(kind, 5) as rt.usize;
-	const _12: rt.usize = kind as rt.usize;
 	const _8: rt.ByteSlice = rt.byteSliceRange(data, rt.min(n, data.length));
-	rt.byteVecPush(out, _12 & 0xff);
+	rt.byteVecPush(out, ((kind as rt.usize)) & 0xff);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceRange(new rt.ByteSlice(_8.data, _8.start, _8.length), 0, rt.min(_8.length, 2)));
 	const r: Scanner.Scanner = { bufData: data.data, bufStart: data.start, bufLen: data.length, read: 0 };
 	while (true) {

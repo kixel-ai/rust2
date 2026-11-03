@@ -544,8 +544,8 @@ export function panics(kind: rt.u8, rest: rt.ByteSlice, out: rt.ByteVec): void {
 		const _129: rt.u8 = rt.optionExpect(missing, rt.fmtFormat(["missing ", args10[0]]));
 		put(out, rt.fmtToString((f: rt.Formatter) => rt.u8Display(_129, f)));
 	} else if (_7 === 11) {
-		const part5 = { _0: n };
-		const args12: rt.Fmt[] = [(f: rt.Formatter) => Fails.fmt$fmt_Display(part5, f)];
+		const part3 = { _0: n };
+		const args12: rt.Fmt[] = [(f: rt.Formatter) => Fails.fmt$fmt_Display(part3, f)];
 		put(out, rt.fmtFormat([args12[0]]));
 	} else if (_7 === 12) {
 		const _157: Fails.Fails = { _0: n };
@@ -580,10 +580,10 @@ export function panics(kind: rt.u8, rest: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.fmtToString((f: rt.Formatter) => rt.u8Display(_234, f)));
 	} else if (_7 === 17) {
 		const buf2: Uint8Array = Uint8Array.of(1, 2, 3, 4);
-		const part2 = rt.u8Rem(n, 6) as rt.usize;
-		const part3 = rt.u8Rem(rt.u8Div(n, 6), 6) as rt.usize;
 		const dest: rt.usize = rt.usizeRem(option_unwrapOr$0r2bmpr(rt.byteSliceGet(rest, 1), 0) as rt.usize, 4);
-		rt.byteSliceCopyWithin(rt.byteSliceFrom(buf2), part2, part3, dest);
+		const _244: rt.ByteSlice = rt.byteSliceFrom(buf2);
+		const _246: rt.Range<rt.usize> = new rt.Range(rt.u8Rem(n, 6) as rt.usize, rt.u8Rem(rt.u8Div(n, 6), 6) as rt.usize);
+		rt.byteSliceCopyWithin(_244, _246.start, _246.end, dest);
 		const arg2 = rt.byteSliceFrom(buf2);
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(arg2), f, rt.u8Debug)];
 		put(out, rt.fmtFormat([args20[0]]));
@@ -625,11 +625,11 @@ export function wrapped(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5]]));
 	const _60: rt.Range<rt.i32> = new rt.Range(a, b);
 	const _62: rt.RangeInclusive<rt.i32> = new rt.RangeInclusive(a, b, rt.i32Step);
+	const _72: rt.RangeInclusive<rt.i32> = new rt.RangeInclusive(a, b, rt.i32Step);
 	const _64: rt.RangeFrom<rt.i32> = new rt.RangeFrom(a, rt.i32Step);
 	const _66: { end: rt.i32 } = { end: b };
 	const _68: { end: rt.i32; inclusive: true } = { end: b, inclusive: true };
 	const _70: rt.Range<rt.i32> = new rt.Range(a, b);
-	const _72: rt.RangeInclusive<rt.i32> = new rt.RangeInclusive(a, b, rt.i32Step);
 	const _74: { end: rt.i32; inclusive: true } = { end: b, inclusive: true };
 	const _75: undefined = undefined;
 	const _77: rt.Range<rt.i32> = new rt.Range(a, b);
@@ -2150,9 +2150,8 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const c: rt.char = option_unwrapOr$0k15iai(rt.charFromU32(rt.u32Mul(at(0) as rt.u32, 257)), 63);
 	let s: string = "";
 	const _19: rt.u8 = at(1);
-	const _23: string = "q\"é";
 	const _25: rt.u8 = at(2);
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_19, f), (f: rt.Formatter) => rt.fmtCharDisplay(c, f), (f: rt.Formatter) => rt.fmtStr(_23, f), (f: rt.Formatter) => rt.u8LowerHex(_25, f)];
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_19, f), (f: rt.Formatter) => rt.fmtCharDisplay(c, f), (f: rt.Formatter) => rt.fmtStr("q\"é", f), (f: rt.Formatter) => rt.u8LowerHex(_25, f)];
 	const written = rt.fmtWriteString(s, ["a", args2[0], "b", rt.fmtSpec({ align: ">", width: 5 }, args2[1]), "|", args2[2], "|", args2[3]]);
 	s = written.s;
 	result(out, written.result);
