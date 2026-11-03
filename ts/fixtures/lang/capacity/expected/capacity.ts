@@ -98,7 +98,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 38);
+		const _42: rt.u8 = rt.u8Rem(op, 39);
 		if (_42 === 0 || _42 === 1) {
 			v.push(copy$array_u64(make(arg)));
 		} else if (_42 === 2) {
@@ -106,7 +106,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 38) === 3) {
+			if (rt.u8Rem(op, 39) === 3) {
 				rt.vecReserve(v, additional, 1280);
 			} else {
 				rt.vecReserveExact(v, additional, 1280);
@@ -250,7 +250,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 38) === 30) {
+			if (rt.u8Rem(op, 39) === 30) {
 				rt.vecResize(v, newLen, copy$array_u64(make(arg)), 1280, copy$array_u64);
 			} else {
 				rt.vecResizeWith(v, newLen, (): rt.u64[] => {
@@ -322,10 +322,12 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			}
 			const flat: rt.u64[][] = rt.vecIntoFlattened(pairs, 2, 1280);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 1280));
+		} else if (_42 === 38) {
+			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 1280, true);
 		}
-		const _525: rt.usize = v.length;
-		const _527: rt.usize = rt.vecCapacity(v, 1280);
-		Known.put(k, out, _525, _527);
+		const _536: rt.usize = v.length;
+		const _538: rt.usize = rt.vecCapacity(v, 1280);
+		Known.put(k, out, _536, _538);
 	}
 }
 
@@ -357,7 +359,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 38);
+		const _42: rt.u8 = rt.u8Rem(op, 39);
 		if (_42 === 0 || _42 === 1) {
 			v.push(copy$tuple2_u64_u8(make(arg)));
 		} else if (_42 === 2) {
@@ -365,7 +367,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 38) === 3) {
+			if (rt.u8Rem(op, 39) === 3) {
 				rt.vecReserve(v, additional, 16);
 			} else {
 				rt.vecReserveExact(v, additional, 16);
@@ -509,7 +511,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 38) === 30) {
+			if (rt.u8Rem(op, 39) === 30) {
 				rt.vecResize(v, newLen, copy$tuple2_u64_u8(make(arg)), 16, copy$tuple2_u64_u8);
 			} else {
 				rt.vecResizeWith(v, newLen, (): [rt.u64, rt.u8] => {
@@ -581,10 +583,12 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			}
 			const flat: [rt.u64, rt.u8][] = rt.vecIntoFlattened(pairs, 2, 16);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 16));
+		} else if (_42 === 38) {
+			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 16, true);
 		}
-		const _525: rt.usize = v.length;
-		const _527: rt.usize = rt.vecCapacity(v, 16);
-		Known.put(k, out, _525, _527);
+		const _536: rt.usize = v.length;
+		const _538: rt.usize = rt.vecCapacity(v, 16);
+		Known.put(k, out, _536, _538);
 	}
 }
 
@@ -616,7 +620,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 38);
+		const _42: rt.u8 = rt.u8Rem(op, 39);
 		if (_42 === 0 || _42 === 1) {
 			v.push(make(arg));
 		} else if (_42 === 2) {
@@ -624,7 +628,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 38) === 3) {
+			if (rt.u8Rem(op, 39) === 3) {
 				rt.vecReserve(v, additional, 2);
 			} else {
 				rt.vecReserveExact(v, additional, 2);
@@ -768,7 +772,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 38) === 30) {
+			if (rt.u8Rem(op, 39) === 30) {
 				rt.vecResize(v, newLen, make(arg), 2, undefined);
 			} else {
 				rt.vecResizeWith(v, newLen, (): rt.u16 => {
@@ -840,10 +844,12 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			}
 			const flat: rt.u16[] = rt.vecIntoFlattened(pairs, 2, 2);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 2));
+		} else if (_42 === 38) {
+			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 2, true);
 		}
-		const _525: rt.usize = v.length;
-		const _527: rt.usize = rt.vecCapacity(v, 2);
-		Known.put(k, out, _525, _527);
+		const _536: rt.usize = v.length;
+		const _538: rt.usize = rt.vecCapacity(v, 2);
+		Known.put(k, out, _536, _538);
 	}
 }
 
@@ -875,7 +881,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 38);
+		const _42: rt.u8 = rt.u8Rem(op, 39);
 		if (_42 === 0 || _42 === 1) {
 			rt.byteVecPush(v, make(arg));
 		} else if (_42 === 2) {
@@ -883,7 +889,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 38) === 3) {
+			if (rt.u8Rem(op, 39) === 3) {
 				rt.byteVecReserve(v, additional);
 			} else {
 				rt.byteVecReserveExact(v, additional);
@@ -1025,7 +1031,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 38) === 30) {
+			if (rt.u8Rem(op, 39) === 30) {
 				rt.byteVecResize(v, newLen, make(arg));
 			} else {
 				rt.byteVecResizeWith(v, newLen, (): rt.u8 => {
@@ -1097,6 +1103,8 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			}
 			const flat: rt.ByteVec = rt.byteVecIntoFlattened(pairs, 2);
 			Known.put(Known.new(0), out, flat.length, flat.data.length);
+		} else if (_42 === 38) {
+			rt.byteVecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice(Uint8Array.of()), true);
 		}
 		Known.put(k, out, v.length, v.data.length);
 	}
@@ -1130,7 +1138,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 		const _33: [rt.u8, rt.u8] = [_27.data[_27.start], option_unwrapOr$0r2bmpr(rt.byteSliceGet(_27, 1), 0)];
 		const op: rt.u8 = _33[0];
 		const arg: rt.u8 = _33[1];
-		const _42: rt.u8 = rt.u8Rem(op, 38);
+		const _42: rt.u8 = rt.u8Rem(op, 39);
 		if (_42 === 0 || _42 === 1) {
 			const _44: undefined[] = v;
 			make(arg);
@@ -1140,7 +1148,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			Known.loose(k);
 		} else if (_42 === 3 || _42 === 4) {
 			const additional: rt.usize = amount(arg, v.length, size);
-			if (rt.u8Rem(op, 38) === 3) {
+			if (rt.u8Rem(op, 39) === 3) {
 				rt.vecReserve(v, additional, 0);
 			} else {
 				rt.vecReserveExact(v, additional, 0);
@@ -1290,7 +1298,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				}
 				newLen = rt.u8Rem(arg, 24) as rt.usize;
 			}
-			if (rt.u8Rem(op, 38) === 30) {
+			if (rt.u8Rem(op, 39) === 30) {
 				const _351: undefined[] = v;
 				make(arg);
 				rt.vecResize(_351, newLen, undefined, 0, undefined);
@@ -1366,10 +1374,12 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			}
 			const flat: undefined[] = rt.vecIntoFlattened(pairs, 2, 0);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 0));
+		} else if (_42 === 38) {
+			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 0, true);
 		}
-		const _525: rt.usize = v.length;
-		const _527: rt.usize = rt.vecCapacity(v, 0);
-		Known.put(k, out, _525, _527);
+		const _536: rt.usize = v.length;
+		const _538: rt.usize = rt.vecCapacity(v, 0);
+		Known.put(k, out, _536, _538);
 	}
 }
 

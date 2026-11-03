@@ -109,7 +109,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 	put(out, v.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 38 {
+		match op % 39 {
 			0 | 1 => v.push(make(arg)),
 			2 => {
 				drop(v.pop());
@@ -117,7 +117,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			3 | 4 => {
 				let additional = amount(arg, v.len(), size);
-				match op % 38 {
+				match op % 39 {
 					3 => v.reserve(additional),
 					_ => v.reserve_exact(additional),
 				}
@@ -250,7 +250,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
 					_ => usize::from(arg % 24),
 				};
-				match op % 38 {
+				match op % 39 {
 					30 => v.resize(new_len, make(arg)),
 					_ => v.resize_with(new_len, || make(arg)),
 				}
@@ -308,6 +308,11 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 				}
 				let flat = pairs.into_flattened();
 				Known::new(0).put(out, flat.len(), flat.capacity());
+			}
+			// A splice leaked before it drops keeps the vector's capacity.
+			38 => {
+				let start = usize::from(arg) % (v.len() + 1);
+				std::mem::forget(v.splice(start.., []));
 			}
 			_ => {}
 		}

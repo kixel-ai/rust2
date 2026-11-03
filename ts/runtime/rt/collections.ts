@@ -34,6 +34,8 @@ import {
 	iterForEach,
 	iterHeld,
 	iterMap,
+	iterToArray,
+	iterToByteVec,
 	iterOnce,
 	iterSlice,
 	type RangeInclusive,
@@ -3706,13 +3708,17 @@ class VecDrain<T> extends Iter<T> implements Disposable {
  * has not yielded and fills the gap from `items`, as std's: after a drain to the end, by
  * `extend`, which reserves for a `trusted`, `TrustedLen`, iterator as it does; else by
  * each item until the gap is full, then the tail moved past room for `items`' lower bound,
- * reserved for the whole vector, and then past room for the rest, collected. The tail moves
+ * reserved for the whole vector, and then past room for the rest, collected as std's
+ * collects them. The tail moves
  * back to the last item, and `items` drops last if it `drops`.
  */
 export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, items: Iter<T>, size: number, trusted = false, drops = false, drop?: (item: T) => void): Iter<T> {
 	const [start, end] = boundsRange(r, v.length);
 	const cap = vecCapacity(v, size);
-	return new VecSplice(v, v.splice(start), end - start, drop, items, size, cap, trusted, drops);
+	const rest = v.splice(start);
+	// Held by the vector, which keeps it if the splice is leaked.
+	capSet(v, start, cap, size);
+	return new VecSplice(v, rest, end - start, drop, items, size, cap, trusted, drops);
 }
 
 class VecSplice<T> extends VecDrain<T> {
@@ -3770,8 +3776,7 @@ class VecSplice<T> extends VecDrain<T> {
 			moveTail(lower);
 			if (!fill(this.items)) return;
 		}
-		const collected: T[] = [];
-		for (let item = this.items.next(); item !== DONE; item = this.items.next()) collected.push(item);
+		const collected = iterToArray(this.items, undefined, this.size, this.trusted);
 		if (collected.length === 0) return;
 		moveTail(collected.length);
 		fill(iterSlice(collected));
@@ -3788,25 +3793,27 @@ export function fmtVecSplice<T, I>(it: Iter<T>, f: Formatter, debug: Debug<T>, i
 /**
  * `Vec::extract_if`: each element of `start..end` that `f` returns true for, taken out as
  * it is read, front to back, with each it keeps moved back over the gaps, as std's; once
- * dropped, those after the last it read moved back too, and `f` dropped. `f` is given each
- * element or, with `places`, its place. Of a `Vec<u8>`, `a` is its bytes and `v` the vector.
+ * dropped, those after the last it read moved back too, `put` gives the vector back the
+ * `len` it keeps of `a`, and `f` drops. `f` is given each element or, with `places`, its
+ * place. The vector holds none meanwhile, as std's, so one leaked leaves it empty.
  */
 class VecExtractIf<T> extends Iter<T> implements Disposable {
-	private readonly v: { length: number };
+	private readonly put: (len: number) => void;
 	private readonly a: T[];
 	private idx: number;
 	private readonly end: number;
 	private del = 0;
-	private readonly old: number;
+	/** The vector's length before, or -1 once given back. */
+	private old: number;
 	private readonly f: (item: T | Place<T>) => boolean;
 	private readonly places: boolean;
 
-	constructor(v: { length: number }, a: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean) {
+	constructor(a: T[], old: number, r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean, put: (len: number) => void) {
 		super();
-		this.v = v;
+		this.put = put;
 		this.a = a;
-		this.old = v.length;
-		[this.idx, this.end] = boundsRange(r, v.length);
+		this.old = old;
+		[this.idx, this.end] = boundsRange(r, old);
 		this.f = f;
 		this.places = places;
 	}
@@ -3836,27 +3843,40 @@ class VecExtractIf<T> extends Iter<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
+		if (this.old < 0) return;
 		if (this.del > 0) for (let i = this.idx; i < this.old; i++) this.a[i - this.del] = this.a[i];
-		this.v.length = this.old - this.del;
-		this.del = 0;
-		this.idx = this.end;
+		this.put(this.old - this.del);
+		this.old = -1;
 		dispose(this.f);
 	}
 }
 
+/** `Vec::extract_if` of the elements within `r`, handing `f` each, or with `places`, its place. */
+function extractIf<T>(v: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean): Iter<T> {
+	const old = v.length;
+	const a = v.splice(0);
+	return new VecExtractIf(a, old, r, f, places, (len) => {
+		for (let i = 0; i < len; i++) v.push(a[i]);
+	});
+}
+
 /** `Vec::extract_if` of the elements within `r`, handing `f` each. */
 export function vecExtractIf<T>(v: T[], r: Bounds<number>, f: (item: T) => boolean): Iter<T> {
-	return new VecExtractIf(v, v, r, f as (item: T | Place<T>) => boolean, false);
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, false);
 }
 
 /** `vecExtractIf` of elements JS copies: `f` takes the place of each. */
 export function vecExtractIfMut<T>(v: T[], r: Bounds<number>, f: (item: Place<T>) => boolean): Iter<T> {
-	return new VecExtractIf(v, v, r, f as (item: T | Place<T>) => boolean, true);
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, true);
 }
 
-/** `Vec::extract_if` of bytes, whose places `f` takes. */
+/** `Vec::extract_if` of bytes, whose places `f` takes in the vector's storage. */
 export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean): Iter<number> {
-	return new VecExtractIf(v, v.data as unknown as number[], r, f as (item: number | Place<number>) => boolean, true);
+	const old = v.length;
+	v.length = 0;
+	return new VecExtractIf(v.data as unknown as number[], old, r, f as (item: number | Place<number>) => boolean, true, (len) => {
+		v.length = len;
+	});
 }
 
 /** `Debug` of a `Vec`'s `ExtractIf`, its parts each by `debug`, as std's. */
@@ -3993,11 +4013,10 @@ class ByteVecSplice extends ByteVecDrain {
 					moveTail(lower);
 					if (!fill(this.items)) return;
 				}
-				const collected: number[] = [];
-				for (let byte = this.items.next(); byte !== DONE; byte = this.items.next()) collected.push(byte);
+				const collected = iterToByteVec(this.items, undefined, this.trusted);
 				if (collected.length === 0) return;
 				moveTail(collected.length);
-				fill(iterSlice(collected));
+				fill(iterSlice(collected.data.subarray(0, collected.length)));
 			};
 			spliced();
 			v.data.copyWithin(v.length, tailStart, tailStart + tailLen);

@@ -974,6 +974,34 @@ fn within(a: u8, b: u8, len: usize) -> std::ops::Range<usize> {
 	start..start + usize::from(b) % (len - start + 1)
 }
 
+/// Items a counter makes up to `n`, logging each `size_hint` read of it, whose lower bound
+/// is one at odd counts while any are left.
+struct Hinted<'a> {
+	n: u8,
+	i: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl<'a> Iterator for Hinted<'a> {
+	type Item = Tracked<'a>;
+
+	fn next(&mut self) -> Option<Tracked<'a>> {
+		(self.i < self.n).then(|| {
+			self.i += 1;
+			Tracked {
+				id: 0xd0 + self.i,
+				copies: 0,
+				log: self.log,
+			}
+		})
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.log.borrow_mut().push(0xd5);
+		(usize::from((self.i % 2).min(self.n - self.i)), None)
+	}
+}
+
 /// `v.splice(r, items)`, read `read % 4` times from alternate ends and then dropped, each
 /// step marked.
 fn spliced<'a>(
@@ -1078,6 +1106,15 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let rest: Vec<u8> = it.collect();
 			out.extend_from_slice(&rest);
 			out.extend_from_slice(&bytes);
+			// A leaked one leaves the vector empty, as std's holds none meanwhile.
+			let mut it = w.extract_if(.., |x| *x % 2 == 0);
+			it.next();
+			std::mem::forget(it);
+			out.push(w.len() as u8);
+			let mut it = bytes.extract_if(.., |b| *b % 2 == 0);
+			it.next();
+			std::mem::forget(it);
+			out.push(bytes.len() as u8);
 			// Panics past the end, or with a range that ends before it starts.
 			if kind & 0x80 != 0 {
 				drop(w.extract_if(picked(at(6), at(7), w.len()), |_| true));
@@ -1104,6 +1141,10 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				};
 				let read = at(3);
 				match kind >> 3 & 3 {
+					_ if kind & 0x40 != 0 => {
+						drop(make);
+						spliced(&mut v, r, Hinted { n, i: 0, log: &log }, read, &log);
+					}
 					0 => spliced(&mut v, r, (0..n).map(make), read, &log),
 					1 => spliced(&mut v, r, (0..n).filter(|i| i % 2 == 0).map(make), read, &log),
 					2 => {

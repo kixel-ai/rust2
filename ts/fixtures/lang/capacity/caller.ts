@@ -14,13 +14,13 @@ export { ops, run } from "./lang.ts";
  * tries; and each splice of a vector a run of pushes grew.
  */
 const capacityCases = [
-	...[["capacity::vecs", 38], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 39], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) * 4 }, (_, i) => {
 			const [kind, first, step, arg] = [i % 5, (Math.floor(i / 5) % 2) * 0x11, Math.floor(i / 10) % (steps as number), [3, 0xc1, 0xe3, 0x16][Math.floor(i / (10 * (steps as number)))]];
 			return Uint8Array.of(...op(name as string), kind, first, ...[0, 1, 0, 2, 0, 3, 0, 4, 0, 5].map((b, j) => (j % 2 === 0 ? b : b * 41)), step, arg, step, arg ^ 1);
 		}),
 	),
-	...[["capacity::vecs", 38], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 39], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) }, (_, i) => Uint8Array.of(...op(name as string), i % 5, 0, 0, 1, 3 + (Math.floor(i / 5) % 2), 3, Math.floor(i / 10), 0)),
 	),
 	...["capacity::vecs", "capacity::deques", "capacity::heaps"].flatMap((name) =>
