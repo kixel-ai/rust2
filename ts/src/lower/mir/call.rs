@@ -14,7 +14,7 @@ use crate::lower::fmt::{self, Piece};
 use crate::lower::lend::{self, Plan};
 use crate::lower::library::{self, Flow, Std};
 use crate::lower::num::Int;
-use crate::ts::{Expr, Stmt, StmtKind};
+use crate::ts::{self, Expr, Stmt, StmtKind};
 
 /// What a `&mut` borrows: its path, and the place a store through the reference writes,
 /// unless the reference is refused.
@@ -30,6 +30,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) {
 		let tcx = self.tcx;
+		self.arguments.clear();
 		if self.forwards(dest) {
 			self.forward_call(args, span, out);
 			return;
@@ -134,6 +135,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(local) if self.stepped.contains(&local) => self.stepped_make(value, span),
 			_ => value,
 		};
+		let value = self.locate_arguments(value);
 		let value = match self.b.t.loc(span) {
 			Some(loc) if effect => Expr::Located(loc, Box::new(value)),
 			_ => value,
@@ -214,9 +216,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				_ => value,
 			});
+			if arg.node.place().is_some()
+				&& let Some(value) = values.last().filter(|v| !matches!(v, Expr::Located(..)))
+				&& let Some(loc) = self.b.t.loc(arg.span)
+			{
+				self.arguments.push((value.clone(), loc));
+			}
 		}
 		self.into_frozen = saved;
 		values
+	}
+
+	/// `call` with each argument [`Self::operands`] read from a place at that argument's
+	/// own Rust. Std's mappings match the arguments' shapes, so they are given them bare,
+	/// and each is located where it appears as an argument of what they made.
+	pub(super) fn locate_arguments(&mut self, mut call: Expr) -> Expr {
+		let mut arguments = std::mem::take(&mut self.arguments);
+		locate(&mut call, &mut arguments);
+		call
 	}
 
 	/// An argument, which the callee copies if it changes it in place.
@@ -934,6 +951,38 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					"iter_mut" => done(Expr::rt("iterOption", vec![lent]), true),
 					_ => done(lent, true),
 				}
+			}
+			// A slice of the payload, if any, read and written where the `Option` holds it, as
+			// `slice::from_mut` makes one of a place or of the object a `&mut` is, and else an
+			// empty one.
+			("Option", "as_mut_slice") => {
+				let inner = targ(0)?;
+				if matches!(inner.kind(), ty::Uint(ty::UintTy::U8)) {
+					let refused = self.err(
+						span,
+						"a slice of one byte's place, which a byte slice can view only in an array of bytes",
+					);
+					return done(refused, true);
+				}
+				let (target, payload) = self.payload_place(&args[0].node, inner, span, out)?;
+				let Some(payload) = payload else {
+					return done(target, true);
+				};
+				let none = target.clone().binary("===", self.b.t.none(inner));
+				let some = if self.b.t.needs_place(inner) {
+					Expr::rt("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
+				} else if self.b.t.write_in(inner).is_some() {
+					Expr::rt("sliceIn", vec![target])
+				} else {
+					self.err(
+						span,
+						format!("a slice of the payload of `Option<{inner}>`, which JS can't write in place"),
+					)
+				};
+				done(
+					Expr::Cond(Box::new(none), Box::new(Expr::Array(vec![])), Box::new(some)),
+					true,
+				)
 			}
 			("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => {
 				self.option_insert(&name, targ(0)?, args, dest, span, out)
@@ -2083,5 +2132,46 @@ fn assignable(e: &Expr) -> bool {
 		Expr::Index(..) => true,
 		Expr::Member(base, _) | Expr::Located(_, base) | Expr::As(base, _) => assignable(base),
 		e => e.is_path(),
+	}
+}
+
+/// Locate each of `arguments` at the first argument of a call or `new` in `e` it is, and
+/// drop it from the list.
+fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
+	if arguments.is_empty() {
+		return;
+	}
+	match e {
+		Expr::Call(callee, args) | Expr::New(callee, args) => {
+			locate(callee, arguments);
+			for arg in args {
+				match arguments.iter().position(|(value, _)| value == arg) {
+					Some(i) => {
+						let (_, loc) = arguments.remove(i);
+						*arg = Expr::Located(loc, Box::new(std::mem::replace(arg, Expr::undefined())));
+					}
+					None => locate(arg, arguments),
+				}
+			}
+		}
+		Expr::Member(e, _)
+		| Expr::Unary(_, e)
+		| Expr::Postfix(e, _)
+		| Expr::As(e, _)
+		| Expr::Instantiate(e, _)
+		| Expr::Lambda(_, e)
+		| Expr::Located(_, e) => locate(e, arguments),
+		Expr::Index(a, b) | Expr::Binary(a, _, b) | Expr::Assign(a, b) => {
+			locate(a, arguments);
+			locate(b, arguments);
+		}
+		Expr::Cond(a, b, c) => {
+			locate(a, arguments);
+			locate(b, arguments);
+			locate(c, arguments);
+		}
+		Expr::Array(es) => es.iter_mut().for_each(|e| locate(e, arguments)),
+		Expr::Object(props) => props.iter_mut().for_each(|(_, e)| locate(e, arguments)),
+		_ => {}
 	}
 }
