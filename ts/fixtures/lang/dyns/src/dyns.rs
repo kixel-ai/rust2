@@ -1164,6 +1164,22 @@ pub fn boxes(data: &[u8], out: &mut Vec<u8>) {
 	drop(boxed);
 	dropped(out);
 
+	// Of items that never drop: `last` is still what the box holds, whose zip folds no more
+	// pairs than its size hint, where `next` reads its left side once more.
+	let n = data.first().map_or(0, |n| n % 4);
+	let seen = RefCell::new(Vec::new());
+	let logged = || {
+		let seen = &seen;
+		let left = (0..n).chain(n..n + 2).map(move |x| {
+			seen.borrow_mut().push(x);
+			x
+		});
+		Box::new(left.zip(0..n % 3))
+	};
+	let last = logged().last();
+	let mut boxed = logged();
+	put(out, &format!("{last:?} {:?} {:?} ", (&mut boxed).last(), seen.borrow()));
+
 	// A box of a `&mut`, whose `last` is the borrow's, which folds what it borrows.
 	let mut held = skipped(data);
 	put(out, &format!("{:?} ", tags(Box::new(&mut held).last())));

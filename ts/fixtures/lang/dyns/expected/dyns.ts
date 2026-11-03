@@ -4,7 +4,7 @@ import * as rt from "./rt.ts";
 import { drop$Result_Rc_dyns_Noisy_Rc_dyn_Any, drop$Result_Rc_dyns_Square_Rc_dyn_Any, drop$Result_Rc_dyns_Tri_Rc_dyn_Any, drop$tuple2_dyns_Tagged_dyns_Tagged, of$Option_u8, of$dyns_Hits, of$dyns_Lease, of$dyns_Looped, of$dyns_Noisy, of$dyns_Square, of$dyns_Tri, of$ref_str, of$tuple2_u8_u8, of$u32, of$u8, of$unit, ofPlace$Option_u8, ofPlace$dyns_Tri, ofPlace$u32, ofPlace$u8, ofPlace$unit } from "./lib.ts";
 import type * as Any from "./core/any.Any.ts";
 import { thenSome$0d5am30 } from "./core/bool.ts";
-import { isSomeAnd$13v37g1, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1i542n2 as option_map$1i542n2, map$0oedb57 as option_map$0oedb57, map$08a6hpg as option_map$08a6hpg, map$1qfllpb as option_map$1qfllpb, map$0j05j69 as option_map$0j05j69, map$0z7s8q7 as option_map$0z7s8q7, mapOr$1ttssgs as option_mapOr$1ttssgs, mapOr$06rr3sb as option_mapOr$06rr3sb, andThen$0v0bj8w as option_andThen$0v0bj8w, andThen$0ntiuws as option_andThen$0ntiuws } from "./core/option.ts";
+import { isSomeAnd$13v37g1, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1i542n2 as option_map$1i542n2, map$0oedb57 as option_map$0oedb57, map$08a6hpg as option_map$08a6hpg, map$1qfllpb as option_map$1qfllpb, map$0j05j69 as option_map$0j05j69, map$0z7s8q7 as option_map$0z7s8q7, mapOr$1surhce as option_mapOr$1surhce, mapOr$1ttssgs as option_mapOr$1ttssgs, mapOr$06rr3sb as option_mapOr$06rr3sb, andThen$0v0bj8w as option_andThen$0v0bj8w, andThen$0ntiuws as option_andThen$0ntiuws } from "./core/option.ts";
 import { ok$00p9ap8, ok$1vbcgd7, ok$0lceojf, ok$1a014tb, map$1v8vvnp as result_map$1v8vvnp, map$1p3mw15 as result_map$1p3mw15, map$0zujxcv as result_map$0zujxcv } from "./core/result.ts";
 import type * as Chunks from "./dyns.Chunks.ts";
 import * as Countdown from "./dyns.Countdown.ts";
@@ -1380,10 +1380,10 @@ export function boxes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part3, f)];
 	put(out, rt.fmtFormat([args8[0], " "]));
 	dropped(out);
-	const sum: rt.u32 = rt.iterFold(rt.iterBox(it()), 0, (n2: rt.u32, _3: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
+	const sum: rt.u32 = rt.iterFold(rt.iterBox(it()), 0, (n3: rt.u32, _3: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
 		const x: Tagged.Tagged = _3[0];
 		const y: Tagged.Tagged = _3[1];
-		const _02: rt.u32 = rt.u32WrappingAdd(rt.u32WrappingMul(n2, 7), (x._0 ^ y._0) as rt.u32);
+		const _02: rt.u32 = rt.u32WrappingAdd(rt.u32WrappingMul(n3, 7), (x._0 ^ y._0) as rt.u32);
 		y[Symbol.dispose]();
 		x[Symbol.dispose]();
 		return _02;
@@ -1397,8 +1397,8 @@ export function boxes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const arg = x2._0;
 		const _142: rt.Fmt = (f: rt.Formatter) => rt.u8Display(arg, f);
 		const arg2 = y2._0;
-		const args42: rt.Fmt[] = [_142, (f: rt.Formatter) => rt.u8Display(arg2, f)];
-		put(out, rt.fmtFormat([args42[0], " ", args42[1], " "]));
+		const args44: rt.Fmt[] = [_142, (f: rt.Formatter) => rt.u8Display(arg2, f)];
+		put(out, rt.fmtFormat([args44[0], " ", args44[1], " "]));
 		y2[Symbol.dispose]();
 		x2[Symbol.dispose]();
 	});
@@ -1441,10 +1441,10 @@ export function boxes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	dropped(out);
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(all, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
 	put(out, rt.fmtFormat([args18[0], " "]));
-	const back: rt.u32 = rt.iterFold(rt.iterRev(rt.iterBox(it())), 0, (n3: rt.u32, _33: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
+	const back: rt.u32 = rt.iterFold(rt.iterRev(rt.iterBox(it())), 0, (n4: rt.u32, _33: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
 		const x5: Tagged.Tagged = _33[0];
 		const y3: Tagged.Tagged = _33[1];
-		const _08: rt.u32 = rt.u32WrappingAdd(rt.u32WrappingMul(n3, 5), (x5._0 ^ y3._0) as rt.u32);
+		const _08: rt.u32 = rt.u32WrappingAdd(rt.u32WrappingMul(n4, 5), (x5._0 ^ y3._0) as rt.u32);
 		y3[Symbol.dispose]();
 		x5[Symbol.dispose]();
 		return _08;
@@ -1488,10 +1488,10 @@ export function boxes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(out, rt.fmtFormat([args28[0], " ", args28[1], " "]));
 	const boxed4: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = it();
 	const first: [rt.u8, rt.u8] | undefined = tags(rt.iterToOption(boxed4.next()));
-	const sum2: rt.u32 = rt.iterFold(rt.iterBorrow(rt.iterBox(rt.iterBorrow(boxed4))), 0, (n4: rt.u32, _34: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
+	const sum2: rt.u32 = rt.iterFold(rt.iterBorrow(rt.iterBox(rt.iterBorrow(boxed4))), 0, (n5: rt.u32, _34: [Tagged.Tagged, Tagged.Tagged]): rt.u32 => {
 		const x7: Tagged.Tagged = _34[0];
 		const y5: Tagged.Tagged = _34[1];
-		const _010: rt.u32 = rt.u32WrappingAdd(n4, (x7._0 ^ y5._0) as rt.u32);
+		const _010: rt.u32 = rt.u32WrappingAdd(n5, (x7._0 ^ y5._0) as rt.u32);
 		y5[Symbol.dispose]();
 		x7[Symbol.dispose]();
 		return _010;
@@ -1500,38 +1500,57 @@ export function boxes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(first, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.u32Display(sum2, f)];
 	put(out, rt.fmtFormat([args30[0], " ", args30[1], " "]));
 	dropped(out);
+	const n2: rt.u8 = option_mapOr$1surhce(rt.byteSliceFirst(data), 0, (n6: rt.u8): rt.u8 => {
+		return rt.u8Rem(n6, 4);
+	});
+	const seen: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+	const logged: () => rt.Iter<[rt.u8, rt.u8]> = (): rt.Iter<[rt.u8, rt.u8]> => {
+		return rt.iterZip(rt.iterMap(rt.iterChain(new rt.Range(0, n2), new rt.Range(n2, rt.u8Add(n2, 2))), (x8: rt.u8): rt.u8 => {
+			const _612: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(seen);
+			rt.byteVecPush(_612.value, x8);
+			rt.refMutRelease(_612);
+			return x8;
+		}), new rt.Range(0, rt.u8Rem(n2, 3)), "len");
+	};
+	const last2: [rt.u8, rt.u8] | undefined = rt.iterLast(rt.iterBox(logged()));
+	const _351: [rt.u8, rt.u8] | undefined = rt.iterLast(rt.iterBorrow(rt.iterBox(rt.iterBorrow(logged()))));
+	const _354: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(seen);
+	const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(last2, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(_351, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtList(rt.byteVecView(_354.value), f, rt.u8Debug)];
+	const _347: string = rt.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " "]);
+	rt.refRelease(_354);
+	put(out, _347);
 	const part6 = tags(rt.ownedLast(rt.iterBox(rt.iterBorrow(skipped(data))), drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part6, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
-	put(out, rt.fmtFormat([args32[0], " "]));
+	const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part6, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
+	put(out, rt.fmtFormat([args34[0], " "]));
 	dropped(out);
 	const part7 = rt.ownedCount(rt.iterBox(rt.iterBorrow(skipped(data))), drop$tuple2_dyns_Tagged_dyns_Tagged);
-	const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part7, f)];
-	put(out, rt.fmtFormat([args34[0], " "]));
+	const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part7, f)];
+	put(out, rt.fmtFormat([args36[0], " "]));
 	dropped(out);
 	const erased: () => rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = (): rt.Iter<[Tagged.Tagged, Tagged.Tagged]> => {
 		return rt.iterDyn(skipped(data));
 	};
-	const _378: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = rt.iterChain(rt.iterBox(erased()), rt.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const part8 = tags(rt.iterNth(_378, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
-	const _371: string = rt.fmtFormat([args36[0], " "]);
-	rt.drop(_378);
-	put(out, _371);
+	const _410: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = rt.iterChain(rt.iterBox(erased()), rt.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
+	const part8 = tags(rt.iterNth(_410, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
+	const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part8, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
+	const _403: string = rt.fmtFormat([args38[0], " "]);
+	rt.drop(_410);
+	put(out, _403);
 	dropped(out);
-	const _395: [rt.u8, rt.u8] | undefined = tags(rt.ownedLast(rt.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const _400: rt.usize = rt.ownedCount(rt.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged);
-	const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_395, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.usizeDisplay(_400, f)];
-	put(out, rt.fmtFormat([args38[0], " ", args38[1], " "]));
+	const _427: [rt.u8, rt.u8] | undefined = tags(rt.ownedLast(rt.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged));
+	const _432: rt.usize = rt.ownedCount(rt.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged);
+	const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_427, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f)), (f: rt.Formatter) => rt.usizeDisplay(_432, f)];
+	put(out, rt.fmtFormat([args40[0], " ", args40[1], " "]));
 	dropped(out);
-	const boxed5: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = erased();
-	const _423: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = rt.iterChain(rt.iterBorrow(boxed5), rt.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const part9 = tags(rt.iterNth(_423, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
-	const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part9, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
-	const _416: string = rt.fmtFormat([args40[0], " "]);
-	rt.drop(_423);
-	put(out, _416);
+	const boxed6: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = erased();
+	const _455: rt.Iter<[Tagged.Tagged, Tagged.Tagged]> = rt.iterChain(rt.iterBorrow(boxed6), rt.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
+	const part9 = tags(rt.iterNth(_455, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
+	const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part9, f, (value: [rt.u8, rt.u8], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.u8Debug(value[1], f)], f))];
+	const _448: string = rt.fmtFormat([args42[0], " "]);
+	rt.drop(_455);
+	put(out, _448);
 	dropped(out);
-	rt.drop(boxed5);
+	rt.drop(boxed6);
 	dropped(out);
 }
 

@@ -908,6 +908,8 @@ export function iterCount<T>(it: Iter<T>): number {
 export function iterLast<T>(it: Iter<T>): T | undefined;
 export function iterLast<T>(it: Iter<T>, none: None): T | None;
 export function iterLast<T>(it: Iter<T>, none?: None): T | undefined | None {
+	// std's of a box: what it holds, by its own.
+	while (it instanceof Boxed) it = it.inner;
 	const folded = it.folded(true);
 	let last: T | Done = DONE;
 	for (let item = folded.next(); item !== DONE; item = folded.next()) last = item;
