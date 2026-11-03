@@ -40,7 +40,7 @@ pub fn counted() -> u8 {
 	}
 }
 
-/// A `BytesMut`'s capacity, which `bytes` reclaims only once the `Bytes` it froze drops.
-pub fn capacity(n: usize) -> usize {
-	bytes::BytesMut::with_capacity(n).capacity()
+/// The room past a `BytesMut`'s bytes, as a slice JS would hold apart from its storage.
+pub fn spare(n: usize) -> usize {
+	bytes::BytesMut::with_capacity(n).spare_capacity_mut().len()
 }
