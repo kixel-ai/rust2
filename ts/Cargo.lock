@@ -360,6 +360,10 @@ name = "lang-orders-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-panics-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-pointers-fixture"
 version = "0.0.0"
 

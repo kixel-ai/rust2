@@ -418,6 +418,7 @@ mod lang {
 		hashes,
 		heap,
 		hints,
+		panics,
 		holds,
 		ints,
 		iters,

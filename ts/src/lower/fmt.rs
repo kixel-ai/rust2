@@ -278,6 +278,10 @@ pub fn std_impl<'tcx>(
 		ty::Dynamic(preds, ..) if preds.principal_def_id().and_then(|did| Trait::of(tcx, did)) == Some(tr) => {
 			value.call(vec![f])
 		}
+		// Its name and no fields, unpadded, whatever it holds.
+		ty::Dynamic(..) if tr == Trait::Debug && super::dynamic::is_any_object(tcx, ty) => {
+			rt("writeStr", vec![f, Expr::Str("Any { .. }".into())])
+		}
 		// Unpadded, naming its type as `type_name` does.
 		ty::Adt(adt, args) if tr == Trait::Debug && adt.is_phantom_data() => {
 			let name = rustc_const_eval::util::type_name(tcx, args.type_at(0));
@@ -400,12 +404,10 @@ pub fn std_impl<'tcx>(
 			}
 			(Std::Ordering, Trait::Debug) => rt("ordering", vec![value, f]),
 			// Erased to what it holds.
-			(Std::Reverse, Trait::Debug) => {
+			(std @ (Std::Reverse | Std::AssertUnwindSafe), Trait::Debug) => {
 				let held = b.fmt_value(tr, args.type_at(0), value, span, out);
-				rt(
-					"debugTupleFields",
-					vec![f, Expr::Str("Reverse".into()), Expr::Array(vec![held])],
-				)
+				let name = format!("{std:?}");
+				rt("debugTupleFields", vec![f, Expr::Str(name), Expr::Array(vec![held])])
 			}
 			(Std::ControlFlow, Trait::Debug) => {
 				let go = b.fmt_fn(tr, args.type_at(1), span);
@@ -535,6 +537,7 @@ pub fn std_impl<'tcx>(
 			(Std::FromUtf16Error, Trait::Display) => rt("fromUtf16ErrorDisplay", vec![value, f]),
 			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
 			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
+			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
@@ -599,6 +602,7 @@ fn iter_debug<'tcx>(
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
 		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
 		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
+		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
 		// Without its fields, which neither `#` nor a width changes.
 		["str", "iter", "EncodeUtf16"] | ["iter", "sources", "repeat_with", "RepeatWith"] => {
 			return write(format!("{} {{ .. }}", tcx.item_name(did)));

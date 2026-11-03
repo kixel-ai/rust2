@@ -30,7 +30,6 @@ generic std gap is planned here even when moq never calls it.
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [A slice's chunks as mutable arrays](/quest/m3/ts-slice-conversions.md) - `as_chunks_mut` and `as_rchunks_mut` translate, writes landing in the slice
-- [A vector's capacity where clone_from writes it in a container](/quest/m3/ts-clone-from-capacity.md) - a `Vec` an array, slice, `Option`, or list clones over keeps its capacity as std's does
 - [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `try_reserve`, a deque's rotations and searches, and `Vec::splice` translate
 - [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
@@ -39,3 +38,6 @@ generic std gap is planned here even when moq never calls it.
 - [A map built with BuildHasherDefault](/quest/m3/ts-build-hasher-default.md) - `FxHashMap`-style maps, of `BuildHasherDefault` over a crate's own `Hasher`, translate
 - [Equality of hash maps and sets](/quest/m3/ts-hash-map-eq.md) - `==` of two hash maps or sets translates as std's
 - [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
+- [A panic's Location](/quest/m3/ts-panic-location.md) - `Location::caller` and `#[track_caller]` translate with native Rust's locations
+- [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook
+- [A string Cow's variant](/quest/m3/ts-cow-str-variant.md) - matching a `Cow<str>`'s `Borrowed` or `Owned`, and `to_mut`'s change of it, translate as std's
