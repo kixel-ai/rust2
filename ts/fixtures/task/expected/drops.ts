@@ -5,6 +5,7 @@ import { drop$Option_Result_model_Guard_u8 as lib_drop$Option_Result_model_Guard
 import { thenSome$0zvoczk } from "./core/bool.ts";
 import { isSomeAnd$17cacqw, unwrapOr$0v6ziq2 as option_unwrapOr$0v6ziq2, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, map$0hegtde as option_map$0hegtde, map$0ccnsmq as option_map$0ccnsmq, map$0782hf5 as option_map$0782hf5, map$0lq7mno as option_map$0lq7mno, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$0ey19f0 as option_mapOr$0ey19f0, okOr$1alhe7b as option_okOr$1alhe7b, filter$1vqc90z, orElse$02wco5t as option_orElse$02wco5t, zip$1rr0evn, clone$1sxxxkp as option_clone$1sxxxkp } from "./core/option.ts";
 import { ok$0rngk0g, err$126l6wy, asRef$01pd5k9, mapOr$1hlk3iq as result_mapOr$1hlk3iq, mapOrElse$196aho3 as result_mapOrElse$196aho3, andThen$0r804hk as result_andThen$0r804hk, unwrapOr$0urixfm as result_unwrapOr$0urixfm } from "./core/result.ts";
+import { called as called_called } from "./drops/called.ts";
 import { scoped, discarded, iterated } from "./drops/closures.ts";
 import { flattened as flattened_flattened } from "./drops/flattened.ts";
 import { folded as folds_folded, rfolded as folds_rfolded } from "./drops/folds.ts";
@@ -1271,6 +1272,14 @@ export function arcs(log: Log.Log, id: rt.u32): void {
  */
 export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	folds_folded(log, id, arg);
+}
+
+/**
+ * Run scenario `arg % 12` of std's calls of a closure that owns a guard. The last panics
+ * in a `try_fold`.
+ */
+export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
+	called_called(log, id, arg);
 }
 
 /**

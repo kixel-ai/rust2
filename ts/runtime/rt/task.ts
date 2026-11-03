@@ -466,6 +466,27 @@ export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
 	return old;
 }
 
+/**
+ * `RefCell::replace_with`: its value, which what `f` returns of it, or of its place if
+ * `copied`, where JS copies it, replaces, exclusively borrowed until then.
+ */
+export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, copied = false): T {
+	refCellBorrowMut(cell);
+	const at = copied
+		? place(
+				() => cell.value,
+				(v) => {
+					cell.value = v;
+				},
+			)
+		: cell.value;
+	const replacement = f(at as never);
+	const old = cell.value;
+	cell.value = replacement;
+	refMutRelease(cell);
+	return old;
+}
+
 /** `RwLock::read`: a shared guard, which aborts while a write is held, as wasm32's does. */
 export function rwLockRead<T>(lock: RefCell<T>): RefCell<T> {
 	if (lock.borrows < 0) throw new Abort("rwlock locked for writing");
@@ -714,6 +735,11 @@ export function cellReplace<T>(cell: Cell<T>, v: T): T {
 	const old = cell.v;
 	cell.v = v;
 	return old;
+}
+
+/** `Cell::update`: what `f` returns of a copy of its value, by `copy` where JS shares it, in its place. */
+export function cellUpdate<T>(cell: Cell<T>, f: (v: T) => T, copy?: (v: T) => T): void {
+	cell.v = f(copy === undefined ? cell.v : copy(cell.v));
 }
 
 /** `Cell::set`: `v` in place of the value it held, which `dropOld` drops after. */

@@ -308,4 +308,12 @@ export function then$1btzga3(self: boolean, f: () => rt.u8): rt.u8 | undefined {
 	return f();
 }
 
+export function then$19svsql(self: boolean, f: () => undefined): undefined | rt.None {
+	if (!self) {
+		return rt.None;
+	}
+	f();
+	return undefined;
+}
+
 //# sourceMappingURL=bool.ts.map

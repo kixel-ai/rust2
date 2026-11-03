@@ -339,9 +339,19 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 			assert!(k < 15 || b != 2, "rfold at {b} after {:?}", log.borrow().as_slice());
 			a.wrapping_mul(3) ^ b
 		})),
-		// Each `try_rfold` breaks at an item, then the rest are read on by `next`.
-		2 if k % 2 == 0 => {
+		// Each `try_rfold`, `try_fold`, or `try_for_each` breaks at an item, then the rest are
+		// read on by `next`.
+		2 if k % 4 == 0 => {
 			put(out, it.try_rfold(0u8, |a, b| (b != k8).then_some(a ^ b)));
+			out.extend(it);
+		}
+		2 if k % 4 == 2 => {
+			put(out, it.try_fold(0u8, |a, b| (b != k8 / 4).then_some(a ^ b)));
+			out.extend(it);
+		}
+		2 if k % 4 == 3 => {
+			let r = it.try_for_each(|b| (b != k8 / 4).then(|| out.push(b)));
+			out.push(r.is_some() as u8);
 			out.extend(it);
 		}
 		// Of an `Option` accumulator, whose `Some(None)` goes on and whose `None` breaks.
@@ -358,12 +368,27 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 			out.extend(it);
 		}
 		3 => {
-			let r: Result<u8, u8> = it.try_rfold(0u8, |a, b| if b % 4 == k8 % 4 { Err(b) } else { Ok(a ^ b) });
+			let r: Result<u8, u8> = match k % 2 {
+				0 => it.try_rfold(0u8, |a, b| if b % 4 == k8 % 4 { Err(b) } else { Ok(a ^ b) }),
+				_ => it.try_fold(0u8, |a, b| if b % 4 == k8 % 4 { Err(b) } else { Ok(a ^ b) }),
+			};
 			out.extend(match r {
 				Ok(a) => [0, a],
 				Err(b) => [1, b],
 			});
 			put(out, it.next());
+		}
+		4 if k % 2 == 1 => {
+			use std::ops::ControlFlow;
+			let r = it.by_ref().rev().try_for_each(|b| match b > k8 / 2 {
+				true => ControlFlow::Break(b),
+				false => ControlFlow::Continue(out.push(b)),
+			});
+			put(out, match r {
+				ControlFlow::Break(b) => Some(b),
+				ControlFlow::Continue(()) => None,
+			});
+			out.push(it.len() as u8);
 		}
 		4 => {
 			use std::ops::ControlFlow;
@@ -381,8 +406,14 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 		5 => out.push(it.map(|b| b ^ 1).count() as u8),
 		6 if k % 2 == 0 => put(out, it.last()),
 		6 => put(out, it.rev().last()),
-		7 if k % 2 == 0 => out.push(it.map(u32::from).sum::<u32>() as u8),
-		7 => it.for_each(|b| out.push(b)),
+		7 if k % 4 == 0 => out.push(it.map(u32::from).sum::<u32>() as u8),
+		7 if k % 4 == 1 => it.for_each(|b| out.push(b)),
+		// `partition`, which folds it into two `Vec`s.
+		7 => {
+			let (a, b): (Vec<u8>, Vec<u8>) = it.partition(|b| b % 3 == k8 % 3);
+			put_vec(out, a);
+			put_vec(out, b);
+		}
 		8 if k % 2 == 0 => put(out, it.max()),
 		8 => put(out, it.min_by_key(|b| b % 3)),
 		9 if k % 2 == 0 => out.push(it.chain([7, 8]).count() as u8),
@@ -400,7 +431,17 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 			put(out, skip.next());
 			put(out, skip.next_back());
 		}
-		13 => put_vec(out, it.step_by(k / 4 + 1).collect()),
+		13 if k % 2 == 0 => put_vec(out, it.step_by(k / 4 + 1).collect()),
+		// `scan`, whose `None` ends the collect, and which `next` reads on past.
+		13 => {
+			let mut scan = it.scan(0u8, |s, b| {
+				*s ^= b;
+				(*s != k8 / 2).then_some(*s)
+			});
+			put_vec(out, scan.by_ref().collect());
+			put(out, scan.next());
+			out.push(scan.fold(0, |a, b| a ^ b));
+		}
 		14 if k % 2 == 0 => put(out, it.fuse().last()),
 		14 => {
 			let mut peek = it.peekable();
