@@ -1658,6 +1658,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::BorrowError => Type::Rt("BorrowError", vec![]),
 				library::Std::BorrowMutError => Type::Rt("BorrowMutError", vec![]),
 				library::Std::ParseCharError => Type::Rt("ParseCharError", vec![]),
+				library::Std::FromUtf16Error => Type::Rt("FromUtf16Error", vec![]),
 				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
 				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
 				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),

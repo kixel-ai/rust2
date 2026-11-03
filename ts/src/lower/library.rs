@@ -44,6 +44,8 @@ pub enum Std {
 	ParseBoolError,
 	/// `rt.ParseCharError`: `{ kind }`, its `CharErrorKind`'s name.
 	ParseCharError,
+	/// `rt.FromUtf16Error`: `{ kind }`, its `FromUtf16ErrorKind`'s name.
+	FromUtf16Error,
 	/// `rt.CharTryFromError`: why `char::try_from` a `u32` failed.
 	CharTryFromError,
 	/// `rt.TryFromCharError`: why `u8::try_from` or `u16::try_from` a `char` failed.
@@ -292,6 +294,7 @@ impl Std {
 		}
 		match tcx.item_name(did).as_str() {
 			"FromUtf8Error" => return Some(Self::FromUtf8Error),
+			"FromUtf16Error" => return Some(Self::FromUtf16Error),
 			"TryFromIntError" => return Some(Self::TryFromIntError),
 			"ParseFloatError" => return Some(Self::ParseFloatError),
 			"TryFromFloatSecsError" => return Some(Self::TryFromFloatSecsError),
@@ -2415,6 +2418,11 @@ fn mapping<'tcx>(
 		// A `Box<str>`'s bytes are their own, as `as_bytes` gives them.
 		("String" | "str", "as_bytes") | ("str", "into_boxed_bytes") => Expr::rt("stringAsBytes", args),
 		("String", "from_utf8") => Expr::rt("stringFromUtf8", args),
+		(
+			"String",
+			"from_utf16" | "from_utf16_lossy" | "from_utf16le" | "from_utf16le_lossy" | "from_utf16be"
+			| "from_utf16be_lossy",
+		) => Expr::rt_of("string", &super::camel(&name)).call(args),
 		// `str::from_utf8` is `core::str::converts::from_utf8`, or `str`'s own.
 		("converts" | "str", "from_utf8") => Expr::rt("strFromUtf8", args),
 		("Utf8Error", "valid_up_to") => args.pop()?.member("validUpTo"),

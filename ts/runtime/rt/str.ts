@@ -6,7 +6,7 @@
 // well formed, so a pattern's text matches where its UTF-8 would, never across a
 // surrogate pair.
 
-import { fmtCharDebug, type Place, panic, panicFmt, stringLen } from "../rt.ts";
+import { type ByteSlice, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugStructFields, fmtPad, Ok, type Place, panic, panicFmt, type Result, stringLen } from "../rt.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
 import type { char, u8, u16, usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
@@ -814,6 +814,89 @@ export function strsJoin(parts: readonly string[], sep: string): string {
 		if (len > ISIZE_MAX) panic("capacity overflow");
 	}
 	return parts.join(sep);
+}
+
+/** `String::FromUtf16Error`: `{ kind }`, its private `FromUtf16ErrorKind`'s name. */
+export class FromUtf16Error {
+	readonly kind: "LoneSurrogate" | "OddBytes";
+
+	constructor(kind: "LoneSurrogate" | "OddBytes") {
+		this.kind = kind;
+	}
+}
+
+/**
+ * The text of `len` UTF-16 units, `unit(i)` the `i`th, as `char::decode_utf16` reads them:
+ * a surrogate without its pair is U+FFFD if `lossy`, and else leaves no text.
+ */
+function fromUtf16Units(len: number, unit: (i: number) => number, lossy: boolean): string | undefined {
+	let s = "";
+	for (let i = 0; i < len; i++) {
+		const u = unit(i);
+		if (u < 0xd800 || u > 0xdfff) {
+			s += String.fromCharCode(u);
+			continue;
+		}
+		const next = i + 1 < len ? unit(i + 1) : 0;
+		if (u <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
+			s += String.fromCharCode(u, next);
+			i++;
+		} else if (lossy) s += "\ufffd";
+		else return undefined;
+	}
+	return s;
+}
+
+/** The text of `len` units, `unit(i)` the `i`th, or a `LoneSurrogate` error, as `String::from_utf16` reads them. */
+function fromUtf16(len: number, unit: (i: number) => number): Result<string, FromUtf16Error> {
+	const s = fromUtf16Units(len, unit, false);
+	return s === undefined ? Err(new FromUtf16Error("LoneSurrogate")) : Ok(s);
+}
+
+/** `String::from_utf16`. */
+export function stringFromUtf16(v: ArrayLike<u16>): Result<string, FromUtf16Error> {
+	return fromUtf16(v.length, (i) => v[i]);
+}
+
+/** `String::from_utf16_lossy`: U+FFFD for each surrogate without its pair. */
+export function stringFromUtf16Lossy(v: ArrayLike<u16>): string {
+	return fromUtf16Units(v.length, (i) => v[i], true) as string;
+}
+
+/** The `i`th unit of `v`'s bytes, little-endian unless `big`. */
+function byteUnit(v: ByteSlice, big: boolean): (i: number) => number {
+	const [hi, lo] = big ? [0, 1] : [1, 0];
+	return (i) => (v.data[v.start + 2 * i + hi] << 8) | v.data[v.start + 2 * i + lo];
+}
+
+/** `String::from_utf16le`, an `OddBytes` error of an odd number of bytes. */
+export function stringFromUtf16le(v: ByteSlice): Result<string, FromUtf16Error> {
+	return v.length % 2 === 1 ? Err(new FromUtf16Error("OddBytes")) : fromUtf16(v.length / 2, byteUnit(v, false));
+}
+
+/** `String::from_utf16be`, an `OddBytes` error of an odd number of bytes. */
+export function stringFromUtf16be(v: ByteSlice): Result<string, FromUtf16Error> {
+	return v.length % 2 === 1 ? Err(new FromUtf16Error("OddBytes")) : fromUtf16(v.length / 2, byteUnit(v, true));
+}
+
+/** `String::from_utf16le_lossy`, and U+FFFD for an odd byte at the end. */
+export function stringFromUtf16leLossy(v: ByteSlice): string {
+	return (fromUtf16Units(v.length >>> 1, byteUnit(v, false), true) as string) + (v.length % 2 === 1 ? "\ufffd" : "");
+}
+
+/** `String::from_utf16be_lossy`, and U+FFFD for an odd byte at the end. */
+export function stringFromUtf16beLossy(v: ByteSlice): string {
+	return (fromUtf16Units(v.length >>> 1, byteUnit(v, true), true) as string) + (v.length % 2 === 1 ? "\ufffd" : "");
+}
+
+/** `Debug` of `FromUtf16Error`. */
+export function fmtFromUtf16ErrorDebug(e: FromUtf16Error, f: Formatter): FmtResult {
+	return fmtDebugStructFields(f, "FromUtf16Error", ["kind"], [(f) => f.out.writeStr(e.kind)]);
+}
+
+/** `Display` of `FromUtf16Error`, padded as a `str`. */
+export function fmtFromUtf16ErrorDisplay(e: FromUtf16Error, f: Formatter): FmtResult {
+	return fmtPad(f, e.kind === "LoneSurrogate" ? "invalid utf-16: lone surrogate found" : "invalid utf-16: odd number of bytes");
 }
 
 /** `String::with_capacity`: the empty string, which keeps no capacity. */
