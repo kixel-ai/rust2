@@ -63,4 +63,5 @@ arenas keep under Go's lent `Bytes` is the consumer's to fix with its global all
 - [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
 - [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit
 - [Dart: cheaper ready futures](/quest/m1/ffi-export/dart-futures.md) - a read ready at its first poll costs no more than in Python or Go
+- [Dart: an implementation given to a call that throws first](/quest/m1/ffi-export/dart-give-throw.md) - Dart closes it rather than leaking it, and the isolate stops serving each call
 - [Go: cheaper lent Bytes](/quest/m1/ffi-export/go-bytes.md) - a lent buffer costs no more than a 1 KiB copy, so Go's 2 KiB copy threshold can fall or go

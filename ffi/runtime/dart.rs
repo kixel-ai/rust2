@@ -7,7 +7,7 @@
 //! an implementation there, waits in the isolate's queue for it to run: from its event
 //! loop, which the port tells of each, or, while it waits in a call from Dart, from that
 //! wait. A call waits so only while Rust holds an implementation or a lent closure of the
-//! isolate, any of which another thread may call: then it runs on a thread of its own.
+//! isolate, any of which another thread may call: then it runs on a worker thread.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -197,9 +197,9 @@ impl Home {
 	}
 
 	/// Run `f`, a call from Dart, at once if Rust holds no relay of this isolate, since
-	/// then nothing it waits on can call into Dart. Else run it on a thread of its own while
-	/// this one, the isolate's, runs each task queued until `f` returns. `f`'s thread acts
-	/// as this one does for the handles it borrows, as does this one for each job's.
+	/// then nothing it waits on can call into Dart. Else run it on a [`Worker`] while this
+	/// one, the isolate's, runs each task queued until `f` returns. The worker acts as this
+	/// thread does for the handles `f` borrows, as does this one for each job's.
 	///
 	/// # Safety
 	/// Called from Dart in this isolate, and `f` is a call through the C ABI.
