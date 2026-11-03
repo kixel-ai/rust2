@@ -2,6 +2,13 @@
 
 import * as rt from "../rt.ts";
 
+export function thenSome$185ufyt(self: boolean, t: rt.u8 | undefined): rt.u8 | undefined | rt.None {
+	if (!self) {
+		return rt.None;
+	}
+	return t;
+}
+
 export function thenSome$0d5am30(self: boolean, t: rt.u8): rt.u8 | undefined {
 	if (!self) {
 		return undefined;
