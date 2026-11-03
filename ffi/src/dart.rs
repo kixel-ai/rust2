@@ -225,7 +225,6 @@ const TAKEN: &[&str] = &[
 	"FormatException",
 	"Function",
 	"Future",
-	"FutureOr",
 	"List",
 	"Map",
 	"Never",
@@ -234,7 +233,6 @@ const TAKEN: &[&str] = &[
 	"SocketAddr",
 	"StackTrace",
 	"StateError",
-	"Stream",
 	"String",
 	"UnsupportedError",
 	"bool",
@@ -1764,7 +1762,7 @@ impl<'a> Gen<'a> {
 			self.helpers.insert(
 				poll_name.clone(),
 				format!(
-					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, Cancelable<{ok_dt}> c) {{\n\tfinal a_ = _Arena();\n\ttry {{\n\t\t{}\n\t\tswitch ({poll_fn}({})) {{\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.end();\n\t}}\n}}\n\n",
+					"bool {poll_name}(ffi.Pointer<ffi.Void> f, _Waker w, _Call<{ok_dt}> c) {{\n\tfinal a_ = _n.stack;\n\tfinal m_ = a_.mark();\n\ttry {{\n\t\t{}\n\t\tswitch ({poll_fn}({})) {{\n{}\n\t\t\tdefault:\n\t\t\t\treturn false;\n\t\t}}\n\t}} finally {{\n\t\ta_.reset(m_);\n\t}}\n}}\n\n",
 					stmts.join("\n\t\t"),
 					poll_args.join(", "),
 					cases.iter().map(|c| c.replace("\n\t\t", "\n\t\t\t").replacen("\t\tcase", "\t\t\tcase", 1)).collect::<Vec<_>>().join("\n")
@@ -1778,7 +1776,7 @@ impl<'a> Gen<'a> {
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
 				indent(&inner.join("\n"))
 			));
-			body.push(format!("return Cancelable<{ok_dt}>._(f_, {free_fn}, {poll_name});"));
+			body.push(format!("return _call<{ok_dt}>(f_, {free_fn}, {poll_name});"));
 		} else {
 			ret_type = ok_dt.clone();
 			let mut inner = pre.clone();

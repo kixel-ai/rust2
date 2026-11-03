@@ -530,8 +530,10 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   A call that throws before Rust sees it gives Rust none of its implementations.
 - **Closures** lent for a call are Dart functions, which Rust calls only during the call,
   on the isolate's thread. An object it lends lives only for that call of the closure.
-- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it.
-  The call polls it once, and makes a waker only if that poll pends. A wake, from any
+- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
+  an extension type on Dart's own future, which `await` takes its shortest path through.
+  The call polls it once, returning it complete if that poll finished, and makes a waker
+  only if it pends. A wake, from any
   thread, posts to the isolate's port, and its event loop polls again, so a wake never
   polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
   future unless it finished, which cancels it in Rust and loses nothing: the next call

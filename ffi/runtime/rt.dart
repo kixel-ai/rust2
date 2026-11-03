@@ -46,27 +46,52 @@ final class Cancelled implements Exception {
 ///
 /// The call polls Rust's future at once, and again on the isolate's event loop each time
 /// Rust wakes it, from any thread: a wake is a message to the isolate, so none is lost.
-final class Cancelable<T> implements Future<T> {
-  final dasync.Completer<T> _done = dasync.Completer<T>();
+/// It is the platform's own future, which an `await` takes the shortest path through,
+/// and one ready at its first poll is complete already.
+extension type Cancelable<T>._(Future<T> _future) implements Future<T> {
+  /// Cancel the call in Rust unless it finished, which loses nothing: it then completes
+  /// with [Cancelled].
+  void cancel() => _n.calls[_future]?.cancel();
+}
+
+/// Poll `f` once with no waker, and if it pends, again with one: its future.
+Cancelable<T> _call<T>(
+  ffi.Pointer<ffi.Void> f,
+  void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) free,
+  bool Function(ffi.Pointer<ffi.Void>, _Waker, _Call<T>) poll,
+) {
+  final call = _Call<T>._(f, free, poll);
+  call._step(_n.idle);
+  final first = call._first;
+  if (first != null) return Cancelable._(first);
+  final done = call._done = dasync.Completer<T>();
+  _n.calls[done.future] = call;
+  // Pending: poll again with a waker, which its first poll had no use for.
+  call._token = _n.listen(call._wake);
+  call._waker = _n.waker(call._token);
+  call._step(call._waker!);
+  return Cancelable._(done.future);
+}
+
+/// A [Cancelable]'s future in Rust, until it finishes.
+final class _Call<T> {
   ffi.Pointer<ffi.Void> _f;
   final void Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) _free;
 
   /// Poll once, completing this if it finished: whether it did.
-  final bool Function(ffi.Pointer<ffi.Void>, _Waker, Cancelable<T>) _poll;
+  final bool Function(ffi.Pointer<ffi.Void>, _Waker, _Call<T>) _poll;
+
+  /// What its first poll finished with, which no one awaits yet.
+  Future<T>? _first;
+
+  /// What completes it once its first poll pended.
+  dasync.Completer<T>? _done;
   _Waker? _waker;
   int _token = 0;
   bool _polling = false;
   bool _cancelled = false;
 
-  Cancelable._(this._f, this._free, this._poll) {
-    _step(_n.idle);
-    if (_f != ffi.nullptr) {
-      // Pending: poll again with a waker, which its first poll had no use for.
-      _token = _n.listen(_wake);
-      _waker = _n.waker(_token);
-      _step(_waker!);
-    }
-  }
+  _Call._(this._f, this._free, this._poll);
 
   void _wake() {
     if (_f != ffi.nullptr) _step(_waker!);
@@ -80,7 +105,7 @@ final class Cancelable<T> implements Future<T> {
     } catch (e, s) {
       _polling = false;
       _finish();
-      _done.completeError(e, s);
+      _error(e, s);
       return;
     }
     _polling = false;
@@ -91,15 +116,33 @@ final class Cancelable<T> implements Future<T> {
     }
   }
 
-  /// Complete it with what Rust returned, from its poll.
-  void _ready(T value) => _done.complete(value);
+  /// Complete it with what Rust returned, from its poll: synchronously at the first, as
+  /// nothing listens yet.
+  void _ready(T value) {
+    final done = _done;
+    if (done == null) {
+      _first = (dasync.Completer<T>.sync()..complete(value)).future;
+    } else {
+      done.complete(value);
+    }
+  }
 
-  /// Complete it with the error Rust returned, from its poll.
-  void _error(Object error) => _done.completeError(error);
+  /// Complete it with the error Rust returned, from its poll: never synchronously, since a
+  /// future that fails with no listener reports its error as uncaught.
+  void _error(Object error, [StackTrace? stack]) {
+    final done = _done;
+    if (done == null) {
+      _first = Future<T>.error(error, stack);
+    } else {
+      done.completeError(error, stack);
+    }
+  }
 
   void _finish() {
     _free(_n.home, _f);
     _f = ffi.nullptr;
+    final done = _done;
+    if (done != null) _n.calls.remove(done.future);
     if (_token != 0) {
       _n.forget(_token);
       _token = 0;
@@ -109,36 +152,15 @@ final class Cancelable<T> implements Future<T> {
   void _cancel() {
     _finish();
     // Awaiting it is optional once cancelled.
-    _done.future.ignore();
-    _done.completeError(const Cancelled());
+    _done!.future.ignore();
+    _done!.completeError(const Cancelled());
   }
 
-  /// Cancel the call in Rust unless it finished, which loses nothing: it then completes
-  /// with [Cancelled].
   void cancel() {
     if (_f == ffi.nullptr || _cancelled) return;
     _cancelled = true;
     if (!_polling) _cancel();
   }
-
-  @override
-  Stream<T> asStream() => _done.future.asStream();
-
-  @override
-  Future<T> catchError(Function onError, {bool Function(Object error)? test}) =>
-      _done.future.catchError(onError, test: test);
-
-  @override
-  Future<R> then<R>(dasync.FutureOr<R> Function(T value) onValue, {Function? onError}) =>
-      _done.future.then(onValue, onError: onError);
-
-  @override
-  Future<T> timeout(Duration timeLimit, {dasync.FutureOr<T> Function()? onTimeout}) =>
-      _done.future.timeout(timeLimit, onTimeout: onTimeout);
-
-  @override
-  Future<T> whenComplete(dasync.FutureOr<void> Function() action) =>
-      _done.future.whenComplete(action);
 }
 
 final class _Buf extends ffi.Struct {
@@ -372,6 +394,9 @@ final class _Native {
 
   /// The closures lent for a call, and the implementations Rust holds, by token.
   final Map<int, Object> lent = {};
+
+  /// The calls pending in Rust, by their future.
+  final Map<Future<Object?>, _Call<Object?>> calls = {};
   int _token = 0;
 
   /// The futures pending and the wakers Rust holds, which keep the isolate alive.
