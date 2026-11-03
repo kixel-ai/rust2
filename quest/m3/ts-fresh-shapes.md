@@ -1,30 +1,40 @@
-# [M] Fresh writes through a zip, a copy, and a repeat
+# [M] Fresh writes beside a zipped iterator that points at a part
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates three shapes it refuses for concrete types and type
+[rust2-ts](/ts/README.md) translates a whole write into a slot zipped with an iterator
+whose pointers point at a type the slot holds in place, for concrete types and type
 parameters alike, proven by differential tests against native Rust:
 
-- zipping a slot with a `Vec<[T; N]>`, as `[u8; N]`;
-- reading a `T` back out of `Zip::next`'s result;
-- `iter().copied()` and `vec![x; n]` over a `Copy` type, a crate's own or a `T: Copy`.
+- `slots.iter_mut().zip(rows)` of a `Vec<[T; N]>` or `vec![row; n]`, writing `[T; N]`
+  rows into `([T; N], (u8, u8))` slots, as `[u8; N]` too;
+- `slots.iter_mut().zip(fill.iter().copied())` where the slot holds `fill`'s element type.
 
 ## Plan
 
-Found by [#394](https://github.com/moq-dev/rust2/pull/394), which made a whole write into
-fresh memory count as fresh in a function generic over a type. These three stay refused for
-reasons that have nothing to do with type parameters:
+Found by [#516](https://github.com/moq-dev/rust2/pull/516), which made a value of a type
+parameter read out of `Zip::next`'s result, `copied`, and `vec![x; n]` judged fresh. The
+one cause left: `Trace::fresh`'s check of std-made pointers reads a live `Zip`'s whole
+type, so the `IntoIter<[T; N]>` or `Iter<T>` half, which no pointer into the slot made,
+counts as pointing at the slot's `[T; N]` part. `origins` also adds each std call in the
+chain, the `zip` itself among them, as memory it may have allocated.
 
-- `vec::IntoIter` points at a type the slot holds in place, so zipping with it refuses.
-- Reading a `T` out of `Zip::next`'s result makes it a holder. A concrete control
-  (`Vec<Option<u8>>`) is refused as well.
-- `Copy`'s supertrait `Clone` selects a parameter candidate, so `copied` and `vec![x; n]`
-  count as running the crate's `Clone`. The two differ: `copied` copies and calls no
-  `clone`, while `vec![x; n]` calls `clone` `n - 1` times, and a `Copy` type's hand-written
-  `Clone` may have effects or panic. Treat `copied` as running no crate code; keep
-  `vec![x; n]` calling the crate's `clone`, judged fresh only where that `clone` writes
-  nothing the slot holds. Cover both with differential tests whose `Clone` logs and panics.
+Neither the type of a pointer nor what a type holds in place tells the halves apart:
+std's code can make a pointer to a tuple's field, as `RangeBounds` for
+`(Bound<T>, Bound<T>)` does. Options:
 
-Reproduce each first and fix the one that is a single cause before the others.
+- Std's code generic over a type parameter keeps what it was given under that parameter:
+  match a std call's generic signature against which arguments hold pointers, and mask the
+  result's parts under parameters none of them bind. In-place `collect` and other
+  specializations relate parameters through bounds, so a bound naming both must taint.
+- A table of std's iterator adaptors and what each part of their result is made of, as
+  `pointer::derives` is for pointer functions.
+
+Recommend the first if it stays sound under specialization; it covers every adaptor at
+once.
 
 Public API: the translator's output.
+
+## Related
+
+- [Fresh writes through a vector's own accessors](/quest/m3/ts-fresh-vec-access.md) - the other refusals found beside this one

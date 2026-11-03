@@ -28,6 +28,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("maps::linked_iters", crate::maps::linked_iters),
 		("buf::chains", crate::buf::chains),
 		("maps::nested", crate::maps::nested),
+		("buf::late", crate::buf::late),
 	]
 }
 
