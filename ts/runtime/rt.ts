@@ -800,21 +800,28 @@ class Runs<T> extends View<T[]> {
 
 	override detach(): void {
 		const from = this.offset + this.start * this.n;
-		this.flat = Array.from({ length: this.length * this.n }, (_, k) => owned(this.flat[from + k]));
+		const runs = isRuns(this.flat);
+		this.flat = Array.from({ length: this.length * this.n }, (_, k) => (runs ? copyRun(this.flat[from + k]) : this.flat[from + k]));
 		this.offset = -this.start * this.n;
 		this.s = [];
 	}
 }
 
+/** Whether `s` is runs, or a view of them, whose elements are views of their runs. */
+function isRuns(s: object): boolean {
+	const view = (s as { [VIEW]?: unknown })[VIEW];
+	return view instanceof Runs || view instanceof ByteRuns;
+}
+
 /**
- * `x`, an element read out of runs, as a value of its own: a run of bytes copied, and the
- * runs a view of runs holds each copied so, at any depth, since a write through the runs
- * beneath would change them.
+ * `x`, a run read out of runs, as a value of its own, since a write through the runs
+ * would change it: a copy of its elements, and of each run it holds as runs at any depth,
+ * but not of what its elements point at.
  */
-function owned<T>(x: T): T {
+function copyRun<T>(x: T): T {
 	if (x instanceof Uint8Array) return x.slice() as T;
-	if (typeof x !== "object" || x === null || !((x as { [VIEW]?: unknown })[VIEW] instanceof View)) return x;
-	return Array.from(x as unknown as unknown[], owned) as T;
+	const run = x as unknown as unknown[];
+	return (isRuns(run) ? Array.from(run, copyRun) : Array.from(run)) as T;
 }
 
 /**

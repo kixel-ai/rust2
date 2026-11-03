@@ -1227,6 +1227,18 @@ pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let (octets, _) = quads.as_chunks_mut::<2>();
 			let one = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
 			rewrite!(octets, out, |c| c[0][0][0] ^ c[1][1][1], one, [[[9; 2]; 2]; 2]);
+			// Runs of runs of references, which a whole write moves and never copies.
+			let mut backing = words.clone();
+			let mut refs: Vec<&mut [u16]> = backing.chunks_mut(1).collect();
+			let (pairs, _) = refs.as_chunks_mut::<2>();
+			let (quads, _) = pairs.as_chunks_mut::<2>();
+			if quads.len() >= 2 {
+				quads.swap(0, 1);
+			}
+			for (i, r) in refs.iter_mut().enumerate() {
+				r[0] ^= i as u16;
+			}
+			out.extend(backing.iter().map(|&w| (w ^ w >> 8) as u8));
 			let (pairs, _) = words.as_chunks_mut::<2>();
 			let (quads, _) = pairs.as_chunks_mut::<2>();
 			rewrite!(
