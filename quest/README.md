@@ -8,7 +8,7 @@ grouped into milestones ordered by priority.
 ## Plan
 
 m0 holds urgent fixes. m1 is the work with a consumer waiting on it now:
-the UniFFI fork moq switches to, the exporter spike that may replace it, and
+the exporter that replaces the UniFFI fork (moq skips switching to the fork), and
 the fork's perf work. m2 is research: the TypeScript translator, which moq's
 browser package adopts once it matches the handwritten one, and the fork's gated or
 speculative work. m3
@@ -30,7 +30,7 @@ Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ## Required
 
 - [m0: immediate priorities](/quest/m0/README.md) - urgent fixes
-- [m1: consumers waiting](/quest/m1/README.md) - the UniFFI fork moq switches to, the exporter spike, and the fork's perf work
+- [m1: consumers waiting](/quest/m1/README.md) - the exporter that replaces the UniFFI fork for moq
 - [m2: research](/quest/m2/README.md) - the TypeScript translator's spikes and features toward moq-net's model, and the fork's gated work
 - [m3: deferred](/quest/m3/README.md) - the pure-Rust profile and upstream's build-speed levers, measured by the benchmark
 - [m4: long-term research](/quest/m4/README.md) - ideas no consumer needs yet, such as a subset compiler

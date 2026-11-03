@@ -275,11 +275,13 @@ class CharIndices extends Iter<[usize, char]> {
 /**
  * std's searcher of a pattern in `s` between `front` and `back`, in code units. Each step
  * finds the next match from one end, `start` to `end`, and moves that end past it. A
- * `&str` pattern searches from one end only, as std's can.
+ * `&str` pattern searches from one end only, as std's can. It drops its pattern once, as
+ * what holds it may drop it before dropping that.
  */
-class Searcher {
+class Searcher implements Disposable {
 	readonly s: string;
 	readonly #p: Pattern;
+	#dropped = false;
 	#front = 0;
 	#back: number;
 	// An empty pattern matches before each char and after the last, as std's does, from
@@ -376,6 +378,12 @@ class Searcher {
 		}
 		return false;
 	}
+
+	[Symbol.dispose](): void {
+		if (this.#dropped) return;
+		this.#dropped = true;
+		dispose(this.#p);
+	}
 }
 
 /** `str::split`. */
@@ -434,7 +442,7 @@ export function charIsWhitespace(c: char): boolean {
 }
 
 /** std's `SplitInternal`, and with a count, `SplitNInternal`. */
-class Split extends Iter<string> {
+class Split extends Iter<string> implements Disposable {
 	readonly #m: Searcher;
 	#start = 0;
 	#end: number;
@@ -505,6 +513,10 @@ class Split extends Iter<string> {
 		this.#finished = true;
 		return this.#trailing || this.#start < this.#end ? this.#m.s.slice(this.#start, this.#end) : DONE;
 	}
+
+	[Symbol.dispose](): void {
+		dispose(this.#m);
+	}
 }
 
 /** `str::matches`. */
@@ -517,7 +529,7 @@ export function strRmatches(s: string, p: Pattern): Iter<string> {
 	return iterRev(strMatches(s, p));
 }
 
-class Matches extends Iter<string> {
+class Matches extends Iter<string> implements Disposable {
 	readonly #m: Searcher;
 
 	constructor(m: Searcher) {
@@ -538,6 +550,10 @@ class Matches extends Iter<string> {
 		const m = this.#m;
 		return m.nextMatchBack() ? m.s.slice(m.start, m.end) : DONE;
 	}
+
+	[Symbol.dispose](): void {
+		dispose(this.#m);
+	}
 }
 
 /** `str::match_indices`: each match, after its offset in UTF-8 bytes. */
@@ -550,7 +566,7 @@ export function strRmatchIndices(s: string, p: Pattern): Iter<[usize, string]> {
 	return iterRev(strMatchIndices(s, p));
 }
 
-class MatchIndices extends Iter<[usize, string]> {
+class MatchIndices extends Iter<[usize, string]> implements Disposable {
 	readonly #m: Searcher;
 	// Where the last match from each end starts, in code units and in bytes. The back's
 	// bytes are counted once it first moves.
@@ -591,6 +607,10 @@ class MatchIndices extends Iter<[usize, string]> {
 		this.#backBytes -= utf8Len(m.s, m.start, this.#back);
 		this.#back = m.start;
 		return [this.#backBytes as usize, m.s.slice(m.start, m.end)];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.#m);
 	}
 }
 

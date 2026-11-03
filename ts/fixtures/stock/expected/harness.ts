@@ -14,24 +14,24 @@ export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefine
 		slices(a0.data, a0.start, a0.length, a1);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["made", (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		made(a02.data, a02.start, a02.length, a12);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["events", events as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["random", (a04: rt.ByteSlice, a14: rt.ByteVec): undefined => {
-		random(a04.data, a04.start, a04.length, a14);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::bytes_mut", bytesMut as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::reads", (a06: rt.ByteSlice, a16: rt.ByteVec): undefined => {
-		reads(a06.data, a06.start, a06.length, a16);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::writes", (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
-		writes(a07.data, a07.start, a07.length, a17);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::edits", (a08: rt.ByteSlice, a18: rt.ByteVec): undefined => {
-		edits(a08.data, a08.start, a08.length, a18);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::reserves", (a09: rt.ByteSlice, a19: rt.ByteVec): undefined => {
-		reserves(a09.data, a09.start, a09.length, a19);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::dyns", (a010: rt.ByteSlice, a110: rt.ByteVec): undefined => {
-		dyns(a010.data, a010.start, a010.length, a110);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::map", maps_map as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::table", (a012: rt.ByteSlice, a112: rt.ByteVec): undefined => {
-		table(a012.data, a012.start, a012.length, a112);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::capacity", (a013: rt.ByteSlice, a113: rt.ByteVec): undefined => {
-		capacity(a013.data, a013.start, a013.length, a113);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked", linked as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked_iters", (a015: rt.ByteSlice, a115: rt.ByteVec): undefined => {
-		linkedIters(a015.data, a015.start, a015.length, a115);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["events", events as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["random", (a03: rt.ByteSlice, a13: rt.ByteVec): undefined => {
+		random(a03.data, a03.start, a03.length, a13);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::bytes_mut", bytesMut as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::reads", (a04: rt.ByteSlice, a14: rt.ByteVec): undefined => {
+		reads(a04.data, a04.start, a04.length, a14);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::writes", (a05: rt.ByteSlice, a15: rt.ByteVec): undefined => {
+		writes(a05.data, a05.start, a05.length, a15);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::edits", (a06: rt.ByteSlice, a16: rt.ByteVec): undefined => {
+		edits(a06.data, a06.start, a06.length, a16);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::reserves", (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
+		reserves(a07.data, a07.start, a07.length, a17);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::dyns", (a08: rt.ByteSlice, a18: rt.ByteVec): undefined => {
+		dyns(a08.data, a08.start, a08.length, a18);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::map", maps_map as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::table", (a09: rt.ByteSlice, a19: rt.ByteVec): undefined => {
+		table(a09.data, a09.start, a09.length, a19);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::capacity", (a010: rt.ByteSlice, a110: rt.ByteVec): undefined => {
+		capacity(a010.data, a010.start, a010.length, a110);
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked", linked as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::linked_iters", (a011: rt.ByteSlice, a111: rt.ByteVec): undefined => {
+		linkedIters(a011.data, a011.start, a011.length, a111);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
 }
 

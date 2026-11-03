@@ -121,11 +121,12 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Duration` | `rt.Duration`: `{ secs, nanos }`, std's whole seconds as an `rt.u64` and the nanoseconds past them, never changed once made |
 | `Layout`, `alloc::alloc` | `rt.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rt.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rt.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
-| `fn` pointer, function item as a value | the function, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
+| `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rt.ArcDyn` sharing the count of the `Arc` it was made from |
 | `dyn Error` | an object of its `source`, `fmt$Debug`, and `fmt$Display`: `e.source$Error()` |
 | `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof Any.of$dyns_Square ? a.v : undefined` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rt.u8) => rt.u32` |
+| `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rt.Iter<Item>`: `rt.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
@@ -308,12 +309,15 @@ iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
 `char`, a `&str`, a predicate, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
-closure, which it calls on each char it reads, in the order std reads them. An offset it
+closure, which it calls on each char it reads, in the order std reads them, and drops as it
+returns, or with the iterator it returns, as `split` does. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
 one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics as std
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
 `insert`, `retain`, `replace_range`, and the rest, assign the edited one to the local or
-field the `&mut` borrows, taking and checking byte offsets as std does. A `&mut str` is
+field the `&mut` borrows, taking and checking byte offsets as std does, and `retain` then
+drops its closure. `+`, of a `String` or a `Cow<str>`, is JS's `+` of the moved text, as
+`+=` is. A `&mut str` is
 the `rt.Place` of its `String` wherever that is, and a part of one, from `&mut s[a..b]`,
 `get_mut`, or `split_at_mut`, is `rt.strPart(p, a, b)`, a place of its own that writes the
 whole string anew, checking its offsets as `&s[a..b]` does. `as_bytes_mut`,
@@ -493,10 +497,19 @@ that keeps `Error`'s own. `From` an error into a `Box<dyn Error>`, which `?` con
 makes one. Its deprecated `description` and `cause`, and its downcasts, are refused, and so
 is `From` a string, which boxes std's own private error type.
 
+A `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or `dyn FusedIterator`
+behind `&`, `&mut`, `Box`, `Arc`, or `Rc` is an `rt.Iter` of its items, `rt.iterDyn` of the iterator it was made
+of, std's or the crate's own: it reads that iterator by the methods std's vtable holds,
+such as `next`, `nth`, and `size_hint`, and folds it by `next`, as std's defaults read a
+trait object, so a `count` or `last` of a boxed `Chain` drops its items in the order the
+trait object's does. A box drops the iterator it owns, and the last `Arc` the one they
+share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
+`Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
+
 A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
 `Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Error`, `dyn Buf`, and the function traits, of a generic
+`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
 trait or one with an associated type, of a byte array, or behind any other pointer, such
 as a struct's last field, is refused, and so are an upcast to `dyn Any` and
 `Any::type_id`.
@@ -876,7 +889,7 @@ they need.
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
 fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects other than
-`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, and the translated crates' traits'
+`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, `dyn Iterator` and its subtraits, and the translated crates' traits'
 behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
 
@@ -911,7 +924,7 @@ which lower from core's MIR.
 
 ```bash
 just ts test                  # translate each fixture, compare, type-check, and diff
-UPDATE_EXPECT=1 just ts test  # rewrite the snapshots in fixtures/*/expected
+UPDATE_EXPECT=1 just ts test  # rewrite the snapshots in each fixture's expected/
 just ts moq                   # translate moq-net's codec at a pinned revision
 just ts census                # census moq-net and kio at the same revision
 ```
@@ -926,39 +939,17 @@ built natively for wasm32 and run beside its translation on the same inputs by
   `bench::run` and then with it as the first root, which must keep every line in order.
   Bun bundles a caller of `Decoder.u8` and `Decoder.new` through `import * as Decoder`,
   which must keep only those and what they call.
-- `lang` covers every integer width's arithmetic, casts, and inherent methods, with
-  `NonZero`'s, `Wrapping`'s, and `Saturating`'s, at each width's edges, the ASCII methods of
-  every byte, of chars either side of ASCII, Latin-1, and the surrogates, and of slices and strings, `char`s next to each
-  encoding's edges and the surrogates, `Cow<str>` and `Cow<[T]>` borrowed and owned, `Box<[T]>` and `Box<str>` made each way, cloned into, lent, and turned back, into a boxed array or bytes included, `Wrapping` and `Saturating` at every width, `Duration`s whose
-  seconds pass 2^53 or reach `u64::MAX`, control flow,
-  patterns, `Copy` aggregates, those a container stores included and those written into
-  only in another module, behind a type parameter, or through a box, formatting, methods
-  on generic types, iterators, with
-  closures that log what each
-  adaptor reads, `Option`'s and `Result`'s combinators, with closures that log each call,
-  and std's collections, over keys whose own `Hash`, `Eq`, and `Ord`
-  disagree with JS's, sequences, tuples, `Arc`s, and cells compared across forms and item
-  types by an `eq` and `ne` that disagree, a `RefCell` compared while mutably borrowed,
-  `vec![x; n]` of types whose `Clone` counts its clones, `&mut`
-  to values JS copies, of locals, fields, elements, and a map's values, passed on,
-  returned, kept in a struct, and captured, a `Vec`'s edits and sorts, with closures
-  that log what each is called with, `concat` and `join` of arrays, slices, `Vec`s, and
-  `Cow`s, of bytes and of items whose `Clone` logs, std's `Bound`, `Reverse`, and
-  `NonZero`, and raw pointers: a linked list of boxed nodes as `hashlink` keeps one, through a union and a
-  `MaybeUninit` entry, pointers to locals, fields, and whole structs, those
-  `UnsafeCell::get` gives, as crossbeam-epoch's own `OnceLock` keeps its collector, and
-  those a generic type holds to its parameter, at each form a pointer takes, pointers
-  into a `Vec`, an array, a boxed slice, and a `MaybeUninit` array, as `smallvec` and
-  moq-net's frame segments move and copy through them, and a
-  generic type's arrays, slices, `Vec`s, and `Cow`s of its parameter at bytes, at
-  `u16`, and at values that drop. Its
-  differential test runs through `caller.ts`, a
-  hand-written caller that also prints a `printable` error nothing translated prints,
-  and adds every 64- and 128-bit case over each pair of values next to a power of two,
-  where the runtime switches between numbers and limbs, and its limbs carry and borrow,
-  with products of those values at 128 bits, 128-bit quotients by divisors below 2^32,
-  and their halves joined back.
-  `brands.ts`, another caller, mixes integer types where `tsc` must refuse them.
+- `lang` is the language, a fixture per module under `fixtures/lang/`, each module's doc
+  saying what it covers; `fmt`, `generics`, and `shapes`, which share types, share
+  `shapes`. Each crate's `cases` names what it runs, which the first two bytes of an input
+  pick through the `harness.rs` they share. Its differential test runs through `lang.ts`,
+  a hand-written caller, which a fixture's own `caller.ts` extends with the inputs its
+  cases name: `ints`' adds every 64- and 128-bit case over each pair of values next to a
+  power of two, where the runtime switches between numbers and limbs, and its limbs carry
+  and borrow, with products of those values at 128 bits, 128-bit quotients by divisors
+  below 2^32, and their halves joined back, and `shapes`' prints a `printable` error
+  nothing translated prints. `shapes/brands.ts`, another caller, mixes integer types where
+  `tsc` must refuse them. `just ts test lang::ints` runs one.
 - `names` is translated from `run`, then with `added` as its first root, which reaches
   another instance of what `run` reaches one of, each sorting before it: a generic method's,
   a closure's, an impl's of another trait, a std function's that merges with `run`'s, and
@@ -1004,8 +995,12 @@ built natively for wasm32 and run beside its translation on the same inputs by
   `refused.toml` drops the binding, its `rev` feature makes the dependency's iterator run
   from either end, and its `shared` feature adds a module of the dependency's name, with
   the errors in `refused.txt`, `rev.txt`, and `shared.txt`.
-- `reject` holds constructs outside the subset; its expected errors are `expected.txt`,
-  and its expected census is `census.md`.
+- `reject` holds constructs outside the subset, a module per kind of construct. Its
+  expected errors are `expected.txt` and its census's spans `census.txt`, each line keyed
+  by the item it points into and sorted, so cases added to different items don't conflict.
+  Its roots in `ts.toml` stay sorted through taplo.
+- `census` holds a few constructs translation refuses for good, whose census, with its
+  totals, is `census.md`.
 
 `tests/spawn.ts` checks that `rt.spawn` yields to a timer after its 128-poll budget,
 rejects when a future panics as it drops, and drops a future when its signal aborts:

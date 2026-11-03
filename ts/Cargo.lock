@@ -36,6 +36,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "census-fixture"
+version = "0.0.0"
+dependencies = [
+ "bytes",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -157,7 +164,267 @@ dependencies = [
 ]
 
 [[package]]
-name = "lang-fixture"
+name = "lang-args-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-arrays-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-ascii-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-atomics-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-borrows-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-bounds-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-boxes-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-capacity-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-captures-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-cells-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-chars-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-chunks-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-clones-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-collections-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-combinators-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-conversions-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-counts-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-cows-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-cycles-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-defaults-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-durations-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-dyns-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-edits-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-elements-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-ends-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-errors-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-fields-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-floats-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-folds-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-hashes-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-heap-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-hints-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-holds-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-ints-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-iters-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-joins-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-keys-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-lengths-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-lists-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-locals-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-locks-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-manual-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-methods-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-nested-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-objects-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-orders-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-pointers-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-refs-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-results-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-returns-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-rings-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-saturates-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-searches-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-separated-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-shapes-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-singles-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-slices-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-sorts-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-splits-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-statics-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-strs-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-tuples-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-utf8-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-wrappers-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-wraps-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-zeros-fixture"
 version = "0.0.0"
 
 [[package]]

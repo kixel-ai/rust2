@@ -1,3 +1,0 @@
-package = "lang-fixture"
-roots = ["harness::run", "harness::op", "fmt::Fault"]
-printable = ["fmt::Fault"]

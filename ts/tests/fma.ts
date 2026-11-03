@@ -1,11 +1,11 @@
-// The lang fixture's `mul_add` allowance: its exact rounding agrees with the runtime's,
+// The `floats` fixture's `mul_add` allowance: its exact rounding agrees with the runtime's,
 // and it accepts native a last place off only where the translation is exact.
 //
 // usage: node fma.ts
 
 import { strict as assert } from "node:assert";
 
-import { exactMulAdd, mulAddsWithin } from "../fixtures/lang/fma.ts";
+import { exactMulAdd, mulAddsWithin } from "../fixtures/lang/floats/fma.ts";
 import * as rt from "../runtime/rt.ts";
 
 function double(bits: bigint): number {
