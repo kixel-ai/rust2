@@ -21,4 +21,4 @@ just ci      # Both, as the merge queue runs them; run before every push
 just fix     # Auto-fix formatting
 ```
 
-Quests: before starting work, run `quest context` and `quest guide`, and follow both.
+Quests: before any work, run `quest context` and follow it.

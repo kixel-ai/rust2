@@ -32,7 +32,7 @@ The admin bypass of `main`'s ruleset is for emergencies.
 
 # Reviews
 
-Review each PR locally with `/quest-review`, as the quest guide describes; merging never waits on an online reviewer, and never request one.
+Review each PR locally with `/quest-review`, as `quest context` describes; merging never waits on an online reviewer, and never request one.
 The PR body's `## Review` record counts as the required review when it names the head being merged, and so does a recorded skip of a change too trivial to review.
 Address online reviewers' findings already posted on that head before merging: fix them, or reply where you disagree.
 
