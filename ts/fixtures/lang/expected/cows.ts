@@ -64,27 +64,32 @@ export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			fmt_put(out, _124);
 		}
 		fmt_put(out, c2);
+		let joined: string = cow("", owned) + first + cow(s, !owned);
+		const _145: string = cow("", !owned);
+		joined = joined + _145;
+		joined = joined + "+";
+		fmt_put(out, joined);
 		if ((kind & 64) === 0) {
 			r = rt.Ok(cow(first, owned));
 		} else {
 			r = rt.Err(kind);
 		}
-		const _138: rt.Result<string, rt.u8> = exclaimed(r);
-		if (_138.ok) {
-			fmt_put(out, _138.value);
+		const _156: rt.Result<string, rt.u8> = exclaimed(r);
+		if (_156.ok) {
+			fmt_put(out, _156.value);
 		} else {
-			rt.byteVecPush(out, _138.error);
+			rt.byteVecPush(out, _156.error);
 		}
 	} else if (_14 === 2) {
 		const a: string = cow(s, owned);
 		const b: string = cow(first, !owned);
 		const iter2: rt.Iter<boolean> = rt.iterSlice([a === first, a === first, a === s, first === a, s === a, a === b, a !== b, rt.cmpStr(a, b) < 0, rt.cmpStr(a, b) >= 0, rt.cmpStr(a, b) === 1]);
 		while (true) {
-			const _187: boolean | rt.Done = iter2.next();
-			if (_187 === rt.DONE) {
+			const _205: boolean | rt.Done = iter2.next();
+			if (_205 === rt.DONE) {
 				break;
 			}
-			rt.byteVecPush(out, _187 ? 1 : 0);
+			rt.byteVecPush(out, _205 ? 1 : 0);
 		}
 		rt.byteVecPush(out, rt.ordMax(a, b, rt.cmpLt(rt.cmpStr)) === b ? 1 : 0);
 	} else if (_14 === 3) {
@@ -97,45 +102,45 @@ export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, cows_Named.cmp$cmp_Ord(n, m2) > 0 ? 1 : 0);
 		rt.byteVecPush(out, cows_Named.partialCmp$cmp_PartialOrd(n, m2) === -1 ? 1 : 0);
 		fmt_put(out, cows_Named.intoOwned(n).name);
-		const _252: cows_Named.Named = cows_Named.default$Default();
-		const _254: cows_Named.Named = cows_Named.new("", kind);
-		const args4: rt.Fmt[] = [(f: rt.Formatter) => cows_Named.fmt$fmt_Debug(_252, f), (f: rt.Formatter) => cows_Named.fmt$fmt_Debug(_254, f)];
+		const _270: cows_Named.Named = cows_Named.default$Default();
+		const _272: cows_Named.Named = cows_Named.new("", kind);
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => cows_Named.fmt$fmt_Debug(_270, f), (f: rt.Formatter) => cows_Named.fmt$fmt_Debug(_272, f)];
 		fmt_put(out, rt.fmtFormat([args4[0], " ", args4[1]]));
 	} else if (_14 === 4) {
 		const counts: rt.BTreeMap<string, rt.u8> = rt.btreeNew(rt.cmpStr) as rt.BTreeMap<string, rt.u8>;
 		const iter3: rt.Iter<[rt.usize, string]> = rt.iterEnumerate(rt.strSplit(s, "/"));
 		while (true) {
-			const _268: [rt.usize, string] | rt.Done = iter3.next();
-			if (_268 === rt.DONE) {
+			const _286: [rt.usize, string] | rt.Done = iter3.next();
+			if (_286 === rt.DONE) {
 				break;
 			}
-			const _276: string = cow(_268[1], rt.usizeRem(_268[0], 2) === 1 === owned);
-			const _273: rt.Place<rt.u8> = rt.entryOrInsertMut(rt.entry(counts, _276), 0);
-			_273.v = rt.u8Add(_273.v, 1);
+			const _294: string = cow(_286[1], rt.usizeRem(_286[0], 2) === 1 === owned);
+			const _291: rt.Place<rt.u8> = rt.entryOrInsertMut(rt.entry(counts, _294), 0);
+			_291.v = rt.u8Add(_291.v, 1);
 		}
 		const iter4: rt.Iter<[string, rt.u8]> = rt.btreeIter(counts);
 		while (true) {
-			const _285: [string, rt.u8] | rt.Done = iter4.next();
-			if (_285 === rt.DONE) {
+			const _303: [string, rt.u8] | rt.Done = iter4.next();
+			if (_303 === rt.DONE) {
 				break;
 			}
-			fmt_put(out, _285[0]);
-			rt.byteVecPush(out, _285[1]);
+			fmt_put(out, _303[0]);
+			rt.byteVecPush(out, _303[1]);
 		}
 		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.btreeGet(counts, first), 255));
 		const names: rt.HashSet<cows_Named.Named> = rt.hashNew(rt.hashing(cows_Named.hash$Hash_hash_DefaultHasher as (a0: cows_Named.Named, a1: rt.Hasher) => undefined, cows_Named.eq$cmp_PartialEq)) as rt.HashSet<cows_Named.Named>;
 		const iter5: rt.Iter<string> = rt.strSplit(s, "/");
 		while (true) {
-			const _305: string | rt.Done = iter5.next();
-			if (_305 === rt.DONE) {
+			const _323: string | rt.Done = iter5.next();
+			if (_323 === rt.DONE) {
 				break;
 			}
-			const _311: cows_Named.Named = cows_Named.new(_305, 0);
-			rt.hashAdd(names, _311);
+			const _329: cows_Named.Named = cows_Named.new(_323, 0);
+			rt.hashAdd(names, _329);
 		}
 		rt.byteVecPush(out, rt.hashLen(names) & 0xff);
-		const _321: cows_Named.Named = cows_Named.new(first, 0);
-		rt.byteVecPush(out, rt.hashContains(names, _321) ? 1 : 0);
+		const _339: cows_Named.Named = cows_Named.new(first, 0);
+		rt.byteVecPush(out, rt.hashContains(names, _339) ? 1 : 0);
 	} else {
 		const c4: string = cow(s, owned);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, c4), (f: rt.Formatter) => rt.fmtStr(c4, f)];

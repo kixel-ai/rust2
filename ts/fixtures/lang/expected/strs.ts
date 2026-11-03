@@ -553,14 +553,27 @@ export function edit(s: rt.Place<string>, op: rt.u8, a: rt.u8, b: rt.u8, out: rt
 	if (_24 === 0) {
 		s.v = s.v + piece;
 	} else if (_24 === 1) {
-		s.v = s.v + piece;
+		const _28: rt.u8 = rt.u8Rem(b, 4);
+		if (_28 === 0) {
+			s.v = s.v + piece;
+		} else if (_28 === 1) {
+			const taken2 = s.v;
+			s.v = "";
+			s.v = taken2 + piece;
+		} else if (_28 === 2) {
+			const taken = s.v;
+			s.v = "";
+			s.v = taken + "" + piece + piece;
+		} else {
+			s.v = rt.stringWithCapacity(a as rt.usize) + s.v + "";
+		}
 	} else if (_24 === 2) {
 		if (!(rt.u8Rem(a, 4) === 0)) {
-			const _35: rt.usize = rt.u8Rem(b, 16) as rt.usize;
-			if (!(_35 < 16)) {
-				rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _35);
+			const _59: rt.usize = rt.u8Rem(b, 16) as rt.usize;
+			if (!(_59 < 16)) {
+				rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _59);
 			}
-			s.v = s.v + String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_35]);
+			s.v = s.v + String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_59]);
 		} else {
 			s.v = "";
 		}
@@ -575,11 +588,11 @@ export function edit(s: rt.Place<string>, op: rt.u8, a: rt.u8, b: rt.u8, out: rt
 		s.v = edit2[0];
 		putChar(out, edit2[1]);
 	} else if (_24 === 6) {
-		const _44: rt.usize = rt.u8Rem(b, 16) as rt.usize;
-		if (!(_44 < 16)) {
-			rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _44);
+		const _68: rt.usize = rt.u8Rem(b, 16) as rt.usize;
+		if (!(_68 < 16)) {
+			rt.panic("index out of bounds: the len is " + 16 + " but the index is " + _68);
 		}
-		s.v = rt.stringInsertStr(s.v, i, String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_44]));
+		s.v = rt.stringInsertStr(s.v, i, String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_68]));
 	} else if (_24 === 7) {
 		s.v = rt.stringInsertStr(s.v, i, piece);
 	} else if (_24 === 8) {
@@ -599,48 +612,48 @@ export function edit(s: rt.Place<string>, op: rt.u8, a: rt.u8, b: rt.u8, out: rt
 		s.v = edit[0];
 		fmt_put(out, edit[1]);
 	} else if (_24 === 10) {
-		const _67: rt.u8 = rt.u8Rem(b, 7);
-		if (_67 === 0) {
-			const _69: rt.Range<rt.usize> = new rt.Range(i, j);
-			s.v = rt.stringReplaceRange(s.v, _69, piece);
-		} else if (_67 === 1) {
-			const _72: rt.RangeFrom<rt.usize> = new rt.RangeFrom(i, rt.usizeStep);
-			s.v = rt.stringReplaceRange(s.v, _72, piece);
-		} else if (_67 === 2) {
-			const _75: { end: rt.usize } = { end: j };
-			s.v = rt.stringReplaceRange(s.v, _75, piece);
-		} else if (_67 === 3) {
+		const _91: rt.u8 = rt.u8Rem(b, 7);
+		if (_91 === 0) {
+			const _93: rt.Range<rt.usize> = new rt.Range(i, j);
+			s.v = rt.stringReplaceRange(s.v, _93, piece);
+		} else if (_91 === 1) {
+			const _96: rt.RangeFrom<rt.usize> = new rt.RangeFrom(i, rt.usizeStep);
+			s.v = rt.stringReplaceRange(s.v, _96, piece);
+		} else if (_91 === 2) {
+			const _99: { end: rt.usize } = { end: j };
+			s.v = rt.stringReplaceRange(s.v, _99, piece);
+		} else if (_91 === 3) {
 			s.v = rt.stringReplaceRange(s.v, undefined, piece);
-		} else if (_67 === 4) {
-			const _80: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(i, j, rt.usizeStep);
-			s.v = rt.stringReplaceRange(s.v, _80, piece);
-		} else if (_67 === 5) {
-			const _83: { end: rt.usize; inclusive: true } = { end: j, inclusive: true };
-			s.v = rt.stringReplaceRange(s.v, _83, piece);
+		} else if (_91 === 4) {
+			const _104: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(i, j, rt.usizeStep);
+			s.v = rt.stringReplaceRange(s.v, _104, piece);
+		} else if (_91 === 5) {
+			const _107: { end: rt.usize; inclusive: true } = { end: j, inclusive: true };
+			s.v = rt.stringReplaceRange(s.v, _107, piece);
 		} else {
-			const _86: [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>] = [{ tag: "Excluded", _0: i } as rt.RangeBound<rt.usize>, { tag: "Included", _0: j } as rt.RangeBound<rt.usize>];
-			s.v = rt.stringReplaceRange(s.v, _86, piece);
+			const _110: [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>] = [{ tag: "Excluded", _0: i } as rt.RangeBound<rt.usize>, { tag: "Included", _0: j } as rt.RangeBound<rt.usize>];
+			s.v = rt.stringReplaceRange(s.v, _110, piece);
 		}
 	} else if (_24 === 11) {
-		const _91: rt.u8 = rt.u8Rem(b, 5);
-		if (_91 === 0) {
+		const _115: rt.u8 = rt.u8Rem(b, 5);
+		if (_115 === 0) {
 			s.v = rt.stringExtendFromWithin(s.v, new rt.Range(i, j));
-		} else if (_91 === 1) {
+		} else if (_115 === 1) {
 			s.v = rt.stringExtendFromWithin(s.v, new rt.RangeFrom(i, rt.usizeStep));
-		} else if (_91 === 2) {
+		} else if (_115 === 2) {
 			s.v = rt.stringExtendFromWithin(s.v, { end: j, inclusive: true });
-		} else if (_91 === 3) {
+		} else if (_115 === 3) {
 			s.v = rt.stringExtendFromWithin(s.v, [{ tag: "Included", _0: i } as rt.RangeBound<rt.usize>, { tag: "Excluded", _0: j } as rt.RangeBound<rt.usize>] as [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>]);
 		} else {
 			s.v = rt.stringExtendFromWithin(s.v, undefined);
 		}
 	} else if (_24 === 12) {
-		const _99: rt.u8 = rt.u8Rem(a, 4);
-		if (_99 === 0) {
+		const _123: rt.u8 = rt.u8Rem(a, 4);
+		if (_123 === 0) {
 			rt.stringReserve(s.v, rt.usizeSub(4294967295, b as rt.usize));
-		} else if (_99 === 1) {
-			const _104: rt.usize = rt.usizeAdd(rt.usizeAdd(rt.usizeSub(2147483647, rt.stringLen(s.v)), 1), rt.u8Rem(b, 2) as rt.usize);
-			rt.stringReserve(s.v, _104);
+		} else if (_123 === 1) {
+			const _128: rt.usize = rt.usizeAdd(rt.usizeAdd(rt.usizeSub(2147483647, rt.stringLen(s.v)), 1), rt.u8Rem(b, 2) as rt.usize);
+			rt.stringReserve(s.v, _128);
 		} else {
 			rt.stringReserve(s.v, a as rt.usize);
 			rt.stringReserve(s.v, b as rt.usize);
@@ -712,6 +725,7 @@ export function edits(kind: rt.u8, dataData: Uint8Array, dataStart: number, data
 		fmt_put(out, s);
 		fmt_put(out, named.name);
 	}
+	fmt_put(out, s + "😀" + named.name);
 }
 
 /**
