@@ -2980,12 +2980,15 @@ pub fn overflowing<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<(Overflow, T
 
 /// A `str` method's pattern as the runtime takes it, an `rt.Pattern`: a `char`'s text, a
 /// string or a predicate as it is, or a predicate for an array or slice of chars. `None`
-/// for any other pattern. A reference to a predicate is the predicate, as
-/// `called_closures` reads it.
+/// for any other pattern. A predicate behind references and boxes, a closure, a function,
+/// or a `dyn FnMut`, is the predicate, as `called_closures` reads it.
 fn pattern<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, p: Expr) -> Option<Expr> {
+	let (called, _, _) = called_through(t, ty, None);
 	match ty.kind() {
 		ty::Char => Some(char_text(p)),
-		_ if matches!(ty.peel_refs().kind(), ty::Closure(..) | ty::FnDef(..)) => Some(p),
+		_ if matches!(called.kind(), ty::Closure(..) | ty::FnDef(..) | ty::FnPtr(..)) || t.dyn_fn(called).is_some() => {
+			Some(p)
+		}
 		ty::Ref(..) if is_text(t, ty) => Some(p),
 		// Any of the chars of an array or slice.
 		ty::Array(c, _) | ty::Slice(c) if c.is_char() => Some(Expr::rt("patternChars", vec![p])),

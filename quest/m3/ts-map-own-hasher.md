@@ -23,7 +23,3 @@ through a crate's own `Hasher` but leaves this refused with "hashing by the hash
 - No consumer yet; planned here because rust2 aims to support all of std.
 
 Public API: the translator's output.
-
-## Related
-
-- [A crate's own hasher that JS copies](/quest/m3/ts-copied-hasher.md) - the other gap #424 left

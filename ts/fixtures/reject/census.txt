@@ -26,7 +26,6 @@ fixtures/reject/src/clones.rs:kept_slots+5:2: a raw pointer to `(u8, u8)` in `([
 fixtures/reject/src/clones.rs:moved_slots+5:2: a raw pointer to `(u8, u8)` in `(clones::Dropped, (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:recloned+1:4: `slice::clone_from_slice` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/clones.rs:refilled+1:4: `slice::fill` of `clones::Reused`, whose `clone_from` is its own, which is not supported yet
-fixtures/reject/src/clones.rs:slice_of_object+1:2: a slice or a cell of a mutable reference to `clones::Reused` that names no place, which a whole write would replace only there
 fixtures/reject/src/clones.rs:vec_clone_from+1:4: `Clone::clone_from` of `std::vec::Vec<clones::Reused>`, whose `clone_from` is its own, which is not supported yet
 fixtures/reject/src/config.rs:Meters+0:1: a printable type must implement `Display` or `Debug`
 fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
@@ -36,9 +35,11 @@ fixtures/reject/src/fmt.rs:written+2:10: `fmt::Arguments` with a placeholder, or
 fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
 fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`
 fixtures/reject/src/futures.rs:pending_output+0:34: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
-fixtures/reject/src/iters.rs:impl DoubleEndedIterator for Backs+5:2: overriding `DoubleEndedIterator::rfind`, which std's adaptors call in place of `next` or beside it
+fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose predicate takes a reference to `[u8; 2]`, which is not supported yet
+fixtures/reject/src/iters.rs:impl Iterator for Collects+7:2: overriding `Iterator::collect`, which std calls in place of another method, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Discards+11:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Disposes+10:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
+fixtures/reject/src/iters.rs:impl Iterator for Finds+8:15: overriding `Iterator::find_map` with a drop of what it finds, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Folds+8:3: overriding `Iterator::fold` with its accumulator in an `Option` or a `Poll`, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Keeps+8:18: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Measures+11:11: overriding `Iterator::fold` with a call generic over its accumulator or closure, which is not supported yet

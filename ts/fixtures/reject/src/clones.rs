@@ -24,12 +24,6 @@ impl Clone for Reused {
 	}
 }
 
-/// A slice of the object a parameter is, whose element a whole write would replace only
-/// in the slice, not where the caller holds it.
-pub fn slice_of_object(r: &mut Reused, by: Reused) {
-	std::slice::from_mut(r)[0] = by;
-}
-
 /// `clone_from` of a `Vec` whose elements' is their own.
 pub fn vec_clone_from(v: &mut Vec<Reused>, from: &Vec<Reused>) {
 	v.clone_from(from);

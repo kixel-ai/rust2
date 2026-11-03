@@ -4,6 +4,10 @@ import * as rt from "./rt.ts";
 import { conversions } from "./conversions.ts";
 import type * as Logged from "./conversions.Logged.ts";
 
+export function copy$array_Option_u16(v: Array<rt.u16 | undefined>): Array<rt.u16 | undefined> {
+	return v.slice();
+}
+
 export function copy$array_array0_u8(v: Uint8Array[]): Uint8Array[] {
 	return v.map(copy$array_u8);
 }
@@ -25,6 +29,10 @@ export function copy$array_array40_u8(v: Uint8Array[]): Uint8Array[] {
 }
 
 export function copy$array_u32(v: rt.u32[]): rt.u32[] {
+	return v.slice();
+}
+
+export function copy$array_u64(v: rt.u64[]): rt.u64[] {
 	return v.slice();
 }
 

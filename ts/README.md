@@ -287,8 +287,12 @@ An iterator over a slice, array, or `Vec`, or a small range, that only its `next
 moves read steps in place, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
-and of one it owns its own `fold`, `rfold`, `count`, and `last`, where std's adaptors
-call them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
+and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
+`find`, `rfind`, `find_map`, `for_each`, `reduce`, and `all`, where std's adaptors and consumers
+call them: a filter's `next` calls `find`, an `extend` into a hash or B-tree collection, a
+`String`, or a tuple calls `for_each`, `max` calls `reduce`, and `is_sorted` calls `all`. Its
+own `position`, `max`, and the others std never calls in place of another run only where the
+crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
 `BinaryHeap`, B-tree, or hash collection reserves by it where std's does, panicking with
@@ -313,7 +317,8 @@ the same clones, as `rt.iterCycle(it, { v: Item.clone$Clone })`, by which it clo
 iterator as it is made and again each time a clone ends.
 
 A `str` is a JS string, which is UTF-16: `chars` steps by code point, and a search by a
-`char`, a `&str`, a predicate or a reference to one, or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
+`char`, a `&str`, a predicate (a closure, a function or a function pointer, or a `dyn FnMut`) behind any references and boxes,
+or an array or slice of chars, as in `rt.strSplit(s, "/")`, takes the text or the
 closure, which it calls on each char it reads, in the order std reads them, and drops a closure it owns as it
 returns, or with the iterator it returns, as `split` does, leaving one it borrows to its owner. An offset it
 returns, from `rfind` or `match_indices`, counts UTF-8 bytes, as Rust's does, and so does
@@ -444,7 +449,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
 through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
-hasher, hashes, finishes, then drops the hasher and the value.
+hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
+an enum, hashes as a struct one does, through the `rt.Place` its `&mut` is.
 Its iterators are `rt.Iter`s, so std's adaptors run over them.
 
 A value drops where Rust drops it, if dropping it does something JS can see: a `Drop`
@@ -463,7 +469,9 @@ map's `drain` does, drops those it still holds by `[Symbol.dispose]`, an adaptor
 what it skips or rejects, and a consumer that takes an iterator by value drops it:
 through each `rt.Iter`'s own `fold` where std's folds, which drops each adaptor's closure
 as its fold ends, before what it wraps, as std's does. The crate's own `fold` is given that
-closure as a `Box<dyn FnMut>`, which drops it where its body does. `try_fold`, `try_rfold`,
+closure as a `Box<dyn FnMut>`, which drops it where its body does, and so are its own
+`find`, `find_map`, `for_each`, `reduce`, and `all`, whose `find_map` is given what it finds
+boxed. `try_fold`, `try_rfold`,
 and `try_for_each` drop their closure as they return, leaving what the iterator holds to drop
 with it. `scan` hands its closure its state, or the state's place where JS copies it, and
 drops the state after the closure, as std's fields drop. A `Vec`'s `drain` leaves the vector
@@ -928,14 +936,16 @@ another type it borrows as through the crate's own `Borrow`, a `&mut` to a value
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
 without a mapping in `src/lower/iter.rs` (such as nightly's `intersperse`), an
-own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method other than
-those, such as `find` or `for_each`, or whose own `fold` or `rfold` tells its accumulator or
-closure apart from another, by an `Option` or a `Poll` of it, a call or constant generic over it
-other than calling or dropping the closure or passing them to std's iterators outside the crate's
-own types, or a drop of the accumulator,
+own `impl Iterator` or `DoubleEndedIterator` that overrides a provided method std calls in place
+of another other than those, such as `collect`, `eq`, `partial_cmp`, or `by_ref`, or whose own
+method taking a closure tells it, or its accumulator or what it finds, apart from another, by an
+`Option` or a `Poll` of the accumulator, a call or constant generic over them other than calling
+or dropping the closure or passing them to std's iterators outside the crate's own types, or a
+drop of the accumulator or what it finds, or whose own `find` or `rfind` gives its predicate a
+reference to a `[u8; N]`,
 a pointer's address (`{:p}`), `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
-`char`, a `&str`, a predicate or a reference to one, or chars, a mutable `str` slice, a copy of a closure that changes
+`char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a
 reference, a switch on or a field of another crate's type without a mapping, and std
