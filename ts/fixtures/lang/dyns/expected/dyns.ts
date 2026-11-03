@@ -903,9 +903,9 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const taken: rt.u8 | undefined = option_map$08a6hpg(option_andThen$0v0bj8w(rt.arcGetMut(shared), (it2: rt.Iter<Tagged.Tagged>): Tagged.Tagged | undefined => {
 			return rt.iterToOption(it2.next());
 		}), (t5: Tagged.Tagged): rt.u8 => {
-			const _013: rt.u8 = t5._0;
+			const _014: rt.u8 = t5._0;
 			t5[Symbol.dispose]();
-			return _013;
+			return _014;
 		});
 		dropped(out);
 		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(taken, f, rt.u8Debug)];
@@ -941,9 +941,9 @@ export function iters(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return new rt.ArcDyn(arc, rt.iterDyn(rt.iterFrom(arc.value, (it: Countdown.Countdown) => Countdown.next$iter_Iterator(it), rt.drop)));
 		});
 		const part7 = option_map$0oedb57(rt.weakUpgrade(weak3), (it6: rt.Arc<rt.Iter<rt.u8>>): [rt.usize, rt.usize | undefined] => {
-			const _017: [rt.usize, rt.usize | undefined] = it6.value.sizeHint();
+			const _018: [rt.usize, rt.usize | undefined] = it6.value.sizeHint();
 			it6[Symbol.dispose]();
-			return _017;
+			return _018;
 		});
 		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part7, f, (value: [rt.usize, rt.usize | undefined], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtOption(value[1], f, rt.usizeDebug)], f))];
 		put(out, rt.fmtFormat([args38[0], " "]));
@@ -1224,9 +1224,9 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		rt.refRelease(_495);
 		put(out, _491);
 		const part3 = option_map$0j05j69(ok$00p9ap8(rt.arcDowncast(new rt.Arc(new Any.of$u32(dataData[dataStart] as rt.u32)), Any.of$u32, (object) => object.v)), (n3: rt.Arc<rt.u32>): rt.u32 => {
-			const _08: rt.u32 = n3.value;
+			const _09: rt.u32 = n3.value;
 			n3[Symbol.dispose]();
-			return _08;
+			return _09;
 		});
 		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part3, f, rt.u32Debug)];
 		put(out, rt.fmtFormat([args36[0], " "]));

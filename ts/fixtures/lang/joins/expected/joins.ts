@@ -123,10 +123,10 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		wides(rt.slicesJoin(slices, 2), out);
 		wides(rt.slicesJoin(slices, 2, [sep2]), out);
 		wides(rt.slicesJoin(slices, 2, rt.sliceRange(wideSeps, 0)), out);
-		const boxed2: rt.u16[][] = rt.iterToArray(rt.iterMap(rt.iterMap(rt.iterSlice(wide), (a015: rt.u16[]): rt.u16[] => {
-			return rt.vecExact(a015.slice(), 2);
-		}), (a016: rt.u16[]): rt.u16[] => {
-			return a016;
+		const boxed2: rt.u16[][] = rt.iterToArray(rt.iterMap(rt.iterMap(rt.iterSlice(wide), (a02: rt.u16[]): rt.u16[] => {
+			return rt.vecExact(a02.slice(), 2);
+		}), (a03: rt.u16[]): rt.u16[] => {
+			return a03;
 		}), undefined, 8, true);
 		wides(rt.slicesJoin(boxed2, 2), out);
 		wides(rt.slicesJoin(boxed2, 2, [sep2]), out);
@@ -191,8 +191,8 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const sep4: string = text(seps);
 		put(out, rt.strsJoin(owned2, ""));
 		put(out, rt.strsJoin(owned2, sep4));
-		const borrowed: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(owned2), (a02: string): string => {
-			return a02;
+		const borrowed: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(owned2), (a0: string): string => {
+			return a0;
 		}), undefined, 8, true);
 		put(out, rt.strsJoin(borrowed, ""));
 		put(out, rt.strsJoin(borrowed, sep4));
