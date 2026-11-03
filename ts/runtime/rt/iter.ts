@@ -949,18 +949,23 @@ export function iterFlatten<T, V>(it: Iter<T>, into?: (value: T) => Iter<V>, fus
 // each iterator it wraps, an `I`, by the function given for its type, and no closure.
 
 /**
- * What an adaptor's field holds as Rust sees it, from the iterator the adaptor reads: one
- * borrowed by `&mut`, or the crate's own, which `iterFrom` reads.
+ * What an adaptor's field holds as Rust sees it, from the iterator the adaptor reads: what
+ * a box or a `&mut` borrow forwards to, through any number of them, and the crate's own
+ * iterator, which `iterFrom` reads.
  */
 export function iterHeld<I>(it: Iter<unknown>): I {
-	if (it instanceof Borrowed) return it.inner as I;
-	if (it instanceof FromNext) return it.source as I;
-	return it as I;
+	while (it instanceof Forward) it = it.inner;
+	return (it instanceof FromNext ? it.source : it) as I;
 }
 
 /** `Debug` of an adaptor std writes as the iterator it wraps alone, under `field`. */
 export function fmtAdaptor<I>(it: Iter<unknown>, f: Formatter, name: string, inner: Debug<I>, field = "iter"): FmtResult {
 	return fmtDebugStructFields(f, name, [field], [(f) => inner(iterHeld((it as Adaptor<unknown, unknown>).inner), f)]);
+}
+
+/** `Debug` of a `Copied` that is the iterator it copies from, as `iterCopied` leaves one of items JS reads as is. */
+export function fmtCopied<I>(it: Iter<unknown>, f: Formatter, inner: Debug<I>): FmtResult {
+	return fmtDebugStructFields(f, "Copied", ["it"], [(f) => inner(iterHeld(it), f)]);
 }
 
 /** `Debug` of an `Enumerate`: its iterator and the index it yields next. */

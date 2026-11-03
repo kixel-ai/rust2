@@ -1142,6 +1142,14 @@ pub fn adaptors(data: &[u8], out: &mut Vec<u8>) {
 	let mut base = units.iter().copied();
 	let it = fronts(char::decode_utf16(base.by_ref()), front);
 	put(out, &format!("{it:?}"));
+	let mut base = bytes.iter();
+	let it = fronts(base.by_ref().copied(), front);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = fronts(Box::new(bytes.iter()).map(|b| b + 1), front);
+	put(out, &format!("{it:?}"));
+	let mut boxed = Box::new(bytes.iter().rev());
+	let it = fronts((&mut boxed).zip(Box::new(Countdown(4))), front);
+	put(out, &format!("{it:?}"));
 	let it = fronts(Countdown(at(2) % 5).map(|n| n * 2).enumerate(), front);
 	put(out, &format!("{it:?}|{it:#?}"));
 	let mut own = Countdown(at(3) % 5);
