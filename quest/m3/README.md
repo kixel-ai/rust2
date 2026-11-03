@@ -39,3 +39,4 @@ generic std gap is planned here even when moq never calls it.
 - [A map built with BuildHasherDefault](/quest/m3/ts-build-hasher-default.md) - `FxHashMap`-style maps, of `BuildHasherDefault` over a crate's own `Hasher`, translate
 - [Equality of hash maps and sets](/quest/m3/ts-hash-map-eq.md) - `==` of two hash maps or sets translates as std's
 - [A name or an operator argument at its own Rust span](/quest/m3/ts-argument-spans.md) - a `tsc` error on a plain-name or operator argument names that argument's Rust, not the method it is passed to
+- [A string Cow's variant](/quest/m3/ts-cow-str-variant.md) - matching a `Cow<str>`'s `Borrowed` or `Owned`, and `to_mut`'s change of it, translate as std's
