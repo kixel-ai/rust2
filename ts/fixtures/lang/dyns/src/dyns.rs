@@ -3,7 +3,7 @@
 //! through `&mut self` wherever it is, a provided method, a supertrait's, `Debug` among
 //! them, `self: Box<Self>`, and an upcast to the supertrait. Behind an `Arc`, the object
 //! shares the count of the `Arc` it was made from. A `dyn Any` downcasts to the type it
-//! was made of, borrowed, boxed, or shared. A `dyn Fn*` of a closure, a function, or a
+//! was made of, borrowed, boxed, or shared, and upcast from the crate's own trait. A `dyn Fn*` of a closure, a function, or a
 //! function pointer calls it, changing what it captured, borrowed, boxed, or shared. An
 //! `Rc`, a `Weak`, a `Pin`, and an `Rc` or an `Arc` made from a box hold one too. A
 //! `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, or
@@ -305,6 +305,23 @@ impl<T: Any> Erased for T {
 	}
 }
 
+/// A trait over `Any`, whose objects upcast to `dyn Any`.
+trait Keyed: Any {
+	fn key(&self) -> u32;
+}
+
+impl Keyed for u32 {
+	fn key(&self) -> u32 {
+		*self
+	}
+}
+
+impl Keyed for Square {
+	fn key(&self) -> u32 {
+		u32::from(self.side)
+	}
+}
+
 /// What `a` holds, by the type it downcasts to.
 fn kind(a: &dyn Any) -> String {
 	if let Some(sq) = a.downcast_ref::<Square>() {
@@ -432,7 +449,37 @@ pub fn anys(data: &[u8], out: &mut Vec<u8>) {
 		Ok(_) => unreachable!(),
 		Err(hold) => hold.downcast::<(u8, u8)>().map(|t| (Arc::strong_count(&t), t.0)).ok(),
 	};
-	put(out, &format!("{typed:?}"));
+	put(out, &format!("{typed:?} "));
+
+	// Upcast from the crate's trait over `Any`: the downcast finds the value's own type,
+	// borrowed, changed in place, boxed, shared, and weak.
+	let mut n = u32::from(a);
+	let keyed: [&dyn Keyed; 2] = [&sq, &n];
+	for k in keyed {
+		let any: &dyn Any = k;
+		put(out, &format!("{}{} ", k.key(), kind(any)));
+	}
+	let k: &mut dyn Keyed = &mut n;
+	let any: &mut dyn Any = k;
+	put(out, &format!("{} ", bump(any, b)));
+	put(out, &format!("{n} "));
+	let boxed: Box<dyn Keyed> = Box::new(Square { side: u16::from(b) });
+	let any: Box<dyn Any> = boxed;
+	put(out, &format!("{:?} ", any.downcast::<Square>().map(|sq| sq.side).ok()));
+	let shared: Rc<dyn Keyed> = Rc::new(n);
+	let weak: rc::Weak<dyn Keyed> = Rc::downgrade(&shared);
+	let weak: rc::Weak<dyn Any> = weak;
+	let any: Rc<dyn Any> = shared;
+	put(
+		out,
+		&format!(
+			"{} {:?} ",
+			weak.upgrade().is_some_and(|a| a.is::<u32>()),
+			any.downcast_ref::<u32>()
+		),
+	);
+	let typed = any.downcast::<u32>().map(|n| (Rc::strong_count(&n), *n)).ok();
+	put(out, &format!("{typed:?} {}", weak.upgrade().is_some()));
 }
 
 /// A boxed callback kept in a struct, as kio keeps its waiters' polls.

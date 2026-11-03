@@ -1004,7 +1004,7 @@ fn takes_none(owner: &str, name: &str) -> bool {
 				)
 				| ("Arc" | "Rc", "into_inner")
 				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind" | "try_rfold")
-				| ("dyn Any", "downcast_ref" | "downcast_mut")
+				| ("dyn Any" | "dyn Error", "downcast_ref" | "downcast_mut")
 				| ("ptr", "as_ref" | "as_mut")
 				| ("from_fn", "from_fn")
 				| ("successors", "successors")
