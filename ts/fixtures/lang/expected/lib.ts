@@ -1460,4 +1460,36 @@ export function drop$zeros_Lock_zeros_Loud(_1: zeros_Lock.Lock<Loud.Loud>): void
 	zeros_Lock.drop$ops_Drop_zeros_Loud(_1);
 }
 
+export const out$bool: { p: boolean } = { p: undefined as never };
+
+export const out$ref_slice_u8: { pData: Uint8Array; pStart: number; pLen: number } = { pData: undefined as never, pStart: undefined as never, pLen: undefined as never };
+
+export const out$tuple2_f64_char: { err: unknown; p_1: rt.char } = { err: undefined, p_1: undefined as never };
+
+export const out$tuple2_i64_u64: { err: unknown; p_1: rt.u64 } = { err: undefined, p_1: undefined as never };
+
+export const out$tuple2_ref_array4_u8_ref_slice_u8: { p_0Data: Uint8Array; p_0Start: number; p_0Len: number; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { p_0Data: undefined as never, p_0Start: undefined as never, p_0Len: undefined as never, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple2_ref_slice_u8_ref_slice_u8: { p_0Data: Uint8Array; p_0Start: number; p_0Len: number; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { p_0Data: undefined as never, p_0Start: undefined as never, p_0Len: undefined as never, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple2_u16_ref_slice_u8: { err: unknown; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { err: undefined, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple2_u32_ref_slice_u8: { err: unknown; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { err: undefined, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple2_u64_ref_slice_u8: { err: unknown; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { err: undefined, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple2_u8_ref_slice_u8: { err: unknown; p_1Data: Uint8Array; p_1Start: number; p_1Len: number } = { err: undefined, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never };
+
+export const out$tuple3_ref_slice_u8_ref_array2_u8_ref_slice_u8: { p_0Data: Uint8Array; p_0Start: number; p_0Len: number; p_1Data: Uint8Array; p_1Start: number; p_1Len: number; p_2Data: Uint8Array; p_2Start: number; p_2Len: number } = { p_0Data: undefined as never, p_0Start: undefined as never, p_0Len: undefined as never, p_1Data: undefined as never, p_1Start: undefined as never, p_1Len: undefined as never, p_2Data: undefined as never, p_2Start: undefined as never, p_2Len: undefined as never };
+
+export const out$tuple3_u64_u64_ref_slice_u8: { err: unknown; p_1: rt.u64; p_2Data: Uint8Array; p_2Start: number; p_2Len: number } = { err: undefined, p_1: undefined as never, p_2Data: undefined as never, p_2Start: undefined as never, p_2Len: undefined as never };
+
+export const out$tuple3_u8_u16_ref_slice_u8: { err: unknown; p_1: rt.u16; p_2Data: Uint8Array; p_2Start: number; p_2Len: number } = { err: undefined, p_1: undefined as never, p_2Data: undefined as never, p_2Start: undefined as never, p_2Len: undefined as never };
+
+export const out$u32: { err: unknown } = { err: undefined };
+
+export const out$u64: { err: unknown } = { err: undefined };
+
+export const out$u8: { err: unknown } = { err: undefined };
+
 //# sourceMappingURL=lib.ts.map

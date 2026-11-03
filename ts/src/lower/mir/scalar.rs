@@ -378,7 +378,6 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			Some(&sym) => sym,
 			None => self.slot(ok, instance, &parts, &fields, returned),
 		};
-		self.place_slot(sym, instance);
 		Some(Slotted {
 			sym,
 			ret,
@@ -391,7 +390,9 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 
 	/// The slot of `Ok` payloads of type `ok`, which every function returning one shares:
 	/// each of `fields`, or if the first part is `returned`, the error, of any of their
-	/// error types, and the rest. Each starts `undefined`, so V8 keeps it tagged.
+	/// error types, and the rest. Each starts `undefined`, so V8 keeps it tagged. It is in
+	/// `lib.ts` and named for `ok` alone, as the shims are, so reaching another function
+	/// that shares it renames nothing.
 	fn slot(
 		&mut self,
 		ok: Ty<'tcx>,
@@ -403,13 +404,13 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 		let span = self.tcx.def_span(instance.def_id());
 		let sym = self.program.sym(crate::program::Symbol {
 			module: Vec::new(),
-			base: String::new(),
-			suffix: String::new(),
+			base: "out".into(),
+			suffix: crate::lower::names::ty(self.tcx, ok),
 			owner: None,
 			kind: crate::program::SymKind::Value,
-			order: u32::MAX,
+			order: 0,
 			span,
-			instance: String::new(),
+			instance: ty::print::with_no_trimmed_paths!(ok.to_string()),
 			name: String::new(),
 			alias: None,
 		});
@@ -437,22 +438,6 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 		});
 		self.slots.insert(ok, sym);
 		sym
-	}
-
-	/// Put the slot `sym` beside `instance`, named for it and suffixed as it is, if it comes
-	/// first in the source of the functions that share it, whatever order translation
-	/// reaches them in.
-	fn place_slot(&mut self, sym: crate::ts::SymId, instance: ty::Instance<'tcx>) {
-		let owner = self.instance(instance);
-		let owner = &self.program.syms[owner];
-		let (order, module, suffix) = (owner.order, owner.module.clone(), owner.suffix.clone());
-		let slot = &self.program.syms[sym];
-		if !slot.base.is_empty() && (order, &module, &suffix) >= (slot.order, &slot.module, &slot.suffix) {
-			return;
-		}
-		let base = crate::lower::names::slot_base(self.tcx, instance.def_id());
-		let slot = &mut self.program.syms[sym];
-		(slot.order, slot.module, slot.base, slot.suffix) = (order, module, base, suffix);
 	}
 
 	/// What a function that hands back its `Ok`'s parts in `slotted` returns: the first

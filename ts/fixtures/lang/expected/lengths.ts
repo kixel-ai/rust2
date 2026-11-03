@@ -439,7 +439,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -502,7 +502,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -565,7 +565,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -628,7 +628,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -686,7 +686,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: lengths_Ta
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -744,7 +744,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: lengths_Ta
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -802,7 +802,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: lengths_T
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -860,7 +860,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: lengths_Ta
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[lengths_Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], lengths_Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -916,7 +916,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -972,7 +972,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1028,7 +1028,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1084,7 +1084,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1140,7 +1140,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1196,7 +1196,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1252,7 +1252,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1308,7 +1308,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "len");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {

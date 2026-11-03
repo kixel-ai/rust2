@@ -258,10 +258,10 @@ fn api_cpp() {
 fn cxx(api: &Api, standard: u8, plain: bool, src: &Path, exe: &Path) -> Command {
 	let include = api.out.join("include");
 	if cfg!(target_env = "msvc") {
-		// cl from a developer environment. Its C++23 is `latest`; its objects go beside `exe`.
+		// cl from a developer environment. Its C++23 is `c++latest`; its objects go beside `exe`.
 		let mut cmd = Command::new(std::env::var_os("CXX").unwrap_or_else(|| "cl".into()));
 		let standard = match standard {
-			23 => "latest".to_string(),
+			23 => "c++latest".to_string(),
 			n => format!("c++{n}"),
 		};
 		cmd.args([

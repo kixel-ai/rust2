@@ -43,9 +43,9 @@
   `read(buf, form)` is `read(buf.data, buf.start, buf.length, form)`. A caller takes
   which from the output. One that returns a `Result` of byte slices
   and scalars, or of numbers alone, returns its error or `undefined`, and leaves the `Ok`'s parts in a
-  module-level slot, such as `sliceOut`. If the `Ok`'s first part is a number, it returns
-  that, or `undefined` for an error, and leaves the rest, or the error as `err`, in the
-  slot, such as `readOut`. A root still takes an `rt.ByteSlice` and returns
+  slot `lib.ts` exports, named for the payload type, such as `out$ref_slice_u8`. If the
+  `Ok`'s first part is a number, it returns that, or `undefined` for an error, and leaves
+  the rest, or the error as `err`, in the slot, such as `out$tuple2_u64_ref_slice_u8`. A root still takes an `rt.ByteSlice` and returns
   the `Result`.
 - A struct's private `&[u8]` or `&[u8; N]` field is three fields, its bytes, start, and
   length, named for it: `buf` is `bufData`, `bufStart`, and `bufLen`, and a class's

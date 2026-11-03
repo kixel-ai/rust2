@@ -27,7 +27,7 @@ generic std gap is planned here even when moq never calls it.
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [Drop order in std's folds and iterators](/quest/m3/ts-drop-order.md) - the values that drop still refused in std's consumers, flattens, and collects drop as std's do
+- [Drop order in std's folds and iterators](/quest/m3/ts-drop-order.md) - the values that drop still refused in std's consumers and collects drop as std's do
 - [A slice of one value behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8`, or of an object no place names, translate
 - [std's calls of a closure that have no mapping](/quest/m3/ts-closure-calls.md) - `try_fold`, `partition`, `repeat_with`, `sort_by_cached_key`, and `LazyCell::new` translate, dropping what their closures own as std's do
 - [A closure that drops given to a string's edit or search](/quest/m3/ts-string-closures.md) - `String::retain` and `str`'s searches by a closure that owns a value that drops translate

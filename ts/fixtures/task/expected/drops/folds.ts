@@ -2103,7 +2103,7 @@ export function zips(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["len ", args6[0], " ", args6[1], " ", args6[2]]));
 	} else if (arg === 3) {
 		const zip: () => rt.Iter<[Guard.Guard, Guard.Guard]> = (): rt.Iter<[Guard.Guard, Guard.Guard]> => {
-			return rt.iterZip(rt.iterMap(rt.iterSlice([1, 2, 3]), made), rt.iterMap(rt.iterSlice([4, 5]), made), "len", rt.drop, rt.drop);
+			return rt.iterZip(rt.iterMap(rt.iterSlice([1, 2, 3]), made), rt.iterMap(rt.iterSlice([4, 5]), made), "index", rt.drop, rt.drop);
 		};
 		const n3: rt.usize = rt.ownedCount(zip(), lib_drop$tuple2_model_Guard_model_Guard);
 		const at: rt.usize | undefined = rt.iterPosition(zip(), (_227: [Guard.Guard, Guard.Guard]): boolean => {
@@ -2118,7 +2118,7 @@ export function zips(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			a2[Symbol.dispose]();
 			return _016;
 		}), rt.u32Add, 0);
-		const skipped: rt.usize = rt.ownedCount(rt.iterZip(rt.iterMap(rt.iterSkip(rt.iterSlice([1, 2, 3, 4]), 1), made), rt.iterMap(new rt.Range(5, 7), made), "len", rt.drop, rt.drop), lib_drop$tuple2_model_Guard_model_Guard);
+		const skipped: rt.usize = rt.ownedCount(rt.iterZip(rt.iterMap(rt.iterSkip(rt.iterSlice([1, 2, 3, 4]), 1), made), rt.iterMap(new rt.Range(5, 7), made), "index", rt.drop, rt.drop), lib_drop$tuple2_model_Guard_model_Guard);
 		const _181: [Guard.Guard, Guard.Guard] = [guard(10), guard(11)];
 		const c: Guard.Guard = _181[0];
 		const d: Guard.Guard = _181[1];
