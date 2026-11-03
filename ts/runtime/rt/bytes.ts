@@ -311,9 +311,10 @@ function widen(read: Uint8Array, size: number, signed: boolean): Uint8Array {
 
 /**
  * `bytes::BytesMut`: `length` bytes of `data` from `start`, with room up to `cap` before
- * the bytes another handle or a frozen `Bytes` holds. Once its storage was shared or
- * taken from a `Bytes`, its capacity isn't `bytes`', which depends on whether other
- * handles of that storage dropped, so translation refuses what reads it.
+ * the bytes another handle or a frozen `Bytes` holds. Once storage it shared grows, or
+ * it takes a `Bytes`'s, its capacity isn't `bytes`', which depends on whether other
+ * handles of that storage dropped, so translation refuses what reads it, and `put` of a
+ * `Buf` that picks its methods by it throws.
  */
 export class BytesMut {
 	data: Uint8Array;
@@ -326,20 +327,26 @@ export class BytesMut {
 	 * `bytes`' own, so it grows and panics as `Vec` does.
 	 */
 	exact: boolean;
+	/**
+	 * Whether `cap` is `bytes`' capacity, as it is until storage that was shared grows or
+	 * it takes a `Bytes`'s, whose capacity depends on whether other handles of it dropped.
+	 */
+	sure: boolean;
 
-	constructor(data: Uint8Array, start: number, length: number, cap: number, exact: boolean) {
+	constructor(data: Uint8Array, start: number, length: number, cap: number, exact: boolean, sure: boolean) {
 		this.data = data;
 		this.start = start;
 		this.length = length;
 		this.cap = cap;
 		this.exact = exact;
+		this.sure = sure;
 	}
 }
 
 /** `BytesMut::with_capacity`, `new` of 0. */
 export function bytesMutWithCapacity(capacity: usize): BytesMut {
 	if (capacity > ISIZE_MAX) panic("capacity overflow");
-	return new BytesMut(bytes(capacity), 0, 0, capacity, true);
+	return new BytesMut(bytes(capacity), 0, 0, capacity, true, true);
 }
 
 /** `BytesMut::zeroed`. */
@@ -362,7 +369,7 @@ export function bytesMutFrom(s: ByteSlice): BytesMut {
  * reading past as much of it as the `Bytes` did.
  */
 export function bytesMutFromBytes(s: Bytes): BytesMut {
-	const b = new BytesMut(bytes(s.start + s.length), s.start, s.length, s.length, false);
+	const b = new BytesMut(bytes(s.start + s.length), s.start, s.length, s.length, false, false);
 	copyBytes(b.data, s.start, s.data, s.start, s.length);
 	return b;
 }
@@ -402,6 +409,7 @@ export function bytesMutReserve(b: BytesMut, additional: usize): void {
 		copyBytes(data, b.start, b.data, b.start, b.length);
 		b.data = data;
 		b.cap = cap;
+		b.sure = false;
 		return;
 	}
 	// Its bytes move to the front where that alone makes the room.
@@ -427,12 +435,13 @@ export function bytesMutReserve(b: BytesMut, additional: usize): void {
  */
 export function bytesMutPutStorage(b: BytesMut, s: Bytes): void {
 	if (s.length === 0) return;
-	if (b.exact ? b.cap === 0 : b.length === 0) {
+	if (b.sure ? b.cap === 0 : b.length === 0) {
 		const start = Math.max(b.start, s.start);
 		b.data = bytes(start + s.length);
 		b.start = start;
 		b.cap = s.length;
 		b.exact = false;
+		b.sure = false;
 	}
 	bytesMutExtend(b, s);
 }
@@ -452,7 +461,7 @@ export function bytesMutPutBuf<B>(
 ): void {
 	if (!hasRemaining(src)) return;
 	// A capacity is at least the length.
-	if (b.length === 0 && !b.exact) unsureCapacity();
+	if (b.length === 0 && !b.sure) unsureCapacity();
 	if (b.length === 0 && b.cap === 0) {
 		bytesMutPutStorage(b, copyToBytes(src, remaining(src)));
 		return;
@@ -465,10 +474,10 @@ export function bytesMutPutBuf<B>(
 	}
 }
 
-/** Where `put` reads a capacity of storage that was shared, which nothing here knows. */
+/** Where `put` reads a capacity that depends on whether other handles of its storage dropped. */
 function unsureCapacity(): never {
 	throw new Error(
-		"rust2-ts: `BufMut::put` of a `Buf` into a `BytesMut` whose storage was shared, which picks the methods it calls by a capacity that depends on whether other handles of it dropped",
+		"rust2-ts: `BufMut::put` of a `Buf` into a `BytesMut` that grew storage it shared or took a `Bytes`'s, which picks the methods it calls by a capacity that depends on whether other handles of it dropped",
 	);
 }
 
@@ -557,8 +566,11 @@ export function bytesMutPutBufChunked<B>(
 	if (remaining(src) > ISIZE_MAX - b.length) panicAdvance(remaining(src), ISIZE_MAX - b.length);
 	while (hasRemaining(src)) {
 		const s = chunk(src);
-		if (!b.exact) unsureCapacity();
-		const n = Math.min(bytesMutRoom(b), s.length);
+		if (!b.sure) unsureCapacity();
+		const room = bytesMutRoom(b);
+		// Grown, storage that was shared has room by which handles dropped.
+		if (!b.sure) unsureCapacity();
+		const n = Math.min(room, s.length);
 		copyBytes(b.data, b.start + b.length, s.data, s.start, n);
 		b.length += n;
 		advance(src, n as usize);
@@ -582,7 +594,7 @@ export function bytesMutResize(b: BytesMut, len: usize, value: number): void {
 /** `BytesMut::split_to`: the first `at` bytes, sharing the storage, leaving the rest. */
 export function bytesMutSplitTo(b: BytesMut, at: usize): BytesMut {
 	if (at > b.length) panic(`split_to out of bounds: ${at} <= ${b.length}`);
-	const head = new BytesMut(b.data, b.start, at, at, false);
+	const head = new BytesMut(b.data, b.start, at, at, false, true);
 	b.start += at;
 	b.length -= at;
 	b.cap -= at;
@@ -598,12 +610,14 @@ export function bytesMutUnsplit(b: BytesMut, other: BytesMut): void {
 		b.length = other.length;
 		b.cap = other.cap;
 		b.exact = other.exact;
+		b.sure = other.sure;
 		return;
 	}
 	if (other.cap === 0) return;
 	if (!b.exact && !other.exact && b.data === other.data && b.start + b.length === other.start) {
 		b.length += other.length;
 		b.cap += other.cap;
+		b.sure &&= other.sure;
 		return;
 	}
 	bytesMutExtend(b, bytesMutView(other));
