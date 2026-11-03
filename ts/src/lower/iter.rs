@@ -368,13 +368,12 @@ fn folds_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// The `rt.Own` of the crate's iterator of type `ty`: each method of `OWN` but `next` that
 /// it has of its own, as a function of its source, and those in `BY_VALUE` only if it is
-/// `owned`, of which only `last` if `boxed`, as std's `Iterator` for a box forwards no other.
-/// `undefined` if it has none.
-fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, boxed: bool, span: Span) -> Expr {
+/// `owned`. `undefined` if it has none.
+fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span: Span) -> Expr {
 	let none = b.t.iter_item(ty.peel_refs()).and_then(|item| b.t.none_arg(item));
 	let mut props = Vec::new();
 	for (tr, name) in &OWN[1..] {
-		if BY_VALUE.contains(&(tr, name)) && (!owned || boxed && *name != "last") {
+		if !owned && BY_VALUE.contains(&(tr, name)) {
 			continue;
 		}
 		let Some(instance) = own_method(b, ty, tr, name) else {
@@ -487,9 +486,13 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let tcx = b.t.tcx;
+	let boxed = boxes_iter(b, ty);
 	let (peeled, value) = peel_iter(b, ty, value);
-	// std's `Iterator` for a box forwards only some of the crate's own methods.
-	let boxed = peeled != ty && !peeled.is_ref();
+	// A box, by value, which std's `Iterator` for `Box<I>` reads by `next` where it forwards
+	// nothing else.
+	if peeled != ty && !peeled.is_ref() {
+		return into_iter(b, peeled, value, span).map(|it| Expr::rt("iterBoxed", vec![it]));
+	}
 	let (ty, value) = match unbox_ref(tcx, peeled) {
 		unboxed if unboxed != peeled => (unboxed, b.t.pointee_value(peeled, value)),
 		_ => (peeled, value),
@@ -514,12 +517,14 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 					true => b.t.dropper(ty, span),
 					false => Expr::undefined(),
 				};
-				let own = own_methods(b, ty, owned, boxed, span);
+				let own = own_methods(b, ty, owned, span);
 				Expr::rt("iterFrom", tail(vec![value, next], vec![drop, own]))
 			}
 			// One borrowed by `&mut`, which std's adaptors may drop once it ends, but which
 			// is its owner's to drop, and which a consumer reads on through the borrow
-			// rather than by its by-value overrides, as `Chain::count` ends both halves.
+			// rather than by its by-value overrides, as `Chain::count` ends both halves. Through
+			// a box, which folds by `next`.
+			None if !owned && boxed => Expr::rt("iterBorrow", vec![Expr::rt("iterBoxed", vec![value])]),
 			None if !owned => Expr::rt("iterBorrow", vec![value]),
 			None => value,
 		});
@@ -645,6 +650,14 @@ pub fn unbox_ref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 			Ty::new_ref(tcx, region, held, mutability)
 		}
 		_ => ty,
+	}
+}
+
+/// Whether `ty`, read through each reference, is a box of an iterator.
+fn boxes_iter<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	match *ty.kind() {
+		ty::Ref(_, inner, _) => boxes_iter(b, inner),
+		_ => ty.boxed_ty().is_some_and(|held| b.t.iter_item(held).is_some()),
 	}
 }
 

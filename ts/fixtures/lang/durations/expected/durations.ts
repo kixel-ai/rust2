@@ -155,8 +155,8 @@ export function durations(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		const d2: rt.Duration = rt.durationFromNanos(rt.u32Rem(n, 1000000) as rt.u64);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.durationDebug(a, f), (f: rt.Formatter) => rt.durationDebug(c, f), (f: rt.Formatter) => rt.durationDebug(d2, f), (f: rt.Formatter) => rt.fmtOption(b, f, rt.durationDebug)];
 		put(out, rt.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", rt.fmtSpec({ align: ">", width: 16 }, args2[1]), "|", rt.fmtSpec({ fill: "*", align: "^", width: 14 }, args2[2]), "|", rt.fmtSpec({ align: "<", width: 12 }, args2[1]), "|", rt.fmtSpec({ zero: true, width: 8 }, args2[0]), "|", args2[3]]));
-		const _234: rt.Duration | undefined = b;
 		const p: rt.usize = rt.u32Rem(n, 13) as rt.usize;
+		const _234: rt.Duration | undefined = b;
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.durationDebug(a, f), (f: rt.Formatter) => rt.durationDebug(c, f), (f: rt.Formatter) => rt.durationDebug(d2, f), rt.fmtCount(p), (f: rt.Formatter) => rt.fmtOption(_234, f, rt.durationDebug)];
 		put(out, rt.fmtFormat([rt.fmtSpec({ precision: 0 }, args4[0]), "|", rt.fmtSpec({ precision: 3 }, args4[0]), "|", rt.fmtSpec({ precision: 1 }, args4[1]), "|", rt.fmtSpec({ precision: 12 }, args4[2]), "|", rt.fmtSpec({ plus: true }, args4[0]), "|", rt.fmtSpec({ plus: true, width: 12, precision: 2 }, args4[1]), "|", rt.fmtSpec({ align: "<", width: 10, precision: 1 }, args4[2]), "|", rt.fmtSpec({ precision: rt.fmtCountOf(args4[3]) }, args4[0]), "|", rt.fmtSpec({ precision: 1 }, args4[4])]));
 		const iter4: rt.Iter<rt.u64> = rt.iterSlice([1500000000, 2500000000, 1250000, 1350000, 999500, 1999999999]);

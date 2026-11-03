@@ -10,6 +10,13 @@ export function thenSome$0zrlsto(self: boolean, t: rt.ByteSlice): rt.ByteSlice |
 	return t;
 }
 
+export function thenSome$0d5am30(self: boolean, t: rt.u8): rt.u8 | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function then$1jgls7y(self: boolean, f: () => rt.RefCell<Tagged.Tagged>): rt.RefCell<Tagged.Tagged> | undefined {
 	if (!self) {
 		return undefined;

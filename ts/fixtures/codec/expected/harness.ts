@@ -362,8 +362,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					}
 					result = Encoder.varintOpt(w, _47);
 				} else if (_33 === 5) {
-					const part = rt.u8Rem(rt.u8Div(step, 10), 9) as rt.usize;
-					const _51: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.u64ToBeBytes(value)), 0, part);
+					const _51: rt.ByteSlice = rt.byteSliceRange(rt.byteSliceFrom(rt.u64ToBeBytes(value)), 0, rt.u8Rem(rt.u8Div(step, 10), 9) as rt.usize);
 					result = Encoder.bytes(w, _51);
 				} else if (_33 === 6) {
 					const _60: rt.Result<string, rt.FromUtf8Error> = rt.stringFromUtf8(rt.byteSliceToByteVec(rt.byteSliceFrom(rt.u64ToBeBytes(value))));
