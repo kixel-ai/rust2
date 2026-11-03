@@ -421,7 +421,7 @@ export function keys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 
 /** Whether `p` equals another `PhantomData`, which it always does. */
 export function phantomEq$String(_1: undefined, n: rt.u8): rt.u8 {
-	if (!true) {
+	if (false) {
 		return 0;
 	}
 	return n;
@@ -429,7 +429,7 @@ export function phantomEq$String(_1: undefined, n: rt.u8): rt.u8 {
 
 /** Whether `u` is `()`, which it always is. */
 export function unitEq(_u: undefined, n: rt.u8): rt.u8 {
-	if (!true) {
+	if (false) {
 		return 0;
 	}
 	return n;
@@ -437,7 +437,7 @@ export function unitEq(_u: undefined, n: rt.u8): rt.u8 {
 
 /** `n` if `p`, reassigned, equals another `PhantomData`, which it always does. */
 export function rewritten(_1: undefined, n: rt.u8): rt.u8 {
-	if (!true) {
+	if (false) {
 		return 0;
 	}
 	return n;
@@ -448,7 +448,7 @@ export function rewritten(_1: undefined, n: rt.u8): rt.u8 {
  * std's `flatten` makes, whose own parameter is `value` too.
  */
 export function flattened(_value: undefined, xs: rt.ByteVec[]): rt.u8 {
-	if (!true) {
+	if (false) {
 		return 0;
 	}
 	return rt.iterCount(rt.iterFlatten(rt.iterSlice(xs), (value: rt.ByteVec) => rt.iterSlice(rt.byteVecView(value)))) & 0xff;
