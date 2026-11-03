@@ -4,7 +4,7 @@
 //! element by its own `Clone`.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::rc::Rc;
 
 /// Logs its id as it drops, and as it is cloned, the id with the high bit set: its clone's
@@ -666,6 +666,209 @@ pub fn arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let fussy = [Fussy(at(0)), Fussy(at(1)), Fussy(at(2))];
 			let copy = fussy.clone();
 			out.extend(copy.iter().map(|f| f.0));
+		}
+	}
+}
+
+/// Clones over itself in place, logging 0xfc and the id it takes, and keeps its own
+/// `Logged`.
+struct Kept(Logged);
+
+impl Clone for Kept {
+	fn clone(&self) -> Self {
+		Kept(self.0.clone())
+	}
+
+	fn clone_from(&mut self, source: &Self) {
+		self.0.log.borrow_mut().extend([0xfc, source.0.id]);
+		self.0.id = source.0.id;
+	}
+}
+
+/// A [`Kept`] or none, whose `clone_from` keeps a `Held` and otherwise clones.
+enum Slot {
+	Held(Kept),
+	Empty,
+}
+
+impl Clone for Slot {
+	fn clone(&self) -> Self {
+		match self {
+			Slot::Held(kept) => Slot::Held(kept.clone()),
+			Slot::Empty => Slot::Empty,
+		}
+	}
+
+	fn clone_from(&mut self, source: &Self) {
+		match (self, source) {
+			(Slot::Held(to), Slot::Held(from)) => to.clone_from(from),
+			(to, from) => *to = from.clone(),
+		}
+	}
+}
+
+/// `clone_from` and `clone_into` of containers of values that drop, each in std's order:
+/// an `Option`'s of two `Some`s is what it holds', a `Vec`'s truncates, clones over the
+/// elements it keeps, and extends, and a slice's of arrays clones each over its own.
+pub fn clone_froms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let logged = |id: u8| Logged { id, log: log.clone() };
+	let at = |i: usize| data.get(i).copied().unwrap_or((i as u8).wrapping_mul(0x30)) & 0x7e;
+	// Lengths of 0 to 3, unequal both ways.
+	let len = |i: usize| usize::from(data.get(i).copied().unwrap_or(i as u8) % 4);
+	let row = |from: usize, n: usize| (0..n).map(|i| logged(at(from + i))).collect::<Vec<_>>();
+	let ids = |a: &[Logged], out: &mut Vec<u8>| out.extend(a.iter().map(Logged::id));
+	match kind % 8 {
+		0 => {
+			let pick =
+				|i: usize| (data.get(i).copied().unwrap_or(1) % 2 == 1).then(|| [logged(at(i)), logged(at(i + 1))]);
+			let mut a = pick(0);
+			let b = pick(2);
+			flush(&log, out);
+			a.clone_from(&b);
+			flush(&log, out);
+			out.push(a.is_some() as u8);
+			if let Some(a) = &a {
+				ids(a, out);
+			}
+			let mut c = pick(4);
+			a.clone_into(&mut c);
+			flush(&log, out);
+			drop((a, b, c));
+			flush(&log, out);
+		}
+		1 => {
+			let pick = |i: usize| (data.get(i).copied().unwrap_or(1) % 5 != 0).then(|| row(i, len(i)));
+			let mut a = pick(0);
+			let b = pick(4);
+			flush(&log, out);
+			a.clone_from(&b);
+			flush(&log, out);
+			if let Some(a) = &a {
+				ids(a, out);
+			}
+			drop((a, b));
+			flush(&log, out);
+		}
+		2 => {
+			let mut a = row(0, len(0));
+			a.reserve(len(1));
+			let b = row(4, len(4));
+			flush(&log, out);
+			a.clone_from(&b);
+			flush(&log, out);
+			ids(&a, out);
+			out.push(a.capacity() as u8);
+			let mut c = row(8, len(8));
+			b.clone_into(&mut c);
+			flush(&log, out);
+			ids(&c, out);
+			b[..].clone_into(&mut a);
+			flush(&log, out);
+			// Pushed, so its capacity is more than its length.
+			let mut d = Vec::new();
+			for i in 0..5 {
+				d.push(logged(at(12 + i)));
+			}
+			d.clone_from(&b);
+			flush(&log, out);
+			out.push(d.capacity() as u8);
+			drop(d);
+			drop((a, b, c));
+			flush(&log, out);
+		}
+		3 => {
+			let mut grid = [[logged(at(0)), logged(at(1))], [logged(at(2)), logged(at(3))]];
+			let other = [[logged(at(4)), logged(at(5))], [logged(at(6)), logged(at(7))]];
+			flush(&log, out);
+			grid.clone_from(&other);
+			flush(&log, out);
+			ids(&grid[1], out);
+			other.clone_into(&mut grid);
+			flush(&log, out);
+			drop((grid, other));
+			flush(&log, out);
+		}
+		4 => {
+			let mut rows = vec![[logged(at(0)), logged(at(1))], [logged(at(2)), logged(at(3))]];
+			let other = [[logged(at(4)), logged(at(5))], [logged(at(6)), logged(at(7))]];
+			flush(&log, out);
+			rows.clone_from_slice(&other);
+			flush(&log, out);
+			rows[..1].fill(other[1].clone());
+			flush(&log, out);
+			rows.fill([logged(at(8)), logged(at(9))]);
+			flush(&log, out);
+			ids(&rows[0], out);
+			let mut none: [[Logged; 2]; 0] = [];
+			none.fill([logged(at(10)), logged(at(11))]);
+			flush(&log, out);
+			drop((rows, other));
+			flush(&log, out);
+		}
+		5 => {
+			let mut rows = vec![row(0, len(0)), row(4, len(4))];
+			let other = vec![row(8, len(8)), row(12, len(12)), row(16, len(16))];
+			let mut cut: Vec<Vec<Logged>> = (0..4).map(|i| row(20 + i, len(20 + i))).collect();
+			flush(&log, out);
+			rows.clone_from(&other);
+			flush(&log, out);
+			cut.clone_from(&other);
+			flush(&log, out);
+			ids(&cut[0], out);
+			rows.truncate(len(1));
+			let n = rows.len();
+			rows.clone_from_slice(&other[..n]);
+			flush(&log, out);
+			drop((rows, other, cut));
+			flush(&log, out);
+		}
+		6 => {
+			let mut a: Box<[Logged]> = row(0, len(0)).into();
+			let b: Box<[Logged]> = row(4, len(4)).into();
+			flush(&log, out);
+			a.clone_from(&b);
+			flush(&log, out);
+			ids(&a, out);
+			let ones = |from: usize, n: usize| (0..n).map(|i| [logged(at(from + i))]).collect::<Box<[_]>>();
+			let mut c = ones(8, len(8));
+			let d = ones(12, len(12));
+			flush(&log, out);
+			c.clone_from(&d);
+			flush(&log, out);
+			drop((a, b, c, d));
+			flush(&log, out);
+		}
+		// Elements whose `clone_from` is their own, of an object and of a value a `&mut`
+		// lends as a place.
+		_ => {
+			let kept = |i: usize| Kept(logged(at(i)));
+			let mut a = vec![kept(0), kept(1)];
+			a.truncate(len(0));
+			let b: Vec<Kept> = (0..len(1)).map(|i| kept(2 + i)).collect();
+			flush(&log, out);
+			a.clone_from(&b);
+			flush(&log, out);
+			let mut grid = [[kept(5), kept(6)]];
+			grid.clone_from(&[[kept(7), kept(8)]]);
+			flush(&log, out);
+			let mut some = Some(kept(9));
+			some.clone_from(&Some(kept(10)));
+			flush(&log, out);
+			let slot = |i: usize| match data.get(i).copied().unwrap_or(0) % 3 {
+				0 => Slot::Empty,
+				_ => Slot::Held(kept(i)),
+			};
+			let mut slots = [slot(11), slot(12)];
+			slots.clone_from(&[slot(13), slot(14)]);
+			flush(&log, out);
+			let mut list: LinkedList<Kept> = (0..len(15)).map(|i| kept(16 + i)).collect();
+			let other: LinkedList<Kept> = (0..len(20)).map(|i| kept(21 + i)).collect();
+			flush(&log, out);
+			list.clone_from(&other);
+			flush(&log, out);
+			drop((a, b, grid, some, slots, list, other));
+			flush(&log, out);
 		}
 	}
 }
