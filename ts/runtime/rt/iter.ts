@@ -1220,19 +1220,20 @@ export function iterMin<T>(it: Iter<T>, lt: Lt<T>, drops = false, drop?: Drop<T>
 /**
  * `max_by_key`, by `lt` of the keys, as `iterMax`, each item's key taken once. If it
  * `owns` `f`, `f` drops as std's `map` of the iterator by it does: as the fold ends, or
- * after `it` if `it` is empty.
+ * after `it` if `it` is empty. Each key drops by `dropKey`, as std pairs it with its
+ * item: before the item as that loses, and the best's once the fold ends.
  */
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
-export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
-	return iterToOption(best(it, f, lt, false, drops, drop, owns ? () => dispose(f) : undefined, true), none);
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean, dropKey?: Drop<K>): T | undefined;
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, dropKey: Drop<K> | undefined, none: None): T | None;
+export function iterMaxByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, dropKey?: Drop<K>, none?: None): T | undefined | None {
+	return iterToOption(best(it, f, lt, false, drops, drop, owns ? () => dispose(f) : undefined, true, dropKey), none);
 }
 
 /** `min_by_key`, by `lt` of the keys, as `iterMaxByKey`. */
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean): T | undefined;
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, none: None): T | None;
-export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, none?: None): T | undefined | None {
-	return iterToOption(best(it, f, lt, true, drops, drop, owns ? () => dispose(f) : undefined, true), none);
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops?: boolean, drop?: Drop<T>, owns?: boolean, dropKey?: Drop<K>): T | undefined;
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops: boolean | undefined, drop: Drop<T> | undefined, owns: boolean | undefined, dropKey: Drop<K> | undefined, none: None): T | None;
+export function iterMinByKey<T, K>(it: Iter<T>, f: (item: T) => K, lt: Lt<K>, drops = false, drop?: Drop<T>, owns = false, dropKey?: Drop<K>, none?: None): T | undefined | None {
+	return iterToOption(best(it, f, lt, true, drops, drop, owns ? () => dispose(f) : undefined, true, dropKey), none);
 }
 
 /**
@@ -1273,7 +1274,8 @@ function byCompare<T>(compare: Compare<T>): Lt<T> {
  * first, as std's `reduce` by `Ord::max` or `min` keeps it: the first by `next`, and the
  * rest by `fold`, each tested for `lt` the best's and dropped as it loses. `release` drops
  * the closure std's reduces by as the fold ends, or if `it` is empty, before `it`, or
- * after it if `keyed`, as the `map` std's `_by_key` forms reduce drops its function. Unless
+ * after it if `keyed`, as the `map` std's `_by_key` forms reduce drops its function. Each
+ * key drops by `dropKey` just before its item does, and the best's after the fold. Unless
  * `keyed`, std reduces `it` itself, by the translated crate's own `reduce` if it has one.
  */
 function best<T, K>(
@@ -1285,6 +1287,7 @@ function best<T, K>(
 	drop?: Drop<T>,
 	release?: () => void,
 	keyed = false,
+	dropKey?: Drop<K>,
 ): T | Done {
 	if (!keyed && it instanceof FromNext && it.own?.reduce !== undefined) {
 		const pick = (best: T, item: T): T => {
@@ -1294,7 +1297,7 @@ function best<T, K>(
 		};
 		return it.reduced(pick, release);
 	}
-	if (!drops && drop === undefined) {
+	if (!drops && drop === undefined && dropKey === undefined) {
 		let best = it.next();
 		if (best !== DONE) {
 			let key = f(best);
@@ -1314,16 +1317,18 @@ function best<T, K>(
 		if (keyed) release?.();
 		return DONE;
 	}
-	const [, item] = it.fold<[K, T]>(
+	const [key, item] = it.fold<[K, T]>(
 		[f(first), first],
 		(best, item) => {
 			const k = f(item);
 			const wins = least ? lt(k, best[0]) : !lt(k, best[0]);
+			dropKey?.(wins ? best[0] : k);
 			drop?.(wins ? best[1] : item);
 			return wins ? [k, item] : best;
 		},
 		release,
 	);
+	dropKey?.(key);
 	return item;
 }
 
@@ -1610,6 +1615,13 @@ export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>): T | undefined;
 export function ownedLast<T>(it: Iter<T>, drop: Drop<T> | undefined, none: None): T | None;
 export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>, none?: None): T | undefined | None {
 	return iterToOption(last(it, drop), none);
+}
+
+/** `min`, or with `back`, `max`, of a B-tree's `into_keys` that drops what it holds: an end, as std's reads it, and then the rest drop with it. */
+export function ownedEnd<T>(it: Iter<T>, back: boolean): T | undefined;
+export function ownedEnd<T>(it: Iter<T>, back: boolean, none: None): T | None;
+export function ownedEnd<T>(it: Iter<T>, back: boolean, none?: None): T | undefined | None {
+	return iterToOption(consumed(it, () => (back ? it.nextBack() : it.next())), none);
 }
 
 /** `count`, dropping each item by `drop`, and then `it`, as std's of its kind does. */
