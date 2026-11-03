@@ -4,8 +4,8 @@
 use std::cell::{Cell, LazyCell, RefCell};
 use std::ops::ControlFlow;
 
-use crate::log::Log;
 use super::Key;
+use crate::log::Log;
 use crate::model::Guard;
 
 /// Run scenario `arg % 12`. The last panics in a `try_fold`, with the log so far.
@@ -49,7 +49,9 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 				ControlFlow::Continue(_) => None,
 			};
 			log.note(format!("break {broke:?}"));
-			let none = Vec::<Guard>::new().into_iter().try_fold(0u32, move |n, g| Some(n + g.id() + d.id()));
+			let none = Vec::<Guard>::new()
+				.into_iter()
+				.try_fold(0u32, move |n, g| Some(n + g.id() + d.id()));
 			log.note(format!("none {none:?}"));
 		}
 		3 => {
@@ -98,7 +100,12 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			.collect();
 			log.note(format!("made {}", made.len()));
 			let mut it = std::iter::repeat_with(move || d.id());
-			log.note(format!("first {:?} {:?} {:?}", it.next(), it.size_hint(), it.by_ref().take(2).size_hint()));
+			log.note(format!(
+				"first {:?} {:?} {:?}",
+				it.next(),
+				it.size_hint(),
+				it.by_ref().take(2).size_hint()
+			));
 			drop(it);
 			log.note("dropped".into());
 		}
@@ -113,11 +120,12 @@ pub(super) fn called(log: &Log, id: u32, arg: u8) {
 			let sums: Vec<u32> = it.by_ref().collect();
 			log.note(format!("sums {sums:?} {:?}", it.next()));
 			drop(it);
-			let total: u32 = (1..4).scan(1u32, |n, k| {
-				*n *= k;
-				Some(*n)
-			})
-			.sum();
+			let total: u32 = (1..4)
+				.scan(1u32, |n, k| {
+					*n *= k;
+					Some(*n)
+				})
+				.sum();
 			log.note(format!("total {total}"));
 			// Of a state that drops, after the closure, and folded through `flatten`.
 			let e = guard(22);

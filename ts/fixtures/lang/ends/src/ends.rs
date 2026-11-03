@@ -390,10 +390,13 @@ fn folded<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 				true => ControlFlow::Break(b),
 				false => ControlFlow::Continue(out.push(b)),
 			});
-			put(out, match r {
-				ControlFlow::Break(b) => Some(b),
-				ControlFlow::Continue(()) => None,
-			});
+			put(
+				out,
+				match r {
+					ControlFlow::Break(b) => Some(b),
+					ControlFlow::Continue(()) => None,
+				},
+			);
 			out.push(it.len() as u8);
 		}
 		4 => {

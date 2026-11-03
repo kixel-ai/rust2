@@ -283,7 +283,10 @@ pub fn call<'tcx>(
 		// With the value's place where JS would copy it.
 		("RefCell", "replace_with") => {
 			let copied = b.t.needs_place(call.args.type_at(0));
-			Expr::rt("refCellReplaceWith", super::iter::tail(args, vec![Expr::lit(copied.to_string())]))
+			Expr::rt(
+				"refCellReplaceWith",
+				super::iter::tail(args, vec![Expr::lit(copied.to_string())]),
+			)
 		}
 		("RefCell", "take") => {
 			let ty = call.args.type_at(0);
