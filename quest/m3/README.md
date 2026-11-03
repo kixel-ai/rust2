@@ -31,7 +31,7 @@ generic std gap is planned here even when moq never calls it.
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [A slice's chunks as mutable arrays](/quest/m3/ts-slice-conversions.md) - `as_chunks_mut` and `as_rchunks_mut` translate, writes landing in the slice
-- [An array's clone of values that clone themselves](/quest/m3/ts-array-clone.md) - `[T; N]::clone` translates where `T` clones by its own `Clone`
+- [clone_from through containers of values that drop](/quest/m3/ts-clone-from-drops.md) - `Option`'s, `Vec`'s, and nested arrays' `clone_from` clone and drop in std's order
 - [Comparing pointers to arrays of other values than bytes](/quest/m3/ts-array-ref-identity.md) - `ptr::eq` of pointers to a `[T; N]` of non-bytes translates, as a slice lends them too
 - [An Arc's pointer](/quest/m3/ts-arc-pointers.md) - `Arc::as_ptr` and `Rc::as_ptr` translate, comparable by `ptr::addr_eq`
 - [The rest of a vector's methods](/quest/m3/ts-vec-rest.md) - `append`, `resize`, `split_off`, `try_reserve`, and `Vec::from(VecDeque)` translate

@@ -1704,6 +1704,8 @@ fn mapping<'tcx>(
 					return vec_clone(b, value, args.type_at(0), span);
 				}
 				_ if let Some(elem) = cow_slice(tcx, ty) => cow_cloned(b, "Clone", value, elem, span),
+				// Each element cloned in order, as `[T; N]`'s `Clone` does.
+				ty::Array(elem, _) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => slice_clone(b, value, *elem, span),
 				ty::Tuple(tys) if !clone_copies(b.t, b.t.typing_env_pub(), ty) => {
 					let clones = tys.iter().map(|t| super::collections::clone_fn(b, t, span)).collect();
 					Expr::rt("tupleClone", vec![value, Expr::Array(clones)])
@@ -2839,6 +2841,21 @@ pub(super) fn box_slice_clone_from<'tcx>(
 	let drop = b.t.droppers([elem], span)?;
 	let values = super::iter::tail(vec![slot, source], [vec![clone], drop].concat());
 	Some(Expr::rt("boxSliceCloneFrom", values))
+}
+
+/// `clone_from` of an array of `elem` over `target`, as std's is its `clone_from_slice`:
+/// each element cloned over its own, which then drops.
+pub(super) fn array_clone_from<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	target: Expr,
+	source: Expr,
+	elem: Ty<'tcx>,
+	span: Span,
+) -> Option<Expr> {
+	let clone = clone_into(b, elem, "array::clone_from", span);
+	let drop = b.t.droppers([elem], span)?;
+	let values = super::iter::tail(vec![target, source], [vec![clone], drop].concat());
+	Some(Expr::rt("sliceCloneFromSlice", values))
 }
 
 /// What clones an `elem` into a slot of a slice, as `fill` and `clone_from_slice` do by
