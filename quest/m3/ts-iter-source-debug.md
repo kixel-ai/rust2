@@ -1,18 +1,29 @@
-# [S] Debug of std's other iterators
+# [M] Debug of std's other iterators
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates `Debug` of std's iterators that still have no
-mapping, so an adaptor over one writes what std's does instead of being refused:
-iterator sources such as `Once`, `Repeat`, `RepeatN`, `FromFn`, `Successors`,
-`OnceWith`, and `RepeatWith`, an array's and an `Option`'s or `Result`'s iterators, and
-`str`'s iterators other than `Chars` and `Bytes`. Proven by differential tests against
-native Rust.
+[rust2-ts](/ts/README.md) translates `Debug` of the std iterators that still have no
+mapping, writing what std's does instead of being refused: `str`'s iterators other than
+`Chars`, `Bytes`, `CharIndices`, and the escapes (`Split` and its forms, `Lines`,
+`SplitWhitespace`, `Matches`, `MatchIndices`), a `BTreeSet`'s set operations, and each
+`ExtractIf`. `iter::repeat`, `repeat_n`, and `once_with`, which are not translated at all
+yet, translate with their `Debug`. Proven by differential tests against native Rust.
 
 ## Plan
 
-Found while translating `Debug` of the adaptors: `char::decode_utf16([..])` refuses at
-its span, as `Debug` of `array::IntoIter` has no mapping. Read each of std's impls, which
-write private fields of their own (`Once { inner: IntoIter { inner: Item { opt } } }`),
-and survey which share a shape before choosing how the runtime writes them, as
-`iter_debug` and `adaptor_debug` in `src/lower/fmt.rs` do.
+The sources, `Option`'s, `Result`'s, and an array's iterators, a slice's parts, and a hash
+set's operations landed on `iter_debug` in `src/lower/fmt.rs`; extend it the same way.
+
+What is left writes private state the runtime does not keep in std's shape:
+
+- `str`'s searcher iterators write their searcher's fields: a `CharSearcher`'s
+  `finger` and `finger_back` in UTF-8 bytes, a `StrSearcher`'s `TwoWaySearcher` state
+  (`crit_pos`, `period`, `byteset`, `memory`), and an empty needle's flags. The runtime
+  searches in UTF-16 code units by a `Pattern`, so it would track std's state beside its
+  own, or search as std does.
+- A `BTreeSet`'s `Difference` and `Intersection` write which strategy std picked
+  (`Stitch`, `Search`, `Iterate`, `Answer`) and its iterators, `Search` the whole other
+  set; `Union` and `SymmetricDifference` their `MergeIterInner`'s peeked item. The runtime
+  already picks std's strategy, so its state may map over.
+- `Vec`'s, `LinkedList`'s, and a B-tree's `ExtractIf` write the item they peek at; a hash
+  map's and set's write `ExtractIf { .. }` once their `extract_if` translates.

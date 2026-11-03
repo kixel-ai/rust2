@@ -5,6 +5,11 @@ pub fn pointer(n: u8) -> String {
 	format!("{:p}", &n)
 }
 
+/// `Debug` of a `ChunksMut`, which writes its slice's address.
+pub fn chunks_address(v: &mut [u8]) -> String {
+	format!("{:?}", v.chunks_mut(2))
+}
+
 /// A placeholder written to the crate's own `fmt::Write`, which sees each call std makes.
 pub fn written(w: &mut Sink, n: u8) {
 	use std::fmt::Write;
