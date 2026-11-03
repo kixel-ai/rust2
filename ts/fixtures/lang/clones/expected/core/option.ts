@@ -3,6 +3,13 @@
 import * as rt from "../rt.ts";
 import * as Logged from "../clones.Logged.ts";
 
+export function isSomeAnd$09tpccf(self: rt.u8 | undefined, f: (a0: rt.u8) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
 export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
@@ -13,6 +20,13 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 export function map$0y3liwu(self: rt.u8 | undefined, f: (a0: rt.u8) => Logged.Logged): Logged.Logged | undefined {
 	if (self === undefined) {
 		return undefined;
+	}
+	return f(self);
+}
+
+export function mapOr$0bq8trh(self: Logged.Logged | undefined, default_: rt.u8, f: (a0: Logged.Logged) => rt.u8): rt.u8 {
+	if (self === undefined) {
+		return default_;
 	}
 	return f(self);
 }

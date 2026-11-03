@@ -2110,3 +2110,90 @@ pub fn ref_orders(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	keys!(by_val.iter().collect(), out);
 	keys!(mixed.iter().collect(), out);
 }
+
+/// `extract_if` of hash maps and sets: what its closure takes out, by keys JS compares as
+/// they are and keys found by their `Hash`, all colliding, with values changed in place as
+/// each is read, and what stays, each sorted. Read part way, it takes out only what it
+/// read, and the rest stays.
+pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let keep = data.first().map_or(2, |b| b % 3 + 2);
+	match kind % 3 {
+		0 => {
+			let mut map: HashMap<u8, u16> = data.iter().map(|&b| (b % 16, u16::from(b))).collect();
+			out.push(map.extract_if(|_, _| true).size_hint().1.map_or(0xfe, |n| n as u8));
+			let taken: BTreeMap<u8, u16> = map
+				.extract_if(|k, v| {
+					*v += 1;
+					k % keep == 0
+				})
+				.collect();
+			let kept: BTreeMap<u8, u16> = map.iter().map(|(k, v)| (*k, *v)).collect();
+			for (k, v) in taken.iter().chain([(&0xff, &0xffff)]).chain(&kept) {
+				out.push(*k);
+				out.extend(v.to_be_bytes());
+			}
+			let mut it = map.extract_if(|k, _| k % 2 == 0);
+			let some = it.next().is_some();
+			drop(it);
+			out.extend([some as u8, map.len() as u8]);
+			let mut words: HashMap<u8, Vec<u8>> = data.iter().map(|&b| (b % 8, vec![b])).collect();
+			let taken: BTreeMap<u8, Vec<u8>> = words
+				.extract_if(|k, v| {
+					v.push(*k);
+					v[0] % keep == 0
+				})
+				.collect();
+			for (k, v) in &taken {
+				out.push(*k);
+				out.extend(v);
+			}
+			out.push(words.values().map(Vec::len).sum::<usize>() as u8);
+		}
+		1 => {
+			let mut set: HashSet<Pair> = data
+				.iter()
+				.map(|&b| Pair {
+					a: b % 8,
+					b: u16::from(b % 3),
+				})
+				.collect();
+			let taken: BTreeSet<Pair> = set.extract_if(|p| u16::from(p.a) % u16::from(keep) == p.b).collect();
+			let kept: BTreeSet<Pair> = set.iter().copied().collect();
+			for p in taken.iter().chain([&Pair { a: 0xff, b: 0 }]).chain(&kept) {
+				out.extend([p.a, p.b as u8]);
+			}
+			let mut bytes: HashSet<u8> = data.iter().copied().collect();
+			out.push(bytes.extract_if(|b| b % keep == 1).count() as u8);
+			out.push(bytes.len() as u8);
+			out.push(bytes.extract_if(|_| false).next().is_none() as u8);
+		}
+		_ => {
+			// Keys that all collide, chained in one slot, and taken from any place in it.
+			let mut map: HashMap<Clash, Tally> = data
+				.iter()
+				.map(|&b| (Clash(b % 8), Tally { n: u16::from(b) }))
+				.collect();
+			let taken: BTreeMap<u8, u16> = map
+				.extract_if(|k, t| {
+					t.n += u16::from(k.0);
+					t.n % u16::from(keep) == 0
+				})
+				.map(|(k, t)| (k.0, t.n))
+				.collect();
+			let kept: BTreeMap<u8, u16> = map.iter().map(|(k, t)| (k.0, t.n)).collect();
+			for (k, v) in taken.iter().chain([(&0xff, &0xffff)]).chain(&kept) {
+				out.push(*k);
+				out.extend(v.to_be_bytes());
+			}
+			for k in 0..8 {
+				out.push(map.get(&Clash(k)).map_or(0xee, |t| t.n as u8));
+			}
+			let mut set: HashSet<Clash> = data.iter().map(|&b| Clash(b % 6)).collect();
+			out.push(set.extract_if(|c| c.0 % keep == 0).count() as u8);
+			let mut kept: Vec<u8> = set.iter().map(|c| c.0).collect();
+			kept.sort();
+			out.extend(kept);
+			out.push(set.contains(&Clash(0)) as u8);
+		}
+	}
+}

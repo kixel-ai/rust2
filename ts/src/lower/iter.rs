@@ -1069,6 +1069,18 @@ pub fn call<'tcx>(
 			return Some(Expr::rt("iterFromFn", [args, none.into_iter().collect()].concat()));
 		}
 		["iter", "sources", "repeat_with", "repeat_with"] => return Some(Expr::rt("iterRepeatWith", args)),
+		["iter", "sources", "once_with", "once_with"] => return Some(Expr::rt("iterOnceWith", args)),
+		// What clones the element for each item, and drops it.
+		["iter", "sources", source @ ("repeat" | "repeat_n"), _] => {
+			let clone = super::collections::clone_fn(b, targ(0)?, span);
+			let dropper = b.t.dropper(targ(0)?, span);
+			let name = if *source == "repeat" {
+				"iterRepeat"
+			} else {
+				"iterRepeatN"
+			};
+			return Some(Expr::rt(name, tail(args, vec![clone, dropper])));
+		}
 		// What drops the item it holds next.
 		["iter", "sources", "successors", "successors"] => {
 			let droppers = [b.t.dropper(targ(0)?, span)].into_iter().chain(b.t.none_arg(targ(0)?));
@@ -1751,6 +1763,9 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 			v if undefined(&v) => parts(vec![("v", Expr::Rt("itself".into()))]),
 			v => parts(vec![("v", v)]),
 		},
+		// Those that clone their element by what they were made with.
+		["iter", "sources", "repeat", "Repeat"] | ["iter", "sources", "repeat_n", "RepeatN"] => Expr::undefined(),
+		["iter", "sources", "once_with", "OnceWith"] => parts(vec![("f", value(b, arg(0)?))]),
 		// Those that own their items, each cloned.
 		["array", "iter", "IntoIter"]
 		| ["option", "IntoIter"]
@@ -1850,8 +1865,10 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "adapters", "scan", "Scan"]
 			| ["iter", "sources", "from_fn", "FromFn"]
 			| ["iter", "sources", "repeat_with", "RepeatWith"]
+			| ["iter", "sources", "once_with", "OnceWith"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
+			| ["collections", "hash", "map" | "set", "ExtractIf"]
 			| [
 				"str",
 				"iter",

@@ -593,6 +593,22 @@ export function iterRepeatWith<T>(f: () => T): Iter<T> {
 	return new FromNext(f, (f) => f(), dispose, { hint: () => [USIZE_MAX, undefined] });
 }
 
+/** `iter::repeat`: a clone of `element` by `clone` for each item, endlessly; `element` drops by `drop` with it. */
+export function iterRepeat<T>(element: T, clone?: (element: T) => T, drop?: Drop<T>): Iter<T> {
+	return new RepeatIter(element, clone, drop);
+}
+
+/** `iter::repeat_n`: `n` items of `element`, each a clone by `clone` but the last; `element` drops by `drop` with it, or at once if `n` is 0. */
+export function iterRepeatN<T>(element: T, n: number, clone?: (element: T) => T, drop?: Drop<T>): Iter<T> {
+	if (n === 0) drop?.(element);
+	return new RepeatNIter(element, n, clone, drop);
+}
+
+/** `iter::once_with`: what `make` makes, called as it is first read, from either end; it drops uncalled with it. */
+export function iterOnceWith<T>(make: () => T): Iter<T> {
+	return new OnceWithIter(make);
+}
+
 /**
  * `iter::successors`: `first`, then `succ` of each item, called as that item is yielded.
  * The item it holds next drops by `drop`, and then `succ`, as std's fields drop.
@@ -843,7 +859,7 @@ export function iterSkip<T>(it: Iter<T>, n: number, drop?: Drop<T>): Iter<T> {
  * reads its iterator by index if it `indexes`, a `TrustedRandomAccess` one.
  */
 export function iterTake<T>(it: Iter<T>, n: number, drop?: Drop<T>, indexes = false): Iter<T> {
-	return new TakeIter(it, n, drop, indexes);
+	return it instanceof RepeatIter ? new TakeRepeat(it, n, drop, indexes) : new TakeIter(it, n, drop, indexes);
 }
 
 /** `Iterator::skip_while`, dropping what it skips by `drop`. */
@@ -1121,6 +1137,7 @@ function each<T>(it: Iter<T>, f: (item: T) => void, take: Take | undefined): voi
 
 /** `Iterator::count` of an iterator that drops nothing. */
 export function iterCount<T>(it: Iter<T>): number {
+	if (it instanceof RepeatIter || it instanceof RepeatNIter) return count(it, undefined);
 	const folded = it.folded(true);
 	let n = 0;
 	while (folded.next() !== DONE) n++;
@@ -1133,10 +1150,11 @@ export function iterLast<T>(it: Iter<T>, none: None): T | None;
 export function iterLast<T>(it: Iter<T>, none?: None): T | undefined | None {
 	// std's of a box: what it holds, by its own.
 	while (it instanceof Boxed) it = it.inner;
+	if (it instanceof RepeatIter || it instanceof RepeatNIter) return iterToOption(last(it, undefined), none);
 	const folded = it.folded(true);
-	let last: T | Done = DONE;
-	for (let item = folded.next(); item !== DONE; item = folded.next()) last = item;
-	return iterToOption(last, none);
+	let final: T | Done = DONE;
+	for (let item = folded.next(); item !== DONE; item = folded.next()) final = item;
+	return iterToOption(final, none);
 }
 
 /** `Iterator::nth`, dropping what it skips by `drop`, as its own `nth` does. */
@@ -1760,6 +1778,9 @@ export function ownedEnd<T>(it: Iter<T>, back: boolean, none?: None): T | undefi
 
 /** `count`, dropping each item by `drop`, and then `it`, as std's of its kind does. */
 function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
+	if (it instanceof RepeatIter) panic("iterator is infinite");
+	// std's: its length, and then its element drops with it.
+	if (it instanceof RepeatNIter) return consumed(it, () => it.left);
 	if (it instanceof FromNext && it.own?.count !== undefined) return it.taken(it.own.count);
 	if (it instanceof EnumerateIter) return count(it.inner, items(drop));
 	if (it instanceof ChainIter) {
@@ -1820,6 +1841,9 @@ function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
 	if (it instanceof FromNext && it.own?.last !== undefined) return it.taken(it.own.last);
 	// std's of a box: what it holds, by its own.
 	if (it instanceof Boxed) return last(it.inner, drop);
+	if (it instanceof RepeatIter) panic("iterator is infinite");
+	// std's: its element, uncloned.
+	if (it instanceof RepeatNIter) return it.left === 0 ? DONE : it.take();
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
 		// std's, of a `Vec`'s or an array's, and of a B-tree's `into_keys` and
 		// `into_values`: the last item, and then the rest drop with it.
@@ -2335,6 +2359,181 @@ class OptionIter<T> extends Iter<T> implements Disposable {
 		const item = this.next();
 		if (item !== DONE) this.drop(item);
 	}
+}
+
+/** `Repeat`, holding `element`, which `clone` clones for each item, and `drop` drops with it. */
+class RepeatIter<T> extends Iter<T> implements Disposable {
+	readonly element: T;
+	private readonly copy: ((element: T) => T) | undefined;
+	private readonly drop: Drop<T> | undefined;
+
+	constructor(element: T, clone?: (element: T) => T, drop?: Drop<T>) {
+		super();
+		this.element = element;
+		this.copy = clone;
+		this.drop = drop;
+	}
+
+	next(): T | Done {
+		return cloned(this.element, this.copy);
+	}
+
+	override nextBack(): T | Done {
+		return this.next();
+	}
+
+	/** std's skips nothing, as each item is the same. */
+	override advanceBy(): number {
+		return 0;
+	}
+
+	override advanceBackBy(): number {
+		return 0;
+	}
+
+	override sizeHint(): SizeHint {
+		return [USIZE_MAX, undefined];
+	}
+
+	override clone(): Iter<T> {
+		return new RepeatIter(cloned(this.element, this.copy), this.copy, this.drop);
+	}
+
+	[Symbol.dispose](): void {
+		this.drop?.(this.element);
+	}
+}
+
+/**
+ * `RepeatN`, holding `element` while it has items `left`: each a clone by `clone` but the
+ * last, which is `element` itself. `element` drops by `drop` as an advance passes the last,
+ * or with it.
+ */
+class RepeatNIter<T> extends Iter<T> implements Disposable {
+	element: T | undefined;
+	left: number;
+	private readonly copy: ((element: T) => T) | undefined;
+	private readonly drop: Drop<T> | undefined;
+
+	constructor(element: T, n: number, clone?: (element: T) => T, drop?: Drop<T>) {
+		super();
+		this.element = n === 0 ? undefined : element;
+		this.left = n;
+		this.copy = clone;
+		this.drop = drop;
+	}
+
+	next(): T | Done {
+		if (this.left === 0) return DONE;
+		if (--this.left > 0) return cloned(this.element as T, this.copy);
+		return this.take();
+	}
+
+	override nextBack(): T | Done {
+		return this.next();
+	}
+
+	/** std's: what it has left less `n`, or else none, `element` dropped. */
+	override advanceBy(n: number): number {
+		if (this.left > n) {
+			this.left -= n;
+			return 0;
+		}
+		const short = n - this.left;
+		if (this.left > 0) this.dropElement();
+		return short;
+	}
+
+	override advanceBackBy(n: number): number {
+		return this.advanceBy(n);
+	}
+
+	override len(): number {
+		return this.left;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.left);
+	}
+
+	override clone(): Iter<T> {
+		const element = this.left === 0 ? undefined : cloned(this.element as T, this.copy);
+		return new RepeatNIter(element as T, this.left, this.copy, this.drop);
+	}
+
+	/** `element`, which it no longer holds. */
+	take(): T {
+		const element = this.element as T;
+		this.element = undefined;
+		this.left = 0;
+		return element;
+	}
+
+	/** Drop `element`, which it holds. */
+	private dropElement(): void {
+		const element = this.take();
+		this.drop?.(element);
+	}
+
+	[Symbol.dispose](): void {
+		if (this.left > 0) this.dropElement();
+	}
+}
+
+/** `OnceWith`, holding `make` until it is first read, which calls it. */
+class OnceWithIter<T> extends Iter<T> implements Disposable {
+	make: (() => T) | undefined;
+
+	constructor(make: (() => T) | undefined) {
+		super();
+		this.make = make;
+	}
+
+	next(): T | Done {
+		const make = this.make;
+		if (make === undefined) return DONE;
+		this.make = undefined;
+		return make();
+	}
+
+	override nextBack(): T | Done {
+		return this.next();
+	}
+
+	override len(): number {
+		return this.make === undefined ? 0 : 1;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.len());
+	}
+
+	override clone(h?: Clones): Iter<T> {
+		return new OnceWithIter(this.make === undefined ? undefined : cloned(this.make, h?.f));
+	}
+
+	[Symbol.dispose](): void {
+		const make = this.make;
+		this.make = undefined;
+		dispose(make);
+	}
+}
+
+/** `Debug` of a `Repeat`: its element. */
+export function fmtRepeat<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>): FmtResult {
+	return fmtDebugStructFields(f, "Repeat", ["element"], [(f) => debug((it as RepeatIter<T>).element, f)]);
+}
+
+/** `Debug` of a `RepeatN`: how many it has left, and its element while it holds it. */
+export function fmtRepeatN<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>): FmtResult {
+	const r = it as RepeatNIter<T>;
+	const element: Fmt = (f) => (r.left === 0 ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(r.element as T, f)]));
+	return fmtDebugStructFields(f, "RepeatN", ["count", "element"], [(f) => usizeDebug(r.left, f), element]);
+}
+
+/** `Debug` of a `OnceWith`: whether it holds its closure, which std writes as `_`, unpadded. */
+export function fmtOnceWith(it: Iter<unknown>, f: Formatter): FmtResult {
+	return f.out.writeStr((it as OnceWithIter<unknown>).make === undefined ? "OnceWith(None)" : "OnceWith(Some(_))");
 }
 
 /**
@@ -3562,7 +3761,8 @@ class TakeIter<T> extends Adaptor<T, T> {
 	}
 
 	override clone(h?: Clones): Iter<T> {
-		return new TakeIter(this.inner.clone(h?.i), this.n, this.drop, this.indexes);
+		const kind = this.constructor as new (inner: Iter<T>, n: number, drop?: Drop<T>, indexes?: boolean) => TakeIter<T>;
+		return new kind(this.inner.clone(h?.i), this.n, this.drop, this.indexes);
 	}
 
 	override sizeHint(): SizeHint {
@@ -3683,6 +3883,33 @@ class TakeIter<T> extends Adaptor<T, T> {
 			if (item !== DONE) drop?.(item);
 		}
 		return DONE;
+	}
+}
+
+/** std's `Take` of a `Repeat`, which reads from the back as it does from the front. */
+class TakeRepeat<T> extends TakeIter<T> {
+	override nextBack(): T | Done {
+		return this.next();
+	}
+
+	override nthBack(n: number, drop?: Drop<T>): T | Done {
+		return this.nth(n, drop);
+	}
+
+	override advanceBackBy(n: number, drop?: Drop<T>): number {
+		return this.advanceBy(n, drop);
+	}
+
+	override rfold<A>(acc: A, f: (acc: A, item: T) => A, release?: () => void): A {
+		return this.fold(acc, f, release);
+	}
+
+	override folded(fold = false): Iter<T> {
+		const front = super.folded(fold);
+		return new Folded(
+			() => front.next(),
+			() => front.next(),
+		);
 	}
 }
 
