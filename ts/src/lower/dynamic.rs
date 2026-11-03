@@ -8,7 +8,7 @@
 //! drops the value. An `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
 //! `rt.tailDyn` view of the struct it was made from, whose last field is that field's
-//! object. A
+//! object. A raw pointer unsizes as a `&mut` to what it points at does. A
 //! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
 //! class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
@@ -494,6 +494,22 @@ pub fn unsized_object<'tcx>(tcx: TyCtxt<'tcx>, mut ty: Ty<'tcx>) -> bool {
 	ty.is_trait()
 }
 
+/// What `ty` holds, if it is a `ManuallyDrop`.
+fn manually_dropped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => Some(args.type_at(0)),
+		_ => None,
+	}
+}
+
+/// `ptr`, a reference or box, pointing at `pointee` instead.
+fn repoint<'tcx>(tcx: TyCtxt<'tcx>, ptr: Ty<'tcx>, pointee: Ty<'tcx>) -> Ty<'tcx> {
+	match *ptr.kind() {
+		ty::Ref(region, _, mutability) => Ty::new_ref(tcx, region, pointee, mutability),
+		_ => Ty::new_box(tcx, pointee),
+	}
+}
+
 /// The trait of the trait object `ty`.
 fn principal(ty: Ty<'_>) -> Option<DefId> {
 	match ty.kind() {
@@ -543,15 +559,18 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `value`, a `&T`, `&mut T`, or `Box<T>`, unsized to `to`, the same pointer to a trait
 	/// object.
 	pub fn object_of(&mut self, value: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.t.tcx;
 		let unsupported = |b: &mut Self| b.err(span, format!("a coercion to `{to}`, which is not supported yet"));
 		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
 			return unsupported(self);
 		};
+		// A `ManuallyDrop` is what it holds, which a box of it never drops.
+		if let (Some(held), Some(object)) = (manually_dropped(tcx, pointee), manually_dropped(tcx, object)) {
+			let (from, to) = (repoint(tcx, from, held), repoint(tcx, to, object));
+			return self.object_of(value, from, to, span);
+		}
 		if !object.is_trait() {
-			let view = match from.is_raw_ptr() {
-				true => None,
-				false => self.tail_object(value, pointee, object, from.is_box(), span),
-			};
+			let view = self.tail_object(value, pointee, object, from.is_box(), span);
 			return view.unwrap_or_else(|| unsupported(self));
 		}
 		// A box holds one as a `Uint8Array` and a reference as an `rt.ByteSlice`, which one
@@ -614,7 +633,54 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		}
 		match to.builtin_deref(true) {
 			Some(object) if self.t.dyn_iter(object).is_some() => self.dyn_iter(from, to, value, span),
+			Some(object) if self.t.dyn_future(object).is_some() => self.dyn_future(from, to, value, span),
 			_ => self.object_of(value, from, to, span),
+		}
+	}
+
+	/// `p`, a `from` raw pointer, unsized to `to`, unless it is null or dangling, which stays
+	/// itself: what a box of the object it points at unsizes to, which drops it as the box
+	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to. One
+	/// that is the `rt.Place` of a library value, such as a cell, unsizes to the place of
+	/// what a box of the value there unsizes to as each read finds it, since it may be
+	/// uninitialized or replaced until then.
+	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.t.tcx;
+		let (Some(pointee), Some(object)) = (from.builtin_deref(true), to.builtin_deref(true)) else {
+			return self.err(span, format!("a coercion to `{to}`, which is not supported yet"));
+		};
+		let erased = tcx.lifetimes.re_erased;
+		let (ptr_from, ptr_to) = match self.t.needs_place(pointee) {
+			true => (
+				Ty::new_mut_ref(tcx, erased, pointee),
+				Ty::new_mut_ref(tcx, erased, object),
+			),
+			false => (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object)),
+		};
+		let read = !self.t.needs_place(pointee) && self.t.raw_place(from).is_some();
+		if read && (self.t.raw_place(to).is_none() || self.t.needs_place(object)) {
+			return self.err(
+				span,
+				format!(
+					"a coercion of `{from}` to `{to}`, whose object would hold the value there as it is made, not as it is read, which is not supported yet"
+				),
+			);
+		}
+		let name = self.fresh("p");
+		let mut body = Vec::new();
+		let made = self.unsize(Expr::ident(&name), ptr_from, ptr_to, span, &mut body);
+		let param = Param { name, ty: None };
+		let ty = self.t.ty(ptr_to, span);
+		let make = match body.is_empty() {
+			true => Expr::Lambda(vec![param], Box::new(made)),
+			false => {
+				body.push(StmtKind::Return(Some(made)).at(None));
+				Expr::Arrow(vec![param], ty, body)
+			}
+		};
+		match read {
+			true => Expr::rt("rawUnsizePlace", vec![p, make]),
+			false => Expr::rt("rawUnsize", vec![p, make]),
 		}
 	}
 
@@ -639,6 +705,11 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 				let held = (from_args.type_at(0), to_args.type_at(0));
 				let place = Expr::rt("valuePlace", vec![v.clone()]);
 				(Key::Name("value".into()), v.clone().member("value"), place, held)
+			}
+			// `rt.Cell`, a `Cell`'s or an `UnsafeCell`'s, is the place of what it holds.
+			Some(Std::Cell) => {
+				let held = (from_args.type_at(0), to_args.type_at(0));
+				(Key::Name("v".into()), v.clone().member("v"), v.clone(), held)
 			}
 			None if adt.is_struct() && self.t.own(adt.did()) => {
 				let last = adt
@@ -671,10 +742,6 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			_ => return None,
 		};
 		let (field_from, field_to) = held;
-		// A future polled in place through a struct is not supported yet.
-		if self.t.dyn_future(field_to).is_some() {
-			return None;
-		}
 		let lent = match self.t.needs_place(field_from) {
 			true => lent,
 			false => read,
@@ -685,7 +752,12 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			Ty::new_mut_ref(tcx, erased, field_to),
 		);
 		let mut body = Vec::new();
-		let object = self.unsize(lent, ref_from, ref_to, span, &mut body);
+		// A future made over the field drops it, as a struct's glue drops its last field,
+		// and polls it in place.
+		let object = match self.t.dyn_future(field_to) {
+			Some(_) => self.future_object(field_from, lent, false, true, span),
+			None => self.unsize(lent, ref_from, ref_to, span, &mut body),
+		};
 		let param = Param {
 			name,
 			ty: Some(self.t.ty(from, span)),
