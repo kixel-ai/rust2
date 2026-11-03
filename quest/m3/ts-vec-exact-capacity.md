@@ -23,6 +23,8 @@ capacity the runtime models for the `Vec`, which holds only std's guarantees (de
   differently from std's.
 - Untried: a `Vec` as a wrapper object holding its own length and capacity over its
   array, measured on the same workload before it is weighed against that decision.
+  [The pushed capacity quest](/quest/m3/ts-vec-clear-capacity.md) measures it first, as
+  the maintainer decided on 2026-11-03.
 
 Public API: the translator's output.
 
