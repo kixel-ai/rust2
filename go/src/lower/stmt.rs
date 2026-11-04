@@ -1,7 +1,7 @@
-//! A function body as Go statements: the lines lowering writes, and the control flow
-//! [`cfg`] structures around them and tidies.
+//! A function body as Go statements: the lines lowering writes, the control flow [`cfg`]
+//! structures around them and tidies, and where each variable is declared.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
 use rust2_driver::cfg::{self, Form, Jump};
@@ -200,5 +200,92 @@ pub fn print(stmts: &[Stmt], blocks: &mut HashSet<String>, out: &mut String) {
 				out.push_str("}\n");
 			}
 		}
+	}
+}
+
+/// Where each variable of `decls`, a name and its declaration, is declared: at the start
+/// of the innermost statement list that holds every statement naming it and that no loop
+/// holds, so Go zeroes it only where control reaches it, still once per call. A variable
+/// nothing names goes first in `body`.
+pub fn declare(body: &mut Vec<Stmt>, decls: Vec<(String, String)>) {
+	let mut at: HashMap<&str, Vec<Step>> = HashMap::new();
+	let names: HashSet<&str> = decls.iter().map(|(name, _)| name.as_str()).collect();
+	uses(body, &mut Vec::new(), &names, &mut at);
+	let mut placed: HashMap<Vec<(usize, usize)>, String> = HashMap::new();
+	for (name, decl) in &decls {
+		let path = at.get(name.as_str()).map_or(&[][..], |path| path.as_slice());
+		let outer = path.iter().position(|step| step.looped).unwrap_or(path.len());
+		let key = path[..outer].iter().map(|step| (step.stmt, step.list)).collect();
+		placed.entry(key).or_default().push_str(decl);
+	}
+	insert(body, &mut Vec::new(), &mut placed);
+}
+
+/// One step into a statement's list: the statement's index, which of its lists, and
+/// whether the statement is a loop.
+#[derive(Clone, Copy, PartialEq)]
+struct Step {
+	stmt: usize,
+	list: usize,
+	looped: bool,
+}
+
+/// The statement lists a statement holds, in order.
+fn lists(stmt: &mut Stmt) -> Vec<&mut Vec<Stmt>> {
+	match stmt {
+		Stmt::If { then, els, .. } => vec![then, els],
+		Stmt::Loop { body, .. } | Stmt::Block { body, .. } => vec![body],
+		Stmt::Switch { cases, .. } => cases.iter_mut().map(|(_, body)| body).collect(),
+		Stmt::Lines(_) | Stmt::Break(_) | Stmt::Continue(_) | Stmt::Return(_) => Vec::new(),
+	}
+}
+
+/// Narrow each name's path in `at` to the list at `path` holding a statement of `stmts`
+/// naming it, or to what it shares with the paths already there.
+fn uses<'a>(stmts: &mut [Stmt], path: &mut Vec<Step>, names: &HashSet<&'a str>, at: &mut HashMap<&'a str, Vec<Step>>) {
+	for (i, stmt) in stmts.iter_mut().enumerate() {
+		let text = match &*stmt {
+			Stmt::Lines(text) => Some(text.as_str()),
+			Stmt::If { cond, .. } | Stmt::Loop { cond, .. } => Some(cond.0.as_str()),
+			Stmt::Switch { disc, .. } => Some(disc.as_str()),
+			Stmt::Return(value) => value.as_deref(),
+			Stmt::Block { .. } | Stmt::Break(_) | Stmt::Continue(_) => None,
+		};
+		let idents = text
+			.into_iter()
+			.flat_map(|t| t.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')));
+		for ident in idents {
+			if let Some(&name) = names.get(ident) {
+				match at.get_mut(name) {
+					Some(known) => {
+						let shared = known.iter().zip(path.iter()).take_while(|(a, b)| a == b).count();
+						known.truncate(shared);
+					}
+					None => {
+						at.insert(name, path.clone());
+					}
+				}
+			}
+		}
+		let looped = matches!(stmt, Stmt::Loop { .. });
+		for (list, stmts) in lists(stmt).into_iter().enumerate() {
+			path.push(Step { stmt: i, list, looped });
+			uses(stmts, path, names, at);
+			path.pop();
+		}
+	}
+}
+
+/// Put the declarations `placed`, by the path to their list, at the start of each.
+fn insert(stmts: &mut Vec<Stmt>, path: &mut Vec<(usize, usize)>, placed: &mut HashMap<Vec<(usize, usize)>, String>) {
+	for (i, stmt) in stmts.iter_mut().enumerate() {
+		for (list, stmts) in lists(stmt).into_iter().enumerate() {
+			path.push((i, list));
+			insert(stmts, path, placed);
+			path.pop();
+		}
+	}
+	if let Some(decls) = placed.remove(path.as_slice()) {
+		stmts.insert(0, Stmt::Lines(decls));
 	}
 }
