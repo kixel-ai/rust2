@@ -115,6 +115,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			));
 		}
 		match self.pointee(ty) {
+			// `from_ref`, `from_mut` of a variable, and `Option::as_slice` make an array of
+			// one of their own for a value, so only longer arrays are always where Rust's are.
+			Pointee::Array
+				if let ty::Array(_, len) = self.uninit_inner(ty).kind()
+					&& len.try_to_target_usize(self.tcx).is_none_or(|n| n == 1) =>
+			{
+				Some(format!(
+					"comparing pointers to `{ty}`, an array of one JS may make of its own for a value, as `array::from_ref` does"
+				))
+			}
 			Pointee::Object | Pointee::Array => {
 				self.compare(ty);
 				None

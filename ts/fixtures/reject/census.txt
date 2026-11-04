@@ -169,6 +169,7 @@ fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a re
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/pointers.rs:arc_from_borrow+1:12: `Arc::from_raw` of a pointer to `u32` a borrow made, whose JS value is a place of its own, which no `Arc` gave
 fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
+fixtures/reject/src/pointers.rs:array_of_one+1:2: comparing pointers to `[u32; 1]`, an array of one JS may make of its own for a value, as `array::from_ref` does
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in

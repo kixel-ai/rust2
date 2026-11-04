@@ -15,6 +15,7 @@ import type * as Enclosed from "./pointers.Enclosed.ts";
 import type * as Gauge from "./pointers.Gauge.ts";
 import type * as Halves from "./pointers.Halves.ts";
 import * as Held from "./pointers.Held.ts";
+import type * as Holder from "./pointers.Holder.ts";
 import * as Housed from "./pointers.Housed.ts";
 import type * as Inner from "./pointers.Inner.ts";
 import * as Leaning from "./pointers.Leaning.ts";
@@ -2888,6 +2889,7 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 		read[0][0] = (read[0][0] ^ 255) >>> 0;
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(nested[0][0] & 0xff, read[0][0] & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(runs(n)), undefined, true);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(lent(n)), undefined, true);
 	}
 }
 
@@ -2906,6 +2908,76 @@ export function runs(n: rs.u8): Uint8Array {
 	const _31: rs.u8 = rs.sliceSame(last, rs.sliceFrom(v.items[rs.idx(v.items, 1)])) ? 1 : 0;
 	const _39: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
 	return Uint8Array.of(_24, _29, _31, rs.stringLen(_39.data[_39.start]) & 0xff);
+}
+
+/**
+ * Pointers to arrays each way the language and std lend one, the runs of a shared
+ * slice's `as_chunks` and `as_rchunks` included, compared where they point.
+ */
+export function lent(n: rs.u8): rs.ByteVec {
+	const w: rs.u32 = n as rs.u32;
+	const a: rs.u32[] = [w, rs.u32Add(w, 1), rs.u32Add(w, 2), rs.u32Add(w, 3)];
+	const v: rs.Vec<rs.u32> = rs.vecFrom([w, rs.u32Add(w, 1), rs.u32Add(w, 2), rs.u32Add(w, 3)]);
+	const o: rs.ByteVec = new rs.ByteVec();
+	const _25: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceFirst(rs.sliceAsChunks(rs.sliceFrom(a), 2)[0]), rs.sliceFrom)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _25);
+	const _41: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceAsRchunks(rs.sliceFrom(a), 2)[1]), rs.sliceFrom)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(a), 2))) ? 1 : 0;
+	rs.byteVecPush(o, _41);
+	const _57: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterNth(rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceAsChunks(rs.sliceFrom(v.items), 2)[0])), rs.sliceFrom), 1)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(v.items), 2))) ? 1 : 0;
+	rs.byteVecPush(o, _57);
+	const _71: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 1, 3), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 1), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _71);
+	const _87: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(v.items), 1, 3), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(v.items), 1), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _87);
+	const _103: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.iterNth(rs.sliceWindows(rs.sliceFrom(v.items), 2), 1)), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(v.items), 1), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _103);
+	const _122: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.iterNth(rs.sliceChunks(rs.sliceFrom(v.items), 2), 1)), 0, 2)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(v.items), 2))) ? 1 : 0;
+	rs.byteVecPush(o, _122);
+	const _140: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.iterToOption(rs.sliceChunksExact(rs.sliceFrom(a), 2).next())), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _140);
+	const _162: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceSplitAt(rs.sliceFrom(a), 2)[0], 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
+	rs.byteVecPush(o, _162);
+	const pairs: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([[w, 1], [2, 3]]).map(copy$array_u32));
+	const _178: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterToOption(rs.iterLend(rs.iterSlice(pairs.items), rs.sliceFrom).next())), rs.optionUnwrap(rs.optionMap(rs.sliceFirst(rs.sliceFrom(pairs.items)), rs.sliceFrom))) ? 1 : 0;
+	rs.byteVecPush(o, _178);
+	const boxed: rs.u32[] = [w, 2];
+	const _196: rs.u8 = rs.sliceSame(rs.sliceFrom(boxed), rs.sliceFrom(boxed)) ? 1 : 0;
+	rs.byteVecPush(o, _196);
+	const opt: rs.u32[] | undefined = [w, 2];
+	const _206: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(opt, rs.sliceFrom)), rs.optionUnwrap(rs.optionMap(opt, rs.sliceFrom))) ? 1 : 0;
+	rs.byteVecPush(o, _206);
+	const rc: rs.Arc<rs.u32[]> = new rs.Arc([w, 2]);
+	const rc2: rs.Arc<rs.u32[]> = rs.arcClone(rc);
+	const _222: rs.u8 = rs.sliceSame(rs.sliceFrom(rc.value), rs.sliceFrom(rc2.value)) ? 1 : 0;
+	rs.byteVecPush(o, _222);
+	const cell: rs.RefCell<rs.u32[]> = new rs.RefCell([w, 2]);
+	const _235: rs.RefCell<rs.u32[]> = rs.refCellBorrow(cell);
+	const p1: rs.Slice<rs.u32> = rs.sliceFrom(_235.value);
+	const _240: rs.RefCell<rs.u32[]> = rs.refCellBorrow(cell);
+	const _244: rs.u8 = rs.sliceSame(p1, rs.sliceFrom(_240.value)) ? 1 : 0;
+	rs.byteVecPush(o, _244);
+	const map: rs.HashMap<rs.u8, rs.u32[]> = rs.hashNew() as rs.HashMap<rs.u8, rs.u32[]>;
+	rs.hashInsert(map, 1, [w, 2]);
+	const _252: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.hashGet(map, 1), rs.sliceFrom)), rs.optionUnwrap(rs.optionMap(rs.hashGet(map, 1), rs.sliceFrom))) ? 1 : 0;
+	rs.byteVecPush(o, _252);
+	const st: Holder.Holder = { arr: [w, 5] };
+	const _268: rs.u8 = rs.sliceSame(rs.sliceFrom(st.arr), rs.sliceFrom(st.arr)) ? 1 : 0;
+	rs.byteVecPush(o, _268);
+	const held: rs.Arc<rs.u32[]> = new rs.Arc([w, 2]);
+	const _277: rs.Arc<rs.u32[]> = rs.arcClone(held);
+	const un: rs.Arc<rs.Slice<rs.u32>> = new rs.ArcDyn(_277, rs.sliceFrom(_277.value));
+	const _281: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(un.value, 0, 2)), rs.sliceFrom(held.value)) ? 1 : 0;
+	rs.byteVecPush(o, _281);
+	const nested: rs.u32[][] = [[w, 1], [2, 3]];
+	const _296: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(nested)), rs.sliceFrom)), rs.optionUnwrap(rs.iterNth(rs.iterLend(rs.iterSlice(nested), rs.sliceFrom), 1))) ? 1 : 0;
+	rs.byteVecPush(o, _296);
+	un[Symbol.dispose]();
+	held[Symbol.dispose]();
+	rs.refRelease(_240);
+	rs.refRelease(_235);
+	rc2[Symbol.dispose]();
+	rc[Symbol.dispose]();
+	return o;
 }
 
 //# sourceMappingURL=pointers.ts.map

@@ -2314,6 +2314,7 @@ pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
 		read[0][0] ^= 0xff;
 		out.extend([nested[0][0] as u8, read[0][0] as u8]);
 		out.extend(runs(n));
+		out.extend(lent(n));
 	}
 }
 
@@ -2332,4 +2333,79 @@ fn runs(n: u8) -> [u8; 4] {
 		u8::from(ptr::eq(last, &v[1])),
 		v[1][0].len() as u8,
 	]
+}
+
+/// Pointers to arrays each way the language and std lend one, the runs of a shared
+/// slice's `as_chunks` and `as_rchunks` included, compared where they point.
+fn lent(n: u8) -> Vec<u8> {
+	let w = u32::from(n);
+	let a = [w, w + 1, w + 2, w + 3];
+	let v = vec![w, w + 1, w + 2, w + 3];
+	let mut o = Vec::new();
+	let (chunks, _) = a.as_chunks::<2>();
+	o.push(u8::from(ptr::eq(
+		chunks.first().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let (_, back) = a.as_rchunks::<2>();
+	o.push(u8::from(ptr::eq(back.last().unwrap(), a.last_chunk::<2>().unwrap())));
+	let (vc, _) = v.as_chunks::<2>();
+	o.push(u8::from(ptr::eq(
+		vc.iter().nth(1).unwrap(),
+		v.last_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		a[1..3].first_chunk::<2>().unwrap(),
+		a[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v[1..3].first_chunk::<2>().unwrap(),
+		v[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v.windows(2).nth(1).unwrap().first_chunk::<2>().unwrap(),
+		v[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v.chunks(2).nth(1).unwrap().first_chunk::<2>().unwrap(),
+		v.last_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		a.chunks_exact(2).next().unwrap().first_chunk::<2>().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let (l, _) = a.split_at(2);
+	o.push(u8::from(ptr::eq(
+		l.first_chunk::<2>().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let pairs = vec![[w, 1], [2, 3]];
+	o.push(u8::from(ptr::eq(pairs.iter().next().unwrap(), pairs.first().unwrap())));
+	let boxed = Box::new([w, 2]);
+	o.push(u8::from(ptr::eq(&*boxed, &*boxed)));
+	let opt = Some([w, 2]);
+	o.push(u8::from(ptr::eq(opt.as_ref().unwrap(), opt.as_ref().unwrap())));
+	let rc = Rc::new([w, 2]);
+	let rc2 = Rc::clone(&rc);
+	o.push(u8::from(ptr::eq(&*rc, &*rc2)));
+	let cell = std::cell::RefCell::new([w, 2]);
+	let p1: *const [u32; 2] = &*cell.borrow();
+	let p2: *const [u32; 2] = &*cell.borrow();
+	o.push(u8::from(ptr::eq(p1, p2)));
+	let mut map = std::collections::HashMap::new();
+	map.insert(1u8, [w, 2]);
+	o.push(u8::from(ptr::eq(map.get(&1).unwrap(), map.get(&1).unwrap())));
+	let st = Holder { arr: [w, 5] };
+	o.push(u8::from(ptr::eq(&st.arr, &st.arr)));
+	let held = Arc::new([w, 2]);
+	let un: Arc<[u32]> = held.clone();
+	o.push(u8::from(ptr::eq(un.first_chunk::<2>().unwrap(), &*held)));
+	let nested = [[w, 1], [2, 3]];
+	o.push(u8::from(ptr::eq(nested.last().unwrap(), nested.iter().nth(1).unwrap())));
+	o
+}
+
+/// What holds an array in a field.
+struct Holder {
+	arr: [u32; 2],
 }

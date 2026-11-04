@@ -1104,15 +1104,25 @@ export function sliceSplitLastChunk<T>(s: Slice<T>, n: number): [Slice<T>, Slice
 /** `as_chunks`: copies of each run of `n` elements from the front, and the rest, panicking at a size of 0. */
 export function sliceAsChunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T[]>, Slice<T>] {
 	const count = chunkCount(s.length, n, at);
-	const from = (k: number) => s.start + k;
-	return [sliceFrom(runs(count, n, (start, end) => s.data.slice(from(start), from(end)))), slicePart(s, count * n)];
+	return [sliceFrom(runs(count, n, (start, end) => runCopy(s.data, s.start + start, s.start + end))), slicePart(s, count * n)];
 }
 
 /** `as_rchunks`: the rest, and copies of each run of `n` elements up to the back, panicking at a size of 0. */
 export function sliceAsRchunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T>, Slice<T[]>] {
 	const count = chunkCount(s.length, n, at);
 	const rest = s.start + s.length - count * n;
-	return [slicePart(s, 0, s.length - count * n), sliceFrom(runs(count, n, (start, end) => s.data.slice(rest + start, rest + end)))];
+	return [slicePart(s, 0, s.length - count * n), sliceFrom(runs(count, n, (start, end) => runCopy(s.data, rest + start, rest + end)))];
+}
+
+/**
+ * Elements `start` to `end` of `data`, a run a shared slice lends, as a copy, which
+ * nothing writes through: one that answers to its `View` of `data`, so pointers to it
+ * point where the run is.
+ */
+function runCopy<T>(data: T[], start: number, end: number): T[] {
+	const outer = (data as { [VIEW]?: View<T> })[VIEW];
+	const view = outer ? outer.part(start, end - start) : new View(data, start, end - start);
+	return Object.defineProperty(data.slice(start, end), VIEW, { value: view });
 }
 
 /** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
