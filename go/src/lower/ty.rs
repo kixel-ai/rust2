@@ -64,11 +64,14 @@ impl<'tcx> Translator<'tcx> {
 				if sig.abi() != rustc_abi::ExternAbi::Rust {
 					return self.refuse(span, format!("`{ty}`, a function pointer of a foreign ABI"));
 				}
-				let params: Vec<String> = sig.inputs().iter().map(|t| self.go_ty(*t, span, generic)).collect();
-				let ret = match Self::no_value(sig.output()) {
-					true => String::new(),
-					false => format!(" {}", self.go_ty(sig.output(), span, generic)),
-				};
+				// How a function lays out its values depends on their monomorphic types.
+				if generic && sig.inputs_and_output.iter().any(|t| t.has_param()) {
+					return self.refuse(
+						span,
+						format!("`{ty}`, a function pointer over a type parameter, in a type's field"),
+					);
+				}
+				let (params, ret) = self.sig_types(sig.inputs(), sig.output(), span);
 				format!("func({}){ret}", params.join(", "))
 			}
 			ty::Dynamic(preds, ..) => match preds.principal_def_id() {
