@@ -6137,7 +6137,7 @@ export function btreeSearches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 		}
 		if (_29 === 1) {
 			const _292: rt.Iter<Probe.Probe> = rt.iterMap(new rt.Range(0, n), key);
-			const large: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_292, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a4: Probe.Probe, b13: Probe.Probe): boolean => {
+			const large: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToVec(_292, undefined, 8, true).items, 8, true, Probe.lt$cmp_PartialOrd, (a4: Probe.Probe, b13: Probe.Probe): boolean => {
 				return !Probe.ne$cmp_PartialEq(a4, b13);
 			});
 			const small: rt.BTreeSet<Probe.Probe> = rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>;
@@ -6183,7 +6183,7 @@ export function btreeSearches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 			const _395: rt.Iter<Probe.Probe> = rt.iterChain(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): Probe.Probe => {
 				return probe(_22);
 			}), rt.iterMap(new rt.Range(0, n), key));
-			const set: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_395, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a2: Probe.Probe, b11: Probe.Probe): boolean => {
+			const set: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToVec(_395, undefined, 8, true).items, 8, true, Probe.lt$cmp_PartialOrd, (a2: Probe.Probe, b11: Probe.Probe): boolean => {
 				return !Probe.ne$cmp_PartialEq(a2, b11);
 			});
 			const part6 = rt.btreeLen(set) & 0xffff;
@@ -6219,7 +6219,7 @@ export function btreeSearches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 				put(out, _463._0);
 			}
 			const _472: rt.Iter<Probe.Probe> = rt.iterMap(new rt.Range(0, n), key);
-			const sorted: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_472, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a3: Probe.Probe, b12: Probe.Probe): boolean => {
+			const sorted: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToVec(_472, undefined, 8, true).items, 8, true, Probe.lt$cmp_PartialOrd, (a3: Probe.Probe, b12: Probe.Probe): boolean => {
 				return !Probe.ne$cmp_PartialEq(a3, b12);
 			});
 			const part11 = rt.iterCount(rt.btreeIntersection(set, sorted)) & 0xffff;
@@ -6259,7 +6259,7 @@ export function btreeSearches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 				const b8: rt.u8 = _2;
 				return [{ _0: (((b8 as rt.u16) << 8) & 0xffff) | (b8 & 7) as rt.u16, _1: log }, b8 as rt.u16] as [Probe.Probe, rt.u16];
 			});
-			const map2: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeCollect(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeMap<Probe.Probe, rt.u16>, rt.iterToArray(_556, undefined, 12, true), 12, true, (a: Probe.Probe, b9: Probe.Probe): boolean => {
+			const map2: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeCollect(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeMap<Probe.Probe, rt.u16>, rt.iterToVec(_556, undefined, 12, true).items, 12, true, (a: Probe.Probe, b9: Probe.Probe): boolean => {
 				return !Probe.ne$cmp_PartialEq(a, b9);
 			});
 			const part = rt.btreeLen(map2) & 0xffff;
