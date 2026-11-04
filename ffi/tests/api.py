@@ -8,6 +8,7 @@ import asyncio
 import datetime
 import gc
 import os
+import select
 import sys
 import threading
 
@@ -561,7 +562,7 @@ def futures():
 
 		def close(self):
 			try:
-				later.poll(api._n.Queue())
+				later.poll(api._n.Queue(loop))
 				check(False, "a future polled while it is freed raises")
 			except ValueError:
 				pass
@@ -579,8 +580,92 @@ def futures():
 	sender.join()
 	until(loop, lambda: wakes)
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
+	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
 	loop.close()
 	print("futures ok")
+
+
+async def on_loop():
+	"""Wakes during a call on the running loop's own thread, which write no byte to its
+	socket and dispatch once the call returns, beside wakes from other threads, which do."""
+	channel = api.Channel.new()
+	got = []
+
+	async def recv():
+		got.append(text(await channel.recv()))
+
+	async def parked():
+		task = asyncio.ensure_future(recv())
+		await asyncio.sleep(0)
+		return task
+
+	def signaled():
+		return bool(select.select([wakeup.queue.fileno()], [], [], 0)[0])
+
+	async def settle():
+		for _ in range(4):
+			await asyncio.sleep(0)
+
+	task = await parked()
+	wakeup = api._wakeups[asyncio.get_running_loop()]
+	channel.send(b"near")
+	check(not got, "a wake on the loop's thread never resumes inside the call")
+	check(not signaled(), "a wake on the loop's thread writes no byte")
+	await task
+	check(got == ["near"], "a wake on the loop's thread resumes the receive")
+
+	task = await parked()
+	sender = threading.Thread(target=lambda: channel.send(b"far"))
+	sender.start()
+	sender.join()
+	check(signaled(), "a wake from another thread writes a byte")
+	await task
+	check(got == ["near", "far"], "a wake from another thread resumes the receive")
+
+	# Before the first await, the call's poll with no waker leaves nothing to wake.
+	early = channel.recv()
+	channel.send(b"early")
+	check(text(await early) == "early", "a send before the first await is received")
+
+	# Cancelled after its wake, or before it, in the same step, a receive never resumes and
+	# leaves the payload.
+	for send_first in (True, False):
+		task = await parked()
+		if send_first:
+			channel.send(b"kept")
+			task.cancel()
+		else:
+			task.cancel()
+			channel.send(b"kept")
+		await settle()
+		check(task.cancelled() and len(got) == 2, "a cancelled receive never resumes")
+		check(text(await channel.recv()) == "kept", "a cancelled receive loses nothing")
+	check(not signaled(), "wakes on the loop's thread wrote no byte")
+
+	# Wakes that land before the loop gets to them call the waker once.
+	wakes = []
+	waker = api.Waker(lambda: wakes.append(1))
+	for _ in range(2):
+		channel.notify(waker)
+		channel.send(b"rung")
+	check(not wakes, "a waker is never called inside the call")
+	await settle()
+	check(wakes == [1], "wakes on the loop's thread call the waker once")
+	await channel.recv()
+
+	# Many receives, each woken once from the loop's thread or another, while both wake.
+	channels = [api.Channel.new() for _ in range(64)]
+	for _ in range(20):
+		tasks = [asyncio.ensure_future(c.recv()) for c in channels]
+		await asyncio.sleep(0)
+		sender = threading.Thread(target=lambda: [c.send(b"far") for c in channels[1::2]])
+		sender.start()
+		for c in channels[::2]:
+			c.send(b"near")
+		payloads = await asyncio.gather(*tasks)
+		sender.join()
+		expected = ["near", "far"] * (len(channels) // 2)
+		check([text(p) for p in payloads] == expected, "every receive resumes once with its payload")
 
 
 def owned():
