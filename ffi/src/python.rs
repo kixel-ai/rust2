@@ -735,7 +735,9 @@ impl<'a> Gen<'a> {
 			let lower = self.lower(ty, "ret");
 			let docs = "A new handle to a clone.";
 			unary(self, "clone", "clone", docs, lower);
-			body.native.push(format!("\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"));
+			body.native.push(format!(
+				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
+			));
 		}
 		if object && t.eq {
 			let other = self.lift(
@@ -1165,7 +1167,9 @@ impl<'a> Gen<'a> {
 				"" => "None".to_string(),
 				docs => format!("Some({})", c_str(docs)),
 			};
-			self.members.push(format!("rt::Member::Get({t}, rt::property(c\"{member}\", {doc}, f_{bare}))"));
+			self.members.push(format!(
+				"rt::Member::Get({t}, rt::property(c\"{member}\", {doc}, f_{bare}))"
+			));
 			return;
 		}
 		let method = d.place == Place::Member;
@@ -1182,7 +1186,11 @@ impl<'a> Gen<'a> {
 			names.join(", "),
 		);
 		// The signature `inspect.signature` reads, before the docstring.
-		let params: Vec<&str> = method.then_some("$self").into_iter().chain(d.params.iter().map(String::as_str)).collect();
+		let params: Vec<&str> = method
+			.then_some("$self")
+			.into_iter()
+			.chain(d.params.iter().map(String::as_str))
+			.collect();
 		let doc = c_str(&format!("{member}({})\n--\n\n{}", params.join(", "), d.docs.trim()));
 		let def = format!("rt::function(c\"{member}\", {doc}, f_{bare})");
 		match (class, d.place) {
