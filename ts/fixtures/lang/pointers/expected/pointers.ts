@@ -2825,6 +2825,12 @@ export function rawPlaces(data: rt.ByteSlice, out: rt.ByteVec): void {
 		shelf = second;
 	}
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of({ v: value }.v & 0xff, shelf._0.value & 0xff)), undefined, true);
+	let shelf2: Shelf.Shelf = first;
+	const value2: rt.u32 = shelf2._0.value;
+	if (rt.usizeRem(data.length, 3) === 0) {
+		shelf2 = second;
+	}
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of({ v: value2 }.v & 0xff, shelf2._0.value & 0xff)), undefined, true);
 	second[Symbol.dispose]();
 	first[Symbol.dispose]();
 	flag[Symbol.dispose]();

@@ -2259,6 +2259,14 @@ pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 	}
 	let p = ptr::from_ref(value);
 	out.extend([unsafe { *p } as u8, *shelf.0 as u8]);
+	// And one a `&mut` to it points elsewhere.
+	let mut shelf = &first;
+	let value = &*shelf.0;
+	if data.len() % 3 == 0 {
+		let _ = mem::replace(&mut shelf, &second);
+	}
+	let p = ptr::from_ref(value);
+	out.extend([unsafe { *p } as u8, *shelf.0 as u8]);
 }
 
 /// What holds an `Arc` a reference to it borrows through.

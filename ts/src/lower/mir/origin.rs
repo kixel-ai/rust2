@@ -376,11 +376,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 		};
 		// Only through boxes, which the borrow keeps where they are, and a reference in a
-		// variable the body never points elsewhere, as it may one the borrow went through.
-		let fixed = match self.is_arg(place.local) {
-			true => self.defs[place.local] == 0,
-			false => self.defs[place.local] == 1,
-		};
+		// variable the body never points elsewhere, by assigning or borrowing it, as it may
+		// one the borrow went through.
+		let l = place.local;
+		let fixed = !self.borrowed[l]
+			&& !self.mutated[l]
+			&& match self.is_arg(l) {
+				true => self.defs[l] == 0,
+				false => self.defs[l] == 1,
+			};
 		let stays = place
 			.iter_projections()
 			.enumerate()
