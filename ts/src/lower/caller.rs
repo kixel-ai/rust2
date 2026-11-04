@@ -534,10 +534,12 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 			match bytes_find(tcx, krate, file, after, needle) {
 				Some(at) => props.push((Key::Name(key.into()), at)),
 				None => {
-					let after = after.join("` then `");
+					let after = after.join(" then ");
 					t.err(
 						span,
-						format!("`bytes`' source has no `{needle}` in `src/{file}` after `{after}`, where it panics"),
+						format!(
+							"the bytes crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
+						),
 					);
 				}
 			}
@@ -549,7 +551,7 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 	if tables.len() > 1 {
 		t.err(
 			span,
-			"a panic hook in a program of two versions of `bytes`, whose panics are at different places",
+			"a panic hook in a program of two versions of the bytes crate, whose panics are at different places",
 		);
 	}
 	tables.pop().unwrap_or_default()
