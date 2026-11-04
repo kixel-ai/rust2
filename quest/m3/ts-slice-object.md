@@ -71,11 +71,10 @@ whole write. Noting the origin costs, per shared part of 8 of 16 values, in ns:
 | the origin as a symbol property | 27.4 | 30.6 |
 | the origin in a `WeakMap` | 410 | 116 |
 
-The object carries the array and start, and compares by them as `rt.ByteSlice` does.
+The object carries the array and start, and compares by them as `rs.ByteSlice` does.
 
 Public API: the translator's output and what a hand-written caller passes for a slice.
 
 ## Related
 
-- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - runs in parallel
 - [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

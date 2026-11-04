@@ -749,7 +749,7 @@ trait Badge {}
 impl Badge for u8 {}
 
 /// Loops over options, each item's own `Option` tested apart from the iterator's end, for
-/// each way JS holds `None`: `undefined`, `rt.None` where `Some` can be `undefined`, and
+/// each way JS holds `None`: `undefined`, `rs.None` where `Some` can be `undefined`, and
 /// nested.
 pub fn option_items(data: &[u8], out: &mut Vec<u8>) {
 	let maybe = |b: &u8| if b % 3 == 0 { None } else { Some(*b) };
@@ -827,7 +827,7 @@ pub fn option_items(data: &[u8], out: &mut Vec<u8>) {
 	while let Some(found) = first_present(&mut it) {
 		out.push(found);
 	}
-	// `scan` of items whose `None` is `rt.None`, each ending where its closure's `None` is.
+	// `scan` of items whose `None` is `rs.None`, each ending where its closure's `None` is.
 	let mut sum = 0u8;
 	let scanned: Vec<Option<u8>> = data
 		.iter()
@@ -860,7 +860,7 @@ struct Weighed<'a> {
 impl Iterator for Weighed<'_> {
 	type Item = u8;
 
-	// MIR switches on the return place itself, which holds `rt.DONE` for `None`.
+	// MIR switches on the return place itself, which holds `rs.DONE` for `None`.
 	#[inline(never)]
 	fn next(&mut self) -> Option<u8> {
 		let item = self.inner.next().copied().filter(|b| b % 3 != 0);

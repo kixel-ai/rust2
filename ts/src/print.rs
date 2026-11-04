@@ -31,7 +31,7 @@ pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path)
 		indent: 0,
 		tokens: Vec::new(),
 		current: None,
-		uses_rt: false,
+		uses_rs: false,
 		renames: HashMap::new(),
 		aliases: Vec::new(),
 	};
@@ -66,8 +66,8 @@ pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path)
 	};
 
 	let mut header = format!("{HEADER}\n\n");
-	if p.uses_rt {
-		writeln!(header, "import * as rt from \"{}\";", up(Path::new("rt.ts"))).unwrap();
+	if p.uses_rs {
+		writeln!(header, "import * as rs from \"{}\";", up(Path::new("rs.ts"))).unwrap();
 	}
 	let mut targets: Vec<&ModPath> = bindings.imports.keys().chain(bindings.namespaces.keys()).collect();
 	targets.sort();
@@ -101,7 +101,7 @@ pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path)
 		)
 		.unwrap();
 	}
-	if p.uses_rt || !bindings.imports.is_empty() || !bindings.namespaces.is_empty() {
+	if p.uses_rs || !bindings.imports.is_empty() || !bindings.namespaces.is_empty() {
 		header.push('\n');
 	}
 	let offset = header.lines().count() as u32;
@@ -170,7 +170,7 @@ impl Texts {
 			indent: 0,
 			tokens: Vec::new(),
 			current: None,
-			uses_rt: false,
+			uses_rs: false,
 			renames: HashMap::new(),
 			aliases: Vec::new(),
 		};
@@ -220,7 +220,7 @@ impl Bindings {
 
 		let mut names = HashMap::new();
 		// What the module declares, with the runtime's binding.
-		let mut taken: HashSet<String> = HashSet::from(["rt".to_string()]);
+		let mut taken: HashSet<String> = HashSet::from(["rs".to_string()]);
 		for (id, sym) in program.syms.iter().enumerate() {
 			if sym.owner.is_none() && &sym.module == module {
 				names.insert(id, sym.name.clone());
@@ -342,7 +342,7 @@ impl Refs {
 	fn ty(&mut self, program: &Program, ty: &Type) {
 		match ty {
 			Type::Builtin(_) | Type::Param(_) | Type::StrLit(_) => {}
-			Type::Rt(_, args) => args.iter().for_each(|t| self.ty(program, t)),
+			Type::Rs(_, args) => args.iter().for_each(|t| self.ty(program, t)),
 			Type::Sym(id, args) => {
 				self.use_sym(program, *id, false);
 				args.iter().for_each(|t| self.ty(program, t));
@@ -397,7 +397,7 @@ impl Refs {
 
 	fn expr(&mut self, program: &Program, e: &Expr) {
 		match e {
-			Expr::Ident(_) | Expr::This | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+			Expr::Ident(_) | Expr::This | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 			Expr::Sym(id) => self.use_sym(program, *id, true),
 			Expr::Array(es) => es.iter().for_each(|e| self.expr(program, e)),
 			Expr::Object(props) => props.iter().for_each(|(_, e)| self.expr(program, e)),
@@ -448,7 +448,7 @@ struct Printer<'p> {
 	/// The Rust the node being printed maps to, which the text after a node inside it
 	/// maps back to.
 	current: Option<Loc>,
-	uses_rt: bool,
+	uses_rs: bool,
 	/// Locals of the function being printed renamed away from the module's bindings.
 	renames: HashMap<String, String>,
 	/// Each function declared under an escaped name, and the name it is exported as.
@@ -711,7 +711,7 @@ impl Printer<'_> {
 		// The runtime's too, which printing may call anywhere.
 		let referred: HashSet<&str> = (refs.used.keys())
 			.map(|id| self.bindings.names[id].split('.').next().unwrap())
-			.chain(["rt"])
+			.chain(["rs"])
 			.collect();
 		let mut taken: HashSet<String> = locals.iter().cloned().collect();
 		taken.extend(referred.iter().map(|name| name.to_string()));
@@ -930,9 +930,9 @@ impl Printer<'_> {
 				let name = self.sym_name(*id);
 				self.write(&name);
 			}
-			Expr::Rt(name) => {
-				self.uses_rt = true;
-				self.write(&format!("rt.{name}"));
+			Expr::Rs(name) => {
+				self.uses_rs = true;
+				self.write(&format!("rs.{name}"));
 			}
 			Expr::Lit(text) => self.write(text),
 			Expr::Str(s) => self.write(&quote(s)),
@@ -1119,9 +1119,9 @@ impl Printer<'_> {
 	fn ty(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Builtin(name) => name.to_string(),
-			Type::Rt(name, args) => {
-				self.uses_rt = true;
-				format!("rt.{name}{}", self.type_args(args))
+			Type::Rs(name, args) => {
+				self.uses_rs = true;
+				format!("rs.{name}{}", self.type_args(args))
 			}
 			Type::Sym(id, args) => format!("{}{}", self.sym_name(*id), self.type_args(args)),
 			Type::Param(name) => name.clone(),
@@ -1312,7 +1312,7 @@ fn collect_expr_locals(e: &Expr, out: &mut Vec<String>) {
 			collect_expr_locals(b, out);
 			collect_expr_locals(c, out);
 		}
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 	}
 }
 

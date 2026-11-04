@@ -1,10 +1,10 @@
 // The ASCII methods of `u8`, `char`, `[u8]`, and `str`, for rust2-ts output, and the
-// iterators `escape_ascii` makes. `rt.ts` re-exports all of it.
+// iterators `escape_ascii` makes. `rs.ts` re-exports all of it.
 //
 // A `u8` and a `char` share each function: std's char ones are its byte ones' for an ASCII
 // char, and past ASCII no test holds and no case map changes it, as for a byte past 0x7f.
 
-import { ByteSlice, ByteVec, byteSliceView, byteVecFrom, type FmtResult, type Formatter, OK } from "../rt.ts";
+import { ByteSlice, ByteVec, byteSliceView, byteVecFrom, type FmtResult, type Formatter, OK } from "../rs.ts";
 import type { char, u8 } from "./int.ts";
 import { type Done, DONE, Iter, type SizeHint } from "./iter.ts";
 

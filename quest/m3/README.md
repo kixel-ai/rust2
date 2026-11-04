@@ -13,7 +13,6 @@ generic std gap is planned here even when moq never calls it.
 
 ## Required
 
-- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - translated code and hand-written callers import the runtime as `rs`, not `rt`
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source

@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-/// `rt.spawn` yields to a macrotask once a batch spends its poll budget, and a signal cancels it.
+/// `rs.spawn` yields to a macrotask once a batch spends its poll budget, and a signal cancels it.
 #[test]
 fn spawn() {
 	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("spawn.ts");
@@ -274,12 +274,12 @@ fn retain() {
 	assert_eq!(got.lines().count(), want.lines().count());
 }
 
-/// `rt/unicode.ts` holds std's Unicode tables that `char`'s classes, case maps, and `Debug`
+/// `rs/unicode.ts` holds std's Unicode tables that `char`'s classes, case maps, and `Debug`
 /// read, and `str::to_lowercase`'s final sigma, by this toolchain's std, whose Unicode version
 /// the JS engine's may trail. `UPDATE_EXPECT=1 just ts test --test runtime unicode` rewrites it.
 #[test]
 fn unicode() {
-	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("runtime/rt/unicode.ts");
+	let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("runtime/rs/unicode.ts");
 	// The runtime reads `is_cased` from three of the tables, as std defines it.
 	for c in (0..=char::MAX as u32).filter_map(char::from_u32) {
 		let cased = c.is_lowercase() || c.is_uppercase() || c.is_titlecase();
@@ -360,7 +360,7 @@ fn case_map(name: &str, method: &str, map: fn(char) -> Vec<char>) -> String {
 }
 
 /// `map`'s table of the chars it maps to one other, in runs that step by one or two with
-/// the same offset, and of those it maps to more than one, in `rt/unicode.ts`'s formats.
+/// the same offset, and of those it maps to more than one, in `rs/unicode.ts`'s formats.
 fn case_runs(map: fn(char) -> Vec<char>) -> (Vec<i64>, Vec<i64>) {
 	// Each run's first char, length, step, and offset.
 	let mut runs: Vec<(u32, u32, u32, i64)> = Vec::new();
@@ -401,7 +401,7 @@ fn case_runs(map: fn(char) -> Vec<char>) -> (Vec<i64>, Vec<i64>) {
 	(table, multi)
 }
 
-/// `values` as `rt/unicode.ts` exports a table: `name`, documented by `doc`, in lines of
+/// `values` as `rs/unicode.ts` exports a table: `name`, documented by `doc`, in lines of
 /// at most 90 columns.
 fn table(name: &str, doc: &str, values: &[i64]) -> String {
 	let wrap = |text: &str, first: &str, rest: &str| {

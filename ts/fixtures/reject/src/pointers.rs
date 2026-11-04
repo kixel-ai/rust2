@@ -84,7 +84,7 @@ pub fn element_pointer(n: u32) -> u32 {
 	unsafe { (*p).0 }
 }
 
-/// The pointer `UnsafeCell::get` gives to the object its `rt.Cell` holds, which a whole
+/// The pointer `UnsafeCell::get` gives to the object its `rs.Cell` holds, which a whole
 /// write of the cell elsewhere replaces with another object.
 pub fn cell_replaced(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new((n, n));
@@ -93,7 +93,7 @@ pub fn cell_replaced(n: u32) -> u32 {
 	unsafe { (*p).0 + old.into_inner().1 }
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` itself, which an
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` itself, which an
 /// assignment of the whole variable replaces.
 pub fn cell_reassigned(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new(n);
@@ -106,7 +106,7 @@ pub struct Hits {
 	pub count: std::cell::UnsafeCell<u32>,
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` itself, which
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` itself, which
 /// `mem::take` of the whole variable replaces.
 pub fn cell_taken(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new(n);
@@ -115,7 +115,7 @@ pub fn cell_taken(n: u32) -> u32 {
 	unsafe { *p + old.into_inner() }
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` in a struct, which a
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` in a struct, which a
 /// write of the whole field replaces.
 pub fn cell_field_replaced(n: u32) -> u32 {
 	let mut hits = Hits {
@@ -432,12 +432,12 @@ pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
 	}
 }
 
-/// A slice of one `u8`'s place, which no `rt.ByteSlice` views.
+/// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
 pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
 }
 
-/// A slice of an `Option`'s byte, which no `rt.ByteSlice` views either.
+/// A slice of an `Option`'s byte, which no `rs.ByteSlice` views either.
 pub fn byte_option_slice(o: &mut Option<u8>) {
 	o.as_mut_slice().fill(1);
 }

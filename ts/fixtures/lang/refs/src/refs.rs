@@ -196,7 +196,7 @@ pub fn refs(data: &[u8], out: &mut Vec<u8>) {
 		bump_byte(s);
 	}
 	out.push(slot.unwrap_or(0xee));
-	// Replaced, in a local, through a parameter, and where `None` is `rt.None`.
+	// Replaced, in a local, through a parameter, and where `None` is `rs.None`.
 	let mut last = None;
 	let mut name = None;
 	for &b in data {

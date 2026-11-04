@@ -10,7 +10,7 @@
 //! reads: each statement's own, the caller's location to each std function that takes it,
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
 //! own code is where the toolchain's source has it, and one in `bytes`' where the
-//! program's `bytes` has it, named as the session names that file, which `rt.setHook` is
+//! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
 //! given.
 
 use std::sync::OnceLock;
@@ -24,7 +24,7 @@ use super::body::Body;
 use super::library::{self, Std};
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
-/// The `rt.Location` rustc gives a call at `span`: where the outermost macro call it came
+/// The `rs.Location` rustc gives a call at `span`: where the outermost macro call it came
 /// from is, in the file as the native build names it, by line and column from 1.
 pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
@@ -498,7 +498,7 @@ const BYTES: &[(&str, &str, &[&str], &str)] = &[
 	),
 ];
 
-/// The `rt.Sites` of the toolchain's std, which `rt.setHook` takes: where each panic
+/// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
 /// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
 /// program's `bytes`, if it has one.
 pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
@@ -557,7 +557,7 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 	tables.pop().unwrap_or_default()
 }
 
-/// The `rt.Location` of the first `needle` after each of `after` in turn in `file`, under
+/// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
 /// `krate`'s `src/`, named as the session names it.
 fn bytes_find(
 	tcx: TyCtxt<'_>,
@@ -632,7 +632,7 @@ fn found(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Expr {
 	}
 }
 
-/// The `rt.Location` of the first `needle` after each of `after` in turn in `file`, a file
+/// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, a file
 /// under std's `library/` whose `*` stands for a vendored crate's version, in the
 /// toolchain's source.
 fn find(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Option<Expr> {
@@ -679,7 +679,7 @@ fn position(text: &str, after: &[&str], needle: &str) -> Option<(usize, usize)> 
 	Some((line, col))
 }
 
-/// The `rt.Location` of `file`, `line`, and `col`.
+/// The `rs.Location` of `file`, `line`, and `col`.
 pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("file".into()), Expr::Str(file)),
@@ -767,7 +767,7 @@ pub fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'t
 
 /// The type of the parameter a `#[track_caller]` function takes its caller's location by.
 pub fn param_ty() -> Type {
-	Type::Rt("Location", Vec::new())
+	Type::Rs("Location", Vec::new())
 }
 
 /// Each runtime function that takes where a panic it makes is, as an `at?: Location`
@@ -782,7 +782,7 @@ fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usiz
 }
 
 /// The functions `text` exports that take an `at?: Location` parameter, or one that also
-/// takes a key of `rt.Sites`, and its index.
+/// takes a key of `rs.Sites`, and its index.
 fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)> {
 	["export function ", "export const "]
 		.into_iter()
@@ -884,8 +884,8 @@ fn unlocated(e: &mut Expr) -> Option<(&mut Vec<Expr>, usize)> {
 		return None;
 	};
 	let name = match &**callee {
-		Expr::Rt(name) => name,
-		Expr::Instantiate(f, _) if let Expr::Rt(name) = &**f => name,
+		Expr::Rs(name) => name,
+		Expr::Instantiate(f, _) if let Expr::Rs(name) = &**f => name,
 		_ => return None,
 	};
 	let index = *located().get(name.as_str())?;
@@ -926,7 +926,7 @@ fn stmt_exprs(stmt: &mut Stmt, f: &mut dyn FnMut(&mut Expr)) {
 /// Call `f` on `e` and every expression within it, arrow bodies included, innermost first.
 fn walk(e: &mut Expr, f: &mut dyn FnMut(&mut Expr)) {
 	match e {
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		Expr::Array(items) => items.iter_mut().for_each(|e| walk(e, f)),
 		Expr::Object(props) => props.iter_mut().for_each(|(_, e)| walk(e, f)),
 		Expr::Member(e, _)
