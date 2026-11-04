@@ -16,7 +16,3 @@ lookup unless something on the thread is waiting; #564's PR body explains why re
 only the thread that last ran the loop is unsafe (a stale loop can deadlock a blocking call).
 
 moq's Python calls run inside a loop, so moq pays this cost. Public API: none.
-
-## Related
-
-- [Python methods without a wrapper frame](/quest/m3/ffi-python-methods.md) - the other per-call cost
