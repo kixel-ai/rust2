@@ -2817,14 +2817,22 @@ fn mapping<'tcx>(
 		("panic", "panic_any") | ("rt", "begin_panic") => {
 			let payload = targ(gargs, 0);
 			let owned = b.t.std_of(payload) == Some(Std::String);
-			match (matches!(payload.kind(), ty::Ref(_, s, _) if s.is_str()) || owned, b.t.hooked) {
+			match (
+				matches!(payload.kind(), ty::Ref(_, s, _) if s.is_str()) || owned,
+				b.t.hooked,
+			) {
 				(true, true) => {
 					let at = b.panic_at.clone().unwrap_or_else(Expr::undefined);
 					Expr::rt("panic", vec![args.pop()?, at, Expr::lit(owned.to_string())])
 				}
 				(true, false) => Expr::rt("panic", args),
 				(false, true) => {
-					let class = b.t.object_class(payload, super::dynamic::any_object(tcx)?, super::dynamic::Held::Value, span)?;
+					let class = b.t.object_class(
+						payload,
+						super::dynamic::any_object(tcx)?,
+						super::dynamic::Held::Value,
+						span,
+					)?;
 					Expr::rt("panicAny", vec![Expr::New(Box::new(Expr::Sym(class.sym)), args)])
 				}
 				(false, false) => Expr::rt("panic", vec![Expr::Str("Box<dyn Any>".into())]),

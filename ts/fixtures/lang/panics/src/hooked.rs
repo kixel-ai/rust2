@@ -163,10 +163,21 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		3 => out.push(f64::from(n).clamp(1.0, 0.0) as u8),
 		4 => out.push(f32::from(n).clamp(1.0, 0.0) as u8),
 		5 => out.extend_from_slice(char::from(n.max(128)).encode_utf8(&mut [0; 1]).as_bytes()),
-		6 => out.push(char::from_u32(0x1F600 + u32::from(n)).unwrap().encode_utf16(&mut [0; 1]).len() as u8),
-		7 => out.extend(map.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n)))).map(|(_, &v)| v)),
+		6 => out.push(
+			char::from_u32(0x1F600 + u32::from(n))
+				.unwrap()
+				.encode_utf16(&mut [0; 1])
+				.len() as u8,
+		),
+		7 => out.extend(
+			map.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n))))
+				.map(|(_, &v)| v),
+		),
 		8 => out.extend(map.range(u16::from(n) + 1..u16::from(n)).map(|(_, &v)| v)),
-		9 => out.extend(set.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n)))).map(|&v| v as u8)),
+		9 => out.extend(
+			set.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n))))
+				.map(|&v| v as u8),
+		),
 		10 => out.extend(set.range(u16::from(n) + 1..u16::from(n)).map(|&v| v as u8)),
 		11 => deque.clone().insert(at + 3, n),
 		12 => deque.clone().swap(at + 2, 0),
@@ -228,7 +239,11 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			EXCLUSIVE.with_borrow(|&v| out.push(v));
 		}
 		35 => out.extend(v.clone().splice(at + 3.., [n])),
-		36 => out.extend(char::from_digit(u32::from(n), 37 + u32::from(n)).map(u32::from).map(|c| c as u8)),
+		36 => out.extend(
+			char::from_digit(u32::from(n), 37 + u32::from(n))
+				.map(u32::from)
+				.map(|c| c as u8),
+		),
 		37 => fence([Ordering::Relaxed, Ordering::SeqCst][at / 256]),
 		38 => compiler_fence([Ordering::Relaxed, Ordering::SeqCst][at / 256]),
 		39 => out.push(Duration::from_secs_f64(-1.0 - f64::from(n)).subsec_nanos() as u8),

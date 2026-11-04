@@ -73,7 +73,9 @@ fn commit(tcx: TyCtxt<'_>) -> &'static str {
 	});
 	match commit {
 		Some(commit) => commit,
-		None => tcx.dcx().fatal("rust2-ts: the wrapped rustc's `-vV` names no commit, which std's files are named by"),
+		None => tcx
+			.dcx()
+			.fatal("rust2-ts: the wrapped rustc's `-vV` names no commit, which std's files are named by"),
 	}
 }
 
@@ -89,47 +91,212 @@ fn rustc(args: &[&str]) -> Option<String> {
 /// standing for a vendored crate's version, the text before it, and the text the call
 /// that panics starts with, as a method call's location starts at its name.
 const SITES: &[(&str, &str, &str, &str)] = &[
-	("capacity", "alloc/src/raw_vec/mod.rs", "fn capacity_overflow", "panic!("),
-	("trusted_capacity", "alloc/src/vec/spec_from_iter_nested.rs", "", "panic!(\"capacity overflow\")"),
+	(
+		"capacity",
+		"alloc/src/raw_vec/mod.rs",
+		"fn capacity_overflow",
+		"panic!(",
+	),
+	(
+		"trusted_capacity",
+		"alloc/src/vec/spec_from_iter_nested.rs",
+		"",
+		"panic!(\"capacity overflow\")",
+	),
 	("swap_remove", "alloc/src/vec/mod.rs", "pub fn swap_remove", "panic!("),
-	("into_flattened", "alloc/src/vec/mod.rs", "pub fn into_flattened", "expect("),
-	("rotate_left", "core/src/slice/mod.rs", "pub const fn rotate_left", "assert!("),
-	("rotate_right", "core/src/slice/mod.rs", "pub const fn rotate_right", "assert!("),
-	("ord_violation", "core/src/slice/sort/shared/smallsort.rs", "fn panic_on_ord_violation", "panic!("),
-	("ord_clamp", "core/src/cmp.rs", "fn clamp(self, min: Self, max: Self)", "assert!("),
-	("f32_clamp", "core/src/num/f32.rs", "pub const fn clamp(", "const_assert!("),
-	("f64_clamp", "core/src/num/f64.rs", "pub const fn clamp(", "const_assert!("),
-	("encode_utf8", "core/src/char/methods.rs", "pub const fn encode_utf8_raw", "const_panic!("),
-	("encode_utf16", "core/src/char/methods.rs", "pub const fn encode_utf16_raw", "const_panic!("),
+	(
+		"into_flattened",
+		"alloc/src/vec/mod.rs",
+		"pub fn into_flattened",
+		"expect(",
+	),
+	(
+		"rotate_left",
+		"core/src/slice/mod.rs",
+		"pub const fn rotate_left",
+		"assert!(",
+	),
+	(
+		"rotate_right",
+		"core/src/slice/mod.rs",
+		"pub const fn rotate_right",
+		"assert!(",
+	),
+	(
+		"ord_violation",
+		"core/src/slice/sort/shared/smallsort.rs",
+		"fn panic_on_ord_violation",
+		"panic!(",
+	),
+	(
+		"ord_clamp",
+		"core/src/cmp.rs",
+		"fn clamp(self, min: Self, max: Self)",
+		"assert!(",
+	),
+	(
+		"f32_clamp",
+		"core/src/num/f32.rs",
+		"pub const fn clamp(",
+		"const_assert!(",
+	),
+	(
+		"f64_clamp",
+		"core/src/num/f64.rs",
+		"pub const fn clamp(",
+		"const_assert!(",
+	),
+	(
+		"encode_utf8",
+		"core/src/char/methods.rs",
+		"pub const fn encode_utf8_raw",
+		"const_panic!(",
+	),
+	(
+		"encode_utf16",
+		"core/src/char/methods.rs",
+		"pub const fn encode_utf16_raw",
+		"const_panic!(",
+	),
 	("format", "alloc/src/fmt.rs", "fn format_inner", "expect("),
-	("to_string", "alloc/src/string.rs", "", "expect(\"a Display implementation"),
-	("debug_struct_fields", "core/src/fmt/mod.rs", "pub fn debug_struct_fields_finish", "assert_eq!("),
-	("exact_len", "core/src/iter/traits/exact_size.rs", "let (lower, upper) = self.size_hint();", "assert_eq!("),
+	(
+		"to_string",
+		"alloc/src/string.rs",
+		"",
+		"expect(\"a Display implementation",
+	),
+	(
+		"debug_struct_fields",
+		"core/src/fmt/mod.rs",
+		"pub fn debug_struct_fields_finish",
+		"assert_eq!(",
+	),
+	(
+		"exact_len",
+		"core/src/iter/traits/exact_size.rs",
+		"let (lower, upper) = self.size_hint();",
+		"assert_eq!(",
+	),
 	("join_len", "alloc/src/str.rs", "fn join_generic_copy", "expect("),
-	("hash_capacity", "vendor/hashbrown-*/src/raw.rs", "", "panic!(\"Hash table capacity overflow\")"),
-	("btree_range_equal_BTreeSet", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start and end are equal and excluded in BTreeSet\")"),
-	("btree_range_equal_BTreeMap", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start and end are equal and excluded in BTreeMap\")"),
-	("btree_range_order_BTreeSet", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start is greater than range end in BTreeSet\")"),
-	("btree_range_order_BTreeMap", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start is greater than range end in BTreeMap\")"),
-	("deque_insert", "alloc/src/collections/vec_deque/mod.rs", "pub fn insert_mut(", "assert!("),
-	("deque_swap_i", "alloc/src/collections/vec_deque/mod.rs", "pub fn swap(&mut self, i: usize, j: usize)", "assert!(i"),
-	("deque_swap_j", "alloc/src/collections/vec_deque/mod.rs", "pub fn swap(&mut self, i: usize, j: usize)", "assert!(j"),
-	("deque_rotate_left", "alloc/src/collections/vec_deque/mod.rs", "pub fn rotate_left(", "assert!("),
-	("deque_rotate_right", "alloc/src/collections/vec_deque/mod.rs", "pub fn rotate_right(", "assert!("),
-	("deque_split_off", "alloc/src/collections/vec_deque/mod.rs", "pub fn split_off(", "assert!("),
-	("list_split_off", "alloc/src/collections/linked_list.rs", "pub fn split_off(", "assert!("),
-	("mutex_lock", "std/src/sys/sync/mutex/no_threads.rs", "pub fn lock(", "assert_eq!("),
-	("once_force", "std/src/sync/once.rs", "pub fn call_once_force<", "call(true"),
-	("reentrant_init", "core/src/cell/once.rs", "", "panic!(\"reentrant init\")"),
+	(
+		"hash_capacity",
+		"vendor/hashbrown-*/src/raw.rs",
+		"",
+		"panic!(\"Hash table capacity overflow\")",
+	),
+	(
+		"btree_range_equal_BTreeSet",
+		"alloc/src/collections/btree/search.rs",
+		"",
+		"panic!(\"range start and end are equal and excluded in BTreeSet\")",
+	),
+	(
+		"btree_range_equal_BTreeMap",
+		"alloc/src/collections/btree/search.rs",
+		"",
+		"panic!(\"range start and end are equal and excluded in BTreeMap\")",
+	),
+	(
+		"btree_range_order_BTreeSet",
+		"alloc/src/collections/btree/search.rs",
+		"",
+		"panic!(\"range start is greater than range end in BTreeSet\")",
+	),
+	(
+		"btree_range_order_BTreeMap",
+		"alloc/src/collections/btree/search.rs",
+		"",
+		"panic!(\"range start is greater than range end in BTreeMap\")",
+	),
+	(
+		"deque_insert",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn insert_mut(",
+		"assert!(",
+	),
+	(
+		"deque_swap_i",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn swap(&mut self, i: usize, j: usize)",
+		"assert!(i",
+	),
+	(
+		"deque_swap_j",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn swap(&mut self, i: usize, j: usize)",
+		"assert!(j",
+	),
+	(
+		"deque_rotate_left",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn rotate_left(",
+		"assert!(",
+	),
+	(
+		"deque_rotate_right",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn rotate_right(",
+		"assert!(",
+	),
+	(
+		"deque_split_off",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn split_off(",
+		"assert!(",
+	),
+	(
+		"list_split_off",
+		"alloc/src/collections/linked_list.rs",
+		"pub fn split_off(",
+		"assert!(",
+	),
+	(
+		"mutex_lock",
+		"std/src/sys/sync/mutex/no_threads.rs",
+		"pub fn lock(",
+		"assert_eq!(",
+	),
+	(
+		"once_force",
+		"std/src/sync/once.rs",
+		"pub fn call_once_force<",
+		"call(true",
+	),
+	(
+		"reentrant_init",
+		"core/src/cell/once.rs",
+		"",
+		"panic!(\"reentrant init\")",
+	),
 	("lazy_poisoned", "core/src/cell/lazy.rs", "fn panic_poisoned", "panic!("),
 	("ready_poll", "core/src/future/ready.rs", "fn poll(", "expect("),
-	("ready_into_inner", "core/src/future/ready.rs", "pub fn into_inner(", "expect("),
+	(
+		"ready_into_inner",
+		"core/src/future/ready.rs",
+		"pub fn into_inner(",
+		"expect(",
+	),
 	("duration_new", "core/src/time.rs", "pub const fn new(", "expect("),
-	("duration_from_mins", "core/src/time.rs", "pub const fn from_mins(", "panic!("),
-	("duration_from_hours", "core/src/time.rs", "pub const fn from_hours(", "panic!("),
+	(
+		"duration_from_mins",
+		"core/src/time.rs",
+		"pub const fn from_mins(",
+		"panic!(",
+	),
+	(
+		"duration_from_hours",
+		"core/src/time.rs",
+		"pub const fn from_hours(",
+		"panic!(",
+	),
 	("duration_add", "core/src/time.rs", "", "expect(\"adding durations"),
 	("duration_sub", "core/src/time.rs", "", "expect(\"subtracting durations"),
-	("duration_mul", "core/src/time.rs", "", "expect(\"multiplying duration by scalar"),
+	(
+		"duration_mul",
+		"core/src/time.rs",
+		"",
+		"expect(\"multiplying duration by scalar",
+	),
 ];
 
 /// Where each std function that neither takes its caller's location nor is defined by a
@@ -137,24 +304,109 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 /// path [`library::std_path`] gives it: as [`SITES`] says.
 const CALLEES: &[(&str, &str, &str, &str)] = &[
 	("vec::drain", "alloc/src/vec/mod.rs", "pub fn drain<R>", "slice::range("),
-	("vec::splice", "alloc/src/vec/mod.rs", "pub fn drain<R>", "slice::range("),
-	("vec::extend_from_within", "alloc/src/vec/mod.rs", "pub fn extend_from_within<R>", "slice::range("),
-	("collections::vec_deque::drain", "alloc/src/collections/vec_deque/mod.rs", "pub fn drain<R>", "slice::range("),
-	("collections::vec_deque::range", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "slice::range("),
-	("collections::vec_deque::range_mut", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "slice::range("),
-	("iter::traits::iterator::Iterator::step_by", "core/src/iter/adapters/step_by.rs", "fn new(", "assert!("),
-	("char::methods::from_digit", "core/src/char/convert.rs", "const fn from_digit(", "panic!("),
-	("sync::atomic::fence", "core/src/sync/atomic.rs", "pub const fn fence(", "panic!("),
-	("sync::atomic::compiler_fence", "core/src/sync/atomic.rs", "pub const fn compiler_fence(", "panic!("),
-	("time::from_secs_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
-	("time::mul_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
-	("time::mul_f32", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
-	("time::div_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
-	("time::div_f32", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
-	("time::from_secs_f32", "core/src/time.rs", "pub fn from_secs_f32(secs: f32)", "panic!("),
+	(
+		"vec::splice",
+		"alloc/src/vec/mod.rs",
+		"pub fn drain<R>",
+		"slice::range(",
+	),
+	(
+		"vec::extend_from_within",
+		"alloc/src/vec/mod.rs",
+		"pub fn extend_from_within<R>",
+		"slice::range(",
+	),
+	(
+		"collections::vec_deque::drain",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"pub fn drain<R>",
+		"slice::range(",
+	),
+	(
+		"collections::vec_deque::range",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"fn slice_ranges<R>",
+		"slice::range(",
+	),
+	(
+		"collections::vec_deque::range_mut",
+		"alloc/src/collections/vec_deque/mod.rs",
+		"fn slice_ranges<R>",
+		"slice::range(",
+	),
+	(
+		"iter::traits::iterator::Iterator::step_by",
+		"core/src/iter/adapters/step_by.rs",
+		"fn new(",
+		"assert!(",
+	),
+	(
+		"char::methods::from_digit",
+		"core/src/char/convert.rs",
+		"const fn from_digit(",
+		"panic!(",
+	),
+	(
+		"sync::atomic::fence",
+		"core/src/sync/atomic.rs",
+		"pub const fn fence(",
+		"panic!(",
+	),
+	(
+		"sync::atomic::compiler_fence",
+		"core/src/sync/atomic.rs",
+		"pub const fn compiler_fence(",
+		"panic!(",
+	),
+	(
+		"time::from_secs_f64",
+		"core/src/time.rs",
+		"pub fn from_secs_f64(secs: f64)",
+		"panic!(",
+	),
+	(
+		"time::mul_f64",
+		"core/src/time.rs",
+		"pub fn from_secs_f64(secs: f64)",
+		"panic!(",
+	),
+	(
+		"time::mul_f32",
+		"core/src/time.rs",
+		"pub fn from_secs_f64(secs: f64)",
+		"panic!(",
+	),
+	(
+		"time::div_f64",
+		"core/src/time.rs",
+		"pub fn from_secs_f64(secs: f64)",
+		"panic!(",
+	),
+	(
+		"time::div_f32",
+		"core/src/time.rs",
+		"pub fn from_secs_f64(secs: f64)",
+		"panic!(",
+	),
+	(
+		"time::from_secs_f32",
+		"core/src/time.rs",
+		"pub fn from_secs_f32(secs: f32)",
+		"panic!(",
+	),
 	("cell::take", "core/src/cell.rs", "pub fn take(&self) -> T", "replace("),
-	("thread::local::with_borrow_mut", "std/src/thread/local.rs", "pub fn with_borrow_mut<F, R>", "borrow_mut("),
-	("thread::local::with_borrow", "std/src/thread/local.rs", "pub fn with_borrow<F, R>", "borrow("),
+	(
+		"thread::local::with_borrow_mut",
+		"std/src/thread/local.rs",
+		"pub fn with_borrow_mut<F, R>",
+		"borrow_mut(",
+	),
+	(
+		"thread::local::with_borrow",
+		"std/src/thread/local.rs",
+		"pub fn with_borrow<F, R>",
+		"borrow(",
+	),
 ];
 
 /// The `rt.Sites` of the toolchain's std, which `rt.setHook` takes: where each panic
@@ -166,7 +418,10 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 		match find(tcx, file, after, needle) {
 			Some(at) => props.push((Key::Name(key.into()), at)),
 			None => {
-				t.err(span, format!("std's source has no `{needle}` in `{file}` after `{after}`, where it panics"));
+				t.err(
+					span,
+					format!("std's source has no `{needle}` in `{file}` after `{after}`, where it panics"),
+				);
 			}
 		}
 	}
@@ -196,20 +451,23 @@ fn find(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Option<Expr> 
 		Some(format!("{}/lib/rustlib/src/rust/library", root.trim()))
 	});
 	let mut sources = SOURCES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-	let source = sources.get_or_insert_default().entry(file.to_string()).or_insert_with(|| {
-		let dir = library.as_deref()?;
-		let path = match file.split_once('*') {
-			Some((prefix, suffix)) => {
-				let (parent, name) = prefix.rsplit_once('/')?;
-				let found = (std::fs::read_dir(format!("{dir}/{parent}")).ok()?)
-					.filter_map(Result::ok)
-					.find(|d| d.file_name().to_string_lossy().starts_with(name))?;
-				format!("{parent}/{}{suffix}", found.file_name().to_string_lossy())
-			}
-			None => file.to_string(),
-		};
-		Some((std::fs::read_to_string(format!("{dir}/{path}")).ok()?, path))
-	});
+	let source = sources
+		.get_or_insert_default()
+		.entry(file.to_string())
+		.or_insert_with(|| {
+			let dir = library.as_deref()?;
+			let path = match file.split_once('*') {
+				Some((prefix, suffix)) => {
+					let (parent, name) = prefix.rsplit_once('/')?;
+					let found = (std::fs::read_dir(format!("{dir}/{parent}")).ok()?)
+						.filter_map(Result::ok)
+						.find(|d| d.file_name().to_string_lossy().starts_with(name))?;
+					format!("{parent}/{}{suffix}", found.file_name().to_string_lossy())
+				}
+				None => file.to_string(),
+			};
+			Some((std::fs::read_to_string(format!("{dir}/{path}")).ok()?, path))
+		});
 	let (text, path) = source.as_ref()?;
 	let from = text.find(after)? + after.len();
 	let at = from + text[from..].find(needle)?;
@@ -324,22 +582,26 @@ fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usiz
 /// The functions `text` exports that take an `at?: Location` parameter, or one that also
 /// takes a key of `rt.Sites`, and its index.
 fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)> {
-	["export function ", "export const "].into_iter().flat_map(move |keyword| {
-		text.match_indices(keyword).filter_map(move |(at, _)| {
-			let rest = &text[at + keyword.len()..];
-			let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_'))?;
-			let (name, rest) = rest.split_at(end);
-			// A const's type or value, then any type parameters, opens the list.
-			let rest = rest.trim_start_matches([':', '=', ' ']);
-			let rest = match rest.strip_prefix('<') {
-				Some(generic) => &generic[closing(generic)? + 1..],
-				None => rest,
-			};
-			let params = split(rest.strip_prefix('(')?);
-			let at = params.iter().position(|p| matches!(p.trim(), "at?: Location" | "at?: Location | string"))?;
-			Some((name, at))
+	["export function ", "export const "]
+		.into_iter()
+		.flat_map(move |keyword| {
+			text.match_indices(keyword).filter_map(move |(at, _)| {
+				let rest = &text[at + keyword.len()..];
+				let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_'))?;
+				let (name, rest) = rest.split_at(end);
+				// A const's type or value, then any type parameters, opens the list.
+				let rest = rest.trim_start_matches([':', '=', ' ']);
+				let rest = match rest.strip_prefix('<') {
+					Some(generic) => &generic[closing(generic)? + 1..],
+					None => rest,
+				};
+				let params = split(rest.strip_prefix('(')?);
+				let at = params
+					.iter()
+					.position(|p| matches!(p.trim(), "at?: Location" | "at?: Location | string"))?;
+				Some((name, at))
+			})
 		})
-	})
 }
 
 /// Where the `>` that closes the type parameters `text` starts with is.

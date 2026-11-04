@@ -1718,7 +1718,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out.extend(entry);
 		out.extend(body);
 		if self.b.t.hooked && crate::lower::caller::unlocated_in(&mut out) {
-			self.err(self.span, "a panic of the runtime's whose location translation gave nowhere");
+			self.err(
+				self.span,
+				"a panic of the runtime's whose location translation gave nowhere",
+			);
 		}
 		drop_self_assignments(&mut out);
 		// A return folds in the value assigned only to a local: a closure's captures are
