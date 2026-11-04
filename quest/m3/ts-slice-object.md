@@ -35,7 +35,8 @@ each form costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))
 Rust panics, so a pointer comparison the translator can't answer exactly is refused at
 translation with a span. Pointers to arrays compare as slices; comparing pointers to
 elements and other places of values JS copies, which JS may make two `rs.Place`s for,
-stays refused, and its exact path is planned with the other runtime throws.
+stays refused, as do pointers to an array of one, and their exact path is
+[a quest of its own](/quest/m3/ts-runtime-throws.md).
 
 Public API: the translator's output and what a hand-written caller passes for a slice of
 arrays.
