@@ -2415,4 +2415,3 @@ fn narrowed(value: Expr) -> Expr {
 		(crate::ts::Key::Name(key.into()), payload.clone()),
 	])
 }
-
