@@ -26,6 +26,7 @@ fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program t
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
+fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut`, whose length is a capacity the runtime holds only as std guarantees it, which is not supported
 fixtures/reject/src/clones.rs:given_slots+6:2: a raw pointer to `(u8, u8)` in `([clones::Touched; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:kept_slots+5:2: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of
@@ -45,6 +46,7 @@ fixtures/reject/src/futures.rs:raw_waker_debug+1:2: `Debug` of `std::task::RawWa
 fixtures/reject/src/futures.rs:ready_pending+0:27: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
 fixtures/reject/src/futures.rs:waker_debug+1:2: `Debug` of `std::task::Waker`, which writes addresses, which JS has no counterpart of
 fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose closure takes a reference to `[u8; 2]`, which is not supported yet
+fixtures/reject/src/iters.rs:borrows+1:4: `Vec::splice` of `iters::Borrows`, whose own `by_ref` std's calls, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Discards+11:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Disposes+10:3: overriding `Iterator::fold` with a drop of its accumulator, or of the crate's type over it or its closure, which is not supported yet
 fixtures/reject/src/iters.rs:impl Iterator for Finds+8:15: overriding `Iterator::find_map` with a drop of what it finds, or of the crate's type over it or its closure, which is not supported yet

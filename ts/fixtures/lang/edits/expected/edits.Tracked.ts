@@ -35,4 +35,8 @@ export function drop$ops_Drop(self: Tracked): void {
 	rt.refMutRelease(_5);
 }
 
+export function cmp$cmp_Ord(self: Tracked, other: Tracked): rt.Ordering {
+	return rt.cmp(self.id, other.id);
+}
+
 //# sourceMappingURL=edits.Tracked.ts.map
