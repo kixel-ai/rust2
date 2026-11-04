@@ -4,14 +4,14 @@
 
 #![allow(dead_code, reason = "each item is a census root, not called from Rust")]
 
-/// A pointer's address, which JS has no counterpart of.
+/// The address of a place, which JS makes anew each borrow.
 pub fn addressed(n: u32) -> usize {
 	&n as *const u32 as usize
 }
 
-/// A pointer's address in a body no instance reaches, lowered over `T`.
-pub fn generic<T>(t: T) -> usize {
-	&t as *const T as usize
+/// A pointer made of an address in a body no instance reaches, lowered over `T`.
+pub fn generic<T>(at: usize) -> *const T {
+	std::ptr::without_provenance(at)
 }
 
 /// A pointer read as another type's bytes, at two types.
