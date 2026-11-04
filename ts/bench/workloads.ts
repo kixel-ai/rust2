@@ -5,7 +5,7 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "handoff";
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "join" | "handoff";
 	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
@@ -120,6 +120,15 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 
 	// `bench.rs`'s op 16: log lines formatted into one `String`.
 	out.push({ name: "fmt/lines", op: "format", items: count, input: Uint8Array.of(16, 0, ...u64(BigInt(count))) });
+
+	// `bench.rs`'s ops 17 to 20 over a broadcast path, ASCII or not: coded as moq-net codes
+	// one, joined to a track and stripped, and a `HashMap`'s keys.
+	const strings = 256;
+	["ascii", "utf8"].forEach((name, selector) => {
+		pair(`str/${name}`, strings, 17, selector, [BigInt(strings)]);
+		out.push({ name: `str/join/${name}`, op: "join", items: strings, input: Uint8Array.of(19, selector, ...u64(BigInt(strings))) });
+		out.push({ name: `str/keyed/${name}`, op: "map", items: strings, input: Uint8Array.of(20, selector, ...u64(BigInt(strings))) });
+	});
 	return out;
 }
 

@@ -6,7 +6,9 @@
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
 //! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
-//! `HashMap`, op 15 numbers TS packets as moq-mux does, and op 16 formats log lines.
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, ops 17
+//! and 18 code strings as moq-net codes a path, op 19 joins and strips paths, and op 20
+//! keeps a `HashMap` keyed by `String`.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
@@ -43,6 +45,10 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		14 => hashed(selector, data, &mut out),
 		15 => packets(selector, data, &mut out),
 		16 => format(data, &mut out),
+		17 => encoded(encode_strings(selector, data, &mut out), &mut out),
+		18 => decoded(decode_strings(data, &mut out), &mut out),
+		19 => join(selector, data, &mut out),
+		20 => keyed(selector, data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -318,6 +324,90 @@ fn format(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put_usize(out, s.len());
 	put_u64(out, s.bytes().map(u64::from).sum());
+}
+
+/// Broadcast paths as moq names them: one ASCII, and one with chars of two, three, and four
+/// bytes.
+const NAMES: [&str; 2] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+
+/// The tracks `join` appends to a broadcast's path.
+const TRACKS: [&str; 4] = ["video", "audio", "catalog.json", "字幕"];
+
+/// The `selector`th name of [`NAMES`], `count` times, each size-prefixed, as moq-net's
+/// `Encoder::string` writes a path.
+fn encode_strings(selector: u8, data: &[u8], out: &mut Vec<u8>) -> Result<(), EncodeError> {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let mut w = Encoder::new(out, Form::Quic);
+	for _ in 0..count as usize {
+		w.string(name)?;
+	}
+	Ok(())
+}
+
+/// Every string on the wire, each an owned `String`, as moq-net decodes a path: how many,
+/// their total length, and the last one's.
+fn decode_strings(wire: &[u8], out: &mut Vec<u8>) -> Result<(), DecodeError> {
+	let mut r = Decoder::new(wire, Form::Quic);
+	let mut count = 0;
+	let mut total = 0;
+	let mut last = String::new();
+	while !r.is_empty() {
+		last = r.string()?;
+		total += last.len();
+		count += 1;
+	}
+	put_usize(out, count);
+	put_usize(out, total);
+	put_usize(out, last.len());
+	Ok(())
+}
+
+/// `count` paths, each the `selector`th name of [`NAMES`] and a track joined into a
+/// `String` sized up front, as moq-net's `Path::concat` builds one, then stripped of the
+/// name at a segment boundary, as `Path::strip_prefix` is: their total length, and the
+/// stripped tracks'.
+fn join(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let mut total = 0;
+	let mut stripped = 0;
+	for i in 0..count.min(1 << 16) as usize {
+		let track = TRACKS[i % TRACKS.len()];
+		let mut path = String::with_capacity(name.len() + 1 + track.len());
+		path.push_str(name);
+		path.push('/');
+		path.push_str(track);
+		total += path.len();
+		if let Some(rest) = path.strip_prefix(name)
+			&& let Some(rest) = rest.strip_prefix('/')
+		{
+			stripped += rest.len();
+		}
+	}
+	put_usize(out, total);
+	put_usize(out, stripped);
+}
+
+/// `count` paths, the `selector`th name of [`NAMES`] and a number, each a key of a
+/// `HashMap` and looked up by its `&str` four times, as moq-net finds a broadcast by its
+/// path: the sum of what the lookups found.
+fn keyed(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let keys: Vec<String> = (0..count.min(1 << 16) as u32).map(|i| format!("{name}/{i}")).collect();
+	let mut map = HashMap::new();
+	for (i, key) in keys.iter().enumerate() {
+		map.insert(key.clone(), i as u64);
+	}
+	let mut sum = 0u64;
+	for _ in 0..4 {
+		for key in &keys {
+			sum += map.get(key.as_str()).copied().unwrap_or(0);
+		}
+	}
+	put_u64(out, sum);
+	put_usize(out, map.len());
 }
 
 /// A pair `format` writes with its derived `Debug`.
