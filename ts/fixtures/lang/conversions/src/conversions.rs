@@ -679,6 +679,10 @@ fn referenced<T: Value + Ord>(data: &[u8], out: &mut Vec<u8>) {
 	*BorrowMut::<T>::borrow_mut(&mut whole) = T::make(data, 27);
 	Borrow::<T>::borrow(&whole).put(out);
 	BorrowMut::<Vec<T>>::borrow_mut(&mut &mut list).push(T::make(data, 28));
+	let other = T::make(data, 29);
+	let mut r = &whole;
+	*BorrowMut::<&T>::borrow_mut(&mut r) = &other;
+	r.put(out);
 	compared(&array[0], &array[1], out).put(out);
 	compared(&&list[1], &&array[2], out).put(out);
 	compared(&mut T::make(data, 22), &mut T::make(data, 23), out).put(out);

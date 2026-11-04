@@ -168,8 +168,12 @@ pub fn call<'tcx>(
 				let value = match arc_of(b, peel(b, t)) {
 					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
 						"borrow" if held => b.t.pointee_value(t, value),
-						// Given the place of its receiver, which a `&mut` holds.
-						"borrow_mut" if t.is_ref() => {
+						// Given the place of its receiver, which a `&mut` holds, but where it lends
+						// itself, as std's impl for any `T` does.
+						"borrow_mut"
+							if t.is_ref()
+								&& tcx.erase_and_anonymize_regions(t) != tcx.erase_and_anonymize_regions(by) =>
+						{
 							let receiver = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, t);
 							b.t.pointee_value(receiver, value)
 						}
