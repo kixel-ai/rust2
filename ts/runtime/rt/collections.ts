@@ -2245,13 +2245,16 @@ class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				continue;
 			}
 			const value = l.v[i];
-			// A leaf that takes from or merges with another moves what is left of it, which is
-			// then found again by the key it took out.
-			const settles = l.k.length <= MIN && m.h > 0;
+			// A leaf left too small evens out with a neighbor or merges with it. Only one that
+			// merges into the leaf before it or takes from it moves what is left of it.
+			const prev = l.prev;
+			const before = prev?.k.length ?? 0;
 			removeAt(m, l, i);
-			if (settles) {
-				l = leafOf(m, key);
-				i = ~search(l.k, key, m.c);
+			if (prev !== undefined && prev.next !== l) {
+				i += before;
+				l = prev;
+			} else if (prev !== undefined) {
+				i += before - prev.k.length;
 			}
 			this.at(l, i);
 			return (this.keys ? key : [key, value]) as T;
