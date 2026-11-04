@@ -20,7 +20,7 @@ export interface PanicHookInfo {
 /** A panic hook, as `set_hook` takes it. */
 export type Hook = (info: PanicHookInfo) => undefined;
 
-/** Where std's code panics, for each of its panics the runtime makes, as the native build names it. */
+/** Where std's and `bytes`' code panics, for each of their panics the runtime makes, as the native build names it. */
 export interface Sites {
 	readonly [site: string]: Location;
 }
@@ -31,11 +31,11 @@ function defaultHook(_info: PanicHookInfo): undefined {}
 let hook: Hook = defaultHook;
 /** Whether a panic is formatting its message or running the hook: a panic then aborts, and `thread::panicking` is true. */
 let hooking = false;
-/** Where std's own code panics outside a `#[track_caller]` function, which `setHook` is given. */
+/** Where std's and `bytes`' own code panics outside a `#[track_caller]` function, which `setHook` is given. */
 let sites: Sites | undefined;
 
 /**
- * Run the hook on a panic at `at`, or at the key of std's site in `Sites`, whose payload is
+ * Run the hook on a panic at `at`, or at the key of std's or `bytes`' site in `Sites`, whose payload is
  * `message` or else `payload`: a `String` if `owned`, or if it is `Arguments` with
  * placeholders, as `Arguments::as_str` says. It formats `Arguments` once the panic has
  * begun, as std does, and gives the text. A panic while the hook runs aborts, as std's does,
@@ -63,7 +63,7 @@ function asStr(args: Arguments): string | undefined {
 	return rest.length === 0 && typeof part === "string" ? part : undefined;
 }
 
-/** `panic::set_hook`, given where std's own code panics, which its hooks read. */
+/** `panic::set_hook`, given where std's and `bytes`' own code panics, which its hooks read. */
 export function setHook(f: Hook, table: Sites): void {
 	// Within a hook, which a panic there aborts.
 	if (hooking) panic("cannot modify the panic hook from a panicking thread");
