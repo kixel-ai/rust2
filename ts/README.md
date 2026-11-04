@@ -583,13 +583,19 @@ A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behi
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
-caller can implement. A coercion wraps the value in a class of its type's from `lib.ts`,
+caller can implement. A generic trait's type is generic over the trait's type parameters,
+then the associated types its objects bind that no supertrait binds already, so
+`dyn Source<Item = u8>` is a `Source.Source<rs.u8>`, and is typed as the trait declares
+it, as a generic struct is: a call casts what it returns to the form its object's
+arguments decide, such as the `rs.u8` of an `rs.Ptr<T>`. One whose method takes or returns
+another form at its arguments, such as the `rs.None` of an `Option<Self::Item>` whose
+`Item` is an `Option` too, is refused. A coercion wraps the value in a class of its type's from `lib.ts`,
 named for the type as a suffix spells it, `new of$dyns_Square(sq)`, which every trait's
 object of the type shares, whose methods call that type's impls; one from a `&mut` to a
 value JS copies holds its `rs.Place`, as `ofPlace$dyns_Square`, so `&mut self` writes
 where the value is. An upcast, to `dyn Any` too, is the same object. Objects of two traits
-of one name, with a method of one name, are refused for one type, whose class can't hold
-both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
+of one name, with a method of one name, or of one generic trait at two arguments, are
+refused for one type, whose class can't hold both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rs.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
@@ -647,9 +653,9 @@ box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get
 A trait object of std's
 or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
 `Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
-trait or one with an associated type, of a byte array, or behind any other pointer, such
-as a struct's last field, is refused, and so is `Any::type_id`.
+`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a trait
+with a const parameter, of a byte array, or behind any other pointer, such as a struct's
+last field, is refused, and so is `Any::type_id`.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the
@@ -714,7 +720,7 @@ of them:
   storage past its bytes, which `set_len` takes in, panicking past the capacity as
   `bytes`' debug assertion does.
 - `Buf` and `BufMut` of a `Bytes`, a `BytesMut`, a `&[u8]`, and a `Vec<u8>` map: the
-  required methods but `chunk_mut`, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
+  required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
   `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
   `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
@@ -724,7 +730,11 @@ of them:
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through
-  `copy_to_slice` where not, as `bytes`' do.
+  `copy_to_slice` where not, as `bytes`' do. `chunk_mut` is an `rs.ByteSlice` of the
+  storage past the bytes, once it reserved 64 where there was no room, as `bytes`' does.
+  An `UninitSlice`, `#[repr(transparent)]` over a `[MaybeUninit<u8>]`, is that slice's
+  `rs.ByteSlice`, so its methods, which translate from `bytes`' MIR, write the storage
+  of the buffer that lent it.
   The impls forwarding through a `&mut` or a `Box` translate from `bytes`' MIR, and the
   `BufMut` methods they don't forward map as the buffer's own, but `put` and `put_bytes`,
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of

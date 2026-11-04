@@ -59,4 +59,9 @@ export function key$dyns_Keyed(self: Square): rs.u32 {
 	return self.side as rs.u32;
 }
 
+export function run$dyns_Task_u32(self: Square): rs.u32 {
+	self.side = rs.u16WrappingAdd(self.side, 1);
+	return area$dyns_Shape(self);
+}
+
 //# sourceMappingURL=dyns.Square.ts.map

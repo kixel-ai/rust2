@@ -520,8 +520,12 @@ pub fn text<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 /// What a value of `ty` is in JS if `ty` wraps one value it is represented as: `Reverse<T>`'s,
 /// `NonZero<T>`'s, `Wrapping<T>`'s, `Saturating<T>`'s, and `AssertUnwindSafe<T>`'s `T`, which
 /// differ only in their order, range, arithmetic, and unwind safety, a pattern type's base,
-/// and the field of each of core's `niche_types` structs that hold one.
+/// the field of each of core's `niche_types` structs that hold one, and `bytes`'
+/// `UninitSlice`'s `[MaybeUninit<u8>]`.
 pub fn wrapped<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	if let Some(slice) = super::stock::uninit_slice(tcx, ty) {
+		return Some(slice);
+	}
 	match ty.kind() {
 		ty::Pat(base, _) => Some(*base),
 		ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {

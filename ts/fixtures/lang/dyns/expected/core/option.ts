@@ -2,6 +2,7 @@
 
 import * as rs from "../rs.ts";
 import type * as Any from "../core/any.Any.ts";
+import type * as Scaled from "../dyns.Scaled.ts";
 import type * as Shape from "../dyns.Shape.ts";
 import type * as Tagged from "../dyns.Tagged.ts";
 
@@ -68,6 +69,13 @@ export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): r
 	return f(self);
 }
 
+export function map$00ac22d(self: rs.Arc<Scaled.Scaled<rs.ByteVec>> | undefined, f: (a0: rs.Arc<Scaled.Scaled<rs.ByteVec>>) => rs.ByteVec): rs.ByteVec | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$13cu53u(self: rs.Arc<rs.Mutex<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.Mutex<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -83,6 +91,13 @@ export function map$1bn5ufk(self: rs.Arc<rs.u32> | undefined, f: (a0: rs.Arc<rs.
 }
 
 export function map$1aeqf1p(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f: (a0: [Tagged.Tagged, Tagged.Tagged]) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$070fw7m(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
