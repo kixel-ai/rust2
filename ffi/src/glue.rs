@@ -128,6 +128,7 @@ impl Crate<'_> {
 			bytes = \"1\"\n\
 			jni-sys = {{ version = \"0.4\", optional = true }}\n\
 			pyo3-ffi = {{ version = \"0.30\", optional = true, features = [\"abi3-py311\", \"extension-module\"] }}\n\
+			smallvec = {{ version = \"1.16\", optional = true }}\n\
 			\n\
 			[build-dependencies]\n\
 			pyo3-build-config = {{ version = \"0.30\", optional = true }}\n\
@@ -136,7 +137,7 @@ impl Crate<'_> {
 			# The JNI functions kotlin/{lib}.kt calls.\n\
 			kotlin = [\"dep:jni-sys\"]\n\
 			# The CPython extension python/{lib}.py loads.\n\
-			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\"]\n\
+			python = [\"dep:pyo3-ffi\", \"dep:pyo3-build-config\", \"dep:smallvec\"]\n\
 			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			\n\
