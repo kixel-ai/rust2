@@ -7,9 +7,10 @@ use std::rc::Rc;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 /// A `BytesMut` split, frozen, grown, written, and joined, its handles and `Bytes` dropped,
-/// cloned, and taken back, ending with every piece's bytes and capacity: a write to one
-/// that reached another would show, and so would a capacity `bytes` reclaimed only once the
-/// other handles of its storage dropped.
+/// cloned, and taken back, and written past its length through `spare_capacity_mut`, ending
+/// with every piece's bytes and capacity: a write to one that reached another would show,
+/// and so would a capacity `bytes` reclaimed only once the other handles of its storage
+/// dropped, or a write to its spare room that missed its storage.
 pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 	let mut ops = Ops(data);
 	let mut buf = BytesMut::with_capacity(ops.byte() as usize % 24);
@@ -17,7 +18,7 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 	let mut frozen: Vec<Bytes> = Vec::new();
 	while let Some(op) = ops.next() {
 		let n = ops.byte() as usize;
-		match op % 27 {
+		match op % 30 {
 			0 => buf.extend_from_slice(ops.take(n % 12)),
 			1 => buf.put_u8(n as u8),
 			2 => buf.put_u16(n as u16 * 257),
@@ -133,6 +134,33 @@ pub fn bytes_mut(data: &[u8], out: &mut Vec<u8>) {
 			25 => {
 				if let Some(piece) = pieces.last_mut() {
 					std::mem::swap(&mut buf, piece);
+				}
+			}
+			// Its spare room, as long as its capacity leaves, written byte by byte and taken in.
+			26 => {
+				let spare = buf.spare_capacity_mut();
+				out.extend_from_slice(&(spare.len() as u32).to_le_bytes());
+				let k = n % (spare.len() + 1);
+				for (i, slot) in spare[..k].iter_mut().enumerate() {
+					slot.write(n as u8 ^ i as u8);
+				}
+				unsafe { buf.set_len(buf.len() + k) };
+			}
+			// Copied into, then taken in by `advance_mut`, which panics past the room.
+			27 => {
+				let src = ops.take(n % 6);
+				let spare = buf.spare_capacity_mut();
+				let (k, room) = (src.len().min(spare.len()), spare.len());
+				spare[..k].write_copy_of_slice(&src[..k]);
+				unsafe { buf.advance_mut(if n % 16 == 15 { room + 1 } else { k }) };
+			}
+			// Written, then read again through a second call, before it is taken in.
+			28 => {
+				if let Some(slot) = buf.spare_capacity_mut().first_mut() {
+					slot.write(n as u8);
+				}
+				if let Some(slot) = buf.spare_capacity_mut().first() {
+					out.push(unsafe { slot.assume_init() });
 				}
 			}
 			_ => out.extend_from_slice(&(buf.capacity() as u32).to_le_bytes()),
@@ -509,6 +537,61 @@ fn late_take(data: &[u8], out: &mut Vec<u8>) {
 		out.extend_from_slice(&boxed.get_i16_ne().to_le_bytes());
 	}
 	out.push(boxed.remaining() as u8);
+}
+
+/// A `Vec<u8>` written past its length through `spare_capacity_mut`, by element, by
+/// `write_copy_of_slice` and through the slice it gives back, through a pointer, and
+/// split, then lengthened over what was written by `set_len` or by `advance_mut`, which
+/// panics past the room; written and read again through a second call; grown and cut. Each
+/// step puts its length, capacity, and room, then its bytes.
+pub fn vec_spares(data: &[u8], out: &mut Vec<u8>) {
+	let mut ops = Ops(data);
+	let mut vec: Vec<u8> = Vec::with_capacity(ops.byte() as usize % 20);
+	while let Some(op) = ops.next() {
+		let n = ops.byte();
+		let spare = vec.spare_capacity_mut();
+		let (room, k) = (spare.len(), n as usize % (spare.len() + 1));
+		match op % 7 {
+			0 => {
+				for (i, slot) in spare[..k].iter_mut().enumerate() {
+					slot.write(n ^ i as u8);
+				}
+				unsafe { vec.set_len(vec.len() + k) };
+			}
+			1 => {
+				let src: Vec<u8> = (0..k as u8).map(|i| n.wrapping_add(i)).collect();
+				spare[..k].write_copy_of_slice(&src).reverse();
+				unsafe { vec.advance_mut(if n % 16 == 15 { room + 1 } else { k }) };
+			}
+			2 => unsafe {
+				let src = [n; 64];
+				let k = k.min(src.len());
+				std::ptr::copy_nonoverlapping(src.as_ptr(), spare.as_mut_ptr().cast::<u8>(), k);
+				vec.set_len(vec.len() + k);
+			},
+			3 => {
+				spare[..k].fill(std::mem::MaybeUninit::new(n));
+				if let Some(slot) = spare[..k].split_at_mut(k / 2).0.last_mut() {
+					*slot = std::mem::MaybeUninit::new(!n);
+				}
+				unsafe { vec.set_len(vec.len() + k) };
+			}
+			4 => {
+				if let Some(slot) = spare.first_mut() {
+					slot.write(n);
+				}
+				if let Some(slot) = vec.spare_capacity_mut().first() {
+					out.push(unsafe { slot.assume_init() });
+				}
+			}
+			5 => vec.reserve(n as usize % 40),
+			_ => vec.truncate(n as usize % (vec.len() + 1)),
+		}
+		for v in [vec.len(), vec.capacity(), vec.spare_capacity_mut().len()] {
+			out.extend_from_slice(&(v as u32).to_le_bytes());
+		}
+	}
+	out.extend_from_slice(&vec);
 }
 
 /// The same writes into a `Vec<u8>` and a `BytesMut`, which must match, and through the

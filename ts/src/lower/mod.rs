@@ -583,7 +583,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	pub fn split(&self, field: &ty::FieldDef) -> bool {
 		let ty = self.tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
 		matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
-			if (matches!(inner.kind(), ty::Slice(e) if matches!(e.kind(), ty::Uint(ty::UintTy::U8))) || byte_array(*inner)))
+			if (matches!(inner.kind(), ty::Slice(e) if byte(*e)) || byte_array(*inner)))
 			&& !self.tcx.visibility(field.did).is_public()
 	}
 
@@ -1318,9 +1318,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What kind of JS object a `&mut` to `ty` can change in place, if any.
 	pub fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Some(ObjectKind::Bytes),
-				_ => Some(ObjectKind::Array),
+			ty::Array(elem, _) | ty::Slice(elem) => match byte(*elem) {
+				true => Some(ObjectKind::Bytes),
+				false => Some(ObjectKind::Array),
 			},
 			// A JS array, whose elements change in place as an array's do.
 			ty::Tuple(tys) if !tys.is_empty() => Some(ObjectKind::Array),
@@ -1450,7 +1450,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) => self.bound_drops(adt.did()).is_some(),
 			ty::Dynamic(..) | ty::Closure(..) => true,
 			// A `Uint8Array`'s length never changes, as a boxed slice's may.
-			ty::Slice(elem) => matches!(elem.kind(), ty::Uint(ty::UintTy::U8)),
+			ty::Slice(elem) => byte(*elem),
 			_ => false,
 		};
 		// Copying fields into an object others share would change their handles too.
@@ -1525,13 +1525,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Ref(_, inner, _) => self.ty(*inner, span),
 			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rt("ArrayOf", vec![self.ty(*elem, span)]),
 			ty::Slice(elem) if self.open_elem(*elem) => Type::Rt("SliceOf", vec![self.ty(*elem, span)]),
-			ty::Array(elem, _) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Type::Builtin("Uint8Array"),
-				_ => Type::Array(Box::new(self.ty(*elem, span))),
+			ty::Array(elem, _) => match byte(*elem) {
+				true => Type::Builtin("Uint8Array"),
+				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
-			ty::Slice(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Type::Rt("ByteSlice", vec![]),
-				_ => Type::Array(Box::new(self.ty(*elem, span))),
+			ty::Slice(elem) => match byte(*elem) {
+				true => Type::Rt("ByteSlice", vec![]),
+				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			ty::FnDef(def_id, args) => {
@@ -1690,16 +1690,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Vec if self.open_elem(args.type_at(0)) => {
 					Type::Rt("VecOf", vec![self.ty(args.type_at(0), span)])
 				}
-				library::Std::Vec => match args.type_at(0).kind() {
-					ty::Uint(ty::UintTy::U8) => Type::Rt("ByteVec", vec![]),
-					_ => Type::Array(Box::new(self.ty(args.type_at(0), span))),
+				library::Std::Vec => match byte(args.type_at(0)) {
+					true => Type::Rt("ByteVec", vec![]),
+					false => Type::Array(Box::new(self.ty(args.type_at(0), span))),
 				},
 				library::Std::String => Type::Builtin("string"),
 				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rt("StrCow", vec![]),
 				library::Std::Cow if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, args)) => {
 					match elem.kind() {
 						_ if self.open_elem(elem) => Type::Rt("CowOf", vec![self.ty(elem, span)]),
-						ty::Uint(ty::UintTy::U8) => Type::Rt("ByteCow", vec![]),
+						_ if byte(elem) => Type::Rt("ByteCow", vec![]),
 						_ => Type::Rt("Cow", vec![self.ty(elem, span)]),
 					}
 				}
@@ -2103,9 +2103,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::PoisonError
 					| library::Std::ManuallyDrop,
 				) => self.erases_to(args.type_at(0)),
-				// `undefined` while it holds nothing.
+				// `undefined` while it holds nothing, but for a byte, which is then 0.
 				Some(library::Std::MaybeUninit) => Erased {
-					undefined: true,
+					undefined: !byte(ty),
 					..self.erases_to(args.type_at(0))
 				},
 				Some(library::Std::Option) => self.erases_to(args.type_at(0)).option(),
@@ -2215,9 +2215,26 @@ pub fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
 	}
 }
 
-/// Whether `ty` is `[u8; N]`, which is a `Uint8Array`.
+/// Whether `ty` is a byte: a `u8`, or a `MaybeUninit` of one through any number of them,
+/// which JS keeps as the `u8`, so that a run of any is a typed array's and a write through
+/// a `[MaybeUninit<u8>]` reaches the bytes it lends.
+pub fn byte(ty: Ty<'_>) -> bool {
+	match ty.kind() {
+		ty::Uint(ty::UintTy::U8) => true,
+		// The context every lowering runs in, so the many callers that name no `TyCtxt` need none.
+		ty::Adt(adt, args)
+			if adt.is_union()
+				&& ty::tls::with(|tcx| tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::MaybeUninit)) =>
+		{
+			byte(args.type_at(0))
+		}
+		_ => false,
+	}
+}
+
+/// Whether `ty` is `[u8; N]`, or one of `MaybeUninit<u8>`, which is a `Uint8Array`.
 pub fn byte_array(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Array(elem, _) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	matches!(ty.kind(), ty::Array(elem, _) if byte(*elem))
 }
 
 /// The parts of `slice`, an `rt.ByteSlice`, each read once: those it is made of, or those of a

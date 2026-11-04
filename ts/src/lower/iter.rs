@@ -758,7 +758,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
 	// room for exactly them.
 	let (ty, value) = match library::box_slice(tcx, ty) {
-		Some(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+		Some(elem) if !super::byte(elem) => {
 			let size = size_of(b, elem, span);
 			(Ty::new_slice(tcx, elem), Expr::rt("vecExact", vec![value, size]))
 		}
@@ -825,9 +825,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 				Some(Expr::rt("iterSliceMut", vec![library::elements(value, ty)]))
 			}
 			// A `Vec<u8>`'s owned bytes keep its buffer, as a deque collected from them does.
-			Std::Vec if owned && matches!(args.type_at(0).kind(), ty::Uint(ty::UintTy::U8)) => {
-				Some(Expr::rt("byteVecIntoIter", vec![value]))
-			}
+			Std::Vec if owned && super::byte(args.type_at(0)) => Some(Expr::rt("byteVecIntoIter", vec![value])),
 			Std::Vec => {
 				let values = each(b, args.type_at(0), vec![library::elements(value, ty)]);
 				Some(items(Expr::rt("iterSlice", values), args.type_at(0)))
@@ -2082,7 +2080,7 @@ fn collect<'tcx>(
 	};
 	if let Some(elem) = elem {
 		let v = match elem.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if super::byte(elem) => {
 				let (take, by_index, src) = collect_take(b, from, elem, span);
 				Expr::rt(
 					"iterToByteVec",
