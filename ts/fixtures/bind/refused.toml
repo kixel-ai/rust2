@@ -9,8 +9,8 @@ roots = ["harness::run", "harness::refused"]
 "raw" = "bind/raw.ts"
 "buf::Source" = "bind/source.ts"
 "raw::Tally::get" = { file = "bind/get.ts", drop = true }
-"raw::Tally::new" = "rt/tally.ts"
-"raw::Held::new" = "RT/held.ts"
+"raw::Tally::new" = "rs/tally.ts"
+"raw::Held::new" = "RS/held.ts"
 "buf::empty" = "../blob.ts"
 "buf::Blob" = "bind/blob.ts"
 # The crate renames the dependency, so its own name names nothing.

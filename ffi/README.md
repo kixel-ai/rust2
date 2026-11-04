@@ -314,6 +314,11 @@ same library on the stable ABI, so one build loads in CPython 3.11 and later. Th
 loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
 `<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
 function in-process, so a call is one crossing, which releases the GIL while Rust runs.
+Each function, method, and property but an `async def` is the extension's own, bound in
+the module or set on its class as it loads, so a call enters it with no Python frame
+between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
+take arguments by position or keyword, raise as a `def` would, and carry their
+docstrings and signatures.
 
 - **Names** are in the module: types in PascalCase without the prefix, members in
   snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a

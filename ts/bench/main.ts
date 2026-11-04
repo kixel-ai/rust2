@@ -107,10 +107,10 @@ async function codecEntry(dir: string): Promise<string> {
 	const entry = join(dir, "bench-entry.ts");
 	await Bun.write(
 		entry,
-		`import * as rt from "./rt.ts";
+		`import * as rs from "./rs.ts";
 import { run as bench } from "./bench.ts";
 
-export const run = (input: Uint8Array) => bench(rt.byteSliceFrom(input));
+export const run = (input: Uint8Array) => bench(rs.byteSliceFrom(input));
 `,
 	);
 	return entry;
@@ -125,12 +125,12 @@ async function taskEntry(dir: string): Promise<string> {
 	const entry = join(dir, "bench-entry.ts");
 	await Bun.write(
 		entry,
-		`import * as rt from "./rt.ts";
+		`import * as rs from "./rs.ts";
 import * as Channel from "./model.Channel.ts";
 import { drain } from "./model.ts";
 import { polled, spawned } from ${JSON.stringify(join(import.meta.dir, "task.ts"))};
 
-const fixture = { Pending: rt.Pending, spawn: rt.spawn, Channel, drain };
+const fixture = { Pending: rs.Pending, spawn: rs.spawn, Channel, drain };
 export const run = polled(fixture);
 export const spawn = spawned(fixture);
 `,

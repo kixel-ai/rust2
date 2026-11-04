@@ -14,24 +14,24 @@ use crate::ts::{self, FieldId, Function, Item, SymId};
 /// The runtime every module imports helpers from, written beside the crate root: each
 /// file's path from there, and its text.
 pub const RUNTIME: &[(&str, &str)] = &[
-	("rt.ts", include_str!("../runtime/rt.ts")),
-	("rt/alloc.ts", include_str!("../runtime/rt/alloc.ts")),
-	("rt/ascii.ts", include_str!("../runtime/rt/ascii.ts")),
-	("rt/bytes.ts", include_str!("../runtime/rt/bytes.ts")),
-	("rt/char.ts", include_str!("../runtime/rt/char.ts")),
-	("rt/collections.ts", include_str!("../runtime/rt/collections.ts")),
-	("rt/float.ts", include_str!("../runtime/rt/float.ts")),
-	("rt/hash.ts", include_str!("../runtime/rt/hash.ts")),
-	("rt/hook.ts", include_str!("../runtime/rt/hook.ts")),
-	("rt/int.ts", include_str!("../runtime/rt/int.ts")),
-	("rt/iter.ts", include_str!("../runtime/rt/iter.ts")),
-	("rt/location.ts", include_str!("../runtime/rt/location.ts")),
-	("rt/rand.ts", include_str!("../runtime/rt/rand.ts")),
-	("rt/sort.ts", include_str!("../runtime/rt/sort.ts")),
-	("rt/str.ts", include_str!("../runtime/rt/str.ts")),
-	("rt/task.ts", include_str!("../runtime/rt/task.ts")),
-	("rt/time.ts", include_str!("../runtime/rt/time.ts")),
-	("rt/unicode.ts", include_str!("../runtime/rt/unicode.ts")),
+	("rs.ts", include_str!("../runtime/rs.ts")),
+	("rs/alloc.ts", include_str!("../runtime/rs/alloc.ts")),
+	("rs/ascii.ts", include_str!("../runtime/rs/ascii.ts")),
+	("rs/bytes.ts", include_str!("../runtime/rs/bytes.ts")),
+	("rs/char.ts", include_str!("../runtime/rs/char.ts")),
+	("rs/collections.ts", include_str!("../runtime/rs/collections.ts")),
+	("rs/float.ts", include_str!("../runtime/rs/float.ts")),
+	("rs/hash.ts", include_str!("../runtime/rs/hash.ts")),
+	("rs/hook.ts", include_str!("../runtime/rs/hook.ts")),
+	("rs/int.ts", include_str!("../runtime/rs/int.ts")),
+	("rs/iter.ts", include_str!("../runtime/rs/iter.ts")),
+	("rs/location.ts", include_str!("../runtime/rs/location.ts")),
+	("rs/rand.ts", include_str!("../runtime/rs/rand.ts")),
+	("rs/sort.ts", include_str!("../runtime/rs/sort.ts")),
+	("rs/str.ts", include_str!("../runtime/rs/str.ts")),
+	("rs/task.ts", include_str!("../runtime/rs/task.ts")),
+	("rs/time.ts", include_str!("../runtime/rs/time.ts")),
+	("rs/unicode.ts", include_str!("../runtime/rs/unicode.ts")),
 ];
 
 /// The first line of every generated file, which also marks it as safe to replace.
@@ -361,7 +361,7 @@ impl Program {
 			ids.sort_by(|&a, &b| self.syms[a].key().cmp(&self.syms[b].key()));
 			// What a class already defines, and else the runtime's import binding.
 			let defined: &[&str] = match &scope {
-				Scope::Module(_) => &["rt"],
+				Scope::Module(_) => &["rs"],
 				Scope::Owner(_) => &["constructor", "prototype"],
 			};
 			let mut named: HashMap<String, Option<SymId>> =
@@ -510,9 +510,9 @@ impl Program {
 		}
 		if modules
 			.keys()
-			.any(|module| module.first().is_some_and(|name| name == "rt"))
+			.any(|module| module.first().is_some_and(|name| name == "rs"))
 		{
-			return Err("a top-level module named `rt` would replace the runtime, rt.ts and rt/".into());
+			return Err("a top-level module named `rs` would replace the runtime, rs.ts and rs/".into());
 		}
 
 		for (path, text) in RUNTIME {

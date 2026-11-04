@@ -19,6 +19,8 @@ use std::sync::{Mutex, OnceLock};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use crate::NOTE;
 
 /// Write what `info` says: its `Display`, its payload's type and text, and its location's
@@ -364,3 +366,84 @@ impl Iterator for Lying {
 }
 
 impl ExactSizeIterator for Lying {}
+
+/// One panic of `bytes`' own code, by `kind`, with a hook set: each where the native build
+/// names it, in the source of the `bytes` it builds.
+pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().copied().unwrap_or(0);
+	let at = usize::from(n);
+	let whole = Bytes::from(vec![n; 4]);
+	// `slice_ref`'s message names addresses, which JS has none of, so its hook reads where
+	// alone, then panics, which aborts and leaves the message unread.
+	if let k @ 0..=1 = kind % 30 {
+		panic::set_hook(Box::new(|info| {
+			let at = info.location().unwrap();
+			let line = format!("{} {} {}\n", at.file(), at.line(), at.column());
+			NOTE.with_borrow_mut(|note| note.push_str(&line));
+			panic!("unread");
+		}));
+		let subset = whole.slice(..1);
+		let held = match k {
+			0 => whole.slice(1 + at % 2..).slice_ref(&subset),
+			_ => whole.slice(..1).slice_ref(&whole[..2 + at % 2]),
+		};
+		out.extend_from_slice(&held);
+		return;
+	}
+	hook();
+	let mut shared = BytesMut::from(&[n; 8][..]);
+	match kind % 30 {
+		2 => out.extend_from_slice(&whole.slice(at + 3..2)),
+		3 => out.extend_from_slice(&whole.slice(..at + 5)),
+		4 => out.extend_from_slice(&whole.slice(usize::MAX - at % 2..=usize::MAX)),
+		5 => out.extend_from_slice(&whole.clone().split_to(at + 5)),
+		6 => out.extend_from_slice(&whole.clone().split_off(at + 5)),
+		7 => whole.clone().advance(at + 5),
+		8 => out.push(whole.slice(..1).get_u16() as u8),
+		9 => out.push(whole.clone().get_uint(9 + at % 2) as u8),
+		10 => (&data[..]).advance(data.len() + 1),
+		11 => whole.clone().copy_to_slice(&mut [0; 5]),
+		12 => out.extend_from_slice(&whole.clone().copy_to_bytes(at + 5)),
+		13 => out.extend_from_slice(&(&data[..]).copy_to_bytes(data.len() + 1)),
+		14 => out.extend_from_slice(&BytesMut::from(data).split_to(data.len() + 1)),
+		15 => out.extend_from_slice(&BytesMut::with_capacity(4).split_off(at + 5)),
+		16 => {
+			let mut b = BytesMut::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: `bytes`' debug assertion panics first.
+			unsafe { b.set_len(b.capacity() + 1) };
+			out.push(b.len() as u8);
+		}
+		17 => {
+			let mut b = BytesMut::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: `bytes` panics first.
+			unsafe { b.advance_mut(b.capacity() + 1) };
+			out.push(b.len() as u8);
+		}
+		18 => {
+			let mut v = Vec::<u8>::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: `bytes` panics first.
+			unsafe { v.advance_mut(v.capacity() + 1) };
+			out.push(v.len() as u8);
+		}
+		19 => BytesMut::from(data).advance(data.len() + 1),
+		20 => out.push(BytesMut::from(&data[..data.len().min(3)]).get_u32() as u8),
+		21 => out.push(BytesMut::with_capacity(usize::MAX - at).capacity() as u8),
+		22 => {
+			// Shared with the half split off, so `reserve` sums the length and what it asks.
+			let _tail = shared.split_off(4);
+			shared.reserve(usize::MAX - at % 2);
+		}
+		23 => {
+			// The one handle of storage it is 4 bytes into, so `reserve` adds that too.
+			drop(shared.split_to(4));
+			shared.reserve(usize::MAX - 4 - at % 2);
+		}
+		24 => shared.put_uint(u64::from(n), 9 + at % 2),
+		25 => out.put_int(i64::from(n), 9 + at % 2),
+		26 => (&mut *out).put_bytes(n, usize::MAX - at % 2),
+		27 => out.extend_from_slice(&whole.clone().take(2).copy_to_bytes(at + 3)),
+		28 => out.push(whole.clone().take(1).get_u16() as u8),
+		_ => out.push(BytesMut::zeroed(usize::MAX - at).len() as u8),
+	}
+	out.extend_from_slice(&shared);
+}

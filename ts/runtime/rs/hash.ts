@@ -1,11 +1,11 @@
 // Hashing, for rust2-ts output: `DefaultHasher`, which is std's SipHash-1-3 byte for byte,
 // `RandomState`, which keys it, the crate's own `Hasher`, and the `Hash` of std's types,
-// which call the `Hasher` methods std's call. `rt.ts` re-exports all of it.
+// which call the `Hasher` methods std's call. `rs.ts` re-exports all of it.
 //
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { ByteSlice, type ByteVec, type None } from "../rt.ts";
+import { asSlice, ByteSlice, type ByteVec, type None, type Vec } from "../rs.ts";
 import {
 	type i8,
 	type i16,
@@ -695,8 +695,9 @@ export function hashTuple<T extends readonly unknown[]>(fields: readonly ((value
 }
 
 /** `Hash::hash` of a slice: its length as a `usize`, then its elements' in order. */
-export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (value: ArrayLike<T>, s: Hasher) => void {
-	return (value, s) => {
+export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: ArrayLike<T> | Vec<T>, s: Hasher) => void {
+	return (items, s) => {
+		const value = asSlice(items);
 		s.prefix(value.length);
 		for (let i = 0; i < value.length; i++) hash(value[i], s);
 	};
@@ -706,8 +707,9 @@ export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (value: Array
  * `Hash::hash` of a slice of integers `size` bytes wide: its length as a `usize`, then
  * their bytes in one `write`, as their `hash_slice` writes them.
  */
-export function hashInts(size: 1 | 2 | 4 | 8 | 16): (value: ArrayLike<number | Limbs>, s: Hasher) => void {
-	return (value, s) => {
+export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: ArrayLike<number | Limbs> | Vec<number | Limbs>, s: Hasher) => void {
+	return (items, s) => {
+		const value = asSlice(items);
 		s.prefix(value.length);
 		s.ints(value, size);
 	};

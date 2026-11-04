@@ -98,7 +98,7 @@ pub fn argument(name: &str) -> Result<Option<Trait>, &'static str> {
 
 /// A formatter's type, for the parameters of the functions written here.
 fn formatter() -> Type {
-	Type::Rt("Formatter", Vec::new())
+	Type::Rs("Formatter", Vec::new())
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
@@ -181,13 +181,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 /// `f.debug_struct(name).finish_non_exhaustive()`: the name and ` { .. }`, each a `write_str`.
 fn non_exhaustive(f: Expr, name: &str) -> Expr {
-	let builder = Expr::rt("fmtDebugStruct", vec![f, Expr::Str(name.into())]);
-	Expr::rt("debugStructFinishNonExhaustive", vec![builder])
+	let builder = Expr::rs("fmtDebugStruct", vec![f, Expr::Str(name.into())]);
+	Expr::rs("debugStructFinishNonExhaustive", vec![builder])
 }
 
 /// Whether `e` is a runtime function, which reads no `this`.
 fn runtime(e: &Expr) -> bool {
-	matches!(e, Expr::Rt(_))
+	matches!(e, Expr::Rs(_))
 }
 
 /// Whether the path `e` reads the variable `name`.
@@ -221,7 +221,7 @@ pub fn std_impl<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	let rt = |name: &str, args: Vec<Expr>| Expr::rt_of("fmt", name).call(args);
+	let rs = |name: &str, args: Vec<Expr>| Expr::rs_of("fmt", name).call(args);
 	let text = matches!(tr, Trait::Display | Trait::Debug);
 	Some(match ty.kind() {
 		// A reference to an array of bytes is a slice of them, written as a slice is.
@@ -253,16 +253,16 @@ pub fn std_impl<'tcx>(
 				Trait::UpperExp => "upperExp",
 				_ => return None,
 			};
-			Expr::rt_of(float.name(), method).call(vec![value, f])
+			Expr::rs_of(float.name(), method).call(vec![value, f])
 		}
 		// `!`, and `Infallible`, which is it: never written, as none exists.
-		ty::Never if text => Expr::rt("unreachable", vec![value]),
-		ty::Bool if text => rt("bool", vec![value, f]),
-		ty::Char if tr == Trait::Display => rt("charDisplay", vec![value, f]),
-		ty::Char if tr == Trait::Debug => rt("charDebug", vec![value, f]),
-		ty::Str if tr == Trait::Display => Expr::rt("fmtPad", vec![f, value]),
-		ty::Str if tr == Trait::Debug => rt("str", vec![value, f]),
-		ty::Tuple(tys) if tys.is_empty() && tr == Trait::Debug => rt("unit", vec![value, f]),
+		ty::Never if text => Expr::rs("unreachable", vec![value]),
+		ty::Bool if text => rs("bool", vec![value, f]),
+		ty::Char if tr == Trait::Display => rs("charDisplay", vec![value, f]),
+		ty::Char if tr == Trait::Debug => rs("charDebug", vec![value, f]),
+		ty::Str if tr == Trait::Display => Expr::rs("fmtPad", vec![f, value]),
+		ty::Str if tr == Trait::Debug => rs("str", vec![value, f]),
+		ty::Tuple(tys) if tys.is_empty() && tr == Trait::Debug => rs("unit", vec![value, f]),
 		ty::Tuple(tys) if tr == Trait::Debug => {
 			// Each element's function reads the tuple.
 			let value = match pure(&value) {
@@ -274,11 +274,11 @@ pub fn std_impl<'tcx>(
 				.enumerate()
 				.map(|(i, t)| b.thunk(tr, t, value.clone().index(Expr::lit(i.to_string())), span))
 				.collect();
-			rt("tuple", vec![Expr::Array(fields), f])
+			rs("tuple", vec![Expr::Array(fields), f])
 		}
 		ty::Array(elem, _) | ty::Slice(elem) if tr == Trait::Debug => {
 			let item = b.fmt_fn(tr, *elem, span);
-			rt("list", vec![library::elements(value, ty), f, item])
+			rs("list", vec![library::elements(value, ty), f, item])
 		}
 		// A `&dyn Debug` is already a function writing its value.
 		ty::Dynamic(preds, ..) if preds.principal_def_id().and_then(|did| Trait::of(tcx, did)) == Some(tr) => {
@@ -290,7 +290,7 @@ pub fn std_impl<'tcx>(
 		ty::Adt(adt, args) if tr == Trait::Debug && adt.is_phantom_data() => {
 			let name = rustc_const_eval::util::type_name(tcx, args.type_at(0));
 			let pieces = ["PhantomData<", &name, ">"].map(|s| Expr::Str(s.to_string()));
-			rt("writeFmt", vec![f, Expr::Array(pieces.into())])
+			rs("writeFmt", vec![f, Expr::Array(pieces.into())])
 		}
 		// Each its name alone, unpadded.
 		ty::Adt(adt, _)
@@ -302,7 +302,7 @@ pub fn std_impl<'tcx>(
 						Some(Std::Pending | Std::PollFn | Std::BuildHasherDefault)
 					)) =>
 		{
-			rt("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
+			rs("writeStr", vec![f, Expr::Str(tcx.item_name(adt.did()).to_string())])
 		}
 		// An ASCII escape writes what it has left, unpadded, and `Debug` only its name.
 		ty::Adt(adt, _)
@@ -316,7 +316,7 @@ pub fn std_impl<'tcx>(
 			) =>
 		{
 			match tr {
-				Trait::Display => Expr::rt("fmtEscapeAscii", vec![value, f]),
+				Trait::Display => Expr::rs("fmtEscapeAscii", vec![value, f]),
 				Trait::Debug => non_exhaustive(f, tcx.item_name(adt.did()).as_str()),
 				_ => return None,
 			}
@@ -337,10 +337,10 @@ pub fn std_impl<'tcx>(
 			) =>
 		{
 			match tr {
-				Trait::Display => Expr::rt("fmtCharsDisplay", vec![value, f]),
+				Trait::Display => Expr::rs("fmtCharsDisplay", vec![value, f]),
 				Trait::Debug => {
 					let name = Expr::Str(tcx.item_name(adt.did()).to_string());
-					Expr::rt("fmtCharsDebug", vec![value, f, name])
+					Expr::rs("fmtCharsDebug", vec![value, f, name])
 				}
 				_ => return None,
 			}
@@ -357,7 +357,7 @@ pub fn std_impl<'tcx>(
 					["str", "iter", "EscapeUnicode" | "EscapeDebug" | "EscapeDefault"]
 				) =>
 		{
-			Expr::rt("fmtStrEscapeDisplay", vec![value, f])
+			Expr::rs("fmtStrEscapeDisplay", vec![value, f])
 		}
 		ty::Adt(adt, args)
 			if tr == Trait::Debug
@@ -372,8 +372,8 @@ pub fn std_impl<'tcx>(
 			e
 		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
-			(Std::String, Trait::Display) => Expr::rt("fmtPad", vec![f, value]),
-			(Std::String, Trait::Debug) => rt("str", vec![value, f]),
+			(Std::String, Trait::Display) => Expr::rs("fmtPad", vec![f, value]),
+			(Std::String, Trait::Debug) => rs("str", vec![value, f]),
 			// A `NonZero`, a `Wrapping`, and a `Saturating` write their integer, by each trait.
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)
@@ -403,29 +403,29 @@ pub fn std_impl<'tcx>(
 					Std::RangeTo => "rangeTo",
 					_ => "rangeToInclusive",
 				};
-				rt(of, vec![value, f, bound])
+				rs(of, vec![value, f, bound])
 			}
-			(Std::RangeFull, Trait::Debug) => rt("rangeFull", vec![value, f]),
+			(Std::RangeFull, Trait::Debug) => rs("rangeFull", vec![value, f]),
 			(Std::Bound, Trait::Debug) => {
 				let held = b.fmt_fn(tr, args.type_at(0), span);
-				rt("bound", vec![value, f, held])
+				rs("bound", vec![value, f, held])
 			}
-			(Std::Ordering, Trait::Debug) => rt("ordering", vec![value, f]),
+			(Std::Ordering, Trait::Debug) => rs("ordering", vec![value, f]),
 			// Erased to what it holds.
 			(std @ (Std::Reverse | Std::AssertUnwindSafe), Trait::Debug) => {
 				let held = b.fmt_value(tr, args.type_at(0), value, span, out);
 				let name = format!("{std:?}");
-				rt("debugTupleFields", vec![f, Expr::Str(name), Expr::Array(vec![held])])
+				rs("debugTupleFields", vec![f, Expr::Str(name), Expr::Array(vec![held])])
 			}
 			(Std::ControlFlow, Trait::Debug) => {
 				let go = b.fmt_fn(tr, args.type_at(1), span);
 				let stop = b.fmt_fn(tr, args.type_at(0), span);
 				match library::Flow::of(tcx, args) {
-					library::Flow::Other => rt("controlFlow", vec![value, f, go, stop]),
-					library::Flow::Result => rt("controlFlow", vec![value, f, go, stop, Expr::lit("true")]),
+					library::Flow::Other => rs("controlFlow", vec![value, f, go, stop]),
+					library::Flow::Result => rs("controlFlow", vec![value, f, go, stop, Expr::lit("true")]),
 					library::Flow::Option => {
 						let none = b.t.none_arg(args.type_at(1));
-						rt(
+						rs(
 							"controlFlowOption",
 							[vec![value, f, go, stop], none.into_iter().collect()].concat(),
 						)
@@ -434,51 +434,51 @@ pub fn std_impl<'tcx>(
 			}
 			(Std::Vec, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("list", vec![library::elements(value, ty), f, item])
+				rs("list", vec![library::elements(value, ty), f, item])
 			}
 			(Std::BinaryHeap, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("list", vec![value.member("d"), f, item])
+				rs("list", vec![value.member("items"), f, item])
 			}
 			// Each writes its items as its iterator reads them: a deque from its head.
 			(Std::VecDeque, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("list", vec![Expr::rt("dequeIter", vec![value]), f, item])
+				rs("list", vec![Expr::rs("dequeIter", vec![value]), f, item])
 			}
 			(Std::LinkedList, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("list", vec![Expr::rt("listIter", vec![value]), f, item])
+				rs("list", vec![Expr::rs("listIter", vec![value]), f, item])
 			}
 			// Its items, as a set.
 			(Std::HashTable, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("set", vec![Expr::rt("hashValues", vec![value]), f, item])
+				rs("set", vec![Expr::rs("hashValues", vec![value]), f, item])
 			}
 			(std @ (Std::HashSet | Std::BTreeSet), Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
 				let keys = if std == Std::HashSet { "hashKeys" } else { "btreeKeys" };
-				rt("set", vec![Expr::rt(keys, vec![value]), f, item])
+				rs("set", vec![Expr::rs(keys, vec![value]), f, item])
 			}
 			(std @ (Std::HashMap | Std::BTreeMap), Trait::Debug) => {
 				let key = b.fmt_fn(tr, args.type_at(0), span);
 				let val = b.fmt_fn(tr, args.type_at(1), span);
 				let entries = if std == Std::HashMap { "hashIter" } else { "btreeIter" };
-				rt("map", vec![Expr::rt(entries, vec![value]), f, key, val])
+				rs("map", vec![Expr::rs(entries, vec![value]), f, key, val])
 			}
 			(Std::Option, Trait::Debug) => {
 				let some = b.fmt_fn(tr, args.type_at(0), span);
 				let none = b.t.none_arg(args.type_at(0));
-				rt("option", [vec![value, f, some], none.into_iter().collect()].concat())
+				rs("option", [vec![value, f, some], none.into_iter().collect()].concat())
 			}
 			(Std::Result, Trait::Debug) => {
 				let ok = b.fmt_fn(tr, args.type_at(0), span);
 				let err = b.fmt_fn(tr, args.type_at(1), span);
-				rt("result", vec![value, f, ok, err])
+				rs("result", vec![value, f, ok, err])
 			}
 			(Std::Poll, Trait::Debug) => {
 				let ready = b.fmt_fn(tr, args.type_at(0), span);
 				let pending = b.t.pending_arg(args.type_at(0));
-				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
+				rs("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
 			}
 			(Std::Waker | Std::Context | Std::WakerVTable | Std::RawWaker, Trait::Debug) => b.err(
 				span,
@@ -489,28 +489,28 @@ pub fn std_impl<'tcx>(
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				value.member("debug").call(vec![f, held])
 			}
-			(Std::Arguments, Trait::Display | Trait::Debug) => rt("arguments", vec![value, f]),
-			(Std::FmtError, Trait::Debug) => rt("errorDebug", vec![value, f]),
-			(Std::PoisonError, Trait::Debug) => rt("poisonErrorDebug", vec![value, f]),
-			(Std::PoisonError, Trait::Display) => rt("poisonErrorDisplay", vec![value, f]),
-			(Std::FmtError, Trait::Display) => rt("errorDisplay", vec![value, f]),
-			(Std::TryFromIntError, Trait::Debug) => rt("tryFromIntErrorDebug", vec![value, f]),
-			(Std::TryFromIntError, Trait::Display) => rt("tryFromIntErrorDisplay", vec![value, f]),
-			(Std::ParseIntError, Trait::Debug) => rt("parseIntErrorDebug", vec![value, f]),
-			(Std::ParseIntError, Trait::Display) => rt("parseIntErrorDisplay", vec![value, f]),
-			(Std::ErrorKind, Trait::Debug) => rt("writeStr", vec![f, value]),
-			(Std::CharTryFromError, Trait::Debug) => rt("charTryFromErrorDebug", vec![value, f]),
-			(Std::CharTryFromError, Trait::Display) => rt("charTryFromErrorDisplay", vec![value, f]),
-			(Std::TryFromCharError, Trait::Debug) => rt("tryFromCharErrorDebug", vec![value, f]),
-			(Std::TryFromCharError, Trait::Display) => rt("tryFromCharErrorDisplay", vec![value, f]),
-			(Std::DecodeUtf16Error, Trait::Debug) => rt("decodeUtf16ErrorDebug", vec![value, f]),
-			(Std::DecodeUtf16Error, Trait::Display) => rt("decodeUtf16ErrorDisplay", vec![value, f]),
-			(Std::ParseBoolError, Trait::Debug) => rt("parseBoolErrorDebug", vec![value, f]),
-			(Std::ParseBoolError, Trait::Display) => rt("parseBoolErrorDisplay", vec![value, f]),
-			(Std::BorrowError, Trait::Debug) => Expr::rt("borrowErrorDebug", vec![value, f]),
-			(Std::BorrowError, Trait::Display) => Expr::rt("borrowErrorDisplay", vec![value, f]),
-			(Std::BorrowMutError, Trait::Debug) => Expr::rt("borrowMutErrorDebug", vec![value, f]),
-			(Std::BorrowMutError, Trait::Display) => Expr::rt("borrowMutErrorDisplay", vec![value, f]),
+			(Std::Arguments, Trait::Display | Trait::Debug) => rs("arguments", vec![value, f]),
+			(Std::FmtError, Trait::Debug) => rs("errorDebug", vec![value, f]),
+			(Std::PoisonError, Trait::Debug) => rs("poisonErrorDebug", vec![value, f]),
+			(Std::PoisonError, Trait::Display) => rs("poisonErrorDisplay", vec![value, f]),
+			(Std::FmtError, Trait::Display) => rs("errorDisplay", vec![value, f]),
+			(Std::TryFromIntError, Trait::Debug) => rs("tryFromIntErrorDebug", vec![value, f]),
+			(Std::TryFromIntError, Trait::Display) => rs("tryFromIntErrorDisplay", vec![value, f]),
+			(Std::ParseIntError, Trait::Debug) => rs("parseIntErrorDebug", vec![value, f]),
+			(Std::ParseIntError, Trait::Display) => rs("parseIntErrorDisplay", vec![value, f]),
+			(Std::ErrorKind, Trait::Debug) => rs("writeStr", vec![f, value]),
+			(Std::CharTryFromError, Trait::Debug) => rs("charTryFromErrorDebug", vec![value, f]),
+			(Std::CharTryFromError, Trait::Display) => rs("charTryFromErrorDisplay", vec![value, f]),
+			(Std::TryFromCharError, Trait::Debug) => rs("tryFromCharErrorDebug", vec![value, f]),
+			(Std::TryFromCharError, Trait::Display) => rs("tryFromCharErrorDisplay", vec![value, f]),
+			(Std::DecodeUtf16Error, Trait::Debug) => rs("decodeUtf16ErrorDebug", vec![value, f]),
+			(Std::DecodeUtf16Error, Trait::Display) => rs("decodeUtf16ErrorDisplay", vec![value, f]),
+			(Std::ParseBoolError, Trait::Debug) => rs("parseBoolErrorDebug", vec![value, f]),
+			(Std::ParseBoolError, Trait::Display) => rs("parseBoolErrorDisplay", vec![value, f]),
+			(Std::BorrowError, Trait::Debug) => Expr::rs("borrowErrorDebug", vec![value, f]),
+			(Std::BorrowError, Trait::Display) => Expr::rs("borrowErrorDisplay", vec![value, f]),
+			(Std::BorrowMutError, Trait::Debug) => Expr::rs("borrowMutErrorDebug", vec![value, f]),
+			(Std::BorrowMutError, Trait::Display) => Expr::rs("borrowMutErrorDisplay", vec![value, f]),
 			// What each holds, held as a guard would while it is written, or what keeps it from
 			// being read. An `RwLock` shares a `RefCell`'s representation, and an `UnsafeCell` a
 			// `Cell`'s.
@@ -521,7 +521,7 @@ pub fn std_impl<'tcx>(
 			(Std::Cell, Trait::Debug) => {
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				let value = b.t.copied(value.member("v"), args.type_at(0), span);
-				Expr::rt("cellDebug", vec![Expr::Lambda(Vec::new(), Box::new(value)), f, held])
+				Expr::rs("cellDebug", vec![Expr::Lambda(Vec::new(), Box::new(value)), f, held])
 			}
 			(std @ (Std::RefCell | Std::Mutex), Trait::Debug) => {
 				let debug = match std {
@@ -530,14 +530,14 @@ pub fn std_impl<'tcx>(
 					_ => "mutexDebug",
 				};
 				let held = b.fmt_fn(tr, args.type_at(0), span);
-				Expr::rt(debug, vec![value, f, held])
+				Expr::rs(debug, vec![value, f, held])
 			}
 			// What it holds, or `<uninit>`.
 			(std @ (Std::OnceCell | Std::OnceLock), Trait::Debug) => {
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				let none = b.t.none_arg(args.type_at(0));
 				let name = Expr::Str(format!("{std:?}"));
-				Expr::rt(
+				Expr::rs(
 					"onceDebug",
 					[vec![value, f, name, held], none.into_iter().collect()].concat(),
 				)
@@ -547,30 +547,30 @@ pub fn std_impl<'tcx>(
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				value.member("debug").call(vec![f, Expr::Str(format!("{std:?}")), held])
 			}
-			(Std::ParseCharError, Trait::Debug) => rt("parseCharErrorDebug", vec![value, f]),
-			(Std::ParseCharError, Trait::Display) => rt("parseCharErrorDisplay", vec![value, f]),
-			(Std::ParseFloatError, Trait::Debug) => rt("parseFloatErrorDebug", vec![value, f]),
-			(Std::ParseFloatError, Trait::Display) => rt("parseFloatErrorDisplay", vec![value, f]),
-			(Std::TryFromFloatSecsError, Trait::Debug) => rt("tryFromFloatSecsErrorDebug", vec![value, f]),
-			(Std::TryFromFloatSecsError, Trait::Display) => rt("tryFromFloatSecsErrorDisplay", vec![value, f]),
-			(Std::FromUtf8Error, Trait::Debug) => rt("fromUtf8ErrorDebug", vec![value, f]),
-			(Std::FromUtf8Error, Trait::Display) => rt("fromUtf8ErrorDisplay", vec![value, f]),
-			(Std::FromUtf16Error, Trait::Debug) => rt("fromUtf16ErrorDebug", vec![value, f]),
-			(Std::FromUtf16Error, Trait::Display) => rt("fromUtf16ErrorDisplay", vec![value, f]),
-			(Std::Utf8Error, Trait::Debug) => rt("utf8ErrorDebug", vec![value, f]),
-			(Std::Utf8Error, Trait::Display) => rt("utf8ErrorDisplay", vec![value, f]),
-			(Std::Utf8Chunk, Trait::Debug) => rt("utf8ChunkDebug", vec![value, f]),
-			(Std::Duration, Trait::Debug) => Expr::rt("durationDebug", vec![value, f]),
-			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
-			(Std::Location, Trait::Debug) => rt("locationDebug", vec![value, f]),
-			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
-			(Std::PanicHookInfo, Trait::Display) => rt("panicHookInfoDisplay", vec![value, f]),
-			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
-			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
-			(Std::TryReserveError, Trait::Debug) => rt("tryReserveErrorDebug", vec![value, f]),
-			(Std::TryReserveError, Trait::Display) => rt("tryReserveErrorDisplay", vec![value, f]),
-			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
-			(Std::BytesMut, Trait::Debug) => Expr::rt("bytesDebug", vec![Expr::rt("bytesMutView", vec![value]), f]),
+			(Std::ParseCharError, Trait::Debug) => rs("parseCharErrorDebug", vec![value, f]),
+			(Std::ParseCharError, Trait::Display) => rs("parseCharErrorDisplay", vec![value, f]),
+			(Std::ParseFloatError, Trait::Debug) => rs("parseFloatErrorDebug", vec![value, f]),
+			(Std::ParseFloatError, Trait::Display) => rs("parseFloatErrorDisplay", vec![value, f]),
+			(Std::TryFromFloatSecsError, Trait::Debug) => rs("tryFromFloatSecsErrorDebug", vec![value, f]),
+			(Std::TryFromFloatSecsError, Trait::Display) => rs("tryFromFloatSecsErrorDisplay", vec![value, f]),
+			(Std::FromUtf8Error, Trait::Debug) => rs("fromUtf8ErrorDebug", vec![value, f]),
+			(Std::FromUtf8Error, Trait::Display) => rs("fromUtf8ErrorDisplay", vec![value, f]),
+			(Std::FromUtf16Error, Trait::Debug) => rs("fromUtf16ErrorDebug", vec![value, f]),
+			(Std::FromUtf16Error, Trait::Display) => rs("fromUtf16ErrorDisplay", vec![value, f]),
+			(Std::Utf8Error, Trait::Debug) => rs("utf8ErrorDebug", vec![value, f]),
+			(Std::Utf8Error, Trait::Display) => rs("utf8ErrorDisplay", vec![value, f]),
+			(Std::Utf8Chunk, Trait::Debug) => rs("utf8ChunkDebug", vec![value, f]),
+			(Std::Duration, Trait::Debug) => Expr::rs("durationDebug", vec![value, f]),
+			(Std::Layout, Trait::Debug) => rs("layoutDebug", vec![value, f]),
+			(Std::Location, Trait::Debug) => rs("locationDebug", vec![value, f]),
+			(Std::Location, Trait::Display) => rs("locationDisplay", vec![value, f]),
+			(Std::PanicHookInfo, Trait::Display) => rs("panicHookInfoDisplay", vec![value, f]),
+			(Std::LayoutError, Trait::Debug) => rs("layoutErrorDebug", vec![value, f]),
+			(Std::LayoutError, Trait::Display) => rs("layoutErrorDisplay", vec![value, f]),
+			(Std::TryReserveError, Trait::Debug) => rs("tryReserveErrorDebug", vec![value, f]),
+			(Std::TryReserveError, Trait::Display) => rs("tryReserveErrorDisplay", vec![value, f]),
+			(Std::Bytes, Trait::Debug) => Expr::rs("bytesDebug", vec![value, f]),
+			(Std::BytesMut, Trait::Debug) => Expr::rs("bytesDebug", vec![Expr::rs("bytesMutView", vec![value]), f]),
 			_ => return None,
 		},
 		_ => return None,
@@ -613,8 +613,8 @@ fn iter_debug<'tcx>(
 		});
 		Expr::Array(wraps.collect())
 	};
-	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
-	let write = |text: String| Some(Expr::rt("fmtWriteStr", vec![f.clone(), Expr::Str(text)]));
+	let call = |name: &str, rest: Vec<Expr>| Expr::rs(name, [vec![value.clone(), f.clone()], rest].concat());
+	let write = |text: String| Some(Expr::rs("fmtWriteStr", vec![f.clone(), Expr::Str(text)]));
 	// The item it has left, if any, as std's `Option` inside `wraps`: a reference as it is
 	// held, a `&mut` to a value JS copies its place.
 	let option = |b: &mut Body<'_, '_, 'tcx>, wraps: &[Wrap]| {
@@ -626,7 +626,7 @@ fn iter_debug<'tcx>(
 	let slice =
 		|b: &mut Body<'_, '_, 'tcx>| Some(b.fmt_fn(Trait::Debug, Ty::new_slice(tcx, args.types().next()?), span));
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
-		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
+		["str", "iter", "Chars"] => return Some(Expr::rs("fmtChars", vec![value.clone(), f.clone()])),
 		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
 		// Its searcher's state, by the name of std's searcher of its pattern.
 		[
@@ -649,7 +649,7 @@ fn iter_debug<'tcx>(
 			return Some(call("fmtStrSearch", vec![Expr::Str((*name).into())]));
 		}
 		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
-		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
+		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rs("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
 		// Without its fields, which neither `#` nor a width changes.
 		["str", "iter", "EncodeUtf16"]
 		| ["iter", "sources", "repeat_with", "RepeatWith"]
@@ -755,22 +755,22 @@ fn iter_debug<'tcx>(
 		] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			let call = vec![value.clone(), f.clone(), debug, Expr::Str((*name).into())];
-			return Some(Expr::rt("fmtDequeIter", call));
+			return Some(Expr::rs("fmtDequeIter", call));
 		}
 		["vec", "extract_if", "ExtractIf"] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
-			return Some(Expr::rt("fmtVecExtractIf", vec![value.clone(), f.clone(), debug]));
+			return Some(Expr::rs("fmtVecExtractIf", vec![value.clone(), f.clone(), debug]));
 		}
 		["collections", "vec_deque", "drain", "Drain"] => {
 			let len = b.fmt_fn(Trait::Debug, tcx.types.usize, span);
-			return Some(Expr::rt("fmtDequeDrain", vec![value.clone(), f.clone(), len]));
+			return Some(Expr::rs("fmtDequeDrain", vec![value.clone(), f.clone(), len]));
 		}
 		// The list it has left, then its length.
 		["collections", "linked_list", name @ ("Iter" | "IterMut")] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			let len = b.fmt_fn(Trait::Debug, tcx.types.usize, span);
 			let call = vec![value.clone(), f.clone(), debug, len, Expr::Str((*name).into())];
-			return Some(Expr::rt("fmtListIter", call));
+			return Some(Expr::rs("fmtListIter", call));
 		}
 		["str", "iter", "Bytes"] => (Byte, &[Tuple("Bytes"), Struct("Copied", "it"), Tuple("Iter")]),
 		["slice", "iter", "Iter"]
@@ -807,7 +807,7 @@ fn iter_debug<'tcx>(
 	let debug = match item {
 		Arg(n) => b.fmt_fn(Trait::Debug, arg(n)?, span),
 		Entry => b.fmt_fn(Trait::Debug, Ty::new_tup(tcx, &[arg(0)?, arg(1)?]), span),
-		SetVal => Expr::rt("fmtSetVal", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
+		SetVal => Expr::rs("fmtSetVal", vec![b.fmt_fn(Trait::Debug, arg(0)?, span)]),
 		Byte => b.fmt_fn(Trait::Debug, tcx.types.u8, span),
 	};
 	let mut rest = vec![debug];
@@ -832,9 +832,9 @@ fn adaptor_debug<'tcx>(
 	let path = library::std_path(tcx, did);
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	let arg = |n: usize| args.types().nth(n);
-	let call = |name: &str, rest: Vec<Expr>| Expr::rt(name, [vec![value.clone(), f.clone()], rest].concat());
+	let call = |name: &str, rest: Vec<Expr>| Expr::rs(name, [vec![value.clone(), f.clone()], rest].concat());
 	let name = |name: &str| Expr::Str(name.into());
-	// What writes an iterator it wraps, as the adaptor holds it and `rt.iterHeld` reads it.
+	// What writes an iterator it wraps, as the adaptor holds it and `rs.iterHeld` reads it.
 	let wrapped = |b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>| {
 		let (ty, _) = super::iter::peel_iter(b, ty, Expr::undefined());
 		b.fmt_fn(Trait::Debug, ty, span)
@@ -959,7 +959,7 @@ impl Spec {
 	pub fn object(&self, arg: impl Fn(usize) -> Expr) -> Option<Expr> {
 		let count = |count: Count| match count {
 			Count::Is(n) => Expr::lit(n.to_string()),
-			Count::Arg(index) => Expr::rt("fmtCountOf", vec![arg(index)]),
+			Count::Arg(index) => Expr::rs("fmtCountOf", vec![arg(index)]),
 		};
 		let mut props = Vec::new();
 		if self.fill != ' ' {

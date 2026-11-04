@@ -2,25 +2,25 @@
 // `raw::Tally`, which holds its `Arc` by a raw pointer, and drops it where Rust drops
 // the tally.
 
-import * as rt from "../rt.ts";
+import * as rs from "../rs.ts";
 
 export class Tally implements Disposable {
-	readonly count: rt.Arc<rt.u32>;
+	readonly count: rs.Arc<rs.u32>;
 
-	constructor(count: rt.Arc<rt.u32>) {
-		this.count = rt.arcClone(count);
+	constructor(count: rs.Arc<rs.u32>) {
+		this.count = rs.arcClone(count);
 	}
 
 	[Symbol.dispose](): void {
-		rt.arcDrop(this.count);
+		rs.arcDrop(this.count);
 	}
 }
 
-function make(count: rt.Arc<rt.u32>): Tally {
+function make(count: rs.Arc<rs.u32>): Tally {
 	return new Tally(count);
 }
 export { make as new };
 
-export function get(self: Tally): rt.u32 {
+export function get(self: Tally): rs.u32 {
 	return self.count.value;
 }

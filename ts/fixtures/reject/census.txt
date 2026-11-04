@@ -25,7 +25,7 @@ fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program t
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
-fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut`, whose length is a capacity the runtime holds only as std guarantees it, which is not supported
+fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:given_slots+6:2: a raw pointer to `(u8, u8)` in `([clones::Touched; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:kept_slots+5:2: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of
@@ -36,11 +36,11 @@ fixtures/reject/src/config.rs:generic+0:51: unsupported type `f16`
 fixtures/reject/src/config.rs:generic+2:2: a cast from `u64` to `f16`
 fixtures/reject/src/fmt.rs:chunks_address+1:2: `Debug` of a `ChunksMut`, whose slice std writes as an address, which JS has no counterpart of
 fixtures/reject/src/fmt.rs:pointer+1:2: `Pointer` formatting, as in `{:p}`, is not supported
-fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rt.Poll<T>`, whose `Pending` would be `rt.OuterPending` as `Poll<std::task::Poll<u8>>`
-fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`
-fixtures/reject/src/futures.rs:pending_output+0:34: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
+fixtures/reject/src/futures.rs:generic_pending+1:2: `futures::Waiting<std::task::Poll<u8>>` is not supported: its field `poll` is `Poll<T>`, typed `rs.Poll<T>`, whose `Pending` would be `rs.OuterPending` as `Poll<std::task::Poll<u8>>`
+fixtures/reject/src/futures.rs:nested_poll+0:20: `Poll<std::option::Option<std::task::Poll<std::task::Poll<u8>>>>` is not supported: its `Pending` and `Ready` would both be `rs.OuterPending`
+fixtures/reject/src/futures.rs:pending_output+0:34: a future of `std::task::Poll<u8>`, which can be `rs.Pending`, as the future's own `Pending` is
 fixtures/reject/src/futures.rs:raw_waker_debug+1:2: `Debug` of `std::task::RawWaker`, which writes addresses, which JS has no counterpart of
-fixtures/reject/src/futures.rs:ready_pending+0:27: a future of `std::task::Poll<u8>`, which can be `rt.Pending`, as the future's own `Pending` is
+fixtures/reject/src/futures.rs:ready_pending+0:27: a future of `std::task::Poll<u8>`, which can be `rs.Pending`, as the future's own `Pending` is
 fixtures/reject/src/futures.rs:waker_debug+1:2: `Debug` of `std::task::Waker`, which writes addresses, which JS has no counterpart of
 fixtures/reject/src/iters.rs:backs+1:8: `DoubleEndedIterator::rfind` of `iters::Backs`, whose closure takes a reference to `[u8; 2]`, which is not supported yet
 fixtures/reject/src/iters.rs:borrows+1:4: `Vec::splice` of `iters::Borrows`, whose own `by_ref` std's calls, which is not supported yet
@@ -283,13 +283,13 @@ fixtures/reject/src/values.rs:float+0:14: unsupported type `f16`
 fixtures/reject/src/values.rs:float+0:25: unsupported type `f16`
 fixtures/reject/src/values.rs:float+1:2: a scalar constant of type `f16`
 fixtures/reject/src/values.rs:float+1:2: arithmetic on `f16`
-fixtures/reject/src/values.rs:generic_unit+1:2: `values::Maybe<()>` is not supported: its field `value` is `Option<T>`, typed `T | undefined`, whose `None` would be `rt.None` as `Option<()>`
+fixtures/reject/src/values.rs:generic_unit+1:2: `values::Maybe<()>` is not supported: its field `value` is `Option<T>`, typed `T | undefined`, whose `None` would be `rs.None` as `Option<()>`
 fixtures/reject/src/values.rs:lists+1:4: `std::collections::LinkedList::<T, A>::retain` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/values.rs:manual_impls+2:2: unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt`
 fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq`
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`
-fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None`
-fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rt.None`
+fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
+fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own

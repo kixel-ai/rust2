@@ -1,7 +1,7 @@
 // `core::panic::Location`, for rust2-ts output: where a `#[track_caller]` function was
-// called, which never changes once made, so values share it. `rt.ts` re-exports all of it.
+// called, which never changes once made, so values share it. `rs.ts` re-exports all of it.
 
-import { type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtStr, fmtWriteFmt } from "../rt.ts";
+import { type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtStr, fmtWriteFmt } from "../rs.ts";
 import { cmp, cmpStr, type Ordering } from "./collections.ts";
 import { type Hasher, hash32, hashStr } from "./hash.ts";
 import { type u32, u32Debug, u32Display } from "./int.ts";

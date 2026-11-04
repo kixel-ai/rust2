@@ -56,14 +56,14 @@ fn bumped(x: &mut u8) {
 }
 
 /// A `Result`'s value passed on: a store through it makes the `Result` again, which no
-/// `rt.Place` of a path does.
+/// `rs.Place` of a path does.
 pub fn ok_passed(r: &mut Result<u8, u8>) {
 	if let Ok(v) = r {
 		bumped(v);
 	}
 }
 
-/// `Option`s holding `rt.Place`s, which std's runtime would compare as the Places.
+/// `Option`s holding `rs.Place`s, which std's runtime would compare as the Places.
 pub fn places_equal(a: &mut u32, b: &mut u32) -> bool {
 	Some(a) == Some(b)
 }
@@ -82,14 +82,14 @@ pub fn rebound_reference(a: &u32, b: &u32) -> (u32, u32) {
 	(x(), y())
 }
 
-/// Two `rt.Place`s of one number, which are two objects.
+/// Two `rs.Place`s of one number, which are two objects.
 pub fn places_compared(n: &mut u32) -> bool {
 	let a = &raw mut *n;
 	let b = &raw mut *n;
 	a == b
 }
 
-/// An `Option` of pointers to a number, each an `rt.Place` JS makes of its own.
+/// An `Option` of pointers to a number, each an `rs.Place` JS makes of its own.
 pub fn optional_places_compared(n: &mut u32) -> bool {
 	let p = std::ptr::NonNull::from(&mut *n);
 	Some(p) == std::ptr::NonNull::new(&raw mut *n)

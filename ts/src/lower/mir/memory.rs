@@ -1,10 +1,10 @@
 //! Values read from the memory rustc evaluated: a `static`'s, and a `const`'s that holds a
 //! cell or has no value tree.
 //!
-//! An atomic is a new `rt.Atomic` of the value read, a one-time cell the runtime's, empty,
+//! An atomic is a new `rs.Atomic` of the value read, a one-time cell the runtime's, empty,
 //! and a lazy one the runtime's over its function, as const evaluation leaves them. A
 //! `MaybeUninit` is what it holds or nothing yet, as [`crate::lower::pointer`] has it, and
-//! an `UnsafeCell` a new `rt.Cell` of its contents, which a `Cell` is too.
+//! an `UnsafeCell` a new `rs.Cell` of its contents, which a `Cell` is too.
 
 use rustc_abi::{BackendRepr, Primitive, Size};
 use rustc_middle::mir::interpret::{GlobalAlloc, InitChunk, Scalar, alloc_range};
@@ -25,13 +25,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		};
 		let e = match Std::of(tcx, adt.did()) {
 			Some(Std::Cell) => match self.fields(val, ty).as_deref() {
-				// A `Cell`'s field is its `UnsafeCell`, which is the same `rt.Cell`.
+				// A `Cell`'s field is its `UnsafeCell`, which is the same `rs.Cell`.
 				Some([(value, inner)]) if !tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell) => {
 					self.const_value(*value, *inner, span)
 				}
 				Some([(value, inner)]) => {
 					let value = self.const_value(*value, *inner, span);
-					Expr::New(Box::new(Expr::Rt("Cell".into())), vec![value])
+					Expr::New(Box::new(Expr::Rs("Cell".into())), vec![value])
 				}
 				_ => self.unreadable(ty, span),
 			},
@@ -40,7 +40,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				match self.scalar(val, inner) {
 					Some(scalar) => {
 						let value = self.const_value(ConstValue::Scalar(scalar), inner, span);
-						Expr::New(Box::new(Expr::Rt("Atomic".into())), vec![value])
+						Expr::New(Box::new(Expr::Rs("Atomic".into())), vec![value])
 					}
 					None => self.unreadable(ty, span),
 				}
@@ -86,10 +86,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		Some(e)
 	}
 
-	/// A new `rt.LazyCell` or `rt.LazyLock`, `class`, that `f`, an `f_ty`, initializes.
+	/// A new `rs.LazyCell` or `rs.LazyLock`, `class`, that `f`, an `f_ty`, initializes.
 	fn lazy(&mut self, class: &str, (f, f_ty): (ConstValue, Ty<'tcx>), span: Span) -> Expr {
 		let f = self.const_value(f, f_ty, span);
-		Expr::New(Box::new(Expr::Rt(class.into())), vec![f])
+		Expr::New(Box::new(Expr::Rs(class.into())), vec![f])
 	}
 
 	/// The refusal of a `ty` in a state translation can't read, as a `OnceLock` const

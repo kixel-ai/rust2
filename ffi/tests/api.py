@@ -2,7 +2,8 @@
 # natively, through the generated Python. tests/fixtures.rs compares the transcripts.
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
-# closed, or the values only Python's types bound, or breaks a contract, which must fail.
+# closed, the values only Python's types bound, or how Python calls into the extension,
+# or breaks a contract, which must fail.
 
 import asyncio
 import datetime
@@ -13,6 +14,10 @@ import sys
 import threading
 
 import api
+
+# The transcript's lines end and encode as Rust's do, which Windows' text mode and code
+# page would turn into CRLF and the locale's encoding.
+sys.stdout.reconfigure(encoding="utf-8", newline="\n")
 
 
 class PrintLog(api.Log):
@@ -649,6 +654,7 @@ async def on_loop():
 		channel.notify(waker)
 		channel.send(b"rung")
 	check(not wakes, "a waker is never called inside the call")
+	check(not signaled(), "a waker's wakes on the loop's thread, with nothing parked, write no byte")
 	await settle()
 	check(wakes == [1], "wakes on the loop's thread call the waker once")
 	await channel.recv()
@@ -749,6 +755,70 @@ def values():
 	print("values ok")
 
 
+def calls():
+	"""Calls Python makes straight into the extension, with no Python frame between, as a
+	`def` of the same signature takes them: by position or keyword, raising its errors,
+	with its docstring and the signature `inspect` reads."""
+	import inspect
+
+	def raises(f, message):
+		try:
+			f()
+			check(False, message)
+		except TypeError as e:
+			check(str(e) == message, f"{e!r} is {message!r}")
+
+	kinds = {
+		(api.Counter, "get"): "method_descriptor",
+		(api.Counter, "new"): "staticmethod",
+		(api.Counter, "__repr__"): "method_descriptor",
+		(api.Registry, "first"): "getset_descriptor",
+		(api.Point, "offset"): "method_descriptor",
+		(api.Channel, "send_later"): "method_descriptor",
+		# An `async def` stays a coroutine function.
+		(api.Gauge, "later"): "function",
+	}
+	for (cls, name), kind in kinds.items():
+		got = type(inspect.getattr_static(cls, name)).__name__
+		check(got == kind, f"{cls.__name__}.{name} is a {got}")
+	check(type(api.has_text).__name__ == "builtin_function_or_method", "a function is the extension's")
+
+	c = api.Counter.new(start=2, name="c")
+	check(c.add(n=3) == 5 and c.sub(1) == 4, "a method takes its arguments by keyword")
+	check(api.Point(1, 2).offset(dy=3, dx=4) == api.Point(5, 5), "a record's method takes keywords")
+	check(api.has_text(note=api.Note.default()) is False, "a function takes keywords")
+	check(api.Registry.new(first=c).edit(edit=lambda counter: True), "a closure passes by keyword")
+	loop = asyncio.new_event_loop()
+	check(loop.run_until_complete(api.halved(n=4)) == 2, "an async def takes keywords")
+	channel = api.Channel.new()
+	loop.run_until_complete(channel.send_later(payload=b"kw"))
+	check(bytes(loop.run_until_complete(channel.recv())) == b"kw", "an eager future takes keywords")
+	loop.close()
+
+	# C callers may pass no argument array at all for no arguments.
+	import ctypes
+
+	no_args = ctypes.pythonapi.PyObject_CallNoArgs
+	no_args.restype, no_args.argtypes = ctypes.py_object, [ctypes.py_object]
+	check(no_args(api.Note.default) == api.Note.default(), "a call with no argument array")
+
+	raises(lambda: c.add(), "Counter.add() missing 1 required positional argument: 'n'")
+	raises(lambda: c.add(1, 2), "Counter.add() takes 2 positional arguments but 3 were given")
+	raises(lambda: c.add(1, n=2), "Counter.add() got multiple values for argument 'n'")
+	raises(lambda: c.add(m=1), "Counter.add() got an unexpected keyword argument 'm'")
+	raises(lambda: c.get(1), "Counter.get() takes 1 positional argument but 2 were given")
+	raises(lambda: api.Counter.new(), "Counter.new() missing 2 required positional arguments: 'name' and 'start'")
+	raises(lambda: api.has_text(1, 2), "has_text() takes 1 positional argument but 2 were given")
+
+	check(str(inspect.signature(c.add)) == "(n)", "a bound method's signature")
+	check(str(inspect.signature(api.Counter.new)) == "(name, start)", "a static method's signature")
+	check(api.has_text.__doc__ == "Whether `note` has text, even empty.", "a function's docstring")
+	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
+	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
+	check(api.Registry.first.__doc__ is None, "a property without docs has no docstring")
+	print("calls ok")
+
+
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
 	match which:
@@ -809,5 +879,7 @@ match sys.argv[1:]:
 		owned()
 	case ["values"]:
 		values()
+	case ["calls"]:
+		calls()
 	case [which]:
 		broken(which)

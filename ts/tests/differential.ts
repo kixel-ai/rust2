@@ -3,7 +3,7 @@
 //
 // usage: node differential.ts <fixture.wasm> <harness.ts> [cases]
 //
-// A harness, or a hand-written caller wrapping one, exports `run(input: rt.ByteSlice):
+// A harness, or a hand-written caller wrapping one, exports `run(input: rs.ByteSlice):
 // Vec<u8>`, what `inputs.ts` reads to pick its inputs, and may export `within(input,
 // native, translated)`, which accepts outputs that differ only where Rust leaves the
 // result to the platform, as libm's are. [cases] random inputs run, or that many per case
@@ -29,16 +29,16 @@ const count = Number(countArg ?? "20000");
 
 const harness = await import(pathToFileURL(harnessPath).href);
 // The translation's runtime, beside the harness, which makes the input its slice type.
-const rt = await import(pathToFileURL(join(dirname(harnessPath), "rt.ts")).href);
+const rs = await import(pathToFileURL(join(dirname(harnessPath), "rs.ts")).href);
 const wasm = new Wasm(await WebAssembly.compile(await readFile(wasmPath)));
 
 function translated(input: Uint8Array): Outcome {
 	try {
-		const out = harness.run(rt.byteSliceFrom(input));
+		const out = harness.run(rs.byteSliceFrom(input));
 		return out.data.slice(0, out.length);
 	} catch (err) {
 		if (!(err instanceof Error) || (err.name !== "Abort" && err.name !== "Panic")) throw err;
-		rt.takeHook();
+		rs.takeHook();
 		return err.name === "Abort" ? "abort" : { panic: err.message };
 	}
 }

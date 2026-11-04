@@ -40,7 +40,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Tuple(tys) if !tys.is_empty() => (true, tys.to_vec()),
 			ty::Array(elem, _) => (true, vec![*elem]),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				// Their payload, or no object at all; a write into an `rt.Result`'s payload
+				// Their payload, or no object at all; a write into an `rs.Result`'s payload
 				// replaces the result.
 				Some(
 					Std::Option
@@ -276,7 +276,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				Some(Std::WakerVTable) => {
 					let fns = ["clone", "wake", "wakeByRef", "drop"].map(|f| v().member(f));
-					ret(Expr::rt("wakerVTable", fns.into()))
+					ret(Expr::rs("wakerVTable", fns.into()))
 				}
 				Some(Std::RawWaker) => ret(super::task::raw_waker(v().member("data"), v().member("vtable"))),
 				Some(Std::ControlFlow) => {
@@ -353,13 +353,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// A copy of `v`, an `rt.Result` of `ok` or `err`.
+	/// A copy of `v`, an `rs.Result` of `ok` or `err`.
 	fn copy_result(&mut self, ok: Ty<'tcx>, err: Ty<'tcx>, span: Span) -> Expr {
 		let v = || Expr::ident("v");
 		Expr::Cond(
 			Box::new(v().member("ok")),
-			Box::new(Expr::rt("Ok", vec![self.snapshot(v().member("value"), ok, span)])),
-			Box::new(Expr::rt("Err", vec![self.snapshot(v().member("error"), err, span)])),
+			Box::new(Expr::rs("Ok", vec![self.snapshot(v().member("value"), ok, span)])),
+			Box::new(Expr::rs("Err", vec![self.snapshot(v().member("error"), err, span)])),
 		)
 	}
 
@@ -917,7 +917,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 
 	/// Whether a `ty` may be kept as a JS object that a pointer to it is: a tuple, an
 	/// array, a struct or union of a crate that translates, or a `MaybeUninit` or
-	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rt.Cell`, which the pointer `get`
+	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rs.Cell`, which the pointer `get`
 	/// gives is or holds.
 	fn inline(&self, ty: Ty<'tcx>) -> bool {
 		match ty.kind() {

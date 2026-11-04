@@ -288,7 +288,8 @@ fn order(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// `count` integers pushed onto a `Vec`, or a `VecDeque` if `selector` is 1: its length
-/// and middle item.
+/// and middle item. With `selector` 2, a `Vec` as a stack, popped after every fourth push
+/// and then emptied: its length and the sum of what it popped.
 fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	let (count, _) = take_u64(data);
 	let count = count.min(1 << 16) as u32;
@@ -299,6 +300,20 @@ fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 				q.push_back(i);
 			}
 			(q.len(), q.get(q.len() / 2).copied())
+		}
+		2 => {
+			let mut v = Vec::new();
+			let mut sum = 0u32;
+			for i in 0..count {
+				v.push(i);
+				if i % 4 == 3 {
+					sum = sum.wrapping_add(v.pop().unwrap_or(0));
+				}
+			}
+			while let Some(x) = v.pop() {
+				sum = sum.wrapping_add(x);
+			}
+			(v.len(), Some(sum))
 		}
 		_ => {
 			let mut v = Vec::new();

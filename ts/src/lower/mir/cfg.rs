@@ -673,7 +673,7 @@ fn unlabel(stmts: &mut [Stmt], innermost: Option<&str>, in_switch: bool) {
 /// Whether evaluating `e` does nothing but read.
 pub fn pure(e: &Expr) -> bool {
 	match e {
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => true,
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => true,
 		Expr::Member(base, _)
 		| Expr::Unary(_, base)
 		| Expr::Located(_, base)

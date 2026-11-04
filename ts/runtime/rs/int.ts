@@ -1,12 +1,12 @@
 // Integers, for rust2-ts output: each operation of each type is its own function,
 // `u8Add` or `u64Shr`, so a bundler drops every one translated code never calls.
-// `rt.ts` re-exports all of it.
+// `rs.ts` re-exports all of it.
 //
 // Integers are numbers, but a 64- or 128-bit one past 2^53 is an immutable object of
 // 32-bit limbs. Arithmetic is checked as a debug build checks it: overflow panics, it
 // never wraps silently. Every panic's message is the one native Rust panics with.
 
-import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rt.ts";
+import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rs.ts";
 import type { Location } from "./location.ts";
 
 declare const brand: unique symbol;
