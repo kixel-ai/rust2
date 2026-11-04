@@ -820,15 +820,15 @@ export function bytesMutSpare(b: BytesMut): ByteSlice {
 }
 
 /** `BytesMut::set_len`, which panics past its capacity as `bytes`' debug assertion does. */
-export function bytesMutSetLen(b: BytesMut, len: usize): void {
-	if (len > b.cap) panic("set_len out of bounds");
+export function bytesMutSetLen(b: BytesMut, len: usize, at?: Location): void {
+	if (len > b.cap) panic("set_len out of bounds", at);
 	b.length = len;
 }
 
 /** `<BytesMut as BufMut>::advance_mut`. */
-export function bytesMutAdvanceMut(b: BytesMut, cnt: usize): void {
+export function bytesMutAdvanceMut(b: BytesMut, cnt: usize, at?: Location): void {
 	const remaining = b.cap - b.length;
-	if (cnt > remaining) panicAdvance(cnt, remaining);
+	if (cnt > remaining) panicAdvance(cnt, remaining, at);
 	b.length += cnt;
 }
 
@@ -974,9 +974,9 @@ export function byteVecPutFill(v: ByteVec, val: number, cnt: usize): void {
 }
 
 /** `<Vec<u8> as BufMut>::advance_mut`. */
-export function byteVecAdvanceMut(v: ByteVec, cnt: usize): void {
+export function byteVecAdvanceMut(v: ByteVec, cnt: usize, at?: Location): void {
 	const remaining = v.data.length - v.length;
-	if (cnt > remaining) panicAdvance(cnt, remaining);
+	if (cnt > remaining) panicAdvance(cnt, remaining, at);
 	v.length += cnt;
 }
 
