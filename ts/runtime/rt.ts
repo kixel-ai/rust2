@@ -12,6 +12,7 @@ import { type char, type ParseCharError, type ParseIntError, type TryFromIntErro
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
 
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rt/alloc.ts";
 import { AtIndex } from "./rt/collections.ts";
 import { escapeDebug } from "./rt/char.ts";
 export * from "./rt/alloc.ts";
@@ -2161,21 +2162,29 @@ export function capHold(c: object & Capped, cap: number, size: number): void {
 }
 
 /**
- * The capacity `cap`, holding `len`, once `reserve` made room for `additional` more, as
- * std's `RawVec::grow_amortized`: at least double, or a panic past what it may hold.
+ * The capacity `cap`, holding `len`, once `try_reserve` made room for `additional` more, as
+ * std's `RawVec::grow_amortized`: at least double, or `undefined` past what it may hold.
  */
-export function capReserve(len: number, cap: number, additional: number, size: number): number {
+export function capTryReserve(len: number, cap: number, additional: number, size: number): number | undefined {
 	if (additional <= cap - len) return cap;
 	const grown = Math.max(cap * 2, len + additional, size === 1 ? 8 : size <= 1024 ? 4 : 1);
-	if (grown > vecMax(size)) panic("capacity overflow");
-	return grown;
+	return grown > vecMax(size) ? undefined : grown;
 }
 
-/** The capacity `cap`, holding `len`, once `reserve_exact` made room for `additional` more. */
-export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
+/** The capacity `cap`, holding `len`, once `try_reserve_exact` made room for `additional` more, or `undefined` past what it may hold. */
+export function capTryReserveExact(len: number, cap: number, additional: number, size: number): number | undefined {
 	if (additional <= cap - len) return cap;
-	if (len + additional > vecMax(size)) panic("capacity overflow");
-	return len + additional;
+	return len + additional > vecMax(size) ? undefined : len + additional;
+}
+
+/** `capTryReserve`'s capacity, or the panic of `reserve` past what it may hold. */
+export function capReserve(len: number, cap: number, additional: number, size: number): number {
+	return capTryReserve(len, cap, additional, size) ?? panic("capacity overflow");
+}
+
+/** `capTryReserveExact`'s capacity, or the panic of `reserve_exact` past what it may hold. */
+export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
+	return capTryReserveExact(len, cap, additional, size) ?? panic("capacity overflow");
 }
 
 /** The capacity `cap`, holding `len`, once `shrink_to` of `min` shrank it, as `shrink_to_fit` of 0 does. */
@@ -2204,6 +2213,23 @@ export function vecReserve<T>(v: T[] & Capped, additional: number, size: number)
 /** `Vec::reserve_exact` of `size`-byte elements. */
 export function vecReserveExact<T>(v: T[] & Capped, additional: number, size: number): void {
 	capHold(v, capReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `Vec::try_reserve` of `size`-byte elements: `reserve`'s capacity, or the error where it panics. */
+export function vecTryReserve<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserve(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `Vec::try_reserve_exact` of `size`-byte elements. */
+export function vecTryReserveExact<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `v`'s capacity held at `cap`, or the overflow `undefined` is. */
+function capTried(v: object & Capped, cap: number | undefined, size: number): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	capHold(v, cap, size);
+	return OK;
 }
 
 /** `Vec::shrink_to` of `size`-byte elements, and `shrink_to_fit` of 0. */
@@ -2275,6 +2301,28 @@ export function byteVecReserve(v: ByteVec, additional: number): void {
 export function byteVecReserveExact(v: ByteVec, additional: number): void {
 	const cap = capReserveExact(v.length, v.data.length, additional, 1);
 	if (cap !== v.data.length) realloc(v, cap);
+}
+
+/** `Vec::try_reserve` of bytes: `reserve`'s storage, or the error where it panics or JS can't make it. */
+export function byteVecTryReserve(v: ByteVec, additional: number): Result<undefined, TryReserveError> {
+	return byteVecTried(v, capTryReserve(v.length, v.data.length, additional, 1));
+}
+
+/** `Vec::try_reserve_exact` of bytes. */
+export function byteVecTryReserveExact(v: ByteVec, additional: number): Result<undefined, TryReserveError> {
+	return byteVecTried(v, capTryReserveExact(v.length, v.data.length, additional, 1));
+}
+
+/** `v`'s storage moved to `cap` bytes, or the overflow `undefined` is, or the failure to allocate them. */
+function byteVecTried(v: ByteVec, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	if (cap === v.data.length) return OK;
+	try {
+		realloc(v, cap);
+	} catch (e) {
+		return allocError(e, cap);
+	}
+	return OK;
 }
 
 /** `Vec::append` of bytes. */

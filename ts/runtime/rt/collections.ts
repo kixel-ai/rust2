@@ -15,7 +15,8 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -522,11 +523,17 @@ export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInf
  * entries. A `HashTable`'s takes its hasher, which it never calls, as it moves no item.
  */
 export function hashReserve<K, V>(m: HashMap<K, V>, additional: number, max: number, _hasher?: (item: V) => u64): void {
+	if (!hashTryReserve(m, additional, max).ok) panic("Hash table capacity overflow");
+}
+
+/** std's `try_reserve`: `reserve`'s room, or the error where it panics. */
+export function hashTryReserve<K, V>(m: HashMap<K, V>, additional: number, max: number): Result<undefined, TryReserveError> {
 	const n = hashLen(m);
 	const cap = hashCapacity(m);
-	if (additional <= cap - n) return;
-	if (n + additional > max) panic("Hash table capacity overflow");
+	if (additional <= cap - n) return OK;
+	if (n + additional > max) return CAPACITY_OVERFLOW;
 	m.cap = Math.min(Math.max(cap * 2, n + additional), max);
+	return OK;
 }
 
 /** `shrink_to`, and `shrink_to_fit` of 0: room for no fewer than `min` and what it holds. A table's hasher goes uncalled. */
@@ -3034,6 +3041,28 @@ export function dequeReserve<T>(q: VecDeque<T>, additional: number): void {
 /** `VecDeque::reserve_exact`. */
 export function dequeReserveExact<T>(q: VecDeque<T>, additional: number): void {
 	regrow(q, capReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/** `VecDeque::try_reserve`: `reserve`'s capacity, or the error where it panics or JS can't make a byte deque's. */
+export function dequeTryReserve<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserve(q.n, q.b.length, additional, q.s));
+}
+
+/** `VecDeque::try_reserve_exact`. */
+export function dequeTryReserveExact<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/** `q` regrown to `cap`, or the overflow `undefined` is, or the failure to allocate its bytes. */
+function dequeTried<T>(q: VecDeque<T>, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	try {
+		regrow(q, cap);
+	} catch (e) {
+		if (!holdsBytes(q)) throw e;
+		return allocError(e, cap);
+	}
+	return OK;
 }
 
 /**
