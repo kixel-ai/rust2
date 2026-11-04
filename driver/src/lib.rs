@@ -11,4 +11,5 @@ extern crate rustc_driver;
 extern crate rustc_session;
 
 pub mod cargo;
+pub mod cfg;
 pub mod rustc;

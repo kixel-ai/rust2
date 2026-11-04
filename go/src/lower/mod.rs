@@ -9,6 +9,7 @@ mod consts;
 mod fold;
 mod library;
 mod names;
+mod stmt;
 mod ty;
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
