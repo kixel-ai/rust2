@@ -1,4 +1,5 @@
-//! Structured control flow from a control-flow graph, as JS needs it.
+//! Structured control flow from a control-flow graph, for a language with labeled
+//! `break` and `continue` but no `goto`, or one whose `goto` costs what it saves.
 //!
 //! A reducible graph, which every function without `.await` has, becomes nested blocks,
 //! loops, and `if`s, left by labeled `break` and `continue`: Ramsey's "Beyond Relooper"
@@ -6,33 +7,100 @@
 //! graph, such as a coroutine's resume function, which enters loops in the middle,
 //! becomes a loop over a `switch` on the next node, with each chain of nodes that have
 //! one predecessor in one case.
-
-use crate::ts::{Expr, Stmt, StmtKind};
+//!
+//! Each translator structures its own statements, which [`Syntax`] builds and shows.
 
 /// How a node leaves.
-pub enum Exit {
+pub enum Exit<C> {
 	/// To one successor.
 	Goto(usize),
 	/// To the first target whose condition holds, else to the last.
-	Branch(Vec<(Expr, usize)>, usize),
+	Branch(Vec<(C, usize)>, usize),
 	/// Nowhere: the node returned, or can't finish.
 	End,
 }
 
 /// What emits each node.
-pub trait Lower {
+pub trait Lower<S: Syntax> {
 	/// Emit `node`'s statements into `out`, and say how it leaves. A branch is decided
 	/// from what `out` already holds.
-	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit;
+	fn node(&mut self, node: usize, out: &mut Vec<S>) -> Exit<S::Cond>;
 	/// Control is about to leave the statements emitted so far for code emitted
 	/// elsewhere: emit whatever the node lowering held back.
-	fn flush(&mut self, out: &mut Vec<Stmt>);
+	fn flush(&mut self, out: &mut Vec<S>);
 }
 
 /// A control-flow graph, entered at node 0.
 pub struct Graph {
 	pub succs: Vec<Vec<usize>>,
 }
+
+/// A translator's statement: the control flow structuring builds, and the shape of each
+/// statement its passes rewrite.
+pub trait Syntax: Sized {
+	/// What an `if` tests.
+	type Cond: Cond;
+	/// `label: { body }`, which `break label` leaves.
+	fn block(label: String, body: Vec<Self>) -> Self;
+	/// `label: while (true) { body }`.
+	fn forever(label: String, body: Vec<Self>) -> Self;
+	/// `if (cond) { then } else { els }`.
+	fn branch(cond: Self::Cond, then: Vec<Self>, els: Vec<Self>) -> Self;
+	/// `break label` or `continue label`.
+	fn jump(jump: Jump, label: String) -> Self;
+	/// `let state = 0; label: while (true) switch (state) { case n: body }`.
+	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>);
+	/// `state = node`, which the next turn of [`Syntax::dispatch`]'s loop goes to.
+	fn set(state: &str, node: usize) -> Self;
+	/// The statement's shape, to read.
+	fn view(&self) -> View<'_, Self>;
+	/// The statement's shape, to rewrite in place.
+	fn view_mut(&mut self) -> ViewMut<'_, Self>;
+}
+
+/// A condition of a translator's statements.
+pub trait Cond {
+	/// The condition that holds where this one doesn't.
+	fn negate(&mut self);
+	/// Whether it is the literal `true`.
+	fn is_true(&self) -> bool;
+	/// Whether evaluating it does nothing but read.
+	fn pure(&self) -> bool;
+}
+
+/// Which way a jump goes.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Jump {
+	/// Leave the labeled block or loop.
+	Break,
+	/// Start the labeled loop's next turn.
+	Continue,
+}
+
+/// A statement as structuring sees it: its bodies `B`, condition `C`, and label `L`.
+pub enum Form<B, C, L> {
+	/// A block, which only a labeled `break` leaves.
+	Block { label: L, body: B },
+	/// A loop, with its condition if it is a `while`.
+	Loop { label: L, cond: Option<C>, body: B },
+	/// An `if`, its `else` empty if it has none.
+	If { cond: C, then: B, els: B },
+	/// A `switch`'s cases' bodies and its default's, which an unlabeled `break` leaves.
+	Switch(Vec<B>),
+	/// A `break`, and the label it names.
+	Break(L),
+	/// A `continue`, and the label it names.
+	Continue(L),
+	/// A `return`, and whether it gives a value.
+	Return(bool),
+	/// Anything that falls through.
+	Other,
+}
+
+/// A statement's shape, borrowed to read.
+pub type View<'a, S> = Form<&'a Vec<S>, &'a <S as Syntax>::Cond, &'a Option<String>>;
+/// A statement's shape, borrowed to rewrite.
+pub type ViewMut<'a, S> = Form<&'a mut Vec<S>, &'a mut <S as Syntax>::Cond, &'a mut Option<String>>;
 
 /// The graph's nodes in order, its dominators, and its shape.
 struct Shape {
@@ -210,7 +278,7 @@ impl Shape {
 }
 
 /// The structured statements of `g`, each node emitted by `lower`.
-pub fn structure(g: &Graph, lower: &mut impl Lower, labels: &mut u32) -> Vec<Stmt> {
+pub fn structure<S: Syntax>(g: &Graph, lower: &mut impl Lower<S>, labels: &mut u32) -> Vec<S> {
 	let shape = Shape::new(g);
 	let mut out = Vec::new();
 	match shape.reducible {
@@ -220,6 +288,7 @@ pub fn structure(g: &Graph, lower: &mut impl Lower, labels: &mut u32) -> Vec<Stm
 				lower,
 				labels: vec![None; g.succs.len()],
 				next: labels,
+				stmt: std::marker::PhantomData,
 			};
 			s.tree(0, &mut out);
 		}
@@ -231,15 +300,16 @@ pub fn structure(g: &Graph, lower: &mut impl Lower, labels: &mut u32) -> Vec<Stm
 	out
 }
 
-struct Ramsey<'s, L> {
+struct Ramsey<'s, S, L> {
 	shape: &'s Shape,
 	lower: &'s mut L,
 	/// The label of each node's loop or of the block it follows.
 	labels: Vec<Option<String>>,
 	next: &'s mut u32,
+	stmt: std::marker::PhantomData<S>,
 }
 
-impl<L: Lower> Ramsey<'_, L> {
+impl<S: Syntax, L: Lower<S>> Ramsey<'_, S, L> {
 	fn label(&mut self, node: usize, prefix: &str) -> String {
 		if let Some(label) = &self.labels[node] {
 			return label.clone();
@@ -251,7 +321,7 @@ impl<L: Lower> Ramsey<'_, L> {
 	}
 
 	/// `x` and what it dominates.
-	fn tree(&mut self, x: usize, out: &mut Vec<Stmt>) {
+	fn tree(&mut self, x: usize, out: &mut Vec<S>) {
 		// The nodes placed after its loop, and the merge nodes it dominates within it,
 		// the last in reverse postorder outermost.
 		let (mut exits, mut merges): (Vec<usize>, Vec<usize>) = self.shape.children[x]
@@ -268,46 +338,27 @@ impl<L: Lower> Ramsey<'_, L> {
 	}
 
 	/// `x`'s loop, in a block for each node placed after it.
-	fn after(&mut self, x: usize, exits: &[usize], merges: &[usize], out: &mut Vec<Stmt>) {
+	fn after(&mut self, x: usize, exits: &[usize], merges: &[usize], out: &mut Vec<S>) {
 		if let [y, rest @ ..] = exits {
 			let label = self.label(*y, "b");
 			let mut body = Vec::new();
 			self.after(x, rest, merges, &mut body);
-			out.push(
-				StmtKind::Block {
-					label: Some(label),
-					body,
-				}
-				.at(None),
-			);
+			out.push(S::block(label, body));
 			self.tree(*y, out);
 			return;
 		}
 		let label = self.label(x, "l");
 		let mut body = Vec::new();
 		self.within(x, merges, &mut body);
-		out.push(
-			StmtKind::While {
-				label: Some(label),
-				cond: Expr::lit("true"),
-				body,
-			}
-			.at(None),
-		);
+		out.push(S::forever(label, body));
 	}
 
-	fn within(&mut self, x: usize, merges: &[usize], out: &mut Vec<Stmt>) {
+	fn within(&mut self, x: usize, merges: &[usize], out: &mut Vec<S>) {
 		if let [y, rest @ ..] = merges {
 			let label = self.label(*y, "b");
 			let mut body = Vec::new();
 			self.within(x, rest, &mut body);
-			out.push(
-				StmtKind::Block {
-					label: Some(label),
-					body,
-				}
-				.at(None),
-			);
+			out.push(S::block(label, body));
 			self.tree(*y, out);
 			return;
 		}
@@ -319,7 +370,7 @@ impl<L: Lower> Ramsey<'_, L> {
 				for (cond, target) in arms.into_iter().rev() {
 					let mut then = Vec::new();
 					self.branch(x, target, &mut then);
-					els = vec![StmtKind::If { cond, then, els }.at(None)];
+					els = vec![S::branch(cond, then, els)];
 				}
 				out.extend(els);
 			}
@@ -327,15 +378,15 @@ impl<L: Lower> Ramsey<'_, L> {
 		}
 	}
 
-	fn branch(&mut self, from: usize, to: usize, out: &mut Vec<Stmt>) {
+	fn branch(&mut self, from: usize, to: usize, out: &mut Vec<S>) {
 		if self.shape.rpo[to] <= self.shape.rpo[from] {
 			self.lower.flush(out);
 			let label = self.label(to, "l");
-			out.push(StmtKind::Continue(Some(label)).at(None));
+			out.push(S::jump(Jump::Continue, label));
 		} else if self.shape.merge(to) || self.shape.exit[to] {
 			self.lower.flush(out);
 			let label = self.label(to, "b");
-			out.push(StmtKind::Break(Some(label)).at(None));
+			out.push(S::jump(Jump::Break, label));
 		} else {
 			debug_assert_eq!(self.shape.idom[to], from);
 			self.tree(to, out);
@@ -345,7 +396,7 @@ impl<L: Lower> Ramsey<'_, L> {
 
 /// `let n = 0; for (;;) switch (n) { ... }`: each node with other than one predecessor is a
 /// case, which the chain of nodes after it with one predecessor follows in place.
-fn dispatch(g: &Graph, shape: &Shape, lower: &mut impl Lower, labels: &mut u32, out: &mut Vec<Stmt>) {
+fn dispatch<S: Syntax>(g: &Graph, shape: &Shape, lower: &mut impl Lower<S>, labels: &mut u32, out: &mut Vec<S>) {
 	let label = format!("l{labels}");
 	let var = format!("bb{labels}");
 	*labels += 1;
@@ -368,6 +419,7 @@ fn dispatch(g: &Graph, shape: &Shape, lower: &mut impl Lower, labels: &mut u32, 
 		case: &case,
 		label: &label,
 		var: &var,
+		stmt: std::marker::PhantomData,
 	};
 	let mut cases = Vec::new();
 	for &node in &shape.order {
@@ -376,44 +428,21 @@ fn dispatch(g: &Graph, shape: &Shape, lower: &mut impl Lower, labels: &mut u32, 
 		}
 		let mut body = Vec::new();
 		d.chain(node, &mut body);
-		cases.push((Expr::lit(node.to_string()), body));
+		cases.push((node, body));
 	}
-	out.push(
-		StmtKind::decl(
-			true,
-			var.clone(),
-			Some(crate::ts::Type::Builtin("number")),
-			Some(Expr::lit("0")),
-		)
-		.at(None),
-	);
-	out.push(
-		StmtKind::While {
-			label: Some(label.clone()),
-			cond: Expr::lit("true"),
-			body: vec![
-				StmtKind::Switch {
-					label: None,
-					disc: Expr::ident(&var),
-					cases,
-					default: Vec::new(),
-				}
-				.at(None),
-			],
-		}
-		.at(None),
-	);
+	S::dispatch(&var, &label, cases, out);
 }
 
-struct Dispatch<'d, L> {
+struct Dispatch<'d, S, L> {
 	lower: &'d mut L,
 	case: &'d [bool],
 	label: &'d str,
 	var: &'d str,
+	stmt: std::marker::PhantomData<S>,
 }
 
-impl<L: Lower> Dispatch<'_, L> {
-	fn chain(&mut self, node: usize, out: &mut Vec<Stmt>) {
+impl<S: Syntax, L: Lower<S>> Dispatch<'_, S, L> {
+	fn chain(&mut self, node: usize, out: &mut Vec<S>) {
 		match self.lower.node(node, out) {
 			Exit::Goto(target) => self.jump(target, out),
 			Exit::Branch(arms, default) => {
@@ -422,7 +451,7 @@ impl<L: Lower> Dispatch<'_, L> {
 				for (cond, target) in arms.into_iter().rev() {
 					let mut then = Vec::new();
 					self.jump(target, &mut then);
-					els = vec![StmtKind::If { cond, then, els }.at(None)];
+					els = vec![S::branch(cond, then, els)];
 				}
 				out.extend(els);
 			}
@@ -430,77 +459,62 @@ impl<L: Lower> Dispatch<'_, L> {
 		}
 	}
 
-	fn jump(&mut self, to: usize, out: &mut Vec<Stmt>) {
+	fn jump(&mut self, to: usize, out: &mut Vec<S>) {
 		if !self.case[to] {
 			self.chain(to, out);
 			return;
 		}
 		self.lower.flush(out);
-		out.push(StmtKind::Expr(Expr::ident(self.var).assign(Expr::lit(to.to_string()))).at(None));
-		out.push(StmtKind::Continue(Some(self.label.to_string())).at(None));
+		out.push(S::set(self.var, to));
+		out.push(S::jump(Jump::Continue, self.label.to_string()));
 	}
 }
 
 /// Drop the jumps that only fall through, then the labels nothing targets.
-pub fn simplify(stmts: &mut Vec<Stmt>) {
+pub fn simplify<S: Syntax>(stmts: &mut Vec<S>) {
 	for stmt in stmts.iter_mut() {
-		match &mut stmt.kind {
-			StmtKind::Block { label, body } => {
+		match stmt.view_mut() {
+			Form::Block { label, body } => {
 				simplify(body);
 				if let Some(l) = label {
-					strip_tail(body, &StmtKind::Break(Some(l.clone())));
+					strip_tail(body, Tail::Break(Some(l)));
 				}
 			}
-			StmtKind::While { label, body, .. } | StmtKind::ForOf { label, body, .. } => {
+			Form::Loop { label, body, .. } => {
 				simplify(body);
 				if let Some(l) = label {
-					strip_tail(body, &StmtKind::Continue(Some(l.clone())));
+					strip_tail(body, Tail::Continue(Some(l)));
 				}
-				strip_tail(body, &StmtKind::Continue(None));
+				strip_tail(body, Tail::Continue(None));
 			}
-			StmtKind::If { then, els, .. } => {
+			Form::If { then, els, .. } => {
 				simplify(then);
 				simplify(els);
 			}
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| simplify(body));
-				simplify(default);
-			}
+			Form::Switch(bodies) => bodies.into_iter().for_each(simplify),
 			_ => {}
 		}
 	}
 	// Unused labels, and blocks left without one.
 	let mut i = 0;
 	while i < stmts.len() {
-		let unused = match &stmts[i].kind {
-			StmtKind::Block { label: Some(l), body }
-			| StmtKind::While {
-				label: Some(l), body, ..
-			}
-			| StmtKind::ForOf {
-				label: Some(l), body, ..
-			} => !targets(body, l),
-			_ => false,
-		};
-		if unused {
-			match &mut stmts[i].kind {
-				StmtKind::Block { label, .. } | StmtKind::While { label, .. } | StmtKind::ForOf { label, .. } => {
-					*label = None
-				}
-				_ => unreachable!(),
-			}
+		if let Form::Block { label, body } | Form::Loop { label, body, .. } = stmts[i].view_mut()
+			&& label.as_ref().is_some_and(|l| !targets(body, l))
+		{
+			*label = None;
 		}
-		if let StmtKind::Block { label: None, .. } = &stmts[i].kind {
-			let StmtKind::Block { body, .. } = std::mem::replace(&mut stmts[i].kind, StmtKind::Break(None)) else {
-				unreachable!()
-			};
+		let body = match stmts[i].view_mut() {
+			Form::Block { label: None, body } => Some(std::mem::take(body)),
+			_ => None,
+		};
+		if let Some(body) = body {
 			let len = body.len();
 			stmts.splice(i..=i, body);
 			i += len;
 			continue;
 		}
 		// Nothing runs after a jump.
-		if stmts[i].diverges() {
+		if diverges_one(&stmts[i]) {
 			stmts.truncate(i + 1);
 			break;
 		}
@@ -508,42 +522,43 @@ pub fn simplify(stmts: &mut Vec<Stmt>) {
 	}
 	// `if (c) {} else { x }` is `if (!c) { x }`.
 	for stmt in stmts.iter_mut() {
-		if let StmtKind::If { cond, then, els } = &mut stmt.kind
+		if let Form::If { cond, then, els } = stmt.view_mut()
 			&& then.is_empty()
 			&& !els.is_empty()
 		{
-			*cond = std::mem::replace(cond, Expr::undefined()).not();
+			cond.negate();
 			std::mem::swap(then, els);
 		}
 	}
 	stmts.retain(
-		|s| !matches!(&s.kind, StmtKind::If { then, els, cond } if then.is_empty() && els.is_empty() && pure(cond)),
+		|s| !matches!(s.view(), Form::If { cond, then, els } if then.is_empty() && els.is_empty() && cond.pure()),
 	);
 }
 
 /// After a `then` that never falls through, the `else` is what follows the `if`. Every
 /// name a body declares is its own, so nothing moved out can clash. Last, as it leaves
 /// the jumps `simplify` strips no longer at the end of their block.
-pub fn hoist_else(stmts: &mut Vec<Stmt>) {
+pub fn hoist_else<S: Syntax>(stmts: &mut Vec<S>) {
 	let mut i = 0;
 	while i < stmts.len() {
-		match &mut stmts[i].kind {
-			StmtKind::If { then, els, .. } => {
+		let hoisted = match stmts[i].view_mut() {
+			Form::If { then, els, .. } => {
 				hoist_else(then);
 				hoist_else(els);
-				if !els.is_empty() && crate::ts::diverges(then) {
-					let els = std::mem::take(els);
-					stmts.splice(i + 1..i + 1, els);
-				}
+				(!els.is_empty() && diverges(then)).then(|| std::mem::take(els))
 			}
-			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
-				hoist_else(body)
+			Form::Block { body, .. } | Form::Loop { body, .. } => {
+				hoist_else(body);
+				None
 			}
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| hoist_else(body));
-				hoist_else(default);
+			Form::Switch(bodies) => {
+				bodies.into_iter().for_each(hoist_else);
+				None
 			}
-			_ => {}
+			_ => None,
+		};
+		if let Some(els) = hoisted {
+			stmts.splice(i + 1..i + 1, els);
 		}
 		i += 1;
 	}
@@ -552,7 +567,7 @@ pub fn hoist_else(stmts: &mut Vec<Stmt>) {
 /// Last, as the passes before match labeled jumps: a loop takes the label of a block that
 /// holds only it, a loop that starts by leaving when `c` holds runs `while (!c)`, and a
 /// jump to the innermost loop it is in names no label.
-pub fn tidy_loops(stmts: &mut Vec<Stmt>) {
+pub fn tidy_loops<S: Syntax>(stmts: &mut Vec<S>) {
 	adopt_labels(stmts);
 	simplify(stmts);
 	rotate(stmts);
@@ -561,49 +576,45 @@ pub fn tidy_loops(stmts: &mut Vec<Stmt>) {
 }
 
 /// `b: { l: while (..) { .. break b .. } }` is `l: while (..) { .. break l .. }`.
-fn adopt_labels(stmts: &mut [Stmt]) {
+fn adopt_labels<S: Syntax>(stmts: &mut [S]) {
 	for stmt in stmts.iter_mut() {
-		if let StmtKind::Block { label: Some(b), body } = &mut stmt.kind
-			&& let [loop_] = body.as_mut_slice()
-			&& let StmtKind::While { label, body, .. } | StmtKind::ForOf { label, body, .. } = &mut loop_.kind
-		{
-			let l = label.get_or_insert_with(|| b.clone()).clone();
-			retarget(body, b, &l);
-			stmt.kind = std::mem::replace(&mut loop_.kind, StmtKind::Break(None));
+		let adopted = match stmt.view_mut() {
+			Form::Block { label: Some(b), body } if body.len() == 1 => match body[0].view_mut() {
+				Form::Loop { label, body, .. } => {
+					let l = label.get_or_insert_with(|| b.clone()).clone();
+					retarget(body, b, &l);
+					true
+				}
+				_ => false,
+			},
+			_ => false,
+		};
+		if adopted && let Form::Block { body, .. } = stmt.view_mut() {
+			*stmt = body.pop().expect("a block holding only a loop");
 		}
-		match &mut stmt.kind {
-			StmtKind::If { then, els, .. } => {
+		match stmt.view_mut() {
+			Form::If { then, els, .. } => {
 				adopt_labels(then);
 				adopt_labels(els);
 			}
-			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
-				adopt_labels(body)
-			}
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| adopt_labels(body));
-				adopt_labels(default);
-			}
+			Form::Block { body, .. } | Form::Loop { body, .. } => adopt_labels(body),
+			Form::Switch(bodies) => bodies.into_iter().for_each(|body| adopt_labels(body)),
 			_ => {}
 		}
 	}
 }
 
 /// Point each `break from` in `stmts` at `to`.
-fn retarget(stmts: &mut [Stmt], from: &str, to: &str) {
+fn retarget<S: Syntax>(stmts: &mut [S], from: &str, to: &str) {
 	for stmt in stmts.iter_mut() {
-		match &mut stmt.kind {
-			StmtKind::Break(Some(l)) if l == from => *l = to.to_string(),
-			StmtKind::If { then, els, .. } => {
+		match stmt.view_mut() {
+			Form::Break(Some(l)) if l == from => *l = to.to_string(),
+			Form::If { then, els, .. } => {
 				retarget(then, from, to);
 				retarget(els, from, to);
 			}
-			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
-				retarget(body, from, to)
-			}
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| retarget(body, from, to));
-				retarget(default, from, to);
-			}
+			Form::Block { body, .. } | Form::Loop { body, .. } => retarget(body, from, to),
+			Form::Switch(bodies) => bodies.into_iter().for_each(|body| retarget(body, from, to)),
 			_ => {}
 		}
 	}
@@ -611,35 +622,39 @@ fn retarget(stmts: &mut [Stmt], from: &str, to: &str) {
 
 /// `while (true) { if (c) break; .. }` is `while (!c) { .. }`, and
 /// `while (true) { if (c) { a } else break; .. }` is `while (c) { a .. }`.
-fn rotate(stmts: &mut [Stmt]) {
+fn rotate<S: Syntax>(stmts: &mut [S]) {
 	for stmt in stmts.iter_mut() {
-		if let StmtKind::While { label, cond, body } = &mut stmt.kind
-			&& matches!(cond, Expr::Lit(l) if l == "true")
-			&& let Some(StmtKind::If { cond: test, then, els }) = body.first_mut().map(|s| &mut s.kind)
+		if let Form::Loop {
+			label,
+			cond: Some(cond),
+			body,
+		} = stmt.view_mut()
+			&& cond.is_true()
+			&& let Some(first) = body.first_mut()
+			&& let Form::If { cond: test, then, els } = first.view_mut()
 		{
-			let leaves = |stmts: &[Stmt]| {
-				matches!(stmts, [Stmt { kind: StmtKind::Break(target), .. }]
-					if target.is_none() || target == label)
-			};
-			if els.is_empty() && leaves(then) {
-				*cond = std::mem::replace(test, Expr::undefined()).not();
-				body.remove(0);
+			let leaves = |stmts: &[S]| matches!(stmts, [s] if matches!(s.view(), Form::Break(target) if target.is_none() || target == label));
+			let rotated = if els.is_empty() && leaves(then) {
+				std::mem::swap(cond, test);
+				cond.negate();
+				Some(Vec::new())
 			} else if leaves(els) {
-				*cond = std::mem::replace(test, Expr::undefined());
-				let then = std::mem::take(then);
+				std::mem::swap(cond, test);
+				Some(std::mem::take(then))
+			} else {
+				None
+			};
+			if let Some(then) = rotated {
 				body.splice(0..1, then);
 			}
 		}
-		match &mut stmt.kind {
-			StmtKind::If { then, els, .. } => {
+		match stmt.view_mut() {
+			Form::If { then, els, .. } => {
 				rotate(then);
 				rotate(els);
 			}
-			StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => rotate(body),
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| rotate(body));
-				rotate(default);
-			}
+			Form::Block { body, .. } | Form::Loop { body, .. } => rotate(body),
+			Form::Switch(bodies) => bodies.into_iter().for_each(|body| rotate(body)),
 			_ => {}
 		}
 	}
@@ -647,88 +662,106 @@ fn rotate(stmts: &mut [Stmt]) {
 
 /// Drop the label of each jump to `innermost`, the loop `stmts` are in, which an
 /// unlabeled `break` in a `switch` would leave instead.
-fn unlabel(stmts: &mut [Stmt], innermost: Option<&str>, in_switch: bool) {
+fn unlabel<S: Syntax>(stmts: &mut [S], innermost: Option<&str>, in_switch: bool) {
 	for stmt in stmts.iter_mut() {
-		match &mut stmt.kind {
-			StmtKind::Continue(l) if l.is_some() && l.as_deref() == innermost => *l = None,
-			StmtKind::Break(l) if !in_switch && l.is_some() && l.as_deref() == innermost => *l = None,
-			StmtKind::If { then, els, .. } => {
+		match stmt.view_mut() {
+			Form::Continue(l) if l.is_some() && l.as_deref() == innermost => *l = None,
+			Form::Break(l) if !in_switch && l.is_some() && l.as_deref() == innermost => *l = None,
+			Form::If { then, els, .. } => {
 				unlabel(then, innermost, in_switch);
 				unlabel(els, innermost, in_switch);
 			}
-			StmtKind::Block { body, .. } => unlabel(body, innermost, in_switch),
+			Form::Block { body, .. } => unlabel(body, innermost, in_switch),
 			// An unlabeled loop matches no jump's label.
-			StmtKind::While { label, body, .. } | StmtKind::ForOf { label, body, .. } => {
-				unlabel(body, Some(label.as_deref().unwrap_or("")), false)
-			}
-			StmtKind::Switch { cases, default, .. } => {
-				cases.iter_mut().for_each(|(_, body)| unlabel(body, innermost, true));
-				unlabel(default, innermost, true);
-			}
+			Form::Loop { label, body, .. } => unlabel(body, Some(label.as_deref().unwrap_or("")), false),
+			Form::Switch(bodies) => bodies.into_iter().for_each(|body| unlabel(body, innermost, true)),
 			_ => {}
 		}
 	}
 }
 
-/// Whether evaluating `e` does nothing but read.
-pub fn pure(e: &Expr) -> bool {
-	match e {
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => true,
-		Expr::Member(base, _)
-		| Expr::Unary(_, base)
-		| Expr::Located(_, base)
-		| Expr::As(base, _)
-		| Expr::Instantiate(base, _) => pure(base),
-		Expr::Binary(l, _, r) => pure(l) && pure(r),
-		Expr::Cond(c, a, b) => pure(c) && pure(a) && pure(b),
-		_ => false,
-	}
+/// A jump that may end a body, falling through.
+#[derive(Clone, Copy)]
+enum Tail<'a> {
+	Break(Option<&'a str>),
+	Continue(Option<&'a str>),
+	Return,
 }
 
 /// Remove `jump` wherever it is the last thing `stmts` runs before falling off its end.
-fn strip_tail(stmts: &mut Vec<Stmt>, jump: &StmtKind) {
+fn strip_tail<S: Syntax>(stmts: &mut Vec<S>, jump: Tail<'_>) {
 	let Some(last) = stmts.last_mut() else {
 		return;
 	};
-	match &mut last.kind {
-		k if same_jump(k, jump) => {
-			stmts.pop();
-		}
-		StmtKind::If { then, els, .. } => {
+	let same = match (last.view_mut(), jump) {
+		(Form::Break(x), Tail::Break(y)) | (Form::Continue(x), Tail::Continue(y)) => x.as_deref() == y,
+		(Form::Return(false), Tail::Return) => true,
+		(Form::If { then, els, .. }, _) => {
 			strip_tail(then, jump);
 			strip_tail(els, jump);
+			false
 		}
-		StmtKind::Block { body, .. } => strip_tail(body, jump),
-		_ => {}
+		(Form::Block { body, .. }, _) => {
+			strip_tail(body, jump);
+			false
+		}
+		_ => false,
+	};
+	if same {
+		stmts.pop();
 	}
 }
 
 /// Drop the `return;`s a function returning nothing ends with.
-pub fn strip_return(stmts: &mut Vec<Stmt>) {
-	strip_tail(stmts, &StmtKind::Return(None));
+pub fn strip_return<S: Syntax>(stmts: &mut Vec<S>) {
+	strip_tail(stmts, Tail::Return);
 	simplify(stmts);
 	simplify(stmts);
 }
 
-fn same_jump(a: &StmtKind, b: &StmtKind) -> bool {
-	match (a, b) {
-		(StmtKind::Break(x), StmtKind::Break(y)) | (StmtKind::Continue(x), StmtKind::Continue(y)) => x == y,
-		(StmtKind::Return(None), StmtKind::Return(None)) => true,
+/// Whether a `break` or `continue` in `stmts` names `label`.
+fn targets<S: Syntax>(stmts: &[S], label: &str) -> bool {
+	stmts.iter().any(|stmt| match stmt.view() {
+		Form::Break(Some(l)) | Form::Continue(Some(l)) => l == label,
+		Form::If { then, els, .. } => targets(then, label) || targets(els, label),
+		Form::Block { body, .. } | Form::Loop { body, .. } => targets(body, label),
+		Form::Switch(bodies) => bodies.into_iter().any(|body| targets(body, label)),
+		_ => false,
+	})
+}
+
+/// Whether control never falls off the end of `stmts`.
+pub fn diverges<S: Syntax>(stmts: &[S]) -> bool {
+	stmts.last().is_some_and(diverges_one)
+}
+
+/// Whether control never reaches the statement after `stmt`.
+fn diverges_one<S: Syntax>(stmt: &S) -> bool {
+	match stmt.view() {
+		Form::Return(_) | Form::Break(_) | Form::Continue(_) => true,
+		Form::If { then, els, .. } => diverges(then) && diverges(els),
+		Form::Block { label: None, body } => diverges(body),
+		Form::Loop {
+			label,
+			cond: Some(cond),
+			body,
+		} => cond.is_true() && !breaks_out(body, label.as_deref(), false),
 		_ => false,
 	}
 }
 
-/// Whether a `break` or `continue` in `stmts` names `label`.
-fn targets(stmts: &[Stmt], label: &str) -> bool {
-	stmts.iter().any(|stmt| match &stmt.kind {
-		StmtKind::Break(Some(l)) | StmtKind::Continue(Some(l)) => l == label,
-		StmtKind::If { then, els, .. } => targets(then, label) || targets(els, label),
-		StmtKind::Block { body, .. } | StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => {
-			targets(body, label)
-		}
-		StmtKind::Switch { cases, default, .. } => {
-			cases.iter().any(|(_, body)| targets(body, label)) || targets(default, label)
-		}
+/// Whether a `break` in `stmts` targets the loop that holds them, labeled `label`.
+/// Inside a `nested` loop, only a labeled `break` can. A `break` to any other label
+/// skips the loop's next statement too.
+fn breaks_out<S: Syntax>(stmts: &[S], label: Option<&str>, nested: bool) -> bool {
+	stmts.iter().any(|stmt| match stmt.view() {
+		Form::Break(None) => !nested,
+		Form::Break(Some(target)) => Some(target.as_str()) == label,
+		Form::If { then, els, .. } => breaks_out(then, label, nested) || breaks_out(els, label, nested),
+		Form::Block { body, .. } => breaks_out(body, label, nested),
+		// An unlabeled `break` in a case leaves the switch.
+		Form::Switch(bodies) => bodies.into_iter().any(|body| breaks_out(body, label, true)),
+		Form::Loop { body, .. } => breaks_out(body, label, true),
 		_ => false,
 	})
 }

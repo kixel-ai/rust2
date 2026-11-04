@@ -1101,7 +1101,7 @@ which lower from core's MIR.
 ```bash
 just ts test                  # translate each fixture, compare, type-check, and diff
 UPDATE_EXPECT=1 just ts test  # rewrite the snapshots in each fixture's expected/
-just ts moq                   # translate moq-net's codec at a pinned revision
+just ts moq                   # translate moq-net's codec at the model fixture's pinned revision
 just ts census                # census moq-net and kio at the same revision
 ```
 
@@ -1117,6 +1117,12 @@ so adding, removing, or reordering a case changes no other case's inputs.
   `bench::run` and then with it as the first root, which must keep every line in order.
   Bun bundles a caller of `Decoder.u8` and `Decoder.new` through `import * as Decoder`,
   which must keep only those and what they call.
+- `model` depends on moq-net at the moq pin, its `rev`, which `just ts moq` and
+  `just ts census` check out too, and translates with it as one program. It is a
+  workspace of its own, so its lockfile keeps moq's checkout out of the package's inputs. Its harness
+  runs what of the model translates with nothing refused or bound, `Timestamp` and
+  `Timescale`: their constructors, conversions, `u128` reads, sums, differences,
+  temporal order across scales, `Duration`s, and `Debug`.
 - `lang` is the language, a fixture per module under `fixtures/lang/`, each module's doc
   saying what it covers; `fmt`, `generics`, and `shapes`, which share types, share
   `shapes`. Each crate's `cases` names what it runs, which the first two bytes of an input
