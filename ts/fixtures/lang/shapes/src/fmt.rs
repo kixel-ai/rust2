@@ -1383,6 +1383,23 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	result(out, literals(&mut twice, c));
 	result(out, twice.write_char('ß'));
 	put(out, &twice.0);
+	named(out, at(12), at(13));
+}
+
+/// Placeholders into writers named as the translation's own callback parameters might be.
+fn named(out: &mut Vec<u8>, first: u8, second: u8) {
+	use std::fmt::Write as _;
+	let mut s = Twice(String::new());
+	let mut c = Capped {
+		text: String::new(),
+		calls: 0,
+		cap: 64,
+	};
+	result(out, write!(s, "{first}{:>3}", 'x'));
+	result(out, write!(c, "{second:<3}{}", s.0));
+	put(out, &s.0);
+	put(out, &c.text);
+	out.push(c.calls);
 }
 
 /// Writes what its cell holds as it is written.

@@ -3216,7 +3216,7 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _138: rt.i16 = rt.i16Neg(at(11) as rt.i16);
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_134, f), (f: rt.Formatter) => rt.i16Display(_138, f), (f: rt.Formatter) => rt.fmtCharDisplay(c, f), (f: rt.Formatter) => rt.fmtStr("q\"b", f)];
 	const _131: rt.Arguments = [rt.fmtSpec({ align: ">", width: 4 }, args8[0]), "|", args8[1], "|", rt.fmtSpec({ align: "^", width: 5 }, args8[2]), "|", args8[3]];
-	result(out, rt.fmtWrite((s) => Capped.writeStr$fmt_Write(capped, s), (c) => Capped.writeStr$fmt_Write(capped, String.fromCodePoint(c)), _131));
+	result(out, rt.fmtWrite((s2) => Capped.writeStr$fmt_Write(capped, s2), (c2) => Capped.writeStr$fmt_Write(capped, String.fromCodePoint(c2)), _131));
 	let _156: Capped.Capped = capped;
 	result(out, literals$mut_mut_fmt_Capped(rt.place(() => _156, (value7) => _156 = value7), 233));
 	rt.byteVecPush(out, capped.calls);
@@ -3225,6 +3225,24 @@ export function writes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	result(out, literals$mut_fmt_Twice(twice, c));
 	result(out, Twice.writeChar$fmt_Write(twice, 223));
 	put(out, twice._0);
+	named(out, at(12), at(13));
+}
+
+/** Placeholders into writers named as the translation's own callback parameters might be. */
+export function named(out: rt.ByteVec, first: rt.u8, second: rt.u8): void {
+	const s: Twice.Twice = { _0: "" };
+	const c: Capped.Capped = { text: "", calls: 0, cap: 64 };
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(first, f), (f: rt.Formatter) => rt.fmtCharDisplay(120, f)];
+	const _11: rt.Arguments = [args2[0], rt.fmtSpec({ align: ">", width: 3 }, args2[1])];
+	result(out, rt.fmtWrite((s2) => Twice.writeStr$fmt_Write(s, s2), (c2) => Twice.writeChar$fmt_Write(s, c2), _11));
+	const _28: rt.Fmt = (f: rt.Formatter) => rt.u8Display(second, f);
+	const arg = s._0;
+	const args4: rt.Fmt[] = [_28, (f: rt.Formatter) => rt.fmtPad(f, arg)];
+	const _23: rt.Arguments = [rt.fmtSpec({ align: "<", width: 3 }, args4[0]), args4[1]];
+	result(out, rt.fmtWrite((s3) => Capped.writeStr$fmt_Write(c, s3), (c3) => Capped.writeStr$fmt_Write(c, String.fromCodePoint(c3)), _23));
+	put(out, s._0);
+	put(out, c.text);
+	rt.byteVecPush(out, c.calls);
 }
 
 export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -4370,7 +4388,7 @@ export function passed(out: rt.ByteVec, budget: rt.usize, args: rt.Arguments): v
 		put(out, log.text);
 	}
 	const log2: Log.Log = Log.new(budget);
-	if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log2, s), (c) => Log.writeChar$fmt_Write(log2, c), args).ok) {
+	if (!rt.fmtWrite((s2) => Log.writeStr$fmt_Write(log2, s2), (c2) => Log.writeChar$fmt_Write(log2, c2), args).ok) {
 		_34 = 45;
 	} else {
 		_34 = 43;
@@ -4390,8 +4408,6 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let x!: rt.f64;
 	let _166!: rt.char;
 	let _198!: rt.char;
-	let s!: string;
-	let c!: rt.char;
 	let _265!: rt.char;
 	let _291!: rt.char;
 	let _316!: rt.char;
@@ -4418,7 +4434,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log: Log.Log = Log.new(_34);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.i32Display(v, f), (f: rt.Formatter) => rt.i32LowerHex(v, f), (f: rt.Formatter) => rt.i32Binary(v, f), (f: rt.Formatter) => rt.i32Octal(v, f), (f: rt.Formatter) => rt.i32Debug(v, f), (f: rt.Formatter) => rt.i32LowerExp(v, f), (f: rt.Formatter) => rt.i32UpperExp(v, f)];
 		const _41: rt.Arguments = ["a", rt.fmtSpec({ align: ">", width: 4 }, args2[0]), "|", args2[0], "|", rt.fmtSpec({ align: "<", plus: true, width: 6 }, args2[0]), "|", rt.fmtSpec({ align: "^", alternate: true, width: 9 }, args2[1]), "|", rt.fmtSpec({ zero: true, width: 8 }, args2[0]), "|", rt.fmtSpec({ alternate: true, zero: true, width: 10 }, args2[2]), "|", rt.fmtSpec({ plus: true, alternate: true }, args2[3]), "|", rt.fmtSpec({ alternate: true }, args2[0]), "|", rt.fmtSpec({ alternate: true }, args2[4]), "|", rt.fmtSpec({ debugHex: "x" }, args2[4]), "|", args2[5], "|", rt.fmtSpec({ precision: 3 }, args2[5]), "|", rt.fmtSpec({ plus: true, zero: true, width: 12, precision: 2 }, args2[6]), "|", rt.fmtSpec({ fill: "*", align: "^", width: 12 }, args2[5]), "|", rt.fmtSpec({ precision: 0 }, args2[5]), "|", rt.fmtSpec({ precision: 12 }, args2[5]), "|", rt.fmtSpec({ alternate: true }, args2[5])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log, s), (c) => Log.writeChar$fmt_Write(log, c), _41).ok) {
+		if (!rt.fmtWrite((s2) => Log.writeStr$fmt_Write(log, s2), (c2) => Log.writeChar$fmt_Write(log, c2), _41).ok) {
 			_56 = 45;
 		} else {
 			_56 = 43;
@@ -4439,7 +4455,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _113: rt.i8 = (at(7) << 24) >> 24;
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u64Display(w, f), (f: rt.Formatter) => rt.u64LowerHex(w, f), (f: rt.Formatter) => rt.i128Display(n, f), (f: rt.Formatter) => rt.i128LowerExp(n, f), (f: rt.Formatter) => rt.u8Display(_109, f), (f: rt.Formatter) => rt.i8LowerHex(_113, f), (f: rt.Formatter) => rt.i32UpperExp(v, f)];
 		const _106: rt.Arguments = [rt.fmtSpec({ align: ">", width: 24 }, args4[0]), "|", rt.fmtSpec({ alternate: true }, args4[1]), "|", args4[2], "|", rt.fmtSpec({ plus: true, zero: true, width: 45 }, args4[2]), "|", args4[3], "|", rt.fmtSpec({ align: ">", width: 5 }, args4[4]), "|", rt.fmtSpec({ alternate: true, zero: true, width: 6 }, args4[5]), "|", rt.fmtSpec({ precision: 45 }, args4[6])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log2, s), (c) => Log.writeChar$fmt_Write(log2, c), _106).ok) {
+		if (!rt.fmtWrite((s3) => Log.writeStr$fmt_Write(log2, s3), (c3) => Log.writeChar$fmt_Write(log2, c3), _106).ok) {
 			_132 = 45;
 		} else {
 			_132 = 43;
@@ -4476,7 +4492,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log3: Log.Log = Log.new(_147);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.f64Display(x, f), (f: rt.Formatter) => rt.f64Debug(x, f), (f: rt.Formatter) => rt.f64LowerExp(x, f), (f: rt.Formatter) => rt.f64UpperExp(x, f)];
 		const _154: rt.Arguments = [args6[0], "|", args6[1], "|", rt.fmtSpec({ width: 10, precision: 3 }, args6[0]), "|", rt.fmtSpec({ align: "<", plus: true, width: 12 }, args6[0]), "|", rt.fmtSpec({ align: "^", zero: true, width: 12, precision: 1 }, args6[0]), "|", args6[2], "|", rt.fmtSpec({ precision: 2 }, args6[2]), "|", rt.fmtSpec({ precision: 30 }, args6[0]), "|", rt.fmtSpec({ alternate: true }, args6[1]), "|", rt.fmtSpec({ plus: true, precision: 0 }, args6[0]), "|", rt.fmtSpec({ align: ">", width: 9 }, args6[1]), "|", args6[3], "|", rt.fmtSpec({ zero: true, width: 8 }, args6[0]), "|", rt.fmtSpec({ plus: true, zero: true, width: 9, precision: 3 }, args6[2]), "|", rt.fmtSpec({ precision: 0 }, args6[2])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log3, s), (c) => Log.writeChar$fmt_Write(log3, c), _154).ok) {
+		if (!rt.fmtWrite((s4) => Log.writeStr$fmt_Write(log3, s4), (c4) => Log.writeChar$fmt_Write(log3, c4), _154).ok) {
 			_166 = 45;
 		} else {
 			_166 = 43;
@@ -4494,7 +4510,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log4: Log.Log = Log.new(_177);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.f64Display(x, f), (f: rt.Formatter) => rt.f64LowerExp(x, f), (f: rt.Formatter) => rt.f32Display(y, f), (f: rt.Formatter) => rt.f32Debug(y, f), (f: rt.Formatter) => rt.f32LowerExp(y, f)];
 		const _184: rt.Arguments = [rt.fmtSpec({ precision: 70 }, args8[0]), "|", rt.fmtSpec({ precision: 330 }, args8[0]), "|", rt.fmtSpec({ precision: 20 }, args8[1]), "|", args8[2], "|", args8[3], "|", rt.fmtSpec({ precision: 3 }, args8[2]), "|", args8[4], "|", rt.fmtSpec({ precision: 12 }, args8[4]), "|", rt.fmtSpec({ precision: 50 }, args8[2])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log4, s), (c) => Log.writeChar$fmt_Write(log4, c), _184).ok) {
+		if (!rt.fmtWrite((s5) => Log.writeStr$fmt_Write(log4, s5), (c5) => Log.writeChar$fmt_Write(log4, c5), _184).ok) {
 			_198 = 45;
 		} else {
 			_198 = 43;
@@ -4506,8 +4522,8 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 	if (!(_206 < 14)) {
 		rt.panic("index out of bounds: the len is " + 14 + " but the index is " + _206);
 	}
-	s = ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"][_206];
-	c = option_unwrapOr$0k15iai(rt.charFromU32(rt.u32Mul(at(12) as rt.u32, 257)), 63);
+	const s: string = ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"][_206];
+	const c: rt.char = option_unwrapOr$0k15iai(rt.charFromU32(rt.u32Mul(at(12) as rt.u32, 257)), 63);
 	const flag: boolean = rt.u8Rem(at(13), 2) === 0;
 	const iter5: rt.Iter<rt.usize> = rt.iterSlice([4294967295, budget]);
 	while (true) {
@@ -4518,7 +4534,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log5: Log.Log = Log.new(_233);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, s), (f: rt.Formatter) => rt.fmtStr(s, f), (f: rt.Formatter) => rt.fmtCharDisplay(c, f), (f: rt.Formatter) => rt.fmtCharDebug(c, f), (f: rt.Formatter) => rt.fmtCharDebug(39, f), (f: rt.Formatter) => rt.fmtCharDebug(34, f), (f: rt.Formatter) => rt.fmtCharDebug(769, f), (f: rt.Formatter) => rt.fmtCharDebug(233, f), (f: rt.Formatter) => rt.fmtBool(flag, f), (f: rt.Formatter) => rt.fmtUnit(undefined, f)];
 		const _240: rt.Arguments = [args10[0], "|", args10[1], "|", rt.fmtSpec({ align: ">", width: 8 }, args10[0]), "|", rt.fmtSpec({ align: "^", width: 9, precision: 2 }, args10[0]), "|", rt.fmtSpec({ fill: "-", align: "<", width: 3 }, args10[0]), "|", rt.fmtSpec({ alternate: true }, args10[1]), "|", args10[2], "|", args10[3], "|", rt.fmtSpec({ align: ">", width: 3 }, args10[2]), "|", rt.fmtSpec({ precision: 0 }, args10[2]), "|", rt.fmtSpec({ align: "^", width: 5 }, args10[3]), "|", args10[4], args10[5], args10[6], args10[7], "|", args10[8], "|", args10[9], "|", rt.fmtSpec({ align: ">", width: 7 }, args10[8])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log5, s), (c) => Log.writeChar$fmt_Write(log5, c), _240).ok) {
+		if (!rt.fmtWrite((s6) => Log.writeStr$fmt_Write(log5, s6), (c6) => Log.writeChar$fmt_Write(log5, c6), _240).ok) {
 			_265 = 45;
 		} else {
 			_265 = 43;
@@ -4536,7 +4552,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log6: Log.Log = Log.new(_275);
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => Nested.fmt$fmt_Debug(value, f)];
 		const _282: rt.Arguments = [args12[0]];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log6, s), (c) => Log.writeChar$fmt_Write(log6, c), _282).ok) {
+		if (!rt.fmtWrite((s7) => Log.writeStr$fmt_Write(log6, s7), (c7) => Log.writeChar$fmt_Write(log6, c7), _282).ok) {
 			_291 = 45;
 		} else {
 			_291 = 43;
@@ -4553,7 +4569,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log7: Log.Log = Log.new(_300);
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => Nested.fmt$fmt_Debug(value, f)];
 		const _307: rt.Arguments = [rt.fmtSpec({ alternate: true }, args14[0])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log7, s), (c) => Log.writeChar$fmt_Write(log7, c), _307).ok) {
+		if (!rt.fmtWrite((s8) => Log.writeStr$fmt_Write(log7, s8), (c8) => Log.writeChar$fmt_Write(log7, c8), _307).ok) {
 			_316 = 45;
 		} else {
 			_316 = 43;
@@ -4577,7 +4593,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _363: Unit.Unit = {};
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => Tup.fmt$fmt_Debug(_351, f), (f: rt.Formatter) => Tup.fmt$fmt_Debug(_356, f), (f: rt.Formatter) => Manual.fmt$fmt_Debug(manual, f), (f: rt.Formatter) => Seq.fmt$fmt_Debug(seq, f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(_358[0], f)], f), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.i32Debug(_362[0], f), (f: rt.Formatter) => rt.fmtStr(_362[1], f)], f), (f: rt.Formatter) => Unit.fmt$fmt_Debug(_363, f)];
 		const _348: rt.Arguments = [args16[0], "|", rt.fmtSpec({ alternate: true }, args16[1]), "|", args16[2], "|", rt.fmtSpec({ alternate: true }, args16[2]), "|", rt.fmtSpec({ alternate: true }, args16[3]), "|", args16[4], "|", rt.fmtSpec({ alternate: true }, args16[5]), "|", args16[6]];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log8, s), (c) => Log.writeChar$fmt_Write(log8, c), _348).ok) {
+		if (!rt.fmtWrite((s9) => Log.writeStr$fmt_Write(log8, s9), (c9) => Log.writeChar$fmt_Write(log8, c9), _348).ok) {
 			_378 = 45;
 		} else {
 			_378 = 43;
@@ -4611,7 +4627,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _432: rt.RangeBound<rt.i32> = { tag: "Included", _0: 3 } as rt.RangeBound<rt.i32>;
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtMap(rt.btreeIter(map), f, rt.u8Debug, rt.fmtStr), (f: rt.Formatter) => rt.fmtSet(rt.btreeKeys(set), f, rt.u8Debug), (f: rt.Formatter) => rt.fmtList(rt.dequeIter(deque), f, rt.i8Debug), (f: rt.Formatter) => rt.fmtOption(_421, f, (value: rt.Result<rt.u8, undefined>, f: rt.Formatter) => rt.fmtResult(value, f, rt.u8Debug, rt.fmtUnit)), (f: rt.Formatter) => rt.fmtOption(_426, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtRangeInclusive(range, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtRangeTo(_428, f, rt.u8Debug), (f: rt.Formatter) => rt.fmtBound(_432, f, rt.i32Debug)];
 		const _418: rt.Arguments = [args18[0], "|", rt.fmtSpec({ alternate: true }, args18[0]), "|", args18[1], "|", rt.fmtSpec({ alternate: true }, args18[1]), "|", args18[2], "|", args18[3], "|", args18[4], "|", args18[5], "|", args18[6], "|", args18[7]];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log9, s), (c) => Log.writeChar$fmt_Write(log9, c), _418).ok) {
+		if (!rt.fmtWrite((s10) => Log.writeStr$fmt_Write(log9, s10), (c10) => Log.writeChar$fmt_Write(log9, c10), _418).ok) {
 			_450 = 45;
 		} else {
 			_450 = 43;
@@ -4645,7 +4661,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _503: rt.Iter<rt.char> = rt.strEscapeDefault("a\"");
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtEscapeAscii(bytes, f), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "EscapeAscii")), (f: rt.Formatter) => rt.fmtEscapeAscii(_489, f), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "EscapeDefault")), (f: rt.Formatter) => rt.fmtCharsDisplay(_493, f), (f: rt.Formatter) => rt.fmtCharsDisplay(_495, f), (f: rt.Formatter) => rt.fmtCharsDisplay(_497, f), (f: rt.Formatter) => rt.fmtCharsDisplay(_499, f), (f: rt.Formatter) => rt.fmtCharsDisplay(spent, f), (f: rt.Formatter) => rt.fmtCharsDebug(spent, f, "EscapeDebug"), (f: rt.Formatter) => rt.fmtStrEscapeDisplay(_501, f), (f: rt.Formatter) => rt.fmtStrEscapeDisplay(_503, f)];
 		const _486: rt.Arguments = [args20[0], "|", args20[1], "|", args20[2], "|", args20[3], "|", args20[4], "|", args20[5], "|", args20[6], "|", args20[7], "|", args20[8], "|", args20[9], "|", args20[10], "|", args20[11]];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log10, s), (c) => Log.writeChar$fmt_Write(log10, c), _486).ok) {
+		if (!rt.fmtWrite((s11) => Log.writeStr$fmt_Write(log10, s11), (c11) => Log.writeChar$fmt_Write(log10, c11), _486).ok) {
 			_524 = 45;
 		} else {
 			_524 = 43;
@@ -4663,7 +4679,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const log11: Log.Log = Log.new(_559);
 		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.durationDebug(d, f)];
 		const _566: rt.Arguments = [args22[0], "|", rt.fmtSpec({ align: ">", width: 12 }, args22[0]), "|", rt.fmtSpec({ precision: 2 }, args22[0]), "|", rt.fmtSpec({ plus: true }, args22[0]), "|", rt.fmtSpec({ align: "^", width: 15, precision: 11 }, args22[0]), "|", rt.fmtSpec({ align: "<", width: 4, precision: 0 }, args22[0]), "|", rt.fmtSpec({ fill: "*", align: ">", width: 20, precision: 3 }, args22[0])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log11, s), (c) => Log.writeChar$fmt_Write(log11, c), _566).ok) {
+		if (!rt.fmtWrite((s12) => Log.writeStr$fmt_Write(log11, s12), (c12) => Log.writeChar$fmt_Write(log11, c12), _566).ok) {
 			_575 = 45;
 		} else {
 			_575 = 43;
@@ -4683,7 +4699,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const part8 = rt.byteSliceUtf8Chunks(data);
 			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8Chunks(part8, f)];
 			const _593: rt.Arguments = [args24[0]];
-			if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log12, s), (c) => Log.writeChar$fmt_Write(log12, c), _593).ok) {
+			if (!rt.fmtWrite((s14) => Log.writeStr$fmt_Write(log12, s14), (c14) => Log.writeChar$fmt_Write(log12, c14), _593).ok) {
 				_603 = 45;
 			} else {
 				_603 = 43;
@@ -4703,7 +4719,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _623: rt.Iter<rt.Utf8Chunk> = rt.byteSliceUtf8Chunks(data);
 			const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8ErrorDisplay(e, f), (f: rt.Formatter) => rt.fmtUtf8ErrorDebug(e, f), (f: rt.Formatter) => rt.fmtUtf8Chunks(_623, f)];
 			const _620: rt.Arguments = [args26[0], "|", args26[1], "|", args26[2]];
-			if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log13, s), (c) => Log.writeChar$fmt_Write(log13, c), _620).ok) {
+			if (!rt.fmtWrite((s13) => Log.writeStr$fmt_Write(log13, s13), (c13) => Log.writeChar$fmt_Write(log13, c13), _620).ok) {
 				_633 = 45;
 			} else {
 				_633 = 43;
@@ -4724,7 +4740,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const log14: Log.Log = Log.new(_660);
 			const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8ErrorDisplay(e2, f)];
 			const _667: rt.Arguments = [args28[0]];
-			if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log14, s), (c) => Log.writeChar$fmt_Write(log14, c), _667).ok) {
+			if (!rt.fmtWrite((s15) => Log.writeStr$fmt_Write(log14, s15), (c15) => Log.writeChar$fmt_Write(log14, c15), _667).ok) {
 				_676 = 45;
 			} else {
 				_676 = 43;
@@ -4750,7 +4766,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		});
 		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtLayoutDebug(layout, f), (f: rt.Formatter) => rt.fmtTryReserveErrorDisplay(reserve, f), (f: rt.Formatter) => rt.fmtTryReserveErrorDebug(reserve, f), (f: rt.Formatter) => rt.fmtWriteFmt(f, ["PhantomData<", "u8", ">"]), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "UnsafeCell")), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "EncodeUtf16")), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "RepeatWith"))];
 		const _714: rt.Arguments = [args30[0], "|", args30[1], "|", args30[2], "|", args30[3], "|", args30[4], "|", args30[5], "|", args30[6], "|", args30[7]];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log15, s), (c) => Log.writeChar$fmt_Write(log15, c), _714).ok) {
+		if (!rt.fmtWrite((s16) => Log.writeStr$fmt_Write(log15, s16), (c16) => Log.writeChar$fmt_Write(log15, c16), _714).ok) {
 			_740 = 45;
 		} else {
 			_740 = 43;
@@ -4770,7 +4786,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _760: Lettered.Lettered = { _0: 233 };
 		const args32: rt.Fmt[] = [(f: rt.Formatter) => Lettered.fmt$fmt_Display(_759, f), (f: rt.Formatter) => Lettered.fmt$fmt_Display(_760, f), (f: rt.Formatter) => rt.u8Display(_762, f), (f: rt.Formatter) => rt.i32Display(v, f)];
 		const _756: rt.Arguments = [args32[0], "|", rt.fmtSpec({ align: ">", width: 6 }, args32[1]), "|a", args32[2], "b", rt.fmtSpec({ align: ">", width: 3 }, args32[3])];
-		if (!rt.fmtWrite((s) => Log.writeStr$fmt_Write(log16, s), (c) => Log.writeChar$fmt_Write(log16, c), _756).ok) {
+		if (!rt.fmtWrite((s17) => Log.writeStr$fmt_Write(log16, s17), (c17) => Log.writeChar$fmt_Write(log16, c17), _756).ok) {
 			_775 = 45;
 		} else {
 			_775 = 43;
