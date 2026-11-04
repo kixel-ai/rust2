@@ -650,6 +650,7 @@ async def on_loop():
 		channel.notify(waker)
 		channel.send(b"rung")
 	check(not wakes, "a waker is never called inside the call")
+	check(not signaled(), "a waker's wakes on the loop's thread, with nothing parked, write no byte")
 	await settle()
 	check(wakes == [1], "wakes on the loop's thread call the waker once")
 	await channel.recv()
