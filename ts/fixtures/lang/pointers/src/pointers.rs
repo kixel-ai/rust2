@@ -2310,8 +2310,10 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	let mut ordered: BTreeSet<*const Keyed> = BTreeSet::new();
 	let mut hashed: HashSet<*const Keyed> = HashSet::new();
 	let dangling = Weak::<Keyed>::new().as_ptr();
+	out.extend([dangling as u8, dangling as i16 as u8]);
 	out.extend(
 		[
+			dangling as isize == -1,
 			dangling as usize == usize::MAX,
 			ptr::null::<Keyed>() as usize == 0,
 			NonNull::<Keyed>::dangling().as_ptr().addr() == align,
@@ -2373,6 +2375,14 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 			}
 		}
 	}
+	// Aligned as what holds them: an `Arc`'s counts, and a struct more aligned than its parts.
+	let small = [Arc::new(Small(1, 2)), Arc::new(Small(3, 4))];
+	let first = Aligned(Small(5, 6));
+	let second = Aligned(Small(7, 8));
+	for (arc, holder) in small.iter().zip([&first, &second]) {
+		let (shared, held) = (Arc::as_ptr(arc).addr(), ptr::from_ref(&holder.0).addr());
+		out.extend([u8::from(shared % align_of::<usize>() == 0), u8::from(held % 64 == 0), arc.0 ^ holder.0.1]);
+	}
 	out.extend([
 		left.get(),
 		weaks.iter().filter(|(weak, _)| weak.upgrade().is_some()).count() as u8,
@@ -2380,3 +2390,10 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	drop(live);
 	out.extend([left.get(), u8::from(registry.borrow().is_empty())]);
 }
+
+/// A value of no alignment of its own, whose address an `Arc` or a struct aligns.
+struct Small(u8, u8);
+
+/// A struct more aligned than what it holds.
+#[repr(C, align(64))]
+struct Aligned(Small);

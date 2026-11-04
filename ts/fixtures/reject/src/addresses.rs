@@ -56,3 +56,15 @@ pub fn cyclic() -> Arc<Cyclic> {
 pub fn made(p: *const Element, at: usize) -> [*const Element; 3] {
 	[p.with_addr(at), std::ptr::without_provenance(at), at as *const Element]
 }
+
+/// What a struct more aligned than it holds after another part.
+pub struct Late(pub u8);
+
+/// A struct whose alignment fixes the address of its `Late` apart from its own.
+#[repr(C, align(64))]
+pub struct Early(pub u32, pub Late);
+
+/// The address of a part an alignment fixes.
+pub fn late(early: &Early) -> usize {
+	std::ptr::from_ref(&early.1) as usize
+}

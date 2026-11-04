@@ -498,7 +498,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			),
 			CastKind::PointerExposeProvenance if let ty::RawPtr(pointee, _) = from.kind() => {
 				let p = self.operand(op, span, out);
-				crate::lower::address::address(self.b, p, *pointee, span)
+				let address = crate::lower::address::address(self.b, p, *pointee, span);
+				let address = num::Operand {
+					expr: address,
+					value: None,
+				};
+				num::cast(self.b, address, tcx.types.usize, to, span)
 			}
 			CastKind::PointerExposeProvenance | CastKind::PointerWithExposedProvenance => self.err(
 				span,

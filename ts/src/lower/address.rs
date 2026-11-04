@@ -11,6 +11,8 @@
 //! of an address, which JS has no memory at.
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
+use rustc_abi::{FieldsShape, Variants};
+use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
@@ -44,8 +46,19 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 		if let Some(why) = why {
 			return Err(b.err(span, format!("{what}, {why}")));
 		}
-		let read = b.t.sited(span, what);
+		let read = b.t.sited(span, what.clone());
 		b.t.addresses.push((ty, read.0, read.1));
+		let layout = tcx.layout_of(env.as_query_input(ty)).ok();
+		let size = layout.map_or(0, |l| l.size.bytes());
+		return match b.t.alignment(ty) {
+			Ok(align) => Ok([Expr::lit(size.to_string()), Expr::lit(align.to_string())]),
+			Err(holder) => Err(b.err(
+				span,
+				format!(
+					"{what}, which `{holder}` holds at an offset its alignment fixes the address of, which JS can't show"
+				),
+			)),
+		};
 	}
 	let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 	let size = layout.map_or(0, |l| l.size.bytes());
@@ -69,6 +82,32 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let (span, msg) = self.sited(span, msg);
 		self.weak_pointers
 			.push((self.tcx.erase_and_anonymize_regions(ty), span, msg));
+	}
+
+	/// The alignment `rs.addr` numbers the addresses of a `ty` by: the largest of its own
+	/// and each allocation's that holds one at an offset that alignment keeps, as an
+	/// `Arc`'s counts before its value do, or else the type of an allocation that holds one
+	/// where its alignment fixes the address apart from it.
+	fn alignment(&mut self, ty: Ty<'tcx>) -> Result<u64, Ty<'tcx>> {
+		let tcx = self.tcx;
+		let ty = super::copy::storage(tcx, ty);
+		if let Some(&found) = self.alignments.get(&ty) {
+			return found;
+		}
+		let env = ty::TypingEnv::fully_monomorphized();
+		let own = tcx.layout_of(env.as_query_input(ty)).map_or(1, |l| l.align.abi.bytes());
+		let mut placed = Placed {
+			tcx,
+			cx: LayoutCx::new(tcx, env),
+			target: ty,
+			own,
+			align: own,
+			roots: self.writes.locals(tcx).map(|t| (t, None)).collect(),
+			seen: FxHashSet::default(),
+		};
+		let found = placed.run();
+		self.alignments.insert(ty, found);
+		found
 	}
 
 	/// Refuse each address read of a type an allocation holds beside another whose address
@@ -181,33 +220,7 @@ impl<'s, 'tcx> Held<'s, 'tcx> {
 				_ if adt.is_phantom_data() => 0,
 				Some(Std::Range | Std::RangeInclusive) => 2 * self.count(args.type_at(0)).min(1),
 				// Each of its type arguments, at most one of each, by value.
-				Some(
-					Std::Option
-					| Std::Result
-					| Std::Cow
-					| Std::Cell
-					| Std::RefCell
-					| Std::Mutex
-					| Std::OnceCell
-					| Std::OnceLock
-					| Std::LazyCell
-					| Std::LazyLock
-					| Std::Poll
-					| Std::Ready
-					| Std::Pin
-					| Std::ControlFlow
-					| Std::Bound
-					| Std::RangeTo
-					| Std::RangeFrom
-					| Std::RangeToInclusive
-					| Std::Reverse
-					| Std::Wrapping
-					| Std::Saturating
-					| Std::AssertUnwindSafe
-					| Std::MaybeUninit
-					| Std::ManuallyDrop,
-				) => total(args.types().map(|t| self.count(t))),
-				_ if adt.is_unsafe_cell() => total(args.types().map(|t| self.count(t))),
+				_ if by_value(tcx, adt) => total(args.types().map(|t| self.count(t))),
 				// A collection, or anything else of std's, may hold many of each in one
 				// allocation of its own.
 				_ => {
@@ -257,6 +270,152 @@ impl<'s, 'tcx> Held<'s, 'tcx> {
 		self.roots.push((pointee, many));
 		0
 	}
+}
+
+/// Where the program's allocations hold values of the `target` type: at what offset
+/// from where each starts, aligned as its type is, or as an `Arc`'s allocation is.
+struct Placed<'tcx> {
+	tcx: TyCtxt<'tcx>,
+	cx: LayoutCx<'tcx>,
+	target: Ty<'tcx>,
+	/// The target's own alignment.
+	own: u64,
+	/// The largest alignment of an allocation holding one at an offset it keeps.
+	align: u64,
+	/// The allocations still to look in, each with the offset of its value and the
+	/// alignment of the allocation, if it holds more before it, as an `Arc`'s does.
+	roots: Vec<(Ty<'tcx>, Option<(u64, u64)>)>,
+	seen: FxHashSet<(Ty<'tcx>, Option<(u64, u64)>)>,
+}
+
+impl<'tcx> Placed<'tcx> {
+	fn run(&mut self) -> Result<u64, Ty<'tcx>> {
+		let env = ty::TypingEnv::fully_monomorphized();
+		while let Some((ty, header)) = self.roots.pop() {
+			let ty = (self.tcx)
+				.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
+				.unwrap_or(ty);
+			if !self.seen.insert((ty, header)) {
+				continue;
+			}
+			// A slice's elements are each at a multiple of their own alignment.
+			let ty = match ty.kind() {
+				ty::Slice(elem) => *elem,
+				ty::Str | ty::Dynamic(..) => continue,
+				_ => ty,
+			};
+			let Ok(layout) = self.tcx.layout_of(env.as_query_input(ty)) else {
+				continue;
+			};
+			let (offset, align) = header.unwrap_or((0, layout.align.abi.bytes()));
+			self.visit(layout, offset, align, ty)?;
+		}
+		Ok(self.align)
+	}
+
+	/// Look for the target in `layout`, `offset` bytes into an allocation of `holder`
+	/// aligned to `align`.
+	fn visit(&mut self, layout: TyAndLayout<'tcx>, offset: u64, align: u64, holder: Ty<'tcx>) -> Result<(), Ty<'tcx>> {
+		let tcx = self.tcx;
+		if super::copy::storage(tcx, layout.ty) == self.target && align > self.own {
+			match offset % align {
+				0 => self.align = self.align.max(align),
+				_ => return Err(holder),
+			}
+		}
+		match *layout.ty.kind() {
+			ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => self.roots.push((pointee, None)),
+			ty::Adt(adt, args) if super::library::is_std(tcx, adt.did()) => match Std::of(tcx, adt.did()) {
+				Some(Std::Box | Std::NonNull) => self.roots.push((args.type_at(0), None)),
+				// The value after the counts, at an offset of its own alignment.
+				Some(Std::Arc | Std::Weak) => {
+					let value = args.type_at(0);
+					let env = ty::TypingEnv::fully_monomorphized();
+					if let Ok(inner) = tcx.layout_of(env.as_query_input(value)) {
+						let pointer = tcx.data_layout.pointer_size().bytes();
+						let align = inner.align.abi.bytes();
+						let at = (2 * pointer).div_ceil(align) * align;
+						let whole = align.max(tcx.data_layout.pointer_align().abi.bytes());
+						self.roots.push((value, Some((at, whole))));
+					}
+				}
+				_ if adt.is_phantom_data() => {}
+				_ if by_value(tcx, adt) => self.fields(layout, offset, align, holder)?,
+				_ => self.roots.extend(args.types().map(|t| (t, None))),
+			},
+			ty::Coroutine(..) => {
+				let held = super::copy::by_value(tcx, ty::TypingEnv::fully_monomorphized(), layout.ty)
+					.any(|part| super::copy::storage(tcx, part) == self.target);
+				if held && layout.align.abi.bytes() > self.own {
+					return Err(layout.ty);
+				}
+				self.fields(layout, offset, align, holder)?;
+			}
+			ty::Adt(..) | ty::Tuple(_) | ty::Array(..) | ty::Closure(..) | ty::CoroutineClosure(..) | ty::Pat(..) => {
+				self.fields(layout, offset, align, holder)?
+			}
+			_ => {}
+		}
+		Ok(())
+	}
+
+	/// Look in each field of each variant of `layout`, and in the first two elements of an
+	/// array, whose others are where those two say.
+	fn fields(&mut self, layout: TyAndLayout<'tcx>, offset: u64, align: u64, holder: Ty<'tcx>) -> Result<(), Ty<'tcx>> {
+		let variants = match &layout.variants {
+			Variants::Multiple { variants, .. } => variants.indices().map(|v| layout.for_variant(&self.cx, v)).collect(),
+			Variants::Single { .. } => vec![layout],
+			Variants::Empty => Vec::new(),
+		};
+		for variant in variants {
+			let count = match variant.fields {
+				FieldsShape::Array { count, .. } => count.min(2) as usize,
+				_ => variant.fields.count(),
+			};
+			for i in 0..count {
+				let field = variant.field(&self.cx, i);
+				self.visit(field, offset + variant.fields.offset(i).bytes(), align, holder)?;
+			}
+		}
+		Ok(())
+	}
+}
+
+/// Whether std's `adt` holds each of its type arguments by value, at most one of each, as
+/// [`Held::count`] counts them.
+fn by_value(tcx: TyCtxt<'_>, adt: ty::AdtDef<'_>) -> bool {
+	adt.is_unsafe_cell()
+		|| matches!(
+			Std::of(tcx, adt.did()),
+			Some(
+				Std::Option
+					| Std::Result
+					| Std::Cow
+					| Std::Cell
+					| Std::RefCell
+					| Std::Mutex
+					| Std::OnceCell
+					| Std::OnceLock
+					| Std::LazyCell
+					| Std::LazyLock
+					| Std::Poll
+					| Std::Ready
+					| Std::Pin
+					| Std::ControlFlow
+					| Std::Bound
+					| Std::Range
+					| Std::RangeInclusive
+					| Std::RangeTo
+					| Std::RangeFrom
+					| Std::RangeToInclusive
+					| Std::Reverse
+					| Std::Wrapping
+					| Std::Saturating
+					| Std::AssertUnwindSafe
+					| Std::MaybeUninit
+					| Std::ManuallyDrop
+			)
+		)
 }
 
 /// The sum of `counts`, up to many.

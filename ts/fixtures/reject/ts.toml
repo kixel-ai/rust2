@@ -2,6 +2,7 @@ package = "reject-fixture"
 roots = [
     "addresses::cyclic",
     "addresses::elements",
+    "addresses::late",
     "addresses::made",
     "addresses::parts",
     "addresses::place_keys",

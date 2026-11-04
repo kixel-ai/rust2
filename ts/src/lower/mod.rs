@@ -220,6 +220,9 @@ pub struct Translator<'a, 'tcx> {
 	/// Each read of an address, of a pointer to its type, refused once translation settles
 	/// if an allocation holds that type beside another read, as [`address`] says.
 	addresses: Vec<(Ty<'tcx>, Span, String)>,
+	/// The alignment `rs.addr` numbers each type's addresses by, as [`Self::alignment`]
+	/// found it.
+	alignments: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, Result<u64, Ty<'tcx>>>,
 	/// The types `Arc::new_cyclic` makes.
 	cyclic: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Each `Weak::as_ptr`, by the type it points at, refused once translation settles if
@@ -514,6 +517,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			capacity_reads: Vec::new(),
 			string_bytes: false,
 			addresses: Vec::new(),
+			alignments: Default::default(),
 			cyclic: Default::default(),
 			weak_pointers: Vec::new(),
 			drops: Default::default(),

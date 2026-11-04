@@ -5,6 +5,7 @@ import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_ptr_ar
 import { then$0bgt67i, then$1a5xgoh, then$0jw3xip } from "./core/bool.ts";
 import { isSomeAnd$1s2u5lz, isSomeAnd$0fp5rqa, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$173j2gr as option_mapOr$173j2gr, filter$0wvwd70 } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
+import type * as Aligned from "./pointers.Aligned.ts";
 import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
 import * as ByClosure from "./pointers.ByClosure.ts";
@@ -35,6 +36,7 @@ import type * as Refilled from "./pointers.Refilled.ts";
 import type * as Run from "./pointers.Run.ts";
 import * as Segment from "./pointers.Segment.ts";
 import * as Shelf from "./pointers.Shelf.ts";
+import type * as Small from "./pointers.Small.ts";
 import type * as Span from "./pointers.Span.ts";
 import type * as Spot from "./pointers.Spot.ts";
 import type * as Stable from "./pointers.Stable.ts";
@@ -2864,12 +2866,12 @@ export function rawPlaces(data: rs.ByteSlice, out: rs.ByteVec): void {
  * equality, counts, alignment, and the order's agreement, never an address itself.
  */
 export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _52!: boolean;
-	let _85!: boolean;
-	let _124!: boolean;
-	let _165!: boolean;
+	let _59!: boolean;
+	let _92!: boolean;
+	let _131!: boolean;
+	let _172!: boolean;
 	let agree!: boolean;
-	let _224!: rs.u8;
+	let _231!: rs.u8;
 	const registry: rs.Arc<rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>>> = new rs.Arc(new rs.RefCell(rs.btreeNew(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering>([rs.cmp, rs.cmp])) as rs.BTreeMap<[rs.u8, rs.usize], rs.u8>));
 	const left: rs.Arc<rs.Cell<rs.u8>> = new rs.Arc(new rs.Cell(0));
 	const align: rs.usize = 4;
@@ -2881,19 +2883,20 @@ export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _16: rs.Weak<Keyed.Keyed> = new rs.Weak();
 	const dangling: Keyed.Keyed = rs.weakAsPtr(_16);
 	_16[Symbol.dispose]();
-	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.addr(dangling, 12, 4) === 4294967295, rs.addr(rs.NULL, 12, 4) === 0, rs.addr(rs.DANGLING, 12, 4) === align], (a0: boolean): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.addr(dangling, 12, 4) & 0xff, ((rs.addr(dangling, 12, 4) << 16) >> 16) & 0xff)), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([(rs.addr(dangling, 12, 4) | 0) === -1, rs.addr(dangling, 12, 4) === 4294967295, rs.addr(rs.NULL, 12, 4) === 0, rs.addr(rs.DANGLING, 12, 4) === align], (a0: boolean): rs.u8 => {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
 	l1: while (true) {
-		const _33: [rs.usize, rs.u8] | rs.Done = iter.next();
-		if (_33 === rs.DONE) {
+		const _40: [rs.usize, rs.u8] | rs.Done = iter.next();
+		if (_40 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _33[0];
-		const byte: rs.u8 = _33[1];
-		const _38: rs.u8 = rs.u8Rem(byte, 4);
-		if (_38 === 0) {
+		const i: rs.usize = _40[0];
+		const byte: rs.u8 = _40[1];
+		const _45: rs.u8 = rs.u8Rem(byte, 4);
+		if (_45 === 0) {
 			const keyed: rs.Arc<Keyed.Keyed> = new rs.Arc(new Keyed.Keyed(i & 0xff, rs.arcClone(registry), rs.arcClone(left)));
 			const arc3 = keyed;
 			const p: Keyed.Keyed = rs.arcRaw(arc3, arc3.value, "Arc");
@@ -2901,60 +2904,60 @@ export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
 			b5: {
 				if (rs.usizeRem(address, align) === 0) {
 					if (address !== 0) {
-						_52 = rs.addr(p, 12, 4) === address;
+						_59 = rs.addr(p, 12, 4) === address;
 						break b5;
 					}
 				}
-				_52 = false;
+				_59 = false;
 			}
-			rs.byteVecPush(out, _52 ? 1 : 0);
+			rs.byteVecPush(out, _59 ? 1 : 0);
 			rs.byteVecPush(out, rs.hashInsert(byAddress, address, keyed.value.id) === undefined ? 1 : 0);
-			const _70: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrowMut(registry.value);
-			const _73: [rs.u8, rs.usize] = [rs.u8Rem(keyed.value.id, 4), rs.addr(p, 12, 4)];
-			rs.btreeInsert(_70.value, _73, keyed.value.id);
-			rs.refMutRelease(_70);
+			const _77: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrowMut(registry.value);
+			const _80: [rs.u8, rs.usize] = [rs.u8Rem(keyed.value.id, 4), rs.addr(p, 12, 4)];
+			rs.btreeInsert(_77.value, _80, keyed.value.id);
+			rs.refMutRelease(_77);
 			if (!rs.btreeAdd(ordered, p)) {
-				_85 = false;
+				_92 = false;
 			} else {
-				_85 = rs.hashAdd(hashed, p);
+				_92 = rs.hashAdd(hashed, p);
 			}
-			rs.byteVecPush(out, _85 ? 1 : 0);
-			const _91: [rs.Weak<Keyed.Keyed>, rs.usize] = [new rs.Weak(keyed), address];
-			weaks.items.push(_91);
+			rs.byteVecPush(out, _92 ? 1 : 0);
+			const _98: [rs.Weak<Keyed.Keyed>, rs.usize] = [new rs.Weak(keyed), address];
+			weaks.items.push(_98);
 			live.items.push(keyed);
 			continue;
 		}
-		if (_38 === 1) {
+		if (_45 === 1) {
 			if (!(live.items.length === 0)) {
 				const keyed2: rs.Arc<Keyed.Keyed> = rs.vecRemove(live, rs.usizeRem(rs.u8Div(byte, 4) as rs.usize, live.items.length));
 				const arc2 = keyed2;
 				const p2: Keyed.Keyed = rs.arcRaw(arc2, arc2.value, "Arc");
 				rs.byteVecPush(out, rs.hashRemove(byAddress, rs.addr(p2, 12, 4)) === keyed2.value.id ? 1 : 0);
 				if (!rs.btreeDelete(ordered, p2)) {
-					_124 = false;
+					_131 = false;
 				} else {
-					_124 = rs.hashDelete(hashed, p2);
+					_131 = rs.hashDelete(hashed, p2);
 				}
-				rs.byteVecPush(out, _124 ? 1 : 0);
+				rs.byteVecPush(out, _131 ? 1 : 0);
 				keyed2[Symbol.dispose]();
 				continue;
 			}
-		} else if (_38 === 2) {
+		} else if (_45 === 2) {
 			const iterS: [rs.Weak<Keyed.Keyed>, rs.usize][] = weaks.items;
 			let iterI: number = 0;
 			while (true) {
-				const _133: [rs.Weak<Keyed.Keyed>, rs.usize] | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-				if (_133 === rs.DONE) {
+				const _140: [rs.Weak<Keyed.Keyed>, rs.usize] | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+				if (_140 === rs.DONE) {
 					continue l1;
 				}
-				const at: rs.usize = rs.addr(rs.weakAsPtr(_133[0]), 12, 4);
-				const alive: boolean = isSomeAnd$0fp5rqa(rs.weakUpgrade(_133[0]), (keyed3: rs.Arc<Keyed.Keyed>): boolean => {
+				const at: rs.usize = rs.addr(rs.weakAsPtr(_140[0]), 12, 4);
+				const alive: boolean = isSomeAnd$0fp5rqa(rs.weakUpgrade(_140[0]), (keyed3: rs.Arc<Keyed.Keyed>): boolean => {
 					const arc = keyed3;
 					const _02: boolean = rs.addr(rs.arcRaw(arc, arc.value, "Arc"), 12, 4) === at;
 					keyed3[Symbol.dispose]();
 					return _02;
 				});
-				rs.byteVecPush(out, rs.u8Add(at === _133[1] ? 1 : 0, rs.u8Mul(2, alive ? 1 : 0)));
+				rs.byteVecPush(out, rs.u8Add(at === _140[1] ? 1 : 0, rs.u8Mul(2, alive ? 1 : 0)));
 				rs.byteVecPush(out, rs.hashContains(byAddress, at) === alive ? 1 : 0);
 			}
 		}
@@ -2962,24 +2965,24 @@ export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.addr(_2, 12, 4);
 		}), undefined, 4, true);
 		if (!rs.sliceIsSorted(rs.sliceFrom(addresses.items), rs.le)) {
-			_165 = false;
+			_172 = false;
 		} else {
-			_165 = addresses.items.length === live.items.length;
+			_172 = addresses.items.length === live.items.length;
 		}
-		rs.byteVecPush(out, _165 ? 1 : 0);
+		rs.byteVecPush(out, _172 ? 1 : 0);
 		const iter3: rs.Iter<[rs.Arc<Keyed.Keyed>, rs.Arc<Keyed.Keyed>]> = rs.iterZip(rs.iterSlice(live.items), rs.iterSkip(rs.iterSlice(live.items), 1), [false, false]);
 		while (true) {
-			const _183: [rs.Arc<Keyed.Keyed>, rs.Arc<Keyed.Keyed>] | rs.Done = iter3.next();
-			if (_183 === rs.DONE) {
+			const _190: [rs.Arc<Keyed.Keyed>, rs.Arc<Keyed.Keyed>] | rs.Done = iter3.next();
+			if (_190 === rs.DONE) {
 				break;
 			}
-			const arc4 = _183[0];
-			const _191: Keyed.Keyed = rs.arcRaw(arc4, arc4.value, "Arc");
-			const arc5 = _183[1];
+			const arc4 = _190[0];
+			const _198: Keyed.Keyed = rs.arcRaw(arc4, arc4.value, "Arc");
+			const arc5 = _190[1];
 			b11: {
-				const _190: [Keyed.Keyed, Keyed.Keyed] = [_191, rs.arcRaw(arc5, arc5.value, "Arc")];
-				const p3: Keyed.Keyed = _191;
-				const q: Keyed.Keyed = _190[1];
+				const _197: [Keyed.Keyed, Keyed.Keyed] = [_198, rs.arcRaw(arc5, arc5.value, "Arc")];
+				const p3: Keyed.Keyed = _198;
+				const q: Keyed.Keyed = _197[1];
 				if (rs.addr(p3, 12, 4) < rs.addr(q, 12, 4) === rs.addr(p3, 12, 4) < rs.addr(q, 12, 4)) {
 					if (rs.addr(p3, 12, 4) >= rs.addr(q, 12, 4) === rs.addr(p3, 12, 4) >= rs.addr(q, 12, 4)) {
 						if (rs.cmpAddr(12, 4)(p3, q) === rs.cmp(rs.addr(p3, 12, 4), rs.addr(q, 12, 4))) {
@@ -2995,8 +2998,8 @@ export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const registry2: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrow(registry.value);
 		let iterStart: rs.u8 = 0;
 		const iterEnd: rs.u8 = 4;
-		while ((_224 = iterStart++) < iterEnd) {
-			const group: rs.u8 = _224;
+		while ((_231 = iterStart++) < iterEnd) {
+			const group: rs.u8 = _231;
 			rs.byteVecPush(out, rs.iterCount(rs.btreeRange(registry2.value, new rs.Range([group, 0] as [rs.u8, rs.usize], [rs.u8Add(group, 1), 0] as [rs.u8, rs.usize]))) & 0xff);
 		}
 		rs.byteVecPush(out, rs.iterAll(rs.btreeValues(registry2.value), (id: rs.u8): boolean => {
@@ -3006,17 +3009,31 @@ export function addresses(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}) ? 1 : 0);
 		rs.refRelease(registry2);
 	}
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(left.value.v, rs.iterCount(rs.iterFilter(rs.iterSlice(weaks.items), (_211: [rs.Weak<Keyed.Keyed>, rs.usize]): boolean => {
-		const _510: rs.Arc<Keyed.Keyed> | undefined = rs.weakUpgrade(_211[0]);
-		const _06: boolean = _510 !== undefined;
-		rs.drop(_510);
+	const small: rs.Arc<Small.Small>[] = [new rs.Arc({ _0: 1, _1: 2 }), new rs.Arc({ _0: 3, _1: 4 })];
+	const first: Aligned.Aligned = { _0: { _0: 5, _1: 6 } };
+	const second: Aligned.Aligned = { _0: { _0: 7, _1: 8 } };
+	const iter5: rs.Iter<[rs.Arc<Small.Small>, Aligned.Aligned]> = rs.iterZip(rs.iterSlice(small), rs.iterSlice([first, second]), "index");
+	while (true) {
+		const _273: [rs.Arc<Small.Small>, Aligned.Aligned] | rs.Done = iter5.next();
+		if (_273 === rs.DONE) {
+			break;
+		}
+		const arc6 = _273[0];
+		const _280: [rs.usize, rs.usize] = [rs.addr(rs.arcRaw(arc6, arc6.value, "Arc"), 2, 64), rs.addr(_273[1]._0, 2, 64)];
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.usizeRem(_280[0], 4) === 0 ? 1 : 0, rs.usizeRem(_280[1], 64) === 0 ? 1 : 0, _273[0].value._0 ^ _273[1]._0._1)), undefined, true);
+	}
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(left.value.v, rs.iterCount(rs.iterFilter(rs.iterSlice(weaks.items), (_22: [rs.Weak<Keyed.Keyed>, rs.usize]): boolean => {
+		const _54: rs.Arc<Keyed.Keyed> | undefined = rs.weakUpgrade(_22[0]);
+		const _06: boolean = _54 !== undefined;
+		rs.drop(_54);
 		return _06;
 	})) & 0xff)), undefined, true);
 	rs.dropVec(live);
-	const _263: rs.u8 = left.value.v;
-	const _270: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrow(registry.value);
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_263, rs.btreeLen(_270.value) === 0 ? 1 : 0)), undefined, true);
-	rs.refRelease(_270);
+	const _316: rs.u8 = left.value.v;
+	const _323: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrow(registry.value);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_316, rs.btreeLen(_323.value) === 0 ? 1 : 0)), undefined, true);
+	rs.refRelease(_323);
+	rs.dropAll(small);
 	rs.dropVec(weaks, drop$tuple2_sync_Weak_pointers_Keyed_usize);
 	left[Symbol.dispose]();
 	registry[Symbol.dispose]();
