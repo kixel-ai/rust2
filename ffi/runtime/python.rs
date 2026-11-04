@@ -170,9 +170,11 @@ pub unsafe fn params<const N: usize>(
 		let was = if given == 1 { "was" } else { "were" };
 		return type_error(&format!("{name}() takes {takes} positional argument{s} but {given} {was} given"));
 	}
-	// SAFETY: the caller's contract.
+	// SAFETY: the caller's contract; `a` may be null when it points at nothing.
 	unsafe {
-		out[skip..skip + n].copy_from_slice(std::slice::from_raw_parts(a, n));
+		if n != 0 {
+			out[skip..skip + n].copy_from_slice(std::slice::from_raw_parts(a, n));
+		}
 		if !kw.is_null() {
 			for k in 0..PyTuple_Size(kw) {
 				let mut len = 0;

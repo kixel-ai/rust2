@@ -790,6 +790,13 @@ def calls():
 	check(bytes(loop.run_until_complete(channel.recv())) == b"kw", "an eager future takes keywords")
 	loop.close()
 
+	# C callers may pass no argument array at all for no arguments.
+	import ctypes
+
+	no_args = ctypes.pythonapi.PyObject_CallNoArgs
+	no_args.restype, no_args.argtypes = ctypes.py_object, [ctypes.py_object]
+	check(no_args(api.Note.default) == api.Note.default(), "a call with no argument array")
+
 	raises(lambda: c.add(), "Counter.add() missing 1 required positional argument: 'n'")
 	raises(lambda: c.add(1, 2), "Counter.add() takes 2 positional arguments but 3 were given")
 	raises(lambda: c.add(1, n=2), "Counter.add() got multiple values for argument 'n'")
