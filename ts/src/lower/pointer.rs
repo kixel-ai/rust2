@@ -442,8 +442,8 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// rather than what it points at: a `MaybeUninit`'s or a `ManuallyDrop`'s, which it points
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
-/// whole `Result`, an iterator's that `by_ref` returns, the crate's own iterator's that its
-/// `next` reads through, and a well-known crate's, such as a
+/// whole `Result`, an iterator's that `by_ref` returns, what `borrow_mut` lends, the crate's
+/// own iterator's that its `next` reads through, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -456,6 +456,7 @@ fn takes_place<'tcx>(
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
+			|| (owner.as_str(), name.as_str()) == ("BorrowMut", "borrow_mut")
 			|| matches!(owner.as_str(), "Iterator" | "DoubleEndedIterator") && super::iter::held_own(t, args.type_at(0))
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
 			// The `&mut` to a hasher whose methods take it as it is.

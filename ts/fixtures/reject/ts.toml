@@ -164,6 +164,7 @@ roots = [
     "pointers::pointer_pushed",
     "pointers::pointer_returned",
     "pointers::pointers_apart",
+    "pointers::pointers_ordered",
     "pointers::put_replaced",
     "pointers::range_of",
     "pointers::range_replaced",

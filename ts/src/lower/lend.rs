@@ -79,8 +79,10 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 				| ("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => true,
 				// `Clone::clone`, which takes the slice, and an array as a slice, which it is.
 				("ToOwned", "to_owned") => true,
+				// An array as a slice, which it is, and what a reference lends, which it is too.
 				("AsRef" | "AsMut" | "Borrow" | "BorrowMut", _) => {
 					args.type_at(0).is_array() && args.type_at(1).is_slice()
+						|| matches!(args.type_at(0).kind(), ty::Ref(_, inner, _) if *inner == args.type_at(1))
 				}
 				("IntoIterator", "into_iter") => self_ty.is_some_and(|s| {
 					let s = super::iter::unbox_ref(tcx, s).peel_refs();
