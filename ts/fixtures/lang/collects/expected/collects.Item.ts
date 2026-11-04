@@ -20,8 +20,7 @@ export class Item {
 export function drop$ops_Drop(self: Item): void {
 	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
 	const arg = self.v;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	const _6: string = rs.fmtFormat(["drop ", args2[0]]);
+	const _6: string = rs.fmtFormat(["drop ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 }

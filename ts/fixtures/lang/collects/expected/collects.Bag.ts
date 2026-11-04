@@ -40,8 +40,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Filter_it
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -69,8 +68,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Rev_slice
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -98,8 +96,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Skip_slic
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -127,8 +124,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Take_slic
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -156,8 +152,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -185,8 +180,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -214,8 +208,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -243,8 +236,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -272,8 +264,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -301,8 +292,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_Skip_vec_IntoIter_
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -332,8 +322,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}
@@ -361,8 +350,7 @@ export function fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericSh
 	if (_17 !== undefined) {
 		const _25: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(_17.log);
 		const part = items.items.length;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		const _26: string = rs.fmtFormat(["bag of ", args2[0]]);
+		const _26: string = rs.fmtFormat(["bag of ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 		_25.value.items.push(_26);
 		rs.refMutRelease(_25);
 	}

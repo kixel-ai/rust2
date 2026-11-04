@@ -12,8 +12,7 @@ export interface Count {
 export function intoIter$iter_IntoIterator(self: Count): Down.Down {
 	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
 	const arg = self.n;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	const _6: string = rs.fmtFormat(["count ", args2[0]]);
+	const _6: string = rs.fmtFormat(["count ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 	return new Down.Down(self.n, self.log);

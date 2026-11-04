@@ -20,8 +20,7 @@ export class Down {
 export function next$iter_Iterator(self: Down): rs.u8 | rs.Done {
 	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
 	const arg = self.n;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	const _6: string = rs.fmtFormat(["next ", args2[0]]);
+	const _6: string = rs.fmtFormat(["next ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 	const _15: rs.u8 | undefined = rs.u8CheckedSub(self.n, 1);
@@ -35,8 +34,7 @@ export function next$iter_Iterator(self: Down): rs.u8 | rs.Done {
 export function drop$ops_Drop(self: Down): void {
 	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
 	const arg = self.n;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	const _6: string = rs.fmtFormat(["down dropped at ", args2[0]]);
+	const _6: string = rs.fmtFormat(["down dropped at ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 }

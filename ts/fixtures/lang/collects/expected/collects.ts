@@ -16,8 +16,7 @@ export function write$Option_ref_collects_Item(out: rs.ByteVec, log: rs.RefCell<
 	const part = rs.iterToByteVec(rs.iterMap(rs.iterOption(values), (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -28,8 +27,7 @@ export function write$array0_ref_collects_Item(out: rs.ByteVec, log: rs.RefCell<
 	const part = rs.iterToByteVec(rs.iterMap(rs.iterSlice(values), (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -40,8 +38,7 @@ export function write$iter_Chain_slice_Iter_collects_Item_slice_Iter_collects_It
 	const part = rs.iterToByteVec(rs.iterMap(values, (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -52,8 +49,7 @@ export function write$iter_Flatten_option_Iter_collects_Bag(out: rs.ByteVec, log
 	const part = rs.iterToByteVec(rs.iterMap(values, (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), "next");
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -64,8 +60,7 @@ export function write$iter_Skip_iter_Flatten_slice_Iter_collects_Bag(out: rs.Byt
 	const part = rs.iterToByteVec(rs.iterMap(values, (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), "next");
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -76,8 +71,7 @@ export function write$iter_StepBy_iter_FlatMap_iter_Rev_ops_Range_usize_ref_coll
 	const part = rs.iterToByteVec(rs.iterMap(values, (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), "next");
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -88,8 +82,7 @@ export function write$iter_Take_slice_Iter_collects_Item(out: rs.ByteVec, log: r
 	const part = rs.iterToByteVec(rs.iterMap(values, (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -100,8 +93,7 @@ export function write$ref_Vec_collects_Item(out: rs.ByteVec, log: rs.RefCell<rs.
 	const part = rs.iterToByteVec(rs.iterMap(rs.iterSlice(values.items), (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -112,8 +104,7 @@ export function write$ref_collects_Bag(out: rs.ByteVec, log: rs.RefCell<rs.Vec<s
 	const part = rs.iterToByteVec(rs.iterMap(Bag.intoIter$iter_IntoIterator_ref(values), (item: Item.Item): rs.u8 => {
 		return item.v;
 	}), undefined, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)]));
 	const _29: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
 	put(out, rs.strsJoin(rs.iterToVec(rs.vecDrain(_29.value, undefined), "fold", 12, true).items, ", "));
 	rs.refMutRelease(_29);
@@ -127,8 +118,7 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const log: rs.RefCell<rs.Vec<string>> = new rs.RefCell(new rs.Vec());
 	const item: (a0: rs.u8) => Item.Item = (v: rs.u8): Item.Item => {
 		const _6: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(v, f)];
-		const _7: string = rs.fmtFormat(["make ", args18[0]]);
+		const _7: string = rs.fmtFormat(["make ", (f: rs.Formatter) => rs.u8Display(v, f)]);
 		_6.value.items.push(_7);
 		rs.refMutRelease(_6);
 		return new Item.Item(v, log);
@@ -170,8 +160,7 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			bag5[Symbol.dispose]();
 		} else {
 			const arg5 = bag4.error;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg5, f)];
-			put(out, rs.fmtFormat(["err ", args2[0]]));
+			put(out, rs.fmtFormat(["err ", (f: rs.Formatter) => rs.u8Display(arg5, f)]));
 		}
 	} else if (_12 === 4) {
 		const bag6: Bag.Bag | undefined = rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_212: rs.u8): Item.Item | undefined => {
@@ -183,8 +172,7 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const part6 = option_map$0a0rmxp(bag6, (bag7: Bag.Bag): rs.usize => {
 			return bag7.items.items.length;
 		});
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part6, f, rs.usizeDebug)];
-		put(out, rs.fmtFormat([args4[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part6, f, rs.usizeDebug)]));
 		const _89: rs.Iter<Item.Item> = rs.iterFlatten(rs.iterOption(bag6), (value: Bag.Bag) => Bag.intoIter$iter_IntoIterator_ref(value), true);
 		write$iter_Flatten_option_Iter_collects_Bag(out, log, _89);
 		rs.drop(bag6);
@@ -195,8 +183,8 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const part5 = stack.items as rs.Vec<rs.u16>;
 		const _105: rs.Fmt = (f: rs.Formatter) => rs.fmtList(part5.items, f, rs.u16Debug);
 		const arg4 = stack.count;
-		const args6: rs.Fmt[] = [_105, (f: rs.Formatter) => rs.usizeDisplay(arg4, f)];
-		put(out, rs.fmtFormat([args6[0], " ", args6[1]]));
+		const args25 = [_105, (f: rs.Formatter) => rs.usizeDisplay(arg4, f)];
+		put(out, rs.fmtFormat([args25[0], " ", args25[1]]));
 		const stack2: Stack.Stack<Item.Item> = Stack.fromIter$iter_FromIterator_collects_Item_collects_Item_iter_Map_iter_Take_slice_Iter_u8_collects_collects_closure8(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), k), (_211: rs.u8): Item.Item => {
 			return item(_211);
 		}));
@@ -210,16 +198,16 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const part3 = stack3.items as rs.ByteVec;
 		const _133: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part3), f, rs.u8Debug);
 		const arg2 = stack3.count;
-		const args8: rs.Fmt[] = [_133, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
-		put(out, rs.fmtFormat([args8[0], " ", args8[1]]));
+		const args23 = [_133, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
+		put(out, rs.fmtFormat([args23[0], " ", args23[1]]));
 		const down: Down.Down = new Down.Down(n, log);
 		const stack4: Stack.Stack<rs.u8> = Stack.fromIter$iter_FromIterator_u8_u8_iter_Take_mut_collects_Down(rs.iterTake(rs.iterFrom(down, Down.next$iter_Iterator), k));
 		const _153: rs.u8 | undefined = rs.iterToOption(Down.next$iter_Iterator(down));
 		const part4 = stack4.items as rs.ByteVec;
 		const _156: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part4), f, rs.u8Debug);
 		const arg3 = stack4.count;
-		const args10: rs.Fmt[] = [_156, (f: rs.Formatter) => rs.usizeDisplay(arg3, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2]]));
+		const args24 = [_156, (f: rs.Formatter) => rs.usizeDisplay(arg3, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug)];
+		put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2]]));
 		down[Symbol.dispose]();
 	} else {
 		const tries: rs.Result<Tries.Tries<rs.u8>, Item.Item> = rs.iterCollectResult(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Result<rs.u8, Item.Item> => {
@@ -231,13 +219,11 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}), (values: rs.Iter<rs.u8>) => Tries.fromIter$iter_FromIterator_u8_u8_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure10_Result_never_collects_Item(values), undefined, rs.drop);
 		if (tries.ok) {
 			const part = tries.value._0;
-			const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-			put(out, rs.fmtFormat([args12[0]]));
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))]));
 		} else {
 			const e2: Item.Item = tries.error;
 			const arg = e2.v;
-			const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-			put(out, rs.fmtFormat(["err ", args14[0]]));
+			put(out, rs.fmtFormat(["err ", (f: rs.Formatter) => rs.u8Display(arg, f)]));
 			e2[Symbol.dispose]();
 		}
 		const part2 = option_map$1yttib1(rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): Item.Item | undefined => {
@@ -255,8 +241,7 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.dropVec(values3);
 			return _05;
 		});
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.Vec<rs.u8 | undefined>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)))];
-		put(out, rs.fmtFormat([args16[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.Vec<rs.u8 | undefined>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)))]));
 	}
 	write$array0_ref_collects_Item(out, log, []);
 }
@@ -269,8 +254,7 @@ export function flattens(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const log: rs.RefCell<rs.Vec<string>> = new rs.RefCell(new rs.Vec());
 	const item: (a0: rs.u8) => Item.Item = (v: rs.u8): Item.Item => {
 		const _6: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(v, f)];
-		const _7: string = rs.fmtFormat(["make ", args8[0]]);
+		const _7: string = rs.fmtFormat(["make ", (f: rs.Formatter) => rs.u8Display(v, f)]);
 		_6.value.items.push(_7);
 		rs.refMutRelease(_6);
 		return new Item.Item(v, log);
@@ -290,8 +274,7 @@ export function flattens(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return _013;
 		});
 		const _27: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(back, f, rs.u8Debug)];
-		const _29: string = rs.fmtFormat(["back ", args2[0]]);
+		const _29: string = rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(back, f, rs.u8Debug)]);
 		_27.value.items.push(_29);
 		rs.refMutRelease(_27);
 		rs.drop(it);
@@ -327,16 +310,14 @@ export function flattens(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const part2 = rs.iterToByteVec(rs.iterTake(rs.iterFlatMap(rs.iterSlice(rs.byteSliceView(data)), (_23: rs.u8): Count.Count => {
 			return { n: rs.u8Rem(_23, 5), log };
 		}, (value: Count.Count) => rs.iterFrom(Count.intoIter$iter_IntoIterator(value), Down.next$iter_Iterator, rs.drop), true), k), "next");
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args4[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug)]));
 	} else if (_11 === 4) {
 		const part = rs.iterFold(rs.iterFlatten(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Count.Count => {
 			return { n: rs.u8Rem(_2, 4), log };
 		}), (value: Count.Count) => rs.iterFrom(Count.intoIter$iter_IntoIterator(value), Down.next$iter_Iterator, rs.drop), true), 0, (sum2: rs.u32, v3: rs.u8): rs.u32 => {
 			return rs.u32Add(sum2, v3 as rs.u32);
 		}, true);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-		put(out, rs.fmtFormat([args6[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part, f)]));
 	}
 	write$array0_ref_collects_Item(out, log, []);
 }
@@ -346,8 +327,7 @@ export function chains(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.RefCell<rs.Vec<string>> = new rs.RefCell(new rs.Vec());
 	const item: (a0: rs.u8) => Item.Item = (v: rs.u8): Item.Item => {
 		const _6: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(v, f)];
-		const _7: string = rs.fmtFormat(["make ", args6[0]]);
+		const _7: string = rs.fmtFormat(["make ", (f: rs.Formatter) => rs.u8Display(v, f)]);
 		_6.value.items.push(_7);
 		rs.refMutRelease(_6);
 		return new Item.Item(v, log);
@@ -376,16 +356,14 @@ export function chains(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part = rs.iterToVec(rs.iterMap(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), rs.iterFrom(Count.intoIter$iter_IntoIterator({ n: 4, log }), Down.next$iter_Iterator, rs.drop)), (_24: [rs.u8, rs.u8]): [rs.u8, rs.u8] => {
 			return [_24[0], _24[1]] as [rs.u8, rs.u8];
 		}), "next", 2);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-		put(out, rs.fmtFormat([args2[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part.items, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))]));
 		const part2 = rs.iterToByteVec(rs.iterMap(rs.iterZip(new rs.Range(0, k), Bag.intoIter$iter_IntoIterator(bag2), "len", undefined, rs.drop), (_25: [rs.usize, Item.Item]): rs.u8 => {
 			const item2: Item.Item = _25[1];
 			const _04: rs.u8 = item2.v;
 			item2[Symbol.dispose]();
 			return _04;
 		}), "fold", true);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args4[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug)]));
 	}
 	write$array0_ref_collects_Item(out, log, []);
 }
