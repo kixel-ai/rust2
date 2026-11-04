@@ -717,7 +717,7 @@ of them:
   map, and so do its entries' `insert`, `or_insert`, `or_insert_with`, `and_modify`,
   `get`, `get_mut`, `into_mut`, `remove`, and `into_table`. What reads hashbrown's
   buckets, such as `find_bucket_index` and `iter_hash`, is refused, as are
-  `get_many_mut`, `extract_if`, and `try_reserve`. hashbrown's `DefaultHashBuilder` and
+  `get_many_mut`, `extract_if`, and `try_reserve`, whose error is hashbrown's own. hashbrown's `DefaultHashBuilder` and
   `DefaultHasher` are std's `RandomState` and `DefaultHasher`: foldhash's state is seeded
   at random as std's is, so which hash a key gets is never observable, through
   `hashlink`'s default too, a crate's own `Hasher` over hashbrown's. Nothing of hashbrown
@@ -966,7 +966,11 @@ they need.
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
   writes one. Reading it doubles it while short of the length, from the least std's
   `RawVec` allocates for the element size, which a run of pushes grows std's to. A
-  `Vec<u8>`'s is its buffer's length. A `LinkedList` is nodes linked both ways, as std's are,
+  `Vec<u8>`'s is its buffer's length. Their `try_reserve` and `try_reserve_exact`, and a
+  `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
+  `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
+  where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
+  maintainer on 2026-11-03). A `LinkedList` is nodes linked both ways, as std's are,
   so `append` is O(1) and `split_off` walks from the nearer end; each node is the place
   `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole map or set drops its entries in the
   runtime's order, keys' for a B-tree, not std's node by node: std leaves that order

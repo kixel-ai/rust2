@@ -19,6 +19,7 @@ import {
 	fmtList,
 	fmtPad,
 	fmtStr,
+	OK,
 	Ok,
 	type Place,
 	panic,
@@ -27,6 +28,7 @@ import {
 	stringLen,
 	utf8Check,
 } from "../rt.ts";
+import { CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import { escapeDebug } from "./char.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
 import { type char, type u8, type u16, type usize, u8Debug, usizeDebug } from "./int.ts";
@@ -1011,10 +1013,14 @@ export function stringWithCapacity(capacity: usize): string {
 
 /** `String::reserve` and `reserve_exact`, which panic as std's do past `isize::MAX`. */
 export function stringReserve(s: string, additional: usize): void {
+	if (!stringTryReserve(s, additional).ok) panic("capacity overflow");
+}
+
+/** `String::try_reserve` and `try_reserve_exact`: the error where `reserve` panics. */
+export function stringTryReserve(s: string, additional: usize): Result<undefined, TryReserveError> {
 	// A code unit is at most three bytes, so only a large `additional` needs the length.
-	if (additional > ISIZE_MAX - 3 * s.length && additional > ISIZE_MAX - utf8Len(s, 0, s.length)) {
-		panic("capacity overflow");
-	}
+	const over = additional > ISIZE_MAX - 3 * s.length && additional > ISIZE_MAX - utf8Len(s, 0, s.length);
+	return over ? CAPACITY_OVERFLOW : OK;
 }
 
 /** The code unit where byte `i` of `s` starts a char, or panic with `message`. */
