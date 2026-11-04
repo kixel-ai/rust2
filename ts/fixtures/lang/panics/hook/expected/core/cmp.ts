@@ -6,6 +6,10 @@ export function min$1rvi5e9(v1: rt.Location, v2: rt.Location): rt.Location {
 	return rt.ordMin(v1, v2, rt.cmpLt(rt.locationCmp));
 }
 
+export function min$0wa4xqw(v1: rt.usize, v2: rt.usize): rt.usize {
+	return rt.min(v1, v2);
+}
+
 export function max$02i836o(v1: rt.Location, v2: rt.Location): rt.Location {
 	return rt.ordMax(v1, v2, rt.cmpLt(rt.locationCmp));
 }
