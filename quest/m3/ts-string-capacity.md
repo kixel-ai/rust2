@@ -13,11 +13,14 @@ the boundary with helpers, as for `rs.Vec`.
 ## Plan
 
 Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as std's do
-get a runtime wrapper, converted at API boundaries, rather than a JS native type. In
-their words on [#555](https://github.com/moq-dev/rust2/pull/555), "trying to support
-native types is probably a mistake". `Vec` became one there and `Cow<str>` in
+get a runtime wrapper, converted at API boundaries, rather than a JS native type. In their
+words on [#555](https://github.com/moq-dev/rust2/pull/555), "trying to support native
+types is probably a mistake". `Vec` became one there and `Cow<str>` in
 [#567](https://github.com/moq-dev/rust2/pull/567). Primitives, `Option`, tuples, and
-closures stay native.
+closures stay native. A native type, aliased or branded, stays where it holds all of std's
+semantics with no extra allocation, as a branded `number` does for an integer and a
+`Uint8Array` for a `[u8; N]`; prefer one if it holds them, but capacity and the like
+usually need a wrapper.
 
 What it holds:
 

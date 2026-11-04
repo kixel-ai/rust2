@@ -23,9 +23,12 @@ by differential tests against native Rust.
 
 Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as std's do
 get a runtime wrapper, converted at API boundaries, rather than a JS native type
-([#555](https://github.com/moq-dev/rust2/pull/555) made `Vec` one). This quest absorbs the
-two that waited: on a moq profile of the `Proxy` view, and on a consumer of
-`slice::from_mut` of a `&mut u8`. Neither wait holds now.
+([#555](https://github.com/moq-dev/rust2/pull/555) made `Vec` one). A native type, aliased
+or branded, stays where it holds all of std's semantics with no extra allocation, as a
+branded `number` does for an integer and a `Uint8Array` for a `[u8; N]`; prefer one if it
+holds them, but capacity and the like usually need a wrapper. This quest absorbs the two
+that waited: on a moq profile of the `Proxy` view, and on a consumer of `slice::from_mut`
+of a `&mut u8`. Neither wait holds now.
 
 A slice of one over a `&mut u8` was found fragile when it meant a one-byte buffer for each
 local; a slice whose storage can be an `rs.Place` may avoid that. Measure what each form
