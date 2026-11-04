@@ -13,14 +13,12 @@ export function hash$Hash_hash_DefaultHasher(self: Touchy, state: rs.Hasher): vo
 
 export function eq$cmp_PartialEq(self: Touchy, _2: Touchy): boolean {
 	const arg = self._0;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	rs.panicFmt(["compared ", args2[0]]);
+	rs.panicFmt(["compared ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 export function cmp$cmp_Ord(self: Touchy, _2: Touchy): rs.Ordering {
 	const arg = self._0;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-	rs.panicFmt(["ordered ", args2[0]]);
+	rs.panicFmt(["ordered ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 //# sourceMappingURL=keys.Touchy.ts.map

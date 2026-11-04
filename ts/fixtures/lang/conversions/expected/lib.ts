@@ -2,7 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { conversions } from "./conversions.ts";
-import type * as Logged from "./conversions.Logged.ts";
+import * as Logged from "./conversions.Logged.ts";
+import type * as Named from "./conversions.Named.ts";
 
 export function copy$array_Option_u16(v: Array<rs.u16 | undefined>): Array<rs.u16 | undefined> {
 	return v.slice();
@@ -38,6 +39,14 @@ export function copy$array_u64(v: rs.u64[]): rs.u64[] {
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$conversions_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v.id, v.log);
+}
+
+export function copy$conversions_Named(v: Named.Named): Named.Named {
+	return { id: v.id, name: v.name };
 }
 
 export function drop$tuple2_conversions_Logged_u8(_1: [Logged.Logged, rs.u8]): void {

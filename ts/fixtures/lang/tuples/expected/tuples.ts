@@ -332,13 +332,15 @@ export function borrowed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 4, true);
 	const t: [rs.ByteVec, rs.Vec<Spot.Spot>, rs.HashMap<rs.u8, rs.u8>, string] = [new rs.ByteVec(), new rs.Vec(), rs.hashNew() as rs.HashMap<rs.u8, rs.u8>, ""];
 	const marks: rs.char[] = [122, 233];
-	const _10: rs.Iter<[rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char]> = rs.iterMap(rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), rs.iterSlice(points.items), [false, false]), (_23: [rs.u8, Spot.Spot]): [rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char] => {
+	const _11: rs.Iter<[rs.u8, Spot.Spot]> = rs.iterZip(rs.iterSlice(rs.byteSliceView(data)), rs.iterSlice(points.items), [false, false]);
+	const _15: rs.Slice<rs.char> = rs.sliceFrom(marks);
+	const _10: rs.Iter<[rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char]> = rs.iterMap(_11, (_23: [rs.u8, Spot.Spot]): [rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char] => {
 		const _54: [rs.u8, rs.u8] = [_23[0], _23[0]];
 		const _72: rs.usize = (_23[0] & 1) as rs.usize;
 		if (!(_72 < 2)) {
 			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _72);
 		}
-		return [_23[0], _23[1], _54, marks[_72]] as [rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char];
+		return [_23[0], _23[1], _54, _15.data[_15.start + _72]] as [rs.u8, Spot.Spot, [rs.u8, rs.u8], rs.char];
 	});
 	rs.tupleExtend(t, _10, [rs.byteVecPart(), rs.copiedPart(rs.vecPart(4), copy$tuples_Spot), rs.hashPart(undefined, undefined, 469762048), rs.STRING_CHARS_PART]);
 	const ones: [rs.Vec<Spot.Spot>] = [new rs.Vec()];
@@ -449,8 +451,8 @@ export function panicked(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b: rs.u8 = _2[1];
 		if (!(i !== at)) {
 			const _11: rs.usize = data.length;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(i, f), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
-			rs.panicFmt(["item ", args2[0], " of ", args2[1]]);
+			const args3 = [(f: rs.Formatter) => rs.usizeDisplay(i, f), (f: rs.Formatter) => rs.usizeDisplay(_11, f)];
+			rs.panicFmt(["item ", args3[0], " of ", args3[1]]);
 		} else {
 			return [b, b as rs.char, b as rs.u16] as [rs.u8, rs.char, rs.u16];
 		}

@@ -58,8 +58,8 @@ export function steps$ascii_EscapeDefault(e: rs.Iter<rs.u8>, data: rs.ByteSlice,
 		if (next !== undefined) {
 			rs.byteVecPush(out, next);
 			let shown: string = "";
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f)];
-			const written = rs.fmtWriteString(shown, [args2[0]]);
+			const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f)];
+			const written = rs.fmtWriteString(shown, [args3[0]]);
 			shown = written.s;
 			rs.resultUnwrap(written.result, rs.fmtErrorDebug);
 			put(out, shown);
@@ -142,8 +142,8 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					let shown: string = "";
 					const _113: rs.Iter<rs.u8> = rs.escapeAscii(b3);
 					const _115: rs.usize = rs.iterCount(e.clone());
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
-					const written = rs.fmtWriteString(shown, [args2[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args2[1]), "|", args2[2]]);
+					const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
+					const written = rs.fmtWriteString(shown, [args3[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args3[1]), "|", args3[2]]);
 					shown = written.s;
 					rs.resultUnwrap(written.result, rs.fmtErrorDebug);
 					put(out, shown);
@@ -292,8 +292,8 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const e: rs.Iter<rs.u8> = rs.byteSliceEscapeAscii(data);
 			put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)));
 			const _221: rs.usize = rs.iterCount(e.clone());
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.usizeDisplay(_221, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 40 }, args2[0]), "|", args2[1]]));
+			const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.usizeDisplay(_221, f)];
+			put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 40 }, args3[0]), "|", args3[1]]));
 			rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(e.clone()), 255));
 		} else {
