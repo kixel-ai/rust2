@@ -11,7 +11,6 @@ proven by differential tests against native Rust. At the pin it refuses 11 times
 
 ## Plan
 
-[B-tree searches calling `Ord` as std's do](/quest/m3/ts-btree-search-order.md) is
-related: a search by a borrowed form calls that form's `Ord`, so the comparisons it makes
-should match std's. A field of std's iterator type is the runtime's `rs.Iter`, as a local
+The runtime's B-tree calls `Ord::cmp` as std's does, `key.cmp(k)` node by node, so a
+search by a borrowed form calls that form's `Ord` where std's would. A field of std's iterator type is the runtime's `rs.Iter`, as a local
 of that type already is.

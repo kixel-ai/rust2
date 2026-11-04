@@ -502,7 +502,9 @@ A write of a value of no bytes, through a `&mut` or a pointer, reads and writes 
 A collection keeps Rust's key semantics. A hash map or set keeps a key that is a JS
 number, string, or boolean in a JS `Map`, which compares those as Rust's `Eq` does, and
 finds any other key, a 64-bit one past 2^53 included, through its translated `Hash` and
-`Eq`; a B-tree orders every key by its translated `Ord`. std's impls are the runtime's: an
+`Eq`; a B-tree orders every key by its translated `Ord`, calling `cmp` on the keys std's
+does, in the same order, so a tree a `collect` sorted by a `lt` that disagrees answers as
+std's does. std's impls are the runtime's: an
 `Option` orders `None` first, an `Option` and a `Poll` hash their variant and then what they hold, an `Arc` compares, orders, and hashes as what it holds,
 so a map of `Arc<str>` finds a `&str`, a `Cell` and a `RefCell` compare and order as
 what they hold, a `RefCell` borrowing each, a one-time cell compares its `Option`, and
@@ -979,12 +981,15 @@ they need.
   the long-lived slot, which made Chrome's 8-byte leading-ones varints 1.06-1.09x `main`'s
   time. A slice's bytes stay in the slot, since returning them gave back frame decode. The
   function as a value is an arrow that rebuilds the `Result`.
-- A `BTreeMap` is a B+ tree of up to 64 keys a node, O(log n) as std's B-tree is: its
-  leaves hold the keys and values and link to their neighbors, which iterators walk from
-  either end, and its branches hold each child's lower bound. A node's slots shift in a
-  loop, which beat `splice` 2-3x at these sizes. On `just ts bench`'s `btree/` workloads
-  it takes 0.5-0.8x the time two sorted arrays did, from 16 keys to 4096, in Node, Bun,
-  and Chrome; 64 keys a node measured best of 16 to 128. A hash map's JS primitive keys
+- A `BTreeMap` is std's B-tree, ported: nodes of up to 11 keys with their values,
+  children below internal ones, each searched from its first key by `key.cmp(k)`, split,
+  merged, and evened out with a sibling where std's are, built by `collect` and
+  `split_off` as std's builds them, and cloned node for node, so a key's own `cmp` runs
+  on the same keys in the same order as std's. Iterators climb and descend leaf edges as
+  std's do. On `just ts bench`'s `btree/` workloads it takes 0.8-1.0x the time the B+
+  tree of 64-key nodes it replaced did in Chrome, 1.0-1.3x in Node and Firefox, within
+  their noise, and 1.3-1.6x in Bun, from 16 keys to 4096; bisecting a node's keys measured
+  no faster. A hash map's JS primitive keys
   are a JS `Map`'s, the engine's own hash table; its other keys go into a second `Map`
   by their translated hash, chained by `Eq`. A hash map, set, or table holds only what std
   guarantees of its capacity, at least its length and what `with_capacity` and `reserve`
@@ -1014,9 +1019,8 @@ they need.
   so `append` is O(1) and `split_off` walks from the nearer end; each node is the place
   `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole map or set drops its entries in the
   runtime's order, keys' for a B-tree, not std's node by node: std leaves that order
-  undocumented, and matching it would mean porting std's 11-key node layout, measured 1.5x
-  slower ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on
-  2026-10-30; a map's `IntoIter` still drops in std's order.
+  undocumented ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision
+  on 2026-10-30; a map's `IntoIter` still drops in std's order.
 - A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the
   runtime with the choices std makes by the element's size on wasm32 and whether it is
   `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
