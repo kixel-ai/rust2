@@ -54,10 +54,10 @@ export interface PanicHookInfo {
 }
 
 /** A panic hook, as `set_hook` takes it. */
-export type Hook = (info: PanicHookInfo) => void;
+export type Hook = (info: PanicHookInfo) => undefined;
 
 /** The default hook, which writes to the standard error wasm32 has none of. */
-function defaultHook(_info: PanicHookInfo): void {}
+function defaultHook(_info: PanicHookInfo): undefined {}
 
 let hook: Hook = defaultHook;
 /** Whether a hook is running: a panic then aborts, and `thread::panicking` is true. */
@@ -147,13 +147,14 @@ export function resumeUnwind(): never {
 }
 
 /**
- * Panic at `at` with a formatted message, a `String`, which keeps what was written before
+ * Panic at `at` with a formatted message, a `String` unless it has no placeholders, which keeps what was written before
  * a value failed to format, as std's does.
  */
 export function panicFmt(message: Arguments, at?: Location): never {
 	const out = new StringWriter();
 	write(out, message);
-	panic(out.s, at, true);
+	// As `Arguments::as_str`, a message without placeholders is its `&'static str`.
+	panic(out.s, at, message.length > 1 || message.some((part) => typeof part !== "string"));
 }
 
 /** A `match` without arms, on a value Rust proved can't exist, such as a `(Void, u8)`. */

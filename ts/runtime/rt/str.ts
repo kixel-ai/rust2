@@ -82,8 +82,8 @@ function unitAt(s: string, i: number, from: number, to: number): number {
 }
 
 /** `&s[start..end]` by UTF-8 byte offsets, with `end` defaulting to the length. */
-export function strSlice(s: string, start: number, end?: number): string {
-	return s.slice(...units(s, start, end));
+export function strSlice(s: string, start: number, end?: number, at?: Location): string {
+	return s.slice(...units(s, start, end, at));
 }
 
 /** `str::get` by a range's UTF-8 byte offsets, with `end` defaulting to the length. */

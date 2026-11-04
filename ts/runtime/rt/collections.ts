@@ -572,8 +572,8 @@ export function hashContains<K, V>(m: HashMap<K, V>, key: K): boolean {
 }
 
 /** `HashMap::index`: `map[&key]`. */
-export function hashIndex<K, V>(m: HashMap<K, V>, key: K): V {
-	if (!hashContains(m, key)) panic("no entry found for key", site("hash_index"), true);
+export function hashIndex<K, V>(m: HashMap<K, V>, key: K, at?: Location): V {
+	if (!hashContains(m, key)) panic("no entry found for key", at, true);
 	return hashGet(m, key) as V;
 }
 
@@ -1571,10 +1571,10 @@ export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K): boolean {
 }
 
 /** `BTreeMap::index`: `map[&key]`. */
-export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K): V {
+export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K, at?: Location): V {
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
-	if (i < 0) panic("no entry found for key", site("btree_index"), true);
+	if (i < 0) panic("no entry found for key", at, true);
 	return l.v[i];
 }
 
@@ -3160,14 +3160,14 @@ export function dequeEndMut<T>(q: VecDeque<T>, back = false): Place<T> | undefin
 }
 
 /** `index` and `index_mut`: `q[i]`. */
-export function dequeIndex<T>(q: VecDeque<T>, i: number): T {
-	if (i >= q.n) panic("out of bounds access", site("deque_index"), true);
+export function dequeIndex<T>(q: VecDeque<T>, i: number, at?: Location): T {
+	if (i >= q.n) panic("out of bounds access", at, true);
 	return q.b[phys(q, i)] as T;
 }
 
 /** `q[i] = item`, through `index_mut`. */
-export function dequeSet<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i >= q.n) panic("out of bounds access", site("deque_index_mut"), true);
+export function dequeSet<T>(q: VecDeque<T>, i: number, item: T, at?: Location): void {
+	if (i >= q.n) panic("out of bounds access", at, true);
 	q.b[phys(q, i)] = item;
 }
 

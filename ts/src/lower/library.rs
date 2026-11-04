@@ -989,6 +989,8 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("RangeInclusive", "new")
 		| ("panic", "panic_any" | "resume_unwind")
 		| ("rt", "begin_panic")
+		// The hook it keeps, and the one it replaces, which `rt.setHook` drops.
+		| ("panicking", "set_hook")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
 		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
@@ -2831,7 +2833,7 @@ fn mapping<'tcx>(
 				Some(Expr::Sym(class.sym))
 			};
 			let str = class(b, Ty::new_static_str(tcx))?;
-			let string = tcx.get_diagnostic_item(rustc_span::sym::String)?;
+			let string = tcx.lang_items().string()?;
 			let string = class(b, Ty::new_adt(tcx, tcx.adt_def(string), ty::List::empty()))?;
 			Expr::rt("hookPayload", vec![args.pop()?, str, string])
 		}
