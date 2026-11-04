@@ -9,7 +9,7 @@ proven by differential tests against native Rust. At the moq pin arrayvec's
 
 ## Plan
 
-`rs.String` keeps a JS string (#574), so the bytes are an encoding of it; a pointer into
+A `&str` stays a JS string (decided on #574), so the bytes are an encoding of it; a pointer into
 them must not let a write through it go unnoticed, which Rust forbids anyway for a `&str`.
 
 Public API: the translator's output.
