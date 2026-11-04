@@ -691,10 +691,7 @@ pub fn guarded(data: &[u8], out: &mut Vec<u8>) {
 				seen.lock().push(op);
 			}
 			_ => {
-				let mut lent = Lent {
-					tally: &mut tally,
-					out,
-				};
+				let mut lent = Lent { tally: &mut tally, out };
 				*lent = lent.map_or(Some(op), |b| b.checked_add(op));
 			}
 		}
