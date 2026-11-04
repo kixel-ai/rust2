@@ -1,8 +1,8 @@
 // Prototype only, for moq-dev/rust2#574's decision: a `String` as a JS string with its
 // UTF-8 length and std's exact capacity. `&str` and `Box<str>` stay JS strings. Copied to
-// a translation's `rt/proto.ts` by str-routes.py.
+// a translation's `rs/proto.ts` by str-routes.py.
 
-import { type Arguments, Err, type FmtResult, FromUtf8Error, type Formatter, type HashMap, OK, Ok, type Result, type Write, byteVecView, type ByteVec, type char } from "../rt.ts";
+import { type Arguments, Err, type FmtResult, FromUtf8Error, type Formatter, type HashMap, OK, Ok, type Result, type Write, byteVecView, type ByteVec, type char } from "../rs.ts";
 
 const decoder = /* @__PURE__ */ new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 

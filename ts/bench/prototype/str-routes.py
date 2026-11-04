@@ -9,9 +9,9 @@ usage: str-routes.py <dir> js|utf8
 translator would emit for that model on the paths the `str/` and `fmt/` workloads run;
 every edit must match as often as it says.
 
-- js: a `String` as `rt.PString`, a JS string with its UTF-8 length and capacity; a `&str`
+- js: a `String` as `rs.PString`, a JS string with its UTF-8 length and capacity; a `&str`
   stays a JS string.
-- utf8: a `String` as an `rt.ByteVec`, a `&str` as an `rt.ByteSlice`, each literal's bytes
+- utf8: a `String` as an `rs.ByteVec`, a `&str` as an `rs.ByteSlice`, each literal's bytes
   made once where its module loads.
 """
 import re
@@ -37,49 +37,49 @@ def edit(path, pairs):
     p.write_text(text)
 
 
-shutil.copy(here / f"str-{model}.ts", root / "translated" / "rt" / "proto.ts")
-edit("rt.ts", [('export * from "./rt/time.ts";\n', 'export * from "./rt/time.ts";\nexport * from "./rt/proto.ts";\n')])
+shutil.copy(here / f"str-{model}.ts", root / "translated" / "rs" / "proto.ts")
+edit("rs.ts", [('export * from "./rs/time.ts";\n', 'export * from "./rs/time.ts";\nexport * from "./rs/proto.ts";\n')])
 
 NAMES = '["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]'
 TRACKS = '["video", "audio", "catalog.json", "字幕"]'
-SET = re.compile(r"s = rt\.fmtWriteString\(s, (\[.*\])\)\.s;")
+SET = re.compile(r"s = rs\.fmtWriteString\(s, (\[.*\])\)\.s;")
 
 if utf8:
-    edit("coding/encode.Encoder.ts", [("return bytes(self, rt.stringAsBytes(v));", "return bytes(self, v);")])
-edit("coding/decode.Decoder.ts", [("rt.stringFromUtf8(", "rt.pStringFromUtf8(")])
+    edit("coding/encode.Encoder.ts", [("return bytes(self, rs.stringAsBytes(v));", "return bytes(self, v);")])
+edit("coding/decode.Decoder.ts", [("rs.stringFromUtf8(", "rs.pStringFromUtf8(")])
 
 bench = [
     # decode_strings
-    ('let last: string = "";', "let last = new rt.ByteVec(0);" if utf8 else "let last = rt.pStringNew(0);"),
-    ("rt.stringLen(last)", "last.length" if utf8 else "last.len", 2),
+    ('let last: string = "";', "let last = new rs.ByteVec(0);" if utf8 else "let last = rs.pStringNew(0);"),
+    ("rs.stringLen(last)", "last.length" if utf8 else "last.len", 2),
     # join
     (
-        "let path: string = rt.stringWithCapacity(rt.usizeAdd(rt.usizeAdd(rt.stringLen(_7[_8]), 1), rt.stringLen(_30[_31])));",
-        "const path = new rt.ByteVec(rt.usizeAdd(rt.usizeAdd(_7[_8].length, 1), _30[_31].length));" if utf8
-        else "const path = rt.pStringNew(rt.usizeAdd(rt.usizeAdd(rt.pStrLen(_7[_8]), 1), rt.pStrLen(_30[_31])));",
+        "let path: string = rs.stringWithCapacity(rs.usizeAdd(rs.usizeAdd(rs.stringLen(_7[_8]), 1), rs.stringLen(_30[_31])));",
+        "const path = new rs.ByteVec(rs.usizeAdd(rs.usizeAdd(_7[_8].length, 1), _30[_31].length));" if utf8
+        else "const path = rs.pStringNew(rs.usizeAdd(rs.usizeAdd(rs.pStrLen(_7[_8]), 1), rs.pStrLen(_30[_31])));",
     ),
-    ("path = path + _7[_8];", "rt.pStringPushStr(path, _7[_8]);"),
-    ('path = path + "/";', "rt.pStringPushAscii(path, 0x2f);" if utf8 else 'rt.pStringPushLit(path, "/", 1);'),
-    ("path = path + _30[_31];", "rt.pStringPushStr(path, _30[_31]);"),
-    ("rt.usizeAdd(total, rt.stringLen(path))", "rt.usizeAdd(total, path.length)" if utf8 else "rt.usizeAdd(total, path.len)"),
-    ("rt.strStripPrefix(path, _7[_8])", "rt.pStrStripPrefix(rt.pStringAsStr(path), _7[_8])" if utf8 else "rt.strStripPrefix(path.s, _7[_8])"),
-    ('rt.strStripPrefix(_53, "/")', "rt.pStrStripAscii(_53, 0x2f)" if utf8 else 'rt.strStripPrefix(_53, "/")'),
-    ("rt.stringLen(_58)", "_58.length" if utf8 else "rt.pStrLen(_58)"),
+    ("path = path + _7[_8];", "rs.pStringPushStr(path, _7[_8]);"),
+    ('path = path + "/";', "rs.pStringPushAscii(path, 0x2f);" if utf8 else 'rs.pStringPushLit(path, "/", 1);'),
+    ("path = path + _30[_31];", "rs.pStringPushStr(path, _30[_31]);"),
+    ("rs.usizeAdd(total, rs.stringLen(path))", "rs.usizeAdd(total, path.length)" if utf8 else "rs.usizeAdd(total, path.len)"),
+    ("rs.strStripPrefix(path, _7[_8])", "rs.pStrStripPrefix(rs.pStringAsStr(path), _7[_8])" if utf8 else "rs.strStripPrefix(path.s, _7[_8])"),
+    ('rs.strStripPrefix(_53, "/")', "rs.pStrStripAscii(_53, 0x2f)" if utf8 else 'rs.strStripPrefix(_53, "/")'),
+    ("rs.stringLen(_58)", "_58.length" if utf8 else "rs.pStrLen(_58)"),
     # keyed
-    ("rt.fmtPad(f, part)", "rt.pFmtPadStr(f, part)" if utf8 else "rt.fmtPad(f, part)"),
-    ('return rt.fmtFormat([args2[0], "/", args2[1]]);', 'return rt.pFmtFormat([args2[0], "/", args2[1]], 1);'),
-    ("rt.hashNew() as rt.HashMap<string, rt.u64>", "rt.hashNew(rt.P_STR_HASHING) as rt.HashMap<string, rt.u64>" if utf8 else "rt.hashNew() as rt.HashMap<string, rt.u64>"),
+    ("rs.fmtPad(f, part)", "rs.pFmtPadStr(f, part)" if utf8 else "rs.fmtPad(f, part)"),
+    ('return rs.fmtFormat([args2[0], "/", args2[1]]);', 'return rs.pFmtFormat([args2[0], "/", args2[1]], 1);'),
+    ("rs.hashNew() as rs.HashMap<string, rs.u64>", "rs.hashNew(rs.P_STR_HASHING) as rs.HashMap<string, rs.u64>" if utf8 else "rs.hashNew() as rs.HashMap<string, rs.u64>"),
     (
-        "rt.hashInsert(map, _32[1], _32[0] as rt.u64);",
-        "rt.hashInsert(map, rt.pStringClone(_32[1]), _32[0] as rt.u64);" if utf8 else "rt.pHashInsertString(map, rt.pStringClone(_32[1]), _32[0] as rt.u64);",
+        "rs.hashInsert(map, _32[1], _32[0] as rs.u64);",
+        "rs.hashInsert(map, rs.pStringClone(_32[1]), _32[0] as rs.u64);" if utf8 else "rs.pHashInsertString(map, rs.pStringClone(_32[1]), _32[0] as rs.u64);",
     ),
-    ("rt.hashGet(map, _51)", "rt.hashGet(map, rt.pStringAsStr(_51))" if utf8 else "rt.pHashGetString(map, _51.s)"),
+    ("rs.hashGet(map, _51)", "rs.hashGet(map, rs.pStringAsStr(_51))" if utf8 else "rs.pHashGetString(map, _51.s)"),
     # format
-    ('const count2: rt.i64 = rt.i64Cast(rt.u64Min(takeU64(data)[0], 65536));\n\tlet s: string = "";',
-     "const count2: rt.i64 = rt.i64Cast(rt.u64Min(takeU64(data)[0], 65536));\n\tlet s = " + ("new rt.ByteVec(0);" if utf8 else "rt.pStringNew(0);")),
-    (SET, r"rt.pFmtWriteString(s, \1);"),
-    ("putUsize(out, rt.stringLen(s));", "putUsize(out, s.length);" if utf8 else "putUsize(out, s.len);"),
-    ("rt.strBytes(s)", "rt.iterSlice(rt.byteVecView(s))" if utf8 else "rt.strBytes(s.s)"),
+    ('const count2: rs.i64 = rs.i64Cast(rs.u64Min(takeU64(data)[0], 65536));\n\tlet s: string = "";',
+     "const count2: rs.i64 = rs.i64Cast(rs.u64Min(takeU64(data)[0], 65536));\n\tlet s = " + ("new rs.ByteVec(0);" if utf8 else "rs.pStringNew(0);")),
+    (SET, r"rs.pFmtWriteString(s, \1);"),
+    ("putUsize(out, rs.stringLen(s));", "putUsize(out, s.length);" if utf8 else "putUsize(out, s.len);"),
+    ("rs.strBytes(s)", "rs.iterSlice(rs.byteVecView(s))" if utf8 else "rs.strBytes(s.s)"),
 ]
 if utf8:
     # Each literal's bytes, made once where the module loads.
@@ -90,6 +90,6 @@ if utf8:
     text = p.read_text()
     lits = [("P_NAME0", "demo/room-42/alice/camera"), ("P_NAME1", "démo/salle-42/アリス/📷"),
             ("P_TRACK0", "video"), ("P_TRACK1", "audio"), ("P_TRACK2", "catalog.json"), ("P_TRACK3", "字幕")]
-    decl = "".join(f'const {n} = /* @__PURE__ */ rt.pLit("{s}");\n' for n, s in lits)
+    decl = "".join(f'const {n} = /* @__PURE__ */ rs.pLit("{s}");\n' for n, s in lits)
     at = text.index("\nexport function ")
     p.write_text(text[: at + 1] + decl + text[at + 1 :])

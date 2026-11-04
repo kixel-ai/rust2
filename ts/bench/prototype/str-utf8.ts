@@ -1,6 +1,6 @@
 // Prototype only, for moq-dev/rust2#574's decision: a `String` as its UTF-8 bytes, an
-// `rt.ByteVec`, whose storage's length is std's exact capacity, and a `&str` as an
-// `rt.ByteSlice`. Copied to a translation's `rt/proto.ts` by str-routes.py.
+// `rs.ByteVec`, whose storage's length is std's exact capacity, and a `&str` as an
+// `rs.ByteSlice`. Copied to a translation's `rs/proto.ts` by str-routes.py.
 
 import {
 	type Arguments,
@@ -21,7 +21,7 @@ import {
 	utf8Check,
 	type Write,
 	type char,
-} from "../rt.ts";
+} from "../rs.ts";
 
 const decoder = /* @__PURE__ */ new TextDecoder("utf-8", { ignoreBOM: true });
 const encoder = /* @__PURE__ */ new TextEncoder();
