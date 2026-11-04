@@ -341,7 +341,8 @@ it is forced and while their function runs, without forcing it. A caller prints 
 would: `rs.fmtToString((f) => DecodeError.fmt$fmt_Display(err, f))` and
 `rs.fmtFormat([(f) => DecodeError.fmt$fmt_Debug(err, f)])`, after
 `import * as DecodeError from "./coding/decode.DecodeError.ts"`. `fmt::Write` translates for a
-`String`, a `Formatter`, and the crate's own writers, and through a `&mut` to any of them.
+`String`, a `Formatter`, and the crate's own writers, through a `&mut` to any of them, and
+through a `dyn fmt::Write` of any of them.
 A crate's own provided `write_char` and a literal `write_fmt` call its `write_str` once, as
 std's do. What placeholders write reaches its `write_str` and `write_char` in the calls std
 makes, with the same text in the same order: each fill a `write_char`, an integer's sign one
@@ -539,7 +540,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `crypto.getRandomValues` where std asks the OS. std's `Hash` impls call a crate's own
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
-through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
+through the others as std's do. So do they into a `&mut` or a box of a `dyn Hasher`, of
+`DefaultHasher` or the crate's own, as std's impls forward each method to it. `BuildHasher::hash_one` of a crate's own builds its
 hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
 an enum, hashes as a struct one does, through the `rs.Place` its `&mut` is.
 Its iterators are `rs.Iter`s, so std's adaptors run over them.
@@ -574,17 +576,24 @@ and drops the iterator once the tail is back; an `extract_if` takes out each ele
 closure picks as it reads them, moves the rest back over the gaps once dropped, and then
 drops the closure.
 
-A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
+A trait object of the crate's own trait, a dependency's, or std's or a mapped crate's, such as
+`dyn Hasher`, `dyn fmt::Write`, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
-caller can implement. A coercion wraps the value in a class of its type's from `lib.ts`,
+caller can implement. A generic trait's type is generic over the trait's type parameters,
+then the associated types its objects bind that no supertrait binds already, so
+`dyn Source<Item = u8>` is a `Source.Source<rs.u8>`, and is typed as the trait declares
+it, as a generic struct is: a call casts what it returns to the form its object's
+arguments decide, such as the `rs.u8` of an `rs.Ptr<T>`. One whose method takes or returns
+another form at its arguments, such as the `rs.None` of an `Option<Self::Item>` whose
+`Item` is an `Option` too, is refused. A coercion wraps the value in a class of its type's from `lib.ts`,
 named for the type as a suffix spells it, `new of$dyns_Square(sq)`, which every trait's
 object of the type shares, whose methods call that type's impls; one from a `&mut` to a
 value JS copies holds its `rs.Place`, as `ofPlace$dyns_Square`, so `&mut self` writes
 where the value is. An upcast, to `dyn Any` too, is the same object. Objects of two traits
-of one name, with a method of one name, are refused for one type, whose class can't hold
-both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
+of one name, with a method of one name, or of one generic trait at two arguments, are
+refused for one type, whose class can't hold both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rs.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
@@ -601,10 +610,14 @@ struct of one, is what a box of the object it points at unsizes to, which drops 
 such as a cell, unsizes as each read finds the value there, and stays null or dangling.
 One whose object would hold such a value as it is made, such as a `*mut dyn Iterator` of
 a `*mut Range`, is refused. Pointers to trait objects don't compare, as each coercion
-makes an object of its own. A `dyn Error`'s or `dyn Buf`'s object holds only
+makes an object of its own. An object of std's or a mapped crate's trait holds only
 the methods some call through one dispatches to, so each buffer adds those of its impls,
-not all of `Buf`'s; a TS caller sees the same in its type. It holds no `chunks_vectored`,
-whose `IoSlice` has no JS value, so a call of it fails.
+not all of `Buf`'s; a TS caller sees the same in its type. Hashing into a `dyn Hasher` holds
+each of `Hasher`'s. A class of a std type's value calls the mapping of its impl, such as
+`DefaultHasher`'s `Hasher`, or a `String`'s or a `Formatter`'s `fmt::Write`, and one no
+mapping makes, such as a `Vec<u8>`'s `io::Write`, is refused where a call dispatches to it.
+A `dyn Buf` holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it
+fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
@@ -639,12 +652,8 @@ folds included, so a boxed `skip` of a zip skips through the zip's `nth` as std'
 box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
-A trait object of std's
-or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
-`Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a generic
-trait or one with an associated type, of a byte array, or behind any other pointer, such
-as a struct's last field, is refused, and so is `Any::type_id`.
+A trait object of a trait with a const parameter, of a byte array, or behind any other
+pointer, such as a struct's last field, is refused, and so is `Any::type_id`.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the
@@ -709,7 +718,7 @@ of them:
   storage past its bytes, which `set_len` takes in, panicking past the capacity as
   `bytes`' debug assertion does.
 - `Buf` and `BufMut` of a `Bytes`, a `BytesMut`, a `&[u8]`, and a `Vec<u8>` map: the
-  required methods but `chunk_mut`, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
+  required methods, `has_remaining`, `copy_to_slice`, `copy_to_bytes`, each `get_` and
   `put_` of an integer or a float, each `try_get_` of an integer of 2 to 16 bytes,
   `put_slice`, `put_bytes`, and `put`, whose panics are
   `bytes`'. `put` of another `Buf`, such as the crate's own, a `Take`, or a `&mut` to
@@ -719,7 +728,11 @@ of them:
   the capacity it asks for, reads it chunk by chunk through its methods. The provided
   `get_` and `try_get_` of an integer of 2 to 16 bytes of any other `Buf`, such as a
   `Take`, read its chunk where that holds the integer, and copy it out through
-  `copy_to_slice` where not, as `bytes`' do.
+  `copy_to_slice` where not, as `bytes`' do. `chunk_mut` is an `rs.ByteSlice` of the
+  storage past the bytes, once it reserved 64 where there was no room, as `bytes`' does.
+  An `UninitSlice`, `#[repr(transparent)]` over a `[MaybeUninit<u8>]`, is that slice's
+  `rs.ByteSlice`, so its methods, which translate from `bytes`' MIR, write the storage
+  of the buffer that lent it.
   The impls forwarding through a `&mut` or a `Box` translate from `bytes`' MIR, and the
   `BufMut` methods they don't forward map as the buffer's own, but `put` and `put_bytes`,
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of
@@ -1082,7 +1095,7 @@ which lower from core's MIR.
 ```bash
 just ts test                  # translate each fixture, compare, type-check, and diff
 UPDATE_EXPECT=1 just ts test  # rewrite the snapshots in each fixture's expected/
-just ts moq                   # translate moq-net's codec at a pinned revision
+just ts moq                   # translate moq-net's codec at the model fixture's pinned revision
 just ts census                # census moq-net and kio at the same revision
 ```
 
@@ -1098,6 +1111,12 @@ so adding, removing, or reordering a case changes no other case's inputs.
   `bench::run` and then with it as the first root, which must keep every line in order.
   Bun bundles a caller of `Decoder.u8` and `Decoder.new` through `import * as Decoder`,
   which must keep only those and what they call.
+- `model` depends on moq-net at the moq pin, its `rev`, which `just ts moq` and
+  `just ts census` check out too, and translates with it as one program. It is a
+  workspace of its own, so its lockfile keeps moq's checkout out of the package's inputs. Its harness
+  runs what of the model translates with nothing refused or bound, `Timestamp` and
+  `Timescale`: their constructors, conversions, `u128` reads, sums, differences,
+  temporal order across scales, `Duration`s, and `Debug`.
 - `lang` is the language, a fixture per module under `fixtures/lang/`, each module's doc
   saying what it covers; `fmt`, `generics`, and `shapes`, which share types, share
   `shapes`. Each crate's `cases` names what it runs, which the first two bytes of an input

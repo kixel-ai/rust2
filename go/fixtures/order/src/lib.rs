@@ -22,6 +22,14 @@ struct Pair {
 	value: u8,
 }
 
+/// Steps `x`, giving its new value's remainder by 3 in a `Pair`.
+fn stepped(x: &mut u8) -> Pair {
+	Pair {
+		small: false,
+		value: bump(x) % 3,
+	}
+}
+
 /// Run the case the first byte picks on the next two.
 pub fn run(input: &[u8]) -> Vec<u8> {
 	let Some((&pick, data)) = input.split_first() else {
@@ -29,7 +37,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 	};
 	let mut a = data.first().copied().unwrap_or(0);
 	let b = data.get(1).copied().unwrap_or(0);
-	match pick % 10 {
+	match pick % 11 {
 		// A call's result, then memory it changed.
 		0 => {
 			let r = bump(&mut a);
@@ -88,6 +96,12 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 			let lt = (b > 9) < (nonzero(b) > 9);
 			vec![and as u8, or as u8, lt as u8, a]
 		}
+		// A field of a call's result tested against several values: the call runs once.
+		9 => match stepped(&mut a).value {
+			0 => vec![0, a],
+			1 => vec![1, a],
+			_ => vec![2, a],
+		},
 		// A call that can panic, then one that changes memory.
 		_ => {
 			let r = nonzero(b);

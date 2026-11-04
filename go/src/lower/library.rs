@@ -14,7 +14,7 @@ use super::body::{Fx, int_bits};
 /// A library type Go holds as a type of its own.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mapped {
-	/// `Vec<T>`: a Go slice, whose `append` grows it as std's does, by doubling.
+	/// `Vec<T>`: a Go slice, which the runtime grows as std's does, by doubling.
 	Vec,
 	/// `slice::Iter<T>`: the slice left.
 	SliceIter,
@@ -237,7 +237,7 @@ pub fn call_with<'tcx>(
 			let size = tcx.layout_of(fx.t_env().as_query_input(targ(0))).ok()?.size.bytes();
 			expr(format!("vecWithCapacity[{}]({}, {size})", fx.ty(targ(0), span), a[0]))
 		}
-		"<alloc::vec::Vec>::push" => stmt(format!("*{0} = append(*{0}, {1})", a[0], a[1])),
+		"<alloc::vec::Vec>::push" => stmt(format!("vecPush({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::pop" => expr(format!("vecPop({})", a[0])),
 		"<alloc::vec::Vec>::len" => expr(format!("uint(len(*{}))", a[0])),
 		"<alloc::vec::Vec>::capacity" => {
@@ -254,7 +254,7 @@ pub fn call_with<'tcx>(
 		}
 		"<alloc::vec::Vec>::extend_from_slice" => {
 			copy_check(fx, targ(0), span);
-			stmt(format!("*{0} = append(*{0}, {1}...)", a[0], a[1]))
+			stmt(format!("vecExtend({}, {})", a[0], a[1]))
 		}
 		"<alloc::vec::Vec>::as_slice"
 		| "<alloc::vec::Vec>::as_mut_slice"

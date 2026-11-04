@@ -5,6 +5,8 @@
 
 use std::collections::HashSet;
 
+use rust2_driver::cfg;
+
 /// A translated item: a function, struct, or type alias.
 pub type SymId = usize;
 
@@ -309,18 +311,134 @@ impl StmtKind {
 	}
 }
 
-impl Stmt {
-	/// Whether control never reaches the statement after this one.
-	pub fn diverges(&self) -> bool {
-		match &self.kind {
-			StmtKind::Return(_) | StmtKind::Break(_) | StmtKind::Continue(_) => true,
-			StmtKind::If { then, els, .. } => diverges(then) && diverges(els),
-			StmtKind::Block { label: None, body } => diverges(body),
+impl cfg::Syntax for Stmt {
+	type Cond = Expr;
+
+	fn block(label: String, body: Vec<Self>) -> Self {
+		StmtKind::Block {
+			label: Some(label),
+			body,
+		}
+		.at(None)
+	}
+
+	fn forever(label: String, body: Vec<Self>) -> Self {
+		StmtKind::While {
+			label: Some(label),
+			cond: Expr::lit("true"),
+			body,
+		}
+		.at(None)
+	}
+
+	fn branch(cond: Expr, then: Vec<Self>, els: Vec<Self>) -> Self {
+		StmtKind::If { cond, then, els }.at(None)
+	}
+
+	fn jump(jump: cfg::Jump, label: String) -> Self {
+		match jump {
+			cfg::Jump::Break => StmtKind::Break(Some(label)),
+			cfg::Jump::Continue => StmtKind::Continue(Some(label)),
+		}
+		.at(None)
+	}
+
+	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>) {
+		let cases = cases
+			.into_iter()
+			.map(|(node, body)| (Expr::lit(node.to_string()), body))
+			.collect();
+		out.push(StmtKind::decl(true, state, Some(Type::Builtin("number")), Some(Expr::lit("0"))).at(None));
+		out.push(
 			StmtKind::While {
+				label: Some(label.to_string()),
+				cond: Expr::lit("true"),
+				body: vec![
+					StmtKind::Switch {
+						label: None,
+						disc: Expr::ident(state),
+						cases,
+						default: Vec::new(),
+					}
+					.at(None),
+				],
+			}
+			.at(None),
+		);
+	}
+
+	fn set(state: &str, node: usize) -> Self {
+		StmtKind::Expr(Expr::ident(state).assign(Expr::lit(node.to_string()))).at(None)
+	}
+
+	fn view(&self) -> cfg::View<'_, Self> {
+		match &self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
 				label,
-				cond: Expr::Lit(cond),
+				cond: Some(cond),
 				body,
-			} => cond == "true" && !breaks_out(body, label.as_deref(), false),
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+
+	fn view_mut(&mut self) -> cfg::ViewMut<'_, Self> {
+		match &mut self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
+				label,
+				cond: Some(cond),
+				body,
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter_mut().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+}
+
+impl cfg::Cond for Expr {
+	fn negate(&mut self) {
+		*self = std::mem::replace(self, Expr::undefined()).not();
+	}
+
+	fn is_true(&self) -> bool {
+		matches!(self, Expr::Lit(l) if l == "true")
+	}
+
+	fn pure(&self) -> bool {
+		match self {
+			Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => true,
+			Expr::Member(base, _)
+			| Expr::Unary(_, base)
+			| Expr::Located(_, base)
+			| Expr::As(base, _)
+			| Expr::Instantiate(base, _) => base.pure(),
+			Expr::Binary(l, _, r) => l.pure() && r.pure(),
+			Expr::Cond(c, a, b) => c.pure() && a.pure() && b.pure(),
 			_ => false,
 		}
 	}
@@ -549,29 +667,6 @@ impl Expr {
 			Expr::Ident(_) | Expr::This | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		}
 	}
-}
-
-/// Whether a `break` in `stmts` targets the loop that holds them, labeled `label`.
-/// Inside a `nested` loop, only a labeled `break` can. A `break` to any other label
-/// skips the loop's next statement too.
-fn breaks_out(stmts: &[Stmt], label: Option<&str>, nested: bool) -> bool {
-	stmts.iter().any(|stmt| match &stmt.kind {
-		StmtKind::Break(None) => !nested,
-		StmtKind::Break(Some(target)) => Some(target.as_str()) == label,
-		StmtKind::If { then, els, .. } => breaks_out(then, label, nested) || breaks_out(els, label, nested),
-		StmtKind::Block { body, .. } => breaks_out(body, label, nested),
-		// An unlabeled `break` in a case leaves the switch.
-		StmtKind::Switch { cases, default, .. } => {
-			cases.iter().any(|(_, body)| breaks_out(body, label, true)) || breaks_out(default, label, true)
-		}
-		StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => breaks_out(body, label, true),
-		_ => false,
-	})
-}
-
-/// Whether control never falls off the end of `stmts`.
-pub fn diverges(stmts: &[Stmt]) -> bool {
-	stmts.last().is_some_and(Stmt::diverges)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

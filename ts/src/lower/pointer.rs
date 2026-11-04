@@ -131,9 +131,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What a `MaybeUninit` or `ManuallyDrop` holds, through any number of them, or `ty`
-	/// itself: JS keeps each as what it holds.
+	/// itself: JS keeps each as what it holds, and an `UninitSlice` as its slice.
 	pub fn uninit_inner(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
-		let mut ty = ty;
+		let mut ty = super::stock::uninit_slice(self.tcx, ty).unwrap_or(ty);
 		while let ty::Adt(adt, args) = ty.kind()
 			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
 		{
@@ -166,7 +166,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Pointee::Place => Type::Rs("Place", vec![self.ty(pointee, span)]),
 			Pointee::Object => self.ty(pointee, span),
 			Pointee::Bytes => Type::Rs("ByteSlice", Vec::new()),
-			Pointee::Slice => match pointee.kind() {
+			Pointee::Slice => match self.uninit_inner(pointee).kind() {
 				ty::Slice(elem) => Type::Rs("RawSlice", vec![self.ty(*elem, span)]),
 				_ => unreachable!("a slice's pointee"),
 			},
@@ -440,9 +440,9 @@ fn takes_place<'tcx>(
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
 			|| matches!(owner.as_str(), "Iterator" | "DoubleEndedIterator") && super::iter::held_own(t, args.type_at(0))
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
-			// The `&mut` to the crate's own hasher, which its methods take as it is.
-			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::own_hasher(t, args.type_at(1))
-			|| owner == "Hasher" && super::collections::own_hasher(t, args.type_at(0))
+			// The `&mut` to a hasher whose methods take it as it is.
+			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::called_hasher(t, args.type_at(1))
+			|| owner == "Hasher" && super::collections::called_hasher(t, args.type_at(0))
 	) || super::stock::is_stock(t.tcx, def_id)
 }
 
@@ -1010,7 +1010,9 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 /// pointer to the first element of the array or slice it points at.
 pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
-	if inner == into {
+	// Bytes are bytes, initialized or not, so a slice of either is the same `rs.ByteSlice`.
+	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if super::byte(*e));
+	if inner == into || byte_slice(inner) && byte_slice(into) {
 		return p;
 	}
 	// The type a pointer to it remembers, which a cast back must name, or fails at run time,
@@ -1096,9 +1098,15 @@ fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, s
 	}
 }
 
-/// Whether `ty` is `[u8]`, or one of `MaybeUninit<u8>`, whose slices are `rs.ByteSlice`s.
+/// Whether `ty` is `[u8]`, one of `MaybeUninit<u8>`, or an `UninitSlice`, whose slices are
+/// `rs.ByteSlice`s.
 pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Slice(elem) if super::byte(*elem))
+	match ty.kind() {
+		ty::Slice(elem) => super::byte(*elem),
+		// The context every lowering runs in, as for [`super::byte`].
+		ty::Adt(adt, _) => ty::tls::with(|tcx| super::stock::is_uninit_slice(tcx, adt.did())),
+		_ => false,
+	}
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or

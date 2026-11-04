@@ -23,39 +23,38 @@ cut decoding's time 35 to 55% and left encoding about where it was: a 2-byte QUI
 decodes in about 88 ns, still 17 to 108 times cgo on every decode. The profile of what is
 left is led by 16-byte moves copying `DecodeError`'s fields in and out of the frame.
 
-Where the bar stands, as means of three runs alternating with a hand edit of step 1, in
-µs per group on a host at load 35 to 45 of 32 cores, so absolute times are inflated:
+Growing a `Vec` as Rust's `RawVec` does, to at least twice its capacity where Go's
+`append` grows a slice past 256 elements by about 1.25x, cut a video stream's time 37 to
+56%. Where the bar stands, as means of six runs alternating with and without that
+growth, lowest and highest in parentheses, in µs per group on a host at load 2 to 17 of
+32 cores:
 
-| Workload | Go | cgo | Ratio | With step 1 | Ratio |
-| --- | --- | --- | --- | --- | --- |
-| `stream/video/lite-06/encode` | 4,263 | 1,259 | 3.4x | 1,229 | 1.6x |
-| `stream/video/lite-06/decode` | 4,425 | 853 | 5.2x | 1,110 | 1.6x |
-| `stream/audio/lite-06/encode` | 55 | 14 | 4.0x | 24 | 1.9x |
-| `stream/audio/lite-06/decode` | 75 | 13 | 6.0x | 40 | 3.4x |
-| `stream/video/lite-07/encode` | 3,315 | 895 | 3.7x | 1,083 | 1.6x |
-| `stream/video/lite-07/decode` | 3,417 | 969 | 3.5x | 1,184 | 1.8x |
-| `stream/audio/lite-07/encode` | 61 | 13 | 4.5x | 21 | 2.0x |
-| `stream/audio/lite-07/decode` | 79 | 11 | 7.0x | 36 | 3.3x |
+| Workload | Go before | Go | cgo | Ratio |
+| --- | --- | --- | --- | --- |
+| `stream/video/lite-06/encode` | 443 (285..639) | 272 (180..353) | 92 (49..139) | 3.0x |
+| `stream/video/lite-06/decode` | 478 (298..711) | 212 (116..278) | 82 (52..133) | 2.6x |
+| `stream/audio/lite-06/encode` | 9 (6..14) | 6 (4..10) | 2 (1..3) | 3.3x |
+| `stream/audio/lite-06/decode` | 19 (16..25) | 17 (15..21) | 2 (2..3) | 7.6x |
+| `stream/video/lite-07/encode` | 489 (270..729) | 287 (157..365) | 118 (87..155) | 2.4x |
+| `stream/video/lite-07/decode` | 520 (381..708) | 325 (204..427) | 101 (70..116) | 3.2x |
+| `stream/audio/lite-07/encode` | 8 (6..10) | 6 (5..8) | 2 (2..3) | 3.0x |
+| `stream/audio/lite-07/decode` | 22 (19..27) | 20 (17..22) | 2 (2..3) | 8.4x |
 
 A video group is 60 frames, 577 KB; an audio group is 50 frames of 160 bytes. Measure
-each step on these before the next.
+each change on these.
 
-1. **Grow a `Vec` as Rust does.** Half of a video stream's time is `runtime.memmove`
-   in `append`, which grows a slice past 256 elements by about 1.25x where Rust's `Vec`
-   doubles, so Go copies the output several times more. Translation refuses
-   `Vec::capacity`, so the growth is not observable: a runtime `push` and `extend` that
-   grow by `slices.Grow(s, max(n, cap(s)))` match Rust's amortized doubling.
-2. **Structure control flow on a crate shared with rust2-ts.** Labels and `goto` put a
-   function past Go's inlining budget: a one-line `Try::branch` costs 81 against 80, so
-   each `?` is a call. Move rust2-ts's `cfg` (`ts/src/lower/mir/cfg.rs`) into a crate both
-   translators use, generic over their statements, as the epic decides. rust2-ts's output
-   must not change: its lang and reject snapshots stay put.
-3. **Split enums into their parts:** a Go variable per part for a local, and Go results
-   for a return, as rust2-ts's `Slotted` (`ts/src/lower/mir/scalar.rs`) hands back a
-   `Result`'s parts. An audio stream's remaining gap is mostly its frame headers, which
-   the per-call `frames/` workloads measure at 17 to 32 times cgo.
+Structuring control flow as rust2-ts does, through the `cfg` both now share
+(`driver/src/cfg.rs`), moved none of these past noise: per-call encodes 4 to 9% faster,
+decodes and the streams flat, in medians of eight runs alternating with and without it.
+Folding had already brought `?`'s helpers within Go's inlining budget (`Try::branch`
+costs 53 against 80), so the hand edit's 88 to 73 ns below did not recur.
 
-The cost step 3 removes is Go's register ABI. Go keeps a local of over four words in
+What remains is to **split enums into their parts:** a Go variable per part for a local,
+and Go results for a return, as rust2-ts's `Slotted` (`ts/src/lower/mir/scalar.rs`)
+hands back a `Result`'s parts. An audio stream's remaining gap is mostly its frame
+headers, which the per-call `frames/` workloads measure at 17 to 32 times cgo.
+
+The cost this step removes is Go's register ABI. Go keeps a local of over four words in
 memory and returns a result of over nine on the stack, so each `Option`, `Result`, and
 `ControlFlow` a call returns is stored to its caller's frame, zeroed there first when it
 holds a pointer, and copied out. An enum holds every variant's fields side by side,
@@ -65,11 +64,10 @@ takes 1.0 to 1.2 ns, measure each lever:
 
 | The translation, with | ns |
 | --- | --- |
-| folding, as it is now | 88 |
+| folding and structured control flow, as it is now | 88 |
 | `Result::Err` behind a pointer | 59, but decoding in 3-byte reads is 2.4 times slower, as each `?` allocates the error anew |
 | a non-`Copy` enum's variant of over two words behind a pointer, `DecodeError` 96 to 56 bytes | 88 |
-| structured control flow, so Go inlines `?`'s helpers | 73 |
-| that, and `DecodeError` 40 bytes | 67 |
+| `DecodeError` 40 bytes, in a hand-structured edit at 73 | 67 |
 | each `Result` returned as Go results, its error by pointer, and the helpers inlined | 6.7, and 4.3 for 1 byte |
 
 Laying variants out behind pointers is no lever, so it is not a step.

@@ -3,6 +3,200 @@
 import * as rs from "../../rs.ts";
 
 /**
+ * Advance the internal cursor of the BufMut
+ *
+ * The next call to `chunk_mut` will return a slice starting `cnt` bytes
+ * further into the underlying buffer.
+ *
+ * # Safety
+ *
+ * The caller must ensure that the next `cnt` bytes of `chunk` are
+ * initialized.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * // Write some data
+ * buf.chunk_mut()[0..2].copy_from_slice(b"he");
+ * unsafe { buf.advance_mut(2) };
+ *
+ * // write more bytes
+ * buf.chunk_mut()[0..3].copy_from_slice(b"llo");
+ *
+ * unsafe { buf.advance_mut(3); }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Panics
+ *
+ * This function **may** panic if `cnt > self.remaining_mut()`.
+ *
+ * # Implementer notes
+ *
+ * It is recommended for implementations of `advance_mut` to panic if
+ * `cnt > self.remaining_mut()`. If the implementation does not panic,
+ * the call must behave as if `cnt == self.remaining_mut()`.
+ *
+ * A call with `cnt == 0` should never panic and be a no-op.
+ */
+export function advanceMut$bytes_BufMut_mut_Vec_u8(self: rs.Place<rs.ByteVec>, cnt: rs.usize): void {
+	rs.byteVecAdvanceMut(self.v, cnt);
+}
+
+/**
+ * Advance the internal cursor of the BufMut
+ *
+ * The next call to `chunk_mut` will return a slice starting `cnt` bytes
+ * further into the underlying buffer.
+ *
+ * # Safety
+ *
+ * The caller must ensure that the next `cnt` bytes of `chunk` are
+ * initialized.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * // Write some data
+ * buf.chunk_mut()[0..2].copy_from_slice(b"he");
+ * unsafe { buf.advance_mut(2) };
+ *
+ * // write more bytes
+ * buf.chunk_mut()[0..3].copy_from_slice(b"llo");
+ *
+ * unsafe { buf.advance_mut(3); }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Panics
+ *
+ * This function **may** panic if `cnt > self.remaining_mut()`.
+ *
+ * # Implementer notes
+ *
+ * It is recommended for implementations of `advance_mut` to panic if
+ * `cnt > self.remaining_mut()`. If the implementation does not panic,
+ * the call must behave as if `cnt == self.remaining_mut()`.
+ *
+ * A call with `cnt == 0` should never panic and be a no-op.
+ */
+export function advanceMut$bytes_BufMut_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, cnt: rs.usize): void {
+	rs.bytesMutAdvanceMut(self.v, cnt);
+}
+
+/**
+ * Returns a mutable slice starting at the current BufMut position and of
+ * length between 0 and `BufMut::remaining_mut()`. Note that this *can* be shorter than the
+ * whole remainder of the buffer (this allows non-continuous implementation).
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * The returned byte slice may represent uninitialized memory.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * unsafe {
+ *     // MaybeUninit::as_mut_ptr
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'h');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'e');
+ *
+ *     buf.advance_mut(2);
+ *
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[2..].as_mut_ptr().write(b'o');
+ *
+ *     buf.advance_mut(3);
+ * }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. `chunk_mut()` should return an empty
+ * slice **if and only if** `remaining_mut()` returns 0. In other words,
+ * `chunk_mut()` returning an empty slice implies that `remaining_mut()` will
+ * return 0 and `remaining_mut()` returning 0 implies that `chunk_mut()` will
+ * return an empty slice.
+ *
+ * This function may trigger an out-of-memory abort if it tries to allocate
+ * memory and fails to do so.
+ */
+export function chunkMut$bytes_BufMut_mut_Vec_u8(self: rs.Place<rs.ByteVec>): rs.ByteSlice {
+	return rs.byteVecChunkMut(self.v);
+}
+
+/**
+ * Returns a mutable slice starting at the current BufMut position and of
+ * length between 0 and `BufMut::remaining_mut()`. Note that this *can* be shorter than the
+ * whole remainder of the buffer (this allows non-continuous implementation).
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * The returned byte slice may represent uninitialized memory.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * unsafe {
+ *     // MaybeUninit::as_mut_ptr
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'h');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'e');
+ *
+ *     buf.advance_mut(2);
+ *
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[2..].as_mut_ptr().write(b'o');
+ *
+ *     buf.advance_mut(3);
+ * }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. `chunk_mut()` should return an empty
+ * slice **if and only if** `remaining_mut()` returns 0. In other words,
+ * `chunk_mut()` returning an empty slice implies that `remaining_mut()` will
+ * return 0 and `remaining_mut()` returning 0 implies that `chunk_mut()` will
+ * return an empty slice.
+ *
+ * This function may trigger an out-of-memory abort if it tries to allocate
+ * memory and fails to do so.
+ */
+export function chunkMut$bytes_BufMut_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>): rs.ByteSlice {
+	return rs.bytesMutChunkMut(self.v);
+}
+
+/**
  * Writes a signed 16 bit integer to `self` in little-endian byte order.
  *
  * The current position is advanced by 2.
@@ -341,6 +535,54 @@ export function putU32$bytes_BufMut_mut_bytes_BytesMut(self: rs.Place<rs.BytesMu
 }
 
 /**
+ * Writes an unsigned 32 bit integer to `self` in little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = vec![];
+ * buf.put_u32_le(0x0809A0A1);
+ * assert_eq!(buf, b"\xA1\xA0\x09\x08");
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining capacity in
+ * `self`.
+ */
+export function putU32Le$bytes_BufMut_mut_Vec_u8(self: rs.Place<rs.ByteVec>, n: rs.u32): void {
+	rs.byteVecPutWord(self.v, n, 4, true);
+}
+
+/**
+ * Writes an unsigned 32 bit integer to `self` in little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = vec![];
+ * buf.put_u32_le(0x0809A0A1);
+ * assert_eq!(buf, b"\xA1\xA0\x09\x08");
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining capacity in
+ * `self`.
+ */
+export function putU32Le$bytes_BufMut_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, n: rs.u32): void {
+	rs.bytesMutPutWord(self.v, n, 4, true);
+}
+
+/**
  * Writes an unsigned 64 bit integer to `self` in little-endian byte order.
  *
  * The current position is advanced by 8.
@@ -588,6 +830,45 @@ export function remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut(self: rs.
  *
  * `remaining_mut` may return value smaller than actual available space.
  */
+export function remainingMut$bytes_BufMut_mut_boxed_Box_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>): rs.usize {
+	return remainingMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self.v);
+}
+
+/**
+ * Returns the number of bytes that can be written from the current
+ * position until the end of the buffer is reached.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk_mut()`.
+ *
+ * Writing to a `BufMut` may involve allocating more memory on the fly.
+ * Implementations may fail before reaching the number of bytes indicated
+ * by this method if they encounter an allocation failure.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut dst = [0; 10];
+ * let mut buf = &mut dst[..];
+ *
+ * let original_remaining = buf.remaining_mut();
+ * buf.put(&b"hello"[..]);
+ *
+ * assert_eq!(original_remaining - 5, buf.remaining_mut());
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining_mut` should ensure that the return value
+ * does not change unless a call is made to `advance_mut` or any other
+ * function that is documented to change the `BufMut`'s current position.
+ *
+ * # Note
+ *
+ * `remaining_mut` may return value smaller than actual available space.
+ */
 export function remainingMut$bytes_BufMut_mut_bytes_BytesMut(self: rs.BytesMut): rs.usize {
 	return 0x7fffffff - self.length as rs.usize;
 }
@@ -668,6 +949,103 @@ export function remainingMut$bytes_BufMut_mut_mut_Vec_u8(self: rs.Place<rs.ByteV
  */
 export function remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>): rs.usize {
 	return remainingMut$bytes_BufMut_mut_bytes_BytesMut(self.v);
+}
+
+/**
+ * Advance the internal cursor of the BufMut
+ *
+ * The next call to `chunk_mut` will return a slice starting `cnt` bytes
+ * further into the underlying buffer.
+ *
+ * # Safety
+ *
+ * The caller must ensure that the next `cnt` bytes of `chunk` are
+ * initialized.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * // Write some data
+ * buf.chunk_mut()[0..2].copy_from_slice(b"he");
+ * unsafe { buf.advance_mut(2) };
+ *
+ * // write more bytes
+ * buf.chunk_mut()[0..3].copy_from_slice(b"llo");
+ *
+ * unsafe { buf.advance_mut(3); }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Panics
+ *
+ * This function **may** panic if `cnt > self.remaining_mut()`.
+ *
+ * # Implementer notes
+ *
+ * It is recommended for implementations of `advance_mut` to panic if
+ * `cnt > self.remaining_mut()`. If the implementation does not panic,
+ * the call must behave as if `cnt == self.remaining_mut()`.
+ *
+ * A call with `cnt == 0` should never panic and be a no-op.
+ */
+export function advanceMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, cnt: rs.usize): void {
+	advanceMut$bytes_BufMut_mut_bytes_BytesMut(rs.place(() => self.v, (value) => self.v = value), cnt);
+}
+
+/**
+ * Returns a mutable slice starting at the current BufMut position and of
+ * length between 0 and `BufMut::remaining_mut()`. Note that this *can* be shorter than the
+ * whole remainder of the buffer (this allows non-continuous implementation).
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * The returned byte slice may represent uninitialized memory.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = Vec::with_capacity(16);
+ *
+ * unsafe {
+ *     // MaybeUninit::as_mut_ptr
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'h');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'e');
+ *
+ *     buf.advance_mut(2);
+ *
+ *     buf.chunk_mut()[0..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[1..].as_mut_ptr().write(b'l');
+ *     buf.chunk_mut()[2..].as_mut_ptr().write(b'o');
+ *
+ *     buf.advance_mut(3);
+ * }
+ *
+ * assert_eq!(5, buf.len());
+ * assert_eq!(buf, b"hello");
+ * ```
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. `chunk_mut()` should return an empty
+ * slice **if and only if** `remaining_mut()` returns 0. In other words,
+ * `chunk_mut()` returning an empty slice implies that `remaining_mut()` will
+ * return 0 and `remaining_mut()` returning 0 implies that `chunk_mut()` will
+ * return an empty slice.
+ *
+ * This function may trigger an out-of-memory abort if it tries to allocate
+ * memory and fails to do so.
+ */
+export function chunkMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>): rs.ByteSlice {
+	return chunkMut$bytes_BufMut_mut_bytes_BytesMut(rs.place(() => self.v, (value) => self.v = value));
 }
 
 /**
@@ -913,6 +1291,31 @@ export function putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut(self: rs.Place<rs
 }
 
 /**
+ * Transfer bytes into `self` from `src` and advance the cursor by the
+ * number of bytes written.
+ *
+ * `self` must have enough remaining capacity to contain all of `src`.
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut dst = [0; 6];
+ *
+ * {
+ *     let mut buf = &mut dst[..];
+ *     buf.put_slice(b"hello");
+ *
+ *     assert_eq!(1, buf.remaining_mut());
+ * }
+ *
+ * assert_eq!(b"hello\0", &dst);
+ * ```
+ */
+export function putSlice$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, src: rs.ByteSlice): void {
+	putSlice$bytes_BufMut_mut_bytes_BytesMut(rs.place(() => self.v, (value) => self.v = value), src);
+}
+
+/**
  * Writes an unsigned 16 bit integer to `self` in big-endian byte order.
  *
  * The current position is advanced by 2.
@@ -1006,6 +1409,30 @@ export function putU32$bytes_BufMut_boxed_Box_Vec_u8(self: rs.Place<rs.ByteVec>,
  */
 export function putU32$bytes_BufMut_boxed_Box_bytes_BytesMut(self: rs.Place<rs.BytesMut>, n: rs.u32): void {
 	rs.bytesMutPutWord(self.v, n, 4, false);
+}
+
+/**
+ * Writes an unsigned 32 bit integer to `self` in little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut buf = vec![];
+ * buf.put_u32_le(0x0809A0A1);
+ * assert_eq!(buf, b"\xA1\xA0\x09\x08");
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining capacity in
+ * `self`.
+ */
+export function putU32Le$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, n: rs.u32): void {
+	putU32Le$bytes_BufMut_mut_bytes_BytesMut(rs.place(() => self.v, (value) => self.v = value), n);
 }
 
 /**
@@ -1180,6 +1607,45 @@ export function remainingMut$bytes_BufMut_boxed_Box_Vec_u8(self: rs.ByteVec): rs
  */
 export function remainingMut$bytes_BufMut_boxed_Box_bytes_BytesMut(self: rs.BytesMut): rs.usize {
 	return 0x7fffffff - self.length as rs.usize;
+}
+
+/**
+ * Returns the number of bytes that can be written from the current
+ * position until the end of the buffer is reached.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk_mut()`.
+ *
+ * Writing to a `BufMut` may involve allocating more memory on the fly.
+ * Implementations may fail before reaching the number of bytes indicated
+ * by this method if they encounter an allocation failure.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::BufMut;
+ *
+ * let mut dst = [0; 10];
+ * let mut buf = &mut dst[..];
+ *
+ * let original_remaining = buf.remaining_mut();
+ * buf.put(&b"hello"[..]);
+ *
+ * assert_eq!(original_remaining - 5, buf.remaining_mut());
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining_mut` should ensure that the return value
+ * does not change unless a call is made to `advance_mut` or any other
+ * function that is documented to change the `BufMut`'s current position.
+ *
+ * # Note
+ *
+ * `remaining_mut` may return value smaller than actual available space.
+ */
+export function remainingMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut(self: rs.BytesMut): rs.usize {
+	return remainingMut$bytes_BufMut_mut_bytes_BytesMut(self);
 }
 
 //# sourceMappingURL=buf_mut.ts.map

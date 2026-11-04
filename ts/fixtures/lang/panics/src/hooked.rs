@@ -375,7 +375,7 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let whole = Bytes::from(vec![n; 4]);
 	// `slice_ref`'s message names addresses, which JS has none of, so its hook reads where
 	// alone, then panics, which aborts and leaves the message unread.
-	if let k @ 0..=1 = kind % 30 {
+	if let k @ 0..=1 = kind % 33 {
 		panic::set_hook(Box::new(|info| {
 			let at = info.location().unwrap();
 			let line = format!("{} {} {}\n", at.file(), at.line(), at.column());
@@ -392,7 +392,7 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	hook();
 	let mut shared = BytesMut::from(&[n; 8][..]);
-	match kind % 30 {
+	match kind % 33 {
 		2 => out.extend_from_slice(&whole.slice(at + 3..2)),
 		3 => out.extend_from_slice(&whole.slice(..at + 5)),
 		4 => out.extend_from_slice(&whole.slice(usize::MAX - at % 2..=usize::MAX)),
@@ -443,6 +443,13 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		26 => (&mut *out).put_bytes(n, usize::MAX - at % 2),
 		27 => out.extend_from_slice(&whole.clone().take(2).copy_to_bytes(at + 3)),
 		28 => out.push(whole.clone().take(1).get_u16() as u8),
+		// Past the chunk `chunk_mut` lends, which is of 64 bytes once it reserved them.
+		29 => {
+			let chunk = shared.chunk_mut();
+			chunk.write_byte(chunk.len() + at % 2, n);
+		}
+		30 => Vec::<u8>::with_capacity(at % 4).chunk_mut()[65 + at % 2..].write_byte(0, n),
+		31 => BytesMut::new().chunk_mut()[..at % 2].copy_from_slice(&[n; 3]),
 		_ => out.push(BytesMut::zeroed(usize::MAX - at).len() as u8),
 	}
 	out.extend_from_slice(&shared);

@@ -42,6 +42,27 @@ pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 	}
 }
 
+/// The `[MaybeUninit<u8>]` that `ty` wraps if it is `bytes`' `UninitSlice`, which is
+/// `#[repr(transparent)]` over it, so JS keeps it as that slice's `rs.ByteSlice`, which
+/// views the storage of the buffer that lends it.
+pub fn uninit_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Adt(adt, _) if is_uninit_slice(tcx, adt.did()) => {
+			Some(Ty::new_slice(tcx, Ty::new_maybe_uninit(tcx, tcx.types.u8)))
+		}
+		_ => None,
+	}
+}
+
+/// Whether `did` is `bytes`' `UninitSlice`.
+pub fn is_uninit_slice(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	is_stock(tcx, did)
+		&& tcx.crate_name(did.krate).as_str() == "bytes"
+		&& tcx
+			.opt_item_name(did)
+			.is_some_and(|name| name.as_str() == "UninitSlice")
+}
+
 /// Whether `did` is an item of `hashbrown`, whose tables are std's, so its functions map
 /// as std's do.
 pub fn as_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
@@ -634,6 +655,7 @@ fn buf_mut<'tcx>(
 		),
 		"has_remaining_mut" => this.member("length").binary("<", isize_max),
 		"advance_mut" => rs("AdvanceMut", vec![this, args.next()?]),
+		"chunk_mut" => rs("ChunkMut", vec![this]),
 		"put_slice" if buffer == Buffer::BytesMut => Expr::rs("bytesMutExtend", vec![this, args.next()?]),
 		"put_slice" => Expr::rs("byteVecExtendFromSlice", vec![this, args.next()?]),
 		"put" => put(b, call, buffer, through, this, args.next()?, out)?,

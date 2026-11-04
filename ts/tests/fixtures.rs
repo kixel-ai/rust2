@@ -23,6 +23,11 @@ fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
 
+/// The manifest of the workspace the fixtures but `model` are members of.
+fn workspace() -> PathBuf {
+	manifest_dir().join("Cargo.toml")
+}
+
 fn fixture(name: &str) -> PathBuf {
 	manifest_dir().join("fixtures").join(name)
 }
@@ -173,8 +178,8 @@ fn typecheck(out: &Path) {
 
 /// Run the harness natively, as wasm32, and translated, on the same inputs: the
 /// translated side through `entry`, a module in `out`. `build` are the native build's
-/// arguments, such as `--features`.
-fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
+/// arguments, such as `--features`, in the workspace whose manifest is `workspace`.
+fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
 	let target_dir = scratch().join("wasm");
 	let status = cargo()
 		.args([
@@ -193,7 +198,7 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
 		.env("RUSTFLAGS", remap())
 		.arg("--manifest-path")
-		.arg(manifest_dir().join("Cargo.toml"))
+		.arg(workspace)
 		.status()
 		.expect("running cargo");
 	assert!(status.success(), "building {package} for {TARGET} failed");
@@ -229,8 +234,25 @@ fn codec() {
 	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
 	// As many random inputs per case as each had of 20,000 picked by their first byte.
-	differential("codec-fixture", &[], &out, "caller.ts", 2_300);
+	differential(&workspace(), "codec-fixture", &[], &out, "caller.ts", 2_300);
 	shake(&out);
+}
+
+/// moq-net's model at the moq pin, translated with the harness as one program.
+#[test]
+fn model() {
+	let out = translated("model");
+	snapshot("model", &out);
+	std::fs::copy(fixture("model").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	differential(
+		&fixture("model").join("Cargo.toml"),
+		"model-fixture",
+		&["--config", GETRANDOM],
+		&out,
+		"caller.ts",
+		2_000,
+	);
 }
 
 /// A caller of two functions of a type, through its module, as moq's TypeScript calls
@@ -523,7 +545,14 @@ fn lang(module: &str, feature: Option<&str>) {
 	}
 	typecheck(&out);
 	// As many random inputs per case as when one fixture held every module.
-	differential(&format!("lang-{module}-fixture"), &build, &out, entry, 151);
+	differential(
+		&workspace(),
+		&format!("lang-{module}-fixture"),
+		&build,
+		&out,
+		entry,
+		151,
+	);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.
@@ -532,7 +561,7 @@ fn share() {
 	let out = translated("share");
 	snapshot("share", &out);
 	typecheck(&out);
-	differential("share-fixture", &[], &out, "harness.ts", 1_000);
+	differential(&workspace(), "share-fixture", &[], &out, "harness.ts", 1_000);
 	let config = fixture("share").join("ts.toml");
 	for feature in ["call", "pointer", "unwritten"] {
 		let out = scratch().join("share").join(feature);
@@ -550,7 +579,14 @@ fn share() {
 			String::from_utf8_lossy(&output.stderr)
 		);
 		typecheck(&out);
-		differential("share-fixture", &["--features", feature], &out, "harness.ts", 1_000);
+		differential(
+			&workspace(),
+			"share-fixture",
+			&["--features", feature],
+			&out,
+			"harness.ts",
+			1_000,
+		);
 	}
 }
 
@@ -596,7 +632,7 @@ export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 	std::fs::write(out.join("caller.ts"), text).unwrap();
 	typecheck(out);
 	// Each step as often in random scripts as its share of 20,000 that mixed every step.
-	differential("task-fixture", &[], out, "caller.ts", 800);
+	differential(&workspace(), "task-fixture", &[], out, "caller.ts", 800);
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.
@@ -737,7 +773,7 @@ fn bind() {
 	let out = translated("bind");
 	snapshot("bind", &out);
 	typecheck(&out);
-	differential("bind-fixture", &[], &out, "harness.ts", 1_000);
+	differential(&workspace(), "bind-fixture", &[], &out, "harness.ts", 1_000);
 	// Each through a symlink, as a linked target directory reaches its output, though `tsc`
 	// names each file from the real directory.
 	let real = scratch().join("bind").join("real");
@@ -783,7 +819,7 @@ fn crates() {
 	let out = translated("crates");
 	snapshot("crates", &out);
 	typecheck(&out);
-	differential("crates-fixture", &[], &out, "harness.ts", 1_000);
+	differential(&workspace(), "crates-fixture", &[], &out, "harness.ts", 1_000);
 	let cases: [(&str, &str, &[&str]); 4] = [
 		("refused", "refused.toml", &[]),
 		("shared", "ts.toml", &["--", "--features", "shared"]),
@@ -1080,5 +1116,12 @@ fn stock() {
 	std::fs::copy(fixture("stock").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
 	// As many random inputs per case as each had of 5,000 picked by their first byte.
-	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 320);
+	differential(
+		&workspace(),
+		"stock-fixture",
+		&["--config", GETRANDOM],
+		&out,
+		"caller.ts",
+		320,
+	);
 }
