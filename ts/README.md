@@ -386,6 +386,10 @@ each item's fields go into them in order, as `rs.tupleExtend(t, it, [rs.vecPart(
 rs.STRING_PART])`. The crate's own `Default + Extend` collection keeps the defaults stable
 Rust can't override: it reserves nothing, and takes each item by its `extend` of `Some(item)`,
 through `rs.ownPart`. Any other collection in one is refused.
+The crate's own collection is collected by its own `FromIterator`, which `collect` and a
+`collect` into a `Result` or an `Option` of it call with the iterator, as std's do, and std's
+adaptors that take an `IntoIterator`, such as `flat_map`, `flatten`, `chain`, `zip`, and
+`extend`, iterate it by its own `into_iter`.
 
 `clone` of one of std's iterators or adaptors is its `rs.Iter`'s `clone`, which reads on
 from where the original was, independently of it, as std's `Clone` does; one over a hash
