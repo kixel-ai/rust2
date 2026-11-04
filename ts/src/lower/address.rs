@@ -10,8 +10,8 @@
 //! holds beside another whose address is read, nor holds many of. Nothing makes a pointer
 //! of an address, which JS has no memory at.
 
-use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_abi::{FieldsShape, Variants};
+use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
@@ -363,7 +363,9 @@ impl<'tcx> Placed<'tcx> {
 	/// array, whose others are where those two say.
 	fn fields(&mut self, layout: TyAndLayout<'tcx>, offset: u64, align: u64, holder: Ty<'tcx>) -> Result<(), Ty<'tcx>> {
 		let variants = match &layout.variants {
-			Variants::Multiple { variants, .. } => variants.indices().map(|v| layout.for_variant(&self.cx, v)).collect(),
+			Variants::Multiple { variants, .. } => {
+				variants.indices().map(|v| layout.for_variant(&self.cx, v)).collect()
+			}
 			Variants::Single { .. } => vec![layout],
 			Variants::Empty => Vec::new(),
 		};
