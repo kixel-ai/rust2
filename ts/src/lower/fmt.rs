@@ -262,7 +262,14 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `fmt::Write`'s `name` of the `String` `s`, writing `arg`, a `fmt::Arguments` whose only
 	/// piece is `literal` if it is one, in place: what the call returns. What a placeholder
 	/// wrote before an error stays written.
-	pub fn string_write(&mut self, name: &str, s: Expr, arg: Expr, literal: Option<String>, out: &mut Vec<Stmt>) -> Expr {
+	pub fn string_write(
+		&mut self,
+		name: &str,
+		s: Expr,
+		arg: Expr,
+		literal: Option<String>,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
 		let pushed = match (name, literal) {
 			("write_char", _) => Expr::rs("stringPush", vec![s, arg]),
 			("write_fmt", Some(text)) => Expr::rs("stringPushStr", vec![s, Expr::Str(text)]),

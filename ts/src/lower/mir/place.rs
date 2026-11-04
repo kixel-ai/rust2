@@ -645,7 +645,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								crate::ts::Type::Rs("Vec", vec![elem]),
 							)
 						}
-						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Rs("String", Vec::new())),
+						_ => (
+							crate::ts::Type::Builtin("string"),
+							crate::ts::Type::Rs("String", Vec::new()),
+						),
 					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rs("ByteSlice", Vec::new()),

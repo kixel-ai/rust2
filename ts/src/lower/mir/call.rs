@@ -757,7 +757,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if crate::lower::iter::str_array(source) {
 					return done(Expr::rs("stringExtendArray", vec![s, items]), true);
 				}
-				done(crate::lower::iter::string_extend(self.b, s, items, item, iter, span)?, true)
+				done(
+					crate::lower::iter::string_extend(self.b, s, items, item, iter, span)?,
+					true,
+				)
 			}
 			("String", "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact") => {
 				let values = self.operands(false, &[], args, tcx.types.unit, span, out);
@@ -861,7 +864,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("Cow", "to_mut") if targ(0).is_some_and(|t| t.is_str()) => {
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				self.set_borrowed(&place, Expr::rs("strCowIntoOwned", vec![place.0.clone()]), span, out);
-				done(Expr::As(Box::new(place.0), crate::ts::Type::Rs("String", Vec::new())), false)
+				done(
+					Expr::As(Box::new(place.0), crate::ts::Type::Rs("String", Vec::new())),
+					false,
+				)
 			}
 			// A `String` is the place of its `str`.
 			("String", "as_mut_str" | "leak") => done(self.operand(&args[0].node, span, out), false),
@@ -872,7 +878,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(self.operand(&args[0].node, span, out), false)
 			}
 			("DerefMut", "deref_mut") | ("AsMut", "as_mut") | ("BorrowMut", "borrow_mut")
-				if targ(0).is_some_and(|t| t.is_str()) && dest.ty(&self.mir.local_decls, tcx).ty.peel_refs().is_str() =>
+				if targ(0).is_some_and(|t| t.is_str())
+					&& dest.ty(&self.mir.local_decls, tcx).ty.peel_refs().is_str() =>
 			{
 				self.same_place(args, dest, span, out)
 			}
@@ -1833,7 +1840,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let get = matches!(name, "get" | "get_mut");
 			let base = self.operand(&args[0].node, span, out);
 			// A `String` is the place of its text.
-			let base = match self.b.t.std_of(container) == Some(Std::String) && !matches!(name, "index_mut" | "get_mut") {
+			let base = match self.b.t.std_of(container) == Some(Std::String) && !matches!(name, "index_mut" | "get_mut")
+			{
 				true => base.member("v"),
 				false => base,
 			};

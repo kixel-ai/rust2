@@ -1590,7 +1590,9 @@ fn mapping<'tcx>(
 					_ if cow_str(tcx, to) && !raw.is_ref() && owned_string(tcx, raw) => {
 						cow_made(tcx.types.str_, rustc_abi::VariantIdx::from_u32(1), value)
 					}
-					_ if cow_str(tcx, to) => cow_made(tcx.types.str_, rustc_abi::FIRST_VARIANT, text(tcx, peeled, value)),
+					_ if cow_str(tcx, to) => {
+						cow_made(tcx.types.str_, rustc_abi::FIRST_VARIANT, text(tcx, peeled, value))
+					}
 					// A `Box<str>` is its text, a `String`'s once it shrinks to fit.
 					_ => text(tcx, peeled, value),
 				});
@@ -2879,7 +2881,9 @@ fn mapping<'tcx>(
 		}
 		// The `String` a `Cow<str>` owns, or one of the text it borrows.
 		("Cow", "into_owned") if targ(gargs, 0).is_str() => Expr::rs("strCowIntoOwned", args),
-		("AsRef", "as_ref") if textual(tcx, targ(gargs, 0)) && !cow_str(tcx, targ(gargs, 0)) && targ(gargs, 1).is_str() => {
+		("AsRef", "as_ref")
+			if textual(tcx, targ(gargs, 0)) && !cow_str(tcx, targ(gargs, 0)) && targ(gargs, 1).is_str() =>
+		{
 			text(tcx, targ(gargs, 0), args.pop()?)
 		}
 		// A `Cow<[T]>` borrows its slice, and its `Vec` is its own or a clone of what it
@@ -3119,7 +3123,9 @@ fn mapping<'tcx>(
 			let value = args.pop()?;
 			let size = match ty.kind() {
 				ty::Adt(..) if textual(tcx, ty) && !string(tcx, ty) => return Some(string_from(text(tcx, ty, value))),
-				ty::Adt(..) if b.t.std_of(ty) == Some(Std::Arguments) => return Some(Expr::rs("fmtFormat", vec![value])),
+				ty::Adt(..) if b.t.std_of(ty) == Some(Std::Arguments) => {
+					return Some(Expr::rs("fmtFormat", vec![value]));
+				}
 				ty::Char | ty::Bool | ty::Uint(_) => Some(0),
 				ty::Int(int) => Some(match int.bit_width().unwrap_or(32) {
 					8 => 3,
@@ -3131,7 +3137,14 @@ fn mapping<'tcx>(
 				_ => None,
 			};
 			let value = b.fmt_value(fmt::Trait::Display, ty, value, span, out);
-			Expr::rs("fmtToString", [vec![value], size.map(|n: u32| Expr::lit(n.to_string())).into_iter().collect()].concat())
+			Expr::rs(
+				"fmtToString",
+				[
+					vec![value],
+					size.map(|n: u32| Expr::lit(n.to_string())).into_iter().collect(),
+				]
+				.concat(),
+			)
 		}
 		// `fmt::Write`'s, of a `String`, a `Formatter`, or the crate's own writer.
 		("Write", "write_str" | "write_char" | "write_fmt")
