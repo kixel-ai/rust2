@@ -1,6 +1,6 @@
 // moq.c's script through the generated Dart: a broadcast's track, published and subscribed
 // to in one process, with every read awaited, and an origin, its driver run from the
-// isolate's event loop, with moq-pattern, moq-clock, moq-tokio, hang, and moq-mux exported
+// isolate's event loop, with moq-pattern, kio, moq-tokio, hang, and moq-mux exported
 // into the same library, and the catalog lent to Dart for a call.
 //
 // A local read that must wait completes once the write that wakes it lands, on the event
@@ -54,9 +54,9 @@ Future<moq.Error> drive(moq.OriginDriver driver) {
     // A wake posted before the driver finished may land after.
     if (finished.isCompleted) return;
     try {
-      final next = driver.poll(moq.now(), waiter);
+      final next = driver.poll(moq.clockNow(), waiter);
       if (next != null) {
-        deadline = Timer(next.saturatingDurationSince(moq.now()), poll);
+        deadline = Timer(next.saturatingDurationSince(moq.clockNow()), poll);
         next.close();
       }
     } on moq.Error catch (e) {
@@ -113,8 +113,8 @@ Future<void> local() async {
   final hello = (await read.timeout(const Duration(seconds: 5)))!;
   expect(utf8.decode(hello.payload) == 'hello', 'a frame has its payload');
   expect(hello.timestamp == null, 'an untimed frame has no timestamp');
-  // When it arrived: moq-clock's `Instant`, from moq-clock's own export.
-  expect(moq.now().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
+  // When it arrived: kio's clock's `Instant`, from kio's own export.
+  expect(moq.clockNow().checkedDurationSince(hello.arrived()) != null, 'a frame arrived before now');
 
   // A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
   // untimed, so a timestamped frame is refused.
@@ -167,9 +167,9 @@ Future<void> origin() async {
   expect(path.asStr() == 'room/alice', 'a broadcast has its path');
 
   // Paths own their segments, so Dart builds them, and relative ones, from a string.
-  throws<moq.PathInvalid>(
+  throws<moq.PathError>(
     () => moq.Path('/cam/'),
-    (e) => e == moq.PathInvalid.emptySegment,
+    (e) => e == moq.PathError.emptySegment,
     'an empty segment is its own error',
   );
   final cam = moq.Path('cam');
@@ -236,7 +236,7 @@ Future<void> catalog() async {
   // a JSON document, and a section Dart parses from text, set in the lent catalog and read
   // back as text.
   final status = producer.jsonSnapshotConfig(
-    publisher.createTrack('status', null),
+    publisher.createTrack('status', moq.TrackInfo.default_().withTimescale(moq.Timescale.milli)),
     moq.JsonConfig.default_(),
     moq.JsonOptions.default_(),
   );
@@ -245,7 +245,7 @@ Future<void> catalog() async {
   // A value Dart parses is published as the track's latest, which a subscriber reads back
   // as JSON text.
   final on = moq.Json.parse('{"on": true}');
-  status.update(on);
+  status.update(on, moq.Timestamp.now());
   on.close();
   final latest = await (await status.consume().recvGroup())?.readFrame();
   expect(latest != null && utf8.decode(latest.payload) == '{"on":true}', 'a subscriber reads the latest value');
@@ -369,7 +369,7 @@ Future<void> session() async {
   expect(connection != null, 'a client with a URL dials it');
   final established = await connection!.established();
 
-  final broadcast = await remote.requestBroadcast('live', null);
+  final broadcast = await remote.request('live', null);
   final subscriber = await broadcast.track('video').subscribe(null);
   final group = await subscriber.recvGroup();
   final frame = await group?.readFrame();
