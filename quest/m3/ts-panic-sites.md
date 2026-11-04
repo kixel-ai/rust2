@@ -8,14 +8,23 @@ locate" error, proven by the panics fixture's hooked cases.
 
 ## Plan
 
-The panics that carry none yet, each in std's own code that neither tracks its caller
-nor sits in a macro the translator locates, found by running every `lang` fixture as a
-hook program:
+What remains is `bytes`: the panics of `Bytes`, `BytesMut`, and the `Buf` and `BufMut`
+methods whose mapping makes them, each where `bytes`' own source has it. Some are at a call
+of its `#[track_caller]` `range`, some in its macros' calls, as `Buf::get_*`'s, and some
+in std, as `Vec::with_capacity`'s, whose `SITES` key already holds. They include
+`BytesMut::set_len` past the capacity, and `advance_mut` of a `BytesMut` or a `Vec<u8>`
+past its room.
 
-- An integer range's `Step::forward` overflow, in `step_integer_impls!` (iters).
-- A slice's `join` and `concat` whose length overflows (joins).
-- `RefCell`'s comparisons of one already mutably borrowed (collections).
-- `Bytes` and `BytesMut`'s, at a path under the native build's cargo registry.
+Native names that source by the path cargo hands rustc: the host's registry, as
+`$CARGO_HOME/registry/src/index.crates.io-<hash>/bytes-<version>/src/bytes.rs`, unless the
+build remaps it. The session's source map names it the same, so matching native puts the
+host's path in the output, which is then as reproducible as native's and no more. Which
+name to give is the maintainer's decision:
+
+- As rustc names it, with the fixtures remapping `CARGO_HOME` in both builds so their
+  snapshots hold on any host. Recommended: it is what native gives, under any remap.
+- A fixed prefix in place of the registry, as std's vendored crates have, which differs
+  from native unless the native build remaps to the same prefix.
 
 Each throws the runtime's error only once it panics. Refusing their calls at translation
 instead refuses most hook programs: forced into hook mode, the `lang` fixtures reach 64
