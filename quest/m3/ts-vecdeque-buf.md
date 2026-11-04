@@ -8,7 +8,7 @@ across a wrapped ring.
 
 ## Plan
 
-Today it is refused at translation. Its chunks follow the ring's split, so the runtime's
-deque must expose its two slices as std's `as_slices` does.
+Today it is refused at translation. The runtime already has the deque's two slices, as
+std's `as_slices`, so the gap is the translator's mapping of `bytes`' impl onto them.
 
 Public API: the translator's output.
