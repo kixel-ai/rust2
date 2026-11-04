@@ -154,6 +154,55 @@ export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
+/** The types of the pointers cast to `*const ()`, by their JS value, which is its identity. */
+const ERASED = /* @__PURE__ */ new WeakMap<object, string[]>();
+
+/**
+ * A `*const ()` at an address no memory is at, as a dangling pointer cast to one is, by
+ * that address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s is.
+ */
+const ERASED_AT = /* @__PURE__ */ new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+
+/** The address of `p`, a `*const ()` that is one of `ERASED_AT`'s, if it is. */
+function erasedAddress(p: Place<undefined>): number | undefined {
+	for (const [addr, at] of ERASED_AT) if (at === p) return addr;
+	return undefined;
+}
+
+/**
+ * `p as *const ()`, of a pointer to a value of Rust type `type`, aligned to `align` bytes:
+ * the same identity, which remembers `type` for a cast back. A dangling pointer is at
+ * `align`, which a cast back keeps.
+ */
+export function ptrErase(p: object, type: string, align: number): Place<undefined> {
+	if (p === NULL) return NULL;
+	if (p === DANGLING || p instanceof Address) {
+		const addr = p === DANGLING ? align : (p as Address).addr;
+		let at = ERASED_AT.get(addr);
+		if (at === undefined) ERASED_AT.set(addr, (at = { v: undefined }));
+		return at;
+	}
+	const types = ERASED.get(p);
+	if (types === undefined) ERASED.set(p, [type]);
+	else if (!types.includes(type)) types.push(type);
+	return p as Place<undefined>;
+}
+
+/**
+ * `p as *const T`, of a `*const ()`, where `T` is Rust type `type` aligned to `align`
+ * bytes: the pointer `ptrErase` erased, which must point at a `type`, since JS keeps no
+ * bytes to read as another, or one at the address it was.
+ */
+export function ptrUnerase(p: Place<undefined>, type: string, align: number): unknown {
+	if (p === NULL) return NULL;
+	const addr = erasedAddress(p);
+	if (addr !== undefined) return addr === align ? DANGLING : addressAt(addr);
+	const types = ERASED.get(p);
+	if (types?.includes(type)) return p;
+	const was = types === undefined ? "a value no cast to `*const ()` erased" : types.map((t) => `\`${t}\``).join(" or ");
+	throw new Error(`rust2-ts: a \`*const ()\` cast back to a pointer to \`${type}\`, which points at ${was}`);
+}
+
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `ByteSlice` of a `[u8; N]`'s bytes.
@@ -215,6 +264,25 @@ class Address implements Place<never> {
 	set v(_: never) {
 		nowhere();
 	}
+}
+
+/** Each `Address` by its address, while any pointer holds it, so pointers at one compare as one. */
+const ADDRESSES = /* @__PURE__ */ new Map<number, WeakRef<Address>>();
+
+/** Forget an address once no pointer holds its `Address`. */
+const UNHELD = /* @__PURE__ */ new FinalizationRegistry<number>((addr) => {
+	if (ADDRESSES.get(addr)?.deref() === undefined) ADDRESSES.delete(addr);
+});
+
+/** The pointer at `addr`, which no memory is at: the same `Address` as every other one there. */
+function addressAt(addr: number): Address {
+	let at = ADDRESSES.get(addr)?.deref();
+	if (at === undefined) {
+		at = new Address(addr);
+		ADDRESSES.set(addr, new WeakRef(at));
+		UNHELD.register(at, addr);
+	}
+	return at;
 }
 
 function nowhere(): never {
@@ -301,7 +369,7 @@ export function ptrWrappingAdd<T>(p: Place<T>, n: number, size: number, align: n
 	if (p === NULL || p === DANGLING || p instanceof Address) {
 		const base = p === NULL ? 0 : p === DANGLING ? align : (p as Address).addr;
 		const addr = Number((BigInt(base) + BigInt(n | 0) * BigInt(size)) & 0xffffffffn);
-		return addr === 0 ? NULL : addr === align ? DANGLING : (new Address(addr) as Place<T>);
+		return addr === 0 ? NULL : addr === align ? DANGLING : (addressAt(addr) as Place<T>);
 	}
 	const e = elemOf(p);
 	return new AtIndex(e.array, wrapIndex(e.index, n | 0, size));

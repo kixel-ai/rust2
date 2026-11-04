@@ -1897,7 +1897,7 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "sources", "once_with", "OnceWith"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
-			| ["collections", "hash", "map" | "set", "ExtractIf"]
+			| ["collections", "hash" | "btree", "map" | "set", "ExtractIf"]
 			| [
 				"str",
 				"iter",

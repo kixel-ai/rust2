@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
+  it is called, rather than a function reading both, which `rt.Bounds` takes as before.
+- `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.
+  An `rt.WakerVTable` is the record of the four functions std's `RawWakerVTable` holds,
+  `clone`, `wake`, `wakeByRef`, and `drop`, each called on a waker's `data`, so a
+  hand-written `rt.Waker`'s `vtable` is an `rt.wakerVTable(...)` of functions that do what
+  the waker does, which `Waker::new` of its parts calls.
+
 - A `dyn Error`'s or `dyn Buf`'s type and classes hold only the methods some call through
   one dispatches to: a TS caller can call no other, such as `getU16Le$Buf` where no Rust
   call reads one through a `dyn Buf`.

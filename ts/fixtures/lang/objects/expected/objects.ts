@@ -473,7 +473,7 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(a.start, a.held.length & 0xff, b7.start, b7.held.length & 0xff)));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(array[0] & 0xff, array[1] & 0xff)));
 	const wakes: rt.Arc<Wakes.Wakes> = new rt.Arc({ _0: new rt.Atomic(0) });
-	const counting: rt.Waker = new rt.ArcWaker(rt.arcClone(wakes), Wakes.wake$task_Wake as (a0: rt.Arc<Wakes.Wakes>) => undefined, (arc: rt.Arc<Wakes.Wakes>) => arc[Symbol.dispose]());
+	const counting: rt.Waker = rt.arcWaker(rt.arcClone(wakes), Wakes.wake$task_Wake as (a0: rt.Arc<Wakes.Wakes>) => undefined, (arc: rt.Arc<Wakes.Wakes>) => arc[Symbol.dispose]());
 	const noop: rt.Waker = rt.NOOP_WAKER.clone();
 	let w2: rt.Waker = noop.clone();
 	for (const _619 of rt.byteSliceView(data)) {
