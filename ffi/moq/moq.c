@@ -421,9 +421,12 @@ int main(void) {
 	CHECK(listed_stats == 1);
 	/* A JSON track the catalog lists, published through moq-mux's generic `json_snapshot`
 	 * at a JSON document, and a section C parses from text, set in the lent catalog and
-	 * read back as text. */
+	 * read back as text. Its track has a timescale, since every write is stamped. */
+	moq_timescale *milli = moq_timescale_milli();
+	moq_track_info *status_info = moq_track_info_with_timescale(moq_track_info_default(), milli);
+	moq_timescale_free(milli);
 	moq_track_producer *status = NULL;
-	CHECK(moq_broadcast_producer_create_track(publisher, str("status"), NULL, &status, &err));
+	CHECK(moq_broadcast_producer_create_track(publisher, str("status"), status_info, &status, &err));
 	moq_json_config *json_config = moq_json_config_default();
 	moq_json_options *json_options = moq_json_options_default();
 	moq_json_snapshot_json *status_snapshot = NULL;
@@ -439,7 +442,9 @@ int main(void) {
 	moq_json *latest = NULL;
 	moq_buf json_err;
 	CHECK(moq_json_parse(str("{\"on\": true}"), &latest, &json_err));
-	CHECK(moq_json_snapshot_json_update(status_snapshot, latest, &mux_err));
+	moq_timestamp *stamp = moq_timestamp_now();
+	CHECK(moq_json_snapshot_json_update(status_snapshot, latest, stamp, &mux_err));
+	moq_timestamp_free(stamp);
 	moq_json_free(latest);
 	moq_track_subscriber *status_subscriber = moq_json_snapshot_json_consume(status_snapshot);
 	moq_track_subscriber_recv_group_future *status_receiving = moq_track_subscriber_recv_group(status_subscriber);

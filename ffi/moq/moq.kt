@@ -211,12 +211,12 @@ fun main() {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Kotlin parses from text, set in the lent catalog and
 	// read back as text.
-	val status = catalog.jsonSnapshotConfig(publisher.createTrack("status", null), JsonConfig.default(), JsonOptions.default())
+	val status = catalog.jsonSnapshotConfig(publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), JsonConfig.default(), JsonOptions.default())
 	expect(status.name() == "status", "a JSON snapshot has its track's name")
 	expect(catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Kotlin parses is published as the track's latest, which a subscriber reads
 	// back as JSON text.
-	Json.parse("""{"on": true}""").use { status.update(it) }
+	Json.parse("""{"on": true}""").use { status.update(it, Timestamp.now()) }
 	runBlocking {
 		val frame = status.consume().recvGroup()?.readFrame()
 		expect(frame?.payload?.toByteArray()?.decodeToString() == """{"on":true}""", "a subscriber reads the latest value")

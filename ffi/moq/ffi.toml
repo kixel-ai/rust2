@@ -13,7 +13,7 @@ exclude = [
     "DecodeError",
     "Driver",
     "IntoBytes",
-    "InvalidEpoch",
+    "InvalidInstance",
     "Path::from_static",
     "Path::parts",
     "Server::accept",
@@ -29,6 +29,7 @@ exclude = [
     "broadcast::Lister::poll_unwanted",
     "broadcast::Lister::poll_wanted",
     "bytes",
+    "datagram::Producer::poll_priority",
     "frame::Buffer",
     "frame::Producer::group",
     "goaway::Consumer::poll",
@@ -75,6 +76,8 @@ exclude = [
 "session::Stats" = "session_stats_snapshot"
 # The rule makes both this type and `Path::relative` `moq_path_relative`.
 "path::Relative" = "relative"
+# The rule makes both this enum and `auth::Request::kind` `moq_auth_request_kind`.
+"auth::RequestKind" = "request_kind"
 
 # Exported with moq-net, whose signatures name its types, such as `Patterns`.
 [crates.moq-pattern]
@@ -102,6 +105,7 @@ exclude = [
     "cli::answer",
     "cli::check_env",
     "cli::usage_rs",
+    "congestion",
     "connect::Addr::pinned",
     "connection::Monitor::poll_presence",
     "crypto::install_default",
@@ -111,7 +115,17 @@ exclude = [
     "notify",
     "panic::isolate",
     "panic::message",
+    "quic::Controller::0",
     "quic::Error",
+    "quic::demux::Counters",
+    "quic::demux::Datagram::local",
+    "quic::demux::Demux::counters",
+    "quic::demux::Discard",
+    "quic::demux::Pin",
+    "quic::demux::Transmit",
+    "quic::demux::WebRtc::pin",
+    "quic::demux::WebRtc::poll_send",
+    "quic::demux::WebRtc::send",
     "quic::driver::ApplicationClose",
     "quic::driver::ConfigError",
     "quic::driver::ConnectionClose",
@@ -144,6 +158,12 @@ exclude = [
     "quic::driver::connection::Connection::open_bi",
     "quic::driver::connection::Connection::open_uni",
     "quic::driver::connection::Connection::peer_identity",
+    "quic::driver::connection::Connection::poll_accept_bi",
+    "quic::driver::connection::Connection::poll_accept_uni",
+    "quic::driver::connection::Connection::poll_closed",
+    "quic::driver::connection::Connection::poll_open_bi",
+    "quic::driver::connection::Connection::poll_open_uni",
+    "quic::driver::connection::Connection::poll_recv_datagram",
     "quic::driver::connection::Connection::read_datagram",
     "quic::driver::connection::Connection::send_datagram",
     "quic::driver::connection::Connection::set_limits",
@@ -170,12 +190,38 @@ exclude = [
     "quic::driver::server",
     "quic::driver::stream",
     "quic::driver::transport",
+    "quic::web::ConnectError",
+    "quic::web::Request::reject",
+    "quic::web::Request::respond",
+    "quic::web::Session::poll_open_request",
+    "quic::web::Session::poll_recv_datagram",
+    "quic::web::Session::request",
+    "quic::web::Session::response",
+    "quic::web::Session::stats",
+    "quic::web::WebTransportError",
+    "quic::web::http",
+    "quic::web::proto",
+    "quic::web::recv::Stream::id",
+    "quic::web::recv::Stream::poll_lease",
+    "quic::web::recv::Stream::poll_read",
+    "quic::web::recv::Stream::poll_reset",
+    "quic::web::recv::Stream::read",
+    "quic::web::recv::Stream::read_exact",
+    "quic::web::send::Finished",
+    "quic::web::send::Stream::id",
+    "quic::web::send::Stream::poll_closed",
+    "quic::web::send::Stream::set_group",
+    "quic::web::send::Stream::write",
     "rustls",
     "secret::Secret::as_bytes",
     "server::Config::websocket",
+    "server::Request::with_quic_limits",
     "server::Request::within",
     "tcp::Error",
     "tcp::Listener",
+    "tcp::TlsAcceptor::accept",
+    "tcp::TlsAcceptor::config",
+    "tcp::TlsAcceptor::offered",
     "tls::Connect::build",
     "tls::Identity::generate",
     "tls::Listen::load_roots",
@@ -185,10 +231,6 @@ exclude = [
     "tls::Serve::config",
     "tls::Serve::resolver",
     "tls::parse_fingerprint",
-    "transport::Error",
-    "transport::RecvStream",
-    "transport::SendStream",
-    "transport::Session",
     "unix::Error",
     "watch::Files",
     "websocket::Error",
@@ -262,6 +304,11 @@ exclude = [
 # `moq_catalog_<audio|video>_codec_kind`.
 "catalog::AudioCodecKind" = "audio_codec_kind"
 "catalog::VideoCodecKind" = "video_codec_kind"
+# The rule makes both this method and the field `media` `moq_hang_catalog_media`. A rename
+# by the generic path would name every instance's alike.
+"Catalog::media" = "hang_catalog_to_media"
+"Catalog<moq_mux::catalog::hang::Extra>::media" = "hang_catalog_extra_to_media"
+"Catalog<moq_mux::container::ts::Ext>::media" = "hang_catalog_ext_to_media"
 
 [crates.moq-mux]
 exclude = [
@@ -313,6 +360,8 @@ exclude = [
     "container::fmp4::mp4_atom",
     "container::mkv::Error",
     "container::mkv::Export",
+    "container::mp4::Export",
+    "container::mp4::repair",
     "container::ts::Catalog",
     "container::ts::Export",
     "container::ts::Follower",
@@ -330,6 +379,10 @@ exclude = [
     "json::Consumer",
     "select::Selected::audio",
     "select::Selected::video",
+    "timeline::Mapping",
+    "timeline::Resume",
+    "timeline::Track::apply",
+    "timeline::Track::resume",
 ]
 
 [crates.moq-mux.rename]
@@ -379,6 +432,7 @@ exclude = [
     "Waiter::context",
     "Waiter::poll_future",
     "Waiter::waker",
+    "Watch",
     "Weak",
     "clock::Deadline::poll",
     "clock::Deadlines::enter",
@@ -387,9 +441,11 @@ exclude = [
     "clock::Instant::from_std",
     "clock::Instant::into_std",
     "clock::OutOfRange",
+    "clock::Rng",
     "clock::Sleep",
     "clock::Timeout",
     "clock::drive",
+    "clock::rng",
     "clock::timeout",
     "clock::timeout_at",
     "coop::Budget::poll_yield",
@@ -399,6 +455,7 @@ exclude = [
     "log::Writer",
     "machine",
     "wait",
+    "wrapper",
 ]
 
 [crates.kio.rename]

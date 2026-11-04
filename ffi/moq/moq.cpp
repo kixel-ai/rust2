@@ -298,7 +298,9 @@ int main() {
 		// A JSON track the catalog lists, published through moq-mux's generic
 		// `json_snapshot` at a JSON document, and a section C++ parses from text, set in the
 		// lent catalog and read back as text.
-		auto status = publisher.create_track("status", std::nullopt);
+		// Its track has a timescale, since every write is stamped.
+		auto milli = moq::timescale::milli();
+		auto status = publisher.create_track("status", moq::track_info::default_().with_timescale(&milli));
 		CHECK(status);
 		auto status_snapshot = catalog->json_snapshot_config(std::move(*status), moq::json_config::default_(),
 		                                                     moq::json_options::default_());
@@ -306,7 +308,7 @@ int main() {
 		CHECK(catalog->is_claimed_json_config("status"));
 		// A value C++ parses is published as the track's latest, which a subscriber reads
 		// back as JSON text.
-		CHECK(status_snapshot->update(moq::json::parse(R"({"on": true})").value()));
+		CHECK(status_snapshot->update(moq::json::parse(R"({"on": true})").value(), moq::timestamp::now()));
 		moq::track_subscriber status_subscriber = status_snapshot->consume();
 		auto status_group = status_subscriber.recv_group().get();
 		CHECK(status_group && status_group.value());
