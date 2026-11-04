@@ -251,7 +251,9 @@ fn uses<'a>(stmts: &mut [Stmt], path: &mut Vec<Step>, names: &HashSet<&'a str>, 
 			Stmt::Return(value) => value.as_deref(),
 			Stmt::Block { .. } | Stmt::Break(_) | Stmt::Continue(_) => None,
 		};
-		let idents = text.into_iter().flat_map(|t| t.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')));
+		let idents = text
+			.into_iter()
+			.flat_map(|t| t.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_')));
 		for ident in idents {
 			if let Some(&name) = names.get(ident) {
 				match at.get_mut(name) {

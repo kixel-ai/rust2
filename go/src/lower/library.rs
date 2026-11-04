@@ -277,7 +277,11 @@ pub fn call_with<'tcx>(
 			);
 			let none = fx.variant(dest_ty, 0, &[], span);
 			let some = fx.variant(dest_ty, 1, &[some], span);
-			fx.returning(dest_ty, format!("if len({}) < {n} {{ return {none} }}; return {some}", a[0]), span)
+			fx.returning(
+				dest_ty,
+				format!("if len({}) < {n} {{ return {none} }}; return {some}", a[0]),
+				span,
+			)
 		}
 		"<core::fmt::Formatter>::debug_lower_hex" => expr(format!("{}.flags&flagDebugLowerHex != 0", a[0])),
 		"<core::fmt::Formatter>::debug_upper_hex" => expr(format!("{}.flags&flagDebugUpperHex != 0", a[0])),
@@ -334,7 +338,10 @@ pub fn call_with<'tcx>(
 			let ok = fx.variant(dest_ty, 0, &[a[0].clone()], span);
 			fx.returning(
 				dest_ty,
-				format!("if n, l, ok := utf8Check({}); !ok {{ return {err} }}; return {ok}", a[0]),
+				format!(
+					"if n, l, ok := utf8Check({}); !ok {{ return {err} }}; return {ok}",
+					a[0]
+				),
 				span,
 			)
 		}
@@ -627,6 +634,14 @@ fn intrinsic<'tcx>(
 					return None;
 				}
 			};
+			// Called with its arguments and result whole.
+			if tys.iter().chain([dest_ty]).any(|t| fx.t.split(t, span).is_some()) {
+				fx.err(
+					span,
+					"`const_eval_select` of a function taking or returning an enum of over four words",
+				);
+				return None;
+			}
 			let name = fx.t.func(instance, span);
 			let fields: Vec<String> = (0..tys.len()).map(|i| format!("{}.F{i}", a[0])).collect();
 			let call = format!("{name}({})", fields.join(", "));

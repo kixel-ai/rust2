@@ -18,7 +18,7 @@ use std::path::Path;
 
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
-use rustc_middle::ty::{Instance, Ty, TyCtxt, TypingEnv};
+use rustc_middle::ty::{Instance, Ty, TyCtxt, TypingEnv, Unnormalized};
 use rustc_span::Span;
 
 use crate::config::Config;
@@ -238,10 +238,75 @@ impl<'tcx> Translator<'tcx> {
 			return;
 		}
 		let instance = Instance::mono(tcx, def_id);
+		let span = tcx.def_span(def_id);
 		let name = names::exported(path);
-		self.claim(&name, tcx.def_span(def_id));
-		self.funcs.insert(instance, name);
-		self.queue.push_back((instance, tcx.def_span(def_id)));
+		self.claim(&name, span);
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(def_id).skip_binder());
+		let normal = |t: Ty<'tcx>| tcx.normalize_erasing_regions(self.env(), Unnormalized::new_wip(t));
+		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();
+		let output = normal(sig.output());
+		let splits = inputs.iter().chain([&output]).any(|t| self.split(*t, span).is_some());
+		if !splits {
+			self.funcs.insert(instance, name);
+			self.queue.push_back((instance, span));
+			return;
+		}
+		// Its callers' Go holds its enums whole.
+		let inner = self.func(instance, span);
+		let text = self.wrapper(&name, path, &inner, &inputs, output, span);
+		self.out.entry(def_id.krate).or_default().funcs.push((name, text));
+	}
+
+	/// The root `name` of the function at `path`, calling `inner`, the function as
+	/// translated code calls it, with its enums whole.
+	fn wrapper(
+		&mut self,
+		name: &str,
+		path: &str,
+		inner: &str,
+		inputs: &[Ty<'tcx>],
+		output: Ty<'tcx>,
+		span: Span,
+	) -> String {
+		let mut params = Vec::new();
+		let mut args = Vec::new();
+		for (i, input) in inputs.iter().enumerate() {
+			let param = format!("_{}", i + 1);
+			params.push(format!("{param} {}", self.ty(*input, span)));
+			match self.split(*input, span) {
+				Some(split) => args.extend(split.parts.iter().map(|p| match p.big {
+					true => format!("&{param}{}", p.path),
+					false => format!("{param}{}", p.path),
+				})),
+				None => args.push(param),
+			}
+		}
+		let ret = match Self::no_value(output) {
+			true => String::new(),
+			false => format!(" {}", self.ty(output, span)),
+		};
+		let body = match self.split(output, span) {
+			Some(split) => {
+				let mut lhs = Vec::new();
+				for p in &split.parts {
+					match p.big {
+						true => args.push(format!("&_0{}", p.path)),
+						false => lhs.push(format!("_0{}", p.path)),
+					}
+				}
+				format!(
+					"\tvar _0{ret}\n\t{} = {inner}({})\n\treturn _0\n",
+					lhs.join(", "),
+					args.join(", ")
+				)
+			}
+			None if ret.is_empty() => format!("\t{inner}({})\n", args.join(", ")),
+			None => format!("\treturn {inner}({})\n", args.join(", ")),
+		};
+		format!(
+			"// {name} is `{path}`.\nfunc {name}({}){ret} {{\n{body}}}\n",
+			params.join(", ")
+		)
 	}
 
 	/// Claim a package-level name, refusing one already taken.

@@ -670,9 +670,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				}
 				(String::new(), values)
 			}
-			Rvalue::Use(Operand::Copy(place) | Operand::Move(place), _) | Rvalue::CopyForDeref(place) => {
-				(String::new(), self.parts_of(*place, split, span).into_iter().enumerate().collect())
-			}
+			Rvalue::Use(Operand::Copy(place) | Operand::Move(place), _) | Rvalue::CopyForDeref(place) => (
+				String::new(),
+				self.parts_of(*place, split, span).into_iter().enumerate().collect(),
+			),
 			_ => {
 				let value = self.rvalue(rvalue, ty, span);
 				let (scratch, pre) = self.spill(split, value);
@@ -1114,7 +1115,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			});
 		}
 		match split.parts.iter().any(|p| p.big) {
-			true => self.err(span, format!("a bound call returning `{ty}`, which has a part of over four words")),
+			true => self.err(
+				span,
+				format!("a bound call returning `{ty}`, which has a part of over four words"),
+			),
 			false => values.join(", "),
 		}
 	}
