@@ -94,7 +94,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// no bytes is unspecified, but a pointer to `()` is an identity. Notes the comparison of
 	/// those that do, for [`Self::taken`].
 	pub fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
-		self.unidentified(ty).map(|why| format!("comparing pointers to `{ty}`, {why}"))
+		self.unidentified(ty)
+			.map(|why| format!("comparing pointers to `{ty}`, {why}"))
 	}
 
 	/// Why pointers to `ty` that are not null aren't identities JS keeps, as
@@ -677,7 +678,10 @@ pub fn call<'tcx>(
 		}
 		("Weak", "as_ptr") => b.err(
 			span,
-			format!("a raw pointer to the `{}` a `Weak` holds, which JS keeps no object of", pointee()),
+			format!(
+				"a raw pointer to the `{}` a `Weak` holds, which JS keeps no object of",
+				pointee()
+			),
 		),
 		("Arc" | "Rc", "from_raw") => Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]),
 		("Arc" | "Rc", "increment_strong_count") => {

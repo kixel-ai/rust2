@@ -485,7 +485,9 @@ impl<'tcx> Writes<'tcx> {
 				_ => continue,
 			};
 			for local in body.local_decls.iter() {
-				writes.locals.insert((def_id, tcx.erase_and_anonymize_regions(local.ty)));
+				writes
+					.locals
+					.insert((def_id, tcx.erase_and_anonymize_regions(local.ty)));
 			}
 			// Another crate lists none of its closures' bodies.
 			for local in body.local_decls.iter() {
@@ -608,7 +610,11 @@ pub(super) fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 /// `ty` and each type it holds by value, at any depth: in a field, an element, or a
 /// payload. An array of no elements holds none, and a type parameter, or a type `env`
 /// can't normalize, stands for what it holds.
-pub(super) fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+pub(super) fn by_value<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	env: ty::TypingEnv<'tcx>,
+	ty: Ty<'tcx>,
+) -> impl Iterator<Item = Ty<'tcx>> {
 	let mut held = FxIndexSet::default();
 	let mut stack = vec![ty];
 	while let Some(ty) = stack.pop() {

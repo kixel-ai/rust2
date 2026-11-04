@@ -2330,7 +2330,9 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				let address = p as usize;
 				out.push(u8::from(address % align == 0 && address != 0 && p.addr() == address));
 				out.push(u8::from(by_address.insert(address, keyed.id).is_none()));
-				registry.borrow_mut().insert((keyed.id % 4, p.expose_provenance()), keyed.id);
+				registry
+					.borrow_mut()
+					.insert((keyed.id % 4, p.expose_provenance()), keyed.id);
 				out.push(u8::from(ordered.insert(p) && hashed.insert(p)));
 				weaks.push((Arc::downgrade(&keyed), address));
 				live.push(keyed);
@@ -2365,11 +2367,16 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				for group in 0..4u8 {
 					out.push(registry.range((group, 0)..(group + 1, 0)).count() as u8);
 				}
-				out.push(u8::from(registry.values().all(|id| by_address.values().any(|live| live == id))));
+				out.push(u8::from(
+					registry.values().all(|id| by_address.values().any(|live| live == id)),
+				));
 			}
 		}
 	}
-	out.extend([left.get(), weaks.iter().filter(|(weak, _)| weak.upgrade().is_some()).count() as u8]);
+	out.extend([
+		left.get(),
+		weaks.iter().filter(|(weak, _)| weak.upgrade().is_some()).count() as u8,
+	]);
 	drop(live);
 	out.extend([left.get(), u8::from(registry.borrow().is_empty())]);
 }

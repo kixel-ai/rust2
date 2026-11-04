@@ -67,7 +67,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			"`Weak::as_ptr` of a `Weak<{ty}>`, which `Arc::new_cyclic` makes and JS has no value of until its closure returns"
 		);
 		let (span, msg) = self.sited(span, msg);
-		self.weak_pointers.push((self.tcx.erase_and_anonymize_regions(ty), span, msg));
+		self.weak_pointers
+			.push((self.tcx.erase_and_anonymize_regions(ty), span, msg));
 	}
 
 	/// Refuse each address read of a type an allocation holds beside another whose address
@@ -122,7 +123,9 @@ fn shared<'tcx>(
 		for &each in addressed {
 			let one = FxHashSet::from_iter([each]);
 			if Held::new(tcx, &one).count(ty) > 0 {
-				shared.entry(each).or_insert((ty, many || matches!(ty.kind(), ty::Array(..) | ty::Slice(_))));
+				shared
+					.entry(each)
+					.or_insert((ty, many || matches!(ty.kind(), ty::Array(..) | ty::Slice(_))));
 			}
 		}
 	}
@@ -213,10 +216,12 @@ impl<'s, 'tcx> Held<'s, 'tcx> {
 				}
 			},
 			ty::Adt(adt, args) => {
-				let mut counts = adt
-					.variants()
-					.iter()
-					.map(|v| v.fields.iter().map(|f| self.count(f.ty(tcx, args).skip_norm_wip())).collect::<Vec<u8>>());
+				let mut counts = adt.variants().iter().map(|v| {
+					v.fields
+						.iter()
+						.map(|f| self.count(f.ty(tcx, args).skip_norm_wip()))
+						.collect::<Vec<u8>>()
+				});
 				match adt.is_union() {
 					// Its fields overlap, as an enum's variants do.
 					true => counts.next().into_iter().flatten().max().unwrap_or(0),
@@ -224,7 +229,9 @@ impl<'s, 'tcx> Held<'s, 'tcx> {
 				}
 			}
 			ty::Closure(_, args) => total(args.as_closure().upvar_tys().iter().map(|t| self.count(t))),
-			ty::CoroutineClosure(_, args) => total(args.as_coroutine_closure().upvar_tys().iter().map(|t| self.count(t))),
+			ty::CoroutineClosure(_, args) => {
+				total(args.as_coroutine_closure().upvar_tys().iter().map(|t| self.count(t)))
+			}
 			// Its captures, and the locals it keeps across an `.await`.
 			ty::Coroutine(def_id, args) => {
 				let upvars = total(args.as_coroutine().upvar_tys().iter().map(|t| self.count(t)));
