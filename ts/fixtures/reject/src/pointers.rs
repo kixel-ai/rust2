@@ -534,3 +534,9 @@ pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
 pub fn arc_from_borrow(n: &u32) -> u32 {
 	unsafe { *std::sync::Arc::from_raw(std::ptr::from_ref(n)) }
 }
+
+/// The greater of two pointers to numbers, which orders by their addresses.
+pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
+	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
+	std::cmp::max(p, q) == p
+}

@@ -1,6 +1,6 @@
 # moq.c's script through the generated Python: a broadcast's track, published and
 # subscribed to in one process, with every read awaited, and an origin, its driver run on
-# asyncio's loop, with moq-pattern, moq-clock, moq-tokio, hang, and moq-mux exported into
+# asyncio's loop, with moq-pattern, kio, moq-tokio, hang, and moq-mux exported into
 # the same library, and the catalog lent to Python for a call.
 #
 # A local read that must wait resumes once the write that wakes it lands, on the loop the
@@ -41,8 +41,8 @@ async def drive(driver):
 	waiter = moq.Waiter.new(moq.Waker(woken.set))
 	while True:
 		woken.clear()
-		deadline = driver.poll(moq.now(), waiter)
-		timeout = None if deadline is None else deadline.saturating_duration_since(moq.now()).total_seconds()
+		deadline = driver.poll(moq.clock_now(), waiter)
+		timeout = None if deadline is None else deadline.saturating_duration_since(moq.clock_now()).total_seconds()
 		try:
 			await asyncio.wait_for(woken.wait(), timeout)
 		except TimeoutError:
@@ -80,8 +80,8 @@ def local(loop):
 	hello = loop.run_until_complete(asyncio.wait_for(read, 5))
 	expect(text(hello.payload) == "hello", "a frame has its payload")
 	expect(hello.timestamp is None, "an untimed frame has no timestamp")
-	# When it arrived: moq-clock's `Instant`, from moq-clock's own export.
-	expect(moq.now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
+	# When it arrived: kio's clock's `Instant`, from kio's own export.
+	expect(moq.clock_now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
 
 	# A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
 	# untimed, so a timestamped frame is refused.
@@ -130,8 +130,8 @@ def origin(loop):
 	try:
 		moq.Path.new("/cam/")
 		expect(False, "a path with an empty segment is an error")
-	except moq.PathInvalidException as e:
-		expect(e.error == moq.PathInvalid.EMPTY_SEGMENT, "an empty segment is its own error")
+	except moq.PathErrorException as e:
+		expect(e.error == moq.PathError.EMPTY_SEGMENT, "an empty segment is its own error")
 	cam = moq.Path.new("cam")
 	expect(cam.as_str() == "cam", "a path builds from its segments")
 	joined = path.join(cam)
@@ -203,13 +203,13 @@ def catalog(loop):
 	# a JSON document, and a section Python parses from text, set in the lent catalog and
 	# read back as text.
 	status = producer.json_snapshot_config(
-		publisher.create_track("status", None), moq.JsonConfig.default(), moq.JsonOptions.default()
+		publisher.create_track("status", moq.TrackInfo.default().with_timescale(moq.Timescale.MILLI)), moq.JsonConfig.default(), moq.JsonOptions.default()
 	)
 	expect(status.name() == "status", "a JSON snapshot has its track's name")
 	expect(producer.is_claimed_json_config("status"), "the JSON snapshot claims its name")
 	# A value Python parses is published as the track's latest, which a subscriber reads
 	# back as JSON text.
-	status.update(moq.Json.parse('{"on": true}'))
+	status.update(moq.Json.parse('{"on": true}'), moq.Timestamp.now())
 
 	async def latest():
 		group = await status.consume().recv_group()
@@ -329,7 +329,7 @@ async def session():
 	expect(connection is not None, "a client with a URL dials it")
 	established = await connection.established()
 
-	broadcast = await remote.request_broadcast("live", None)
+	broadcast = await remote.request("live", None)
 	subscriber = await broadcast.track("video").subscribe(None)
 	group = await subscriber.recv_group()
 	frame = None if group is None else await group.read_frame()

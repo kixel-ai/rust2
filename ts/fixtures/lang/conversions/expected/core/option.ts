@@ -12,6 +12,13 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function clone$0wpatp7(self: rs.u16 | undefined | rs.None): rs.u16 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;

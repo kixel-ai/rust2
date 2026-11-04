@@ -669,10 +669,10 @@ pub fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	matches!(tcx.crate_name(did.krate).as_str(), "core" | "alloc" | "std")
 }
 
-/// If `instance` is a method of std's `PartialEq`, `PartialOrd`, `Ord`, or `Hash` impl
-/// for references, or of its `Hasher` or `fmt::Write` impl for a `&mut`, or its `Hasher`
-/// impl for a box, which calls its
-/// referents' with the operands dereferenced, the generic arguments of that call.
+/// If `instance` is a method of std's `PartialEq`, `PartialOrd`, `Ord`, `Hash`, `AsRef`, or
+/// `AsMut` impl for references, or of its `Hasher` or `fmt::Write` impl for a `&mut`, or its
+/// `Hasher` impl for a box, which calls its referents' with the operands dereferenced, the
+/// generic arguments of that call.
 pub fn referent<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	def_id: DefId,
@@ -688,7 +688,7 @@ pub fn referent<'tcx>(
 	let hasher = std_path(tcx, tr) == ["hash", "Hasher"];
 	let operands = match tcx.get_diagnostic_name(tr).as_ref().map(|n| n.as_str()) {
 		Some("PartialEq" | "PartialOrd") => 2,
-		Some("Ord" | "Hash" | "FmtWrite") => 1,
+		Some("Ord" | "Hash" | "FmtWrite" | "AsRef" | "AsMut") => 1,
 		_ if hasher => 1,
 		_ => return None,
 	};
@@ -2211,6 +2211,8 @@ fn mapping<'tcx>(
 				false => Expr::rs("sliceFrom", vec![Expr::Array(vec![value])]),
 			}
 		}
+		// A slice or a `str` as itself.
+		("AsRef", "as_ref") | ("AsMut", "as_mut") if targ(gargs, 0) == targ(gargs, 1) => args.pop()?,
 		// The slice of all of an array, as `as_slice` has it.
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
 			if targ(gargs, 0).is_array() && targ(gargs, 1).is_slice() =>
@@ -2886,6 +2888,11 @@ fn mapping<'tcx>(
 			if textual(tcx, targ(gargs, 0)) && !cow_str(tcx, targ(gargs, 0)) && targ(gargs, 1).is_str() =>
 		{
 			text(tcx, targ(gargs, 0), args.pop()?)
+		}
+		("AsRef", "as_ref")
+			if (string(tcx, targ(gargs, 0)) || owned_string(tcx, targ(gargs, 0))) && byte_slice(targ(gargs, 1)) =>
+		{
+			Expr::rs("stringAsBytes", vec![text(tcx, targ(gargs, 0), args.pop()?)])
 		}
 		// A `Cow<[T]>` borrows its slice, and its `Vec` is its own or a clone of what it
 		// borrows, so it drops nothing.

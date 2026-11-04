@@ -7,6 +7,13 @@ export function clone$Clone(self: Named): Named {
 	return { id: self.id, name: rs.stringClone(self.name) };
 }
 
+export function eq$cmp_PartialEq(self: Named, other: Named): boolean {
+	if (!(self.id === other.id)) {
+		return false;
+	}
+	return rs.eqStr(self.name, other.name);
+}
+
 export function partialCmp$cmp_PartialOrd(self: Named, other: Named): rs.Ordering | undefined {
 	return cmp$cmp_Ord(self, other);
 }
