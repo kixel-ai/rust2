@@ -35,3 +35,4 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 
 - [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole
+- [rust2-go with no go.toml](/quest/m4/go/configless.md) - a crate's whole `pub` API translates with no config
