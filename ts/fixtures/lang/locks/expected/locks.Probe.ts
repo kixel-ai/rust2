@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { drop$Result_sync_MutexGuard_locks_Probe_sync_TryLockError_sync_MutexGuard_locks_Probe, drop$Result_sync_RwLockReadGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockReadGuard_sync_Mutex_locks_Probe, drop$Result_sync_RwLockWriteGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockWriteGuard_sync_Mutex_locks_Probe } from "./lib.ts";
-import { map$16br6l4 as option_map$16br6l4, map$1uijrx3 as option_map$1uijrx3 } from "./core/option.ts";
+import { map$1410a8j as option_map$1410a8j, map$0cdr4co as option_map$0cdr4co } from "./core/option.ts";
 
 /** Writes whether the locks it is in can be locked, and how it writes, while they write it. */
 export class Probe {
@@ -21,21 +21,21 @@ export class Probe {
 }
 
 export function fmt$fmt_Debug(self: Probe, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const mutex: boolean | undefined = option_map$16br6l4(rs.weakUpgrade(self.mutex), (m: rs.Arc<rs.Mutex<Probe>>): boolean => {
+	const mutex: boolean | undefined = option_map$1410a8j(rs.weakUpgrade(self.mutex), (m: rs.Arc<rs.Mutex<Probe>>): boolean => {
 		const _42: rs.Result<rs.Mutex<Probe>, rs.TryLockError<rs.Mutex<Probe>>> = rs.mutexTryLock(m.value);
 		const _02: boolean = _42.ok;
 		drop$Result_sync_MutexGuard_locks_Probe_sync_TryLockError_sync_MutexGuard_locks_Probe(_42);
 		m[Symbol.dispose]();
 		return _02;
 	});
-	const read: boolean | undefined = option_map$1uijrx3(rs.weakUpgrade(self.lock), (l: rs.Arc<rs.RefCell<rs.Mutex<Probe>>>): boolean => {
+	const read: boolean | undefined = option_map$0cdr4co(rs.weakUpgrade(self.lock), (l: rs.Arc<rs.RefCell<rs.Mutex<Probe>>>): boolean => {
 		const _43: rs.Result<rs.RefCell<rs.Mutex<Probe>>, rs.TryLockError<rs.RefCell<rs.Mutex<Probe>>>> = rs.rwLockTryRead(l.value);
 		const _03: boolean = _43.ok;
 		drop$Result_sync_RwLockReadGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockReadGuard_sync_Mutex_locks_Probe(_43);
 		l[Symbol.dispose]();
 		return _03;
 	});
-	const written: boolean | undefined = option_map$1uijrx3(rs.weakUpgrade(self.lock), (l2: rs.Arc<rs.RefCell<rs.Mutex<Probe>>>): boolean => {
+	const written: boolean | undefined = option_map$0cdr4co(rs.weakUpgrade(self.lock), (l2: rs.Arc<rs.RefCell<rs.Mutex<Probe>>>): boolean => {
 		const _44: rs.Result<rs.RefCell<rs.Mutex<Probe>>, rs.TryLockError<rs.RefCell<rs.Mutex<Probe>>>> = rs.rwLockTryWrite(l2.value);
 		const _04: boolean = _44.ok;
 		drop$Result_sync_RwLockWriteGuard_sync_Mutex_locks_Probe_sync_TryLockError_sync_RwLockWriteGuard_sync_Mutex_locks_Probe(_44);

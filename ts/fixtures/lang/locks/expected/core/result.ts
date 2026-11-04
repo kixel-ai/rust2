@@ -4,21 +4,21 @@ import * as rs from "../rs.ts";
 import { drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally, drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally } from "../lib.ts";
 import type * as Tally from "../locks.Tally.ts";
 
-export function map$02txiwz(self: rs.Result<rs.Mutex<rs.u64>, rs.Mutex<Tally.Tally>>, op: (a0: rs.Mutex<rs.u64>) => rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>): rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> {
+export function map$1t3pwfi(self: rs.Result<rs.Mutex<rs.u64>, rs.Mutex<Tally.Tally>>, op: (a0: rs.Mutex<rs.u64>) => rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>): rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>>;
 }
 
-export function map$1g6jln5(self: rs.Result<rs.RefCell<rs.u64>, rs.RefCell<Tally.Tally>>, op: (a0: rs.RefCell<rs.u64>) => rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>): rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> {
+export function map$14a22s8(self: rs.Result<rs.RefCell<rs.u64>, rs.RefCell<Tally.Tally>>, op: (a0: rs.RefCell<rs.u64>) => rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>): rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>>;
 }
 
-export function mapOr$0666x4n(self: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>>, default_: rs.u8, f: (a0: rs.Mutex<Tally.Tally>) => rs.u8): rs.u8 {
+export function mapOr$162krng(self: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockError<rs.Mutex<Tally.Tally>>>, default_: rs.u8, f: (a0: rs.Mutex<Tally.Tally>) => rs.u8): rs.u8 {
 	let _0!: rs.u8;
 	if (self.ok) {
 		_0 = f(self.value);
@@ -32,7 +32,7 @@ export function mapOr$0666x4n(self: rs.Result<rs.Mutex<Tally.Tally>, rs.TryLockE
 	return _0;
 }
 
-export function mapOr$1qkf3ab(self: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>>, default_: rs.u8, f: (a0: rs.RefCell<Tally.Tally>) => rs.u8): rs.u8 {
+export function mapOr$0diztpf(self: rs.Result<rs.RefCell<Tally.Tally>, rs.TryLockError<rs.RefCell<Tally.Tally>>>, default_: rs.u8, f: (a0: rs.RefCell<Tally.Tally>) => rs.u8): rs.u8 {
 	let _0!: rs.u8;
 	if (self.ok) {
 		_0 = f(self.value);

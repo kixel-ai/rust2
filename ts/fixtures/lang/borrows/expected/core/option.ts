@@ -4,42 +4,42 @@ import * as rs from "../rs.ts";
 import type * as Noisy from "../borrows.Noisy.ts";
 import type * as Tagged from "../borrows.Tagged.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$0qqbaqw(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
+export function mapOr$0yt2o85(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1dvn0au(self: Tagged.Tagged | undefined, default_: rs.u8, f: (a0: Tagged.Tagged) => rs.u8): rs.u8 {
+export function mapOr$0rsyyii(self: Tagged.Tagged | undefined, default_: rs.u8, f: (a0: Tagged.Tagged) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0ucbp7g(self: [rs.u64, rs.u64] | undefined, default_: rs.u8, f: (a0: [rs.u64, rs.u64]) => rs.u8): rs.u8 {
+export function mapOr$1idpb1d(self: [rs.u64, rs.u64] | undefined, default_: rs.u8, f: (a0: [rs.u64, rs.u64]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$099335t(self: rs.u16 | undefined, default_: rs.u8, f: (a0: rs.u16) => rs.u8): rs.u8 {
+export function mapOr$031uhqp(self: rs.u16 | undefined, default_: rs.u8, f: (a0: rs.u16) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function okOr$1oufq9m(self: rs.u8 | undefined, err: rs.usize): rs.Result<rs.u8, rs.usize> {
+export function okOr$1bx6za5(self: rs.u8 | undefined, err: rs.usize): rs.Result<rs.u8, rs.usize> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}

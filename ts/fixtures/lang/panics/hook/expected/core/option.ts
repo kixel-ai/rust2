@@ -2,35 +2,35 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1vkt7xs(self: rs.char | undefined, _: (a0: rs.char) => rs.u32): rs.u32 | undefined {
+export function map$18ftgyp(self: rs.char | undefined, _: (a0: rs.char) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self as rs.u32;
 }
 
-export function map$0a57co2(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
+export function map$04ry0e1(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$1e4a1e0(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function filter$0v80fk8(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
+export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
 		if (predicate(x)) {

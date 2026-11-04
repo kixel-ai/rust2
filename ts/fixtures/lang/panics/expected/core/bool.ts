@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function then$142atvy(self: boolean, f: () => rs.Location): rs.Location | undefined {
+export function then$1yydrio(self: boolean, f: () => rs.Location): rs.Location | undefined {
 	if (!self) {
 		return undefined;
 	}

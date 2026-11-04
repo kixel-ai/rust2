@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$1horntk(self: rs.ParseFloatError, other: rs.ParseFloatError): boolean {
+export function eq$02gt5co(self: rs.ParseFloatError, other: rs.ParseFloatError): boolean {
 	return self.kind === other.kind;
 }
 

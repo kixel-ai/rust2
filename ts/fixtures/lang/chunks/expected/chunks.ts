@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { out$tuple2_ref_array4_u8_ref_slice_u8 } from "./lib.ts";
 import type * as Header from "./chunks.Header.ts";
-import { mapOr$1jgrjsu as option_mapOr$1jgrjsu } from "./core/option.ts";
+import { mapOr$0oapx9n as option_mapOr$0oapx9n } from "./core/option.ts";
 
 export function header(dataData: Uint8Array, dataStart: number, dataLen: number): Header.Header | undefined {
 	if (dataLen >= 2) {
@@ -114,7 +114,7 @@ export function chunks(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_4 === 2) {
 		if (data.length >= 2) {
 			const a: rs.ByteSlice = new rs.ByteSlice(data.data, data.start, 2);
-			const b: rs.ByteSlice = option_mapOr$1jgrjsu((data.length - 2 >= 2 ? [new rs.ByteSlice(data.data, data.start + 2, 2), new rs.ByteSlice(data.data, data.start + 4, data.length - 4)] as [rs.ByteSlice, rs.ByteSlice] : undefined) as [rs.ByteSlice, rs.ByteSlice] | undefined, a, (_22: [rs.ByteSlice, rs.ByteSlice]): rs.ByteSlice => {
+			const b: rs.ByteSlice = option_mapOr$0oapx9n((data.length - 2 >= 2 ? [new rs.ByteSlice(data.data, data.start + 2, 2), new rs.ByteSlice(data.data, data.start + 4, data.length - 4)] as [rs.ByteSlice, rs.ByteSlice] : undefined) as [rs.ByteSlice, rs.ByteSlice] | undefined, a, (_22: [rs.ByteSlice, rs.ByteSlice]): rs.ByteSlice => {
 				return _22[0];
 			});
 			const part2 = new rs.ByteSlice(data.data, data.start + 2, data.length - 2);

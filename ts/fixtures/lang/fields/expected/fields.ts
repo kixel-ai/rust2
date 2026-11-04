@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$fields_Couple } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 import * as Couple from "./fields.Couple.ts";
 import * as Exposed from "./fields.Exposed.ts";
 import * as Glued from "./fields.Glued.ts";
@@ -121,7 +121,7 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	g.bufData = _208.data;
 	g.bufStart = _208.start;
 	g.bufLen = _208.length;
-	rs.byteVecPush(g.out, option_unwrapOr$0r2bmpr(rs.byteSliceFirst(new rs.ByteSlice(g.bufData, g.bufStart, g.bufLen)), 0));
+	rs.byteVecPush(g.out, option_unwrapOr$1fr498u(rs.byteSliceFirst(new rs.ByteSlice(g.bufData, g.bufStart, g.bufLen)), 0));
 	g[Symbol.dispose]();
 }
 

@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 import { drop$Option_tuple2_drops_Key_model_Guard as lib_drop$Option_tuple2_drops_Key_model_Guard, drop$Result_Vec_model_Guard_model_Guard as lib_drop$Result_Vec_model_Guard_model_Guard, drop$Vec_model_Guard as lib_drop$Vec_model_Guard, drop$tuple2_drops_Key_model_Guard as lib_drop$tuple2_drops_Key_model_Guard, drop$tuple2_model_Guard_model_Guard as lib_drop$tuple2_model_Guard_model_Guard, drop$tuple2_model_Guard_u32 as lib_drop$tuple2_model_Guard_u32, drop$tuple2_u32_model_Guard as lib_drop$tuple2_u32_model_Guard } from "../lib.ts";
-import { mapOr$184639r as option_mapOr$184639r, mapOr$00i7kb3 as option_mapOr$00i7kb3, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$01ozsk3 as option_mapOr$01ozsk3 } from "../core/option.ts";
+import { mapOr$090948l as option_mapOr$090948l, mapOr$16nkz0h as option_mapOr$16nkz0h, mapOr$0mko9ta as option_mapOr$0mko9ta, mapOr$1re20rq as option_mapOr$1re20rq } from "../core/option.ts";
 import * as Key from "../drops.Key.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
@@ -88,7 +88,7 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	const _147: Guard.Guard = guard(16);
 	v3.items.push(_147);
 	const rest: rs.Iter<Guard.Guard> = rs.iterTake(rs.iterSkip(rs.vecIntoIter(v3, rs.drop), 1, rs.drop), 3, rs.drop);
-	const part4 = option_mapOr$01ozsk3(rs.iterToOption(rest.next()), 0, (g5: Guard.Guard): rs.u32 => {
+	const part4 = option_mapOr$1re20rq(rs.iterToOption(rest.next()), 0, (g5: Guard.Guard): rs.u32 => {
 		const _03: rs.u32 = Guard.id(g5);
 		g5[Symbol.dispose]();
 		return _03;
@@ -141,7 +141,7 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	const _254: rs.Iter<Guard.Guard> = rs.iterRev(rs.iterChain(_256, rs.vecIntoIter(v8, rs.drop)));
 	const nth: Guard.Guard | undefined = rs.iterNth(_254, 1, rs.drop);
 	rs.drop(_254);
-	const part7 = option_mapOr$01ozsk3(nth, 0, (g8: Guard.Guard): rs.u32 => {
+	const part7 = option_mapOr$1re20rq(nth, 0, (g8: Guard.Guard): rs.u32 => {
 		const _06: rs.u32 = Guard.id(g8);
 		g8[Symbol.dispose]();
 		return _06;
@@ -171,7 +171,7 @@ export function looped(log: Log.Log, id: rs.u32): void {
 		return Guard.id(g10) === rs.u32Add(id, 31);
 	}, rs.drop);
 	rs.drop(_308);
-	const _341: rs.u32 = option_mapOr$01ozsk3(best, 0, (g11: Guard.Guard): rs.u32 => {
+	const _341: rs.u32 = option_mapOr$1re20rq(best, 0, (g11: Guard.Guard): rs.u32 => {
 		const _09: rs.u32 = Guard.id(g11);
 		g11[Symbol.dispose]();
 		return _09;
@@ -198,7 +198,7 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	v12.items.push(_383);
 	const _388: Guard.Guard = guard(38);
 	v12.items.push(_388);
-	const _397: rs.u32 = option_mapOr$01ozsk3(rs.ownedLast(rs.iterStepBy(rs.vecIntoIter(v12, rs.drop), 2, rs.drop), rs.drop), 0, (g13: Guard.Guard): rs.u32 => {
+	const _397: rs.u32 = option_mapOr$1re20rq(rs.ownedLast(rs.iterStepBy(rs.vecIntoIter(v12, rs.drop), 2, rs.drop), rs.drop), 0, (g13: Guard.Guard): rs.u32 => {
 		const _011: rs.u32 = Guard.id(g13);
 		g13[Symbol.dispose]();
 		return _011;
@@ -223,12 +223,12 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	v16.items.push(_442);
 	v13.items.push(v16);
 	const flat: rs.Iter<Guard.Guard> = rs.iterFlatten(rs.vecIntoIter(v13, lib_drop$Vec_model_Guard), (value: rs.Vec<Guard.Guard>) => rs.vecIntoIter(value, rs.drop), true);
-	const front: rs.u32 = option_mapOr$01ozsk3(rs.iterToOption(flat.next()), 0, (g14: Guard.Guard): rs.u32 => {
+	const front: rs.u32 = option_mapOr$1re20rq(rs.iterToOption(flat.next()), 0, (g14: Guard.Guard): rs.u32 => {
 		const _012: rs.u32 = Guard.id(g14);
 		g14[Symbol.dispose]();
 		return _012;
 	});
-	const back: rs.u32 = option_mapOr$01ozsk3(rs.iterToOption(flat.nextBack()), 0, (g15: Guard.Guard): rs.u32 => {
+	const back: rs.u32 = option_mapOr$1re20rq(rs.iterToOption(flat.nextBack()), 0, (g15: Guard.Guard): rs.u32 => {
 		const _013: rs.u32 = Guard.id(g15);
 		g15[Symbol.dispose]();
 		return _013;
@@ -256,28 +256,28 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	rs.drop(_469);
 	rs.drop(_471);
 	const _479: rs.Iter<Guard.Guard> = rs.iterStepBy(rs.vecIntoIter(five(49), rs.drop), 2, rs.drop);
-	const stepped: rs.u32 = option_mapOr$01ozsk3(rs.iterNthBack(_479, 1, rs.drop), 0, (g16: Guard.Guard): rs.u32 => {
+	const stepped: rs.u32 = option_mapOr$1re20rq(rs.iterNthBack(_479, 1, rs.drop), 0, (g16: Guard.Guard): rs.u32 => {
 		const _015: rs.u32 = Guard.id(g16);
 		g16[Symbol.dispose]();
 		return _015;
 	});
 	rs.drop(_479);
 	const _487: rs.Iter<Guard.Guard> = rs.iterChain(rs.iterRev(rs.iterTake(rs.vecIntoIter(five(59), rs.drop), 3, rs.drop)), rs.vecIntoIter(new rs.Vec(), rs.drop));
-	const taken: rs.u32 = option_mapOr$01ozsk3(rs.iterNth(_487, 1, rs.drop), 0, (g17: Guard.Guard): rs.u32 => {
+	const taken: rs.u32 = option_mapOr$1re20rq(rs.iterNth(_487, 1, rs.drop), 0, (g17: Guard.Guard): rs.u32 => {
 		const _016: rs.u32 = Guard.id(g17);
 		g17[Symbol.dispose]();
 		return _016;
 	});
 	rs.drop(_487);
 	const _498: rs.Iter<Guard.Guard> = rs.iterChain(rs.iterRev(rs.iterSkip(rs.vecIntoIter(five(64), rs.drop), 2, rs.drop)), rs.vecIntoIter(new rs.Vec(), rs.drop));
-	const passed: rs.u32 = option_mapOr$01ozsk3(rs.iterNth(_498, 2, rs.drop), 0, (g18: Guard.Guard): rs.u32 => {
+	const passed: rs.u32 = option_mapOr$1re20rq(rs.iterNth(_498, 2, rs.drop), 0, (g18: Guard.Guard): rs.u32 => {
 		const _017: rs.u32 = Guard.id(g18);
 		g18[Symbol.dispose]();
 		return _017;
 	});
 	rs.drop(_498);
 	const _509: rs.Iter<Guard.Guard> = rs.iterStepBy(rs.iterRev(rs.vecIntoIter(five(69), rs.drop)), 2, rs.drop);
-	const strode: rs.u32 = option_mapOr$01ozsk3(rs.iterNth(_509, 2, rs.drop), 0, (g19: Guard.Guard): rs.u32 => {
+	const strode: rs.u32 = option_mapOr$1re20rq(rs.iterNth(_509, 2, rs.drop), 0, (g19: Guard.Guard): rs.u32 => {
 		const _018: rs.u32 = Guard.id(g19);
 		g19[Symbol.dispose]();
 		return _018;
@@ -362,7 +362,7 @@ export function collected(log: Log.Log, id: rs.u32): void {
 	v6.items.push(_135);
 	const _140: Guard.Guard = guard(15);
 	v6.items.push(_140);
-	const part2 = option_mapOr$184639r(rs.iterCollectOption(rs.iterMap(rs.vecIntoIter(v6, rs.drop), (g3: Guard.Guard): Guard.Guard | undefined => {
+	const part2 = option_mapOr$090948l(rs.iterCollectOption(rs.iterMap(rs.vecIntoIter(v6, rs.drop), (g3: Guard.Guard): Guard.Guard | undefined => {
 		return g3;
 	}), (values: rs.Iter<Guard.Guard>) => rs.iterToVec(values, "next", 8, false, 8), lib_drop$Vec_model_Guard), 0, (v12: rs.Vec<Guard.Guard>): rs.usize => {
 		const _06: rs.usize = v12.items.length;
@@ -467,7 +467,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const keys: rs.Vec<Key.Key> = rs.iterToVec(rs.btreeKeys(tree(5), rs.drop, rs.drop, true), "fold", 12, true);
 	const values: rs.Iter<Guard.Guard> = rs.btreeValues(tree(9), rs.drop, rs.drop);
 	const _37: rs.usize = keys.items.length;
-	const _40: rs.u32 = option_mapOr$01ozsk3(rs.iterToOption(values.next()), 0, (g: Guard.Guard): rs.u32 => {
+	const _40: rs.u32 = option_mapOr$1re20rq(rs.iterToOption(values.next()), 0, (g: Guard.Guard): rs.u32 => {
 		const _04: rs.u32 = Guard.id(g);
 		g[Symbol.dispose]();
 		return _04;
@@ -481,7 +481,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const _58: Key.Key = key(14);
 	rs.btreeAdd(set, _58, rs.drop);
 	const _70: rs.Iter<Key.Key> = rs.btreeKeys(set, rs.drop);
-	const part = option_mapOr$1w10sgd(rs.iterToOption(_70.next()), 0, (k: Key.Key): rs.u32 => {
+	const part = option_mapOr$0mko9ta(rs.iterToOption(_70.next()), 0, (k: Key.Key): rs.u32 => {
 		const _05: rs.u32 = k.id;
 		k[Symbol.dispose]();
 		return _05;
@@ -498,7 +498,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 		rs.dequePushBack(queue, _86);
 	}
 	const range: rs.Iter<Guard.Guard> = rs.dequeDrain(queue, new rs.Range(1, 4), rs.drop);
-	const part2 = option_mapOr$01ozsk3(rs.iterToOption(range.next()), 0, (g2: Guard.Guard): rs.u32 => {
+	const part2 = option_mapOr$1re20rq(rs.iterToOption(range.next()), 0, (g2: Guard.Guard): rs.u32 => {
 		const _06: rs.u32 = Guard.id(g2);
 		g2[Symbol.dispose]();
 		return _06;
@@ -508,7 +508,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	rs.drop(range);
 	const _113: rs.usize = queue.n;
 	const _119: rs.Iter<Guard.Guard> = rs.dequeIntoIter(queue, rs.drop);
-	const _116: rs.u32 = option_mapOr$01ozsk3(rs.iterToOption(_119.next()), 0, (g3: Guard.Guard): rs.u32 => {
+	const _116: rs.u32 = option_mapOr$1re20rq(rs.iterToOption(_119.next()), 0, (g3: Guard.Guard): rs.u32 => {
 		const _07: rs.u32 = Guard.id(g3);
 		g3[Symbol.dispose]();
 		return _07;
@@ -540,7 +540,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const _178: Key.Key = key(22);
 	rs.hashAdd(set2, _178, rs.drop);
 	const taken: rs.Iter<Key.Key> = rs.hashDrainKeys(set2, rs.drop);
-	const part5 = option_mapOr$1w10sgd(rs.iterToOption(taken.next()), 0, (k2: Key.Key): rs.u32 => {
+	const part5 = option_mapOr$0mko9ta(rs.iterToOption(taken.next()), 0, (k2: Key.Key): rs.u32 => {
 		const _08: rs.u32 = k2.id;
 		k2[Symbol.dispose]();
 		return _08;
@@ -684,7 +684,7 @@ export function extended(log: Log.Log, id: rs.u32): void {
  */
 export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const _12: (a0: rs.Ordering | undefined) => rs.i8 = (o: rs.Ordering | undefined): rs.i8 => {
-		return option_mapOr$00i7kb3(o, 9, (o2: rs.Ordering): rs.i8 => {
+		return option_mapOr$16nkz0h(o, 9, (o2: rs.Ordering): rs.i8 => {
 			return o2;
 		});
 	};
@@ -692,16 +692,16 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rs.Slice<rs.u32>) => rs.Vec<Key.Key> = (ns: rs.Slice<rs.u32>): rs.Vec<Key.Key> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns)), (_2: rs.u32): Key.Key => {
+	const keys: (a0: rs.u32[]) => rs.Vec<Key.Key> = (ns: rs.u32[]): rs.Vec<Key.Key> => {
+		return rs.iterToVec(rs.iterMap(rs.iterSlice(ns), (_2: rs.u32): Key.Key => {
 			return key(_2);
 		}), undefined, 12, true);
 	};
 	const guard: (a0: rs.u32) => Guard.Guard = (n3: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(id, n3), Log.clone$Clone(log));
 	};
-	const guards: (a0: rs.Slice<rs.u32>) => rs.Vec<Guard.Guard> = (ns2: rs.Slice<rs.u32>): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns2)), (_26: rs.u32): Guard.Guard => {
+	const guards: (a0: rs.u32[]) => rs.Vec<Guard.Guard> = (ns2: rs.u32[]): rs.Vec<Guard.Guard> => {
+		return rs.iterToVec(rs.iterMap(rs.iterSlice(ns2), (_26: rs.u32): Guard.Guard => {
 			return guard(_26);
 		}), undefined, 8, true);
 	};
@@ -709,33 +709,33 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	_283 = true;
 	const _16: rs.u8 = rs.u8Rem(arg, 9);
 	if (_16 === 0) {
-		const part8 = rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 5, 6])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const part8 = rs.iterEq(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 5, 6]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part8, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args2[0]]));
 	} else if (_16 === 1) {
-		const eq2: boolean = rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
-		const ne: boolean = !rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([4])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([4, 5])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const eq2: boolean = rs.iterEq(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const ne: boolean = !rs.iterEq(rs.vecIntoIter(keys([4]), rs.drop), rs.vecIntoIter(keys([4, 5]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(eq2, f), (f: rs.Formatter) => rs.fmtBool(ne, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args4[0], " ", args4[1]]));
 	} else if (_16 === 2) {
-		const part7 = rs.iterEq(rs.iterFilter(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), (_210: Key.Key): boolean => {
+		const part7 = rs.iterEq(rs.iterFilter(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), (_210: Key.Key): boolean => {
 			return true;
-		}, rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), undefined, true, true, undefined, rs.drop, rs.drop);
+		}, rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), undefined, true, true, undefined, rs.drop, rs.drop);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part7, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args6[0]]));
 	} else if (_16 === 3) {
-		const part6 = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 4])), rs.drop), rs.consuming(Key.cmp$cmp_Ord, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
+		const part6 = rs.iterCmp(rs.vecIntoIter(keys([1, 2]), rs.drop), rs.vecIntoIter(keys([1, 2, 4]), rs.drop), rs.consuming(Key.cmp$cmp_Ord, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part6, f)];
 		Log.note(log, rs.fmtFormat(["cmp ", args8[0]]));
 	} else if (_16 === 4) {
-		const cmp2: rs.Ordering | undefined = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([1, 3, 5])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
-		const lt: boolean = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([6])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([6])), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop) === -1;
+		const cmp2: rs.Ordering | undefined = rs.iterCmp(rs.vecIntoIter(keys([1, 3, 5]), rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
+		const lt: boolean = rs.iterCmp(rs.vecIntoIter(keys([6]), rs.drop), rs.vecIntoIter(keys([6]), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop) === -1;
 		const _153: rs.i8 = _12(cmp2);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(_153, f), (f: rs.Formatter) => rs.fmtBool(lt, f)];
 		Log.note(log, rs.fmtFormat(["partial_cmp ", args10[0], " ", args10[1]]));
 	} else if (_16 === 5) {
-		const _163: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop);
-		const _169: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1, 2, 5]));
+		const _163: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2]), rs.drop);
+		const _169: rs.Vec<Guard.Guard> = guards([1, 2, 5]);
 		_283 = false;
 		const captured3 = c;
 		const part5 = rs.iterCmp(_163, rs.vecIntoIter(_169, rs.drop), rs.closure((x3: Key.Key, y3: Guard.Guard): rs.Ordering => {
@@ -751,8 +751,8 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part5, f)];
 		Log.note(log, rs.fmtFormat(["cmp_by ", args12[0]]));
 	} else if (_16 === 6) {
-		const _188: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop);
-		const _194: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
+		const _188: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2]), rs.drop);
+		const _194: rs.Vec<Guard.Guard> = guards([1]);
 		_283 = false;
 		const captured2 = c;
 		const part4 = rs.iterEq(_188, rs.vecIntoIter(_194, rs.drop), rs.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
@@ -767,8 +767,8 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part4, f)];
 		Log.note(log, rs.fmtFormat(["eq_by ", args14[0]]));
 	} else if (_16 === 7) {
-		const _211: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop);
-		const _217: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
+		const _211: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2, 3]), rs.drop);
+		const _217: rs.Vec<Guard.Guard> = guards([1]);
 		_283 = false;
 		const captured = c;
 		const part2 = rs.iterCmp(_211, rs.vecIntoIter(_217, rs.drop), rs.closure((x: Key.Key, y: Guard.Guard): rs.Ordering | undefined => {
@@ -785,7 +785,7 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part3, f)];
 		Log.note(log, rs.fmtFormat(["partial_cmp_by ", args16[0]]));
 	} else {
-		const _238: [rs.Iter<Key.Key>, rs.Iter<Key.Key>] = [rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 4, 5])), rs.drop)];
+		const _238: [rs.Iter<Key.Key>, rs.Iter<Key.Key>] = [rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 4, 5]), rs.drop)];
 		const a: rs.Iter<Key.Key> = _238[0];
 		const b: rs.Iter<Key.Key> = _238[1];
 		const _252: rs.Iter<Key.Key> = a;

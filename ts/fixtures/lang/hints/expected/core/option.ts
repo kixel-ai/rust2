@@ -3,56 +3,56 @@
 import * as rs from "../rs.ts";
 import type * as Unit from "../hints.Unit.ts";
 
-export function unwrapOr$1rbuegs(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
+export function unwrapOr$0yvilko(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$1imnnei(self: rs.Vec<rs.u32[]> | undefined, default_: rs.usize, f: (a0: rs.Vec<rs.u32[]>) => rs.usize): rs.usize {
+export function mapOr$1srande(self: rs.Vec<rs.u32[]> | undefined, default_: rs.usize, f: (a0: rs.Vec<rs.u32[]>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0v5bfoa(self: rs.Vec<Unit.Unit> | undefined, default_: rs.usize, f: (a0: rs.Vec<Unit.Unit>) => rs.usize): rs.usize {
+export function mapOr$1jtsi2n(self: rs.Vec<Unit.Unit> | undefined, default_: rs.usize, f: (a0: rs.Vec<Unit.Unit>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0iae8yu(self: rs.Vec<[rs.u64, rs.u8]> | undefined, default_: rs.usize, f: (a0: rs.Vec<[rs.u64, rs.u8]>) => rs.usize): rs.usize {
+export function mapOr$1tgduhr(self: rs.Vec<[rs.u64, rs.u8]> | undefined, default_: rs.usize, f: (a0: rs.Vec<[rs.u64, rs.u8]>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1tx3bdh(self: rs.Vec<[rs.u8, rs.u8, rs.u8]> | undefined, default_: rs.usize, f: (a0: rs.Vec<[rs.u8, rs.u8, rs.u8]>) => rs.usize): rs.usize {
+export function mapOr$0vgdmy4(self: rs.Vec<[rs.u8, rs.u8, rs.u8]> | undefined, default_: rs.usize, f: (a0: rs.Vec<[rs.u8, rs.u8, rs.u8]>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0phbwf3(self: rs.Vec<rs.u32> | undefined, default_: rs.usize, f: (a0: rs.Vec<rs.u32>) => rs.usize): rs.usize {
+export function mapOr$09ae03o(self: rs.Vec<rs.u32> | undefined, default_: rs.usize, f: (a0: rs.Vec<rs.u32>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$08xwngs(self: rs.ByteVec | undefined, default_: rs.usize, f: (a0: rs.ByteVec) => rs.usize): rs.usize {
+export function mapOr$19z8yie(self: rs.ByteVec | undefined, default_: rs.usize, f: (a0: rs.ByteVec) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}

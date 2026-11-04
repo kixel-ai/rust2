@@ -4,7 +4,7 @@ import * as rs from "./rs.ts";
 import * as Countdown from "./awaits.Countdown.ts";
 import * as Noted from "./awaits.Noted.ts";
 import * as Yield from "./awaits.Yield.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 
 /**
  * The iterators `kind` picks, each over at most 16 bytes, dropped after each number of
@@ -99,7 +99,7 @@ export function run$awaits_borrowed_closure0_awaits_awaits_closure10(make: () =>
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -132,7 +132,7 @@ export function run$awaits_drain_closure0_awaits_awaits_closure8(make: () => rs.
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -165,7 +165,7 @@ export function run$awaits_each_closure0_Vec_awaits_Noted_awaits_awaits_closure1
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -198,7 +198,7 @@ export function run$awaits_each_closure0_awaits_Countdown_awaits_awaits_closure5
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -231,7 +231,7 @@ export function run$awaits_each_closure0_collections_VecDeque_awaits_Noted_await
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -264,7 +264,7 @@ export function run$awaits_each_closure0_collections_btree_map_IntoValues_u8_awa
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -297,7 +297,7 @@ export function run$awaits_each_closure0_collections_btree_set_IntoIter_awaits_N
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -330,7 +330,7 @@ export function run$awaits_each_closure0_iter_Chain_iter_Filter_vec_IntoIter_awa
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -363,7 +363,7 @@ export function run$awaits_each_closure0_iter_StepBy_iter_Skip_iter_Rev_vec_Into
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -396,7 +396,7 @@ export function run$awaits_hashed_closure0_awaits_awaits_closure11(make: () => r
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;
@@ -429,7 +429,7 @@ export function run$awaits_inline_closure0_awaits_awaits_closure9(make: () => rs
 		rs.byteVecPush(_25.value, 254);
 		rs.refMutRelease(_25);
 		rs.drop(f);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ready, 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(ready, 238));
 		rs.byteVecAppend(out, rs.refCellReplace(log, new rs.ByteVec()));
 		if (ready !== undefined) {
 			break;

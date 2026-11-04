@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function then$0ea5h05(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$0apfzgv(self: boolean, f: () => rs.u32): rs.u32 | undefined {
 	if (!self) {
 		return undefined;
 	}

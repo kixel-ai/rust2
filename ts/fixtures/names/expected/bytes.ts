@@ -2,10 +2,10 @@
 
 import * as rs from "./rs.ts";
 import { out$ref_slice_u8 } from "./lib.ts";
-import { okOr$1qu2qk5 as option_okOr$1qu2qk5 } from "./core/option.ts";
+import { okOr$1pcnf6t as option_okOr$1pcnf6t } from "./core/option.ts";
 
 export function read(data: rs.ByteSlice): rs.u8 | undefined {
-	const _0: rs.Result<rs.ByteSlice, rs.u8> = option_okOr$1qu2qk5(rs.byteSliceGetRange(data, 0, 1), 0);
+	const _0: rs.Result<rs.ByteSlice, rs.u8> = option_okOr$1pcnf6t(rs.byteSliceGetRange(data, 0, 1), 0);
 	if (!_0.ok) {
 		return _0.error;
 	}

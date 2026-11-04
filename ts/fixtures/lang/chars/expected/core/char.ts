@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function eq$163p0qo(_self: rs.TryFromCharError, _other: rs.TryFromCharError): boolean {
+export function eq$1g188ap(_self: rs.TryFromCharError, _other: rs.TryFromCharError): boolean {
 	return true;
 }
 

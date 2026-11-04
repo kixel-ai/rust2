@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function eq$08q6k9m(_self: rs.FmtError, _other: rs.FmtError): boolean {
+export function eq$1pgfit3(_self: rs.FmtError, _other: rs.FmtError): boolean {
 	return true;
 }
 

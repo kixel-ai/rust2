@@ -18,145 +18,145 @@ export function unwrapOr$0ujf6zi(self: Twin.Twin | undefined, default_: Twin.Twi
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1srhyy0(self: rs.Arc<Noisy.Noisy> | undefined, _: (a0: rs.Arc<Noisy.Noisy>) => rs.Arc<Noisy.Noisy>): rs.Arc<Noisy.Noisy> | undefined {
+export function map$0lz7sqj(self: rs.Arc<Noisy.Noisy> | undefined, _: (a0: rs.Arc<Noisy.Noisy>) => rs.Arc<Noisy.Noisy>): rs.Arc<Noisy.Noisy> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return rs.arcClone(self);
 }
 
-export function map$13pnxtn(self: rs.Arc<Noisy.Noisy> | undefined, _: (a0: rs.Arc<Noisy.Noisy>) => Noisy.Noisy): Noisy.Noisy | undefined {
+export function map$1lu9jov(self: rs.Arc<Noisy.Noisy> | undefined, _: (a0: rs.Arc<Noisy.Noisy>) => Noisy.Noisy): Noisy.Noisy | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self.value;
 }
 
-export function map$0ufgkyq(self: rs.Arc<rs.u8> | undefined, _: (a0: rs.Arc<rs.u8>) => rs.u8): rs.u8 | undefined {
+export function map$03x79zo(self: rs.Arc<rs.u8> | undefined, _: (a0: rs.Arc<rs.u8>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self.value;
 }
 
-export function mapOr$1xztl8h(self: rs.u8 | undefined | rs.None, default_: rs.u8, f: (a0: rs.u8 | undefined) => rs.u8): rs.u8 {
+export function mapOr$1rg5gkk(self: rs.u8 | undefined | rs.None, default_: rs.u8, f: (a0: rs.u8 | undefined) => rs.u8): rs.u8 {
 	if (self === rs.None) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$036yrbw(self: rs.Arc<Noisy.Noisy> | undefined, default_: rs.u8, f: (a0: rs.Arc<Noisy.Noisy>) => rs.u8): rs.u8 {
+export function mapOr$025sl8y(self: rs.Arc<Noisy.Noisy> | undefined, default_: rs.u8, f: (a0: rs.Arc<Noisy.Noisy>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1ndy2gq(self: rs.Arc<RcNode.RcNode> | undefined, default_: rs.u8, f: (a0: rs.Arc<RcNode.RcNode>) => rs.u8): rs.u8 {
+export function mapOr$1kjo972(self: rs.Arc<RcNode.RcNode> | undefined, default_: rs.u8, f: (a0: rs.Arc<RcNode.RcNode>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1qmxzyf(self: rs.Arc<Id.Id> | undefined, default_: rs.u8, f: (a0: rs.Arc<Id.Id>) => rs.u8): rs.u8 {
+export function mapOr$1wnjpxi(self: rs.Arc<Id.Id> | undefined, default_: rs.u8, f: (a0: rs.Arc<Id.Id>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1q3ff8g(self: rs.Arc<rs.u8> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.u8>) => rs.u8): rs.u8 {
+export function mapOr$1gfk3jk(self: rs.Arc<rs.u8> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.u8>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1ailw2a(self: Counted.Counted | undefined, default_: rs.u8, f: (a0: Counted.Counted) => rs.u8): rs.u8 {
+export function mapOr$0gign7l(self: Counted.Counted | undefined, default_: rs.u8, f: (a0: Counted.Counted) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$09pasix(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, default_: rs.u8, f: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => rs.u8): rs.u8 {
+export function mapOr$1e2t3oz(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, default_: rs.u8, f: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1hh0iyl(self: ArcShared.ArcShared | undefined, default_: rs.u8, f: (a0: ArcShared.ArcShared) => rs.u8): rs.u8 {
+export function mapOr$1pgbs4c(self: ArcShared.ArcShared | undefined, default_: rs.u8, f: (a0: ArcShared.ArcShared) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1iuqai4(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
+export function mapOr$114r0pa(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1kfudqo(self: RcShared.RcShared | undefined, default_: rs.u8, f: (a0: RcShared.RcShared) => rs.u8): rs.u8 {
+export function mapOr$1jfh4wo(self: RcShared.RcShared | undefined, default_: rs.u8, f: (a0: RcShared.RcShared) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0dgmbpi(self: rs.Arc<ArcNode.ArcNode> | undefined, default_: rs.u8, f: (a0: rs.Arc<ArcNode.ArcNode>) => rs.u8): rs.u8 {
+export function mapOr$1jexokn(self: rs.Arc<ArcNode.ArcNode> | undefined, default_: rs.u8, f: (a0: rs.Arc<ArcNode.ArcNode>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1cxzjxo(self: [rs.u8, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1p1hmiu(self: [rs.u8, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(copy$tuple2_u8_u8(self));
 }
 
-export function mapOr$06rr3sb(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
+export function mapOr$19a4gco(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function asDeref$0hypa7g(self: rs.Arc<Noisy.Noisy> | undefined): Noisy.Noisy | undefined {
-	return map$13pnxtn(self, (a0: rs.Arc<Noisy.Noisy>): Noisy.Noisy => {
+export function asDeref$0hjiqyl(self: rs.Arc<Noisy.Noisy> | undefined): Noisy.Noisy | undefined {
+	return map$1lu9jov(self, (a0: rs.Arc<Noisy.Noisy>): Noisy.Noisy => {
 		return a0.value;
 	});
 }
 
-export function asDeref$0s3650c(self: rs.Arc<rs.u8> | undefined): rs.u8 | undefined {
-	return map$0ufgkyq(self, (a0: rs.Arc<rs.u8>): rs.u8 => {
+export function asDeref$1l62o5g(self: rs.Arc<rs.u8> | undefined): rs.u8 | undefined {
+	return map$03x79zo(self, (a0: rs.Arc<rs.u8>): rs.u8 => {
 		return a0.value;
 	});
 }
 
-export function filter$1qg98un(self: rs.Arc<Noisy.Noisy> | undefined, predicate: (a0: rs.Arc<Noisy.Noisy>) => boolean): rs.Arc<Noisy.Noisy> | undefined {
+export function filter$1gn36in(self: rs.Arc<Noisy.Noisy> | undefined, predicate: (a0: rs.Arc<Noisy.Noisy>) => boolean): rs.Arc<Noisy.Noisy> | undefined {
 	if (self !== undefined) {
 		const x: rs.Arc<Noisy.Noisy> = self;
 		if (!predicate(x)) {
@@ -168,7 +168,7 @@ export function filter$1qg98un(self: rs.Arc<Noisy.Noisy> | undefined, predicate:
 	return undefined;
 }
 
-export function filter$09u55oo(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, predicate: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => boolean): rs.Vec<rs.Arc<Noisy.Noisy>> | undefined {
+export function filter$02g8l8j(self: rs.Vec<rs.Arc<Noisy.Noisy>> | undefined, predicate: (a0: rs.Vec<rs.Arc<Noisy.Noisy>>) => boolean): rs.Vec<rs.Arc<Noisy.Noisy>> | undefined {
 	if (self !== undefined) {
 		const x: rs.Vec<rs.Arc<Noisy.Noisy>> = self;
 		if (!predicate(x)) {
@@ -216,7 +216,7 @@ export function filter$14b5774(self: RcShared.RcShared | undefined, predicate: (
 	return undefined;
 }
 
-export function or$1loyskh(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
+export function or$0ar58vy(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return optb;
 	}

@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import * as returns_Error from "../returns.Error.ts";
 
-export function eq$11dy112(self: rs.Result<rs.u64 | undefined, returns_Error.Error>, other: rs.Result<rs.u64 | undefined, returns_Error.Error>): boolean {
+export function eq$14w6i0g(self: rs.Result<rs.u64 | undefined, returns_Error.Error>, other: rs.Result<rs.u64 | undefined, returns_Error.Error>): boolean {
 	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
 		return false;
 	}
@@ -13,21 +13,21 @@ export function eq$11dy112(self: rs.Result<rs.u64 | undefined, returns_Error.Err
 	return returns_Error.eq$cmp_PartialEq(self.error, (other as { ok: false; error: returns_Error.Error }).error);
 }
 
-export function map$1rffkv6(self: rs.Result<rs.u32, returns_Error.Error>, _: (a0: rs.u32) => rs.u64): rs.Result<rs.u64, returns_Error.Error> {
+export function map$1gzrj7d(self: rs.Result<rs.u32, returns_Error.Error>, _: (a0: rs.u32) => rs.u64): rs.Result<rs.u64, returns_Error.Error> {
 	if (self.ok) {
 		return rs.Ok(self.value as rs.u64);
 	}
 	return self as rs.Result<rs.u64, returns_Error.Error>;
 }
 
-export function mapOr$0fbyajt(self: rs.Result<rs.ByteSlice, returns_Error.Error>, default_: rs.usize, _: (a0: rs.ByteSlice) => rs.usize): rs.usize {
+export function mapOr$1df1cdv(self: rs.Result<rs.ByteSlice, returns_Error.Error>, default_: rs.usize, _: (a0: rs.ByteSlice) => rs.usize): rs.usize {
 	if (self.ok) {
 		return self.value.length;
 	}
 	return default_;
 }
 
-export function andThen$1yropo4(self: rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, op: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.Result<rs.ByteSlice, returns_Error.Error>): rs.Result<rs.ByteSlice, returns_Error.Error> {
+export function andThen$0ud0j7o(self: rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, op: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.Result<rs.ByteSlice, returns_Error.Error>): rs.Result<rs.ByteSlice, returns_Error.Error> {
 	if (self.ok) {
 		return op(self.value);
 	}

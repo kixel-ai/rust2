@@ -3,14 +3,14 @@
 import * as rs from "../rs.ts";
 import * as Made from "../defaults.Made.ts";
 
-export function unwrapOrDefault$0k1p6nh(self: [rs.u64 | undefined, Made.Made] | undefined): [rs.u64 | undefined, Made.Made] {
+export function unwrapOrDefault$0ddgm4x(self: [rs.u64 | undefined, Made.Made] | undefined): [rs.u64 | undefined, Made.Made] {
 	if (self === undefined) {
 		return [undefined, Made.default$Default()];
 	}
 	return self;
 }
 
-export function map$155qrdr(self: rs.Arc<Made.Made> | undefined, f: (a0: rs.Arc<Made.Made>) => rs.u64): rs.u64 | undefined {
+export function map$1ubvkfe(self: rs.Arc<Made.Made> | undefined, f: (a0: rs.Arc<Made.Made>) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

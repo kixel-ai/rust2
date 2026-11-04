@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { copy$tuples_Spot, drop$Result_tuple2_tuples_Logged_u8_u8, drop$tuple2_Vec_tuples_Logged_tuples_Tally, drop$tuple2_tuples_Logged_u8, drop$tuple2_u8_tuples_Logged } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1pb5zw8 as option_map$1pb5zw8, map$1fmzefe as option_map$1fmzefe } from "./core/option.ts";
-import { set$0xuu1fw } from "./std/thread/local.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1ykzdkq as option_map$1ykzdkq, map$1pv2dfs as option_map$1pv2dfs } from "./core/option.ts";
+import { set$0e2h2hd } from "./std/thread/local.ts";
 import * as Last from "./tuples.Last.ts";
 import * as Logged from "./tuples.Logged.ts";
 import type * as Spot from "./tuples.Spot.ts";
@@ -389,7 +389,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return l.id;
 	}), undefined, true);
 	const held: rs.Vec<[rs.u8, Logged.Logged]> = rs.iterToVec(rs.hashIter(map, undefined, rs.drop), "next", 12);
-	rs.sliceSort(rs.sliceFrom(held.items), rs.keyLt((_24: [rs.u8, Logged.Logged]): rs.u8 => {
+	rs.sliceSort(held.items, rs.keyLt((_24: [rs.u8, Logged.Logged]): rs.u8 => {
 		return _24[0];
 	}, rs.lt), 12, true);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(held.items), (_25: [rs.u8, Logged.Logged]): rs.u8 => {
@@ -412,7 +412,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const keys: rs.HashSet<Logged.Logged> = _48[1];
 	flush(log.value, out);
 	const held2: rs.Vec<Logged.Logged> = rs.iterToVec(rs.hashKeys(keys), "next", 4);
-	rs.sliceSort(rs.sliceFrom(held2.items), rs.keyLt((l3: Logged.Logged): rs.u8 => {
+	rs.sliceSort(held2.items, rs.keyLt((l3: Logged.Logged): rs.u8 => {
 		return l3.key;
 	}, rs.lt), 4, true);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(held2.items), (l4: Logged.Logged): rs.u8 => {
@@ -425,7 +425,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b3: rs.u8 = _29[1];
 		return [logged(i4 & 0xff, b3), b3] as [Logged.Logged, rs.u8];
 	}), undefined, 12, true);
-	const n: rs.usize = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 8) as rs.usize;
+	const n: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8) as rs.usize;
 	const _87: rs.Iter<[Logged.Logged, rs.u8]> = rs.iterTake(rs.vecIntoIter(source, drop$tuple2_tuples_Logged_u8), n, drop$tuple2_tuples_Logged_u8);
 	const _86: [rs.Vec<Logged.Logged>, rs.ByteVec] = rs.tupleExtend([new rs.Vec(), new rs.ByteVec()] as [rs.Vec<Logged.Logged>, rs.ByteVec], _87, [rs.vecPart(8), rs.byteVecPart()], "fold");
 	const taken: rs.Vec<Logged.Logged> = _86[0];
@@ -443,7 +443,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** A panic midway, from what makes the items. */
 export function panicked(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const at: rs.usize = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 8) as rs.usize;
+	const at: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8) as rs.usize;
 	const _13: rs.Iter<[rs.u8, rs.char, rs.u16]> = rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): [rs.u8, rs.char, rs.u16] => {
 		const i: rs.usize = _2[0];
 		const b: rs.u8 = _2[1];
@@ -472,7 +472,7 @@ export function panicked(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function reserved(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const items: rs.Range<rs.u32> = new rs.Range(0, 4294967295);
-	const _4: rs.u8 = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 6);
+	const _4: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 6);
 	if (_4 === 0) {
 		const _11: rs.Iter<[undefined, rs.u32]> = rs.iterMap(items, (i5: rs.u32): [undefined, rs.u32] => {
 			return [undefined, i5] as [undefined, rs.u32];
@@ -534,7 +534,7 @@ export function shunted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const found: [rs.Vec<rs.u16>, rs.BTreeSet<rs.u8>] | undefined = rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): [rs.u16, rs.u8] | undefined => {
 		const b2: rs.u8 = _22;
-		return option_map$1pb5zw8(rs.u8CheckedSub(b2, 4), (n: rs.u8): [rs.u16, rs.u8] => {
+		return option_map$1ykzdkq(rs.u8CheckedSub(b2, 4), (n: rs.u8): [rs.u16, rs.u8] => {
 			return [n as rs.u16, rs.u8Rem(b2, 8)] as [rs.u16, rs.u8];
 		});
 	}), (values: rs.Iter<[rs.u16, rs.u8]>) => rs.tupleExtend([new rs.Vec(), rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>] as [rs.Vec<rs.u16>, rs.BTreeSet<rs.u8>], values, [rs.vecPart(2), rs.btreeKeysPart()]));
@@ -594,7 +594,7 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		return 237;
 	}), undefined, true);
-	set$0xuu1fw(NEXT, 0);
+	set$0e2h2hd(NEXT, 0);
 	rs.localKeyWithBorrowMut(CALLS, (a0: rs.ByteVec): undefined => {
 		rs.byteVecClear(a0);
 	});
@@ -708,7 +708,7 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 	calls(out);
 	const found: [rs.ByteVec, Tally.Tally] | undefined = rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(data2))), (_218: rs.u8): [rs.u8, rs.u8] | undefined => {
 		const b16: rs.u8 = _218;
-		return option_map$1fmzefe(rs.u8CheckedSub(b16, 4), (n2: rs.u8): [rs.u8, rs.u8] => {
+		return option_map$1pv2dfs(rs.u8CheckedSub(b16, 4), (n2: rs.u8): [rs.u8, rs.u8] => {
 			return [n2, b16] as [rs.u8, rs.u8];
 		});
 	}), (values: rs.Iter<[rs.u8, rs.u8]>) => rs.tupleExtend([new rs.ByteVec(), Tally.default$Default()] as [rs.ByteVec, Tally.Tally], values, [rs.byteVecPart(), rs.ownPart(Tally.extend$iter_Extend_u8_Option_u8 as (a0: Tally.Tally, a1: rs.u8 | undefined) => undefined)]));
@@ -782,7 +782,7 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** A panic in the crate's own `extend` at an item partway, which the panic message names. */
 export function ownPanicked(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const at: rs.usize = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 8) as rs.usize;
+	const at: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8) as rs.usize;
 	const items: rs.Iter<rs.u8> = rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_2: [rs.usize, rs.u8]): rs.u8 => {
 		const i: rs.usize = _2[0];
 		const b: rs.u8 = _2[1];
@@ -791,8 +791,8 @@ export function ownPanicked(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		return 238;
 	});
-	set$0xuu1fw(NEXT, 0);
-	if (rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, 1), 0), 2) === 0) {
+	set$0e2h2hd(NEXT, 0);
+	if (rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0), 2) === 0) {
 		const _25: rs.Iter<[rs.u8, rs.u8, rs.char]> = rs.iterMap(items, (b3: rs.u8): [rs.u8, rs.u8, rs.char] => {
 			return [b3, b3, b3 as rs.char] as [rs.u8, rs.u8, rs.char];
 		});

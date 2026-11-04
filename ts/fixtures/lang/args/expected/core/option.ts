@@ -3,21 +3,21 @@
 import * as rs from "../rs.ts";
 import { opaque, len as args_len } from "../args.ts";
 
-export function map$0waqle9(self: rs.ByteSlice | undefined, _: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
+export function map$0a3rlpk(self: rs.ByteSlice | undefined, _: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return opaque(self);
 }
 
-export function map$1yogfym(self: [rs.u8, rs.ByteSlice] | undefined, f: (a0: [rs.u8, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice | undefined {
+export function map$05uajnx(self: [rs.u8, rs.ByteSlice] | undefined, f: (a0: [rs.u8, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$0dk8jdr(self: rs.ByteSlice | undefined, default_: rs.usize, _: (a0: rs.ByteSlice) => rs.usize): rs.usize {
+export function mapOr$1klptgj(self: rs.ByteSlice | undefined, default_: rs.usize, _: (a0: rs.ByteSlice) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}

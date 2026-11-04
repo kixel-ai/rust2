@@ -3,8 +3,8 @@
 import * as rs from "./rs.ts";
 import { drop$Option_Result_model_Guard_u8 as lib_drop$Option_Result_model_Guard_u8, drop$Option_boxed_Box_drops_Held as lib_drop$Option_boxed_Box_drops_Held, drop$Option_drops_Held as lib_drop$Option_drops_Held, drop$Option_tuple2_model_Guard_model_Guard as lib_drop$Option_tuple2_model_Guard_model_Guard, drop$Result_model_Guard_model_Guard as lib_drop$Result_model_Guard_model_Guard, drop$Result_model_Guard_u8 as lib_drop$Result_model_Guard_u8, drop$drops_Held as lib_drop$drops_Held, drop$drops_Pair_drops_Held as lib_drop$drops_Pair_drops_Held, drop$drops_Wrap_Vec_drops_Wrap_drops_Held as lib_drop$drops_Wrap_Vec_drops_Wrap_drops_Held, drop$drops_Wrap_drops_Held as lib_drop$drops_Wrap_drops_Held, drop$drops_Wrap_drops_Pair_drops_Held as lib_drop$drops_Wrap_drops_Pair_drops_Held, drop$drops_Wrap_model_Guard as lib_drop$drops_Wrap_model_Guard, drop$drops_Wrap_sync_Arc_drops_Held as lib_drop$drops_Wrap_sync_Arc_drops_Held, drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held as lib_drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held, drop$sync_Mutex_drops_Held as lib_drop$sync_Mutex_drops_Held, drop$tuple2_drops_Key_drops_Key as lib_drop$tuple2_drops_Key_drops_Key, drop$tuple2_sync_Arc_str_sync_Arc_str as lib_drop$tuple2_sync_Arc_str_sync_Arc_str, out$u32 } from "./lib.ts";
 import { thenSome$0zvoczk } from "./core/bool.ts";
-import { isSomeAnd$17cacqw, unwrapOr$0v6ziq2 as option_unwrapOr$0v6ziq2, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, map$0hegtde as option_map$0hegtde, map$0ccnsmq as option_map$0ccnsmq, map$0782hf5 as option_map$0782hf5, map$0lq7mno as option_map$0lq7mno, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$0ey19f0 as option_mapOr$0ey19f0, okOr$1alhe7b as option_okOr$1alhe7b, filter$1vqc90z, orElse$02wco5t as option_orElse$02wco5t, zip$1rr0evn, clone$1sxxxkp as option_clone$1sxxxkp } from "./core/option.ts";
-import { ok$0rngk0g, err$126l6wy, asRef$01pd5k9, mapOr$1hlk3iq as result_mapOr$1hlk3iq, mapOrElse$196aho3 as result_mapOrElse$196aho3, andThen$0r804hk as result_andThen$0r804hk, unwrapOr$0urixfm as result_unwrapOr$0urixfm } from "./core/result.ts";
+import { isSomeAnd$17cacqw, unwrapOr$0v6ziq2 as option_unwrapOr$0v6ziq2, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$150c7g4 as option_map$150c7g4, map$1x5kkz1 as option_map$1x5kkz1, map$0bmexgo as option_map$0bmexgo, map$02u0dmi as option_map$02u0dmi, mapOr$0mko9ta as option_mapOr$0mko9ta, mapOr$19gmzl7 as option_mapOr$19gmzl7, okOr$0qyzozq as option_okOr$0qyzozq, filter$1vqc90z, orElse$0gn8afw as option_orElse$0gn8afw, zip$1rr0evn, clone$0cpy9zy as option_clone$0cpy9zy } from "./core/option.ts";
+import { ok$0p21n6j, err$1guw4rh, asRef$0auemm6, mapOr$1g4n0cf as result_mapOr$1g4n0cf, mapOrElse$0cjv9n5 as result_mapOrElse$0cjv9n5, andThen$1wsai1p as result_andThen$1wsai1p, unwrapOr$19ff01h as result_unwrapOr$19ff01h } from "./core/result.ts";
 import { called as called_called } from "./drops/called.ts";
 import { scoped, discarded, iterated } from "./drops/closures.ts";
 import { flattened as flattened_flattened } from "./drops/flattened.ts";
@@ -289,7 +289,7 @@ export class heldFuture {
 		if (_36 !== rs.Pending) {
 			const result: rs.u64 | undefined = _36;
 			rs.drop(this.#awaitee);
-			const value: rs.u64 = option_unwrapOr$1tvry1i(result, 0);
+			const value: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
 			const _51: rs.usize = this.#held.items.length;
 			const _54: boolean = Held.isSome(this.#wrap.inner.value);
 			const arg = this.#id;
@@ -625,15 +625,15 @@ export function options(log: Log.Log, id: rs.u32): void {
 	const guard: (a0: rs.u32) => Guard.Guard = (n: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const some: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$1alhe7b(guard(1), guard(2));
-	const none: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$1alhe7b(undefined as Guard.Guard | undefined, guard(3));
+	const some: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0qyzozq(guard(1), guard(2));
+	const none: rs.Result<Guard.Guard, Guard.Guard> = option_okOr$0qyzozq(undefined as Guard.Guard | undefined, guard(3));
 	const _24: boolean = some.ok;
 	const _27: boolean = none.ok;
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_24, f), (f: rs.Formatter) => rs.fmtBool(_27, f)];
 	Log.note(log, rs.fmtFormat(["ok_or ", args2[0], " ", args2[1]]));
-	const ok: Guard.Guard | undefined = ok$0rngk0g(rs.Ok(guard(4)));
-	const err: Guard.Guard | undefined = ok$0rngk0g(rs.Err(guard(5)));
-	const flipped: Guard.Guard | undefined = err$126l6wy(rs.Ok(guard(6)));
+	const ok: Guard.Guard | undefined = ok$0p21n6j(rs.Ok(guard(4)));
+	const err: Guard.Guard | undefined = ok$0p21n6j(rs.Err(guard(5)));
+	const flipped: Guard.Guard | undefined = err$1guw4rh(rs.Ok(guard(6)));
 	const _55: boolean = ok !== undefined;
 	const _58: boolean = err !== undefined;
 	const _61: boolean = flipped !== undefined;
@@ -641,19 +641,19 @@ export function options(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.fmtFormat(["ok ", args4[0], " ", args4[1], " ", args4[2]]));
 	const kept: Guard.Guard = option_unwrapOr$0v6ziq2(guard(7), guard(8));
 	const fallback: Guard.Guard = option_unwrapOr$0v6ziq2(undefined as Guard.Guard | undefined, guard(9));
-	const value: Guard.Guard = result_unwrapOr$0urixfm(rs.Ok(guard(10)), guard(11));
-	const error: Guard.Guard = result_unwrapOr$0urixfm(rs.Err(guard(12)), guard(13));
+	const value: Guard.Guard = result_unwrapOr$19ff01h(rs.Ok(guard(10)), guard(11));
+	const error: Guard.Guard = result_unwrapOr$19ff01h(rs.Err(guard(12)), guard(13));
 	const _104: rs.u32 = Guard.id(kept);
 	const _107: rs.u32 = Guard.id(fallback);
 	const _110: rs.u32 = Guard.id(value);
 	const _113: rs.u32 = Guard.id(error);
 	const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_104, f), (f: rs.Formatter) => rs.u32Display(_107, f), (f: rs.Formatter) => rs.u32Display(_110, f), (f: rs.Formatter) => rs.u32Display(_113, f)];
 	Log.note(log, rs.fmtFormat(["unwrap_or ", args6[0], " ", args6[1], " ", args6[2], " ", args6[3]]));
-	const mapped: Guard.Guard = option_mapOr$0ey19f0(id, guard(14), (n2: rs.u32): Guard.Guard => {
+	const mapped: Guard.Guard = option_mapOr$19gmzl7(id, guard(14), (n2: rs.u32): Guard.Guard => {
 		Log.note(log, rs.fmtFormat(["mapped"]));
 		return Guard.new(rs.u32Add(n2, 15), Log.clone$Clone(log));
 	});
-	const unmapped: Guard.Guard = option_mapOr$0ey19f0(undefined as rs.u32 | undefined, guard(16), (n3: rs.u32): Guard.Guard => {
+	const unmapped: Guard.Guard = option_mapOr$19gmzl7(undefined as rs.u32 | undefined, guard(16), (n3: rs.u32): Guard.Guard => {
 		return Guard.new(n3, Log.clone$Clone(log));
 	});
 	const _140: rs.u32 = Guard.id(mapped);
@@ -673,7 +673,7 @@ export function options(log: Log.Log, id: rs.u32): void {
 		return false;
 	});
 	const zipped: [Guard.Guard, Guard.Guard] | undefined = zip$1rr0evn(guard(21), guard(22));
-	const other: Guard.Guard | undefined = option_orElse$02wco5t(undefined as Guard.Guard | undefined, (): Guard.Guard | undefined => {
+	const other: Guard.Guard | undefined = option_orElse$0gn8afw(undefined as Guard.Guard | undefined, (): Guard.Guard | undefined => {
 		return guard(23);
 	});
 	const flag: boolean = isSomeAnd$17cacqw(guard(24), (g2: Guard.Guard): boolean => {
@@ -687,10 +687,10 @@ export function options(log: Log.Log, id: rs.u32): void {
 	const _221: boolean = other !== undefined;
 	const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_212, f), (f: rs.Formatter) => rs.fmtBool(_215, f), (f: rs.Formatter) => rs.fmtBool(_218, f), (f: rs.Formatter) => rs.fmtBool(_221, f), (f: rs.Formatter) => rs.fmtBool(flag, f)];
 	Log.note(log, rs.fmtFormat(["filter ", args12[0], " ", args12[1], " zip ", args12[2], " or_else ", args12[3], " is_some_and ", args12[4]]));
-	const chained: rs.Result<Guard.Guard, Guard.Guard> = result_andThen$0r804hk(rs.Ok(guard(25)), (a0: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> => {
+	const chained: rs.Result<Guard.Guard, Guard.Guard> = result_andThen$1wsai1p(rs.Ok(guard(25)), (a0: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> => {
 		return rs.Err(a0);
 	});
-	const error2: rs.u32 = result_mapOrElse$196aho3(rs.Err(guard(26)), (e: Guard.Guard): rs.u32 => {
+	const error2: rs.u32 = result_mapOrElse$0cjv9n5(rs.Err(guard(26)), (e: Guard.Guard): rs.u32 => {
 		const _07: rs.u32 = Guard.id(e);
 		e[Symbol.dispose]();
 		return _07;
@@ -700,7 +700,7 @@ export function options(log: Log.Log, id: rs.u32): void {
 		return _08;
 	});
 	const _244: rs.Arc<Guard.Guard> | undefined = new rs.Arc(guard(27));
-	const cloned: rs.Arc<Guard.Guard> | undefined = option_clone$1sxxxkp(_244);
+	const cloned: rs.Arc<Guard.Guard> | undefined = option_clone$0cpy9zy(_244);
 	rs.drop(_244);
 	const _255: boolean = chained.ok;
 	const _258: boolean = cloned !== undefined;
@@ -764,7 +764,7 @@ export function options(log: Log.Log, id: rs.u32): void {
 	} else {
 		lib_drop$Result_model_Guard_u8(_324);
 	}
-	const kept3: rs.u32 = result_mapOr$1hlk3iq(asRef$01pd5k9(answered as rs.Result<Guard.Guard, rs.u8>), 0, Guard.id);
+	const kept3: rs.u32 = result_mapOr$1g4n0cf(asRef$0auemm6(answered as rs.Result<Guard.Guard, rs.u8>), 0, Guard.id);
 	const _328: rs.Result<Guard.Guard, rs.u8> = rs.Err(4);
 	const _331: rs.Result<Guard.Guard, rs.u8> = rs.Err(3);
 	const old2 = answered;
@@ -816,10 +816,10 @@ export function options(log: Log.Log, id: rs.u32): void {
  */
 export function elements(log: Log.Log, id: rs.u32): void {
 	const _7: (a0: Guard.Guard | undefined) => rs.u32 | undefined = (o3: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o3, Guard.id);
+		return option_map$02u0dmi(o3, Guard.id);
 	};
 	const _348: (a0: Key.Key | undefined) => rs.u32 | undefined = (o4: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o4, (k: Key.Key): rs.u32 => {
+		return option_map$0bmexgo(o4, (k: Key.Key): rs.u32 => {
 			return k.id;
 		});
 	};
@@ -837,29 +837,29 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	v2.items.push(_21);
 	v2.items.push(undefined as Guard.Guard | undefined);
 	const v: rs.Vec<Guard.Guard | undefined> = v2;
-	const _34: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.sliceFirst(rs.sliceFrom(v.items), rs.None), (o5: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o5, Guard.id);
+	const _34: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceFirst(v.items, rs.None), (o5: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o5, Guard.id);
 	});
-	const _39: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.sliceLast(rs.sliceFrom(v.items), rs.None), (o6: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o6, Guard.id);
+	const _39: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceLast(v.items, rs.None), (o6: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o6, Guard.id);
 	});
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_34, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_39, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["vec ", args2[0], " ", args2[1]]));
-	const _54: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.sliceGet(rs.sliceFrom(v.items), 1, rs.None), (o7: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o7, Guard.id);
+	const _54: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(v.items, 1, rs.None), (o7: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o7, Guard.id);
 	});
-	const _59: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.sliceGet(rs.sliceFrom(v.items), 4, rs.None), (o8: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o8, Guard.id);
+	const _59: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(v.items, 4, rs.None), (o8: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o8, Guard.id);
 	});
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_54, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_59, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["get ", args4[0], " ", args4[1]]));
-	const _68: rs.Place<Guard.Guard | undefined> | undefined = rs.sliceLastMut(rs.sliceFrom(v.items));
+	const _68: rs.Place<Guard.Guard | undefined> | undefined = rs.sliceLastMut(v.items);
 	if (_68 !== undefined) {
 		const _73: Guard.Guard | undefined = guard(3);
 		rs.drop(_68.v);
 		_68.v = _73;
 	}
-	const _77: rs.Place<Guard.Guard | undefined> | undefined = rs.sliceFirstMut(rs.sliceFrom(v.items));
+	const _77: rs.Place<Guard.Guard | undefined> | undefined = rs.sliceFirstMut(v.items);
 	if (_77 !== undefined) {
 		rs.drop(_77.v);
 		_77.v = undefined;
@@ -876,8 +876,8 @@ export function elements(log: Log.Log, id: rs.u32): void {
 		return true;
 	}, undefined, rs.None);
 	const _95: boolean = kept !== rs.None;
-	const _98: rs.u32 | undefined | rs.None = option_map$0ccnsmq(taken, (o11: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o11, Guard.id);
+	const _98: rs.u32 | undefined | rs.None = option_map$1x5kkz1(taken, (o11: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o11, Guard.id);
 	});
 	const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_95, f), (f: rs.Formatter) => rs.fmtOption(_98, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["pop_if ", args6[0], " ", args6[1]]));
@@ -894,7 +894,7 @@ export function elements(log: Log.Log, id: rs.u32): void {
 			break;
 		}
 	}
-	const part4 = option_map$0ccnsmq(rs.vecPop(v, rs.None), (o12: Guard.Guard | undefined): rs.u32 | undefined => {
+	const part4 = option_map$1x5kkz1(rs.vecPop(v, rs.None), (o12: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _011: rs.u32 | undefined = _7(o12);
 		rs.drop(o12);
 		return _011;
@@ -916,7 +916,7 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, _145);
 	v.items.push(undefined as Guard.Guard | undefined);
 	const captured2 = guard(15);
-	const part8 = option_map$0ccnsmq(rs.vecPopIfMut(v, rs.closure((o13: rs.Place<Guard.Guard | undefined>): boolean => {
+	const part8 = option_map$1x5kkz1(rs.vecPopIfMut(v, rs.closure((o13: rs.Place<Guard.Guard | undefined>): boolean => {
 		const part6 = Guard.id(captured2);
 		const args52: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part6, f)];
 		Log.note(log, rs.fmtFormat(["test ", args52[0]]));
@@ -939,14 +939,14 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	const _192: Guard.Guard | undefined = guard(5);
 	rs.dequePushFront(q, _192);
 	rs.dequePushBack(q, undefined as Guard.Guard | undefined);
-	const _205: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeEnd(q, false, rs.None), (o15: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o15, Guard.id);
+	const _205: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, false, rs.None), (o15: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o15, Guard.id);
 	});
-	const _209: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeEnd(q, true, rs.None), (o16: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o16, Guard.id);
+	const _209: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, true, rs.None), (o16: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o16, Guard.id);
 	});
-	const _213: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeGet(q, 4, rs.None), (o17: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o17, Guard.id);
+	const _213: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeGet(q, 4, rs.None), (o17: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o17, Guard.id);
 	});
 	const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_205, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_209, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_213, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["deque ", args16[0], " ", args16[1], " ", args16[2]]));
@@ -956,10 +956,10 @@ export function elements(log: Log.Log, id: rs.u32): void {
 		_222.v = undefined;
 	}
 	const removed: Guard.Guard | undefined | rs.None = rs.dequeRemove(q, 2, rs.None);
-	const _235: rs.u32 | undefined | rs.None = option_map$0ccnsmq(removed, (o18: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o18, Guard.id);
+	const _235: rs.u32 | undefined | rs.None = option_map$1x5kkz1(removed, (o18: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o18, Guard.id);
 	});
-	const _239: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeRemove(q, 3, rs.None), (o19: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _239: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeRemove(q, 3, rs.None), (o19: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _019: rs.u32 | undefined = _7(o19);
 		rs.drop(o19);
 		return _019;
@@ -973,15 +973,15 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	rs.dequePushBack(q, _258);
 	rs.dequePushFront(q, undefined as Guard.Guard | undefined);
 	const back: Guard.Guard | undefined | rs.None = rs.dequeSwapRemove(q, 0, true, rs.None);
-	const _273: rs.u32 | undefined | rs.None = option_map$0ccnsmq(back, (o20: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o20, Guard.id);
+	const _273: rs.u32 | undefined | rs.None = option_map$1x5kkz1(back, (o20: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o20, Guard.id);
 	});
-	const _277: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeSwapRemove(q, 9, false, rs.None), (o21: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _277: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 9, false, rs.None), (o21: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _021: rs.u32 | undefined = _7(o21);
 		rs.drop(o21);
 		return _021;
 	});
-	const _283: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequeSwapRemove(q, 1, false, rs.None), (o22: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _283: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 1, false, rs.None), (o22: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _022: rs.u32 | undefined = _7(o22);
 		rs.drop(o22);
 		return _022;
@@ -990,8 +990,8 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.fmtFormat(["swap_remove ", args20[0], " ", args20[1], " ", args20[2]]));
 	rs.drop(back);
 	const front: Guard.Guard | undefined | rs.None = rs.dequePopFront(q, rs.None);
-	const part12 = option_map$0ccnsmq(front, (o23: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o23, Guard.id);
+	const part12 = option_map$1x5kkz1(front, (o23: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o23, Guard.id);
 	});
 	const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part12, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["front ", args22[0]]));
@@ -1007,12 +1007,12 @@ export function elements(log: Log.Log, id: rs.u32): void {
 			break;
 		}
 	}
-	const _334: rs.u32 | undefined | rs.None = option_map$0ccnsmq(rs.dequePopFront(q, rs.None), (o24: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _334: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequePopFront(q, rs.None), (o24: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _024: rs.u32 | undefined = _7(o24);
 		rs.drop(o24);
 		return _024;
 	});
-	const _340: rs.u32 | undefined | rs.None = option_map$0ccnsmq(front, (o25: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _340: rs.u32 | undefined | rs.None = option_map$1x5kkz1(front, (o25: Guard.Guard | undefined): rs.u32 | undefined => {
 		const _025: rs.u32 | undefined = _7(o25);
 		rs.drop(o25);
 		return _025;
@@ -1025,16 +1025,16 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	rs.heapPush(heap, undefined as Key.Key | undefined, rs.cmpLe(rs.cmpOption(Key.partialCmp$cmp_PartialOrd)));
 	const _361: Key.Key | undefined = key(8);
 	rs.heapPush(heap, _361, rs.cmpLe(rs.cmpOption(Key.partialCmp$cmp_PartialOrd)));
-	const part17 = option_map$0hegtde(rs.heapPeek(heap, rs.None), (o26: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o26, (k2: Key.Key): rs.u32 => {
+	const part17 = option_map$150c7g4(rs.heapPeek(heap, rs.None), (o26: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o26, (k2: Key.Key): rs.u32 => {
 			return k2.id;
 		});
 	});
 	const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part17, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["heap ", args28[0]]));
 	const top: Key.Key | undefined | rs.None = rs.heapPop(heap, rs.cmpLe(rs.cmpOption(Key.partialCmp$cmp_PartialOrd)), rs.None);
-	const part18 = option_map$0hegtde(top, (o27: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o27, (k3: Key.Key): rs.u32 => {
+	const part18 = option_map$150c7g4(top, (o27: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o27, (k3: Key.Key): rs.u32 => {
 			return k3.id;
 		});
 	});
@@ -1047,13 +1047,13 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	rs.btreeAdd(sorted, undefined as Key.Key | undefined, rs.drop);
 	const _406: Key.Key | undefined = key(10);
 	rs.btreeAdd(sorted, _406, rs.drop);
-	const _416: rs.u32 | undefined | rs.None = option_map$0hegtde(rs.btreeFirstKey(sorted, false, rs.None), (o28: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o28, (k4: Key.Key): rs.u32 => {
+	const _416: rs.u32 | undefined | rs.None = option_map$150c7g4(rs.btreeFirstKey(sorted, false, rs.None), (o28: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o28, (k4: Key.Key): rs.u32 => {
 			return k4.id;
 		});
 	});
-	const _420: rs.u32 | undefined | rs.None = option_map$0hegtde(rs.btreeFirstKey(sorted, true, rs.None), (o29: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o29, (k5: Key.Key): rs.u32 => {
+	const _420: rs.u32 | undefined | rs.None = option_map$150c7g4(rs.btreeFirstKey(sorted, true, rs.None), (o29: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o29, (k5: Key.Key): rs.u32 => {
 			return k5.id;
 		});
 	});
@@ -1061,12 +1061,12 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.fmtFormat(["set ", args32[0], " ", args32[1]]));
 	const _430: Key.Key | undefined = key(9);
 	const replaced: Key.Key | undefined | rs.None = rs.btreeReplace(sorted, _430, rs.None);
-	const _440: rs.u32 | undefined | rs.None = option_map$0hegtde(replaced, (o30: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o30, (k6: Key.Key): rs.u32 => {
+	const _440: rs.u32 | undefined | rs.None = option_map$150c7g4(replaced, (o30: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o30, (k6: Key.Key): rs.u32 => {
 			return k6.id;
 		});
 	});
-	const _444: rs.u32 | undefined | rs.None = option_map$0hegtde(rs.btreeReplace(sorted, undefined as Key.Key | undefined, rs.None), (o31: Key.Key | undefined): rs.u32 | undefined => {
+	const _444: rs.u32 | undefined | rs.None = option_map$150c7g4(rs.btreeReplace(sorted, undefined as Key.Key | undefined, rs.None), (o31: Key.Key | undefined): rs.u32 | undefined => {
 		const _036: rs.u32 | undefined = _348(o31);
 		rs.drop(o31);
 		return _036;
@@ -1075,8 +1075,8 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.fmtFormat(["replace ", args34[0], " ", args34[1]]));
 	rs.drop(replaced);
 	const _466: Key.Key | undefined = key(10);
-	const part20 = option_map$0hegtde(rs.btreeKey(sorted, _466, false, rs.None), (o32: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o32, (k7: Key.Key): rs.u32 => {
+	const part20 = option_map$150c7g4(rs.btreeKey(sorted, _466, false, rs.None), (o32: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o32, (k7: Key.Key): rs.u32 => {
 			return k7.id;
 		});
 	});
@@ -1087,8 +1087,8 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	const _477: Key.Key | undefined = key(10);
 	const taken2: Key.Key | undefined | rs.None = rs.btreeKey(sorted, _477, true, rs.None);
 	rs.drop(_477);
-	const _487: rs.u32 | undefined | rs.None = option_map$0hegtde(taken2, (o33: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o33, (k8: Key.Key): rs.u32 => {
+	const _487: rs.u32 | undefined | rs.None = option_map$150c7g4(taken2, (o33: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o33, (k8: Key.Key): rs.u32 => {
 			return k8.id;
 		});
 	});
@@ -1105,12 +1105,12 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	rs.btreeAdd(sorted, _508, rs.drop);
 	const least: Key.Key | undefined | rs.None = rs.btreePopKey(sorted, false, rs.None);
 	const most: Key.Key | undefined | rs.None = rs.btreePopKey(sorted, true, rs.None);
-	const _522: rs.u32 | undefined | rs.None = option_map$0hegtde(least, (o34: Key.Key | undefined): rs.u32 | undefined => {
+	const _522: rs.u32 | undefined | rs.None = option_map$150c7g4(least, (o34: Key.Key | undefined): rs.u32 | undefined => {
 		const _041: rs.u32 | undefined = _348(o34);
 		rs.drop(o34);
 		return _041;
 	});
-	const _526: rs.u32 | undefined | rs.None = option_map$0hegtde(most, (o35: Key.Key | undefined): rs.u32 | undefined => {
+	const _526: rs.u32 | undefined | rs.None = option_map$150c7g4(most, (o35: Key.Key | undefined): rs.u32 | undefined => {
 		const _042: rs.u32 | undefined = _348(o35);
 		rs.drop(o35);
 		return _042;
@@ -1120,20 +1120,20 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	const hashed: rs.HashSet<Key.Key | undefined> = rs.hashNew(rs.hashing(rs.hashOption(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined), rs.eqOption(Key.eq$cmp_PartialEq))) as rs.HashSet<Key.Key | undefined>;
 	const _537: Key.Key | undefined = key(11);
 	rs.hashAdd(hashed, _537, rs.drop);
-	const part23 = option_map$0hegtde(rs.hashKey(hashed, undefined, false, rs.None), (o36: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o36, (k9: Key.Key): rs.u32 => {
+	const part23 = option_map$150c7g4(rs.hashKey(hashed, undefined, false, rs.None), (o36: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o36, (k9: Key.Key): rs.u32 => {
 			return k9.id;
 		});
 	});
 	const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part23, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["hashed ", args42[0]]));
 	rs.hashAdd(hashed, undefined as Key.Key | undefined, rs.drop);
-	const _567: rs.u32 | undefined | rs.None = option_map$0hegtde(rs.hashKey(hashed, undefined, true, rs.None), (o37: Key.Key | undefined): rs.u32 | undefined => {
+	const _567: rs.u32 | undefined | rs.None = option_map$150c7g4(rs.hashKey(hashed, undefined, true, rs.None), (o37: Key.Key | undefined): rs.u32 | undefined => {
 		const _045: rs.u32 | undefined = _348(o37);
 		rs.drop(o37);
 		return _045;
 	});
-	const _571: rs.u32 | undefined | rs.None = option_map$0hegtde(rs.hashKey(hashed, undefined, true, rs.None), (o38: Key.Key | undefined): rs.u32 | undefined => {
+	const _571: rs.u32 | undefined | rs.None = option_map$150c7g4(rs.hashKey(hashed, undefined, true, rs.None), (o38: Key.Key | undefined): rs.u32 | undefined => {
 		const _046: rs.u32 | undefined = _348(o38);
 		rs.drop(o38);
 		return _046;
@@ -1142,8 +1142,8 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, rs.fmtFormat(["taken ", args44[0], " ", args44[1]]));
 	const _584: Key.Key | undefined = key(11);
 	const replaced2: Key.Key | undefined | rs.None = rs.hashReplace(hashed, _584, rs.None);
-	const part26 = option_map$0hegtde(replaced2, (o39: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0782hf5(o39, (k10: Key.Key): rs.u32 => {
+	const part26 = option_map$150c7g4(replaced2, (o39: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o39, (k10: Key.Key): rs.u32 => {
 			return k10.id;
 		});
 	});
@@ -1153,7 +1153,7 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	const _605: Key.Key | undefined = key(11);
 	const held: Key.Key | undefined | rs.None = rs.hashKey(hashed, _605, true, rs.None);
 	rs.drop(_605);
-	const part28 = option_map$0hegtde(held, (o40: Key.Key | undefined): rs.u32 | undefined => {
+	const part28 = option_map$150c7g4(held, (o40: Key.Key | undefined): rs.u32 | undefined => {
 		const _049: rs.u32 | undefined = _348(o40);
 		rs.drop(o40);
 		return _049;
@@ -1240,7 +1240,7 @@ export function arcs(log: Log.Log, id: rs.u32): void {
 	rs.drop(_176);
 	Log.note(log, _170);
 	const inner: Guard.Guard | undefined = rs.arcIntoInner(clone);
-	const _188: rs.u32 | undefined = option_map$0lq7mno(inner, Guard.id);
+	const _188: rs.u32 | undefined = option_map$02u0dmi(inner, Guard.id);
 	const _194: rs.Arc<Guard.Guard> | undefined = rs.weakUpgrade(weak);
 	const _192: boolean = _194 !== undefined;
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_188, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtBool(_192, f)];
@@ -1252,8 +1252,8 @@ export function arcs(log: Log.Log, id: rs.u32): void {
 	const again: rs.Arc<Guard.Guard | undefined> = rs.arcClone(held);
 	rs.drop(rs.arcIntoInner(held, rs.None));
 	const inner2: Guard.Guard | undefined | rs.None = rs.arcIntoInner(again, rs.None);
-	const part11 = option_map$0ccnsmq(inner2, (o: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$0lq7mno(o, Guard.id);
+	const part11 = option_map$1x5kkz1(inner2, (o: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o, Guard.id);
 	});
 	const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part11, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["rc ", args12[0]]));
@@ -1355,8 +1355,8 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const ids: (a0: rs.Slice<Key.Key>) => string = (v13: rs.Slice<Key.Key>): string => {
-		return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(v13)), (k: Key.Key): string => {
+	const ids: (a0: Key.Key[]) => string = (v13: Key.Key[]): string => {
+		return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(v13), (k: Key.Key): string => {
 			const _43: rs.u32 = rs.u32Sub(k.id, id);
 			return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_43, f));
 		}), undefined, 12, true).items, ",");
@@ -1376,15 +1376,13 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.vecRetain(v, (k6: Key.Key): boolean => {
 			return rs.u32Rem(rs.u32Sub(k6.id, id), 2) === 1;
 		}, rs.drop);
-		const part24 = rs.sliceFrom(v.items);
-		const part25 = ids(part24);
+		const part25 = ids(v.items);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part25)];
 		Log.note(log, rs.fmtFormat(["retained ", args2[0]]));
 		rs.vecRetain(v, (k7: Key.Key): boolean => {
 			return k7.id !== rs.u32Add(id, 3);
 		}, rs.drop);
-		const part26 = rs.sliceFrom(v.items);
-		const part27 = ids(part26);
+		const part27 = ids(v.items);
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part27)];
 		Log.note(log, rs.fmtFormat(["retained ", args4[0]]));
 		rs.dropVec(v);
@@ -1402,22 +1400,19 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v4.items.push(_94);
 		const v3: rs.Vec<Key.Key> = v4;
 		rs.vecDedupBy(v3, Key.eq$cmp_PartialEq, rs.drop);
-		const part18 = rs.sliceFrom(v3.items);
-		const part19 = ids(part18);
+		const part19 = ids(v3.items);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part19)];
 		Log.note(log, rs.fmtFormat(["deduped ", args6[0]]));
 		rs.vecDedupByKey(v3, (k5: Key.Key): rs.u32 => {
 			return rs.u32Div(k5.id, 2);
 		}, rs.same, rs.drop);
-		const part20 = rs.sliceFrom(v3.items);
-		const part21 = ids(part20);
+		const part21 = ids(v3.items);
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part21)];
 		Log.note(log, rs.fmtFormat(["deduped ", args8[0]]));
 		rs.vecDedupBy(v3, (a: Key.Key, b: Key.Key): boolean => {
 			return a.id > b.id;
 		}, rs.drop);
-		const part22 = rs.sliceFrom(v3.items);
-		const part23 = ids(part22);
+		const part23 = ids(v3.items);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part23)];
 		Log.note(log, rs.fmtFormat(["deduped ", args10[0]]));
 		rs.dropVec(v3);
@@ -1431,8 +1426,7 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v6.items.push(_162);
 		const v5: rs.Vec<Key.Key> = v6;
 		rs.vecSwapRemove(v5, 0)[Symbol.dispose]();
-		const part16 = rs.sliceFrom(v5.items);
-		const part17 = ids(part16);
+		const part17 = ids(v5.items);
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part17)];
 		Log.note(log, rs.fmtFormat(["swapped ", args12[0]]));
 		rs.vecSwapRemove(v5, 3)[Symbol.dispose]();
@@ -1445,8 +1439,7 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v8.items.push(_195);
 		const v7: rs.Vec<Key.Key> = v8;
 		const _209: rs.Vec<Key.Key> = rs.vecFrom(v7.items.map(Key.clone$Clone));
-		const part14 = rs.sliceFrom(_209.items);
-		const part15 = ids(part14);
+		const part15 = ids(_209.items);
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part15)];
 		const _200: string = rs.fmtFormat(["cloned ", args14[0]]);
 		rs.dropVec(_209);
@@ -1467,18 +1460,15 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const v9: rs.Vec<Key.Key> = v10;
 		const _244: Key.Key = key(4);
 		rs.vecInsert(v9, 1, _244);
-		const part8 = rs.sliceFrom(v9.items);
-		const part9 = ids(part8);
+		const part9 = ids(v9.items);
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part9)];
 		Log.note(log, rs.fmtFormat(["inserted ", args16[0]]));
 		rs.vecRemove(v9, 0)[Symbol.dispose]();
-		const part10 = rs.sliceFrom(v9.items);
-		const part11 = ids(part10);
+		const part11 = ids(v9.items);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part11)];
 		Log.note(log, rs.fmtFormat(["removed ", args18[0]]));
 		rs.vecTruncate(v9, 1, rs.drop);
-		const part12 = rs.sliceFrom(v9.items);
-		const part13 = ids(part12);
+		const part13 = ids(v9.items);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part13)];
 		Log.note(log, rs.fmtFormat(["truncated ", args20[0]]));
 		rs.vecTruncate(v9, 0, rs.drop);
@@ -1491,7 +1481,7 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v11.items.push(_310);
 		const _315: Key.Key = key(5);
 		v11.items.push(_315);
-		const part6 = option_mapOr$1w10sgd(rs.iterMaxByKey(rs.vecIntoIter(v11, rs.drop), (k2: Key.Key): rs.u32 => {
+		const part6 = option_mapOr$0mko9ta(rs.iterMaxByKey(rs.vecIntoIter(v11, rs.drop), (k2: Key.Key): rs.u32 => {
 			return rs.u32Rem(rs.u32Sub(k2.id, id), 3);
 		}, rs.lt, true, rs.drop), 0, (k3: Key.Key): rs.u32 => {
 			const _05: rs.u32 = rs.u32Sub(k3.id, id);
@@ -1507,7 +1497,7 @@ export function edited(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		v12.items.push(_344);
 		const _349: Key.Key = key(2);
 		v12.items.push(_349);
-		const part7 = option_mapOr$1w10sgd(rs.iterMin(rs.vecIntoIter(v12, rs.drop), rs.cmpLt(Key.partialCmp$cmp_PartialOrd), true, rs.drop), 0, (k4: Key.Key): rs.u32 => {
+		const part7 = option_mapOr$0mko9ta(rs.iterMin(rs.vecIntoIter(v12, rs.drop), rs.cmpLt(Key.partialCmp$cmp_PartialOrd), true, rs.drop), 0, (k4: Key.Key): rs.u32 => {
 			const _06: rs.u32 = rs.u32Sub(k4.id, id);
 			k4[Symbol.dispose]();
 			return _06;

@@ -3,49 +3,49 @@
 import * as rs from "../rs.ts";
 import * as Named from "../edits.Named.ts";
 
-export function unwrapOr$07ebgtb(self: rs.Slice<Named.Named> | undefined, default_: rs.Slice<Named.Named>): rs.Slice<Named.Named> {
+export function unwrapOr$039uout(self: Named.Named[] | undefined, default_: Named.Named[]): Named.Named[] {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$1j4op5y(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
+export function unwrapOr$1szdyfq(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$0xa0bn7(self: Named.Named | undefined, f: (a0: Named.Named) => rs.u16): rs.u16 | undefined {
+export function map$0igpqq7(self: Named.Named | undefined, f: (a0: Named.Named) => rs.u16): rs.u16 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$03bjali(self: Named.Named | undefined, _: (a0: Named.Named) => rs.Slice<Named.Named>): rs.Slice<Named.Named> | undefined {
+export function map$1u8sh4f(self: Named.Named | undefined, _: (a0: Named.Named) => Named.Named[]): Named.Named[] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return rs.sliceFrom([self]);
+	return [self];
 }
 
-export function mapOr$14njs1h(self: Named.Named | undefined, default_: rs.u16, f: (a0: Named.Named) => rs.u16): rs.u16 {
+export function mapOr$1ifckq6(self: Named.Named | undefined, default_: rs.u16, f: (a0: Named.Named) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1llunel(self: rs.u16 | undefined, default_: rs.u16, f: (a0: rs.u16) => rs.u16): rs.u16 {
+export function mapOr$1wei0sy(self: rs.u16 | undefined, default_: rs.u16, f: (a0: rs.u16) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}

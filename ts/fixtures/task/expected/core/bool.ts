@@ -20,21 +20,21 @@ export function thenSome$0zvoczk(self: boolean, t: Guard.Guard): Guard.Guard | u
 	return _0;
 }
 
-export function thenSome$1af3oea(self: boolean, t: rs.u32): rs.u32 | undefined {
+export function thenSome$1bahm2u(self: boolean, t: rs.u32): rs.u32 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$1j8foe9(self: boolean, _: undefined): undefined | rs.None {
+export function thenSome$1n1oy1h(self: boolean, _: undefined): undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}
 	return undefined;
 }
 
-export function then$06wuxll(self: boolean, f: () => Guard.Guard | undefined): Guard.Guard | undefined | rs.None {
+export function then$0frk932(self: boolean, f: () => Guard.Guard | undefined): Guard.Guard | undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}
@@ -48,7 +48,7 @@ export function then$1xpp3sz(self: boolean, f: () => Guard.Guard): Guard.Guard |
 	return f();
 }
 
-export function then$1j9nint(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$0awnlmn(self: boolean, f: () => rs.u32): rs.u32 | undefined {
 	let _0!: rs.u32 | undefined;
 	let _5: boolean = false;
 	_5 = true;
@@ -65,7 +65,7 @@ export function then$1j9nint(self: boolean, f: () => rs.u32): rs.u32 | undefined
 	return _0;
 }
 
-export function then$0kxuq3f(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$04r7us0(self: boolean, f: () => rs.u32): rs.u32 | undefined {
 	let _0!: rs.u32 | undefined;
 	let _5: boolean = false;
 	_5 = true;
@@ -82,7 +82,7 @@ export function then$0kxuq3f(self: boolean, f: () => rs.u32): rs.u32 | undefined
 	return _0;
 }
 
-export function then$0ea5h05(self: boolean, f: () => rs.u32): rs.u32 | undefined {
+export function then$0apfzgv(self: boolean, f: () => rs.u32): rs.u32 | undefined {
 	if (!self) {
 		return undefined;
 	}

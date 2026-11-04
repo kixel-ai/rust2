@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import * as Scale from "./args.Scale.ts";
-import { map$0waqle9 as option_map$0waqle9, map$1yogfym as option_map$1yogfym, mapOr$0dk8jdr as option_mapOr$0dk8jdr } from "./core/option.ts";
+import { map$0a3rlpk as option_map$0a3rlpk, map$05uajnx as option_map$05uajnx, mapOr$1klptgj as option_mapOr$1klptgj } from "./core/option.ts";
 
 /** A use that needs the slice itself. */
 export function opaque(s: rs.ByteSlice): rs.u8 {
@@ -172,7 +172,7 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, depth(rs.byteSliceRange(data, 0, rs.min(data.length, 64))));
 	} else if (_4 === 2) {
-		rs.iterExtendBytes(out, rs.iterOption(option_map$0waqle9(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_2: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+		rs.iterExtendBytes(out, rs.iterOption(option_map$0a3rlpk(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_2: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 			return _2[1];
 		}), opaque)), undefined, true);
 		if (!(rs.usizeRem(data.length, 2) === 0)) {
@@ -183,7 +183,7 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			f = opaque;
 		}
 		rs.byteVecPush(out, f(data));
-		rs.byteVecPush(out, option_mapOr$0dk8jdr(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+		rs.byteVecPush(out, option_mapOr$1klptgj(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 			return _22[1];
 		}), 0, (a02: rs.ByteSlice): rs.usize => {
 			return len(a02.data, a02.start, a02.length);

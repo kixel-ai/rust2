@@ -5,7 +5,7 @@ import { out$Option_u64, out$bool, out$ref_slice_u8, out$tuple2_u64_ref_slice_u8
 import * as DecodeError from "../coding/decode.DecodeError.ts";
 import { read } from "../coding/varint.ts";
 import type * as Form from "../coding/varint.Form.ts";
-import { mapErr$06mnjtr as result_mapErr$06mnjtr, inspectErr$156koiv } from "../core/result.ts";
+import { mapErr$0o8djoc as result_mapErr$0o8djoc, inspectErr$157k8w1 } from "../core/result.ts";
 import type * as Control from "../stats.Control.ts";
 
 /**
@@ -209,7 +209,7 @@ export function bytes(self: Decoder): DecodeError.DecodeError | undefined {
 	const part: rs.u64 | undefined = varint(self);
 	const err: DecodeError.DecodeError | undefined = part === undefined ? out$u64.err as DecodeError.DecodeError : undefined;
 	if (err === undefined) {
-		const _3: rs.Result<rs.usize, DecodeError.DecodeError> = result_mapErr$06mnjtr(rs.usizeTryFrom(part as rs.u64), (_2: rs.TryFromIntError): DecodeError.DecodeError => {
+		const _3: rs.Result<rs.usize, DecodeError.DecodeError> = result_mapErr$0o8djoc(rs.usizeTryFrom(part as rs.u64), (_2: rs.TryFromIntError): DecodeError.DecodeError => {
 			return { tag: "BoundsExceeded" } as DecodeError.DecodeError;
 		});
 		if (_3.ok) {
@@ -222,7 +222,7 @@ export function bytes(self: Decoder): DecodeError.DecodeError | undefined {
 				self.bufStart = startStart;
 				self.bufLen = startLen;
 			};
-			_0 = inspectErr$156koiv((err2 !== undefined ? rs.Err(err2 as DecodeError.DecodeError) : rs.Ok(new rs.ByteSlice(part2, part3, part4))) as rs.Result<rs.ByteSlice, DecodeError.DecodeError>, _15);
+			_0 = inspectErr$157k8w1((err2 !== undefined ? rs.Err(err2 as DecodeError.DecodeError) : rs.Ok(new rs.ByteSlice(part2, part3, part4))) as rs.Result<rs.ByteSlice, DecodeError.DecodeError>, _15);
 		} else {
 			_0 = _3;
 		}

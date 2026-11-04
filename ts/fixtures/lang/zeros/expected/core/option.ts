@@ -11,7 +11,7 @@ export function unwrapOr$1la41a6(self: Uint8Array | undefined, default_: Uint8Ar
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -25,28 +25,28 @@ export function unwrapOrDefault$1b97y1a(self: Tagged.Tagged<string> | undefined)
 	return self;
 }
 
-export function map$1cosm7d(self: rs.Vec<undefined> | undefined, f: (a0: rs.Vec<undefined>) => Uint8Array): Uint8Array | undefined {
+export function map$1b6tbot(self: rs.Vec<undefined> | undefined, f: (a0: rs.Vec<undefined>) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1qp1ym6(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u32): rs.u32 | undefined {
+export function map$12cu62z(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1ibcmaa(self: rs.u8 | undefined, f: (a0: rs.u8) => Loud.Loud): Loud.Loud | undefined {
+export function map$0ul65ro(self: rs.u8 | undefined, f: (a0: rs.u8) => Loud.Loud): Loud.Loud | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1iwwjee(self: rs.u8 | undefined, f: (a0: rs.u8) => Uint8Array): Uint8Array | undefined {
+export function map$0w716ia(self: rs.u8 | undefined, f: (a0: rs.u8) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

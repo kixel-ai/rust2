@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$00vlkdw(self: rs.Utf8Chunk, other: rs.Utf8Chunk): boolean {
+export function eq$1kzzmg3(self: rs.Utf8Chunk, other: rs.Utf8Chunk): boolean {
 	if (!(self.valid === other.valid)) {
 		return false;
 	}

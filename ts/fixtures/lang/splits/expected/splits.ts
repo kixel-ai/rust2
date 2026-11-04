@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { out$tuple2_ref_slice_u8_ref_slice_u8, out$tuple3_u8_u16_ref_slice_u8 } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$11e0ggl as option_mapOr$11e0ggl } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$17znd5c as option_mapOr$17znd5c } from "./core/option.ts";
 import type * as Short from "./splits.Short.ts";
 
 /** The first byte, then a big-endian `u16`, by `?` on `ok_or`. */
@@ -52,7 +52,7 @@ export function take(dataData: Uint8Array, dataStart: number, dataLen: number, n
 /** The byte after the first, or an error that is itself an enum, held whole. */
 export function second(dataData: Uint8Array, dataStart: number, dataLen: number, e: rs.u8 | undefined): rs.Result<rs.u8, rs.u8 | undefined> {
 	if (1 <= dataLen) {
-		return rs.Ok(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1)), 0));
+		return rs.Ok(option_unwrapOr$1fr498u(rs.byteSliceFirst(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1)), 0));
 	}
 	return rs.Err(e);
 }
@@ -100,7 +100,7 @@ export function splits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, sum);
 		rs.byteVecExtendFromSlice(out, new rs.ByteSlice(restData, restStart, restLen));
 	} else if (_4 === 1) {
-		const mid4: number = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 8) as rs.usize;
+		const mid4: number = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8) as rs.usize;
 		if (mid4 > data.length) {
 			rs.panic("mid > len");
 		}
@@ -215,7 +215,7 @@ export function splits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					break b5;
 				}
 			}
-			rs.byteVecPush(out, option_mapOr$11e0ggl(split, 255, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$17znd5c(split, 255, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.u8 => {
 				return _2[0].data[_2[0].start + 3] ^ (_2[1].length & 0xff);
 			}));
 		}

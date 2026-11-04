@@ -8,8 +8,8 @@ import { panicAdvance, panicDoesNotFit } from "../../bytes.ts";
 import { signExtend, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_bytes_BytesMut as buf_impl_advance$bytes_Buf_mut_bytes_BytesMut, advance$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_mut_ref_slice_u8, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_bytes_BytesMut as buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut, chunk$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes as buf_impl_copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_bytes_BytesMut as buf_impl_copyToBytes$bytes_Buf_mut_bytes_BytesMut, copyToBytes$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8 } from "../../bytes/buf/buf_impl.ts";
 import * as Chain from "../../bytes/buf/chain.Chain.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
-import { min$0wa4xqw } from "../../core/cmp.ts";
-import { unwrapOrElse$1wp5sd9 as result_unwrapOrElse$1wp5sd9, unwrapOrElse$0s2lrc9 as result_unwrapOrElse$0s2lrc9 } from "../../core/result.ts";
+import { min$00xoube } from "../../core/cmp.ts";
+import { unwrapOrElse$1b4ownx as result_unwrapOrElse$1b4ownx, unwrapOrElse$1fg63zn as result_unwrapOrElse$1fg63zn } from "../../core/result.ts";
 
 /**
  * Returns true if there are any more bytes to consume
@@ -242,7 +242,7 @@ export function hasRemaining$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): b
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_Bytes(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_Bytes(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -271,7 +271,7 @@ export function copyToSlice$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, dst:
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -412,7 +412,7 @@ export function getI8$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.i8 {
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -450,7 +450,7 @@ export function getUint$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, nbytes: 
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -488,7 +488,7 @@ export function getUint$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, nbytes:
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -525,7 +525,7 @@ export function getUintLe$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, nbytes
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1342,7 +1342,7 @@ export class Take<T> {
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.usize {
-	return min$0wa4xqw(self.inner.length, self.limit);
+	return min$00xoube(self.inner.length, self.limit);
 }
 
 /**
@@ -1373,7 +1373,7 @@ export function remaining$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.us
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_buf_Pieces(self: Take<Pieces.Pieces>): rs.usize {
-	return min$0wa4xqw(Pieces.remaining$bytes_Buf_mut(self.inner), self.limit);
+	return min$00xoube(Pieces.remaining$bytes_Buf_mut(self.inner), self.limit);
 }
 
 /**
@@ -1404,7 +1404,7 @@ export function remaining$bytes_Buf_mut_buf_Pieces(self: Take<Pieces.Pieces>): r
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_buf_Provided(self: Take<Provided.Provided>): rs.usize {
-	return min$0wa4xqw(Provided.remaining$bytes_Buf_mut(self.inner), self.limit);
+	return min$00xoube(Provided.remaining$bytes_Buf_mut(self.inner), self.limit);
 }
 
 /**
@@ -1435,7 +1435,7 @@ export function remaining$bytes_Buf_mut_buf_Provided(self: Take<Provided.Provide
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_bytes_Bytes(self: Take<rs.Place<rs.ByteSlice>>): rs.usize {
-	return min$0wa4xqw(buf_impl_remaining$bytes_Buf_mut_bytes_Bytes(self.inner), self.limit);
+	return min$00xoube(buf_impl_remaining$bytes_Buf_mut_bytes_Bytes(self.inner), self.limit);
 }
 
 /**
@@ -1466,7 +1466,7 @@ export function remaining$bytes_Buf_mut_bytes_Bytes(self: Take<rs.Place<rs.ByteS
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_bytes_BytesMut(self: Take<rs.BytesMut>): rs.usize {
-	return min$0wa4xqw(buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut(self.inner), self.limit);
+	return min$00xoube(buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut(self.inner), self.limit);
 }
 
 /**
@@ -1497,7 +1497,7 @@ export function remaining$bytes_Buf_mut_bytes_BytesMut(self: Take<rs.BytesMut>):
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Take<Chain.Chain<Provided.Provided, rs.ByteSlice>>): rs.usize {
-	return min$0wa4xqw(Chain.remaining$bytes_Buf_buf_Provided_ref_slice_u8_mut(self.inner), self.limit);
+	return min$00xoube(Chain.remaining$bytes_Buf_buf_Provided_ref_slice_u8_mut(self.inner), self.limit);
 }
 
 /**
@@ -1528,7 +1528,7 @@ export function remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_mut_ref_slice_u8(self: Take<rs.Place<rs.Place<rs.ByteSlice>>>): rs.usize {
-	return min$0wa4xqw(buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8(self.inner), self.limit);
+	return min$00xoube(buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8(self.inner), self.limit);
 }
 
 /**
@@ -1559,7 +1559,7 @@ export function remaining$bytes_Buf_mut_mut_ref_slice_u8(self: Take<rs.Place<rs.
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_mut_ref_slice_u8(self: Take<rs.Place<rs.ByteSlice>>): rs.usize {
-	return min$0wa4xqw(buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(self.inner), self.limit);
+	return min$00xoube(buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(self.inner), self.limit);
 }
 
 /**
@@ -1590,7 +1590,7 @@ export function remaining$bytes_Buf_mut_ref_slice_u8(self: Take<rs.Place<rs.Byte
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.usize {
-	return min$0wa4xqw(self.inner.length, self.limit);
+	return min$00xoube(self.inner.length, self.limit);
 }
 
 /**
@@ -1625,7 +1625,7 @@ export function remaining$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.u
  */
 export function chunk$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = self.inner;
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1660,7 +1660,7 @@ export function chunk$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.ByteSl
  */
 export function chunk$bytes_Buf_mut_buf_Pieces(self: Take<Pieces.Pieces>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = Pieces.chunk$bytes_Buf_mut(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1695,7 +1695,7 @@ export function chunk$bytes_Buf_mut_buf_Pieces(self: Take<Pieces.Pieces>): rs.By
  */
 export function chunk$bytes_Buf_mut_buf_Provided(self: Take<Provided.Provided>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = Provided.chunk$bytes_Buf_mut(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1730,7 +1730,7 @@ export function chunk$bytes_Buf_mut_buf_Provided(self: Take<Provided.Provided>):
  */
 export function chunk$bytes_Buf_mut_bytes_Bytes(self: Take<rs.Place<rs.ByteSlice>>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = buf_impl_chunk$bytes_Buf_mut_bytes_Bytes(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1765,7 +1765,7 @@ export function chunk$bytes_Buf_mut_bytes_Bytes(self: Take<rs.Place<rs.ByteSlice
  */
 export function chunk$bytes_Buf_mut_bytes_BytesMut(self: Take<rs.BytesMut>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1800,7 +1800,7 @@ export function chunk$bytes_Buf_mut_bytes_BytesMut(self: Take<rs.BytesMut>): rs.
  */
 export function chunk$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Take<Chain.Chain<Provided.Provided, rs.ByteSlice>>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = Chain.chunk$bytes_Buf_buf_Provided_ref_slice_u8_mut(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1835,7 +1835,7 @@ export function chunk$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8(se
  */
 export function chunk$bytes_Buf_mut_mut_ref_slice_u8(self: Take<rs.Place<rs.Place<rs.ByteSlice>>>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1870,7 +1870,7 @@ export function chunk$bytes_Buf_mut_mut_ref_slice_u8(self: Take<rs.Place<rs.Plac
  */
 export function chunk$bytes_Buf_mut_ref_slice_u8(self: Take<rs.Place<rs.ByteSlice>>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = buf_impl_chunk$bytes_Buf_mut_ref_slice_u8(self.inner);
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**
@@ -1905,7 +1905,7 @@ export function chunk$bytes_Buf_mut_ref_slice_u8(self: Take<rs.Place<rs.ByteSlic
  */
 export function chunk$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = self.inner;
-	return rs.byteSliceRange(bytes, 0, min$0wa4xqw(bytes.length, self.limit));
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit));
 }
 
 /**

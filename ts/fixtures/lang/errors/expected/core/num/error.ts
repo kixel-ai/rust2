@@ -2,11 +2,11 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$1nf2rde(self: rs.TryFromIntError, other: rs.TryFromIntError): boolean {
+export function eq$0reiexw(self: rs.TryFromIntError, other: rs.TryFromIntError): boolean {
 	return self.kind === other.kind;
 }
 
-export function eq$18sin5z(self: rs.ParseIntError, other: rs.ParseIntError): boolean {
+export function eq$1uroq6x(self: rs.ParseIntError, other: rs.ParseIntError): boolean {
 	return self.kind === other.kind;
 }
 

@@ -3,35 +3,35 @@
 import * as rs from "../rs.ts";
 import type * as EncodeError from "../coding/encode.EncodeError.ts";
 
-export function unwrapOr$11c0we2(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
+export function unwrapOr$1b5hww3(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$1tvry1i(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
+export function unwrapOr$15hbiwd(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1cf8u0y(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
+export function map$1haiqd3(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$1jt76jv(self: rs.u32 | undefined, default_: rs.u64, _: (a0: rs.u32) => rs.u64): rs.u64 {
+export function mapOr$1glsik0(self: rs.u32 | undefined, default_: rs.u64, _: (a0: rs.u32) => rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self as rs.u64;
 }
 
-export function okOr$1lamf4s(self: rs.u64 | undefined, err: EncodeError.EncodeError): rs.Result<rs.u64, EncodeError.EncodeError> {
+export function okOr$08cl3no(self: rs.u64 | undefined, err: EncodeError.EncodeError): rs.Result<rs.u64, EncodeError.EncodeError> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}

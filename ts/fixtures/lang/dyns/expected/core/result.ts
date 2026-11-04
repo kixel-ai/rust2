@@ -6,7 +6,7 @@ import type * as Any from "../core/any.Any.ts";
 import type * as Shape from "../dyns.Shape.ts";
 import type * as Square from "../dyns.Square.ts";
 
-export function ok$00p9ap8(self: rs.Result<rs.Arc<rs.u32>, rs.Arc<Any.Any>>): rs.Arc<rs.u32> | undefined {
+export function ok$1oks8md(self: rs.Result<rs.Arc<rs.u32>, rs.Arc<Any.Any>>): rs.Arc<rs.u32> | undefined {
 	let _0!: rs.Arc<rs.u32> | undefined;
 	if (self.ok) {
 		_0 = self.value;
@@ -20,7 +20,7 @@ export function ok$00p9ap8(self: rs.Result<rs.Arc<rs.u32>, rs.Arc<Any.Any>>): rs
 	return _0;
 }
 
-export function ok$1vbcgd7(self: rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>>): [rs.usize, rs.u32] | undefined {
+export function ok$0y6a1w6(self: rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>>): [rs.usize, rs.u32] | undefined {
 	let _0!: [rs.usize, rs.u32] | undefined;
 	if (self.ok) {
 		_0 = self.value;
@@ -34,7 +34,7 @@ export function ok$1vbcgd7(self: rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>>)
 	return _0;
 }
 
-export function ok$0lceojf(self: rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>): [rs.usize, rs.u8] | undefined {
+export function ok$1lmsnde(self: rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>): [rs.usize, rs.u8] | undefined {
 	let _0!: [rs.usize, rs.u8] | undefined;
 	if (self.ok) {
 		_0 = self.value;
@@ -48,7 +48,7 @@ export function ok$0lceojf(self: rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>):
 	return _0;
 }
 
-export function ok$1a014tb(self: rs.Result<rs.u16, Any.Any>): rs.u16 | undefined {
+export function ok$1wwd922(self: rs.Result<rs.u16, Any.Any>): rs.u16 | undefined {
 	let _0!: rs.u16 | undefined;
 	if (self.ok) {
 		_0 = self.value;
@@ -62,35 +62,35 @@ export function ok$1a014tb(self: rs.Result<rs.u16, Any.Any>): rs.u16 | undefined
 	return _0;
 }
 
-export function map$1v8vvnp(self: rs.Result<rs.Arc<rs.u32>, rs.Arc<Any.Any>>, op: (a0: rs.Arc<rs.u32>) => [rs.usize, rs.u32]): rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>> {
+export function map$0njbm3o(self: rs.Result<rs.Arc<rs.u32>, rs.Arc<Any.Any>>, op: (a0: rs.Arc<rs.u32>) => [rs.usize, rs.u32]): rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<[rs.usize, rs.u32], rs.Arc<Any.Any>>;
 }
 
-export function map$1p3mw15(self: rs.Result<Square.Square, Any.Any>, op: (a0: Square.Square) => rs.u16): rs.Result<rs.u16, Any.Any> {
+export function map$0tx2z7o(self: rs.Result<Square.Square, Any.Any>, op: (a0: Square.Square) => rs.u16): rs.Result<rs.u16, Any.Any> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.u16, Any.Any>;
 }
 
-export function map$1wuk0uc(self: rs.Result<rs.RefCell<Shape.Shape>, rs.BorrowError>, op: (a0: rs.RefCell<Shape.Shape>) => rs.u8): rs.Result<rs.u8, rs.BorrowError> {
+export function map$11lf952(self: rs.Result<rs.RefCell<Shape.Shape>, rs.BorrowError>, op: (a0: rs.RefCell<Shape.Shape>) => rs.u8): rs.Result<rs.u8, rs.BorrowError> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.u8, rs.BorrowError>;
 }
 
-export function map$0zujxcv(self: rs.Result<rs.Arc<[rs.u8, rs.u8]>, rs.Arc<Any.Any>>, op: (a0: rs.Arc<[rs.u8, rs.u8]>) => [rs.usize, rs.u8]): rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>> {
+export function map$0f0ko1g(self: rs.Result<rs.Arc<[rs.u8, rs.u8]>, rs.Arc<Any.Any>>, op: (a0: rs.Arc<[rs.u8, rs.u8]>) => [rs.usize, rs.u8]): rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>;
 }
 
-export function unwrapOr$09hp2h5(self: rs.Result<rs.u8, rs.BorrowError>, default_: rs.u8): rs.u8 {
+export function unwrapOr$0k78oya(self: rs.Result<rs.u8, rs.BorrowError>, default_: rs.u8): rs.u8 {
 	if (self.ok) {
 		return self.value;
 	}

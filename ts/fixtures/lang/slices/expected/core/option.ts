@@ -6,70 +6,70 @@ import type * as Item from "../slices.Item.ts";
 import * as Noisy from "../slices.Noisy.ts";
 import type * as Pair from "../slices.Pair.ts";
 
-export function isSomeAnd$0eocbrl(self: [rs.ByteSlice, rs.ByteSlice] | undefined, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => boolean): boolean {
+export function isSomeAnd$1ouf3e6(self: [rs.ByteSlice, rs.ByteSlice] | undefined, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function map$1wqzuhy(self: rs.u16[] | undefined, f: (a0: rs.u16[]) => rs.u8): rs.u8 | undefined {
+export function map$1sh08h7(self: rs.u16[] | undefined, f: (a0: rs.u16[]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0c2keyb(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
+export function map$0q6fk7x(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$11y9s7r(self: Pair.Pair[] | undefined, f: (a0: Pair.Pair[]) => rs.u8): rs.u8 | undefined {
+export function map$0k54dqg(self: Pair.Pair[] | undefined, f: (a0: Pair.Pair[]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0tsmfza(self: rs.Slice<rs.u16> | undefined, _: (a0: rs.Slice<rs.u16>) => rs.u8): rs.u8 | undefined {
+export function map$07x3qxw(self: rs.u16[] | undefined, _: (a0: rs.u16[]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return digestWords(self);
 }
 
-export function map$1xk4yz1(self: rs.ByteSlice | undefined, _: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
+export function map$0vk4zok(self: rs.ByteSlice | undefined, _: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return digest(self);
 }
 
-export function map$003seos(self: Item.Item | undefined, f: (a0: Item.Item) => rs.u8): rs.u8 | undefined {
+export function map$1aqm6sp(self: Item.Item | undefined, f: (a0: Item.Item) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0a57co2(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
+export function map$04ry0e1(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$189goit(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
+export function mapOr$135q041(self: Noisy.Noisy | undefined, default_: rs.u8, f: (a0: Noisy.Noisy) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function zip$0n9ueec(self: rs.ByteSlice | undefined, other: rs.ByteSlice | undefined): [rs.ByteSlice, rs.ByteSlice] | undefined {
+export function zip$0wdt346(self: rs.ByteSlice | undefined, other: rs.ByteSlice | undefined): [rs.ByteSlice, rs.ByteSlice] | undefined {
 	let _0!: [rs.ByteSlice, rs.ByteSlice] | undefined;
 	b0: {
 		if (self !== undefined) {

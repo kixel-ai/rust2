@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0k15iai(self: rs.char | undefined, default_: rs.char): rs.char {
+export function unwrapOr$04rqm9m(self: rs.char | undefined, default_: rs.char): rs.char {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

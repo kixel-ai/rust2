@@ -2,28 +2,28 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$185ufyt(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}
 	return t;
 }
 
-export function thenSome$0b23a33(self: boolean, t: rs.u16): rs.u16 | undefined {
+export function thenSome$1gvhopg(self: boolean, t: rs.u16): rs.u16 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$1j8foe9(self: boolean, _: undefined): undefined | rs.None {
+export function thenSome$1n1oy1h(self: boolean, _: undefined): undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}

@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import { borrows } from "../cows.ts";
 
-export function unwrapOr$1qh6z5m(self: rs.StrCow | undefined, default_: rs.StrCow): rs.StrCow {
+export function unwrapOr$0jw3da9(self: rs.StrCow | undefined, default_: rs.StrCow): rs.StrCow {
 	if (self === undefined) {
 		return default_;
 	}
@@ -17,49 +17,49 @@ export function unwrapOr$1iemzn8(self: string | undefined, default_: string): st
 	return self;
 }
 
-export function unwrapOr$1j4op5y(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
+export function unwrapOr$1szdyfq(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$00b7lvf(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => string): string | undefined {
+export function map$167hjon(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return rs.strCowStr(self);
 }
 
-export function map$1li8gst(self: string | undefined, _: (a0: string) => rs.StrCow): rs.StrCow | undefined {
+export function map$1g811lq(self: string | undefined, _: (a0: string) => rs.StrCow): rs.StrCow | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return new rs.Borrowed(self);
 }
 
-export function mapOr$0lcrgk1(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1612aex(self: rs.char | undefined, default_: rs.usize, _: (a0: rs.char) => rs.usize): rs.usize {
+export function mapOr$1je44uu(self: rs.char | undefined, default_: rs.usize, _: (a0: rs.char) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return rs.charLenUtf8(self);
 }
 
-export function mapOr$1nwl1hk(self: rs.StrCow | undefined, default_: rs.u8, _: (a0: rs.StrCow) => rs.u8): rs.u8 {
+export function mapOr$03q317x(self: rs.StrCow | undefined, default_: rs.u8, _: (a0: rs.StrCow) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

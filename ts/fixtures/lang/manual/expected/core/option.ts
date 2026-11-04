@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function map$0cs071d(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

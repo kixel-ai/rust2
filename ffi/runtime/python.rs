@@ -13,7 +13,7 @@ use std::cell::{Cell, RefCell, UnsafeCell};
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::io::{Read, Write};
 use std::ptr::{NonNull, null, null_mut};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub use pyo3_ffi::*;
@@ -219,10 +219,12 @@ pub unsafe fn params<const N: usize>(
 pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// A call inside another keeps its loop: none starts on a thread one runs on.
 	let outer = RUNNING.get();
-	if outer == 0 && LOOPS.get() {
+	if outer == 0 && WAITS.with_borrow(|waits| waits.as_ref().is_some_and(|w| w.load(Ordering::Relaxed) != 0)) {
 		let running = running_loop();
-		// Until a loop polls or takes here again, which it does once it runs.
-		LOOPS.set(running != 0);
+		if running == 0 {
+			// Until a loop polls or takes here again, which it does once it runs.
+			WAITS.take();
+		}
 		RUNNING.set(running);
 	}
 	// SAFETY: this thread holds the GIL, and touches no Python object until it retakes it.
@@ -238,9 +240,10 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 }
 
 thread_local! {
-	/// Whether an event loop may run on this thread, as one polled or took here since a
-	/// call last found none, so its calls look for the loop running.
-	static LOOPS: Cell<bool> = const { Cell::new(false) };
+	/// The count of what waits on the event loop that last polled or took on this thread,
+	/// until a call finds none running: a call looks for the loop running only while
+	/// something waits, as only then may it wake something on the loop.
+	static WAITS: RefCell<Option<Arc<AtomicUsize>>> = const { RefCell::new(None) };
 	/// The address of the event loop running on this thread, during a call, else `0`.
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
 	/// The queues woken on their loop's thread during the calls it is in.
@@ -1353,6 +1356,8 @@ pub struct Queue {
 	woken: AtomicBool,
 	/// The address of its event loop, which [`RUNNING`] matches while it runs a call.
 	event_loop: usize,
+	/// How many of its futures are parked and its `Waker`s alive, which a wake may queue.
+	waits: Arc<AtomicUsize>,
 	tx: Socket,
 	rx: Socket,
 }
@@ -1397,6 +1402,16 @@ impl Queue {
 		self.signal();
 	}
 
+	/// Note this thread as running the queue's loop, so its calls look for the loop while
+	/// something on the queue waits.
+	fn here(&self) {
+		WAITS.with_borrow_mut(|waits| {
+			if !waits.as_ref().is_some_and(|w| Arc::ptr_eq(w, &self.waits)) {
+				*waits = Some(self.waits.clone());
+			}
+		});
+	}
+
 	fn signal(&self) {
 		if !self.signaled.swap(true, Ordering::SeqCst) {
 			// A full socket already signals.
@@ -1408,7 +1423,7 @@ impl Queue {
 	/// `read`, as the loop does once it signals, then each signal reset, then the queue
 	/// taken, so a token queued after is signaled again.
 	fn take(&self, read: bool) -> Vec<i64> {
-		LOOPS.set(true);
+		self.here();
 		if read {
 			let mut sink = [0u8; 64];
 			while matches!((&self.rx).read(&mut sink), Ok(n) if n > 0) {}
@@ -1440,12 +1455,39 @@ static TOKENS: AtomicI64 = AtomicI64::new(1);
 
 impl Node {
 	fn new(queue: Arc<Queue>, waker: bool) -> Arc<Self> {
+		if waker {
+			queue.waits.fetch_add(1, Ordering::Relaxed);
+		}
 		Arc::new(Self {
 			state: AtomicU8::new(IDLE),
 			token: TOKENS.fetch_add(1, Ordering::Relaxed),
 			queue,
 			waker,
 		})
+	}
+
+	/// Move to `state`, returning the state it left: a node that leaves `PARKED` no
+	/// longer waits.
+	fn enter(&self, state: u8) -> u8 {
+		let left = self.state.swap(state, Ordering::AcqRel);
+		if left == PARKED {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
+		}
+		left
+	}
+
+	/// Park after a poll that pended, unless woken while it polled.
+	fn park(&self) -> bool {
+		// Counted first, so a wake that unparks it at once never takes the count below zero.
+		self.queue.waits.fetch_add(1, Ordering::Relaxed);
+		let parked = self
+			.state
+			.compare_exchange(POLLING, PARKED, Ordering::AcqRel, Ordering::Acquire)
+			.is_ok();
+		if !parked {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
+		}
+		parked
 	}
 
 	/// A C waker holding a new reference to the node.
@@ -1470,6 +1512,7 @@ impl Node {
 impl Drop for Node {
 	fn drop(&mut self) {
 		if self.waker {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
 			self.queue.push(-self.token);
 		}
 	}
@@ -1482,7 +1525,7 @@ unsafe extern "C" fn node_wake(data: *mut c_void) {
 	match node.waker {
 		true => node.queue.push(node.token),
 		false => {
-			if node.state.swap(WOKEN, Ordering::AcqRel) == PARKED {
+			if node.enter(WOKEN) == PARKED {
 				node.queue.push(node.token);
 			}
 		}
@@ -1517,6 +1560,7 @@ unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _:
 				signaled: AtomicBool::new(false),
 				woken: AtomicBool::new(false),
 				event_loop,
+				waits: Arc::new(AtomicUsize::new(0)),
 				tx,
 				rx,
 			};
@@ -1698,7 +1742,10 @@ unsafe fn future_close(future: *mut Future) {
 			let raw = std::mem::replace(&mut (*future).raw, null_mut());
 			call(|| free(raw));
 		}
-		(*future).node = None;
+		// Woken for good: a wake Rust makes after queues nothing.
+		if let Some(node) = (*future).node.take() {
+			node.enter(WOKEN);
+		}
 		for held in std::mem::take(&mut (*future).held) {
 			release(held.ptr().cast());
 		}
@@ -1734,9 +1781,9 @@ unsafe extern "C" fn future_poll(obj: *mut PyObject, args: *mut *mut PyObject, n
 					node
 				}
 			};
-			LOOPS.set(true);
+			node.queue.here();
 			loop {
-				let first = node.state.swap(POLLING, Ordering::AcqRel) == IDLE;
+				let first = node.enter(POLLING) == IDLE;
 				// The first poll with the node gives the C ABI a reference, which it keeps
 				// while it reuses the waker.
 				let waker = match first {
@@ -1755,11 +1802,7 @@ unsafe extern "C" fn future_poll(obj: *mut PyObject, args: *mut *mut PyObject, n
 					future_close(future);
 					return done;
 				}
-				if node
-					.state
-					.compare_exchange(POLLING, PARKED, Ordering::AcqRel, Ordering::Acquire)
-					.is_ok()
-				{
+				if node.park() {
 					return Ok(Obj::borrowed(PENDING.get().expect("loaded").ptr()));
 				}
 				// Woken while it polled: the wake is for this poll's registration, so poll again.

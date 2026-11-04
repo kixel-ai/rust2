@@ -10,7 +10,7 @@ export function then$1j955kq(self: boolean, _: () => Made.Made): Made.Made | und
 	return Made.default$Default();
 }
 
-export function then$1t2ieki(self: boolean, f: () => [rs.u64 | undefined, Made.Made]): [rs.u64 | undefined, Made.Made] | undefined {
+export function then$0t24p36(self: boolean, f: () => [rs.u64 | undefined, Made.Made]): [rs.u64 | undefined, Made.Made] | undefined {
 	if (!self) {
 		return undefined;
 	}

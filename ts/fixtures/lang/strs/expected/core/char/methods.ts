@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function toDigit$01k9ewn(self: rs.char, radix: rs.u32): rs.u32 | undefined {
+export function toDigit$14z95r4(self: rs.char, radix: rs.u32): rs.u32 | undefined {
 	let value!: rs.u32;
 	if (radix >= 2) {
 		if (radix <= 36) {

@@ -5,7 +5,7 @@ import type * as Any from "../core/any.Any.ts";
 import type * as Shape from "../dyns.Shape.ts";
 import type * as Tagged from "../dyns.Tagged.ts";
 
-export function isSomeAnd$13v37g1(self: rs.Arc<Any.Any> | undefined, f: (a0: rs.Arc<Any.Any>) => boolean): boolean {
+export function isSomeAnd$11ghftu(self: rs.Arc<Any.Any> | undefined, f: (a0: rs.Arc<Any.Any>) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
@@ -19,105 +19,105 @@ export function unwrapOr$1iemzn8(self: string | undefined, default_: string): st
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1p9q0qv(self: rs.Arc<rs.RefCell<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.RefCell<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
+export function map$1rkcfqi(self: rs.Arc<rs.RefCell<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.RefCell<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1i542n2(self: rs.Arc<Shape.Shape> | undefined, f: (a0: rs.Arc<Shape.Shape>) => rs.u32): rs.u32 | undefined {
+export function map$1mach0o(self: rs.Arc<Shape.Shape> | undefined, f: (a0: rs.Arc<Shape.Shape>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0oedb57(self: rs.Arc<rs.Iter<rs.u8>> | undefined, f: (a0: rs.Arc<rs.Iter<rs.u8>>) => [rs.usize, rs.usize | undefined]): [rs.usize, rs.usize | undefined] | undefined {
+export function map$1b57zy8(self: rs.Arc<rs.Iter<rs.u8>> | undefined, f: (a0: rs.Arc<rs.Iter<rs.u8>>) => [rs.usize, rs.usize | undefined]): [rs.usize, rs.usize | undefined] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$08a6hpg(self: Tagged.Tagged | undefined, f: (a0: Tagged.Tagged) => rs.u8): rs.u8 | undefined {
+export function map$11l9b8r(self: Tagged.Tagged | undefined, f: (a0: Tagged.Tagged) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1qfllpb(self: rs.Iter<rs.u8> | undefined, f: (a0: rs.Iter<rs.u8>) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$0vt270f(self: rs.Iter<rs.u8> | undefined, f: (a0: rs.Iter<rs.u8>) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function map$0cs071d(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1qzd1bs(self: rs.Arc<rs.Mutex<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.Mutex<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
+export function map$13cu53u(self: rs.Arc<rs.Mutex<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.Mutex<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0j05j69(self: rs.Arc<rs.u32> | undefined, f: (a0: rs.Arc<rs.u32>) => rs.u32): rs.u32 | undefined {
+export function map$1bn5ufk(self: rs.Arc<rs.u32> | undefined, f: (a0: rs.Arc<rs.u32>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0z7s8q7(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f: (a0: [Tagged.Tagged, Tagged.Tagged]) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+export function map$1aeqf1p(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f: (a0: [Tagged.Tagged, Tagged.Tagged]) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1ttssgs(self: [rs.u8, rs.ByteSlice] | undefined, default_: [rs.u8, rs.ByteSlice], f: (a0: [rs.u8, rs.ByteSlice]) => [rs.u8, rs.ByteSlice]): [rs.u8, rs.ByteSlice] {
+export function mapOr$0z4nmg2(self: [rs.u8, rs.ByteSlice] | undefined, default_: [rs.u8, rs.ByteSlice], f: (a0: [rs.u8, rs.ByteSlice]) => [rs.u8, rs.ByteSlice]): [rs.u8, rs.ByteSlice] {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$06rr3sb(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
+export function mapOr$19a4gco(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function andThen$0v0bj8w(self: rs.Iter<Tagged.Tagged> | undefined, f: (a0: rs.Iter<Tagged.Tagged>) => Tagged.Tagged | undefined): Tagged.Tagged | undefined {
+export function andThen$1xlvufy(self: rs.Iter<Tagged.Tagged> | undefined, f: (a0: rs.Iter<Tagged.Tagged>) => Tagged.Tagged | undefined): Tagged.Tagged | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function andThen$0ntiuws(self: rs.Iter<rs.u8> | undefined, f: (a0: rs.Iter<rs.u8>) => rs.u8 | undefined): rs.u8 | undefined {
+export function andThen$0imujmv(self: rs.Iter<rs.u8> | undefined, f: (a0: rs.Iter<rs.u8>) => rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

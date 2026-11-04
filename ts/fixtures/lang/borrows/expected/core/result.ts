@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function map$0n1xnuw(self: rs.Result<rs.RefCell<rs.ByteVec>, rs.BorrowMutError>, op: (a0: rs.RefCell<rs.ByteVec>) => rs.u8): rs.Result<rs.u8, rs.BorrowMutError> {
+export function map$0jl4kv2(self: rs.Result<rs.RefCell<rs.ByteVec>, rs.BorrowMutError>, op: (a0: rs.RefCell<rs.ByteVec>) => rs.u8): rs.Result<rs.u8, rs.BorrowMutError> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.u8, rs.BorrowMutError>;
 }
 
-export function unwrapOr$0k9nfhn(self: rs.Result<rs.u8, rs.BorrowMutError>, default_: rs.u8): rs.u8 {
+export function unwrapOr$1bnshxn(self: rs.Result<rs.u8, rs.BorrowMutError>, default_: rs.u8): rs.u8 {
 	if (self.ok) {
 		return self.value;
 	}

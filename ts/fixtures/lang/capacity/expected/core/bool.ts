@@ -2,35 +2,35 @@
 
 import * as rs from "../rs.ts";
 
-export function then$060nyee(self: boolean, f: () => rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> | undefined {
+export function then$1b5wr43(self: boolean, f: () => rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$15ykizu(self: boolean, f: () => rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> | undefined {
+export function then$0tujtct(self: boolean, f: () => rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$06am279(self: boolean, f: () => rs.Vec<rs.u16>): rs.Vec<rs.u16> | undefined {
+export function then$0svbdod(self: boolean, f: () => rs.Vec<rs.u16>): rs.Vec<rs.u16> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$0ozmvid(self: boolean, f: () => rs.ByteVec): rs.ByteVec | undefined {
+export function then$17csa2h(self: boolean, f: () => rs.ByteVec): rs.ByteVec | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$1svdnnn(self: boolean, f: () => rs.Vec<undefined>): rs.Vec<undefined> | undefined {
+export function then$0g2g1ls(self: boolean, f: () => rs.Vec<undefined>): rs.Vec<undefined> | undefined {
 	if (!self) {
 		return undefined;
 	}

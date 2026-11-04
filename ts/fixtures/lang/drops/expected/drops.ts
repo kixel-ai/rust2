@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { drop$Result_unit_drops_Either_drops_Logged, drop$drops_Deep_drops_Logged, drop$drops_Either_drops_Logged, drop$drops_Guard_drops_Logged, drop$drops_InBox_drops_Logged, drop$drops_InEnum_drops_Logged, drop$drops_InGuard_drops_Logged, drop$drops_InOption_drops_Logged, drop$drops_InPlain_drops_Logged, drop$drops_InResult_drops_Logged, drop$drops_Ping_drops_Logged, drop$drops_Tree_drops_Logged } from "./lib.ts";
 import { then$1luo4u8, then$1xsk056, then$1nn0mgt } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 import * as Chain from "./drops.Chain.ts";
 import * as Deep from "./drops.Deep.ts";
 import type * as Either from "./drops.Either.ts";
@@ -467,8 +467,8 @@ export function ways$drops_Tree_drops_Logged_drops_drops_closure10(make: (a0: rs
 export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _99: boolean = false;
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
-	const pick: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
-	const how: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, 1), 0);
+	const pick: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
+	const how: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0);
 	const l: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, log);
 	};

@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function withBorrow$1roy6g4(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>, f: (a0: rs.Arc<rs.LazyCell<string>> | undefined) => string): string {
+export function withBorrow$03hv9ge(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>, f: (a0: rs.Arc<rs.LazyCell<string>> | undefined) => string): string {
 	const captured = f;
 	return ((cell: rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>): string => {
 		const _32: (a0: rs.Arc<rs.LazyCell<string>> | undefined) => string = captured;
@@ -13,13 +13,13 @@ export function withBorrow$1roy6g4(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCe
 	})(self.get());
 }
 
-export function take$1357qwq(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>): rs.Arc<rs.LazyCell<string>> | undefined {
+export function take$1ni7uux(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>): rs.Arc<rs.LazyCell<string>> | undefined {
 	return ((a0: rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>): rs.Arc<rs.LazyCell<string>> | undefined => {
 		return rs.refCellReplace(a0, undefined);
 	})(self.get());
 }
 
-export function take$122f15k(self: rs.LocalKey<rs.RefCell<rs.ByteVec>>): rs.ByteVec {
+export function take$1snv7rd(self: rs.LocalKey<rs.RefCell<rs.ByteVec>>): rs.ByteVec {
 	return ((a0: rs.RefCell<rs.ByteVec>): rs.ByteVec => {
 		return rs.refCellReplace(a0, new rs.ByteVec());
 	})(self.get());

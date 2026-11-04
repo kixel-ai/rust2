@@ -9,28 +9,28 @@ export function unwrapOr$1iemzn8(self: string | undefined, default_: string): st
 	return self;
 }
 
-export function unwrapOr$1j4op5y(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
+export function unwrapOr$1szdyfq(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$11c0we2(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
+export function unwrapOr$1b5hww3(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1k1fy8u(self: rs.u32 | undefined | rs.None, _: (a0: rs.u32 | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
+export function map$05w7tkb(self: rs.u32 | undefined | rs.None, _: (a0: rs.u32 | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
@@ -44,22 +44,22 @@ export function map$1uo1d4o(self: string | undefined, _: (a0: string) => string)
 	return self;
 }
 
-export function map$0xz4pvf(self: rs.u32 | undefined, _: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$03qwbb9(self: rs.u32 | undefined, _: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function mapOr$1e4a1e0(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function asDeref$0w2m0zn(self: rs.u32 | undefined | rs.None): rs.u32 | undefined | rs.None {
-	return map$1k1fy8u(self, (a0: rs.u32 | undefined): rs.u32 | undefined => {
+export function asDeref$0r30y86(self: rs.u32 | undefined | rs.None): rs.u32 | undefined | rs.None {
+	return map$05w7tkb(self, (a0: rs.u32 | undefined): rs.u32 | undefined => {
 		return a0;
 	});
 }
@@ -70,13 +70,13 @@ export function asDeref$0w8at8i(self: string | undefined): string | undefined {
 	});
 }
 
-export function asDeref$0avuzwv(self: rs.u32 | undefined): rs.u32 | undefined {
-	return map$0xz4pvf(self, (a0: rs.u32): rs.u32 => {
+export function asDeref$13yyv6y(self: rs.u32 | undefined): rs.u32 | undefined {
+	return map$03qwbb9(self, (a0: rs.u32): rs.u32 => {
 		return a0;
 	});
 }
 
-export function flatten$08boupk(self: rs.u32 | undefined | rs.None): rs.u32 | undefined {
+export function flatten$1s0exy3(self: rs.u32 | undefined | rs.None): rs.u32 | undefined {
 	if (self === rs.None) {
 		return undefined;
 	}

@@ -10,8 +10,8 @@ import * as Logged from "./clones.Logged.ts";
 import * as Pair from "./clones.Pair.ts";
 import * as Plan from "./clones.Plan.ts";
 import * as Slot from "./clones.Slot.ts";
-import { then$0415f7q, then$1uqvqbl } from "./core/bool.ts";
-import { isSomeAnd$09tpccf, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0y3liwu as option_map$0y3liwu, mapOr$0w6m9d0 as option_mapOr$0w6m9d0, mapOr$0bq8trh as option_mapOr$0bq8trh, mapOr$1yabfom as option_mapOr$1yabfom, mapOr$1surhce as option_mapOr$1surhce, mapOr$02k4ito as option_mapOr$02k4ito, clone$0bhdqd8 as option_clone$0bhdqd8, clone$1jx0028 as option_clone$1jx0028 } from "./core/option.ts";
+import { then$0ba40i0, then$1uqvqbl } from "./core/bool.ts";
+import { isSomeAnd$1s2u5lz, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1kvcy6m as option_map$1kvcy6m, mapOr$0ngwgbd as option_mapOr$0ngwgbd, mapOr$1ughiwf as option_mapOr$1ughiwf, mapOr$15gmqsv as option_mapOr$15gmqsv, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$188iunt as option_mapOr$188iunt, clone$0bhdqd8 as option_clone$0bhdqd8, clone$1jx0028 as option_clone$1jx0028 } from "./core/option.ts";
 
 /** Puts what was logged since the last flush, after a marker. */
 export function flush(log: rs.RefCell<rs.ByteVec>, out: rs.ByteVec): void {
@@ -31,7 +31,7 @@ export function turns$array_IntoIter_u8_4_clones_iters_closure20_clones_iters_cl
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -111,7 +111,7 @@ export function turns$collections_binary_heap_IntoIter_u8_clones_iters_closure14
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -191,7 +191,7 @@ export function turns$collections_binary_heap_Iter_u8_clones_iters_closure141_cl
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -271,7 +271,7 @@ export function turns$collections_btree_map_Iter_u8_u8_clones_iters_closure122_c
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -351,7 +351,7 @@ export function turns$collections_btree_map_Keys_u8_u8_clones_iters_closure124_c
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -431,7 +431,7 @@ export function turns$collections_btree_map_Range_u8_u8_clones_iters_closure126_
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -511,7 +511,7 @@ export function turns$collections_btree_map_Range_u8_u8_clones_iters_closure128_
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -591,7 +591,7 @@ export function turns$collections_btree_map_Values_u8_u8_clones_iters_closure125
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -671,7 +671,7 @@ export function turns$collections_btree_set_Difference_u8_clones_iters_closure13
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -751,7 +751,7 @@ export function turns$collections_btree_set_Difference_u8_clones_iters_closure13
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -831,7 +831,7 @@ export function turns$collections_btree_set_Intersection_u8_clones_iters_closure
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -911,7 +911,7 @@ export function turns$collections_btree_set_Intersection_u8_clones_iters_closure
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -991,7 +991,7 @@ export function turns$collections_btree_set_Iter_u8_clones_iters_closure130_clon
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1071,7 +1071,7 @@ export function turns$collections_btree_set_Range_u8_clones_iters_closure131_clo
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1151,7 +1151,7 @@ export function turns$collections_btree_set_SymmetricDifference_u8_clones_iters_
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1231,7 +1231,7 @@ export function turns$collections_btree_set_Union_u8_clones_iters_closure132_clo
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1311,7 +1311,7 @@ export function turns$collections_vec_deque_IntoIter_clones_Logged_clones_owned_
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Iter<Logged.Logged>) => Uint8Array = (it2: rs.Iter<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1393,7 +1393,7 @@ export function turns$collections_vec_deque_IntoIter_u8_clones_iters_closure139_
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1473,7 +1473,7 @@ export function turns$collections_vec_deque_Iter_u8_clones_iters_closure138_clon
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1553,7 +1553,7 @@ export function turns$iter_Chain_iter_Once_clones_Logged_option_IntoIter_clones_
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Iter<Logged.Logged>) => Uint8Array = (it2: rs.Iter<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1635,7 +1635,7 @@ export function turns$iter_Chain_slice_Iter_u8_iter_Skip_iter_Rev_slice_Iter_u8_
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1715,7 +1715,7 @@ export function turns$iter_Cloned_slice_Iter_u8_clones_iters_closure82_clones_it
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1795,7 +1795,7 @@ export function turns$iter_Copied_slice_Iter_u8_clones_iters_closure80_clones_it
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1875,7 +1875,7 @@ export function turns$iter_Empty_u8_clones_iters_closure51_clones_iters_closure5
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -1955,7 +1955,7 @@ export function turns$iter_Enumerate_slice_Iter_u8_clones_iters_closure74_clones
 	let item3!: [rs.usize, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.usize, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.usize, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2035,7 +2035,7 @@ export function turns$iter_FilterMap_slice_Iter_u8_clones_iters_closure71_clones
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2115,7 +2115,7 @@ export function turns$iter_Filter_iter_Map_slice_Iter_u8_clones_closures_closure
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2197,7 +2197,7 @@ export function turns$iter_Filter_slice_Iter_u8_clones_iters_closure147_clones_i
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2277,7 +2277,7 @@ export function turns$iter_Filter_slice_Iter_u8_clones_iters_closure69_clones_it
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2357,7 +2357,7 @@ export function turns$iter_FlatMap_slice_Chunks_u8_iter_Map_slice_Iter_u8_clones
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2437,7 +2437,7 @@ export function turns$iter_FlatMap_slice_Chunks_u8_slice_Iter_u8_clones_iters_cl
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2517,7 +2517,7 @@ export function turns$iter_Flatten_iter_Map_slice_Chunks_u8_clones_iters_closure
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2597,7 +2597,7 @@ export function turns$iter_Flatten_slice_Chunks_u8_clones_iters_closure92_clones
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2677,7 +2677,7 @@ export function turns$iter_Flatten_vec_IntoIter_Vec_clones_Logged_clones_owned_c
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Iter<Logged.Logged>) => Uint8Array = (it2: rs.Iter<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2761,7 +2761,7 @@ export function turns$iter_FromFn_clones_iters_closure105_clones_iters_closure10
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2841,7 +2841,7 @@ export function turns$iter_Fuse_slice_Iter_u8_clones_iters_closure84_clones_iter
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -2921,7 +2921,7 @@ export function turns$iter_MapWhile_slice_Iter_u8_clones_iters_closure97_clones_
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3001,7 +3001,7 @@ export function turns$iter_Map_clones_Countdown_clones_iters_closure100_clones_i
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3081,7 +3081,7 @@ export function turns$iter_Map_iter_Inspect_slice_Iter_u8_clones_iters_closure14
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3161,7 +3161,7 @@ export function turns$iter_Map_slice_Iter_u8_clones_iters_closure144_clones_iter
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3241,7 +3241,7 @@ export function turns$iter_Map_slice_Iter_u8_clones_iters_closure66_clones_iters
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3321,7 +3321,7 @@ export function turns$iter_Once_u8_clones_iters_closure49_clones_iters_closure50
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3401,7 +3401,7 @@ export function turns$iter_Peekable_iter_Copied_slice_Iter_u8_clones_iters_closu
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Peekable<rs.u8>) => Uint8Array = (it2: rs.Peekable<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3481,7 +3481,7 @@ export function turns$iter_Peekable_slice_Iter_u8_clones_iters_closure119_clones
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Peekable<rs.u8>) => Uint8Array = (it2: rs.Peekable<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3561,7 +3561,7 @@ export function turns$iter_Peekable_slice_Iter_u8_clones_iters_closure86_clones_
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Peekable<rs.u8>) => Uint8Array = (it2: rs.Peekable<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3641,7 +3641,7 @@ export function turns$iter_Peekable_vec_IntoIter_clones_Logged_clones_owned_clos
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Peekable<Logged.Logged>) => Uint8Array = (it2: rs.Peekable<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3723,7 +3723,7 @@ export function turns$iter_Rev_slice_Iter_u8_clones_iters_closure76_clones_iters
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3803,7 +3803,7 @@ export function turns$iter_SkipWhile_slice_Iter_u8_clones_iters_closure93_clones
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3883,7 +3883,7 @@ export function turns$iter_Skip_slice_Iter_u8_clones_iters_closure77_clones_iter
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -3963,7 +3963,7 @@ export function turns$iter_StepBy_slice_Iter_u8_clones_iters_closure79_clones_it
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4043,7 +4043,7 @@ export function turns$iter_Successors_clones_Logged_clones_owned_closure15_clone
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Iter<Logged.Logged>) => Uint8Array = (it2: rs.Iter<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4125,7 +4125,7 @@ export function turns$iter_Successors_u8_clones_iters_closure108_clones_iters_cl
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4205,7 +4205,7 @@ export function turns$iter_TakeWhile_slice_Iter_u8_clones_iters_closure95_clones
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4285,7 +4285,7 @@ export function turns$iter_Take_slice_Iter_u8_clones_iters_closure78_clones_iter
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4365,7 +4365,7 @@ export function turns$iter_Zip_clones_Countdown_slice_Iter_u8_clones_iters_closu
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4445,7 +4445,7 @@ export function turns$iter_Zip_iter_Filter_slice_Iter_u8_clones_iters_closure4_i
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4525,7 +4525,7 @@ export function turns$iter_Zip_slice_Iter_u8_ops_RangeInclusive_u8_clones_iters_
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4605,7 +4605,7 @@ export function turns$iter_Zip_slice_Iter_u8_slice_Iter_u8_clones_iters_closure1
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4685,7 +4685,7 @@ export function turns$iter_Zip_slice_Iter_u8_slice_Iter_u8_clones_iters_closure1
 	let item3!: [rs.u8, rs.u8] | undefined;
 	const _44: (a0: rs.Iter<[rs.u8, rs.u8]>) => Uint8Array = (it2: rs.Iter<[rs.u8, rs.u8]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4765,7 +4765,7 @@ export function turns$ops_RangeFrom_char_clones_iters_closure44_clones_iters_clo
 	let item3!: rs.char | undefined;
 	const _44: (a0: rs.RangeFrom<rs.char>) => Uint8Array = (it2: rs.RangeFrom<rs.char>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4845,7 +4845,7 @@ export function turns$ops_RangeFrom_u64_clones_iters_closure42_clones_iters_clos
 	let item3!: rs.u64 | undefined;
 	const _44: (a0: rs.RangeFrom<rs.u64>) => Uint8Array = (it2: rs.RangeFrom<rs.u64>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -4925,7 +4925,7 @@ export function turns$ops_RangeFrom_u8_clones_iters_closure40_clones_iters_closu
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.RangeFrom<rs.u8>) => Uint8Array = (it2: rs.RangeFrom<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5005,7 +5005,7 @@ export function turns$ops_RangeInclusive_u8_clones_iters_closure36_clones_iters_
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.RangeInclusive<rs.u8>) => Uint8Array = (it2: rs.RangeInclusive<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5085,7 +5085,7 @@ export function turns$ops_Range_u64_clones_iters_closure38_clones_iters_closure3
 	let item3!: rs.u64 | undefined;
 	const _44: (a0: rs.Range<rs.u64>) => Uint8Array = (it2: rs.Range<rs.u64>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5166,7 +5166,7 @@ export function turns$ops_Range_u8_clones_iters_closure34_clones_iters_closure35
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Range<rs.u8>) => Uint8Array = (it2: rs.Range<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5249,7 +5249,7 @@ export function turns$option_IntoIter_ref_u8_clones_iters_closure46_clones_iters
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5329,7 +5329,7 @@ export function turns$option_IntoIter_u8_clones_iters_closure47_clones_iters_clo
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5409,7 +5409,7 @@ export function turns$slice_ChunksExact_u8_clones_iters_closure26_clones_iters_c
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5489,7 +5489,7 @@ export function turns$slice_Chunks_u8_clones_iters_closure24_clones_iters_closur
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5569,7 +5569,7 @@ export function turns$slice_Iter_array2_u8_clones_iters_closure32_clones_iters_c
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5649,7 +5649,7 @@ export function turns$slice_Iter_u8_clones_iters_closure17_clones_iters_closure0
 	let item!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5729,7 +5729,7 @@ export function turns$slice_RChunksExact_u8_clones_iters_closure30_clones_iters_
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5809,7 +5809,7 @@ export function turns$slice_RChunks_u8_clones_iters_closure28_clones_iters_closu
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5889,7 +5889,7 @@ export function turns$slice_Windows_u8_clones_iters_closure22_clones_iters_closu
 	let item!: rs.ByteSlice | undefined;
 	const _44: (a0: rs.Iter<rs.ByteSlice>) => Uint8Array = (it2: rs.Iter<rs.ByteSlice>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -5969,7 +5969,7 @@ export function turns$str_Bytes_clones_iters_closure55_clones_iters_closure56(it
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6049,7 +6049,7 @@ export function turns$str_Chars_clones_iters_closure53_clones_iters_closure54(it
 	let item3!: rs.char | undefined;
 	const _44: (a0: rs.Iter<rs.char>) => Uint8Array = (it2: rs.Iter<rs.char>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6129,7 +6129,7 @@ export function turns$str_MatchIndices_array2_char_clones_iters_closure64_clones
 	let item3!: [rs.usize, string] | undefined;
 	const _44: (a0: rs.Iter<[rs.usize, string]>) => Uint8Array = (it2: rs.Iter<[rs.usize, string]>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6209,7 +6209,7 @@ export function turns$str_Split_char_clones_iters_closure57_clones_iters_closure
 	let item!: string | undefined;
 	const _44: (a0: rs.Iter<string>) => Uint8Array = (it2: rs.Iter<string>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6289,7 +6289,7 @@ export function turns$str_Split_clones_iters_closure61_clones_iters_closure62_cl
 	let item!: string | undefined;
 	const _44: (a0: rs.Iter<string>) => Uint8Array = (it2: rs.Iter<string>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6369,7 +6369,7 @@ export function turns$str_Split_ref_str_clones_iters_closure59_clones_iters_clos
 	let item!: string | undefined;
 	const _44: (a0: rs.Iter<string>) => Uint8Array = (it2: rs.Iter<string>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6449,7 +6449,7 @@ export function turns$vec_IntoIter_clones_Logged_clones_owned_closure2_clones_ow
 	let item3!: Logged.Logged | undefined;
 	const _44: (a0: rs.Iter<Logged.Logged>) => Uint8Array = (it2: rs.Iter<Logged.Logged>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6531,7 +6531,7 @@ export function turns$vec_IntoIter_u8_clones_iters_closure18_clones_iters_closur
 	let item3!: rs.u8 | undefined;
 	const _44: (a0: rs.Iter<rs.u8>) => Uint8Array = (it2: rs.Iter<rs.u8>): Uint8Array => {
 		const _5: [rs.usize, rs.usize | undefined] = it2.sizeHint();
-		return Uint8Array.of(_5[0] & 0xff, option_mapOr$02k4ito(_5[1], 254, (n: rs.usize): rs.u8 => {
+		return Uint8Array.of(_5[0] & 0xff, option_mapOr$188iunt(_5[1], 254, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
 	};
@@ -6609,7 +6609,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _263!: [rs.ByteSlice, rs.ByteSlice];
 	let _269!: rs.usize;
 	const plan: Plan.Plan = { dataData: data.data, dataStart: data.start, dataLen: data.length, at: kind as rs.usize };
-	const n: rs.usize = option_mapOr$1surhce(rs.byteSliceFirst(data), 1, (_2: rs.u8): rs.u8 => {
+	const n: rs.usize = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 1, (_2: rs.u8): rs.u8 => {
 		return rs.u8Add(rs.u8Rem(_2, 4), 1);
 	}) as rs.usize;
 	const _9: rs.u8 = rs.u8Rem(kind, 16);
@@ -6625,7 +6625,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return x69;
 		}, out);
 		const array: Uint8Array = Uint8Array.of(1, 2, 3, 4);
-		const iter: rs.Iter<[rs.Place<rs.u8>, rs.u8]> = rs.iterZip(rs.iterSliceMut(rs.byteSliceFrom(array)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
+		const iter: rs.Iter<[rs.Place<rs.u8>, rs.u8]> = rs.iterZip(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(array))), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
 		while (true) {
 			const _25: [rs.Place<rs.u8>, rs.u8] | rs.Done = iter.next();
 			if (_25 === rs.DONE) {
@@ -6683,8 +6683,8 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return a6.data[a6.start] ^ a6.data[a6.start + 1];
 		}, out);
 	} else if (_9 === 2) {
-		const lo: rs.u8 = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 8);
-		const hi: rs.u8 = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, 1), 9), 16);
+		const lo: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 8);
+		const hi: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 9), 16);
 		turns$ops_Range_u8_clones_iters_closure34_clones_iters_closure35(new rs.Range(lo, hi), (it59: rs.Range<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it59.nextBack());
 		}, plan, (x59: rs.u8): rs.u8 => {
@@ -7016,12 +7016,12 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		let iterStart5: rs.usize = 0;
 		const iterEnd5: rs.usize = n;
 		while (iterStart5++ < iterEnd5) {
-			rs.byteVecPush(out, option_mapOr$1surhce(rs.peekablePeek(it), 238, (_227: rs.u8): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.peekablePeek(it), 238, (_227: rs.u8): rs.u8 => {
 				return _227;
 			}));
 			it.next();
 		}
-		rs.byteVecPush(out, option_mapOr$1surhce(rs.peekablePeek(it), 238, (_233: rs.u8): rs.u8 => {
+		rs.byteVecPush(out, option_mapOr$0vxw5sq(rs.peekablePeek(it), 238, (_233: rs.u8): rs.u8 => {
 			return _233;
 		}));
 		turns$iter_Peekable_slice_Iter_u8_clones_iters_closure119_clones_iters_closure0(it, (it24: rs.Peekable<rs.u8>): rs.u8 | undefined => {
@@ -7049,7 +7049,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u8Rem(_219, 32);
 		});
 		const set: rs.BTreeSet<rs.u8> = rs.btreeExtendKeys(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u8>, _406, true, undefined, undefined, 1, true);
-		const lo2: rs.u8 = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), 32);
+		const lo2: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 32);
 		turns$collections_btree_map_Iter_u8_u8_clones_iters_closure122_clones_iters_closure123(rs.btreeIter(map), (it17: rs.Iter<[rs.u8, rs.u8]>): [rs.u8, rs.u8] | undefined => {
 			return rs.iterToOption(it17.nextBack());
 		}, plan, (_222: [rs.u8, rs.u8]): rs.u8 => {
@@ -7102,7 +7102,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		unordered$iter_Copied_collections_hash_map_Values_u8_u8(rs.hashValues(map2), plan, out);
 		unordered$iter_Copied_collections_hash_set_Iter_u8(rs.hashKeys(set2), plan, out);
 	} else if (_9 === 11) {
-		const split2: rs.usize = rs.usizeRem(option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeAdd(data.length, 1));
+		const split2: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeAdd(data.length, 1));
 		const _480: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 0, split2))), (_29: rs.u8): rs.u8 => {
 			return rs.u8Rem(_29, 64);
 		});
@@ -7427,7 +7427,7 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	const it2: rs.Peekable<Logged.Logged> = rs.iterPeekable(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_24: rs.u8): Logged.Logged => {
 		return logged(_24 & 112);
 	}), undefined, 8, true), rs.drop), rs.drop);
-	rs.byteVecPush(out, option_mapOr$1yabfom(rs.peekablePeek(it2), 238, Logged.id));
+	rs.byteVecPush(out, option_mapOr$15gmqsv(rs.peekablePeek(it2), 238, Logged.id));
 	const clone2: rs.Peekable<Logged.Logged> = it2.clone({ i: { v: Logged.clone$Clone }, v: Logged.clone$Clone });
 	flush(log.value, out);
 	rs.drop(clone2);
@@ -7474,7 +7474,7 @@ export function owned(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): voi
 	}, out);
 	flush(log.value, out);
 	const it5: rs.Iter<Logged.Logged> = rs.iterSuccessors(logged(40), (x6: Logged.Logged): Logged.Logged | undefined => {
-		return option_map$0y3liwu(rs.u8CheckedSub(Logged.id(x6), 13), (id2: rs.u8): Logged.Logged => {
+		return option_map$1kvcy6m(rs.u8CheckedSub(Logged.id(x6), 13), (id2: rs.u8): Logged.Logged => {
 			return logged(id2);
 		});
 	}, rs.drop);
@@ -7633,15 +7633,15 @@ export function cloned$array2_clones_Logged(x: Logged.Logged[]): Logged.Logged[]
  * a derived `Clone`, a `Vec`, and a generic function clone theirs.
  */
 export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _13: (a0: rs.Slice<Logged.Logged>, a1: rs.ByteVec) => undefined = (a3: rs.Slice<Logged.Logged>, out2: rs.ByteVec): undefined => {
-		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(rs.sliceItems(a3)), Logged.id), undefined, true);
+	const _13: (a0: Logged.Logged[], a1: rs.ByteVec) => undefined = (a3: Logged.Logged[], out2: rs.ByteVec): undefined => {
+		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(a3), Logged.id), undefined, true);
 	};
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
-		return option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i), rs.u8WrappingMul(i & 0xff, 48)) & 126;
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), rs.u8WrappingMul(i & 0xff, 48)) & 126;
 	};
 	const three: () => Logged.Logged[] = (): Logged.Logged[] => {
 		return [logged(at(0)), logged(at(1)), logged(at(2))];
@@ -7651,16 +7651,14 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const a: Logged.Logged[] = three();
 		const b: Logged.Logged[] = a.map(Logged.clone$Clone);
 		flush(log.value, out);
-		const part32 = rs.sliceFrom(b);
-		_13(part32, out);
+		_13(b, out);
 		rs.dropAll(a);
 		flush(log.value, out);
 		const c: Logged.Logged[] = b.map(Logged.clone$Clone);
 		rs.dropAll(b);
 		flush(log.value, out);
 		[].map(Logged.clone$Clone);
-		const part33 = rs.sliceFrom(c);
-		_13(part33, out);
+		_13(c, out);
 		drop$tuple3_array0_clones_Logged_array0_clones_Logged_array3_clones_Logged([[], [], c] as [Logged.Logged[], Logged.Logged[], Logged.Logged[]]);
 		flush(log.value, out);
 	} else if (_14 === 1) {
@@ -7671,20 +7669,18 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _60: Logged.Logged = logged(part25);
 		const part26 = at(5);
 		const b2: Logged.Logged[] = [_54, _60, logged(part26)];
-		rs.arrayCloneFrom(a2, b2, Logged.clone$Clone, rs.drop);
+		rs.sliceCloneFromSlice(a2, b2, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
-		const part27 = rs.sliceFrom(a2);
-		_13(part27, out);
+		_13(a2, out);
 		const part28 = at(6);
 		const _84: Logged.Logged = logged(part28);
 		const part29 = at(7);
 		const _90: Logged.Logged = logged(part29);
 		const part30 = at(8);
 		const c2: Logged.Logged[] = [_84, _90, logged(part30)];
-		rs.arrayCloneFrom(c2, b2, Logged.clone$Clone, rs.drop);
+		rs.sliceCloneFromSlice(c2, b2, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
-		const part31 = rs.sliceFrom(c2);
-		_13(part31, out);
+		_13(c2, out);
 		drop$tuple3_array3_clones_Logged_array3_clones_Logged_array3_clones_Logged([a2, b2, c2] as [Logged.Logged[], Logged.Logged[], Logged.Logged[]]);
 		flush(log.value, out);
 	} else if (_14 === 2) {
@@ -7698,7 +7694,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Logged.Logged[] | undefined = _137[1];
 		flush(log.value, out);
 		rs.byteVecPush(out, y === undefined ? 1 : 0);
-		const part23 = rs.sliceFrom(rs.optionUnwrap(x));
+		const part23 = rs.optionUnwrap(x);
 		_13(part23, out);
 		rs.dropAll(some);
 		flush(log.value, out);
@@ -7718,8 +7714,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return a05.map(Logged.clone$Clone);
 		}, undefined, Logged.clone$Clone]);
 		flush(log.value, out);
-		const part16 = rs.sliceFrom(copy[0]);
-		_13(part16, out);
+		_13(copy[0], out);
 		drop$tuple3_array2_clones_Logged_String_clones_Logged(tuple);
 		flush(log.value, out);
 		const part17 = at(3);
@@ -7731,8 +7726,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const pair: Pair.Pair = new Pair.Pair(_200, rs.fmtFormat([args2[0]]));
 		const other: Pair.Pair = Pair.clone$Clone(pair);
 		flush(log.value, out);
-		const part20 = rs.sliceFrom(other.left);
-		_13(part20, out);
+		_13(other.left, out);
 		rs.iterExtendBytes(out, rs.strBytes(other.tag), undefined, true);
 		drop$tuple2_tuple3_array2_clones_Logged_String_clones_Logged_clones_Pair([copy, pair] as [[Logged.Logged[], string, Logged.Logged], Pair.Pair]);
 		flush(log.value, out);
@@ -7753,8 +7747,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 		rs.dropAll(grid, drop$array2_clones_Logged);
 		flush(log.value, out);
-		const part12 = rs.sliceFrom(copy2[1]);
-		_13(part12, out);
+		_13(copy2[1], out);
 		const _295: rs.u8 = at(4);
 		const words: string[] = ["a", rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f)), ""];
 		const vecs: rs.ByteVec[] = [rs.byteSliceToByteVec(data), rs.byteVecFrom(Uint8Array.of(at(5)))];
@@ -7815,18 +7808,18 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _156!: rs.usize;
-	const _14: (a0: rs.Slice<Logged.Logged>, a1: rs.ByteVec) => undefined = (a6: rs.Slice<Logged.Logged>, out2: rs.ByteVec): undefined => {
-		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(rs.sliceItems(a6)), Logged.id), undefined, true);
+	const _14: (a0: Logged.Logged[], a1: rs.ByteVec) => undefined = (a6: Logged.Logged[], out2: rs.ByteVec): undefined => {
+		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(a6), Logged.id), undefined, true);
 	};
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
 	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i2), rs.u8WrappingMul(i2 & 0xff, 48)) & 126;
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), rs.u8WrappingMul(i2 & 0xff, 48)) & 126;
 	};
 	const len: (a0: rs.usize) => rs.usize = (i3: rs.usize): rs.usize => {
-		return rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i3), i3 & 0xff), 4) as rs.usize;
+		return rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), i3 & 0xff), 4) as rs.usize;
 	};
 	const row: (a0: rs.usize, a1: rs.usize) => rs.Vec<Logged.Logged> = (from: rs.usize, n2: rs.usize): rs.Vec<Logged.Logged> => {
 		return rs.iterToVec(rs.iterMap(new rs.Range(0, n2), (i4: rs.usize): Logged.Logged => {
@@ -7836,7 +7829,7 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	const _15: rs.u8 = rs.u8Rem(kind, 8);
 	if (_15 === 0) {
 		const pick: (a0: rs.usize) => Logged.Logged[] | undefined = (i13: rs.usize): Logged.Logged[] | undefined => {
-			return then$1uqvqbl(rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i13), 1), 2) === 1, (): Logged.Logged[] => {
+			return then$1uqvqbl(rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i13), 1), 2) === 1, (): Logged.Logged[] => {
 				return [logged(at(i13)), logged(at(rs.usizeAdd(i13, 1)))];
 			});
 		};
@@ -7845,23 +7838,22 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		flush(log.value, out);
 		a = rs.optionCloneFrom(a, b, (a013: Logged.Logged[]): Logged.Logged[] => {
 			return a013.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
 		rs.byteVecPush(out, a !== undefined ? 1 : 0);
 		if (a !== undefined) {
-			const part57 = rs.sliceFrom(a);
-			_14(part57, out);
+			_14(a, out);
 		}
 		let c: Logged.Logged[] | undefined = pick(4);
 		c = rs.optionCloneFrom(c, a, (a014: Logged.Logged[]): Logged.Logged[] => {
 			return a014.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
 		drop$tuple3_Option_array2_clones_Logged_Option_array2_clones_Logged_Option_array2_clones_Logged([a, b, c] as [Logged.Logged[] | undefined, Logged.Logged[] | undefined, Logged.Logged[] | undefined]);
 		flush(log.value, out);
 	} else if (_15 === 1) {
 		const pick2: (a0: rs.usize) => rs.Vec<Logged.Logged> | undefined = (i12: rs.usize): rs.Vec<Logged.Logged> | undefined => {
-			return then$0415f7q(rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i12), 1), 5) !== 0, (): rs.Vec<Logged.Logged> => {
+			return then$0ba40i0(rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i12), 1), 5) !== 0, (): rs.Vec<Logged.Logged> => {
 				return row(i12, len(i12));
 			});
 		};
@@ -7873,8 +7865,7 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		}, drop$Vec_clones_Logged, rs.vecCloneFromFn(8, Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
 		if (a2 !== undefined) {
-			const part53 = rs.sliceFrom(a2.items);
-			_14(part53, out);
+			_14(a2.items, out);
 		}
 		drop$tuple2_Option_Vec_clones_Logged_Option_Vec_clones_Logged([a2, b2] as [rs.Vec<Logged.Logged> | undefined, rs.Vec<Logged.Logged> | undefined]);
 		flush(log.value, out);
@@ -7888,16 +7879,14 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		flush(log.value, out);
 		rs.vecCloneFrom(a3, b3, 8, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
-		const part47 = rs.sliceFrom(a3.items);
-		_14(part47, out);
+		_14(a3.items, out);
 		rs.byteVecPush(out, rs.vecCapacity(a3, 8) & 0xff);
 		const part48 = len(8);
 		const c2: rs.Vec<Logged.Logged> = row(8, part48);
 		rs.vecCloneFrom(c2, b3, 8, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
-		const part49 = rs.sliceFrom(c2.items);
-		_14(part49, out);
-		const _146: rs.Slice<Logged.Logged> = rs.sliceFrom(b3.items);
+		_14(c2.items, out);
+		const _146: Logged.Logged[] = rs.sliceRange(b3.items, 0);
 		rs.vecCloneFrom(a3, _146, 8, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
 		const d: rs.Vec<Logged.Logged> = new rs.Vec();
@@ -7932,15 +7921,14 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const part43 = at(7);
 		const other: Logged.Logged[][] = [_217, [_231, logged(part43)]];
 		flush(log.value, out);
-		rs.arrayCloneFrom(grid, other, (a010: Logged.Logged[]): Logged.Logged[] => {
+		rs.sliceCloneFromSlice(grid, other, (a010: Logged.Logged[]): Logged.Logged[] => {
 			return a010.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		const part44 = rs.sliceFrom(grid[1]);
-		_14(part44, out);
-		rs.arrayCloneFrom(grid, other, (a011: Logged.Logged[]): Logged.Logged[] => {
+		_14(grid[1], out);
+		rs.sliceCloneFromSlice(grid, other, (a011: Logged.Logged[]): Logged.Logged[] => {
 			return a011.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
 		drop$tuple2_array2_array2_clones_Logged_array2_array2_clones_Logged([grid, other] as [Logged.Logged[][], Logged.Logged[][]]);
 		flush(log.value, out);
@@ -7962,31 +7950,30 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const part30 = at(7);
 		const other2: Logged.Logged[][] = [_300, [_314, logged(part30)]];
 		flush(log.value, out);
-		rs.sliceCloneFromSlice(rs.sliceFrom(rows.items), rs.sliceFrom(other2), (a06: Logged.Logged[]): Logged.Logged[] => {
+		rs.sliceCloneFromSlice(rows.items, other2, (a06: Logged.Logged[]): Logged.Logged[] => {
 			return a06.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		rs.sliceFill(rs.sliceRange(rs.sliceFrom(rows.items), 0, 1), other2[1].map(Logged.clone$Clone), (a07: Logged.Logged[]): Logged.Logged[] => {
+		rs.sliceFill(rs.sliceRangeMut(rows.items, 0, 1), other2[1].map(Logged.clone$Clone), (a07: Logged.Logged[]): Logged.Logged[] => {
 			return a07.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		const _349: rs.Slice<Logged.Logged[]> = rs.sliceFrom(rows.items);
+		const _349: Logged.Logged[][] = rows.items;
 		const part31 = at(8);
 		const _352: Logged.Logged = logged(part31);
 		const part32 = at(9);
 		rs.sliceFill(_349, [_352, logged(part32)], (a08: Logged.Logged[]): Logged.Logged[] => {
 			return a08.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		const part33 = rs.sliceFrom(rows.items[rs.idx(rows.items, 0)]);
-		_14(part33, out);
-		const _375: rs.Slice<Logged.Logged[]> = rs.sliceFrom([]);
+		_14(rows.items[rs.idx(rows.items, 0)], out);
+		const _375: Logged.Logged[][] = [];
 		const part34 = at(10);
 		const _378: Logged.Logged = logged(part34);
 		const part35 = at(11);
 		rs.sliceFill(_375, [_378, logged(part35)], (a09: Logged.Logged[]): Logged.Logged[] => {
 			return a09.map(Logged.clone$Clone);
-		}, drop$array2_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array2_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
 		drop$tuple2_Vec_array2_clones_Logged_array2_array2_clones_Logged([rows, other2] as [rs.Vec<Logged.Logged[]>, Logged.Logged[][]]);
 		flush(log.value, out);
@@ -8013,12 +8000,10 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return rs.vecFrom(a04.items.map(Logged.clone$Clone));
 		}, drop$Vec_clones_Logged, rs.vecCloneFromFn(8, Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		const part22 = rs.sliceFrom(cut.items[rs.idx(cut.items, 0)].items);
-		_14(part22, out);
+		_14(cut.items[rs.idx(cut.items, 0)].items, out);
 		const _462: rs.usize = len(1);
 		rs.vecTruncate(rows2, _462, drop$Vec_clones_Logged);
-		const n: rs.usize = rows2.items.length;
-		rs.sliceCloneFromSlice(rs.sliceFrom(rows2.items), rs.sliceRange(rs.sliceFrom(other3.items), 0, n), (a05: rs.Vec<Logged.Logged>): rs.Vec<Logged.Logged> => {
+		rs.sliceCloneFromSlice(rows2.items, rs.sliceRange(other3.items, 0, rows2.items.length), (a05: rs.Vec<Logged.Logged>): rs.Vec<Logged.Logged> => {
 			return rs.vecFrom(a05.items.map(Logged.clone$Clone));
 		}, drop$Vec_clones_Logged, rs.vecCloneFromFn(8, Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
@@ -8026,28 +8011,28 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		flush(log.value, out);
 	} else if (_15 === 6) {
 		const part7 = len(0);
-		let a4: rs.Slice<Logged.Logged> = rs.sliceFrom(row(0, part7).items);
+		let a4: Logged.Logged[] = row(0, part7).items;
 		const part8 = len(4);
-		const b4: rs.Slice<Logged.Logged> = rs.sliceFrom(row(4, part8).items);
+		const b4: Logged.Logged[] = row(4, part8).items;
 		flush(log.value, out);
 		a4 = rs.boxSliceCloneFrom(a4, b4, Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
 		_14(a4, out);
-		const ones: (a0: rs.usize, a1: rs.usize) => rs.Slice<Logged.Logged[]> = (from2: rs.usize, n3: rs.usize): rs.Slice<Logged.Logged[]> => {
-			return rs.sliceFrom(rs.iterToVec(rs.iterMap(new rs.Range(0, n3), (i10: rs.usize): Logged.Logged[] => {
+		const ones: (a0: rs.usize, a1: rs.usize) => Logged.Logged[][] = (from2: rs.usize, n3: rs.usize): Logged.Logged[][] => {
+			return rs.iterToVec(rs.iterMap(new rs.Range(0, n3), (i10: rs.usize): Logged.Logged[] => {
 				return [logged(at(rs.usizeAdd(from2, i10)))];
-			}), undefined, 8, true).items);
+			}), undefined, 8, true).items;
 		};
 		const part12 = len(8);
-		let c3: rs.Slice<Logged.Logged[]> = ones(8, part12);
+		let c3: Logged.Logged[][] = ones(8, part12);
 		const part13 = len(12);
-		const d2: rs.Slice<Logged.Logged[]> = ones(12, part13);
+		const d2: Logged.Logged[][] = ones(12, part13);
 		flush(log.value, out);
 		c3 = rs.boxSliceCloneFrom(c3, d2, (a02: Logged.Logged[]): Logged.Logged[] => {
 			return a02.map(Logged.clone$Clone);
-		}, drop$array1_clones_Logged, rs.arrayCloneFromFn(Logged.clone$Clone, rs.drop));
+		}, drop$array1_clones_Logged, rs.sliceCloneFromSliceFn(Logged.clone$Clone, rs.drop));
 		flush(log.value, out);
-		drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged([a4, b4, c3, d2] as [rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged[]>, rs.Slice<Logged.Logged[]>]);
+		drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged([a4, b4, c3, d2] as [Logged.Logged[], Logged.Logged[], Logged.Logged[][], Logged.Logged[][]]);
 		flush(log.value, out);
 	} else {
 		const kept: (a0: rs.usize) => Kept.Kept = (i5: rs.usize): Kept.Kept => {
@@ -8064,9 +8049,9 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		flush(log.value, out);
 		const grid2: Kept.Kept[][] = [[kept(5), kept(6)]];
 		const _586: Kept.Kept[][] = [[kept(7), kept(8)]];
-		rs.arrayCloneFrom(grid2, _586, (a0: Kept.Kept[]): Kept.Kept[] => {
+		rs.sliceCloneFromSlice(grid2, _586, (a0: Kept.Kept[]): Kept.Kept[] => {
 			return a0.map(Kept.clone$Clone);
-		}, drop$array2_clones_Kept, rs.arrayCloneFromFn(Kept.clone$Clone, rs.drop, rs.cloneFromFn(Kept.cloneFrom$Clone as (a0: Kept.Kept, a1: Kept.Kept) => undefined)));
+		}, drop$array2_clones_Kept, rs.sliceCloneFromSliceFn(Kept.clone$Clone, rs.drop, rs.cloneFromFn(Kept.cloneFrom$Clone as (a0: Kept.Kept, a1: Kept.Kept) => undefined)));
 		rs.dropAll(_586, drop$array2_clones_Kept);
 		flush(log.value, out);
 		let some: Kept.Kept | undefined = kept(9);
@@ -8075,14 +8060,14 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		rs.drop(_604);
 		flush(log.value, out);
 		const slot: (a0: rs.usize) => Slot.Slot = (i7: rs.usize): Slot.Slot => {
-			if (rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i7), 0), 3) === 0) {
+			if (rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i7), 0), 3) === 0) {
 				return { tag: "Empty" } as Slot.Slot;
 			}
 			return { tag: "Held", _0: kept(i7) } as Slot.Slot;
 		};
 		const slots: Slot.Slot[] = [slot(11), slot(12)];
 		const _623: Slot.Slot[] = [slot(13), slot(14)];
-		rs.arrayCloneFrom(slots, _623, Slot.clone$Clone, drop$clones_Slot, rs.cloneFromPlaceFn(Slot.cloneFrom$Clone as (a0: rs.Place<Slot.Slot>, a1: Slot.Slot) => undefined));
+		rs.sliceCloneFromSlice(slots, _623, Slot.clone$Clone, drop$clones_Slot, rs.cloneFromPlaceFn(Slot.cloneFrom$Clone as (a0: rs.Place<Slot.Slot>, a1: Slot.Slot) => undefined));
 		rs.dropAll(_623, drop$clones_Slot);
 		flush(log.value, out);
 		const _634: rs.Iter<Kept.Kept> = rs.iterMap(new rs.Range(0, len(15)), (i8: rs.usize): Kept.Kept => {
@@ -8110,26 +8095,25 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
  */
 export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let slot!: Slot.Slot;
-	const _11: (a0: rs.Slice<Logged.Logged>, a1: rs.ByteVec) => undefined = (a: rs.Slice<Logged.Logged>, out2: rs.ByteVec): undefined => {
-		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(rs.sliceItems(a)), Logged.id), undefined, true);
+	const _11: (a0: Logged.Logged[], a1: rs.ByteVec) => undefined = (a: Logged.Logged[], out2: rs.ByteVec): undefined => {
+		rs.iterExtendBytes(out2, rs.iterMap(rs.iterSlice(a), Logged.id), undefined, true);
 	};
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const logged: (a0: rs.u8) => Logged.Logged = (id: rs.u8): Logged.Logged => {
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
-		return option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i), rs.u8WrappingMul(i & 0xff, 48)) & 126;
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), rs.u8WrappingMul(i & 0xff, 48)) & 126;
 	};
 	const n: (a0: rs.usize) => rs.usize = (i2: rs.usize): rs.usize => {
-		return rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i2), i2 & 0xff), 5) as rs.usize;
+		return rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), i2 & 0xff), 5) as rs.usize;
 	};
 	const _12: rs.u8 = rs.u8Rem(kind, 8);
 	if (_12 === 0) {
-		const part20 = at(0);
-		const v: rs.Vec<Logged.Logged> = rs.vecFromElem(logged(part20), n(1), Logged.clone$Clone, rs.drop);
+		const part18 = at(0);
+		const v: rs.Vec<Logged.Logged> = rs.vecFromElem(logged(part18), n(1), Logged.clone$Clone, rs.drop);
 		flush(log.value, out);
-		const part21 = rs.sliceFrom(v.items);
-		_11(part21, out);
+		_11(v.items, out);
 		rs.byteVecPush(out, rs.vecCapacity(v, 8) & 0xff);
 		rs.dropVec(v);
 		flush(log.value, out);
@@ -8144,8 +8128,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}, drop$Vec_clones_Logged);
 		flush(log.value, out);
 		for (const _62 of v2.items) {
-			const part19 = rs.sliceFrom(_62.items);
-			_11(part19, out);
+			_11(_62.items, out);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(254, rs.vecCapacity(_62, 8) & 0xff)), undefined, true);
 		}
 		rs.dropVec(v2, drop$Vec_clones_Logged);
@@ -8159,7 +8142,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}, drop$array2_clones_Logged);
 		flush(log.value, out);
 		rs.iterForEach(rs.iterSlice(v3.items), (row3: Logged.Logged[]): undefined => {
-			_11(rs.sliceFrom(row3), out);
+			_11(row3, out);
 		});
 		rs.dropVec(v3, drop$array2_clones_Logged);
 		flush(log.value, out);
@@ -8188,7 +8171,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const none: rs.Vec<Logged.Logged | undefined> = rs.vecFromElem(undefined as Logged.Logged | undefined, n(2), option_clone$1jx0028, rs.drop);
 		flush(log.value, out);
 		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(some.items), (x: Logged.Logged | undefined): rs.u8 => {
-			return option_mapOr$1yabfom(x, 254, Logged.id);
+			return option_mapOr$15gmqsv(x, 254, Logged.id);
 		}), undefined, true);
 		rs.byteVecPush(out, none.items.length & 0xff);
 		const part11 = at(3);
@@ -8209,7 +8192,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}, drop$Vec_clones_Logged);
 		flush(log.value, out);
 		rs.iterForEach(rs.iterSlice(v5.items), (row2: rs.Vec<Logged.Logged>): undefined => {
-			_11(rs.sliceFrom(row2.items), out);
+			_11(row2.items, out);
 		});
 		rs.dropVec(v5, drop$Vec_clones_Logged);
 		flush(log.value, out);
@@ -8226,8 +8209,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.byteVecPush(_255.value, 250);
 		rs.refMutRelease(_255);
 		flush(log.value, out);
-		const part6 = rs.sliceFrom(v6.items);
-		_11(part6, out);
+		_11(v6.items, out);
 		const part7 = at(2);
 		const empty: rs.Vec<Logged.Logged> = rs.vecFromElem(logged(part7), 0, Logged.clone$Clone, rs.drop);
 		const _276: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
@@ -8240,8 +8222,7 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const part = at(0);
 		const v7: rs.Vec<Logged.Logged> = repeated$clones_Logged(logged(part), n(1));
 		flush(log.value, out);
-		const part2 = rs.sliceFrom(v7.items);
-		_11(part2, out);
+		_11(v7.items, out);
 		const part3 = at(2);
 		const _308: Logged.Logged = logged(part3);
 		const part4 = at(3);
@@ -8276,14 +8257,14 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	let _132!: rs.usize;
 	let item!: Logged.Logged | undefined;
 	const _11: (a0: Logged.Logged | undefined) => rs.u8 = (x2: Logged.Logged | undefined): rs.u8 => {
-		return option_mapOr$0bq8trh(x2, 238, (x3: Logged.Logged): rs.u8 => {
+		return option_mapOr$1ughiwf(x2, 238, (x3: Logged.Logged): rs.u8 => {
 			const _02: rs.u8 = Logged.id(x3);
 			x3[Symbol.dispose]();
 			return _02;
 		});
 	};
 	const _12: (a0: [rs.usize, rs.usize | undefined]) => Uint8Array = (hint: [rs.usize, rs.usize | undefined]): Uint8Array => {
-		return Uint8Array.of(rs.min(hint[0], 253) & 0xff, option_mapOr$02k4ito(hint[1], 254, (n2: rs.usize): rs.u8 => {
+		return Uint8Array.of(rs.min(hint[0], 253) & 0xff, option_mapOr$188iunt(hint[1], 254, (n2: rs.usize): rs.u8 => {
 			return n2 & 0xff;
 		}));
 	};
@@ -8295,10 +8276,10 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		return new Logged.Logged(id, rs.arcClone(log));
 	};
 	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
-		return option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i2), rs.u8WrappingMul(i2 & 0xff, 48)) & 126;
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), rs.u8WrappingMul(i2 & 0xff, 48)) & 126;
 	};
 	const n: (a0: rs.usize) => rs.usize = (i3: rs.usize): rs.usize => {
-		return rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i3), i3 & 0xff), 5) as rs.usize;
+		return rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i3), i3 & 0xff), 5) as rs.usize;
 	};
 	const _13: rs.u8 = rs.u8Rem(kind, 6);
 	if (_13 === 0) {
@@ -8350,7 +8331,7 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const iterEnd: rs.usize = 8;
 		while ((_132 = iterStart++) < iterEnd) {
 			const i: rs.usize = _132;
-			const _137: rs.u8 = rs.u8Rem(option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, i), 0), 4);
+			const _137: rs.u8 = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0), 4);
 			if (_137 === 0) {
 				item = rs.iterToOption(it2.next());
 			} else if (_137 === 1) {
@@ -8393,7 +8374,7 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.dropVec(all);
 		flush(log.value, out);
 		rs.byteVecPush(out, rs.ownedCount(rs.iterRepeatN(at(3), n(4))) & 0xff);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.ownedLast(rs.iterRepeatN(at(4), n(5))), 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.ownedLast(rs.iterRepeatN(at(4), n(5))), 238));
 		const part17 = at(5);
 		rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.iterToByteVec(rs.iterMap(rs.iterRev(rs.iterTake(rs.iterRepeatN(logged(part17), n(6), Logged.clone$Clone, rs.drop), n(7), rs.drop)), (x9: Logged.Logged): rs.u8 => {
 			const _019: rs.u8 = Logged.id(x9);
@@ -8412,7 +8393,7 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.iterEmpty();
 		const part19 = at(9);
 		const _308: rs.Iter<Counted.Counted> = rs.iterRepeatN(counted(part19), n(10), Counted.clone$Clone);
-		rs.byteVecPush(out, option_mapOr$0w6m9d0(rs.ownedLast(rs.iterChain(rs.iterEmpty() as rs.Iter<Counted.Counted>, _308)), 238, (c2: Counted.Counted): rs.u8 => {
+		rs.byteVecPush(out, option_mapOr$0ngwgbd(rs.ownedLast(rs.iterChain(rs.iterEmpty() as rs.Iter<Counted.Counted>, _308)), 238, (c2: Counted.Counted): rs.u8 => {
 			return c2.id;
 		}));
 		flush(log.value, out);
@@ -8432,11 +8413,11 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.iterExtendBytes(out, rs.iterSlice(_12(part23)), undefined, true);
 		rs.drop(zero);
 	} else if (_13 === 3) {
-		if (!isSomeAnd$09tpccf(rs.byteSliceFirst(data), (b2: rs.u8): boolean => {
+		if (!isSomeAnd$1s2u5lz(rs.byteSliceFirst(data), (b2: rs.u8): boolean => {
 			return rs.u8Rem(b2, 2) === 0;
 		})) {
 			const part12 = at(1);
-			rs.byteVecPush(out, option_mapOr$0bq8trh(rs.ownedLast(rs.iterRepeat(logged(part12), Logged.clone$Clone, rs.drop), rs.drop), 238, (x8: Logged.Logged): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$1ughiwf(rs.ownedLast(rs.iterRepeat(logged(part12), Logged.clone$Clone, rs.drop), rs.drop), 238, (x8: Logged.Logged): rs.u8 => {
 				const _018: rs.u8 = Logged.id(x8);
 				x8[Symbol.dispose]();
 				return _018;
@@ -8461,9 +8442,9 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.iterExtendBytes(out, rs.iterSlice(_12(part6)), undefined, true);
 		const clone3: rs.Iter<rs.u8> = it6.clone({ f: rs.closureClone });
 		flush(log.value, out);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.iterToOption(it6.nextBack()), 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it6.nextBack()), 238));
 		flush(log.value, out);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.iterToOption(it6.next()), 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it6.next()), 238));
 		rs.byteVecPush(out, it6.len() & 0xff);
 		rs.drop(it6);
 		flush(log.value, out);
@@ -8504,9 +8485,9 @@ export function sources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const part11 = it9.sizeHint();
 		rs.iterExtendBytes(out, rs.iterSlice(_12(part11)), undefined, true);
 		flush(log.value, out);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.iterToOption(it9.next()), 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it9.next()), 238));
 		flush(log.value, out);
-		rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.iterToOption(it9.next()), 238));
+		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterToOption(it9.next()), 238));
 		rs.drop(it9);
 		rs.drop(it7);
 	} else {

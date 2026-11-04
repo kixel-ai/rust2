@@ -42,5 +42,4 @@ reference to an array.
 
 ## Related
 
-- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - runs in parallel
 - [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

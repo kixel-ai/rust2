@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function err$1nqzzwu(self: rs.Result<rs.u8, rs.u8>): rs.u8 | undefined {
+export function err$1igyjfc(self: rs.Result<rs.u8, rs.u8>): rs.u8 | undefined {
 	if (self.ok) {
 		return undefined;
 	}
 	return self.error;
 }
 
-export function asRef$0ssaoss(self: rs.Result<rs.u8, rs.u8>): rs.Result<rs.u8, rs.u8> {
+export function asRef$1pwjn59(self: rs.Result<rs.u8, rs.u8>): rs.Result<rs.u8, rs.u8> {
 	if (self.ok) {
 		return rs.Ok(self.value);
 	}

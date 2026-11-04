@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function map$03hz3l7(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => undefined): rs.Result<undefined, rs.u8> {
+export function map$1gelxzx(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -10,7 +10,7 @@ export function map$03hz3l7(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => un
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function mapErr$1whfgss(self: rs.Result<rs.u8, undefined>, op: (a0: undefined) => undefined): rs.Result<rs.u8, undefined> {
+export function mapErr$136pgpq(self: rs.Result<rs.u8, undefined>, op: (a0: undefined) => undefined): rs.Result<rs.u8, undefined> {
 	if (self.ok) {
 		return self;
 	}

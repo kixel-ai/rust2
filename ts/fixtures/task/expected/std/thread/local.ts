@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function set$0mfcep2(self: rs.LocalKey<rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>>, value: [rs.Place<undefined>, rs.WakerVTable] | undefined): void {
+export function set$0ftsz7h(self: rs.LocalKey<rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>>, value: [rs.Place<undefined>, rs.WakerVTable] | undefined): void {
 	rs.localKeyInitializeWith(self, new rs.Cell(value), (value2: rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined> | undefined, cell: rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>): undefined => {
 		if (value2 !== undefined) {
 			rs.cellSet(cell, value2.v);
@@ -10,7 +10,7 @@ export function set$0mfcep2(self: rs.LocalKey<rs.Cell<[rs.Place<undefined>, rs.W
 	});
 }
 
-export function replace$05l9d6x(self: rs.LocalKey<rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>>, value: [rs.Place<undefined>, rs.WakerVTable] | undefined): [rs.Place<undefined>, rs.WakerVTable] | undefined {
+export function replace$0onyq3t(self: rs.LocalKey<rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>>, value: [rs.Place<undefined>, rs.WakerVTable] | undefined): [rs.Place<undefined>, rs.WakerVTable] | undefined {
 	const captured = value;
 	return ((cell: rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | undefined>): [rs.Place<undefined>, rs.WakerVTable] | undefined => {
 		return rs.cellReplace(cell, captured);

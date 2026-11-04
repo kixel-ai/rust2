@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { read } from "./bytes.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$1e4a1e0 as option_mapOr$1e4a1e0 } from "./core/option.ts";
-import { unwrapOr$1vwel7p as result_unwrapOr$1vwel7p } from "./core/result.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$14runhi as option_mapOr$14runhi } from "./core/option.ts";
+import { unwrapOr$1a67ziq as result_unwrapOr$1a67ziq } from "./core/result.ts";
 import * as shapes_Shape from "./shapes.Shape.ts";
 import { run as tally_run } from "./tally.ts";
 import type * as Pair from "./wrap.Pair.ts";
@@ -14,12 +14,12 @@ export const out$ref_slice_u8: { pData: Uint8Array; pStart: number; pLen: number
 /** One instance of each generic item it reaches. */
 export function run(data: rs.ByteSlice): rs.ByteVec {
 	let shape!: shapes_Shape.Shape;
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const pair: Pair.Pair = Wrap.intoInner$wrap_Pair(Wrap.new$wrap_Pair({ _0: first, _1: 1 }));
 	const out: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(Wrap.intoInner$u8(Wrap.map$wrap_Pair_u8_run_closure1(Wrap.new$wrap_Pair(pair), (p: Pair.Pair): rs.u8 => {
 		return p._0;
 	}))));
-	const _15: rs.u8 = option_mapOr$1e4a1e0(rs.cmp(data.length, 4), 9, (o: rs.Ordering): rs.u8 => {
+	const _15: rs.u8 = option_mapOr$14runhi(rs.cmp(data.length, 4), 9, (o: rs.Ordering): rs.u8 => {
 		return o & 0xff;
 	});
 	rs.byteVecPush(out, _15);
@@ -40,7 +40,7 @@ export function run(data: rs.ByteSlice): rs.ByteVec {
 	const part2: Uint8Array = out$ref_slice_u8.pData;
 	const part3: number = out$ref_slice_u8.pStart;
 	const part4: number = out$ref_slice_u8.pLen;
-	const _48: rs.ByteSlice = result_unwrapOr$1vwel7p((err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(new rs.ByteSlice(part2, part3, part4))) as rs.Result<rs.ByteSlice, rs.u8>, rs.byteSliceFrom(Uint8Array.of()));
+	const _48: rs.ByteSlice = result_unwrapOr$1a67ziq((err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(new rs.ByteSlice(part2, part3, part4))) as rs.Result<rs.ByteSlice, rs.u8>, rs.byteSliceFrom(Uint8Array.of()));
 	rs.byteVecExtendFromSlice(out, _48);
 	return out;
 }

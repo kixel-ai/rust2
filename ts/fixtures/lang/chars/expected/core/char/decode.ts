@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$1rmi26t(self: rs.DecodeUtf16Error, other: rs.DecodeUtf16Error): boolean {
+export function eq$1qya0xd(self: rs.DecodeUtf16Error, other: rs.DecodeUtf16Error): boolean {
 	return self.code === other.code;
 }
 

@@ -9,7 +9,7 @@ import * as Dropped from "./statics.Dropped.ts";
 import * as Lock from "./statics.Lock.ts";
 import type * as Node from "./statics.Node.ts";
 import type * as Raw from "./statics.Raw.ts";
-import { withBorrow$1roy6g4, take$1357qwq, take$122f15k } from "./std/thread/local.ts";
+import { withBorrow$03hv9ge, take$1ni7uux, take$1snv7rd } from "./std/thread/local.ts";
 
 export const COUNT: rs.Atomic<rs.u64> = /* @__PURE__ */ new rs.Atomic({ hi: 0xffffffff, lo: 0xfffffffd } as rs.u64);
 
@@ -412,7 +412,7 @@ export function lazies(data: rs.ByteSlice, out: rs.ByteVec): void {
 			text = rs.fmtFormat([args28[0], " ", args28[1]]);
 		} else {
 			const cell3: rs.Arc<rs.LazyCell<string>> = new rs.Arc(new rs.LazyCell((): string => {
-				return withBorrow$1roy6g4(FORCING, (me: rs.Arc<rs.LazyCell<string>> | undefined): string => {
+				return withBorrow$03hv9ge(FORCING, (me: rs.Arc<rs.LazyCell<string>> | undefined): string => {
 					const part = rs.optionUnwrap(me);
 					const args34: rs.Fmt[] = [(f: rs.Formatter) => part.value.debug(f, "LazyCell", rs.fmtStr)];
 					return rs.fmtFormat([args34[0], " ", rs.fmtSpec({ alternate: true }, args34[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args34[0]), "|"]);
@@ -424,7 +424,7 @@ export function lazies(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _179: string = rs.fmtFormat([args31[0], " ", rs.fmtSpec({ alternate: true }, args31[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args31[0]), "|"]);
 			const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _175), (f: rs.Formatter) => rs.fmtPad(f, _179)];
 			const text2: string = rs.fmtFormat([args32[0], " ", args32[1]]);
-			rs.drop(take$1357qwq(FORCING));
+			rs.drop(take$1ni7uux(FORCING));
 			text = text2;
 			cell3[Symbol.dispose]();
 		}
@@ -494,7 +494,7 @@ export function writes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			written$sync_LazyLock_statics_Dropped_statics_lock_closure0(rs.u8Div(op, 2), lock, out);
 		}
-		rs.iterExtendBytes(out, rs.byteVecIntoIter(take$122f15k(DROPS)), undefined, true);
+		rs.iterExtendBytes(out, rs.byteVecIntoIter(take$1snv7rd(DROPS)), undefined, true);
 		rs.byteVecPush(out, rs.atomicSwap(FORCED, 0, 0));
 	}
 }

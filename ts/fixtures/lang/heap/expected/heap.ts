@@ -2,16 +2,16 @@
 
 import * as rs from "./rs.ts";
 import { drop$heap_Spill_Option_tuple2_u8_u16, drop$heap_Spill_sync_Arc_u8, drop$heap_Spill_u32 } from "./lib.ts";
-import { thenSome$0j2n934 } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$0hi5qhf as option_mapOr$0hi5qhf, mapOr$1qo6t0j as option_mapOr$1qo6t0j, okOr$169x1m6 as option_okOr$169x1m6 } from "./core/option.ts";
-import { mapErr$0fesv1f as result_mapErr$0fesv1f } from "./core/result.ts";
+import { thenSome$17jb8m8 } from "./core/bool.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$12lsao8 as option_mapOr$12lsao8, mapOr$1diq86f as option_mapOr$1diq86f, okOr$0ybd6oa as option_okOr$0ybd6oa } from "./core/option.ts";
+import { mapErr$10q8nna as result_mapErr$10q8nna } from "./core/result.ts";
 import * as Fault from "./heap.Fault.ts";
 import * as Spill from "./heap.Spill.ts";
 
 export function layoutArray$Option_tuple2_u8_u16(n: rs.usize): rs.Result<rs.Layout, Fault.Fault> {
-	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$169x1m6(rs.usizeCheckedMul(6, n), { tag: "Overflow" } as Fault.Fault);
+	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$0ybd6oa(rs.usizeCheckedMul(6, n), { tag: "Overflow" } as Fault.Fault);
 	if (_2.ok) {
-		return result_mapErr$0fesv1f(rs.layoutFromSizeAlign(_2.value, 2), (_22: rs.LayoutError): Fault.Fault => {
+		return result_mapErr$10q8nna(rs.layoutFromSizeAlign(_2.value, 2), (_22: rs.LayoutError): Fault.Fault => {
 			return { tag: "Overflow" } as Fault.Fault;
 		});
 	}
@@ -19,9 +19,9 @@ export function layoutArray$Option_tuple2_u8_u16(n: rs.usize): rs.Result<rs.Layo
 }
 
 export function layoutArray$sync_Arc_u8(n: rs.usize): rs.Result<rs.Layout, Fault.Fault> {
-	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$169x1m6(rs.usizeCheckedMul(4, n), { tag: "Overflow" } as Fault.Fault);
+	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$0ybd6oa(rs.usizeCheckedMul(4, n), { tag: "Overflow" } as Fault.Fault);
 	if (_2.ok) {
-		return result_mapErr$0fesv1f(rs.layoutFromSizeAlign(_2.value, 4), (_22: rs.LayoutError): Fault.Fault => {
+		return result_mapErr$10q8nna(rs.layoutFromSizeAlign(_2.value, 4), (_22: rs.LayoutError): Fault.Fault => {
 			return { tag: "Overflow" } as Fault.Fault;
 		});
 	}
@@ -29,9 +29,9 @@ export function layoutArray$sync_Arc_u8(n: rs.usize): rs.Result<rs.Layout, Fault
 }
 
 export function layoutArray$u32(n: rs.usize): rs.Result<rs.Layout, Fault.Fault> {
-	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$169x1m6(rs.usizeCheckedMul(4, n), { tag: "Overflow" } as Fault.Fault);
+	const _2: rs.Result<rs.usize, Fault.Fault> = option_okOr$0ybd6oa(rs.usizeCheckedMul(4, n), { tag: "Overflow" } as Fault.Fault);
 	if (_2.ok) {
-		return result_mapErr$0fesv1f(rs.layoutFromSizeAlign(_2.value, 4), (_22: rs.LayoutError): Fault.Fault => {
+		return result_mapErr$10q8nna(rs.layoutFromSizeAlign(_2.value, 4), (_22: rs.LayoutError): Fault.Fault => {
 			return { tag: "Overflow" } as Fault.Fault;
 		});
 	}
@@ -70,7 +70,7 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _26: rs.Arc<rs.u8> = rs.arcClone(shared);
 			rs.resultUnwrap(Spill.push$sync_Arc_u8(arcs, _26), (value: Fault.Fault, f: rs.Formatter) => Fault.fmt$fmt_Debug(value, f));
 		} else if (_17 === 2) {
-			const _30: [rs.u8, rs.u16] | undefined = thenSome$0j2n934((b & 8) !== 0, [b, ((b as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16]);
+			const _30: [rs.u8, rs.u16] | undefined = thenSome$17jb8m8((b & 8) !== 0, [b, ((b as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16]);
 			rs.resultUnwrap(Spill.push$Option_tuple2_u8_u16(pairs, _30), (value: Fault.Fault, f: rs.Formatter) => Fault.fmt$fmt_Debug(value, f));
 		} else {
 			const cap: rs.usize = rs.usizeAdd(rs.usizeRem(b >> 2 as rs.usize, 5), 1);
@@ -79,12 +79,12 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, shared.strong & 0xff);
 	}
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$u32(ints))), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(Spill.asSlice$u32(ints)), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.byteVecPush(out, ints.cap & 0xff);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$Option_tuple2_u8_u16(pairs))), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
-		return option_mapOr$0hi5qhf(p, 0, (_2: [rs.u8, rs.u16]): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(Spill.asSlice$Option_tuple2_u8_u16(pairs)), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
+		return option_mapOr$12lsao8(p, 0, (_2: [rs.u8, rs.u16]): rs.u8 => {
 			return _2[0] ^ (_2[1] & 0xff);
 		});
 	}), undefined, true);
@@ -114,13 +114,13 @@ export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrAdd(slots, i).v = ((((b as rs.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rs.Place<rs.u32> = slots;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.ptrSlice(words, data.length)), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.dealloc(rs.allocBytes(words, 4, "u32"));
 	const pointer2 = rs.alloc(rs.resultUnwrap(rs.layoutFromSizeAlign(9, 4), rs.fmtLayoutErrorDebug));
 	const pair: rs.Place<rs.u32> = rs.allocAs(rs.optionUnwrap(pointer2 === rs.NULL ? undefined : pointer2), 4, "u32");
-	const first: rs.u32 = option_mapOr$1qo6t0j(rs.byteSliceFirst(data), 0, (a0: rs.u8): rs.u32 => {
+	const first: rs.u32 = option_mapOr$1diq86f(rs.byteSliceFirst(data), 0, (a0: rs.u8): rs.u32 => {
 		return a0 as rs.u32;
 	});
 	pair.v = first;
@@ -159,7 +159,7 @@ export function layouts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const word: Uint8Array = rs.bytes(4);
 		rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(word), 0, rs.min(_6.length, 4)), rs.byteSliceRange(_6, 0, rs.min(_6.length, 4)));
 		const size: rs.usize = rs.u32FromBeBytes(word.slice().reverse()) as rs.usize;
-		const b: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceGet(_6, 4), 0);
+		const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(_6, 4), 0);
 		if ((b & 128) === 0) {
 			align = b as rs.usize;
 		} else {

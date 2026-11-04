@@ -6,7 +6,7 @@ import * as Pieces from "./buf.Pieces.ts";
 import { panicAdvance, panicDoesNotFit } from "./bytes.ts";
 import { signExtend } from "./bytes/buf/buf_impl.ts";
 import type * as TryGetError from "./bytes.TryGetError.ts";
-import { unwrapOrElse$1wp5sd9 as result_unwrapOrElse$1wp5sd9, unwrapOrElse$0s2lrc9 as result_unwrapOrElse$0s2lrc9 } from "./core/result.ts";
+import { unwrapOrElse$1b4ownx as result_unwrapOrElse$1b4ownx, unwrapOrElse$1fg63zn as result_unwrapOrElse$1fg63zn } from "./core/result.ts";
 
 /** Pieces that count their drops. */
 export class Counted {
@@ -176,7 +176,7 @@ export function hasRemaining$bytes_Buf(self: Counted): boolean {
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf(self: Counted, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -259,7 +259,7 @@ export function getI8$bytes_Buf(self: Counted): rs.i8 {
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf(self: Counted, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -297,7 +297,7 @@ export function getUint$bytes_Buf(self: Counted, nbytes: rs.usize): rs.u64 {
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf(self: Counted, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {

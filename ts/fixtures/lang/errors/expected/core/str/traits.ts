@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function fromStr$05d44vn(s: string): rs.Result<boolean, rs.ParseBoolError> {
+export function fromStr$1dw9076(s: string): rs.Result<boolean, rs.ParseBoolError> {
 	if (!(s === "true")) {
 		if (!(s === "false")) {
 			return rs.Err(new rs.ParseBoolError());

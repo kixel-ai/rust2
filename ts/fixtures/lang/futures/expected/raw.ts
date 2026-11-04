@@ -2,14 +2,14 @@
 
 import * as rs from "./rs.ts";
 import { copy$task_RawWakerVTable, drop$tuple2_task_Waker_sync_Arc_raw_Task, drop$tuple2_task_Waker_task_Waker } from "./lib.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$13g654t as option_mapOr$13g654t } from "./core/option.ts";
-import { eq$0n9bv8t as wake_eq$0n9bv8t, eq$0xaykl8 as wake_eq$0xaykl8 } from "./core/task/wake.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$1ntkzhx as option_mapOr$1ntkzhx } from "./core/option.ts";
+import { eq$1ohvggu as wake_eq$1ohvggu, eq$1obrnmy as wake_eq$1obrnmy } from "./core/task/wake.ts";
 import type * as Byte from "./raw.Byte.ts";
 import * as Counter from "./raw.Counter.ts";
 import type * as Note from "./raw.Note.ts";
 import * as Task from "./raw.Task.ts";
 import * as Yields from "./raw.Yields.ts";
-import { set$08o17gp, get$0lasdfu, take$122f15k } from "./std/thread/local.ts";
+import { set$15db765, get$1htgqdl, take$1snv7rd } from "./std/thread/local.ts";
 
 /** The wakers `kind` picks. */
 export function raw(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -29,7 +29,7 @@ export function raw(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else {
 		tasks(data, out);
 	}
-	rs.iterExtendBytes(out, rs.byteVecIntoIter(take$122f15k(LOG)), undefined, true);
+	rs.iterExtendBytes(out, rs.byteVecIntoIter(take$1snv7rd(LOG)), undefined, true);
 }
 
 export const LOG: rs.LocalKey<rs.RefCell<rs.ByteVec>> = /* @__PURE__ */ new rs.LocalKey(LOG$init, false);
@@ -198,7 +198,7 @@ export function clones(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.idx(_8, 0);
 		const source: rs.Waker = waker(_8.data[_8.start]);
-		const other: rs.Waker = waker(option_unwrapOr$0r2bmpr(rs.byteSliceGet(_8, 1), 0));
+		const other: rs.Waker = waker(option_unwrapOr$1fr498u(rs.byteSliceGet(_8, 1), 0));
 		rs.byteVecPush(out, rs.willWake(source, other) ? 1 : 0);
 		rs.byteVecPush(out, rs.willWake(held, source) ? 1 : 0);
 		held = rs.wakerCloneFrom(held, source);
@@ -228,12 +228,12 @@ export function execClone(data: rs.Place<undefined>): rs.RawWaker {
 
 export function execWake(data: rs.Place<undefined>): void {
 	note$101(119, data);
-	set$08o17gp(WOKEN, true);
+	set$15db765(WOKEN, true);
 }
 
 export function execWakeByRef(data: rs.Place<undefined>): void {
 	note$101(114, data);
-	set$08o17gp(WOKEN, true);
+	set$15db765(WOKEN, true);
 }
 
 export const EXEC: rs.WakerVTable = /* @__PURE__ */ rs.wakerVTable(execClone, execWake as (a0: rs.Place<undefined>) => undefined, execWakeByRef as (a0: rs.Place<undefined>) => undefined, onDrop$101 as (a0: rs.Place<undefined>) => undefined);
@@ -247,12 +247,12 @@ export function blockOn$future_Pending_u8(f: rs.Future<rs.u8>): rs.u8 | undefine
 	const f2: rs.Future<rs.u8> = f;
 	b0: {
 		while (true) {
-			set$08o17gp(WOKEN, false);
+			set$15db765(WOKEN, false);
 			_13 = f2.poll(cx);
 			if (_13 !== rs.Pending) {
 				break;
 			}
-			if (!get$0lasdfu(WOKEN)) {
+			if (!get$1htgqdl(WOKEN)) {
 				_0 = undefined;
 				break b0;
 			}
@@ -273,12 +273,12 @@ export function blockOn$raw_executor_closure1(f: rs.Future<rs.u8>): rs.u8 | unde
 	const f2: rs.Future<rs.u8> = pinned;
 	b0: {
 		while (true) {
-			set$08o17gp(WOKEN, false);
+			set$15db765(WOKEN, false);
 			_13 = f2.poll(cx);
 			if (_13 !== rs.Pending) {
 				break;
 			}
-			if (!get$0lasdfu(WOKEN)) {
+			if (!get$1htgqdl(WOKEN)) {
 				_0 = undefined;
 				break b0;
 			}
@@ -378,14 +378,14 @@ export function vtables(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part2 = tables[_23];
 		const l: rs.WakerVTable = part;
 		const r: rs.WakerVTable = part2;
-		rs.byteVecPush(out, wake_eq$0xaykl8(l, r) ? 1 : 0);
-		rs.byteVecPush(out, !wake_eq$0xaykl8(l, r) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1obrnmy(l, r) ? 1 : 0);
+		rs.byteVecPush(out, !wake_eq$1obrnmy(l, r) ? 1 : 0);
 		const _39: [rs.Waker, rs.Waker] = [waker(rs.u8Rem(byte, 3)), waker(rs.u8Rem(rs.u8Div(byte, 4), 3))];
 		const wl: rs.Waker = _39[0];
 		const wr: rs.Waker = _39[1];
-		rs.byteVecPush(out, wake_eq$0xaykl8(wl.vtable, wr.vtable) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1obrnmy(wl.vtable, wr.vtable) ? 1 : 0);
 		rs.byteVecPush(out, rs.willWake(wl, wr) ? 1 : 0);
-		rs.byteVecPush(out, wake_eq$0n9bv8t({ data: dataOf(byte), vtable: l }, { data: dataOf(byte >> 1), vtable: r }) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1ohvggu({ data: dataOf(byte), vtable: l }, { data: dataOf(byte >> 1), vtable: r }) ? 1 : 0);
 	}
 	const copy: rs.WakerVTable = copy$task_RawWakerVTable(A);
 	const raw: rs.RawWaker = { data: rs.NULL, vtable: A };
@@ -396,14 +396,14 @@ export function vtables(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		replace(copy, tables[_87]);
 		replaceRaw(raw, byte2);
-		rs.byteVecPush(out, wake_eq$0xaykl8(copy, B) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1obrnmy(copy, B) ? 1 : 0);
 		const _103: rs.RawWaker = { data: dataOf(byte2), vtable: B };
-		rs.byteVecPush(out, wake_eq$0n9bv8t(raw, _103) ? 1 : 0);
+		rs.byteVecPush(out, wake_eq$1ohvggu(raw, _103) ? 1 : 0);
 	}
-	rs.byteVecPush(out, wake_eq$0xaykl8(A, A_AGAIN) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1obrnmy(A, A_AGAIN) ? 1 : 0);
 	const noop: rs.Waker = rs.NOOP_WAKER;
-	rs.byteVecPush(out, wake_eq$0xaykl8(noop.vtable, rs.NOOP_WAKER.vtable) ? 1 : 0);
-	rs.byteVecPush(out, wake_eq$0xaykl8(noop.vtable, A) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1obrnmy(noop.vtable, rs.NOOP_WAKER.vtable) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1obrnmy(noop.vtable, A) ? 1 : 0);
 	rs.byteVecPush(out, (noop.data as rs.Place<undefined>) === rs.NULL ? 1 : 0);
 	const borrowed: rs.Waker = new rs.VTableWaker(noop.data as rs.Place<undefined>, noop.vtable);
 	borrowed.wakeByRef();
@@ -430,12 +430,12 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const raw: rs.RawWaker = rs.arcRawWaker(rs.arcClone(count), Counter.wake$task_Wake as (a0: rs.Arc<Counter.Counter>) => undefined, (arc2: rs.Arc<Counter.Counter>) => arc2[Symbol.dispose]());
 	const other: rs.RawWaker = rs.arcRawWaker(new rs.Arc({ _0: new rs.Atomic(0) }), Counter.wake$task_Wake as (a0: rs.Arc<Counter.Counter>) => undefined, (arc3: rs.Arc<Counter.Counter>) => arc3[Symbol.dispose]());
 	const _21: rs.RawWaker = { data: from.data as rs.Place<undefined>, vtable: from.vtable };
-	rs.byteVecPush(out, wake_eq$0n9bv8t(raw, _21) ? 1 : 0);
-	rs.byteVecPush(out, wake_eq$0n9bv8t(raw, other) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1ohvggu(raw, _21) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1ohvggu(raw, other) ? 1 : 0);
 	const w: rs.Waker = rs.wakerFromRaw(raw);
 	rs.byteVecPush(out, rs.willWake(w, from) ? 1 : 0);
-	rs.byteVecPush(out, wake_eq$0xaykl8(w.vtable, from.vtable) ? 1 : 0);
-	rs.byteVecPush(out, wake_eq$0xaykl8(w.vtable, A) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1obrnmy(w.vtable, from.vtable) ? 1 : 0);
+	rs.byteVecPush(out, wake_eq$1obrnmy(w.vtable, A) ? 1 : 0);
 	rs.wakerFromRaw(other)[Symbol.dispose]();
 	rs.byteVecPush(out, count.strong & 0xff);
 	for (const _58 of rs.byteSliceView(data)) {
@@ -585,7 +585,7 @@ export function erased(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			wakers.items.push(w);
 		}
-		rs.byteVecPush(out, noteOf(option_mapOr$13g654t(rs.sliceLast(rs.sliceFrom(wakers.items)), shared, (a0: rs.Waker): rs.Place<undefined> => {
+		rs.byteVecPush(out, noteOf(option_mapOr$1ntkzhx(rs.sliceLast(wakers.items), shared, (a0: rs.Waker): rs.Place<undefined> => {
 			return a0.data as rs.Place<undefined>;
 		})).id);
 	}

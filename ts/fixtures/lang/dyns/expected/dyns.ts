@@ -3,10 +3,10 @@
 import * as rs from "./rs.ts";
 import { copy$dyns_Tri, drop$Result_Rc_dyns_Noisy_Rc_dyn_Any, drop$Result_Rc_dyns_Square_Rc_dyn_Any, drop$Result_Rc_dyns_Tri_Rc_dyn_Any, drop$Result_cell_RefMut_dyns_Square_cell_BorrowMutError, drop$Result_cell_RefMut_dyns_Tri_cell_BorrowMutError, drop$Result_cell_Ref_dyn_dyns_Shape_cell_BorrowError, drop$Result_sync_MutexGuard_dyn_dyns_Shape_sync_TryLockError_sync_MutexGuard_dyn_dyns_Shape, drop$Result_sync_RwLockWriteGuard_dyn_dyns_Shape_sync_TryLockError_sync_RwLockWriteGuard_dyn_dyns_Shape, drop$boxed_Box_dyns_Guarded_dyn_dyns_Shape, drop$cell_RefCell_dyns_Guarded_dyn_dyns_Shape, drop$cell_RefCell_dyns_Guarded_dyns_Held, drop$dyns_Guarded_dyns_Held, drop$dyns_Guarded_dyns_Noisy, drop$tuple2_dyns_Tagged_dyns_Tagged, of$Option_u8, of$dyns_Hits, of$dyns_Lease, of$dyns_Looped, of$dyns_Noisy, of$dyns_Square, of$dyns_Tri, of$ref_str, of$tuple2_u8_u8, of$u32, of$u8, of$unit, ofPlace$Option_u8, ofPlace$dyns_Held, ofPlace$dyns_Tri, ofPlace$u32, ofPlace$u8, ofPlace$unit } from "./lib.ts";
 import type * as Any from "./core/any.Any.ts";
-import { thenSome$0d5am30 } from "./core/bool.ts";
-import { isSomeAnd$13v37g1, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1p9q0qv as option_map$1p9q0qv, map$1i542n2 as option_map$1i542n2, map$0oedb57 as option_map$0oedb57, map$08a6hpg as option_map$08a6hpg, map$1qfllpb as option_map$1qfllpb, map$0cs071d as option_map$0cs071d, map$1qzd1bs as option_map$1qzd1bs, map$0j05j69 as option_map$0j05j69, map$0z7s8q7 as option_map$0z7s8q7, mapOr$1surhce as option_mapOr$1surhce, mapOr$1ttssgs as option_mapOr$1ttssgs, mapOr$06rr3sb as option_mapOr$06rr3sb, andThen$0v0bj8w as option_andThen$0v0bj8w, andThen$0ntiuws as option_andThen$0ntiuws } from "./core/option.ts";
-import { ok$00p9ap8, ok$1vbcgd7, ok$0lceojf, ok$1a014tb, map$1v8vvnp as result_map$1v8vvnp, map$1p3mw15 as result_map$1p3mw15, map$1wuk0uc as result_map$1wuk0uc, map$0zujxcv as result_map$0zujxcv, unwrapOr$09hp2h5 as result_unwrapOr$09hp2h5 } from "./core/result.ts";
-import { isReady$1ntq2i8 } from "./core/task/poll.ts";
+import { thenSome$0quywni } from "./core/bool.ts";
+import { isSomeAnd$11ghftu, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1rkcfqi as option_map$1rkcfqi, map$1mach0o as option_map$1mach0o, map$1b57zy8 as option_map$1b57zy8, map$11l9b8r as option_map$11l9b8r, map$0vt270f as option_map$0vt270f, map$1yjmt5m as option_map$1yjmt5m, map$13cu53u as option_map$13cu53u, map$1bn5ufk as option_map$1bn5ufk, map$1aeqf1p as option_map$1aeqf1p, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$0z4nmg2 as option_mapOr$0z4nmg2, mapOr$19a4gco as option_mapOr$19a4gco, andThen$1xlvufy as option_andThen$1xlvufy, andThen$0imujmv as option_andThen$0imujmv } from "./core/option.ts";
+import { ok$1oks8md, ok$0y6a1w6, ok$1lmsnde, ok$1wwd922, map$0njbm3o as result_map$0njbm3o, map$0tx2z7o as result_map$0tx2z7o, map$11lf952 as result_map$11lf952, map$0f0ko1g as result_map$0f0ko1g, unwrapOr$0k78oya as result_unwrapOr$0k78oya } from "./core/result.ts";
+import { isReady$1olyx0w } from "./core/task/poll.ts";
 import type * as Chunks from "./dyns.Chunks.ts";
 import * as Countdown from "./dyns.Countdown.ts";
 import type * as dyns_Erased from "./dyns.Erased.ts";
@@ -55,8 +55,8 @@ export function grow$dyns_Shape_u32(self: rs.Place<rs.u32>, by: rs.u8): void {
 	self.v = rs.u32WrappingMul(self.v, by as rs.u32);
 }
 
-export function total(shapes: rs.Slice<Shape.Shape>): rs.u32 {
-	return rs.iterFold(rs.iterSlice(rs.sliceItems(shapes)), 0, (sum: rs.u32, s: Shape.Shape): rs.u32 => {
+export function total(shapes: Shape.Shape[]): rs.u32 {
+	return rs.iterFold(rs.iterSlice(shapes), 0, (sum: rs.u32, s: Shape.Shape): rs.u32 => {
 		return rs.u32WrappingAdd(sum, s.area$Shape());
 	});
 }
@@ -108,7 +108,7 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			tri = { tag: "Flat" } as Tri.Tri;
 		}
 		let n: rs.u32 = c as rs.u32;
-		const part = total(rs.sliceFrom([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]));
+		const part = total([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
 		put(out, rs.fmtFormat([args2[0], " "]));
 		growTwice(new of$dyns_Square(sq), b);
@@ -170,29 +170,29 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 	}
 }
 
-export function counts$dyn_dyns_Named(arcs: rs.Slice<rs.Arc<Named.Named>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Named.Named>): string => {
+export function counts$dyn_dyns_Named(arcs: rs.Arc<Named.Named>[]): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Named.Named>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Shape.Shape>): string => {
+export function counts$dyn_dyns_Shape(arcs: rs.Arc<Shape.Shape>[]): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Shape.Shape>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Hits.Hits>): string => {
+export function counts$dyns_Hits(arcs: rs.Arc<Hits.Hits>[]): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Hits.Hits>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Square.Square>): string => {
+export function counts$dyns_Square(arcs: rs.Arc<Square.Square>[]): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Square.Square>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
@@ -207,7 +207,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const again: rs.Arc<Named.Named> = new rs.ArcDyn(_16, new of$dyns_Square(_16.value));
 		const shape: rs.Arc<Shape.Shape> = rs.arcClone(named);
 		const up: rs.Arc<Shape.Shape> = rs.arcClone(again);
-		const part = counts$dyns_Square(rs.sliceFrom([sq]));
+		const part = counts$dyns_Square([sq]);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
 		put(out, rs.fmtFormat([args2[0], " "]));
 		const _49: string = named.value.label$Named();
@@ -226,21 +226,21 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]));
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
-		const _113: string = counts$dyn_dyns_Named(rs.sliceFrom([again]));
+		const _113: string = counts$dyn_dyns_Named([again]);
 		const _119: rs.usize = weak.arc.strong;
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _113), (f: rs.Formatter) => rs.usizeDisplay(_119, f)];
 		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]));
-		const upgraded: rs.u32 | undefined = option_map$1i542n2(rs.weakUpgrade(weak), (s: rs.Arc<Shape.Shape>): rs.u32 => {
+		const upgraded: rs.u32 | undefined = option_map$1mach0o(rs.weakUpgrade(weak), (s: rs.Arc<Shape.Shape>): rs.u32 => {
 			const _0: rs.u32 = s.value.area$Shape();
 			s[Symbol.dispose]();
 			return _0;
 		});
 		again[Symbol.dispose]();
-		const part2 = counts$dyn_dyns_Shape(rs.sliceFrom([up]));
+		const part2 = counts$dyn_dyns_Shape([up]);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2)];
 		put(out, rs.fmtFormat([args10[0], " "]));
 		up[Symbol.dispose]();
-		const _156: string = counts$dyn_dyns_Shape(rs.sliceFrom([shape]));
+		const _156: string = counts$dyn_dyns_Shape([shape]);
 		const _164: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak);
 		const _162: boolean = _164 !== undefined;
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _156), (f: rs.Formatter) => rs.fmtBool(_162, f), (f: rs.Formatter) => rs.fmtOption(upgraded, f, rs.u32Debug)];
@@ -264,11 +264,11 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return rs.u32WrappingAdd(sum2, s2.value.area$Shape());
 		});
 		const _216: rs.u32 = rs.atomicLoad(hits.value._0, 0);
-		const _222: string = counts$dyns_Hits(rs.sliceFrom([hits]));
+		const _222: string = counts$dyns_Hits([hits]);
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.u32Display(_216, f), (f: rs.Formatter) => rs.fmtPad(f, _222)];
 		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]));
 		rs.dropVec(objects);
-		const part3 = counts$dyns_Hits(rs.sliceFrom([hits]));
+		const part3 = counts$dyns_Hits([hits]);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3)];
 		put(out, rs.fmtFormat([args18[0], " "]));
 		const _253: rs.Arc<rs.u32> = new rs.Arc(dataData[dataStart + 1] as rs.u32);
@@ -308,7 +308,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		for (const _322 of kept.items) {
 			_322.value.tally$Shape(rs.place(() => total, (value) => total = value));
 		}
-		const _337: string = counts$dyn_dyns_Named(rs.sliceFrom(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items));
+		const _337: string = counts$dyn_dyns_Named(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items);
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(total, f), (f: rs.Formatter) => rs.fmtPad(f, _337)];
 		put(out, rs.fmtFormat([args24[0], " ", args24[1]]));
 		rs.dropVec(kept);
@@ -458,7 +458,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			put(out, rs.fmtFormat([args12[0]]));
 			const _189: rs.Place<rs.u8 | undefined> | undefined = _167 instanceof of$Option_u8 ? _167 : _167 instanceof ofPlace$Option_u8 ? _167.v : undefined;
 			if (_189 !== undefined) {
-				_189.v = option_mapOr$06rr3sb(_189.v, b, (_2: rs.u8): rs.u8 | undefined => {
+				_189.v = option_mapOr$19a4gco(_189.v, b, (_2: rs.u8): rs.u8 | undefined => {
 					return undefined;
 				});
 			}
@@ -522,7 +522,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 		}
 		rs.drop(iter5);
-		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(rs.sliceFrom(kept.items)));
+		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(kept.items));
 		while (true) {
 			const _316: rs.Place<Any.Any> | rs.Done = iter6.next();
 			if (_316 === rs.DONE) {
@@ -549,7 +549,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		if (_381.ok) {
 			rs.panic("internal error: entered unreachable code");
 		} else {
-			const part7 = ok$0lceojf(result_map$0zujxcv(rs.arcDowncast(_381.error, of$tuple2_u8_u8, (object) => object.v), (t: rs.Arc<[rs.u8, rs.u8]>): [rs.usize, rs.u8] => {
+			const part7 = ok$1lmsnde(result_map$0f0ko1g(rs.arcDowncast(_381.error, of$tuple2_u8_u8, (object) => object.v), (t: rs.Arc<[rs.u8, rs.u8]>): [rs.usize, rs.u8] => {
 				const _02: [rs.usize, rs.u8] = [t.strong, t.value[0]];
 				t[Symbol.dispose]();
 				return _02;
@@ -575,7 +575,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n3, f)];
 			put(out, rs.fmtFormat([args36[0], " "]));
 			const any3: Any.Any = new of$dyns_Square({ side: b as rs.u16 });
-			const part9 = ok$1a014tb(result_map$1p3mw15(any3 instanceof of$dyns_Square ? rs.Ok(any3.v) : rs.Err(any3), (sq2: Square.Square): rs.u16 => {
+			const part9 = ok$1wwd922(result_map$0tx2z7o(any3 instanceof of$dyns_Square ? rs.Ok(any3.v) : rs.Err(any3), (sq2: Square.Square): rs.u16 => {
 				return sq2.side;
 			}));
 			const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part9, f, rs.u16Debug)];
@@ -585,7 +585,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			const weak2: rs.Weak<Any.Any> = new rs.Weak(shared);
 			const any4: rs.Arc<Any.Any> = shared;
 			const _496: Any.Any = any4.value;
-			const _491: boolean = isSomeAnd$13v37g1(rs.weakUpgrade(weak2), (a2: rs.Arc<Any.Any>): boolean => {
+			const _491: boolean = isSomeAnd$11ghftu(rs.weakUpgrade(weak2), (a2: rs.Arc<Any.Any>): boolean => {
 				const _32: Any.Any = a2.value;
 				const _04: boolean = _32 instanceof of$u32 || _32 instanceof ofPlace$u32;
 				a2[Symbol.dispose]();
@@ -594,7 +594,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			const _495: rs.u32 | undefined = _496 instanceof of$u32 ? _496.v : _496 instanceof ofPlace$u32 ? _496.v.v : undefined;
 			const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_491, f), (f: rs.Formatter) => rs.fmtOption(_495, f, rs.u32Debug)];
 			put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]));
-			const typed2: [rs.usize, rs.u32] | undefined = ok$1vbcgd7(result_map$1v8vvnp(rs.arcDowncast(any4, of$u32, (object) => object.v), (n4: rs.Arc<rs.u32>): [rs.usize, rs.u32] => {
+			const typed2: [rs.usize, rs.u32] | undefined = ok$0y6a1w6(result_map$0njbm3o(rs.arcDowncast(any4, of$u32, (object) => object.v), (n4: rs.Arc<rs.u32>): [rs.usize, rs.u32] => {
 				const _05: [rs.usize, rs.u32] = [n4.strong, n4.value];
 				n4[Symbol.dispose]();
 				return _05;
@@ -679,8 +679,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u8WrappingAdd(twice(halve, x3), captured);
 		};
 		fs.items.push(_94);
-		const turn: rs.usize = rs.usizeRem(b as rs.usize, fs.items.length);
-		rs.sliceSwap(rs.sliceFrom(fs.items), 0, turn);
+		rs.sliceSwap(fs.items, 0, rs.usizeRem(b as rs.usize, fs.items.length));
 		let captured2: rs.u8 = 0;
 		const hook: Hook.Hook = new Hook.Hook((x4: rs.u8): rs.u32 => {
 			captured2 = rs.u8WrappingAdd(captured2, x4);
@@ -693,7 +692,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const i: rs.usize = _115[0];
-			const y: rs.u8 = _115[1](option_unwrapOr$0r2bmpr(rs.byteSliceGet(rs.byteSliceRange(data, 2), i), b));
+			const y: rs.u8 = _115[1](option_unwrapOr$1fr498u(rs.byteSliceGet(rs.byteSliceRange(data, 2), i), b));
 			const _133: rs.u32 = hook.f(y);
 			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(y, f), (f: rs.Formatter) => rs.u32Display(_133, f)];
 			put(out, rs.fmtFormat([args8[0], ":", args8[1], " "]));
@@ -815,10 +814,10 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		const map: rs.BTreeMap<rs.u64, rs.u8> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u64, rs.u8>, _33, true, undefined, undefined, undefined, 16, true);
 		const _44: rs.u8 | undefined = scan$dyns_iters_closure1(map, rs.u8Rem(a, 8) as rs.u64, false, (v: rs.u8): rs.u8 | undefined => {
-			return thenSome$0d5am30(rs.u8Rem(v, 2) === 1, v);
+			return thenSome$0quywni(rs.u8Rem(v, 2) === 1, v);
 		});
 		const _50: rs.u8 | undefined = scan$dyns_iters_closure1(map, rs.u8Rem(b, 8) as rs.u64, true, (v2: rs.u8): rs.u8 | undefined => {
-			return thenSome$0d5am30(rs.u8Rem(v2, 2) === 1, v2);
+			return thenSome$0quywni(rs.u8Rem(v2, 2) === 1, v2);
 		});
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_44, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_50, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([args2[0], " ", args2[1], " "]));
@@ -833,16 +832,16 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const front: rs.ByteSlice = new rs.ByteSlice(slice.data, slice.start, _79);
 		const back: rs.ByteSlice = new rs.ByteSlice(slice.data, slice.start + _79, slice.length - _79);
 		const boxed: rs.Iter<Tagged.Tagged> = rs.iterDyn(rs.vecIntoIter(tagged(front), rs.drop));
-		const ends: [rs.u8 | undefined, rs.u8 | undefined] = [option_map$08a6hpg(rs.iterToOption(boxed.next()), (t: Tagged.Tagged): rs.u8 => {
+		const ends: [rs.u8 | undefined, rs.u8 | undefined] = [option_map$11l9b8r(rs.iterToOption(boxed.next()), (t: Tagged.Tagged): rs.u8 => {
 			const _04: rs.u8 = t._0;
 			t[Symbol.dispose]();
 			return _04;
-		}), option_map$08a6hpg(rs.iterToOption(boxed.nextBack()), (t2: Tagged.Tagged): rs.u8 => {
+		}), option_map$11l9b8r(rs.iterToOption(boxed.nextBack()), (t2: Tagged.Tagged): rs.u8 => {
 			const _05: rs.u8 = t2._0;
 			t2[Symbol.dispose]();
 			return _05;
 		})];
-		const nth: rs.u8 | undefined = option_map$08a6hpg(rs.iterNth(rs.iterBox(boxed), 1, rs.drop), (t3: Tagged.Tagged): rs.u8 => {
+		const nth: rs.u8 | undefined = option_map$11l9b8r(rs.iterNth(rs.iterBox(boxed), 1, rs.drop), (t3: Tagged.Tagged): rs.u8 => {
 			const _06: rs.u8 = t3._0;
 			t3[Symbol.dispose]();
 			return _06;
@@ -852,7 +851,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]));
 		rs.drop(boxed);
 		dropped(out);
-		const last: rs.u8 | undefined = option_map$08a6hpg(rs.ownedLast(rs.iterBox(rs.iterDyn(rs.iterChain(rs.vecIntoIter(tagged(front), rs.drop), rs.vecIntoIter(tagged(back), rs.drop)))), rs.drop), (t4: Tagged.Tagged): rs.u8 => {
+		const last: rs.u8 | undefined = option_map$11l9b8r(rs.ownedLast(rs.iterBox(rs.iterDyn(rs.iterChain(rs.vecIntoIter(tagged(front), rs.drop), rs.vecIntoIter(tagged(back), rs.drop)))), rs.drop), (t4: Tagged.Tagged): rs.u8 => {
 			const _07: rs.u8 = t4._0;
 			t4[Symbol.dispose]();
 			return _07;
@@ -961,7 +960,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]));
 		other[Symbol.dispose]();
 		weak[Symbol.dispose]();
-		const taken: rs.u8 | undefined = option_map$08a6hpg(option_andThen$0v0bj8w(rs.arcGetMut(shared), (it2: rs.Iter<Tagged.Tagged>): Tagged.Tagged | undefined => {
+		const taken: rs.u8 | undefined = option_map$11l9b8r(option_andThen$1xlvufy(rs.arcGetMut(shared), (it2: rs.Iter<Tagged.Tagged>): Tagged.Tagged | undefined => {
 			return rs.iterToOption(it2.next());
 		}), (t5: Tagged.Tagged): rs.u8 => {
 			const _014: rs.u8 = t5._0;
@@ -977,20 +976,20 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const exact: rs.Arc<rs.Iter<rs.u8>> = new rs.ArcDyn(_492, rs.iterDyn(_492.value));
 		const up2: rs.Arc<rs.Iter<rs.u8>> = rs.arcClone(exact);
 		const _506: rs.usize = exact.value.len();
-		const _510: rs.u8 | undefined | rs.None = option_map$1qfllpb(rs.arcGetMut(up2), (it3: rs.Iter<rs.u8>): rs.u8 | undefined => {
+		const _510: rs.u8 | undefined | rs.None = option_map$0vt270f(rs.arcGetMut(up2), (it3: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it3.next());
 		});
 		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_506, f), (f: rs.Formatter) => rs.fmtOption(_510, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)];
 		put(out, rs.fmtFormat([args32[0], " ", args32[1], " "]));
 		exact[Symbol.dispose]();
-		const next: rs.u8 | undefined = option_andThen$0ntiuws(rs.arcGetMut(up2), (it4: rs.Iter<rs.u8>): rs.u8 | undefined => {
+		const next: rs.u8 | undefined = option_andThen$0imujmv(rs.arcGetMut(up2), (it4: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it4.next());
 		});
 		const _530: [rs.usize, rs.usize | undefined] = up2.value.sizeHint();
 		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(next, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_530[0], f), (f: rs.Formatter) => rs.fmtOption(_530[1], f, rs.usizeDebug)], f)];
 		put(out, rs.fmtFormat([args34[0], " ", args34[1], " "]));
 		const fromBox: rs.Arc<rs.Iter<rs.u8>> = new rs.Arc(rs.iterDyn(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(b, 8)), Countdown.next$iter_Iterator, rs.drop)));
-		const part6 = option_andThen$0ntiuws(rs.arcGetMut(fromBox), (it5: rs.Iter<rs.u8>): rs.u8 | undefined => {
+		const part6 = option_andThen$0imujmv(rs.arcGetMut(fromBox), (it5: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it5.next());
 		});
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part6, f, rs.u8Debug)];
@@ -1001,7 +1000,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const weak3: rs.Weak<rs.Iter<rs.u8>> = rs.weakDyn(new rs.Weak(counted2), (arc: rs.Arc<Countdown.Countdown>): rs.Arc<rs.Iter<rs.u8>> => {
 			return new rs.ArcDyn(arc, rs.iterDyn(rs.iterFrom(arc.value, Countdown.next$iter_Iterator, rs.drop)));
 		});
-		const part7 = option_map$0oedb57(rs.weakUpgrade(weak3), (it6: rs.Arc<rs.Iter<rs.u8>>): [rs.usize, rs.usize | undefined] => {
+		const part7 = option_map$1b57zy8(rs.weakUpgrade(weak3), (it6: rs.Arc<rs.Iter<rs.u8>>): [rs.usize, rs.usize | undefined] => {
 			const _018: [rs.usize, rs.usize | undefined] = it6.value.sizeHint();
 			it6[Symbol.dispose]();
 			return _018;
@@ -1065,7 +1064,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const again: rs.Weak<Shape.Shape> = rs.weakClone(weak2);
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
-		const _75: rs.u32 | undefined = option_map$1i542n2(rs.weakUpgrade(again), (s: rs.Arc<Shape.Shape>): rs.u32 => {
+		const _75: rs.u32 | undefined = option_map$1mach0o(rs.weakUpgrade(again), (s: rs.Arc<Shape.Shape>): rs.u32 => {
 			const _0: rs.u32 = s.value.area$Shape();
 			s[Symbol.dispose]();
 			return _0;
@@ -1088,7 +1087,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const weak4: rs.Weak<Shape.Shape> = rs.weakDyn(new rs.Weak(noisy), (arc2: rs.Arc<Noisy.Noisy>): rs.Arc<Shape.Shape> => {
 			return new rs.ArcDyn(arc2, new of$dyns_Noisy(arc2.value));
 		});
-		const part = option_map$1i542n2(rs.weakUpgrade(weak4), (s2: rs.Arc<Shape.Shape>): rs.u32 => {
+		const part = option_map$1mach0o(rs.weakUpgrade(weak4), (s2: rs.Arc<Shape.Shape>): rs.u32 => {
 			const _02: rs.u32 = s2.value.area$Shape();
 			s2[Symbol.dispose]();
 			return _02;
@@ -1109,7 +1108,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				return new rs.ArcDyn(arc3, new of$dyns_Looped(arc3.value));
 			}));
 		});
-		const _168: rs.u32 | undefined = option_map$1i542n2(rs.weakUpgrade(looped.value.me), (s3: rs.Arc<Shape.Shape>): rs.u32 => {
+		const _168: rs.u32 | undefined = option_map$1mach0o(rs.weakUpgrade(looped.value.me), (s3: rs.Arc<Shape.Shape>): rs.u32 => {
 			const _04: rs.u32 = s3.value.area$Shape();
 			s3[Symbol.dispose]();
 			return _04;
@@ -1284,7 +1283,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const _491: string = rs.fmtFormat([args34[0], " "]);
 		rs.refRelease(_495);
 		put(out, _491);
-		const part3 = option_map$0j05j69(ok$00p9ap8(rs.arcDowncast(new rs.Arc(new of$u32(dataData[dataStart] as rs.u32)), of$u32, (object) => object.v)), (n3: rs.Arc<rs.u32>): rs.u32 => {
+		const part3 = option_map$1bn5ufk(ok$1oks8md(rs.arcDowncast(new rs.Arc(new of$u32(dataData[dataStart] as rs.u32)), of$u32, (object) => object.v)), (n3: rs.Arc<rs.u32>): rs.u32 => {
 			const _09: rs.u32 = n3.value;
 			n3[Symbol.dispose]();
 			return _09;
@@ -1332,7 +1331,7 @@ export function made(t: rs.u8): Tagged.Tagged {
  * whole.
  */
 export function skipped(data: rs.ByteSlice): rs.Iter<[Tagged.Tagged, Tagged.Tagged]> {
-	const _4: [rs.u8, rs.ByteSlice] = option_mapOr$1ttssgs((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, [0, data] as [rs.u8, rs.ByteSlice], (_2: [rs.u8, rs.ByteSlice]): [rs.u8, rs.ByteSlice] => {
+	const _4: [rs.u8, rs.ByteSlice] = option_mapOr$0z4nmg2((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, [0, data] as [rs.u8, rs.ByteSlice], (_2: [rs.u8, rs.ByteSlice]): [rs.u8, rs.ByteSlice] => {
 		return [_2[0], _2[1]] as [rs.u8, rs.ByteSlice];
 	});
 	const n: rs.u8 = _4[0];
@@ -1349,7 +1348,7 @@ export function skipped(data: rs.ByteSlice): rs.Iter<[Tagged.Tagged, Tagged.Tagg
 }
 
 export function tags(pair: [Tagged.Tagged, Tagged.Tagged] | undefined): [rs.u8, rs.u8] | undefined {
-	return option_map$0z7s8q7(pair, (p: [Tagged.Tagged, Tagged.Tagged]): [rs.u8, rs.u8] => {
+	return option_map$1aeqf1p(pair, (p: [Tagged.Tagged, Tagged.Tagged]): [rs.u8, rs.u8] => {
 		const _02: [rs.u8, rs.u8] = [p[0]._0, p[1]._0];
 		drop$tuple2_dyns_Tagged_dyns_Tagged(p);
 		return _02;
@@ -1506,7 +1505,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(first, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.u32Display(sum2, f)];
 	put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]));
 	dropped(out);
-	const n2: rs.u8 = option_mapOr$1surhce(rs.byteSliceFirst(data), 0, (n6: rs.u8): rs.u8 => {
+	const n2: rs.u8 = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 0, (n6: rs.u8): rs.u8 => {
 		return rs.u8Rem(n6, 4);
 	});
 	const seen: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
@@ -1623,7 +1622,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _114: boolean = !_116.ok;
 		const _123: rs.Result<rs.RefCell<Square.Square>, rs.BorrowMutError> = rs.refCellTryBorrowMut(sq.value);
 		const _121: boolean = !_123.ok;
-		const _127: rs.u8 = result_unwrapOr$09hp2h5(result_map$1wuk0uc(rs.refCellTryBorrow(shapes.items[rs.idx(shapes.items, 0)].value), (s4: rs.RefCell<Shape.Shape>): rs.u8 => {
+		const _127: rs.u8 = result_unwrapOr$0k78oya(result_map$11lf952(rs.refCellTryBorrow(shapes.items[rs.idx(shapes.items, 0)].value), (s4: rs.RefCell<Shape.Shape>): rs.u8 => {
 			const _02: rs.u8 = s4.value.sides$Shape();
 			rs.refRelease(s4);
 			return _02;
@@ -1677,7 +1676,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const weak: rs.Weak<rs.RefCell<Shape.Shape>> = new rs.Weak(shape);
 		noisy[Symbol.dispose]();
 		const _268: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const _272: rs.u32 | undefined = option_map$1p9q0qv(rs.weakUpgrade(weak), (s5: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
+		const _272: rs.u32 | undefined = option_map$1rkcfqi(rs.weakUpgrade(weak), (s5: rs.Arc<rs.RefCell<Shape.Shape>>): rs.u32 => {
 			const _52: rs.RefCell<Shape.Shape> = rs.refCellBorrow(s5.value);
 			const _03: rs.u32 = _52.value.area$Shape();
 			rs.refRelease(_52);
@@ -1721,7 +1720,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, _345);
 		rs.mutexUnlock(_guard);
 		const weak2: rs.Weak<rs.Mutex<Shape.Shape>> = new rs.Weak(locked);
-		const area: rs.u32 | undefined = option_map$1qzd1bs(rs.weakUpgrade(weak2), (l: rs.Arc<rs.Mutex<Shape.Shape>>): rs.u32 => {
+		const area: rs.u32 | undefined = option_map$13cu53u(rs.weakUpgrade(weak2), (l: rs.Arc<rs.Mutex<Shape.Shape>>): rs.u32 => {
 			const _54: rs.Mutex<Shape.Shape> = rs.mutexLock(l.value);
 			const _04: rs.u32 = _54.value.area$Shape();
 			rs.mutexUnlock(_54);
@@ -1948,7 +1947,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _939: string = rs.fmtFormat([args54[0], " ", args54[1], " ", args54[2], " ", args54[3], " ", args54[4], " ", args54[5], " "]);
 		rs.mutexUnlock(_952);
 		put(out, _939);
-		const _968: rs.u8 | undefined = option_map$0cs071d(rs.byteSliceFirst(rs.byteSliceRange(data, 3)), (x3: rs.u8): rs.u8 => {
+		const _968: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(rs.byteSliceRange(data, 3)), (x3: rs.u8): rs.u8 => {
 			return rs.u8Rem(x3, 4);
 		});
 		b6: {
@@ -2243,7 +2242,7 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const ticks3: rs.Future<rs.u8> = _571[0];
 		const noisy3: Shape.Shape = _571[1];
 		const tail3: Tail.Tail<Shape.Shape> = _571[2];
-		const polled: boolean = isReady$1ntq2i8(ticks3.poll(rs.NOOP_WAKER));
+		const polled: boolean = isReady$1olyx0w(ticks3.poll(rs.NOOP_WAKER));
 		noisy3.grow$Shape(c);
 		rs.drop(ticks3);
 		rs.drop(noisy3);

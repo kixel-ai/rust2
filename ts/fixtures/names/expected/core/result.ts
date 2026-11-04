@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$1vwel7p(self: rs.Result<rs.ByteSlice, rs.u8>, default_: rs.ByteSlice): rs.ByteSlice {
+export function unwrapOr$1a67ziq(self: rs.Result<rs.ByteSlice, rs.u8>, default_: rs.ByteSlice): rs.ByteSlice {
 	if (self.ok) {
 		return self.value;
 	}

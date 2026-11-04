@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function withBorrow$1s4hgxf(self: rs.LocalKey<rs.RefCell<rs.u8>>, f: (a0: rs.u8) => undefined): void {
+export function withBorrow$097wfl1(self: rs.LocalKey<rs.RefCell<rs.u8>>, f: (a0: rs.u8) => undefined): void {
 	const captured = f;
 	((cell: rs.RefCell<rs.u8>): undefined => {
 		const _32: (a0: rs.u8) => undefined = captured;

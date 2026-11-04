@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function isSomeAnd$08u1px1(self: rs.Ordering | undefined, f: (a0: rs.Ordering) => boolean): boolean {
+export function isSomeAnd$0dtzjhd(self: rs.Ordering | undefined, f: (a0: rs.Ordering) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

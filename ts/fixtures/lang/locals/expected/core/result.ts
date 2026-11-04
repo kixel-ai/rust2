@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function mapOr$18ipla0(self: rs.Result<rs.usize, never>, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+export function mapOr$12d9lqr(self: rs.Result<rs.usize, never>, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
 	if (self.ok) {
 		return f(self.value);
 	}

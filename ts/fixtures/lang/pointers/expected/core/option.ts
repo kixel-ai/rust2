@@ -6,21 +6,21 @@ import type * as Loaded from "../pointers.Loaded.ts";
 import type * as Pair from "../pointers.Pair.ts";
 import type * as Spot from "../pointers.Spot.ts";
 
-export function isSomeAnd$09tpccf(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isSomeAnd$1s2u5lz(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function isSomeAnd$0h2dqit(self: [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>] | undefined, f: (a0: [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>]) => boolean): boolean {
+export function isSomeAnd$1nosv3e(self: [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>] | undefined, f: (a0: [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function isSomeAnd$10niqnm(self: [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>] | undefined, f: (a0: [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>]) => boolean): boolean {
+export function isSomeAnd$07atiew(self: [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>] | undefined, f: (a0: [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
@@ -34,14 +34,14 @@ export function unwrapOr$0mkoact(self: Loaded.Loaded | undefined, default_: Load
 	return self;
 }
 
-export function unwrapOr$1l4p6jc(self: [rs.u16, rs.u8] | undefined, default_: [rs.u16, rs.u8]): [rs.u16, rs.u8] {
+export function unwrapOr$179xo1w(self: [rs.u16, rs.u8] | undefined, default_: [rs.u16, rs.u8]): [rs.u16, rs.u8] {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -55,7 +55,7 @@ export function map$1cfrse5(self: Loaded.Loaded | undefined, f: (a0: Loaded.Load
 	return f(self);
 }
 
-export function mapOr$1j1wsle(self: Pair.Pair | undefined, default_: rs.u8, f: (a0: Pair.Pair) => rs.u8): rs.u8 {
+export function mapOr$078vnqn(self: Pair.Pair | undefined, default_: rs.u8, f: (a0: Pair.Pair) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -69,14 +69,14 @@ export function mapOr$00zno7m(self: Spot.Spot | undefined, default_: Spot.Spot, 
 	return f(copy$pointers_Spot(self));
 }
 
-export function mapOr$1wxcg5q(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {
+export function mapOr$173j2gr(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function filter$0tnmmii(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {
+export function filter$0wvwd70(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {
 	if (self !== undefined) {
 		const x: rs.u32 = self;
 		if (predicate(x)) {

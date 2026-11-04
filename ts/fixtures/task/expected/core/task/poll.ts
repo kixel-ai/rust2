@@ -2,71 +2,71 @@
 
 import * as rs from "../../rs.ts";
 
-export function map$0luclc8(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.Result<rs.u64, rs.u64> | undefined): rs.Poll<rs.Result<rs.u64, rs.u64> | undefined> {
+export function map$0u2hwi8(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.Result<rs.u64, rs.u64> | undefined): rs.Poll<rs.Result<rs.u64, rs.u64> | undefined> {
 	if (self !== rs.Pending) {
 		return f(self);
 	}
 	return rs.Pending;
 }
 
-export function map$034yafl(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.Result<rs.u64, rs.u64>): rs.Poll<rs.Result<rs.u64, rs.u64>> {
+export function map$124wjfo(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.Result<rs.u64, rs.u64>): rs.Poll<rs.Result<rs.u64, rs.u64>> {
 	if (self !== rs.Pending) {
 		return f(self);
 	}
 	return rs.Pending;
 }
 
-export function map$1vdv176(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.u64): rs.Poll<rs.u64> {
+export function map$1a7g3ip(self: rs.Poll<rs.u64 | undefined>, f: (a0: rs.u64 | undefined) => rs.u64): rs.Poll<rs.u64> {
 	if (self !== rs.Pending) {
 		return f(self);
 	}
 	return rs.Pending;
 }
 
-export function map$1rs8nqy(self: rs.Poll<rs.u64>, _: (a0: rs.u64) => rs.u64 | undefined): rs.Poll<rs.u64 | undefined> {
+export function map$1wr0dnp(self: rs.Poll<rs.u64>, _: (a0: rs.u64) => rs.u64 | undefined): rs.Poll<rs.u64 | undefined> {
 	if (self !== rs.Pending) {
 		return self;
 	}
 	return rs.Pending;
 }
 
-export function map$1ooj6xj(self: rs.Poll<rs.u64>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.u64> {
+export function map$1a7lmes(self: rs.Poll<rs.u64>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.u64> {
 	if (self !== rs.Pending) {
 		return f(self);
 	}
 	return rs.Pending;
 }
 
-export function isReady$0entgvk(self: rs.Poll<rs.u64 | undefined>): boolean {
+export function isReady$1wybfmi(self: rs.Poll<rs.u64 | undefined>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}
 	return false;
 }
 
-export function isReady$0xd3q6j(self: rs.Poll<rs.u64>): boolean {
+export function isReady$158fdyi(self: rs.Poll<rs.u64>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}
 	return false;
 }
 
-export function isReady$1sc8not(self: rs.Poll<undefined>): boolean {
+export function isReady$0mapnag(self: rs.Poll<undefined>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}
 	return false;
 }
 
-export function isPending$0vr1nz6(self: rs.Poll<rs.u64 | undefined>): boolean {
-	return !isReady$0entgvk(self);
+export function isPending$0mrvg1b(self: rs.Poll<rs.u64 | undefined>): boolean {
+	return !isReady$1wybfmi(self);
 }
 
-export function isPending$1xsrr9j(self: rs.Poll<rs.u64>): boolean {
-	return !isReady$0xd3q6j(self);
+export function isPending$04edpij(self: rs.Poll<rs.u64>): boolean {
+	return !isReady$158fdyi(self);
 }
 
-export function mapOk$051v09m(self: rs.Poll<rs.Result<rs.u64, rs.u64>>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.Result<rs.u64, rs.u64>> {
+export function mapOk$0q2t3zp(self: rs.Poll<rs.Result<rs.u64, rs.u64>>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.Result<rs.u64, rs.u64>> {
 	if (self !== rs.Pending) {
 		if (self.ok) {
 			return rs.Ok(f(self.value));
@@ -76,7 +76,7 @@ export function mapOk$051v09m(self: rs.Poll<rs.Result<rs.u64, rs.u64>>, f: (a0: 
 	return rs.Pending;
 }
 
-export function mapErr$1yfeuu2(self: rs.Poll<rs.Result<rs.u64, rs.u64>>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.Result<rs.u64, rs.u64>> {
+export function mapErr$1s7wmg4(self: rs.Poll<rs.Result<rs.u64, rs.u64>>, f: (a0: rs.u64) => rs.u64): rs.Poll<rs.Result<rs.u64, rs.u64>> {
 	if (self !== rs.Pending) {
 		if (self.ok) {
 			return self;

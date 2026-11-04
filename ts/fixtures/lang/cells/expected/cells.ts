@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { out$Option_u8, out$u64, out$u8 } from "./lib.ts";
-import { thenSome$0d5am30 } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
-import { err$1nbmqmx, map$1ma2nl9 as result_map$1ma2nl9, map$0l5uclx as result_map$0l5uclx, map$14n87rz as result_map$14n87rz, map$0h1vl84 as result_map$0h1vl84, map$03hz3l7 as result_map$03hz3l7, map$1916nm0 as result_map$1916nm0 } from "./core/result.ts";
+import { thenSome$0quywni } from "./core/bool.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
+import { err$1yr5s3w, map$0vjzmou as result_map$0vjzmou, map$0ac8dwe as result_map$0ac8dwe, map$0zkrphe as result_map$0zkrphe, map$0w147c6 as result_map$0w147c6, map$1gelxzx as result_map$1gelxzx, map$0vfooax as result_map$0vfooax } from "./core/result.ts";
 
 /** Steps of an operation and an operand on one cell, each putting what it read. */
 export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
@@ -166,7 +166,7 @@ export function cellOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			} else {
 				const _179: rs.OnceCell<rs.u8 | undefined, rs.None> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
-					const err2 = made$Option_u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$1ma2nl9(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+					const err2 = made$Option_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vjzmou(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 						const err = made$Option_u8(make, v2 ^ 1);
 						return err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(out$Option_u8.p);
 					}, undefined, rs.None), (_22: rs.u8 | undefined): undefined => {})), v2));
@@ -352,7 +352,7 @@ export function cellString(dataData: Uint8Array, dataStart: number, dataLen: num
 			} else {
 				const _179: rs.OnceCell<string> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<string, rs.u8> => {
-					return made$String(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$0l5uclx(rs.onceGetOrTryInit(_179, (): rs.Result<string, rs.u8> => {
+					return made$String(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0ac8dwe(rs.onceGetOrTryInit(_179, (): rs.Result<string, rs.u8> => {
 						return made$String(make, v2 ^ 1);
 					}), (_22: string): undefined => {})), v2));
 				});
@@ -536,7 +536,7 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			} else {
 				const _179: rs.OnceCell<rs.u64> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
-					const part2 = made$u64(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$0h1vl84(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
+					const part2 = made$u64(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0w147c6(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
 						const part = made$u64(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part);
 					}), (_22: rs.u64): undefined => {})), v2));
@@ -724,7 +724,7 @@ export function cellU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			} else {
 				const _179: rs.OnceCell<rs.u8> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
-					const part2 = made$u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$03hz3l7(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
+					const part2 = made$u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1gelxzx(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
 						const part = made$u8(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part);
 					}), (_22: rs.u8): undefined => {})), v2));
@@ -907,7 +907,7 @@ export function cellUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			} else {
 				const _179: rs.OnceCell<undefined, rs.None> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
-					return made$unit(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$1916nm0(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
+					return made$unit(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vfooax(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
 						return made$unit(make, v2 ^ 1);
 					}, undefined, rs.None), (_23: undefined): undefined => {})), v2));
 				}, undefined, rs.None);
@@ -1094,7 +1094,7 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			} else {
 				const _179: rs.OnceCell<rs.ByteVec> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
-					return made$Vec_u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$14n87rz(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
+					return made$Vec_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0zkrphe(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
 						return made$Vec_u8(make, v2 ^ 1);
 					}), (_22: rs.ByteVec): undefined => {})), v2));
 				});
@@ -1306,7 +1306,7 @@ export function lockOption(dataData: Uint8Array, dataStart: number, dataLen: num
 			} else {
 				const _179: rs.OnceLock<rs.u8 | undefined, rs.None> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8 | undefined, rs.u8> => {
-					const err2 = made$Option_u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$1ma2nl9(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
+					const err2 = made$Option_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vjzmou(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8 | undefined, rs.u8> => {
 						const err = made$Option_u8(make, v2 ^ 1);
 						return err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(out$Option_u8.p);
 					}, undefined, rs.None), (_22: rs.u8 | undefined): undefined => {})), v2));
@@ -1492,7 +1492,7 @@ export function lockString(dataData: Uint8Array, dataStart: number, dataLen: num
 			} else {
 				const _179: rs.OnceLock<string> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<string, rs.u8> => {
-					return made$String(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$0l5uclx(rs.onceGetOrTryInit(_179, (): rs.Result<string, rs.u8> => {
+					return made$String(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0ac8dwe(rs.onceGetOrTryInit(_179, (): rs.Result<string, rs.u8> => {
 						return made$String(make, v2 ^ 1);
 					}), (_22: string): undefined => {})), v2));
 				});
@@ -1676,7 +1676,7 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 			} else {
 				const _179: rs.OnceLock<rs.u64> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u64, rs.u8> => {
-					const part2 = made$u64(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$0h1vl84(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
+					const part2 = made$u64(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0w147c6(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u64, rs.u8> => {
 						const part = made$u64(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u64.err as rs.u8) : rs.Ok(part);
 					}), (_22: rs.u64): undefined => {})), v2));
@@ -1864,7 +1864,7 @@ export function lockU8(dataData: Uint8Array, dataStart: number, dataLen: number,
 			} else {
 				const _179: rs.OnceLock<rs.u8> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.u8, rs.u8> => {
-					const part2 = made$u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$03hz3l7(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
+					const part2 = made$u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$1gelxzx(rs.onceGetOrTryInit(_179, (): rs.Result<rs.u8, rs.u8> => {
 						const part = made$u8(make, v2 ^ 1);
 						return part === undefined ? rs.Err(out$u8.err as rs.u8) : rs.Ok(part);
 					}), (_22: rs.u8): undefined => {})), v2));
@@ -2047,7 +2047,7 @@ export function lockUnit(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			} else {
 				const _179: rs.OnceLock<undefined, rs.None> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<undefined, rs.u8> => {
-					return made$unit(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$1916nm0(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
+					return made$unit(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0vfooax(rs.onceGetOrTryInit(_179, (): rs.Result<undefined, rs.u8> => {
 						return made$unit(make, v2 ^ 1);
 					}, undefined, rs.None), (_23: undefined): undefined => {})), v2));
 				}, undefined, rs.None);
@@ -2234,7 +2234,7 @@ export function lockVec(dataData: Uint8Array, dataStart: number, dataLen: number
 			} else {
 				const _179: rs.OnceLock<rs.ByteVec> = cell;
 				result = rs.onceGetOrTryInit(cell, (): rs.Result<rs.ByteVec, rs.u8> => {
-					return made$Vec_u8(make, option_unwrapOr$0r2bmpr(err$1nbmqmx(result_map$14n87rz(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
+					return made$Vec_u8(make, option_unwrapOr$1fr498u(err$1yr5s3w(result_map$0zkrphe(rs.onceGetOrTryInit(_179, (): rs.Result<rs.ByteVec, rs.u8> => {
 						return made$Vec_u8(make, v2 ^ 1);
 					}), (_22: rs.ByteVec): undefined => {})), v2));
 				});
@@ -2375,7 +2375,7 @@ export function wide(v: rs.u8): rs.u64 {
 
 /** `None` for every third byte. */
 export function maybe(v: rs.u8): rs.u8 | undefined {
-	return thenSome$0d5am30(rs.u8Rem(v, 3) !== 0, v);
+	return thenSome$0quywni(rs.u8Rem(v, 3) !== 0, v);
 }
 
 export function putMaybe(out: rs.ByteVec, t: rs.u8 | undefined): void {

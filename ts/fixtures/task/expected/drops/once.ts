@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 import { drop$Option_drops_Held as lib_drop$Option_drops_Held, drop$Result_unit_Option_model_Guard as lib_drop$Result_unit_Option_model_Guard, drop$Result_unit_drops_Held as lib_drop$Result_unit_drops_Held, drop$Result_unit_model_Guard as lib_drop$Result_unit_model_Guard } from "../lib.ts";
-import { mapOr$01ozsk3 as option_mapOr$01ozsk3 } from "../core/option.ts";
+import { mapOr$1re20rq as option_mapOr$1re20rq } from "../core/option.ts";
 import * as Cached from "../drops/once.Cached.ts";
 import type * as Held from "../drops.Held.ts";
 import * as Log from "../log.Log.ts";
@@ -29,7 +29,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part14, f)];
 		Log.note(log, rs.fmtFormat(["refused ", args4[0]]));
 		lib_drop$Result_unit_model_Guard(refused);
-		const part15 = option_mapOr$01ozsk3(cell.v, 0, (g2: Guard.Guard): rs.u32 => {
+		const part15 = option_mapOr$1re20rq(cell.v, 0, (g2: Guard.Guard): rs.u32 => {
 			return rs.u32Sub(Guard.id(g2), id);
 		});
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part15, f)];
@@ -119,7 +119,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _206: Guard.Guard = guard(22);
 		lib_drop$Result_unit_model_Guard(rs.onceSet(cell3, _206));
 		rs.drop(new rs.OnceLock(guard(23)).v);
-		const part10 = option_mapOr$01ozsk3(cell3.v, 0, (g: Guard.Guard): rs.u32 => {
+		const part10 = option_mapOr$1re20rq(cell3.v, 0, (g: Guard.Guard): rs.u32 => {
 			const _04: rs.u32 = rs.u32Sub(Guard.id(g), id);
 			g[Symbol.dispose]();
 			return _04;

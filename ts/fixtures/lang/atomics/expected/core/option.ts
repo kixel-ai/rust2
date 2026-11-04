@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function isSomeAnd$09tpccf(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isSomeAnd$1s2u5lz(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}

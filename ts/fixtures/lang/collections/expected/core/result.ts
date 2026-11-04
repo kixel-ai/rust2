@@ -4,7 +4,7 @@ import * as rs from "../rs.ts";
 import * as ByRef from "../collections.ByRef.ts";
 import * as ByVal from "../collections.ByVal.ts";
 
-export function eq$1dt73ez(self: rs.Result<ByRef.ByRef, rs.u8>, other: rs.Result<ByRef.ByRef, rs.u8>): boolean {
+export function eq$1a91ieh(self: rs.Result<ByRef.ByRef, rs.u8>, other: rs.Result<ByRef.ByRef, rs.u8>): boolean {
 	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
 		return false;
 	}
@@ -14,7 +14,7 @@ export function eq$1dt73ez(self: rs.Result<ByRef.ByRef, rs.u8>, other: rs.Result
 	return self.error === (other as { ok: false; error: rs.u8 }).error;
 }
 
-export function eq$163neqy(self: rs.Result<ByVal.ByVal, rs.u8>, other: rs.Result<ByVal.ByVal, rs.u8>): boolean {
+export function eq$122baxc(self: rs.Result<ByVal.ByVal, rs.u8>, other: rs.Result<ByVal.ByVal, rs.u8>): boolean {
 	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
 		return false;
 	}

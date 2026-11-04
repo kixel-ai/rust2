@@ -3,19 +3,19 @@
 import * as rs from "../../rs.ts";
 import type * as Logged from "../../futures.Logged.ts";
 
-export function eq$11qt6c3(self: rs.Poll<rs.u8> | rs.OuterPending, other: rs.Poll<rs.u8> | rs.OuterPending): boolean {
+export function eq$1o5v7fd(self: rs.Poll<rs.u8> | rs.OuterPending, other: rs.Poll<rs.u8> | rs.OuterPending): boolean {
 	if (!((self !== rs.OuterPending ? 0 : 1) === (other !== rs.OuterPending ? 0 : 1))) {
 		return false;
 	}
 	if (self !== rs.OuterPending) {
 		if (other !== rs.OuterPending) {
-			return eq$1h9nnoh(self, other);
+			return eq$1qrb1lw(self, other);
 		}
 	}
 	return true;
 }
 
-export function eq$1h9nnoh(self: rs.Poll<rs.u8>, other: rs.Poll<rs.u8>): boolean {
+export function eq$1qrb1lw(self: rs.Poll<rs.u8>, other: rs.Poll<rs.u8>): boolean {
 	if (!((self !== rs.Pending ? 0 : 1) === (other !== rs.Pending ? 0 : 1))) {
 		return false;
 	}
@@ -27,33 +27,33 @@ export function eq$1h9nnoh(self: rs.Poll<rs.u8>, other: rs.Poll<rs.u8>): boolean
 	return true;
 }
 
-export function map$0fx224j(self: rs.Poll<rs.u8 | undefined>, f: (a0: rs.u8 | undefined) => rs.u8 | undefined): rs.Poll<rs.u8 | undefined> {
+export function map$1jzbsum(self: rs.Poll<rs.u8 | undefined>, f: (a0: rs.u8 | undefined) => rs.u8 | undefined): rs.Poll<rs.u8 | undefined> {
 	if (self !== rs.Pending) {
 		return f(self);
 	}
 	return rs.Pending;
 }
 
-export function isReady$1tqk3za(self: rs.Poll<Logged.Logged>): boolean {
+export function isReady$01y72dm(self: rs.Poll<Logged.Logged>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}
 	return false;
 }
 
-export function isReady$1ntq2i8(self: rs.Poll<rs.u8>): boolean {
+export function isReady$1olyx0w(self: rs.Poll<rs.u8>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}
 	return false;
 }
 
-export function isPending$1405yze(self: rs.Poll<Logged.Logged>): boolean {
-	return !isReady$1tqk3za(self);
+export function isPending$0bap0yh(self: rs.Poll<Logged.Logged>): boolean {
+	return !isReady$01y72dm(self);
 }
 
-export function isPending$0vrdvv1(self: rs.Poll<rs.u8>): boolean {
-	return !isReady$1ntq2i8(self);
+export function isPending$189w6zf(self: rs.Poll<rs.u8>): boolean {
+	return !isReady$1olyx0w(self);
 }
 
 //# sourceMappingURL=poll.ts.map

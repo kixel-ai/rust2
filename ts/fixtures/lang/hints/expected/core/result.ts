@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0u9zzk3(self: rs.Result<rs.u32, rs.TryFromIntError>, default_: rs.u32): rs.u32 {
+export function unwrapOr$0i7x980(self: rs.Result<rs.u32, rs.TryFromIntError>, default_: rs.u32): rs.u32 {
 	if (self.ok) {
 		return self.value;
 	}

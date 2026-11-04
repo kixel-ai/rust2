@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function min$0wa4xqw(v1: rs.usize, v2: rs.usize): rs.usize {
+export function min$00xoube(v1: rs.usize, v2: rs.usize): rs.usize {
 	return rs.min(v1, v2);
 }
 

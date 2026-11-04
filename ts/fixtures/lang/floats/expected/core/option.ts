@@ -2,28 +2,28 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$1ayoj7n(self: rs.f64 | undefined, default_: rs.f64): rs.f64 {
+export function unwrapOr$1wlr8ha(self: rs.f64 | undefined, default_: rs.f64): rs.f64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$1e4a1e0(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$15zxk73(self: rs.u8 | undefined, default_: rs.u64, f: (a0: rs.u8) => rs.u64): rs.u64 {
+export function mapOr$1imzf9s(self: rs.u8 | undefined, default_: rs.u64, f: (a0: rs.u8) => rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}

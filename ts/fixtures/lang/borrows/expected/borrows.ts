@@ -8,9 +8,9 @@ import * as Polling from "./borrows.Polling.ts";
 import * as Probe from "./borrows.Probe.ts";
 import * as Shown from "./borrows.Shown.ts";
 import * as Tagged from "./borrows.Tagged.ts";
-import { thenSome$0zrlsto, thenSome$0d5am30, then$1jgls7y } from "./core/bool.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, mapOr$0qqbaqw as option_mapOr$0qqbaqw, mapOr$1dvn0au as option_mapOr$1dvn0au, mapOr$0ucbp7g as option_mapOr$0ucbp7g, mapOr$099335t as option_mapOr$099335t, okOr$1oufq9m as option_okOr$1oufq9m } from "./core/option.ts";
-import { map$0n1xnuw as result_map$0n1xnuw, unwrapOr$0k9nfhn as result_unwrapOr$0k9nfhn } from "./core/result.ts";
+import { thenSome$1y1lbvl, thenSome$0quywni, then$0d67oqn } from "./core/bool.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$0yt2o85 as option_mapOr$0yt2o85, mapOr$0rsyyii as option_mapOr$0rsyyii, mapOr$1idpb1d as option_mapOr$1idpb1d, mapOr$031uhqp as option_mapOr$031uhqp, okOr$1bx6za5 as option_okOr$1bx6za5 } from "./core/option.ts";
+import { map$0jl4kv2 as result_map$0jl4kv2, unwrapOr$1bnshxn as result_unwrapOr$1bnshxn } from "./core/result.ts";
 
 /**
  * Each byte an operation on the cells, its value the operand; each puts what it read and
@@ -42,7 +42,7 @@ export function borrows(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.cellSet(noisy, _56, rs.drop);
 		} else if (_25 === 4) {
 			const taken: Noisy.Noisy | undefined = rs.cellReplace(noisy, undefined);
-			rs.byteVecPush(out, option_mapOr$0qqbaqw(taken, 253, (n: Noisy.Noisy): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$0yt2o85(taken, 253, (n: Noisy.Noisy): rs.u8 => {
 				return n.id;
 			}));
 			rs.drop(taken);
@@ -52,7 +52,7 @@ export function borrows(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _74: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(polling.held);
 			rs.byteVecPush(_74.value, op);
 			rs.refMutRelease(_74);
-			rs.byteVecPush(out, option_mapOr$0ucbp7g(outer, 253, (_2: [rs.u64, rs.u64]): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$1idpb1d(outer, 253, (_2: [rs.u64, rs.u64]): rs.u8 => {
 				return rs.u64Low(_2[0]) & 0xff;
 			}));
 			const _83: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(polling.held);
@@ -105,7 +105,7 @@ export function borrows(data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 	}
 	rs.byteVecPush(out, count.v & 0xff);
-	rs.byteVecPush(out, option_mapOr$0ucbp7g(copy$Option_tuple2_u64_u64(polling.current.v), 253, (_22: [rs.u64, rs.u64]): rs.u8 => {
+	rs.byteVecPush(out, option_mapOr$1idpb1d(copy$Option_tuple2_u64_u64(polling.current.v), 253, (_22: [rs.u64, rs.u64]): rs.u8 => {
 		return rs.u64Low(rs.u64Add(_22[0], _22[1])) & 0xff;
 	}));
 	noisy[Symbol.dispose]();
@@ -147,10 +147,10 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _53.value & 0xff);
 			rs.refRelease(_53);
 			rs.byteVecPush(out, twin$ref_sync_Arc_sync_Mutex_Vec_u8(log).strong & 0xff);
-			const held: rs.RefCell<Tagged.Tagged> | undefined = then$1jgls7y((op >> 4) === 14, (): rs.RefCell<Tagged.Tagged> => {
+			const held: rs.RefCell<Tagged.Tagged> | undefined = then$0d67oqn((op >> 4) === 14, (): rs.RefCell<Tagged.Tagged> => {
 				return rs.refCellBorrow(tagged);
 			});
-			const heldMut: rs.RefCell<Tagged.Tagged> | undefined = then$1jgls7y((op >> 4) === 15, (): rs.RefCell<Tagged.Tagged> => {
+			const heldMut: rs.RefCell<Tagged.Tagged> | undefined = then$0d67oqn((op >> 4) === 15, (): rs.RefCell<Tagged.Tagged> => {
 				return rs.refCellBorrowMut(tagged);
 			});
 			const copy: rs.RefCell<Tagged.Tagged> = rs.refCellClone(tagged, Tagged.clone$Clone);
@@ -198,7 +198,7 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 				drop$Result_cell_Ref_Vec_u8_cell_BorrowError(_141);
 			}
 			drop$Result_cell_RefMut_Vec_u8_cell_BorrowMutError(write);
-			rs.byteVecPush(out, result_unwrapOr$0k9nfhn(result_map$0n1xnuw(rs.refCellTryBorrowMut(bytes), (b3: rs.RefCell<rs.ByteVec>): rs.u8 => {
+			rs.byteVecPush(out, result_unwrapOr$1bnshxn(result_map$0jl4kv2(rs.refCellTryBorrowMut(bytes), (b3: rs.RefCell<rs.ByteVec>): rs.u8 => {
 				rs.byteVecPush(b3.value, op);
 				const _05: rs.u8 = b3.value.length & 0xff;
 				rs.refMutRelease(b3);
@@ -232,7 +232,7 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			})(_203.value));
 			rs.byteVecPush(out, half.value.length & 0xff);
 			const last: rs.RefCell<rs.u8> = rs.refMap(half, ((s: rs.ByteSlice): rs.u8 => {
-				return option_unwrapOr$0r2bmpr(rs.byteSliceLast(s), 253);
+				return option_unwrapOr$1fr498u(rs.byteSliceLast(s), 253);
 			})(half.value));
 			rs.byteVecPush(out, last.value);
 			const _219: rs.Result<rs.RefCell<rs.ByteVec>, rs.BorrowMutError> = rs.refCellTryBorrowMut(bytes);
@@ -251,7 +251,7 @@ export function guards(data: rs.ByteSlice, out: rs.ByteVec): void {
 			drop$Result_cell_RefMut_Vec_u8_cell_BorrowMutError(_237);
 			const _240: rs.RefCell<rs.ByteVec> = rs.refClone(b);
 			const c: rs.RefCell<rs.u8> = rs.refMap(_240, ((v: rs.ByteVec): rs.u8 => {
-				return option_unwrapOr$0r2bmpr(rs.byteSliceFirst(rs.byteVecSlice(v)), 253);
+				return option_unwrapOr$1fr498u(rs.byteSliceFirst(rs.byteVecSlice(v)), 253);
 			})(_240.value));
 			const d: rs.RefCell<rs.u8> = rs.refClone(c);
 			drop$tuple2_cell_Ref_Vec_u8_cell_Ref_u8([b, c] as [rs.RefCell<rs.ByteVec>, rs.RefCell<rs.u8>]);
@@ -443,7 +443,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			flush(log.value, out);
 			const _242: rs.RefCell<Tagged.Tagged | undefined> = rs.refCellBorrow(slot);
-			rs.byteVecPush(out, option_mapOr$1dvn0au(_242.value, 253, (t2: Tagged.Tagged): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$0rsyyii(_242.value, 253, (t2: Tagged.Tagged): rs.u8 => {
 				return t2.id;
 			}));
 			rs.refRelease(_242);
@@ -490,11 +490,11 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _315: [rs.RefCell<rs.ByteSlice>, rs.RefCell<rs.ByteSlice>] = rs.refMutMapSplit(_316, [rs.partPlace(parts3[0]), rs.partPlace(parts3[1])]);
 			const low: rs.RefCell<rs.ByteSlice> = _315[0];
 			const high: rs.RefCell<rs.ByteSlice> = _315[1];
-			const _318: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(low.value);
+			const _318: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(rs.byteSliceView(low.value));
 			if (_318 !== undefined) {
 				_318.v = rs.u8WrappingAdd(_318.v, op);
 			}
-			const _325: rs.Place<rs.u8> | undefined = rs.sliceLastMut(high.value);
+			const _325: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceView(high.value));
 			if (_325 !== undefined) {
 				_325.v = _325.v ^ 255;
 			}
@@ -608,7 +608,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 	}
 	const last2: Parts.Parts = parts.value;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, last2.tagged.id, option_mapOr$099335t(last2.maybe, 253, (m2: rs.u16): rs.u8 => {
+	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, last2.tagged.id, option_mapOr$031uhqp(last2.maybe, 253, (m2: rs.u16): rs.u8 => {
 		return m2 & 0xff;
 	}))));
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(last2.text));
@@ -658,7 +658,7 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const _64: rs.u8 = borrowed$borrows_Parts(parts);
 			const _70: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
-			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_64, option_mapOr$099335t(_70.value.maybe, 253, (m2: rs.u16): rs.u8 => {
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_64, option_mapOr$031uhqp(_70.value.maybe, 253, (m2: rs.u16): rs.u8 => {
 				return m2 & 0xff;
 			}))));
 			rs.refRelease(_70);
@@ -700,7 +700,7 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const other: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
 			const _128: rs.RefCell<Parts.Parts> = rs.refCellBorrow(parts);
 			const _127: rs.Result<rs.RefCell<rs.u8>, [rs.RefCell<Parts.Parts>, rs.usize]> = rs.refTryMap(_128, ((p8: Parts.Parts): rs.Result<rs.u8, rs.usize> => {
-				return option_okOr$1oufq9m(rs.byteSliceLast(rs.byteVecSlice(p8.bytes)), p8.bytes.length);
+				return option_okOr$1bx6za5(rs.byteSliceLast(rs.byteVecSlice(p8.bytes)), p8.bytes.length);
 			})(_128.value));
 			if (_127.ok) {
 				const last: rs.RefCell<rs.u8> = _127.value;
@@ -811,7 +811,7 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 	}
 	const last2: Parts.Parts = parts.value;
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, option_mapOr$099335t(last2.maybe, 253, (m3: rs.u16): rs.u8 => {
+	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(last2.n & 0xff, option_mapOr$031uhqp(last2.maybe, 253, (m3: rs.u16): rs.u8 => {
 		return m3 & 0xff;
 	}))));
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(last2.text));
@@ -903,7 +903,7 @@ export function leaks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refRelease(read);
 			const _145: rs.RefCell<Uint8Array> = rs.refCellBorrowMut(quad);
 			const f4 = (q6: rs.ByteSlice): rs.ByteSlice | undefined => {
-				return thenSome$0zrlsto((q6.data[q6.start] & 1) === 0, q6);
+				return thenSome$1y1lbvl((q6.data[q6.start] & 1) === 0, q6);
 			};
 			const part = ((held4) => f4(rs.byteSliceFrom(held4)))(_145.value);
 			const _144: rs.Result<rs.RefCell<Uint8Array>, rs.RefCell<Uint8Array>> = rs.refMutFilterMap(_145, part === undefined ? undefined : rs.partPlace(rs.byteSliceView(part)));
@@ -1104,7 +1104,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refMutRelease(_held);
 		} else if (_25 === 1) {
 			const _75: rs.RefCell<rs.Vec<rs.RefCell<rs.u8 | undefined>>> = rs.refCellBorrowMut(nested);
-			const _77: rs.RefCell<rs.u8 | undefined> = new rs.RefCell(thenSome$0d5am30(rs.u8Rem(v, 3) !== 0, v));
+			const _77: rs.RefCell<rs.u8 | undefined> = new rs.RefCell(thenSome$0quywni(rs.u8Rem(v, 3) !== 0, v));
 			_75.value.items.push(_77);
 			rs.refMutRelease(_75);
 			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.refCellDebug(nested, f, (value: rs.Vec<rs.RefCell<rs.u8 | undefined>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.RefCell<rs.u8 | undefined>, f: rs.Formatter) => rs.refCellDebug(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))))];
@@ -1139,7 +1139,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _164: [rs.u8, rs.char] = [rs.u8WrappingAdd(pair.v[0], v), rs.u8Add(97, rs.u8Rem(v, 26)) as rs.char];
 			rs.cellSet(pair, _164);
 			const wide: rs.Cell<rs.u64> = new rs.Cell(rs.u64Shl(v as rs.u64, 56));
-			const maybe: rs.Cell<rs.u8 | undefined> = new rs.Cell(thenSome$0d5am30(rs.u8Rem(v, 2) === 0, v));
+			const maybe: rs.Cell<rs.u8 | undefined> = new rs.Cell(thenSome$0quywni(rs.u8Rem(v, 2) === 0, v));
 			const _184: rs.Cell<undefined> = new rs.Cell(undefined);
 			const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.cellDebug(() => pair.v, f, (value: [rs.u8, rs.char], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtCharDebug(value[1], f)], f)), (f: rs.Formatter) => rs.cellDebug(() => wide.v, f, rs.u64Debug), (f: rs.Formatter) => rs.cellDebug(() => maybe.v, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.cellDebug(() => _184.v, f, rs.fmtUnit)];
 			text = rs.fmtFormat([args18[0], " ", rs.fmtSpec({ alternate: true }, args18[0]), " ", args18[1], " ", args18[2], " ", rs.fmtSpec({ alternate: true }, args18[2]), " ", args18[3], " ", rs.fmtSpec({ align: ">", width: 3 }, args18[0])]);

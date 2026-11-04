@@ -2,28 +2,28 @@
 
 import * as rs from "../rs.ts";
 
-export function isSomeAnd$09tpccf(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isSomeAnd$1s2u5lz(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function unwrapOr$1rbuegs(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
+export function unwrapOr$0yvilko(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1j8xzu6(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => undefined): undefined | rs.None {
+export function map$1tggsfb(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => undefined): undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
@@ -38,21 +38,21 @@ export function map$0p6o7wa(self: Uint8Array | undefined, f: (a0: Uint8Array) =>
 	return f(self);
 }
 
-export function map$1jcn6wm(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => Uint8Array): Uint8Array | undefined {
+export function map$10o993m(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0rbsrz6(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$1yv0md6(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

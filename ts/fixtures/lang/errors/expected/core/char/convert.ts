@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$09vw48j(self: rs.ParseCharError, other: rs.ParseCharError): boolean {
+export function eq$15envri(self: rs.ParseCharError, other: rs.ParseCharError): boolean {
 	return self.kind === other.kind;
 }
 

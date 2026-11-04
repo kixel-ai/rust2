@@ -3,9 +3,9 @@
 import * as rs from "./rs.ts";
 import { copy$panics_Point, drop$Result_u8_boxed_Box_dyn_Any_marker_Send, of$String, of$ref_str, of$u8 } from "./lib.ts";
 import type * as Any from "./core/any.Any.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
-import { asRef$16amweg, mapOr$059pexg as result_mapOr$059pexg } from "./core/result.ts";
-import { isPending$0vrdvv1 } from "./core/task/poll.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
+import { asRef$11fb4n1, mapOr$171qvtg as result_mapOr$171qvtg } from "./core/result.ts";
+import { isPending$189w6zf } from "./core/task/poll.ts";
 import { text } from "./harness.ts";
 import * as Countdown from "./panics.Countdown.ts";
 import * as Logged from "./panics.Logged.ts";
@@ -84,7 +84,7 @@ export function replace$panic_AssertUnwindSafe_sync_Arc_u8(at: rs.Place<rs.Arc<r
 export function wrapped(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let f!: rs.ByteVec;
 	let _234: boolean = false;
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const _7: rs.u8 = rs.u8Rem(kind, 7);
 	if (_7 === 6) {
 		let a: rs.Arc<rs.u8> = new rs.Arc(first);
@@ -180,7 +180,7 @@ export function wrapped(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 
 /** `AssertUnwindSafe` of functions called, and `catch_unwind` of each kind of function. */
 export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const _8: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const _10: rs.u8 = rs.u8Rem(kind, 7);
 	if (_10 === 0) {
@@ -281,7 +281,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return data.length & 0xff;
 		})());
 		const _117: boolean = r4.ok;
-		const _120: rs.u8 = result_mapOr$059pexg(asRef$16amweg(r4), 0, (n2: rs.u8): rs.u8 => {
+		const _120: rs.u8 = result_mapOr$171qvtg(asRef$11fb4n1(r4), 0, (n2: rs.u8): rs.u8 => {
 			return n2;
 		});
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(r4, f, rs.u8Debug, (_value: Any.Any, f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any"))), (f: rs.Formatter) => rs.fmtBool(_117, f), (f: rs.Formatter) => rs.u8Display(_120, f)];
@@ -308,7 +308,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 export function awaited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _22!: rs.Poll<rs.u8>;
 	let _86: boolean = false;
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const cx: rs.Context = rs.NOOP_WAKER;
 	const _11: rs.u8 = rs.u8Rem(kind, 3);
@@ -328,7 +328,7 @@ export function awaited(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const pinned2: rs.Future<rs.u8> = new awaitedFuture$closure0(rs.u8Rem(first, 3));
 		const f2: rs.Future<rs.u8> = pinned2;
 		let polls2: rs.u8 = 0;
-		while (isPending$0vrdvv1(f2.poll(cx))) {
+		while (isPending$189w6zf(f2.poll(cx))) {
 			polls2 = rs.u8Add(polls2, 1);
 		}
 		rs.byteVecPush(out, polls2);
@@ -493,7 +493,7 @@ export class awaitedFuture$closure2 {
 
 /** Panics with a payload, and `Debug` of a `dyn Any`. */
 export function raised(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const _9: rs.u8 = rs.u8Rem(kind, 8);
 	if (_9 === 0) {

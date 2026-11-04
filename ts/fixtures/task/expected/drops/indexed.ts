@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 import { drop$tuple2_model_Guard_model_Guard as lib_drop$tuple2_model_Guard_model_Guard, drop$tuple2_tuple2_model_Guard_model_Guard_i32 as lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32, drop$tuple2_tuple2_model_Guard_model_Guard_u32 as lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32, drop$tuple2_tuple2_tuple2_model_Guard_model_Guard_i32_i32 as lib_drop$tuple2_tuple2_tuple2_model_Guard_model_Guard_i32_i32, drop$tuple2_tuple2_usize_model_Guard_model_Guard as lib_drop$tuple2_tuple2_usize_model_Guard_model_Guard, drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32 as lib_drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32, drop$tuple2_usize_model_Guard as lib_drop$tuple2_usize_model_Guard, drop$tuple2_usize_tuple2_model_Guard_model_Guard as lib_drop$tuple2_usize_tuple2_model_Guard_model_Guard } from "../lib.ts";
-import { map$01pvlgn as option_map$01pvlgn, map$01vf10a as option_map$01vf10a, map$0uom32p as option_map$0uom32p, map$04djm2e as option_map$04djm2e, map$1s61o75 as option_map$1s61o75, map$1uj27tb as option_map$1uj27tb, map$1sprpgt as option_map$1sprpgt } from "../core/option.ts";
+import { map$0j32j8c as option_map$0j32j8c, map$0j94wbv as option_map$0j94wbv, map$1nsn0pp as option_map$1nsn0pp, map$0zjm57m as option_map$0zjm57m, map$0ss4ft9 as option_map$0ss4ft9, map$1pp5yot as option_map$1pp5yot, map$0nncxiz as option_map$0nncxiz } from "../core/option.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
@@ -32,7 +32,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}), [true, true], rs.drop, rs.drop);
 	};
 	const ids: (a0: [[Guard.Guard, Guard.Guard], rs.u32] | undefined) => [rs.u32, rs.u32, rs.u32] | undefined = (p2: [[Guard.Guard, Guard.Guard], rs.u32] | undefined): [rs.u32, rs.u32, rs.u32] | undefined => {
-		return option_map$04djm2e(p2, (_27: [[Guard.Guard, Guard.Guard], rs.u32]): [rs.u32, rs.u32, rs.u32] => {
+		return option_map$0zjm57m(p2, (_27: [[Guard.Guard, Guard.Guard], rs.u32]): [rs.u32, rs.u32, rs.u32] => {
 			const a2: Guard.Guard = _27[0][0];
 			const b2: Guard.Guard = _27[0][1];
 			const n13: rs.u32 = _27[1];
@@ -86,7 +86,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part50, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
 		Log.note(log, rs.fmtFormat(["back ", args18[0]]));
 	} else if (_16 === 2) {
-		const part38 = option_map$01pvlgn(rs.iterToOption(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard).next()), (_258: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+		const part38 = option_map$0j32j8c(rs.iterToOption(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard).next()), (_258: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
 			const a15: Guard.Guard = _258[0];
 			const b12: Guard.Guard = _258[1];
 			const _040: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a15), id), rs.u32Sub(Guard.id(b12), id)];
@@ -97,7 +97,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part38, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
 		Log.note(log, rs.fmtFormat(["skip next ", args20[0]]));
 		const n2: rs.usize = rs.ownedCount(rs.iterSkip(pairs(), 2, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard);
-		const last: [rs.u32, rs.u32] | undefined = option_map$01pvlgn(rs.ownedLast(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard), (_259: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+		const last: [rs.u32, rs.u32] | undefined = option_map$0j32j8c(rs.ownedLast(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard), (_259: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
 			const a16: Guard.Guard = _259[0];
 			const b13: Guard.Guard = _259[1];
 			const _041: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a16), id), rs.u32Sub(Guard.id(b13), id)];
@@ -128,7 +128,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			b9[Symbol.dispose]();
 			a11[Symbol.dispose]();
 		});
-		const part36 = option_map$01vf10a(rs.iterFind(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 3, lib_drop$tuple2_model_Guard_model_Guard, true), (_254: [Guard.Guard, Guard.Guard]): boolean => {
+		const part36 = option_map$0j94wbv(rs.iterFind(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 3, lib_drop$tuple2_model_Guard_model_Guard, true), (_254: [Guard.Guard, Guard.Guard]): boolean => {
 			return Guard.id(_254[0]) === rs.u32Add(id, 3);
 		}, lib_drop$tuple2_model_Guard_model_Guard), (_256: [Guard.Guard, Guard.Guard]): rs.u32 => {
 			const a12: Guard.Guard = _256[0];
@@ -169,7 +169,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			a8[Symbol.dispose]();
 			return _033;
 		}), new rs.Range(0, 2), [true, false]));
-		const e: [rs.usize, rs.u32, rs.i32] | undefined = option_map$1sprpgt(rs.ownedLast(rs.iterZip(rs.iterEnumerate(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard)), new rs.Range(0, 2), [true, false], lib_drop$tuple2_usize_tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32), (_248: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]): [rs.usize, rs.u32, rs.i32] => {
+		const e: [rs.usize, rs.u32, rs.i32] | undefined = option_map$0nncxiz(rs.ownedLast(rs.iterZip(rs.iterEnumerate(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard)), new rs.Range(0, 2), [true, false], lib_drop$tuple2_usize_tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32), (_248: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]): [rs.usize, rs.u32, rs.i32] => {
 			const i2: rs.usize = _248[0][0];
 			const a9: Guard.Guard = _248[0][1][0];
 			const n34: rs.i32 = _248[1];
@@ -195,7 +195,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return captured14(_218);
 		}), 1, rs.drop), new rs.Range(0, 2), [true, false], rs.drop);
 		const id1: (a0: [Guard.Guard, rs.u32] | undefined) => [rs.u32, rs.u32] | undefined = (p3: [Guard.Guard, rs.u32] | undefined): [rs.u32, rs.u32] | undefined => {
-			return option_map$0uom32p(p3, (_219: [Guard.Guard, rs.u32]): [rs.u32, rs.u32] => {
+			return option_map$1nsn0pp(p3, (_219: [Guard.Guard, rs.u32]): [rs.u32, rs.u32] => {
 				const a4: Guard.Guard = _219[0];
 				const n23: rs.u32 = _219[1];
 				const _019: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a4), id), n23];
@@ -220,7 +220,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _452: rs.Iter<Guard.Guard> = rs.iterMap(_453, (_223: rs.u32): Guard.Guard => {
 			return captured15(_223);
 		});
-		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
 		const captured16 = made;
 		const it7: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterZip(_452, rs.iterMap(_458, (_224: rs.u32): Guard.Guard => {
 			return captured16(_224);
@@ -238,7 +238,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _498: rs.Iter<Guard.Guard> = rs.iterMap(_499, (_228: rs.u32): Guard.Guard => {
 			return captured17(_228);
 		});
-		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 2)));
+		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 2));
 		const captured18 = made;
 		const part17 = rs.ownedCount(rs.iterRev(rs.iterZip(rs.iterZip(_498, rs.iterMap(_504, (_230: rs.u32): Guard.Guard => {
 			return captured18(_230);
@@ -250,13 +250,13 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _521: rs.Iter<Guard.Guard> = rs.iterMap(_522, (_231: rs.u32): Guard.Guard => {
 			return captured19(_231);
 		});
-		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
 		const captured20 = made;
 		const it8: rs.Iter<[Guard.Guard, Guard.Guard]> = rs.iterZip(_521, rs.iterMap(_527, (_235: rs.u32): Guard.Guard => {
 			return captured20(_235);
 		}), [true, true], rs.drop, rs.drop);
 		const id2: (a0: [Guard.Guard, Guard.Guard] | undefined) => [rs.u32, rs.u32] | undefined = (p4: [Guard.Guard, Guard.Guard] | undefined): [rs.u32, rs.u32] | undefined => {
-			return option_map$01pvlgn(p4, (_236: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+			return option_map$0j32j8c(p4, (_236: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
 				const a5: Guard.Guard = _236[0];
 				const b4: Guard.Guard = _236[1];
 				const _027: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a5), id), rs.u32Sub(Guard.id(b4), id)];
@@ -288,7 +288,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["inner ", args56[0]]));
 		const it9: rs.Iter<[[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]> = rs.iterZip(rs.iterZip(inner, new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
 		const id3: (a0: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined) => [rs.u32, rs.u32, rs.u32, rs.u32] | undefined = (p5: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined): [rs.u32, rs.u32, rs.u32, rs.u32] | undefined => {
-			return option_map$1s61o75(p5, (_237: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] => {
+			return option_map$0ss4ft9(p5, (_237: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] => {
 				const a6: Guard.Guard = _237[0][0][0];
 				const b5: Guard.Guard = _237[0][0][1];
 				const m3: rs.u32 = _237[0][1];
@@ -316,9 +316,9 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _665: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(rs.iterMap(_667, (_240: rs.u32): Guard.Guard => {
 			return captured21(_240);
 		}));
-		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
+		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
 		const captured22 = made;
-		const part34 = option_map$1uj27tb(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_241: rs.u32): Guard.Guard => {
+		const part34 = option_map$1pp5yot(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_241: rs.u32): Guard.Guard => {
 			return captured22(_241);
 		}), [true, true], lib_drop$tuple2_usize_model_Guard, rs.drop), new rs.Range(0, 5), [true, false], lib_drop$tuple2_tuple2_usize_model_Guard_model_Guard).nextBack()), (_245: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32]): [rs.usize, rs.u32, rs.u32, rs.u32] => {
 			const i: rs.usize = _245[0][0][0];

@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function mapOr$1jgrjsu(self: [rs.ByteSlice, rs.ByteSlice] | undefined, default_: rs.ByteSlice, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice {
+export function mapOr$0oapx9n(self: [rs.ByteSlice, rs.ByteSlice] | undefined, default_: rs.ByteSlice, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice {
 	if (self === undefined) {
 		return default_;
 	}

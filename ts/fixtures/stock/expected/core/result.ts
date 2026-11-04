@@ -3,35 +3,35 @@
 import * as rs from "../rs.ts";
 import type * as TryGetError from "../bytes.TryGetError.ts";
 
-export function map$0c3nzkx(self: rs.Result<rs.i64, TryGetError.TryGetError>, op: (a0: rs.i64) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
+export function map$1rpus2m(self: rs.Result<rs.i64, TryGetError.TryGetError>, op: (a0: rs.i64) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<rs.u128, TryGetError.TryGetError>;
 }
 
-export function map$0hs8st9(self: rs.Result<rs.u16, TryGetError.TryGetError>, _: (a0: rs.u16) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
+export function map$1cosroz(self: rs.Result<rs.u16, TryGetError.TryGetError>, _: (a0: rs.u16) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
 	if (self.ok) {
 		return rs.Ok(self.value as rs.u128);
 	}
 	return self as rs.Result<rs.u128, TryGetError.TryGetError>;
 }
 
-export function map$01kzrm1(self: rs.Result<rs.u8, TryGetError.TryGetError>, _: (a0: rs.u8) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
+export function map$1k6isgs(self: rs.Result<rs.u8, TryGetError.TryGetError>, _: (a0: rs.u8) => rs.u128): rs.Result<rs.u128, TryGetError.TryGetError> {
 	if (self.ok) {
 		return rs.Ok(self.value as rs.u128);
 	}
 	return self as rs.Result<rs.u128, TryGetError.TryGetError>;
 }
 
-export function unwrapOrElse$1wp5sd9(self: rs.Result<rs.u64, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => rs.u64): rs.u64 {
+export function unwrapOrElse$1b4ownx(self: rs.Result<rs.u64, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => rs.u64): rs.u64 {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$0s2lrc9(self: rs.Result<undefined, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => undefined): void {
+export function unwrapOrElse$1fg63zn(self: rs.Result<undefined, TryGetError.TryGetError>, op: (a0: TryGetError.TryGetError) => undefined): void {
 	if (!self.ok) {
 		op(self.error);
 	}

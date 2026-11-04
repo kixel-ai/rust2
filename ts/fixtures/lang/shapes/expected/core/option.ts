@@ -8,42 +8,42 @@ import type * as Meters from "../shapes.Meters.ts";
 import type * as Point from "../shapes.Point.ts";
 import type * as Shape from "../shapes.Shape.ts";
 
-export function unwrapOr$0k15iai(self: rs.char | undefined, default_: rs.char): rs.char {
+export function unwrapOr$04rqm9m(self: rs.char | undefined, default_: rs.char): rs.char {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOrDefault$0301ewp(self: rs.ByteSlice | undefined): rs.ByteSlice {
+export function unwrapOrDefault$0avqj0t(self: rs.ByteSlice | undefined): rs.ByteSlice {
 	if (self === undefined) {
 		return rs.byteSliceFrom(new Uint8Array(0));
 	}
 	return self;
 }
 
-export function unwrapOrDefault$001fvl5(self: rs.u16 | undefined): rs.u16 {
+export function unwrapOrDefault$0w7995p(self: rs.u16 | undefined): rs.u16 {
 	if (self === undefined) {
 		return 0;
 	}
 	return self;
 }
 
-export function unwrapOrDefault$1q0ps0j(self: rs.u8 | undefined): rs.u8 {
+export function unwrapOrDefault$03apme8(self: rs.u8 | undefined): rs.u8 {
 	if (self === undefined) {
 		return 0;
 	}
 	return self;
 }
 
-export function map$0zbvahh(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.Vec<Ticked.Ticked>): rs.Vec<Ticked.Ticked> | undefined {
+export function map$0ggarad(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.Vec<Ticked.Ticked>): rs.Vec<Ticked.Ticked> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -57,84 +57,84 @@ export function map$0600mq0(self: Dir.Dir | undefined, f: (a0: Dir.Dir) => Shape
 	return f(self);
 }
 
-export function map$18z3v8h(self: Dir.Dir | undefined, _: (a0: Dir.Dir) => rs.u8): rs.u8 | undefined {
+export function map$1mgv9ns(self: Dir.Dir | undefined, _: (a0: Dir.Dir) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return from$convert_From_shapes_Dir_u8(self);
 }
 
-export function map$0phsnvg(self: rs.u8 | undefined, _: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$02rrcvu(self: rs.u8 | undefined, _: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return self;
 }
 
-export function mapOr$1a3irjf(self: rs.ByteVec | undefined, default_: rs.u8, f: (a0: rs.ByteVec) => rs.u8): rs.u8 {
+export function mapOr$0g5x999(self: rs.ByteVec | undefined, default_: rs.u8, f: (a0: rs.ByteVec) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1t0muvr(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
+export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1ybqvup(self: Meters.Meters | undefined, default_: rs.u64, f: (a0: Meters.Meters) => rs.u64): rs.u64 {
+export function mapOr$04kaubd(self: Meters.Meters | undefined, default_: rs.u64, f: (a0: Meters.Meters) => rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0rtdylj(self: Point.Point | undefined, default_: rs.u8, f: (a0: Point.Point) => rs.u8): rs.u8 {
+export function mapOr$092ozr9(self: Point.Point | undefined, default_: rs.u8, f: (a0: Point.Point) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0aserv9(self: Shape.Shape | undefined, default_: rs.u8, f: (a0: Shape.Shape) => rs.u8): rs.u8 {
+export function mapOr$04m3h1l(self: Shape.Shape | undefined, default_: rs.u8, f: (a0: Shape.Shape) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1hjjwvv(self: [rs.Mutex<rs.u8>, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.Mutex<rs.u8>, rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1c3pipy(self: [rs.Mutex<rs.u8>, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.Mutex<rs.u8>, rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function okOr$1vxk0yk(self: rs.u8 | undefined, err: rs.u8): rs.Result<rs.u8, rs.u8> {
+export function okOr$1j8owgb(self: rs.u8 | undefined, err: rs.u8): rs.Result<rs.u8, rs.u8> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function andThen$1bd14ex(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function andThen$0jc4o0i(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function clone$11qe8jq(self: rs.Vec<rs.u16> | undefined): rs.Vec<rs.u16> | undefined {
+export function clone$14vwxlf(self: rs.Vec<rs.u16> | undefined): rs.Vec<rs.u16> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return rs.vecFrom(self.items.slice());
 }
 
-export function clone$1grnave(self: rs.ByteVec | undefined): rs.ByteVec | undefined {
+export function clone$0e53k5z(self: rs.ByteVec | undefined): rs.ByteVec | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

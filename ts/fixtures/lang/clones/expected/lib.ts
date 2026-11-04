@@ -108,7 +108,7 @@ export function drop$tuple3_array3_clones_Logged_array3_clones_Logged_array3_clo
 	rs.dropAll(_1[2]);
 }
 
-export function drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged(_1: [rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged[]>, rs.Slice<Logged.Logged[]>]): void {
+export function drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged(_1: [Logged.Logged[], Logged.Logged[], Logged.Logged[][], Logged.Logged[][]]): void {
 	rs.dropAll(_1[0]);
 	rs.dropAll(_1[1]);
 	rs.dropAll(_1[2], drop$array1_clones_Logged);

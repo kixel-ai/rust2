@@ -10,7 +10,7 @@ import type * as EncodeError from "./coding/encode.EncodeError.ts";
 import * as Encoder from "./coding/encode.Encoder.ts";
 import { zigzag as varint_zigzag, unzigzag } from "./coding/varint.ts";
 import * as Form from "./coding/varint.Form.ts";
-import { unwrapOr$11c0we2 as option_unwrapOr$11c0we2, map$1cf8u0y as option_map$1cf8u0y, mapOr$1jt76jv as option_mapOr$1jt76jv } from "./core/option.ts";
+import { unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, map$1haiqd3 as option_map$1haiqd3, mapOr$1glsik0 as option_mapOr$1glsik0 } from "./core/option.ts";
 import { form, liteVersion, putU64 as harness_putU64, putUsize, takeU64, decodeError, encodeError } from "./harness.ts";
 import * as Group from "./lite/group.Group.ts";
 import type * as lite_version_Version from "./lite/version.Version.ts";
@@ -54,8 +54,6 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 				packets(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 16) {
 				format(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
-			} else if (op === 17) {
-				parts(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -305,7 +303,7 @@ export function ordered(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterEnd2: rs.u32 = count2;
 	while ((_28 = iterStart2++) < iterEnd2) {
 		const _38: rs.u32 = _10(rs.u32Sub(rs.u32Sub(count2, 1), _28));
-		sum = rs.u64Add(sum, option_unwrapOr$11c0we2(rs.btreeGet(map, _38), 0) as rs.u64);
+		sum = rs.u64Add(sum, option_unwrapOr$1b5hww3(rs.btreeGet(map, _38), 0) as rs.u64);
 	}
 	const _49: rs.Range<rs.u32> = new rs.Range(1 << 14, 2 << 14);
 	const iter3: rs.Iter<[rs.u32, rs.u32]> = rs.btreeRange(map, _49);
@@ -353,7 +351,7 @@ export function hashed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			const iterEnd2: rs.u32 = count2;
 			while ((_30 = iterStart2++) < iterEnd2) {
 				const _40: rs.u32 = _11(rs.u32Sub(rs.u32Sub(count2, 1), _30));
-				sum = rs.u64Add(sum, option_unwrapOr$11c0we2(rs.hashGet(map, _40), 0) as rs.u64);
+				sum = rs.u64Add(sum, option_unwrapOr$1b5hww3(rs.hashGet(map, _40), 0) as rs.u64);
 			}
 			let iterStart3: rs.u32 = 0;
 			const iterEnd3: rs.u32 = count2;
@@ -381,9 +379,9 @@ export function order(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return rs.u32Rem(rs.u32Mul(i, 40503), 1 << 16);
 	}), undefined, 4, true);
 	if (selector === 0) {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 4, true);
+		rs.sliceSort(v.items, rs.lt, 4, true);
 	} else if (selector === 1) {
-		rs.sliceSort(rs.sliceFrom(v.items), rs.keyLt((_212: rs.u32): rs.u32 => {
+		rs.sliceSort(v.items, rs.keyLt((_212: rs.u32): rs.u32 => {
 			return rs.u32Rem(_212, 1024);
 		}, rs.lt), 4, true);
 	} else if (selector === 2) {
@@ -466,7 +464,7 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			const i2: rs.u32 = _38;
 			v.items.push(i2);
 			if (rs.u32Rem(i2, 4) === 3) {
-				sum = rs.u32WrappingAdd(sum, option_unwrapOr$11c0we2(rs.vecPop(v), 0));
+				sum = rs.u32WrappingAdd(sum, option_unwrapOr$1b5hww3(rs.vecPop(v), 0));
 			}
 		}
 		while (true) {
@@ -485,12 +483,12 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		while ((_66 = iterStart3++) < iterEnd3) {
 			v2.items.push(_66);
 		}
-		_13 = [v2.items.length, rs.sliceGet(rs.sliceFrom(v2.items), rs.usizeDiv(v2.items.length, 2))] as [rs.usize, rs.u32 | undefined];
+		_13 = [v2.items.length, rs.sliceGet(v2.items, rs.usizeDiv(v2.items.length, 2))] as [rs.usize, rs.u32 | undefined];
 	}
 	const len: rs.usize = _13[0];
 	const middle: rs.u32 | undefined = _13[1];
 	putUsize(out, len);
-	harness_putU64(out, option_mapOr$1jt76jv(middle, 0, (a0: rs.u32): rs.u64 => {
+	harness_putU64(out, option_mapOr$1glsik0(middle, 0, (a0: rs.u32): rs.u64 => {
 		return a0 as rs.u64;
 	}));
 }
@@ -531,7 +529,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	let _32!: rs.u8;
 	let cc!: rs.u8;
 	const packets: rs.ByteVec = rs.byteVecOf(0, rs.usizeMul(rs.u64Low(rs.u64Min(takeU64(data)[0], 4096)), 188));
-	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0])), rs.byteSliceFrom));
+	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0]), rs.byteSliceFrom));
 	while (true) {
 		const _21: [rs.usize, rs.ByteSlice] | rs.Done = iter.next();
 		if (_21 === rs.DONE) {
@@ -550,7 +548,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	}
 	const counters: Uint8Array = rs.bytes(3);
 	let sum: rs.u64 = 0;
-	const iter2: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0])), rs.byteSliceFrom);
+	const iter2: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0]), rs.byteSliceFrom);
 	while (true) {
 		const _48: rs.ByteSlice | rs.Done = iter2.next();
 		if (_48 === rs.DONE) {
@@ -574,95 +572,6 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		_48.data[_48.start + 3] = (_48.data[_48.start + 3] & 240) | cc;
 		sum = rs.u64Add(sum, cc as rs.u64);
 	}
-	harness_putU64(out, sum);
-}
-
-/**
- * `count` steps through mutable parts of a `Vec` of `size` integers, as `selector` picks:
- * a min-heap of deadlines, as a timer wheel keeps them, whose root is pushed later and
- * sifted down through the halves `split_at_mut` lends, or `parts[..k]` written, `k`
- * cycling from 1 to `size`. Its first item and the sum of what each step read.
- */
-export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let sum!: rs.u64;
-	let c!: rs.usize;
-	const _6: [rs.u64, rs.ByteSlice] = takeU64(data);
-	const count: rs.u64 = _6[0];
-	const size2: rs.usize = rs.u64Low(rs.u64Clamp(takeU64(_6[1])[0], 1, 65536));
-	const v: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(new rs.Range(0, size2 as rs.u64, rs.u64Step), (i2: rs.u64): rs.u64 => {
-		return rs.u64Rem(rs.u64Mul(i2, 40503), 65536);
-	}), undefined, 8, true);
-	b0: {
-		sum = 0;
-		if (selector === 0) {
-			rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 8, true);
-			const iter: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
-			while (true) {
-				const _25: rs.u64 | rs.Done = iter.next();
-				if (_25 === rs.DONE) {
-					break b0;
-				}
-				const _29: rs.u64 = rs.u64Add(1, rs.u64Mul(rs.u64Rem(_25, 64), 1024));
-				const at = rs.idx(v.items, 0);
-				v.items[at] = rs.u64Add(v.items[at], _29);
-				let i: rs.usize = 0;
-				while (true) {
-					const l: rs.usize = rs.usizeAdd(rs.usizeMul(2, i), 1);
-					if (!(l >= size2)) {
-						b7: {
-							if (rs.usizeAdd(l, 1) < size2) {
-								if (rs.u64Lt(v.items[rs.idx(v.items, rs.usizeAdd(l, 1))], v.items[rs.idx(v.items, l)])) {
-									c = rs.usizeAdd(l, 1);
-									break b7;
-								}
-							}
-							c = l;
-						}
-						const _61: [rs.Slice<rs.u64>, rs.Slice<rs.u64>] = rs.sliceSplitAt(rs.sliceFrom(v.items), c);
-						const _67: rs.usize = i;
-						rs.idx(_61[0], _67);
-						const _66: rs.u64 = _61[0].data[_61[0].start + _67];
-						rs.idx(_61[1], 0);
-						if (!rs.u64Le(_66, _61[1].data[_61[1].start])) {
-							const _78: rs.usize = i;
-							rs.idx(_61[0], _78);
-							rs.idx(_61[1], 0);
-							const swapped = _61[0].data[_61[0].start + _78];
-							_61[0].data[_61[0].start + _78] = _61[1].data[_61[1].start];
-							_61[1].data[_61[1].start] = swapped;
-							i = c;
-						} else {
-							break;
-						}
-					} else {
-						break;
-					}
-				}
-				sum = rs.u64WrappingAdd(sum, v.items[rs.idx(v.items, 0)]);
-			}
-		}
-		const iter2: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
-		while (true) {
-			const _96: rs.u64 | rs.Done = iter2.next();
-			if (_96 === rs.DONE) {
-				break b0;
-			}
-			const part2 = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
-			const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(v.items), 0, part2);
-			const iter3: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(part);
-			while (true) {
-				const _111: rs.Place<rs.u64> | rs.Done = iter3.next();
-				if (_111 === rs.DONE) {
-					break;
-				}
-				_111.v = rs.u64WrappingAdd(_111.v, 1);
-			}
-			const _120: rs.usize = rs.usizeSub(part.length, 1);
-			rs.idx(part, _120);
-			sum = rs.u64WrappingAdd(sum, part.data[part.start + _120]);
-		}
-	}
-	harness_putU64(out, v.items[rs.idx(v.items, 0)]);
 	harness_putU64(out, sum);
 }
 
@@ -759,7 +668,7 @@ export function rescale(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 					scaled = bounded(rs.u128Div(_36, rs.u128Cast(from)));
 				}
 			} else {
-				const _44: rs.u64 | undefined = option_map$1cf8u0y(rs.u64CheckedMul(value, to), (scaled3: rs.u64): rs.u64 => {
+				const _44: rs.u64 | undefined = option_map$1haiqd3(rs.u64CheckedMul(value, to), (scaled3: rs.u64): rs.u64 => {
 					return rs.u64Div(scaled3, from);
 				});
 				if (_44 !== undefined) {

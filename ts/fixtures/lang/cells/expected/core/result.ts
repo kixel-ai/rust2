@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function err$1nbmqmx(self: rs.Result<undefined, rs.u8>): rs.u8 | undefined {
+export function err$1yr5s3w(self: rs.Result<undefined, rs.u8>): rs.u8 | undefined {
 	if (self.ok) {
 		return undefined;
 	}
 	return self.error;
 }
 
-export function map$1ma2nl9(self: rs.Result<rs.u8 | undefined, rs.u8>, op: (a0: rs.u8 | undefined) => undefined): rs.Result<undefined, rs.u8> {
+export function map$0vjzmou(self: rs.Result<rs.u8 | undefined, rs.u8>, op: (a0: rs.u8 | undefined) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -17,7 +17,7 @@ export function map$1ma2nl9(self: rs.Result<rs.u8 | undefined, rs.u8>, op: (a0: 
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$0l5uclx(self: rs.Result<string, rs.u8>, op: (a0: string) => undefined): rs.Result<undefined, rs.u8> {
+export function map$0ac8dwe(self: rs.Result<string, rs.u8>, op: (a0: string) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -25,7 +25,7 @@ export function map$0l5uclx(self: rs.Result<string, rs.u8>, op: (a0: string) => 
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$14n87rz(self: rs.Result<rs.ByteVec, rs.u8>, op: (a0: rs.ByteVec) => undefined): rs.Result<undefined, rs.u8> {
+export function map$0zkrphe(self: rs.Result<rs.ByteVec, rs.u8>, op: (a0: rs.ByteVec) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -33,7 +33,7 @@ export function map$14n87rz(self: rs.Result<rs.ByteVec, rs.u8>, op: (a0: rs.Byte
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$0h1vl84(self: rs.Result<rs.u64, rs.u8>, op: (a0: rs.u64) => undefined): rs.Result<undefined, rs.u8> {
+export function map$0w147c6(self: rs.Result<rs.u64, rs.u8>, op: (a0: rs.u64) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -41,7 +41,7 @@ export function map$0h1vl84(self: rs.Result<rs.u64, rs.u8>, op: (a0: rs.u64) => 
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$03hz3l7(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => undefined): rs.Result<undefined, rs.u8> {
+export function map$1gelxzx(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;
@@ -49,7 +49,7 @@ export function map$03hz3l7(self: rs.Result<rs.u8, rs.u8>, op: (a0: rs.u8) => un
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$1916nm0(self: rs.Result<undefined, rs.u8>, op: (a0: undefined) => undefined): rs.Result<undefined, rs.u8> {
+export function map$0vfooax(self: rs.Result<undefined, rs.u8>, op: (a0: undefined) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(undefined);
 		return rs.OK;

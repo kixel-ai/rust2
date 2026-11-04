@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function map$1dbyvzi(self: rs.Result<rs.u8, string>, op: (a0: rs.u8) => rs.u8): rs.Result<rs.u8, string> {
+export function map$1yblbjf(self: rs.Result<rs.u8, string>, op: (a0: rs.u8) => rs.u8): rs.Result<rs.u8, string> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
 	return self;
 }
 
-export function mapErr$0dzqwjy(self: rs.Result<rs.u8, string>, op: (a0: string) => rs.u8): rs.Result<rs.u8, rs.u8> {
+export function mapErr$0hqg57m(self: rs.Result<rs.u8, string>, op: (a0: string) => rs.u8): rs.Result<rs.u8, rs.u8> {
 	if (self.ok) {
 		return self as rs.Result<rs.u8, rs.u8>;
 	}

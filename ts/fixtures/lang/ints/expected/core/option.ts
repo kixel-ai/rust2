@@ -2,21 +2,21 @@
 
 import * as rs from "../rs.ts";
 
-export function isSomeAnd$09tpccf(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isSomeAnd$1s2u5lz(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function unwrapOr$11c0we2(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
+export function unwrapOr$1b5hww3(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

@@ -44,8 +44,21 @@ fn driver_command(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.args(args)
-		.env("CARGO_TARGET_DIR", scratch().join(build));
+		.env("CARGO_TARGET_DIR", scratch().join(build))
+		.env("RUSTFLAGS", remap());
 	command
+}
+
+/// The flag that names cargo's home `/cargo` in both builds, so the files of the registry's
+/// crates, which a hook's locations name, are named alike on any host.
+fn remap() -> String {
+	let home = match std::env::var_os("CARGO_HOME") {
+		Some(home) => PathBuf::from(home),
+		None => std::env::home_dir()
+			.expect("a home directory, which holds cargo's")
+			.join(".cargo"),
+	};
+	format!("--remap-path-prefix={}=/cargo", home.display())
 }
 
 /// Run the driver on a fixture, returning its output directory and what it printed.
@@ -178,6 +191,7 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 		.arg(&target_dir)
 		.args(build)
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
+		.env("RUSTFLAGS", remap())
 		.arg("--manifest-path")
 		.arg(manifest_dir().join("Cargo.toml"))
 		.status()

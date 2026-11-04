@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function mapOr$02k4ito(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function ok$04yj0hm(self: rs.Result<rs.ByteSlice, rs.usize>): rs.ByteSlice | undefined {
+export function ok$19nq1jt(self: rs.Result<rs.ByteSlice, rs.usize>): rs.ByteSlice | undefined {
 	if (self.ok) {
 		return self.value;
 	}
 	return undefined;
 }
 
-export function inspectErr$0g3nypv(self: rs.Result<rs.ByteSlice, rs.usize>, f: (a0: rs.usize) => undefined): rs.Result<rs.ByteSlice, rs.usize> {
+export function inspectErr$0vkwi4s(self: rs.Result<rs.ByteSlice, rs.usize>, f: (a0: rs.usize) => undefined): rs.Result<rs.ByteSlice, rs.usize> {
 	if (!self.ok) {
 		f(self.error);
 	}

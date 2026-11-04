@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function set$0xuu1fw(self: rs.LocalKey<rs.Cell<rs.u8>>, value: rs.u8): void {
+export function set$0e2h2hd(self: rs.LocalKey<rs.Cell<rs.u8>>, value: rs.u8): void {
 	rs.localKeyInitializeWith(self, new rs.Cell(value), (value2: rs.Cell<rs.u8> | undefined, cell: rs.Cell<rs.u8>): undefined => {
 		if (value2 !== undefined) {
 			rs.cellSet(cell, value2.v);
@@ -10,7 +10,7 @@ export function set$0xuu1fw(self: rs.LocalKey<rs.Cell<rs.u8>>, value: rs.u8): vo
 	});
 }
 
-export function get$18ignl5(self: rs.LocalKey<rs.Cell<rs.u8>>): rs.u8 {
+export function get$09fnt4b(self: rs.LocalKey<rs.Cell<rs.u8>>): rs.u8 {
 	return ((a0: rs.Cell<rs.u8>): rs.u8 => {
 		return a0.v;
 	})(self.get());

@@ -5,14 +5,14 @@ import { copy$array_u32, copy$array_u8 } from "../lib.ts";
 import * as Logged from "../conversions.Logged.ts";
 import * as Named from "../conversions.Named.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function clone$08xidb9(self: rs.u16 | undefined | rs.None): rs.u16 | undefined | rs.None {
+export function clone$0wpatp7(self: rs.u16 | undefined | rs.None): rs.u16 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
@@ -33,7 +33,7 @@ export function clone$13oewp0(self: Uint8Array | undefined): Uint8Array | undefi
 	return copy$array_u8(self);
 }
 
-export function clone$0xuzdx9(self: rs.u32[] | undefined): rs.u32[] | undefined {
+export function clone$0xr8mw0(self: rs.u32[] | undefined): rs.u32[] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -54,21 +54,21 @@ export function clone$0fp7wpk(self: Named.Named | undefined): Named.Named | unde
 	return Named.clone$Clone(self);
 }
 
-export function clone$1md9w7g(self: rs.u32 | undefined): rs.u32 | undefined {
+export function clone$1lfse5o(self: rs.u32 | undefined): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function clone$1qp57nz(self: rs.u64 | undefined): rs.u64 | undefined {
+export function clone$08wmfj8(self: rs.u64 | undefined): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function clone$08560de(self: rs.u8 | undefined): rs.u8 | undefined {
+export function clone$1aebjgp(self: rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function isReady$1ntq2i8(self: rs.Poll<rs.u8>): boolean {
+export function isReady$1olyx0w(self: rs.Poll<rs.u8>): boolean {
 	if (self !== rs.Pending) {
 		return true;
 	}

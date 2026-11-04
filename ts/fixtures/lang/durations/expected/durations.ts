@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$durations_Window } from "./lib.ts";
-import { thenSome$1jqdi5p } from "./core/bool.ts";
+import { thenSome$00rtwed } from "./core/bool.ts";
 import type * as Twice from "./durations.Twice.ts";
 import * as Window from "./durations.Window.ts";
 import { put } from "./harness.ts";
@@ -226,7 +226,7 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		putDuration(out, { secs: 1, nanos: 500000000 });
 		putDuration(out, { secs: 0, nanos: 0 });
 		putOpt(out, rs.durationCheckedAdd({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64, nanos: 999999999 }, rs.durationFromNanos(1)));
-		const _379: rs.Duration | undefined = thenSome$1jqdi5p(rs.durationCmp(b, { secs: 1, nanos: 500000000 }) === 1, b);
+		const _379: rs.Duration | undefined = thenSome$00rtwed(rs.durationCmp(b, { secs: 1, nanos: 500000000 }) === 1, b);
 		const w2: Window.Window = { start: a, len: _379 };
 		const _388: Window.Window = Window.default$Default();
 		rs.byteVecPush(out, Window.eq$cmp_PartialEq(w2, _388) ? 1 : 0);

@@ -2,21 +2,21 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$13980cl(self: rs.Vec<rs.i64> | undefined, f: (a0: rs.Vec<rs.i64>) => rs.usize): rs.usize | undefined {
+export function map$122xb11(self: rs.Vec<rs.i64> | undefined, f: (a0: rs.Vec<rs.i64>) => rs.usize): rs.usize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1c7fhtg(self: rs.ByteVec | undefined, f: (a0: rs.ByteVec) => rs.usize): rs.usize | undefined {
+export function map$0qp7by0(self: rs.ByteVec | undefined, f: (a0: rs.ByteVec) => rs.usize): rs.usize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

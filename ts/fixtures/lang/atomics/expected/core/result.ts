@@ -2,70 +2,70 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$1pnwyus(self: rs.Result<rs.i16, rs.i16>, default_: rs.i16): rs.i16 {
+export function unwrapOr$0u1litd(self: rs.Result<rs.i16, rs.i16>, default_: rs.i16): rs.i16 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$0xokg9f(self: rs.Result<rs.i32, rs.i32>, default_: rs.i32): rs.i32 {
+export function unwrapOr$14lx6wa(self: rs.Result<rs.i32, rs.i32>, default_: rs.i32): rs.i32 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$1imvcmw(self: rs.Result<rs.i64, rs.i64>, default_: rs.i64): rs.i64 {
+export function unwrapOr$1vlkfwl(self: rs.Result<rs.i64, rs.i64>, default_: rs.i64): rs.i64 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$06fxvgg(self: rs.Result<rs.i8, rs.i8>, default_: rs.i8): rs.i8 {
+export function unwrapOr$08ab42n(self: rs.Result<rs.i8, rs.i8>, default_: rs.i8): rs.i8 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$0gr9tn5(self: rs.Result<rs.isize, rs.isize>, default_: rs.isize): rs.isize {
+export function unwrapOr$1495lg8(self: rs.Result<rs.isize, rs.isize>, default_: rs.isize): rs.isize {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$0hnup9g(self: rs.Result<rs.u16, rs.u16>, default_: rs.u16): rs.u16 {
+export function unwrapOr$0jt2sr8(self: rs.Result<rs.u16, rs.u16>, default_: rs.u16): rs.u16 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$1dnnsw8(self: rs.Result<rs.u32, rs.u32>, default_: rs.u32): rs.u32 {
+export function unwrapOr$0sf2nxo(self: rs.Result<rs.u32, rs.u32>, default_: rs.u32): rs.u32 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$1k2j44a(self: rs.Result<rs.u64, rs.u64>, default_: rs.u64): rs.u64 {
+export function unwrapOr$0ca9158(self: rs.Result<rs.u64, rs.u64>, default_: rs.u64): rs.u64 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$0jmm2jy(self: rs.Result<rs.u8, rs.u8>, default_: rs.u8): rs.u8 {
+export function unwrapOr$0gfqfcv(self: rs.Result<rs.u8, rs.u8>, default_: rs.u8): rs.u8 {
 	if (self.ok) {
 		return self.value;
 	}
 	return default_;
 }
 
-export function unwrapOr$1czbd6g(self: rs.Result<rs.usize, rs.usize>, default_: rs.usize): rs.usize {
+export function unwrapOr$0kcfya3(self: rs.Result<rs.usize, rs.usize>, default_: rs.usize): rs.usize {
 	if (self.ok) {
 		return self.value;
 	}

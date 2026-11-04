@@ -2,91 +2,91 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$18pd8cy(self: rs.i128 | undefined, _: (a0: rs.i128) => rs.i128): rs.i128 | undefined {
+export function map$1ocvprc(self: rs.i128 | undefined, _: (a0: rs.i128) => rs.i128): rs.i128 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$0b7sac9(self: rs.i16 | undefined, _: (a0: rs.i16) => rs.i16): rs.i16 | undefined {
+export function map$0ip7buw(self: rs.i16 | undefined, _: (a0: rs.i16) => rs.i16): rs.i16 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$0x0f126(self: rs.i32 | undefined, _: (a0: rs.i32) => rs.i32): rs.i32 | undefined {
+export function map$0a35how(self: rs.i32 | undefined, _: (a0: rs.i32) => rs.i32): rs.i32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$02fxff7(self: rs.i64 | undefined, _: (a0: rs.i64) => rs.i64): rs.i64 | undefined {
+export function map$05k3lfb(self: rs.i64 | undefined, _: (a0: rs.i64) => rs.i64): rs.i64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$1u19ipa(self: rs.i8 | undefined, _: (a0: rs.i8) => rs.i8): rs.i8 | undefined {
+export function map$1hwn965(self: rs.i8 | undefined, _: (a0: rs.i8) => rs.i8): rs.i8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$1rlqf9d(self: rs.isize | undefined, _: (a0: rs.isize) => rs.isize): rs.isize | undefined {
+export function map$1vj7z9f(self: rs.isize | undefined, _: (a0: rs.isize) => rs.isize): rs.isize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$1fszu7p(self: rs.u128 | undefined, _: (a0: rs.u128) => rs.u128): rs.u128 | undefined {
+export function map$1x2mrlk(self: rs.u128 | undefined, _: (a0: rs.u128) => rs.u128): rs.u128 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$12xrbxt(self: rs.u16 | undefined, _: (a0: rs.u16) => rs.u16): rs.u16 | undefined {
+export function map$0frntt5(self: rs.u16 | undefined, _: (a0: rs.u16) => rs.u16): rs.u16 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$0xz4pvf(self: rs.u32 | undefined, _: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$03qwbb9(self: rs.u32 | undefined, _: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$1rxjg4m(self: rs.u64 | undefined, _: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
+export function map$0fest7b(self: rs.u64 | undefined, _: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$03bv7br(self: rs.u8 | undefined, _: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+export function map$1far4bd(self: rs.u8 | undefined, _: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
 }
 
-export function map$08v2q5m(self: rs.usize | undefined, _: (a0: rs.usize) => rs.usize): rs.usize | undefined {
+export function map$07b2cw7(self: rs.usize | undefined, _: (a0: rs.usize) => rs.usize): rs.usize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

@@ -2,42 +2,42 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function then$1i5jtpz(self: boolean, f: () => rs.Arc<Uint8Array>): rs.Arc<Uint8Array> | undefined {
+export function then$1qgzik7(self: boolean, f: () => rs.Arc<Uint8Array>): rs.Arc<Uint8Array> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$1vw965y(self: boolean, f: () => rs.Arc<[rs.u16, rs.u8]>): rs.Arc<[rs.u16, rs.u8]> | undefined {
+export function then$12a283y(self: boolean, f: () => rs.Arc<[rs.u16, rs.u8]>): rs.Arc<[rs.u16, rs.u8]> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$0duifht(self: boolean, f: () => rs.Arc<undefined>): rs.Arc<undefined> | undefined {
+export function then$1vmvrid(self: boolean, f: () => rs.Arc<undefined>): rs.Arc<undefined> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$0kpp40i(self: boolean, f: () => rs.Weak<[rs.u8, rs.u8] | undefined>): rs.Weak<[rs.u8, rs.u8] | undefined> | undefined {
+export function then$0mwg5pd(self: boolean, f: () => rs.Weak<[rs.u8, rs.u8] | undefined>): rs.Weak<[rs.u8, rs.u8] | undefined> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$0t3e9mp(self: boolean, f: () => rs.Weak<[rs.u16, rs.u8]>): rs.Weak<[rs.u16, rs.u8]> | undefined {
+export function then$1rzp7o9(self: boolean, f: () => rs.Weak<[rs.u16, rs.u8]>): rs.Weak<[rs.u16, rs.u8]> | undefined {
 	if (!self) {
 		return undefined;
 	}

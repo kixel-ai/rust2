@@ -2,28 +2,28 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1fmzefe(self: rs.u8 | undefined, f: (a0: rs.u8) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+export function map$1pv2dfs(self: rs.u8 | undefined, f: (a0: rs.u8) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$0ulptao(self: rs.Slice<rs.u32> | undefined, default_: rs.u32, f: (a0: rs.Slice<rs.u32>) => rs.u32): rs.u32 {
+export function mapOr$17byac0(self: rs.u32[] | undefined, default_: rs.u32, f: (a0: rs.u32[]) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1nlkf9b(self: [rs.u8, rs.u8] | undefined, default_: Uint8Array, f: (a0: [rs.u8, rs.u8]) => Uint8Array): Uint8Array {
+export function mapOr$13kt6x8(self: [rs.u8, rs.u8] | undefined, default_: Uint8Array, f: (a0: [rs.u8, rs.u8]) => Uint8Array): Uint8Array {
 	if (self === undefined) {
 		return default_;
 	}

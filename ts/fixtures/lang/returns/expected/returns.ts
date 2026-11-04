@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { of$returns_At, out$Option_bool, out$Option_char, out$Option_f32, out$Option_f64, out$Option_i128, out$Option_i16, out$Option_i32, out$Option_i64, out$Option_i8, out$Option_u128, out$Option_u16, out$Option_u32, out$Option_u64, out$Option_u8, out$Option_usize, out$bool, out$ref_slice_u8, out$tuple2_Option_u16_ref_slice_u8, out$tuple2_Option_u8_u64, out$tuple2_f64_char, out$tuple2_i64_u64, out$tuple2_ref_slice_u8_ref_slice_u8, out$tuple2_u16_ref_slice_u8, out$tuple2_u32_ref_slice_u8, out$tuple2_u64_Option_i128, out$tuple2_u64_ref_slice_u8, out$tuple2_u8_ref_slice_u8, out$tuple3_ref_slice_u8_ref_array2_u8_ref_slice_u8, out$tuple3_u64_u64_ref_slice_u8, out$u32, out$u64, out$u8 } from "./lib.ts";
-import { thenSome$0b23a33, then$0w2ymju } from "./core/bool.ts";
-import { unwrapOr$06r8g1t as option_unwrapOr$06r8g1t, unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0c2keyb as option_map$0c2keyb, map$1yogfym as option_map$1yogfym, map$1cf8u0y as option_map$1cf8u0y, mapOr$1surhce as option_mapOr$1surhce, okOr$1b6nkwr as option_okOr$1b6nkwr, okOr$12p77jh as option_okOr$12p77jh, okOr$0gtm15y as option_okOr$0gtm15y, okOr$0tezn0w as option_okOr$0tezn0w } from "./core/option.ts";
-import { eq$11dy112 as result_eq$11dy112, map$1rffkv6 as result_map$1rffkv6, mapOr$0fbyajt as result_mapOr$0fbyajt, andThen$1yropo4 as result_andThen$1yropo4 } from "./core/result.ts";
+import { thenSome$1gvhopg, then$0abhnvu } from "./core/bool.ts";
+import { unwrapOr$12qj13x as option_unwrapOr$12qj13x, unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$0q6fk7x as option_map$0q6fk7x, map$05uajnx as option_map$05uajnx, map$1haiqd3 as option_map$1haiqd3, mapOr$0vxw5sq as option_mapOr$0vxw5sq, okOr$19yb1mu as option_okOr$19yb1mu, okOr$0rfpk7i as option_okOr$0rfpk7i, okOr$0j0xd63 as option_okOr$0j0xd63, okOr$1ylsdit as option_okOr$1ylsdit } from "./core/option.ts";
+import { eq$14w6i0g as result_eq$14w6i0g, map$1gzrj7d as result_map$1gzrj7d, mapOr$1df1cdv as result_mapOr$1df1cdv, andThen$0ud0j7o as result_andThen$0ud0j7o } from "./core/result.ts";
 import * as At from "./returns.At.ts";
 import * as returns_Error from "./returns.Error.ts";
 import * as Guard from "./returns.Guard.ts";
@@ -28,7 +28,7 @@ export function take(dataData: Uint8Array, dataStart: number, dataLen: number, n
 
 /** The same slice type through another function, which shares its slot. */
 export function tail(data: rs.ByteSlice, n: rs.usize): returns_Error.Error | undefined {
-	const _0: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(then$0w2ymju(n <= data.length, (): rs.ByteSlice => {
+	const _0: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(then$0abhnvu(n <= data.length, (): rs.ByteSlice => {
 		return rs.byteSliceRange(data, n);
 	}), { tag: "Short", _0: n } as returns_Error.Error);
 	if (!_0.ok) {
@@ -189,7 +189,7 @@ export function guarded(dataData: Uint8Array, dataStart: number, dataLen: number
 
 /** Errors that are no single value: `()`, and an `Option`. */
 export function unitErr(dataData: Uint8Array, dataStart: number, dataLen: number): rs.Result<rs.ByteSlice, undefined> {
-	return option_okOr$0tezn0w(option_map$1yogfym((dataLen !== 0 ? [dataData[dataStart], new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+	return option_okOr$1ylsdit(option_map$05uajnx((dataLen !== 0 ? [dataData[dataStart], new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 		return _22[1];
 	}), undefined);
 }
@@ -204,7 +204,7 @@ export function noneErr(data: rs.ByteSlice): rs.Result<rs.ByteSlice, rs.u8 | und
 			return rs.Err(_2);
 		}
 	}
-	return option_okOr$0gtm15y(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+	return option_okOr$0j0xd63(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_22: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 		return _22[1];
 	}), undefined as rs.u8 | undefined);
 }
@@ -338,7 +338,7 @@ export function big(data: rs.ByteSlice): rs.u64 | undefined {
 
 /** A signed number and an unsigned one, each through `?`, at an offset. */
 export function pair(data: rs.ByteSlice, at: rs.usize): rs.i64 | undefined {
-	const _3: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(data, at), { tag: "Short", _0: at } as returns_Error.Error);
+	const _3: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(data, at), { tag: "Short", _0: at } as returns_Error.Error);
 	if (_3.ok) {
 		const part: rs.u64 | undefined = big(_3.value);
 		const err: returns_Error.Error | undefined = part === undefined ? out$u64.err as returns_Error.Error : undefined;
@@ -399,7 +399,7 @@ export function mixed(dataData: Uint8Array, dataStart: number, dataLen: number):
 		const part2: rs.u8 | undefined = byte(new rs.ByteSlice(dataData, dataStart, dataLen), 1);
 		const err2: rs.u8 | undefined = part2 === undefined ? out$u8.err as rs.u8 : undefined;
 		if (err2 === undefined) {
-			const _7: rs.Result<rs.char, rs.u8> = option_okOr$1b6nkwr(rs.charFromU32(rs.u32Add(rs.u32Mul((part2 as rs.u8) as rs.u32, 37), 55280)), b);
+			const _7: rs.Result<rs.char, rs.u8> = option_okOr$19yb1mu(rs.charFromU32(rs.u32Add(rs.u32Mul((part2 as rs.u8) as rs.u32, 37), 55280)), b);
 			if (_7.ok) {
 				const tuple: [rs.f64, rs.char] = [-(b as rs.f64) / 3.0, _7.value];
 				out$tuple2_f64_char.p_1 = tuple[1];
@@ -439,7 +439,7 @@ export function either(data: rs.ByteSlice, first: boolean): rs.u64 | undefined {
 	if (!first) {
 		const part: rs.u32 | undefined = depth(data.data, data.start, data.length);
 		const err: returns_Error.Error | undefined = part === undefined ? out$u32.err as returns_Error.Error : undefined;
-		_0 = result_map$1rffkv6((err !== undefined ? rs.Err(err as returns_Error.Error) : rs.Ok(part as rs.u32)) as rs.Result<rs.u32, returns_Error.Error>, (a0: rs.u32): rs.u64 => {
+		_0 = result_map$1gzrj7d((err !== undefined ? rs.Err(err as returns_Error.Error) : rs.Ok(part as rs.u32)) as rs.Result<rs.u32, returns_Error.Error>, (a0: rs.u32): rs.u64 => {
 			return a0 as rs.u64;
 		});
 	} else {
@@ -646,14 +646,14 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				}), undefined, 16, true).items) {
 					pushNumber(out, _74);
 				}
-				rs.iterExtendBytes(out, rs.iterOption(option_map$0c2keyb(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_23: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
+				rs.iterExtendBytes(out, rs.iterOption(option_map$0q6fk7x(option_map$05uajnx((data.length !== 0 ? [data.data[data.start], new rs.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rs.u8, rs.ByteSlice] : undefined) as [rs.u8, rs.ByteSlice] | undefined, (_23: [rs.u8, rs.ByteSlice]): rs.ByteSlice => {
 					return _23[1];
 				}), (s2: rs.ByteSlice): rs.u8 => {
 					const err12: returns_Error.Error | undefined = tail(s2, 2);
 					const part54: Uint8Array = out$ref_slice_u8.pData;
 					const part55: number = out$ref_slice_u8.pStart;
 					const part56: number = out$ref_slice_u8.pLen;
-					return result_mapOr$0fbyajt((err12 !== undefined ? rs.Err(err12 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(part54, part55, part56))) as rs.Result<rs.ByteSlice, returns_Error.Error>, 0, (a04: rs.ByteSlice): rs.usize => {
+					return result_mapOr$1df1cdv((err12 !== undefined ? rs.Err(err12 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(part54, part55, part56))) as rs.Result<rs.ByteSlice, returns_Error.Error>, 0, (a04: rs.ByteSlice): rs.usize => {
 						return a04.length;
 					}) & 0xff;
 				})), undefined, true);
@@ -699,7 +699,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				if (_113.ok) {
 					rs.byteVecPush(out, _113.value.length & 0xff);
 				} else {
-					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(238, option_unwrapOr$0r2bmpr(_113.error, 0))));
+					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(238, option_unwrapOr$1fr498u(_113.error, 0))));
 				}
 				const part24: rs.u16 | undefined = lead$u16(data.data, data.start, data.length);
 				const err7: returns_Error.Error | undefined = part24 === undefined ? out$tuple2_u16_ref_slice_u8.err as returns_Error.Error : undefined;
@@ -764,7 +764,7 @@ export function returns(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				const part10: Uint8Array = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Data;
 				const part11: number = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Start;
 				const part12: number = out$tuple2_ref_slice_u8_ref_slice_u8.p_1Len;
-				const _213: rs.Result<rs.ByteSlice, returns_Error.Error> = result_andThen$1yropo4((err2 !== undefined ? rs.Err(err2 as returns_Error.Error) : rs.Ok([new rs.ByteSlice(part7, part8, part9), new rs.ByteSlice(part10, part11, part12)] as [rs.ByteSlice, rs.ByteSlice])) as rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.Result<rs.ByteSlice, returns_Error.Error> => {
+				const _213: rs.Result<rs.ByteSlice, returns_Error.Error> = result_andThen$0ud0j7o((err2 !== undefined ? rs.Err(err2 as returns_Error.Error) : rs.Ok([new rs.ByteSlice(part7, part8, part9), new rs.ByteSlice(part10, part11, part12)] as [rs.ByteSlice, rs.ByteSlice])) as rs.Result<[rs.ByteSlice, rs.ByteSlice], returns_Error.Error>, (_2: [rs.ByteSlice, rs.ByteSlice]): rs.Result<rs.ByteSlice, returns_Error.Error> => {
 					const err3 = take(_2[1].data, _2[1].start, _2[1].length, _2[0].length);
 					return err3 !== undefined ? rs.Err(err3 as returns_Error.Error) : rs.Ok(new rs.ByteSlice(out$ref_slice_u8.pData, out$ref_slice_u8.pStart, out$ref_slice_u8.pLen));
 				});
@@ -818,7 +818,7 @@ export function optF32(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_f32.p = NaN;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_f32.p = rs.f32FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -846,7 +846,7 @@ export function optF64(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_f64.p = NaN;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_f64.p = rs.f64FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -874,7 +874,7 @@ export function optI128(dataData: Uint8Array, dataStart: number, dataLen: number
 			out$Option_i128.p = { hi: -0x80000000, w2: 0, w1: 0, lo: 0 } as rs.i128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_i128.p = rs.i128FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -902,7 +902,7 @@ export function optI16(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_i16.p = -32768;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_i16.p = (((_17.value.data[_17.value.start] << 8) | _17.value.data[_17.value.start + 1]) << 16) >> 16;
 			return undefined;
@@ -930,7 +930,7 @@ export function optI32(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_i32.p = -2147483648;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_i32.p = (_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3];
 			return undefined;
@@ -958,7 +958,7 @@ export function optI64(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_i64.p = { hi: -0x80000000, lo: 0 } as rs.i64;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_i64.p = rs.i64FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -986,7 +986,7 @@ export function optI8(dataData: Uint8Array, dataStart: number, dataLen: number):
 			out$Option_i8.p = -128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_i8.p = (_17.value.data[_17.value.start] << 24) >> 24;
 			return undefined;
@@ -1014,7 +1014,7 @@ export function optU128(dataData: Uint8Array, dataStart: number, dataLen: number
 			out$Option_u128.p = { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 16), { tag: "Short", _0: 16 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_u128.p = rs.u128FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -1042,7 +1042,7 @@ export function optU16(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_u16.p = 65535;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 2), { tag: "Short", _0: 2 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_u16.p = (_17.value.data[_17.value.start] << 8) | _17.value.data[_17.value.start + 1];
 			return undefined;
@@ -1070,7 +1070,7 @@ export function optU32(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_u32.p = 4294967295;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_u32.p = ((_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3]) >>> 0;
 			return undefined;
@@ -1098,7 +1098,7 @@ export function optU64(dataData: Uint8Array, dataStart: number, dataLen: number)
 			out$Option_u64.p = { hi: 0xffffffff, lo: 0xffffffff } as rs.u64;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 8), { tag: "Short", _0: 8 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_u64.p = rs.u64FromBeBytes(rs.byteSliceToArray(_17.value));
 			return undefined;
@@ -1126,7 +1126,7 @@ export function optU8(dataData: Uint8Array, dataStart: number, dataLen: number):
 			out$Option_u8.p = 255;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 1), { tag: "Short", _0: 1 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_u8.p = _17.value.data[_17.value.start];
 			return undefined;
@@ -1154,7 +1154,7 @@ export function optUsize(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			out$Option_usize.p = 4294967295;
 			return undefined;
 		}
-		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$12p77jh(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
+		const _17: rs.Result<rs.ByteSlice, returns_Error.Error> = option_okOr$0rfpk7i(rs.byteSliceGetRange(new rs.ByteSlice(dataData, dataStart + 1, dataLen - 1), 0, 4), { tag: "Short", _0: 4 } as returns_Error.Error);
 		if (_17.ok) {
 			out$Option_usize.p = ((_17.value.data[_17.value.start] << 24) | (_17.value.data[_17.value.start + 1] << 16) | (_17.value.data[_17.value.start + 2] << 8) | _17.value.data[_17.value.start + 3]) >>> 0;
 			return undefined;
@@ -1194,7 +1194,7 @@ export function optAgain(data: rs.ByteSlice, first: boolean): returns_Error.Erro
 		const err: returns_Error.Error | undefined = optU64(_6.data, _6.start, _6.length);
 		const part2: rs.u64 | undefined = out$Option_u64.p;
 		if (err === undefined) {
-			out$Option_u64.p = option_map$1cf8u0y(part2, (v: rs.u64): rs.u64 => {
+			out$Option_u64.p = option_map$1haiqd3(part2, (v: rs.u64): rs.u64 => {
 				return rs.u64Shr(v, 1);
 			});
 			return undefined;
@@ -1231,7 +1231,7 @@ export function optLast(dataData: Uint8Array, dataStart: number, dataLen: number
 export function optRest(dataData: Uint8Array, dataStart: number, dataLen: number): returns_Error.Error | undefined {
 	if (dataLen !== 0) {
 		const b: rs.u8 = dataData[dataStart];
-		out$tuple2_Option_u16_ref_slice_u8.p_0 = thenSome$0b23a33(rs.u8Rem(b, 2) === 0, ((b as rs.u16) << 8) & 0xffff);
+		out$tuple2_Option_u16_ref_slice_u8.p_0 = thenSome$1gvhopg(rs.u8Rem(b, 2) === 0, ((b as rs.u16) << 8) & 0xffff);
 		out$tuple2_Option_u16_ref_slice_u8.p_1Data = dataData;
 		out$tuple2_Option_u16_ref_slice_u8.p_1Start = dataStart + 1;
 		out$tuple2_Option_u16_ref_slice_u8.p_1Len = dataLen - 1;
@@ -1549,7 +1549,7 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const part19: rs.u8 | undefined = out$tuple2_Option_u8_u64.p_0;
 	const part20: rs.u64 = out$tuple2_Option_u8_u64.p_1;
 	if (err18 === undefined) {
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(option_mapOr$1surhce(part19, 170, (n5: rs.u8): rs.u8 => {
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(option_mapOr$0vxw5sq(part19, 170, (n5: rs.u8): rs.u8 => {
 			return n5;
 		}), rs.u64Low(part20) & 0xff)));
 	} else {
@@ -1562,7 +1562,7 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const len2: rs.u64 = part21 as rs.u64;
 		const n2: rs.i128 | undefined = part22;
 		rs.byteVecPush(out, rs.u64Low(len2) & 0xff);
-		put$returns_Put_i128(option_unwrapOr$06r8g1t(n2, -1), out);
+		put$returns_Put_i128(option_unwrapOr$12qj13x(n2, -1), out);
 	} else {
 		rs.byteVecPush(out, returns_Error.code(err19 as returns_Error.Error));
 	}
@@ -1571,7 +1571,7 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const part26: number = out$tuple2_Option_u16_ref_slice_u8.p_1Len;
 	if (err20 === undefined) {
 		const n3: rs.u16 | undefined = part23;
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(n3 !== undefined ? 1 : 0, (option_unwrapOr$1j4op5y(n3, 0) >> 8) & 0xff, part26 & 0xff)));
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(n3 !== undefined ? 1 : 0, (option_unwrapOr$1szdyfq(n3, 0) >> 8) & 0xff, part26 & 0xff)));
 	} else {
 		rs.byteVecPush(out, returns_Error.code(err20 as returns_Error.Error));
 	}
@@ -1592,7 +1592,7 @@ export function options(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}
 		const x5: rs.Result<rs.u64 | undefined, returns_Error.Error> = (err21 !== undefined ? rs.Err(err21 as returns_Error.Error) : rs.Ok(part27)) as rs.Result<rs.u64 | undefined, returns_Error.Error>;
 		const y5: rs.Result<rs.u64 | undefined, returns_Error.Error> = (err22 !== undefined ? rs.Err(err22 as returns_Error.Error) : rs.Ok(part28)) as rs.Result<rs.u64 | undefined, returns_Error.Error>;
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(x5.ok ? 1 : 0, y5.ok ? 1 : 0, result_eq$11dy112(x5, y5) ? 1 : 0)));
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(x5.ok ? 1 : 0, y5.ok ? 1 : 0, result_eq$14w6i0g(x5, y5) ? 1 : 0)));
 	}
 	for (const r of rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (i: rs.usize): rs.Result<rs.u64 | undefined, returns_Error.Error> => {
 		const _3: rs.ByteSlice = rs.byteSliceRange(data, rs.min(data.length, i));

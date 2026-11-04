@@ -2,21 +2,21 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$185ufyt(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}
 	return t;
 }
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function then$19svsql(self: boolean, f: () => undefined): undefined | rs.None {
+export function then$1czl1m8(self: boolean, f: () => undefined): undefined | rs.None {
 	if (!self) {
 		return rs.None;
 	}

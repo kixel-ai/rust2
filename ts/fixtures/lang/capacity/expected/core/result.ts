@@ -2,35 +2,35 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOrElse$1q4qcpp(self: rs.Result<rs.Vec<rs.u64[]>, rs.Vec<rs.u64[]>>, op: (a0: rs.Vec<rs.u64[]>) => rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> {
+export function unwrapOrElse$128e309(self: rs.Result<rs.Vec<rs.u64[]>, rs.Vec<rs.u64[]>>, op: (a0: rs.Vec<rs.u64[]>) => rs.Vec<rs.u64[]>): rs.Vec<rs.u64[]> {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$17cj159(self: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.Vec<[rs.u64, rs.u8]>>, op: (a0: rs.Vec<[rs.u64, rs.u8]>) => rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> {
+export function unwrapOrElse$02f6iwg(self: rs.Result<rs.Vec<[rs.u64, rs.u8]>, rs.Vec<[rs.u64, rs.u8]>>, op: (a0: rs.Vec<[rs.u64, rs.u8]>) => rs.Vec<[rs.u64, rs.u8]>): rs.Vec<[rs.u64, rs.u8]> {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$1urqnv6(self: rs.Result<rs.Vec<rs.u16>, rs.Vec<rs.u16>>, op: (a0: rs.Vec<rs.u16>) => rs.Vec<rs.u16>): rs.Vec<rs.u16> {
+export function unwrapOrElse$05mb9nr(self: rs.Result<rs.Vec<rs.u16>, rs.Vec<rs.u16>>, op: (a0: rs.Vec<rs.u16>) => rs.Vec<rs.u16>): rs.Vec<rs.u16> {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$1bt75f9(self: rs.Result<rs.ByteVec, rs.ByteVec>, op: (a0: rs.ByteVec) => rs.ByteVec): rs.ByteVec {
+export function unwrapOrElse$0pqj9wx(self: rs.Result<rs.ByteVec, rs.ByteVec>, op: (a0: rs.ByteVec) => rs.ByteVec): rs.ByteVec {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$1341i4f(self: rs.Result<rs.Vec<undefined>, rs.Vec<undefined>>, op: (a0: rs.Vec<undefined>) => rs.Vec<undefined>): rs.Vec<undefined> {
+export function unwrapOrElse$01ys8fc(self: rs.Result<rs.Vec<undefined>, rs.Vec<undefined>>, op: (a0: rs.Vec<undefined>) => rs.Vec<undefined>): rs.Vec<undefined> {
 	if (self.ok) {
 		return self.value;
 	}

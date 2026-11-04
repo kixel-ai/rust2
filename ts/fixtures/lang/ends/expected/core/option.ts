@@ -2,63 +2,63 @@
 
 import * as rs from "../rs.ts";
 
-export function isNoneOr$1s1o3ss(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isNoneOr$0xn3i4j(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return true;
 	}
 	return f(self);
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$1sj2ls1(self: [rs.usize, rs.u8] | undefined, f: (a0: [rs.usize, rs.u8]) => rs.u8): rs.u8 | undefined {
+export function map$0h22a1a(self: [rs.usize, rs.u8] | undefined, f: (a0: [rs.usize, rs.u8]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1fmzefe(self: rs.u8 | undefined, f: (a0: rs.u8) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+export function map$1pv2dfs(self: rs.u8 | undefined, f: (a0: rs.u8) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0vbopjd(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.usize): rs.usize | undefined {
+export function map$1asu3fq(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.usize): rs.usize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$05nbzug(self: rs.usize | undefined, f: (a0: rs.usize) => rs.u8): rs.u8 | undefined {
+export function map$14ju55r(self: rs.usize | undefined, f: (a0: rs.usize) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$1e4a1e0(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$02k4ito(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function or$1loyskh(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
+export function or$0ar58vy(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return optb;
 	}

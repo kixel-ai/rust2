@@ -3,21 +3,21 @@
 import * as rs from "../rs.ts";
 import type * as Nibble from "../bind/nibble.ts";
 
-export function unwrapOr$1rbuegs(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
+export function unwrapOr$0yvilko(self: rs.ByteSlice | undefined, default_: rs.ByteSlice): rs.ByteSlice {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$174crag(self: Nibble.Nibble | undefined, default_: rs.u8, f: (a0: Nibble.Nibble) => rs.u8): rs.u8 {
+export function mapOr$0oywhrg(self: Nibble.Nibble | undefined, default_: rs.u8, f: (a0: Nibble.Nibble) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

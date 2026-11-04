@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function isNoneOr$1s1o3ss(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+export function isNoneOr$0xn3i4j(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
 	if (self === undefined) {
 		return true;
 	}
 	return f(self);
 }
 
-export function unwrapOr$1kxjsqb(self: rs.u8 | undefined | rs.None, default_: rs.u8 | undefined): rs.u8 | undefined {
+export function unwrapOr$1hs5os9(self: rs.u8 | undefined | rs.None, default_: rs.u8 | undefined): rs.u8 | undefined {
 	if (self === rs.None) {
 		return default_;
 	}
@@ -23,21 +23,21 @@ export function unwrapOr$1la41a6(self: Uint8Array | undefined, default_: Uint8Ar
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$0pkankm(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$008v810(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function map$1diqi3e(self: rs.Place<rs.u8 | undefined> | undefined, f: (a0: rs.Place<rs.u8 | undefined>) => undefined): undefined | rs.None {
+export function map$16kn1k2(self: rs.Place<rs.u8 | undefined> | undefined, f: (a0: rs.Place<rs.u8 | undefined>) => undefined): undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
@@ -45,14 +45,14 @@ export function map$1diqi3e(self: rs.Place<rs.u8 | undefined> | undefined, f: (a
 	return undefined;
 }
 
-export function map$0rbsrz6(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$1yv0md6(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function map$0p22lts(self: rs.u8 | undefined, f: (a0: rs.u8) => undefined): undefined | rs.None {
+export function map$057a36e(self: rs.u8 | undefined, f: (a0: rs.u8) => undefined): undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
@@ -60,91 +60,91 @@ export function map$0p22lts(self: rs.u8 | undefined, f: (a0: rs.u8) => undefined
 	return undefined;
 }
 
-export function map$0jcaaxx(self: [rs.u8 | undefined, rs.u8] | undefined, f: (a0: [rs.u8 | undefined, rs.u8]) => Uint8Array): Uint8Array | undefined {
+export function map$0f5oamy(self: [rs.u8 | undefined, rs.u8] | undefined, f: (a0: [rs.u8 | undefined, rs.u8]) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0cs071d(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0at3a41(self: undefined | rs.None, f: (a0: undefined) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
+export function map$1eqzs00(self: undefined | rs.None, f: (a0: undefined) => rs.u8 | undefined): rs.u8 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
 	return f(undefined);
 }
 
-export function mapOr$1t0muvr(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
+export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$06rr3sb(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
+export function mapOr$19a4gco(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$18ph0j9(self: undefined | rs.None, default_: rs.u8, f: (a0: undefined) => rs.u8): rs.u8 {
+export function mapOr$0mkqwg8(self: undefined | rs.None, default_: rs.u8, f: (a0: undefined) => rs.u8): rs.u8 {
 	if (self === rs.None) {
 		return default_;
 	}
 	return f(undefined);
 }
 
-export function okOr$1vxk0yk(self: rs.u8 | undefined, err: rs.u8): rs.Result<rs.u8, rs.u8> {
+export function okOr$1j8owgb(self: rs.u8 | undefined, err: rs.u8): rs.Result<rs.u8, rs.u8> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function okOr$0g9lvh7(self: rs.u8 | undefined, _: undefined): rs.Result<rs.u8, undefined> {
+export function okOr$06f2ml7(self: rs.u8 | undefined, _: undefined): rs.Result<rs.u8, undefined> {
 	if (self === undefined) {
 		return rs.ERR;
 	}
 	return rs.Ok(self);
 }
 
-export function andThen$0qni7te(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function andThen$0xvwl6s(self: rs.u8 | undefined | rs.None, f: (a0: rs.u8 | undefined) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function andThen$05aqrgx(self: rs.Slice<rs.u8 | undefined> | undefined, f: (a0: rs.Slice<rs.u8 | undefined>) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function andThen$1l1aa1i(self: Array<rs.u8 | undefined> | undefined, f: (a0: Array<rs.u8 | undefined>) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function andThen$1bd14ex(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function andThen$0jc4o0i(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	if (self === undefined) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function filter$19gtvc4(self: rs.u8 | undefined | rs.None, predicate: (a0: rs.u8 | undefined) => boolean): rs.u8 | undefined | rs.None {
+export function filter$1iofxfx(self: rs.u8 | undefined | rs.None, predicate: (a0: rs.u8 | undefined) => boolean): rs.u8 | undefined | rs.None {
 	if (self !== rs.None) {
 		const x: rs.u8 | undefined = self;
 		if (predicate(x)) {
@@ -154,7 +154,7 @@ export function filter$19gtvc4(self: rs.u8 | undefined | rs.None, predicate: (a0
 	return rs.None;
 }
 
-export function filter$0v80fk8(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
+export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
 		if (predicate(x)) {
@@ -164,14 +164,14 @@ export function filter$0v80fk8(self: rs.u8 | undefined, predicate: (a0: rs.u8) =
 	return undefined;
 }
 
-export function or$0j02yk0(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function or$0farkzq(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	if (self === rs.None) {
 		return optb;
 	}
 	return self;
 }
 
-export function xor$0pemq84(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
+export function xor$0ucxb2n(self: rs.u8 | undefined | rs.None, optb: rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
 	let _0!: rs.u8 | undefined | rs.None;
 	b0: {
 		if (self === rs.None) {
@@ -188,7 +188,7 @@ export function xor$0pemq84(self: rs.u8 | undefined | rs.None, optb: rs.u8 | und
 	return _0;
 }
 
-export function xor$0kctyix(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
+export function xor$0x5qjg4(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs.u8 | undefined {
 	let _0!: rs.u8 | undefined;
 	b0: {
 		if (self === undefined) {
@@ -205,7 +205,7 @@ export function xor$0kctyix(self: rs.u8 | undefined, optb: rs.u8 | undefined): r
 	return _0;
 }
 
-export function flatten$1nwzx42(self: rs.u8 | undefined | rs.None): rs.u8 | undefined {
+export function flatten$0ux6gqw(self: rs.u8 | undefined | rs.None): rs.u8 | undefined {
 	if (self === rs.None) {
 		return undefined;
 	}

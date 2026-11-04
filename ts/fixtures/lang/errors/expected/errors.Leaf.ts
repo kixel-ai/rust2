@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { DROPPED } from "./errors.ts";
-import { set$0st49po, get$1ei2eoj } from "./std/thread/local.ts";
+import { set$1ljkjlf, get$0q7640n } from "./std/thread/local.ts";
 
 export function fmt$fmt_Debug(self: Leaf, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _3: string = "Leaf";
@@ -31,7 +31,7 @@ export function fmt$fmt_Display(self: Leaf, f: rs.Formatter): rs.Result<undefine
 }
 
 export function drop$ops_Drop(self: Leaf): void {
-	set$0st49po(DROPPED, rs.u32WrappingAdd(rs.u32WrappingMul(get$1ei2eoj(DROPPED), 10), rs.u8Rem(self.code, 10) as rs.u32));
+	set$1ljkjlf(DROPPED, rs.u32WrappingAdd(rs.u32WrappingMul(get$0q7640n(DROPPED), 10), rs.u8Rem(self.code, 10) as rs.u32));
 }
 
 //# sourceMappingURL=errors.Leaf.ts.map

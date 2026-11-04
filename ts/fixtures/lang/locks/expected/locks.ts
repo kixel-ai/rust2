@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { drop$Result_Result_sync_MappedMutexGuard_u64_sync_MappedMutexGuard_u64_sync_MutexGuard_locks_Tally, drop$Result_Result_sync_MappedRwLockWriteGuard_u64_sync_MappedRwLockWriteGuard_u64_sync_RwLockWriteGuard_locks_Tally, drop$Result_sync_MappedRwLockReadGuard_u8_sync_RwLockReadGuard_locks_Tally, drop$Result_sync_MutexGuard_array4_u8_sync_TryLockError_sync_MutexGuard_array4_u8, drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally, drop$Result_sync_MutexGuard_u32_sync_TryLockError_sync_MutexGuard_u32, drop$Result_sync_MutexGuard_u8_sync_TryLockError_sync_MutexGuard_u8, drop$Result_sync_RwLockReadGuard_array4_u8_sync_TryLockError_sync_RwLockReadGuard_array4_u8, drop$Result_sync_RwLockReadGuard_locks_Tally_sync_TryLockError_sync_RwLockReadGuard_locks_Tally, drop$Result_sync_RwLockReadGuard_u32_sync_TryLockError_sync_RwLockReadGuard_u32, drop$Result_sync_RwLockWriteGuard_array4_u8_sync_TryLockError_sync_RwLockWriteGuard_array4_u8, drop$Result_sync_RwLockWriteGuard_locks_Tally_sync_TryLockError_sync_RwLockWriteGuard_locks_Tally, drop$Result_sync_RwLockWriteGuard_u32_sync_TryLockError_sync_RwLockWriteGuard_u32 } from "./lib.ts";
-import { thenSome$0sf2w1i, thenSome$0d5am30 } from "./core/bool.ts";
-import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
-import { map$02txiwz as result_map$02txiwz, map$1g6jln5 as result_map$1g6jln5, mapOr$0666x4n as result_mapOr$0666x4n, mapOr$1qkf3ab as result_mapOr$1qkf3ab } from "./core/result.ts";
+import { thenSome$1ueb688, thenSome$0quywni } from "./core/bool.ts";
+import { unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
+import { map$1t3pwfi as result_map$1t3pwfi, map$14a22s8 as result_map$14a22s8, mapOr$162krng as result_mapOr$162krng, mapOr$0diztpf as result_mapOr$0diztpf } from "./core/result.ts";
 import * as Lock from "./locks.Lock.ts";
 import * as Probe from "./locks.Probe.ts";
 import * as Tally from "./locks.Tally.ts";
@@ -38,7 +38,7 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const held: rs.Place<rs.u8 | undefined> = rs.valuePlace(slot);
 			const taken = held.v;
 			held.v = undefined;
-			rs.byteVecPush(out, option_unwrapOr$0r2bmpr(taken, 253));
+			rs.byteVecPush(out, option_unwrapOr$1fr498u(taken, 253));
 			held.v = op;
 		} else if (_18 === 3) {
 			const _64: rs.u32 = op as rs.u32;
@@ -92,7 +92,7 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(own.value));
 	rs.byteVecPush(out, shared.strong & 0xff);
 	rs.byteVecPush(out, number.value & 0xff);
-	rs.byteVecPush(out, option_unwrapOr$0r2bmpr(slot.value, 253));
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(slot.value, 253));
 	other[Symbol.dispose]();
 	shared[Symbol.dispose]();
 }
@@ -352,7 +352,7 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			})(_48.value));
 			rs.byteVecPush(out, seen.value.length & 0xff);
 			const last: rs.RefCell<rs.u8> = rs.refMap(seen, ((s: rs.ByteVec): rs.u8 => {
-				return option_unwrapOr$0r2bmpr(rs.byteSliceLast(rs.byteVecSlice(s)), 253);
+				return option_unwrapOr$1fr498u(rs.byteSliceLast(rs.byteVecSlice(s)), 253);
 			})(seen.value));
 			rs.byteVecPush(out, last.value);
 			locked(out);
@@ -361,7 +361,7 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_13 === 2) {
 			const _70: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
 			const _69: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<Tally.Tally>> = rs.refMutFilterMap(_70, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
-				return rs.sliceLastMut(rs.byteVecSlice(t3.seen));
+				return rs.sliceLastMut(rs.byteSliceView(rs.byteVecSlice(t3.seen)));
 			})(_70.value));
 			if (_69.ok) {
 				const last2: rs.RefCell<rs.u8> = _69.value;
@@ -381,7 +381,7 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_89.ok) {
 				const first: rs.RefCell<rs.u8> = _89.value;
 				const _95: rs.Result<rs.RefCell<rs.u8>, rs.RefCell<rs.u8>> = rs.refFilterMap(first, ((b2: rs.u8): rs.u8 | undefined => {
-					return thenSome$0d5am30(b2 > 128, b2);
+					return thenSome$0quywni(b2 > 128, b2);
 				})(first.value));
 				if (_95.ok) {
 					const b: rs.RefCell<rs.u8> = _95.value;
@@ -399,11 +399,11 @@ export function mapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			locked(out);
 			const _117: rs.RefCell<Tally.Tally> = rs.rwLockWrite(lock);
-			const _121: rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> = result_map$1g6jln5(rs.refMutFilterMap(_117, ((t5: Tally.Tally): rs.Place<rs.u64> | undefined => {
+			const _121: rs.Result<rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>>, rs.RefCell<Tally.Tally>> = result_map$14a22s8(rs.refMutFilterMap(_117, ((t5: Tally.Tally): rs.Place<rs.u64> | undefined => {
 				return rs.place(() => t5.n, (value2) => t5.n = value2);
 			})(_117.value)), (n7: rs.RefCell<rs.u64>): rs.Result<rs.RefCell<rs.u64>, rs.RefCell<rs.u64>> => {
 				return rs.refMutFilterMap(n7, ((n8: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined => {
-					return thenSome$0sf2w1i(rs.u64And(n8.v, 1) === 0, n8);
+					return thenSome$1ueb688(rs.u64And(n8.v, 1) === 0, n8);
 				})(rs.valuePlace(n7)));
 			});
 			if (_121.ok) {
@@ -537,7 +537,7 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_15 === 2) {
 			const _128: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
 			const _127: rs.Result<rs.Mutex<rs.u8>, rs.Mutex<Tally.Tally>> = rs.mutexFilterMap(_128, ((t3: Tally.Tally): rs.Place<rs.u8> | undefined => {
-				return rs.sliceLastMut(rs.byteVecSlice(t3.seen));
+				return rs.sliceLastMut(rs.byteSliceView(rs.byteVecSlice(t3.seen)));
 			})(_128.value));
 			if (_127.ok) {
 				const last: rs.Mutex<rs.u8> = _127.value;
@@ -551,11 +551,11 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			locked(out);
 			const _147: rs.Mutex<Tally.Tally> = rs.mutexLock(mutex);
-			const _151: rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> = result_map$02txiwz(rs.mutexFilterMap(_147, ((t4: Tally.Tally): rs.Place<rs.u64> | undefined => {
+			const _151: rs.Result<rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>>, rs.Mutex<Tally.Tally>> = result_map$1t3pwfi(rs.mutexFilterMap(_147, ((t4: Tally.Tally): rs.Place<rs.u64> | undefined => {
 				return rs.place(() => t4.n, (value2) => t4.n = value2);
 			})(_147.value)), (n6: rs.Mutex<rs.u64>): rs.Result<rs.Mutex<rs.u64>, rs.Mutex<rs.u64>> => {
 				return rs.mutexFilterMap(n6, ((n7: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined => {
-					return thenSome$0sf2w1i(rs.u64And(n7.v, 1) === 0, n7);
+					return thenSome$1ueb688(rs.u64And(n7.v, 1) === 0, n7);
 				})(rs.valuePlace(n6)));
 			});
 			if (_151.ok) {
@@ -592,7 +592,7 @@ export function mutexMapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, !_195.ok ? 1 : 0);
 			drop$Result_sync_MutexGuard_locks_Tally_sync_TryLockError_sync_MutexGuard_locks_Tally(_195);
 			rs.mutexUnlock(n5);
-			rs.byteVecPush(out, result_mapOr$0666x4n(rs.mutexTryLock(mutex), 254, (t2: rs.Mutex<Tally.Tally>): rs.u8 => {
+			rs.byteVecPush(out, result_mapOr$162krng(rs.mutexTryLock(mutex), 254, (t2: rs.Mutex<Tally.Tally>): rs.u8 => {
 				const _0: rs.u8 = t2.value.seen.length & 0xff;
 				rs.mutexUnlock(t2);
 				return _0;
@@ -692,7 +692,7 @@ export function downgraded(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(write.value.seen, op);
 			const read: rs.RefCell<Tally.Tally> = rs.rwLockDowngrade(write);
 			rs.byteVecPush(out, held$locks_Tally(lock));
-			rs.byteVecPush(out, result_mapOr$1qkf3ab(rs.rwLockTryRead(lock), 254, (t2: rs.RefCell<Tally.Tally>): rs.u8 => {
+			rs.byteVecPush(out, result_mapOr$0diztpf(rs.rwLockTryRead(lock), 254, (t2: rs.RefCell<Tally.Tally>): rs.u8 => {
 				const _0: rs.u8 = t2.value.seen.length & 0xff;
 				rs.refRelease(t2);
 				return _0;

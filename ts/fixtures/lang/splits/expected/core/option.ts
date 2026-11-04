@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$11e0ggl(self: [rs.ByteSlice, rs.ByteSlice] | undefined, default_: rs.u8, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.u8): rs.u8 {
+export function mapOr$17znd5c(self: [rs.ByteSlice, rs.ByteSlice] | undefined, default_: rs.u8, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

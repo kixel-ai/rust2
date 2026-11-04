@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 import { drop$ops_RangeInclusive_drops_Key as lib_drop$ops_RangeInclusive_drops_Key, drop$ops_Range_drops_Key as lib_drop$ops_Range_drops_Key, drop$ops_Range_model_Guard as lib_drop$ops_Range_model_Guard, drop$tuple2_drops_Key_model_Guard as lib_drop$tuple2_drops_Key_model_Guard } from "../lib.ts";
-import { map$0782hf5 as option_map$0782hf5, map$1raha9y as option_map$1raha9y } from "../core/option.ts";
+import { map$0bmexgo as option_map$0bmexgo, map$06w9waf as option_map$06w9waf } from "../core/option.ts";
 import * as Bomb from "../drops/inside.Bomb.ts";
 import * as Listed from "../drops/inside.Listed.ts";
 import * as Spent from "../drops/inside.Spent.ts";
@@ -72,7 +72,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["drained ", args10[0], " ", args10[1]]));
 		const q: rs.VecDeque<Guard.Guard> = rs.dequeFromVec(rs.iterToVec(rs.iterMap(new rs.Range(6, 9), guard), undefined, 8, true), 8) as rs.VecDeque<Guard.Guard>;
 		const it: rs.Iter<Guard.Guard> = rs.dropAfter(new Spent.Spent(guard(11), 0, 2), (range13) => rs.dequeDrain(q, rs.boundsOf(range13, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), rs.drop), rs.drop);
-		const part17 = option_map$1raha9y(rs.iterToOption(it.next()), (g12: Guard.Guard): rs.u32 => {
+		const part17 = option_map$06w9waf(rs.iterToOption(it.next()), (g12: Guard.Guard): rs.u32 => {
 			const _012: rs.u32 = Guard.id(g12);
 			g12[Symbol.dispose]();
 			return _012;
@@ -162,7 +162,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return rs.hashExtend(rs.hashNew(rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rs.HashMap<Key.Key, Guard.Guard>, rs.iterSlice(_318, lib_drop$tuple2_drops_Key_model_Guard), rs.drop, rs.drop, "fold", 58720256);
 		};
 		const keys: rs.Iter<Key.Key> = rs.hashKeys(map3(1), rs.drop, rs.drop);
-		const part5 = option_map$0782hf5(rs.iterToOption(keys.next()), (k2: Key.Key): rs.u32 => {
+		const part5 = option_map$0bmexgo(rs.iterToOption(keys.next()), (k2: Key.Key): rs.u32 => {
 			const _07: rs.u32 = rs.u32Sub(k2.id, id);
 			k2[Symbol.dispose]();
 			return _07;
@@ -185,7 +185,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			Log.note(log, rs.fmtFormat(["fold ", args58[0]]));
 			k3[Symbol.dispose]();
 		}, true);
-		const part8 = option_map$1raha9y(rs.ownedLast(rs.hashValues(map3(4), rs.drop, rs.drop), rs.drop), (g9: Guard.Guard): rs.u32 => {
+		const part8 = option_map$06w9waf(rs.ownedLast(rs.hashValues(map3(4), rs.drop, rs.drop), rs.drop), (g9: Guard.Guard): rs.u32 => {
 			const _08: rs.u32 = Guard.id(g9);
 			g9[Symbol.dispose]();
 			return _08;
@@ -200,7 +200,7 @@ export function inside(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return Guard.id(g10) === rs.u32Add(id, 6);
 		}, rs.drop);
 		rs.drop(_472);
-		const part10 = option_map$1raha9y(found3, (g11: Guard.Guard): rs.u32 => {
+		const part10 = option_map$06w9waf(found3, (g11: Guard.Guard): rs.u32 => {
 			const _010: rs.u32 = Guard.id(g11);
 			g11[Symbol.dispose]();
 			return _010;

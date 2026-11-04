@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { copy$model_Tally, drop$Result_u32_model_Guard as lib_drop$Result_u32_model_Guard, drop$ops_ControlFlow_model_Guard_u32 as lib_drop$ops_ControlFlow_model_Guard_u32 } from "./lib.ts";
-import { unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, map$0upmgd9 as option_map$0upmgd9 } from "./core/option.ts";
-import { map$0luclc8 as poll_map$0luclc8, map$1rs8nqy as poll_map$1rs8nqy, isReady$1sc8not, isPending$0vr1nz6 } from "./core/task/poll.ts";
+import { unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$1nux4ms as option_map$1nux4ms } from "./core/option.ts";
+import { map$0u2hwi8 as poll_map$0u2hwi8, map$1wr0dnp as poll_map$1wr0dnp, isReady$0mapnag, isPending$0mrvg1b } from "./core/task/poll.ts";
 import { wait$model_front_closure0_closure0_usize, wait$model_watch_closure0_closure0_Option_u64, waitFuture$kio_Consumer_model_watch_closure0_closure1_usize, closedFuture$kio_Consumer, recvFuture$kio_Consumer } from "./kio.ts";
 import * as Closed from "./kio.Closed.ts";
 import * as Consumer from "./kio.Consumer.ts";
@@ -230,7 +230,7 @@ export class watchFuture {
 						this.#saved$2 = false;
 						this.#pending = Pending.new$model_Watch(new Watch.Watch(this.#rx, 1));
 						this.#saved = true;
-						this.#total = option_unwrapOr$1tvry1i(this.#first, 0);
+						this.#total = option_unwrapOr$15hbiwd(this.#first, 0);
 						bb0 = 23;
 						continue;
 					}
@@ -266,7 +266,7 @@ export class watchFuture {
 				case 45:
 					if (this.#awaitee$3.poll(_2) !== rs.Pending) {
 						rs.drop(this.#awaitee$3);
-						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rs.Slice<rs.u64>): rs.Poll<rs.usize> => {
+						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rs.u64[]): rs.Poll<rs.usize> => {
 							return queue.length;
 						});
 						bb0 = 53;
@@ -454,8 +454,8 @@ export class frontFuture {
  * back through `?`, which continues with its `Pending` and `Ready(None)`.
  */
 export function streamed(polled: rs.Poll<rs.u64 | undefined>): rs.Result<rs.Poll<rs.u64 | undefined>, rs.u64> {
-	const _3: rs.Result<rs.Poll<rs.u64 | undefined>, rs.u64> = rs.pollOptionBranch(poll_map$0luclc8(polled, (value: rs.u64 | undefined): rs.Result<rs.u64, rs.u64> | undefined => {
-		return option_map$0upmgd9(value, (value2: rs.u64): rs.Result<rs.u64, rs.u64> => {
+	const _3: rs.Result<rs.Poll<rs.u64 | undefined>, rs.u64> = rs.pollOptionBranch(poll_map$0u2hwi8(polled, (value: rs.u64 | undefined): rs.Result<rs.u64, rs.u64> | undefined => {
+		return option_map$1nux4ms(value, (value2: rs.u64): rs.Result<rs.u64, rs.u64> => {
 			if (!(rs.u64Rem(value2, 4) === 3)) {
 				return rs.Ok(value2);
 			}
@@ -479,7 +479,7 @@ export function at(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter
 	const _5: rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> = held(rx, index, waiter);
 	if (_5.ok) {
 		if (_5.value !== rs.OuterPending) {
-			res = poll_map$1rs8nqy(_5.value, (a0: rs.u64): rs.u64 | undefined => {
+			res = poll_map$1wr0dnp(_5.value, (a0: rs.u64): rs.u64 | undefined => {
 				return a0;
 			});
 		} else {
@@ -488,8 +488,8 @@ export function at(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter
 	} else {
 		res = undefined as rs.Poll<rs.u64 | undefined>;
 	}
-	if (isPending$0vr1nz6(res)) {
-		if (isReady$1sc8not(Consumer.pollClosed(rx, waiter))) {
+	if (isPending$0mrvg1b(res)) {
+		if (isReady$0mapnag(Consumer.pollClosed(rx, waiter))) {
 			return undefined;
 		}
 	}
@@ -501,7 +501,7 @@ export function at(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter
  * its `Pending`.
  */
 export function held(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter): rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> {
-	const _4: rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> = rs.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rs.Slice<rs.u64>): rs.Poll<rs.u64> | rs.OuterPending => {
+	const _4: rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> = rs.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rs.u64[]): rs.Poll<rs.u64> | rs.OuterPending => {
 		const _3: rs.u64 | undefined = rs.sliceGet(queue, index);
 		if (_3 === undefined) {
 			return rs.OuterPending;
@@ -676,7 +676,7 @@ export class blocksFuture {
 									this.#waited = consume(this.#saved, result);
 									this.#slots = [Guard.new(rs.u32Add(this.#guard.id, 910), Log.clone$Clone(this.#guard.log)), Guard.new(rs.u32Add(this.#guard.id, 920), Log.clone$Clone(this.#guard.log))];
 									this.#saved = Guard.new(rs.u32Add(this.#guard.id, 930), Log.clone$Clone(this.#guard.log));
-									this.#awaitee$2 = new slotFuture(this.#rx, rs.sliceFrom(this.#slots).length);
+									this.#awaitee$2 = new slotFuture(this.#rx, this.#slots.length);
 								} else {
 									this.#state = 3;
 									return rs.Pending;
@@ -1081,7 +1081,7 @@ export class blocksFuture$closure6 {
 
 /** `v`, or 0, plus the id of `guard`, which it drops. */
 export function consume(guard: Guard.Guard, v: rs.u64 | undefined): rs.u64 {
-	return rs.u64Add(Guard.finish(guard, "consumed") as rs.u64, option_unwrapOr$1tvry1i(v, 0));
+	return rs.u64Add(Guard.finish(guard, "consumed") as rs.u64, option_unwrapOr$15hbiwd(v, 0));
 }
 
 export class slotFuture {
@@ -1172,7 +1172,8 @@ export function temporaries(log: Log.Log, id: rs.u32): void {
 	Guard.note(head, "head");
 	Guard.note(rest[1], "rest");
 	guard(1090)[Symbol.dispose]();
-	const part2 = rs.sliceFrom([]).length;
+	const _98: Guard.Guard[] = [];
+	const part2 = _98.length;
 	const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part2, f)];
 	Log.note(log, rs.fmtFormat(["empty ", args8[0]]));
 	const captured = guard(1100);

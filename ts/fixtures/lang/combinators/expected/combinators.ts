@@ -2,18 +2,18 @@
 
 import * as rs from "./rs.ts";
 import { copy$Result_array2_u32_u16, copy$array_u32 } from "./lib.ts";
-import { isSomeAnd$09tpccf, isNoneOr$1s1o3ss, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOrElse$1badkpb as option_unwrapOrElse$1badkpb, unwrapOrElse$13moxzl as option_unwrapOrElse$13moxzl, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, unwrapOrDefault$1q0ps0j as option_unwrapOrDefault$1q0ps0j, map$0oc32h1 as option_map$0oc32h1, map$0ejznqm as option_map$0ejznqm, map$0jg2jop as option_map$0jg2jop, map$0cs071d as option_map$0cs071d, inspect$0di0vx1 as option_inspect$0di0vx1, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$099335t as option_mapOr$099335t, mapOr$1surhce as option_mapOr$1surhce, mapOrElse$1g6d36t as option_mapOrElse$1g6d36t, okOr$07zal2e as option_okOr$07zal2e, okOr$0m6xlfp as option_okOr$0m6xlfp, okOr$1vxk0yk as option_okOr$1vxk0yk, okOrElse$0awp3vn as option_okOrElse$0awp3vn, okOrElse$1v98j0a as option_okOrElse$1v98j0a, and$06om98g as option_and$06om98g, andThen$17ch833 as option_andThen$17ch833, filter$1855tjj, filter$0v80fk8, or$1loyskh as option_or$1loyskh, orElse$05gzawv as option_orElse$05gzawv, orElse$15bv4ho as option_orElse$15bv4ho, xor$0kctyix, zip$1deudzj, clone$14nprly as option_clone$14nprly } from "./core/option.ts";
-import { isOkAnd$0jj0nkw, isErrAnd$0b01a39, ok$1c77lmd, err$05f656d, asRef$1glrxiq, map$1qqg34g as result_map$1qqg34g, map$132mdj8 as result_map$132mdj8, mapOr$1mu5bvh as result_mapOr$1mu5bvh, mapOrElse$0jxx67n as result_mapOrElse$0jxx67n, mapErr$12w1s5x as result_mapErr$12w1s5x, mapErr$1lsqfgi as result_mapErr$1lsqfgi, inspect$16o3gle as result_inspect$16o3gle, inspectErr$06tv5sa, unwrapOrDefault$1exw7nd as result_unwrapOrDefault$1exw7nd, and$0l7ltae as result_and$0l7ltae, andThen$0hd6ik8 as result_andThen$0hd6ik8, or$1xcfx3w as result_or$1xcfx3w, orElse$13ay4um as result_orElse$13ay4um, unwrapOr$0a4h2e7 as result_unwrapOr$0a4h2e7, unwrapOrElse$1reohq9 as result_unwrapOrElse$1reohq9, unwrapOrElse$009ibtw as result_unwrapOrElse$009ibtw, copied$0ma6p21, clone$04fntvl as result_clone$04fntvl } from "./core/result.ts";
+import { isSomeAnd$1s2u5lz, isNoneOr$0xn3i4j, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrElse$1badkpb as option_unwrapOrElse$1badkpb, unwrapOrElse$0wd124z as option_unwrapOrElse$0wd124z, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0w012ed as option_unwrapOrDefault$0w012ed, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$1y26nmr as option_map$1y26nmr, map$1px2rk4 as option_map$1px2rk4, map$1ek423e as option_map$1ek423e, map$1yjmt5m as option_map$1yjmt5m, inspect$1sa9a1m as option_inspect$1sa9a1m, mapOr$1h9hu6n as option_mapOr$1h9hu6n, mapOr$031uhqp as option_mapOr$031uhqp, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOrElse$0moj49b as option_mapOrElse$0moj49b, okOr$12zia2c as option_okOr$12zia2c, okOr$19jxvkb as option_okOr$19jxvkb, okOr$1j8owgb as option_okOr$1j8owgb, okOrElse$1usib9z as option_okOrElse$1usib9z, okOrElse$0cs4x8k as option_okOrElse$0cs4x8k, and$02hlbkj as option_and$02hlbkj, andThen$195hx6l as option_andThen$195hx6l, filter$1855tjj, filter$0hq86nl, or$0ar58vy as option_or$0ar58vy, orElse$05gzawv as option_orElse$05gzawv, orElse$1xazu5k as option_orElse$1xazu5k, xor$0x5qjg4, zip$0p00b0o, clone$14nprly as option_clone$14nprly } from "./core/option.ts";
+import { isOkAnd$1poqzjs, isErrAnd$0ecrrmy, ok$08qo4au, err$0zs6b4d, asRef$0qzh9or, map$0jdlh8o as result_map$0jdlh8o, map$044vsgj as result_map$044vsgj, mapOr$1yz3viz as result_mapOr$1yz3viz, mapOrElse$0eu5k5b as result_mapOrElse$0eu5k5b, mapErr$12sqndm as result_mapErr$12sqndm, mapErr$16o3r40 as result_mapErr$16o3r40, inspect$1lvk7wu as result_inspect$1lvk7wu, inspectErr$0nqm52c, unwrapOrDefault$0ysbycw as result_unwrapOrDefault$0ysbycw, and$1cozx1j as result_and$1cozx1j, andThen$19hld68 as result_andThen$19hld68, or$1sapa01 as result_or$1sapa01, orElse$009jxpk as result_orElse$009jxpk, unwrapOr$137i3aj as result_unwrapOr$137i3aj, unwrapOrElse$1d4fano as result_unwrapOrElse$1d4fano, unwrapOrElse$1iet7cd as result_unwrapOrElse$1iet7cd, copied$10r3llp, clone$1dcpug1 as result_clone$1dcpug1 } from "./core/result.ts";
 
 /** Run case `kind % 4` over `data`, whose bytes pick each `Some` or `None`, `Ok` or `Err`. */
 export function combinators(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const a: rs.u8 | undefined = filter$0v80fk8(rs.byteSliceFirst(data), (x: rs.u8): boolean => {
+	const a: rs.u8 | undefined = filter$0hq86nl(rs.byteSliceFirst(data), (x: rs.u8): boolean => {
 		return rs.u8Rem(x, 3) !== 0;
 	});
-	const b: rs.u8 | undefined = filter$0v80fk8(rs.byteSliceGet(data, 1), (x2: rs.u8): boolean => {
+	const b: rs.u8 | undefined = filter$0hq86nl(rs.byteSliceGet(data, 1), (x2: rs.u8): boolean => {
 		return rs.u8Rem(x2, 5) !== 0;
 	});
-	const limit: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, 2), 128);
+	const limit: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 2), 128);
 	const _13: rs.u8 = rs.u8Rem(kind, 4);
 	if (_13 === 0) {
 		options(a, b, limit, out);
@@ -27,29 +27,29 @@ export function combinators(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 }
 
 export function options(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8, out: rs.ByteVec): void {
-	rs.byteVecPush(out, isSomeAnd$09tpccf(a, (x: rs.u8): boolean => {
+	rs.byteVecPush(out, isSomeAnd$1s2u5lz(a, (x: rs.u8): boolean => {
 		rs.byteVecPush(out, 160);
 		return x > limit;
 	}) ? 1 : 0);
-	rs.byteVecPush(out, isNoneOr$1s1o3ss(b, (x2: rs.u8): boolean => {
+	rs.byteVecPush(out, isNoneOr$0xn3i4j(b, (x2: rs.u8): boolean => {
 		rs.byteVecPush(out, 161);
 		return x2 < limit;
 	}) ? 1 : 0);
-	rs.byteVecPush(out, option_unwrapOr$0r2bmpr(option_andThen$17ch833(option_andThen$17ch833(a, (x3: rs.u8): rs.u8 | undefined => {
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(option_andThen$195hx6l(option_andThen$195hx6l(a, (x3: rs.u8): rs.u8 | undefined => {
 		return rs.u8CheckedAdd(x3, limit);
 	}), (x4: rs.u8): rs.u8 | undefined => {
 		rs.byteVecPush(out, 162);
-		return option_map$0cs071d(b, (y: rs.u8): rs.u8 => {
+		return option_map$1yjmt5m(b, (y: rs.u8): rs.u8 => {
 			return x4 ^ y;
 		});
 	}), 238));
-	rs.byteVecPush(out, option_mapOr$1surhce(filter$0v80fk8(a, (x5: rs.u8): boolean => {
+	rs.byteVecPush(out, option_mapOr$0vxw5sq(filter$0hq86nl(a, (x5: rs.u8): boolean => {
 		rs.byteVecPush(out, 163);
 		return x5 > limit;
 	}), 221, (x6: rs.u8): rs.u8 => {
 		return rs.u8Div(x6, 3);
 	}));
-	rs.byteVecPush(out, option_mapOrElse$1g6d36t(option_orElse$15bv4ho(a, (): rs.u8 | undefined => {
+	rs.byteVecPush(out, option_mapOrElse$0moj49b(option_orElse$1xazu5k(a, (): rs.u8 | undefined => {
 		rs.byteVecPush(out, 164);
 		return b;
 	}), (): rs.u8 => {
@@ -58,19 +58,19 @@ export function options(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8
 	}, (x7: rs.u8): rs.u8 => {
 		return rs.u8WrappingAdd(x7, 3);
 	}));
-	rs.byteVecPush(out, option_unwrapOrDefault$1q0ps0j(xor$0kctyix(a, b)));
-	rs.byteVecPush(out, option_unwrapOrElse$13moxzl(option_and$06om98g(a, b), (): rs.u8 => {
+	rs.byteVecPush(out, option_unwrapOrDefault$03apme8(xor$0x5qjg4(a, b)));
+	rs.byteVecPush(out, option_unwrapOrElse$0wd124z(option_and$02hlbkj(a, b), (): rs.u8 => {
 		rs.byteVecPush(out, 166);
 		return 187;
 	}));
-	rs.byteVecPush(out, option_unwrapOr$0r2bmpr(option_or$1loyskh(a, b), 170));
-	rs.byteVecPush(out, option_mapOr$0mmpeqx(zip$1deudzj(a, b), 0, (_2: [rs.u8, rs.u8]): rs.u8 => {
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(option_or$0ar58vy(a, b), 170));
+	rs.byteVecPush(out, option_mapOr$1h9hu6n(zip$0p00b0o(a, b), 0, (_2: [rs.u8, rs.u8]): rs.u8 => {
 		return rs.u8WrappingAdd(_2[0], _2[1]);
 	}));
-	rs.byteVecPush(out, option_inspect$0di0vx1(a, (x9: rs.u8): undefined => {
+	rs.byteVecPush(out, option_inspect$1sa9a1m(a, (x9: rs.u8): undefined => {
 		rs.byteVecPush(out, x9);
 	}) !== undefined ? 1 : 0);
-	push(result_map$132mdj8(option_okOrElse$1v98j0a(b, (): rs.u16 => {
+	push(result_map$044vsgj(option_okOrElse$0cs4x8k(b, (): rs.u16 => {
 		rs.byteVecPush(out, 167);
 		return ((limit as rs.u16) << 1) & 0xffff;
 	}), (x10: rs.u8): rs.u8 => {
@@ -79,19 +79,19 @@ export function options(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8
 }
 
 export function results(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8, out: rs.ByteVec): void {
-	const r: rs.Result<rs.u8, rs.u16> = option_okOr$0m6xlfp(a, rs.u16Mul(limit as rs.u16, 3));
-	const s: rs.Result<rs.u8, rs.u16> = option_okOrElse$1v98j0a(b, (): rs.u16 => {
+	const r: rs.Result<rs.u8, rs.u16> = option_okOr$19jxvkb(a, rs.u16Mul(limit as rs.u16, 3));
+	const s: rs.Result<rs.u8, rs.u16> = option_okOrElse$0cs4x8k(b, (): rs.u16 => {
 		return 511;
 	});
-	push(result_mapErr$1lsqfgi(result_map$132mdj8(r, (x: rs.u8): rs.u8 => {
+	push(result_mapErr$16o3r40(result_map$044vsgj(r, (x: rs.u8): rs.u8 => {
 		rs.byteVecPush(out, 177);
 		return rs.u8WrappingAdd(x, limit);
 	}), (e: rs.u16): rs.u16 => {
 		rs.byteVecPush(out, 178);
 		return rs.u16WrappingAdd(e, 1);
 	}), out);
-	push(result_orElse$13ay4um(result_andThen$0hd6ik8(r, (x2: rs.u8): rs.Result<rs.u8, rs.u16> => {
-		return option_okOr$0m6xlfp(rs.u8CheckedMul(x2, limit), 7);
+	push(result_orElse$009jxpk(result_andThen$19hld68(r, (x2: rs.u8): rs.Result<rs.u8, rs.u16> => {
+		return option_okOr$19jxvkb(rs.u8CheckedMul(x2, limit), 7);
 	}), (e2: rs.u16): rs.Result<rs.u8, rs.u16> => {
 		rs.byteVecPush(out, 179);
 		if (rs.u16Rem(e2, 2) === 0) {
@@ -99,35 +99,35 @@ export function results(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8
 		}
 		return rs.Err(e2);
 	}), out);
-	rs.byteVecPush(out, isOkAnd$0jj0nkw(r, (v: rs.u8): boolean => {
+	rs.byteVecPush(out, isOkAnd$1poqzjs(r, (v: rs.u8): boolean => {
 		return v > 3;
 	}) ? 1 : 0);
-	rs.byteVecPush(out, isErrAnd$0b01a39(s, (e3: rs.u16): boolean => {
+	rs.byteVecPush(out, isErrAnd$0ecrrmy(s, (e3: rs.u16): boolean => {
 		rs.byteVecPush(out, 180);
 		return e3 > 256;
 	}) ? 1 : 0);
-	rs.byteVecPush(out, result_mapOr$1mu5bvh(r, 17, (v2: rs.u8): rs.u8 => {
+	rs.byteVecPush(out, result_mapOr$1yz3viz(r, 17, (v2: rs.u8): rs.u8 => {
 		return rs.u8Div(v2, 2);
 	}));
-	rs.byteVecPush(out, result_mapOrElse$0jxx67n(s, (e4: rs.u16): rs.u8 => {
+	rs.byteVecPush(out, result_mapOrElse$0eu5k5b(s, (e4: rs.u16): rs.u8 => {
 		return e4 & 0xff;
 	}, (v3: rs.u8): rs.u8 => {
 		return v3 ^ 85;
 	}));
-	rs.byteVecPush(out, option_unwrapOr$0r2bmpr(ok$1c77lmd(r), 0));
-	rs.byteVecPush(out, option_mapOr$099335t(err$05f656d(s), 0, (e5: rs.u16): rs.u8 => {
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(ok$08qo4au(r), 0));
+	rs.byteVecPush(out, option_mapOr$031uhqp(err$0zs6b4d(s), 0, (e5: rs.u16): rs.u8 => {
 		return (e5 >> 8) & 0xff;
 	}));
-	rs.byteVecPush(out, result_unwrapOrDefault$1exw7nd(result_and$0l7ltae(r, s)));
-	rs.byteVecPush(out, result_unwrapOrElse$1reohq9(result_or$1xcfx3w(r, s), (e6: rs.u16): rs.u8 => {
+	rs.byteVecPush(out, result_unwrapOrDefault$0ysbycw(result_and$1cozx1j(r, s)));
+	rs.byteVecPush(out, result_unwrapOrElse$1d4fano(result_or$1sapa01(r, s), (e6: rs.u16): rs.u8 => {
 		return e6 & 0xff;
 	}));
-	rs.byteVecPush(out, inspectErr$06tv5sa(result_inspect$16o3gle(s, (v4: rs.u8): undefined => {
+	rs.byteVecPush(out, inspectErr$0nqm52c(result_inspect$1lvk7wu(s, (v4: rs.u8): undefined => {
 		rs.byteVecPush(out, v4);
 	}), (e7: rs.u16): undefined => {
 		rs.byteVecPush(out, e7 & 0xff);
 	}).ok ? 1 : 0);
-	rs.byteVecPush(out, result_unwrapOr$0a4h2e7(copied$0ma6p21(result_mapErr$1lsqfgi(asRef$1glrxiq(r), (e8: rs.u16): rs.u16 => {
+	rs.byteVecPush(out, result_unwrapOr$137i3aj(copied$10r3llp(result_mapErr$16o3r40(asRef$0qzh9or(r), (e8: rs.u16): rs.u16 => {
 		return e8;
 	})), 34));
 }
@@ -135,7 +135,7 @@ export function results(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8
 /** Values JS shares where Rust clones or moves them. */
 export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVec): void {
 	let matched!: rs.Result<rs.u32[], rs.u16>;
-	const s: string | undefined = option_map$0oc32h1(a, (x2: rs.u8): string => {
+	const s: string | undefined = option_map$1y26nmr(a, (x2: rs.u8): string => {
 		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(x2, f));
 	});
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(option_unwrapOrDefault$165pyh5(filter$1855tjj(option_clone$14nprly(s), (s2: string): boolean => {
@@ -143,23 +143,23 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 	}))));
 	rs.byteVecPush(out, 124);
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(option_unwrapOrElse$1badkpb(option_orElse$05gzawv(s, (): string | undefined => {
-		return option_map$0oc32h1(b, (y2: rs.u8): string => {
+		return option_map$1y26nmr(b, (y2: rs.u8): string => {
 			return rs.fmtToString((f: rs.Formatter) => rs.u8Display(y2, f));
 		});
 	}), (): string => {
 		return "-";
 	})));
 	rs.byteVecPush(out, 124);
-	const v: rs.Result<rs.ByteVec, string> = option_okOrElse$0awp3vn(option_map$0ejznqm(a, (x3: rs.u8): rs.ByteVec => {
+	const v: rs.Result<rs.ByteVec, string> = option_okOrElse$1usib9z(option_map$1px2rk4(a, (x3: rs.u8): rs.ByteVec => {
 		return rs.byteVecOf(x3, 2);
 	}), (): string => {
 		return "none";
 	});
-	const copy: rs.Result<rs.ByteVec, string> = result_clone$04fntvl(v);
+	const copy: rs.Result<rs.ByteVec, string> = result_clone$1dcpug1(v);
 	if (copy.ok) {
 		rs.byteVecPush(copy.value, 7);
 	}
-	const grown: rs.Result<rs.ByteVec, string> = result_map$1qqg34g(result_clone$04fntvl(v), (v3: rs.ByteVec): rs.ByteVec => {
+	const grown: rs.Result<rs.ByteVec, string> = result_map$0jdlh8o(result_clone$1dcpug1(v), (v3: rs.ByteVec): rs.ByteVec => {
 		rs.byteVecPush(v3, 9);
 		return v3;
 	});
@@ -177,15 +177,15 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 		}
 		rs.byteVecPush(out, 124);
 	}
-	rs.byteVecPush(out, option_unwrapOrDefault$0wx44sw(option_map$0ejznqm(filter$0v80fk8(b, (y3: rs.u8): boolean => {
+	rs.byteVecPush(out, option_unwrapOrDefault$0w012ed(option_map$1px2rk4(filter$0hq86nl(b, (y3: rs.u8): boolean => {
 		return rs.u8Rem(y3, 2) === 0;
 	}), (y4: rs.u8): rs.ByteVec => {
 		return rs.byteVecFrom(Uint8Array.of(y4));
 	})).length & 0xff);
-	const pair: rs.Result<rs.u32[], rs.u8> = option_okOr$07zal2e(option_map$0jg2jop(a, (x4: rs.u8): rs.u32[] => {
+	const pair: rs.Result<rs.u32[], rs.u8> = option_okOr$12zia2c(option_map$1ek423e(a, (x4: rs.u8): rs.u32[] => {
 		return [x4 as rs.u32, 2];
 	}), 3);
-	const wide: rs.Result<rs.u32[], rs.u16> = copy$Result_array2_u32_u16(result_mapErr$12w1s5x(pair, (a0: rs.u8): rs.u16 => {
+	const wide: rs.Result<rs.u32[], rs.u16> = copy$Result_array2_u32_u16(result_mapErr$12sqndm(pair, (a0: rs.u8): rs.u16 => {
 		return a0 as rs.u16;
 	}));
 	if (wide.ok) {
@@ -199,7 +199,7 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 	if (matched.ok) {
 		matched.value[1] = 8;
 	}
-	const iter2: rs.Iter<rs.Result<rs.u32[], rs.u16>> = rs.iterSlice([copy$Result_array2_u32_u16(result_mapErr$12w1s5x(pair, (a02: rs.u8): rs.u16 => {
+	const iter2: rs.Iter<rs.Result<rs.u32[], rs.u16>> = rs.iterSlice([copy$Result_array2_u32_u16(result_mapErr$12sqndm(pair, (a02: rs.u8): rs.u16 => {
 		return a02 as rs.u16;
 	})), copy$Result_array2_u32_u16(wide), copy$Result_array2_u32_u16(matched)]);
 	while (true) {
@@ -218,14 +218,14 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 
 /** A panic inside a closure std calls. */
 export function panics(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8, out: rs.ByteVec): void {
-	rs.byteVecPush(out, option_unwrapOr$0r2bmpr(option_andThen$17ch833(a, (x: rs.u8): rs.u8 | undefined => {
+	rs.byteVecPush(out, option_unwrapOr$1fr498u(option_andThen$195hx6l(a, (x: rs.u8): rs.u8 | undefined => {
 		if (!(x === limit)) {
 			return b;
 		}
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(x, f)];
 		rs.panicFmt(["closure saw ", args2[0]]);
 	}), 1));
-	rs.byteVecPush(out, result_unwrapOrElse$009ibtw(option_okOr$1vxk0yk(b, limit), (e: rs.u8): rs.u8 => {
+	rs.byteVecPush(out, result_unwrapOrElse$1iet7cd(option_okOr$1j8owgb(b, limit), (e: rs.u8): rs.u8 => {
 		if (rs.u8Rem(e, 4) === 0) {
 			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(e, f)];
 			rs.panicFmt(["error ", args4[0]]);

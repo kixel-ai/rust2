@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$03chm1q(self: boolean, t: [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+export function thenSome$06c3xh5(self: boolean, t: [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
 	if (!self) {
 		return undefined;
 	}

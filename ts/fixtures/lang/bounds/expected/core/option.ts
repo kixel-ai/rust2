@@ -3,21 +3,21 @@
 import * as rs from "../rs.ts";
 import type * as Item from "../bounds.Item.ts";
 
-export function map$1iekgsb(self: Item.Item | undefined, f: (a0: Item.Item) => rs.u8): rs.u8 | undefined {
+export function map$1i6no0n(self: Item.Item | undefined, f: (a0: Item.Item) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1hdkvwd(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 | undefined {
+export function map$1c8069b(self: [rs.u8, rs.u8] | undefined, f: (a0: [rs.u8, rs.u8]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0a57co2(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
+export function map$04ry0e1(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

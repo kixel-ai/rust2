@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import type * as Fault from "../heap.Fault.ts";
 
-export function mapErr$0fesv1f(self: rs.Result<rs.Layout, rs.LayoutError>, op: (a0: rs.LayoutError) => Fault.Fault): rs.Result<rs.Layout, Fault.Fault> {
+export function mapErr$10q8nna(self: rs.Result<rs.Layout, rs.LayoutError>, op: (a0: rs.LayoutError) => Fault.Fault): rs.Result<rs.Layout, Fault.Fault> {
 	if (self.ok) {
 		return self as rs.Result<rs.Layout, Fault.Fault>;
 	}

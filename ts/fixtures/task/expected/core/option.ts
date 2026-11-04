@@ -31,140 +31,140 @@ export function unwrapOr$0v6ziq2(self: Guard.Guard | undefined, default_: Guard.
 	return _0;
 }
 
-export function unwrapOr$1tvry1i(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
+export function unwrapOr$15hbiwd(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$0hegtde(self: Key.Key | undefined | rs.None, f: (a0: Key.Key | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
+export function map$150c7g4(self: Key.Key | undefined | rs.None, f: (a0: Key.Key | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function map$0ccnsmq(self: Guard.Guard | undefined | rs.None, f: (a0: Guard.Guard | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
+export function map$1x5kkz1(self: Guard.Guard | undefined | rs.None, f: (a0: Guard.Guard | undefined) => rs.u32 | undefined): rs.u32 | undefined | rs.None {
 	if (self === rs.None) {
 		return rs.None;
 	}
 	return f(self);
 }
 
-export function map$09vq4lk(self: Any.Any | undefined, f: (a0: Any.Any) => rs.Result<Guard.Guard, Any.Any>): rs.Result<Guard.Guard, Any.Any> | undefined {
+export function map$0cuxp9c(self: Any.Any | undefined, f: (a0: Any.Any) => rs.Result<Guard.Guard, Any.Any>): rs.Result<Guard.Guard, Any.Any> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0s8hob8(self: Part.Part | undefined, _: (a0: Part.Part) => rs.u32): rs.u32 | undefined {
+export function map$0aiphi9(self: Part.Part | undefined, _: (a0: Part.Part) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self.take$Part();
 }
 
-export function map$0782hf5(self: Key.Key | undefined, f: (a0: Key.Key) => rs.u32): rs.u32 | undefined {
+export function map$0bmexgo(self: Key.Key | undefined, f: (a0: Key.Key) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1t2fqxi(self: Ranked.Ranked | undefined, f: (a0: Ranked.Ranked) => rs.u32): rs.u32 | undefined {
+export function map$16oph0b(self: Ranked.Ranked | undefined, f: (a0: Ranked.Ranked) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1raha9y(self: Guard.Guard | undefined, f: (a0: Guard.Guard) => rs.u32): rs.u32 | undefined {
+export function map$06w9waf(self: Guard.Guard | undefined, f: (a0: Guard.Guard) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$19e1ji3(self: rs.Result<Guard.Guard, Any.Any> | undefined, f: (a0: rs.Result<Guard.Guard, Any.Any>) => boolean): boolean | undefined {
+export function map$0cktt1a(self: rs.Result<Guard.Guard, Any.Any> | undefined, f: (a0: rs.Result<Guard.Guard, Any.Any>) => boolean): boolean | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0lq7mno(self: Guard.Guard | undefined, _: (a0: Guard.Guard) => rs.u32): rs.u32 | undefined {
+export function map$02u0dmi(self: Guard.Guard | undefined, _: (a0: Guard.Guard) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return Guard.id(self);
 }
 
-export function map$06e51ml(self: rs.Arc<[Guard.Guard, Guard.Guard]> | undefined, f: (a0: rs.Arc<[Guard.Guard, Guard.Guard]>) => [rs.u32, rs.usize]): [rs.u32, rs.usize] | undefined {
+export function map$0chhxcr(self: rs.Arc<[Guard.Guard, Guard.Guard]> | undefined, f: (a0: rs.Arc<[Guard.Guard, Guard.Guard]>) => [rs.u32, rs.usize]): [rs.u32, rs.usize] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$01pvlgn(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => [rs.u32, rs.u32]): [rs.u32, rs.u32] | undefined {
+export function map$0j32j8c(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => [rs.u32, rs.u32]): [rs.u32, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$01vf10a(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => rs.u32): rs.u32 | undefined {
+export function map$0j94wbv(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0uom32p(self: [Guard.Guard, rs.u32] | undefined, f: (a0: [Guard.Guard, rs.u32]) => [rs.u32, rs.u32]): [rs.u32, rs.u32] | undefined {
+export function map$1nsn0pp(self: [Guard.Guard, rs.u32] | undefined, f: (a0: [Guard.Guard, rs.u32]) => [rs.u32, rs.u32]): [rs.u32, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$04djm2e(self: [[Guard.Guard, Guard.Guard], rs.u32] | undefined, f: (a0: [[Guard.Guard, Guard.Guard], rs.u32]) => [rs.u32, rs.u32, rs.u32]): [rs.u32, rs.u32, rs.u32] | undefined {
+export function map$0zjm57m(self: [[Guard.Guard, Guard.Guard], rs.u32] | undefined, f: (a0: [[Guard.Guard, Guard.Guard], rs.u32]) => [rs.u32, rs.u32, rs.u32]): [rs.u32, rs.u32, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1s61o75(self: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined, f: (a0: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]) => [rs.u32, rs.u32, rs.u32, rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] | undefined {
+export function map$0ss4ft9(self: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined, f: (a0: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]) => [rs.u32, rs.u32, rs.u32, rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1uj27tb(self: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32] | undefined, f: (a0: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32]) => [rs.usize, rs.u32, rs.u32, rs.u32]): [rs.usize, rs.u32, rs.u32, rs.u32] | undefined {
+export function map$1pp5yot(self: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32] | undefined, f: (a0: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32]) => [rs.usize, rs.u32, rs.u32, rs.u32]): [rs.usize, rs.u32, rs.u32, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1sprpgt(self: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32] | undefined, f: (a0: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]) => [rs.usize, rs.u32, rs.i32]): [rs.usize, rs.u32, rs.i32] | undefined {
+export function map$0nncxiz(self: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32] | undefined, f: (a0: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]) => [rs.usize, rs.u32, rs.i32]): [rs.usize, rs.u32, rs.i32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$14zg54s(self: [rs.usize, Guard.Guard] | undefined, f: (a0: [rs.usize, Guard.Guard]) => [rs.usize, rs.u32]): [rs.usize, rs.u32] | undefined {
+export function map$1389p4b(self: [rs.usize, Guard.Guard] | undefined, f: (a0: [rs.usize, Guard.Guard]) => [rs.usize, rs.u32]): [rs.usize, rs.u32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$0b0x7xy(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$0cxn9jm(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	let _0!: rs.u32 | undefined;
 	let _8: boolean = false;
 	_8 = true;
@@ -182,7 +182,7 @@ export function map$0b0x7xy(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32)
 	return _0;
 }
 
-export function map$1thjygq(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+export function map$1ol7nt5(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	let _0!: rs.u32 | undefined;
 	let _8: boolean = false;
 	_8 = true;
@@ -200,63 +200,63 @@ export function map$1thjygq(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32)
 	return _0;
 }
 
-export function map$0upmgd9(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.Result<rs.u64, rs.u64>): rs.Result<rs.u64, rs.u64> | undefined {
+export function map$1nux4ms(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.Result<rs.u64, rs.u64>): rs.Result<rs.u64, rs.u64> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1cf8u0y(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
+export function map$1haiqd3(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$184639r(self: rs.Vec<Guard.Guard> | undefined, default_: rs.usize, f: (a0: rs.Vec<Guard.Guard>) => rs.usize): rs.usize {
+export function mapOr$090948l(self: rs.Vec<Guard.Guard> | undefined, default_: rs.usize, f: (a0: rs.Vec<Guard.Guard>) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$00i7kb3(self: rs.Ordering | undefined, default_: rs.i8, f: (a0: rs.Ordering) => rs.i8): rs.i8 {
+export function mapOr$16nkz0h(self: rs.Ordering | undefined, default_: rs.i8, f: (a0: rs.Ordering) => rs.i8): rs.i8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1w10sgd(self: Key.Key | undefined, default_: rs.u32, f: (a0: Key.Key) => rs.u32): rs.u32 {
+export function mapOr$0mko9ta(self: Key.Key | undefined, default_: rs.u32, f: (a0: Key.Key) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$01ozsk3(self: Guard.Guard | undefined, default_: rs.u32, f: (a0: Guard.Guard) => rs.u32): rs.u32 {
+export function mapOr$1re20rq(self: Guard.Guard | undefined, default_: rs.u32, f: (a0: Guard.Guard) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1jn2pas(self: Part.Part | undefined, default_: rs.u32, f: (a0: Part.Part) => rs.u32): rs.u32 {
+export function mapOr$1uf7d6r(self: Part.Part | undefined, default_: rs.u32, f: (a0: Part.Part) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0lu2pr2(self: rs.Arc<Part.Part> | undefined, default_: rs.u32, f: (a0: rs.Arc<Part.Part>) => rs.u32): rs.u32 {
+export function mapOr$1yfuqyd(self: rs.Arc<Part.Part> | undefined, default_: rs.u32, f: (a0: rs.Arc<Part.Part>) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0ey19f0(self: rs.u32 | undefined, default_: Guard.Guard, f: (a0: rs.u32) => Guard.Guard): Guard.Guard {
+export function mapOr$19gmzl7(self: rs.u32 | undefined, default_: Guard.Guard, f: (a0: rs.u32) => Guard.Guard): Guard.Guard {
 	let _0!: Guard.Guard;
 	let _9: boolean = false;
 	_9 = true;
@@ -273,7 +273,7 @@ export function mapOr$0ey19f0(self: rs.u32 | undefined, default_: Guard.Guard, f
 	return _0;
 }
 
-export function mapOr$0nrpycp(self: rs.u32 | undefined, default_: rs.u32, f: (a0: rs.u32) => rs.u32): rs.u32 {
+export function mapOr$0lyy1bs(self: rs.u32 | undefined, default_: rs.u32, f: (a0: rs.u32) => rs.u32): rs.u32 {
 	let _0!: rs.u32;
 	let _8: boolean = false;
 	_8 = true;
@@ -291,7 +291,7 @@ export function mapOr$0nrpycp(self: rs.u32 | undefined, default_: rs.u32, f: (a0
 	return _0;
 }
 
-export function okOr$1alhe7b(self: Guard.Guard | undefined, err: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> {
+export function okOr$0qyzozq(self: Guard.Guard | undefined, err: Guard.Guard): rs.Result<Guard.Guard, Guard.Guard> {
 	let _0!: rs.Result<Guard.Guard, Guard.Guard>;
 	let _6: boolean = false;
 	_6 = true;
@@ -308,7 +308,7 @@ export function okOr$1alhe7b(self: Guard.Guard | undefined, err: Guard.Guard): r
 	return _0;
 }
 
-export function okOr$03aiwur(self: rs.u64 | undefined, err: rs.u64): rs.Result<rs.u64, rs.u64> {
+export function okOr$1fxnv80(self: rs.u64 | undefined, err: rs.u64): rs.Result<rs.u64, rs.u64> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
@@ -327,7 +327,7 @@ export function filter$1vqc90z(self: Guard.Guard | undefined, predicate: (a0: Gu
 	return undefined;
 }
 
-export function orElse$02wco5t(self: Guard.Guard | undefined, f: () => Guard.Guard | undefined): Guard.Guard | undefined {
+export function orElse$0gn8afw(self: Guard.Guard | undefined, f: () => Guard.Guard | undefined): Guard.Guard | undefined {
 	let _0!: Guard.Guard | undefined;
 	let _7: boolean = false;
 	_7 = true;
@@ -379,7 +379,7 @@ export function zip$1rr0evn(self: Guard.Guard | undefined, other: Guard.Guard | 
 	return _0;
 }
 
-export function clone$1sxxxkp(self: rs.Arc<Guard.Guard> | undefined): rs.Arc<Guard.Guard> | undefined {
+export function clone$0cpy9zy(self: rs.Arc<Guard.Guard> | undefined): rs.Arc<Guard.Guard> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

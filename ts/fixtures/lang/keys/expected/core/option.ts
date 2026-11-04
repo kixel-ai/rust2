@@ -6,35 +6,35 @@ import type * as Hop from "../keys.Hop.ts";
 import type * as Side from "../keys.Side.ts";
 import type * as Way from "../keys.Way.ts";
 
-export function unwrapOr$1j4op5y(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
+export function unwrapOr$1szdyfq(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$1tvry1i(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
+export function unwrapOr$15hbiwd(self: rs.u64 | undefined, default_: rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$146awhd(self: Hop.Hop | undefined, f: (a0: Hop.Hop) => [rs.u64, rs.u64]): [rs.u64, rs.u64] | undefined {
+export function map$1n6u2ar(self: Hop.Hop | undefined, f: (a0: Hop.Hop) => [rs.u64, rs.u64]): [rs.u64, rs.u64] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$120lney(self: Hop.Hop | undefined, f: (a0: Hop.Hop) => rs.u64): rs.u64 | undefined {
+export function map$174onvc(self: Hop.Hop | undefined, f: (a0: Hop.Hop) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -48,175 +48,175 @@ export function map$0lcwx9x(self: Way.Way | undefined, f: (a0: Way.Way) => boole
 	return f(self);
 }
 
-export function map$0gn4nwv(self: rs.u8 | undefined, _: (a0: rs.u8) => Side.Side): Side.Side | undefined {
+export function map$0bzc4vz(self: rs.u8 | undefined, _: (a0: rs.u8) => Side.Side): Side.Side | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return side(self);
 }
 
-export function mapOr$1h1mlmc(self: rs.u32[] | undefined, default_: rs.u8, f: (a0: rs.u32[]) => rs.u8): rs.u8 {
+export function mapOr$18799n0(self: rs.u32[] | undefined, default_: rs.u8, f: (a0: rs.u32[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1bumeih(self: Array<rs.u8 | undefined> | undefined, default_: rs.u8, f: (a0: Array<rs.u8 | undefined>) => rs.u8): rs.u8 {
+export function mapOr$182mz1d(self: Array<rs.u8 | undefined> | undefined, default_: rs.u8, f: (a0: Array<rs.u8 | undefined>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0qqhf4e(self: boolean[] | undefined, default_: rs.u8, f: (a0: boolean[]) => rs.u8): rs.u8 {
+export function mapOr$0ucpmcy(self: boolean[] | undefined, default_: rs.u8, f: (a0: boolean[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$141aobk(self: rs.char[] | undefined, default_: rs.u8, f: (a0: rs.char[]) => rs.u8): rs.u8 {
+export function mapOr$0187me0(self: rs.char[] | undefined, default_: rs.u8, f: (a0: rs.char[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$17y4wkx(self: rs.i32[] | undefined, default_: rs.u8, f: (a0: rs.i32[]) => rs.u8): rs.u8 {
+export function mapOr$19cu5pi(self: rs.i32[] | undefined, default_: rs.u8, f: (a0: rs.i32[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0rtxftk(self: Hop.Hop[] | undefined, default_: rs.u8, f: (a0: Hop.Hop[]) => rs.u8): rs.u8 {
+export function mapOr$0kbx53k(self: Hop.Hop[] | undefined, default_: rs.u8, f: (a0: Hop.Hop[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1kiffmd(self: rs.u16[] | undefined, default_: rs.u8, f: (a0: rs.u16[]) => rs.u8): rs.u8 {
+export function mapOr$13ci3um(self: rs.u16[] | undefined, default_: rs.u8, f: (a0: rs.u16[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0nlcxqx(self: rs.u64[] | undefined, default_: rs.u8, f: (a0: rs.u64[]) => rs.u8): rs.u8 {
+export function mapOr$07qfnm1(self: rs.u64[] | undefined, default_: rs.u8, f: (a0: rs.u64[]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1dgdmlk(self: rs.Ordering | undefined, default_: rs.u8, _: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$0iqhkrm(self: rs.Ordering | undefined, default_: rs.u8, _: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return order(self);
 }
 
-export function mapOr$04khdaj(self: Hop.Hop | undefined, default_: rs.u64, f: (a0: Hop.Hop) => rs.u64): rs.u64 {
+export function mapOr$1afu7tt(self: Hop.Hop | undefined, default_: rs.u64, f: (a0: Hop.Hop) => rs.u64): rs.u64 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1a3irjf(self: rs.ByteVec | undefined, default_: rs.u8, f: (a0: rs.ByteVec) => rs.u8): rs.u8 {
+export function mapOr$0g5x999(self: rs.ByteVec | undefined, default_: rs.u8, f: (a0: rs.ByteVec) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0z7fb2w(self: rs.ByteSlice | undefined, default_: Uint8Array, f: (a0: rs.ByteSlice) => Uint8Array): Uint8Array {
+export function mapOr$172961h(self: rs.ByteSlice | undefined, default_: Uint8Array, f: (a0: rs.ByteSlice) => Uint8Array): Uint8Array {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1w1gbwl(self: rs.ByteSlice | undefined, default_: rs.u8, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 {
+export function mapOr$1lwzqm5(self: rs.ByteSlice | undefined, default_: rs.u8, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$02k4ito(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1xwgm12(self: [rs.u32[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u32[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$0ohpdps(self: [rs.u32[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u32[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$187k0x1(self: [Array<rs.u8 | undefined>, rs.u8] | undefined, default_: rs.u8, f: (a0: [Array<rs.u8 | undefined>, rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1rph82m(self: [Array<rs.u8 | undefined>, rs.u8] | undefined, default_: rs.u8, f: (a0: [Array<rs.u8 | undefined>, rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$13q9j26(self: [boolean[], rs.u8] | undefined, default_: rs.u8, f: (a0: [boolean[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1ruj5y1(self: [boolean[], rs.u8] | undefined, default_: rs.u8, f: (a0: [boolean[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1afbbm4(self: [rs.char[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.char[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$03xawqj(self: [rs.char[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.char[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$03mkmku(self: [rs.i32[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.i32[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1r07wd5(self: [rs.i32[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.i32[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0spovx0(self: [Hop.Hop[], rs.u8] | undefined, default_: rs.u8, f: (a0: [Hop.Hop[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$03hkgbr(self: [Hop.Hop[], rs.u8] | undefined, default_: rs.u8, f: (a0: [Hop.Hop[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0iyypgq(self: [rs.u16[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u16[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$0uf63ye(self: [rs.u16[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u16[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0vfd25u(self: [rs.u64[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u64[], rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$1p2t4pe(self: [rs.u64[], rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.u64[], rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1be3nsj(self: [rs.ByteSlice, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.ByteSlice, rs.u8]) => rs.u8): rs.u8 {
+export function mapOr$09t7mex(self: [rs.ByteSlice, rs.u8] | undefined, default_: rs.u8, f: (a0: [rs.ByteSlice, rs.u8]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

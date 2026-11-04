@@ -6,8 +6,8 @@ import type * as Prefix from "../coding/encode.Prefix.ts";
 import type * as PrefixKind from "../coding/encode.PrefixKind.ts";
 import { write } from "../coding/varint.ts";
 import type * as Form from "../coding/varint.Form.ts";
-import { okOr$1lamf4s as option_okOr$1lamf4s } from "../core/option.ts";
-import { mapErr$0ujtlj1 as result_mapErr$0ujtlj1 } from "../core/result.ts";
+import { okOr$08cl3no as option_okOr$08cl3no } from "../core/option.ts";
+import { mapErr$0f1want as result_mapErr$0f1want } from "../core/result.ts";
 import type * as Control from "../stats.Control.ts";
 
 /**
@@ -60,7 +60,7 @@ export function varintOpt(self: Encoder, v: rs.u64 | undefined): rs.Result<undef
 	if (v === undefined) {
 		v2 = 0;
 	} else {
-		const _6: rs.Result<rs.u64, EncodeError.EncodeError> = option_okOr$1lamf4s(rs.u64CheckedAdd(v, 1), "TooLarge" as EncodeError.EncodeError);
+		const _6: rs.Result<rs.u64, EncodeError.EncodeError> = option_okOr$08cl3no(rs.u64CheckedAdd(v, 1), "TooLarge" as EncodeError.EncodeError);
 		if (_6.ok) {
 			v2 = _6.value;
 		} else {
@@ -145,7 +145,7 @@ export function fill(self: Encoder, prefix: Prefix.Prefix): rs.Result<undefined,
 			return rs.Err(EncodeError.from$convert_From_coding_varint_BoundsExceeded({}));
 		}
 	} else {
-		const _7: rs.Result<rs.u16, EncodeError.EncodeError> = result_mapErr$0ujtlj1(rs.u16TryFrom(rs.usizeSub(end, body)), (_2: rs.TryFromIntError): EncodeError.EncodeError => {
+		const _7: rs.Result<rs.u16, EncodeError.EncodeError> = result_mapErr$0f1want(rs.u16TryFrom(rs.usizeSub(end, body)), (_2: rs.TryFromIntError): EncodeError.EncodeError => {
 			return "TooLarge" as EncodeError.EncodeError;
 		});
 		if (_7.ok) {

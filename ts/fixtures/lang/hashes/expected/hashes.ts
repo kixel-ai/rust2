@@ -2,9 +2,9 @@
 
 import * as rs from "./rs.ts";
 import { drop$Option_tuple2_u8_hashes_Noisy, drop$hashes_Switch, drop$tuple2_hashes_Seeded_hashes_Seeded } from "./lib.ts";
-import { thenSome$0n2gkz4 } from "./core/bool.ts";
-import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
-import { unwrapOr$01jdcm7 as result_unwrapOr$01jdcm7 } from "./core/result.ts";
+import { thenSome$05ku0zn } from "./core/bool.ts";
+import { unwrapOr$04rqm9m as option_unwrapOr$04rqm9m, unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
+import { unwrapOr$0a3q6xs as result_unwrapOr$0a3q6xs } from "./core/result.ts";
 import { put, text } from "./harness.ts";
 import * as Bare from "./hashes.Bare.ts";
 import * as Build from "./hashes.Build.ts";
@@ -214,7 +214,7 @@ export function digest$isize(value: rs.isize, out: rs.ByteVec): void {
 }
 
 /** `DefaultHasher::new`'s hash of `value`, little-endian. */
-export function digest$slice_u16(value: rs.Slice<rs.u16>, out: rs.ByteVec): void {
+export function digest$slice_u16(value: rs.u16[], out: rs.ByteVec): void {
 	const h: rs.Hasher = rs.hasher();
 	rs.hashInts(2)(value, h);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.hashFinish(h)).reverse()));
@@ -357,7 +357,7 @@ export function wide(data: rs.ByteSlice, at: rs.usize, n: rs.usize): rs.u128 {
 		if (!((_10 = iterStart++) < iterEnd)) {
 			return v;
 		}
-		v = rs.u128Or(rs.u128Shl(v, 8), option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, _10), 0) as rs.u128);
+		v = rs.u128Or(rs.u128Shl(v, 8), option_unwrapOr$1fr498u(rs.byteSliceGet(data, _10), 0) as rs.u128);
 	}
 }
 
@@ -388,9 +388,9 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$usize(rs.u128Low(a), out);
 		digest$isize(rs.u128Low(a) | 0, out);
 		digest$bool(rs.u128And(a, 1) === 1, out);
-		digest$char(option_unwrapOr$0k15iai(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), out);
+		digest$char(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), out);
 	} else if (_5 === 1) {
-		const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "é ✓ 😀");
+		const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 		digest$str(text, out);
 		digest$String(text, out);
 		digest$str("", out);
@@ -408,8 +408,7 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u16Mul(_23 as rs.u16, 257);
 		}), undefined, 2, true);
 		digest$Vec_u16(words, out);
-		const part = rs.usizeDiv(words.items.length, 2);
-		digest$slice_u16(rs.sliceRange(rs.sliceFrom(words.items), part), out);
+		digest$slice_u16(rs.sliceRange(words.items, rs.usizeDiv(words.items.length, 2)), out);
 		digest$array3_u32([n, (n ^ 1) >>> 0, n >>> 3], out);
 		digest$cmp_Ordering(rs.cmp(n & 0xff, rs.u128Low(w(4, 1)) & 0xff), out);
 		digest$time_Duration(rs.durationNew(rs.u64Cast(w(0, 6)), rs.u32Rem(n, 1000000000)), out);
@@ -417,9 +416,9 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		digest$Option_num_NonZero_u32(rs.nonZero((n | 1) >>> 0), out);
 	} else if (_5 === 3) {
 		const n2: rs.u64 = rs.u64Cast(w(0, 8));
-		digest$hashes_Packet({ id: n2, flags: option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0), name: result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "?"), tags: rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
+		digest$hashes_Packet({ id: n2, flags: option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), name: result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "?"), tags: rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
 			return _2 as rs.u16;
-		}), undefined, 2, true), next: thenSome$0n2gkz4(rs.u64Rem(n2, 3) !== 0, rs.u64Low(n2) | 0) }, out);
+		}), undefined, 2, true), next: thenSome$05ku0zn(rs.u64Rem(n2, 3) !== 0, rs.u64Low(n2) | 0) }, out);
 		const _188: rs.u64 = rs.u64Rem(n2, 3);
 		if (_188 === 0) {
 			shape = { tag: "Dot" } as Shape.Shape;
@@ -496,7 +495,7 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const i: rs.usize = _11[0];
 		const b: rs.u8 = _11[1];
 		const n: rs.u64 = rs.u64Cast(wide(data, i, 8));
-		const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(rs.byteSliceRange(data, i)), "✓");
+		const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(rs.byteSliceRange(data, i)), "✓");
 		const built: rs.Hasher = rs.buildHasher(s);
 		rs.hash64(n, built);
 		rs.byteVecPush(out, rs.u64Eq(rs.hashOne(rs.buildHasher(s), n, rs.hash64), rs.hashFinish(built)) ? 1 : 0);
@@ -522,10 +521,10 @@ export function random(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const keys: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
 		return rs.u64Mul(_2 as rs.u64, 1103823438081);
 	}), undefined, 8, true);
-	rs.sliceSort(rs.sliceFrom(keys.items), rs.keyLt((k2: rs.u64): rs.u64 => {
+	rs.sliceSort(keys.items, rs.keyLt((k2: rs.u64): rs.u64 => {
 		return rs.hashOne(rs.buildHasher(other.state), k2, rs.hash64);
 	}, rs.lt), 8, true);
-	rs.sliceSort(rs.sliceFrom(keys.items), rs.lt, 8, true);
+	rs.sliceSort(keys.items, rs.lt, 8, true);
 	for (const _127 of keys.items) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(_127).reverse()));
 	}
@@ -629,8 +628,8 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$0k15iai(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "é ✓ 😀");
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashStr(text, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
@@ -647,8 +646,7 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 		return rs.u16Mul(_2 as rs.u16, 257);
 	}), undefined, 2, true);
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const part = rs.usizeDiv(words.items.length, 2);
-	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	const _111: rs.u16[] = rs.sliceRange(words.items, rs.usizeDiv(words.items.length, 2));
 	rs.hashInts(2)(_111, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const _120: rs.u64[] = [b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)];
 	rs.hashInts(8)(_120, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
@@ -674,7 +672,7 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rs.ByteSlice): void {
 	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const _193: rs.u8 = rs.u128Low(a) & 0xff;
 	const _194: string = text;
-	const _195: rs.i32 | undefined = thenSome$0n2gkz4(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
 	Packet.hash$Hash_hashes_Bare({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
 	Shape.hash$Hash_hashes_Bare({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Bare as (a0: Dir.Dir, a1: Bare.Bare) => undefined))(["Up" as Dir.Dir, "Down" as Dir.Dir], new rs.OwnHasher(h, Bare.hasher$hash_Hasher));
@@ -709,8 +707,8 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$0k15iai(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "é ✓ 😀");
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Full.hasher$hash_Hasher));
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashStr(text, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
@@ -727,8 +725,7 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 		return rs.u16Mul(_2 as rs.u16, 257);
 	}), undefined, 2, true);
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
-	const part = rs.usizeDiv(words.items.length, 2);
-	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	const _111: rs.u16[] = rs.sliceRange(words.items, rs.usizeDiv(words.items.length, 2));
 	rs.hashInts(2)(_111, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const _120: rs.u64[] = [b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)];
 	rs.hashInts(8)(_120, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
@@ -754,7 +751,7 @@ export function hashInto$hashes_Full(h: Full.Full, data: rs.ByteSlice): void {
 	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Full.hasher$hash_Hasher));
 	const _193: rs.u8 = rs.u128Low(a) & 0xff;
 	const _194: string = text;
-	const _195: rs.i32 | undefined = thenSome$0n2gkz4(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
 	Packet.hash$Hash_hashes_Full({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
 	Shape.hash$Hash_hashes_Full({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Full as (a0: Dir.Dir, a1: Full.Full) => undefined))(["Up" as Dir.Dir, "Down" as Dir.Dir], new rs.OwnHasher(h, Full.hasher$hash_Hasher));
@@ -789,8 +786,8 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$0k15iai(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "é ✓ 😀");
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashStr(text, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
@@ -807,8 +804,7 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 		return rs.u16Mul(_2 as rs.u16, 257);
 	}), undefined, 2, true);
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const part = rs.usizeDiv(words.items.length, 2);
-	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	const _111: rs.u16[] = rs.sliceRange(words.items, rs.usizeDiv(words.items.length, 2));
 	rs.hashInts(2)(_111, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const _120: rs.u64[] = [b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)];
 	rs.hashInts(8)(_120, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
@@ -834,7 +830,7 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rs.ByteSlice):
 	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const _193: rs.u8 = rs.u128Low(a) & 0xff;
 	const _194: string = text;
-	const _195: rs.i32 | undefined = thenSome$0n2gkz4(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
 	Packet.hash$Hash_hashes_Partial({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
 	Shape.hash$Hash_hashes_Partial({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Partial as (a0: Dir.Dir, a1: Partial.Partial) => undefined))(["Up" as Dir.Dir, "Down" as Dir.Dir], new rs.OwnHasher(h, Partial.hasher$hash_Hasher));
@@ -869,8 +865,8 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	rs.hashUsize(rs.u128Low(a), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashIsize(rs.u128Low(a) | 0, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hash8(rs.u128And(a, 1) === 1, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	rs.hash32(option_unwrapOr$0k15iai(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "é ✓ 😀");
+	rs.hash32(option_unwrapOr$04rqm9m(rs.charFromU32((rs.u128Low(a) & 2097151) >>> 0), 1114111), new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "é ✓ 😀");
 	rs.hashStr(text, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashStr(text, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	rs.hashNothing(undefined, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
@@ -887,8 +883,7 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 		return rs.u16Mul(_2 as rs.u16, 257);
 	}), undefined, 2, true);
 	rs.hashInts(2)(words, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const part = rs.usizeDiv(words.items.length, 2);
-	const _111: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words.items), part);
+	const _111: rs.u16[] = rs.sliceRange(words.items, rs.usizeDiv(words.items.length, 2));
 	rs.hashInts(2)(_111, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const _120: rs.u64[] = [b, rs.u64Shl(b, 40), rs.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rs.u64, b)];
 	rs.hashInts(8)(_120, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
@@ -914,7 +909,7 @@ export function hashInto$hashes_Switch(h: rs.Place<Switch.Switch>, data: rs.Byte
 	rs.rangeHash(rs.hash8)(_187, new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const _193: rs.u8 = rs.u128Low(a) & 0xff;
 	const _194: string = text;
-	const _195: rs.i32 | undefined = thenSome$0n2gkz4(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
+	const _195: rs.i32 | undefined = thenSome$05ku0zn(rs.u64Rem(b, 3) !== 0, rs.u64Low(b) | 0);
 	Packet.hash$Hash_hashes_Switch({ id: b, flags: _193, name: _194, tags: words, next: _195 }, h);
 	Shape.hash$Hash_hashes_Switch({ tag: "Rect", w: (rs.u128Low(a) << 16) >> 16, h: -1 } as Shape.Shape, h);
 	rs.hashSlice(rs.hashOwn(Dir.hash$Hash_hashes_Switch as (a0: Dir.Dir, a1: rs.Place<Switch.Switch>) => undefined))(["Up" as Dir.Dir, "Down" as Dir.Dir], new rs.OwnHasher(h, Switch.hasher$hash_Hasher));
@@ -942,7 +937,7 @@ export function own(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const partial: Partial.Partial = { _0: log };
 	hashInto$hashes_Partial(partial, data);
 	const build: Build.Build = { _0: log };
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "✓");
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const n: rs.u16 = rs.u128Low(wide(data, 0, 2)) & 0xffff;
 	const _29: rs.u64 = Bare.finish$hash_Hasher(bare);
 	const _31: rs.u64 = Partial.finish$hash_Hasher(partial);
@@ -985,7 +980,7 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.hash16(n, new rs.OwnHasher(rs.place(() => holder.h, (value3) => holder.h = value3), Switch.hasher$hash_Hasher));
 	const _24: rs.ByteSlice = rs.byteSliceRange(data, rs.usizeDiv(data.length, 2));
 	hashInto$hashes_Switch(rs.place(() => holder.h, (value4) => holder.h = value4), _24);
-	const text: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "✓");
+	const text: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const seeded: Seeded.Seeded = new Seeded.Seeded({ tag: "Log", _0: log } as Switch.Switch);
 	const summing: Seeded.Seeded = new Seeded.Seeded({ tag: "Sum", _0: log, _1: n as rs.u64 } as Switch.Switch);
 	const _40: rs.u64 = Switch.finish$hash_Hasher(local);
@@ -1043,7 +1038,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecClear(_5.value);
 		rs.refMutRelease(_5);
 	})(EVENTS.get());
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 7);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	const keyed: rs.HashMap<Key.Key, rs.u8> = rs.hashWithCapacity(data.length, 58720256, rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq), new Numbered.Numbered(first)) as rs.HashMap<Key.Key, rs.u8>;
 	const seen: rs.HashSet<rs.u8> = rs.hashNew(undefined, new Numbered.Numbered(1)) as rs.HashSet<rs.u8>;
 	const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
@@ -1066,7 +1061,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(keyed, _44) ? 1 : 0);
 	}
 	const held: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
-	rs.sliceSort(rs.sliceFrom(held.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
+	rs.sliceSort(held.items, rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
 	for (const _63 of held.items) {
 		rs.byteVecPush(out, _63[0]._0 & 0xff);
 		put(out, _63[0]._1);
@@ -1103,7 +1098,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.hashExtendKeys(seen, rs.hashKeys(small, undefined, undefined, rs.drop), undefined, undefined, 469762048);
 	rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	const keys: rs.Vec<Key.Key> = rs.iterToVec(rs.hashKeys(keyed, undefined, undefined, rs.drop), "next", 16);
-	rs.sliceSort(rs.sliceFrom(keys.items), rs.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
+	rs.sliceSort(keys.items, rs.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
 	rs.byteVecPush(out, keys.items.length & 0xff);
 	const iter3: rs.Iter<Noisy.Noisy> = rs.hashValues(taken, rs.drop, undefined, rs.drop);
 	while (true) {
@@ -1163,7 +1158,7 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 	}
 	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
+		rs.sliceSort(calls.items, rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
@@ -1195,7 +1190,7 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rs.Ha
 	}
 	rs.vecTruncate(calls, rs.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		rs.sliceSort(rs.sliceFrom(calls.items), rs.lt, 4, true);
+		rs.sliceSort(calls.items, rs.lt, 4, true);
 	}
 	rs.byteVecPush(out, calls.items.length & 0xff);
 	for (const _39 of calls.items) {
@@ -1261,7 +1256,7 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		return { names: _33, seen: rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashSet<[rs.u8, boolean]>, _75, undefined, undefined, 469762048) };
 	};
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const map: (a0: rs.u8, a1: rs.ByteSlice) => rs.HashMap<Sided.Sided, Sided.Sided> = (side2: rs.u8, bytes5: rs.ByteSlice): rs.HashMap<Sided.Sided, Sided.Sided> => {
 		const _58: Spread.Spread = { _0: rs.u64Add(rs.u64Mul(side2 as rs.u64, 65537), first as rs.u64) };
 		const m2: rs.HashMap<Sided.Sided, Sided.Sided> = rs.hashNew(rs.hashing(Sided.hash$Hash_hash_DefaultHasher as (a0: Sided.Sided, a1: rs.Hasher) => undefined, Sided.eq$cmp_PartialEq), _58) as rs.HashMap<Sided.Sided, Sided.Sided>;
@@ -1367,7 +1362,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecClear(_5.value);
 		rs.refMutRelease(_5);
 	})(EVENTS.get());
-	const first: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 7);
+	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
 	Tallied.default$Default();
 	const held: Tallied.Tallied = { tag: first, state: undefined };
 	const cloned: Tallied.Tallied = Tallied.clone$Clone(held);
@@ -1378,7 +1373,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, Tallied.eq$cmp_PartialEq(held, _36) ? 1 : 0);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), (f: rs.Formatter) => rs.fmtOption(undefined, f, (_value: undefined, f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault"), rs.None), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(cloned, f), (f: rs.Formatter) => Tallied.fmt$fmt_Debug(held, f)];
 	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", rs.fmtSpec({ alternate: true }, args2[3])]));
-	const word: string = result_unwrapOr$01jdcm7(rs.strFromUtf8(data), "✓");
+	const word: string = result_unwrapOr$0a3q6xs(rs.strFromUtf8(data), "✓");
 	const n: rs.u16 = rs.u128Low(wide(data, 0, 2)) & 0xffff;
 	const built: Tally.Tally = Tally.default$Default();
 	rs.hash16(n, new rs.OwnHasher(built, Tally.hasher$hash_Hasher));
@@ -1420,7 +1415,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(keyed, _128) ? 1 : 0);
 	}
 	const entries: rs.Vec<[Key.Key, rs.u8]> = rs.iterToVec(rs.hashIter(keyed), "next", 8);
-	rs.sliceSort(rs.sliceFrom(entries.items), rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
+	rs.sliceSort(entries.items, rs.cmpLt(rs.cmpTuple<[Key.Key, rs.u8], rs.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rs.cmp])), 8, true);
 	for (const _147 of entries.items) {
 		rs.byteVecPush(out, _147[0]._0 & 0xff);
 		put(out, _147[0]._1);

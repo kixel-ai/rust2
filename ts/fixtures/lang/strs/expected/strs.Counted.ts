@@ -10,10 +10,10 @@ export interface Counted<T> {
 
 export function next$iter_Iterator_String(self: Counted<string>): string | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _8: [string, rs.Slice<string>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<string>);
+	const _8: [string, string[]] | undefined = rs.sliceSplitFirst(self.items as string[]);
 	if (_8 !== undefined) {
-		const val: [string, rs.Slice<string>] = _8;
-		(self.items as rs.Slice<string>) = val[1];
+		const val: [string, string[]] = _8;
+		(self.items as string[]) = val[1];
 		return val[0];
 	}
 	return rs.DONE;
@@ -21,10 +21,10 @@ export function next$iter_Iterator_String(self: Counted<string>): string | rs.Do
 
 export function next$iter_Iterator_char(self: Counted<rs.char>): rs.char | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _8: [rs.char, rs.Slice<rs.char>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.char>);
+	const _8: [rs.char, rs.char[]] | undefined = rs.sliceSplitFirst(self.items as rs.char[]);
 	if (_8 !== undefined) {
-		const val: [rs.char, rs.Slice<rs.char>] = _8;
-		(self.items as rs.Slice<rs.char>) = val[1];
+		const val: [rs.char, rs.char[]] = _8;
+		(self.items as rs.char[]) = val[1];
 		return val[0];
 	}
 	return rs.DONE;
@@ -32,10 +32,10 @@ export function next$iter_Iterator_char(self: Counted<rs.char>): rs.char | rs.Do
 
 export function next$iter_Iterator_ref_str(self: Counted<string>): string | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _8: [string, rs.Slice<string>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<string>);
+	const _8: [string, string[]] | undefined = rs.sliceSplitFirst(self.items as string[]);
 	if (_8 !== undefined) {
-		const val: [string, rs.Slice<string>] = _8;
-		(self.items as rs.Slice<string>) = val[1];
+		const val: [string, string[]] = _8;
+		(self.items as string[]) = val[1];
 		return val[0];
 	}
 	return rs.DONE;

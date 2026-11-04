@@ -4,7 +4,7 @@ import * as rs from "../rs.ts";
 import { out$u64, out$usize } from "../lib.ts";
 import * as DecodeError from "../coding/decode.DecodeError.ts";
 import * as Decoder from "../coding/decode.Decoder.ts";
-import { mapErr$0577706 as result_mapErr$0577706, mapErr$04g1m7s as result_mapErr$04g1m7s, andThen$0hcfsqc as result_andThen$0hcfsqc, andThen$1kvlask as result_andThen$1kvlask, unwrapOr$0jeml8j as result_unwrapOr$0jeml8j } from "../core/result.ts";
+import { mapErr$02fx80t as result_mapErr$02fx80t, mapErr$0ro6mbb as result_mapErr$0ro6mbb, andThen$0xo70ms as result_andThen$0xo70ms, andThen$0bc8wcd as result_andThen$0bc8wcd, unwrapOr$0a2fg79 as result_unwrapOr$0a2fg79 } from "../core/result.ts";
 import type * as Group from "../lite/group.Group.ts";
 import type * as Probe from "../lite/probe.Probe.ts";
 import type * as Control from "../stats.Control.ts";
@@ -21,7 +21,7 @@ export function decodeSize(r: Decoder.Decoder, max: rs.usize): rs.usize | undefi
 				return _8.value;
 			}
 		}
-		out$usize.err = { tag: "MessageTooLarge", size: result_unwrapOr$0jeml8j(rs.usizeTryFrom(size), 4294967295), max } as DecodeError.DecodeError;
+		out$usize.err = { tag: "MessageTooLarge", size: result_unwrapOr$0a2fg79(rs.usizeTryFrom(size), 4294967295), max } as DecodeError.DecodeError;
 		return undefined;
 	}
 	out$usize.err = err as DecodeError.DecodeError;
@@ -39,7 +39,7 @@ export function decodeWith$lite_group_Group_coding_decode_Decode_lite_version_Ve
 		const _9: rs.Result<Decoder.Decoder, DecodeError.DecodeError> = Decoder.sub(r, part as rs.usize);
 		if (_9.ok) {
 			const body: Decoder.Decoder = _9.value;
-			const result: rs.Result<Group.Group, DecodeError.DecodeError> = result_andThen$0hcfsqc(result_mapErr$0577706(decode(body), DecodeError.complete), (msg: Group.Group): rs.Result<Group.Group, DecodeError.DecodeError> => {
+			const result: rs.Result<Group.Group, DecodeError.DecodeError> = result_andThen$0xo70ms(result_mapErr$02fx80t(decode(body), DecodeError.complete), (msg: Group.Group): rs.Result<Group.Group, DecodeError.DecodeError> => {
 				if (!Decoder.isEmpty(body)) {
 					return rs.Err({ tag: "Long" } as DecodeError.DecodeError);
 				}
@@ -66,7 +66,7 @@ export function decodeWith$lite_probe_Probe_coding_decode_Decode_lite_version_Ve
 		const _9: rs.Result<Decoder.Decoder, DecodeError.DecodeError> = Decoder.sub(r, part as rs.usize);
 		if (_9.ok) {
 			const body: Decoder.Decoder = _9.value;
-			const result: rs.Result<Probe.Probe, DecodeError.DecodeError> = result_andThen$1kvlask(result_mapErr$04g1m7s(decode(body), DecodeError.complete), (msg: Probe.Probe): rs.Result<Probe.Probe, DecodeError.DecodeError> => {
+			const result: rs.Result<Probe.Probe, DecodeError.DecodeError> = result_andThen$0bc8wcd(result_mapErr$0ro6mbb(decode(body), DecodeError.complete), (msg: Probe.Probe): rs.Result<Probe.Probe, DecodeError.DecodeError> => {
 				if (!Decoder.isEmpty(body)) {
 					return rs.Err({ tag: "Long" } as DecodeError.DecodeError);
 				}

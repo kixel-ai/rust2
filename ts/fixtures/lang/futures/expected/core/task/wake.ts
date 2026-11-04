@@ -2,14 +2,14 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$0n9bv8t(self: rs.RawWaker, other: rs.RawWaker): boolean {
+export function eq$1ohvggu(self: rs.RawWaker, other: rs.RawWaker): boolean {
 	if (!(self.data === other.data)) {
 		return false;
 	}
-	return eq$0xaykl8(self.vtable, other.vtable);
+	return eq$1obrnmy(self.vtable, other.vtable);
 }
 
-export function eq$0xaykl8(self: rs.WakerVTable, other: rs.WakerVTable): boolean {
+export function eq$1obrnmy(self: rs.WakerVTable, other: rs.WakerVTable): boolean {
 	if (self.clone === other.clone) {
 		if (self.wake === other.wake) {
 			if (self.wakeByRef === other.wakeByRef) {

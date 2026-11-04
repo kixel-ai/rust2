@@ -3,7 +3,8 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Six, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	return rs.fmtDebugTupleFields(f, "Six", [(f: rs.Formatter) => rs.u8Debug(self._0, f), (f: rs.Formatter) => rs.u8Debug(self._1, f), (f: rs.Formatter) => rs.u8Debug(self._2, f), (f: rs.Formatter) => rs.u8Debug(self._3, f), (f: rs.Formatter) => rs.u8Debug(self._4, f), (f: rs.Formatter) => rs.u8Debug(self._5, f)]);
+	const values: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Debug(self._0, f), (f: rs.Formatter) => rs.u8Debug(self._1, f), (f: rs.Formatter) => rs.u8Debug(self._2, f), (f: rs.Formatter) => rs.u8Debug(self._3, f), (f: rs.Formatter) => rs.u8Debug(self._4, f), (f: rs.Formatter) => rs.u8Debug(self._5, f)];
+	return rs.fmtDebugTupleFields(f, "Six", values);
 }
 
 export interface Six {

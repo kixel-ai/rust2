@@ -2,14 +2,14 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$0sf2w1i(self: boolean, t: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined {
+export function thenSome$1ueb688(self: boolean, t: rs.Place<rs.u64>): rs.Place<rs.u64> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}

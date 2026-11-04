@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function unwrapOr$01jdcm7(self: rs.Result<string, rs.Utf8Error>, default_: string): string {
+export function unwrapOr$0a3q6xs(self: rs.Result<string, rs.Utf8Error>, default_: string): string {
 	if (self.ok) {
 		return self.value;
 	}

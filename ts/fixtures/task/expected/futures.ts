@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker as lib_drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker } from "./lib.ts";
-import { unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, okOr$03aiwur as option_okOr$03aiwur } from "./core/option.ts";
-import { map$034yafl as poll_map$034yafl, map$1vdv176 as poll_map$1vdv176, map$1ooj6xj as poll_map$1ooj6xj, isReady$0entgvk, isPending$0vr1nz6, isPending$1xsrr9j, mapOk$051v09m, mapErr$1yfeuu2 as poll_mapErr$1yfeuu2 } from "./core/task/poll.ts";
+import { unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, okOr$1fxnv80 as option_okOr$1fxnv80 } from "./core/option.ts";
+import { map$124wjfo as poll_map$124wjfo, map$1a7g3ip as poll_map$1a7g3ip, map$1a7lmes as poll_map$1a7lmes, isReady$1wybfmi, isPending$0mrvg1b, isPending$04edpij, mapOk$0q2t3zp, mapErr$1s7wmg4 as poll_mapErr$1s7wmg4 } from "./core/task/poll.ts";
 import * as Forward from "./futures.Forward.ts";
 import * as Plain from "./futures.Plain.ts";
 import * as Relay from "./futures.Relay.ts";
@@ -13,7 +13,7 @@ import * as Pending from "./kio.Pending.ts";
 import type * as Waiter from "./kio.Waiter.ts";
 import * as Log from "./log.Log.ts";
 import * as Guard from "./model.Guard.ts";
-import { set$0mfcep2, replace$05l9d6x } from "./std/thread/local.ts";
+import { set$0ftsz7h, replace$0onyq3t } from "./std/thread/local.ts";
 
 /**
  * Every value until the channel closes, summed through std's helpers: a pinned `recv`
@@ -102,9 +102,9 @@ export class helpersFuture {
 						}
 						const relay2: rs.Waker = rs.optionUnwrap(captured3);
 						const polled: rs.Poll<rs.u64 | undefined> = captured5.poll(relay2);
-						const _392: boolean = isPending$1xsrr9j(waiting);
-						const _422: boolean = isReady$0entgvk(polled);
-						const _45: boolean = isPending$0vr1nz6(polled);
+						const _392: boolean = isPending$04edpij(waiting);
+						const _422: boolean = isReady$1wybfmi(polled);
+						const _45: boolean = isPending$0mrvg1b(polled);
 						const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_392, f), (f: rs.Formatter) => rs.fmtBool(_422, f), (f: rs.Formatter) => rs.fmtBool(_45, f)];
 						Guard.note(captured4, rs.fmtFormat(["pending ", args2[0], " ready ", args2[1], " pending ", args2[2]]));
 						if (polled !== rs.Pending) {
@@ -114,8 +114,8 @@ export class helpersFuture {
 								}
 							}
 						}
-						return poll_mapErr$1yfeuu2(mapOk$051v09m(poll_map$034yafl(polled, (value3: rs.u64 | undefined): rs.Result<rs.u64, rs.u64> => {
-							return option_okOr$03aiwur(value3, captured6);
+						return poll_mapErr$1s7wmg4(mapOk$0q2t3zp(poll_map$124wjfo(polled, (value3: rs.u64 | undefined): rs.Result<rs.u64, rs.u64> => {
+							return option_okOr$1fxnv80(value3, captured6);
 						}), (value4: rs.u64): rs.u64 => {
 							return rs.u64Mul(value4, 2);
 						}), (total: rs.u64): rs.u64 => {
@@ -180,17 +180,17 @@ export function POLLING$init(): rs.Cell<[rs.Place<undefined>, rs.WakerVTable] | 
 
 /** Run `poll` as the task `waker` wakes, as kio's `Polling::run` does. */
 export function run$task_Poll_Option_u64_futures_wakers_closure0_closure1_closure0(waker: rs.Waker, poll: () => rs.Poll<rs.u64 | undefined>): rs.Poll<rs.u64 | undefined> {
-	const outer: [rs.Place<undefined>, rs.WakerVTable] | undefined = replace$05l9d6x(POLLING, [waker.data as rs.Place<undefined>, waker.vtable] as [rs.Place<undefined>, rs.WakerVTable]);
+	const outer: [rs.Place<undefined>, rs.WakerVTable] | undefined = replace$0onyq3t(POLLING, [waker.data as rs.Place<undefined>, waker.vtable] as [rs.Place<undefined>, rs.WakerVTable]);
 	const output: rs.Poll<rs.u64 | undefined> = poll();
-	set$0mfcep2(POLLING, outer);
+	set$0ftsz7h(POLLING, outer);
 	return output;
 }
 
 /** Run `poll` as the task `waker` wakes, as kio's `Polling::run` does. */
 export function run$tuple2_bool_bool_futures_wakers_closure0_closure1_closure0_closure0(waker: rs.Waker, poll: () => [boolean, boolean]): [boolean, boolean] {
-	const outer: [rs.Place<undefined>, rs.WakerVTable] | undefined = replace$05l9d6x(POLLING, [waker.data as rs.Place<undefined>, waker.vtable] as [rs.Place<undefined>, rs.WakerVTable]);
+	const outer: [rs.Place<undefined>, rs.WakerVTable] | undefined = replace$0onyq3t(POLLING, [waker.data as rs.Place<undefined>, waker.vtable] as [rs.Place<undefined>, rs.WakerVTable]);
 	const output: [boolean, boolean] = poll();
-	set$0mfcep2(POLLING, outer);
+	set$0ftsz7h(POLLING, outer);
 	return output;
 }
 
@@ -518,7 +518,7 @@ export class boxedFuture {
 											if (_7 !== rs.Pending) {
 												const result: rs.u64 | undefined = _7;
 												rs.drop(this.#awaitee);
-												this.#first = option_unwrapOr$1tvry1i(result, 0);
+												this.#first = option_unwrapOr$15hbiwd(result, 0);
 												const arg = this.#first;
 												const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(arg, f)];
 												const _17: string = rs.fmtFormat(["first ", args2[0]]);
@@ -654,9 +654,9 @@ export class boxedFuture {
 				let captured2 = next;
 				const captured3 = waiting;
 				const _223: rs.Future<rs.u64> = new rs.DynFuture(wait$futures_boxed_closure0_closure3_u64(rs.closure((waiter: Waiter.Waiter): rs.Poll<rs.u64> => {
-					return poll_map$1vdv176(Consumer.pollRecv(captured2, waiter), (value5: rs.u64 | undefined): rs.u64 => {
+					return poll_map$1a7g3ip(Consumer.pollRecv(captured2, waiter), (value5: rs.u64 | undefined): rs.u64 => {
 						Guard.note(captured3, "waited");
-						return rs.u64Add(option_unwrapOr$1tvry1i(value5, 0), 2);
+						return rs.u64Add(option_unwrapOr$15hbiwd(value5, 0), 2);
 					});
 				}, (): void => {
 					captured2[Symbol.dispose]();
@@ -693,7 +693,7 @@ export class boxedFuture {
 					if (!(captured6.items.length === 0)) {
 						return rs.Pending;
 					}
-					return poll_map$1ooj6xj(pollUnsized$dyn_Future_u64(new rs.DynFuture(captured8, Pending.poll$Future_futures_boxed_closure0_closure5), cx), (value7: rs.u64): rs.u64 => {
+					return poll_map$1a7lmes(pollUnsized$dyn_Future_u64(new rs.DynFuture(captured8, Pending.poll$Future_futures_boxed_closure0_closure5), cx), (value7: rs.u64): rs.u64 => {
 						return rs.u64Add(captured7, value7);
 					});
 				}, (): void => {
@@ -759,7 +759,7 @@ export class boxedFuture$closure2 {
 		if (_7 !== rs.Pending) {
 			const result: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
-			const value: rs.u64 = option_unwrapOr$1tvry1i(result, 0);
+			const value: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
 			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(value, f)];
 			const _17: string = rs.fmtFormat(["block ", args2[0]]);
 			Guard.note(this.#block, _17);

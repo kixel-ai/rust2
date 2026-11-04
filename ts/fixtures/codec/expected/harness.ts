@@ -11,7 +11,7 @@ import { size, zigzag as varint_zigzag, unzigzag } from "./coding/varint.ts";
 import * as BoundsExceeded from "./coding/varint.BoundsExceeded.ts";
 import * as Form from "./coding/varint.Form.ts";
 import * as Versions from "./coding/version.Versions.ts";
-import { thenSome$1ugl8af } from "./core/bool.ts";
+import { thenSome$0be218t } from "./core/bool.ts";
 import type * as SessionError from "./lib.SessionError.ts";
 import * as Group from "./lite/group.Group.ts";
 import * as Probe from "./lite/probe.Probe.ts";
@@ -519,7 +519,7 @@ export function encodeMessages(dataData: Uint8Array, dataStart: number, dataLen:
 		const bitrate: rs.u64 = _19[0];
 		const rtt: rs.u64 = takeU64(_19[1])[0];
 		encodeMessage$lite_group_Group({ subscribe, sequence, frameStart: rs.u64Rem(frameStart, 4) }, version, out);
-		encodeMessage$lite_probe_Probe({ bitrate: rs.u64CheckedSub(bitrate, 1), rtt: thenSome$1ugl8af(rs.u64Rem(rtt, 3) !== 0, rtt) }, version, out);
+		encodeMessage$lite_probe_Probe({ bitrate: rs.u64CheckedSub(bitrate, 1), rtt: thenSome$0be218t(rs.u64Rem(rtt, 3) !== 0, rtt) }, version, out);
 		const versions: Versions.Versions = Versions.from$convert_From_array2_coding_version_Version([{ _0: subscribe }, { _0: sequence }]);
 		const buf: rs.ByteVec = new rs.ByteVec();
 		const _45: Form.Form = Form.from$convert_From_lite_version_Version(version);

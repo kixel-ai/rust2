@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import type * as Held from "./ascii.Held.ts";
-import { isSomeAnd$09tpccf, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$0l7j3f6 as option_unwrapOr$0l7j3f6, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$0jad0p1 as option_mapOr$0jad0p1, mapOr$02k4ito as option_mapOr$02k4ito, asDeref$0w8at8i as option_asDeref$0w8at8i } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$05jq4mv as option_unwrapOr$05jq4mv, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0p20wlb as option_mapOr$0p20wlb, mapOr$188iunt as option_mapOr$188iunt, asDeref$0w8at8i as option_asDeref$0w8at8i } from "./core/option.ts";
 import { put } from "./harness.ts";
 
 /** Each test of `b`, a bit apiece. */
@@ -44,11 +44,11 @@ export function steps$ascii_EscapeDefault(e: rs.Iter<rs.u8>, data: rs.ByteSlice,
 		const lo: rs.usize = _11[0];
 		const hi: rs.usize | undefined = _11[1];
 		rs.byteVecPush(out, lo & 0xff);
-		rs.byteVecPush(out, option_mapOr$02k4ito(hi, 255, (h: rs.usize): rs.u8 => {
+		rs.byteVecPush(out, option_mapOr$188iunt(hi, 255, (h: rs.usize): rs.u8 => {
 			return h & 0xff;
 		}));
 		const _25: rs.usize = i;
-		if (!isSomeAnd$09tpccf(rs.byteSliceGet(data, rs.usizeRem(i, rs.max(data.length, 1))), (b2: rs.u8): boolean => {
+		if (!isSomeAnd$1s2u5lz(rs.byteSliceGet(data, rs.usizeRem(i, rs.max(data.length, 1))), (b2: rs.u8): boolean => {
 			return (rs.u8Shr(b2, rs.usizeRem(_25, 8)) & 1) === 1;
 		})) {
 			next = rs.iterToOption(e.next());
@@ -87,7 +87,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(byteTests(b))));
 				rs.byteVecPush(out, rs.toAsciiUppercase(b));
 				rs.byteVecPush(out, rs.toAsciiLowercase(b));
-				const other: rs.u8 = option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), b ^ 32);
+				const other: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), b ^ 32);
 				rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, other) ? 1 : 0);
 				rs.byteVecPush(out, rs.eqIgnoreAsciiCase(b, b ^ 32) ? 1 : 0);
 			}
@@ -120,7 +120,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					all.data[at] = rs.toAsciiLowercase(all.data[at]);
 				}
 			}
-			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteVecSlice(all)), option_unwrapOr$0r2bmpr(rs.byteSliceFirst(data), 0) as rs.usize);
+			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteSliceView(rs.byteVecSlice(all))), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
 			while (true) {
 				const _90: rs.Place<rs.u8> | rs.Done = iter4.next();
 				if (_90 === rs.DONE) {
@@ -173,7 +173,7 @@ export function chars(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const all: rs.Vec<rs.char> = rs.vecFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].slice());
 	const _9: rs.Iter<rs.char> = rs.iterFilterMap(rs.byteSliceChunks(data, 4), (c2: rs.ByteSlice): rs.char | undefined => {
 		return rs.charFromU32(rs.u32FromBeBytes(rs.bytesFromFn(4, (i2: rs.usize): rs.u8 => {
-			return option_unwrapOr$0r2bmpr(rs.byteSliceGet(c2, i2), 0);
+			return option_unwrapOr$1fr498u(rs.byteSliceGet(c2, i2), 0);
 		})));
 	});
 	rs.iterExtend(all, _9, "next", 4);
@@ -254,13 +254,13 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_10 === 1) {
 			let s: string = "";
 			for (const _95 of rs.byteSliceView(data)) {
-				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, rs.sliceFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111]).length);
+				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, [0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].length);
 				if (!(_103 < 41)) {
 					rs.panic("index out of bounds: the len is " + 41 + " but the index is " + _103);
 				}
 				s = s + String.fromCodePoint([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111][_103]);
 			}
-			const mid: rs.usize = option_unwrapOr$0l7j3f6(rs.iterFind(rs.iterRev(new rs.RangeInclusive(0, rs.usizeDiv(rs.stringLen(s), 2), rs.usizeStep)), (_2: rs.usize): boolean => {
+			const mid: rs.usize = option_unwrapOr$05jq4mv(rs.iterFind(rs.iterRev(new rs.RangeInclusive(0, rs.usizeDiv(rs.stringLen(s), 2), rs.usizeStep)), (_2: rs.usize): boolean => {
 				return rs.strIsCharBoundary(s, _2);
 			}), 0);
 			const _124: string = rs.strSlice(s, 0, mid);
@@ -295,7 +295,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.usizeDisplay(_221, f)];
 			put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 40 }, args2[0]), "|", args2[1]]));
 			rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
-			rs.byteVecPush(out, option_unwrapOr$0r2bmpr(rs.iterLast(e.clone()), 255));
+			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(e.clone()), 255));
 		} else {
 			const e2: rs.Iter<rs.u8> = rs.byteSliceEscapeAscii(data);
 			let i: rs.usize = 0;
@@ -304,10 +304,10 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const lo: rs.usize = _243[0];
 				const hi: rs.usize | undefined = _243[1];
 				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(lo as rs.u32)));
-				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_mapOr$0jad0p1(hi, 4294967295, (h: rs.usize): rs.u32 => {
+				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(option_mapOr$0p20wlb(hi, 4294967295, (h: rs.usize): rs.u32 => {
 					return h as rs.u32;
 				}))));
-				if (!isSomeAnd$09tpccf(rs.byteSliceGet(data, i), (b4: rs.u8): boolean => {
+				if (!isSomeAnd$1s2u5lz(rs.byteSliceGet(data, i), (b4: rs.u8): boolean => {
 					return (b4 & 1) === 1;
 				})) {
 					next = rs.iterToOption(e2.next());
@@ -361,7 +361,7 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const _7: string = text;
 	const at: (a0: rs.usize) => rs.usize = (i: rs.usize): rs.usize => {
-		return option_mapOr$1t0muvr(rs.byteSliceGet(data, i), 0, (_2: rs.u8): rs.usize => {
+		return option_mapOr$1d4bp7c(rs.byteSliceGet(data, i), 0, (_2: rs.u8): rs.usize => {
 			return rs.usizeRem(_2 as rs.usize, rs.usizeAdd(rs.stringLen(_7), 3));
 		});
 	};
@@ -394,7 +394,7 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, array[1]);
 		put(out, array[0]);
 	} else if (_32 === 3) {
-		const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(rs.sliceFrom(v.items));
+		const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(v.items);
 		while (true) {
 			const _93: rs.Place<string> | rs.Done = iter.next();
 			if (_93 === rs.DONE) {

@@ -2,7 +2,7 @@
 
 import * as rs from "../rs.ts";
 
-export function then$0afp4no(self: boolean, f: () => rs.Result<rs.u8, rs.ParseIntError>): rs.Result<rs.u8, rs.ParseIntError> | undefined {
+export function then$11t2u23(self: boolean, f: () => rs.Result<rs.u8, rs.ParseIntError>): rs.Result<rs.u8, rs.ParseIntError> | undefined {
 	if (!self) {
 		return undefined;
 	}

@@ -2,13 +2,13 @@
 
 import * as rs from "./rs.ts";
 import { copy$locals_Twin } from "./lib.ts";
-import { thenSome$1d6toqn } from "./core/bool.ts";
-import { mapOr$0cqaybi as option_mapOr$0cqaybi, mapOr$1w5qtj7 as option_mapOr$1w5qtj7, mapOr$0ucbp7g as option_mapOr$0ucbp7g } from "./core/option.ts";
-import { mapOr$18ipla0 as result_mapOr$18ipla0 } from "./core/result.ts";
+import { thenSome$1qfl7tz } from "./core/bool.ts";
+import { mapOr$14nyq77 as option_mapOr$14nyq77, mapOr$0543jy8 as option_mapOr$0543jy8, mapOr$1idpb1d as option_mapOr$1idpb1d } from "./core/option.ts";
+import { mapOr$12d9lqr as result_mapOr$12d9lqr } from "./core/result.ts";
 import * as Noisy from "./locals.Noisy.ts";
 import type * as Polling from "./locals.Polling.ts";
 import type * as Twin from "./locals.Twin.ts";
-import { set$0st49po, set$0xuu1fw, get$0x8wyln, get$1ei2eoj, get$18ignl5, take$09yi5f2, replace$0kxb7te, withBorrow$1qygtee, withBorrow$1k8k9m1, withBorrow$0r4ucls, withBorrow$1t1sbub, withBorrow$15ql9sa, take$1x34chv, take$122f15k, replace$0bb3zeq, replace$1xk72wn } from "./std/thread/local.ts";
+import { set$1ljkjlf, set$0e2h2hd, get$1waoxfw, get$0q7640n, get$09fnt4b, take$1ptr2t1, replace$143ou38, withBorrow$0ff0ub1, withBorrow$04rfir6, withBorrow$008xek1, withBorrow$1p7azig, withBorrow$00rpnrn, take$0hcjffg, take$1snv7rd, replace$06e3fyj, replace$0orw47h } from "./std/thread/local.ts";
 
 export const COUNT: rs.LocalKey<rs.Cell<rs.u32>> = /* @__PURE__ */ new rs.LocalKey(COUNT$init, false);
 
@@ -75,11 +75,11 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, ((a0: rs.Cell<rs.u32>): rs.u32 => {
 		return a0.v;
 	})(COUNT.get()) & 0xff);
-	rs.iterExtendBytes(out, rs.byteVecIntoIter(withBorrow$1k8k9m1(LOG, (log2: rs.ByteVec): rs.ByteVec => {
+	rs.iterExtendBytes(out, rs.byteVecIntoIter(withBorrow$04rfir6(LOG, (log2: rs.ByteVec): rs.ByteVec => {
 		return rs.byteVecFrom(rs.byteVecView(log2));
 	})), undefined, true);
 	rs.byteVecPush(out, ((p: Polling.Polling): rs.u8 => {
-		return option_mapOr$0ucbp7g(p.current.v, 253, (_2: [rs.u64, rs.u64]): rs.u8 => {
+		return option_mapOr$1idpb1d(p.current.v, 253, (_2: [rs.u64, rs.u64]): rs.u8 => {
 			return rs.u64Low(_2[0]) & 0xff;
 		});
 	})(POLLING.get()));
@@ -89,15 +89,15 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.refRelease(_64);
 		return _06;
 	})(POLLING.get()));
-	rs.byteVecPush(out, withBorrow$1qygtee(HELD, (held: Noisy.Noisy | undefined): rs.u8 => {
-		return option_mapOr$0cqaybi(held, 253, (n: Noisy.Noisy): rs.u8 => {
+	rs.byteVecPush(out, withBorrow$0ff0ub1(HELD, (held: Noisy.Noisy | undefined): rs.u8 => {
+		return option_mapOr$14nyq77(held, 253, (n: Noisy.Noisy): rs.u8 => {
 			return n.id;
 		});
 	}));
-	rs.byteVecPush(out, withBorrow$1t1sbub(TALLY, (tally: rs.u32): rs.u8 => {
+	rs.byteVecPush(out, withBorrow$1p7azig(TALLY, (tally: rs.u32): rs.u8 => {
 		return tally & 0xff;
 	}));
-	const _26: [Twin.Twin, Twin.Twin] = get$0x8wyln(PAIRS);
+	const _26: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_26[0]._0 & 0xff, _26[0]._1 & 0xff, _26[1]._0 & 0xff, _26[1]._1 & 0xff)), undefined, true);
 	rs.byteVecPush(out, serial(false));
 	const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
@@ -117,7 +117,7 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.refMutRelease(_513);
 			})(LOG.get());
 		} else if (_46 === 2) {
-			rs.byteVecPush(out, result_mapOr$18ipla0(rs.Ok(((log6: rs.RefCell<rs.ByteVec>): rs.usize => {
+			rs.byteVecPush(out, result_mapOr$12d9lqr(rs.Ok(((log6: rs.RefCell<rs.ByteVec>): rs.usize => {
 				const _512: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log6);
 				const _021: rs.usize = _512.value.length;
 				rs.refRelease(_512);
@@ -150,7 +150,7 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.refRelease(_1110);
 				return _017;
 			})(POLLING.get());
-			rs.byteVecPush(out, option_mapOr$0ucbp7g(outer, 253, (_23: [rs.u64, rs.u64]): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$1idpb1d(outer, 253, (_23: [rs.u64, rs.u64]): rs.u8 => {
 				return rs.u64Low(_23[0]) & 0xff;
 			}));
 			rs.byteVecPush(out, len & 0xff);
@@ -163,25 +163,25 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.refMutRelease(_94);
 			})(HELD.get());
 		} else if (_46 === 6) {
-			set$0st49po(COUNT, rs.u32WrappingMul(get$1ei2eoj(COUNT), 3));
-			rs.byteVecPush(out, replace$0kxb7te(COUNT, op as rs.u32) & 0xff);
-			rs.byteVecPush(out, take$09yi5f2(COUNT) & 0xff);
-			set$0st49po(COUNT, rs.u32Add(op as rs.u32, 1));
-			const _103: [Twin.Twin, Twin.Twin] = get$0x8wyln(PAIRS);
+			set$1ljkjlf(COUNT, rs.u32WrappingMul(get$0q7640n(COUNT), 3));
+			rs.byteVecPush(out, replace$143ou38(COUNT, op as rs.u32) & 0xff);
+			rs.byteVecPush(out, take$1ptr2t1(COUNT) & 0xff);
+			set$1ljkjlf(COUNT, rs.u32Add(op as rs.u32, 1));
+			const _103: [Twin.Twin, Twin.Twin] = get$1waoxfw(PAIRS);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_103[0]._0 & 0xff, _103[0]._1 & 0xff, _103[1]._0 & 0xff, _103[1]._1 & 0xff)), undefined, true);
-			rs.byteVecPush(out, option_mapOr$1w5qtj7(thenSome$1d6toqn(rs.u8Rem(op, 2) === 0, undefined), 253, (_22: undefined): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$0543jy8(thenSome$1qfl7tz(rs.u8Rem(op, 2) === 0, undefined), 253, (_22: undefined): rs.u8 => {
 				return 1;
 			}));
 		} else if (_46 === 7) {
 			rs.localKeyWithBorrowMut(LOG, (log3: rs.ByteVec): undefined => {
 				rs.byteVecPush(log3, op);
 			});
-			rs.byteVecPush(out, withBorrow$0r4ucls(LOG, (log4: rs.ByteVec): rs.u8 => {
+			rs.byteVecPush(out, withBorrow$008xek1(LOG, (log4: rs.ByteVec): rs.u8 => {
 				return log4.length & 0xff;
 			}));
-			rs.iterExtendBytes(out, rs.byteVecIntoIter(replace$1xk72wn(LOG, rs.byteVecFrom(Uint8Array.of(op)))), undefined, true);
+			rs.iterExtendBytes(out, rs.byteVecIntoIter(replace$0orw47h(LOG, rs.byteVecFrom(Uint8Array.of(op)))), undefined, true);
 			rs.localKeyRefCellSet(LOG, rs.byteVecFrom(Uint8Array.of(op, op)));
-			rs.iterExtendBytes(out, rs.byteVecIntoIter(take$122f15k(LOG)), undefined, true);
+			rs.iterExtendBytes(out, rs.byteVecIntoIter(take$1snv7rd(LOG)), undefined, true);
 			rs.localKeyRefCellSet(LOG, rs.byteVecFrom(Uint8Array.of(1, 2, 3)));
 			const _141: rs.LocalKey<rs.RefCell<Noisy.Noisy | undefined>> = HELD;
 			const _144: rs.Arc<rs.Mutex<rs.ByteVec>> = rs.arcClone(log);
@@ -190,12 +190,12 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.drop(held2.v);
 				held2.v = undefined;
 			});
-			const old: Noisy.Noisy | undefined = replace$0bb3zeq(HELD, new Noisy.Noisy(rs.u8WrappingAdd(op, 1), rs.arcClone(log)));
-			rs.byteVecPush(out, option_mapOr$0cqaybi(old, 253, (n2: Noisy.Noisy): rs.u8 => {
+			const old: Noisy.Noisy | undefined = replace$06e3fyj(HELD, new Noisy.Noisy(rs.u8WrappingAdd(op, 1), rs.arcClone(log)));
+			rs.byteVecPush(out, option_mapOr$14nyq77(old, 253, (n2: Noisy.Noisy): rs.u8 => {
 				return n2.id;
 			}));
 			rs.drop(old);
-			rs.byteVecPush(out, option_mapOr$0cqaybi(take$1x34chv(HELD), 253, (n3: Noisy.Noisy): rs.u8 => {
+			rs.byteVecPush(out, option_mapOr$14nyq77(take$0hcjffg(HELD), 253, (n3: Noisy.Noisy): rs.u8 => {
 				const _013: rs.u8 = n3.id;
 				n3[Symbol.dispose]();
 				return _013;
@@ -203,10 +203,10 @@ export function locals(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.localKeyWithBorrowMutPlace(TALLY, (tally2: rs.Place<rs.u32>): undefined => {
 				tally2.v = rs.u32WrappingAdd(rs.u32WrappingMul(tally2.v, 3), op as rs.u32);
 			});
-			rs.byteVecPush(out, withBorrow$1t1sbub(TALLY, (tally3: rs.u32): rs.u8 => {
+			rs.byteVecPush(out, withBorrow$1p7azig(TALLY, (tally3: rs.u32): rs.u8 => {
 				return tally3 & 0xff;
 			}));
-			rs.localKeyRefCellSet(TALLY, withBorrow$15ql9sa(TALLY, (tally4: rs.u32): rs.u32 => {
+			rs.localKeyRefCellSet(TALLY, withBorrow$00rpnrn(TALLY, (tally4: rs.u32): rs.u32 => {
 				return rs.u32Div(tally4, 2);
 			}));
 		} else {
@@ -295,22 +295,22 @@ export function keys(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_12 === 1) {
 			const old = key.v;
 			key.v = RIGHT;
-			rs.byteVecPush(out, get$18ignl5({ v: old }.v));
+			rs.byteVecPush(out, get$09fnt4b({ v: old }.v));
 		} else if (_12 === 2) {
 			const other: rs.Place<rs.LocalKey<rs.Cell<rs.u8>>> = { v: RIGHT };
 			const swapped = key.v;
 			key.v = other.v;
 			other.v = swapped;
-			rs.byteVecPush(out, get$18ignl5(other.v));
+			rs.byteVecPush(out, get$09fnt4b(other.v));
 		} else if (_12 === 3) {
 			rs.cellSet(rs.cellOfPlace(key), RIGHT);
 		}
-		const _28: rs.u8 = rs.u8WrappingAdd(get$18ignl5(key.v), op);
-		set$0xuu1fw(key.v, _28);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(get$18ignl5(LEFT), get$18ignl5(RIGHT))), undefined, true);
+		const _28: rs.u8 = rs.u8WrappingAdd(get$09fnt4b(key.v), op);
+		set$0e2h2hd(key.v, _28);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(get$09fnt4b(LEFT), get$09fnt4b(RIGHT))), undefined, true);
 	}
-	set$0xuu1fw(LEFT, 1);
-	set$0xuu1fw(RIGHT, 2);
+	set$0e2h2hd(LEFT, 1);
+	set$0e2h2hd(RIGHT, 2);
 }
 
 //# sourceMappingURL=locals.ts.map

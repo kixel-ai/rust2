@@ -3,42 +3,42 @@
 import * as rs from "../rs.ts";
 import type * as Logged from "../shares.Logged.ts";
 
-export function isSomeAnd$0vr0nda(self: rs.Arc<rs.ByteSlice> | undefined, f: (a0: rs.Arc<rs.ByteSlice>) => boolean): boolean {
+export function isSomeAnd$136asov(self: rs.Arc<rs.ByteSlice> | undefined, f: (a0: rs.Arc<rs.ByteSlice>) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function isSomeAnd$1ae2ezd(self: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
+export function isSomeAnd$0jg0wcy(self: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
 	return f(self);
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$1e4a1e0(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$03siheh(self: rs.Arc<string> | undefined, default_: rs.u8, f: (a0: rs.Arc<string>) => rs.u8): rs.u8 {
+export function mapOr$00xrvtw(self: rs.Arc<string> | undefined, default_: rs.u8, f: (a0: rs.Arc<string>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$148vfk5(self: Logged.Logged | undefined, default_: rs.u8, f: (a0: Logged.Logged) => rs.u8): rs.u8 {
+export function mapOr$1tej7ml(self: Logged.Logged | undefined, default_: rs.u8, f: (a0: Logged.Logged) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

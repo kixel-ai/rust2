@@ -3,77 +3,77 @@
 import * as rs from "../rs.ts";
 import type * as returns_Error from "../returns.Error.ts";
 
-export function unwrapOr$06r8g1t(self: rs.i128 | undefined, default_: rs.i128): rs.i128 {
+export function unwrapOr$12qj13x(self: rs.i128 | undefined, default_: rs.i128): rs.i128 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$1j4op5y(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
+export function unwrapOr$1szdyfq(self: rs.u16 | undefined, default_: rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function map$0c2keyb(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
+export function map$0q6fk7x(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1yogfym(self: [rs.u8, rs.ByteSlice] | undefined, f: (a0: [rs.u8, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice | undefined {
+export function map$05uajnx(self: [rs.u8, rs.ByteSlice] | undefined, f: (a0: [rs.u8, rs.ByteSlice]) => rs.ByteSlice): rs.ByteSlice | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1cf8u0y(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
+export function map$1haiqd3(self: rs.u64 | undefined, f: (a0: rs.u64) => rs.u64): rs.u64 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function mapOr$1surhce(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function okOr$1b6nkwr(self: rs.char | undefined, err: rs.u8): rs.Result<rs.char, rs.u8> {
+export function okOr$19yb1mu(self: rs.char | undefined, err: rs.u8): rs.Result<rs.char, rs.u8> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function okOr$12p77jh(self: rs.ByteSlice | undefined, err: returns_Error.Error): rs.Result<rs.ByteSlice, returns_Error.Error> {
+export function okOr$0rfpk7i(self: rs.ByteSlice | undefined, err: returns_Error.Error): rs.Result<rs.ByteSlice, returns_Error.Error> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function okOr$0gtm15y(self: rs.ByteSlice | undefined, err: rs.u8 | undefined): rs.Result<rs.ByteSlice, rs.u8 | undefined> {
+export function okOr$0j0xd63(self: rs.ByteSlice | undefined, err: rs.u8 | undefined): rs.Result<rs.ByteSlice, rs.u8 | undefined> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function okOr$0tezn0w(self: rs.ByteSlice | undefined, _: undefined): rs.Result<rs.ByteSlice, undefined> {
+export function okOr$1ylsdit(self: rs.ByteSlice | undefined, _: undefined): rs.Result<rs.ByteSlice, undefined> {
 	if (self === undefined) {
 		return rs.ERR;
 	}

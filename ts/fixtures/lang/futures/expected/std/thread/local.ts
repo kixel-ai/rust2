@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function set$08o17gp(self: rs.LocalKey<rs.Cell<boolean>>, value: boolean): void {
+export function set$15db765(self: rs.LocalKey<rs.Cell<boolean>>, value: boolean): void {
 	rs.localKeyInitializeWith(self, new rs.Cell(value), (value2: rs.Cell<boolean> | undefined, cell: rs.Cell<boolean>): undefined => {
 		if (value2 !== undefined) {
 			rs.cellSet(cell, value2.v);
@@ -10,13 +10,13 @@ export function set$08o17gp(self: rs.LocalKey<rs.Cell<boolean>>, value: boolean)
 	});
 }
 
-export function get$0lasdfu(self: rs.LocalKey<rs.Cell<boolean>>): boolean {
+export function get$1htgqdl(self: rs.LocalKey<rs.Cell<boolean>>): boolean {
 	return ((a0: rs.Cell<boolean>): boolean => {
 		return a0.v;
 	})(self.get());
 }
 
-export function take$122f15k(self: rs.LocalKey<rs.RefCell<rs.ByteVec>>): rs.ByteVec {
+export function take$1snv7rd(self: rs.LocalKey<rs.RefCell<rs.ByteVec>>): rs.ByteVec {
 	return ((a0: rs.RefCell<rs.ByteVec>): rs.ByteVec => {
 		return rs.refCellReplace(a0, new rs.ByteVec());
 	})(self.get());

@@ -2,9 +2,9 @@
 
 import * as rs from "../rs.ts";
 import { copy$array_u32, drop$Result_cell_Ref_u32_cell_BorrowError as lib_drop$Result_cell_Ref_u32_cell_BorrowError, drop$Vec_model_Guard as lib_drop$Vec_model_Guard } from "../lib.ts";
-import { thenSome$1af3oea, thenSome$1j8foe9 } from "../core/bool.ts";
-import { map$1raha9y as option_map$1raha9y } from "../core/option.ts";
-import { mapErr$0nvqjog as result_mapErr$0nvqjog } from "../core/result.ts";
+import { thenSome$1bahm2u, thenSome$1n1oy1h } from "../core/bool.ts";
+import { map$06w9waf as option_map$06w9waf } from "../core/option.ts";
+import { mapErr$18fct1o as result_mapErr$18fct1o } from "../core/result.ts";
 import * as Key from "../drops.Key.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
@@ -40,13 +40,13 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const _1317: rs.u32 = Guard.id(captured32);
 			const args82: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_1014, f), (f: rs.Formatter) => rs.u32Display(_1317, f)];
 			Log.note(log, rs.fmtFormat(["try ", args82[0], " ", args82[1]]));
-			const _039: rs.u32 | undefined = thenSome$1af3oea(Guard.id(g24) !== rs.u32Add(captured33, 3), rs.u32Sub(rs.u32Add(n17, Guard.id(g24)), captured33));
+			const _039: rs.u32 | undefined = thenSome$1bahm2u(Guard.id(g24) !== rs.u32Add(captured33, 3), rs.u32Sub(rs.u32Add(n17, Guard.id(g24)), captured33));
 			g24[Symbol.dispose]();
 			return _039;
 		}, (): void => {
 			captured32[Symbol.dispose]();
 		}), true, true);
-		const _32: rs.u32 | undefined = option_map$1raha9y(rs.iterToOption(it.next()), (g25: Guard.Guard): rs.u32 => {
+		const _32: rs.u32 | undefined = option_map$06w9waf(rs.iterToOption(it.next()), (g25: Guard.Guard): rs.u32 => {
 			const _040: rs.u32 = Guard.id(g25);
 			g25[Symbol.dispose]();
 			return _040;
@@ -71,7 +71,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured31[Symbol.dispose]();
 		}));
-		const part17 = result_mapErr$0nvqjog(rs.iterTryFold(it2, 0, (n15: rs.u32, _335: [Guard.Guard, rs.u32]): rs.Result<rs.u32, Guard.Guard> => {
+		const part17 = result_mapErr$18fct1o(rs.iterTryFold(it2, 0, (n15: rs.u32, _335: [Guard.Guard, rs.u32]): rs.Result<rs.u32, Guard.Guard> => {
 			let _036!: rs.Result<rs.u32, Guard.Guard>;
 			let _2112: boolean = false;
 			_2112 = true;
@@ -189,7 +189,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		_678 = false;
 		const captured28 = d;
 		const part16 = rs.iterTryForEach(it4, rs.closure((g16: Guard.Guard): undefined | rs.None => {
-			const _031: undefined | rs.None = thenSome$1j8foe9(Guard.id(g16) !== Guard.id(captured28), undefined);
+			const _031: undefined | rs.None = thenSome$1n1oy1h(Guard.id(g16) !== Guard.id(captured28), undefined);
 			g16[Symbol.dispose]();
 			return _031;
 		}, (): void => {
@@ -293,7 +293,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const _1910: rs.u32 = Guard.id(captured14);
 			const args72: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_169, f), (f: rs.Formatter) => rs.u32Display(sum.v, f), (f: rs.Formatter) => rs.u32Display(_1910, f)];
 			Log.note(log, rs.fmtFormat(["scan ", args72[0], " ", args72[1], " ", args72[2]]));
-			const _020: rs.u32 | undefined = thenSome$1af3oea(sum.v < 10, sum.v);
+			const _020: rs.u32 | undefined = thenSome$1bahm2u(sum.v < 10, sum.v);
 			g9[Symbol.dispose]();
 			return _020;
 		}, (): void => {
@@ -328,7 +328,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const _1610: rs.u32 = Guard.id(captured15);
 			const args74: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_109, f), (f: rs.Formatter) => rs.u32Display(_1311, f), (f: rs.Formatter) => rs.u32Display(_1610, f)];
 			Log.note(log, rs.fmtFormat(["held ", args74[0], " ", args74[1], " ", args74[2]]));
-			const _022: rs.u32 | undefined = thenSome$1af3oea(Guard.id(g10) !== rs.u32Add(captured16, 4), rs.u32Sub(rs.u32Add(Guard.id(g10), Guard.id(captured17)), Guard.id(captured17)));
+			const _022: rs.u32 | undefined = thenSome$1bahm2u(Guard.id(g10) !== rs.u32Add(captured16, 4), rs.u32Sub(rs.u32Add(Guard.id(g10), Guard.id(captured17)), Guard.id(captured17)));
 			g10[Symbol.dispose]();
 			return _022;
 		}, (): void => {
@@ -341,7 +341,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["flat ", args34[0]]));
 	} else if (_17 === 7) {
 		const v2: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterSlice(rs.arrayMap([3, 1, 4, 5, 2], guard), rs.drop), "fold", 8, true);
-		const _380: rs.Slice<Guard.Guard> = rs.sliceFrom(v2.items);
+		const _380: Guard.Guard[] = v2.items;
 		_679 = false;
 		const captured12 = c;
 		rs.sliceSortByCachedKey(_380, rs.closure((g8: Guard.Guard): Key.Key => {
@@ -357,7 +357,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part8.items, f, rs.u32Debug)];
 		Log.note(log, rs.fmtFormat(["sorted ", args36[0]]));
 		const w: rs.Vec<rs.u32> = rs.vecFrom([3, 1, 2]);
-		rs.sliceSortByCachedKey(rs.sliceFrom(w.items), (_210: rs.u32): rs.u32 => {
+		rs.sliceSortByCachedKey(w.items, (_210: rs.u32): rs.u32 => {
 			return rs.u32Add(_210, Guard.id(d));
 		}, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true);
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(w.items, f, rs.u32Debug)];
@@ -487,7 +487,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		_678 = false;
 		const captured4 = d;
 		const r8: undefined | rs.None = rs.iterTryForEach(_554, rs.closure((g4: Guard.Guard): undefined | rs.None => {
-			const _06: undefined | rs.None = thenSome$1j8foe9(Guard.id(g4) !== Guard.id(captured4), undefined);
+			const _06: undefined | rs.None = thenSome$1n1oy1h(Guard.id(g4) !== Guard.id(captured4), undefined);
 			g4[Symbol.dispose]();
 			return _06;
 		}, (): void => {
@@ -511,10 +511,10 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _08;
 		}, true), "next", 4, false, 8);
 		const empty: rs.Vec<Guard.Guard> = new rs.Vec();
-		rs.sliceSortByCachedKey(rs.sliceFrom(empty.items), Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
+		rs.sliceSortByCachedKey(empty.items, Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
 		const one: rs.Vec<Guard.Guard> = guards(1, 2);
 		const e5: Guard.Guard = guard(22);
-		const _603: rs.Slice<Guard.Guard> = rs.sliceFrom(one.items);
+		const _603: Guard.Guard[] = one.items;
 		const captured5 = e5;
 		rs.sliceSortByCachedKey(_603, rs.closure((g7: Guard.Guard): rs.u32 => {
 			return rs.u32Add(Guard.id(g7), Guard.id(captured5));

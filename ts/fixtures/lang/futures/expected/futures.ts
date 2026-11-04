@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { drop$task_Poll_futures_Logged, drop$tuple2_task_Waker_Option_task_Waker, drop$tuple3_futures_Held_Option_task_Waker_array2_task_Waker } from "./lib.ts";
-import { isSomeAnd$09tpccf, filter$0v80fk8 } from "./core/option.ts";
-import { eq$11qt6c3 as poll_eq$11qt6c3, eq$1h9nnoh as poll_eq$1h9nnoh, map$0fx224j as poll_map$0fx224j, isReady$1ntq2i8, isPending$1405yze, isPending$0vrdvv1 } from "./core/task/poll.ts";
+import { isSomeAnd$1s2u5lz, filter$0hq86nl } from "./core/option.ts";
+import { eq$1o5v7fd as poll_eq$1o5v7fd, eq$1qrb1lw as poll_eq$1qrb1lw, map$1jzbsum as poll_map$1jzbsum, isReady$1olyx0w, isPending$0bap0yh, isPending$189w6zf } from "./core/task/poll.ts";
 import * as Count from "./futures.Count.ts";
 import * as Held from "./futures.Held.ts";
 import * as Later from "./futures.Later.ts";
@@ -409,10 +409,10 @@ export function repolled(data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (_6 !== rs.Pending) {
 		rs.byteVecPush(out, _6);
 	}
-	if (isSomeAnd$09tpccf(rs.byteSliceFirst(data), (b: rs.u8): boolean => {
+	if (isSomeAnd$1s2u5lz(rs.byteSliceFirst(data), (b: rs.u8): boolean => {
 		return rs.u8Rem(b, 2) === 0;
 	})) {
-		rs.byteVecPush(out, isReady$1ntq2i8(pollOnce$future_Ready_u8(r)) ? 1 : 0);
+		rs.byteVecPush(out, isReady$1olyx0w(pollOnce$future_Ready_u8(r)) ? 1 : 0);
 	}
 	rs.byteVecPush(out, r.intoInner());
 }
@@ -438,11 +438,11 @@ export function pendings(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const _11 of rs.byteSliceView(data)) {
 		const held: Logged.Logged = new Logged.Logged(_11, rs.arcClone(log));
 		const _22: rs.Poll<Logged.Logged> = pollOnce$future_Pending_futures_Logged(_6);
-		rs.byteVecPush(out, isPending$1405yze(_22) ? 1 : 0);
+		rs.byteVecPush(out, isPending$0bap0yh(_22) ? 1 : 0);
 		drop$task_Poll_futures_Logged(_22);
-		rs.byteVecPush(out, isPending$0vrdvv1(pollOnce$future_Pending_u8(boxed)) ? 1 : 0);
+		rs.byteVecPush(out, isPending$189w6zf(pollOnce$future_Pending_u8(boxed)) ? 1 : 0);
 		const _38: rs.Poll<Logged.Logged> = pollOnce$future_Pending_futures_Logged(rs.NEVER);
-		rs.byteVecPush(out, isPending$1405yze(_38) ? 1 : 0);
+		rs.byteVecPush(out, isPending$0bap0yh(_38) ? 1 : 0);
 		drop$task_Poll_futures_Logged(_38);
 		held[Symbol.dispose]();
 	}
@@ -477,8 +477,8 @@ export function polls(data: rs.ByteSlice, out: rs.ByteVec): void {
 		debug$task_Poll_u8(out, q);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(q, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(p, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 4 }, args2[0]), "|", rs.fmtSpec({ align: "<", alternate: true, debugHex: "x", width: 5 }, args2[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args2[1])]));
-		debug$task_Poll_Option_u8(out, poll_map$0fx224j(b as rs.Poll<rs.u8 | undefined>, (o: rs.u8 | undefined): rs.u8 | undefined => {
-			return filter$0v80fk8(o, (v: rs.u8): boolean => {
+		debug$task_Poll_Option_u8(out, poll_map$1jzbsum(b as rs.Poll<rs.u8 | undefined>, (o: rs.u8 | undefined): rs.u8 | undefined => {
+			return filter$0hq86nl(o, (v: rs.u8): boolean => {
 				return rs.u8Rem(v, 2) === 0;
 			});
 		}));
@@ -537,11 +537,11 @@ export function hashes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u64ToBeBytes(rs.hashFinish(h2))), undefined, true);
 	const _48: rs.Iter<rs.Poll<rs.u8>> = rs.iterSlice(polls.items);
-	const set: rs.HashSet<rs.Poll<rs.u8>> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashPoll(rs.hash8), poll_eq$1h9nnoh)) as rs.HashSet<rs.Poll<rs.u8>>, _48, undefined, undefined, 469762048);
+	const set: rs.HashSet<rs.Poll<rs.u8>> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashPoll(rs.hash8), poll_eq$1qrb1lw)) as rs.HashSet<rs.Poll<rs.u8>>, _48, undefined, undefined, 469762048);
 	const _53: rs.Iter<rs.Poll<rs.u8> | rs.OuterPending> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.Poll<rs.u8> | rs.OuterPending => {
 		return nested(_22);
 	});
-	const nests: rs.HashSet<rs.Poll<rs.u8> | rs.OuterPending> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashPoll(rs.hashPoll(rs.hash8), rs.OuterPending), poll_eq$11qt6c3)) as rs.HashSet<rs.Poll<rs.u8> | rs.OuterPending>, _53, undefined, undefined, 469762048);
+	const nests: rs.HashSet<rs.Poll<rs.u8> | rs.OuterPending> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashPoll(rs.hashPoll(rs.hash8), rs.OuterPending), poll_eq$1o5v7fd)) as rs.HashSet<rs.Poll<rs.u8> | rs.OuterPending>, _53, undefined, undefined, 469762048);
 	rs.byteVecPush(out, rs.hashLen(set) & 0xff);
 	rs.byteVecPush(out, rs.hashLen(nests) & 0xff);
 	rs.byteVecPush(out, rs.hashContains(set, rs.Pending) ? 1 : 0);
@@ -585,7 +585,7 @@ export function wakers(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return a0.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
 		const _53: rs.Waker[] = [w.clone(), source.clone()];
-		rs.arrayCloneFrom(pair, _53, (a02: rs.Waker): rs.Waker => {
+		rs.sliceCloneFromSlice(pair, _53, (a02: rs.Waker): rs.Waker => {
 			return a02.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
 		rs.dropAll(_53);

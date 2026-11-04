@@ -3,14 +3,14 @@
 import * as rs from "../rs.ts";
 import type * as Any from "../core/any.Any.ts";
 
-export function asRef$16amweg(self: rs.Result<rs.u8, Any.Any>): rs.Result<rs.u8, Any.Any> {
+export function asRef$11fb4n1(self: rs.Result<rs.u8, Any.Any>): rs.Result<rs.u8, Any.Any> {
 	if (self.ok) {
 		return rs.Ok(self.value);
 	}
 	return rs.Err(self.error);
 }
 
-export function mapOr$059pexg(self: rs.Result<rs.u8, Any.Any>, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+export function mapOr$171qvtg(self: rs.Result<rs.u8, Any.Any>, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
 	if (self.ok) {
 		return f(self.value);
 	}

@@ -8,7 +8,7 @@ import type * as EncodeError from "../coding/encode.EncodeError.ts";
 import * as Encoder from "../coding/encode.Encoder.ts";
 import type * as Prefix from "../coding/encode.Prefix.ts";
 import * as Form from "../coding/varint.Form.ts";
-import { unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, map$1cf8u0y as option_map$1cf8u0y } from "../core/option.ts";
+import { unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$1haiqd3 as option_map$1haiqd3 } from "../core/option.ts";
 import { decodeWith$lite_probe_Probe_coding_decode_Decode_lite_version_Version_T_decode_closure0_lite_probe_Probe } from "../lite/message.ts";
 import * as lite_version_Version from "../lite/version.Version.ts";
 import type * as Control from "../stats.Control.ts";
@@ -102,12 +102,12 @@ export function encodeMsg$lite_message_Message(self: Probe, w: Encoder.Encoder, 
 	if (version === "Lite01" || version === "Lite02") {
 		return rs.Err("Version" as EncodeError.EncodeError);
 	}
-	const _9: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$1tvry1i(option_map$1cf8u0y(self.bitrate, (v: rs.u64): rs.u64 => {
+	const _9: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.bitrate, (v: rs.u64): rs.u64 => {
 		return rs.u64Max(v, 1);
 	}), 0));
 	if (_9.ok) {
 		if (lite_version_Version.hasProbeRtt(version)) {
-			const _17: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$1tvry1i(option_map$1cf8u0y(self.rtt, (v2: rs.u64): rs.u64 => {
+			const _17: rs.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, option_unwrapOr$15hbiwd(option_map$1haiqd3(self.rtt, (v2: rs.u64): rs.u64 => {
 				return rs.u64Max(v2, 1);
 			}), 0));
 			if (!_17.ok) {

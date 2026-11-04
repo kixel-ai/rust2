@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$saturates_Gauge_i128, copy$saturates_Gauge_i16, copy$saturates_Gauge_i32, copy$saturates_Gauge_i64, copy$saturates_Gauge_i8, copy$saturates_Gauge_isize, copy$saturates_Gauge_u128, copy$saturates_Gauge_u16, copy$saturates_Gauge_u32, copy$saturates_Gauge_u64, copy$saturates_Gauge_u8, copy$saturates_Gauge_usize } from "./lib.ts";
-import { isSomeAnd$08u1px1, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr } from "./core/option.ts";
+import { isSomeAnd$0dtzjhd, unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 import * as Gauge from "./saturates.Gauge.ts";
 
 export function hashed$i128(v: rs.i128): rs.u64 {
@@ -228,13 +228,13 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u8 = (at: rs.usize): rs.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.u8FromBeBytes(buf);
 	};
@@ -329,7 +329,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -376,9 +376,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u8SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u8SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u8SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -426,13 +426,13 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u16 = (at: rs.usize): rs.u16 => {
 		const buf: Uint8Array = rs.bytes(2);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.u16FromBeBytes(buf);
 	};
@@ -527,7 +527,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -574,9 +574,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u16SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u16SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u16SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -624,13 +624,13 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u32 = (at: rs.usize): rs.u32 => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.u32FromBeBytes(buf);
 	};
@@ -725,7 +725,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -772,9 +772,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u32SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u32SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u32SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -822,13 +822,13 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u64 = (at: rs.usize): rs.u64 => {
 		const buf: Uint8Array = rs.bytes(8);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.u64FromBeBytes(buf);
 	};
@@ -923,7 +923,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -970,9 +970,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u64SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u64SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u64SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -1020,13 +1020,13 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u128 = (at: rs.usize): rs.u128 => {
 		const buf: Uint8Array = rs.bytes(16);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.u128FromBeBytes(buf);
 	};
@@ -1121,7 +1121,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -1168,9 +1168,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u128SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u128SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u128SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -1218,13 +1218,13 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.usize = (at: rs.usize): rs.usize => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.usizeFromBeBytes(buf);
 	};
@@ -1319,7 +1319,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: boolean = order !== undefined && order <= 0;
 		const _216: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_204, _207, _210, _213, _216, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -1366,9 +1366,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.usizeSaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.usizeSaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.usizeSaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -1416,13 +1416,13 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.i8FromBeBytes(buf);
 	};
@@ -1524,7 +1524,7 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -1610,13 +1610,13 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
 		const buf: Uint8Array = rs.bytes(2);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.i16FromBeBytes(buf);
 	};
@@ -1718,7 +1718,7 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -1804,13 +1804,13 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.i32FromBeBytes(buf);
 	};
@@ -1912,7 +1912,7 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -1998,13 +1998,13 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
 		const buf: Uint8Array = rs.bytes(8);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.i64FromBeBytes(buf);
 	};
@@ -2106,7 +2106,7 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -2192,13 +2192,13 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
 		const buf: Uint8Array = rs.bytes(16);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.i128FromBeBytes(buf);
 	};
@@ -2300,7 +2300,7 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {
@@ -2386,13 +2386,13 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
 				break;
 			}
-			_10[1].v = option_unwrapOr$0r2bmpr(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
+			_10[1].v = option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(at, _10[0])), 0);
 		}
 		return rs.isizeFromBeBytes(buf);
 	};
@@ -2494,7 +2494,7 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _228: boolean = order !== undefined && order <= 0;
 		const _231: boolean = rs.cmp(a, b) === 1;
 		const order2 = rs.cmp(a, b);
-		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$08u1px1(rs.cmp(a, c), (o: rs.Ordering): boolean => {
+		const iter: rs.Iter<boolean> = rs.iterSlice([_219, _222, _225, _228, _231, order2 !== undefined && order2 >= 0, rs.cmp(a, b) < 0, isSomeAnd$0dtzjhd(rs.cmp(a, c), (o: rs.Ordering): boolean => {
 			return o > 0;
 		})]);
 		while (true) {

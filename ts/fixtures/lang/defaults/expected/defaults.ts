@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_u8 } from "./lib.ts";
-import { then$1j955kq, then$1t2ieki } from "./core/bool.ts";
-import { unwrapOrDefault$0k1p6nh as option_unwrapOrDefault$0k1p6nh } from "./core/option.ts";
+import { then$1j955kq, then$0t24p36 } from "./core/bool.ts";
+import { unwrapOrDefault$0ddgm4x as option_unwrapOrDefault$0ddgm4x } from "./core/option.ts";
 import * as Bare from "./defaults.Bare.ts";
 import * as Made from "./defaults.Made.ts";
 import * as Slot from "./defaults.Slot.ts";
@@ -87,7 +87,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			again[Symbol.dispose]();
 			shared[Symbol.dispose]();
 		} else if (_10 === 4) {
-			const part = option_unwrapOrDefault$0k1p6nh(then$1t2ieki(rs.u8Rem(op, 3) === 0, (): [rs.u64 | undefined, Made.Made] => {
+			const part = option_unwrapOrDefault$0ddgm4x(then$0t24p36(rs.u8Rem(op, 3) === 0, (): [rs.u64 | undefined, Made.Made] => {
 				return [op as rs.u64, Made.default$Default()] as [rs.u64 | undefined, Made.Made];
 			}));
 			const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part[0], f, rs.u64Debug), (f: rs.Formatter) => Made.fmt$fmt_Debug(part[1], f)], f)];

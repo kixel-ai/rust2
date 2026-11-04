@@ -3,35 +3,35 @@
 import * as rs from "../rs.ts";
 import type * as Fault from "../heap.Fault.ts";
 
-export function unwrapOr$0r2bmpr(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self;
 }
 
-export function mapOr$0hi5qhf(self: [rs.u8, rs.u16] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.u16]) => rs.u8): rs.u8 {
+export function mapOr$12lsao8(self: [rs.u8, rs.u16] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.u16]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1qo6t0j(self: rs.u8 | undefined, default_: rs.u32, _: (a0: rs.u8) => rs.u32): rs.u32 {
+export function mapOr$1diq86f(self: rs.u8 | undefined, default_: rs.u32, _: (a0: rs.u8) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
 	return self as rs.u32;
 }
 
-export function okOr$1rxv64q(self: rs.Place<rs.u8> | undefined, err: Fault.Fault): rs.Result<rs.Place<rs.u8>, Fault.Fault> {
+export function okOr$122zmjk(self: rs.Place<rs.u8> | undefined, err: Fault.Fault): rs.Result<rs.Place<rs.u8>, Fault.Fault> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}
 	return rs.Ok(self);
 }
 
-export function okOr$169x1m6(self: rs.usize | undefined, err: Fault.Fault): rs.Result<rs.usize, Fault.Fault> {
+export function okOr$0ybd6oa(self: rs.usize | undefined, err: Fault.Fault): rs.Result<rs.usize, Fault.Fault> {
 	if (self === undefined) {
 		return rs.Err(err);
 	}

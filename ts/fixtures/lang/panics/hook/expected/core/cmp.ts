@@ -2,11 +2,15 @@
 
 import * as rs from "../rs.ts";
 
-export function min$1rvi5e9(v1: rs.Location, v2: rs.Location): rs.Location {
+export function min$1k8d4j6(v1: rs.Location, v2: rs.Location): rs.Location {
 	return rs.ordMin(v1, v2, rs.cmpLt(rs.locationCmp));
 }
 
-export function max$02i836o(v1: rs.Location, v2: rs.Location): rs.Location {
+export function min$00xoube(v1: rs.usize, v2: rs.usize): rs.usize {
+	return rs.min(v1, v2);
+}
+
+export function max$0rht4yb(v1: rs.Location, v2: rs.Location): rs.Location {
 	return rs.ordMax(v1, v2, rs.cmpLt(rs.locationCmp));
 }
 

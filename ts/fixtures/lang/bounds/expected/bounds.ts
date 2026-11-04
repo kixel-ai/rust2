@@ -4,7 +4,7 @@ import * as rs from "./rs.ts";
 import * as Asked from "./bounds.Asked.ts";
 import * as Item from "./bounds.Item.ts";
 import * as Key from "./bounds.Key.ts";
-import { map$1iekgsb as option_map$1iekgsb, map$1hdkvwd as option_map$1hdkvwd, map$0a57co2 as option_map$0a57co2 } from "./core/option.ts";
+import { map$1i6no0n as option_map$1i6no0n, map$1c8069b as option_map$1c8069b, map$04ry0e1 as option_map$04ry0e1 } from "./core/option.ts";
 
 export const LOG: rs.LocalKey<rs.RefCell<rs.ByteVec>> = /* @__PURE__ */ new rs.LocalKey(LOG$init, false);
 
@@ -153,7 +153,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return rs.u32Add(_216 as rs.u32, 1000);
 			}), undefined, 4, true);
 			const drain: rs.Iter<rs.u32> = rs.vecDrain(words, range);
-			rs.iterExtendBytes(out, rs.iterOption(option_map$0a57co2(rs.iterToOption(drain.nextBack()), (w: rs.u32): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterOption(option_map$04ry0e1(rs.iterToOption(drain.nextBack()), (w: rs.u32): rs.u8 => {
 				return w & 0xff;
 			})), undefined, true);
 			rs.byteVecPush(out, drain.len() & 0xff);
@@ -165,7 +165,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _78: Asked.Asked<rs.usize> = asked$usize(s, e, i, j);
 			const drain2: rs.Iter<Item.Item> = rs.vecDrain(items, rs.boundsOf(_78, Asked.startBound$ops_RangeBounds_usize_usize, Asked.endBound$ops_RangeBounds_usize_usize), rs.drop);
 			flush(out);
-			rs.iterExtendBytes(out, rs.iterOption(option_map$1iekgsb(rs.iterToOption(drain2.next()), (x5: Item.Item): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterOption(option_map$1i6no0n(rs.iterToOption(drain2.next()), (x5: Item.Item): rs.u8 => {
 				const _09: rs.u8 = x5.tag;
 				x5[Symbol.dispose]();
 				return _09;
@@ -196,7 +196,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const _117: [rs.RangeBound<rs.usize>, rs.RangeBound<rs.usize>] = [bound$usize(s, i), bound$usize(e, j)];
 			const drain3: rs.Iter<Item.Item> = rs.dequeDrain(queue, _117, rs.drop);
-			rs.iterExtendBytes(out, rs.iterOption(option_map$1iekgsb(rs.iterToOption(drain3.nextBack()), (x2: Item.Item): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterOption(option_map$1i6no0n(rs.iterToOption(drain3.nextBack()), (x2: Item.Item): rs.u8 => {
 				const _06: rs.u8 = x2.tag;
 				x2[Symbol.dispose]();
 				return _06;
@@ -233,7 +233,7 @@ export function bounds(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecPush(out, _165[1]);
 			}
 			const _180: [rs.RangeBound<rs.u8>, rs.RangeBound<rs.u8>] = [bound$ref_u8(s, a), bound$ref_u8(e, b)];
-			rs.iterExtendBytes(out, rs.iterOption(option_map$1hdkvwd(rs.iterToOption(rs.btreeRange(map, _180).nextBack()), (_214: [rs.u8, rs.u8]): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterOption(option_map$1c8069b(rs.iterToOption(rs.btreeRange(map, _180).nextBack()), (_214: [rs.u8, rs.u8]): rs.u8 => {
 				return _214[0];
 			})), undefined, true);
 			const iter4: rs.Iter<[rs.u8, rs.Place<rs.u8>]> = rs.btreeRangeMut(map, range2);

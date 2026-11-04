@@ -10,7 +10,7 @@ import type * as Buf from "../../bytes/buf/buf_impl.Buf.ts";
 import { new_$mut_bytes_buf_Chain_buf_Provided_ref_slice_u8 as take_new_$mut_bytes_buf_Chain_buf_Provided_ref_slice_u8 } from "../../bytes/buf/take.ts";
 import * as Take from "../../bytes/buf/take.Take.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
-import { unwrapOrElse$1wp5sd9 as result_unwrapOrElse$1wp5sd9, unwrapOrElse$0s2lrc9 as result_unwrapOrElse$0s2lrc9 } from "../../core/result.ts";
+import { unwrapOrElse$1b4ownx as result_unwrapOrElse$1b4ownx, unwrapOrElse$1fg63zn as result_unwrapOrElse$1fg63zn } from "../../core/result.ts";
 
 /**
  * Returns true if there are any more bytes to consume
@@ -289,7 +289,7 @@ export function hasRemaining$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<r
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces.Pieces, Provided.Provided>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_buf_Pieces_buf_Provided(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_buf_Pieces_buf_Provided(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -318,7 +318,7 @@ export function copyToSlice$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provided.Provided, rs.ByteSlice>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_buf_Provided_bytes_Bytes(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_buf_Provided_bytes_Bytes(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -347,7 +347,7 @@ export function copyToSlice$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provi
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -376,7 +376,7 @@ export function copyToSlice$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Chain<rs.ByteSlice, Chain<Provided.Provided, rs.ByteSlice>>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -405,7 +405,7 @@ export function copyToSlice$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_r
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.ByteSlice, rs.ByteSlice>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_Bytes_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_Bytes_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -434,7 +434,7 @@ export function copyToSlice$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.By
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Buf.Buf, rs.ByteSlice>, rs.ByteSlice>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -463,7 +463,7 @@ export function copyToSlice$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_by
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(self: Chain<Chain<rs.ByteSlice, rs.ByteSlice>, Pieces.Pieces>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -492,7 +492,7 @@ export function copyToSlice$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_b
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self: Chain<Take.Take<rs.ByteSlice>, Pieces.Pieces>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -521,7 +521,7 @@ export function copyToSlice$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self
  * This function panics if `self.remaining() < dst.len()`.
  */
 export function copyToSlice$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.ByteSlice, rs.BytesMut>, dst: rs.ByteSlice): void {
-	result_unwrapOrElse$0s2lrc9(tryCopyToSlice$bytes_Buf_ref_slice_u8_bytes_BytesMut(self, dst), (error: TryGetError.TryGetError): undefined => {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_ref_slice_u8_bytes_BytesMut(self, dst), (error: TryGetError.TryGetError): undefined => {
 		panicAdvance(error);
 	});
 }
@@ -1068,7 +1068,7 @@ export function getI8$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.ByteS
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces.Pieces, Provided.Provided>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1106,7 +1106,7 @@ export function getUint$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces.Pie
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provided.Provided, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1144,7 +1144,7 @@ export function getUint$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provided.
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1182,7 +1182,7 @@ export function getUint$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Prov
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Chain<rs.ByteSlice, Chain<Provided.Provided, rs.ByteSlice>>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1220,7 +1220,7 @@ export function getUint$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_s
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.ByteSlice, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1258,7 +1258,7 @@ export function getUint$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.ByteSl
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Buf.Buf, rs.ByteSlice>, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1296,7 +1296,7 @@ export function getUint$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(self: Chain<Chain<rs.ByteSlice, rs.ByteSlice>, Pieces.Pieces>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1334,7 +1334,7 @@ export function getUint$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_P
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self: Chain<Take.Take<rs.ByteSlice>, Pieces.Pieces>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1372,7 +1372,7 @@ export function getUint$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self: Ch
  * if `nbytes` is greater than 8.
  */
 export function getUint$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.ByteSlice, rs.BytesMut>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
 		if (_2 === undefined) {
 			panicDoesNotFit(8, nbytes);
@@ -1410,7 +1410,7 @@ export function getUint$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.Byt
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces.Pieces, Provided.Provided>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1447,7 +1447,7 @@ export function getUintLe$bytes_Buf_buf_Pieces_buf_Provided(self: Chain<Pieces.P
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provided.Provided, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1484,7 +1484,7 @@ export function getUintLe$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provide
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1521,7 +1521,7 @@ export function getUintLe$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Pr
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8(self: Chain<rs.ByteSlice, Chain<Provided.Provided, rs.ByteSlice>>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1558,7 +1558,7 @@ export function getUintLe$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.ByteSlice, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1595,7 +1595,7 @@ export function getUintLe$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.Byte
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Buf.Buf, rs.ByteSlice>, rs.ByteSlice>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1632,7 +1632,7 @@ export function getUintLe$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_byte
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf_Pieces(self: Chain<Chain<rs.ByteSlice, rs.ByteSlice>, Pieces.Pieces>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1669,7 +1669,7 @@ export function getUintLe$bytes_Buf_bytes_buf_Chain_ref_slice_u8_bytes_Bytes_buf
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self: Chain<Take.Take<rs.ByteSlice>, Pieces.Pieces>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {
@@ -1706,7 +1706,7 @@ export function getUintLe$bytes_Buf_bytes_buf_Take_bytes_Bytes_buf_Pieces(self: 
  * if `nbytes` is greater than 8.
  */
 export function getUintLe$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.ByteSlice, rs.BytesMut>, nbytes: rs.usize): rs.u64 {
-	return result_unwrapOrElse$1wp5sd9(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
 		const buf: Uint8Array = rs.bytes(8);
 		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
 		if (_32 === undefined) {

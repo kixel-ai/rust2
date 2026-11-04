@@ -2,70 +2,70 @@
 
 import * as rs from "../rs.ts";
 
-export function thenSome$0kwiij6(self: boolean, t: rs.i16): rs.i16 | undefined {
+export function thenSome$0dd86kk(self: boolean, t: rs.i16): rs.i16 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0n2gkz4(self: boolean, t: rs.i32): rs.i32 | undefined {
+export function thenSome$05ku0zn(self: boolean, t: rs.i32): rs.i32 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0tjggir(self: boolean, t: rs.i64): rs.i64 | undefined {
+export function thenSome$179x8nl(self: boolean, t: rs.i64): rs.i64 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$1s4itlz(self: boolean, t: rs.i8): rs.i8 | undefined {
+export function thenSome$0kk1b17(self: boolean, t: rs.i8): rs.i8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0jkru5t(self: boolean, t: rs.isize): rs.isize | undefined {
+export function thenSome$0v7hg8b(self: boolean, t: rs.isize): rs.isize | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0b23a33(self: boolean, t: rs.u16): rs.u16 | undefined {
+export function thenSome$1gvhopg(self: boolean, t: rs.u16): rs.u16 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$1af3oea(self: boolean, t: rs.u32): rs.u32 | undefined {
+export function thenSome$1bahm2u(self: boolean, t: rs.u32): rs.u32 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$1ugl8af(self: boolean, t: rs.u64): rs.u64 | undefined {
+export function thenSome$0be218t(self: boolean, t: rs.u64): rs.u64 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$07z8k4h(self: boolean, t: rs.usize): rs.usize | undefined {
+export function thenSome$12zzmkc(self: boolean, t: rs.usize): rs.usize | undefined {
 	if (!self) {
 		return undefined;
 	}

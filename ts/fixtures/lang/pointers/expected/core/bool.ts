@@ -3,21 +3,21 @@
 import * as rs from "../rs.ts";
 import type * as Spot from "../pointers.Spot.ts";
 
-export function then$1vx3p6m(self: boolean, f: () => rs.Weak<rs.ByteSlice>): rs.Weak<rs.ByteSlice> | undefined {
+export function then$0bgt67i(self: boolean, f: () => rs.Weak<rs.ByteSlice>): rs.Weak<rs.ByteSlice> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$04p7jmh(self: boolean, f: () => [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>]): [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>] | undefined {
+export function then$1a5xgoh(self: boolean, f: () => [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>]): [rs.Arc<[rs.u16, rs.u8] | undefined>, rs.Arc<Spot.Spot>] | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$1d2br9m(self: boolean, f: () => [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>]): [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>] | undefined {
+export function then$0jw3xip(self: boolean, f: () => [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>]): [rs.Weak<[rs.u16, rs.u8] | undefined>, rs.Weak<Spot.Spot>] | undefined {
 	if (!self) {
 		return undefined;
 	}

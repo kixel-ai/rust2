@@ -3,21 +3,21 @@
 import * as rs from "../rs.ts";
 import type * as Tagged from "../borrows.Tagged.ts";
 
-export function thenSome$0zrlsto(self: boolean, t: rs.ByteSlice): rs.ByteSlice | undefined {
+export function thenSome$1y1lbvl(self: boolean, t: rs.ByteSlice): rs.ByteSlice | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function thenSome$0d5am30(self: boolean, t: rs.u8): rs.u8 | undefined {
+export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
 }
 
-export function then$1jgls7y(self: boolean, f: () => rs.RefCell<Tagged.Tagged>): rs.RefCell<Tagged.Tagged> | undefined {
+export function then$0d67oqn(self: boolean, f: () => rs.RefCell<Tagged.Tagged>): rs.RefCell<Tagged.Tagged> | undefined {
 	if (!self) {
 		return undefined;
 	}

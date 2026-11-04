@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 
-export function eq$1v93ipo(self: rs.Utf8Error, other: rs.Utf8Error): boolean {
+export function eq$0jlawuy(self: rs.Utf8Error, other: rs.Utf8Error): boolean {
 	if (!(self.validUpTo === other.validUpTo)) {
 		return false;
 	}

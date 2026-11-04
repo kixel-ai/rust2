@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import { drop$Vec_model_Guard as lib_drop$Vec_model_Guard, drop$tuple2_usize_model_Guard as lib_drop$tuple2_usize_model_Guard } from "../lib.ts";
 import { thenSome$0zvoczk } from "../core/bool.ts";
-import { map$1raha9y as option_map$1raha9y, map$14zg54s as option_map$14zg54s } from "../core/option.ts";
+import { map$06w9waf as option_map$06w9waf, map$1389p4b as option_map$1389p4b } from "../core/option.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
@@ -39,7 +39,7 @@ export function firsts(log: Log.Log, id: rs.u32, n: rs.u32): rs.Iter<Guard.Guard
 /** Run scenario `arg % 10`. */
 export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const idOf: (a0: Guard.Guard | undefined) => rs.u32 | undefined = (g2: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$1raha9y(g2, (g3: Guard.Guard): rs.u32 => {
+		return option_map$06w9waf(g2, (g3: Guard.Guard): rs.u32 => {
 			const _02: rs.u32 = rs.u32Sub(Guard.id(g3), id);
 			g3[Symbol.dispose]();
 			return _02;
@@ -240,7 +240,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["map find ", args52[0]]));
 		rs.drop(it15);
 		const it16: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(firsts(log, id, 20));
-		const part17 = option_map$14zg54s(rs.iterFind(it16, (_23: [rs.usize, Guard.Guard]): boolean => {
+		const part17 = option_map$1389p4b(rs.iterFind(it16, (_23: [rs.usize, Guard.Guard]): boolean => {
 			return _23[0] === 1;
 		}, lib_drop$tuple2_usize_model_Guard), (_24: [rs.usize, Guard.Guard]): [rs.usize, rs.u32] => {
 			const i: rs.usize = _24[0];
@@ -283,7 +283,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["flat_map ", args62[0]]));
 		rs.drop(it18);
 		const it19: rs.Peekable<Guard.Guard> = rs.iterPeekable(firsts(log, id, 20), rs.drop);
-		const part13 = option_map$1raha9y(rs.peekablePeek(it19), (g10: Guard.Guard): rs.u32 => {
+		const part13 = option_map$06w9waf(rs.peekablePeek(it19), (g10: Guard.Guard): rs.u32 => {
 			return rs.u32Sub(Guard.id(g10), id);
 		});
 		const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part13, f, rs.u32Debug)];
