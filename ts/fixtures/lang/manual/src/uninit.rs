@@ -50,7 +50,11 @@ pub fn uninits(data: &[u8], out: &mut Vec<u8>) {
 	let k = data.len().min(nested.len());
 	let src: Vec<MaybeUninit<u8>> = data[..k].iter().map(|&b| MaybeUninit::new(!b)).collect();
 	nested[..k].write_copy_of_slice(&src);
-	out.extend(unsafe { nested[..k].assume_init_ref() }.iter().map(|b| unsafe { b.assume_init() }));
+	out.extend(
+		unsafe { nested[..k].assume_init_ref() }
+			.iter()
+			.map(|b| unsafe { b.assume_init() }),
+	);
 
 	// Copies of mismatched lengths panic as `copy_from_slice` does.
 	match data.first() {
