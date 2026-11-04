@@ -478,16 +478,11 @@ fn bytes_own<'tcx>(
 /// A function of `BytesMut`.
 fn bytes_mut(
 	b: &mut Body<'_, '_, '_>,
-	call: &Call<'_>,
+	_call: &Call<'_>,
 	name: &str,
 	args: Vec<Expr>,
 	out: &mut Vec<Stmt>,
 ) -> Option<Expr> {
-	// Its `[MaybeUninit<u8>]` is an array of its own in JS, which writes into wouldn't reach.
-	if name == "spare_capacity_mut" {
-		let msg = "`BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported";
-		return Some(b.err(call.span, msg.to_string()));
-	}
 	let mut args = args.into_iter();
 	let mut arg = || args.next();
 	let f = match name {
@@ -512,6 +507,8 @@ fn bytes_mut(
 		"reserve" => "bytesMutReserve",
 		"extend_from_slice" => "bytesMutExtend",
 		"unsplit" => "bytesMutUnsplit",
+		"spare_capacity_mut" => "bytesMutSpare",
+		"set_len" => "bytesMutSetLen",
 		_ => return None,
 	};
 	Some(Expr::rt(f, args.collect()))
@@ -636,6 +633,7 @@ fn buf_mut<'tcx>(
 			Int::of(b.t.tcx.types.usize)?.ty(),
 		),
 		"has_remaining_mut" => this.member("length").binary("<", isize_max),
+		"advance_mut" => rt("AdvanceMut", vec![this, args.next()?]),
 		"put_slice" if buffer == Buffer::BytesMut => Expr::rt("bytesMutExtend", vec![this, args.next()?]),
 		"put_slice" => Expr::rt("byteVecExtendFromSlice", vec![this, args.next()?]),
 		"put" => put(b, call, buffer, through, this, args.next()?, out)?,

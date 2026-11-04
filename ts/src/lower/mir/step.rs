@@ -329,7 +329,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			// What `library::elements` makes of the slice: a view of bytes.
 			Some(item) => [
 				match item.kind() {
-					ty::Uint(ty::UintTy::U8) => Type::Builtin("Uint8Array"),
+					_ if crate::lower::byte(item) => Type::Builtin("Uint8Array"),
 					_ => self.b.t.held_ty(Ty::new_slice(self.tcx, item), span),
 				},
 				Type::Builtin("number"),

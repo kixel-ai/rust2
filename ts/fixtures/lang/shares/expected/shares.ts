@@ -570,8 +570,8 @@ export function strs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let source: string = s;
 	const fromMut: rt.Arc<string> = new rt.Arc(source);
 	source = rt.strToAsciiUppercase(source);
-	const borrowed: rt.Arc<string> = new rt.Arc(s);
-	const owned: rt.Arc<string> = new rt.Arc(s);
+	const borrowed: rt.Arc<string> = new rt.Arc(rt.strCowStr(new rt.Borrowed(s)));
+	const owned: rt.Arc<string> = new rt.Arc(rt.strCowStr(s));
 	const into: rt.Arc<string> = new rt.Arc(s);
 	const empty: rt.Arc<string> = new rt.Arc("");
 	const arcEmpty: rt.Arc<string> = new rt.Arc("");

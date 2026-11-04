@@ -758,7 +758,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
 	// room for exactly them.
 	let (ty, value) = match library::box_slice(tcx, ty) {
-		Some(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+		Some(elem) if !super::byte(elem) => {
 			let size = size_of(b, elem, span);
 			(Ty::new_slice(tcx, elem), Expr::rt("vecExact", vec![value, size]))
 		}
@@ -825,9 +825,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 				Some(Expr::rt("iterSliceMut", vec![library::elements(value, ty)]))
 			}
 			// A `Vec<u8>`'s owned bytes keep its buffer, as a deque collected from them does.
-			Std::Vec if owned && matches!(args.type_at(0).kind(), ty::Uint(ty::UintTy::U8)) => {
-				Some(Expr::rt("byteVecIntoIter", vec![value]))
-			}
+			Std::Vec if owned && super::byte(args.type_at(0)) => Some(Expr::rt("byteVecIntoIter", vec![value])),
 			Std::Vec => {
 				let values = each(b, args.type_at(0), vec![library::elements(value, ty)]);
 				Some(items(Expr::rt("iterSlice", values), args.type_at(0)))
@@ -1781,8 +1779,16 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		| [
 			"str",
 			"iter",
-			"Chars" | "CharIndices" | "Bytes" | "Lines" | "SplitWhitespace" | "EncodeUtf16" | "EscapeUnicode"
-			| "EscapeDebug" | "EscapeDefault",
+			"Chars"
+			| "CharIndices"
+			| "Bytes"
+			| "Lines"
+			| "SplitWhitespace"
+			| "SplitAsciiWhitespace"
+			| "EncodeUtf16"
+			| "EscapeUnicode"
+			| "EscapeDebug"
+			| "EscapeDefault",
 		]
 		| ["ascii", "EscapeDefault"]
 		| ["slice", "ascii", "EscapeAscii"]
@@ -2082,7 +2088,7 @@ fn collect<'tcx>(
 	};
 	if let Some(elem) = elem {
 		let v = match elem.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if super::byte(elem) => {
 				let (take, by_index, src) = collect_take(b, from, elem, span);
 				Expr::rt(
 					"iterToByteVec",
@@ -2150,7 +2156,8 @@ fn collect<'tcx>(
 			match b.t.std_of(item) {
 				Some(Std::String | Std::Cow) => {
 					let drops = iter_drops(b, from, span);
-					Some(Expr::rt("stringFromStrings", tail(vec![iter], vec![drops])))
+					let texts = texts(b.t, iter, item);
+					Some(Expr::rt("stringFromStrings", tail(vec![texts], vec![drops])))
 				}
 				_ => string_extend(b, Expr::Str(String::new()), iter, item, from, span),
 			}
@@ -2201,7 +2208,15 @@ pub(super) fn string_extend<'tcx>(
 		"stringExtendChars"
 	};
 	let drops = iter_drops(b, iter, span);
-	Some(Expr::rt(extend, tail(vec![s, items], vec![drops])))
+	Some(Expr::rt(extend, tail(vec![s, texts(b.t, items, item)], vec![drops])))
+}
+
+/// `items`, an iterator of `item`s, as one of the strings they are: a `Cow<str>`'s text.
+fn texts<'tcx>(t: &Translator<'_, 'tcx>, items: Expr, item: Ty<'tcx>) -> Expr {
+	match library::cow_str(t.tcx, item.peel_refs()) {
+		true => Expr::rt("iterMap", vec![items, Expr::Rt("strCowStr".into())]),
+		false => items,
+	}
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or

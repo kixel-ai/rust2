@@ -10,11 +10,6 @@ pub fn owned_bytes(owner: std::sync::Arc<[u8]>) -> usize {
 	bytes::Bytes::from_owner(owner).len()
 }
 
-/// The room past a `BytesMut`'s bytes, as a slice JS would hold apart from its storage.
-pub fn bytes_mut_spare(buf: &mut bytes::BytesMut) -> usize {
-	buf.spare_capacity_mut().len()
-}
-
 /// A buffer of the crate's own that JS copies, so `&mut` to it is an `rt.Place`, which the
 /// provided `copy_to_bytes` doesn't read through.
 pub enum Blank {

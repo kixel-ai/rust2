@@ -714,8 +714,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				);
 				done(next, true)
 			}
-			// A JS string can't change in place, so what the `&mut` borrows gets a new one. A
-			// `Cow<str>` is its text, as a `String` is.
+			// A JS string can't change in place, so what the `&mut` borrows gets a new one.
 			("String", "push" | "push_str") | ("AddAssign", "add_assign")
 				if owner == "String"
 					|| (targ(0).is_some_and(|t| library::string(tcx, t)) && !self.b.t.translated(def_id, gargs)) =>
@@ -728,6 +727,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let pushed = place.0.clone().binary("+", text);
 				self.set_borrowed(&place, pushed, span, out);
+				done(Expr::undefined(), false)
+			}
+			("AddAssign", "add_assign")
+				if targ(0).is_some_and(|t| library::cow_str(tcx, t)) && !self.b.t.translated(def_id, gargs) =>
+			{
+				let place = self.borrowed_place(&args[0].node, span, out)?;
+				let rhs = self.operand(&args[1].node, span, out);
+				let rhs = library::str_cow(tcx, targ(1)?, rhs);
+				let joined = Expr::rt("strCowAdd", vec![place.0.clone(), rhs]);
+				self.set_borrowed(&place, joined, span, out);
 				done(Expr::undefined(), false)
 			}
 			// What the `&mut` borrows gets the value of the other case, as a byte, a char, and a
@@ -858,9 +867,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
 			}
-			// A `Cow<str>` is the `String` it would hold, and a `String` is its `str`, so the
-			// `&mut` borrows the same place.
-			("Cow", "to_mut") if targ(0).is_some_and(|t| t.is_str()) => self.same_place(args, dest, span, out),
+			// A borrowed `Cow<str>` owns its text first, the `String` it then is, and a `String`
+			// is its `str`, so the `&mut` borrows the same place.
+			("Cow", "to_mut") if targ(0).is_some_and(|t| t.is_str()) => {
+				let place = self.borrowed_place(&args[0].node, span, out)?;
+				self.set_borrowed(&place, Expr::rt("strCowStr", vec![place.0.clone()]), span, out);
+				self.same_place(args, dest, span, out)
+			}
 			("String", "as_mut_str") => self.same_place(args, dest, span, out),
 			("DerefMut", "deref_mut") | ("AsMut", "as_mut") | ("BorrowMut", "borrow_mut")
 				if targ(0).is_some_and(|t| t.is_str() || self.b.t.std_of(t) == Some(Std::String))
@@ -970,7 +983,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// empty one.
 			("Option", "as_mut_slice") => {
 				let inner = targ(0)?;
-				if matches!(inner.kind(), ty::Uint(ty::UintTy::U8)) {
+				if crate::lower::byte(inner) {
 					let refused = self.err(
 						span,
 						"a slice of one byte's place, which a byte slice can view only in an array of bytes",
@@ -1105,7 +1118,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let dest = self.operand(&args[2].node, span, out);
 				let mut values = vec![s, start, end, dest];
 				let f = match elem.kind() {
-					ty::Uint(ty::UintTy::U8) => "byteSliceCopyWithin",
+					_ if crate::lower::byte(elem) => "byteSliceCopyWithin",
 					_ => {
 						values.extend(self.b.t.copy_fn(elem, span));
 						"sliceCopyWithin"
@@ -1381,7 +1394,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			true => Expr::rt("cellOfPlace", vec![made]),
 			false => Expr::rt("sliceOfPlace", vec![made]),
 		};
-		if !cell && matches!(ty.kind(), ty::Uint(ty::UintTy::U8)) {
+		if !cell && crate::lower::byte(ty) {
 			return Some(self.err(
 				span,
 				"a slice of one byte's place, which a byte slice can view only in an array of bytes",
@@ -1888,7 +1901,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return Some(Some((Expr::rt(f, values), true)));
 		}
 		let elem_ty = elem(self.tcx, container)?;
-		let bytes = matches!(elem_ty.kind(), ty::Uint(ty::UintTy::U8));
+		let bytes = crate::lower::byte(elem_ty);
 		let base = self.operand(&args[0].node, span, out);
 		match Int::of(index_ty) {
 			Some(_) => {

@@ -51,6 +51,7 @@ pub fn lossy(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		// A `Cow` of the bytes if they are valid, else of a `String` with each invalid
 		// sequence replaced.
 		let text = String::from_utf8_lossy(rest);
+		out.push(matches!(text, std::borrow::Cow::Borrowed(_)) as u8);
 		put(out, &format!("{text}|{text:?}"));
 		out.push(text.len() as u8);
 		let owned: String = text.into_owned();

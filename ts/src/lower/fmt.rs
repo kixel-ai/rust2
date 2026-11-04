@@ -370,15 +370,15 @@ pub fn std_impl<'tcx>(
 			e
 		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
-			(Std::String | Std::Cow, Trait::Display) if library::string(tcx, ty) => Expr::rt("fmtPad", vec![f, value]),
-			(Std::String | Std::Cow, Trait::Debug) if library::string(tcx, ty) => rt("str", vec![value, f]),
+			(Std::String, Trait::Display) => Expr::rt("fmtPad", vec![f, value]),
+			(Std::String, Trait::Debug) => rt("str", vec![value, f]),
 			// A `NonZero`, a `Wrapping`, and a `Saturating` write their integer, by each trait.
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)
 			}
-			// A `Cow<[T]>` writes its slice.
-			(Std::Cow, Trait::Debug) if let Some(elem) = library::cow_slice(tcx, ty) => {
-				b.fmt_call(tr, Ty::new_slice(tcx, elem), library::cow_deref(value, elem), f, span)
+			// A `Cow` writes what it derefs to.
+			(Std::Cow, _) if let Some(borrowed) = library::cow_borrowed(tcx, ty) => {
+				b.fmt_call(tr, borrowed, library::cow_deref(value, borrowed), f, span)
 			}
 			(Std::Arc, Trait::Display | Trait::Debug) => {
 				b.fmt_call(tr, args.type_at(0), value.member("value"), f, span)
@@ -626,19 +626,25 @@ fn iter_debug<'tcx>(
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
 		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
+		// Its searcher's state, by the name of std's searcher of its pattern.
 		[
 			"str",
 			"iter",
-			"Split" | "RSplit" | "SplitTerminator" | "RSplitTerminator" | "SplitN" | "RSplitN" | "SplitInclusive"
-			| "Matches" | "RMatches" | "MatchIndices" | "RMatchIndices" | "Lines" | "LinesAny" | "SplitWhitespace",
+			name @ ("Split" | "RSplit" | "SplitTerminator" | "RSplitTerminator" | "SplitN" | "RSplitN"
+			| "SplitInclusive" | "Matches" | "RMatches" | "MatchIndices" | "RMatchIndices"),
 		] => {
-			let name = tcx.item_name(did);
-			return Some(b.err(
-				span,
-				format!(
-					"`Debug` of a `str::{name}`, whose searcher std writes with its state in UTF-8 bytes, which the runtime does not keep yet"
-				),
+			let searcher = library::searcher(b.t, args.types().next()?)?;
+			return Some(call(
+				"fmtStrSearch",
+				vec![Expr::Str((*name).into()), Expr::Str(searcher.into())],
 			));
+		}
+		[
+			"str",
+			"iter",
+			name @ ("Lines" | "SplitWhitespace" | "SplitAsciiWhitespace"),
+		] => {
+			return Some(call("fmtStrSearch", vec![Expr::Str((*name).into())]));
 		}
 		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
 		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),

@@ -332,7 +332,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let v = self.operand(op, span, out);
 		match elem_ty.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if crate::lower::byte(elem_ty) => {
 				let array = Expr::rt("bytes", vec![Expr::lit(n.to_string())]);
 				match &v {
 					Expr::Lit(text) if text == "0" => array,
@@ -569,15 +569,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 					// The value is its discriminant.
 					Some(Std::Ordering | Std::AtomicOrdering) => scrut,
-					Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-						let borrows = crate::lower::library::cow_borrows(scrut, elem);
+					Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+						let borrows = crate::lower::library::cow_borrows(scrut, borrowed);
 						Expr::Cond(
 							Box::new(borrows),
 							Box::new(int.lit(discrs[0].1 as i128)),
 							Box::new(int.lit(discrs[1].1 as i128)),
 						)
 					}
-					Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 					Some(std @ (Std::Bound | Std::TryLockError | Std::ErrorKind)) => {
 						let table = discrs
 							.iter()
@@ -663,7 +662,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Expr::As(Box::new(Expr::Array(values)), ts_ty)
 			}
 			AggregateKind::Array(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+				_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 				_ => Expr::Array(values),
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {
@@ -783,9 +782,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::Poll, 1) => self.b.t.pending(args.type_at(0)),
 				(Std::Option | Std::Poll | Std::Pin, _) => values.pop().unwrap(),
 				// Either variant is its text.
-				(Std::Cow, _) if crate::lower::library::string(tcx, ty) => values.pop().unwrap(),
-				(Std::Cow, _) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-					crate::lower::library::cow_made(elem, variant, values.pop().unwrap())
+				(Std::Cow, _) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+					crate::lower::library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rt("FmtError".into())), Vec::new()),
