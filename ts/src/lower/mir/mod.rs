@@ -3666,6 +3666,19 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			{
 				*e = value.clone();
 			}
+			// The elements of a slice of all of an array are the array, and a copy of them its copy.
+			if let Expr::Call(f, args) = &*e
+				&& let (Expr::Rt(read), [slice]) = (&**f, args.as_slice())
+				&& matches!(read.as_str(), "sliceItems" | "sliceToArray")
+				&& let Expr::Call(from, items) = slice.unlocated()
+				&& matches!(&**from, Expr::Rt(from) if from == "sliceFrom")
+				&& let [items] = items.as_slice()
+			{
+				*e = match read.as_str() {
+					"sliceItems" => items.clone(),
+					_ => items.clone().member("slice").call(Vec::new()),
+				};
+			}
 			true
 		}
 		Expr::Unary(_, e) | Expr::Located(_, e) | Expr::As(e, _) | Expr::Instantiate(e, _) | Expr::Postfix(e, _) => {

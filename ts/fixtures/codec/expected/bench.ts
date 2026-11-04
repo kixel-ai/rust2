@@ -385,9 +385,9 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			return rt.u32Rem(_212, 1024);
 		}, rt.lt), 4, true);
 	} else if (selector === 2) {
-		v = rt.vecFrom([rt.optionUnwrap(rt.iterMax(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), rt.lt)), rt.optionUnwrap(rt.iterMin(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), rt.lt))]);
+		v = rt.vecFrom([rt.optionUnwrap(rt.iterMax(rt.iterSlice(v.items), rt.lt)), rt.optionUnwrap(rt.iterMin(rt.iterSlice(v.items), rt.lt))]);
 	} else if (selector === 3) {
-		const _35: [rt.u32, rt.u32] = rt.iterFold(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), [0, 4294967295] as [rt.u32, rt.u32], (_211: [rt.u32, rt.u32], _33: rt.u32): [rt.u32, rt.u32] => {
+		const _35: [rt.u32, rt.u32] = rt.iterFold(rt.iterSlice(v.items), [0, 4294967295] as [rt.u32, rt.u32], (_211: [rt.u32, rt.u32], _33: rt.u32): [rt.u32, rt.u32] => {
 			const hi2: rt.u32 = _211[0];
 			const lo2: rt.u32 = _211[1];
 			const x6: rt.u32 = _33;
@@ -395,14 +395,14 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		});
 		v = rt.vecFrom([_35[0], _35[1]]);
 	} else if (selector === 5) {
-		const _43: rt.Iter<[rt.u32, rt.u32]> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), (_210: rt.u32): [rt.u32, rt.u32] => {
+		const _43: rt.Iter<[rt.u32, rt.u32]> = rt.iterMap(rt.iterSlice(v.items), (_210: rt.u32): [rt.u32, rt.u32] => {
 			const x5: rt.u32 = _210;
 			return [rt.u32Rem(x5, 512), x5] as [rt.u32, rt.u32];
 		});
 		const map: rt.BTreeMap<rt.u32, rt.u32> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, rt.u32>, _43, true, undefined, undefined, undefined, 8, true);
 		v = rt.vecFrom([rt.optionUnwrap(rt.iterToOption(rt.btreeKeys(map).next())), rt.btreeLen(map) as rt.u32, rt.optionUnwrap(rt.iterToOption(rt.btreeValues(map).nextBack()))]);
 	} else if (selector === 6) {
-		const _65: rt.Iter<rt.u32> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), (_2: rt.u32): rt.u32 => {
+		const _65: rt.Iter<rt.u32> = rt.iterMap(rt.iterSlice(v.items), (_2: rt.u32): rt.u32 => {
 			return rt.u32Rem(_2, 512);
 		});
 		const set: rt.BTreeSet<rt.u32> = rt.btreeExtendKeys(rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u32>, _65, true, undefined, undefined, 4, true);
