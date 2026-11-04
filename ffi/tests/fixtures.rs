@@ -572,6 +572,22 @@ fn api_python() {
 	);
 }
 
+/// The api fixture's Python passes mypy and pyright, both strict, at the oldest CPython
+/// its extension loads in. Apart from `api_python`, which the runners without the dev
+/// shell's checkers run alone.
+#[test]
+fn api_py_types() {
+	let api = api().out.join("python").join("api.py");
+	run(Command::new("mypy")
+		.args(["--strict", "--python-version", "3.11", "--cache-dir"])
+		.arg(scratch().join("mypy"))
+		.arg(&api));
+	run(Command::new("pyright")
+		.arg("-p")
+		.arg(manifest_dir().join("tests").join("pyright.json"))
+		.arg(&api));
+}
+
 /// The contract a Kotlin file checks its library against.
 fn kotlin_contract(kotlin: &Path) -> u64 {
 	let kotlin = std::fs::read_to_string(kotlin).unwrap();
