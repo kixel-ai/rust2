@@ -31,7 +31,11 @@ fn cases() -> Vec<(&'static str, Case)> {
 	];
 	#[cfg(feature = "hook")]
 	let cases = (cases.into_iter())
-		.chain([("hooked::panicked", hooked::panicked as Case), ("hooked::aborted", hooked::aborted)])
+		.chain([
+			("hooked::panicked", hooked::panicked as Case),
+			("hooked::aborted", hooked::aborted),
+			("hooked::sited", hooked::sited),
+		])
 		.collect();
 	cases
 }

@@ -7,9 +7,14 @@
 //! Each case's hook writes what it read to [`NOTE`], which the host reads once the panic
 //! traps, and passes the panic on to the hook it replaced, the harness's natively.
 
-use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::cell::{OnceCell, RefCell};
+use std::collections::{BTreeMap, BTreeSet, HashMap, LinkedList, VecDeque};
+use std::future::Future;
+use std::ops::Bound;
 use std::panic::{self, PanicHookInfo};
+use std::pin::Pin;
+use std::sync::{Mutex, OnceLock};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use crate::NOTE;
@@ -124,4 +129,97 @@ pub fn aborted(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}));
 	out.push(n);
 	panic!("first {n}");
+}
+
+thread_local! {
+	/// Borrowed for good, as the translation, which goes on after a case panics, holds what
+	/// that case held, where the native build starts again.
+	static SHARED: RefCell<u8> = const { RefCell::new(0) };
+	/// Mutably borrowed for good, as `SHARED` is borrowed.
+	static EXCLUSIVE: RefCell<u8> = const { RefCell::new(0) };
+}
+
+/// One panic of std's own code, by `kind`, with a hook set: each where the native build
+/// names it, in the toolchain's source.
+pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().copied().unwrap_or(0);
+	let at = usize::from(n);
+	hook();
+	let v = vec![n, n];
+	let deque = VecDeque::from(v.clone());
+	let map = BTreeMap::from([(u16::from(n), n)]);
+	let set = BTreeSet::from([u16::from(n)]);
+	match kind % 36 {
+		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
+		1 => v.clone().rotate_right(at + 3),
+		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
+		3 => out.push(f64::from(n).clamp(1.0, 0.0) as u8),
+		4 => out.push(f32::from(n).clamp(1.0, 0.0) as u8),
+		5 => out.extend_from_slice(char::from(n.max(128)).encode_utf8(&mut [0; 1]).as_bytes()),
+		6 => out.push(char::from_u32(0x1F600 + u32::from(n)).unwrap().encode_utf16(&mut [0; 1]).len() as u8),
+		7 => out.extend(map.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n)))).map(|(_, &v)| v)),
+		8 => out.extend(map.range(u16::from(n) + 1..u16::from(n)).map(|(_, &v)| v)),
+		9 => out.extend(set.range((Bound::Excluded(u16::from(n)), Bound::Excluded(u16::from(n)))).map(|&v| v as u8)),
+		10 => out.extend(set.range(u16::from(n) + 1..u16::from(n)).map(|&v| v as u8)),
+		11 => deque.clone().insert(at + 3, n),
+		12 => deque.clone().swap(at + 2, 0),
+		13 => deque.clone().swap(0, at + 2),
+		14 => deque.clone().rotate_left(at + 3),
+		15 => deque.clone().rotate_right(at + 3),
+		16 => out.extend(deque.clone().split_off(at + 3)),
+		17 => out.extend(LinkedList::from([n]).split_off(at + 2)),
+		18 => {
+			let mutex = Mutex::new(n);
+			let _held = mutex.lock();
+			out.push(*mutex.lock().unwrap());
+		}
+		19 => {
+			let cell = OnceCell::new();
+			out.push(*cell.get_or_init(|| *cell.get_or_init(|| n)));
+		}
+		20 => {
+			let lock = OnceLock::new();
+			out.push(*lock.get_or_init(|| *lock.get_or_init(|| n)));
+		}
+		21 => {
+			let mut ready = std::future::ready(n);
+			let mut cx = Context::from_waker(Waker::noop());
+			for _ in 0..2 {
+				if let Poll::Ready(n) = Pin::new(&mut ready).poll(&mut cx) {
+					out.push(n);
+				}
+			}
+		}
+		22 => {
+			let mut ready = std::future::ready(n);
+			let mut cx = Context::from_waker(Waker::noop());
+			if let Poll::Ready(n) = Pin::new(&mut ready).poll(&mut cx) {
+				out.push(n);
+			}
+			out.push(ready.into_inner());
+		}
+		23 => out.push(Duration::new(u64::MAX, 1_000_000_000 + u32::from(n)).subsec_nanos() as u8),
+		24 => out.push(Duration::from_mins(u64::MAX - u64::from(n)).subsec_nanos() as u8),
+		25 => out.push(Duration::from_hours(u64::MAX - u64::from(n)).subsec_nanos() as u8),
+		26 => out.push((Duration::ZERO - Duration::from_secs(u64::from(n) + 1)).subsec_nanos() as u8),
+		27 => out.push((Duration::MAX * (u32::from(n) + 2)).subsec_nanos() as u8),
+		28 => v.clone().extend_from_within(at + 3..),
+		29 => out.extend(deque.clone().drain(at + 3..)),
+		30 => out.extend(deque.range(at + 3..)),
+		31 => out.extend(deque.clone().range_mut(at + 3..).map(|v| *v)),
+		32 => {
+			let cell = RefCell::new(vec![n]);
+			let _held = cell.borrow();
+			out.extend(cell.take());
+		}
+		33 => {
+			SHARED.with(|cell| std::mem::forget(cell.borrow()));
+			SHARED.with_borrow_mut(|v| *v = n);
+		}
+		34 => {
+			EXCLUSIVE.with(|cell| cell.try_borrow_mut().map(std::mem::forget).unwrap_or_default());
+			EXCLUSIVE.with_borrow(|&v| out.push(v));
+		}
+		_ => out.extend(v.clone().splice(at + 3.., [n])),
+	}
 }
