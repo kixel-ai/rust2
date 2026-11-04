@@ -287,6 +287,7 @@ fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::M
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
+fixtures/reject/src/values.rs:shared_values+1:2: a coercion to `std::rc::Rc<[u16]>`
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

@@ -432,10 +432,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.raw_unsize(value, from, span)
 				}
-				// An array, as the slice of all of it.
+				// An array, as the slice of all of it. An `Arc`'s or `Rc`'s would need the slice made
+				// inside it, which every owner sharing its count would see.
 				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_slice()) => {
-					let value = self.operand(op, span, out);
-					Expr::rs("sliceFrom", vec![value])
+					match to.builtin_deref(true) {
+						Some(pointee) if pointee.is_slice() => {
+							let value = self.operand(op, span, out);
+							Expr::rs("sliceFrom", vec![value])
+						}
+						_ => self.err(span, format!("a coercion to `{to}`")),
+					}
 				}
 				// A `#[track_caller]` function's pointer passes the function's own location.
 				PointerCoercion::ReifyFnPointer(_)
