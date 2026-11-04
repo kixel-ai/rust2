@@ -1880,7 +1880,11 @@ fn heap<'tcx>(
 			Expr::rt(f, values)
 		}
 		(_, "len") => values.pop()?.member("items").member("length"),
-		(_, "is_empty") => values.pop()?.member("items").member("length").binary("===", Expr::lit("0")),
+		(_, "is_empty") => values
+			.pop()?
+			.member("items")
+			.member("length")
+			.binary("===", Expr::lit("0")),
 		// Indexing returns `undefined` for no element, where an `rt.None` must follow.
 		(_, "peek") if library::sentinel_option(b.t, call).is_some() => Expr::rt("heapPeek", values),
 		(_, "peek") => values.pop()?.member("items").index(Expr::lit("0")),
