@@ -9,6 +9,7 @@ mod consts;
 mod fold;
 mod library;
 mod names;
+mod split;
 mod stmt;
 mod ty;
 
@@ -167,6 +168,8 @@ pub struct Translator<'tcx> {
 	/// The package-level variable holding each constant allocation, and the offset,
 	/// length, and type it holds it at.
 	allocs: HashMap<rustc_middle::mir::interpret::AllocId, ((u64, u64, Ty<'tcx>), String)>,
+	/// Each type's parts, if Go holds it split.
+	splits: HashMap<Ty<'tcx>, Option<std::rc::Rc<split::Split<'tcx>>>>,
 	/// Each refusal reported, so a construct met again at the same place is reported once.
 	reported: HashSet<(Span, String)>,
 	failed: bool,
@@ -199,6 +202,7 @@ impl<'tcx> Translator<'tcx> {
 			local_names,
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
+			splits: HashMap::new(),
 			reported: HashSet::new(),
 			failed: false,
 		}

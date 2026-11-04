@@ -4,12 +4,13 @@
 //! inlining budget. A panic is Go's, with native Rust's message, and runs no cleanup, as
 //! `panic = "abort"` doesn't: the MIR's cleanup blocks are left out.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
+use std::rc::Rc;
 
 use rust2_driver::cfg;
 use rustc_hir::def::DefKind;
-use rustc_middle::mir::visit::Visitor;
+use rustc_middle::mir::visit::{MutatingUseContext, NonMutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{
 	self, AggregateKind, AssertKind, BasicBlock, BinOp, CastKind, Local, Location, Operand, Place, PlaceElem, Rvalue,
 	StatementKind, TerminatorKind, UnOp,
@@ -23,6 +24,7 @@ use super::Translator;
 use super::fold::{self, Does, Effect, Held, Pending, Temps};
 use super::library::{self, Mapped};
 use super::names;
+use super::split::Split;
 use super::stmt::{self, Cond, Stmt};
 use super::ty::variant_field;
 
@@ -34,6 +36,9 @@ pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reache
 	let tcx = t.tcx;
 	let mir = instance_mir(t, instance, reached)?;
 	let name = t.funcs[&instance].clone();
+	let mut temps = Temps::new(&mir);
+	let split = split_locals(t, &mir, &temps);
+	temps.foldable.retain(|l| !split.contains_key(l));
 	let mut fx = Fx {
 		t,
 		tcx,
@@ -43,14 +48,83 @@ pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reache
 		used: HashSet::new(),
 		mentioned: HashSet::new(),
 		sites: Vec::new(),
-		temps: Temps::new(&mir),
+		temps,
 		held: Held::default(),
+		split,
+		part_used: HashSet::new(),
+		scratch: Vec::new(),
 		fold_ok: true,
 		carry: false,
 		ok: true,
 	};
 	let text = fx.function(&name, instance);
 	fx.ok.then_some(text)
+}
+
+/// The locals of enums Go holds split, as their parts: those never borrowed whole nor
+/// reached but through a variant's field, but for a temporary that folds into its reader,
+/// which a call does not assign.
+fn split_locals<'tcx>(
+	t: &mut Translator<'tcx>,
+	mir: &mir::Body<'tcx>,
+	temps: &Temps,
+) -> HashMap<Local, Rc<Split<'tcx>>> {
+	struct Reach<'a, 'tcx> {
+		split: &'a mut HashMap<Local, Rc<Split<'tcx>>>,
+		args: usize,
+	}
+	impl<'tcx> Visitor<'tcx> for Reach<'_, 'tcx> {
+		fn visit_place(&mut self, place: &Place<'tcx>, ctx: PlaceContext, _: Location) {
+			let borrow = matches!(
+				ctx,
+				PlaceContext::NonMutatingUse(
+					NonMutatingUseContext::SharedBorrow
+						| NonMutatingUseContext::FakeBorrow
+						| NonMutatingUseContext::RawBorrow
+				) | PlaceContext::MutatingUse(MutatingUseContext::Borrow | MutatingUseContext::RawBorrow)
+			);
+			let parts = match place.projection.as_slice() {
+				[] => !borrow,
+				[PlaceElem::Downcast(..), PlaceElem::Field(..), ..] => true,
+				_ => false,
+			};
+			// What an argument's big parts point at is its caller's, which it only reads.
+			let changed = place.local.as_usize() >= 1
+				&& place.local.as_usize() <= self.args
+				&& matches!(ctx, PlaceContext::MutatingUse(m) if m != MutatingUseContext::Drop);
+			if !parts || changed {
+				self.split.remove(&place.local);
+			}
+		}
+	}
+	let called: HashSet<Local> = (mir.basic_blocks.iter())
+		.filter_map(|data| match &data.terminator().kind {
+			TerminatorKind::Call { destination, .. } => destination.as_local(),
+			_ => None,
+		})
+		.collect();
+	let mut split = HashMap::new();
+	for (local, decl) in mir.local_decls.iter_enumerated() {
+		if temps.foldable.contains(&local) && !called.contains(&local) {
+			continue;
+		}
+		if let Some(parts) = t.split(decl.ty, decl.source_info.span) {
+			split.insert(local, parts);
+		}
+	}
+	if let Some(spread) = mir.spread_arg {
+		split.remove(&spread);
+	}
+	let mut reach = Reach {
+		split: &mut split,
+		args: mir.arg_count,
+	};
+	for (bb, data) in mir.basic_blocks.iter_enumerated() {
+		if !data.is_cleanup {
+			reach.visit_basic_block_data(bb, data);
+		}
+	}
+	split
 }
 
 /// The MIR of `instance`, with its generic arguments in place.
@@ -93,6 +167,12 @@ pub struct Fx<'a, 'tcx> {
 	sites: Vec<Span>,
 	temps: Temps,
 	held: Held,
+	/// The locals Go holds as their parts.
+	split: HashMap<Local, Rc<Split<'tcx>>>,
+	/// The parts of split locals the body reads.
+	part_used: HashSet<(Local, usize)>,
+	/// The variables a whole value is spread from, and their Go types.
+	scratch: Vec<(String, String)>,
 	/// Whether the operand being lowered may fold in a temporary: false where Go would
 	/// evaluate it twice, late, or not at all.
 	fold_ok: bool,
@@ -161,15 +241,41 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				};
 				writeln!(prologue, "\tvar {name} {go} = {value}").unwrap();
 				self.used.insert(arg);
+			} else if let Some(split) = self.t.split(ty, span) {
+				let mut values = Vec::new();
+				for p in &split.parts {
+					let part = format!("{name}_{}", p.name);
+					match p.big {
+						true => {
+							params.push(format!("{part} *{}", p.go));
+							values.push(format!("(*{part})"));
+						}
+						false => {
+							params.push(format!("{part} {}", p.go));
+							values.push(part);
+						}
+					}
+				}
+				// Borrowed whole or changed, so a variable of its own, as what a big part
+				// points at is its caller's.
+				if !self.split.contains_key(&arg) {
+					writeln!(prologue, "\tvar {name} {} = {}", split.go, split.rebuild(&values)).unwrap();
+				}
 			} else {
 				let go = self.ty(ty, span);
 				params.push(format!("{name} {go}"));
 			}
 		}
 		let ret_ty = mir.return_ty();
-		let ret = match Translator::no_value(ret_ty) {
-			true => String::new(),
-			false => format!(" {}", self.ty(ret_ty, span)),
+		let ret = match (Translator::no_value(ret_ty), self.t.split(ret_ty, span)) {
+			(true, _) => String::new(),
+			(false, Some(split)) => {
+				for p in split.parts.iter().filter(|p| p.big) {
+					params.push(format!("_0_{} *{}", p.name, p.go));
+				}
+				split.results()
+			}
+			(false, None) => format!(" {}", self.ty(ret_ty, span)),
 		};
 		self.sites = self.tracing_sites();
 		// Only the blocks the translation goes to, from the first: no cleanup, and no block
@@ -181,13 +287,18 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		cfg::hoist_else(&mut body);
 		cfg::tidy_loops(&mut body);
-		let mut decls = String::new();
+		let mut vars = Vec::new();
 		for local in mir.local_decls.indices().skip(1 + mir.arg_count) {
-			self.declare(local, &mut decls);
+			self.declare(local, &mut vars);
 		}
-		self.declare(mir::RETURN_PLACE, &mut decls);
+		self.declare(mir::RETURN_PLACE, &mut vars);
+		for (name, go) in &self.scratch {
+			vars.push((name.clone(), format!("\tvar {name} {go}\n")));
+		}
+		stmt::declare(&mut body, vars);
+		let mut decls = String::new();
 		for arg in mir.args_iter() {
-			if !self.used.contains(&arg) {
+			if !self.used.contains(&arg) && !self.split.contains_key(&arg) {
 				writeln!(decls, "\t_ = {}", Self::local_name(arg)).unwrap();
 			}
 		}
@@ -300,7 +411,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			out.push(Stmt::Lines(text));
 		}
 		if let TerminatorKind::Return = term.kind {
-			out.push(Stmt::Return(self.returned()));
+			let mut text = String::new();
+			let value = self.returned(&mut text);
+			if !text.is_empty() {
+				out.push(Stmt::Lines(text));
+			}
+			out.push(Stmt::Return(value));
 		}
 		exit
 	}
@@ -372,18 +488,35 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	/// Declare a local the body names, and use it if nothing reads it, as Go requires.
-	fn declare(&mut self, local: Local, out: &mut String) {
+	/// Declare a local the body names, and use it if nothing reads it, as Go requires:
+	/// each variable's name and its declaration.
+	fn declare(&mut self, local: Local, out: &mut Vec<(String, String)>) {
 		let ty = self.mir.local_decls[local].ty;
 		if ty.is_never() || !self.mentioned.contains(&local) {
 			return;
 		}
-		let go = self.ty(ty, self.mir.local_decls[local].source_info.span);
 		let name = Self::local_name(local);
-		writeln!(out, "\tvar {name} {go}").unwrap();
-		if !self.used.contains(&local) {
-			writeln!(out, "\t_ = {name}").unwrap();
+		if let Some(split) = self.split.get(&local).cloned() {
+			for (i, p) in split.parts.iter().enumerate() {
+				// A part the function returns through a pointer is that parameter.
+				if local == mir::RETURN_PLACE && p.big {
+					continue;
+				}
+				let part = format!("{name}_{}", p.name);
+				let mut decl = format!("\tvar {part} {}\n", p.go);
+				if !self.part_used.contains(&(local, i)) {
+					writeln!(decl, "\t_ = {part}").unwrap();
+				}
+				out.push((part, decl));
+			}
+			return;
 		}
+		let go = self.ty(ty, self.mir.local_decls[local].source_info.span);
+		let mut decl = format!("\tvar {name} {go}\n");
+		if !self.used.contains(&local) {
+			writeln!(decl, "\t_ = {name}").unwrap();
+		}
+		out.push((name, decl));
 	}
 
 	/// Before a statement that reads and writes as `acc` and does `effect`: emit what it
@@ -430,6 +563,19 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let acc = self.temps.access(|v| v.visit_statement(stmt, loc));
 				self.begin(&acc, Effect::default(), false, out);
 				let ty = place.ty(self.mir, self.tcx).ty;
+				if place.projection.is_empty()
+					&& let Some(split) = self.split.get(&place.local).cloned()
+				{
+					let (pre, values) = self.split_rvalue(&split, rvalue, ty, span);
+					self.end(out);
+					out.push_str(&pre);
+					let parts: Vec<(String, String)> = values
+						.into_iter()
+						.map(|(i, value)| (self.part(place.local, i), value))
+						.collect();
+					assign_all(&parts, out);
+					return;
+				}
 				let value = self.rvalue(rvalue, ty, span);
 				match self.holds(*place, rvalue) {
 					Some(local) => {
@@ -447,6 +593,19 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 						writeln!(out, "\t{dest} = {value}").unwrap();
 					}
 				}
+			}
+			StatementKind::SetDiscriminant { place, variant_index }
+				if place.projection.is_empty() && self.split.contains_key(&place.local) =>
+			{
+				let acc = self.temps.access(|v| v.visit_statement(stmt, loc));
+				self.begin(&acc, Effect::default(), false, out);
+				self.end(out);
+				let ty::Adt(adt, _) = self.mir.local_decls[place.local].ty.kind() else {
+					unreachable!("a split local is an enum")
+				};
+				let discr = self.discr(*adt, *variant_index, span);
+				let tag = self.part(place.local, 0);
+				writeln!(out, "\t{tag} = {discr}").unwrap();
 			}
 			StatementKind::SetDiscriminant { place, variant_index } => {
 				let acc = self.temps.access(|v| v.visit_statement(stmt, loc));
@@ -480,6 +639,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 	/// A place written to: its local is no read of it.
 	fn dest(&mut self, place: Place<'tcx>, span: Span) -> String {
+		if let Some(split) = self.split.get(&place.local).cloned()
+			&& let [PlaceElem::Downcast(_, variant), PlaceElem::Field(field, _)] = place.projection.as_slice()
+		{
+			return self.part(place.local, split.part(*variant, *field));
+		}
 		let used = self.used.contains(&place.local);
 		let expr = self.place(place, span).expr;
 		if place.projection.is_empty() && !used {
@@ -488,20 +652,163 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		expr
 	}
 
+	/// The parts `rvalue`, of the enum `split`, assigns, each by its index, and what
+	/// must be emitted first: the variant an aggregate makes, or else every part.
+	fn split_rvalue(
+		&mut self,
+		split: &Split<'tcx>,
+		rvalue: &Rvalue<'tcx>,
+		ty: Ty<'tcx>,
+		span: Span,
+	) -> (String, Vec<(usize, String)>) {
+		match rvalue {
+			Rvalue::Aggregate(kind, ops) if let AggregateKind::Adt(did, variant, ..) = **kind => {
+				let adt = self.tcx.adt_def(did);
+				let mut values = vec![(0, self.discr(adt, variant, span))];
+				for (field, op) in ops.iter_enumerated() {
+					values.push((split.part(variant, field), self.operand(op, span)));
+				}
+				(String::new(), values)
+			}
+			Rvalue::Use(Operand::Copy(place) | Operand::Move(place), _) | Rvalue::CopyForDeref(place) => {
+				(String::new(), self.parts_of(*place, split, span).into_iter().enumerate().collect())
+			}
+			_ => {
+				let value = self.rvalue(rvalue, ty, span);
+				let (scratch, pre) = self.spill(split, value);
+				(pre, scratch.into_iter().enumerate().collect())
+			}
+		}
+	}
+
+	/// Each part of `place`, a value of the enum `split`.
+	fn parts_of(&mut self, place: Place<'tcx>, split: &Split<'tcx>, span: Span) -> Vec<String> {
+		if place.projection.is_empty() && self.split.contains_key(&place.local) {
+			return (0..split.parts.len()).map(|i| self.read_part(place.local, i)).collect();
+		}
+		// Read once per part.
+		let fold_ok = std::mem::replace(&mut self.fold_ok, false);
+		let whole = self.place(place, span).expr;
+		self.fold_ok = fold_ok;
+		split.parts.iter().map(|p| format!("{whole}{}", p.path)).collect()
+	}
+
+	/// Each part of `op`, a value of the enum `split`, as an argument: a big part by a
+	/// pointer the callee only reads through, to its storage where nothing else can
+	/// change it while the callee runs, or else to a copy made into `out` first.
+	fn arg_parts(&mut self, op: &Operand<'tcx>, split: &Split<'tcx>, span: Span, out: &mut String) -> Vec<String> {
+		let place = match op {
+			Operand::Copy(place) | Operand::Move(place) => Some(*place),
+			_ => None,
+		};
+		// Storage nothing else reaches, which a temporary held back is once assigned.
+		let own = place.is_some_and(|p| !p.is_indirect() && !self.temps.borrowed.contains(&p.local));
+		let local = place
+			.filter(|p| p.projection.is_empty() && self.split.contains_key(&p.local))
+			.map(|p| p.local);
+		let whole = match (place, local) {
+			(_, Some(_)) => String::new(),
+			(Some(place), None) => {
+				let fold_ok = std::mem::replace(&mut self.fold_ok, false);
+				let whole = self.place(place, span).expr;
+				self.fold_ok = fold_ok;
+				whole
+			}
+			(None, None) => format!("({})", self.operand(op, span)),
+		};
+		let mut values = Vec::new();
+		for (i, p) in split.parts.iter().enumerate() {
+			let value = match local {
+				Some(local) => self.read_part(local, i),
+				None => format!("{whole}{}", p.path),
+			};
+			values.push(match (p.big, own) {
+				(false, _) => value,
+				(true, true) => match local.filter(|l| self.pointed(*l)) {
+					Some(local) => format!("{}_{}", Self::local_name(local), p.name),
+					None => format!("&{value}"),
+				},
+				(true, false) => {
+					let name = format!("_s{}", self.scratch.len());
+					self.scratch.push((name.clone(), p.go.clone()));
+					writeln!(out, "\t{name} = {value}").unwrap();
+					format!("&{name}")
+				}
+			});
+		}
+		values
+	}
+
+	/// `value`, a whole value of the enum `split`, assigned to a scratch variable: its
+	/// parts, and the assignment.
+	fn spill(&mut self, split: &Split<'tcx>, value: String) -> (Vec<String>, String) {
+		let name = format!("_s{}", self.scratch.len());
+		self.scratch.push((name.clone(), split.go.clone()));
+		let parts = split.parts.iter().map(|p| format!("{name}{}", p.path)).collect();
+		(parts, format!("\t{name} = {value}\n"))
+	}
+
+	/// The parts of the enum `split` a call returning it into `place` assigns, and the
+	/// pointers it writes the rest through.
+	fn dest_parts(&mut self, place: Place<'tcx>, split: &Split<'tcx>, span: Span) -> (Vec<String>, Vec<String>) {
+		let (mut lhs, mut outs) = (Vec::new(), Vec::new());
+		if place.projection.is_empty() && self.split.contains_key(&place.local) {
+			for (i, p) in split.parts.iter().enumerate() {
+				match (p.big, place.local == mir::RETURN_PLACE) {
+					(false, _) => lhs.push(self.part(place.local, i)),
+					// Its caller's storage, handed on.
+					(true, true) => outs.push(format!("_0_{}", p.name)),
+					(true, false) => outs.push(format!("&{}", self.read_part(place.local, i))),
+				}
+			}
+			return (lhs, outs);
+		}
+		let fold_ok = std::mem::replace(&mut self.fold_ok, false);
+		let whole = self.place(place, span).expr;
+		self.fold_ok = fold_ok;
+		for p in &split.parts {
+			match p.big {
+				false => lhs.push(format!("{whole}{}", p.path)),
+				true => outs.push(format!("&{whole}{}", p.path)),
+			}
+		}
+		(lhs, outs)
+	}
+
 	/// A place's Go expression.
 	pub fn place(&mut self, place: Place<'tcx>, span: Span) -> GoPlace<'tcx> {
-		let mut expr = match self.held.take(place.local, self.fold_ok) {
-			fold::Take::Folded(expr) => expr,
-			// Read as its variable once the statement has assigned it.
-			fold::Take::Refused => Self::local_name(place.local),
-			fold::Take::Var => {
-				self.used.insert(place.local);
-				self.mentioned.insert(place.local);
-				Self::local_name(place.local)
+		let local = place.local;
+		let ty = self.mir.local_decls[local].ty;
+		let (mut expr, mut pty, skip) = match self.split.get(&local).cloned() {
+			Some(split) => match place.projection.as_slice() {
+				[] => {
+					let values: Vec<String> = (0..split.parts.len()).map(|i| self.read_part(local, i)).collect();
+					return GoPlace {
+						expr: split.rebuild(&values),
+						ty,
+					};
+				}
+				[PlaceElem::Downcast(_, variant), PlaceElem::Field(field, _), ..] => {
+					let i = split.part(*variant, *field);
+					(self.read_part(local, i), mir::PlaceTy::from_ty(split.parts[i].ty), 2)
+				}
+				_ => unreachable!("a split local is reached through its variants' fields"),
+			},
+			None => {
+				let expr = match self.held.take(local, self.fold_ok) {
+					fold::Take::Folded(expr) => expr,
+					// Read as its variable once the statement has assigned it.
+					fold::Take::Refused => Self::local_name(local),
+					fold::Take::Var => {
+						self.used.insert(local);
+						self.mentioned.insert(local);
+						Self::local_name(local)
+					}
+				};
+				(expr, mir::PlaceTy::from_ty(ty), 0)
 			}
 		};
-		let mut pty = mir::PlaceTy::from_ty(self.mir.local_decls[place.local].ty);
-		for elem in place.projection.iter() {
+		for elem in place.projection.iter().skip(skip) {
 			let base = pty.ty;
 			match elem {
 				PlaceElem::Deref => match base.kind() {
@@ -648,6 +955,14 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					_ => format!("&{}", place.expr),
 				}
 			}
+			Rvalue::Discriminant(place) if place.projection.is_empty() && self.split.contains_key(&place.local) => {
+				let tag = self.read_part(place.local, 0);
+				let split = &self.split[&place.local];
+				match split.parts[0].ty == dest_ty {
+					true => tag,
+					false => format!("{}({tag})", self.ty(dest_ty, span)),
+				}
+			}
 			Rvalue::Discriminant(place) => {
 				let place = self.place(*place, span);
 				match place.ty.kind() {
@@ -768,6 +1083,40 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			types.join("; "),
 			values.join(", ")
 		)
+	}
+
+	/// A Go function literal of `body`, run at once, returning a value of `ty` as
+	/// [`Fx::variant`] gives it: a bound call of it.
+	pub fn returning(&mut self, ty: Ty<'tcx>, body: String, span: Span) -> library::Bound {
+		match self.t.split(ty, span) {
+			Some(split) => library::Bound::Parts(format!("func(){} {{ {body} }}()", split.results())),
+			None => library::Bound::Expr(format!("func() {} {{ {body} }}()", self.ty(ty, span))),
+		}
+	}
+
+	/// The value of the enum `ty`'s variant `variant` of `fields`, as a function literal
+	/// [`Fx::returning`] it returns: whole, or as its parts where Go holds it split.
+	pub fn variant(&mut self, ty: Ty<'tcx>, variant: usize, fields: &[String], span: Span) -> String {
+		let ty::Adt(adt, args) = *ty.kind() else {
+			return self.err(span, format!("a variant of `{ty}`, which is no enum"));
+		};
+		let variant = rustc_abi::VariantIdx::from_usize(variant);
+		let Some(split) = self.t.split(ty, span) else {
+			let go = self.ty(ty, span);
+			return self.adt_lit(adt, variant, args, fields, &go, span);
+		};
+		let mut values = Vec::new();
+		for p in split.parts.iter().filter(|p| !p.big) {
+			values.push(match p.field {
+				None => self.discr(adt, variant, span),
+				Some((v, f)) if v == variant => fields[f.as_usize()].clone(),
+				Some(_) => format!("*new({})", p.go),
+			});
+		}
+		match split.parts.iter().any(|p| p.big) {
+			true => self.err(span, format!("a bound call returning `{ty}`, which has a part of over four words")),
+			false => values.join(", "),
+		}
 	}
 
 	pub fn t_env(&self) -> ty::TypingEnv<'tcx> {
@@ -1136,14 +1485,57 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		})
 	}
 
-	/// What a `return` gives: nothing, or the return place.
-	fn returned(&mut self) -> Option<String> {
-		if Translator::no_value(self.mir.return_ty()) {
+	/// What a `return` gives: nothing, the return place, or its parts but those written
+	/// through pointers, which a return place held whole writes into `out` first.
+	fn returned(&mut self, out: &mut String) -> Option<String> {
+		let ty = self.mir.return_ty();
+		if Translator::no_value(ty) {
 			return None;
 		}
-		self.used.insert(mir::RETURN_PLACE);
-		self.mentioned.insert(mir::RETURN_PLACE);
-		Some(Self::local_name(mir::RETURN_PLACE))
+		let ret = mir::RETURN_PLACE;
+		let Some(split) = self.t.split(ty, self.mir.span) else {
+			self.used.insert(ret);
+			self.mentioned.insert(ret);
+			return Some(Self::local_name(ret));
+		};
+		let mut values = Vec::new();
+		for (i, p) in split.parts.iter().enumerate() {
+			match (self.split.contains_key(&ret), p.big) {
+				(true, true) => {}
+				(true, false) => values.push(self.read_part(ret, i)),
+				(false, big) => {
+					self.used.insert(ret);
+					self.mentioned.insert(ret);
+					match big {
+						true => writeln!(out, "\t*_0_{} = _0{}", p.name, p.path).unwrap(),
+						false => values.push(format!("_0{}", p.path)),
+					}
+				}
+			}
+		}
+		Some(values.join(", "))
+	}
+
+	/// Part `i` of the split local `local`, as Go reads or writes it.
+	fn part(&mut self, local: Local, i: usize) -> String {
+		self.mentioned.insert(local);
+		let p = &self.split[&local].parts[i];
+		match p.big && self.pointed(local) {
+			true => format!("(*{}_{})", Self::local_name(local), p.name),
+			false => format!("{}_{}", Self::local_name(local), p.name),
+		}
+	}
+
+	/// Whether the split local `local` holds its big parts through pointers: the return
+	/// place and the arguments, whose callers hold them.
+	fn pointed(&self, local: Local) -> bool {
+		local.as_usize() <= self.mir.arg_count
+	}
+
+	/// Part `i` of the split local `local`, read.
+	fn read_part(&mut self, local: Local, i: usize) -> String {
+		self.part_used.insert((local, i));
+		self.part(local, i)
 	}
 
 	/// The panic of a failed assertion, with native Rust's message.
@@ -1195,6 +1587,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let held = dest
 			.as_local()
 			.filter(|l| self.carry && self.temps.foldable.contains(l) && !Translator::no_value(dest_ty));
+		let ret = self.t.split(dest_ty, span);
 		let func_ty = self.operand_ty(func);
 		let (callee, spread) = match *func_ty.kind() {
 			ty::FnDef(def_id, gargs) => {
@@ -1222,7 +1615,24 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 						{
 							return Some((local, e));
 						}
+						library::Bound::Expr(e)
+							if dest.projection.is_empty()
+								&& let Some(split) = self.split.get(&dest.local).cloned() =>
+						{
+							let (values, pre) = self.spill(&split, e);
+							out.push_str(&pre);
+							let parts: Vec<(String, String)> = (values.into_iter().enumerate())
+								.map(|(i, value)| (self.part(dest.local, i), value))
+								.collect();
+							assign_all(&parts, out);
+							return None;
+						}
 						library::Bound::Expr(e) => format!("{} = {e}", self.dest(dest, span)),
+						library::Bound::Parts(e) => {
+							let split = ret.as_ref().expect("a bound call returns parts of a split enum");
+							let (lhs, _) = self.dest_parts(dest, split, span);
+							format!("{} = {e}", lhs.join(", "))
+						}
 						library::Bound::Stmt(s) => s,
 					};
 					writeln!(out, "\t{text}").unwrap();
@@ -1260,14 +1670,22 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				self.fold_ok = false;
 				let v = self.operand(arg, span);
 				self.fold_ok = true;
-				let ty::Tuple(tys) = self.operand_ty(arg).kind() else {
+				let ty::Tuple(tys) = *self.operand_ty(arg).kind() else {
 					self.err(span, "a rust-call whose last argument is no tuple");
 					return None;
 				};
 				values.extend((0..tys.len()).map(|f| format!("{v}.F{f}")));
+			} else if let Some(split) = self.t.split(self.operand_ty(arg), span) {
+				values.extend(self.arg_parts(arg, &split, span, out));
 			} else {
 				values.push(self.operand(arg, span));
 			}
+		}
+		if let Some(split) = ret {
+			let (lhs, outs) = self.dest_parts(dest, &split, span);
+			values.extend(outs);
+			writeln!(out, "\t{} = {callee}({})", lhs.join(", "), values.join(", ")).unwrap();
+			return None;
 		}
 		let call = format!("{callee}({})", values.join(", "));
 		if let Some(local) = held {
@@ -1282,6 +1700,13 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 		None
 	}
+}
+
+/// Assign each value to its place at once, as Go evaluates every value of an assignment
+/// before it assigns any, which a composite literal's fields would be.
+fn assign_all(parts: &[(String, String)], out: &mut String) {
+	let (lhs, rhs): (Vec<&str>, Vec<&str>) = parts.iter().map(|(l, r)| (l.as_str(), r.as_str())).unzip();
+	writeln!(out, "\t{} = {}", lhs.join(", "), rhs.join(", ")).unwrap();
 }
 
 /// The width of an integer type, or a `char`'s or a `bool`'s, in bits.
