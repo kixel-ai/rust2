@@ -72,10 +72,10 @@ export function wait$model_watch_closure0_closure0_Option_u64(poll: (a0: Waiter.
 export class waitFuture$kio_Consumer_model_watch_closure0_closure1_usize {
 	#state: number = 0;
 	#self: Consumer.Consumer;
-	#f: (a0: rt.u64[]) => rt.Poll<rt.usize>;
+	#f: (a0: rt.Slice<rt.u64>) => rt.Poll<rt.usize>;
 	#awaitee!: Pending.Pending<(a0: Waiter.Waiter) => rt.Poll<rt.Result<rt.usize, Closed.Closed>>>;
 
-	constructor(self: Consumer.Consumer, f: (a0: rt.u64[]) => rt.Poll<rt.usize>) {
+	constructor(self: Consumer.Consumer, f: (a0: rt.Slice<rt.u64>) => rt.Poll<rt.usize>) {
 		this.#self = self;
 		this.#f = f;
 	}

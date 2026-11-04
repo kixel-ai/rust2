@@ -175,11 +175,11 @@ export function push$u32(self: Spill<rt.u32>, value: rt.u32): rt.Result<undefine
 	return rt.OK;
 }
 
-export function asSlice$Option_tuple2_u8_u16(self: Spill<[rt.u8, rt.u16] | undefined>): Array<[rt.u8, rt.u16] | undefined> {
+export function asSlice$Option_tuple2_u8_u16(self: Spill<[rt.u8, rt.u16] | undefined>): rt.Slice<[rt.u8, rt.u16] | undefined> {
 	return rt.ptrSlice(self.ptr as rt.Place<[rt.u8, rt.u16] | undefined>, self.len);
 }
 
-export function asSlice$u32(self: Spill<rt.u32>): rt.u32[] {
+export function asSlice$u32(self: Spill<rt.u32>): rt.Slice<rt.u32> {
 	return rt.ptrSlice(self.ptr as rt.Place<rt.u32>, self.len);
 }
 

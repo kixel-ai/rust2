@@ -276,10 +276,10 @@ export function singles(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.f32ToBits(rt.f32FromBits(2139095041)))));
 		rt.byteVecPush(out, rt.f32IsSignNegative(rt.f32FromBits(4290773283)) ? 1 : 0);
 		const v2: rt.f32[] = [a, b, 0.10000000149011612];
-		putF32(out, rt.iterSum(rt.iterSlice(v2), rt.f32Add, -0.0));
+		putF32(out, rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v2))), rt.f32Add, -0.0));
 		putF32(out, rt.iterProduct(rt.iterSlice(v2), rt.f32Mul, 1.0));
 		const _499: rt.f32[] = [];
-		putF32(out, rt.iterSum(rt.iterSlice(_499), rt.f32Add, -0.0));
+		putF32(out, rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_499))), rt.f32Add, -0.0));
 		putF32(out, rt.iterSum(rt.iterSlice([-0.0, -0.0]), rt.f32Add, -0.0));
 		putF32(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };

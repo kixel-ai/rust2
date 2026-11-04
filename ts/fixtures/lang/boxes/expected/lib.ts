@@ -20,7 +20,7 @@ export function copy$tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
 	return [v[0], v[1]];
 }
 
-export function drop$Result_boxed_Box_array1_boxes_Logged_boxed_Box_slice_boxes_Logged(_1: rt.Result<Logged.Logged[], Logged.Logged[]>): void {
+export function drop$Result_boxed_Box_array1_boxes_Logged_boxed_Box_slice_boxes_Logged(_1: rt.Result<Logged.Logged[], rt.Slice<Logged.Logged>>): void {
 	if (_1.ok) {
 		rt.dropAll(_1.value);
 	} else {

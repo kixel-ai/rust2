@@ -1013,7 +1013,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					)
 				};
 				done(
-					Expr::Cond(Box::new(none), Box::new(Expr::Array(vec![])), Box::new(some)),
+					Expr::Cond(
+						Box::new(none),
+						Box::new(Expr::rt("sliceFrom", vec![Expr::Array(vec![])])),
+						Box::new(some),
+					),
 					true,
 				)
 			}

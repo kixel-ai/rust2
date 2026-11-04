@@ -3,7 +3,7 @@
 import * as rt from "../rt.ts";
 import * as Named from "../edits.Named.ts";
 
-export function unwrapOr$039uout(self: Named.Named[] | undefined, default_: Named.Named[]): Named.Named[] {
+export function unwrapOr$07ebgtb(self: rt.Slice<Named.Named> | undefined, default_: rt.Slice<Named.Named>): rt.Slice<Named.Named> {
 	if (self === undefined) {
 		return default_;
 	}
@@ -31,11 +31,11 @@ export function map$0xa0bn7(self: Named.Named | undefined, f: (a0: Named.Named) 
 	return f(self);
 }
 
-export function map$1u8sh4f(self: Named.Named | undefined, _: (a0: Named.Named) => Named.Named[]): Named.Named[] | undefined {
+export function map$03bjali(self: Named.Named | undefined, _: (a0: Named.Named) => rt.Slice<Named.Named>): rt.Slice<Named.Named> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return [self];
+	return rt.sliceFrom([self]);
 }
 
 export function mapOr$14njs1h(self: Named.Named | undefined, default_: rt.u16, f: (a0: Named.Named) => rt.u16): rt.u16 {

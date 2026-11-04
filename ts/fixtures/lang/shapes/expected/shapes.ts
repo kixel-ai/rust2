@@ -28,9 +28,9 @@ import * as Track from "./shapes.Track.ts";
 import * as Void from "./shapes.Void.ts";
 import type * as shapes_Wide from "./shapes.Wide.ts";
 
-export function total$shapes_Meters(items: Meters.Meters[], out: rt.ByteVec): rt.u64 {
+export function total$shapes_Meters(items: rt.Slice<Meters.Meters>, out: rt.ByteVec): rt.u64 {
 	let sum: rt.u64 = 0;
-	const iterS: Meters.Meters[] = items;
+	const iterS: Meters.Meters[] = rt.sliceItems(items);
 	let iterI: number = 0;
 	while (true) {
 		const _6: Meters.Meters | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
@@ -42,9 +42,9 @@ export function total$shapes_Meters(items: Meters.Meters[], out: rt.ByteVec): rt
 	}
 }
 
-export function total$shapes_Shape(items: Shape.Shape[], out: rt.ByteVec): rt.u64 {
+export function total$shapes_Shape(items: rt.Slice<Shape.Shape>, out: rt.ByteVec): rt.u64 {
 	let sum: rt.u64 = 0;
-	const iterS: Shape.Shape[] = items;
+	const iterS: Shape.Shape[] = rt.sliceItems(items);
 	let iterI: number = 0;
 	while (true) {
 		const _6: Shape.Shape | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
@@ -276,7 +276,7 @@ export function unwritten(_dataData: Uint8Array, _dataStart: number, dataLen: nu
 	const gauges: shapes_Gauge.Gauge[] = Array.from({ length: 2 }, (): shapes_Gauge.Gauge => {
 		return copy$shapes_Gauge(item);
 	});
-	generics_reset$shapes_Gauge(gauges);
+	generics_reset$shapes_Gauge(rt.sliceFrom(gauges));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(first.level, gauges[0].level, gauges[1].level)));
 	const start: Level.Level = { _0: n };
 	const boxed: Level.Level = copy$shapes_Level(start);
@@ -372,16 +372,16 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	bump(copy5.slot);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(a, copy5.n)));
 	rt.byteVecPush(out, lensBumped(lens));
-	for (const _104 of rt.vecExact(Array.from({ length: 2 }, (): Lens.Lens => {
+	for (const _104 of rt.vecExact(rt.sliceItems(rt.sliceFrom(Array.from({ length: 2 }, (): Lens.Lens => {
 		return copy$shapes_Lens(lens);
-	}).map(copy$shapes_Lens), 8)) {
+	}))).map(copy$shapes_Lens), 8)) {
 		bump(_104.slot);
 	}
 	const lenses: Lens.Lens[] = [];
 	lenses.push(copy$shapes_Lens(lens));
-	const _114: rt.Iter<Lens.Lens> = rt.iterSlice([lens]);
+	const _114: rt.Iter<Lens.Lens> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([lens])));
 	rt.iterExtend(lenses, rt.iterMap(_114, copy$shapes_Lens), undefined, 8, true);
-	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses), copy$shapes_Lens);
+	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(lenses))), copy$shapes_Lens);
 	while (true) {
 		const _124: Lens.Lens | rt.Done = iter4.next();
 		if (_124 === rt.DONE) {
@@ -418,7 +418,7 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, writeAt(rt.byteSliceFrom(bytes), at, a));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes));
 	const points: Point.Point[] = rt.vecFromElem(copy$shapes_Point(Point.new(a as rt.i32, 0)), 2, copy$shapes_Point);
-	movedAt(points, at);
+	movedAt(rt.sliceFrom(points), at);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(points[rt.idx(points, 0)].x & 0xff, points[rt.idx(points, 1)].x & 0xff, points[rt.idx(points, 1)].y & 0xff)));
 	arc[Symbol.dispose]();
 }
@@ -456,13 +456,13 @@ export function writeAt(live: rt.ByteSlice, at: rt.usize, b: rt.u8): rt.u8 {
  * `live[at]` moved right by one, and its neighbor by its new `x`: an index past the end
  * panics as native Rust does.
  */
-export function movedAt(live: Point.Point[], at: rt.usize): void {
+export function movedAt(live: rt.Slice<Point.Point>, at: rt.usize): void {
 	rt.idx(live, at);
-	live[at].x = rt.i32Add(live[at].x, 1);
+	live.data[live.start + at].x = rt.i32Add(live.data[live.start + at].x, 1);
 	rt.idx(live, at);
-	const _7: rt.i32 = live[at].x;
+	const _7: rt.i32 = live.data[live.start + at].x;
 	rt.idx(live, 1);
-	live[1].y = _7;
+	live.data[live.start + 1].y = _7;
 }
 
 /** `at`, held. */
@@ -650,7 +650,7 @@ export function indexed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	if (mid > data.length) {
 		rt.panic("mid > len");
 	}
-	ends([new rt.ByteSlice(data.data, data.start, mid), new rt.ByteSlice(data.data, data.start + mid, data.length - mid)], out);
+	ends(rt.sliceFrom([new rt.ByteSlice(data.data, data.start, mid), new rt.ByteSlice(data.data, data.start + mid, data.length - mid)]), out);
 	if (rt.u8Rem(at(7), 4) === 0) {
 		const _106: [rt.u8, rt.u8, rt.u8] = [at(8), at(9), at(10)];
 		const x: rt.u8 = _106[0];
@@ -662,8 +662,8 @@ export function indexed(data: rt.ByteSlice, out: rt.ByteVec): void {
 }
 
 /** Each part's length and first byte. */
-export function ends(parts: rt.ByteSlice[], out: rt.ByteVec): void {
-	for (const _5 of parts) {
+export function ends(parts: rt.Slice<rt.ByteSlice>, out: rt.ByteVec): void {
+	for (const _5 of rt.sliceItems(parts)) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(_5.length & 0xff, option_unwrapOr$0r2bmpr(rt.byteSliceFirst(_5), 0))));
 	}
 }
@@ -1394,7 +1394,7 @@ export function patterns(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const slice = rt.byteSliceRange(rt.byteSliceFrom(bytes), 1, 3);
 	slice.data[slice.start] = 9;
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes));
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.u64Add(total$shapes_Shape([shape_, { tag: "Dot" } as Shape.Shape], out), total$shapes_Meters([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64 }], out)))));
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.u64Add(total$shapes_Shape(rt.sliceFrom([shape_, { tag: "Dot" } as Shape.Shape]), out), total$shapes_Meters(rt.sliceFrom([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64 }]), out)))));
 	const parsed: rt.Result<rt.u8, Void.Void> = rt.Ok(data.length & 0xff);
 	const a2: rt.u8 = (parsed as { ok: true; value: rt.u8 }).value;
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(a2, (parsed as { ok: true; value: rt.u8 }).value, (parsed as { ok: true; value: rt.u8 }).value, early(a2))));

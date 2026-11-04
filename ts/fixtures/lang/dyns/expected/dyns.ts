@@ -55,8 +55,8 @@ export function grow$dyns_Shape_u32(self: rt.Place<rt.u32>, by: rt.u8): void {
 	self.v = rt.u32WrappingMul(self.v, by as rt.u32);
 }
 
-export function total(shapes: Shape.Shape[]): rt.u32 {
-	return rt.iterFold(rt.iterSlice(shapes), 0, (sum: rt.u32, s: Shape.Shape): rt.u32 => {
+export function total(shapes: rt.Slice<Shape.Shape>): rt.u32 {
+	return rt.iterFold(rt.iterSlice(rt.sliceItems(shapes)), 0, (sum: rt.u32, s: Shape.Shape): rt.u32 => {
 		return rt.u32WrappingAdd(sum, s.area$Shape());
 	});
 }
@@ -108,7 +108,7 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			tri = { tag: "Flat" } as Tri.Tri;
 		}
 		let n: rt.u32 = c as rt.u32;
-		const part = total([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]);
+		const part = total(rt.sliceFrom([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]));
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part, f)];
 		put(out, rt.fmtFormat([args2[0], " "]));
 		growTwice(new of$dyns_Square(sq), b);
@@ -170,32 +170,32 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 	}
 }
 
-export function counts$dyn_dyns_Named(arcs: rt.Arc<Named.Named>[]): string {
-	return rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterSlice(arcs), (a: rt.Arc<Named.Named>): string => {
+export function counts$dyn_dyns_Named(arcs: rt.Slice<rt.Arc<Named.Named>>): string {
+	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Named.Named>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true), ",");
+	}), undefined, 12, true))), ",");
 }
 
-export function counts$dyn_dyns_Shape(arcs: rt.Arc<Shape.Shape>[]): string {
-	return rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterSlice(arcs), (a: rt.Arc<Shape.Shape>): string => {
+export function counts$dyn_dyns_Shape(arcs: rt.Slice<rt.Arc<Shape.Shape>>): string {
+	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Shape.Shape>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true), ",");
+	}), undefined, 12, true))), ",");
 }
 
-export function counts$dyns_Hits(arcs: rt.Arc<Hits.Hits>[]): string {
-	return rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterSlice(arcs), (a: rt.Arc<Hits.Hits>): string => {
+export function counts$dyns_Hits(arcs: rt.Slice<rt.Arc<Hits.Hits>>): string {
+	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Hits.Hits>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true), ",");
+	}), undefined, 12, true))), ",");
 }
 
-export function counts$dyns_Square(arcs: rt.Arc<Square.Square>[]): string {
-	return rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterSlice(arcs), (a: rt.Arc<Square.Square>): string => {
+export function counts$dyns_Square(arcs: rt.Slice<rt.Arc<Square.Square>>): string {
+	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Square.Square>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true), ",");
+	}), undefined, 12, true))), ",");
 }
 
 export function shared(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
@@ -207,7 +207,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const again: rt.Arc<Named.Named> = new rt.ArcDyn(_16, new of$dyns_Square(_16.value));
 		const shape: rt.Arc<Shape.Shape> = rt.arcClone(named);
 		const up: rt.Arc<Shape.Shape> = rt.arcClone(again);
-		const part = counts$dyns_Square([sq]);
+		const part = counts$dyns_Square(rt.sliceFrom([sq]));
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part)];
 		put(out, rt.fmtFormat([args2[0], " "]));
 		const _49: string = named.value.label$Named();
@@ -226,7 +226,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		put(out, rt.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]));
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
-		const _113: string = counts$dyn_dyns_Named([again]);
+		const _113: string = counts$dyn_dyns_Named(rt.sliceFrom([again]));
 		const _119: rt.usize = weak.arc.strong;
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, _113), (f: rt.Formatter) => rt.usizeDisplay(_119, f)];
 		put(out, rt.fmtFormat([args8[0], " ", args8[1], " "]));
@@ -236,11 +236,11 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return _0;
 		});
 		again[Symbol.dispose]();
-		const part2 = counts$dyn_dyns_Shape([up]);
+		const part2 = counts$dyn_dyns_Shape(rt.sliceFrom([up]));
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part2)];
 		put(out, rt.fmtFormat([args10[0], " "]));
 		up[Symbol.dispose]();
-		const _156: string = counts$dyn_dyns_Shape([shape]);
+		const _156: string = counts$dyn_dyns_Shape(rt.sliceFrom([shape]));
 		const _164: rt.Arc<Shape.Shape> | undefined = rt.weakUpgrade(weak);
 		const _162: boolean = _164 !== undefined;
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, _156), (f: rt.Formatter) => rt.fmtBool(_162, f), (f: rt.Formatter) => rt.fmtOption(upgraded, f, rt.u32Debug)];
@@ -260,15 +260,15 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const _34: rt.Arc<Hits.Hits> = rt.arcClone(hits);
 			return new rt.ArcDyn(_34, new of$dyns_Hits(_34.value));
 		}), undefined, 8, true);
-		const sum: rt.u32 = rt.iterFold(rt.iterSlice(objects), 0, (sum2: rt.u32, s2: rt.Arc<Shape.Shape>): rt.u32 => {
+		const sum: rt.u32 = rt.iterFold(rt.iterSlice(rt.sliceItems(rt.sliceFrom(objects))), 0, (sum2: rt.u32, s2: rt.Arc<Shape.Shape>): rt.u32 => {
 			return rt.u32WrappingAdd(sum2, s2.value.area$Shape());
 		});
 		const _216: rt.u32 = rt.atomicLoad(hits.value._0, 0);
-		const _222: string = counts$dyns_Hits([hits]);
+		const _222: string = counts$dyns_Hits(rt.sliceFrom([hits]));
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.u32Display(_216, f), (f: rt.Formatter) => rt.fmtPad(f, _222)];
 		put(out, rt.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]));
 		rt.dropAll(objects);
-		const part3 = counts$dyns_Hits([hits]);
+		const part3 = counts$dyns_Hits(rt.sliceFrom([hits]));
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part3)];
 		put(out, rt.fmtFormat([args18[0], " "]));
 		const _253: rt.Arc<rt.u32> = new rt.Arc(dataData[dataStart + 1] as rt.u32);
@@ -293,7 +293,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const _112: rt.Arc<Square.Square> = new rt.Arc({ side: x as rt.u16 });
 			return new rt.ArcDyn(_112, new of$dyns_Square(_112.value));
 		}), undefined, 8, true);
-		const kept: rt.Arc<Named.Named>[] = rt.iterToArray(rt.iterMap(rt.iterStepBy(rt.iterSlice(tris), 2), (a0: rt.Arc<Named.Named>): rt.Arc<Named.Named> => {
+		const kept: rt.Arc<Named.Named>[] = rt.iterToArray(rt.iterMap(rt.iterStepBy(rt.iterSlice(rt.sliceItems(rt.sliceFrom(tris))), 2), (a0: rt.Arc<Named.Named>): rt.Arc<Named.Named> => {
 			return rt.arcClone(a0);
 		}), undefined, 8, true);
 		for (const _292 of tris) {
@@ -308,7 +308,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		for (const _322 of kept) {
 			_322.value.tally$Shape(rt.place(() => total, (value) => total = value));
 		}
-		const _337: string = counts$dyn_dyns_Named(rt.iterToArray(rt.iterSlice(kept), undefined, 4, true));
+		const _337: string = counts$dyn_dyns_Named(rt.sliceFrom(rt.iterToArray(rt.iterSlice(rt.sliceItems(rt.sliceFrom(kept))), undefined, 4, true)));
 		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(total, f), (f: rt.Formatter) => rt.fmtPad(f, _337)];
 		put(out, rt.fmtFormat([args24[0], " ", args24[1]]));
 		rt.dropAll(kept);
@@ -522,7 +522,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 		}
 		rt.drop(iter5);
-		const iter6: rt.Iter<rt.Place<Any.Any>> = rt.iterRev(rt.iterSliceMut(kept));
+		const iter6: rt.Iter<rt.Place<Any.Any>> = rt.iterRev(rt.iterSliceMut(rt.sliceFrom(kept)));
 		while (true) {
 			const _316: rt.Place<Any.Any> | rt.Done = iter6.next();
 			if (_316 === rt.DONE) {
@@ -679,13 +679,14 @@ export function fns(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.u8WrappingAdd(twice(halve, x3), captured);
 		};
 		fs.push(_94);
-		rt.sliceSwap(fs, 0, rt.usizeRem(b as rt.usize, fs.length));
+		const turn: rt.usize = rt.usizeRem(b as rt.usize, fs.length);
+		rt.sliceSwap(rt.sliceFrom(fs), 0, turn);
 		let captured2: rt.u8 = 0;
 		const hook: Hook.Hook = new Hook.Hook((x4: rt.u8): rt.u32 => {
 			captured2 = rt.u8WrappingAdd(captured2, x4);
 			return rt.u32Mul(captured2 as rt.u32, 3);
 		});
-		const iter: rt.Iter<[rt.usize, (a0: rt.u8) => rt.u8]> = rt.iterEnumerate(rt.iterSlice(fs));
+		const iter: rt.Iter<[rt.usize, (a0: rt.u8) => rt.u8]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fs))));
 		while (true) {
 			const _115: [rt.usize, (a0: rt.u8) => rt.u8] | rt.Done = iter.next();
 			if (_115 === rt.DONE) {
@@ -1161,12 +1162,12 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}
 		}
 		rt.drop(iter);
-		const kept: rt.Arc<Shape.Shape>[] = rt.iterToArray(rt.iterMap(rt.iterStepBy(rt.iterSlice(rcs), 2), (a0: rt.Arc<Shape.Shape>): rt.Arc<Shape.Shape> => {
+		const kept: rt.Arc<Shape.Shape>[] = rt.iterToArray(rt.iterMap(rt.iterStepBy(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rcs))), 2), (a0: rt.Arc<Shape.Shape>): rt.Arc<Shape.Shape> => {
 			return rt.arcClone(a0);
 		}), undefined, 8, true);
-		const part2 = rt.iterToArray(rt.iterChain(rt.iterMap(rt.iterSlice(rcs), (s4: rt.Arc<Shape.Shape>): rt.u32 => {
+		const part2 = rt.iterToArray(rt.iterChain(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rcs))), (s4: rt.Arc<Shape.Shape>): rt.u32 => {
 			return s4.value.area$Shape();
-		}), rt.iterMap(rt.iterSlice(arcs), (s5: rt.Arc<Shape.Shape>): rt.u32 => {
+		}), rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(arcs))), (s5: rt.Arc<Shape.Shape>): rt.u32 => {
 			return s5.value.area$Shape();
 		})), undefined, 4, true);
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2, f, rt.u32Debug)];
@@ -1586,7 +1587,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _37: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_38, rt.tailDyn(_38.value, { value: (value3: rt.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rt.valuePlace(value3)) }));
 		const _41: rt.Arc<rt.RefCell<Noisy.Noisy>> = new rt.Arc(new rt.RefCell(new Noisy.Noisy(a ^ b, rt.arcClone(log))));
 		const shapes: rt.Arc<rt.RefCell<Shape.Shape>>[] = [_31, _34, _37, new rt.ArcDyn(_41, rt.tailDyn(_41.value, { value: (value4: rt.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value4.value) }, rt.drop))];
-		const iter: rt.Iter<[rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>]> = rt.iterEnumerate(rt.iterSlice(shapes));
+		const iter: rt.Iter<[rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(shapes))));
 		while (true) {
 			const _53: [rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>] | rt.Done = iter.next();
 			if (_53 === rt.DONE) {
@@ -1598,7 +1599,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 			_61.value.grow$Shape(_63);
 			rt.refMutRelease(_61);
 		}
-		const areas: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(shapes), (s3: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
+		const areas: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(shapes))), (s3: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
 			const _5: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s3.value);
 			const _0: rt.u32 = _5.value.area$Shape();
 			rt.refRelease(_5);
@@ -1859,7 +1860,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _741: rt.RefCell<Guarded.Guarded<Shape.Shape>> = rt.refCellBorrowMut(cell2.value);
 		_741.value.value.grow$Shape(a);
 		rt.refMutRelease(_741);
-		const areas2: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(guarded), (g: Guarded.Guarded<Shape.Shape>): rt.u32 => {
+		const areas2: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(guarded))), (g: Guarded.Guarded<Shape.Shape>): rt.u32 => {
 			return g.value.area$Shape();
 		}), undefined, 4, true);
 		const _761: rt.RefCell<Guarded.Guarded<Shape.Shape>> = rt.refCellBorrow(cell2.value);

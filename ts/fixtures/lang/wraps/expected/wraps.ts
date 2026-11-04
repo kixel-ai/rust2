@@ -231,7 +231,7 @@ export function u8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u8 = (at: rt.usize): rt.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -372,17 +372,17 @@ export function u8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.u8[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.u8WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u8WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.u8WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.u8WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u8WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.u8WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u8WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u8WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u8WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u8WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -414,7 +414,7 @@ export function u16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u16 = (at: rt.usize): rt.u16 => {
 		const buf: Uint8Array = rt.bytes(2);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -555,17 +555,17 @@ export function u16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.u16[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.u16WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u16WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.u16WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.u16WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u16WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.u16WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u16WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u16WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u16WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u16WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -597,7 +597,7 @@ export function u32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u32 = (at: rt.usize): rt.u32 => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -738,17 +738,17 @@ export function u32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.u32[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.u32WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u32WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.u32WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.u32WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u32WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.u32WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u32WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u32WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u32WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u32WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -780,7 +780,7 @@ export function u64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u64 = (at: rt.usize): rt.u64 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -921,17 +921,17 @@ export function u64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.u64[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.u64WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u64WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.u64WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.u64WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u64WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.u64WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u64WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u64WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u64WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u64WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -963,7 +963,7 @@ export function u128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u128 = (at: rt.usize): rt.u128 => {
 		const buf: Uint8Array = rt.bytes(16);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -1104,17 +1104,17 @@ export function u128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.u128[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.u128WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u128WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.u128WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.u128WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u128WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.u128WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u128WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u128WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.u128WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.u128WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -1146,7 +1146,7 @@ export function usizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.usize = (at: rt.usize): rt.usize => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -1287,17 +1287,17 @@ export function usizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.usize[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.usizeWrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.usizeWrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.usizeWrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.usizeWrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.usizeWrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.usizeWrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.usizeWrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.usizeWrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.usizeWrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.usizeWrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -1329,7 +1329,7 @@ export function i8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i8 = (at: rt.usize): rt.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -1472,17 +1472,17 @@ export function i8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.i8[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.i8WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i8WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.i8WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.i8WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i8WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.i8WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i8WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i8WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i8WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i8WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -1514,7 +1514,7 @@ export function i16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i16 = (at: rt.usize): rt.i16 => {
 		const buf: Uint8Array = rt.bytes(2);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -1657,17 +1657,17 @@ export function i16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.i16[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.i16WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i16WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.i16WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.i16WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i16WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.i16WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i16WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i16WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i16WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i16WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -1699,7 +1699,7 @@ export function i32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i32 = (at: rt.usize): rt.i32 => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -1842,17 +1842,17 @@ export function i32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.i32[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.i32WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i32WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.i32WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.i32WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i32WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.i32WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i32WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i32WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i32WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i32WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -1884,7 +1884,7 @@ export function i64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i64 = (at: rt.usize): rt.i64 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -2027,17 +2027,17 @@ export function i64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.i64[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.i64WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i64WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.i64WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.i64WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i64WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.i64WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i64WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i64WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i64WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i64WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -2069,7 +2069,7 @@ export function i128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i128 = (at: rt.usize): rt.i128 => {
 		const buf: Uint8Array = rt.bytes(16);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -2212,17 +2212,17 @@ export function i128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.i128[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.i128WrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i128WrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.i128WrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.i128WrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.i128WrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.i128WrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i128WrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i128WrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.i128WrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.i128WrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);
@@ -2254,7 +2254,7 @@ export function isizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.isize = (at: rt.usize): rt.isize => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter3: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter3.next();
 			if (_10 === rt.DONE) {
@@ -2397,17 +2397,17 @@ export function isizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_31 === 21) {
 		const all: rt.isize[] = [a, b, c];
-		const part6 = rt.iterSum(rt.iterSlice(all), rt.isizeWrappingAdd, 0);
+		const part6 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.isizeWrappingAdd, 0);
 		_30(out, part6);
 		const part7 = rt.iterSum(rt.iterSlice(all), rt.isizeWrappingAdd, 0);
 		_30(out, part7);
-		const part8 = rt.iterProduct(rt.iterSlice(all), rt.isizeWrappingMul, 1);
+		const part8 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.isizeWrappingMul, 1);
 		_30(out, part8);
 		const part9 = rt.iterProduct(rt.iterSlice(all), rt.isizeWrappingMul, 1);
 		_30(out, part9);
-		const part10 = rt.iterSum(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.isizeWrappingAdd, 0);
+		const part10 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.isizeWrappingAdd, 0);
 		_30(out, part10);
-		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceRange(all, 0, 0)), rt.isizeWrappingMul, 1);
+		const part11 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceRange(rt.sliceFrom(all), 0, 0))), rt.isizeWrappingMul, 1);
 		_30(out, part11);
 	} else if (_31 === 22) {
 		_30(out, 0);

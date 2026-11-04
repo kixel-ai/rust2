@@ -1,7 +1,7 @@
 // A pointer the translation can't follow, such as one a struct's field holds, fails with
 // a rust2-ts error where JS keeps apart what Rust's reaches, which native Rust can't show:
-// there each is defined, as `repr(C)` fields and a shared subslice's parent are one
-// allocation, and a `Vec`'s capacity is past its length.
+// there each is defined, as `repr(C)` fields are one allocation, and a `Vec`'s capacity
+// is past its length.
 //
 // usage: node pointers.ts
 
@@ -27,16 +27,6 @@ unsure(() => rt.ptrAdd(high, -1).v);
 unsure(() => rt.ptrSlice(low, 2));
 unsure(() => rt.ptrCopy(low, high, 2));
 
-// A shared subslice, which is a copy: before it, past it, and against its parent.
-const lanes = [1, 2, 3, 4];
-const part = rt.sliceRange(lanes, 1, 3);
-unsure(() => rt.ptrAdd(rt.sliceAsPtr(part), -1).v);
-unsure(() => rt.ptrAdd(rt.sliceAsPtr(part), 2).v);
-unsure(() => rt.ptrOffsetFrom(rt.sliceAsPtr(part), rt.sliceAsPtr(lanes)));
-unsure(() => rt.ptrSlice(rt.sliceAsPtr(part), 3));
-unsure(() => rt.ptrCopy(rt.sliceAsPtr(part), rt.sliceAsPtr(lanes), 3));
-assert.equal(rt.ptrAdd(rt.sliceAsPtr(part), 1).v, 3);
-
 // A byte in no array, as a raw or mutable slice, as a shared one past it, and the
 // pointer of a shared one, a copy, against the byte's.
 let byte = 3;
@@ -50,7 +40,7 @@ unsure(() => rt.ptrOffsetFrom(rt.byteSliceAsPtr(shared), lone));
 // A write into a `Vec`'s capacity past its length, which a JS array would grow by.
 const vec: number[] = [7];
 unsure(() => {
-	rt.ptrAdd(rt.sliceAsPtr(vec), 1).v = 8;
+	rt.ptrAdd(rt.arrayAsPtr(vec), 1).v = 8;
 });
 assert.equal(vec.length, 1);
 
@@ -79,20 +69,20 @@ unsure(() => rt.ptrAdd(dangling, 1).v);
 unsure(() => {
 	rt.ptrAdd(dangling, 1).v = 1;
 });
-unsure(() => rt.ptrCopy(dangling, rt.sliceAsPtr(vec), 1));
+unsure(() => rt.ptrCopy(dangling, rt.arrayAsPtr(vec), 1));
 unsure(() => rt.ptrSlice(dangling, 1));
 assert.equal(vec[0], 7);
 
 // A raw slice pointer read through once its `Vec` has shrunk past it, which Rust keeps
 // the old values for, and one past the array, which Rust allows until a read.
 const rows = [1, 2, 3, 4];
-const all = new rt.RawSlice(rt.sliceAsPtr(rows), 4);
-const tail = new rt.RawSlice(rt.sliceAsPtr(rows, 1), 3);
-assert.equal(all.deref()[3] + tail.deref()[2], 8);
+const all = new rt.RawSlice(rt.arrayAsPtr(rows), 4);
+const tail = new rt.RawSlice(rt.arrayAsPtr(rows, 1), 3);
+assert.equal(rt.sliceItems(all.deref())[3] + rt.sliceItems(tail.deref())[2], 8);
 rows.length = 3;
 unsure(() => all.deref());
 unsure(() => tail.deref());
-const long = new rt.RawSlice(rt.sliceAsPtr(rows), 10);
+const long = new rt.RawSlice(rt.arrayAsPtr(rows), 10);
 assert.equal(long.length, 10);
 unsure(() => long.deref());
 

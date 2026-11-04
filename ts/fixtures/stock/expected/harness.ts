@@ -53,7 +53,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rt.u8 {
-	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases()), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
+	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cases()))), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
 		return _22[0] === name;
 	});
 	if (_2 === undefined) {
@@ -238,7 +238,7 @@ export function random(dataData: Uint8Array, dataStart: number, dataLen: number,
 					}
 					seen[_76] = true;
 				}
-				inRange = rt.iterAll(rt.iterSlice(seen), (_2: boolean): boolean => {
+				inRange = rt.iterAll(rt.iterSlice(rt.sliceItems(rt.sliceFrom(seen))), (_2: boolean): boolean => {
 					return _2;
 				});
 			} else if (_10 === 6) {

@@ -452,7 +452,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const ranked: [rt.u8, rt.usize][] = rt.iterToArray(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_23: [rt.usize, rt.u8]): [rt.u8, rt.usize] => {
 			return [_23[1], _23[0]] as [rt.u8, rt.usize];
 		}), undefined, 8, true);
-		rt.sliceSort(ranked, rt.keyLt((_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
+		rt.sliceSort(rt.sliceFrom(ranked), rt.keyLt((_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
 			return [rt.u8Rem(_25[0], 4), _25[1]] as [rt.u8, rt.usize];
 		}, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp]))), 8, true);
 		for (const _487 of ranked) {

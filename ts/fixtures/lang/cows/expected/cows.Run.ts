@@ -9,7 +9,7 @@ export function clone$Clone(self: Run): Run {
 export function fmt$fmt_Debug(self: Run, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _3: string = "Run";
 	const _4: string = "words";
-	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.cowSlice(self.words), f, rt.u16Debug);
+	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(rt.cowSlice(self.words)), f, rt.u16Debug);
 	return rt.debugStructFinish(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5));
 }
 
@@ -35,7 +35,7 @@ export interface Run {
 export function bump(self: Run): void {
 	const owned = rt.cowIntoOwned(self.words, 2);
 	self.words = owned;
-	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(owned);
+	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(rt.sliceFrom(owned));
 	while (true) {
 		const _8: rt.Place<rt.u16> | rt.Done = iter.next();
 		if (_8 === rt.DONE) {

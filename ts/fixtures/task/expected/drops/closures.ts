@@ -492,7 +492,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	Log.note(log, rt.fmtFormat(["flat ", args10[0]]));
 	rt.drop(flat);
 	const w: Guard.Guard = guard(47);
-	const _202: rt.Iter<rt.u32> = rt.iterSlice([1]);
+	const _202: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1])));
 	const captured8 = w;
 	const ended: rt.Iter<rt.u32> = rt.iterFlatMap(_202, rt.closure((_2: rt.u32): rt.u32[] => {
 		return [_2, Guard.id(captured8)];
@@ -504,7 +504,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	Log.note(log, rt.fmtFormat(["flat_map ended"]));
 	rt.drop(ended);
 	const h: Guard.Guard = guard(18);
-	const _221: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3]);
+	const _221: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2, 3])));
 	const captured9 = h;
 	const part5 = rt.iterToArray(rt.iterMapWhile(_221, rt.closure((_22: rt.u32): rt.u32 | undefined => {
 		const n7: rt.u32 = _22;
@@ -567,7 +567,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	const k: Guard.Guard = _313[0];
 	const l: Guard.Guard = _313[1];
 	const m: Guard.Guard = _313[2];
-	const _325: rt.Iter<Guard.Guard> = rt.iterSlice(items);
+	const _325: rt.Iter<Guard.Guard> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(items)));
 	const captured13 = k;
 	const _328: (a0: Guard.Guard) => boolean = rt.closure((g13: Guard.Guard): boolean => {
 		return Guard.id(g13) === Guard.id(captured13);
@@ -575,7 +575,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 		captured13[Symbol.dispose]();
 	});
 	const any: boolean = rt.dropAfter(_328, () => rt.iterAny(_325, _328));
-	const _332: rt.Iter<Guard.Guard> = rt.iterSlice(items);
+	const _332: rt.Iter<Guard.Guard> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(items)));
 	const captured14 = l;
 	const _335: (a0: Guard.Guard) => boolean = rt.closure((g14: Guard.Guard): boolean => {
 		return Guard.id(g14) === rt.u32Sub(Guard.id(captured14), 3);
@@ -585,7 +585,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	const found: rt.u32 | undefined = option_map$1raha9y(rt.dropAfter(_335, () => rt.iterFind(_332, _335)), (g15: Guard.Guard): rt.u32 => {
 		return Guard.id(g15);
 	});
-	const _338: rt.Iter<Guard.Guard> = rt.iterSlice(items);
+	const _338: rt.Iter<Guard.Guard> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(items)));
 	const captured15 = m;
 	const _341: (a0: Guard.Guard) => boolean = rt.closure((g16: Guard.Guard): boolean => {
 		return rt.u32Add(Guard.id(g16), 2) === Guard.id(captured15);
@@ -596,7 +596,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(any, f), (f: rt.Formatter) => rt.fmtOption(found, f, rt.u32Debug), (f: rt.Formatter) => rt.fmtOption(atPos, f, rt.usizeDebug)];
 	Log.note(log, rt.fmtFormat(["found ", args18[0], " ", args18[1], " ", args18[2]]));
 	const n: Guard.Guard = guard(27);
-	const _361: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3]);
+	const _361: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2, 3])));
 	const captured16 = n;
 	const sum: rt.u32 = rt.iterSum(rt.iterMap(_361, rt.closure((_210: rt.u32): rt.u32 => {
 		return rt.u32Add(_210, Guard.id(captured16));
@@ -604,7 +604,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 		captured16[Symbol.dispose]();
 	})), rt.u32Add, 0, true);
 	const o: Guard.Guard = guard(28);
-	const _369: rt.Iter<rt.u32> = rt.iterSlice([1, 2]);
+	const _369: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2])));
 	const captured17 = o;
 	rt.iterForEach(_369, rt.closure((_214: rt.u32): undefined => {
 		const part7 = rt.u32Add(_214, Guard.id(captured17));
@@ -619,21 +619,21 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	const t: Guard.Guard = _386[0];
 	const u: Guard.Guard = _386[1];
 	const v6: Guard.Guard = _386[2];
-	const _399: rt.Iter<rt.u32> = rt.iterSlice([1, 2]);
+	const _399: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2])));
 	const captured18 = t;
 	const peeked: rt.usize = rt.ownedCount(rt.iterPeekable(rt.iterMap(_399, rt.closure((_216: rt.u32): rt.u32 => {
 		return rt.u32Add(_216, Guard.id(captured18));
 	}, (): void => {
 		captured18[Symbol.dispose]();
 	}))));
-	const _406: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3]);
+	const _406: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2, 3])));
 	const captured19 = u;
 	const skipped: rt.usize = rt.ownedCount(rt.iterSkip(rt.iterMap(_406, rt.closure((_217: rt.u32): rt.u32 => {
 		return rt.u32Add(_217, Guard.id(captured19));
 	}, (): void => {
 		captured19[Symbol.dispose]();
 	})), 1));
-	const _413: rt.Iter<rt.u32> = rt.iterSlice([1, 2]);
+	const _413: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2])));
 	const captured20 = v6;
 	const last: rt.u32 | undefined = rt.ownedLast(rt.iterSkip(rt.iterMap(_413, rt.closure((_219: rt.u32): rt.u32 => {
 		return rt.u32Add(_219, Guard.id(captured20));
@@ -643,7 +643,7 @@ export function iterated(log: Log.Log, id: rt.u32): void {
 	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(peeked, f), (f: rt.Formatter) => rt.usizeDisplay(skipped, f), (f: rt.Formatter) => rt.fmtOption(last, f, rt.u32Debug)];
 	Log.note(log, rt.fmtFormat(["counted ", args22[0], " ", args22[1], " ", args22[2]]));
 	const r: Guard.Guard = guard(36);
-	const _435: rt.Iter<Guard.Guard> = rt.iterMap(rt.iterSlice([1, 2, 3]), (_225: rt.u32): Guard.Guard => {
+	const _435: rt.Iter<Guard.Guard> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2, 3]))), (_225: rt.u32): Guard.Guard => {
 		return guard(rt.u32Add(36, _225));
 	});
 	const captured21 = r;

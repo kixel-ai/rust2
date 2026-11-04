@@ -6,7 +6,7 @@ import { clone$0hmts8n as option_clone$0hmts8n, clone$1grnave as option_clone$1g
 import type * as Run from "./generics.Run.ts";
 
 export function clone$Clone_u16(self: Runs<rt.u16>): Runs<rt.u16> {
-	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecExact((self.list as rt.u16[]).slice(), 2), self.view as rt.u16[], (self.boxed as rt.u16[]).slice(), rt.cowClone(self.cow as rt.Cow<rt.u16>, 2), rt.vecExact((self.pairs as rt.u16[][]).map(copy$array_u16), 4), option_clone$0hmts8n(self.maybe as rt.u16[] | undefined));
+	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecExact((self.list as rt.u16[]).slice(), 2), self.view as rt.Slice<rt.u16>, rt.sliceFrom(rt.sliceToArray(self.boxed as rt.Slice<rt.u16>)), rt.cowClone(self.cow as rt.Cow<rt.u16>, 2), rt.vecExact((self.pairs as rt.u16[][]).map(copy$array_u16), 4), option_clone$0hmts8n(self.maybe as rt.u16[] | undefined));
 }
 
 export function clone$Clone_u8(self: Runs<rt.u8>): Runs<rt.u8> {
@@ -18,18 +18,18 @@ export function fmt$fmt_Debug_u16(self: Runs<rt.u16>, f: rt.Formatter): rt.Resul
 	const _7: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg, f, rt.u16Debug);
 	const arg2 = self.list as rt.u16[];
 	const _9: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2, f, rt.u16Debug);
-	const arg3 = self.view as rt.u16[];
-	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg3, f, rt.u16Debug);
-	const arg4 = self.boxed as rt.u16[];
-	const _13: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg4, f, rt.u16Debug);
+	const arg3 = self.view as rt.Slice<rt.u16>;
+	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(arg3), f, rt.u16Debug);
+	const arg4 = self.boxed as rt.Slice<rt.u16>;
+	const _13: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(arg4), f, rt.u16Debug);
 	const arg5 = self.cow as rt.Cow<rt.u16>;
-	const _15: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.cowSlice(arg5), f, rt.u16Debug);
+	const _15: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(rt.cowSlice(arg5)), f, rt.u16Debug);
 	const arg6 = self.pairs as rt.u16[][];
 	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg6, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug));
 	const arg7 = self.maybe as rt.u16[] | undefined;
 	const names: string[] = ["array", "list", "view", "boxed", "cow", "pairs", "maybe"];
-	const values: rt.Fmt[] = [_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug))];
-	return rt.fmtDebugStructFields(f, "Runs", names, values);
+	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug))]);
+	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
 }
 
 export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
@@ -46,15 +46,15 @@ export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<
 	const arg5 = self.pairs as Uint8Array[];
 	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg5, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug));
 	const arg6 = self.maybe as rt.ByteVec | undefined;
-	const values: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_8), f, rt.u8Debug), _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg6, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug))];
-	return rt.fmtDebugStructFields(f, "Runs", names, values);
+	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_8), f, rt.u8Debug), _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg6, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug))]);
+	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
 }
 
 export function eq$cmp_PartialEq_u16(self: Runs<rt.u16>, other: Runs<rt.u16>): boolean {
 	if (rt.eqSlice(rt.same)(self.array as rt.u16[], other.array as rt.u16[])) {
 		if (rt.eqSlice(rt.same)(self.list as rt.u16[], other.list as rt.u16[])) {
-			if (rt.eqSlice(rt.same)(self.view as rt.u16[], other.view as rt.u16[])) {
-				if (rt.eqSlice(rt.same)(self.boxed as rt.u16[], other.boxed as rt.u16[])) {
+			if (rt.eqSlice(rt.same)(self.view as rt.Slice<rt.u16>, other.view as rt.Slice<rt.u16>)) {
+				if (rt.eqSlice(rt.same)(self.boxed as rt.Slice<rt.u16>, other.boxed as rt.Slice<rt.u16>)) {
 					if (rt.eqSlice(rt.same)(rt.cowSlice(self.cow as rt.Cow<rt.u16>), rt.cowSlice(other.cow as rt.Cow<rt.u16>))) {
 						if (rt.eqSlice(rt.eqSlice(rt.same))(self.pairs as rt.u16[][], other.pairs as rt.u16[][])) {
 							return rt.eqOption(rt.eqSlice(rt.same))(self.maybe as rt.u16[] | undefined, other.maybe as rt.u16[] | undefined);
@@ -110,7 +110,7 @@ export class Runs<T> {
 	[Symbol.dispose](): void {
 		rt.dropAll(this.array as T[]);
 		rt.dropAll(this.list as T[]);
-		rt.dropAll(this.boxed as T[]);
+		rt.dropAll(this.boxed as rt.Slice<T>);
 		rt.cowDrop(this.cow as rt.Cow<T>);
 		rt.dropAll(this.pairs as T[][], (value: T[]) => rt.dropAll(value));
 		rt.dropAll(this.maybe as T[] | undefined);
@@ -118,7 +118,7 @@ export class Runs<T> {
 }
 
 export function total$u16(self: Runs<rt.u16>): rt.usize {
-	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd((self.array as rt.u16[]).length, (self.list as rt.u16[]).length), (self.view as rt.u16[]).length), (self.boxed as rt.u16[]).length), rt.cowSlice(self.cow as rt.Cow<rt.u16>).length), (self.pairs as rt.u16[][]).length);
+	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.sliceFrom(self.array as rt.u16[]).length, (self.list as rt.u16[]).length), (self.view as rt.Slice<rt.u16>).length), (self.boxed as rt.Slice<rt.u16>).length), rt.cowSlice(self.cow as rt.Cow<rt.u16>).length), (self.pairs as rt.u16[][]).length);
 }
 
 export function total$u8(self: Runs<rt.u8>): rt.usize {
@@ -133,10 +133,11 @@ export function push$u16(self: Runs<rt.u16>, item: rt.u16): void {
 	(self.pairs as rt.u16[][]).push(Array.from({ length: 2 }, (): rt.u16 => {
 		return item;
 	}));
-	rt.sliceRotateLeft(self.array as rt.u16[], 1);
+	rt.sliceRotateLeft(rt.sliceFrom(self.array as rt.u16[]), 1);
 	(self.array as rt.u16[])[2] = item;
-	rt.idx(self.boxed as rt.u16[], 0);
-	(self.boxed as rt.u16[])[0] = item;
+	rt.idx(self.boxed as rt.Slice<rt.u16>, 0);
+	const _24: rt.Slice<rt.u16> = self.boxed as rt.Slice<rt.u16>;
+	_24.data[_24.start] = item;
 	if ((self.maybe as rt.u16[] | undefined) !== undefined) {
 		((self.maybe as rt.u16[] | undefined) as rt.u16[]).push(item);
 	}

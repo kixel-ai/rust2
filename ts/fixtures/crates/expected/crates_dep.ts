@@ -5,9 +5,9 @@ import type * as Tally from "./crates_dep.Tally.ts";
 import * as Item from "./harness.Item.ts";
 
 /** The heaviest of `items`, the first of equals. */
-export function heaviest$harness_Item(items: Item.Item[]): Item.Item | undefined {
+export function heaviest$harness_Item(items: rt.Slice<Item.Item>): Item.Item | undefined {
 	let best = undefined as Item.Item | undefined;
-	const iterS: Item.Item[] = items;
+	const iterS: Item.Item[] = rt.sliceItems(items);
 	let iterI: number = 0;
 	while (true) {
 		const _5: Item.Item | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
@@ -52,7 +52,7 @@ export function count$crates_dep_Tally_u32(self: rt.u32): rt.u32 {
 }
 
 /** Add `by` to each of `tallies`, then sum their counts by their scales. */
-export function tally(tallies: Tally.Tally[], by: rt.u8): rt.u32 {
+export function tally(tallies: rt.Slice<Tally.Tally>, by: rt.u8): rt.u32 {
 	let _9!: rt.usize;
 	let sum: rt.u32 = 0;
 	const _6: rt.usize = tallies.length;
@@ -64,7 +64,7 @@ export function tally(tallies: Tally.Tally[], by: rt.u8): rt.u32 {
 		}
 		const i: rt.usize = _9;
 		rt.idx(tallies, i);
-		const t: Tally.Tally = tallies[i];
+		const t: Tally.Tally = tallies.data[tallies.start + i];
 		t.add$Tally(by);
 		sum = rt.u32WrappingAdd(sum, rt.u32WrappingMul(t.count$Tally(), t.scale$Tally()));
 	}

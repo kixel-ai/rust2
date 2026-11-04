@@ -37,7 +37,7 @@ export function iterated(): Segment {
 	const slots: Lent.Lent<[rt.u8, rt.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rt.u8, rt.u8]> => {
 		return (new Lent.Lent((undefined as unknown) as rt.Cell<[rt.u8, rt.u8]>) as unknown) as Lent.Lent<[rt.u8, rt.u8]>;
 	});
-	const iter: rt.Iter<Lent.Lent<[rt.u8, rt.u8]>> = rt.iterSlice(slots);
+	const iter: rt.Iter<Lent.Lent<[rt.u8, rt.u8]>> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots)));
 	while (true) {
 		const _8: Lent.Lent<[rt.u8, rt.u8]> | rt.Done = iter.next();
 		if (_8 === rt.DONE) {

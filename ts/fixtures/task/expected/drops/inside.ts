@@ -262,7 +262,7 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}), true, true);
 		const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.i32Display(part2, f)];
 		Log.note(log, rt.fmtFormat(["folded ", args44[0]]));
-		const _576: rt.Iter<rt.u32> = rt.iterSlice([1, 2]);
+		const _576: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2])));
 		const captured6 = e;
 		rt.iterForEach(_576, rt.closure((n8: rt.u32): undefined => {
 			const _88: rt.u32 = Guard.id(captured6);

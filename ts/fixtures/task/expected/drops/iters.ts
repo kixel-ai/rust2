@@ -696,16 +696,16 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	const key: (a0: rt.u32) => Key.Key = (n: rt.u32): Key.Key => {
 		return Key.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rt.u32[]) => Key.Key[] = (ns: rt.u32[]): Key.Key[] => {
-		return rt.iterToArray(rt.iterMap(rt.iterSlice(ns), (_2: rt.u32): Key.Key => {
+	const keys: (a0: rt.Slice<rt.u32>) => Key.Key[] = (ns: rt.Slice<rt.u32>): Key.Key[] => {
+		return rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(ns)), (_2: rt.u32): Key.Key => {
 			return key(_2);
 		}), undefined, 12, true);
 	};
 	const guard: (a0: rt.u32) => Guard.Guard = (n3: rt.u32): Guard.Guard => {
 		return Guard.new(rt.u32Add(id, n3), Log.clone$Clone(log));
 	};
-	const guards: (a0: rt.u32[]) => Guard.Guard[] = (ns2: rt.u32[]): Guard.Guard[] => {
-		return rt.iterToArray(rt.iterMap(rt.iterSlice(ns2), (_26: rt.u32): Guard.Guard => {
+	const guards: (a0: rt.Slice<rt.u32>) => Guard.Guard[] = (ns2: rt.Slice<rt.u32>): Guard.Guard[] => {
+		return rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(ns2)), (_26: rt.u32): Guard.Guard => {
 			return guard(_26);
 		}), undefined, 8, true);
 	};
@@ -713,33 +713,33 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	_283 = true;
 	const _16: rt.u8 = rt.u8Rem(arg, 9);
 	if (_16 === 0) {
-		const part8 = rt.iterEq(rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 5, 6]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const part8 = rt.iterEq(rt.iterSlice(keys(rt.sliceFrom([1, 2, 3])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 5, 6])), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part8, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args2[0]]));
 	} else if (_16 === 1) {
-		const eq2: boolean = rt.iterEq(rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
-		const ne: boolean = !rt.iterEq(rt.iterSlice(keys([4]), rt.drop), rt.iterSlice(keys([4, 5]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const eq2: boolean = rt.iterEq(rt.iterSlice(keys(rt.sliceFrom([1, 2, 3])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const ne: boolean = !rt.iterEq(rt.iterSlice(keys(rt.sliceFrom([4])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([4, 5])), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(eq2, f), (f: rt.Formatter) => rt.fmtBool(ne, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args4[0], " ", args4[1]]));
 	} else if (_16 === 2) {
-		const part7 = rt.iterEq(rt.iterFilter(rt.iterSlice(keys([1, 2, 3]), rt.drop), (_210: Key.Key): boolean => {
+		const part7 = rt.iterEq(rt.iterFilter(rt.iterSlice(keys(rt.sliceFrom([1, 2, 3])), rt.drop), (_210: Key.Key): boolean => {
 			return true;
-		}, rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), undefined, true, true, undefined, rt.drop, rt.drop);
+		}, rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), undefined, true, true, undefined, rt.drop, rt.drop);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part7, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args6[0]]));
 	} else if (_16 === 3) {
-		const part6 = rt.iterCmp(rt.iterSlice(keys([1, 2]), rt.drop), rt.iterSlice(keys([1, 2, 4]), rt.drop), rt.consuming(Key.cmp$cmp_Ord, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
+		const part6 = rt.iterCmp(rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 2, 4])), rt.drop), rt.consuming(Key.cmp$cmp_Ord, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part6, f)];
 		Log.note(log, rt.fmtFormat(["cmp ", args8[0]]));
 	} else if (_16 === 4) {
-		const cmp2: rt.Ordering | undefined = rt.iterCmp(rt.iterSlice(keys([1, 3, 5]), rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
-		const lt: boolean = rt.iterCmp(rt.iterSlice(keys([6]), rt.drop), rt.iterSlice(keys([6]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop) === -1;
+		const cmp2: rt.Ordering | undefined = rt.iterCmp(rt.iterSlice(keys(rt.sliceFrom([1, 3, 5])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
+		const lt: boolean = rt.iterCmp(rt.iterSlice(keys(rt.sliceFrom([6])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([6])), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop) === -1;
 		const _153: rt.i8 = _12(cmp2);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(_153, f), (f: rt.Formatter) => rt.fmtBool(lt, f)];
 		Log.note(log, rt.fmtFormat(["partial_cmp ", args10[0], " ", args10[1]]));
 	} else if (_16 === 5) {
-		const _163: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2]), rt.drop);
-		const _169: Guard.Guard[] = guards([1, 2, 5]);
+		const _163: rt.Iter<Key.Key> = rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop);
+		const _169: Guard.Guard[] = guards(rt.sliceFrom([1, 2, 5]));
 		_283 = false;
 		const captured3 = c;
 		const part5 = rt.iterCmp(_163, rt.iterSlice(_169, rt.drop), rt.closure((x3: Key.Key, y3: Guard.Guard): rt.Ordering => {
@@ -755,8 +755,8 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part5, f)];
 		Log.note(log, rt.fmtFormat(["cmp_by ", args12[0]]));
 	} else if (_16 === 6) {
-		const _188: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2]), rt.drop);
-		const _194: Guard.Guard[] = guards([1]);
+		const _188: rt.Iter<Key.Key> = rt.iterSlice(keys(rt.sliceFrom([1, 2])), rt.drop);
+		const _194: Guard.Guard[] = guards(rt.sliceFrom([1]));
 		_283 = false;
 		const captured2 = c;
 		const part4 = rt.iterEq(_188, rt.iterSlice(_194, rt.drop), rt.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
@@ -771,8 +771,8 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part4, f)];
 		Log.note(log, rt.fmtFormat(["eq_by ", args14[0]]));
 	} else if (_16 === 7) {
-		const _211: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2, 3]), rt.drop);
-		const _217: Guard.Guard[] = guards([1]);
+		const _211: rt.Iter<Key.Key> = rt.iterSlice(keys(rt.sliceFrom([1, 2, 3])), rt.drop);
+		const _217: Guard.Guard[] = guards(rt.sliceFrom([1]));
 		_283 = false;
 		const captured = c;
 		const part2 = rt.iterCmp(_211, rt.iterSlice(_217, rt.drop), rt.closure((x: Key.Key, y: Guard.Guard): rt.Ordering | undefined => {
@@ -789,7 +789,7 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part3, f)];
 		Log.note(log, rt.fmtFormat(["partial_cmp_by ", args16[0]]));
 	} else {
-		const _238: [rt.Iter<Key.Key>, rt.Iter<Key.Key>] = [rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 4, 5]), rt.drop)];
+		const _238: [rt.Iter<Key.Key>, rt.Iter<Key.Key>] = [rt.iterSlice(keys(rt.sliceFrom([1, 2, 3])), rt.drop), rt.iterSlice(keys(rt.sliceFrom([1, 4, 5])), rt.drop)];
 		const a: rt.Iter<Key.Key> = _238[0];
 		const b: rt.Iter<Key.Key> = _238[1];
 		const _252: rt.Iter<Key.Key> = a;

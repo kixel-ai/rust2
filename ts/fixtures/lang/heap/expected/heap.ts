@@ -79,11 +79,11 @@ export function spills(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, shared.strong & 0xff);
 	}
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(Spill.asSlice$u32(ints)), (x: rt.u32): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(Spill.asSlice$u32(ints))), (x: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.byteVecPush(out, ints.cap & 0xff);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(Spill.asSlice$Option_tuple2_u8_u16(pairs)), (p: [rt.u8, rt.u16] | undefined): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(Spill.asSlice$Option_tuple2_u8_u16(pairs))), (p: [rt.u8, rt.u16] | undefined): rt.u8 => {
 		return option_mapOr$0hi5qhf(p, 0, (_2: [rt.u8, rt.u16]): rt.u8 => {
 			return _2[0] ^ (_2[1] & 0xff);
 		});
@@ -114,7 +114,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.ptrAdd(slots, i).v = ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rt.Place<rt.u32> = slots;
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.ptrSlice(words, data.length)), (x: rt.u32): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.ptrSlice(words, data.length))), (x: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.dealloc(rt.allocBytes(words, 4, "u32"));
@@ -127,7 +127,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.ptrAdd(pair, 1).v = rt.u32Mul(first, 3);
 	const pointer3 = rt.realloc(rt.allocBytes(pair, 4, "u32"), 11);
 	const grown2: rt.Place<rt.u32> = rt.allocAs(rt.optionUnwrap(pointer3 === rt.NULL ? undefined : pointer3), 4, "u32");
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice([grown2.v, rt.ptrAdd(grown2, 1).v]), (x2: rt.u32): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom([grown2.v, rt.ptrAdd(grown2, 1).v]))), (x2: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x2).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.dealloc(rt.allocBytes(grown2, 4, "u32"));

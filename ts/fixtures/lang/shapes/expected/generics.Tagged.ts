@@ -29,7 +29,7 @@ export class Tagged<K, V> {
 }
 
 export function first$generics_Either_u8_u16_i16(self: Tagged<Either.Either<rt.u8, rt.u16>, rt.i16>): Wrap.Wrap<rt.i16> | undefined {
-	return rt.sliceFirst(self.all);
+	return rt.sliceFirst(rt.sliceFrom(self.all));
 }
 
 //# sourceMappingURL=generics.Tagged.ts.map

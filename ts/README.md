@@ -104,7 +104,8 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Option<T>` | `T \| undefined`; `T \| rt.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some` |
 | `Result<T, E>` | `rt.Result<T, E>`: `{ ok: true, value }` or `{ ok: false, error }`; `rt.OK` or `rt.ERR` where the payload is `undefined`, as in `Ok(())` |
 | `ControlFlow<B, C>` | `rt.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
-| tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
+| tuple, `[T; N]`, `&[T; N]`, `Vec<T>` | an array; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8; N]`, and `rt.ByteVec` for `Vec<u8>` |
+| `&[T]`, `&mut [T]`, `Box<[T]>` | `rt.Slice<T>`, a range of an array; `rt.ByteSlice` for bytes |
 | `Cow<[T]>`, `Cow<str>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice`; `rt.StrCow` for text, the string it owns or an `rt.Borrowed` holding the one it borrows, which `rt.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rt.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rt.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
@@ -160,12 +161,15 @@ bytes. A struct's private `&[u8]` or `&[u8; N]` field is its three parts, `bufDa
 `bufStart`, and `bufLen` for `buf`, so a cursor moving through it makes no object; a
 read that needs the slice whole makes it there. A caller passes bytes as
 `rt.byteSliceFrom(array)` and reads a slice it gets as `rt.byteSliceView(slice)`, a view
-of it. A mutable part of a slice of other values, as
-`&mut v[a..b]`, `split_at_mut`, `chunks_mut`, and `split_mut` lend it, is a `Proxy` of an
-array whose elements are the slice's, read and written where they are, since a JS array
-has no views. `as_chunks_mut` and `as_rchunks_mut` lend their runs as such a `Proxy` too,
-of a view of each run, a `Uint8Array` one for bytes, and a whole write of a run copies
-into it. Before that write, a view of other values that a read took detaches to a copy of
+of it. An `rt.Slice` is the same of other values, a `&[T]`, `&mut [T]`, or `Box<[T]>`:
+its `data`, a JS array, from `start`, for `length` elements, read and written where they
+are, so `&mut v[a..b]`, `split_at_mut`, `chunks_mut`, and `split_mut` lend parts of the
+same array. A caller passes one as `rt.sliceFrom(array)` and reads one it gets as
+`rt.sliceItems(slice)`, the array itself where the slice is all of it. A `[T; N]` stays a
+JS array, which has no views, so the `&mut [T; N]` that `first_chunk_mut` and
+`array::from_mut` lend is a `Proxy` of an array whose elements are the slice's.
+`as_chunks_mut` and `as_rchunks_mut` lend their runs as such a `Proxy` too, of a view of
+each run, a `Uint8Array` one for bytes, and a whole write of a run copies into it. Before that write, a view of other values that a read took detaches to a copy of
 what it held. A byte run's view can't, so it is copied wherever it is read by value: the
 call counts as a write into the bytes, which has translated code copy each `[u8; N]` it
 reads, and the runtime's swaps, rotations, and sorts move copies of the runs.

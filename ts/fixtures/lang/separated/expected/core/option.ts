@@ -4,28 +4,28 @@ import * as rt from "../rt.ts";
 import { sum, sumWords, sumPairs, sumTexts, sumTwos } from "../separated.ts";
 import type * as Pair from "../separated.Pair.ts";
 
-export function map$1r7pvtd(self: string[] | undefined, _: (a0: string[]) => rt.u8): rt.u8 | undefined {
+export function map$1nje5l1(self: rt.Slice<string> | undefined, _: (a0: rt.Slice<string>) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return sumTexts(self);
 }
 
-export function map$14orwce(self: Uint8Array[] | undefined, _: (a0: Uint8Array[]) => rt.u8): rt.u8 | undefined {
+export function map$15q5bbr(self: rt.Slice<Uint8Array> | undefined, _: (a0: rt.Slice<Uint8Array>) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return sumTwos(self);
 }
 
-export function map$02o7iu2(self: Pair.Pair[] | undefined, _: (a0: Pair.Pair[]) => rt.u8): rt.u8 | undefined {
+export function map$1k5tmsw(self: rt.Slice<Pair.Pair> | undefined, _: (a0: rt.Slice<Pair.Pair>) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return sumPairs(self);
 }
 
-export function map$0vryjg8(self: rt.u16[] | undefined, _: (a0: rt.u16[]) => rt.u8): rt.u8 | undefined {
+export function map$0dgbt9o(self: rt.Slice<rt.u16> | undefined, _: (a0: rt.Slice<rt.u16>) => rt.u8): rt.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -39,28 +39,28 @@ export function map$1uuzv15(self: rt.ByteSlice | undefined, _: (a0: rt.ByteSlice
 	return sum(self);
 }
 
-export function mapOr$0j8cgo8(self: string[] | undefined, default_: rt.u8, _: (a0: string[]) => rt.u8): rt.u8 {
+export function mapOr$0i37tnr(self: rt.Slice<string> | undefined, default_: rt.u8, _: (a0: rt.Slice<string>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return sumTexts(self);
 }
 
-export function mapOr$0wkl4zm(self: Uint8Array[] | undefined, default_: rt.u8, _: (a0: Uint8Array[]) => rt.u8): rt.u8 {
+export function mapOr$1sfwi3r(self: rt.Slice<Uint8Array> | undefined, default_: rt.u8, _: (a0: rt.Slice<Uint8Array>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return sumTwos(self);
 }
 
-export function mapOr$15c63lv(self: Pair.Pair[] | undefined, default_: rt.u8, _: (a0: Pair.Pair[]) => rt.u8): rt.u8 {
+export function mapOr$05dcprb(self: rt.Slice<Pair.Pair> | undefined, default_: rt.u8, _: (a0: rt.Slice<Pair.Pair>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return sumPairs(self);
 }
 
-export function mapOr$1qu2moz(self: rt.u16[] | undefined, default_: rt.u8, _: (a0: rt.u16[]) => rt.u8): rt.u8 {
+export function mapOr$14p1zbl(self: rt.Slice<rt.u16> | undefined, default_: rt.u8, _: (a0: rt.Slice<rt.u16>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}

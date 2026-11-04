@@ -12,38 +12,38 @@ export function copy$tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
 	return [v[0], v[1]];
 }
 
-export function drop$Option_Rc_slice_shares_Logged(_1: rt.Arc<Logged.Logged[]> | undefined): void {
+export function drop$Option_Rc_slice_shares_Logged(_1: rt.Arc<rt.Slice<Logged.Logged>> | undefined): void {
 	if (_1 !== undefined) {
 		rt.arcDrop(_1, drop$slice_shares_Logged);
 	}
 }
 
-export function drop$Option_tuple2_Rc_slice_u16_sync_Arc_slice_u8(_1: [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>] | undefined): void {
+export function drop$Option_tuple2_Rc_slice_u16_sync_Arc_slice_u8(_1: [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>] | undefined): void {
 	if (_1 !== undefined) {
 		drop$tuple2_Rc_slice_u16_sync_Arc_slice_u8(_1);
 	}
 }
 
-export function drop$Option_tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(_1: [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>] | undefined): void {
+export function drop$Option_tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(_1: [rt.Weak<rt.Slice<rt.u16>>, rt.Weak<rt.ByteSlice>] | undefined): void {
 	if (_1 !== undefined) {
 		drop$tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(_1);
 	}
 }
 
-export function drop$Rc_slice_shares_Logged(value: rt.Arc<Logged.Logged[]>): void {
+export function drop$Rc_slice_shares_Logged(value: rt.Arc<rt.Slice<Logged.Logged>>): void {
 	rt.arcDrop(value, drop$slice_shares_Logged);
 }
 
-export function drop$slice_shares_Logged(value: Logged.Logged[]): void {
+export function drop$slice_shares_Logged(value: rt.Slice<Logged.Logged>): void {
 	rt.dropAll(value);
 }
 
-export function drop$tuple2_Rc_slice_u16_sync_Arc_slice_u8(_1: [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>]): void {
+export function drop$tuple2_Rc_slice_u16_sync_Arc_slice_u8(_1: [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>]): void {
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 }
 
-export function drop$tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(_1: [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>]): void {
+export function drop$tuple2_rc_Weak_slice_u16_sync_Weak_slice_u8(_1: [rt.Weak<rt.Slice<rt.u16>>, rt.Weak<rt.ByteSlice>]): void {
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 }

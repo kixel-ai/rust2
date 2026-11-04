@@ -215,7 +215,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}), [[] as Guard.Guard[], [] as Guard.Guard[]], rt.vecPart(8), true, true);
 		const odd: Guard.Guard[] = _189[0];
 		const even: Guard.Guard[] = _189[1];
-		const part12 = rt.iterToArray(rt.iterMap(rt.iterSlice(odd), Guard.id), undefined, 4, true);
+		const part12 = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(odd))), Guard.id), undefined, 4, true);
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part12, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["odd ", args20[0]]));
 		rt.dropAll(even);
@@ -343,7 +343,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["flat ", args34[0]]));
 	} else if (_17 === 7) {
 		const v2: Guard.Guard[] = rt.iterToArray(rt.iterSlice(rt.arrayMap([3, 1, 4, 5, 2], guard), rt.drop), "fold", 8, true);
-		const _380: Guard.Guard[] = v2;
+		const _380: rt.Slice<Guard.Guard> = rt.sliceFrom(v2);
 		_679 = false;
 		const captured12 = c;
 		rt.sliceSortByCachedKey(_380, rt.closure((g8: Guard.Guard): Key.Key => {
@@ -355,11 +355,11 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured12[Symbol.dispose]();
 		}), rt.cmpLt(rt.cmpTuple<[Key.Key, rt.usize], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 16, true, false, true, rt.drop);
-		const part8 = rt.iterToArray(rt.iterMap(rt.iterSlice(v2), Guard.id), undefined, 4, true);
+		const part8 = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v2))), Guard.id), undefined, 4, true);
 		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part8, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["sorted ", args36[0]]));
 		const w: rt.u32[] = [3, 1, 2];
-		rt.sliceSortByCachedKey(w, (_210: rt.u32): rt.u32 => {
+		rt.sliceSortByCachedKey(rt.sliceFrom(w), (_210: rt.u32): rt.u32 => {
 			return rt.u32Add(_210, Guard.id(d));
 		}, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp])), 8, true, true);
 		const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(w, f, rt.u32Debug)];
@@ -513,10 +513,10 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return _08;
 		}, true), "next", 4, false, 8);
 		const empty: Guard.Guard[] = [];
-		rt.sliceSortByCachedKey(empty, Guard.id, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true, true);
+		rt.sliceSortByCachedKey(rt.sliceFrom(empty), Guard.id, rt.cmpLt(rt.cmpTuple<[rt.u32, rt.usize], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 8, true, true);
 		const one: Guard.Guard[] = guards(1, 2);
 		const e5: Guard.Guard = guard(22);
-		const _603: Guard.Guard[] = one;
+		const _603: rt.Slice<Guard.Guard> = rt.sliceFrom(one);
 		const captured5 = e5;
 		rt.sliceSortByCachedKey(_603, rt.closure((g7: Guard.Guard): rt.u32 => {
 			return rt.u32Add(Guard.id(g7), Guard.id(captured5));

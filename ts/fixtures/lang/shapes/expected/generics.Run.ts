@@ -44,7 +44,7 @@ export type Run<T> =
 
 export function first$u16(self: Run<rt.u16>): rt.u16 | undefined {
 	if (self.tag === "Listed") {
-		return rt.sliceFirst(self._0 as rt.u16[]);
+		return rt.sliceFirst(rt.sliceFrom(self._0 as rt.u16[]));
 	}
 	if (self.tag === "Fixed") {
 		return (self.array as rt.u16[])[0];

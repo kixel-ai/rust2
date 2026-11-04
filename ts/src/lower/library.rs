@@ -3101,8 +3101,16 @@ fn mapping<'tcx>(
 			Expr::rt_of(of, &super::camel(&name)).call(args)
 		}
 		// Derived `Debug`: `debug_struct_field2_finish(f, name, "a", &a, "b", &b)`.
-		("Formatter", "debug_struct_fields_finish") => Expr::rt("fmtDebugStructFields", args),
-		("Formatter", "debug_tuple_fields_finish") => Expr::rt("fmtDebugTupleFields", args),
+		// Of slices of names and values.
+		("Formatter", "debug_struct_fields_finish" | "debug_tuple_fields_finish") => {
+			let mut values = args.into_iter();
+			let (f, type_name) = (values.next()?, values.next()?);
+			let finish = match name.as_str() {
+				"debug_struct_fields_finish" => "fmtDebugStructFields",
+				_ => "fmtDebugTupleFields",
+			};
+			Expr::rt(finish, [f, type_name].into_iter().chain(values.map(slice_items)).collect())
+		}
 		("Formatter", n) if n.starts_with("debug_struct_field") || n.starts_with("debug_tuple_field") => {
 			let mut values = args.into_iter();
 			let (f, type_name) = (values.next()?, values.next()?);
@@ -3956,14 +3964,19 @@ pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
 		ty::Slice(elem) if byte(*elem) => Expr::rt("byteSliceView", vec![v]),
-		// All of an array is the array.
-		ty::Slice(_) => match v {
-			Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(n) if n == "sliceFrom") && args.len() == 1 => args.pop().unwrap(),
-			v => Expr::rt("sliceItems", vec![v]),
-		},
+		ty::Slice(_) => slice_items(v),
 		_ if super::bytes_ref(ty) => Expr::rt("byteSliceView", vec![v]),
 		ty::Adt(_, args) if args.types().next().is_some_and(byte) => Expr::rt("byteVecView", vec![v]),
 		_ => v,
+	}
+}
+
+/// The elements of `s`, an `rt.Slice`, as a JS array, as `rt.sliceItems` reads them: all of
+/// an array is the array.
+pub fn slice_items(s: Expr) -> Expr {
+	match s {
+		Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(n) if n == "sliceFrom") && args.len() == 1 => args.pop().unwrap(),
+		s => Expr::rt("sliceItems", vec![s]),
 	}
 }
 

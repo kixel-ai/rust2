@@ -19,9 +19,9 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		Point.shift(q, 1, -1);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(p.x & 0xff, p.y & 0xff, q.x & 0xff, q.y & 0xff)), undefined, true);
 	}
-	const _29: Item.Item | undefined = heaviest$harness_Item(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(input)), (_2: rt.u8): Item.Item => {
+	const _29: Item.Item | undefined = heaviest$harness_Item(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(input)), (_2: rt.u8): Item.Item => {
 		return { _0: _2 };
-	}), undefined, 1, true));
+	}), undefined, 1, true)));
 	if (_29 !== undefined) {
 		rt.byteVecPush(out, _29._0);
 	}
@@ -43,13 +43,13 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		let n: rt.u32 = input.data[input.start + 1] as rt.u32;
 		const guard: Guard.Guard = Guard.new(input.data[input.start + 2], log);
 		const _77: Tally.Tally[] = [new of$harness_Item(item), new ofPlace$u32(rt.place(() => n, (value) => n = value)), new of$crates_dep_Guard(guard)];
-		const _87: Uint8Array = rt.u32ToBeBytes(tally(_77, input.data[input.start])).reverse();
+		const _87: Uint8Array = rt.u32ToBeBytes(tally(rt.sliceFrom(_77), input.data[input.start])).reverse();
 		rt.iterExtendBytes(out, rt.iterSlice(_87), undefined, true);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(item._0, n & 0xff)), undefined, true);
 		const boxed: Tally.Tally[] = [new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)];
-		rt.sliceSwap(boxed, 0, 2);
+		rt.sliceSwap(rt.sliceFrom(boxed), 0, 2);
 		rt.vecTruncate(boxed, 2, rt.drop);
-		const iter: rt.Iter<rt.Place<Tally.Tally>> = rt.iterSliceMut(boxed);
+		const iter: rt.Iter<rt.Place<Tally.Tally>> = rt.iterSliceMut(rt.sliceFrom(boxed));
 		while (true) {
 			const _113: rt.Place<Tally.Tally> | rt.Done = iter.next();
 			if (_113 === rt.DONE) {

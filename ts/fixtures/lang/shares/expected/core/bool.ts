@@ -2,14 +2,14 @@
 
 import * as rt from "../rt.ts";
 
-export function then$1kj52rc(self: boolean, f: () => [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>]): [rt.Arc<rt.u16[]>, rt.Arc<rt.ByteSlice>] | undefined {
+export function then$19c383r(self: boolean, f: () => [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>]): [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>] | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$1ugtkd3(self: boolean, f: () => [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>]): [rt.Weak<rt.u16[]>, rt.Weak<rt.ByteSlice>] | undefined {
+export function then$1hrjtiv(self: boolean, f: () => [rt.Weak<rt.Slice<rt.u16>>, rt.Weak<rt.ByteSlice>]): [rt.Weak<rt.Slice<rt.u16>>, rt.Weak<rt.ByteSlice>] | undefined {
 	if (!self) {
 		return undefined;
 	}

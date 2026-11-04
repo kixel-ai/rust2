@@ -973,7 +973,7 @@ export function subslices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			}
 			_37[0].v = rt.u32Mul(_37[1] as rt.u32, 65599);
 		}
-		const _45: rt.u8 = rt.u8Rem(kind, 8);
+		const _45: rt.u8 = rt.u8Rem(kind, 9);
 		if (_45 === 0) {
 			pokeWords(0, rt.sliceRange(rt.sliceFrom(words), a, b));
 			pokePairs(0, rt.sliceRange(rt.sliceFrom(pairs), a, b));
@@ -1097,36 +1097,57 @@ export function subslices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 			pokeArray(rt.sliceFrom(view));
 			view[3] = 7;
 			rt.sliceSwap(rt.sliceFrom(rt.arrayView(array, 1, 4)), 0, 2);
+		} else if (_45 === 7) {
+			const n4: rt.usize = words.length;
+			const _292: [rt.usize, rt.usize] = [rt.min(rt.min(a, b), n4), rt.min(rt.max(a, b), n4)];
+			const l: rt.usize = _292[0];
+			const r: rt.usize = _292[1];
+			const at: rt.Place<rt.u16> = rt.sliceAsPtr(rt.sliceRange(rt.sliceFrom(words), l, r));
+			rt.byteVecPush(out, rt.ptrOffsetFrom(at, rt.arrayAsPtr(words)) & 0xff);
+			if (l > 0) {
+				rt.byteVecPush(out, rt.ptrAdd(at, -1).v & 0xff);
+			}
+			const p: rt.Place<rt.u16> = rt.sliceAsPtr(rt.sliceRange(rt.sliceFrom(words), l, r));
+			if (l > 0) {
+				const _316: rt.Place<rt.u16> = rt.ptrAdd(p, -1);
+				_316.v = _316.v ^ 15420;
+			}
+			if (r < n4) {
+				rt.ptrAdd(p, rt.usizeSub(r, l)).v = 39321;
+			}
+			const _323: [rt.Slice<rt.u16>, rt.Slice<rt.u16>] = rt.sliceSplitAt(rt.sliceFrom(words), l);
+			pokeWords(14, _323[1]);
+			rt.byteVecPush(out, rt.ptrOffsetFrom(rt.sliceAsPtr(_323[1]), rt.sliceAsPtr(_323[0])) & 0xff);
 		} else {
-			const _290: [rt.ByteSlice, rt.ByteSlice] = rt.byteSliceSplitAt(rt.byteVecSlice(bytes), a);
-			rt.byteSliceView(_290[0]).reverse();
-			const _294: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(_290[1]);
-			if (_294 !== undefined) {
-				_294.v = _294.v ^ 255;
+			const _336: [rt.ByteSlice, rt.ByteSlice] = rt.byteSliceSplitAt(rt.byteVecSlice(bytes), a);
+			rt.byteSliceView(_336[0]).reverse();
+			const _340: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(_336[1]);
+			if (_340 !== undefined) {
+				_340.v = _340.v ^ 255;
 			}
-			const _297: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(_290[0]);
-			if (_297 !== undefined) {
-				_297.v = rt.u8WrappingAdd(_297.v, 1);
+			const _343: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(_336[0]);
+			if (_343 !== undefined) {
+				_343.v = rt.u8WrappingAdd(_343.v, 1);
 			}
-			const _302: [rt.Place<rt.u8>, rt.ByteSlice] | undefined = rt.byteSliceSplitFirstMut(rt.byteVecSlice(bytes));
-			if (_302 !== undefined) {
-				_302[0].v = _302[1].length & 0xff;
-				rt.byteSliceView(_302[1]).reverse();
+			const _348: [rt.Place<rt.u8>, rt.ByteSlice] | undefined = rt.byteSliceSplitFirstMut(rt.byteVecSlice(bytes));
+			if (_348 !== undefined) {
+				_348[0].v = _348[1].length & 0xff;
+				rt.byteSliceView(_348[1]).reverse();
 			}
-			const _311: [rt.Place<rt.u8>, rt.ByteSlice] | undefined = rt.byteSliceSplitLastMut(rt.byteVecSlice(bytes));
-			if (_311 !== undefined) {
-				_311[0].v = rt.u8WrappingMul(_311[0].v, 3);
-				const _319: rt.Place<rt.u8> | undefined = rt.sliceLastMut(_311[1]);
-				if (_319 !== undefined) {
-					_319.v = 17;
+			const _357: [rt.Place<rt.u8>, rt.ByteSlice] | undefined = rt.byteSliceSplitLastMut(rt.byteVecSlice(bytes));
+			if (_357 !== undefined) {
+				_357[0].v = rt.u8WrappingMul(_357[0].v, 3);
+				const _365: rt.Place<rt.u8> | undefined = rt.sliceLastMut(_357[1]);
+				if (_365 !== undefined) {
+					_365.v = 17;
 				}
 			}
-			const _322: [rt.ByteSlice, rt.ByteSlice] | undefined = rt.byteSliceSplitAtChecked(rt.byteVecSlice(bytes), b);
-			if (_322 === undefined) {
+			const _368: [rt.ByteSlice, rt.ByteSlice] | undefined = rt.byteSliceSplitAtChecked(rt.byteVecSlice(bytes), b);
+			if (_368 === undefined) {
 				rt.byteVecPush(out, 238);
 			} else {
-				rt.byteSliceView(_322[1]).reverse();
-				rt.byteVecPush(out, _322[0].length & 0xff);
+				rt.byteSliceView(_368[1]).reverse();
+				rt.byteVecPush(out, _368[0].length & 0xff);
 			}
 		}
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(bytes)), undefined, true);

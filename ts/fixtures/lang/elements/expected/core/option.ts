@@ -16,7 +16,7 @@ export function map$1fmzefe(self: rt.u8 | undefined, f: (a0: rt.u8) => [rt.u8, r
 	return f(self);
 }
 
-export function mapOr$0grxkdu(self: rt.u32[] | undefined, default_: rt.u32, f: (a0: rt.u32[]) => rt.u32): rt.u32 {
+export function mapOr$0ulptao(self: rt.Slice<rt.u32> | undefined, default_: rt.u32, f: (a0: rt.Slice<rt.u32>) => rt.u32): rt.u32 {
 	if (self === undefined) {
 		return default_;
 	}

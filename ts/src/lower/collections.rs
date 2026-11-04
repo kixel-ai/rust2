@@ -1711,8 +1711,7 @@ fn deque<'tcx>(
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
 		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rt("dequeByteSlices", values),
-		(_, "as_slices") => Expr::rt("dequeAsSlices", values),
-		(_, "as_mut_slices") => Expr::rt("dequeAsSlices", flagged(values, true, false)),
+		(_, "as_slices" | "as_mut_slices") => Expr::rt("dequeAsSlices", values),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());

@@ -712,7 +712,12 @@ export function sliceFrom<T>(items: T[]): Slice<T> {
  * is all of it, or else a copy, which nothing can tell from it while the borrow lives.
  */
 export function sliceItems<T>(s: Slice<T>): T[] {
-	return s.start === 0 && s.length === s.data.length ? s.data : s.data.slice(s.start, s.start + s.length);
+	return itemsOf(s.data, s.start, s.start + s.length);
+}
+
+/** Elements `start` to `end` of `data`, as `sliceItems` reads them: `data` itself where they are all of it. */
+function itemsOf<T>(data: T[], start: number, end: number): T[] {
+	return start === 0 && end === data.length ? data : data.slice(start, end);
 }
 
 /** The array `s`'s elements are in: a slice's storage, or the JS array of a `[T; N]` or a `Vec`. */
@@ -1063,11 +1068,11 @@ export function sliceGetRange<T>(s: Slice<T>, start: number, end: number = s.len
 }
 
 // A `[T; N]` of other values than bytes is a JS array of its own, which a slice lends as
-// a copy, or mutably as an `arrayView` of where it holds it.
+// `sliceItems` reads it, or mutably as an `arrayView` of where it holds it.
 
-/** `first_chunk`: a copy of the first `n` elements, or `undefined` if fewer. */
+/** `first_chunk`: the first `n` elements, or `undefined` if fewer. */
 export function sliceFirstChunk<T>(s: Slice<T>, n: number): T[] | undefined {
-	return n > s.length ? undefined : s.data.slice(s.start, s.start + n);
+	return n > s.length ? undefined : itemsOf(s.data, s.start, s.start + n);
 }
 
 /** `first_chunk_mut`: a view of the first `n` elements, or `undefined` if fewer. */
@@ -1075,10 +1080,10 @@ export function sliceFirstChunkMut<T>(s: Slice<T>, n: number): T[] | undefined {
 	return n > s.length ? undefined : arrayView(s.data, s.start, s.start + n);
 }
 
-/** `last_chunk`: a copy of the last `n` elements, or `undefined` if fewer. */
+/** `last_chunk`: the last `n` elements, or `undefined` if fewer. */
 export function sliceLastChunk<T>(s: Slice<T>, n: number): T[] | undefined {
 	const end = s.start + s.length;
-	return n > s.length ? undefined : s.data.slice(end - n, end);
+	return n > s.length ? undefined : itemsOf(s.data, end - n, end);
 }
 
 /** `last_chunk_mut`: a view of the last `n` elements, or `undefined` if fewer. */
@@ -1087,9 +1092,9 @@ export function sliceLastChunkMut<T>(s: Slice<T>, n: number): T[] | undefined {
 	return n > s.length ? undefined : arrayView(s.data, end - n, end);
 }
 
-/** `split_first_chunk`: a copy of the first `n` elements and the rest, or `undefined` if fewer. */
+/** `split_first_chunk`: the first `n` elements and the rest, or `undefined` if fewer. */
 export function sliceSplitFirstChunk<T>(s: Slice<T>, n: number): [T[], Slice<T>] | undefined {
-	return n > s.length ? undefined : [s.data.slice(s.start, s.start + n), slicePart(s, n)];
+	return n > s.length ? undefined : [itemsOf(s.data, s.start, s.start + n), slicePart(s, n)];
 }
 
 /** `split_first_chunk_mut`: a view of the first `n` elements and the rest, or `undefined` if fewer. */
@@ -1097,10 +1102,10 @@ export function sliceSplitFirstChunkMut<T>(s: Slice<T>, n: number): [T[], Slice<
 	return n > s.length ? undefined : [arrayView(s.data, s.start, s.start + n), slicePart(s, n)];
 }
 
-/** `split_last_chunk`: the rest and a copy of the last `n` elements, or `undefined` if fewer. */
+/** `split_last_chunk`: the rest and the last `n` elements, or `undefined` if fewer. */
 export function sliceSplitLastChunk<T>(s: Slice<T>, n: number): [Slice<T>, T[]] | undefined {
 	const end = s.start + s.length;
-	return n > s.length ? undefined : [slicePart(s, 0, s.length - n), s.data.slice(end - n, end)];
+	return n > s.length ? undefined : [slicePart(s, 0, s.length - n), itemsOf(s.data, end - n, end)];
 }
 
 /** `split_last_chunk_mut`: the rest and a view of the last `n` elements, or `undefined` if fewer. */

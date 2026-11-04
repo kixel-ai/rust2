@@ -266,7 +266,7 @@ export class watchFuture {
 				case 45:
 					if (this.#awaitee$3.poll(_2) !== rt.Pending) {
 						rt.drop(this.#awaitee$3);
-						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rt.u64[]): rt.Poll<rt.usize> => {
+						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rt.Slice<rt.u64>): rt.Poll<rt.usize> => {
 							return queue.length;
 						});
 						bb0 = 53;
@@ -436,7 +436,7 @@ export class frontFuture {
 						const args4: rt.Fmt[] = [_69, (f: rt.Formatter) => rt.fmtList(arg2, f, rt.u64Debug)];
 						const _60: string = rt.fmtFormat(["closed with ", args4[0], " in flight ", args4[1]]);
 						Guard.note(this.#guard, _60);
-						const _79: rt.u64 = rt.iterSum(rt.iterSlice(this.#inFlight), rt.u64Add, 0);
+						const _79: rt.u64 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(this.#inFlight))), rt.u64Add, 0);
 						this.#guard[Symbol.dispose]();
 						this.#rx[Symbol.dispose]();
 						this.#state = 1;
@@ -501,7 +501,7 @@ export function at(rx: Consumer.Consumer, index: rt.usize, waiter: Waiter.Waiter
  * its `Pending`.
  */
 export function held(rx: Consumer.Consumer, index: rt.usize, waiter: Waiter.Waiter): rt.Result<rt.Poll<rt.u64> | rt.OuterPending, Closed.Closed> {
-	const _4: rt.Result<rt.Poll<rt.u64> | rt.OuterPending, Closed.Closed> = rt.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rt.u64[]): rt.Poll<rt.u64> | rt.OuterPending => {
+	const _4: rt.Result<rt.Poll<rt.u64> | rt.OuterPending, Closed.Closed> = rt.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rt.Slice<rt.u64>): rt.Poll<rt.u64> | rt.OuterPending => {
 		const _3: rt.u64 | undefined = rt.sliceGet(queue, index);
 		if (_3 === undefined) {
 			return rt.OuterPending;
@@ -676,7 +676,7 @@ export class blocksFuture {
 									this.#waited = consume(this.#saved, result);
 									this.#slots = [Guard.new(rt.u32Add(this.#guard.id, 910), Log.clone$Clone(this.#guard.log)), Guard.new(rt.u32Add(this.#guard.id, 920), Log.clone$Clone(this.#guard.log))];
 									this.#saved = Guard.new(rt.u32Add(this.#guard.id, 930), Log.clone$Clone(this.#guard.log));
-									this.#awaitee$2 = new slotFuture(this.#rx, this.#slots.length);
+									this.#awaitee$2 = new slotFuture(this.#rx, rt.sliceFrom(this.#slots).length);
 								} else {
 									this.#state = 3;
 									return rt.Pending;
@@ -1172,8 +1172,7 @@ export function temporaries(log: Log.Log, id: rt.u32): void {
 	Guard.note(head, "head");
 	Guard.note(rest[1], "rest");
 	guard(1090)[Symbol.dispose]();
-	const _98: Guard.Guard[] = [];
-	const part2 = _98.length;
+	const part2 = rt.sliceFrom([]).length;
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
 	Log.note(log, rt.fmtFormat(["empty ", args8[0]]));
 	const captured = guard(1100);

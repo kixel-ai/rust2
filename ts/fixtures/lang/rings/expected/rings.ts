@@ -190,20 +190,20 @@ export function text$collections_vec_deque_Iter_unit(out: rt.ByteVec, value: rt.
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$mut_slice_String(out: rt.ByteVec, value: string[]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.fmtStr)];
+export function text$mut_slice_String(out: rt.ByteVec, value: rt.Slice<string>): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value), f, rt.fmtStr)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$mut_slice_rings_Big(out: rt.ByteVec, value: Big.Big[]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f))];
+export function text$mut_slice_rings_Big(out: rt.ByteVec, value: rt.Slice<Big.Big>): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value), f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f))];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$mut_slice_u32(out: rt.ByteVec, value: rt.u32[]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.u32Debug)];
+export function text$mut_slice_u32(out: rt.ByteVec, value: rt.Slice<rt.u32>): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value), f, rt.u32Debug)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
@@ -214,8 +214,8 @@ export function text$mut_slice_u8(out: rt.ByteVec, value: rt.ByteSlice): void {
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$mut_slice_unit(out: rt.ByteVec, value: undefined[]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(value, f, rt.fmtUnit)];
+export function text$mut_slice_unit(out: rt.ByteVec, value: rt.Slice<undefined>): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value), f, rt.fmtUnit)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
@@ -226,20 +226,20 @@ export function text$rings_Big(out: rt.ByteVec, value: Big.Big): void {
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$tuple2_ref_slice_String_ref_slice_String(out: rt.ByteVec, value: [string[], string[]]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(value[1], f, rt.fmtStr)], f)];
+export function text$tuple2_ref_slice_String_ref_slice_String(out: rt.ByteVec, value: [rt.Slice<string>, rt.Slice<string>]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[0]), f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[1]), f, rt.fmtStr)], f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out: rt.ByteVec, value: [Big.Big[], Big.Big[]]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f)), (f: rt.Formatter) => rt.fmtList(value[1], f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f))], f)];
+export function text$tuple2_ref_slice_rings_Big_ref_slice_rings_Big(out: rt.ByteVec, value: [rt.Slice<Big.Big>, rt.Slice<Big.Big>]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[0]), f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f)), (f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[1]), f, (value: Big.Big, f: rt.Formatter) => Big.fmt$fmt_Debug(value, f))], f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$tuple2_ref_slice_u32_ref_slice_u32(out: rt.ByteVec, value: [rt.u32[], rt.u32[]]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, rt.u32Debug), (f: rt.Formatter) => rt.fmtList(value[1], f, rt.u32Debug)], f)];
+export function text$tuple2_ref_slice_u32_ref_slice_u32(out: rt.ByteVec, value: [rt.Slice<rt.u32>, rt.Slice<rt.u32>]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[0]), f, rt.u32Debug), (f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[1]), f, rt.u32Debug)], f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
@@ -250,8 +250,8 @@ export function text$tuple2_ref_slice_u8_ref_slice_u8(out: rt.ByteVec, value: [r
 }
 
 /** What `{:?}` writes of `value`. */
-export function text$tuple2_ref_slice_unit_ref_slice_unit(out: rt.ByteVec, value: [undefined[], undefined[]]): void {
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(value[0], f, rt.fmtUnit), (f: rt.Formatter) => rt.fmtList(value[1], f, rt.fmtUnit)], f)];
+export function text$tuple2_ref_slice_unit_ref_slice_unit(out: rt.ByteVec, value: [rt.Slice<undefined>, rt.Slice<undefined>]): void {
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[0]), f, rt.fmtUnit), (f: rt.Formatter) => rt.fmtList(rt.sliceItems(value[1]), f, rt.fmtUnit)], f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0]])));
 }
 
@@ -393,7 +393,7 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
 				}
 			} else if (_46 === 33) {
-				const s: string[] = rt.dequeMakeContiguous(q);
+				const s: rt.Slice<string> = rt.dequeMakeContiguous(q);
 				const _190: rt.Place<string> | undefined = rt.sliceFirstMut(s);
 				if (_190 !== undefined) {
 					bump$rings_Item_String(_190);
@@ -534,7 +534,7 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
 				}
 			} else if (_46 === 33) {
-				const s: Big.Big[] = rt.dequeMakeContiguous(q);
+				const s: rt.Slice<Big.Big> = rt.dequeMakeContiguous(q);
 				const _190: Big.Big | undefined = rt.sliceFirst(s);
 				if (_190 !== undefined) {
 					Big.bump$rings_Item(_190);
@@ -675,7 +675,7 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
 				}
 			} else if (_46 === 33) {
-				const s: rt.u32[] = rt.dequeMakeContiguous(q);
+				const s: rt.Slice<rt.u32> = rt.dequeMakeContiguous(q);
 				const _190: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(s);
 				if (_190 !== undefined) {
 					bump$rings_Item_u32(_190);
@@ -817,11 +817,11 @@ export function steps$u8(dataData: Uint8Array, dataStart: number, dataLen: numbe
 				}
 			} else if (_46 === 33) {
 				const s: rt.ByteSlice = rt.dequeByteMakeContiguous(q);
-				const _190: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(s));
+				const _190: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(s);
 				if (_190 !== undefined) {
 					bump$rings_Item_u8(_190);
 				}
-				const _194: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(s));
+				const _194: rt.Place<rt.u8> | undefined = rt.sliceLastMut(s);
 				if (_194 !== undefined) {
 					bump$rings_Item_u8(_194);
 				}
@@ -967,7 +967,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 					rt.dequeSwap(q, rt.usizeRem(arg as rt.usize, q.n), rt.usizeRem(arg >> 4 as rt.usize, q.n));
 				}
 			} else if (_46 === 33) {
-				const s: undefined[] = rt.dequeMakeContiguous(q);
+				const s: rt.Slice<undefined> = rt.dequeMakeContiguous(q);
 				const _190: rt.Place<undefined> | undefined = rt.sliceFirstMut(s);
 				if (_190 !== undefined) {
 					bump$rings_Item_unit(_190);
@@ -1545,7 +1545,7 @@ export function drained$unit(q: rt.VecDeque<undefined>, arg: rt.u8, out: rt.Byte
 
 /** Items bumped through `as_mut_slices`, then through `iter_mut` read in part, written. */
 export function mutated$String(q: rt.VecDeque<string>, arg: rt.u8, out: rt.ByteVec): void {
-	const _6: [string[], string[]] = rt.dequeAsSlices(q, true);
+	const _6: [rt.Slice<string>, rt.Slice<string>] = rt.dequeAsSlices(q);
 	const _7: rt.Place<string> | undefined = rt.sliceFirstMut(_6[0]);
 	if (_7 !== undefined) {
 		bump$rings_Item_String(_7);
@@ -1573,7 +1573,7 @@ export function mutated$String(q: rt.VecDeque<string>, arg: rt.u8, out: rt.ByteV
 
 /** Items bumped through `as_mut_slices`, then through `iter_mut` read in part, written. */
 export function mutated$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8, out: rt.ByteVec): void {
-	const _6: [Big.Big[], Big.Big[]] = rt.dequeAsSlices(q, true);
+	const _6: [rt.Slice<Big.Big>, rt.Slice<Big.Big>] = rt.dequeAsSlices(q);
 	const _7: Big.Big | undefined = rt.sliceFirst(_6[0]);
 	if (_7 !== undefined) {
 		Big.bump$rings_Item(_7);
@@ -1601,7 +1601,7 @@ export function mutated$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8, out: rt.B
 
 /** Items bumped through `as_mut_slices`, then through `iter_mut` read in part, written. */
 export function mutated$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8, out: rt.ByteVec): void {
-	const _6: [rt.u32[], rt.u32[]] = rt.dequeAsSlices(q, true);
+	const _6: [rt.Slice<rt.u32>, rt.Slice<rt.u32>] = rt.dequeAsSlices(q);
 	const _7: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(_6[0]);
 	if (_7 !== undefined) {
 		bump$rings_Item_u32(_7);
@@ -1630,11 +1630,11 @@ export function mutated$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8, out: rt.ByteVec)
 /** Items bumped through `as_mut_slices`, then through `iter_mut` read in part, written. */
 export function mutated$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8, out: rt.ByteVec): void {
 	const _6: [rt.ByteSlice, rt.ByteSlice] = rt.dequeByteSlices(q);
-	const _7: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(_6[0]));
+	const _7: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(_6[0]);
 	if (_7 !== undefined) {
 		bump$rings_Item_u8(_7);
 	}
-	const _11: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(_6[1]));
+	const _11: rt.Place<rt.u8> | undefined = rt.sliceLastMut(_6[1]);
 	if (_11 !== undefined) {
 		bump$rings_Item_u8(_11);
 	}
@@ -1657,7 +1657,7 @@ export function mutated$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8, out: rt.ByteVec): 
 
 /** Items bumped through `as_mut_slices`, then through `iter_mut` read in part, written. */
 export function mutated$unit(q: rt.VecDeque<undefined>, arg: rt.u8, out: rt.ByteVec): void {
-	const _6: [undefined[], undefined[]] = rt.dequeAsSlices(q, true);
+	const _6: [rt.Slice<undefined>, rt.Slice<undefined>] = rt.dequeAsSlices(q);
 	const _7: rt.Place<undefined> | undefined = rt.sliceFirstMut(_6[0]);
 	if (_7 !== undefined) {
 		bump$rings_Item_unit(_7);

@@ -16,12 +16,12 @@ export class Shared<T> {
 	}
 
 	[Symbol.dispose](): void {
-		rt.arcDrop(this.items as rt.Arc<T[]>, (value: T[]) => rt.dropAll(value));
+		rt.arcDrop(this.items as rt.Arc<rt.Slice<T>>, (value: rt.Slice<T>) => rt.dropAll(value));
 	}
 }
 
 export function new$shares_Logged(items: Logged.Logged[]): Shared<Logged.Logged> {
-	return new Shared(new rt.Arc(items));
+	return new Shared(new rt.Arc(rt.sliceFrom(items)));
 }
 
 export function new$u8(items: rt.ByteVec): Shared<rt.u8> {
@@ -29,11 +29,11 @@ export function new$u8(items: rt.ByteVec): Shared<rt.u8> {
 }
 
 export function collected$u16_iter_Map_slice_Iter_u8_shares_generics_closure0(items: rt.Iter<rt.u16>): Shared<rt.u16> {
-	return new Shared(new rt.Arc(rt.iterToArray(items, undefined, 2, true)));
+	return new Shared(new rt.Arc(rt.sliceFrom(rt.iterToArray(items, undefined, 2, true))));
 }
 
 export function first$shares_Logged(self: Shared<Logged.Logged>): Logged.Logged | undefined {
-	return rt.sliceFirst((self.items as rt.Arc<Logged.Logged[]>).value);
+	return rt.sliceFirst((self.items as rt.Arc<rt.Slice<Logged.Logged>>).value);
 }
 
 export function first$u8(self: Shared<rt.u8>): rt.u8 | undefined {
@@ -44,8 +44,8 @@ export function first$u8(self: Shared<rt.u8>): rt.u8 | undefined {
 export function setLast$shares_Logged(self: Shared<Logged.Logged>, item: Logged.Logged): void {
 	let _9: boolean = false;
 	_9 = true;
-	const _3: Logged.Logged | undefined = rt.sliceLast(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<Logged.Logged[]>, (value) => (self.items as rt.Arc<Logged.Logged[]>) = value), (a0: Logged.Logged[]): Logged.Logged[] => {
-		return a0.map(Logged.clone$Clone);
+	const _3: Logged.Logged | undefined = rt.sliceLast(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<rt.Slice<Logged.Logged>>, (value) => (self.items as rt.Arc<rt.Slice<Logged.Logged>>) = value), (a0: rt.Slice<Logged.Logged>): rt.Slice<Logged.Logged> => {
+		return rt.sliceFrom(rt.sliceItems(a0).map(Logged.clone$Clone));
 	}, drop$Rc_slice_shares_Logged));
 	if (_3 !== undefined) {
 		_9 = false;
@@ -59,8 +59,8 @@ export function setLast$shares_Logged(self: Shared<Logged.Logged>, item: Logged.
 
 /** Its items, made its own, with `item` in place of its last. */
 export function setLast$u16(self: Shared<rt.u16>, item: rt.u16): void {
-	const _3: rt.Place<rt.u16> | undefined = rt.sliceLastMut(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<rt.u16[]>, (value) => (self.items as rt.Arc<rt.u16[]>) = value), (a0: rt.u16[]): rt.u16[] => {
-		return a0.slice();
+	const _3: rt.Place<rt.u16> | undefined = rt.sliceLastMut(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<rt.Slice<rt.u16>>, (value) => (self.items as rt.Arc<rt.Slice<rt.u16>>) = value), (a0: rt.Slice<rt.u16>): rt.Slice<rt.u16> => {
+		return rt.sliceFrom(rt.sliceToArray(a0));
 	}, rt.drop));
 	if (_3 !== undefined) {
 		_3.v = item;
@@ -69,20 +69,20 @@ export function setLast$u16(self: Shared<rt.u16>, item: rt.u16): void {
 
 /** Its items, made its own, with `item` in place of its last. */
 export function setLast$u8(self: Shared<rt.u8>, item: rt.u8): void {
-	const _3: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<rt.ByteSlice>, (value) => (self.items as rt.Arc<rt.ByteSlice>) = value), (a0: rt.ByteSlice): rt.ByteSlice => {
+	const _3: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.arcMakeMut(rt.place(() => self.items as rt.Arc<rt.ByteSlice>, (value) => (self.items as rt.Arc<rt.ByteSlice>) = value), (a0: rt.ByteSlice): rt.ByteSlice => {
 		return rt.byteSliceFrom(rt.byteSliceToArray(a0));
-	}, rt.drop)));
+	}, rt.drop));
 	if (_3 !== undefined) {
 		_3.v = item;
 	}
 }
 
 export function clone$Clone_shares_Logged(self: Shared<Logged.Logged>): Shared<Logged.Logged> {
-	return new Shared(rt.arcClone(self.items as rt.Arc<Logged.Logged[]>));
+	return new Shared(rt.arcClone(self.items as rt.Arc<rt.Slice<Logged.Logged>>));
 }
 
 export function clone$Clone_u16(self: Shared<rt.u16>): Shared<rt.u16> {
-	return new Shared(rt.arcClone(self.items as rt.Arc<rt.u16[]>));
+	return new Shared(rt.arcClone(self.items as rt.Arc<rt.Slice<rt.u16>>));
 }
 
 export function clone$Clone_u8(self: Shared<rt.u8>): Shared<rt.u8> {
