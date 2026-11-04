@@ -643,7 +643,10 @@ pub fn call<'tcx>(
 		{
 			b.err(
 				span,
-				format!("an `{owner}`'s raw pointer to `{}`, which JS makes anew each time", pointee()),
+				format!(
+					"an `{owner}`'s raw pointer to `{}`, which JS makes anew each time",
+					pointee()
+				),
 			)
 		}
 		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of.

@@ -2060,7 +2060,13 @@ pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
 	let (unit_raw, other_raw) = (Arc::into_raw(Arc::clone(&unit)), Arc::into_raw(other));
 	let held_raw = Rc::into_raw(held);
 	out.extend([ptr::eq(duo_raw, &*duo), unit_raw == other_raw].map(u8::from));
-	out.extend([unit_raw == Arc::as_ptr(&unit), duo_raw.cast::<()>() == Rc::as_ptr(&duo).cast()].map(u8::from));
+	out.extend(
+		[
+			unit_raw == Arc::as_ptr(&unit),
+			duo_raw.cast::<()>() == Rc::as_ptr(&duo).cast(),
+		]
+		.map(u8::from),
+	);
 	for &byte in data {
 		match byte % 6 {
 			0 => unsafe { Arc::increment_strong_count(num_raw) },
@@ -2082,16 +2088,31 @@ pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
 			let held = mem::ManuallyDrop::new(unsafe { Rc::from_raw(held_raw) });
 			out.extend([Rc::strong_count(&held) as u8, held.id]);
 		}
-		out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&duo) as u8, dropped.get()]);
+		out.extend([
+			Arc::strong_count(&num) as u8,
+			Rc::strong_count(&duo) as u8,
+			dropped.get(),
+		]);
 	}
 	// Taken back, and dropped, as many times as they were counted.
 	let num_back = unsafe { Arc::from_raw(num_raw) };
 	let duo_back = unsafe { Rc::from_raw(duo_raw) };
 	let unit_back = unsafe { Arc::from_raw(unit_raw.cast::<()>()) };
-	out.extend([Arc::ptr_eq(&num_back, &num), Rc::ptr_eq(&duo_back, &duo), Arc::ptr_eq(&unit_back, &unit)].map(u8::from));
+	out.extend(
+		[
+			Arc::ptr_eq(&num_back, &num),
+			Rc::ptr_eq(&duo_back, &duo),
+			Arc::ptr_eq(&unit_back, &unit),
+		]
+		.map(u8::from),
+	);
 	out.extend([*num_back as u8, duo_back.1, Arc::strong_count(&unit) as u8]);
 	drop((num_back, duo_back, unit_back));
-	out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&duo) as u8, Arc::strong_count(&unit) as u8]);
+	out.extend([
+		Arc::strong_count(&num) as u8,
+		Rc::strong_count(&duo) as u8,
+		Arc::strong_count(&unit) as u8,
+	]);
 	drop(unsafe { Arc::from_raw(other_raw) });
 	while dropped.get() == 0 {
 		unsafe { Rc::decrement_strong_count(held_raw) };
