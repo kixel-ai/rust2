@@ -127,7 +127,7 @@ export function map(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const set2: rt.Vec<string> = rt.iterToVec(rt.hashKeys(set), "next", 12);
 	rt.sliceSort(rt.sliceFrom(set2.items), rt.cmpLt(rt.cmpStr), 12, true);
-	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strsJoin(rt.sliceItems(rt.sliceFrom(set2.items)), ",")));
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strsJoin(set2.items, ",")));
 }
 
 /**

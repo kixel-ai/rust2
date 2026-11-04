@@ -32,7 +32,7 @@ export function wides(v: rt.Vec<rt.u16>, out: rt.ByteVec): void {
 /** Puts the ids of `v`, then drops it. */
 export function ids(v: rt.Vec<Logged.Logged>, log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
 	rt.byteVecPush(out, v.items.length & 0xff);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), (l: Logged.Logged): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(v.items), (l: Logged.Logged): rt.u8 => {
 		return l.id;
 	}), undefined, true);
 	rt.dropVec(v);
@@ -113,13 +113,13 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		wides(rt.slicesJoin(rt.sliceFrom(wide.items), 2, undefined, rt.vecSlice), out);
 		wides(rt.slicesJoin(rt.sliceFrom(wide.items), 2, rt.sliceFrom([sep2]), rt.vecSlice), out);
 		wides(rt.slicesJoin(rt.sliceFrom(wide.items), 2, rt.sliceFrom(wideSeps.items), rt.vecSlice), out);
-		const slices: rt.Vec<rt.Slice<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(wide.items))), (v2: rt.Vec<rt.u16>): rt.Slice<rt.u16> => {
+		const slices: rt.Vec<rt.Slice<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterSlice(wide.items), (v2: rt.Vec<rt.u16>): rt.Slice<rt.u16> => {
 			return rt.sliceFrom(v2.items);
 		}), undefined, 8, true);
 		wides(rt.slicesJoin(rt.sliceFrom(slices.items), 2), out);
 		wides(rt.slicesJoin(rt.sliceFrom(slices.items), 2, rt.sliceFrom([sep2])), out);
 		wides(rt.slicesJoin(rt.sliceFrom(slices.items), 2, rt.sliceFrom(wideSeps.items)), out);
-		const boxed2: rt.Vec<rt.Slice<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(wide.items))), (a02: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
+		const boxed2: rt.Vec<rt.Slice<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(wide.items), (a02: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
 			return rt.vecFrom(a02.items.slice());
 		}), (a03: rt.Vec<rt.u16>): rt.Slice<rt.u16> => {
 			return rt.sliceFrom(a03.items);
@@ -127,7 +127,7 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		wides(rt.slicesJoin(rt.sliceFrom(boxed2.items), 2), out);
 		wides(rt.slicesJoin(rt.sliceFrom(boxed2.items), 2, rt.sliceFrom([sep2])), out);
 		wides(rt.slicesJoin(rt.sliceFrom(boxed2.items), 2, rt.sliceFrom(wideSeps.items)), out);
-		const pairs: rt.Vec<rt.u16[]> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slices.items))), (s2: rt.Slice<rt.u16>): rt.u16[] => {
+		const pairs: rt.Vec<rt.u16[]> = rt.iterToVec(rt.iterMap(rt.iterSlice(slices.items), (s2: rt.Slice<rt.u16>): rt.u16[] => {
 			return [s2.length & 0xffff, option_unwrapOr$1j4op5y(rt.sliceFirst(s2), 0)];
 		}), undefined, 4, true);
 		wides(rt.slicesJoin(rt.sliceFrom(pairs.items), 2, undefined, rt.sliceFrom), out);
@@ -159,13 +159,13 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		ids(rt.slicesJoin(rt.sliceFrom(vecs.items), 8, undefined, rt.vecSlice, Logged.clone$Clone), log.value, out);
 		ids(rt.slicesJoin(rt.sliceFrom(vecs.items), 8, rt.sliceFrom([sep3]), rt.vecSlice, Logged.clone$Clone), log.value, out);
 		ids(rt.slicesJoin(rt.sliceFrom(vecs.items), 8, rt.sliceFrom(seps2.items), rt.vecSlice, Logged.clone$Clone), log.value, out);
-		const slices2: rt.Vec<rt.Slice<Logged.Logged>> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(vecs.items))), (v: rt.Vec<Logged.Logged>): rt.Slice<Logged.Logged> => {
+		const slices2: rt.Vec<rt.Slice<Logged.Logged>> = rt.iterToVec(rt.iterMap(rt.iterSlice(vecs.items), (v: rt.Vec<Logged.Logged>): rt.Slice<Logged.Logged> => {
 			return rt.sliceFrom(v.items);
 		}), undefined, 8, true);
 		ids(rt.slicesJoin(rt.sliceFrom(slices2.items), 8, undefined, undefined, Logged.clone$Clone), log.value, out);
 		ids(rt.slicesJoin(rt.sliceFrom(slices2.items), 8, rt.sliceFrom([sep3]), undefined, Logged.clone$Clone), log.value, out);
 		ids(rt.slicesJoin(rt.sliceFrom(slices2.items), 8, rt.sliceFrom(seps2.items), undefined, Logged.clone$Clone), log.value, out);
-		const boxed3: rt.Vec<rt.Slice<Logged.Logged>> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slices2.items))), (_220: rt.Slice<Logged.Logged>): rt.Slice<Logged.Logged> => {
+		const boxed3: rt.Vec<rt.Slice<Logged.Logged>> = rt.iterToVec(rt.iterMap(rt.iterSlice(slices2.items), (_220: rt.Slice<Logged.Logged>): rt.Slice<Logged.Logged> => {
 			return rt.sliceFrom(rt.sliceItems(_220).map(Logged.clone$Clone));
 		}), undefined, 8, true);
 		flush(log.value, out);
@@ -185,18 +185,18 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return text(p3);
 		}), undefined, 12, true);
 		const sep4: string = text(seps);
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(owned2.items)), ""));
+		put(out, rt.strsJoin(owned2.items, ""));
 		const _409: rt.Slice<string> = rt.sliceFrom(owned2.items);
 		const _411: string = sep4;
 		put(out, rt.strsJoin(rt.sliceItems(_409), _411));
-		const borrowed: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(owned2.items))), (a0: string): string => {
+		const borrowed: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(owned2.items), (a0: string): string => {
 			return a0;
 		}), undefined, 8, true);
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(borrowed.items)), ""));
+		put(out, rt.strsJoin(borrowed.items, ""));
 		const _428: rt.Slice<string> = rt.sliceFrom(borrowed.items);
 		const _430: string = sep4;
 		put(out, rt.strsJoin(rt.sliceItems(_428), _430));
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom([])), ""));
+		put(out, rt.strsJoin([], ""));
 		const _443: rt.Slice<string> = rt.sliceFrom([]);
 		const _445: string = sep4;
 		put(out, rt.strsJoin(rt.sliceItems(_443), _445));
@@ -212,11 +212,11 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		bytes(rt.byteSlicesJoin(rt.sliceFrom(cows.items), undefined, rt.byteCowSlice), out);
 		bytes(rt.byteSlicesJoin(rt.sliceFrom(cows.items), rt.byteSliceFrom(Uint8Array.of(sep)), rt.byteCowSlice), out);
 		bytes(rt.byteSlicesJoin(rt.sliceFrom(cows.items), seps, rt.byteCowSlice), out);
-		const wide3: rt.Vec<rt.Cow<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(parts)), (p2: rt.ByteSlice): rt.Vec<rt.u16> => {
+		const wide3: rt.Vec<rt.Cow<rt.u16>> = rt.iterToVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(parts)), (p2: rt.ByteSlice): rt.Vec<rt.u16> => {
 			return rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(p2)), (_28: rt.u8): rt.u16 => {
 				return _28 as rt.u16;
 			}), undefined, 2, true);
-		}), undefined, 12, true).items)))), (_212: [rt.usize, rt.Vec<rt.u16>]): rt.Cow<rt.u16> => {
+		}), undefined, 12, true).items)), (_212: [rt.usize, rt.Vec<rt.u16>]): rt.Cow<rt.u16> => {
 			if (rt.usizeRem(_212[0], 2) === 0) {
 				return new rt.Borrowed(rt.sliceFrom(_212[1].items));
 			}
@@ -230,8 +230,8 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			return text(_214[1]);
 		}), undefined, 12, true);
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(texts.items)).map(rt.strCowStr), ""));
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(texts.items)).map(rt.strCowStr), "--"));
+		put(out, rt.strsJoin(texts.items.map(rt.strCowStr), ""));
+		put(out, rt.strsJoin(texts.items.map(rt.strCowStr), "--"));
 	} else {
 		const big: rt.ByteVec = rt.byteVecOf(1, 1 << 16);
 		const wide4: rt.Vec<rt.u16> = rt.vecFromElem(1, 1 << 16, undefined);
@@ -249,9 +249,9 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_512 === 3) {
 			wides(rt.slicesJoin(rt.sliceFrom(rt.vecFromElem(rt.sliceFrom(wide4.items), rt.usizeAdd(1 << 14, 1), undefined).items), 2), out);
 		} else if (_512 === 4) {
-			put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.vecFromElem(text_, rt.usizeAdd(1 << 15, 1), undefined).items)), ""));
+			put(out, rt.strsJoin(rt.vecFromElem(text_, rt.usizeAdd(1 << 15, 1), undefined).items, ""));
 		} else if (_512 === 5) {
-			put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.vecFromElem(text_, rt.usizeAdd(1 << 16, 1), undefined).items)), ""));
+			put(out, rt.strsJoin(rt.vecFromElem(text_, rt.usizeAdd(1 << 16, 1), undefined).items, ""));
 		} else {
 			const sep5: rt.Vec<Sentinel.Sentinel> = rt.iterToVec(rt.iterMap(new rt.Range(0, 1 << 16), (i: rt.i32): Sentinel.Sentinel => {
 				return { _0: (i & 0xff) ^ 90 };

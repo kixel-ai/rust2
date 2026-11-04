@@ -74,7 +74,7 @@ export function ones(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _5: rt.Iter<[rt.u16]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [rt.u16] => {
 		return [((_2 as rt.u16) << 4) & 0xffff] as [rt.u16];
 	});
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rt.tupleExtendOne([new rt.Vec()] as [rt.Vec<rt.u16>], _5, (c, items) => rt.iterExtend(c, items, undefined, 2, true))[0].items))), (n: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.tupleExtendOne([new rt.Vec()] as [rt.Vec<rt.u16>], _5, (c, items) => rt.iterExtend(c, items, undefined, 2, true))[0].items), (n: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(rt.tupleExtendOne([""] as [string], rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_24: rt.u8): [rt.char] => {
@@ -178,7 +178,7 @@ export function pairs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _38: [rt.Vec<rt.u16>, rt.VecDeque<rt.u8>] = rt.tupleExtend([new rt.Vec(), rt.dequeNew(1, true) as rt.VecDeque<rt.u8>] as [rt.Vec<rt.u16>, rt.VecDeque<rt.u8>], _39, [rt.vecPart(2), rt.dequePart()]);
 	const v4: rt.Vec<rt.u16> = _38[0];
 	const q2: rt.VecDeque<rt.u8> = _38[1];
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v4.items))), (n2: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v4.items), (n2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n2).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.dequeIntoIter(q2), undefined, true);
@@ -222,7 +222,7 @@ export function triples(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const w: rt.Vec<rt.u16> = _34[1][1];
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(v2), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(s2), undefined, true);
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(w.items))), (n2: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(w.items), (n2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n2).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const _50: rt.Iter<[rt.u8, [rt.u8]]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_29: rt.u8): [rt.u8, [rt.u8]] => {
@@ -269,7 +269,7 @@ export function twelves(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const v: rt.ByteVec = _15[11][0];
 	const s: string = _15[11][1][0];
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(bytes), undefined, true);
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(wide.items))), (n: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(wide.items), (n: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(chars), undefined, true);
@@ -342,7 +342,7 @@ export function borrowed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	rt.tupleExtend(t, _10, [rt.byteVecPart(), rt.copiedPart(rt.vecPart(4), copy$tuples_Spot), rt.hashPart(undefined, undefined, 469762048), rt.STRING_CHARS_PART]);
 	const ones: [rt.Vec<Spot.Spot>] = [new rt.Vec()];
-	const _20: rt.Iter<[Spot.Spot]> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(points.items))), (p: Spot.Spot): [Spot.Spot] => {
+	const _20: rt.Iter<[Spot.Spot]> = rt.iterMap(rt.iterSlice(points.items), (p: Spot.Spot): [Spot.Spot] => {
 		return [p] as [Spot.Spot];
 	});
 	rt.tupleExtendOne(ones, _20, (c, items) => rt.iterExtend(c, rt.iterMap(items, copy$tuples_Spot), undefined, 4, true));
@@ -354,12 +354,12 @@ export function borrowed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const map: rt.HashMap<rt.u8, rt.u8> = t[2];
 	const s: string = t[3];
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(copied.items))), rt.iterSlice(ones[0].items)), (p2: Spot.Spot): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterChain(rt.iterSlice(copied.items), rt.iterSlice(ones[0].items)), (p2: Spot.Spot): Uint8Array => {
 		return Uint8Array.of(p2.x, p2.y & 0xff);
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	entries(map, out);
 	rt.iterExtendBytes(out, rt.strBytes(s), undefined, true);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(points.items))), (p3: Spot.Spot): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(points.items), (p3: Spot.Spot): rt.u8 => {
 		return p3.x;
 	}), undefined, true);
 }
@@ -385,14 +385,14 @@ export function dropped(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const map: rt.HashMap<rt.u8, Logged.Logged> = _11[1];
 	const set: rt.BTreeSet<Logged.Logged> = _11[2];
 	flush(log.value, out);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items))), (l: Logged.Logged): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(v.items), (l: Logged.Logged): rt.u8 => {
 		return l.id;
 	}), undefined, true);
 	const held: rt.Vec<[rt.u8, Logged.Logged]> = rt.iterToVec(rt.hashIter(map, undefined, rt.drop), "next", 12);
 	rt.sliceSort(rt.sliceFrom(held.items), rt.keyLt((_24: [rt.u8, Logged.Logged]): rt.u8 => {
 		return _24[0];
 	}, rt.lt), 12, true);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held.items))), (_25: [rt.u8, Logged.Logged]): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held.items), (_25: [rt.u8, Logged.Logged]): rt.u8 => {
 		return _25[0] ^ _25[1].id;
 	}), undefined, true);
 	rt.iterExtendBytes(out, rt.iterMap(rt.btreeKeys(set), (l2: Logged.Logged): rt.u8 => {
@@ -415,7 +415,7 @@ export function dropped(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.sliceSort(rt.sliceFrom(held2.items), rt.keyLt((l3: Logged.Logged): rt.u8 => {
 		return l3.key;
 	}, rt.lt), 4, true);
-	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held2.items))), (l4: Logged.Logged): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held2.items), (l4: Logged.Logged): rt.u8 => {
 		return l4.id;
 	}), undefined, true);
 	rt.btreeDrop(tree, undefined, rt.drop);
@@ -461,7 +461,7 @@ export function panicked(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const w: rt.Vec<rt.u16> = _12[2];
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
 	rt.iterExtendBytes(out, rt.strBytes(s), undefined, true);
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(w.items))), (n: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(w.items), (n: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 }
@@ -543,7 +543,7 @@ export function shunted(data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else {
 		const v2: rt.Vec<rt.u16> = found[0];
 		const tree: rt.BTreeSet<rt.u8> = found[1];
-		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v2.items))), (n2: rt.u16): Uint8Array => {
+		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(v2.items), (n2: rt.u16): Uint8Array => {
 			return rt.u16ToBeBytes(n2).reverse();
 		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 		rt.iterExtendBytes(out, rt.btreeKeys(tree), undefined, true);
@@ -634,7 +634,7 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const t3: Tally.Tally = _46[0];
 	const w: rt.Vec<rt.u16> = _46[1];
 	rt.byteVecPush(out, t3.sum);
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(w.items))), (n: rt.u16): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(w.items), (n: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(n).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	calls(out);
@@ -734,7 +734,7 @@ export function own(data: rt.ByteSlice, out: rt.ByteVec): void {
 	if (held.ok) {
 		const v5: rt.Vec<Logged.Logged> = held.value[0];
 		const t9: Tally.Tally = held.value[1];
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v5.items))), (l: Logged.Logged): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(v5.items), (l: Logged.Logged): rt.u8 => {
 			return l.id;
 		}), undefined, true);
 		rt.byteVecPush(out, t9.sum);

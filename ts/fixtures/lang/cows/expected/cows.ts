@@ -299,17 +299,17 @@ export function variants(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		for (const _216 of parts.items) {
 			rt.byteVecPush(out, borrows(_216));
 		}
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(parts.items)).map(rt.strCowStr), "+"));
-		put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(parts.items)).map(rt.strCowStr), ""));
-		const collected: string = rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items)))), (a0: rt.StrCow): rt.StrCow => {
+		put(out, rt.strsJoin(parts.items.map(rt.strCowStr), "+"));
+		put(out, rt.strsJoin(parts.items.map(rt.strCowStr), ""));
+		const collected: string = rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.iterRev(rt.iterSlice(parts.items)), (a0: rt.StrCow): rt.StrCow => {
 			return rt.strCowClone(a0);
 		}), rt.strCowStr));
 		let extended: string = rest;
-		const _244: rt.Iter<rt.StrCow> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (a02: rt.StrCow): rt.StrCow => {
+		const _244: rt.Iter<rt.StrCow> = rt.iterMap(rt.iterSlice(parts.items), (a02: rt.StrCow): rt.StrCow => {
 			return rt.strCowClone(a02);
 		});
 		extended = rt.stringExtend(extended, rt.iterMap(_244, rt.strCowStr));
-		const _251: rt.Iter<[rt.StrCow, rt.usize]> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p: rt.StrCow): [rt.StrCow, rt.usize] => {
+		const _251: rt.Iter<[rt.StrCow, rt.usize]> = rt.iterMap(rt.iterSlice(parts.items), (p: rt.StrCow): [rt.StrCow, rt.usize] => {
 			return [rt.strCowClone(p), rt.stringLen(rt.strCowStr(p))] as [rt.StrCow, rt.usize];
 		});
 		const _250: [string, rt.Vec<rt.usize>] = rt.tupleExtend(["", new rt.Vec()] as [string, rt.Vec<rt.usize>], _251, [rt.STRING_COW_PART, rt.vecPart(4)]);
@@ -318,7 +318,7 @@ export function variants(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, collected), (f: rt.Formatter) => rt.fmtPad(f, extended), (f: rt.Formatter) => rt.fmtPad(f, texts), (f: rt.Formatter) => rt.fmtList(lens.items, f, rt.usizeDebug)];
 		put(out, rt.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]));
 		const counts: rt.BTreeMap<rt.StrCow, rt.u8> = rt.btreeNew(rt.cowBy(rt.cmpStr)) as rt.BTreeMap<rt.StrCow, rt.u8>;
-		const iter5: rt.Iter<rt.StrCow> = rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))));
+		const iter5: rt.Iter<rt.StrCow> = rt.iterRev(rt.iterSlice(parts.items));
 		while (true) {
 			const _280: rt.StrCow | rt.Done = iter5.next();
 			if (_280 === rt.DONE) {
@@ -466,7 +466,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.fmtFormat([args2[0]]));
 		putWords(out, rt.sliceFrom(rt.cowIntoOwned(c).items));
 		putWords(out, rt.cowSlice(new rt.Vec()));
-		const iter: rt.Iter<rt.Cow<rt.u16>> = rt.iterSlice([new rt.Borrowed(half), rt.vecFrom(v.items.slice()), new rt.Borrowed(rt.sliceFrom(v.items)), new rt.Borrowed(rt.sliceFrom([3, 1, 4])), rt.iterToVec(rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v.items)))), undefined, 2, true)]);
+		const iter: rt.Iter<rt.Cow<rt.u16>> = rt.iterSlice([new rt.Borrowed(half), rt.vecFrom(v.items.slice()), new rt.Borrowed(rt.sliceFrom(v.items)), new rt.Borrowed(rt.sliceFrom([3, 1, 4])), rt.iterToVec(rt.iterRev(rt.iterSlice(v.items)), undefined, 2, true)]);
 		while (true) {
 			const _100: rt.Cow<rt.u16> | rt.Done = iter.next();
 			if (_100 === rt.DONE) {
@@ -684,7 +684,7 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
 		const kept3: rt.Vec<Tally.Tally> = rt.cowIntoOwned(c4, Tally.clone$Clone);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(rt.cellReplace(log, 0))));
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(kept3.items))), (t: Tally.Tally): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(kept3.items), (t: Tally.Tally): rt.u8 => {
 			return t._0;
 		}), undefined, true);
 		rt.dropVec(kept3);

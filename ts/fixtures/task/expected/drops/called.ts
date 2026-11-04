@@ -213,7 +213,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}), [new rt.Vec() as rt.Vec<Guard.Guard>, new rt.Vec() as rt.Vec<Guard.Guard>], rt.vecPart(8), true, true);
 		const odd: rt.Vec<Guard.Guard> = _189[0];
 		const even: rt.Vec<Guard.Guard> = _189[1];
-		const part12 = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(odd.items))), Guard.id), undefined, 4, true);
+		const part12 = rt.iterToVec(rt.iterMap(rt.iterSlice(odd.items), Guard.id), undefined, 4, true);
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part12.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["odd ", args20[0]]));
 		rt.dropVec(even);
@@ -353,7 +353,7 @@ export function called(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured12[Symbol.dispose]();
 		}), rt.cmpLt(rt.cmpTuple<[Key.Key, rt.usize], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 16, true, false, true, rt.drop);
-		const part8 = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v2.items))), Guard.id), undefined, 4, true);
+		const part8 = rt.iterToVec(rt.iterMap(rt.iterSlice(v2.items), Guard.id), undefined, 4, true);
 		const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part8.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["sorted ", args36[0]]));
 		const w: rt.Vec<rt.u32> = rt.vecFrom([3, 1, 2]);

@@ -177,9 +177,9 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.sliceSort(rt.sliceFrom(all.items), rt.cmpLt(rt.locationCmp), 4, true);
 		rt.vecDedupBy(all, rt.locationEq);
 		lines(out, rt.sliceFrom(all.items));
-		const _96: rt.Iter<rt.Location> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items)));
+		const _96: rt.Iter<rt.Location> = rt.iterSlice(all.items);
 		const set: rt.BTreeSet<rt.Location> = rt.btreeExtendKeys(rt.btreeNew(rt.locationCmp) as rt.BTreeSet<rt.Location>, _96, true, undefined, undefined, 4, true);
-		const _101: rt.Iter<rt.Location> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (l: rt.Location): rt.Location => {
+		const _101: rt.Iter<rt.Location> = rt.iterMap(rt.iterSlice(all.items), (l: rt.Location): rt.Location => {
 			return l;
 		});
 		const hashed: rt.HashSet<rt.Location> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.locationHash, rt.locationEq)) as rt.HashSet<rt.Location>, _101, undefined, undefined, 58720256);

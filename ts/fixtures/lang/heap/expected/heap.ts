@@ -127,7 +127,7 @@ export function remnants(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.ptrAdd(pair, 1).v = rt.u32Mul(first, 3);
 	const pointer3 = rt.realloc(rt.allocBytes(pair, 4, "u32"), 11);
 	const grown2: rt.Place<rt.u32> = rt.allocAs(rt.optionUnwrap(pointer3 === rt.NULL ? undefined : pointer3), 4, "u32");
-	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom([grown2.v, rt.ptrAdd(grown2, 1).v]))), (x2: rt.u32): Uint8Array => {
+	rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice([grown2.v, rt.ptrAdd(grown2, 1).v]), (x2: rt.u32): Uint8Array => {
 		return rt.u32ToBeBytes(x2).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 4), undefined, true);
 	rt.dealloc(rt.allocBytes(grown2, 4, "u32"));

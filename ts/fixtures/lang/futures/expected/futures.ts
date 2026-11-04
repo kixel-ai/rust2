@@ -536,7 +536,7 @@ export function hashes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.hashPoll(rt.hashPoll(rt.hash8), rt.OuterPending)(_41, h2);
 	}
 	rt.iterExtendBytes(out, rt.iterSlice(rt.u64ToBeBytes(rt.hashFinish(h2))), undefined, true);
-	const _48: rt.Iter<rt.Poll<rt.u8>> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(polls.items)));
+	const _48: rt.Iter<rt.Poll<rt.u8>> = rt.iterSlice(polls.items);
 	const set: rt.HashSet<rt.Poll<rt.u8>> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashPoll(rt.hash8), poll_eq$1h9nnoh)) as rt.HashSet<rt.Poll<rt.u8>>, _48, undefined, undefined, 469762048);
 	const _53: rt.Iter<rt.Poll<rt.u8> | rt.OuterPending> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): rt.Poll<rt.u8> | rt.OuterPending => {
 		return nested(_22);
@@ -596,7 +596,7 @@ export function wakers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (maybe !== undefined) {
 			maybe.wakeByRef();
 		}
-		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(pair))), (a03: rt.Waker): undefined => {
+		rt.iterForEach(rt.iterSlice(pair), (a03: rt.Waker): undefined => {
 			a03.wakeByRef();
 		});
 		drop$tuple2_task_Waker_Option_task_Waker([source, from] as [rt.Waker, rt.Waker | undefined]);

@@ -295,7 +295,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_7 === 1) {
 		const sorted: rt.Vec<Tagged.Tagged<string>> = rt.vecFrom(tags.items.map(Tagged.clone$Clone_String));
 		rt.sliceSort(rt.sliceFrom(sorted.items), rt.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(sorted.items))), (t3: Tagged.Tagged<string>): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(sorted.items), (t3: Tagged.Tagged<string>): rt.u8 => {
 			return t3.n;
 		}), undefined, true);
 		const iter: rt.Iter<rt.Slice<Tagged.Tagged<string>>> = rt.sliceWindows(rt.sliceFrom(tags.items), 2);
@@ -332,7 +332,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, Names.eq$cmp_PartialEq(_168, _176) ? 1 : 0);
 		const _183: Names.Names = Names.default$Default();
 		rt.byteVecPush(out, Names.cmp$cmp_Ord(_168, _183) === 0 ? 1 : 0);
-		rt.byteVecPush(out, rt.iterAll(rt.iterSlice(rt.sliceItems(rt.sliceFrom(tags.items))), (t2: Tagged.Tagged<string>): boolean => {
+		rt.byteVecPush(out, rt.iterAll(rt.iterSlice(tags.items), (t2: Tagged.Tagged<string>): boolean => {
 			return Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(t2), t2);
 		}) ? 1 : 0);
 		Rest.default$Default();
@@ -473,7 +473,7 @@ export function unread(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		drop$zeros_Lock_zeros_Loud(Lock.new$zeros_Loud(undefined));
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(rt.atomicLoad(LOG, 0))), undefined, true);
 	} else if (_9 === 1) {
-		rt.byteVecPush(out, rt.iterCount(rt.iterFilter(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_25: rt.u8): undefined => {}), undefined, 0, true).items))), (_u: undefined): boolean => {
+		rt.byteVecPush(out, rt.iterCount(rt.iterFilter(rt.iterSlice(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_25: rt.u8): undefined => {}), undefined, 0, true).items), (_u: undefined): boolean => {
 			return true;
 		})) & 0xff);
 		rt.byteVecPush(out, phantomEq$String(undefined, n));

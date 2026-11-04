@@ -263,7 +263,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part18, f)];
 		Log.note(log, rt.fmtFormat(["empty ", args28[0]]));
 		const d3: Guard.Guard = guard(15);
-		const _290: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([3, 1])));
+		const _290: rt.Iter<rt.u32> = rt.iterSlice([3, 1]);
 		const captured18 = d3;
 		const part19 = rt.iterIsSortedBy(rt.iterMap(_290, rt.closure((_24: rt.u32): rt.u32 => {
 			return rt.u32Add(_24, Guard.id(captured18));

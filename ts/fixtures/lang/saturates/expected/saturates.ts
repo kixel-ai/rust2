@@ -368,11 +368,11 @@ export function u8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.u8[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u8SaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.u8SaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.u8SaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u8SaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.u8SaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.u8SaturatingMul, 1);
 		_20(out, part11);
@@ -566,11 +566,11 @@ export function u16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.u16[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u16SaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.u16SaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.u16SaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u16SaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.u16SaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.u16SaturatingMul, 1);
 		_20(out, part11);
@@ -764,11 +764,11 @@ export function u32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.u32[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u32SaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.u32SaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.u32SaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u32SaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.u32SaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.u32SaturatingMul, 1);
 		_20(out, part11);
@@ -962,11 +962,11 @@ export function u64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.u64[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u64SaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.u64SaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.u64SaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u64SaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.u64SaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.u64SaturatingMul, 1);
 		_20(out, part11);
@@ -1160,11 +1160,11 @@ export function u128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.u128[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u128SaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.u128SaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.u128SaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.u128SaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.u128SaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.u128SaturatingMul, 1);
 		_20(out, part11);
@@ -1358,11 +1358,11 @@ export function usizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rt.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rt.fmtSpec({ alternate: true }, args2[7]), " ", rt.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rt.fmtSpec({ plus: true }, args2[6])])));
 	} else if (_21 === 19) {
 		const all: rt.usize[] = [a, b, c];
-		const part8 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.usizeSaturatingAdd, 0);
+		const part8 = rt.iterSum(rt.iterSlice(all), rt.usizeSaturatingAdd, 0);
 		_20(out, part8);
 		const part9 = rt.iterSum(rt.iterSlice(all), rt.usizeSaturatingAdd, 0);
 		_20(out, part9);
-		const part10 = rt.iterProduct(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all))), rt.usizeSaturatingMul, 1);
+		const part10 = rt.iterProduct(rt.iterSlice(all), rt.usizeSaturatingMul, 1);
 		_20(out, part10);
 		const part11 = rt.iterProduct(rt.iterSlice(all), rt.usizeSaturatingMul, 1);
 		_20(out, part11);

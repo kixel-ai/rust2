@@ -60,7 +60,7 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf(self: Pieces): rt.usize {
-	return rt.usizeSub(rt.iterSum(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(self.parts.items))), (a0: rt.ByteVec): rt.usize => {
+	return rt.usizeSub(rt.iterSum(rt.iterMap(rt.iterSlice(self.parts.items), (a0: rt.ByteVec): rt.usize => {
 		return a0.length;
 	}), rt.usizeAdd, 0), self.at);
 }

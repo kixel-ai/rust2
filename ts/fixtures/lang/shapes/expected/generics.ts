@@ -74,7 +74,7 @@ export function methods(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _193: rt.u8 = option_unwrapOr$0r2bmpr(Wrap.get$Option_u8(none), some.count);
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rt.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rt.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rt.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rt.Formatter) => rt.u8Debug(_193, f)];
 	put(out, rt.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " ", args10[4]]));
-	const tagged: Tagged.Tagged<Either.Either<rt.u8, rt.u16>, rt.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rt.u8, rt.u16>, Wrap.new$i16(rt.i16Sub(at(8) as rt.i16, 100)), rt.vecFrom(rt.sliceToArray(rt.sliceFrom([Wrap.new$i16(-1), Wrap.new$i16(at(9) as rt.i16)]))));
+	const tagged: Tagged.Tagged<Either.Either<rt.u8, rt.u16>, rt.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rt.u8, rt.u16>, Wrap.new$i16(rt.i16Sub(at(8) as rt.i16, 100)), rt.vecFrom([Wrap.new$i16(-1), Wrap.new$i16(at(9) as rt.i16)].slice()));
 	const _237: Wrap.Wrap<rt.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rt.Formatter) => rt.fmtOption(_237, f, (value: Wrap.Wrap<rt.i16>, f: rt.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
 	put(out, rt.fmtFormat([args12[0], " ", args12[1]]));
@@ -205,7 +205,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return new rt.Vec();
 	}));
 	const before2: Runs.Runs<rt.u16> = Runs.clone$Clone_u16(runs2);
-	const iter2: rt.Iter<rt.u16> = rt.iterTake(rt.iterSlice(rt.sliceItems(rt.sliceFrom(data3.items))), 3);
+	const iter2: rt.Iter<rt.u16> = rt.iterTake(rt.iterSlice(data3.items), 3);
 	while (true) {
 		const _154: rt.u16 | rt.Done = iter2.next();
 		if (_154 === rt.DONE) {

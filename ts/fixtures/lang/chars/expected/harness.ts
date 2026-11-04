@@ -19,7 +19,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
  * `lang.ts` targets by.
  */
 export function op(name: string): rt.u16 {
-	const _11: rt.usize | undefined = rt.iterPosition(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cases().items))), (_2: [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]): boolean => {
+	const _11: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases().items), (_2: [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]): boolean => {
 		return _2[0] === name;
 	});
 	if (_11 !== undefined) {

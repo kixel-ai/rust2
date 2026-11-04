@@ -372,16 +372,16 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	bump(copy5.slot);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(a, copy5.n)));
 	rt.byteVecPush(out, lensBumped(lens));
-	for (const _104 of rt.vecFrom(rt.sliceItems(rt.sliceFrom(Array.from({ length: 2 }, (): Lens.Lens => {
+	for (const _104 of rt.vecFrom(Array.from({ length: 2 }, (): Lens.Lens => {
 		return copy$shapes_Lens(lens);
-	}))).map(copy$shapes_Lens)).items) {
+	}).map(copy$shapes_Lens)).items) {
 		bump(_104.slot);
 	}
 	const lenses: rt.Vec<Lens.Lens> = new rt.Vec();
 	lenses.items.push(copy$shapes_Lens(lens));
-	const _114: rt.Iter<Lens.Lens> = rt.iterSlice(rt.sliceItems(rt.sliceFrom([lens])));
+	const _114: rt.Iter<Lens.Lens> = rt.iterSlice([lens]);
 	rt.iterExtend(lenses, rt.iterMap(_114, copy$shapes_Lens), undefined, 8, true);
-	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(lenses.items))), copy$shapes_Lens);
+	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses.items), copy$shapes_Lens);
 	while (true) {
 		const _124: Lens.Lens | rt.Done = iter4.next();
 		if (_124 === rt.DONE) {

@@ -20,12 +20,12 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	const v: rt.u32[] = [1, 2, 3, 4];
 	const w: rt.u32[] = [11, 12, 13, 14];
 	const pairs: () => rt.Iter<[Guard.Guard, Guard.Guard]> = (): rt.Iter<[Guard.Guard, Guard.Guard]> => {
-		const _33: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _33: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured = made;
 		const _2: rt.Iter<Guard.Guard> = rt.iterMap(_33, (_22: rt.u32): Guard.Guard => {
 			return captured(_22);
 		});
-		const _7: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(w)));
+		const _7: rt.Iter<rt.u32> = rt.iterSlice(w);
 		const captured2 = made;
 		return rt.iterZip(_2, rt.iterMap(_7, (_24: rt.u32): Guard.Guard => {
 			return captured2(_24);
@@ -189,7 +189,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n7, f), (f: rt.Formatter) => rt.usizeDisplay(m2, f), (f: rt.Formatter) => rt.usizeDisplay(o, f), (f: rt.Formatter) => rt.usizeDisplay(p, f)];
 		Log.note(log, rt.fmtFormat(["edges ", args34[0], " ", args34[1], " ", args34[2], " ", args34[3]]));
 	} else if (_16 === 6) {
-		const _398: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _398: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured14 = made;
 		const it6: rt.Iter<[Guard.Guard, rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterMap(_398, (_218: rt.u32): Guard.Guard => {
 			return captured14(_218);
@@ -215,7 +215,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const part12 = id1(part11);
 		const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part12, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f))];
 		Log.note(log, rt.fmtFormat(["back ", args40[0]]));
-		const _453: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _453: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured15 = made;
 		const _452: rt.Iter<Guard.Guard> = rt.iterMap(_453, (_223: rt.u32): Guard.Guard => {
 			return captured15(_223);
@@ -233,7 +233,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const part16 = ids(part15);
 		const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part16, f, (value: [rt.u32, rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f), (f: rt.Formatter) => rt.u32Debug(value[2], f)], f))];
 		Log.note(log, rt.fmtFormat(["uneven ", args44[0]]));
-		const _499: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _499: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured17 = made;
 		const _498: rt.Iter<Guard.Guard> = rt.iterMap(_499, (_228: rt.u32): Guard.Guard => {
 			return captured17(_228);
@@ -245,7 +245,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}), [true, true], rt.drop, rt.drop), new rt.Range(0, 5), [true, false], lib_drop$tuple2_model_Guard_model_Guard)), lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
 		const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part17, f)];
 		Log.note(log, rt.fmtFormat(["uneven rev ", args46[0]]));
-		const _522: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _522: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured19 = made;
 		const _521: rt.Iter<Guard.Guard> = rt.iterMap(_522, (_231: rt.u32): Guard.Guard => {
 			return captured19(_231);
@@ -311,7 +311,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const part33 = id3(part32);
 		const args62: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part33, f, (value: [rt.u32, rt.u32, rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f), (f: rt.Formatter) => rt.u32Debug(value[2], f), (f: rt.Formatter) => rt.u32Debug(value[3], f)], f))];
 		Log.note(log, rt.fmtFormat(["nested ", args62[0]]));
-		const _667: rt.Iter<rt.u32> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(v)));
+		const _667: rt.Iter<rt.u32> = rt.iterSlice(v);
 		const captured21 = made;
 		const _665: rt.Iter<[rt.usize, Guard.Guard]> = rt.iterEnumerate(rt.iterMap(_667, (_240: rt.u32): Guard.Guard => {
 			return captured21(_240);

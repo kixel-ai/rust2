@@ -69,7 +69,7 @@ export function places(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 		set(rt.place(() => grid[_30][_32], (value) => grid[_30][_32] = value), k);
 		set(rt.place(() => rows[_35].cells[_39], (value2) => rows[_35].cells[_39] = value2), k ^ 1);
 	}
-	rt.iterExtendBytes(out, rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 4), undefined, true);
+	rt.iterExtendBytes(out, rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 4), undefined, true);
 	for (const _61 of rows) {
 		rt.iterExtendBytes(out, rt.iterSlice(_61.cells), undefined, true);
 	}
@@ -236,7 +236,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 		};
 		fs.items.push(_68);
 	}
-	const itS: Row.Row[] = rt.sliceItems(rt.sliceFrom(rows));
+	const itS: Row.Row[] = rows;
 	let itI: number = 0;
 	while (true) {
 		const _74: Row.Row | rt.Done = itI < itS.length ? itS[itI++] : rt.DONE;

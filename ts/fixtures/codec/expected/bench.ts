@@ -54,6 +54,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 				packets(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 16) {
 				format(new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 17) {
+				parts(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rt.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -572,6 +574,95 @@ export function packets(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): v
 		_48.data[_48.start + 3] = (_48.data[_48.start + 3] & 240) | cc;
 		sum = rt.u64Add(sum, cc as rt.u64);
 	}
+	harness_putU64(out, sum);
+}
+
+/**
+ * `count` steps through mutable parts of a `Vec` of `size` integers, as `selector` picks:
+ * a min-heap of deadlines, as a timer wheel keeps them, whose root is pushed later and
+ * sifted down through the halves `split_at_mut` lends, or `parts[..k]` written, `k`
+ * cycling from 1 to `size`. Its first item and the sum of what each step read.
+ */
+export function parts(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let sum!: rt.u64;
+	let c!: rt.usize;
+	const _6: [rt.u64, rt.ByteSlice] = takeU64(data);
+	const count: rt.u64 = _6[0];
+	const size2: rt.usize = rt.u64Low(rt.u64Clamp(takeU64(_6[1])[0], 1, 65536));
+	const v: rt.Vec<rt.u64> = rt.iterToVec(rt.iterMap(new rt.Range(0, size2 as rt.u64, rt.u64Step), (i2: rt.u64): rt.u64 => {
+		return rt.u64Rem(rt.u64Mul(i2, 40503), 65536);
+	}), undefined, 8, true);
+	b0: {
+		sum = 0;
+		if (selector === 0) {
+			rt.sliceSort(rt.sliceFrom(v.items), rt.lt, 8, true);
+			const iter: rt.Range<rt.u64> = new rt.Range(0, count, rt.u64Step);
+			while (true) {
+				const _25: rt.u64 | rt.Done = iter.next();
+				if (_25 === rt.DONE) {
+					break b0;
+				}
+				const _29: rt.u64 = rt.u64Add(1, rt.u64Mul(rt.u64Rem(_25, 64), 1024));
+				const at = rt.idx(v.items, 0);
+				v.items[at] = rt.u64Add(v.items[at], _29);
+				let i: rt.usize = 0;
+				while (true) {
+					const l: rt.usize = rt.usizeAdd(rt.usizeMul(2, i), 1);
+					if (!(l >= size2)) {
+						b7: {
+							if (rt.usizeAdd(l, 1) < size2) {
+								if (rt.u64Lt(v.items[rt.idx(v.items, rt.usizeAdd(l, 1))], v.items[rt.idx(v.items, l)])) {
+									c = rt.usizeAdd(l, 1);
+									break b7;
+								}
+							}
+							c = l;
+						}
+						const _61: [rt.Slice<rt.u64>, rt.Slice<rt.u64>] = rt.sliceSplitAt(rt.sliceFrom(v.items), c);
+						const _67: rt.usize = i;
+						rt.idx(_61[0], _67);
+						const _66: rt.u64 = _61[0].data[_61[0].start + _67];
+						rt.idx(_61[1], 0);
+						if (!rt.u64Le(_66, _61[1].data[_61[1].start])) {
+							const _78: rt.usize = i;
+							rt.idx(_61[0], _78);
+							rt.idx(_61[1], 0);
+							const swapped = _61[0].data[_61[0].start + _78];
+							_61[0].data[_61[0].start + _78] = _61[1].data[_61[1].start];
+							_61[1].data[_61[1].start] = swapped;
+							i = c;
+						} else {
+							break;
+						}
+					} else {
+						break;
+					}
+				}
+				sum = rt.u64WrappingAdd(sum, v.items[rt.idx(v.items, 0)]);
+			}
+		}
+		const iter2: rt.Range<rt.u64> = new rt.Range(0, count, rt.u64Step);
+		while (true) {
+			const _96: rt.u64 | rt.Done = iter2.next();
+			if (_96 === rt.DONE) {
+				break b0;
+			}
+			const part2 = rt.usizeAdd(rt.usizeRem(rt.u64Low(_96), size2), 1);
+			const part: rt.Slice<rt.u64> = rt.sliceRange(rt.sliceFrom(v.items), 0, part2);
+			const iter3: rt.Iter<rt.Place<rt.u64>> = rt.iterSliceMut(part);
+			while (true) {
+				const _111: rt.Place<rt.u64> | rt.Done = iter3.next();
+				if (_111 === rt.DONE) {
+					break;
+				}
+				_111.v = rt.u64WrappingAdd(_111.v, 1);
+			}
+			const _120: rt.usize = rt.usizeSub(part.length, 1);
+			rt.idx(part, _120);
+			sum = rt.u64WrappingAdd(sum, part.data[part.start + _120]);
+		}
+	}
+	harness_putU64(out, v.items[rt.idx(v.items, 0)]);
 	harness_putU64(out, sum);
 }
 

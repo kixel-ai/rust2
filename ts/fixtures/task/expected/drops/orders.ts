@@ -27,18 +27,18 @@ export function orders(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}), undefined, 20, true);
 	};
 	const setIds: (a0: rt.BTreeSet<Ranked.Ranked>) => string = (s: rt.BTreeSet<Ranked.Ranked>): string => {
-		return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.btreeKeys(s), (k: Ranked.Ranked): string => {
+		return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.btreeKeys(s), (k: Ranked.Ranked): string => {
 			const _48: rt.u32 = rt.u32Sub(k.id, id);
 			return rt.fmtToString((f: rt.Formatter) => rt.u32Display(_48, f));
-		}), undefined, 12, true).items)), ",");
+		}), undefined, 12, true).items, ",");
 	};
 	const mapIds: (a0: rt.BTreeMap<Ranked.Ranked, Guard.Guard>) => string = (m: rt.BTreeMap<Ranked.Ranked, Guard.Guard>): string => {
-		return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.btreeIter(m), (_26: [Ranked.Ranked, Guard.Guard]): string => {
+		return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.btreeIter(m), (_26: [Ranked.Ranked, Guard.Guard]): string => {
 			const _97: rt.u32 = rt.u32Sub(_26[0].id, id);
 			const _144: rt.u32 = rt.u32Sub(Guard.id(_26[1]), id);
 			const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_97, f), (f: rt.Formatter) => rt.u32Display(_144, f)];
 			return rt.fmtFormat([args32[0], ":", args32[1]]);
-		}), undefined, 12, true).items)), ",");
+		}), undefined, 12, true).items, ",");
 	};
 	const short: Uint8Array = Uint8Array.of(3, 1, 3, 2, 1, 5, 4, 0);
 	const long: rt.ByteVec = rt.iterToByteVec(rt.iterMap(new rt.Range(0, 26), (n5: rt.u8): rt.u8 => {
@@ -110,13 +110,13 @@ export function orders(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			return [new rt.Cell({ _0: r }), Guard.new(rt.u32Add(id, n9), Log.clone$Clone(log))] as [rt.Cell<Rank.Rank>, Guard.Guard];
 		});
 		const map4: rt.BTreeMap<rt.Cell<Rank.Rank>, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cellBy(Rank.cmp$cmp_Ord)) as rt.BTreeMap<rt.Cell<Rank.Rank>, Guard.Guard>, rt.iterToVec(_207, undefined, 12, true).items, 12, false, rt.cellBy(Rank.eq$cmp_PartialEq), undefined, rt.drop);
-		const part15 = rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.btreeIter(map4), (_219: [rt.Cell<Rank.Rank>, Guard.Guard]): string => {
+		const part15 = rt.strsJoin(rt.iterToVec(rt.iterMap(rt.btreeIter(map4), (_219: [rt.Cell<Rank.Rank>, Guard.Guard]): string => {
 			const _912: Rank.Rank = _219[0].v;
 			const _1111: rt.u32 = rt.u32Sub(Guard.id(_219[1]), id);
 			const arg2 = _912._0;
 			const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(arg2, f), (f: rt.Formatter) => rt.u32Display(_1111, f)];
 			return rt.fmtFormat([args36[0], ":", args36[1]]);
-		}), undefined, 12, true).items)), ",");
+		}), undefined, 12, true).items, ",");
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part15)];
 		Log.note(log, rt.fmtFormat(["cells ", args16[0]]));
 		rt.btreeDrop(map4, undefined, rt.drop);

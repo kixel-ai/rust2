@@ -478,9 +478,9 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.idx(_14, _15);
 		input = input + String.fromCodePoint(_14.data[_14.start + _15]);
 	}
-	const all: rt.Vec<string> = rt.vecFrom(rt.sliceToArray(rt.sliceFrom(["", "0", "-0", "1", "-1", "+", "a", "ab", "😀", "true", "false", "127", "128", "-128", "-129", "256", "18446744073709551615", "18446744073709551616", "-170141183460469231731687303715884105729", "1.5", "1e400", "NaN", "inf"])));
+	const all: rt.Vec<string> = rt.vecFrom(["", "0", "-0", "1", "-1", "+", "a", "ab", "😀", "true", "false", "127", "128", "-128", "-129", "256", "18446744073709551615", "18446744073709551616", "-170141183460469231731687303715884105729", "1.5", "1e400", "NaN", "inf"].slice());
 	all.items.push(input);
-	const bytes: rt.Vec<rt.ByteSlice> = rt.vecFrom(rt.sliceToArray(rt.sliceFrom([rt.byteSliceFrom(Uint8Array.of()), rt.byteSliceFrom(Uint8Array.of(97)), rt.byteSliceFrom(Uint8Array.of(255)), rt.byteSliceFrom(Uint8Array.of(97, 255)), rt.byteSliceFrom(Uint8Array.of(195)), rt.byteSliceFrom(Uint8Array.of(97, 195)), rt.byteSliceFrom(Uint8Array.of(224, 128)), rt.byteSliceFrom(Uint8Array.of(240, 159, 152)), rt.byteSliceFrom(Uint8Array.of(240, 159, 152, 128)), rt.byteSliceFrom(Uint8Array.of(237, 160, 128))])));
+	const bytes: rt.Vec<rt.ByteSlice> = rt.vecFrom([rt.byteSliceFrom(Uint8Array.of()), rt.byteSliceFrom(Uint8Array.of(97)), rt.byteSliceFrom(Uint8Array.of(255)), rt.byteSliceFrom(Uint8Array.of(97, 255)), rt.byteSliceFrom(Uint8Array.of(195)), rt.byteSliceFrom(Uint8Array.of(97, 195)), rt.byteSliceFrom(Uint8Array.of(224, 128)), rt.byteSliceFrom(Uint8Array.of(240, 159, 152)), rt.byteSliceFrom(Uint8Array.of(240, 159, 152, 128)), rt.byteSliceFrom(Uint8Array.of(237, 160, 128))].slice());
 	bytes.items.push(data);
 	const _32: rt.u8 = rt.u8Rem(kind, 16);
 	if (_32 === 0) {
@@ -509,11 +509,11 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.i8TryFrom(a02);
 		}), undefined, 2, true).items), out);
 	} else if (_32 === 9) {
-		pairs$Result_ref_str_str_Utf8Error(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(bytes.items))), (b7: rt.ByteSlice): rt.Result<string, rt.Utf8Error> => {
+		pairs$Result_ref_str_str_Utf8Error(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(bytes.items), (b7: rt.ByteSlice): rt.Result<string, rt.Utf8Error> => {
 			return rt.strFromUtf8(b7);
 		}), undefined, 12, true).items), out);
 	} else if (_32 === 10) {
-		pairs$Result_String_string_FromUtf8Error(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(bytes.items))), (b6: rt.ByteSlice): rt.Result<string, rt.FromUtf8Error> => {
+		pairs$Result_String_string_FromUtf8Error(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(bytes.items), (b6: rt.ByteSlice): rt.Result<string, rt.FromUtf8Error> => {
 			return rt.stringFromUtf8(rt.byteSliceToByteVec(b6));
 		}), undefined, 20, true).items), out);
 	} else if (_32 === 11) {
@@ -526,18 +526,18 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.durationTryFromSecsF64(a0);
 		}), undefined, 16, true).items), out);
 	} else if (_32 === 12) {
-		pairs$Result_Option_u8_num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s6: string): rt.Result<rt.u8 | undefined, rt.ParseIntError> => {
+		pairs$Result_Option_u8_num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(all.items), (s6: string): rt.Result<rt.u8 | undefined, rt.ParseIntError> => {
 			return result_map$0r57egs(parse$0vh70p5(s6), (v11: rt.u8): rt.u8 | undefined => {
 				return rt.u8CheckedSub(v11, 1);
 			});
 		}), undefined, 2, true).items), out);
-		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s7: string): rt.Result<rt.Result<rt.char, rt.ParseCharError>, rt.ParseBoolError> => {
+		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(all.items), (s7: string): rt.Result<rt.Result<rt.char, rt.ParseCharError>, rt.ParseBoolError> => {
 			const _610: string = s7;
 			return result_map$0fm1w6u(parse$0vh4cry(s7), (_210: boolean): rt.Result<rt.char, rt.ParseCharError> => {
 				return rt.charFromStr(_610);
 			});
 		}), undefined, 8, true).items), out);
-		pairs$Result_u8_num_IntErrorKind(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s8: string): rt.Result<rt.u8, rt.IntErrorKind> => {
+		pairs$Result_u8_num_IntErrorKind(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(all.items), (s8: string): rt.Result<rt.u8, rt.IntErrorKind> => {
 			return result_mapErr$0u5yxjj(parse$0vh70p5(s8), (e: rt.ParseIntError): rt.IntErrorKind => {
 				return e.kind;
 			});
@@ -564,28 +564,28 @@ export function eqs(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const text: string = rt.strSlice("ab", 0, rt.u8Rem(b2, 3) as rt.usize);
 			return [rt.byteVecTryReserve(new rt.ByteVec(), n), rt.stringTryReserve(text, n), rt.dequeTryReserve(rt.dequeNew(2) as rt.VecDeque<rt.u16>, n), rt.hashTryReserve(rt.hashNew() as rt.HashSet<rt.u8>, n, 469762048)];
 		}, (value: rt.Result<undefined, rt.TryReserveError>[]) => rt.iterSlice(value), true, 4), undefined, 8, true);
-		pairs$collections_TryReserveError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v7.items))), (r: rt.Result<undefined, rt.TryReserveError>): rt.TryReserveError | undefined => {
+		pairs$collections_TryReserveError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(v7.items), (r: rt.Result<undefined, rt.TryReserveError>): rt.TryReserveError | undefined => {
 			return err$0bqdhnn(result_clone$1nmm6up(r));
 		}), "next", 8).items), out);
 		pairs$Result_unit_collections_TryReserveError(rt.sliceFrom(rt.slicesJoin(rt.sliceFrom([rt.vecFrom(v7.items.map(result_clone$1nmm6up)), v7]), 8, undefined, rt.vecSlice, result_clone$1nmm6up).items), out);
 	} else {
-		pairs$Option_Result_u8_num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s: string): rt.Result<rt.u8, rt.ParseIntError> | undefined => {
+		pairs$Option_Result_u8_num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(all.items), (s: string): rt.Result<rt.u8, rt.ParseIntError> | undefined => {
 			const _73: string = s;
 			return then$0afp4no(!(s.length === 0), (): rt.Result<rt.u8, rt.ParseIntError> => {
 				return parse$0vh70p5(_73);
 			});
 		}), undefined, 2, true).items), out);
 		pairs$Vec_Result_bool_str_ParseBoolError(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.sliceChunks(rt.sliceFrom(all.items), 2), parsed$bool), undefined, 12, true).items), out);
-		pairs$tuple2_Result_char_char_ParseCharError_usize(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s2: string): [rt.Result<rt.char, rt.ParseCharError>, rt.usize] => {
+		pairs$tuple2_Result_char_char_ParseCharError_usize(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(all.items), (s2: string): [rt.Result<rt.char, rt.ParseCharError>, rt.usize] => {
 			return [rt.charFromStr(s2), rt.usizeRem(rt.stringLen(s2), 2)] as [rt.Result<rt.char, rt.ParseCharError>, rt.usize];
 		}), undefined, 12, true).items), out);
-		pairs$char_ParseCharError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s3: string): rt.ParseCharError | undefined => {
+		pairs$char_ParseCharError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(all.items), (s3: string): rt.ParseCharError | undefined => {
 			return err$02r96h1(rt.charFromStr(s3));
 		}), "next", 1).items), out);
-		pairs$str_ParseBoolError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s4: string): rt.ParseBoolError | undefined => {
+		pairs$str_ParseBoolError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(all.items), (s4: string): rt.ParseBoolError | undefined => {
 			return err$1ujom0k(parse$0vh4cry(s4));
 		}), "next", 0).items), out);
-		pairs$num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (s5: string): rt.ParseIntError | undefined => {
+		pairs$num_ParseIntError(rt.sliceFrom(rt.iterToVec(rt.iterFilterMap(rt.iterSlice(all.items), (s5: string): rt.ParseIntError | undefined => {
 			return err$0jf6smd(parse$14z7a72(s5));
 		}), "next", 1).items), out);
 	}

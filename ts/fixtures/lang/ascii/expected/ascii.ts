@@ -7,14 +7,14 @@ import { put } from "./harness.ts";
 
 /** Each test of `b`, a bit apiece. */
 export function byteTests(b: rt.u8): rt.u16 {
-	return rt.iterFold(rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom([rt.isAscii(b), rt.isAsciiAlphabetic(b), rt.isAsciiUppercase(b), rt.isAsciiLowercase(b), rt.isAsciiAlphanumeric(b), rt.isAsciiDigit(b), rt.isAsciiHexdigit(b), rt.isAsciiPunctuation(b), rt.isAsciiGraphic(b), rt.isAsciiWhitespace(b), rt.isAsciiControl(b)])))), 0, (bits: rt.u16, _32: [rt.usize, boolean]): rt.u16 => {
+	return rt.iterFold(rt.iterEnumerate(rt.iterSlice([rt.isAscii(b), rt.isAsciiAlphabetic(b), rt.isAsciiUppercase(b), rt.isAsciiLowercase(b), rt.isAsciiAlphanumeric(b), rt.isAsciiDigit(b), rt.isAsciiHexdigit(b), rt.isAsciiPunctuation(b), rt.isAsciiGraphic(b), rt.isAsciiWhitespace(b), rt.isAsciiControl(b)])), 0, (bits: rt.u16, _32: [rt.usize, boolean]): rt.u16 => {
 		return bits | rt.u16Shl(_32[1] ? 1 : 0, _32[0]);
 	});
 }
 
 /** Each test of `c`, a bit apiece. */
 export function charTests(c: rt.char): rt.u16 {
-	return rt.iterFold(rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom([rt.isAscii(c), rt.isAsciiAlphabetic(c), rt.isAsciiUppercase(c), rt.isAsciiLowercase(c), rt.isAsciiAlphanumeric(c), rt.isAsciiDigit(c), rt.isAsciiHexdigit(c), rt.isAsciiPunctuation(c), rt.isAsciiGraphic(c), rt.isAsciiWhitespace(c), rt.isAsciiControl(c)])))), 0, (bits: rt.u16, _32: [rt.usize, boolean]): rt.u16 => {
+	return rt.iterFold(rt.iterEnumerate(rt.iterSlice([rt.isAscii(c), rt.isAsciiAlphabetic(c), rt.isAsciiUppercase(c), rt.isAsciiLowercase(c), rt.isAsciiAlphanumeric(c), rt.isAsciiDigit(c), rt.isAsciiHexdigit(c), rt.isAsciiPunctuation(c), rt.isAsciiGraphic(c), rt.isAsciiWhitespace(c), rt.isAsciiControl(c)])), 0, (bits: rt.u16, _32: [rt.usize, boolean]): rt.u16 => {
 		return bits | rt.u16Shl(_32[1] ? 1 : 0, _32[0]);
 	});
 }
@@ -170,7 +170,7 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
  * each method of `char`.
  */
 export function chars(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	const all: rt.Vec<rt.char> = rt.vecFrom(rt.sliceToArray(rt.sliceFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111])));
+	const all: rt.Vec<rt.char> = rt.vecFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].slice());
 	const _9: rt.Iter<rt.char> = rt.iterFilterMap(rt.byteSliceChunks(data, 4), (c2: rt.ByteSlice): rt.char | undefined => {
 		return rt.charFromU32(rt.u32FromBeBytes(rt.bytesFromFn(4, (i2: rt.usize): rt.u8 => {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c2, i2), 0);
@@ -178,7 +178,7 @@ export function chars(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	rt.iterExtend(all, _9, "next", 4);
 	const others: rt.Vec<rt.char> = rt.vecFrom(all.items.slice());
-	const iter: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))));
+	const iter: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(all.items));
 	while (true) {
 		const _19: [rt.usize, rt.char] | rt.Done = iter.next();
 		if (_19 === rt.DONE) {

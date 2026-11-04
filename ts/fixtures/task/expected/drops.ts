@@ -1356,10 +1356,10 @@ export function edited(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		return Key.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const ids: (a0: rt.Slice<Key.Key>) => string = (v13: rt.Slice<Key.Key>): string => {
-		return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(v13)), (k: Key.Key): string => {
+		return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(v13)), (k: Key.Key): string => {
 			const _43: rt.u32 = rt.u32Sub(k.id, id);
 			return rt.fmtToString((f: rt.Formatter) => rt.u32Display(_43, f));
-		}), undefined, 12, true).items)), ",");
+		}), undefined, 12, true).items, ",");
 	};
 	const _8: rt.u8 = rt.u8Rem(arg, 9);
 	if (_8 === 0) {

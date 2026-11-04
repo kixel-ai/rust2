@@ -11,7 +11,7 @@ import { put, text } from "./harness.ts";
 
 /** The scalars to try: the edges, then each big-endian `u32` in `data`, zero-padded. */
 export function scalars(data: rt.ByteSlice): rt.Vec<rt.u32> {
-	const all: rt.Vec<rt.u32> = rt.vecFrom(rt.sliceToArray(rt.sliceFrom([0, 127, 128, 255, 256, 2047, 2048, 55295, 55296, 56319, 56320, 57343, 57344, 65533, 65535, 65536, 1114109, 1114111, 1114112, 4294967295])));
+	const all: rt.Vec<rt.u32> = rt.vecFrom([0, 127, 128, 255, 256, 2047, 2048, 55295, 55296, 56319, 56320, 57343, 57344, 65533, 65535, 65536, 1114109, 1114111, 1114112, 4294967295].slice());
 	let rest: rt.ByteSlice = data;
 	while (true) {
 		if (!(rest.length === 0)) {
@@ -102,7 +102,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rt.BTreeSet<rt.char> = rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.char>;
 		const seen: rt.HashSet<rt.char> = rt.hashNew() as rt.HashSet<rt.char>;
-		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cs.items))));
+		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(cs.items));
 		while (true) {
 			const _88: [rt.usize, rt.char] | rt.Done = iter3.next();
 			if (_88 === rt.DONE) {
@@ -175,7 +175,7 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		if (rt.u8Rem(kind, 2) === 0) {
 			flags = (rt.charIsAlphabetic(c) ? 1 : 0) | (((rt.charIsLowercase(c) ? 1 : 0) << 1) & 0xff) | (((rt.charIsUppercase(c) ? 1 : 0) << 2) & 0xff) | (((rt.charIsAlphanumeric(c) ? 1 : 0) << 3) & 0xff) | (((rt.charIsControl(c) ? 1 : 0) << 4) & 0xff) | (((rt.charIsNumeric(c) ? 1 : 0) << 5) & 0xff) | (((isDigit$0mzngr5(c, 36) ? 1 : 0) << 6) & 0xff);
 		} else {
-			flags = rt.iterFold(rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(classes)))), 0, (flags2: rt.u8, _3: [rt.usize, (a0: rt.char) => boolean]): rt.u8 => {
+			flags = rt.iterFold(rt.iterEnumerate(rt.iterSlice(classes)), 0, (flags2: rt.u8, _3: [rt.usize, (a0: rt.char) => boolean]): rt.u8 => {
 				const i: rt.usize = _3[0];
 				return flags2 | rt.u8Shl(_3[1](c) ? 1 : 0, i);
 			});
@@ -424,9 +424,9 @@ export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		return (p.data[p.start] << 8) | option_unwrapOr$0r2bmpr(rt.byteSliceGet(p, 1), 0);
 	}), undefined, 2, true);
 	if (rt.u8Rem(kind, 2) === 0) {
-		it = rt.charDecodeUtf16(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units.items))));
+		it = rt.charDecodeUtf16(rt.iterSlice(units.items));
 	} else {
-		it = rt.charDecodeUtf16(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units.items))));
+		it = rt.charDecodeUtf16(rt.iterSlice(units.items));
 	}
 	let last: rt.DecodeUtf16Error | undefined = undefined;
 	while (true) {

@@ -171,31 +171,31 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 }
 
 export function counts$dyn_dyns_Named(arcs: rt.Slice<rt.Arc<Named.Named>>): string {
-	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Named.Named>): string => {
+	return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Named.Named>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true).items)), ",");
+	}), undefined, 12, true).items, ",");
 }
 
 export function counts$dyn_dyns_Shape(arcs: rt.Slice<rt.Arc<Shape.Shape>>): string {
-	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Shape.Shape>): string => {
+	return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Shape.Shape>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true).items)), ",");
+	}), undefined, 12, true).items, ",");
 }
 
 export function counts$dyns_Hits(arcs: rt.Slice<rt.Arc<Hits.Hits>>): string {
-	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Hits.Hits>): string => {
+	return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Hits.Hits>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true).items)), ",");
+	}), undefined, 12, true).items, ",");
 }
 
 export function counts$dyns_Square(arcs: rt.Slice<rt.Arc<Square.Square>>): string {
-	return rt.strsJoin(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Square.Square>): string => {
+	return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(arcs)), (a: rt.Arc<Square.Square>): string => {
 		const _42: rt.usize = a.strong;
 		return rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_42, f));
-	}), undefined, 12, true).items)), ",");
+	}), undefined, 12, true).items, ",");
 }
 
 export function shared(dataData: Uint8Array, dataStart: number, dataLen: number, out: rt.ByteVec): void {
@@ -260,7 +260,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const _34: rt.Arc<Hits.Hits> = rt.arcClone(hits);
 			return new rt.ArcDyn(_34, new of$dyns_Hits(_34.value));
 		}), undefined, 8, true);
-		const sum: rt.u32 = rt.iterFold(rt.iterSlice(rt.sliceItems(rt.sliceFrom(objects.items))), 0, (sum2: rt.u32, s2: rt.Arc<Shape.Shape>): rt.u32 => {
+		const sum: rt.u32 = rt.iterFold(rt.iterSlice(objects.items), 0, (sum2: rt.u32, s2: rt.Arc<Shape.Shape>): rt.u32 => {
 			return rt.u32WrappingAdd(sum2, s2.value.area$Shape());
 		});
 		const _216: rt.u32 = rt.atomicLoad(hits.value._0, 0);
@@ -293,7 +293,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const _112: rt.Arc<Square.Square> = new rt.Arc({ side: x as rt.u16 });
 			return new rt.ArcDyn(_112, new of$dyns_Square(_112.value));
 		}), undefined, 8, true);
-		const kept: rt.Vec<rt.Arc<Named.Named>> = rt.iterToVec(rt.iterMap(rt.iterStepBy(rt.iterSlice(rt.sliceItems(rt.sliceFrom(tris.items))), 2), (a0: rt.Arc<Named.Named>): rt.Arc<Named.Named> => {
+		const kept: rt.Vec<rt.Arc<Named.Named>> = rt.iterToVec(rt.iterMap(rt.iterStepBy(rt.iterSlice(tris.items), 2), (a0: rt.Arc<Named.Named>): rt.Arc<Named.Named> => {
 			return rt.arcClone(a0);
 		}), undefined, 8, true);
 		for (const _292 of tris.items) {
@@ -308,7 +308,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		for (const _322 of kept.items) {
 			_322.value.tally$Shape(rt.place(() => total, (value) => total = value));
 		}
-		const _337: string = counts$dyn_dyns_Named(rt.sliceFrom(rt.iterToVec(rt.iterSlice(rt.sliceItems(rt.sliceFrom(kept.items))), undefined, 4, true).items));
+		const _337: string = counts$dyn_dyns_Named(rt.sliceFrom(rt.iterToVec(rt.iterSlice(kept.items), undefined, 4, true).items));
 		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(total, f), (f: rt.Formatter) => rt.fmtPad(f, _337)];
 		put(out, rt.fmtFormat([args24[0], " ", args24[1]]));
 		rt.dropVec(kept);
@@ -686,7 +686,7 @@ export function fns(data: rt.ByteSlice, out: rt.ByteVec): void {
 			captured2 = rt.u8WrappingAdd(captured2, x4);
 			return rt.u32Mul(captured2 as rt.u32, 3);
 		});
-		const iter: rt.Iter<[rt.usize, (a0: rt.u8) => rt.u8]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fs.items))));
+		const iter: rt.Iter<[rt.usize, (a0: rt.u8) => rt.u8]> = rt.iterEnumerate(rt.iterSlice(fs.items));
 		while (true) {
 			const _115: [rt.usize, (a0: rt.u8) => rt.u8] | rt.Done = iter.next();
 			if (_115 === rt.DONE) {
@@ -1162,12 +1162,12 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			}
 		}
 		rt.drop(iter);
-		const kept: rt.Vec<rt.Arc<Shape.Shape>> = rt.iterToVec(rt.iterMap(rt.iterStepBy(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rcs.items))), 2), (a0: rt.Arc<Shape.Shape>): rt.Arc<Shape.Shape> => {
+		const kept: rt.Vec<rt.Arc<Shape.Shape>> = rt.iterToVec(rt.iterMap(rt.iterStepBy(rt.iterSlice(rcs.items), 2), (a0: rt.Arc<Shape.Shape>): rt.Arc<Shape.Shape> => {
 			return rt.arcClone(a0);
 		}), undefined, 8, true);
-		const part2 = rt.iterToVec(rt.iterChain(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rcs.items))), (s4: rt.Arc<Shape.Shape>): rt.u32 => {
+		const part2 = rt.iterToVec(rt.iterChain(rt.iterMap(rt.iterSlice(rcs.items), (s4: rt.Arc<Shape.Shape>): rt.u32 => {
 			return s4.value.area$Shape();
-		}), rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(arcs.items))), (s5: rt.Arc<Shape.Shape>): rt.u32 => {
+		}), rt.iterMap(rt.iterSlice(arcs.items), (s5: rt.Arc<Shape.Shape>): rt.u32 => {
 			return s5.value.area$Shape();
 		})), undefined, 4, true);
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.items, f, rt.u32Debug)];
@@ -1587,7 +1587,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _37: rt.Arc<rt.RefCell<Shape.Shape>> = new rt.ArcDyn(_38, rt.tailDyn(_38.value, { value: (value3: rt.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rt.valuePlace(value3)) }));
 		const _41: rt.Arc<rt.RefCell<Noisy.Noisy>> = new rt.Arc(new rt.RefCell(new Noisy.Noisy(a ^ b, rt.arcClone(log))));
 		const shapes: rt.Vec<rt.Arc<rt.RefCell<Shape.Shape>>> = rt.vecFrom([_31, _34, _37, new rt.ArcDyn(_41, rt.tailDyn(_41.value, { value: (value4: rt.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value4.value) }, rt.drop))]);
-		const iter: rt.Iter<[rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(shapes.items))));
+		const iter: rt.Iter<[rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>]> = rt.iterEnumerate(rt.iterSlice(shapes.items));
 		while (true) {
 			const _53: [rt.usize, rt.Arc<rt.RefCell<Shape.Shape>>] | rt.Done = iter.next();
 			if (_53 === rt.DONE) {
@@ -1599,7 +1599,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 			_61.value.grow$Shape(_63);
 			rt.refMutRelease(_61);
 		}
-		const areas: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(shapes.items))), (s3: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
+		const areas: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.iterSlice(shapes.items), (s3: rt.Arc<rt.RefCell<Shape.Shape>>): rt.u32 => {
 			const _5: rt.RefCell<Shape.Shape> = rt.refCellBorrow(s3.value);
 			const _0: rt.u32 = _5.value.area$Shape();
 			rt.refRelease(_5);
@@ -1860,7 +1860,7 @@ export function tails(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _741: rt.RefCell<Guarded.Guarded<Shape.Shape>> = rt.refCellBorrowMut(cell2.value);
 		_741.value.value.grow$Shape(a);
 		rt.refMutRelease(_741);
-		const areas2: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(guarded.items))), (g: Guarded.Guarded<Shape.Shape>): rt.u32 => {
+		const areas2: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.iterSlice(guarded.items), (g: Guarded.Guarded<Shape.Shape>): rt.u32 => {
 			return g.value.area$Shape();
 		}), undefined, 4, true);
 		const _761: rt.RefCell<Guarded.Guarded<Shape.Shape>> = rt.refCellBorrow(cell2.value);

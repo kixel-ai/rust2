@@ -838,7 +838,7 @@ export function segments(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 		}
-		rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(log.items))), (s: Segment.Segment): rt.u8 => {
+		rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.iterSlice(log.items), (s: Segment.Segment): rt.u8 => {
 			return s.filled & 0xff;
 		}), rt.u8Add, 0));
 	}
@@ -899,7 +899,7 @@ export function iteratedRuns(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const runs: Run.Run[] = Array.from({ length: 3 }, (): Run.Run => {
 		return ({ span: [undefined, undefined], n: undefined } as unknown) as Run.Run;
 	});
-	const iter: rt.Iter<Run.Run> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(runs)));
+	const iter: rt.Iter<Run.Run> = rt.iterSlice(runs);
 	while (true) {
 		const _10: Run.Run | rt.Done = iter.next();
 		if (_10 === rt.DONE) {
@@ -941,7 +941,7 @@ export function iteratedRuns(data: rt.ByteSlice, out: rt.ByteVec): void {
 			uninit3;
 		}
 	}
-	const iter5: rt.Iter<[Run.Run, rt.usize]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(runs))), new rt.RangeFrom(0, rt.usizeStep), "len");
+	const iter5: rt.Iter<[Run.Run, rt.usize]> = rt.iterZip(rt.iterSlice(runs), new rt.RangeFrom(0, rt.usizeStep), "len");
 	while (true) {
 		const _74: [Run.Run, rt.usize] | rt.Done = iter5.next();
 		if (_74 === rt.DONE) {
@@ -969,7 +969,7 @@ export function iteratedRuns(data: rt.ByteSlice, out: rt.ByteVec): void {
 		span2[1] = span2[1] ^ byte2;
 		rt.byteVecPush(out, span2[1]);
 	}
-	const iter7: rt.Iter<Run.Run> = rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(runs))), rt.iterSlice(rt.sliceItems(boxed)));
+	const iter7: rt.Iter<Run.Run> = rt.iterChain(rt.iterSlice(runs), rt.iterSlice(rt.sliceItems(boxed)));
 	while (true) {
 		const _123: Run.Run | rt.Done = iter7.next();
 		if (_123 === rt.DONE) {
@@ -1319,7 +1319,7 @@ export function exchanged(n: rt.u8): Uint8Array {
 export function loaded(data: rt.ByteSlice, out: rt.ByteVec): void {
 	for (const n of rt.byteSliceView(data)) {
 		let pair: Loaded.Loaded[] = [{ _0: n, _1: 1 }, { _0: 2, _1: ~n & 0xff }];
-		const first: Loaded.Loaded = option_unwrapOr$0mkoact(nextRead$pointers_Loaded(rt.iterSlice(rt.sliceItems(rt.sliceFrom(pair)))), { _0: 0, _1: 0 });
+		const first: Loaded.Loaded = option_unwrapOr$0mkoact(nextRead$pointers_Loaded(rt.iterSlice(pair)), { _0: 0, _1: 0 });
 		pair = [{ _0: first._1, _1: n ^ 90 }, { _0: first._0, _1: n }];
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(first._0, first._1, pair[0]._0, pair[0]._1, pair[1]._0)), undefined, true);
 	}
@@ -2496,17 +2496,17 @@ export function distinct(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const arc8 = y;
 			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_238, _244, _250, _256, _262, _270, _280 === rt.arcRaw(arc8, arc8.value, "Arc") ? 1 : 0, rewrapped.value === p.value ? 1 : 0, rewrapped.value.at === p.value.at ? 1 : 0, p.strong & 0xff, swapped[1] ^ unwrapped.value[1] ^ rewrapped.value.tag ^ (rt.stringLen(_64) & 0xff))), undefined, true);
 			const item = copy$tuple2_u16_u8(pair);
-			const repeated: rt.Vec<[rt.u16, rt.u8]> = rt.vecFrom(rt.sliceItems(rt.sliceFrom(Array.from({ length: 2 }, (): [rt.u16, rt.u8] => {
+			const repeated: rt.Vec<[rt.u16, rt.u8]> = rt.vecFrom(Array.from({ length: 2 }, (): [rt.u16, rt.u8] => {
 				return copy$tuple2_u16_u8(item);
-			}))).map(copy$tuple2_u16_u8));
-			const copied: rt.Vec<[rt.u16, rt.u8]> = rt.iterToVec(rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(list.items))), copy$tuple2_u16_u8), undefined, 4, true);
-			const cloned: rt.Vec<Spot.Spot> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(pushed.items))), copy$pointers_Spot), undefined, 6, true);
-			const extended: rt.Vec<[rt.u16, rt.u8]> = rt.vecFrom(rt.sliceItems(rt.sliceFrom(list.items)).map(copy$tuple2_u16_u8));
+			}).map(copy$tuple2_u16_u8));
+			const copied: rt.Vec<[rt.u16, rt.u8]> = rt.iterToVec(rt.iterCopied(rt.iterSlice(list.items), copy$tuple2_u16_u8), undefined, 4, true);
+			const cloned: rt.Vec<Spot.Spot> = rt.iterToVec(rt.iterMap(rt.iterSlice(pushed.items), copy$pointers_Spot), undefined, 6, true);
+			const extended: rt.Vec<[rt.u16, rt.u8]> = rt.vecFrom(list.items.map(copy$tuple2_u16_u8));
 			const _338: rt.Slice<[rt.u16, rt.u8]> = rt.sliceFrom(list.items);
 			rt.vecExtendFromSlice(extended, _338, 4, copy$tuple2_u16_u8);
 			extended.items.push(copy$tuple2_u16_u8(pair));
 			extended.items.push(copy$tuple2_u16_u8(pair));
-			const _346: rt.Iter<[rt.u16, rt.u8]> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(list.items)));
+			const _346: rt.Iter<[rt.u16, rt.u8]> = rt.iterSlice(list.items);
 			rt.iterExtend(extended, rt.iterMap(_346, copy$tuple2_u16_u8), undefined, 4, true);
 			const opted: [rt.u16, rt.u8] | undefined = copy$Option_tuple2_u16_u8(held[0]);
 			const cell: rt.Cell<[rt.u16, rt.u8]> = new rt.Cell(copy$tuple2_u16_u8(pair));

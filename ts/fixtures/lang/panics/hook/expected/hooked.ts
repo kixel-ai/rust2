@@ -425,7 +425,7 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			} else if (k === 45) {
 				rt.byteVecPush(out, rt.u64Low(rt.durationAsSecs(rt.durationSum(rt.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationFromSecs(rt.max(n, 1) as rt.u64)]), undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1461, col: 9 }))) & 0xff);
 			} else if (k === 46) {
-				rt.byteVecPush(out, rt.u64Low(rt.durationAsSecs(rt.durationSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationNew(rt.u64Add(n as rt.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 284, col: 43 }), 0)]))), undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1468, col: 9 }))) & 0xff);
+				rt.byteVecPush(out, rt.u64Low(rt.durationAsSecs(rt.durationSum(rt.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationNew(rt.u64Add(n as rt.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 284, col: 43 }), 0)]), undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1468, col: 9 }))) & 0xff);
 			} else if (k === 47) {
 				const _365: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
 				const _367: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 289, col: 47 }), rt.usizeStep);
@@ -490,7 +490,7 @@ export function joined(kind: rt.u8, n: rt.u8, out: rt.ByteVec): void {
 	} else if (kind === 2) {
 		joined = rt.byteSlicesJoin(rt.sliceFrom(refs(rt.usizeAdd(1 << 15, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 319, col: 19 })).items));
 	} else {
-		joined = rt.iterToByteVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rt.slicesJoin(rt.sliceFrom(rt.vecFromElem(rt.sliceFrom(rt.vecFromElem(n as rt.u16, 1 << 16, undefined).items), rt.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 322, col: 42 }), undefined).items), 2, rt.sliceFrom([1])).items))), (_2: rt.u16): rt.u8 => {
+		joined = rt.iterToByteVec(rt.iterMap(rt.iterSlice(rt.slicesJoin(rt.sliceFrom(rt.vecFromElem(rt.sliceFrom(rt.vecFromElem(n as rt.u16, 1 << 16, undefined).items), rt.usizeAdd(1 << 14, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 322, col: 42 }), undefined).items), 2, rt.sliceFrom([1])).items), (_2: rt.u16): rt.u8 => {
 			return _2 & 0xff;
 		}), undefined, true);
 	}

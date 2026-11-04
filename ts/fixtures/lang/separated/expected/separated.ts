@@ -947,7 +947,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1511[0], 7), _1511[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held.items))), (p44: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held.items), (p44: rt.ByteSlice): rt.u8 => {
 						return sum(p44);
 					}), undefined, true);
 					flush(log, out);
@@ -971,7 +971,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_1560[0], 7), _1560[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held2.items))), (p45: rt.Slice<rt.u16>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held2.items), (p45: rt.Slice<rt.u16>): rt.u8 => {
 						return sumWords(p45);
 					}), undefined, true);
 					flush(log, out);
@@ -995,7 +995,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_1609[0], 7), _1609[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held3.items))), (p46: rt.Slice<Pair.Pair>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held3.items), (p46: rt.Slice<Pair.Pair>): rt.u8 => {
 						return sumPairs(p46);
 					}), undefined, true);
 					flush(log, out);
@@ -1074,7 +1074,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1745[0], 7), _1745[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held4.items))), (p41: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held4.items), (p41: rt.ByteSlice): rt.u8 => {
 						return sum(p41);
 					}), undefined, true);
 					flush(log, out);
@@ -1098,7 +1098,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_1794[0], 7), _1794[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held5.items))), (p42: rt.Slice<rt.u16>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held5.items), (p42: rt.Slice<rt.u16>): rt.u8 => {
 						return sumWords(p42);
 					}), undefined, true);
 					flush(log, out);
@@ -1122,7 +1122,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_1843[0], 7), _1843[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held6.items))), (p43: rt.Slice<Pair.Pair>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held6.items), (p43: rt.Slice<Pair.Pair>): rt.u8 => {
 						return sumPairs(p43);
 					}), undefined, true);
 					flush(log, out);
@@ -1202,7 +1202,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1985[0], 7), _1985[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held7.items))), (p37: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held7.items), (p37: rt.ByteSlice): rt.u8 => {
 						return sum(p37);
 					}), undefined, true);
 					flush(log, out);
@@ -1226,7 +1226,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_2034[0], 7), _2034[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held8.items))), (p38: rt.Slice<rt.u16>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held8.items), (p38: rt.Slice<rt.u16>): rt.u8 => {
 						return sumWords(p38);
 					}), undefined, true);
 					flush(log, out);
@@ -1250,7 +1250,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_2083[0], 7), _2083[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held9.items))), (p39: rt.Slice<Pair.Pair>): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held9.items), (p39: rt.Slice<Pair.Pair>): rt.u8 => {
 						return sumPairs(p39);
 					}), undefined, true);
 					flush(log, out);
@@ -1274,7 +1274,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_2132[0], 7), _2132[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held10.items))), (p40: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held10.items), (p40: rt.ByteSlice): rt.u8 => {
 						return sum(p40);
 					}), undefined, true);
 					flush(log, out);
@@ -1316,7 +1316,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						captured3[Symbol.dispose]();
 					})), "next", 8);
 					flush(log, out);
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(all.items))), (p36: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(all.items), (p36: rt.ByteSlice): rt.u8 => {
 						return sum(p36);
 					}), undefined, true);
 					const captured4 = below(227);

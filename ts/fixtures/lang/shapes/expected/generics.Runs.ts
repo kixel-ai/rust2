@@ -28,8 +28,7 @@ export function fmt$fmt_Debug_u16(self: Runs<rt.u16>, f: rt.Formatter): rt.Resul
 	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg6.items, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug));
 	const arg7 = self.maybe as rt.Vec<rt.u16> | undefined;
 	const names: string[] = ["array", "list", "view", "boxed", "cow", "pairs", "maybe"];
-	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.Vec<rt.u16>, f: rt.Formatter) => rt.fmtList(value.items, f, rt.u16Debug))]);
-	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
+	return rt.fmtDebugStructFields(f, "Runs", names, [_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.Vec<rt.u16>, f: rt.Formatter) => rt.fmtList(value.items, f, rt.u16Debug))]);
 }
 
 export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
@@ -46,8 +45,7 @@ export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<
 	const arg5 = self.pairs as rt.Vec<Uint8Array>;
 	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg5.items, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug));
 	const arg6 = self.maybe as rt.ByteVec | undefined;
-	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_8), f, rt.u8Debug), _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg6, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug))]);
-	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
+	return rt.fmtDebugStructFields(f, "Runs", names, [(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_8), f, rt.u8Debug), _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg6, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug))]);
 }
 
 export function eq$cmp_PartialEq_u16(self: Runs<rt.u16>, other: Runs<rt.u16>): boolean {

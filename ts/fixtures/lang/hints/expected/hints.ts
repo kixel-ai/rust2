@@ -1950,10 +1950,10 @@ export function hints(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return Uint8Array.of(_245);
 			}), (value: Uint8Array) => rt.iterSlice(value), true, 1, true), steps, out);
 		} else {
-			walk$iter_Flatten_slice_Iter_array2_u8(rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_244: rt.u8): Uint8Array => {
+			walk$iter_Flatten_slice_Iter_array2_u8(rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(bytes)), (_244: rt.u8): Uint8Array => {
 				const b5: rt.u8 = _244;
 				return Uint8Array.of(b5, b5);
-			}), undefined, 2, true).items))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 2), steps, out);
+			}), undefined, 2, true).items), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 2), steps, out);
 		}
 	} else if (_37 === 14) {
 		const _312: rt.u8 = rt.u8Rem(arm, 6);

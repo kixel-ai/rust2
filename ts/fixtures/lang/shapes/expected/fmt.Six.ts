@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 
 export function fmt$fmt_Debug(self: Six, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
-	return rt.fmtDebugTupleFields(f, "Six", rt.sliceItems(rt.sliceFrom([(f: rt.Formatter) => rt.u8Debug(self._0, f), (f: rt.Formatter) => rt.u8Debug(self._1, f), (f: rt.Formatter) => rt.u8Debug(self._2, f), (f: rt.Formatter) => rt.u8Debug(self._3, f), (f: rt.Formatter) => rt.u8Debug(self._4, f), (f: rt.Formatter) => rt.u8Debug(self._5, f)])));
+	return rt.fmtDebugTupleFields(f, "Six", [(f: rt.Formatter) => rt.u8Debug(self._0, f), (f: rt.Formatter) => rt.u8Debug(self._1, f), (f: rt.Formatter) => rt.u8Debug(self._2, f), (f: rt.Formatter) => rt.u8Debug(self._3, f), (f: rt.Formatter) => rt.u8Debug(self._4, f), (f: rt.Formatter) => rt.u8Debug(self._5, f)]);
 }
 
 export interface Six {

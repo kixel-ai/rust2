@@ -372,12 +372,12 @@ export function slices(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 					const _186: rt.Slice<string> = rt.sliceFrom(parts.items);
 					const _188: string = p;
 					put(out, rt.strsJoin(rt.sliceItems(_186), _188));
-					const _199: rt.Slice<string> = rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (part3: string): string => {
+					const _199: rt.Slice<string> = rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(parts.items), (part3: string): string => {
 						return part3;
 					}), undefined, 12, true).items);
 					const _201: string = p;
 					put(out, rt.strsJoin(rt.sliceItems(_199), _201));
-					put(out, rt.strsJoin(rt.sliceItems(rt.sliceFrom(["a", "", s])), "/"));
+					put(out, rt.strsJoin(["a", "", s], "/"));
 				} else {
 					const at2: (a0: rt.u8) => rt.usize = (b2: rt.u8): rt.usize => {
 						if ((kind & 32) === 0) {
@@ -755,7 +755,7 @@ export function parses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const _39: string | undefined = one;
 	if (_39 === undefined) {
-		all = rt.vecFrom(rt.sliceToArray(rt.sliceFrom(["true", "false", "True", "FALSE", "", " true", "true ", "t", "truefalse", "a", "é", "ࠀ", "😀", "􏿿", "ab", "a😀", "😀a", "éé", "0", "+0", "-0", "000", "1", "+1", "-1", "+", "-", "--1", "+-1", "1_0", "0x1", "127", "128", "-128", "-129", "255", "256", "32767", "32768", "-32768", "-32769", "65535", "65536", "2147483647", "2147483648", "-2147483648", "-2147483649", "4294967295", "4294967296", "9223372036854775807", "9223372036854775808", "-9223372036854775808", "-9223372036854775809", "18446744073709551615", "18446744073709551616", "170141183460469231731687303715884105727", "170141183460469231731687303715884105728", "-170141183460469231731687303715884105728", "-170141183460469231731687303715884105729", "340282366920938463463374607431768211455", "340282366920938463463374607431768211456"])));
+		all = rt.vecFrom(["true", "false", "True", "FALSE", "", " true", "true ", "t", "truefalse", "a", "é", "ࠀ", "😀", "􏿿", "ab", "a😀", "😀a", "éé", "0", "+0", "-0", "000", "1", "+1", "-1", "+", "-", "--1", "+-1", "1_0", "0x1", "127", "128", "-128", "-129", "255", "256", "32767", "32768", "-32768", "-32769", "65535", "65536", "2147483647", "2147483648", "-2147483648", "-2147483649", "4294967295", "4294967296", "9223372036854775807", "9223372036854775808", "-9223372036854775808", "-9223372036854775809", "18446744073709551615", "18446744073709551616", "170141183460469231731687303715884105727", "170141183460469231731687303715884105728", "-170141183460469231731687303715884105728", "-170141183460469231731687303715884105729", "340282366920938463463374607431768211455", "340282366920938463463374607431768211456"].slice());
 	} else {
 		all = rt.vecFrom([_39]);
 	}
@@ -1239,16 +1239,16 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, rt.stringExtendChars("", rt.iterFilter(rt.iterRev(rt.strChars(s)), (c: rt.char): boolean => {
 			return !rt.isAsciiDigit(c);
 		})));
-		put(out, rt.stringExtendChars("", rt.iterSlice(rt.sliceItems(rt.sliceFrom(chars.items)))));
-		put(out, rt.stringExtendChars("", rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(chars.items))), 1)));
+		put(out, rt.stringExtendChars("", rt.iterSlice(chars.items)));
+		put(out, rt.stringExtendChars("", rt.iterSkip(rt.iterSlice(chars.items), 1)));
 		rt.iterEmpty();
 		put(out, rt.stringExtendChars("", rt.iterEmpty() as rt.Iter<rt.char>));
 		put(out, rt.stringExtendChars("", rt.iterOption(rt.charFromU32(kind as rt.u32))));
 		put(out, rt.stringExtendChars("", rt.iterFrom({ items: rt.sliceFrom(chars.items), nexts }, Counted.next$iter_Iterator_char)));
 	} else if (_21 === 1) {
-		put(out, rt.stringExtend("", rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items)))));
+		put(out, rt.stringExtend("", rt.iterSlice(parts.items)));
 		put(out, rt.stringExtend("", rt.iterRev(rt.strSplit(s, "/"))));
-		put(out, rt.stringFromStrings(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p3: string): string => {
+		put(out, rt.stringFromStrings(rt.iterMap(rt.iterSlice(parts.items), (p3: string): string => {
 			return p3;
 		})));
 		put(out, rt.stringFromStrings(rt.iterFilter(rt.iterMap(rt.strSplit(s, "/"), (p4: string): string => {
@@ -1260,11 +1260,11 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterEmpty();
 		put(out, rt.stringFromStrings(rt.iterEmpty() as rt.Iter<string>));
 		put(out, rt.strCowStr(rt.stringExtendChars("", rt.iterRev(rt.strChars(s)))));
-		put(out, rt.stringExtend("", rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items)))));
-		const owned: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p6: string): string => {
+		put(out, rt.stringExtend("", rt.iterSlice(parts.items)));
+		const owned: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(parts.items), (p6: string): string => {
 			return p6;
 		}), undefined, 12, true);
-		put(out, rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(owned.items))), (p7: string): rt.StrCow => {
+		put(out, rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.iterSlice(owned.items), (p7: string): rt.StrCow => {
 			return new rt.Borrowed(p7);
 		}), rt.strCowStr)));
 		put(out, rt.stringFromStrings(rt.iterFrom({ items: rt.sliceFrom(owned.items), nexts }, Counted.next$iter_Iterator_String)));
@@ -1284,14 +1284,14 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		let t2: string = "";
 		const _179: rt.Iter<string> = rt.strSplit(s, "/");
 		t2 = rt.stringExtend(t2, _179);
-		const _184: rt.Iter<string> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p: string): string => {
+		const _184: rt.Iter<string> = rt.iterMap(rt.iterSlice(parts.items), (p: string): string => {
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, p)];
 			return rt.fmtFormat([args2[0], "é"]);
 		});
 		t2 = rt.stringExtend(t2, _184);
-		const _190: rt.Iter<string> = rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))));
+		const _190: rt.Iter<string> = rt.iterRev(rt.iterSlice(parts.items));
 		named.name = rt.stringExtend(named.name, _190);
-		const _197: rt.Iter<rt.StrCow> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p2: string): rt.StrCow => {
+		const _197: rt.Iter<rt.StrCow> = rt.iterMap(rt.iterSlice(parts.items), (p2: string): rt.StrCow => {
 			return p2;
 		});
 		named.name = rt.stringExtend(named.name, rt.iterMap(_197, rt.strCowStr));
@@ -1529,7 +1529,7 @@ export function hinted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		_91.v = rt.stringExtendChars(_91.v, _92);
 	} else if (_38 === 7) {
 		const _96: rt.Place<string> = rt.place(() => t, (value6) => t = value6);
-		const _97: rt.Iter<rt.char> = rt.iterChain(rt.iterChain(rt.iterChain(rt.iterChain(rt.iterMap(new rt.Range(0, rt.u32SaturatingSub(n, 5)), f), rt.iterOnce(120)), rt.iterOption(121)), rt.strChars("é😀")), rt.iterSlice(rt.sliceItems(rt.sliceFrom([122]))));
+		const _97: rt.Iter<rt.char> = rt.iterChain(rt.iterChain(rt.iterChain(rt.iterChain(rt.iterMap(new rt.Range(0, rt.u32SaturatingSub(n, 5)), f), rt.iterOnce(120)), rt.iterOption(121)), rt.strChars("é😀")), rt.iterSlice([122]));
 		_96.v = rt.stringExtendChars(_96.v, _97);
 	} else if (_38 === 8) {
 		const _112: rt.usize = rt.usizeRem(sub, 3);
@@ -1905,17 +1905,17 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	if (_11 === 0) {
 		put(out, rt.strToLowercase(s));
 		put(out, rt.strToUppercase(s));
-		const lower: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a08: string): string => {
+		const lower: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(words.items), (a08: string): string => {
 			return rt.strToLowercase(a08);
 		}), undefined, 12, true);
-		const upper: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a09: string): string => {
+		const upper: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(words.items), (a09: string): string => {
 			return rt.strToUppercase(a09);
 		}), undefined, 12, true);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(lower.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(upper.items, f, rt.fmtStr)];
 		put(out, rt.fmtFormat([args2[0], "|", args2[1]]));
 	} else if (_11 === 1) {
 		escaped$str_EscapeDebug(out, rt.strEscapeDebug(s));
-		const each: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a07: string): rt.Iter<rt.char> => {
+		const each: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(words.items), (a07: string): rt.Iter<rt.char> => {
 			return rt.strEscapeDebug(a07);
 		}), (e2: rt.Iter<rt.char>): string => {
 			return rt.fmtToString((f: rt.Formatter) => rt.fmtStrEscapeDisplay(e2, f));
@@ -1924,7 +1924,7 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		put(out, rt.fmtFormat([args4[0], "|", args4[1]]));
 	} else if (_11 === 2) {
 		escaped$str_EscapeDefault(out, rt.strEscapeDefault(s));
-		const part2 = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a06: string): rt.Iter<rt.char> => {
+		const part2 = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(words.items), (a06: string): rt.Iter<rt.char> => {
 			return rt.strEscapeDefault(a06);
 		}), (e: rt.Iter<rt.char>): string => {
 			return rt.fmtToString((f: rt.Formatter) => rt.fmtStrEscapeDisplay(e, f));
@@ -1933,7 +1933,7 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		put(out, rt.fmtFormat([args6[0]]));
 	} else if (_11 === 3) {
 		escaped$str_EscapeUnicode(out, rt.strEscapeUnicode(s));
-		const part = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a04: string): rt.Iter<rt.char> => {
+		const part = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(words.items), (a04: string): rt.Iter<rt.char> => {
 			return rt.strEscapeUnicode(a04);
 		}), (a05: rt.Iter<rt.char>): rt.usize => {
 			return rt.iterCount(a05);
@@ -1948,12 +1948,12 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			rt.byteVecExtendFromSlice(out2, rt.byteSliceFrom(rt.u16ToBeBytes(u)));
 		});
 		const units: rt.Vec<rt.u16> = rt.iterToVec(it, "next", 2);
-		const each4: rt.Vec<rt.usize> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (a0: string): rt.Iter<rt.u16> => {
+		const each4: rt.Vec<rt.usize> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(words.items), (a0: string): rt.Iter<rt.u16> => {
 			return rt.strEncodeUtf16(a0);
 		}), (a02: rt.Iter<rt.u16>): rt.usize => {
 			return rt.iterCount(a02);
 		}), undefined, 4, true);
-		const _164: boolean = rt.stringExtendChars("", rt.iterMap(rt.charDecodeUtf16(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units.items)))), (a03: rt.Result<rt.char, rt.DecodeUtf16Error>): rt.char => {
+		const _164: boolean = rt.stringExtendChars("", rt.iterMap(rt.charDecodeUtf16(rt.iterSlice(units.items)), (a03: rt.Result<rt.char, rt.DecodeUtf16Error>): rt.char => {
 			return rt.resultUnwrap(a03, rt.fmtDecodeUtf16ErrorDebug);
 		})) === s;
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(units.items, f, rt.u16Debug), (f: rt.Formatter) => rt.fmtList(each4.items, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(_164, f)];
@@ -2004,10 +2004,10 @@ export function utf16(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const part4 = rt.stringFromUtf16(rt.sliceFrom(units.items));
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(part4, f, rt.fmtStr, rt.fmtFromUtf16ErrorDebug)];
 	put(out, rt.fmtFormat([args4[0]]));
-	const le: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units.items))), (u: rt.u16): Uint8Array => {
+	const le: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units.items), (u: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u).reverse();
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
-	const be: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units.items))), (u2: rt.u16): Uint8Array => {
+	const be: rt.ByteVec = rt.iterToByteVec(rt.iterFlatMap(rt.iterSlice(units.items), (u2: rt.u16): Uint8Array => {
 		return rt.u16ToBeBytes(u2);
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
 	const _57: [rt.ByteSlice, rt.ByteSlice] = [rt.byteSliceRange(rt.byteVecSlice(le), 0), rt.byteSliceRange(rt.byteVecSlice(be), 0)];
@@ -2047,10 +2047,10 @@ export function utf16(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const parts: rt.Vec<rt.Slice<rt.u16>> = rt.iterToVec(rt.sliceSplit(rt.sliceFrom(units.items), (_22: rt.u16): boolean => {
 		return _22 === 0;
 	}), "next", 8);
-	const each: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (a05: rt.Slice<rt.u16>): string => {
+	const each: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterSlice(parts.items), (a05: rt.Slice<rt.u16>): string => {
 		return rt.stringFromUtf16Lossy(a05);
 	}), undefined, 12, true);
-	const ok: rt.Vec<boolean> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (a06: rt.Slice<rt.u16>): rt.Result<string, rt.FromUtf16Error> => {
+	const ok: rt.Vec<boolean> = rt.iterToVec(rt.iterMap(rt.iterMap(rt.iterSlice(parts.items), (a06: rt.Slice<rt.u16>): rt.Result<string, rt.FromUtf16Error> => {
 		return rt.stringFromUtf16(a06);
 	}), (r: rt.Result<string, rt.FromUtf16Error>): boolean => {
 		return r.ok;

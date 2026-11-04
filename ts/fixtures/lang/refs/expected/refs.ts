@@ -208,7 +208,7 @@ export function refs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(local)));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(counts.hits as rt.u32)));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(counts.misses as rt.u32)));
-	const iter2: rt.Iter<rt.u32> = rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(held))), rt.iterSlice(v.items));
+	const iter2: rt.Iter<rt.u32> = rt.iterChain(rt.iterSlice(held), rt.iterSlice(v.items));
 	while (true) {
 		const _67: rt.u32 | rt.Done = iter2.next();
 		if (_67 === rt.DONE) {
@@ -688,7 +688,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_86[1].v = rt.u32Add(_86[1].v, _86[0].v as rt.u32);
 		_86[0].v = rt.u8WrappingAdd(_86[0].v, _86[0].v);
 	}
-	const _97: [rt.u8, rt.u8 | undefined] | undefined = rt.iterFind(rt.iterSlice(rt.sliceItems(rt.sliceFrom(pairs.items))), (_23: [rt.u8, rt.u8 | undefined]): boolean => {
+	const _97: [rt.u8, rt.u8 | undefined] | undefined = rt.iterFind(rt.iterSlice(pairs.items), (_23: [rt.u8, rt.u8 | undefined]): boolean => {
 		return rt.u8Rem(_23[0], 3) === 0;
 	});
 	if (_97 !== undefined) {
@@ -718,7 +718,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const grid: rt.u32[][] = Array.from({ length: 3 }, (): rt.u32[] => {
 		return copy$array_u32(item);
 	});
-	const iter6: rt.Iter<[rt.u32[], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.iterSlice(rt.byteSliceView(data)), [false, false]);
+	const iter6: rt.Iter<[rt.u32[], rt.u8]> = rt.iterZip(rt.iterSlice(grid), rt.iterSlice(rt.byteSliceView(data)), [false, false]);
 	l18: while (true) {
 		const _133: [rt.u32[], rt.u8] | rt.Done = iter6.next();
 		if (_133 === rt.DONE) {
@@ -741,7 +741,7 @@ export function elements(data: rt.ByteSlice, out: rt.ByteVec): void {
 	for (const _168 of pairs.items) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(_168[0], option_unwrapOr$0r2bmpr(_168[1], 238))));
 	}
-	const iter10: rt.Iter<rt.u32> = rt.iterFlatten(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), (value: rt.u32[]) => rt.iterSlice(value), true, 2);
+	const iter10: rt.Iter<rt.u32> = rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 2);
 	while (true) {
 		const _186: rt.u32 | rt.Done = iter10.next();
 		if (_186 === rt.DONE) {
@@ -1574,9 +1574,9 @@ export function compared(split: rt.u8, dataData: Uint8Array, dataStart: number, 
 	const _105: boolean = order3 !== undefined && order3 <= 0;
 	const _110: boolean = rt.iterCmp(rt.iterSliceMut(rt.sliceFrom(x.items)), rt.iterSliceMut(rt.sliceFrom(y.items)), rt.cellBy(rt.f32PartialCmp)) === 1;
 	const order4 = rt.iterCmp(rt.iterSliceMut(rt.sliceFrom(x.items)), rt.iterSliceMut(rt.sliceFrom(y.items)), rt.cellBy(rt.f32PartialCmp));
-	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_32, _37, _42, _47, _52, _57, _62, _69, _74, _81, _90, _95, _100, _105, _110, order4 !== undefined && order4 >= 0, rt.iterEq(rt.iterSlice(rt.sliceItems(rt.sliceFrom(x.items))), rt.iterSliceMut(rt.sliceFrom(y.items)), (a03: rt.f32, a13: rt.Place<rt.f32>): boolean => {
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_32, _37, _42, _47, _52, _57, _62, _69, _74, _81, _90, _95, _100, _105, _110, order4 !== undefined && order4 >= 0, rt.iterEq(rt.iterSlice(x.items), rt.iterSliceMut(rt.sliceFrom(y.items)), (a03: rt.f32, a13: rt.Place<rt.f32>): boolean => {
 		return a03 === a13.v;
-	}, true), !rt.iterEq(rt.iterSliceMut(rt.sliceFrom(x.items)), rt.iterSlice(rt.sliceItems(rt.sliceFrom(y.items))), (a04: rt.Place<rt.f32>, a14: rt.f32): boolean => {
+	}, true), !rt.iterEq(rt.iterSliceMut(rt.sliceFrom(x.items)), rt.iterSlice(y.items), (a04: rt.Place<rt.f32>, a14: rt.f32): boolean => {
 		return a04.v === a14;
 	}, true)], (a05: boolean): rt.u8 => {
 		return a05 ? 1 : 0;

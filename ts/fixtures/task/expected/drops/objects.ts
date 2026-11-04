@@ -36,7 +36,7 @@ export function boxed(log: Log.Log, id: rt.u32): void {
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
 	parts.items.push(_36);
 	rt.sliceSwap(rt.sliceFrom(parts.items), 2, 3);
-	const part = rt.iterFold(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p: Part.Part): rt.u32 => {
+	const part = rt.iterFold(rt.iterMap(rt.iterSlice(parts.items), (p: Part.Part): rt.u32 => {
 		return p.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -111,7 +111,7 @@ export function shared(log: Log.Log, id: rt.u32): void {
 	parts.items.push(new rt.ArcDyn(_77, new of$u32(_77.value)));
 	const weak: rt.Weak<Part.Part> = new rt.Weak(parts.items[rt.idx(parts.items, 1)]);
 	second[Symbol.dispose]();
-	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts.items))), (p: rt.Arc<Part.Part>): rt.u32 => {
+	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(parts.items), (p: rt.Arc<Part.Part>): rt.u32 => {
 		return p.value.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -417,7 +417,7 @@ export function fns(log: Log.Log, id: rt.u32): void {
 	}, (): void => {
 		captured16[Symbol.dispose]();
 	});
-	const part16 = rt.iterSum(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom([1, 2]))), scale), rt.u32Add, 0, true);
+	const part16 = rt.iterSum(rt.iterMap(rt.iterSlice([1, 2]), scale), rt.u32Add, 0, true);
 	const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part16, f)];
 	Log.note(log, rt.fmtFormat(["sum ", args32[0]]));
 	const captured17 = guard(17);
