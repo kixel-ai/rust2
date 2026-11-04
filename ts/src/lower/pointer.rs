@@ -440,9 +440,9 @@ fn takes_place<'tcx>(
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
 			|| matches!(owner.as_str(), "Iterator" | "DoubleEndedIterator") && super::iter::held_own(t, args.type_at(0))
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
-			// The `&mut` to the crate's own hasher, which its methods take as it is.
-			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::own_hasher(t, args.type_at(1))
-			|| owner == "Hasher" && super::collections::own_hasher(t, args.type_at(0))
+			// The `&mut` to a hasher whose methods take it as it is.
+			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::called_hasher(t, args.type_at(1))
+			|| owner == "Hasher" && super::collections::called_hasher(t, args.type_at(0))
 	) || super::stock::is_stock(t.tcx, def_id)
 }
 

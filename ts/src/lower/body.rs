@@ -197,11 +197,18 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		let tcx = self.t.tcx;
 		if let Some(referent) = library::referent(tcx, def_id, gargs, instance) {
 			// An operand that was a reference to an `rs.Place`, as `&&mut u32` is, passes
-			// what the Place points at.
+			// what the Place points at, and a `&mut` to a `&mut` or a box what the place it
+			// is holds, as JS holds a box as what it holds, but where that is a place too.
 			let inputs = |gargs| self.t.sig(def_id, gargs).inputs().to_vec();
 			let args = std::iter::zip(args, std::iter::zip(inputs(gargs), inputs(referent)))
 				.map(|(arg, (was, now))| match was.kind() {
-					ty::Ref(_, inner, _) if was != now => self.t.pointee_value(*inner, arg),
+					_ if was == now => arg,
+					ty::Ref(_, inner, mutability) if inner.is_box() => match mutability {
+						ty::Mutability::Mut if self.t.place_pointee(now).is_none() => self.t.pointee_value(was, arg),
+						_ => arg,
+					},
+					ty::Ref(_, _, ty::Mutability::Mut) => self.t.pointee_value(was, arg),
+					ty::Ref(_, inner, _) => self.t.pointee_value(*inner, arg),
 					_ => arg,
 				})
 				.collect();

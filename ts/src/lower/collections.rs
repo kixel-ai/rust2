@@ -59,7 +59,7 @@ pub fn call<'tcx>(
 				// Into `DefaultHasher`, whose state the runtime's functions write, or the crate's
 				// own, which they write through its methods.
 				let hasher = library::targ(call.args, 1);
-				let own = own_hasher(b.t, hasher);
+				let own = called_hasher(b.t, hasher);
 				if !std_key(b, t) || !(own || b.t.std_of(hasher) == Some(Std::Hasher)) {
 					return Err(args);
 				}
@@ -1241,6 +1241,23 @@ pub(super) fn own_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
 	t.translated(hasher_fn(t.tcx, "finish"), t.tcx.mk_args(&[h.into()]))
 }
 
+/// Whether the runtime writes into `h` by its methods, through an `rs.OwnHasher` of the
+/// `&mut` to it: the crate's own hasher, or one std's impls forward.
+pub(super) fn called_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	own_hasher(t, h) || forwards_hasher(t, h)
+}
+
+/// Whether `h` is a `&mut` or a box of a trait object, the crate's own `Hasher`, std's
+/// `DefaultHasher`, or another such, to which std's impls forward each method.
+fn forwards_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	let held = match *h.kind() {
+		ty::Ref(_, held, ty::Mutability::Mut) => held,
+		_ if let Some(held) = h.boxed_ty() => held,
+		_ => return false,
+	};
+	held.is_trait() || own_hasher(t, held) || t.std_of(held) == Some(Std::Hasher) || forwards_hasher(t, held)
+}
+
 /// Each key of `rs.HasherImpl`, and the `Hasher` method it holds.
 const HASHER_METHODS: [(&str, &str); 16] = [
 	("write", "write"),
@@ -1272,15 +1289,66 @@ fn own_state<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, state: Expr, span: S
 /// The methods of `h`, a `Hasher` of the crate's own, as an `rs.HasherImpl`: `write`,
 /// `finish`, and those of std's provided ones its impl writes, a module-level value beside
 /// its `finish`, made once. Each takes the `&mut` to `h`, which `finish`, given `&self`,
-/// reads where JS copies `h`.
+/// reads where JS copies `h`. One that forwards to another hasher has each method, as
+/// what it forwards to, a trait object's, may have any.
 fn hasher_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, span: Span) -> Expr {
 	if let Some(&sym) = b.t.hashers.get(&h) {
 		return Expr::Sym(sym);
 	}
 	let tcx = b.t.tcx;
 	let args = tcx.mk_args(&[h.into()]);
-	let state = b.t.ty(Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h), span);
+	let state_ty = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h);
+	let state = b.t.ty(state_ty, span);
 	let mut methods = Vec::new();
+	if forwards_hasher(b.t, h) {
+		for (key, item) in HASHER_METHODS {
+			let f = hasher_fn(tcx, item);
+			let sig = b.t.sig(f, args);
+			let name = b.fresh("h");
+			let receiver = match item {
+				"finish" => b.t.pointee_value(state_ty, Expr::ident(&name)),
+				_ => Expr::ident(&name),
+			};
+			let mut params = vec![Param {
+				name,
+				ty: Some(state.clone()),
+			}];
+			let mut values = vec![receiver];
+			for &input in &sig.inputs()[1..] {
+				let name = b.fresh("value");
+				values.push(Expr::ident(&name));
+				params.push(Param {
+					name,
+					ty: Some(b.t.ty(input, span)),
+				});
+			}
+			let mut body = Vec::new();
+			let call = b.call_def(f, args, values, span, &mut body);
+			body.push(StmtKind::Return(Some(call)).at(None));
+			let ret = b.t.ret_ty(sig.output(), span);
+			methods.push((crate::ts::Key::Name(key.into()), Expr::Arrow(params, ret, body)));
+		}
+		let sym = b.t.program.sym(crate::program::Symbol {
+			module: Vec::new(),
+			base: "hasher".into(),
+			suffix: super::names::ty(tcx, h),
+			owner: None,
+			kind: crate::program::SymKind::Value,
+			order: 0,
+			span,
+			instance: String::new(),
+			name: String::new(),
+			alias: None,
+		});
+		b.t.program.items.push(crate::ts::Item::Value {
+			sym,
+			ty: Type::Rs("HasherImpl", vec![state]),
+			value: Expr::Object(methods),
+			doc: Some(format!("The methods of `{h}`, which forward to what it points at.")),
+		});
+		b.t.hashers.insert(h, sym);
+		return Expr::Sym(sym);
+	}
 	for (key, item) in HASHER_METHODS {
 		let f = hasher_fn(tcx, item);
 		if matches!(item, "write" | "finish") || b.t.translated(f, args) {
@@ -3268,9 +3336,9 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 			let hash = trait_fn(tcx, "Hash", "hash");
 			let args = tcx.mk_args(&[ty.into(), hasher.into()]);
 			let f = b.fn_value(hash, args, span);
-			// A translated one takes the `&mut` to the crate's own hasher, which the runtime's
-			// functions wrap; a binding's export takes the `rs.Hasher`.
-			match own_hasher(b.t, hasher) && !b.t.binds(hash, args) {
+			// A translated one takes the `&mut` to a hasher the runtime calls the methods of,
+			// which its functions wrap; a binding's export takes the `rs.Hasher`.
+			match called_hasher(b.t, hasher) && !b.t.binds(hash, args) {
 				true => Expr::rs("hashOwn", vec![f]),
 				false => f,
 			}
