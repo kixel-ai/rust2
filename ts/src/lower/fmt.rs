@@ -181,18 +181,16 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 
 impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `fmt::Write`'s `def_id`, `write_str`, `write_char`, or `write_fmt`, of `w`, a
-	/// `String`, a `Formatter`, or the crate's own writer, through `receiver`, the `&mut` to
-	/// it, writing `arg`, a `fmt::Arguments` whose only piece is `literal` if it is one. A
+	/// `String`, a `Formatter`, or the crate's own writer, of `receiver`, the `&mut` to it,
+	/// and `arg`, a `fmt::Arguments` whose only piece is `literal` if it is one. A
 	/// provided method of the crate's impl writes through its `write_str`, and its
 	/// `write_fmt` through the runtime's port of `fmt::write`, which calls its `write_str`
 	/// and `write_char` as std does. `None` for any other writer.
-	#[allow(clippy::too_many_arguments)]
 	pub fn fmt_write(
 		&mut self,
 		def_id: DefId,
 		w: Ty<'tcx>,
-		receiver: Expr,
-		arg: Expr,
+		[receiver, arg]: [Expr; 2],
 		literal: Option<String>,
 		span: Span,
 		out: &mut Vec<Stmt>,
@@ -255,7 +253,10 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 					return Some(self.err(span, format!("`write_str` of `{w}` needs statements")));
 				}
 				let lambda = |name: String, body: Expr| Expr::Lambda(vec![Param { name, ty: None }], Box::new(body));
-				return Some(Expr::rs("fmtWrite", vec![lambda(s, str_call), lambda(c, char_call), arg]));
+				return Some(Expr::rs(
+					"fmtWrite",
+					vec![lambda(s, str_call), lambda(c, char_call), arg],
+				));
 			}
 			_ => arg,
 		};

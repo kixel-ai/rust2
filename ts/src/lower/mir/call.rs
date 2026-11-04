@@ -1535,7 +1535,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			true => receiver,
 			false => self.path(receiver, "w", out),
 		};
-		done(self.b.fmt_write(def_id, w, receiver, arg, literal, span, out)?, true)
+		done(self.b.fmt_write(def_id, w, [receiver, arg], literal, span, out)?, true)
 	}
 
 	/// The one literal piece of a `fmt::Arguments` operand, held back where `format_args!`

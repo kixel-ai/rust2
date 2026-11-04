@@ -3100,9 +3100,9 @@ fn mapping<'tcx>(
 				.trait_of_assoc(call.def_id)
 				.is_some_and(|tr| tcx.is_diagnostic_item(rustc_span::Symbol::intern("FmtWrite"), tr)) =>
 		{
-			let [receiver, arg] = <[Expr; 2]>::try_from(args).ok()?;
-			let literal = literal(&arg);
-			b.fmt_write(call.def_id, targ(gargs, 0), receiver, arg, literal, span, out)?
+			let args = <[Expr; 2]>::try_from(args).ok()?;
+			let literal = literal(&args[1]);
+			b.fmt_write(call.def_id, targ(gargs, 0), args, literal, span, out)?
 		}
 		("Formatter", "write_fmt") => {
 			let [f, parts] = <[Expr; 2]>::try_from(args).ok()?;

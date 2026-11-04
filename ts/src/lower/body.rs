@@ -201,12 +201,14 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			// is holds, as JS holds a box as what it holds, but where that is a place too.
 			let inputs = |gargs| self.t.sig(def_id, gargs).inputs().to_vec();
 			let args = std::iter::zip(args, std::iter::zip(inputs(gargs), inputs(referent)))
-				.map(|(arg, (was, now))| match (was.kind(), now.kind()) {
+				.map(|(arg, (was, now))| match was.kind() {
 					_ if was == now => arg,
-					(ty::Ref(_, inner, ty::Mutability::Mut), _) if inner.is_box() && self.t.place_pointee(now).is_some() => arg,
-					(ty::Ref(_, _, ty::Mutability::Mut), _) => self.t.pointee_value(was, arg),
-					(ty::Ref(_, inner, _), _) if inner.is_box() => arg,
-					(ty::Ref(_, inner, _), _) => self.t.pointee_value(*inner, arg),
+					ty::Ref(_, inner, mutability) if inner.is_box() => match mutability {
+						ty::Mutability::Mut if self.t.place_pointee(now).is_none() => self.t.pointee_value(was, arg),
+						_ => arg,
+					},
+					ty::Ref(_, _, ty::Mutability::Mut) => self.t.pointee_value(was, arg),
+					ty::Ref(_, inner, _) => self.t.pointee_value(*inner, arg),
 					_ => arg,
 				})
 				.collect();
