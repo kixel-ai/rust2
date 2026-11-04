@@ -2132,7 +2132,8 @@ fn collect<'tcx>(
 			match b.t.std_of(item) {
 				Some(Std::String | Std::Cow) => {
 					let drops = iter_drops(b, from, span);
-					Some(Expr::rt("stringFromStrings", tail(vec![iter], vec![drops])))
+					let texts = texts(b.t, iter, item);
+					Some(Expr::rt("stringFromStrings", tail(vec![texts], vec![drops])))
 				}
 				_ => string_extend(b, Expr::Str(String::new()), iter, item, from, span),
 			}
@@ -2183,7 +2184,15 @@ pub(super) fn string_extend<'tcx>(
 		"stringExtendChars"
 	};
 	let drops = iter_drops(b, iter, span);
-	Some(Expr::rt(extend, tail(vec![s, items], vec![drops])))
+	Some(Expr::rt(extend, tail(vec![s, texts(b.t, items, item)], vec![drops])))
+}
+
+/// `items`, an iterator of `item`s, as one of the strings they are: a `Cow<str>`'s text.
+fn texts<'tcx>(t: &Translator<'_, 'tcx>, items: Expr, item: Ty<'tcx>) -> Expr {
+	match library::cow_str(t.tcx, item.peel_refs()) {
+		true => Expr::rt("iterMap", vec![items, Expr::Rt("strCowStr".into())]),
+		false => items,
+	}
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or

@@ -143,9 +143,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						(Std::Option, _) => values.pop().unwrap(),
 						(Std::Poll, 1) => self.t.pending(args.type_at(0)),
 						(Std::Poll, _) => values.pop().unwrap(),
-						(Std::Cow, _) if crate::lower::library::string(tcx, ty) => values.pop().unwrap(),
-						(Std::Cow, _) if let Some(elem) = super::library::cow_slice(tcx, ty) => {
-							super::library::cow_made(elem, variant, values.pop().unwrap())
+						(Std::Cow, _) if let Some(borrowed) = super::library::cow_borrowed(tcx, ty) => {
+							super::library::cow_made(borrowed, variant, values.pop().unwrap())
 						}
 						(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 						// `start..=end`, not yet stepped past its end.

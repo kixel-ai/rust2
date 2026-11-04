@@ -20,5 +20,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("cows::slices", cows::slices),
 		("cows::bytes", cows::bytes),
 		("cows::clone_froms", cows::clone_froms),
+		("cows::variants", cows::variants),
 	]
 }

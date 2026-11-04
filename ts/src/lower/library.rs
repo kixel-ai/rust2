@@ -28,7 +28,8 @@ pub enum Std {
 	Vec,
 	/// A JS string.
 	String,
-	/// A JS string too, for `Cow<str>`, which keeps no variant: either is the text.
+	/// What it owns, or an `rt.Borrowed` of what it borrows, or for bytes an `rt.ByteVec`
+	/// or an `rt.ByteSlice`.
 	Cow,
 	/// Its contents.
 	Box,
@@ -481,17 +482,35 @@ pub fn empty_default(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Adt(adt, _) if empty_iter(tcx, adt.did()) || list_iter(tcx, adt.did()))
 }
 
-/// Whether a `ty`'s value is a JS string: a `str`, a `String`, a `Box<str>`, or a `Cow<str>`.
+/// Whether a `ty`'s value is a JS string: a `str`, a `String`, or a `Box<str>`.
 pub fn string<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::Str => true,
 		ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
 			Some(Std::String) => true,
-			// A `Cow`'s first argument is its lifetime.
-			Some(Std::Cow | Std::Box) => args.types().next().is_some_and(|t| t.is_str()),
+			Some(Std::Box) => args.type_at(0).is_str(),
 			_ => false,
 		},
 		_ => false,
+	}
+}
+
+/// Whether `ty` is a `Cow<str>`: an `rt.StrCow`, the string it owns or the `rt.Borrowed`
+/// one it borrows.
+pub fn cow_str<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+	cow_borrowed(tcx, ty).is_some_and(|t| t.is_str())
+}
+
+/// Whether `ty` is text: a JS string, or a `Cow<str>`, which [`text`] reads as one.
+pub fn textual<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+	string(tcx, ty) || cow_str(tcx, ty)
+}
+
+/// `value`, of type `ty`, as the JS string it is or, for a `Cow<str>`, derefs to.
+pub fn text<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
+	match cow_str(tcx, ty) {
+		true => Expr::rt("strCowStr", vec![value]),
+		false => value,
 	}
 }
 
@@ -556,47 +575,66 @@ pub fn box_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	}
 }
 
-/// What a `Cow<[T]>` of type `ty` holds, `T`, or `None` for any other type.
-pub fn cow_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+/// `value`, a `&str` or a `Cow<str>` of type `ty`, as a `Cow<str>`, borrowing a `&str`.
+pub fn str_cow<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
+	match cow_str(tcx, ty) {
+		true => value,
+		false => cow_made(tcx.types.str_, rustc_abi::FIRST_VARIANT, value),
+	}
+}
+
+/// What a `Cow` of type `ty` borrows, a `[T]` or a `str`, or `None` for any other type.
+pub fn cow_borrowed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	match ty.kind() {
 		// Its first argument is its lifetime.
-		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Cow) => match args.types().next()?.kind() {
-			ty::Slice(elem) => Some(*elem),
-			_ => None,
-		},
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Cow) => {
+			let borrowed = args.types().next()?;
+			(borrowed.is_slice() || borrowed.is_str()).then_some(borrowed)
+		}
 		_ => None,
 	}
 }
 
-/// The slice `cow`, a `Cow<[elem]>`, derefs to: an `rt.ByteSlice` of bytes, or an array.
-pub fn cow_deref(cow: Expr, elem: Ty<'_>) -> Expr {
-	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteCowSlice", vec![cow]),
+/// What a `Cow<[T]>` of type `ty` holds, `T`, or `None` for any other type.
+pub fn cow_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match cow_borrowed(tcx, ty)?.kind() {
+		ty::Slice(elem) => Some(*elem),
+		_ => None,
+	}
+}
+
+/// Whether `borrowed`, what a `Cow` borrows, is bytes, which it keeps as an `rt.ByteSlice`.
+fn cow_bytes(borrowed: Ty<'_>) -> bool {
+	matches!(borrowed.kind(), ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+}
+
+/// What `cow`, a `Cow` of `borrowed`, derefs to: an `rt.ByteSlice` of bytes, an array, or
+/// a string.
+pub fn cow_deref(cow: Expr, borrowed: Ty<'_>) -> Expr {
+	match borrowed.kind() {
+		ty::Str => Expr::rt("strCowStr", vec![cow]),
+		_ if cow_bytes(borrowed) => Expr::rt("byteCowSlice", vec![cow]),
 		_ => Expr::rt("cowSlice", vec![cow]),
 	}
 }
 
-/// A `Cow<[elem]>` made by its variant `variant` of `value`: the `Vec` it owns, or the
-/// slice it borrows, wrapped in an `rt.Borrowed` unless it is bytes.
-pub fn cow_made(elem: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Expr {
-	match variant.index() == 0 && !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
+/// A `Cow` of `borrowed` made by its variant `variant` of `value`: what it owns, or what
+/// it borrows, wrapped in an `rt.Borrowed` unless it is bytes.
+pub fn cow_made(borrowed: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Expr {
+	match variant.index() == 0 && !cow_bytes(borrowed) {
 		true => Expr::New(Box::new(Expr::Rt("Borrowed".into())), vec![value]),
 		false => value,
 	}
 }
 
-/// Whether `cow`, a `Cow<[elem]>`, borrows: whether it is of the class its borrowed variant is.
-pub fn cow_borrows(cow: Expr, elem: Ty<'_>) -> Expr {
-	let class = match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => "ByteSlice",
-		_ => "Borrowed",
+/// Whether `cow`, a `Cow` of `borrowed`, borrows: whether it is of the class its borrowed
+/// variant is.
+pub fn cow_borrows(cow: Expr, borrowed: Ty<'_>) -> Expr {
+	let class = match cow_bytes(borrowed) {
+		true => "ByteSlice",
+		false => "Borrowed",
 	};
 	cow.binary("instanceof", Expr::Rt(class.into()))
-}
-
-/// The refusal of code that tells a `Cow<str>`'s variants apart.
-pub fn cow_variant(ty: Ty<'_>) -> String {
-	format!("a variant of `{ty}`, which is not supported: either is the same JS string")
 }
 
 /// The path of a std item within its crate, as `["slice", "iter", "Iter"]`; empty for
@@ -1505,16 +1543,24 @@ fn mapping<'tcx>(
 			let (to, from) = (targ(gargs, 0), unwrapped(tcx, targ(gargs, 1)));
 			let mut values = args;
 			let value = values.pop()?;
-			// One between strings, such as into a `Cow<str>` or out of one, keeps the text, and
 			// `Some` or `Ready` of a value is the value.
 			let some = matches!(to.kind(), ty::Adt(adt, args)
 				if matches!(Std::of(tcx, adt.did()), Some(Std::Option | Std::Poll)) && args.type_at(0) == targ(gargs, 1));
 			if to == from || some {
 				return Some(value);
 			}
-			// A `&mut str` is the `rt.Place` of its text.
+			// One between strings keeps the text, and a `&mut str` is the `rt.Place` of its text.
 			if string(tcx, to) && string(tcx, from.peel_refs()) {
 				return Some(b.t.pointee_value(targ(gargs, 1), value));
+			}
+			// A `Cow<str>` borrows the text a reference does and owns a `String`, and gives up
+			// its text.
+			if cow_str(tcx, to) && string(tcx, from.peel_refs()) {
+				let owned = rustc_abi::VariantIdx::from_u32((!targ(gargs, 1).is_ref()).into());
+				return Some(cow_made(tcx.types.str_, owned, b.t.pointee_value(targ(gargs, 1), value)));
+			}
+			if string(tcx, to) && cow_str(tcx, from) {
+				return Some(text(tcx, from, value));
 			}
 			// A `Vec<u8>` of a `String`'s or a `&str`'s UTF-8.
 			if b.t.std_of(to) == Some(Std::Vec) && string(tcx, from.peel_refs()) {
@@ -1533,7 +1579,7 @@ fn mapping<'tcx>(
 					true => vec_view(value, elem),
 					false => value,
 				};
-				return Some(cow_made(elem, rustc_abi::VariantIdx::from_u32(owned.into()), value));
+				return Some(cow_made(Ty::new_slice(tcx, elem), rustc_abi::VariantIdx::from_u32(owned.into()), value));
 			}
 			if let Some(elem) = cow_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
@@ -1596,7 +1642,7 @@ fn mapping<'tcx>(
 			let error = targ(gargs, 1);
 			if let Some(object) = to.boxed_ty()
 				&& super::dynamic::is_error_object(tcx, object)
-				&& !string(tcx, error.peel_refs())
+				&& !textual(tcx, error.peel_refs())
 			{
 				return Some(b.object_of(value, Ty::new_box(tcx, error), to, span));
 			}
@@ -1780,6 +1826,7 @@ fn mapping<'tcx>(
 					Expr::rt("byteVecFrom", vec![Expr::rt("byteVecView", vec![value])])
 				}
 				ty::Adt(..) if string(tcx, ty) => value,
+				ty::Adt(..) if cow_str(tcx, ty) => Expr::rt("strCowClone", vec![value]),
 				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Vec) => {
 					return Some(vec_clone(b, value, args.type_at(0), span));
 				}
@@ -2608,8 +2655,7 @@ fn mapping<'tcx>(
 				ty::Adt(adt, vargs) => match Std::of(tcx, adt.did()) {
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
 					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe) => v,
-					Some(Std::Cow) if string(tcx, ty) => v,
-					Some(Std::Cow) if let Some(elem) = cow_slice(tcx, ty) => cow_deref(v, elem),
+					Some(Std::Cow) if let Some(borrowed) = cow_borrowed(tcx, ty) => cow_deref(v, borrowed),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
 					Some(Std::PeekMut) => {
 						let p = match v.is_path() {
@@ -2635,12 +2681,11 @@ fn mapping<'tcx>(
 			b.t.string_bytes();
 			Expr::rt("stringIntoBytes", args)
 		}
-		// A `Cow<str>` is its text, whether std borrows the bytes or replaces any.
 		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
 		// UTF-8 by their contract, which the lossy decoder reads as the text.
-		("converts" | "str", "from_utf8_unchecked") => Expr::rt("stringFromUtf8Lossy", args),
+		("converts" | "str", "from_utf8_unchecked") => Expr::rt("strFromUtf8Unchecked", args),
 		("String", "from_utf8_unchecked") => {
-			Expr::rt("stringFromUtf8Lossy", vec![Expr::rt("byteVecSlice", vec![args.pop()?])])
+			Expr::rt("strFromUtf8Unchecked", vec![Expr::rt("byteVecSlice", vec![args.pop()?])])
 		}
 		("FromUtf8Error", "as_bytes") => Expr::rt("byteVecSlice", vec![args.pop()?.member("bytes")]),
 		("FromUtf8Error", "into_bytes") => args.pop()?.member("bytes"),
@@ -2660,10 +2705,14 @@ fn mapping<'tcx>(
 		// A `Box<str>` is its text, as a `String` is.
 		("String", "as_str" | "into_boxed_str") | ("str", "into_string") => args.pop()?,
 		("String", "new") => Expr::Str(String::new()),
-		// `String + &str` and `Cow<str>`'s, which push onto the moved text as `+=` does.
+		// `String + &str`, which pushes onto the moved text as `+=` does.
 		("Add", "add") if string(tcx, targ(gargs, 0)) => {
 			let text = args.pop()?;
 			args.pop()?.binary("+", text)
+		}
+		("Add", "add") if cow_str(tcx, targ(gargs, 0)) => {
+			let rhs = str_cow(tcx, targ(gargs, 1), args.pop()?);
+			Expr::rt("strCowAdd", vec![args.pop()?, rhs])
 		}
 		("String", "with_capacity") => Expr::rt("stringWithCapacity", args),
 		// Of the place the `&mut` is, which it writes as it drops, and of a range, as `Vec::drain`.
@@ -2735,9 +2784,12 @@ fn mapping<'tcx>(
 		("str", "char_indices" | "lines" | "split_whitespace") => Expr::rt_of("str", &super::camel(&name)).call(args),
 		// A slice of strings concatenated, or joined by a `&str`.
 		("slice", "concat" | "join")
-			if string(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
+			if textual(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
 		{
 			let mut values = args;
+			if cow_str(tcx, targ(gargs, 0).peel_refs()) {
+				values[0] = values[0].clone().member("map").call(vec![Expr::Rt("strCowStr".into())]);
+			}
 			if name == "concat" {
 				values.push(Expr::Str(String::new()));
 			}
@@ -2764,21 +2816,16 @@ fn mapping<'tcx>(
 			let of = if owner == "slice" { "byteSlice" } else { "str" };
 			Expr::rt_of(of, &super::camel(&name)).call(args)
 		}
-		// A `Cow<str>` is its text, whichever variant holds it.
-		("Cow", "into_owned") if targ(gargs, 0).is_str() => args.pop()?,
+		// A `Cow<str>`'s text, whichever variant holds it.
+		("Cow", "into_owned") if targ(gargs, 0).is_str() => Expr::rt("strCowStr", args),
 		("AsRef", "as_ref") if string(tcx, targ(gargs, 0)) && targ(gargs, 1).is_str() => args.pop()?,
 		// A `Cow<[T]>` borrows its slice, and its `Vec` is its own or a clone of what it
 		// borrows, so it drops nothing.
 		("Cow", "into_owned") if let ty::Slice(elem) = targ(gargs, 0).kind() => {
 			return Some(cow_cloned(b, "IntoOwned", args.pop()?, *elem, span));
 		}
-		("AsRef", "as_ref") | ("Borrow", "borrow") if let Some(elem) = cow_slice(tcx, targ(gargs, 0)) => {
-			cow_deref(args.pop()?, elem)
-		}
-		// A slice's are unstable, and left to the refusal of any other call.
-		("Cow", "is_borrowed" | "is_owned") if !targ(gargs, 0).is_slice() => {
-			let cow = b.t.sig(call.def_id, gargs).inputs()[0].peel_refs();
-			return Some(b.err(span, cow_variant(cow)));
+		("AsRef", "as_ref") | ("Borrow", "borrow") if let Some(borrowed) = cow_borrowed(tcx, targ(gargs, 0)) => {
+			cow_deref(args.pop()?, borrowed)
 		}
 		("ToString", "to_string") | ("ToOwned", "to_owned") if matches!(self_ty()?.peel_refs().kind(), ty::Str) => {
 			b.t.pointee_value(self_ty()?, args.pop()?)
@@ -2952,7 +2999,7 @@ fn mapping<'tcx>(
 			let ty = targ(gargs, 0);
 			let value = args.pop()?;
 			match ty.kind() {
-				ty::Adt(..) if string(tcx, ty) => value,
+				ty::Adt(..) if textual(tcx, ty) => text(tcx, ty, value),
 				_ => {
 					let value = b.fmt_value(fmt::Trait::Display, ty, value, span, out);
 					Expr::rt("fmtToString", vec![value])
@@ -3256,7 +3303,7 @@ pub(super) fn clone_from_clones<'tcx>(t: &mut Translator<'_, 'tcx>, ty: Ty<'tcx>
 		// A hash table's and a B-tree set's clone each element anew, by its `clone`. Text is
 		// a JS string, which keeps no buffer.
 		(Some(Std::HashMap | Std::HashSet | Std::HashTable | Std::BTreeSet), _) => vec![],
-		_ if string(tcx, ty) => vec![],
+		_ if textual(tcx, ty) => vec![],
 		(_, ty::Adt(adt, args)) if is_std(tcx, adt.did()) => args.types().collect(),
 		(_, ty::Array(elem, _)) => vec![*elem],
 		_ => return false,
@@ -3877,8 +3924,8 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 				_ => Expr::Array(Vec::new()),
 			},
 			Std::String => Expr::Str(String::new()),
-			Std::Cow if string(tcx, ty) => Expr::Str(String::new()),
-			// An owned empty `Vec`.
+			// An owned empty `String` or `Vec`.
+			Std::Cow if cow_str(tcx, ty) => Expr::Str(String::new()),
 			Std::Cow if let Some(elem) = cow_slice(tcx, ty) => match elem.kind() {
 				ty::Uint(ty::UintTy::U8) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
 				_ => Expr::Array(Vec::new()),

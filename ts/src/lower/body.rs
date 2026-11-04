@@ -208,9 +208,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			let mut values = values;
 			return match (std, variant.index()) {
 				(library::Std::Option, 1) | (library::Std::Poll, 0) => values.pop().unwrap(),
-				(library::Std::Cow, _) if library::string(tcx, Ty::new_adt(tcx, adt, gargs)) => values.pop().unwrap(),
-				(library::Std::Cow, _) if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, gargs)) => {
-					library::cow_made(elem, variant, values.pop().unwrap())
+				(library::Std::Cow, _) if let Some(borrowed) = library::cow_borrowed(tcx, Ty::new_adt(tcx, adt, gargs)) => {
+					library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(library::Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 				(

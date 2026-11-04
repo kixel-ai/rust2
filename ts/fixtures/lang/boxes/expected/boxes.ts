@@ -612,11 +612,11 @@ export function places(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				});
 			}
 			if (res.ok) {
-				res = rt.Ok(rt.u32WrappingMul(res.value, by as rt.u32));
+				res = { ok: true, value: rt.u32WrappingMul(res.value, by as rt.u32) };
 			}
 			const _165: rt.Place<rt.Result<string, rt.u8>> = rt.place(() => said, (value12) => said = value12);
 			if (_165.v.ok) {
-				_165.v = rt.Ok(_165.v.value + String.fromCodePoint(rt.u8Add(97, rt.u8Rem(by, 26)) as rt.char));
+				_165.v = { ok: true, value: _165.v.value + String.fromCodePoint(rt.u8Add(97, rt.u8Rem(by, 26)) as rt.char) };
 			}
 			if (rt.usizeRem(i, 5) === 4) {
 				said = rt.Err(by);

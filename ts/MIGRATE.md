@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A `Cow<str>` is an `rt.StrCow`, the string it owns or an `rt.Borrowed` of the one it
+  borrows, rather than a `string`: read its text with `rt.strCowStr(c)`, and pass a
+  borrowed one as `new rt.Borrowed(s)` or an owned one as the string. `rt.Borrowed<S>`
+  takes the type of what it borrows, so a `Cow<[T]>`'s is an `rt.Borrowed<T[]>`.
+  `rt.stringFromUtf8Lossy` returns an `rt.StrCow`, and `rt.strFromUtf8Unchecked` is the
+  plain decode it was.
 - `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
   it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.
