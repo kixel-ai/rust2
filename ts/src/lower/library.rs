@@ -194,6 +194,8 @@ pub enum Std {
 	Layout,
 	/// `rt.Location`: a panic's file, line, and column, never changed once made.
 	Location,
+	/// `rt.PanicHookInfo`: what a panic hook is given, never changed once made.
+	PanicHookInfo,
 	/// `rt.LayoutError`.
 	LayoutError,
 	/// `rt.TryReserveError`: the layout whose allocation failed, if any, never changed once made.
@@ -330,6 +332,7 @@ impl Std {
 			["str", "error", "Utf8Error"] => Some(Self::Utf8Error),
 			["alloc", "layout", "Layout"] => Some(Self::Layout),
 			["panic", "location", "Location"] => Some(Self::Location),
+			["panic", "PanicHookInfo"] => Some(Self::PanicHookInfo),
 			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
 			["collections", "TryReserveError"] => Some(Self::TryReserveError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
@@ -1028,6 +1031,8 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("RangeInclusive", "new")
 		| ("panic", "panic_any" | "resume_unwind")
 		| ("rt", "begin_panic")
+		// The hook it keeps, and the one it replaces, which `rt.setHook` drops.
+		| ("panicking", "set_hook")
 		// Each element moves into the closure.
 		| ("array", "map") => &[],
 		// `Vec<T>` drops each element `retain` rejects, `dedup` removes, and `truncate`,
@@ -1383,6 +1388,15 @@ fn dropping_operand<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Opti
 			!called && b.t.drops(ty)
 		})
 		.map(|(_, ty)| ty)
+}
+
+/// Where std's `#[track_caller]` panic being mapped is, as `rt.panic` takes it after its
+/// message, in a program with a panic hook: nothing in one without.
+fn hook_at(b: &Body<'_, '_, '_>) -> Vec<Expr> {
+	match b.t.hooked {
+		true => vec![b.panic_at.clone().unwrap_or_else(Expr::undefined)],
+		false => Vec::new(),
+	}
 }
 
 /// `owner::name` for a standard library function.
@@ -2849,17 +2863,35 @@ fn mapping<'tcx>(
 		("panicking", "panic_fmt") => {
 			let message = args.pop()?;
 			match literal(&message) {
-				Some(s) => Expr::rt("panic", vec![Expr::Str(s)]),
+				Some(s) => Expr::rt("panic", [vec![Expr::Str(s)], hook_at(b)].concat()),
 				None => Expr::rt("panicFmt", vec![message]),
 			}
 		}
-		("panicking", "panic") => Expr::rt("panic", args),
-		// The hook writes a payload of text, and `Box<dyn Any>` for any other.
+		("panicking", "panic") => Expr::rt("panic", [args, hook_at(b)].concat()),
+		// The harness writes a payload of text, and `Box<dyn Any>` for any other. A hook reads
+		// the payload itself: a `String`, a `&str`, or the `dyn Any` object of any other.
 		("panic", "panic_any") | ("rt", "begin_panic") => {
 			let payload = targ(gargs, 0);
-			match matches!(payload.kind(), ty::Ref(_, s, _) if s.is_str()) || b.t.std_of(payload) == Some(Std::String) {
-				true => Expr::rt("panic", args),
-				false => Expr::rt("panic", vec![Expr::Str("Box<dyn Any>".into())]),
+			let owned = b.t.std_of(payload) == Some(Std::String);
+			match (
+				matches!(payload.kind(), ty::Ref(_, s, _) if s.is_str()) || owned,
+				b.t.hooked,
+			) {
+				(true, true) => {
+					let at = b.panic_at.clone().unwrap_or_else(Expr::undefined);
+					Expr::rt("panic", vec![args.pop()?, at, Expr::lit(owned.to_string())])
+				}
+				(true, false) => Expr::rt("panic", args),
+				(false, true) => {
+					let class = b.t.object_class(
+						payload,
+						super::dynamic::any_object(tcx)?,
+						super::dynamic::Held::Value,
+						span,
+					)?;
+					Expr::rt("panicAny", vec![Expr::New(Box::new(Expr::Sym(class.sym)), args)])
+				}
+				(false, false) => Expr::rt("panic", vec![Expr::Str("Box<dyn Any>".into())]),
 			}
 		}
 		// A panic aborts, so `catch_unwind` never catches one. Its call consumes the function,
@@ -2874,12 +2906,32 @@ fn mapping<'tcx>(
 		}
 		("Location", "file" | "line") => args.pop()?.member(name.as_str()),
 		("Location", "column") => args.pop()?.member("col"),
-		("panicking", "set_hook" | "take_hook") => {
-			let why =
-				format!("`panic::{name}`, whose hook reads each panic's `Location`, which panics don't carry yet");
-			return Some(b.err(span, why));
+		// Once a program sets a hook, each panic passes where it is, and std's own code's
+		// panics are where the toolchain's source has them.
+		("panicking", "set_hook") => {
+			b.t.hook();
+			let sites = super::caller::sites(b.t, span);
+			Expr::rt("setHook", vec![args.pop()?, sites])
 		}
-		("panicking", "panic_explicit") => Expr::rt("panic", vec![Expr::Str("explicit panic".into())]),
+		("panicking", "take_hook") => Expr::rt("takeHook", Vec::new()),
+		("PanicHookInfo", "payload") => {
+			let object = b.t.sig(call.def_id, gargs).output().builtin_deref(true)?;
+			let class = |b: &mut Body<'_, '_, 'tcx>, ty| {
+				let class = b.t.object_class(ty, object, super::dynamic::Held::Value, span)?;
+				Some(Expr::Sym(class.sym))
+			};
+			let str = class(b, Ty::new_static_str(tcx))?;
+			let string = tcx.lang_items().string()?;
+			let string = class(b, Ty::new_adt(tcx, tcx.adt_def(string), ty::List::empty()))?;
+			Expr::rt("hookPayload", vec![args.pop()?, str, string])
+		}
+		("PanicHookInfo", "payload_as_str") => args.pop()?.member("text"),
+		("PanicHookInfo", "location") => args.pop()?.member("location"),
+		// A panic aborts.
+		("PanicHookInfo", "can_unwind") => Expr::lit("false"),
+		("panicking", "panic_explicit") => {
+			Expr::rt("panic", [vec![Expr::Str("explicit panic".into())], hook_at(b)].concat())
+		}
 		("panicking", "panic_display" | "unreachable_display") => {
 			let value = args.pop()?;
 			let value = b.fmt_value(fmt::Trait::Display, targ(gargs, 0), value, span, out);

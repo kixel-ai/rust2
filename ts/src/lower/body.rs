@@ -22,6 +22,12 @@ pub struct Body<'b, 'a, 'tcx> {
 	/// The function the call being lowered calls, if it takes its caller's location, and
 	/// the location the call passes, until a call of it takes it.
 	pub site: Option<(Instance<'tcx>, Expr)>,
+	/// The std function the call being lowered maps, in a program with a panic hook, and
+	/// where its panics are, if rustc says, until its mapping takes it.
+	pub std_site: Option<(Instance<'tcx>, Option<Expr>)>,
+	/// Where the std function whose mapping is being lowered panics, in a program with a
+	/// panic hook, if known.
+	pub panic_at: Option<Expr>,
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
@@ -32,6 +38,8 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			parted: Vec::new(),
 			slotted: None,
 			site: None,
+			std_site: None,
+			panic_at: None,
 		}
 	}
 
@@ -100,6 +108,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			Ok(None) if self.t.polymorphic() && gargs.has_param() => return Expr::undefined(),
 			_ => return self.err(span, format!("`{}` does not resolve", tcx.def_path_str(def_id))),
 		};
+		let std_site = match self.std_site.take() {
+			Some((at, located)) if at == instance => Some(located),
+			other => {
+				self.std_site = other;
+				None
+			}
+		};
 		if let Some(sym) = self.t.bound_fn(instance, span) {
 			return Expr::Sym(sym).call(args.into_iter().map(Expr::typed).collect());
 		}
@@ -156,6 +171,30 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			}
 			return call;
 		}
+		let start = out.len();
+		let outer = self.panic_at.clone();
+		if let Some(at) = &std_site {
+			self.panic_at = at.clone();
+		}
+		let mut call = self.library_call(def_id, gargs, instance, args, span, out);
+		self.panic_at = outer;
+		if let Some(at) = std_site {
+			Self::locate_std(at, &mut call, &mut out[start..]);
+		}
+		call
+	}
+
+	/// A call of std's `instance`, by `def_id` with `gargs`, which its mapping makes.
+	fn library_call(
+		&mut self,
+		def_id: rustc_hir::def_id::DefId,
+		gargs: GenericArgsRef<'tcx>,
+		instance: Instance<'tcx>,
+		args: Vec<Expr>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		let tcx = self.t.tcx;
 		if let Some(referent) = library::referent(tcx, def_id, gargs, instance) {
 			// An operand that was a reference to an `rt.Place`, as `&&mut u32` is, passes
 			// what the Place points at.
@@ -184,6 +223,15 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				format!("unsupported call to `{}`", tcx.def_path_str_with_args(def_id, gargs)),
 			),
 		}
+	}
+
+	/// Pass `at`, where std's `instance` panics, to each runtime call its mapping made,
+	/// `call` and `stmts`, that panics there. Without one, each passes `undefined`, so a
+	/// panic there finds no location for its hook, which the runtime throws on.
+	fn locate_std(at: Option<Expr>, call: &mut Expr, stmts: &mut [Stmt]) {
+		let at = at.unwrap_or_else(Expr::undefined);
+		super::caller::locate_expr(call, &at);
+		super::caller::locate(stmts, &at);
 	}
 
 	fn ctor(

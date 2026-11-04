@@ -10,6 +10,7 @@ import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHin
 import { strChars } from "./str.ts";
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
+import type { Location } from "./location.ts";
 
 /** A class of chars, as runs from one of `rt/unicode.ts`'s tables, decoded once one is looked up. */
 class Runs {
@@ -25,8 +26,8 @@ class Runs {
 	has(point: number): boolean {
 		if (this.#bounds === undefined) {
 			this.#bounds = new Uint32Array(this.#table.length);
-			let at = 0;
-			for (let i = 0; i < this.#table.length; i++) this.#bounds[i] = at += this.#table[i];
+			let pos = 0;
+			for (let i = 0; i < this.#table.length; i++) this.#bounds[i] = pos += this.#table[i];
 		}
 		// How many bounds are at most `point`: odd inside a run.
 		const bounds = this.#bounds;
@@ -395,7 +396,7 @@ export function charLenUtf16(c: char): usize {
 /** std's panic for a buffer too short to encode `c` into, by `encode_utf8` or `encode_utf16`. */
 function tooShort(encoding: string, c: char, len: number, has: number): never {
 	const code = c.toString(16).toUpperCase().padStart(4, "0");
-	panic(`${encoding}: need ${len} bytes to encode U+${code} but buffer has just ${has}`);
+	panic(`${encoding}: need ${len} bytes to encode U+${code} but buffer has just ${has}`, encoding, true);
 }
 
 /** The `&mut str` `encode_utf8` returns: the bytes it wrote, which a write changes in place. */
@@ -513,8 +514,8 @@ export function fmtDecodeUtf16ErrorDebug(e: DecodeUtf16Error, f: Formatter): Fmt
 }
 
 /** `char::from_digit`: the char of `num` in `radix`, lowercase past 9, if it is a digit of it. */
-export function charFromDigit(num: u32, radix: u32): char | undefined {
-	if (radix > 36) panic("from_digit: radix is too high (maximum 36)");
+export function charFromDigit(num: u32, radix: u32, at?: Location): char | undefined {
+	if (radix > 36) panic("from_digit: radix is too high (maximum 36)", at);
 	if (num >= radix) return undefined;
 	return (num < 10 ? 0x30 + num : 0x61 + num - 10) as char;
 }

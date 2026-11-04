@@ -453,7 +453,7 @@ function bidirectionalMerge<T>(src: Slice<T>, i: number, n: number, dst: Slice<T
 		if (left < leftEnd) dst[out] = src[left++];
 		else dst[out] = src[right++];
 	}
-	if (left !== leftEnd || right !== rightEnd) panic("user-provided comparison function does not correctly implement a total order");
+	if (left !== leftEnd || right !== rightEnd) panic("user-provided comparison function does not correctly implement a total order", "ord_violation");
 }
 
 // ipnsort: a quicksort of in-place partitions, after too many bad pivots a heapsort.

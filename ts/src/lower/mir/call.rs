@@ -524,6 +524,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let targ = |n: usize| gargs.types().nth(n);
 		let done = |e: Expr, effect: bool| Some(Some((e, effect)));
 		match (owner.as_str(), name.as_str()) {
+			// A pointer from a reference to an `Arc`'s value, which is that value's one place.
+			("ptr", "from_ref") | ("From", "from")
+				if (owner == "ptr"
+					|| crate::lower::pointer::raw_pointee(tcx, dest.ty(&self.mir.local_decls, tcx).ty).is_some())
+					&& let Some(p) = self.arc_raw(&args[0].node, span, out) =>
+			{
+				done(p, false)
+			}
 			// A place of no bytes has nothing to read or write, and every value of its type
 			// is the one it holds. What made the `&mut` still runs, as its unread temporary.
 			("mem", "take" | "replace" | "swap") if self.b.t.zero_sized(targ(0)?) => match name.as_str() {
