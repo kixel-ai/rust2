@@ -5579,19 +5579,25 @@ export function referenced$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void
 	borrowWrite$Option_u16_mut_Option_u16(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
 	const _65: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 25);
 	borrowWrite$Option_u16_mut_Option_u16(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 26);
+	whole = make$conversions_Value_Option_u16(data, 27);
+	put$conversions_Value_Option_u16(whole, out);
+	const _74: rs.Vec<rs.u16 | undefined> = list;
+	const _77: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 28);
+	_74.items.push(_77);
 	put$conversions_Value_Option_u16(compared$ref_Option_u16(array[0], array[1], out), out);
 	put$conversions_Value_Option_u16(compared$ref_ref_Option_u16(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	let _88: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 22);
-	let _90: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 23);
-	put$conversions_Value_Option_u16(compared$mut_Option_u16(rs.place(() => _88, (value6) => _88 = value6), rs.place(() => _90, (value7) => _90 = value7), out).v, out);
+	let _100: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 22);
+	let _102: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 23);
+	put$conversions_Value_Option_u16(compared$mut_Option_u16(rs.place(() => _100, (value8) => _100 = value8), rs.place(() => _102, (value9) => _102 = value9), out).v, out);
 	rs.byteVecPush(out, compared$ref_slice_Option_u16(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<rs.u16 | undefined> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: rs.u16 | undefined | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.u16 | undefined | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_Option_u16(_106, out);
+		put$conversions_Value_Option_u16(_118, out);
 	}
 }
 
@@ -5629,19 +5635,25 @@ export function referenced$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	borrowWrite$String_mut_String(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
 	const _65: string = make$conversions_Value_String(data, 25);
 	borrowWrite$String_mut_String(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: string = make$conversions_Value_String(data, 26);
+	whole = make$conversions_Value_String(data, 27);
+	put$conversions_Value_String(whole, out);
+	const _74: rs.Vec<string> = list;
+	const _77: string = make$conversions_Value_String(data, 28);
+	_74.items.push(_77);
 	put$conversions_Value_String(compared$ref_String(array[0], array[1], out), out);
 	put$conversions_Value_String(compared$ref_ref_String(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	let _88: string = make$conversions_Value_String(data, 22);
-	let _90: string = make$conversions_Value_String(data, 23);
-	put$conversions_Value_String(compared$mut_String(rs.place(() => _88, (value6) => _88 = value6), rs.place(() => _90, (value7) => _90 = value7), out).v, out);
+	let _100: string = make$conversions_Value_String(data, 22);
+	let _102: string = make$conversions_Value_String(data, 23);
+	put$conversions_Value_String(compared$mut_String(rs.place(() => _100, (value8) => _100 = value8), rs.place(() => _102, (value9) => _102 = value9), out).v, out);
 	rs.byteVecPush(out, compared$ref_slice_String(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<string> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: string | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: string | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_String(_106, out);
+		put$conversions_Value_String(_118, out);
 	}
 }
 
@@ -5677,19 +5689,26 @@ export function referenced$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	borrowWrite$Vec_u8_mut_Vec_u8(list.items[at3], _60);
 	const _65: rs.ByteVec = make$conversions_Value_Vec_u8(data, 25);
 	borrowWrite$Vec_u8_mut_Vec_u8(array[1], _65);
+	const whole: rs.ByteVec = make$conversions_Value_Vec_u8(data, 26);
+	const _67: rs.ByteVec = make$conversions_Value_Vec_u8(data, 27);
+	Object.assign(whole, _67);
+	put$conversions_Value_Vec_u8(whole, out);
+	const _74: rs.Vec<rs.ByteVec> = list;
+	const _77: rs.ByteVec = make$conversions_Value_Vec_u8(data, 28);
+	_74.items.push(_77);
 	put$conversions_Value_Vec_u8(compared$ref_Vec_u8(array[0], array[1], out), out);
 	put$conversions_Value_Vec_u8(compared$ref_ref_Vec_u8(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	const _88: rs.ByteVec = make$conversions_Value_Vec_u8(data, 22);
-	const _90: rs.ByteVec = make$conversions_Value_Vec_u8(data, 23);
-	put$conversions_Value_Vec_u8(compared$mut_Vec_u8(_88, _90, out), out);
+	const _100: rs.ByteVec = make$conversions_Value_Vec_u8(data, 22);
+	const _102: rs.ByteVec = make$conversions_Value_Vec_u8(data, 23);
+	put$conversions_Value_Vec_u8(compared$mut_Vec_u8(_100, _102, out), out);
 	rs.byteVecPush(out, compared$ref_slice_Vec_u8(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<rs.ByteVec> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: rs.ByteVec | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.ByteVec | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_Vec_u8(_106, out);
+		put$conversions_Value_Vec_u8(_118, out);
 	}
 }
 
@@ -5722,17 +5741,25 @@ export function referenced$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void 
 	borrowPut$array3_u8_mut_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), out);
 	borrowWrite$array3_u8_mut_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), make$conversions_Value_array3_u8(data, 24));
 	borrowWrite$array3_u8_mut_array3_u8(rs.byteSliceFrom(array[1]), make$conversions_Value_array3_u8(data, 25));
+	const whole: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 26));
+	const _67: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 27));
+	const _68: rs.ByteSlice = rs.byteSliceFrom(rs.byteSliceView(rs.byteSliceFrom(whole)));
+	_68.data.set(_67, _68.start);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.byteSliceView(rs.byteSliceFrom(whole))), out);
+	const _74: rs.Vec<Uint8Array> = list;
+	const _77: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 28));
+	_74.items.push(_77);
 	put$conversions_Value_array3_u8(compared$ref_array3_u8(rs.byteSliceFrom(array[0]), rs.byteSliceFrom(array[1]), out), out);
 	put$conversions_Value_array3_u8(compared$ref_ref_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), rs.byteSliceFrom(array[2]), out), out);
 	put$conversions_Value_array3_u8(compared$mut_array3_u8(rs.byteSliceFrom(copy$array_u8(make$conversions_Value_array3_u8(data, 22))), rs.byteSliceFrom(copy$array_u8(make$conversions_Value_array3_u8(data, 23))), out), out);
 	rs.byteVecPush(out, compared$ref_slice_array3_u8(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterSlice(array), rs.byteSliceFrom), rs.iterLend(rs.iterSlice(list.items), rs.byteSliceFrom));
 	while (true) {
-		const _106: rs.ByteSlice | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.ByteSlice | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_array3_u8(_106, out);
+		put$conversions_Value_array3_u8(_118, out);
 	}
 }
 
@@ -5768,22 +5795,32 @@ export function referenced$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVe
 	borrowWrite$conversions_Logged_mut_conversions_Logged(list.items[at3], _60);
 	const _65: Logged.Logged = Logged.make$conversions_Value(data, 25);
 	borrowWrite$conversions_Logged_mut_conversions_Logged(array[1], _65);
+	const whole: Logged.Logged = Logged.make$conversions_Value(data, 26);
+	const _67: Logged.Logged = Logged.make$conversions_Value(data, 27);
+	const _68: Logged.Logged = whole;
+	_68[Symbol.dispose]();
+	Object.assign(_68, _67);
+	Logged.put$conversions_Value(whole, out);
+	const _74: rs.Vec<Logged.Logged> = list;
+	const _77: Logged.Logged = Logged.make$conversions_Value(data, 28);
+	_74.items.push(_77);
 	Logged.put$conversions_Value(compared$ref_conversions_Logged(array[0], array[1], out), out);
 	Logged.put$conversions_Value(compared$ref_ref_conversions_Logged(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	const _88: Logged.Logged = Logged.make$conversions_Value(data, 22);
-	const _90: Logged.Logged = Logged.make$conversions_Value(data, 23);
-	Logged.put$conversions_Value(compared$mut_conversions_Logged(_88, _90, out), out);
-	_90[Symbol.dispose]();
-	_88[Symbol.dispose]();
+	const _100: Logged.Logged = Logged.make$conversions_Value(data, 22);
+	const _102: Logged.Logged = Logged.make$conversions_Value(data, 23);
+	Logged.put$conversions_Value(compared$mut_conversions_Logged(_100, _102, out), out);
+	_102[Symbol.dispose]();
+	_100[Symbol.dispose]();
 	rs.byteVecPush(out, compared$ref_slice_conversions_Logged(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<Logged.Logged> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: Logged.Logged | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: Logged.Logged | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		Logged.put$conversions_Value(_106, out);
+		Logged.put$conversions_Value(_118, out);
 	}
+	whole[Symbol.dispose]();
 	rs.dropVec(list);
 	rs.dropAll(array);
 }
@@ -5820,19 +5857,26 @@ export function referenced$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec
 	borrowWrite$conversions_Named_mut_conversions_Named(list.items[at3], _60);
 	const _65: Named.Named = Named.make$conversions_Value(data, 25);
 	borrowWrite$conversions_Named_mut_conversions_Named(array[1], _65);
+	const whole: Named.Named = Named.make$conversions_Value(data, 26);
+	const _67: Named.Named = Named.make$conversions_Value(data, 27);
+	Object.assign(whole, _67);
+	Named.put$conversions_Value(whole, out);
+	const _74: rs.Vec<Named.Named> = list;
+	const _77: Named.Named = Named.make$conversions_Value(data, 28);
+	_74.items.push(_77);
 	Named.put$conversions_Value(compared$ref_conversions_Named(array[0], array[1], out), out);
 	Named.put$conversions_Value(compared$ref_ref_conversions_Named(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	const _88: Named.Named = Named.make$conversions_Value(data, 22);
-	const _90: Named.Named = Named.make$conversions_Value(data, 23);
-	Named.put$conversions_Value(compared$mut_conversions_Named(_88, _90, out), out);
+	const _100: Named.Named = Named.make$conversions_Value(data, 22);
+	const _102: Named.Named = Named.make$conversions_Value(data, 23);
+	Named.put$conversions_Value(compared$mut_conversions_Named(_100, _102, out), out);
 	rs.byteVecPush(out, compared$ref_slice_conversions_Named(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<Named.Named> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: Named.Named | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: Named.Named | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		Named.put$conversions_Value(_106, out);
+		Named.put$conversions_Value(_118, out);
 	}
 }
 
@@ -5870,19 +5914,25 @@ export function referenced$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	borrowWrite$u32_mut_u32(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
 	const _65: rs.u32 = make$conversions_Value_u32(data, 25);
 	borrowWrite$u32_mut_u32(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u32 = make$conversions_Value_u32(data, 26);
+	whole = make$conversions_Value_u32(data, 27);
+	put$conversions_Value_u32(whole, out);
+	const _74: rs.Vec<rs.u32> = list;
+	const _77: rs.u32 = make$conversions_Value_u32(data, 28);
+	_74.items.push(_77);
 	put$conversions_Value_u32(compared$ref_u32(array[0], array[1], out), out);
 	put$conversions_Value_u32(compared$ref_ref_u32(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	let _88: rs.u32 = make$conversions_Value_u32(data, 22);
-	let _90: rs.u32 = make$conversions_Value_u32(data, 23);
-	put$conversions_Value_u32(compared$mut_u32(rs.place(() => _88, (value6) => _88 = value6), rs.place(() => _90, (value7) => _90 = value7), out).v, out);
+	let _100: rs.u32 = make$conversions_Value_u32(data, 22);
+	let _102: rs.u32 = make$conversions_Value_u32(data, 23);
+	put$conversions_Value_u32(compared$mut_u32(rs.place(() => _100, (value8) => _100 = value8), rs.place(() => _102, (value9) => _102 = value9), out).v, out);
 	rs.byteVecPush(out, compared$ref_slice_u32(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<rs.u32> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: rs.u32 | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.u32 | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_u32(_106, out);
+		put$conversions_Value_u32(_118, out);
 	}
 }
 
@@ -5920,19 +5970,25 @@ export function referenced$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	borrowWrite$u64_mut_u64(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
 	const _65: rs.u64 = make$conversions_Value_u64(data, 25);
 	borrowWrite$u64_mut_u64(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u64 = make$conversions_Value_u64(data, 26);
+	whole = make$conversions_Value_u64(data, 27);
+	put$conversions_Value_u64(whole, out);
+	const _74: rs.Vec<rs.u64> = list;
+	const _77: rs.u64 = make$conversions_Value_u64(data, 28);
+	_74.items.push(_77);
 	put$conversions_Value_u64(compared$ref_u64(array[0], array[1], out), out);
 	put$conversions_Value_u64(compared$ref_ref_u64(list.items[rs.idx(list.items, 1)], array[2], out), out);
-	let _88: rs.u64 = make$conversions_Value_u64(data, 22);
-	let _90: rs.u64 = make$conversions_Value_u64(data, 23);
-	put$conversions_Value_u64(compared$mut_u64(rs.place(() => _88, (value6) => _88 = value6), rs.place(() => _90, (value7) => _90 = value7), out).v, out);
+	let _100: rs.u64 = make$conversions_Value_u64(data, 22);
+	let _102: rs.u64 = make$conversions_Value_u64(data, 23);
+	put$conversions_Value_u64(compared$mut_u64(rs.place(() => _100, (value8) => _100 = value8), rs.place(() => _102, (value9) => _102 = value9), out).v, out);
 	rs.byteVecPush(out, compared$ref_slice_u64(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
 	const iter: rs.Iter<rs.u64> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
 	while (true) {
-		const _106: rs.u64 | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.u64 | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_u64(_106, out);
+		put$conversions_Value_u64(_118, out);
 	}
 }
 
@@ -5969,19 +6025,23 @@ export function referenced$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	borrowWrite$u8_mut_u8(rs.place(() => list.data[at3], (value4) => list.data[at3] = value4), _60);
 	const _65: rs.u8 = make$conversions_Value_u8(data, 25);
 	borrowWrite$u8_mut_u8(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u8 = make$conversions_Value_u8(data, 26);
+	whole = make$conversions_Value_u8(data, 27);
+	put$conversions_Value_u8(whole, out);
+	rs.byteVecPush(list, make$conversions_Value_u8(data, 28));
 	put$conversions_Value_u8(compared$ref_u8(array[0], array[1], out), out);
 	put$conversions_Value_u8(compared$ref_ref_u8(list.data[rs.idx(list, 1)], array[2], out), out);
-	let _88: rs.u8 = make$conversions_Value_u8(data, 22);
-	let _90: rs.u8 = make$conversions_Value_u8(data, 23);
-	put$conversions_Value_u8(compared$mut_u8(rs.place(() => _88, (value6) => _88 = value6), rs.place(() => _90, (value7) => _90 = value7), out).v, out);
+	let _100: rs.u8 = make$conversions_Value_u8(data, 22);
+	let _102: rs.u8 = make$conversions_Value_u8(data, 23);
+	put$conversions_Value_u8(compared$mut_u8(rs.place(() => _100, (value8) => _100 = value8), rs.place(() => _102, (value9) => _102 = value9), out).v, out);
 	rs.byteVecPush(out, compared$ref_slice_u8(rs.byteSliceRange(rs.byteSliceFrom(array), 0), rs.byteSliceRange(rs.byteVecSlice(list), 0), out).length & 0xff);
 	const iter: rs.Iter<rs.u8> = rs.iterChain(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(array))), rs.iterSlice(rs.byteVecView(list)));
 	while (true) {
-		const _106: rs.u8 | rs.Done = iter.next();
-		if (_106 === rs.DONE) {
+		const _118: rs.u8 | rs.Done = iter.next();
+		if (_118 === rs.DONE) {
 			break;
 		}
-		put$conversions_Value_u8(_106, out);
+		put$conversions_Value_u8(_118, out);
 	}
 }
 

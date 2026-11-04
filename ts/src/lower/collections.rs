@@ -163,15 +163,19 @@ pub fn call<'tcx>(
 			}
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
-				let value = match (same_key(b, t, by), arc_of(b, peel(b, t)), b.t.place_pointee(t)) {
-					(true, ..) => args.pop(),
-					(false, Some(inner), _) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
-					// A `&mut` to a value JS copies, its `rs.Place`: what it holds for `borrow`, and
-					// itself for `borrow_mut`, whose receiver is given as what it points at.
-					(false, _, Some(inner)) if same_key(b, inner, by) => args.pop().map(|place| match name {
-						"borrow" => b.t.pointee_value(t, place),
-						_ => place,
+				// A `&mut` to a value JS copies is its `rs.Place`, which `borrow` reads.
+				let held = b.t.place_pointee(t).is_some_and(|inner| same_key(b, inner, by));
+				let value = match arc_of(b, peel(b, t)) {
+					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
+						"borrow" if held => b.t.pointee_value(t, value),
+						// Given the place of its receiver, which a `&mut` holds.
+						"borrow_mut" if t.is_ref() => {
+							let receiver = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, t);
+							b.t.pointee_value(receiver, value)
+						}
+						_ => value,
 					}),
+					Some(inner) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
 					_ => return Err(args),
 				};
 				return Ok(value);
