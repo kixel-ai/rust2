@@ -3,8 +3,16 @@
 import * as rs from "../rs.ts";
 import type * as Bag from "../collects.Bag.ts";
 import type * as Item from "../collects.Item.ts";
+import type * as Tries from "../collects.Tries.ts";
 
 export function map$1hm93qk(self: Item.Item | undefined, f: (a0: Item.Item) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1yttib1(self: Tries.Tries<Item.Item> | undefined, f: (a0: Tries.Tries<Item.Item>) => rs.Vec<rs.u8 | undefined>): rs.Vec<rs.u8 | undefined> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

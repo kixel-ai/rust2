@@ -80,6 +80,17 @@ impl<T> FromIterator<T> for Stack<T> {
 	}
 }
 
+/// The crate's own collection of the first three reads of its iterator, which reads on past
+/// a `None`, as nothing stops it from doing.
+struct Tries<T>(Vec<Option<T>>);
+
+impl<T> FromIterator<T> for Tries<T> {
+	fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+		let mut iter = iter.into_iter();
+		Tries((0..3).map(|_| iter.next()).collect())
+	}
+}
+
 /// What counts down from `n`, by the crate's own iterator.
 struct Count<'a> {
 	n: u8,
@@ -198,7 +209,26 @@ pub fn collects(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let stack: Stack<u8> = down.by_ref().take(k).collect();
 			put(out, &format!("{:?} {} {:?}", stack.items, stack.count, down.next()));
 		}
-		_ => {}
+		// Into a `Result` or an `Option` of one that reads on past an `Err` or a `None`, which
+		// keeps the last `Err`, dropping the one it replaces.
+		_ => {
+			let tries: Result<Tries<u8>, Item> = data
+				.iter()
+				.map(|&v| if v % 3 == 0 { Err(item(v)) } else { Ok(v) })
+				.collect();
+			match tries {
+				Ok(Tries(values)) => put(out, &format!("{values:?}")),
+				Err(e) => put(out, &format!("err {}", e.v)),
+			}
+			let tries: Option<Tries<Item>> = data.iter().map(|&v| (v % 3 != 0).then(|| item(v))).collect();
+			let values = tries.map(|Tries(values)| {
+				values
+					.iter()
+					.map(|item| item.as_ref().map(|item| item.v))
+					.collect::<Vec<_>>()
+			});
+			put(out, &format!("{values:?}"));
+		}
 	}
 	write(out, &log, []);
 }

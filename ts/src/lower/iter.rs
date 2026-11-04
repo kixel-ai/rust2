@@ -2135,7 +2135,8 @@ fn collect<'tcx>(
 		});
 	}
 	match std {
-		// The values, collected as the `Ok` or `Some` type is, until the first `Err` or `None`.
+		// The values, collected as the `Ok` or `Some` type is, until an `Err` or `None`, the last
+		// the collection read.
 		std @ (Std::Result | Std::Option) => {
 			let ty::Adt(_, item_args) = item.kind() else {
 				return None;
@@ -2167,7 +2168,11 @@ fn collect<'tcx>(
 			let dropper = b.t.dropper(args.type_at(0), span);
 			let collected = vec![iter, Expr::Lambda(vec![param], Box::new(values))];
 			Some(match std {
-				Std::Result => Expr::rs("iterCollectResult", tail(collected, vec![dropper])),
+				// A later error replaces an earlier one, which then drops.
+				Std::Result => {
+					let error = b.t.dropper(args.type_at(1), span);
+					Expr::rs("iterCollectResult", tail(collected, vec![dropper, error]))
+				}
 				// The items' `None`, and the result's, each `rs.None` where `undefined` is a value.
 				_ => {
 					let nones = [value, args.type_at(0)].map(|t| b.t.none(t));

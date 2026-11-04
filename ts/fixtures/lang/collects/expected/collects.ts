@@ -6,8 +6,9 @@ import * as Count from "./collects.Count.ts";
 import * as Down from "./collects.Down.ts";
 import * as Item from "./collects.Item.ts";
 import * as Stack from "./collects.Stack.ts";
+import * as Tries from "./collects.Tries.ts";
 import { then$0bmzd6l } from "./core/bool.ts";
-import { map$1hm93qk as option_map$1hm93qk, map$0a0rmxp as option_map$0a0rmxp, mapOr$0vxw5sq as option_mapOr$0vxw5sq } from "./core/option.ts";
+import { map$1hm93qk as option_map$1hm93qk, map$1yttib1 as option_map$1yttib1, map$0a0rmxp as option_map$0a0rmxp, mapOr$0vxw5sq as option_mapOr$0vxw5sq } from "./core/option.ts";
 import { put } from "./harness.ts";
 
 /** What `values` reads, each at most `limit`, and the log. */
@@ -126,8 +127,8 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const log: rs.RefCell<rs.Vec<string>> = new rs.RefCell(new rs.Vec());
 	const item: (a0: rs.u8) => Item.Item = (v: rs.u8): Item.Item => {
 		const _6: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(log);
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(v, f)];
-		const _7: string = rs.fmtFormat(["make ", args12[0]]);
+		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(v, f)];
+		const _7: string = rs.fmtFormat(["make ", args18[0]]);
 		_6.value.items.push(_7);
 		rs.refMutRelease(_6);
 		return new Item.Item(v, log);
@@ -135,91 +136,127 @@ export function collects(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const k: rs.usize = kind >> 3 as rs.usize;
 	const _12: rs.u8 = rs.u8Rem(kind, 8);
 	if (_12 === 0) {
-		const bag: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_collects_collects_closure0(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): Item.Item => {
-			return item(_214);
+		const bag: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Map_slice_Iter_u8_collects_collects_closure0(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): Item.Item => {
+			return item(_218);
 		}));
 		write$ref_collects_Bag(out, log, bag);
 		bag[Symbol.dispose]();
 	} else if (_12 === 1) {
-		const bag2: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Filter_iter_Rev_slice_Iter_u8_collects_collects_closure1_collects_collects_closure2(rs.iterMap(rs.iterFilter(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), (_212: rs.u8): boolean => {
-			return rs.u8Rem(_212, 3) !== 1;
-		}), (_213: rs.u8): Item.Item => {
-			return item(_213);
+		const bag2: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Map_iter_Filter_iter_Rev_slice_Iter_u8_collects_collects_closure1_collects_collects_closure2(rs.iterMap(rs.iterFilter(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), (_216: rs.u8): boolean => {
+			return rs.u8Rem(_216, 3) !== 1;
+		}), (_217: rs.u8): Item.Item => {
+			return item(_217);
 		}));
 		const _31: rs.Iter<Item.Item> = rs.iterTake(rs.iterSlice(bag2.items.items), k);
 		write$iter_Take_slice_Iter_collects_Item(out, log, _31);
 		bag2[Symbol.dispose]();
 	} else if (_12 === 2) {
-		const bag3: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Skip_vec_IntoIter_collects_Item(rs.iterSkip(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): Item.Item => {
-			return item(_211);
+		const bag3: Bag.Bag = Bag.fromIter$iter_FromIterator_collects_Item_iter_Skip_vec_IntoIter_collects_Item(rs.iterSkip(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_215: rs.u8): Item.Item => {
+			return item(_215);
 		}), undefined, 8, true), rs.drop), k, rs.drop));
 		write$ref_collects_Bag(out, log, bag3);
 		bag3[Symbol.dispose]();
 	} else if (_12 === 3) {
-		const bag4: rs.Result<Bag.Bag, rs.u8> = rs.iterCollectResult(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): rs.Result<Item.Item, rs.u8> => {
-			const v6: rs.u8 = _210;
-			if (!(240 <= v6)) {
-				return rs.Ok(item(v6));
+		const bag4: rs.Result<Bag.Bag, rs.u8> = rs.iterCollectResult(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_214: rs.u8): rs.Result<Item.Item, rs.u8> => {
+			const v8: rs.u8 = _214;
+			if (!(240 <= v8)) {
+				return rs.Ok(item(v8));
 			}
-			return rs.Err(v6);
+			return rs.Err(v8);
 		}), (values: rs.Iter<Item.Item>) => Bag.fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure4_Result_never_u8(values), rs.drop);
 		if (bag4.ok) {
 			const bag5: Bag.Bag = bag4.value;
 			write$ref_collects_Bag(out, log, bag5);
 			bag5[Symbol.dispose]();
 		} else {
-			const arg4 = bag4.error;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg4, f)];
+			const arg5 = bag4.error;
+			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg5, f)];
 			put(out, rs.fmtFormat(["err ", args2[0]]));
 		}
 	} else if (_12 === 4) {
-		const bag6: Bag.Bag | undefined = rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_28: rs.u8): Item.Item | undefined => {
-			const v5: rs.u8 = _28;
-			return then$0bmzd6l(v5 < 240, (): Item.Item => {
-				return item(v5);
+		const bag6: Bag.Bag | undefined = rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_212: rs.u8): Item.Item | undefined => {
+			const v7: rs.u8 = _212;
+			return then$0bmzd6l(v7 < 240, (): Item.Item => {
+				return item(v7);
 			});
 		}), (values: rs.Iter<Item.Item>) => Bag.fromIter$iter_FromIterator_collects_Item_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure5_Option_never(values), rs.drop);
-		const part4 = option_map$0a0rmxp(bag6, (bag7: Bag.Bag): rs.usize => {
+		const part6 = option_map$0a0rmxp(bag6, (bag7: Bag.Bag): rs.usize => {
 			return bag7.items.items.length;
 		});
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part4, f, rs.usizeDebug)];
+		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part6, f, rs.usizeDebug)];
 		put(out, rs.fmtFormat([args4[0]]));
 		const _89: rs.Iter<Item.Item> = rs.iterFlatten(rs.iterOption(bag6), (value: Bag.Bag) => Bag.intoIter$iter_IntoIterator_ref(value), true);
 		write$iter_Flatten_option_Iter_collects_Bag(out, log, _89);
 		rs.drop(bag6);
 	} else if (_12 === 5) {
-		const stack: Stack.Stack<rs.u16> = Stack.fromIter$iter_FromIterator_u16_u16_iter_Map_slice_Iter_u8_collects_collects_closure7(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
-			return rs.u16Mul(_2 as rs.u16, 3);
+		const stack: Stack.Stack<rs.u16> = Stack.fromIter$iter_FromIterator_u16_u16_iter_Map_slice_Iter_u8_collects_collects_closure7(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_210: rs.u8): rs.u16 => {
+			return rs.u16Mul(_210 as rs.u16, 3);
 		}));
-		const part3 = stack.items as rs.Vec<rs.u16>;
-		const _105: rs.Fmt = (f: rs.Formatter) => rs.fmtList(part3.items, f, rs.u16Debug);
-		const arg3 = stack.count;
-		const args6: rs.Fmt[] = [_105, (f: rs.Formatter) => rs.usizeDisplay(arg3, f)];
+		const part5 = stack.items as rs.Vec<rs.u16>;
+		const _105: rs.Fmt = (f: rs.Formatter) => rs.fmtList(part5.items, f, rs.u16Debug);
+		const arg4 = stack.count;
+		const args6: rs.Fmt[] = [_105, (f: rs.Formatter) => rs.usizeDisplay(arg4, f)];
 		put(out, rs.fmtFormat([args6[0], " ", args6[1]]));
-		const stack2: Stack.Stack<Item.Item> = Stack.fromIter$iter_FromIterator_collects_Item_collects_Item_iter_Map_iter_Take_slice_Iter_u8_collects_collects_closure8(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), k), (_22: rs.u8): Item.Item => {
-			return item(_22);
+		const stack2: Stack.Stack<Item.Item> = Stack.fromIter$iter_FromIterator_collects_Item_collects_Item_iter_Map_iter_Take_slice_Iter_u8_collects_collects_closure8(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), k), (_211: rs.u8): Item.Item => {
+			return item(_211);
 		}));
 		write$ref_Vec_collects_Item(out, log, stack2.items as rs.Vec<Item.Item>);
 		stack2[Symbol.dispose]();
 	} else if (_12 === 6) {
-		const n: rs.u8 = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 0, (v2: rs.u8): rs.u8 => {
-			return rs.u8Rem(v2, 9);
+		const n: rs.u8 = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 0, (v4: rs.u8): rs.u8 => {
+			return rs.u8Rem(v4, 9);
 		});
 		const stack3: Stack.Stack<rs.u8> = Stack.fromIter$iter_FromIterator_u8_u8_collects_Down(new Down.Down(n, log));
-		const part = stack3.items as rs.ByteVec;
-		const _133: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug);
-		const arg = stack3.count;
-		const args8: rs.Fmt[] = [_133, (f: rs.Formatter) => rs.usizeDisplay(arg, f)];
+		const part3 = stack3.items as rs.ByteVec;
+		const _133: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part3), f, rs.u8Debug);
+		const arg2 = stack3.count;
+		const args8: rs.Fmt[] = [_133, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
 		put(out, rs.fmtFormat([args8[0], " ", args8[1]]));
 		const down: Down.Down = new Down.Down(n, log);
 		const stack4: Stack.Stack<rs.u8> = Stack.fromIter$iter_FromIterator_u8_u8_iter_Take_mut_collects_Down(rs.iterTake(rs.iterFrom(down, Down.next$iter_Iterator), k));
 		const _153: rs.u8 | undefined = rs.iterToOption(Down.next$iter_Iterator(down));
-		const part2 = stack4.items as rs.ByteVec;
-		const _156: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part2), f, rs.u8Debug);
-		const arg2 = stack4.count;
-		const args10: rs.Fmt[] = [_156, (f: rs.Formatter) => rs.usizeDisplay(arg2, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug)];
+		const part4 = stack4.items as rs.ByteVec;
+		const _156: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part4), f, rs.u8Debug);
+		const arg3 = stack4.count;
+		const args10: rs.Fmt[] = [_156, (f: rs.Formatter) => rs.usizeDisplay(arg3, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug)];
 		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2]]));
 		down[Symbol.dispose]();
+	} else {
+		const tries: rs.Result<Tries.Tries<rs.u8>, Item.Item> = rs.iterCollectResult(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.Result<rs.u8, Item.Item> => {
+			const v2: rs.u8 = _2;
+			if (!(rs.u8Rem(v2, 3) === 0)) {
+				return rs.Ok(v2);
+			}
+			return rs.Err(item(v2));
+		}), (values: rs.Iter<rs.u8>) => Tries.fromIter$iter_FromIterator_u8_u8_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure10_Result_never_collects_Item(values), undefined, rs.drop);
+		if (tries.ok) {
+			const part = tries.value._0;
+			const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
+			put(out, rs.fmtFormat([args12[0]]));
+		} else {
+			const e2: Item.Item = tries.error;
+			const arg = e2.v;
+			const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
+			put(out, rs.fmtFormat(["err ", args14[0]]));
+			e2[Symbol.dispose]();
+		}
+		const part2 = option_map$1yttib1(rs.iterCollectOption(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): Item.Item | undefined => {
+			const v3: rs.u8 = _22;
+			return then$0bmzd6l(rs.u8Rem(v3, 3) !== 0, (): Item.Item => {
+				return item(v3);
+			});
+		}), (values: rs.Iter<Item.Item>) => Tries.fromIter$iter_FromIterator_collects_Item_collects_Item_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure11_Option_never(values), rs.drop), (_29: Tries.Tries<Item.Item>): rs.Vec<rs.u8 | undefined> => {
+			const values3: rs.Vec<Item.Item | undefined> = _29._0;
+			const _05: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(values3.items), (item2: Item.Item | undefined): rs.u8 | undefined => {
+				return option_map$1hm93qk(item2, (item3: Item.Item): rs.u8 => {
+					return item3.v;
+				});
+			}), undefined, 2, true);
+			rs.dropVec(values3);
+			return _05;
+		});
+		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.Vec<rs.u8 | undefined>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)))];
+		put(out, rs.fmtFormat([args16[0]]));
 	}
 	write$array0_ref_collects_Item(out, log, []);
 }
