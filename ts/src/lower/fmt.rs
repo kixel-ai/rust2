@@ -12,7 +12,7 @@ use rustc_span::Span;
 use super::body::Body;
 use super::library::{self, Std};
 use super::num::Int;
-use crate::ts::{Expr, Key, Param, Stmt, Type};
+use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// A formatting trait.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -176,6 +176,113 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			}],
 			Box::new(body),
 		)
+	}
+}
+
+impl<'tcx> Body<'_, '_, 'tcx> {
+	/// `fmt::Write`'s `def_id`, `write_str`, `write_char`, or `write_fmt`, of `w`, a
+	/// `String`, a `Formatter`, or the crate's own writer, through `receiver`, the `&mut` to
+	/// it, writing `arg`, a `fmt::Arguments` whose only piece is `literal` if it is one. A
+	/// provided method of the crate's impl writes through its `write_str`, and its
+	/// `write_fmt` through the runtime's port of `fmt::write`, which calls its `write_str`
+	/// and `write_char` as std does. `None` for any other writer.
+	#[allow(clippy::too_many_arguments)]
+	pub fn fmt_write(
+		&mut self,
+		def_id: DefId,
+		w: Ty<'tcx>,
+		receiver: Expr,
+		arg: Expr,
+		literal: Option<String>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Option<Expr> {
+		let tcx = self.t.tcx;
+		let name = tcx.item_name(def_id);
+		let name = name.as_str();
+		let wargs = tcx.mk_args(&[w.into()]);
+		let write_str = super::collections::trait_fn(tcx, "FmtWrite", "write_str");
+		let std = self.t.std_of(w);
+		if !matches!(std, Some(Std::String | Std::Formatter)) && !self.t.translated(write_str, wargs) {
+			return None;
+		}
+		// A JS string can't change in place, so the place the `&mut` is gets a longer one.
+		if std == Some(Std::String) {
+			let read = receiver.member("v");
+			let (value, result) = self.string_write(name, read.clone(), arg, literal, out);
+			out.push(StmtKind::Expr(read.assign(value)).at(None));
+			return Some(result);
+		}
+		// The crate's impl writes this method itself.
+		if self.t.translated(def_id, wargs) {
+			return Some(self.call_def(def_id, wargs, vec![receiver, arg], span, out));
+		}
+		if std == Some(Std::Formatter) {
+			return Some(match (name, literal) {
+				("write_char", _) => Expr::rs("fmtWriteChar", vec![receiver, arg]),
+				("write_fmt", Some(s)) => Expr::rs("fmtWriteStr", vec![receiver, Expr::Str(s)]),
+				("write_fmt", None) => Expr::rs("fmtWriteFmt", vec![receiver, arg]),
+				_ => Expr::rs("fmtWriteStr", vec![receiver, arg]),
+			});
+		}
+		// The provided `write_fmt` writes a literal with one `write_str`, as std's does.
+		let text = match (name, literal) {
+			("write_char", _) => library::char_text(arg),
+			("write_fmt", Some(s)) => Expr::Str(s),
+			("write_fmt", None) => {
+				let write_char = super::collections::trait_fn(tcx, "FmtWrite", "write_char");
+				// Read in each function it writes through.
+				let receiver = match receiver.is_path() {
+					true => receiver,
+					false => self.spill(receiver, "w", out),
+				};
+				let (s, c) = (self.fresh("s"), self.fresh("c"));
+				let (s_arg, c_arg) = (Expr::ident(&s), Expr::ident(&c));
+				let mut pre = Vec::new();
+				let str_call = self.call_def(write_str, wargs, vec![receiver.clone(), s_arg], span, &mut pre);
+				// std's provided `write_char` writes the char's UTF-8 through `write_str`.
+				let char_call = match self.t.translated(write_char, wargs) {
+					true => self.call_def(write_char, wargs, vec![receiver, c_arg], span, &mut pre),
+					false => self.call_def(
+						write_str,
+						wargs,
+						vec![receiver, library::char_text(c_arg)],
+						span,
+						&mut pre,
+					),
+				};
+				if !pre.is_empty() {
+					return Some(self.err(span, format!("`write_str` of `{w}` needs statements")));
+				}
+				let lambda = |name: String, body: Expr| Expr::Lambda(vec![Param { name, ty: None }], Box::new(body));
+				return Some(Expr::rs("fmtWrite", vec![lambda(s, str_call), lambda(c, char_call), arg]));
+			}
+			_ => arg,
+		};
+		Some(self.call_def(write_str, wargs, vec![receiver, text], span, out))
+	}
+
+	/// `fmt::Write`'s `name` of a `String` whose value `read` reads, writing `arg`, a
+	/// `fmt::Arguments` whose only piece is `literal` if it is one: the longer string and
+	/// what the call returns. What a placeholder wrote before an error stays written.
+	pub fn string_write(
+		&mut self,
+		name: &str,
+		read: Expr,
+		arg: Expr,
+		literal: Option<String>,
+		out: &mut Vec<Stmt>,
+	) -> (Expr, Expr) {
+		let ok = Expr::Rs("OK".into());
+		match (name, literal) {
+			("write_char", _) => (read.binary("+", library::char_text(arg)), ok),
+			("write_fmt", Some(s)) => (read.binary("+", Expr::Str(s)), ok),
+			("write_fmt", None) => {
+				let written = self.spill(Expr::rs("fmtWriteString", vec![read, arg]), "written", out);
+				(written.clone().member("s"), written.member("result"))
+			}
+			_ => (read.binary("+", arg), ok),
+		}
 	}
 }
 

@@ -341,7 +341,8 @@ it is forced and while their function runs, without forcing it. A caller prints 
 would: `rs.fmtToString((f) => DecodeError.fmt$fmt_Display(err, f))` and
 `rs.fmtFormat([(f) => DecodeError.fmt$fmt_Debug(err, f)])`, after
 `import * as DecodeError from "./coding/decode.DecodeError.ts"`. `fmt::Write` translates for a
-`String`, a `Formatter`, and the crate's own writers, and through a `&mut` to any of them.
+`String`, a `Formatter`, and the crate's own writers, through a `&mut` to any of them, and
+through a `dyn fmt::Write` of any of them.
 A crate's own provided `write_char` and a literal `write_fmt` call its `write_str` once, as
 std's do. What placeholders write reaches its `write_str` and `write_char` in the calls std
 makes, with the same text in the same order: each fill a `write_char`, an integer's sign one
@@ -539,7 +540,8 @@ does, from keys drawn once and the first raised by one for each state, drawn fro
 `crypto.getRandomValues` where std asks the OS. std's `Hash` impls call a crate's own
 `Hasher` as std's do, method by method, length prefixes, `str`'s `0xff`, and an integer
 slice's one `write` included, and std's provided methods it doesn't write itself write
-through the others as std's do. `BuildHasher::hash_one` of a crate's own builds its
+through the others as std's do. So do they into a `&mut` or a box of a `dyn Hasher`, of
+`DefaultHasher` or the crate's own, as std's impls forward each method to it. `BuildHasher::hash_one` of a crate's own builds its
 hasher, hashes, finishes, then drops the hasher and the value. A hasher JS copies, such as
 an enum, hashes as a struct one does, through the `rs.Place` its `&mut` is.
 Its iterators are `rs.Iter`s, so std's adaptors run over them.
@@ -574,7 +576,8 @@ and drops the iterator once the tail is back; an `extract_if` takes out each ele
 closure picks as it reads them, moves the rest back over the gaps once dropped, and then
 drops the closure.
 
-A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
+A trait object of the crate's own trait, a dependency's, or std's or a mapped crate's, such as
+`dyn Hasher`, `dyn fmt::Write`, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
 its trait as an impl's function is and taking what follows `self`: `shape.area$Shape()`.
 The trait's module exports its type, `Shape.Shape` from `dyns.Shape.ts`, which a TS
@@ -607,10 +610,14 @@ struct of one, is what a box of the object it points at unsizes to, which drops 
 such as a cell, unsizes as each read finds the value there, and stays null or dangling.
 One whose object would hold such a value as it is made, such as a `*mut dyn Iterator` of
 a `*mut Range`, is refused. Pointers to trait objects don't compare, as each coercion
-makes an object of its own. A `dyn Error`'s or `dyn Buf`'s object holds only
+makes an object of its own. An object of std's or a mapped crate's trait holds only
 the methods some call through one dispatches to, so each buffer adds those of its impls,
-not all of `Buf`'s; a TS caller sees the same in its type. It holds no `chunks_vectored`,
-whose `IoSlice` has no JS value, so a call of it fails.
+not all of `Buf`'s; a TS caller sees the same in its type. Hashing into a `dyn Hasher` holds
+each of `Hasher`'s. A class of a std type's value calls the mapping of its impl, such as
+`DefaultHasher`'s `Hasher`, or a `String`'s or a `Formatter`'s `fmt::Write`, and one no
+mapping makes, such as a `Vec<u8>`'s `io::Write`, is refused where a call dispatches to it.
+A `dyn Buf` holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it
+fails.
 
 A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
@@ -645,12 +652,8 @@ folds included, so a boxed `skip` of a zip skips through the zip's `nth` as std'
 box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get_mut` and `Rc::get_mut` of a trait object lend its object while no other
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
-A trait object of std's
-or a mapped crate's trait other than `dyn Debug` and `dyn Display` behind `&`, `&mut`,
-`Box`, `Arc`, or `Rc`, `dyn Future`,
-`dyn Any`, `dyn Error`, `dyn Buf`, the function traits, and those iterators', of a trait
-with a const parameter, of a byte array, or behind any other pointer, such as a struct's
-last field, is refused, and so is `Any::type_id`.
+A trait object of a trait with a const parameter, of a byte array, or behind any other
+pointer, such as a struct's last field, is refused, and so is `Any::type_id`.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the
