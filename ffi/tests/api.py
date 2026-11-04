@@ -15,6 +15,10 @@ import threading
 
 import api
 
+# The transcript's lines end and encode as Rust's do, which Windows' text mode and code
+# page would turn into CRLF and the locale's encoding.
+sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+
 
 class PrintLog(api.Log):
 	"""The Log callback: keeps even levels."""
