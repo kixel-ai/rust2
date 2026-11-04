@@ -21,7 +21,7 @@ Decided with the maintainer on 2026-11-01, settling
   decided on 2026-11-02 in [#428](https://github.com/moq-dev/rust2/pull/428)), delete
   `go/` and this epic, keeping the measurements in the PR that does.
 - **Share rust2-ts's front end piece by piece,** as Go needs each piece, starting with
-  the control-flow structuring in `ts/src/lower/mir/cfg.rs`. No shared crate lands ahead
+  the control-flow structuring, now `driver/src/cfg.rs`. No shared crate lands ahead
   of a Go use. About a quarter of `ts/src` would serve Go, nearly all of it inside files
   whose lowering returns TypeScript's AST.
 

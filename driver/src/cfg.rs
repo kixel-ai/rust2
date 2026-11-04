@@ -38,6 +38,7 @@ pub struct Graph {
 /// A translator's statement: the control flow structuring builds, and the shape of each
 /// statement its passes rewrite.
 pub trait Syntax: Sized {
+	/// What an `if` tests.
 	type Cond: Cond;
 	/// `label: { body }`, which `break label` leaves.
 	fn block(label: String, body: Vec<Self>) -> Self;
@@ -51,7 +52,9 @@ pub trait Syntax: Sized {
 	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>);
 	/// `state = node`, which the next turn of [`Syntax::dispatch`]'s loop goes to.
 	fn set(state: &str, node: usize) -> Self;
+	/// The statement's shape, to read.
 	fn view(&self) -> View<'_, Self>;
+	/// The statement's shape, to rewrite in place.
 	fn view_mut(&mut self) -> ViewMut<'_, Self>;
 }
 
@@ -68,12 +71,15 @@ pub trait Cond {
 /// Which way a jump goes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Jump {
+	/// Leave the labeled block or loop.
 	Break,
+	/// Start the labeled loop's next turn.
 	Continue,
 }
 
 /// A statement as structuring sees it: its bodies `B`, condition `C`, and label `L`.
 pub enum Form<B, C, L> {
+	/// A block, which only a labeled `break` leaves.
 	Block {
 		label: L,
 		body: B,
@@ -84,6 +90,7 @@ pub enum Form<B, C, L> {
 		cond: Option<C>,
 		body: B,
 	},
+	/// An `if`, its `else` empty if it has none.
 	If {
 		cond: C,
 		then: B,
@@ -91,7 +98,9 @@ pub enum Form<B, C, L> {
 	},
 	/// A `switch`'s cases' bodies and its default's, which an unlabeled `break` leaves.
 	Switch(Vec<B>),
+	/// A `break`, and the label it names.
 	Break(L),
+	/// A `continue`, and the label it names.
 	Continue(L),
 	/// A `return`, and whether it gives a value.
 	Return(bool),
@@ -99,7 +108,9 @@ pub enum Form<B, C, L> {
 	Other,
 }
 
+/// A statement's shape, borrowed to read.
 pub type View<'a, S> = Form<&'a Vec<S>, &'a <S as Syntax>::Cond, &'a Option<String>>;
+/// A statement's shape, borrowed to rewrite.
 pub type ViewMut<'a, S> = Form<&'a mut Vec<S>, &'a mut <S as Syntax>::Cond, &'a mut Option<String>>;
 
 /// The graph's nodes in order, its dominators, and its shape.

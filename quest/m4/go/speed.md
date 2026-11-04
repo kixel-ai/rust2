@@ -41,19 +41,20 @@ growth, lowest and highest in parentheses, in µs per group on a host at load 2 
 | `stream/audio/lite-07/decode` | 22 (19..27) | 20 (17..22) | 2 (2..3) | 8.4x |
 
 A video group is 60 frames, 577 KB; an audio group is 50 frames of 160 bytes. Measure
-each step on these before the next.
+each change on these.
 
-1. **Structure control flow on a crate shared with rust2-ts.** Labels and `goto` put a
-   function past Go's inlining budget: a one-line `Try::branch` costs 81 against 80, so
-   each `?` is a call. Move rust2-ts's `cfg` (`ts/src/lower/mir/cfg.rs`) into a crate both
-   translators use, generic over their statements, as the epic decides. rust2-ts's output
-   must not change: its lang and reject snapshots stay put.
-2. **Split enums into their parts:** a Go variable per part for a local, and Go results
-   for a return, as rust2-ts's `Slotted` (`ts/src/lower/mir/scalar.rs`) hands back a
-   `Result`'s parts. An audio stream's remaining gap is mostly its frame headers, which
-   the per-call `frames/` workloads measure at 17 to 32 times cgo.
+Structuring control flow as rust2-ts does, through the `cfg` both now share
+(`driver/src/cfg.rs`), moved none of these past noise: per-call encodes 4 to 9% faster,
+decodes and the streams flat, in medians of eight runs alternating with and without it.
+Folding had already brought `?`'s helpers within Go's inlining budget (`Try::branch`
+costs 53 against 80), so the hand edit's 88 to 73 ns below did not recur.
 
-The cost step 2 removes is Go's register ABI. Go keeps a local of over four words in
+What remains is to **split enums into their parts:** a Go variable per part for a local,
+and Go results for a return, as rust2-ts's `Slotted` (`ts/src/lower/mir/scalar.rs`)
+hands back a `Result`'s parts. An audio stream's remaining gap is mostly its frame
+headers, which the per-call `frames/` workloads measure at 17 to 32 times cgo.
+
+The cost this step removes is Go's register ABI. Go keeps a local of over four words in
 memory and returns a result of over nine on the stack, so each `Option`, `Result`, and
 `ControlFlow` a call returns is stored to its caller's frame, zeroed there first when it
 holds a pointer, and copied out. An enum holds every variant's fields side by side,
@@ -63,11 +64,10 @@ takes 1.0 to 1.2 ns, measure each lever:
 
 | The translation, with | ns |
 | --- | --- |
-| folding, as it is now | 88 |
+| folding and structured control flow, as it is now | 88 |
 | `Result::Err` behind a pointer | 59, but decoding in 3-byte reads is 2.4 times slower, as each `?` allocates the error anew |
 | a non-`Copy` enum's variant of over two words behind a pointer, `DecodeError` 96 to 56 bytes | 88 |
-| structured control flow, so Go inlines `?`'s helpers | 73 |
-| that, and `DecodeError` 40 bytes | 67 |
+| `DecodeError` 40 bytes, in a hand-structured edit at 73 | 67 |
 | each `Result` returned as Go results, its error by pointer, and the helpers inlined | 6.7, and 4.3 for 1 byte |
 
 Laying variants out behind pointers is no lever, so it is not a step.

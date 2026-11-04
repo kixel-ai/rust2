@@ -26,7 +26,7 @@ error at its span, and nothing is written.
 
 | Rust | Go |
 | --- | --- |
-| a function instance | a function, its MIR blocks as labels and `goto`, its locals as variables but a temporary assigned and read once, which folds into its reader |
+| a function instance | a function, its MIR blocks structured into loops and `if`s as rust2-ts structures them, a `goto` leaving a block where JS would `break` it, its locals as variables but a temporary assigned and read once, which folds into its reader |
 | `u8`..`u64`, `i8`..`i64`, `usize`, `isize` | `uint8`..`uint64`, `int8`..`int64`, `uint`, `int` (64-bit hosts) |
 | an overflow check, a bounds check | native Rust's panic message, as a `RustPanic` |
 | a struct, a tuple | a struct, generic where Rust's is; `tuple2[A, B]` and so on |

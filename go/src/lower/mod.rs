@@ -1,6 +1,6 @@
 //! MIR to Go: every function instance the roots reach, monomorphized, becomes a Go
-//! function of one package, its body the MIR's blocks as labels and its locals as
-//! variables. Types become Go types, generic where Rust's are, and std's functions
+//! function of one package, its body the MIR's blocks structured into loops and `if`s
+//! and its locals as variables. Types become Go types, generic where Rust's are, and std's functions
 //! translate from their own MIR down to the bindings that stand in for what Go does
 //! itself, such as a `Vec`'s growth or UTF-8 validation.
 
