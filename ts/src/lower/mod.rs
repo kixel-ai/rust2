@@ -2194,16 +2194,18 @@ pub fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
 	}
 }
 
-/// Whether `ty` is a byte: a `u8`, or a `MaybeUninit` of one, which JS keeps as the `u8`,
-/// so that a run of either is a typed array's and a write through a `[MaybeUninit<u8>]`
-/// reaches the bytes it lends.
+/// Whether `ty` is a byte: a `u8`, or a `MaybeUninit` of one through any number of them,
+/// which JS keeps as the `u8`, so that a run of any is a typed array's and a write through
+/// a `[MaybeUninit<u8>]` reaches the bytes it lends.
 pub fn byte(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Uint(ty::UintTy::U8) => true,
 		// The context every lowering runs in, so the many callers that name no `TyCtxt` need none.
-		ty::Adt(adt, args) if adt.is_union() => {
-			matches!(args.type_at(0).kind(), ty::Uint(ty::UintTy::U8))
-				&& ty::tls::with(|tcx| tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::MaybeUninit))
+		ty::Adt(adt, args)
+			if adt.is_union()
+				&& ty::tls::with(|tcx| tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::MaybeUninit)) =>
+		{
+			byte(args.type_at(0))
 		}
 		_ => false,
 	}

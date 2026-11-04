@@ -1,7 +1,7 @@
 //! `MaybeUninit<u8>`, which JS keeps as the `u8`, so its arrays, slices, and `Vec`s are
 //! those of bytes: written through as slices, by element, by `write_copy_of_slice`, and
-//! through what it gives back, then read as what they hold, and lent or held in an
-//! `Option` unwritten; beside a slice of wider values copied in, and copies of mismatched
+//! through what it gives back, then read as what they hold, lent or held in an `Option`
+//! unwritten, and held in another `MaybeUninit`; beside a slice of wider values copied in, and copies of mismatched
 //! lengths, which panic.
 
 use std::mem::MaybeUninit;
@@ -44,6 +44,13 @@ pub fn uninits(data: &[u8], out: &mut Vec<u8>) {
 	let fresh = [MaybeUninit::<u8>::uninit(); 2];
 	let lone: Option<MaybeUninit<u8>> = data.first().map(|_| MaybeUninit::uninit());
 	out.extend([fresh.first().is_some(), fresh.get(2).is_none(), lone.is_some()].map(u8::from));
+
+	// One held in another, a slice of which lends the inner ones.
+	let mut nested = [MaybeUninit::<MaybeUninit<u8>>::uninit(); 3];
+	let k = data.len().min(nested.len());
+	let src: Vec<MaybeUninit<u8>> = data[..k].iter().map(|&b| MaybeUninit::new(!b)).collect();
+	nested[..k].write_copy_of_slice(&src);
+	out.extend(unsafe { nested[..k].assume_init_ref() }.iter().map(|b| unsafe { b.assume_init() }));
 
 	// Copies of mismatched lengths panic as `copy_from_slice` does.
 	match data.first() {
