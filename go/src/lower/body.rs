@@ -1045,7 +1045,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	fn switch(&mut self, discr: &Operand<'tcx>, targets: &mir::SwitchTargets, span: Span, out: &mut String) -> Exit {
 		let ty = self.operand_ty(discr);
 		let (arms, default) = self.switch_targets(targets);
-		let held = discr.place().and_then(|p| p.as_local());
+		// The local whose value a test of it, or of a field of it, may fold in.
+		let held = discr.place().map(|p| p.local);
 		if arms.is_empty() {
 			if let Some(local) = held {
 				self.held.discard(local, out);
