@@ -1,7 +1,7 @@
 // `std::panic`'s hook, for rust2-ts output: only a program that sets one reaches this
 // module, so a bundler drops all of it from one that doesn't. `rt.ts` re-exports all of it.
 
-import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, Panic, panic } from "../rt.ts";
+import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtWriteString, Panic, panic } from "../rt.ts";
 import { fmtLocationDisplay, type Location } from "./location.ts";
 import { drop } from "./task.ts";
 
@@ -29,29 +29,38 @@ export interface Sites {
 function defaultHook(_info: PanicHookInfo): undefined {}
 
 let hook: Hook = defaultHook;
-/** Whether a hook is running: a panic then aborts, and `thread::panicking` is true. */
+/** Whether a panic is formatting its message or running the hook: a panic then aborts, and `thread::panicking` is true. */
 let hooking = false;
 /** Where std's own code panics outside a `#[track_caller]` function, which `setHook` is given. */
 let sites: Sites | undefined;
 
 /**
  * Run the hook on a panic at `at`, or at the key of std's site in `Sites`, whose payload is
- * `text` or else `payload`: a `String` if `owned`, or if it is the `Arguments` the text was
- * formatted from and they have placeholders, as `Arguments::as_str` says. A panic while
- * the hook runs aborts, as std's does, without running it again.
+ * `message` or else `payload`: a `String` if `owned`, or if it is `Arguments` with
+ * placeholders, as `Arguments::as_str` says. It formats `Arguments` once the panic has
+ * begun, as std does, and gives the text. A panic while the hook runs aborts, as std's does,
+ * without running it again.
  */
-function run(text: string | undefined, at: Location | string | undefined, owned: boolean | Arguments | undefined, payload?: object): void {
-	if (hooking) throw new Abort(`${text ?? "Box<dyn Any>"}\nthread panicked while processing panic. aborting.`);
-	if (hook === defaultHook) return;
+function run(message: string | Arguments | undefined, at: Location | string | undefined, owned?: boolean, payload?: object): string | undefined {
+	const literal = typeof message === "object" ? asStr(message) : message;
+	if (hooking) throw new Abort(`${literal ?? ""}\nthread panicked while processing panic. aborting.`);
+	if (hook === defaultHook) return undefined;
 	const location = typeof at === "string" ? sites?.[at] : at;
-	if (location === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${text ?? "Box<dyn Any>"}`);
-	if (typeof owned === "object") owned = owned.length > 1 || owned.some((part) => typeof part !== "string");
+	if (location === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${literal ?? "a formatted message"}`);
 	hooking = true;
 	try {
-		hook({ text, owned: owned ?? false, payload, location });
+		const text = typeof message === "object" ? fmtWriteString("", message).s : message;
+		hook({ text, owned: owned ?? literal === undefined, payload, location });
+		return text;
 	} finally {
 		hooking = false;
 	}
+}
+
+/** `Arguments::as_str`: the text of a message without placeholders. */
+function asStr(args: Arguments): string | undefined {
+	const [part = "", ...rest] = args;
+	return rest.length === 0 && typeof part === "string" ? part : undefined;
 }
 
 /** `panic::set_hook`, given where std's own code panics, which its hooks read. */
@@ -73,7 +82,7 @@ export function takeHook(): Hook {
 	return old;
 }
 
-/** `thread::panicking`, which is true while a hook runs, as a panic aborts once it has. */
+/** `thread::panicking`, which is true while a panic formats its message and runs the hook, as a panic aborts once it has. */
 export function panicking(): boolean {
 	return hooking;
 }

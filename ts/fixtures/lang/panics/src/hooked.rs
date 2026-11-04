@@ -9,6 +9,7 @@
 
 use std::cell::{OnceCell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap, LinkedList, VecDeque};
+use std::fmt;
 use std::future::Future;
 use std::ops::Bound;
 use std::panic::{self, PanicHookInfo};
@@ -108,6 +109,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		22 => out.extend((0..n).step_by(usize::from(n) * 0)),
 		23 => out.extend(v.clone().drain(usize::from(n) + 3..)),
 		24 => panic::panic_any("any"),
+		25 => out.extend(v.iter().step_by(usize::from(n) * 0)),
 		26 => assert!(n == n.wrapping_add(1)),
 		27 => panic!(),
 		28 => unreachable!(),
@@ -121,21 +123,41 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A hook that panics, or that sets the hook, which aborts as a panic in a hook does,
-/// without running the hook again.
+/// A message whose `Display` writes to [`NOTE`] whether the thread is panicking, as it is
+/// once std formats the message for the hook, and then panics if `again`.
+struct Shown {
+	again: bool,
+}
+
+impl fmt::Display for Shown {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let line = format!("shown {}\n", std::thread::panicking());
+		NOTE.with_borrow_mut(|note| note.push_str(&line));
+		if self.again {
+			panic!("shown");
+		}
+		f.write_str("shown")
+	}
+}
+
+/// A hook that panics, or that sets the hook, or a message that panics as it formats, which
+/// aborts as a panic in a hook does, without running the hook again.
 pub fn aborted(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	let prev = panic::take_hook();
 	panic::set_hook(Box::new(move |info| {
 		record(info);
-		match kind % 3 {
+		match kind % 5 {
 			0 => panic!("again"),
 			1 => drop(panic::take_hook()),
 			_ => prev(info),
 		}
 	}));
 	out.push(n);
-	panic!("first {n}");
+	match kind % 5 {
+		3 | 4 => panic!("first {n} {}", Shown { again: kind % 5 == 4 }),
+		_ => panic!("first {n}"),
+	}
 }
 
 thread_local! {

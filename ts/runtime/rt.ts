@@ -35,8 +35,11 @@ export * from "./rt/time.ts";
 
 /** A Rust panic. */
 export class Panic extends Error {
-	/** What `panic` runs before it throws, once a program sets a hook: `rt/hook.ts`'s. */
-	declare static hooked?: (text: string, at: Location | string | undefined, owned: boolean | Arguments | undefined) => void;
+	/**
+	 * What `panic` runs before it throws, once a program sets a hook: `rt/hook.ts`'s, which
+	 * gives the text it formatted, if any.
+	 */
+	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean) => string | undefined;
 	override name = "Panic";
 }
 
@@ -49,7 +52,7 @@ export class Abort extends Panic {
  * Panic with `message`, at `at`, or at the key of std's site the hook finds it at, whose
  * text is a `String` if `owned` says so, as `Panic.hooked` reads it.
  */
-export function panic(message: string, at?: Location | string, owned?: boolean | Arguments): never {
+export function panic(message: string, at?: Location | string, owned?: boolean): never {
 	Panic.hooked?.(message, at, owned);
 	throw new Panic(message);
 }
@@ -61,12 +64,10 @@ export function resumeUnwind(): never {
 
 /**
  * Panic at `at` with a formatted message, which keeps what was written before a value failed
- * to format, as std's does.
+ * to format, as std's does. A hook formats it as it runs, as std formats it once panicking.
  */
 export function panicFmt(message: Arguments, at?: Location | string): never {
-	const out = new StringWriter();
-	write(out, message);
-	panic(out.s, at, message);
+	throw new Panic(Panic.hooked?.(message, at) ?? fmtWriteString("", message).s);
 }
 
 /** A `match` without arms, on a value Rust proved can't exist, such as a `(Void, u8)`. */

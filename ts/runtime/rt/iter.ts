@@ -896,8 +896,8 @@ export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item:
  * counts down the range's end, as std's specializes it to.
  */
 export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>, max?: number, at?: Location): Iter<T> {
-	if (max === undefined) return new StepByIter(it, step, drop);
 	if (step === 0) panic("assertion failed: step != 0", at);
+	if (max === undefined) return new StepByIter(it, step, drop);
 	const range = it as never as Range<number>;
 	range.end = Math.ceil(range.sizeHint()[0] / step);
 	return new RangeStepBy(range, step - 1, max) as never as Iter<T>;
@@ -4111,7 +4111,6 @@ class StepByIter<T> extends Adaptor<T, T> {
 
 	constructor(inner: Iter<T>, step: number, drop?: Drop<T>) {
 		super(inner);
-		if (step === 0) panic("assertion failed: step != 0");
 		this.step = step - 1;
 		this.drop = drop;
 	}
