@@ -3705,37 +3705,46 @@ class VecDrain<T> extends Iter<T> implements Disposable {
 
 /**
  * `Vec::splice` of `size`-byte elements: a drain of `r` that, once dropped, drops what it
- * has not yielded and fills the gap from `items`, as std's: after a drain to the end, by
- * `extend`, which reserves for a `trusted`, `TrustedLen`, iterator as it does; else by
- * each item until the gap is full, then the tail moved past room for `items`' lower bound,
- * reserved for the whole vector, and then past room for the rest, collected as std's
- * collects them. The tail moves
- * back to the last item, and `items` drops last if it `drops`.
+ * has not yielded and fills the gap from the `items` `spliceFrom` gave it, as std's: after
+ * a drain to the end, by `extend`, which reserves for a `trusted`, `TrustedLen`, iterator
+ * as it does; else by each item until the gap is full, then the tail moved past room for
+ * `items`' lower bound, reserved for the whole vector, and then past room for the rest,
+ * collected as std's collects them. The tail moves back to the last item, and `items`
+ * drops last if it `drops`.
  */
-export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, items: Iter<T>, size: number, trusted = false, drops = false, drop?: (item: T) => void): Iter<T> {
+export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, size: number, drop?: (item: T) => void): Iter<T> {
 	const [start, end] = boundsRange(r, v.length);
 	const cap = vecCapacity(v, size);
 	const rest = v.splice(start);
 	// Held by the vector, which keeps it if the splice is leaked.
 	capSet(v, start, cap, size);
-	return new VecSplice(v, rest, end - start, drop, items, size, cap, trusted, drops);
+	return new VecSplice(v, rest, end - start, drop, size, cap);
+}
+
+/**
+ * A splice, of `vecSplice` or `byteVecSplice`, given the `items` it fills from, which std's
+ * makes once it has made the drain, and whether they are `trusted` and `drops`.
+ */
+export function spliceFrom<T>(s: Iter<T>, items: Iter<T>, trusted = false, drops = false): Iter<T> {
+	const splice = s as unknown as { items: Iter<T>; trusted: boolean; drops: boolean };
+	splice.items = items;
+	splice.trusted = trusted;
+	splice.drops = drops;
+	return s;
 }
 
 class VecSplice<T> extends VecDrain<T> {
-	readonly items: Iter<T>;
+	items: Iter<T> = iterEmpty();
 	private readonly size: number;
 	/** The vector's capacity, which its length, cut to the drain's start, no longer gives. */
 	private cap: number;
-	private readonly trusted: boolean;
-	private readonly drops: boolean;
+	trusted = false;
+	drops = false;
 
-	constructor(v: T[], rest: T[], tail: number, drop: ((item: T) => void) | undefined, items: Iter<T>, size: number, cap: number, trusted: boolean, drops: boolean) {
+	constructor(v: T[], rest: T[], tail: number, drop: ((item: T) => void) | undefined, size: number, cap: number) {
 		super(v, rest, tail, drop);
-		this.items = items;
 		this.size = size;
 		this.cap = cap;
-		this.trusted = trusted;
-		this.drops = drops;
 	}
 
 	override [Symbol.dispose](): void {
@@ -3960,25 +3969,18 @@ class ByteVecDrain extends Iter<number> implements Disposable {
 	}
 }
 
-/** `Vec::splice` of bytes, as `vecSplice`. */
-export function byteVecSplice(v: ByteVec, r: Bounds<number>, items: Iter<number>, trusted = false, drops = false): Iter<number> {
+/** `Vec::splice` of bytes, as `vecSplice`, given its items by `spliceFrom`. */
+export function byteVecSplice(v: ByteVec, r: Bounds<number>): Iter<number> {
 	const [start, end] = boundsRange(r, v.length);
 	const length = v.length;
 	v.length = start;
-	return new ByteVecSplice(v, start, end, length, items, trusted, drops);
+	return new ByteVecSplice(v, start, end, length);
 }
 
 class ByteVecSplice extends ByteVecDrain {
-	readonly items: Iter<number>;
-	private readonly trusted: boolean;
-	private readonly drops: boolean;
-
-	constructor(v: ByteVec, start: number, end: number, length: number, items: Iter<number>, trusted: boolean, drops: boolean) {
-		super(v, start, end, length);
-		this.items = items;
-		this.trusted = trusted;
-		this.drops = drops;
-	}
+	items: Iter<number> = iterEmpty();
+	trusted = false;
+	drops = false;
 
 	override [Symbol.dispose](): void {
 		if (this.length < 0) return;

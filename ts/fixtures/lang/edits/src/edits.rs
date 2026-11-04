@@ -1002,6 +1002,19 @@ impl<'a> Iterator for Hinted<'a> {
 	}
 }
 
+/// A range that holds what drops, as a splice takes it.
+struct Held<'a>(usize, Tracked<'a>);
+
+impl std::ops::RangeBounds<usize> for Held<'_> {
+	fn start_bound(&self) -> std::ops::Bound<&usize> {
+		std::ops::Bound::Included(&self.0)
+	}
+
+	fn end_bound(&self) -> std::ops::Bound<&usize> {
+		std::ops::Bound::Unbounded
+	}
+}
+
 /// `n` units, logging each `size_hint` read of them, whose lower bound is none.
 struct Units<'a> {
 	n: u8,
@@ -1183,6 +1196,10 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 						spliced(&mut v, r, items, read, &log)
 					}
 				}
+				// The range drops as the drain is made, before the error its items drop.
+				let start = usize::from(at(17)) % (v.len() + 1);
+				mark(0xf2);
+				drop(v.splice(Held(start, tracked(0x71)), Err::<Tracked, _>(tracked(0x77))));
 				out.extend(ids(&v));
 			}
 			out.extend_from_slice(&log.borrow());

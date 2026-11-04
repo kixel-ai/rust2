@@ -2489,13 +2489,11 @@ fn mapping<'tcx>(
 				}
 			}));
 		}
-		// A drain that fills its gap from the replacing items, which it drops last.
+		// A drain that fills its gap from the replacing items, which it drops last. std's
+		// makes the drain, dropping the range, before it makes the items an iterator.
 		("Vec", "splice") => {
 			// `Vec<T, A>::splice::<R, I>`.
 			let (elem, source) = (targ(gargs, 0), targ(gargs, 3));
-			let items = args.pop()?;
-			let ranged = super::collections::bounds(b, call, args.pop()?);
-			args.push(ranged.bounds.clone());
 			let iter = super::iter::iter_of(b.t, source)?;
 			// std's reads the items through their own `by_ref`, which an override may give
 			// another iterator in place of.
@@ -2509,17 +2507,26 @@ fn mapping<'tcx>(
 					format!("`Vec::splice` of `{iter}`, whose own `by_ref` std's calls, which is not supported yet"),
 				));
 			}
-			args.push(super::iter::into_iter(b, source, items, span)?);
-			let trusted = Expr::lit(super::iter::implements(b.t, iter, "TrustedLen").to_string());
-			let drops = super::iter::iter_drops(b, iter, span);
-			return Some(ranged.after(match is_u8(elem) {
-				true => Expr::rt("byteVecSplice", super::iter::tail(args, vec![trusted, drops])),
+			let items = args.pop()?;
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.push(ranged.bounds.clone());
+			let drain = match is_u8(elem) {
+				true => Expr::rt("byteVecSplice", args),
 				false => {
 					args.push(super::iter::size_of(b, elem, span));
 					let dropper = b.t.dropper(elem, span);
-					Expr::rt("vecSplice", super::iter::tail(args, vec![trusted, drops, dropper]))
+					Expr::rt("vecSplice", super::iter::tail(args, vec![dropper]))
 				}
-			}));
+			};
+			let items = super::iter::into_iter(b, source, items, span)?;
+			// The drain, the first argument, which JS evaluates first.
+			let drain = ranged.after(drain);
+			let trusted = Expr::lit(super::iter::implements(b.t, iter, "TrustedLen").to_string());
+			let drops = super::iter::iter_drops(b, iter, span);
+			return Some(Expr::rt(
+				"spliceFrom",
+				super::iter::tail(vec![drain, items], vec![trusted, drops]),
+			));
 		}
 		// The closure, which it drops as it drops, takes the place of each element JS copies.
 		("Vec", "extract_if") => {
