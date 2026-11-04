@@ -871,12 +871,13 @@ export function refMutRelease<T>(r: RefCell<T>): void {
 
 /**
  * `PartialEq`, `PartialOrd`, or `Ord` of `RefCell`s, by `f` of their values: each borrowed
- * in turn, which panics while it is mutably borrowed, and released the other way.
+ * in turn, at `at` and then `other`, which panics while it is mutably borrowed, and released
+ * the other way.
  */
-export function refCellBy<T, R>(f: (a: T, b: T) => R, at?: Location): (a: RefCell<T>, b: RefCell<T>) => R {
+export function refCellBy<T, R>(f: (a: T, b: T) => R, at?: Location, other?: Location): (a: RefCell<T>, b: RefCell<T>) => R {
 	return (a, b) => {
 		refCellBorrow(a, at);
-		refCellBorrow(b, at);
+		refCellBorrow(b, other);
 		const r = f(a.value, b.value);
 		refRelease(b);
 		refRelease(a);

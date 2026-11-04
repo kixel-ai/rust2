@@ -2108,11 +2108,15 @@ export function byteVecSpare(v: ByteVec): ByteSlice {
 	return new ByteSlice(v.data, v.length, v.data.length - v.length);
 }
 
-/** `Vec::set_len`, which aborts past the capacity, as std's check of its precondition does. */
+/**
+ * `Vec::set_len`, which panics past the capacity, as std's check of its precondition does:
+ * one that can't unwind, so it runs the hook, then aborts, as every panic here does.
+ */
 export function byteVecSetLen(v: ByteVec, length: number): void {
 	if (length > v.data.length) {
-		throw new Abort(
+		panic(
 			"unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.",
+			"vec_set_len",
 		);
 	}
 	v.length = length;

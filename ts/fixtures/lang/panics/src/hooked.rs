@@ -178,7 +178,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 50 {
+	match kind % 70 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -288,7 +288,63 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		),
 		47 => out.extend(v.clone().extract_if(at + 3.., |_| true)),
 		48 => out.push(vec![u16::from(n)].extract_if(..at + 2, |_| true).count() as u8),
+		49 => out.extend((u8::MAX - n % 2..).take(3)),
+		50 => out.extend((u8::MAX - n % 4..).nth(usize::from(n % 3) + 4)),
+		51 => out.extend((u64::MAX - u64::from(n % 2)..).take(3).map(|x| x as u8)),
+		52 => out.extend(
+			(char::from_u32(0x10_FFFF - u32::from(n % 2)).unwrap()..)
+				.take(3)
+				.map(|c| c as u8),
+		),
+		k @ 53..=56 => joined(k - 53, n, out),
+		k @ 57..=67 => out.push(compared(k - 57, n)),
+		68 => {
+			let mut v = Vec::<u8>::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: std's check of its precondition aborts.
+			unsafe { v.set_len(v.capacity() + 1) };
+			out.push(v.len() as u8);
+		}
 		_ => out.push(Lying(n).len() as u8),
+	}
+}
+
+/// A `concat` or `join` whose length overflows, by `kind`: its sum of the parts' lengths,
+/// or the capacity the sum reserves.
+fn joined(kind: u8, n: u8, out: &mut Vec<u8>) {
+	let big = vec![n; 1 << 16];
+	let refs = |count: usize| vec![&big[..]; count];
+	let joined = match kind {
+		0 => refs((1 << 16) + 1).concat(),
+		1 => refs((1 << 16) + 1).join(&n),
+		2 => refs((1 << 15) + 1).concat(),
+		_ => {
+			let wide = vec![u16::from(n); 1 << 16];
+			let joined = vec![&wide[..]; (1 << 14) + 1].join(&[1u16][..]);
+			joined.iter().map(|&w| w as u8).collect()
+		}
+	};
+	out.push(joined.len() as u8);
+}
+
+/// A comparison of `RefCell`s, by `kind`, of which `n` picks one to hold mutably borrowed:
+/// each of their own comparisons, and those that reach them through a tuple's last element,
+/// a `Reverse`, and a vector.
+fn compared(kind: u8, n: u8) -> u8 {
+	let (a, b) = (RefCell::new(n), RefCell::new(n.wrapping_add(1)));
+	let _held = if n % 2 == 0 { a.borrow_mut() } else { b.borrow_mut() };
+	let order = |o: Option<std::cmp::Ordering>| o.map_or(9, |o| o as i8 as u8);
+	match kind {
+		0 => u8::from(a == b),
+		1 => u8::from(a != b),
+		2 => order(a.partial_cmp(&b)),
+		3 => u8::from(a < b),
+		4 => u8::from(a <= b),
+		5 => u8::from(a > b),
+		6 => u8::from(a >= b),
+		7 => order(Some(a.cmp(&b))),
+		8 => u8::from((n, &a) < (n, &b)),
+		9 => u8::from(std::cmp::Reverse(&a) < std::cmp::Reverse(&b)),
+		_ => u8::from([&a] == [&b]),
 	}
 }
 

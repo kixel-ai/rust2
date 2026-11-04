@@ -183,7 +183,8 @@ with its payload if that is text, or `Box<dyn Any>` as std's hook writes any oth
 A program that reaches `set_hook` has each panic carry the `Location` native code gives
 it, std's own at the `/rustc/<commit>/library/...` path its build names, read from the
 toolchain's source, and runs its hook with a `PanicHookInfo` before throwing; a panic in
-the hook throws `rt.Abort`, as std aborts. The default hook writes nothing, as wasm32 has
+the hook throws `rt.Abort`, as std aborts. A panic of `bytes`' own code, which native names
+by the host's cargo registry, throws an error instead. The default hook writes nothing, as wasm32 has
 no stderr. A program without one passes no locations, and a bundler drops the hook's
 runtime, `rt/hook.ts`, from it; what stays is the location parameter of the runtime's
 panicking functions, which it leaves unset.
@@ -978,7 +979,7 @@ they need.
   `push/vec`, and tracking it on each pop up to 2.8x on `push/stack` (decided with the
   maintainer on 2026-11-03). A `Vec<u8>`'s is its buffer's length, so its
   `spare_capacity_mut` is an `rt.ByteSlice` of the buffer past its length, which `set_len`
-  takes in, aborting past the capacity as std's check does; any other `Vec`'s is refused,
+  takes in, panicking past the capacity as std's check does, which can't unwind; any other `Vec`'s is refused,
   as no JS array holds room past its length. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
