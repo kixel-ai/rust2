@@ -3,13 +3,13 @@
 import * as rt from "./rt.ts";
 
 export function clone$Clone(self: Named): Named {
-	return { name: self.name, id: self.id };
+	return { name: rt.strCowClone(self.name), id: self.id };
 }
 
 export function fmt$fmt_Debug(self: Named, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _3: string = "Named";
 	const _4: string = "name";
-	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtStr(self.name, f);
+	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtStr(rt.strCowStr(self.name), f);
 	const _7: string = "id";
 	const _8: rt.Fmt = (f: rt.Formatter) => rt.u8Debug(self.id, f);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
@@ -23,11 +23,11 @@ export function eq$cmp_PartialEq(self: Named, other: Named): boolean {
 	if (!(self.id === other.id)) {
 		return false;
 	}
-	return self.name === other.name;
+	return rt.strCowStr(self.name) === rt.strCowStr(other.name);
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Named, state: rt.Hasher): void {
-	rt.hashStr(self.name, state);
+	rt.hashCow(rt.hashStr)(self.name, state);
 	rt.hash8(self.id, state);
 }
 
@@ -36,7 +36,7 @@ export function partialCmp$cmp_PartialOrd(self: Named, other: Named): rt.Orderin
 }
 
 export function cmp$cmp_Ord(self: Named, other: Named): rt.Ordering {
-	const cmp: rt.Ordering = rt.cmpStr(self.name, other.name);
+	const cmp: rt.Ordering = rt.cowBy(rt.cmpStr)(self.name, other.name);
 	if (cmp === 0) {
 		return rt.cmp(self.id, other.id);
 	}
@@ -45,16 +45,16 @@ export function cmp$cmp_Ord(self: Named, other: Named): rt.Ordering {
 
 /** A `Cow` in a field, with each derived impl reading it. */
 export interface Named {
-	name: string;
+	name: rt.StrCow;
 	id: rt.u8;
 }
 
 /** Borrowed unless it has to make the text, as moq-net's `Relative::new` is. */
 function new_(s: string, id: rt.u8): Named {
-	let name!: string;
+	let name!: rt.StrCow;
 	const trimmed: string = rt.strTrimEndMatches(s, "/");
 	if (!(trimmed.length === 0)) {
-		name = trimmed;
+		name = new rt.Borrowed(trimmed);
 	} else {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(id, f)];
 		name = rt.fmtFormat(["#", args2[0]]);
@@ -64,11 +64,12 @@ function new_(s: string, id: rt.u8): Named {
 
 /** Through `to_mut` of the field. */
 export function tag(self: Named, c: rt.char): void {
+	self.name = rt.strCowStr(self.name);
 	self.name = self.name + String.fromCodePoint(c);
 }
 
 export function intoOwned(self: Named): Named {
-	return { name: self.name, id: self.id };
+	return { name: rt.strCowStr(self.name), id: self.id };
 }
 
 export { new_ as new };

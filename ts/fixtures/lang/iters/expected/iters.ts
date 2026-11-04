@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { drop$iters_Ticks, of$u8 } from "./lib.ts";
 import { thenSome$185ufyt, thenSome$0b23a33, thenSome$0d5am30, thenSome$1j8foe9 } from "./core/bool.ts";
-import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$00uis1j as option_unwrapOr$00uis1j, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$14m5xjm as option_unwrapOr$14m5xjm, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, map$1uo1d4o as option_map$1uo1d4o, map$1httady as option_map$1httady, map$0of9gds as option_map$0of9gds, map$1c7zybz as option_map$1c7zybz, map$0cs071d as option_map$0cs071d, map$0p22lts as option_map$0p22lts, map$05nbzug as option_map$05nbzug, mapOr$0lcrgk1 as option_mapOr$0lcrgk1, mapOr$1kiffmd as option_mapOr$1kiffmd, mapOr$1a3irjf as option_mapOr$1a3irjf, mapOr$0sl5app as option_mapOr$0sl5app, mapOr$0atjiti as option_mapOr$0atjiti, mapOr$0okqj9y as option_mapOr$0okqj9y, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$1lznlgz as option_mapOr$1lznlgz, mapOr$0tmtgfi as option_mapOr$0tmtgfi, mapOr$0ev76sb as option_mapOr$0ev76sb, mapOr$1surhce as option_mapOr$1surhce, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$0a96v80 as option_mapOr$0a96v80, mapOr$1vjqo89 as option_mapOr$1vjqo89, mapOr$1h04da8 as option_mapOr$1h04da8, mapOr$0f73bb7 as option_mapOr$0f73bb7, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$06gg5x7 as option_mapOr$06gg5x7, mapOr$1dmz9kd as option_mapOr$1dmz9kd, mapOr$1sxa8ki as option_mapOr$1sxa8ki, mapOr$02k4ito as option_mapOr$02k4ito, asDeref$0w8at8i as option_asDeref$0w8at8i, filter$0v80fk8 } from "./core/option.ts";
+import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$00uis1j as option_unwrapOr$00uis1j, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOr$14m5xjm as option_unwrapOr$14m5xjm, unwrapOr$1tvry1i as option_unwrapOr$1tvry1i, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0wx44sw as option_unwrapOrDefault$0wx44sw, map$1uo1d4o as option_map$1uo1d4o, map$1httady as option_map$1httady, map$0of9gds as option_map$0of9gds, map$1c7zybz as option_map$1c7zybz, map$0cs071d as option_map$0cs071d, map$0p22lts as option_map$0p22lts, map$05nbzug as option_map$05nbzug, mapOr$0lcrgk1 as option_mapOr$0lcrgk1, mapOr$1kiffmd as option_mapOr$1kiffmd, mapOr$1a3irjf as option_mapOr$1a3irjf, mapOr$0sl5app as option_mapOr$0sl5app, mapOr$0atjiti as option_mapOr$0atjiti, mapOr$0okqj9y as option_mapOr$0okqj9y, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$1lznlgz as option_mapOr$1lznlgz, mapOr$0tmtgfi as option_mapOr$0tmtgfi, mapOr$0ev76sb as option_mapOr$0ev76sb, mapOr$1surhce as option_mapOr$1surhce, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$0a96v80 as option_mapOr$0a96v80, mapOr$1vjqo89 as option_mapOr$1vjqo89, mapOr$1h04da8 as option_mapOr$1h04da8, mapOr$0f73bb7 as option_mapOr$0f73bb7, mapOr$0mmpeqx as option_mapOr$0mmpeqx, mapOr$06gg5x7 as option_mapOr$06gg5x7, mapOr$1dmz9kd as option_mapOr$1dmz9kd, mapOr$1sxa8ki as option_mapOr$1sxa8ki, mapOr$02k4ito as option_mapOr$02k4ito, asDeref$0w8at8i as option_asDeref$0w8at8i, asDeref$1qc2lbh as option_asDeref$1qc2lbh, filter$0v80fk8 } from "./core/option.ts";
 import { unwrapOr$01jdcm7 as result_unwrapOr$01jdcm7 } from "./core/result.ts";
 import type * as Badge from "./iters.Badge.ts";
 import * as Bag from "./iters.Bag.ts";
@@ -485,17 +485,17 @@ export function peekedOthers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return v4[rt.idx(v4, 0)];
 	});
 	rt.byteVecPush(out, _4(part10));
-	const it5: rt.Peekable<string> = rt.iterPeekable(rt.iterMap(rt.iterSlice(words), (w3: string): string => {
-		return w3;
+	const it5: rt.Peekable<rt.StrCow> = rt.iterPeekable(rt.iterMap(rt.iterSlice(words), (w3: string): rt.StrCow => {
+		return new rt.Borrowed(w3);
 	}));
-	const part11 = option_asDeref$0w8at8i(rt.peekableNextIfEq(it5, "b", (a011: string, a17: string): boolean => {
-		return a011 === a17;
+	const part11 = option_asDeref$1qc2lbh(rt.peekableNextIfEq(it5, "b", (a011: rt.StrCow, a17: string): boolean => {
+		return rt.strCowStr(a011) === a17;
 	}));
 	rt.byteVecPush(out, _4(part11));
-	const part12 = option_asDeref$0w8at8i(rt.iterToOption(it5.next()));
+	const part12 = option_asDeref$1qc2lbh(rt.iterToOption(it5.next()));
 	rt.byteVecPush(out, _4(part12));
-	const part13 = option_asDeref$0w8at8i(rt.peekableNextIfEq(rt.iterPeekable(rt.iterSlice(rt.vecExact(words.slice(), 12))), first, (a012: string, a18: string): boolean => {
-		return a012 === a18;
+	const part13 = option_asDeref$0w8at8i(rt.peekableNextIfEq(rt.iterPeekable(rt.iterSlice(rt.vecExact(words.slice(), 12))), first, (a012: string, a18: rt.StrCow): boolean => {
+		return a012 === rt.strCowStr(a18);
 	}));
 	rt.byteVecPush(out, _4(part13));
 	const it7: rt.Peekable<rt.u16[]> = rt.iterPeekable(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_26: rt.u8): rt.u16[] => {

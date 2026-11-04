@@ -1,18 +1,10 @@
 //! Strings and `Cow`s, which JS keeps as primitives.
 
-/// A `Cow<str>` is a JS string, which keeps no variant to match on or ask about.
-pub fn cow_matched(c: std::borrow::Cow<'_, str>) -> String {
-	match c {
-		std::borrow::Cow::Borrowed(s) => s.to_string(),
-		std::borrow::Cow::Owned(s) => s,
-	}
-}
-
+/// A `Cow`'s variant, which a match reads, but asking is unstable.
 pub fn cow_borrowed(c: &std::borrow::Cow<'_, str>) -> bool {
 	std::borrow::Cow::is_borrowed(c)
 }
 
-/// A slice's tells its variants apart, but asking is unstable.
 pub fn cow_bytes(c: &std::borrow::Cow<'_, [u8]>) -> bool {
 	std::borrow::Cow::is_borrowed(c)
 }

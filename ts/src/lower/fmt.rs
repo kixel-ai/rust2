@@ -370,15 +370,15 @@ pub fn std_impl<'tcx>(
 			e
 		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
-			(Std::String | Std::Cow, Trait::Display) if library::string(tcx, ty) => Expr::rt("fmtPad", vec![f, value]),
-			(Std::String | Std::Cow, Trait::Debug) if library::string(tcx, ty) => rt("str", vec![value, f]),
+			(Std::String, Trait::Display) => Expr::rt("fmtPad", vec![f, value]),
+			(Std::String, Trait::Debug) => rt("str", vec![value, f]),
 			// A `NonZero`, a `Wrapping`, and a `Saturating` write their integer, by each trait.
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)
 			}
-			// A `Cow<[T]>` writes its slice.
-			(Std::Cow, Trait::Debug) if let Some(elem) = library::cow_slice(tcx, ty) => {
-				b.fmt_call(tr, Ty::new_slice(tcx, elem), library::cow_deref(value, elem), f, span)
+			// A `Cow` writes what it derefs to.
+			(Std::Cow, _) if let Some(borrowed) = library::cow_borrowed(tcx, ty) => {
+				b.fmt_call(tr, borrowed, library::cow_deref(value, borrowed), f, span)
 			}
 			(Std::Arc, Trait::Display | Trait::Debug) => {
 				b.fmt_call(tr, args.type_at(0), value.member("value"), f, span)

@@ -16,6 +16,7 @@ import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts"
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rt/alloc.ts";
 import { AtIndex } from "./rt/collections.ts";
 import { escapeDebug } from "./rt/char.ts";
+import { strFromUtf8Unchecked } from "./rt/str.ts";
 export * from "./rt/alloc.ts";
 export * from "./rt/ascii.ts";
 export * from "./rt/bytes.ts";
@@ -2399,26 +2400,28 @@ export function byteVecShrinkTo(v: ByteVec, min: number): void {
 	if (cap !== v.data.length) realloc(v, cap);
 }
 
-// Cows of slices. An owned one is its `Vec` and a borrowed one its slice, told apart by
-// class: a `Cow<[u8]>` is an `rt.ByteVec` or an `rt.ByteSlice`, and any other is an array
-// or the `rt.Borrowed` wrapping the array it borrows.
+// Cows. An owned one is what it owns and a borrowed one what it borrows, told apart by
+// class: a `Cow<[u8]>` is an `rt.ByteVec` or an `rt.ByteSlice`, and any other is the array
+// or string it owns or the `rt.Borrowed` wrapping the slice it borrows.
 
 /**
- * The slice a `Cow<[T]>` borrows, which it clones before it changes. A `&mut` to the
- * borrow writes `slice`, so no two `Cow`s share one.
+ * The slice a `Cow<[T]>` or a `Cow<str>` borrows, which it clones before it changes. A
+ * `&mut` to the borrow writes `slice`, so no two `Cow`s share one.
  */
-export class Borrowed<T> {
-	slice: T[];
+export class Borrowed<S> {
+	slice: S;
 
-	constructor(slice: T[]) {
+	constructor(slice: S) {
 		this.slice = slice;
 	}
 }
 
 /** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows. */
-export type Cow<T> = T[] | Borrowed<T>;
+export type Cow<T> = T[] | Borrowed<T[]>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
+/** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
+export type StrCow = string | Borrowed<string>;
 
 /** `Deref` of a `Cow<[T]>`: its slice. */
 export function cowSlice<T>(c: Cow<T>): T[] {
@@ -2489,14 +2492,40 @@ export function cowDrop<T>(c: Cow<T>, f?: (item: T) => void): void {
 	if (!(c instanceof Borrowed)) dropAll(c, f);
 }
 
-/** `f` of the slices two `Cow<[T]>`s deref to, as their `PartialEq` and `Ord` compare them. */
-export function cowBy<T, R>(f: (a: T[], b: T[]) => R): (a: Cow<T>, b: Cow<T>) => R {
-	return (a, b) => f(cowSlice(a), cowSlice(b));
+/** What a `Cow` other than of bytes derefs to. */
+function cowDeref<S>(c: S | Borrowed<S>): S {
+	return c instanceof Borrowed ? c.slice : c;
 }
 
-/** `Hash::hash` of a `Cow<[T]>`: its slice's. */
-export function hashCow<T, S>(hash: (value: T[], s: S) => void): (value: Cow<T>, s: S) => void {
-	return (value, s) => hash(cowSlice(value), s);
+/** `f` of what two `Cow`s deref to, as their `PartialEq` and `Ord` compare them. */
+export function cowBy<S, R>(f: (a: S, b: S) => R): (a: S | Borrowed<S>, b: S | Borrowed<S>) => R {
+	return (a, b) => f(cowDeref(a), cowDeref(b));
+}
+
+/** `Hash::hash` of a `Cow`: what it derefs to's. */
+export function hashCow<B, S>(hash: (value: B, s: S) => void): (value: B | Borrowed<B>, s: S) => void {
+	return (value, s) => hash(cowDeref(value), s);
+}
+
+/** `Deref` of a `Cow<str>`, and its `into_owned`: its text. */
+export function strCowStr(c: StrCow): string {
+	return c instanceof Borrowed ? c.slice : c;
+}
+
+/** `Clone` of a `Cow<str>`: a borrow of the same text, or its text. */
+export function strCowClone(c: StrCow): StrCow {
+	return c instanceof Borrowed ? new Borrowed(c.slice) : c;
+}
+
+/**
+ * `+` of two `Cow<str>`s, and `+=`: the right one if the left is empty, the left if the
+ * right is, and else the text they join, owned.
+ */
+export function strCowAdd(a: StrCow, b: StrCow): StrCow {
+	const left = strCowStr(a);
+	if (left === "") return b;
+	const right = strCowStr(b);
+	return right === "" ? a : left + right;
 }
 
 // Strings
@@ -2562,6 +2591,16 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 		return Ok(decoder.decode(v));
 	} catch {
 		return Err(utf8Check(v) as Utf8Error);
+	}
+}
+
+/** `String::from_utf8_lossy`: the text of valid UTF-8, borrowed, or else with each invalid sequence replaced by U+FFFD, owned. */
+export function stringFromUtf8Lossy(bytes: ByteSlice): StrCow {
+	const v = byteSliceView(bytes);
+	try {
+		return new Borrowed(decoder.decode(v));
+	} catch {
+		return strFromUtf8Unchecked(bytes);
 	}
 }
 

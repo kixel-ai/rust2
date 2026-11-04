@@ -27,6 +27,8 @@ import {
 	panic,
 	panicFmt,
 	type Result,
+	type StrCow,
+	strCowStr,
 	stringLen,
 	utf8Check,
 } from "../rt.ts";
@@ -1175,8 +1177,8 @@ export function strBytes(s: string): Iter<u8> {
 // `ignoreBOM` keeps a leading U+FEFF, as Rust does.
 const lossy = /* @__PURE__ */ new TextDecoder("utf-8", { ignoreBOM: true });
 
-/** `String::from_utf8_lossy`: the text, each invalid sequence replaced by U+FFFD. */
-export function stringFromUtf8Lossy(bytes: ByteSlice): string {
+/** `str::from_utf8_unchecked`: the text, each invalid sequence, which its contract rules out, replaced by U+FFFD. */
+export function strFromUtf8Unchecked(bytes: ByteSlice): string {
 	return lossy.decode(byteSliceView(bytes));
 }
 
@@ -1470,6 +1472,9 @@ export const STRING_CHARS_PART: Part<string, char> = {
 
 /** `String` as a tuple's part, of strings, which never reserves. */
 export const STRING_PART: Part<string, string> = { one: (s, text) => s + text };
+
+/** `String` as a tuple's part, of `Cow<str>`s, which never reserves. */
+export const STRING_COW_PART: Part<string, StrCow> = { one: (s, c) => s + strCowStr(c) };
 
 /** `Extend` of `s` by strings, `&str`, `String`, or `Cow<str>`, and `collect` of `&str`s from `""`. */
 export function stringExtend(s: string, it: Iter<string>, drops = false): string {
