@@ -2,6 +2,14 @@
 
 import * as rs from "./rs.ts";
 
+/**
+ * Provided, taking a function of a reference to the argument, which the trait's type
+ * takes in each form a reference may be.
+ */
+export function apply$dyns_Scaled_Vec_u8(self: Many, f: (a0: rs.ByteVec) => rs.ByteVec, x: rs.ByteVec): rs.ByteVec {
+	return f(scale$dyns_Scaled_Vec_u8(self, x));
+}
+
 /** Bytes, which JS keeps apart from other vectors. */
 export interface Many {
 	_0: rs.u8;

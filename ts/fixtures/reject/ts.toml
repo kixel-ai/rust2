@@ -88,6 +88,7 @@ roots = [
     "objects::dynamic",
     "objects::first_of",
     "objects::nested_item",
+    "objects::passed",
     "objects::raw_dyn_iter",
     "objects::same_named",
     "objects::scaled_twice",

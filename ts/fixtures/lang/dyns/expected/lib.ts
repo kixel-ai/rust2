@@ -2,15 +2,17 @@
 
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
-import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
 import * as By from "./dyns.By.ts";
 import * as Drained from "./dyns.Drained.ts";
 import * as Guarded from "./dyns.Guarded.ts";
 import * as Held from "./dyns.Held.ts";
 import * as Hits from "./dyns.Hits.ts";
+import * as Leaf from "./dyns.Leaf.ts";
 import * as Lease from "./dyns.Lease.ts";
 import * as Looped from "./dyns.Looped.ts";
 import * as Many from "./dyns.Many.ts";
+import type * as Nest from "./dyns.Nest.ts";
 import * as Noisy from "./dyns.Noisy.ts";
 import type * as Shape from "./dyns.Shape.ts";
 import * as Square from "./dyns.Square.ts";
@@ -177,6 +179,10 @@ export class of$dyns_By {
 		this.v = v;
 	}
 
+	apply$Scaled(a: (a0: rs.Ptr<rs.u8>) => rs.u8, a2: rs.u8): rs.u8 {
+		return By.apply$dyns_Scaled_u8(this.v, a as (a0: rs.u8) => rs.u8, a2);
+	}
+
 	bump$Scaled(a: rs.Ptr<rs.u8>): void {
 		return By.bump$dyns_Scaled_u8(this.v, a as rs.Place<rs.u8>);
 	}
@@ -242,6 +248,22 @@ export class of$dyns_Hits {
 	}
 }
 
+export class of$dyns_Leaf {
+	v: Leaf.Leaf;
+
+	constructor(v: Leaf.Leaf) {
+		this.v = v;
+	}
+
+	depth$Nest(): rs.u8 {
+		return Leaf.depth$dyns_Nest_u8(this.v);
+	}
+
+	next$Nest(): Nest.Nest<rs.VecOf<rs.u8>> | undefined {
+		return Leaf.next$dyns_Nest_u8(this.v) as Nest.Nest<rs.VecOf<rs.u8>> | undefined;
+	}
+}
+
 export class of$dyns_Lease {
 	v: Lease.Lease;
 
@@ -295,6 +317,10 @@ export class of$dyns_Many {
 
 	constructor(v: Many.Many) {
 		this.v = v;
+	}
+
+	apply$Scaled(a: (a0: rs.VecOf<rs.u8>) => rs.VecOf<rs.u8>, a2: rs.VecOf<rs.u8>): rs.VecOf<rs.u8> {
+		return Many.apply$dyns_Scaled_Vec_u8(this.v, a as (a0: rs.ByteVec) => rs.ByteVec, a2 as rs.ByteVec) as rs.VecOf<rs.u8>;
 	}
 
 	bump$Scaled(a: rs.VecOf<rs.u8>): void {
@@ -437,6 +463,10 @@ export class of$dyns_Tri {
 		this.v = v;
 	}
 
+	apply$Scaled(a: (a0: rs.Ptr<string>) => string, a2: string): string {
+		return Tri.apply$dyns_Scaled_String(this.v, a as (a0: string) => string, a2);
+	}
+
 	area$Shape(): rs.u32 {
 		return Tri.area$dyns_Shape(this.v);
 	}
@@ -511,6 +541,10 @@ export class of$u16 {
 
 	constructor(v: rs.u16) {
 		this.v = v;
+	}
+
+	apply$Scaled(a: (a0: rs.Ptr<rs.u16>) => rs.u16, a2: rs.u16): rs.u16 {
+		return apply$dyns_Scaled_u16_u16(this.v, a as (a0: rs.u16) => rs.u16, a2);
 	}
 
 	bump$Scaled(a: rs.Ptr<rs.u16>): void {

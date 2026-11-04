@@ -4,6 +4,6 @@ import * as rs from "./rs.ts";
 
 /** A generic trait over its supertrait at another argument. */
 export type Paired<T> =
-	| { pair$Paired: (a0: T) => [T, T]; scale$Scaled: (a0: rs.VecOf<T>) => rs.VecOf<T>; bump$Scaled: (a0: rs.VecOf<T>) => void; pick$Scaled: (a0: rs.VecOf<T>, a1: rs.VecOf<T>) => rs.VecOf<T> };
+	| { pair$Paired: (a0: T) => [T, T]; scale$Scaled: (a0: rs.VecOf<T>) => rs.VecOf<T>; bump$Scaled: (a0: rs.VecOf<T>) => void; pick$Scaled: (a0: rs.VecOf<T>, a1: rs.VecOf<T>) => rs.VecOf<T>; apply$Scaled: (a0: (a0: rs.VecOf<T>) => rs.VecOf<T>, a1: rs.VecOf<T>) => rs.VecOf<T> };
 
 //# sourceMappingURL=dyns.Paired.ts.map

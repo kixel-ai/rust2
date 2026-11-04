@@ -2,6 +2,7 @@
 
 import * as rs from "../rs.ts";
 import type * as Any from "../core/any.Any.ts";
+import type * as Scaled from "../dyns.Scaled.ts";
 import type * as Shape from "../dyns.Shape.ts";
 import type * as Tagged from "../dyns.Tagged.ts";
 
@@ -62,6 +63,13 @@ export function map$0vt270f(self: rs.Iter<rs.u8> | undefined, f: (a0: rs.Iter<rs
 }
 
 export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$00ac22d(self: rs.Arc<Scaled.Scaled<rs.ByteVec>> | undefined, f: (a0: rs.Arc<Scaled.Scaled<rs.ByteVec>>) => rs.ByteVec): rs.ByteVec | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

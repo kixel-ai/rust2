@@ -153,7 +153,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 		if !self.objects.contains_key(&principal) {
 			self.define_object(principal, ty, span)?;
 		}
-		self.check_object(principal, ty, span);
 		let args = self.object_args(principal, ty, span);
 		let sym = self.objects[&principal].sym;
 		Some(Type::Sym(sym, args.into_iter().map(|(_, t)| t).collect()))
@@ -292,7 +291,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Refuse the trait object `ty` of `principal` if a method its object holds takes or
 	/// returns, at its arguments, what its type gives in another form than a cast reaches,
-	/// as a `T | undefined` of an `Option<T>` whose `T` is an `Option` too.
+	/// as a `T | undefined` of an `Option<T>` whose `T` is an `Option` too. Checked where a
+	/// value becomes one, by which time the object holds each method of a crate's own
+	/// trait, and not where a type names one, as a method may return an object of other
+	/// arguments without end, `Nest<Vec<T>>` of `Nest<T>`.
 	fn check_object(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) {
 		let object = &self.objects[&principal];
 		if object.params.is_empty() || ty.has_param() || object.checked.contains(&ty) {
@@ -438,6 +440,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let to = tcx.erase_and_anonymize_regions(to);
 		self.object(to, span)?;
 		let principal = principal(to).expect("an object's trait");
+		self.check_object(principal, to, span);
 		let class = match self.object_classes.get(&(from, held)) {
 			Some(&class) => class,
 			None => self.new_object_class(from, held, span),
@@ -873,19 +876,27 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let generic = !self.t.objects[&principal].params.is_empty();
 		self.t.hold(principal, index, span);
 		let receiver = args.remove(0);
-		let call = receiver.member(name).call(args);
 		if !generic {
-			return call;
+			return receiver.member(name).call(args);
 		}
-		// What it returns at the object's arguments, where its type has a form only they
-		// decide.
+		// What it takes and returns at the object's arguments, where its type has a form
+		// only they decide, which a function it takes takes too.
 		let object_args = self.t.object_args(principal, object, span);
-		let Some(Type::Func(_, defined)) = self.t.objects[&principal].methods[index].ty.clone() else {
+		let Some(Type::Func(params, defined)) = self.t.objects[&principal].methods[index].ty.clone() else {
 			unreachable!("a held method's type");
 		};
-		let Type::Func(_, called) = self.t.called_ty(principal, index, object, span) else {
+		let Type::Func(taken, called) = self.t.called_ty(principal, index, object, span) else {
 			unreachable!("a method's type");
 		};
+		let args = (args.into_iter().zip(params.iter().zip(&taken)))
+			.map(
+				|(arg, (defined, taken))| match defined.subst(&|p| param(&object_args, p)) {
+					defined if defined != *taken => Expr::As(Box::new(arg), defined),
+					_ => arg,
+				},
+			)
+			.collect();
+		let call = receiver.member(name).call(args);
 		let defined = defined.subst(&|p| param(&object_args, p));
 		// A `()` the object's type returns as `undefined` is the `void` the call is.
 		match defined == *called || (defined, &*called) == (Type::Builtin("undefined"), &Type::Builtin("void")) {

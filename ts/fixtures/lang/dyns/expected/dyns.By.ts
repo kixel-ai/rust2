@@ -2,6 +2,14 @@
 
 import * as rs from "./rs.ts";
 
+/**
+ * Provided, taking a function of a reference to the argument, which the trait's type
+ * takes in each form a reference may be.
+ */
+export function apply$dyns_Scaled_u8(self: By, f: (a0: rs.u8) => rs.u8, x: rs.u8): rs.u8 {
+	return f(scale$dyns_Scaled_u8(self, x));
+}
+
 export interface By {
 	_0: rs.u8;
 }

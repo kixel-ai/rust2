@@ -4,6 +4,6 @@ import * as rs from "./rs.ts";
 
 /** A generic trait. */
 export type Scaled<T> =
-	| { scale$Scaled: (a0: T) => T; bump$Scaled: (a0: rs.Ptr<T>) => void; pick$Scaled: (a0: rs.Ptr<T>, a1: rs.Ptr<T>) => rs.Ptr<T> };
+	| { scale$Scaled: (a0: T) => T; bump$Scaled: (a0: rs.Ptr<T>) => void; pick$Scaled: (a0: rs.Ptr<T>, a1: rs.Ptr<T>) => rs.Ptr<T>; apply$Scaled: (a0: (a0: rs.Ptr<T>) => T, a1: T) => T };
 
 //# sourceMappingURL=dyns.Scaled.ts.map

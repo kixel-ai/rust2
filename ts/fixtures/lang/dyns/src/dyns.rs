@@ -1794,6 +1794,32 @@ trait Scaled<T> {
 	/// Takes and returns references to the argument, which the trait's type has in each
 	/// form a reference may be.
 	fn pick<'a>(&self, a: &'a T, b: &'a T) -> &'a T;
+	/// Provided, taking a function of a reference to the argument, which the trait's type
+	/// takes in each form a reference may be.
+	fn apply(&self, f: fn(&T) -> T, x: T) -> T {
+		f(&self.scale(x))
+	}
+}
+
+/// A trait whose method returns an object of it at another argument, and so on without end.
+trait Nest<T> {
+	fn next(&self) -> Option<&dyn Nest<Vec<T>>>;
+	fn depth(&self) -> u8;
+}
+
+struct Leaf(u8);
+
+impl<T> Nest<T> for Leaf {
+	fn next(&self) -> Option<&dyn Nest<Vec<T>>> {
+		None
+	}
+	fn depth(&self) -> u8 {
+		self.0
+	}
+}
+
+fn doubled(x: &u8) -> u8 {
+	x.wrapping_mul(2)
 }
 
 /// A generic trait over its supertrait at another argument.
@@ -2021,6 +2047,22 @@ pub fn generics(data: &[u8], out: &mut Vec<u8>) {
 	let mut v = vec![a];
 	up.bump(&mut v);
 	put(out, &format!("{:?} {v:?} {} ", shared.pair(b), Arc::strong_count(&up)));
+	let weak: Weak<dyn Paired<u8>> = Arc::downgrade(&shared);
+	let weak: Weak<dyn Scaled<Vec<u8>>> = weak;
+	drop(up);
+	let scaled = weak.upgrade().map(|s| s.scale(vec![a, b]));
+	drop(shared);
+	put(out, &format!("{scaled:?} {} ", weak.upgrade().is_none()));
+	let nest: &dyn Nest<u8> = &Leaf(c);
+	put(
+		out,
+		&format!(
+			"{} {} {} ",
+			nest.next().is_none(),
+			nest.depth(),
+			narrow.apply(doubled, c)
+		),
+	);
 
 	// Associated types: owned items each dropped as Rust drops them, numbers, and strings
 	// from a copied value changed in place.

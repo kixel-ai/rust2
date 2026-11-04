@@ -25,7 +25,7 @@ export function run$String(self: Over<string>): string | undefined {
 	if (_3 !== undefined) {
 		const next: string = _3;
 		const other: string = self.scale.scale$Scaled(next);
-		return self.scale.pick$Scaled(next, other) as string;
+		return self.scale.pick$Scaled(next as rs.Ptr<string>, other as rs.Ptr<string>) as string;
 	}
 	return undefined;
 }

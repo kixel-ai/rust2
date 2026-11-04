@@ -379,7 +379,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				PointerCoercion::Unsize if let Some((pointee, object)) = arc_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
-					self.arc_object(value, pointee, object, span, out)
+					self.arc_object("Arc", value, pointee, object, span, out)
 				}
 				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
@@ -486,8 +486,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
 	/// of one: an `rs.ArcDyn` sharing its count, over what a box of its value unsizes to, or
-	/// the same `Arc` upcast.
-	fn arc_object(&mut self, arc: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	/// the same `Arc` upcast, or `Weak` that `ptr` names.
+	fn arc_object(
+		&mut self,
+		ptr: &'static str,
+		arc: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
 		let tcx = self.tcx;
 		// An upcast of a function is the same `rs.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
 		if pointee.is_trait() && self.b.t.dyn_fn(object).is_some() {
@@ -507,7 +515,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		} else if self.b.t.dyn_iter(object).is_some() {
 			self.b.dyn_iter(from, to, value, span)
 		} else if arc.is_none() && self.b.t.object(object, span).is_some() && self.b.t.upcast_retypes(pointee, object) {
-			let ty = crate::ts::Type::Rs("Arc", vec![self.b.t.ty(object, span)]);
+			let ty = crate::ts::Type::Rs(ptr, vec![self.b.t.ty(object, span)]);
 			Expr::As(Box::new(value), ty)
 		} else {
 			self.b.object_of(value, from, to, span)
@@ -530,11 +538,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) -> Expr {
 		if pointee.is_trait() {
-			return self.arc_object(weak, pointee, object, span, out);
+			return self.arc_object("Weak", weak, pointee, object, span, out);
 		}
 		let name = self.b.fresh("arc");
 		let mut body = Vec::new();
-		let arc = self.arc_object(Expr::ident(name.clone()), pointee, object, span, &mut body);
+		let arc = self.arc_object("Arc", Expr::ident(name.clone()), pointee, object, span, &mut body);
 		body.push(StmtKind::Return(Some(arc)).at(None));
 		let param = crate::ts::Param {
 			name,

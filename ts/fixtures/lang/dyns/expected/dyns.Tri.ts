@@ -69,6 +69,14 @@ export function asAnyMut$dyns_Erased(self: rs.Place<Tri>): Any.Any {
 	return new ofPlace$dyns_Tri(self);
 }
 
+/**
+ * Provided, taking a function of a reference to the argument, which the trait's type
+ * takes in each form a reference may be.
+ */
+export function apply$dyns_Scaled_String(self: Tri, f: (a0: string) => string, x: string): string {
+	return f(scale$dyns_Scaled_String(self, x));
+}
+
 export function scale$dyns_Scaled_String(self: Tri, by: string): string {
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, by), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
 	return rs.fmtFormat([args2[0], args2[1]]);

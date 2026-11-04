@@ -57,6 +57,36 @@ pub fn nested_item(x: &mut u8) -> bool {
 	s.take().is_some()
 }
 
+pub trait Passed<T> {
+	fn pass(&self) -> &dyn Passed<Option<u8>>;
+	fn item(&self) -> Option<T>;
+}
+
+impl<T> Passed<T> for u8 {
+	fn pass(&self) -> &dyn Passed<Option<u8>> {
+		&()
+	}
+	fn item(&self) -> Option<T> {
+		None
+	}
+}
+
+impl<T> Passed<T> for () {
+	fn pass(&self) -> &dyn Passed<Option<u8>> {
+		self
+	}
+	fn item(&self) -> Option<T> {
+		None
+	}
+}
+
+/// An object of nested options, whose type a method of the trait names before the method
+/// returning its `Item` is held.
+pub fn passed(x: &u8) -> bool {
+	let p: &dyn Passed<u8> = x;
+	p.pass().item().is_none()
+}
+
 pub trait First {
 	fn first(&self) -> u8;
 }
