@@ -139,6 +139,81 @@ pub unsafe fn args<'a>(args: *mut *mut PyObject, nargs: Py_ssize_t, n: usize, na
 	}
 }
 
+/// The arguments of a call of `name`, a function Python calls directly whose parameters
+/// are `names`, in their order after `this`, its `self` if it is a method: `n`
+/// positional ones at `a`, then one for each name in `kw`. A wrong call raises as Python
+/// raises for a `def` with these parameters.
+///
+/// # Safety
+/// `a` points at `n` live objects, then one for each name in `kw`, a tuple of `str` or
+/// null.
+pub unsafe fn params<const N: usize>(
+	this: Option<*mut PyObject>,
+	a: *const *mut PyObject,
+	n: Py_ssize_t,
+	kw: *mut PyObject,
+	names: &[&str],
+	name: &str,
+) -> R<[*mut PyObject; N]> {
+	let mut out = [null_mut(); N];
+	let skip = match this {
+		Some(this) => {
+			out[0] = this;
+			1
+		}
+		None => 0,
+	};
+	let n = n as usize;
+	if n > names.len() {
+		let (takes, given) = (names.len() + skip, n + skip);
+		let s = if takes == 1 { "" } else { "s" };
+		let was = if given == 1 { "was" } else { "were" };
+		return type_error(&format!("{name}() takes {takes} positional argument{s} but {given} {was} given"));
+	}
+	// SAFETY: the caller's contract; `a` may be null when it points at nothing.
+	unsafe {
+		if n != 0 {
+			out[skip..skip + n].copy_from_slice(std::slice::from_raw_parts(a, n));
+		}
+		if !kw.is_null() {
+			for k in 0..PyTuple_Size(kw) {
+				let mut len = 0;
+				let key = PyUnicode_AsUTF8AndSize(PyTuple_GetItem(kw, k), &mut len);
+				if key.is_null() {
+					return Err(Raised);
+				}
+				let key = std::slice::from_raw_parts(key.cast::<u8>(), len as usize);
+				let key = String::from_utf8_lossy(key);
+				let Some(p) = names.iter().position(|name| *name == key) else {
+					return type_error(&format!("{name}() got an unexpected keyword argument '{key}'"));
+				};
+				if !out[skip + p].is_null() {
+					return type_error(&format!("{name}() got multiple values for argument '{key}'"));
+				}
+				out[skip + p] = *a.add(n + k as usize);
+			}
+		}
+	}
+	let missing: Vec<String> = names
+		.iter()
+		.zip(&out[skip..])
+		.filter(|(_, arg)| arg.is_null())
+		.map(|(name, _)| format!("'{name}'"))
+		.collect();
+	if let Some((last, rest)) = missing.split_last() {
+		let (s, list) = match rest.len() {
+			0 => ("", last.clone()),
+			1 => ("s", format!("{} and {last}", rest[0])),
+			_ => ("s", format!("{}, and {last}", rest.join(", "))),
+		};
+		return type_error(&format!(
+			"{name}() missing {} required positional argument{s}: {list}",
+			missing.len()
+		));
+	}
+	Ok(out)
+}
+
 /// Call into the C ABI with the GIL released, so Rust may call Python back from any
 /// thread while this one waits, then resume what it woke on this thread's loop.
 pub fn call<T>(f: impl FnOnce() -> T) -> T {
@@ -356,7 +431,8 @@ pub fn ty(index: usize) -> *mut PyObject {
 	(unsafe { TYPES.get() })[index].ptr()
 }
 
-/// `_register(*classes)`: note the classes the glue makes values of.
+/// `_register(*classes)`: note the classes the glue makes values of, and set the glue's
+/// members on them.
 unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs: Py_ssize_t) -> *mut PyObject {
 	// SAFETY: Python's call.
 	let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
@@ -365,7 +441,40 @@ unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs:
 		*TYPES.get() = args.iter().map(|&class| Obj::borrowed(class)).collect();
 		*MEMBERS.get() = (0..args.len()).map(|_| None).collect();
 	}
-	none().map_or(null_mut(), Obj::into_ptr)
+	wrap(|| {
+		// SAFETY: the GIL is held, and each member's index one `_register` was passed.
+		unsafe { install() }?;
+		none()
+	})
+}
+
+/// Set each of the glue's members on its class: a method as a method descriptor, which
+/// CPython calls without binding it, as it does a builtin type's.
+unsafe fn install() -> R<()> {
+	// SAFETY: the GIL is held, and `INSTALL` lives as long as the interpreter.
+	unsafe {
+		let mut staticmethod = None;
+		for member in INSTALL.get().iter_mut() {
+			let (class, name, value) = match member {
+				Member::Method(class, def) => (*class, def.ml_name, PyDescr_NewMethod(ty(*class).cast(), def)),
+				Member::Get(class, def) => (*class, def.name, PyDescr_NewGetSet(ty(*class).cast(), def)),
+				Member::Static(class, def) => {
+					let f = Obj::new(PyCMethod_New(def, null_mut(), null_mut(), null_mut()));
+					if staticmethod.is_none() {
+						let builtins = Obj::new(PyImport_ImportModule(c"builtins".as_ptr()))?;
+						staticmethod = Some(Obj::new(PyObject_GetAttrString(builtins.ptr(), c"staticmethod".as_ptr()))?);
+					}
+					let wrap = staticmethod.as_ref().expect("just set").ptr();
+					(*class, def.ml_name, call_py(wrap, vec![f]).map_or(null_mut(), Obj::into_ptr))
+				}
+			};
+			let value = Obj::new(value)?;
+			if PyObject_SetAttrString(ty(class), name, value.ptr()) != 0 {
+				return Err(Raised);
+			}
+		}
+	}
+	Ok(())
 }
 
 pub fn none() -> R<Obj> {
@@ -1726,6 +1835,47 @@ const fn onearg(name: &'static CStr, f: PyCFunction) -> PyMethodDef {
 
 pub const END: PyMethodDef = PyMethodDef::zeroed();
 
+/// A member the glue defines natively, which `_register` sets on the class registered
+/// at its index, so Python calls into the extension with no frame of its own between.
+pub enum Member {
+	/// A method taking `self`.
+	Method(usize, PyMethodDef),
+	/// A static method.
+	Static(usize, PyMethodDef),
+	/// A read-only property.
+	Get(usize, PyGetSetDef),
+}
+
+/// A method or function Python calls directly, by position or keyword, whose `doc`
+/// starts with its signature, as `inspect.signature` reads it.
+pub const fn function(name: &'static CStr, doc: &'static CStr, f: PyCFunctionFastWithKeywords) -> PyMethodDef {
+	PyMethodDef {
+		ml_name: name.as_ptr(),
+		ml_meth: PyMethodDefPointer {
+			PyCFunctionFastWithKeywords: f,
+		},
+		ml_flags: METH_FASTCALL | METH_KEYWORDS,
+		ml_doc: doc.as_ptr(),
+	}
+}
+
+/// A read-only property.
+pub const fn property(name: &'static CStr, doc: Option<&'static CStr>, f: getter) -> PyGetSetDef {
+	PyGetSetDef {
+		name: name.as_ptr(),
+		get: Some(f),
+		set: None,
+		doc: match doc {
+			Some(doc) => doc.as_ptr(),
+			None => null(),
+		},
+		closure: null_mut(),
+	}
+}
+
+/// The glue's members, which `_register` sets on their classes.
+static INSTALL: Gil<&'static mut [Member]> = Gil::new(&mut []);
+
 /// A table of methods Python reads for the interpreter's life.
 pub struct Methods<const N: usize>(pub UnsafeCell<[PyMethodDef; N]>);
 
@@ -1797,13 +1947,14 @@ fn module_name(module: *mut PyObject) -> String {
 }
 
 /// Make the extension module `def` names, with the runtime's types and functions beside
-/// the glue's.
+/// the glue's, whose `members` `_register` sets on their classes.
 ///
 /// # Safety
 /// Python calls the module's `PyInit_` with the GIL held, once per interpreter.
-pub unsafe fn module(def: *mut PyModuleDef) -> *mut PyObject {
+pub unsafe fn module(def: *mut PyModuleDef, members: &'static mut [Member]) -> *mut PyObject {
 	// SAFETY: the caller's contract.
 	unsafe {
+		*INSTALL.get() = members;
 		let Ok(module) = Obj::new(PyModule_Create(def)) else {
 			return null_mut();
 		};
