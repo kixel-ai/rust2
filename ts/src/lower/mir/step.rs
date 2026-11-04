@@ -20,8 +20,8 @@ fn array_iter<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let path = library::std_path(tcx, adt.did());
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	match path.as_slice() {
-		// A reference to an array of bytes is a slice of it made as the item is read.
-		["slice", "iter", "Iter" | "IterMut"] if args.types().next().is_some_and(crate::lower::byte_array) => None,
+		// A reference to an array is a slice of it made as the item is read.
+		["slice", "iter", "Iter" | "IterMut"] if args.types().next().is_some_and(|t| t.is_array()) => None,
 		["slice", "iter", "Iter" | "IterMut"] | ["vec", "into_iter", "IntoIter"] => args.types().next(),
 		_ => None,
 	}

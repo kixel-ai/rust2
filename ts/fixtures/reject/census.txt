@@ -24,7 +24,6 @@ fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a progra
 fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
-fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:given_slots+6:2: a raw pointer to `(u8, u8)` in `([clones::Touched; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
@@ -105,6 +104,7 @@ fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u
 fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`
 fixtures/reject/src/objects.rs:any_type_id+1:4: `std::any::Any::type_id` of `dyn std::any::Any`, which is not supported yet
 fixtures/reject/src/objects.rs:any_type_id+1:17: unsupported call to `std::any::TypeId::of::<u8>`
+fixtures/reject/src/objects.rs:array_object+1:2: a trait object of `[u16; 2]`, which is not supported yet
 fixtures/reject/src/objects.rs:dyn_compared+3:2: comparing pointers to `dyn objects::Reading`, each an object JS makes of its own as it unsizes
 fixtures/reject/src/objects.rs:dyn_size+1:2: unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>`
 fixtures/reject/src/objects.rs:dynamic+2:4: unsupported call to `<std::vec::Vec<u8> as std::io::Write>::write`
@@ -169,7 +169,7 @@ fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a re
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/pointers.rs:arc_from_borrow+1:12: `Arc::from_raw` of a pointer to `u32` a borrow made, whose JS value is a place of its own, which no `Arc` gave
 fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
-fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
+fixtures/reject/src/pointers.rs:array_of_one+1:2: comparing pointers to `[u32; 1]`, an array of one JS may make of its own for a value, as `array::from_ref` does
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
@@ -230,6 +230,8 @@ fixtures/reject/src/pointers.rs:pointers_apart+10:26: `offset_from` between a po
 fixtures/reject/src/pointers.rs:pointers_apart+11:24: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+12:23: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
+fixtures/reject/src/pointers.rs:pointers_ordered+2:2: comparing pointers to `u32`, each a place JS makes of its own
+fixtures/reject/src/pointers.rs:pointers_ordered+2:2: ordering `*const u32` by its address, which JS has no counterpart of, in `std::cmp::max`
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `pointers::Window`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
@@ -290,7 +292,6 @@ fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::M
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
-fixtures/reject/src/values.rs:shared_values+1:2: a coercion to `std::rc::Rc<[u16]>`
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

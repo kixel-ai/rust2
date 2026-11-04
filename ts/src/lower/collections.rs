@@ -71,16 +71,24 @@ pub fn call<'tcx>(
 				return Ok(Some(f.call(args)));
 			}
 			// `Ord`'s defaults, of a std type or the crate's, which compare by `PartialOrd`'s `<`,
-			// `<=`, and `>`.
+			// `<=`, and `>`, and of `&mut`s to values JS copies, their `rs.Place`s, by what they
+			// hold, as std's impls for a `&mut` forward them.
 			("Ord", "max" | "min" | "clamp", ..) if let Some(t) = self_ty => {
-				let t = peel_ord(b, t, false);
+				let held = mut_place(b, t);
+				let t = peel_ord(b, held.unwrap_or(t), false);
 				let own = matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || pointee(b, t).is_some();
-				if !(std_key(b, t) || own) || Int::of(t).is_some() {
+				if !(std_key(b, t) || own) || held.is_none() && Int::of(t).is_some() {
 					return Err(args);
 				}
 				let tests: &[&str] = if name == "clamp" { &["le", "lt", "gt"] } else { &["lt"] };
 				let mut values = args;
-				values.extend(tests.iter().map(|test| test_fn(b, t, test, span)));
+				for test in tests {
+					let f = test_fn(b, t, test, span);
+					values.push(match held {
+						Some(_) => Expr::rs("cellBy", vec![f]),
+						None => f,
+					});
+				}
 				// What drops the operands it does not return.
 				let Some(droppers) = b.t.droppers(self_ty, span) else {
 					return Ok(Some(Expr::undefined()));
@@ -155,9 +163,23 @@ pub fn call<'tcx>(
 			}
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
-				let value = match (same_key(b, t, by), arc_of(b, peel(b, t))) {
-					(true, _) => args.pop(),
-					(false, Some(inner)) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
+				// A `&mut` to a value JS copies is its `rs.Place`, which `borrow` reads.
+				let held = mut_place(b, t).is_some_and(|inner| same_key(b, inner, by));
+				let value = match arc_of(b, peel(b, t)) {
+					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
+						"borrow" if held => b.t.pointee_value(t, value),
+						// Given the place of its receiver, which a `&mut` holds, but where it lends
+						// itself, as std's impl for any `T` does.
+						"borrow_mut"
+							if t.is_ref()
+								&& tcx.erase_and_anonymize_regions(t) != tcx.erase_and_anonymize_regions(by) =>
+						{
+							let receiver = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, t);
+							b.t.pointee_value(receiver, value)
+						}
+						_ => value,
+					}),
+					Some(inner) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
 					_ => return Err(args),
 				};
 				return Ok(value);
@@ -516,6 +538,15 @@ fn peel<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	match pointee(b, ty) {
 		Some(inner) => peel(b, inner),
 		None => ty,
+	}
+}
+
+/// What `ty`, a `&mut` that is an `rs.Place`, points at; not a raw pointer, which orders
+/// by its address.
+fn mut_place<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Ref(_, _, ty::Mutability::Mut) => b.t.place_pointee(ty),
+		_ => None,
 	}
 }
 
@@ -3064,8 +3095,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		_ if let Some(pointee) = raw_pointee(tcx, ty) => match b.t.incomparable(pointee) {
 			Some(why) => b.err(span, why),
-			None if b.t.pointee(pointee) == super::pointer::Pointee::Bytes => Expr::Rs("byteSliceSame".into()),
-			None => Expr::Rs("same".into()),
+			None => b.t.same_fn(pointee).unwrap_or_else(|| Expr::Rs("same".into())),
 		},
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => match eq_fn(b, inner, span) {
 			// `None` is no value of `inner`, so `===` tells it from each.
@@ -3379,6 +3409,19 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 	if let ty::Closure(def_id, _) | ty::CoroutineClosure(def_id, _) = ty.kind() {
 		b.t.clone_closure(*def_id);
 		return Expr::Rs("closureClone".into());
+	}
+	// The runtime holds an array as its items, where its `clone` takes a slice of them.
+	if let ty::Array(elem, _) = ty.kind() {
+		let items = Expr::ident("a");
+		let made = match clone_fn(b, *elem, span) {
+			Expr::Lit(l) if l == "undefined" => items.member("slice").call(Vec::new()),
+			clone => items.member("map").call(vec![clone]),
+		};
+		let param = crate::ts::Param {
+			name: "a".into(),
+			ty: Some(b.t.ty(ty, span)),
+		};
+		return Expr::Lambda(vec![param], Box::new(made));
 	}
 	let clone = trait_fn(tcx, "Clone", "clone");
 	b.fn_value(clone, tcx.mk_args(&[ty.into()]), span)
