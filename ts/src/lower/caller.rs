@@ -105,6 +105,12 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 	),
 	("swap_remove", "alloc/src/vec/mod.rs", "pub fn swap_remove", "panic!("),
 	(
+		"vec_set_len",
+		"alloc/src/vec/mod.rs",
+		"pub const unsafe fn set_len(",
+		"ub_checks::assert_unsafe_precondition!(",
+	),
+	(
 		"into_flattened",
 		"alloc/src/vec/mod.rs",
 		"pub fn into_flattened",

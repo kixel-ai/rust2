@@ -11,7 +11,9 @@ locate" error, proven by the panics fixture's hooked cases.
 What remains is `bytes`: the panics of `Bytes`, `BytesMut`, and the `Buf` and `BufMut`
 methods whose mapping makes them, each where `bytes`' own source has it. Some are at a call
 of its `#[track_caller]` `range`, some in its macros' calls, as `Buf::get_*`'s, and some
-in std, as `Vec::with_capacity`'s, whose `SITES` key already holds.
+in std, as `Vec::with_capacity`'s, whose `SITES` key already holds. They include
+`BytesMut::set_len` past the capacity, and `advance_mut` of a `BytesMut` or a `Vec<u8>`
+past its room.
 
 Native names that source by the path cargo hands rustc: the host's registry, as
 `$CARGO_HOME/registry/src/index.crates.io-<hash>/bytes-<version>/src/bytes.rs`, unless the

@@ -975,8 +975,8 @@ they need.
   writes one. Reading it doubles it while short of the length, from the least std's
   `RawVec` allocates for the element size, which a run of pushes grows std's to. A
   `Vec<u8>`'s is its buffer's length, so its `spare_capacity_mut` is an `rt.ByteSlice` of
-  the buffer past its length, which `set_len` takes in, aborting past the capacity as
-  std's check does; any other `Vec`'s is refused, as its length is a capacity the runtime holds only as std guarantees it. Their `try_reserve` and `try_reserve_exact`, and a
+  the buffer past its length, which `set_len` takes in, panicking past the capacity as
+  std's check does, which can't unwind; any other `Vec`'s is refused, as its length is a capacity the runtime holds only as std guarantees it. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
