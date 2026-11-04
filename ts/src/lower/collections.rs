@@ -1606,7 +1606,8 @@ fn deque<'tcx>(
 		}
 		(
 			_,
-			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to" | "shrink_to_fit",
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
 		) => {
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
@@ -1840,7 +1841,8 @@ fn heap<'tcx>(
 		}
 		(
 			_,
-			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to" | "shrink_to_fit",
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
 		) => {
 			let h = values.remove(0);
 			values.insert(0, h.member("d"));

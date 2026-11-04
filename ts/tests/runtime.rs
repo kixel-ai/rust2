@@ -56,7 +56,9 @@ fn once_recursive() {
 /// `reserve.ts` checks, as no allocation fails on demand natively.
 #[test]
 fn reserve_alloc_error() {
-	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("reserve.ts");
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.join("tests")
+		.join("reserve.ts");
 	let output = Command::new("node")
 		.arg(script)
 		.output()

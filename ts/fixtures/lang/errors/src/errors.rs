@@ -148,7 +148,11 @@ pub fn eqs(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.iter()
 				.take(6)
 				.flat_map(|&b| {
-					let n = if b % 2 == 0 { usize::from(b) } else { usize::MAX - usize::from(b) };
+					let n = if b % 2 == 0 {
+						usize::from(b)
+					} else {
+						usize::MAX - usize::from(b)
+					};
 					let mut text = String::from(&"ab"[..usize::from(b % 3)]);
 					[
 						Vec::<u8>::new().try_reserve(n),
@@ -319,7 +323,11 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	let reserved = reserve(a).unwrap_err();
 	put(
 		out,
-		&format!("{} {reserved:#?} {} | ", chain(&*reserved), reserved.is::<TryReserveError>()),
+		&format!(
+			"{} {reserved:#?} {} | ",
+			chain(&*reserved),
+			reserved.is::<TryReserveError>()
+		),
 	);
 	// A box and a reference are errors too, whose `source` is what they point at's.
 	let held = Box::new(failure(a, b));

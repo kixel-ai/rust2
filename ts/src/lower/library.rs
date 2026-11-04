@@ -2372,8 +2372,8 @@ fn mapping<'tcx>(
 		}
 		(
 			"Vec",
-			"with_capacity" | "capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
-			| "shrink_to_fit",
+			"with_capacity" | "capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact"
+			| "shrink_to" | "shrink_to_fit",
 		) => {
 			let mut values = args;
 			if name == "shrink_to_fit" {
