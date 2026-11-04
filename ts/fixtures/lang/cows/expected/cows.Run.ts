@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 
 export function clone$Clone(self: Run): Run {
-	return { words: rt.cowClone(self.words, 2) };
+	return { words: rt.cowClone(self.words) };
 }
 
 export function fmt$fmt_Debug(self: Run, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
@@ -14,8 +14,7 @@ export function fmt$fmt_Debug(self: Run, f: rt.Formatter): rt.Result<undefined, 
 }
 
 export function default$Default(): Run {
-	const _1: rt.Cow<rt.u16> = [];
-	return { words: _1 };
+	return { words: new rt.Vec() };
 }
 
 export function eq$cmp_PartialEq(self: Run, other: Run): boolean {
@@ -33,9 +32,9 @@ export interface Run {
 
 /** Through `to_mut` of the field. */
 export function bump(self: Run): void {
-	const owned = rt.cowIntoOwned(self.words, 2);
+	const owned = rt.cowIntoOwned(self.words);
 	self.words = owned;
-	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(owned);
+	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(owned.items);
 	while (true) {
 		const _8: rt.Place<rt.u16> | rt.Done = iter.next();
 		if (_8 === rt.DONE) {

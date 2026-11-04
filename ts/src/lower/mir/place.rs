@@ -630,15 +630,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					let held = match borrowed.kind() {
-						ty::Slice(elem) => crate::ts::Type::Array(Box::new(self.b.t.ty(*elem, span))),
-						_ => crate::ts::Type::Builtin("string"),
+					// What an `rt.Borrowed` holds, and what it owns: an array and an `rt.Vec`, or text.
+					let (held, owns) = match borrowed.kind() {
+						ty::Slice(elem) => {
+							let elem = self.b.t.ty(*elem, span);
+							(
+								crate::ts::Type::Array(Box::new(elem.clone())),
+								crate::ts::Type::Rt("Vec", vec![elem]),
+							)
+						}
+						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
 					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
 						(true, true) => crate::ts::Type::Rt("ByteVec", Vec::new()),
 						(false, false) => crate::ts::Type::Rt("Borrowed", vec![held]),
-						(false, true) => held,
+						(false, true) => owns,
 					};
 					let cast = Expr::As(Box::new(base), class);
 					match bytes || owned {
@@ -777,13 +784,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				true => Expr::rt("ptrWrite", vec![target, value]),
 				false => match self.b.t.write_in(pointee) {
 					Some(ObjectKind::Bytes) => target.member("set").call(vec![value]),
-					// A `Vec<u8>` is an `rt.ByteVec`, and any other a JS array, as a boxed slice
-					// is, whose length a write changes, unlike a tuple's or an array's.
-					Some(ObjectKind::Vec) if !byte_vec(self.b.t.erased(pointee)) => {
-						Expr::rt("vecAssign", vec![target, value])
-					}
+					// A boxed slice is a JS array, whose length a write changes, unlike a
+					// tuple's or an array's.
 					Some(ObjectKind::Array) if self.b.t.erased(pointee).is_slice() => {
-						Expr::rt("vecAssign", vec![target, value])
+						Expr::rt("arrayAssign", vec![target, value])
 					}
 					Some(_) if self.b.t.moves_private(pointee) => Expr::rt("ptrWrite", vec![target, value]),
 					Some(_) => Expr::ident("Object").member("assign").call(vec![target, value]),
@@ -2001,11 +2005,6 @@ fn written_captures(mir: &mir::Body<'_>) -> FxHashSet<FieldIdx> {
 	let mut written = Written(FxHashSet::default());
 	written.visit_body(mir);
 	written.0
-}
-
-/// Whether `ty` is a `Vec<u8>`, an `rt.ByteVec`.
-fn byte_vec(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Adt(_, args) if args.types().next().is_some_and(crate::lower::byte))
 }
 
 /// Whether `path` reads through the variable `name` first.

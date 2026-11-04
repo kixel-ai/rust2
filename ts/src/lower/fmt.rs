@@ -438,7 +438,7 @@ pub fn std_impl<'tcx>(
 			}
 			(Std::BinaryHeap, Trait::Debug) => {
 				let item = b.fmt_fn(tr, args.type_at(0), span);
-				rt("list", vec![value.member("d"), f, item])
+				rt("list", vec![value.member("items"), f, item])
 			}
 			// Each writes its items as its iterator reads them: a deque from its head.
 			(Std::VecDeque, Trait::Debug) => {

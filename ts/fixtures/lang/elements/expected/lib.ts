@@ -42,8 +42,8 @@ export function drop$elements_Inline_sync_Arc_u8(_1: Inline.Inline<rt.Arc<rt.u8>
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["elements::vecs", (_24: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["elements::vecs", (_24: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		vecs(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::arrays", (_25: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		arrays(data2, out2);
@@ -57,7 +57,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		rawSlices(data6, out6);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["elements::empty_parts", (_210: rt.u8, data7: rt.ByteSlice, out7: rt.ByteVec): undefined => {
 		emptyParts(data7, out7);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

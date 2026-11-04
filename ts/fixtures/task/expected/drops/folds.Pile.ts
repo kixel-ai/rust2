@@ -11,26 +11,26 @@ import type * as Guard from "../model.Guard.ts";
  * and drop their closure before they note they folded, and the rest drop with it.
  */
 export class Pile {
-	held: Guard.Guard[];
+	held: rt.Vec<Guard.Guard>;
 	log: Log.Log;
 
-	constructor(held: Guard.Guard[], log: Log.Log) {
+	constructor(held: rt.Vec<Guard.Guard>, log: Log.Log) {
 		this.held = held;
 		this.log = log;
 	}
 
 	[Symbol.dispose](): void {
-		rt.dropAll(this.held);
+		rt.dropVec(this.held);
 		this.log[Symbol.dispose]();
 	}
 }
 
 export function next$iter_Iterator(self: Pile): Guard.Guard | rt.Done {
-	return rt.iterFromOption(self.held.pop());
+	return rt.iterFromOption(rt.vecPop(self.held));
 }
 
 export function sizeHint$iter_Iterator(self: Pile): [rt.usize, rt.usize | undefined] {
-	return [self.held.length, self.held.length] as [rt.usize, rt.usize | undefined];
+	return [self.held.items.length, self.held.items.length] as [rt.usize, rt.usize | undefined];
 }
 
 export function nth$iter_Iterator(self: Pile, n: rt.usize): Guard.Guard | undefined {
@@ -40,21 +40,21 @@ export function nth$iter_Iterator(self: Pile, n: rt.usize): Guard.Guard | undefi
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = n;
 	while (iterStart++ < iterEnd) {
-		const _21: Guard.Guard | undefined = self.held.pop();
+		const _21: Guard.Guard | undefined = rt.vecPop(self.held);
 		if (_21 !== undefined) {
 			_21[Symbol.dispose]();
 		} else {
 			return undefined;
 		}
 	}
-	return self.held.pop();
+	return rt.vecPop(self.held);
 }
 
 export function fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32(self: Pile, init: rt.u32 | undefined, f: (a0: rt.u32 | undefined, a1: Guard.Guard) => rt.u32 | undefined): rt.u32 | undefined {
 	Log.note(self.log, "pile fold");
 	let acc: rt.u32 | undefined = init;
-	while (self.held.length > 1) {
-		const part = rt.optionUnwrap(self.held.pop());
+	while (self.held.items.length > 1) {
+		const part = rt.optionUnwrap(rt.vecPop(self.held));
 		acc = f(acc, part);
 	}
 	rt.drop(f);
@@ -64,18 +64,18 @@ export function fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Opt
 }
 
 export function count$iter_Iterator(self: Pile): rt.usize {
-	const part = self.held.length;
+	const part = self.held.items.length;
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part, f)];
 	const _4: string = rt.fmtFormat(["pile count ", args2[0]]);
 	Log.note(self.log, _4);
-	const _0: rt.usize = self.held.length;
+	const _0: rt.usize = self.held.items.length;
 	self[Symbol.dispose]();
 	return _0;
 }
 
 export function last$iter_Iterator(self: Pile): Guard.Guard | undefined {
 	Log.note(self.log, "pile last");
-	const _0: Guard.Guard | undefined = then$1xpp3sz(!(self.held.length === 0), (): Guard.Guard => {
+	const _0: Guard.Guard | undefined = then$1xpp3sz(!(self.held.items.length === 0), (): Guard.Guard => {
 		return rt.vecRemove(self.held, 0);
 	});
 	self[Symbol.dispose]();
@@ -83,7 +83,7 @@ export function last$iter_Iterator(self: Pile): Guard.Guard | undefined {
 }
 
 export function nextBack$iter_DoubleEndedIterator(self: Pile): Guard.Guard | undefined {
-	return then$1xpp3sz(!(self.held.length === 0), (): Guard.Guard => {
+	return then$1xpp3sz(!(self.held.items.length === 0), (): Guard.Guard => {
 		return rt.vecRemove(self.held, 0);
 	});
 }
@@ -108,7 +108,7 @@ export function nthBack$iter_DoubleEndedIterator(self: Pile, n: rt.usize): Guard
 export function rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32(self: Pile, init: rt.u32 | undefined, f: (a0: rt.u32 | undefined, a1: Guard.Guard) => rt.u32 | undefined): rt.u32 | undefined {
 	Log.note(self.log, "pile rfold");
 	let acc: rt.u32 | undefined = init;
-	while (self.held.length > 1) {
+	while (self.held.items.length > 1) {
 		const part = rt.vecRemove(self.held, 0);
 		acc = f(acc, part);
 	}

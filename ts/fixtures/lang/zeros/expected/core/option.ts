@@ -25,7 +25,7 @@ export function unwrapOrDefault$1b97y1a(self: Tagged.Tagged<string> | undefined)
 	return self;
 }
 
-export function map$0po44cb(self: undefined[] | undefined, f: (a0: undefined[]) => Uint8Array): Uint8Array | undefined {
+export function map$1cosm7d(self: rt.Vec<undefined> | undefined, f: (a0: rt.Vec<undefined>) => Uint8Array): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

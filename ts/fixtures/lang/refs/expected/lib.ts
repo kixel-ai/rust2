@@ -21,8 +21,8 @@ export const out$u8: { err: unknown } = { err: undefined };
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["refs::refs", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["refs::refs", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		refs(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::to_refs", (_23: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		toRefs(data2, out2);
@@ -30,7 +30,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		adapted(data3, out3);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["refs::compared", (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec): undefined => {
 		compared(a0, a1.data, a1.start, a1.length, a2);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

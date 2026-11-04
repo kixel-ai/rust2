@@ -106,8 +106,8 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 		out.push({ name: `order/${name}`, op: "order", items: count, input: Uint8Array.of(12, selector, ...u64(BigInt(count))) });
 	});
 
-	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity.
-	["vec", "deque"].forEach((name, selector) => {
+	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity, and a stack's pops.
+	["vec", "deque", "stack"].forEach((name, selector) => {
 		out.push({ name: `push/${name}`, op: "push", items: count, input: Uint8Array.of(13, selector, ...u64(BigInt(count))) });
 	});
 

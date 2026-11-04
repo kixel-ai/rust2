@@ -606,8 +606,8 @@ export class ofPlace$unit {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["dyns::dyns", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["dyns::dyns", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		dyns(data.data, data.start, data.length, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::shared", (_211: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		shared(data2.data, data2.start, data2.length, out2);
@@ -625,7 +625,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		tails(data8, out8);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["dyns::rests", (_218: rt.u8, data9: rt.ByteSlice, out9: rt.ByteVec): undefined => {
 		rests(data9.data, data9.start, data9.length, out9);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

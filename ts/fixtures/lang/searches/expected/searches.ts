@@ -3616,18 +3616,17 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	});
 	const pick: rt.u8 = _6[0];
 	const s: string = text(_6[1]);
-	const alphabet: rt.char[] = rt.iterToArray(rt.strChars(text(rt.byteSliceFrom(Uint8Array.of(rt.u8Rem(pick, 16), rt.u8Div(pick, 16))))), "next", 4);
-	const _25: rt.char = alphabet[rt.idx(alphabet, 0)];
-	const _24: [rt.char, rt.char] = [_25, alphabet[rt.idx(alphabet, 1)]];
+	const alphabet: rt.Vec<rt.char> = rt.iterToVec(rt.strChars(text(rt.byteSliceFrom(Uint8Array.of(rt.u8Rem(pick, 16), rt.u8Div(pick, 16))))), "next", 4);
+	const _25: rt.char = alphabet.items[rt.idx(alphabet.items, 0)];
+	const _24: [rt.char, rt.char] = [_25, alphabet.items[rt.idx(alphabet.items, 1)]];
 	const c: rt.char = _25;
 	const d: rt.char = _24[1];
 	const n: rt.usize = rt.u8Rem(pick, 5) as rt.usize;
 	const m: rt.u8 = rt.u8Rem(kind, 17);
-	const _37: rt.char[] = [];
-	const seen: rt.RefCell<rt.char[]> = new rt.RefCell(_37);
+	const seen: rt.RefCell<rt.Vec<rt.char>> = new rt.RefCell(new rt.Vec());
 	const p: (a0: rt.char) => boolean = (x2: rt.char): boolean => {
-		const _62: rt.RefCell<rt.char[]> = rt.refCellBorrowMut(seen);
-		_62.value.push(x2);
+		const _62: rt.RefCell<rt.Vec<rt.char>> = rt.refCellBorrowMut(seen);
+		_62.value.items.push(x2);
 		rt.refMutRelease(_62);
 		if (!(x2 === c)) {
 			return rt.isAsciiDigit(x2);
@@ -3885,8 +3884,8 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			front$tuple2_usize_ref_str_str_RMatchIndices_searches_searches_closure1(rt.strRmatchIndices(_438, p), out);
 		}
 	}
-	const _501: rt.RefCell<rt.char[]> = rt.refCellBorrow(seen);
-	const iter: rt.Iter<rt.char> = rt.iterSlice(_501.value);
+	const _501: rt.RefCell<rt.Vec<rt.char>> = rt.refCellBorrow(seen);
+	const iter: rt.Iter<rt.char> = rt.iterSlice(_501.value.items);
 	while (true) {
 		const _504: rt.char | rt.Done = iter.next();
 		if (_504 === rt.DONE) {
@@ -3922,9 +3921,9 @@ export function texts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		harness_put(out, rt.strTrimMatches(s, rt.charIsWhitespace));
 		harness_put(out, rt.strTrimStartMatches(s, rt.charIsWhitespace));
 		harness_put(out, rt.strTrimEndMatches(s, rt.charIsWhitespace));
-		for (const _40 of rt.iterToArray(rt.iterMap(rt.strChars(s), (a0: rt.char): boolean => {
+		for (const _40 of rt.iterToVec(rt.iterMap(rt.strChars(s), (a0: rt.char): boolean => {
 			return rt.charIsWhitespace(a0);
-		}), "next", 1)) {
+		}), "next", 1).items) {
 			rt.byteVecPush(out, _40 ? 1 : 0);
 		}
 	}

@@ -20,7 +20,7 @@ export class Wrap<T> {
 	}
 }
 
-export function drop$ops_Drop_Vec_drops_Wrap_drops_Held(self: Wrap<Wrap<Held.Held>[]>): void {
+export function drop$ops_Drop_Vec_drops_Wrap_drops_Held(self: Wrap<rt.Vec<Wrap<Held.Held>>>): void {
 	const arg = self.id;
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(arg, f)];
 	const _4: string = rt.fmtFormat(["w", args2[0], " drop"]);

@@ -17,35 +17,35 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
-export function mapOr$0ow0wo0(self: rt.u32[][] | undefined, default_: rt.usize, f: (a0: rt.u32[][]) => rt.usize): rt.usize {
+export function mapOr$1imnnei(self: rt.Vec<rt.u32[]> | undefined, default_: rt.usize, f: (a0: rt.Vec<rt.u32[]>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0r2th8w(self: Unit.Unit[] | undefined, default_: rt.usize, f: (a0: Unit.Unit[]) => rt.usize): rt.usize {
+export function mapOr$0v5bfoa(self: rt.Vec<Unit.Unit> | undefined, default_: rt.usize, f: (a0: rt.Vec<Unit.Unit>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0pdoq6p(self: [rt.u64, rt.u8][] | undefined, default_: rt.usize, f: (a0: [rt.u64, rt.u8][]) => rt.usize): rt.usize {
+export function mapOr$0iae8yu(self: rt.Vec<[rt.u64, rt.u8]> | undefined, default_: rt.usize, f: (a0: rt.Vec<[rt.u64, rt.u8]>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$0amk6zv(self: [rt.u8, rt.u8, rt.u8][] | undefined, default_: rt.usize, f: (a0: [rt.u8, rt.u8, rt.u8][]) => rt.usize): rt.usize {
+export function mapOr$1tx3bdh(self: rt.Vec<[rt.u8, rt.u8, rt.u8]> | undefined, default_: rt.usize, f: (a0: rt.Vec<[rt.u8, rt.u8, rt.u8]>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
 }
 
-export function mapOr$1umcrqz(self: rt.u32[] | undefined, default_: rt.usize, f: (a0: rt.u32[]) => rt.usize): rt.usize {
+export function mapOr$0phbwf3(self: rt.Vec<rt.u32> | undefined, default_: rt.usize, f: (a0: rt.Vec<rt.u32>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}

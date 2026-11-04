@@ -88,7 +88,7 @@ export function mapOr$1ailw2a(self: Counted.Counted | undefined, default_: rt.u8
 	return f(self);
 }
 
-export function mapOr$1unqgn7(self: rt.Arc<Noisy.Noisy>[] | undefined, default_: rt.u8, f: (a0: rt.Arc<Noisy.Noisy>[]) => rt.u8): rt.u8 {
+export function mapOr$09pasix(self: rt.Vec<rt.Arc<Noisy.Noisy>> | undefined, default_: rt.u8, f: (a0: rt.Vec<rt.Arc<Noisy.Noisy>>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -168,11 +168,11 @@ export function filter$1qg98un(self: rt.Arc<Noisy.Noisy> | undefined, predicate:
 	return undefined;
 }
 
-export function filter$16q8euf(self: rt.Arc<Noisy.Noisy>[] | undefined, predicate: (a0: rt.Arc<Noisy.Noisy>[]) => boolean): rt.Arc<Noisy.Noisy>[] | undefined {
+export function filter$09u55oo(self: rt.Vec<rt.Arc<Noisy.Noisy>> | undefined, predicate: (a0: rt.Vec<rt.Arc<Noisy.Noisy>>) => boolean): rt.Vec<rt.Arc<Noisy.Noisy>> | undefined {
 	if (self !== undefined) {
-		const x: rt.Arc<Noisy.Noisy>[] = self;
+		const x: rt.Vec<rt.Arc<Noisy.Noisy>> = self;
 		if (!predicate(x)) {
-			rt.dropAll(x);
+			rt.dropVec(x);
 		} else {
 			return x;
 		}

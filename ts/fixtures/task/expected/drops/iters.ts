@@ -2,7 +2,7 @@
 
 import * as rt from "../rt.ts";
 import { drop$Option_tuple2_drops_Key_model_Guard as lib_drop$Option_tuple2_drops_Key_model_Guard, drop$Result_Vec_model_Guard_model_Guard as lib_drop$Result_Vec_model_Guard_model_Guard, drop$Vec_model_Guard as lib_drop$Vec_model_Guard, drop$tuple2_drops_Key_model_Guard as lib_drop$tuple2_drops_Key_model_Guard, drop$tuple2_model_Guard_model_Guard as lib_drop$tuple2_model_Guard_model_Guard, drop$tuple2_model_Guard_u32 as lib_drop$tuple2_model_Guard_u32, drop$tuple2_u32_model_Guard as lib_drop$tuple2_u32_model_Guard } from "../lib.ts";
-import { mapOr$0vxyhav as option_mapOr$0vxyhav, mapOr$00i7kb3 as option_mapOr$00i7kb3, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$01ozsk3 as option_mapOr$01ozsk3 } from "../core/option.ts";
+import { mapOr$184639r as option_mapOr$184639r, mapOr$00i7kb3 as option_mapOr$00i7kb3, mapOr$1w10sgd as option_mapOr$1w10sgd, mapOr$01ozsk3 as option_mapOr$01ozsk3 } from "../core/option.ts";
 import * as Key from "../drops.Key.ts";
 import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
@@ -12,14 +12,14 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	const guard: (a0: rt.u32) => Guard.Guard = (n: rt.u32): Guard.Guard => {
 		return Guard.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const v: Guard.Guard[] = [];
+	const v: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _10: Guard.Guard = guard(1);
-	v.push(_10);
+	v.items.push(_10);
 	const _15: Guard.Guard = guard(2);
-	v.push(_15);
+	v.items.push(_15);
 	const _20: Guard.Guard = guard(3);
-	v.push(_20);
-	const iterS: Guard.Guard[] = v;
+	v.items.push(_20);
+	const iterS: Guard.Guard[] = v.items;
 	let iterI: number = 0;
 	while (true) {
 		const _24: Guard.Guard | rt.Done = iterI < iterS.length ? iterS[iterI++] : rt.DONE;
@@ -61,33 +61,33 @@ export function looped(log: Log.Log, id: rt.u32): void {
 		g3[Symbol.dispose]();
 	}
 	rt.drop(iter3);
-	const v2: Guard.Guard[] = [];
+	const v2: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _90: Guard.Guard = guard(8);
-	v2.push(_90);
+	v2.items.push(_90);
 	const _95: Guard.Guard = guard(9);
-	v2.push(_95);
+	v2.items.push(_95);
 	const _100: Guard.Guard = guard(10);
-	v2.push(_100);
+	v2.items.push(_100);
 	const _105: Guard.Guard = guard(11);
-	v2.push(_105);
-	const even: Guard.Guard[] = rt.iterToArray(rt.iterFilter(rt.iterSlice(v2, rt.drop), (g4: Guard.Guard): boolean => {
+	v2.items.push(_105);
+	const even: rt.Vec<Guard.Guard> = rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v2, rt.drop), (g4: Guard.Guard): boolean => {
 		return rt.u32Rem(Guard.id(g4), 2) === 0;
 	}, rt.drop), "next", 8, false, 8);
-	const part3 = even.length;
+	const part3 = even.items.length;
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part3, f)];
 	Log.note(log, rt.fmtFormat(["even ", args6[0]]));
-	const v3: Guard.Guard[] = [];
+	const v3: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _127: Guard.Guard = guard(12);
-	v3.push(_127);
+	v3.items.push(_127);
 	const _132: Guard.Guard = guard(13);
-	v3.push(_132);
+	v3.items.push(_132);
 	const _137: Guard.Guard = guard(14);
-	v3.push(_137);
+	v3.items.push(_137);
 	const _142: Guard.Guard = guard(15);
-	v3.push(_142);
+	v3.items.push(_142);
 	const _147: Guard.Guard = guard(16);
-	v3.push(_147);
-	const rest: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSkip(rt.iterSlice(v3, rt.drop), 1, rt.drop), 3, rt.drop);
+	v3.items.push(_147);
+	const rest: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSkip(rt.vecIntoIter(v3, rt.drop), 1, rt.drop), 3, rt.drop);
 	const part4 = option_mapOr$01ozsk3(rt.iterToOption(rest.next()), 0, (g5: Guard.Guard): rt.u32 => {
 		const _03: rt.u32 = Guard.id(g5);
 		g5[Symbol.dispose]();
@@ -98,12 +98,12 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	const part5 = rt.ownedCount(rest, rt.drop);
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part5, f)];
 	Log.note(log, rt.fmtFormat(["count ", args10[0]]));
-	const v4: Guard.Guard[] = [];
+	const v4: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _181: Guard.Guard = guard(17);
-	v4.push(_181);
+	v4.items.push(_181);
 	const _186: Guard.Guard = guard(18);
-	v4.push(_186);
-	const peek: rt.Peekable<Guard.Guard> = rt.iterPeekable(rt.iterSlice(v4, rt.drop), rt.drop);
+	v4.items.push(_186);
+	const peek: rt.Peekable<Guard.Guard> = rt.iterPeekable(rt.vecIntoIter(v4, rt.drop), rt.drop);
 	const first: Guard.Guard | undefined = rt.peekableNextIf(peek, (g6: Guard.Guard): boolean => {
 		return Guard.id(g6) === rt.u32Add(id, 17);
 	});
@@ -115,30 +115,30 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_203, f), (f: rt.Formatter) => rt.fmtBool(_206, f)];
 	Log.note(log, rt.fmtFormat(["peek ", args12[0], " ", args12[1]]));
 	rt.drop(peek);
-	const v5: Guard.Guard[] = [];
+	const v5: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _221: Guard.Guard = guard(20);
-	v5.push(_221);
+	v5.items.push(_221);
 	const _226: Guard.Guard = guard(21);
-	v5.push(_226);
+	v5.items.push(_226);
 	const _231: Guard.Guard = guard(22);
-	v5.push(_231);
-	const _216: rt.Iter<Guard.Guard> = rt.iterSlice(v5, rt.drop);
-	const v6: Guard.Guard[] = [];
+	v5.items.push(_231);
+	const _216: rt.Iter<Guard.Guard> = rt.vecIntoIter(v5, rt.drop);
+	const v6: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _238: Guard.Guard = guard(23);
-	v6.push(_238);
-	const part6 = rt.ownedCount(rt.iterZip(_216, rt.iterSlice(v6, rt.drop), "len", rt.drop, rt.drop), lib_drop$tuple2_model_Guard_model_Guard);
+	v6.items.push(_238);
+	const part6 = rt.ownedCount(rt.iterZip(_216, rt.vecIntoIter(v6, rt.drop), "len", rt.drop, rt.drop), lib_drop$tuple2_model_Guard_model_Guard);
 	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part6, f)];
 	Log.note(log, rt.fmtFormat(["zip ", args14[0]]));
-	const v7: Guard.Guard[] = [];
+	const v7: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _261: Guard.Guard = guard(24);
-	v7.push(_261);
-	const _256: rt.Iter<Guard.Guard> = rt.iterSlice(v7, rt.drop);
-	const v8: Guard.Guard[] = [];
+	v7.items.push(_261);
+	const _256: rt.Iter<Guard.Guard> = rt.vecIntoIter(v7, rt.drop);
+	const v8: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _268: Guard.Guard = guard(25);
-	v8.push(_268);
+	v8.items.push(_268);
 	const _273: Guard.Guard = guard(26);
-	v8.push(_273);
-	const _254: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterChain(_256, rt.iterSlice(v8, rt.drop)));
+	v8.items.push(_273);
+	const _254: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterChain(_256, rt.vecIntoIter(v8, rt.drop)));
 	const nth: Guard.Guard | undefined = rt.iterNth(_254, 1, rt.drop);
 	rt.drop(_254);
 	const part7 = option_mapOr$01ozsk3(nth, 0, (g8: Guard.Guard): rt.u32 => {
@@ -148,25 +148,25 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	});
 	const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part7, f)];
 	Log.note(log, rt.fmtFormat(["nth ", args16[0]]));
-	const v9: Guard.Guard[] = [];
+	const v9: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _293: Guard.Guard = guard(27);
-	v9.push(_293);
+	v9.items.push(_293);
 	const _298: Guard.Guard = guard(28);
-	v9.push(_298);
+	v9.items.push(_298);
 	const _303: Guard.Guard = guard(29);
-	v9.push(_303);
-	const best: Guard.Guard | undefined = rt.iterMaxByKey(rt.iterSlice(v9, rt.drop), (g9: Guard.Guard): rt.u32 => {
+	v9.items.push(_303);
+	const best: Guard.Guard | undefined = rt.iterMaxByKey(rt.vecIntoIter(v9, rt.drop), (g9: Guard.Guard): rt.u32 => {
 		return rt.u32Rem(Guard.id(g9), 2);
 	}, rt.lt, true, rt.drop);
-	const v10: Array<Guard.Guard | undefined> = [];
+	const v10: rt.Vec<Guard.Guard | undefined> = new rt.Vec();
 	const _314: Guard.Guard | undefined = guard(30);
-	v10.push(_314);
-	v10.push(undefined as Guard.Guard | undefined);
+	v10.items.push(_314);
+	v10.items.push(undefined as Guard.Guard | undefined);
 	const _323: Guard.Guard | undefined = guard(31);
-	v10.push(_323);
+	v10.items.push(_323);
 	const _329: Guard.Guard | undefined = guard(32);
-	v10.push(_329);
-	const _308: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterSlice(v10, rt.drop), (value: Guard.Guard | undefined) => rt.iterOption(value, rt.drop), true, undefined, true);
+	v10.items.push(_329);
+	const _308: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.vecIntoIter(v10, rt.drop), (value: Guard.Guard | undefined) => rt.iterOption(value, rt.drop), true, undefined, true);
 	const found: Guard.Guard | undefined = rt.iterFind(_308, (g10: Guard.Guard): boolean => {
 		return Guard.id(g10) === rt.u32Add(id, 31);
 	}, rt.drop);
@@ -179,50 +179,50 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	const _343: boolean = found !== undefined;
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(_341, f), (f: rt.Formatter) => rt.fmtBool(_343, f)];
 	Log.note(log, rt.fmtFormat(["found ", args18[0], " ", args18[1]]));
-	const v11: Guard.Guard[] = [];
+	const v11: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _356: Guard.Guard = guard(33);
-	v11.push(_356);
+	v11.items.push(_356);
 	const _361: Guard.Guard = guard(34);
-	v11.push(_361);
+	v11.items.push(_361);
 	const _366: Guard.Guard = guard(35);
-	v11.push(_366);
-	const folded: rt.u32 = rt.iterFold(rt.iterSlice(v11, rt.drop), 0, (n2: rt.u32, g12: Guard.Guard): rt.u32 => {
+	v11.items.push(_366);
+	const folded: rt.u32 = rt.iterFold(rt.vecIntoIter(v11, rt.drop), 0, (n2: rt.u32, g12: Guard.Guard): rt.u32 => {
 		const _010: rt.u32 = rt.u32Sub(rt.u32Add(n2, Guard.id(g12)), id);
 		g12[Symbol.dispose]();
 		return _010;
 	}, true);
-	const v12: Guard.Guard[] = [];
+	const v12: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _378: Guard.Guard = guard(36);
-	v12.push(_378);
+	v12.items.push(_378);
 	const _383: Guard.Guard = guard(37);
-	v12.push(_383);
+	v12.items.push(_383);
 	const _388: Guard.Guard = guard(38);
-	v12.push(_388);
-	const _397: rt.u32 = option_mapOr$01ozsk3(rt.ownedLast(rt.iterStepBy(rt.iterSlice(v12, rt.drop), 2, rt.drop), rt.drop), 0, (g13: Guard.Guard): rt.u32 => {
+	v12.items.push(_388);
+	const _397: rt.u32 = option_mapOr$01ozsk3(rt.ownedLast(rt.iterStepBy(rt.vecIntoIter(v12, rt.drop), 2, rt.drop), rt.drop), 0, (g13: Guard.Guard): rt.u32 => {
 		const _011: rt.u32 = Guard.id(g13);
 		g13[Symbol.dispose]();
 		return _011;
 	});
 	const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(folded, f), (f: rt.Formatter) => rt.u32Display(_397, f)];
 	Log.note(log, rt.fmtFormat(["fold ", args20[0], " ", args20[1]]));
-	const v13: Guard.Guard[][] = [];
-	const v14: Guard.Guard[] = [];
+	const v13: rt.Vec<rt.Vec<Guard.Guard>> = new rt.Vec();
+	const v14: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _414: Guard.Guard = guard(39);
-	v14.push(_414);
+	v14.items.push(_414);
 	const _419: Guard.Guard = guard(40);
-	v14.push(_419);
-	v13.push(v14);
-	const v15: Guard.Guard[] = [];
+	v14.items.push(_419);
+	v13.items.push(v14);
+	const v15: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _428: Guard.Guard = guard(41);
-	v15.push(_428);
-	v13.push(v15);
-	const v16: Guard.Guard[] = [];
+	v15.items.push(_428);
+	v13.items.push(v15);
+	const v16: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _437: Guard.Guard = guard(42);
-	v16.push(_437);
+	v16.items.push(_437);
 	const _442: Guard.Guard = guard(43);
-	v16.push(_442);
-	v13.push(v16);
-	const flat: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterSlice(v13, lib_drop$Vec_model_Guard), (value: Guard.Guard[]) => rt.iterSlice(value, rt.drop), true);
+	v16.items.push(_442);
+	v13.items.push(v16);
+	const flat: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.vecIntoIter(v13, lib_drop$Vec_model_Guard), (value: rt.Vec<Guard.Guard>) => rt.vecIntoIter(value, rt.drop), true);
 	const front: rt.u32 = option_mapOr$01ozsk3(rt.iterToOption(flat.next()), 0, (g14: Guard.Guard): rt.u32 => {
 		const _012: rt.u32 = Guard.id(g14);
 		g14[Symbol.dispose]();
@@ -236,65 +236,61 @@ export function looped(log: Log.Log, id: rt.u32): void {
 	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(front, f), (f: rt.Formatter) => rt.u32Display(back, f)];
 	Log.note(log, rt.fmtFormat(["flat ", args22[0], " ", args22[1]]));
 	rt.drop(flat);
-	const five: (a0: rt.u32) => Guard.Guard[] = (n3: rt.u32): Guard.Guard[] => {
-		const v17: Guard.Guard[] = [];
+	const five: (a0: rt.u32) => rt.Vec<Guard.Guard> = (n3: rt.u32): rt.Vec<Guard.Guard> => {
+		const v17: rt.Vec<Guard.Guard> = new rt.Vec();
 		const _610: Guard.Guard = guard(n3);
-		v17.push(_610);
+		v17.items.push(_610);
 		const _103: Guard.Guard = guard(rt.u32Add(n3, 1));
-		v17.push(_103);
+		v17.items.push(_103);
 		const _162: Guard.Guard = guard(rt.u32Add(n3, 2));
-		v17.push(_162);
+		v17.items.push(_162);
 		const _222: Guard.Guard = guard(rt.u32Add(n3, 3));
-		v17.push(_222);
+		v17.items.push(_222);
 		const _283: Guard.Guard = guard(rt.u32Add(n3, 4));
-		v17.push(_283);
+		v17.items.push(_283);
 		return v17;
 	};
-	const _471: rt.Iter<Guard.Guard> = rt.iterSkip(rt.iterSlice(five(44), rt.drop), 2, rt.drop);
+	const _471: rt.Iter<Guard.Guard> = rt.iterSkip(rt.vecIntoIter(five(44), rt.drop), 2, rt.drop);
 	const _469: Guard.Guard | undefined = rt.iterNthBack(_471, 3, rt.drop);
 	const skipped: boolean = _469 !== undefined;
 	rt.drop(_469);
 	rt.drop(_471);
-	const _479: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.iterSlice(five(49), rt.drop), 2, rt.drop);
+	const _479: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.vecIntoIter(five(49), rt.drop), 2, rt.drop);
 	const stepped: rt.u32 = option_mapOr$01ozsk3(rt.iterNthBack(_479, 1, rt.drop), 0, (g16: Guard.Guard): rt.u32 => {
 		const _015: rt.u32 = Guard.id(g16);
 		g16[Symbol.dispose]();
 		return _015;
 	});
 	rt.drop(_479);
-	const _488: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterTake(rt.iterSlice(five(59), rt.drop), 3, rt.drop));
-	const _494: Guard.Guard[] = [];
-	const _487: rt.Iter<Guard.Guard> = rt.iterChain(_488, rt.iterSlice(_494, rt.drop));
+	const _487: rt.Iter<Guard.Guard> = rt.iterChain(rt.iterRev(rt.iterTake(rt.vecIntoIter(five(59), rt.drop), 3, rt.drop)), rt.vecIntoIter(new rt.Vec(), rt.drop));
 	const taken: rt.u32 = option_mapOr$01ozsk3(rt.iterNth(_487, 1, rt.drop), 0, (g17: Guard.Guard): rt.u32 => {
 		const _016: rt.u32 = Guard.id(g17);
 		g17[Symbol.dispose]();
 		return _016;
 	});
 	rt.drop(_487);
-	const _499: rt.Iter<Guard.Guard> = rt.iterRev(rt.iterSkip(rt.iterSlice(five(64), rt.drop), 2, rt.drop));
-	const _505: Guard.Guard[] = [];
-	const _498: rt.Iter<Guard.Guard> = rt.iterChain(_499, rt.iterSlice(_505, rt.drop));
+	const _498: rt.Iter<Guard.Guard> = rt.iterChain(rt.iterRev(rt.iterSkip(rt.vecIntoIter(five(64), rt.drop), 2, rt.drop)), rt.vecIntoIter(new rt.Vec(), rt.drop));
 	const passed: rt.u32 = option_mapOr$01ozsk3(rt.iterNth(_498, 2, rt.drop), 0, (g18: Guard.Guard): rt.u32 => {
 		const _017: rt.u32 = Guard.id(g18);
 		g18[Symbol.dispose]();
 		return _017;
 	});
 	rt.drop(_498);
-	const _509: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.iterRev(rt.iterSlice(five(69), rt.drop)), 2, rt.drop);
+	const _509: rt.Iter<Guard.Guard> = rt.iterStepBy(rt.iterRev(rt.vecIntoIter(five(69), rt.drop)), 2, rt.drop);
 	const strode: rt.u32 = option_mapOr$01ozsk3(rt.iterNth(_509, 2, rt.drop), 0, (g19: Guard.Guard): rt.u32 => {
 		const _018: rt.u32 = Guard.id(g19);
 		g19[Symbol.dispose]();
 		return _018;
 	});
 	rt.drop(_509);
-	const counted: rt.usize = rt.ownedCount(rt.iterTake(rt.iterRev(rt.iterSlice(five(74), rt.drop)), 3, rt.drop), rt.drop);
+	const counted: rt.usize = rt.ownedCount(rt.iterTake(rt.iterRev(rt.vecIntoIter(five(74), rt.drop)), 3, rt.drop), rt.drop);
 	const far: boolean = rt.iterNthBack(rt.iterStepBy(new rt.Range(0, 10), 4294967295), 4294967295) === undefined;
 	const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(skipped, f), (f: rt.Formatter) => rt.u32Display(stepped, f), (f: rt.Formatter) => rt.u32Display(taken, f), (f: rt.Formatter) => rt.u32Display(passed, f), (f: rt.Formatter) => rt.u32Display(strode, f), (f: rt.Formatter) => rt.usizeDisplay(counted, f), (f: rt.Formatter) => rt.fmtBool(far, f)];
 	Log.note(log, rt.fmtFormat(["back ", args24[0], " ", args24[1], " ", args24[2], " ", args24[3], " ", args24[4], " ", args24[5], " ", args24[6]]));
 	rt.drop(found);
 	rt.drop(second);
 	rt.drop(first);
-	rt.dropAll(even);
+	rt.dropVec(even);
 }
 
 /**
@@ -309,115 +305,115 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	const key: (a0: rt.u32) => Key.Key = (n2: rt.u32): Key.Key => {
 		return Key.new(rt.u32Add(id, n2), Log.clone$Clone(log));
 	};
-	const v: Guard.Guard[] = [];
+	const v: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _13: Guard.Guard = guard(1);
-	v.push(_13);
+	v.items.push(_13);
 	const _18: Guard.Guard = guard(2);
-	v.push(_18);
+	v.items.push(_18);
 	const _23: Guard.Guard = guard(3);
-	v.push(_23);
-	const same: Guard.Guard[] = rt.iterToArray(rt.iterSlice(v, rt.drop), "next", 8, true, 8);
-	const v2: Guard.Guard[] = [];
+	v.items.push(_23);
+	const same: rt.Vec<Guard.Guard> = rt.iterToVec(rt.vecIntoIter(v, rt.drop), "next", 8, true, 8);
+	const v2: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _33: Guard.Guard = guard(4);
-	v2.push(_33);
+	v2.items.push(_33);
 	const _38: Guard.Guard = guard(5);
-	v2.push(_38);
+	v2.items.push(_38);
 	const _43: Guard.Guard = guard(6);
-	v2.push(_43);
-	const wider: [Guard.Guard, rt.u32][] = rt.iterToArray(rt.iterMap(rt.iterSlice(v2, rt.drop), (g: Guard.Guard): [Guard.Guard, rt.u32] => {
+	v2.items.push(_43);
+	const wider: rt.Vec<[Guard.Guard, rt.u32]> = rt.iterToVec(rt.iterMap(rt.vecIntoIter(v2, rt.drop), (g: Guard.Guard): [Guard.Guard, rt.u32] => {
 		return [g, 0] as [Guard.Guard, rt.u32];
 	}), "fold", 12, true);
-	const v3: Guard.Guard[] = [];
+	const v3: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _53: Guard.Guard = guard(7);
-	v3.push(_53);
-	const _48: rt.Iter<Guard.Guard> = rt.iterSlice(v3, rt.drop);
-	const v4: Guard.Guard[] = [];
+	v3.items.push(_53);
+	const _48: rt.Iter<Guard.Guard> = rt.vecIntoIter(v3, rt.drop);
+	const v4: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _60: Guard.Guard = guard(8);
-	v4.push(_60);
+	v4.items.push(_60);
 	const _65: Guard.Guard = guard(9);
-	v4.push(_65);
-	const chained: Guard.Guard[] = rt.iterToArray(rt.iterChain(_48, rt.iterSlice(v4, rt.drop)), "fold", 8, true);
-	const _74: rt.usize = same.length;
-	const _77: rt.usize = wider.length;
-	const _80: rt.usize = chained.length;
+	v4.items.push(_65);
+	const chained: rt.Vec<Guard.Guard> = rt.iterToVec(rt.iterChain(_48, rt.vecIntoIter(v4, rt.drop)), "fold", 8, true);
+	const _74: rt.usize = same.items.length;
+	const _77: rt.usize = wider.items.length;
+	const _80: rt.usize = chained.items.length;
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_74, f), (f: rt.Formatter) => rt.usizeDisplay(_77, f), (f: rt.Formatter) => rt.usizeDisplay(_80, f)];
 	Log.note(log, rt.fmtFormat(["vecs ", args2[0], " ", args2[1], " ", args2[2]]));
-	const v5: Guard.Guard[] = [];
+	const v5: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _95: Guard.Guard = guard(10);
-	v5.push(_95);
+	v5.items.push(_95);
 	const _100: Guard.Guard = guard(11);
-	v5.push(_100);
+	v5.items.push(_100);
 	const _105: Guard.Guard = guard(12);
-	v5.push(_105);
-	const results: rt.Result<Guard.Guard[], Guard.Guard> = rt.iterCollectResult(rt.iterMap(rt.iterSlice(v5, rt.drop), (g2: Guard.Guard): rt.Result<Guard.Guard, Guard.Guard> => {
+	v5.items.push(_105);
+	const results: rt.Result<rt.Vec<Guard.Guard>, Guard.Guard> = rt.iterCollectResult(rt.iterMap(rt.vecIntoIter(v5, rt.drop), (g2: Guard.Guard): rt.Result<Guard.Guard, Guard.Guard> => {
 		if (!(Guard.id(g2) === rt.u32Add(id, 11))) {
 			return rt.Ok(g2);
 		}
 		return rt.Err(g2);
-	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8, false, 8), lib_drop$Vec_model_Guard);
+	}), (values: rt.Iter<Guard.Guard>) => rt.iterToVec(values, "next", 8, false, 8), lib_drop$Vec_model_Guard);
 	const part = results.ok;
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part, f)];
 	Log.note(log, rt.fmtFormat(["result ", args4[0]]));
 	lib_drop$Result_Vec_model_Guard_model_Guard(results);
-	const v6: Guard.Guard[] = [];
+	const v6: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _130: Guard.Guard = guard(13);
-	v6.push(_130);
+	v6.items.push(_130);
 	const _135: Guard.Guard = guard(14);
-	v6.push(_135);
+	v6.items.push(_135);
 	const _140: Guard.Guard = guard(15);
-	v6.push(_140);
-	const part2 = option_mapOr$0vxyhav(rt.iterCollectOption(rt.iterMap(rt.iterSlice(v6, rt.drop), (g3: Guard.Guard): Guard.Guard | undefined => {
+	v6.items.push(_140);
+	const part2 = option_mapOr$184639r(rt.iterCollectOption(rt.iterMap(rt.vecIntoIter(v6, rt.drop), (g3: Guard.Guard): Guard.Guard | undefined => {
 		return g3;
-	}), (values: rt.Iter<Guard.Guard>) => rt.iterToArray(values, "next", 8, false, 8), lib_drop$Vec_model_Guard), 0, (v12: Guard.Guard[]): rt.usize => {
-		const _06: rt.usize = v12.length;
-		rt.dropAll(v12);
+	}), (values: rt.Iter<Guard.Guard>) => rt.iterToVec(values, "next", 8, false, 8), lib_drop$Vec_model_Guard), 0, (v12: rt.Vec<Guard.Guard>): rt.usize => {
+		const _06: rt.usize = v12.items.length;
+		rt.dropVec(v12);
 		return _06;
 	});
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
 	Log.note(log, rt.fmtFormat(["option ", args6[0]]));
-	const v7: [rt.u32, Guard.Guard][] = [];
+	const v7: rt.Vec<[rt.u32, Guard.Guard]> = new rt.Vec();
 	const _160: [rt.u32, Guard.Guard] = [2, guard(16)];
-	v7.push(_160);
+	v7.items.push(_160);
 	const _166: [rt.u32, Guard.Guard] = [1, guard(17)];
-	v7.push(_166);
+	v7.items.push(_166);
 	const _172: [rt.u32, Guard.Guard] = [2, guard(18)];
-	v7.push(_172);
-	const _155: rt.Iter<[rt.u32, Guard.Guard]> = rt.iterSlice(v7, lib_drop$tuple2_u32_model_Guard);
-	const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToArray(_155, "next", 12, true, 12), 12, true, undefined, undefined, rt.drop);
+	v7.items.push(_172);
+	const _155: rt.Iter<[rt.u32, Guard.Guard]> = rt.vecIntoIter(v7, lib_drop$tuple2_u32_model_Guard);
+	const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToVec(_155, "next", 12, true, 12).items, 12, true, undefined, undefined, rt.drop);
 	const part3 = rt.btreeLen(tree);
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part3, f)];
 	Log.note(log, rt.fmtFormat(["tree ", args8[0]]));
-	const v8: Guard.Guard[] = [];
+	const v8: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _195: Guard.Guard = guard(24);
-	v8.push(_195);
+	v8.items.push(_195);
 	const _200: Guard.Guard = guard(25);
-	v8.push(_200);
-	const part4 = rt.iterToArray(rt.iterMap(rt.iterSlice(v8, rt.drop), (_2: Guard.Guard): Guard.Guard => {
-		const at = rt.idx(same, 0);
+	v8.items.push(_200);
+	const part4 = rt.iterToVec(rt.iterMap(rt.vecIntoIter(v8, rt.drop), (_2: Guard.Guard): Guard.Guard => {
+		const at = rt.idx(same.items, 0);
 		_2[Symbol.dispose]();
-		return same[at];
-	}), "next", 4, true, 8).length;
+		return same.items[at];
+	}), "next", 4, true, 8).items.length;
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part4, f)];
 	Log.note(log, rt.fmtFormat(["refs ", args10[0]]));
-	const v9: Guard.Guard[] = [];
+	const v9: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _223: Guard.Guard = guard(19);
-	v9.push(_223);
+	v9.items.push(_223);
 	const _228: Guard.Guard = guard(20);
-	v9.push(_228);
-	const queue: rt.VecDeque<Guard.Guard> = rt.dequeFromIntoIter(rt.iterSlice(v9, rt.drop), 8) as rt.VecDeque<Guard.Guard>;
-	const v10: [rt.u32, Guard.Guard][] = [];
+	v9.items.push(_228);
+	const queue: rt.VecDeque<Guard.Guard> = rt.dequeFromIntoIter(rt.vecIntoIter(v9, rt.drop), 8) as rt.VecDeque<Guard.Guard>;
+	const v10: rt.Vec<[rt.u32, Guard.Guard]> = new rt.Vec();
 	const _237: [rt.u32, Guard.Guard] = [1, guard(21)];
-	v10.push(_237);
+	v10.items.push(_237);
 	const _243: [rt.u32, Guard.Guard] = [1, guard(22)];
-	v10.push(_243);
-	const _232: rt.Iter<[rt.u32, Guard.Guard]> = rt.iterSlice(v10, lib_drop$tuple2_u32_model_Guard);
+	v10.items.push(_243);
+	const _232: rt.Iter<[rt.u32, Guard.Guard]> = rt.vecIntoIter(v10, lib_drop$tuple2_u32_model_Guard);
 	const hashed: rt.HashMap<rt.u32, Guard.Guard> = rt.hashExtend(rt.hashNew() as rt.HashMap<rt.u32, Guard.Guard>, _232, undefined, rt.drop, "fold", 117440512);
-	const v11: Key.Key[] = [];
+	const v11: rt.Vec<Key.Key> = new rt.Vec();
 	const _253: Key.Key = key(23);
-	v11.push(_253);
+	v11.items.push(_253);
 	const _258: Key.Key = key(23);
-	v11.push(_258);
-	const _248: rt.Iter<Key.Key> = rt.iterSlice(v11, rt.drop);
+	v11.items.push(_258);
+	const _248: rt.Iter<Key.Key> = rt.vecIntoIter(v11, rt.drop);
 	const set: rt.HashSet<Key.Key> = rt.hashExtendKeys(rt.hashNew(rt.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rt.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rt.HashSet<Key.Key>, _248, rt.drop, "fold", 117440512);
 	const _267: rt.usize = queue.n;
 	const _270: rt.usize = rt.hashLen(hashed);
@@ -428,9 +424,9 @@ export function collected(log: Log.Log, id: rt.u32): void {
 	rt.hashDrop(hashed, undefined, rt.drop);
 	rt.dequeDrop(queue, rt.drop);
 	rt.btreeDrop(tree, undefined, rt.drop);
-	rt.dropAll(chained);
-	rt.dropAll(wider, lib_drop$tuple2_model_Guard_u32);
-	rt.dropAll(same);
+	rt.dropVec(chained);
+	rt.dropVec(wider, lib_drop$tuple2_model_Guard_u32);
+	rt.dropVec(same);
 }
 
 /**
@@ -468,9 +464,9 @@ export function drained(log: Log.Log, id: rt.u32): void {
 	lib_drop$Option_tuple2_drops_Key_model_Guard(first);
 	rt.drop(it);
 	lib_drop$Option_tuple2_drops_Key_model_Guard(back);
-	const keys: Key.Key[] = rt.iterToArray(rt.btreeKeys(tree(5), rt.drop, rt.drop, true), "fold", 12, true);
+	const keys: rt.Vec<Key.Key> = rt.iterToVec(rt.btreeKeys(tree(5), rt.drop, rt.drop, true), "fold", 12, true);
 	const values: rt.Iter<Guard.Guard> = rt.btreeValues(tree(9), rt.drop, rt.drop);
-	const _37: rt.usize = keys.length;
+	const _37: rt.usize = keys.items.length;
 	const _40: rt.u32 = option_mapOr$01ozsk3(rt.iterToOption(values.next()), 0, (g: Guard.Guard): rt.u32 => {
 		const _04: rt.u32 = Guard.id(g);
 		g[Symbol.dispose]();
@@ -577,7 +573,7 @@ export function drained(log: Log.Log, id: rt.u32): void {
 	rt.hashDrop(set2, rt.drop);
 	rt.hashDrop(map2, rt.drop, rt.drop);
 	rt.drop(entries);
-	rt.dropAll(keys);
+	rt.dropVec(keys);
 }
 
 /** What `extend` drops: what a map or set does not keep of equal keys. */
@@ -588,51 +584,51 @@ export function extended(log: Log.Log, id: rt.u32): void {
 	const key: (a0: rt.u32) => Key.Key = (n2: rt.u32): Key.Key => {
 		return Key.new(rt.u32Add(id, n2), Log.clone$Clone(log));
 	};
-	const v: Guard.Guard[] = [];
+	const v: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _11: Guard.Guard = guard(1);
-	v.push(_11);
-	const list: Guard.Guard[] = v;
-	const v2: Guard.Guard[] = [];
+	v.items.push(_11);
+	const list: rt.Vec<Guard.Guard> = v;
+	const v2: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _20: Guard.Guard = guard(2);
-	v2.push(_20);
+	v2.items.push(_20);
 	const _25: Guard.Guard = guard(3);
-	v2.push(_25);
+	v2.items.push(_25);
 	const _30: Guard.Guard = guard(4);
-	v2.push(_30);
-	rt.iterExtend(list, rt.iterSlice(v2, rt.drop), "fold", 8, true);
-	const v3: Guard.Guard[] = [];
+	v2.items.push(_30);
+	rt.iterExtend(list, rt.vecIntoIter(v2, rt.drop), "fold", 8, true);
+	const v3: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _41: Guard.Guard = guard(5);
-	v3.push(_41);
+	v3.items.push(_41);
 	const _46: Guard.Guard = guard(6);
-	v3.push(_46);
+	v3.items.push(_46);
 	const _51: Guard.Guard = guard(7);
-	v3.push(_51);
-	const _35: rt.Iter<Guard.Guard> = rt.iterFilter(rt.iterSlice(v3, rt.drop), (g: Guard.Guard): boolean => {
+	v3.items.push(_51);
+	const _35: rt.Iter<Guard.Guard> = rt.iterFilter(rt.vecIntoIter(v3, rt.drop), (g: Guard.Guard): boolean => {
 		return Guard.id(g) !== rt.u32Add(id, 5);
 	}, rt.drop);
 	rt.iterExtend(list, _35, "next", 8);
-	const part = list.length;
+	const part = list.items.length;
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part, f)];
 	Log.note(log, rt.fmtFormat(["list ", args2[0]]));
 	const map: rt.HashMap<Key.Key, Guard.Guard> = rt.hashNew(rt.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rt.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rt.HashMap<Key.Key, Guard.Guard>;
 	const _71: Key.Key = key(8);
 	const _74: Guard.Guard = guard(8);
 	rt.drop(rt.hashInsert(map, _71, _74, rt.drop));
-	const v4: [Key.Key, Guard.Guard][] = [];
+	const v4: rt.Vec<[Key.Key, Guard.Guard]> = new rt.Vec();
 	const _83: [Key.Key, Guard.Guard] = [key(8), guard(9)];
-	v4.push(_83);
+	v4.items.push(_83);
 	const _92: [Key.Key, Guard.Guard] = [key(8), guard(10)];
-	v4.push(_92);
-	rt.hashExtend(map, rt.iterSlice(v4, lib_drop$tuple2_drops_Key_model_Guard), rt.drop, rt.drop, "fold", 58720256);
+	v4.items.push(_92);
+	rt.hashExtend(map, rt.vecIntoIter(v4, lib_drop$tuple2_drops_Key_model_Guard), rt.drop, rt.drop, "fold", 58720256);
 	const set: rt.HashSet<Key.Key> = rt.hashNew(rt.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rt.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rt.HashSet<Key.Key>;
 	const _102: Key.Key = key(11);
 	rt.hashAdd(set, _102, rt.drop);
-	const v5: Key.Key[] = [];
+	const v5: rt.Vec<Key.Key> = new rt.Vec();
 	const _111: Key.Key = key(11);
-	v5.push(_111);
+	v5.items.push(_111);
 	const _116: Key.Key = key(11);
-	v5.push(_116);
-	rt.hashExtendKeys(set, rt.iterSlice(v5, rt.drop), rt.drop, "fold", 117440512);
+	v5.items.push(_116);
+	rt.hashExtendKeys(set, rt.vecIntoIter(v5, rt.drop), rt.drop, "fold", 117440512);
 	const _125: rt.usize = rt.hashLen(map);
 	const _128: rt.usize = rt.hashLen(set);
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_125, f), (f: rt.Formatter) => rt.usizeDisplay(_128, f)];
@@ -641,32 +637,32 @@ export function extended(log: Log.Log, id: rt.u32): void {
 	const _138: Key.Key = key(12);
 	const _141: Guard.Guard = guard(12);
 	rt.drop(rt.btreeInsert(tree, _138, _141, rt.drop));
-	const v6: [Key.Key, Guard.Guard][] = [];
+	const v6: rt.Vec<[Key.Key, Guard.Guard]> = new rt.Vec();
 	const _150: [Key.Key, Guard.Guard] = [key(13), guard(13)];
-	v6.push(_150);
+	v6.items.push(_150);
 	const _159: [Key.Key, Guard.Guard] = [key(12), guard(14)];
-	v6.push(_159);
+	v6.items.push(_159);
 	const _168: [Key.Key, Guard.Guard] = [key(15), guard(15)];
-	v6.push(_168);
-	rt.btreeExtend(tree, rt.iterSlice(v6, lib_drop$tuple2_drops_Key_model_Guard), false, rt.drop, rt.drop, "fold");
+	v6.items.push(_168);
+	rt.btreeExtend(tree, rt.vecIntoIter(v6, lib_drop$tuple2_drops_Key_model_Guard), false, rt.drop, rt.drop, "fold");
 	const ordered: rt.BTreeSet<Key.Key> = rt.btreeNew(Key.cmp$cmp_Ord) as rt.BTreeSet<Key.Key>;
 	const _178: Key.Key = key(16);
 	rt.btreeAdd(ordered, _178, rt.drop);
-	const v7: Key.Key[] = [];
+	const v7: rt.Vec<Key.Key> = new rt.Vec();
 	const _187: Key.Key = key(17);
-	v7.push(_187);
+	v7.items.push(_187);
 	const _192: Key.Key = key(16);
-	v7.push(_192);
-	rt.btreeExtendKeys(ordered, rt.iterSlice(v7, rt.drop), false, rt.drop, "fold");
+	v7.items.push(_192);
+	rt.btreeExtendKeys(ordered, rt.vecIntoIter(v7, rt.drop), false, rt.drop, "fold");
 	const queue: rt.VecDeque<Guard.Guard> = rt.dequeNew(8) as rt.VecDeque<Guard.Guard>;
 	const _198: Guard.Guard = guard(18);
 	rt.dequePushBack(queue, _198);
-	const v8: Guard.Guard[] = [];
+	const v8: rt.Vec<Guard.Guard> = new rt.Vec();
 	const _207: Guard.Guard = guard(19);
-	v8.push(_207);
+	v8.items.push(_207);
 	const _212: Guard.Guard = guard(20);
-	v8.push(_212);
-	rt.dequeExtend(queue, rt.iterSlice(v8, rt.drop), "fold", true);
+	v8.items.push(_212);
+	rt.dequeExtend(queue, rt.vecIntoIter(v8, rt.drop), "fold", true);
 	const _221: rt.usize = rt.btreeLen(tree);
 	const _224: rt.usize = rt.btreeLen(ordered);
 	const _227: rt.usize = queue.n;
@@ -677,7 +673,7 @@ export function extended(log: Log.Log, id: rt.u32): void {
 	rt.btreeDrop(tree, rt.drop, rt.drop);
 	rt.hashDrop(set, rt.drop);
 	rt.hashDrop(map, rt.drop, rt.drop);
-	rt.dropAll(list);
+	rt.dropVec(list);
 }
 
 /**
@@ -696,16 +692,16 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	const key: (a0: rt.u32) => Key.Key = (n: rt.u32): Key.Key => {
 		return Key.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rt.u32[]) => Key.Key[] = (ns: rt.u32[]): Key.Key[] => {
-		return rt.iterToArray(rt.iterMap(rt.iterSlice(ns), (_2: rt.u32): Key.Key => {
+	const keys: (a0: rt.u32[]) => rt.Vec<Key.Key> = (ns: rt.u32[]): rt.Vec<Key.Key> => {
+		return rt.iterToVec(rt.iterMap(rt.iterSlice(ns), (_2: rt.u32): Key.Key => {
 			return key(_2);
 		}), undefined, 12, true);
 	};
 	const guard: (a0: rt.u32) => Guard.Guard = (n3: rt.u32): Guard.Guard => {
 		return Guard.new(rt.u32Add(id, n3), Log.clone$Clone(log));
 	};
-	const guards: (a0: rt.u32[]) => Guard.Guard[] = (ns2: rt.u32[]): Guard.Guard[] => {
-		return rt.iterToArray(rt.iterMap(rt.iterSlice(ns2), (_26: rt.u32): Guard.Guard => {
+	const guards: (a0: rt.u32[]) => rt.Vec<Guard.Guard> = (ns2: rt.u32[]): rt.Vec<Guard.Guard> => {
+		return rt.iterToVec(rt.iterMap(rt.iterSlice(ns2), (_26: rt.u32): Guard.Guard => {
 			return guard(_26);
 		}), undefined, 8, true);
 	};
@@ -713,36 +709,36 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	_283 = true;
 	const _16: rt.u8 = rt.u8Rem(arg, 9);
 	if (_16 === 0) {
-		const part8 = rt.iterEq(rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 5, 6]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const part8 = rt.iterEq(rt.vecIntoIter(keys([1, 2, 3]), rt.drop), rt.vecIntoIter(keys([1, 5, 6]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part8, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args2[0]]));
 	} else if (_16 === 1) {
-		const eq2: boolean = rt.iterEq(rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
-		const ne: boolean = !rt.iterEq(rt.iterSlice(keys([4]), rt.drop), rt.iterSlice(keys([4, 5]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const eq2: boolean = rt.iterEq(rt.vecIntoIter(keys([1, 2, 3]), rt.drop), rt.vecIntoIter(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
+		const ne: boolean = !rt.iterEq(rt.vecIntoIter(keys([4]), rt.drop), rt.vecIntoIter(keys([4, 5]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), true, true, true, undefined, rt.drop, rt.drop);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(eq2, f), (f: rt.Formatter) => rt.fmtBool(ne, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args4[0], " ", args4[1]]));
 	} else if (_16 === 2) {
-		const part7 = rt.iterEq(rt.iterFilter(rt.iterSlice(keys([1, 2, 3]), rt.drop), (_210: Key.Key): boolean => {
+		const part7 = rt.iterEq(rt.iterFilter(rt.vecIntoIter(keys([1, 2, 3]), rt.drop), (_210: Key.Key): boolean => {
 			return true;
-		}, rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), undefined, true, true, undefined, rt.drop, rt.drop);
+		}, rt.drop), rt.vecIntoIter(keys([1, 2]), rt.drop), rt.consuming(Key.eq$cmp_PartialEq, rt.drop, rt.drop), undefined, true, true, undefined, rt.drop, rt.drop);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part7, f)];
 		Log.note(log, rt.fmtFormat(["eq ", args6[0]]));
 	} else if (_16 === 3) {
-		const part6 = rt.iterCmp(rt.iterSlice(keys([1, 2]), rt.drop), rt.iterSlice(keys([1, 2, 4]), rt.drop), rt.consuming(Key.cmp$cmp_Ord, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
+		const part6 = rt.iterCmp(rt.vecIntoIter(keys([1, 2]), rt.drop), rt.vecIntoIter(keys([1, 2, 4]), rt.drop), rt.consuming(Key.cmp$cmp_Ord, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part6, f)];
 		Log.note(log, rt.fmtFormat(["cmp ", args8[0]]));
 	} else if (_16 === 4) {
-		const cmp2: rt.Ordering | undefined = rt.iterCmp(rt.iterSlice(keys([1, 3, 5]), rt.drop), rt.iterSlice(keys([1, 2]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
-		const lt: boolean = rt.iterCmp(rt.iterSlice(keys([6]), rt.drop), rt.iterSlice(keys([6]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop) === -1;
+		const cmp2: rt.Ordering | undefined = rt.iterCmp(rt.vecIntoIter(keys([1, 3, 5]), rt.drop), rt.vecIntoIter(keys([1, 2]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop);
+		const lt: boolean = rt.iterCmp(rt.vecIntoIter(keys([6]), rt.drop), rt.vecIntoIter(keys([6]), rt.drop), rt.consuming(Key.partialCmp$cmp_PartialOrd, rt.drop, rt.drop), true, true, undefined, rt.drop, rt.drop) === -1;
 		const _153: rt.i8 = _12(cmp2);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(_153, f), (f: rt.Formatter) => rt.fmtBool(lt, f)];
 		Log.note(log, rt.fmtFormat(["partial_cmp ", args10[0], " ", args10[1]]));
 	} else if (_16 === 5) {
-		const _163: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2]), rt.drop);
-		const _169: Guard.Guard[] = guards([1, 2, 5]);
+		const _163: rt.Iter<Key.Key> = rt.vecIntoIter(keys([1, 2]), rt.drop);
+		const _169: rt.Vec<Guard.Guard> = guards([1, 2, 5]);
 		_283 = false;
 		const captured3 = c;
-		const part5 = rt.iterCmp(_163, rt.iterSlice(_169, rt.drop), rt.closure((x3: Key.Key, y3: Guard.Guard): rt.Ordering => {
+		const part5 = rt.iterCmp(_163, rt.vecIntoIter(_169, rt.drop), rt.closure((x3: Key.Key, y3: Guard.Guard): rt.Ordering => {
 			Guard.note(captured3, "compared");
 			const _93: rt.u32 = Guard.id(y3);
 			const _011: rt.Ordering = rt.cmp(x3.id, _93);
@@ -755,11 +751,11 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part5, f)];
 		Log.note(log, rt.fmtFormat(["cmp_by ", args12[0]]));
 	} else if (_16 === 6) {
-		const _188: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2]), rt.drop);
-		const _194: Guard.Guard[] = guards([1]);
+		const _188: rt.Iter<Key.Key> = rt.vecIntoIter(keys([1, 2]), rt.drop);
+		const _194: rt.Vec<Guard.Guard> = guards([1]);
 		_283 = false;
 		const captured2 = c;
-		const part4 = rt.iterEq(_188, rt.iterSlice(_194, rt.drop), rt.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
+		const part4 = rt.iterEq(_188, rt.vecIntoIter(_194, rt.drop), rt.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
 			Guard.note(captured2, "compared");
 			const _010: boolean = x2.id === Guard.id(y2);
 			y2[Symbol.dispose]();
@@ -771,11 +767,11 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part4, f)];
 		Log.note(log, rt.fmtFormat(["eq_by ", args14[0]]));
 	} else if (_16 === 7) {
-		const _211: rt.Iter<Key.Key> = rt.iterSlice(keys([1, 2, 3]), rt.drop);
-		const _217: Guard.Guard[] = guards([1]);
+		const _211: rt.Iter<Key.Key> = rt.vecIntoIter(keys([1, 2, 3]), rt.drop);
+		const _217: rt.Vec<Guard.Guard> = guards([1]);
 		_283 = false;
 		const captured = c;
-		const part2 = rt.iterCmp(_211, rt.iterSlice(_217, rt.drop), rt.closure((x: Key.Key, y: Guard.Guard): rt.Ordering | undefined => {
+		const part2 = rt.iterCmp(_211, rt.vecIntoIter(_217, rt.drop), rt.closure((x: Key.Key, y: Guard.Guard): rt.Ordering | undefined => {
 			Guard.note(captured, "compared");
 			const _9: rt.u32 = Guard.id(y);
 			const _09: rt.Ordering | undefined = rt.cmp(x.id, _9);
@@ -789,7 +785,7 @@ export function compared(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.i8Display(part3, f)];
 		Log.note(log, rt.fmtFormat(["partial_cmp_by ", args16[0]]));
 	} else {
-		const _238: [rt.Iter<Key.Key>, rt.Iter<Key.Key>] = [rt.iterSlice(keys([1, 2, 3]), rt.drop), rt.iterSlice(keys([1, 4, 5]), rt.drop)];
+		const _238: [rt.Iter<Key.Key>, rt.Iter<Key.Key>] = [rt.vecIntoIter(keys([1, 2, 3]), rt.drop), rt.vecIntoIter(keys([1, 4, 5]), rt.drop)];
 		const a: rt.Iter<Key.Key> = _238[0];
 		const b: rt.Iter<Key.Key> = _238[1];
 		const _252: rt.Iter<Key.Key> = a;
