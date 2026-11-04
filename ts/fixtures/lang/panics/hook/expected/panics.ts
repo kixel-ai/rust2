@@ -497,9 +497,10 @@ export function raised(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const log: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
 	const _9: rs.u8 = rs.u8Rem(kind, 8, { file: "fixtures/lang/panics/src/panics.rs", line: 288, col: 11 });
 	if (_9 === 0) {
-		rs.panic("a payload of text", { file: "fixtures/lang/panics/src/panics.rs", line: 289, col: 14 }, false);
+		rs.panic("a payload of text", { file: "fixtures/lang/panics/src/panics.rs", line: 289, col: 14 });
 	} else if (_9 === 1) {
-		rs.panic(text(data).v, { file: "fixtures/lang/panics/src/panics.rs", line: 290, col: 14 }, true);
+		const _13: rs.String = text(data);
+		rs.panic(_13.v, { file: "fixtures/lang/panics/src/panics.rs", line: 290, col: 14 }, _13);
 	} else if (_9 === 2) {
 		rs.panicAny(new of$u8(first), { file: "fixtures/lang/panics/src/panics.rs", line: 291, col: 14 });
 	} else if (_9 === 3) {

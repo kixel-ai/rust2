@@ -21,7 +21,7 @@ export function fmt$fmt_Display(self: Shown, f: rs.Formatter): rs.Result<undefin
 	if (!self.again) {
 		return rs.fmtWriteStr(f, "shown");
 	}
-	rs.panicFmt(["shown"], { file: "fixtures/lang/panics/src/hooked.rs", line: 139, col: 13 });
+	rs.panicFmt(["shown"], { file: "fixtures/lang/panics/src/hooked.rs", line: 156, col: 13 });
 }
 
 //# sourceMappingURL=hooked.Shown.ts.map

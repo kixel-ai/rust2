@@ -1574,7 +1574,8 @@ fn mapping<'tcx>(
 			// `Some` or `Ready` of a value is the value.
 			let some = matches!(to.kind(), ty::Adt(adt, args)
 				if matches!(Std::of(tcx, adt.did()), Some(Std::Option | Std::Poll)) && args.type_at(0) == targ(gargs, 1));
-			if to == from || some {
+			// `String::from(&String)` clones the `rs.String` object.
+			if (to == from && !targ(gargs, 1).is_ref()) || some {
 				return Some(value);
 			}
 			// Text into text: a `&mut str` is the `rs.Place` of its text, as a `String` is.
@@ -2927,8 +2928,10 @@ fn mapping<'tcx>(
 				(true, true) => {
 					let at = b.panic_at.clone().unwrap_or_else(Expr::undefined);
 					let text = args.pop()?;
-					let text = if owned { text.member("v") } else { text };
-					Expr::rs("panic", vec![text, at, Expr::lit(owned.to_string())])
+					match owned {
+						true => Expr::rs("panic", vec![text.clone().member("v"), at, text]),
+						false => Expr::rs("panic", vec![text, at]),
+					}
 				}
 				(true, false) if owned => Expr::rs("panic", vec![args.pop()?.member("v")]),
 				(true, false) => Expr::rs("panic", args),

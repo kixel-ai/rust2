@@ -711,7 +711,13 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 				sized(out, rest.len(), rest.capacity());
 			}
 			18 => drop(s.drain(..boundary(&s, arg))),
-			19 => s = s.clone(),
+			// A clone, and a `String::from` of a reference's, which leaves the original as it was.
+			19 => {
+				let mut copy = String::from(&s);
+				copy.push_str(text(arg));
+				sized(out, copy.len(), copy.capacity());
+				s = s.clone();
+			}
 			// Grown from `with_capacity` only where it holds fewer.
 			20 => {
 				let mut over = String::with_capacity(usize::from(arg % 24));

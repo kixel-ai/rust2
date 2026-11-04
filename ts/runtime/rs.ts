@@ -40,7 +40,7 @@ export class Panic extends Error {
 	 * What `panic` runs before it throws, once a program sets a hook: `rs/hook.ts`'s, which
 	 * gives the text it formatted, if any.
 	 */
-	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean) => string | undefined;
+	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean | RsString) => string | undefined;
 	override name = "Panic";
 }
 
@@ -51,9 +51,10 @@ export class Abort extends Panic {
 
 /**
  * Panic with `message`, at `at`, or at the key of std's or `bytes`' site the hook finds it at, whose
- * text is a `String` if `owned` says so, as `Panic.hooked` reads it.
+ * payload is the `String` `owned`, or one `message` is written into if `owned` is true, as
+ * `Panic.hooked` reads it.
  */
-export function panic(message: string, at?: Location | string, owned?: boolean): never {
+export function panic(message: string, at?: Location | string, owned?: boolean | RsString): never {
 	Panic.hooked?.(message, at, owned);
 	throw new Panic(message);
 }
