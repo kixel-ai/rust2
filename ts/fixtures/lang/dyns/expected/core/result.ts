@@ -90,6 +90,13 @@ export function map$0f0ko1g(self: rs.Result<rs.Arc<[rs.u8, rs.u8]>, rs.Arc<Any.A
 	return self as rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>;
 }
 
+export function and$0302lm8(self: rs.Result<undefined, rs.FmtError>, res: rs.Result<undefined, rs.FmtError>): rs.Result<undefined, rs.FmtError> {
+	if (self.ok) {
+		return res;
+	}
+	return self;
+}
+
 export function unwrapOr$0k78oya(self: rs.Result<rs.u8, rs.BorrowError>, default_: rs.u8): rs.u8 {
 	if (self.ok) {
 		return self.value;

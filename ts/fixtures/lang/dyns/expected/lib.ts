@@ -2,6 +2,7 @@
 
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
+import type * as Hasher from "./core/hash.Hasher.ts";
 import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
 import * as By from "./dyns.By.ts";
 import * as Drained from "./dyns.Drained.ts";
@@ -19,6 +20,12 @@ import * as Square from "./dyns.Square.ts";
 import * as Steps from "./dyns.Steps.ts";
 import type * as Tagged from "./dyns.Tagged.ts";
 import * as Tri from "./dyns.Tri.ts";
+import { dynHash$stds_DynHash_ref_str, dynHash$stds_DynHash_u8, stds } from "./stds.ts";
+import * as Counter from "./stds.Counter.ts";
+import * as Fnv from "./stds.Fnv.ts";
+import * as Key from "./stds.Key.ts";
+import * as stds_Sum from "./stds.Sum.ts";
+import * as Upper from "./stds.Upper.ts";
 
 export function copy$dyns_Tri(v: Tri.Tri): Tri.Tri {
 	if (v.tag === "Tall") {
@@ -163,6 +170,159 @@ export function drop$tuple2_dyns_Tagged_dyns_Tagged(_1: [Tagged.Tagged, Tagged.T
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 }
+
+/** The methods of `std::boxed::Box<dyn std::hash::Hasher>`, which forward to what it points at. */
+export const hasher$boxed_Box_dyn_hash_Hasher: rs.HasherImpl<rs.Place<Hasher.Hasher>> = { write: (h: rs.Place<Hasher.Hasher>, value: rs.ByteSlice): void => {
+	return h.v.write$Hasher(value);
+}, finish: (h2: rs.Place<Hasher.Hasher>): rs.u64 => {
+	return h2.v.finish$Hasher();
+}, u8: (h3: rs.Place<Hasher.Hasher>, value2: rs.u8): void => {
+	return h3.v.writeU8$Hasher(value2);
+}, u16: (h4: rs.Place<Hasher.Hasher>, value3: rs.u16): void => {
+	return h4.v.writeU16$Hasher(value3);
+}, u32: (h5: rs.Place<Hasher.Hasher>, value4: rs.u32): void => {
+	return h5.v.writeU32$Hasher(value4);
+}, u64: (h6: rs.Place<Hasher.Hasher>, value5: rs.u64): void => {
+	return h6.v.writeU64$Hasher(value5);
+}, u128: (h7: rs.Place<Hasher.Hasher>, value6: rs.u128): void => {
+	return h7.v.writeU128$Hasher(value6);
+}, usize: (h8: rs.Place<Hasher.Hasher>, value7: rs.usize): void => {
+	return h8.v.writeUsize$Hasher(value7);
+}, i8: (h9: rs.Place<Hasher.Hasher>, value8: rs.i8): void => {
+	return h9.v.writeI8$Hasher(value8);
+}, i16: (h10: rs.Place<Hasher.Hasher>, value9: rs.i16): void => {
+	return h10.v.writeI16$Hasher(value9);
+}, i32: (h11: rs.Place<Hasher.Hasher>, value10: rs.i32): void => {
+	return h11.v.writeI32$Hasher(value10);
+}, i64: (h12: rs.Place<Hasher.Hasher>, value11: rs.i64): void => {
+	return h12.v.writeI64$Hasher(value11);
+}, i128: (h13: rs.Place<Hasher.Hasher>, value12: rs.i128): void => {
+	return h13.v.writeI128$Hasher(value12);
+}, isize: (h14: rs.Place<Hasher.Hasher>, value13: rs.isize): void => {
+	return h14.v.writeIsize$Hasher(value13);
+}, prefix: (h15: rs.Place<Hasher.Hasher>, value14: rs.usize): void => {
+	return h15.v.writeLengthPrefix$Hasher(value14);
+}, str: (h16: rs.Place<Hasher.Hasher>, value15: string): void => {
+	return h16.v.writeStr$Hasher(value15);
+} };
+
+/** The methods of `&mut dyn std::hash::Hasher`, which forward to what it points at. */
+export const hasher$mut_dyn_hash_Hasher: rs.HasherImpl<rs.Place<Hasher.Hasher>> = { write: (h2: rs.Place<Hasher.Hasher>, value2: rs.ByteSlice): void => {
+	return h2.v.write$Hasher(value2);
+}, finish: (h3: rs.Place<Hasher.Hasher>): rs.u64 => {
+	return h3.v.finish$Hasher();
+}, u8: (h4: rs.Place<Hasher.Hasher>, value3: rs.u8): void => {
+	return h4.v.writeU8$Hasher(value3);
+}, u16: (h5: rs.Place<Hasher.Hasher>, value4: rs.u16): void => {
+	return h5.v.writeU16$Hasher(value4);
+}, u32: (h6: rs.Place<Hasher.Hasher>, value5: rs.u32): void => {
+	return h6.v.writeU32$Hasher(value5);
+}, u64: (h7: rs.Place<Hasher.Hasher>, value6: rs.u64): void => {
+	return h7.v.writeU64$Hasher(value6);
+}, u128: (h8: rs.Place<Hasher.Hasher>, value7: rs.u128): void => {
+	return h8.v.writeU128$Hasher(value7);
+}, usize: (h9: rs.Place<Hasher.Hasher>, value8: rs.usize): void => {
+	return h9.v.writeUsize$Hasher(value8);
+}, i8: (h10: rs.Place<Hasher.Hasher>, value9: rs.i8): void => {
+	return h10.v.writeI8$Hasher(value9);
+}, i16: (h11: rs.Place<Hasher.Hasher>, value10: rs.i16): void => {
+	return h11.v.writeI16$Hasher(value10);
+}, i32: (h12: rs.Place<Hasher.Hasher>, value11: rs.i32): void => {
+	return h12.v.writeI32$Hasher(value11);
+}, i64: (h13: rs.Place<Hasher.Hasher>, value12: rs.i64): void => {
+	return h13.v.writeI64$Hasher(value12);
+}, i128: (h14: rs.Place<Hasher.Hasher>, value13: rs.i128): void => {
+	return h14.v.writeI128$Hasher(value13);
+}, isize: (h15: rs.Place<Hasher.Hasher>, value14: rs.isize): void => {
+	return h15.v.writeIsize$Hasher(value14);
+}, prefix: (h16: rs.Place<Hasher.Hasher>, value15: rs.usize): void => {
+	return h16.v.writeLengthPrefix$Hasher(value15);
+}, str: (h17: rs.Place<Hasher.Hasher>, value16: string): void => {
+	return h17.v.writeStr$Hasher(value16);
+} };
+
+/** The methods of `&mut std::hash::DefaultHasher`, which forward to what it points at. */
+export const hasher$mut_hash_DefaultHasher: rs.HasherImpl<rs.Place<rs.Hasher>> = { write: (h: rs.Place<rs.Hasher>, value3: rs.ByteSlice): void => {
+	return rs.hashWrite(value3, h.v);
+}, finish: (h2: rs.Place<rs.Hasher>): rs.u64 => {
+	return rs.hashFinish(h2.v);
+}, u8: (h3: rs.Place<rs.Hasher>, value4: rs.u8): void => {
+	return rs.hash8(value4, h3.v);
+}, u16: (h4: rs.Place<rs.Hasher>, value5: rs.u16): void => {
+	return rs.hash16(value5, h4.v);
+}, u32: (h5: rs.Place<rs.Hasher>, value6: rs.u32): void => {
+	return rs.hash32(value6, h5.v);
+}, u64: (h6: rs.Place<rs.Hasher>, value7: rs.u64): void => {
+	return rs.hash64(value7, h6.v);
+}, u128: (h7: rs.Place<rs.Hasher>, value8: rs.u128): void => {
+	return rs.hash128(value8, h7.v);
+}, usize: (h8: rs.Place<rs.Hasher>, value9: rs.usize): void => {
+	return rs.hashUsize(value9, h8.v);
+}, i8: (h9: rs.Place<rs.Hasher>, value10: rs.i8): void => {
+	return rs.hashI8(value10, h9.v);
+}, i16: (h10: rs.Place<rs.Hasher>, value11: rs.i16): void => {
+	return rs.hashI16(value11, h10.v);
+}, i32: (h11: rs.Place<rs.Hasher>, value12: rs.i32): void => {
+	return rs.hashI32(value12, h11.v);
+}, i64: (h12: rs.Place<rs.Hasher>, value13: rs.i64): void => {
+	return rs.hashI64(value13, h12.v);
+}, i128: (h13: rs.Place<rs.Hasher>, value14: rs.i128): void => {
+	return rs.hashI128(value14, h13.v);
+}, isize: (h14: rs.Place<rs.Hasher>, value15: rs.isize): void => {
+	return rs.hashIsize(value15, h14.v);
+}, prefix: (h15: rs.Place<rs.Hasher>, value16: rs.usize): void => {
+	return rs.hashPrefix(value16, h15.v);
+}, str: (h16: rs.Place<rs.Hasher>, value17: string): void => {
+	return rs.hashStr(value17, h16.v);
+} };
+
+/** The methods of `&mut stds::Sum`, which forward to what it points at. */
+export const hasher$mut_stds_Sum: rs.HasherImpl<rs.Place<stds_Sum.Sum>> = { write: (h: rs.Place<stds_Sum.Sum>, value: rs.ByteSlice): void => {
+	return stds_Sum.write$hash_Hasher(h.v, value);
+}, finish: (h2: rs.Place<stds_Sum.Sum>): rs.u64 => {
+	return stds_Sum.finish$hash_Hasher(h2.v);
+}, u8: (h3: rs.Place<stds_Sum.Sum>, value2: rs.u8): void => {
+	const state2 = new rs.OwnHasher(h3.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hash8(value2, state2);
+}, u16: (h4: rs.Place<stds_Sum.Sum>, value3: rs.u16): void => {
+	const state3 = new rs.OwnHasher(h4.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hash16(value3, state3);
+}, u32: (h5: rs.Place<stds_Sum.Sum>, value4: rs.u32): void => {
+	return stds_Sum.writeU32$hash_Hasher(h5.v, value4);
+}, u64: (h6: rs.Place<stds_Sum.Sum>, value5: rs.u64): void => {
+	const state4 = new rs.OwnHasher(h6.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hash64(value5, state4);
+}, u128: (h7: rs.Place<stds_Sum.Sum>, value6: rs.u128): void => {
+	const state5 = new rs.OwnHasher(h7.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hash128(value6, state5);
+}, usize: (h8: rs.Place<stds_Sum.Sum>, value7: rs.usize): void => {
+	const state6 = new rs.OwnHasher(h8.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashUsize(value7, state6);
+}, i8: (h9: rs.Place<stds_Sum.Sum>, value8: rs.i8): void => {
+	const state7 = new rs.OwnHasher(h9.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashI8(value8, state7);
+}, i16: (h10: rs.Place<stds_Sum.Sum>, value9: rs.i16): void => {
+	const state8 = new rs.OwnHasher(h10.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashI16(value9, state8);
+}, i32: (h11: rs.Place<stds_Sum.Sum>, value10: rs.i32): void => {
+	const state9 = new rs.OwnHasher(h11.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashI32(value10, state9);
+}, i64: (h12: rs.Place<stds_Sum.Sum>, value11: rs.i64): void => {
+	const state10 = new rs.OwnHasher(h12.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashI64(value11, state10);
+}, i128: (h13: rs.Place<stds_Sum.Sum>, value12: rs.i128): void => {
+	const state11 = new rs.OwnHasher(h13.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashI128(value12, state11);
+}, isize: (h14: rs.Place<stds_Sum.Sum>, value13: rs.isize): void => {
+	const state12 = new rs.OwnHasher(h14.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashIsize(value13, state12);
+}, prefix: (h15: rs.Place<stds_Sum.Sum>, value14: rs.usize): void => {
+	const state13 = new rs.OwnHasher(h15.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashPrefix(value14, state13);
+}, str: (h16: rs.Place<stds_Sum.Sum>, value15: string): void => {
+	const state14 = new rs.OwnHasher(h16.v, stds_Sum.hasher$hash_Hasher);
+	return rs.hashStr(value15, state14);
+} };
 
 export class of$Option_u8 {
 	v: rs.u8 | undefined;
@@ -520,11 +680,337 @@ export class of$dyns_Tri {
 	}
 }
 
+export class of$fmt_Formatter {
+	v: rs.Formatter;
+
+	constructor(v: rs.Formatter) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWriteChar(this.v, a);
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWriteFmt(this.v, a);
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWriteStr(this.v, a);
+	}
+}
+
+export class of$hash_DefaultHasher {
+	v: rs.Hasher;
+
+	constructor(v: rs.Hasher) {
+		this.v = v;
+	}
+
+	finish$Hasher(): rs.u64 {
+		return rs.hashFinish(this.v);
+	}
+
+	write$Hasher(a: rs.ByteSlice): void {
+		return rs.hashWrite(a, this.v);
+	}
+
+	writeI128$Hasher(a: rs.i128): void {
+		return rs.hashI128(a, this.v);
+	}
+
+	writeI16$Hasher(a: rs.i16): void {
+		return rs.hashI16(a, this.v);
+	}
+
+	writeI32$Hasher(a: rs.i32): void {
+		return rs.hashI32(a, this.v);
+	}
+
+	writeI64$Hasher(a: rs.i64): void {
+		return rs.hashI64(a, this.v);
+	}
+
+	writeI8$Hasher(a: rs.i8): void {
+		return rs.hashI8(a, this.v);
+	}
+
+	writeIsize$Hasher(a: rs.isize): void {
+		return rs.hashIsize(a, this.v);
+	}
+
+	writeLengthPrefix$Hasher(a: rs.usize): void {
+		return rs.hashPrefix(a, this.v);
+	}
+
+	writeStr$Hasher(a: string): void {
+		return rs.hashStr(a, this.v);
+	}
+
+	writeU128$Hasher(a: rs.u128): void {
+		return rs.hash128(a, this.v);
+	}
+
+	writeU16$Hasher(a: rs.u16): void {
+		return rs.hash16(a, this.v);
+	}
+
+	writeU32$Hasher(a: rs.u32): void {
+		return rs.hash32(a, this.v);
+	}
+
+	writeU64$Hasher(a: rs.u64): void {
+		return rs.hash64(a, this.v);
+	}
+
+	writeU8$Hasher(a: rs.u8): void {
+		return rs.hash8(a, this.v);
+	}
+
+	writeUsize$Hasher(a: rs.usize): void {
+		return rs.hashUsize(a, this.v);
+	}
+}
+
 export class of$ref_str {
 	v: string;
 
 	constructor(v: string) {
 		this.v = v;
+	}
+
+	dynHash$DynHash(a: Hasher.Hasher): void {
+		return dynHash$stds_DynHash_ref_str(this.v, a);
+	}
+}
+
+export class of$stds_Counter {
+	v: Counter.Counter;
+
+	constructor(v: Counter.Counter) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		return Counter.writeStr$fmt_Write(this.v, String.fromCodePoint(a));
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWrite((s) => Counter.writeStr$fmt_Write(this.v, s), (c) => Counter.writeStr$fmt_Write(this.v, String.fromCodePoint(c)), a);
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		return Counter.writeStr$fmt_Write(this.v, a);
+	}
+}
+
+export class of$stds_Fnv {
+	v: Fnv.Fnv;
+
+	constructor(v: Fnv.Fnv) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	finish$Hasher(): rs.u64 {
+		return Fnv.finish$hash_Hasher(this.v);
+	}
+
+	write$Hasher(a: rs.ByteSlice): void {
+		return Fnv.write$hash_Hasher(this.v, a);
+	}
+
+	writeI128$Hasher(a: rs.i128): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashI128(a, state);
+	}
+
+	writeI16$Hasher(a: rs.i16): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashI16(a, state);
+	}
+
+	writeI32$Hasher(a: rs.i32): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashI32(a, state);
+	}
+
+	writeI64$Hasher(a: rs.i64): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashI64(a, state);
+	}
+
+	writeI8$Hasher(a: rs.i8): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashI8(a, state);
+	}
+
+	writeIsize$Hasher(a: rs.isize): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashIsize(a, state);
+	}
+
+	writeLengthPrefix$Hasher(a: rs.usize): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashPrefix(a, state);
+	}
+
+	writeStr$Hasher(a: string): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashStr(a, state);
+	}
+
+	writeU128$Hasher(a: rs.u128): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hash128(a, state);
+	}
+
+	writeU16$Hasher(a: rs.u16): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hash16(a, state);
+	}
+
+	writeU32$Hasher(a: rs.u32): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hash32(a, state);
+	}
+
+	writeU64$Hasher(a: rs.u64): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hash64(a, state);
+	}
+
+	writeU8$Hasher(a: rs.u8): void {
+		return Fnv.writeU8$hash_Hasher(this.v, a);
+	}
+
+	writeUsize$Hasher(a: rs.usize): void {
+		const state = new rs.OwnHasher(this.v, Fnv.hasher$hash_Hasher);
+		return rs.hashUsize(a, state);
+	}
+}
+
+export class of$stds_Key {
+	v: Key.Key;
+
+	constructor(v: Key.Key) {
+		this.v = v;
+	}
+
+	dynHash$DynHash(a: Hasher.Hasher): void {
+		return Key.dynHash$stds_DynHash(this.v, a);
+	}
+}
+
+export class of$stds_Sum {
+	v: stds_Sum.Sum;
+
+	constructor(v: stds_Sum.Sum) {
+		this.v = v;
+	}
+
+	finish$Hasher(): rs.u64 {
+		return stds_Sum.finish$hash_Hasher(this.v);
+	}
+
+	write$Hasher(a: rs.ByteSlice): void {
+		return stds_Sum.write$hash_Hasher(this.v, a);
+	}
+
+	writeI128$Hasher(a: rs.i128): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashI128(a, state);
+	}
+
+	writeI16$Hasher(a: rs.i16): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashI16(a, state);
+	}
+
+	writeI32$Hasher(a: rs.i32): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashI32(a, state);
+	}
+
+	writeI64$Hasher(a: rs.i64): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashI64(a, state);
+	}
+
+	writeI8$Hasher(a: rs.i8): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashI8(a, state);
+	}
+
+	writeIsize$Hasher(a: rs.isize): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashIsize(a, state);
+	}
+
+	writeLengthPrefix$Hasher(a: rs.usize): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashPrefix(a, state);
+	}
+
+	writeStr$Hasher(a: string): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashStr(a, state);
+	}
+
+	writeU128$Hasher(a: rs.u128): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hash128(a, state);
+	}
+
+	writeU16$Hasher(a: rs.u16): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hash16(a, state);
+	}
+
+	writeU32$Hasher(a: rs.u32): void {
+		return stds_Sum.writeU32$hash_Hasher(this.v, a);
+	}
+
+	writeU64$Hasher(a: rs.u64): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hash64(a, state);
+	}
+
+	writeU8$Hasher(a: rs.u8): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hash8(a, state);
+	}
+
+	writeUsize$Hasher(a: rs.usize): void {
+		const state = new rs.OwnHasher(this.v, stds_Sum.hasher$hash_Hasher);
+		return rs.hashUsize(a, state);
+	}
+}
+
+export class of$stds_Upper {
+	v: Upper.Upper;
+
+	constructor(v: Upper.Upper) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		return Upper.writeChar$fmt_Write(this.v, a);
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWrite((s) => Upper.writeStr$fmt_Write(this.v, s), (c) => Upper.writeChar$fmt_Write(this.v, c), a);
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		return Upper.writeStr$fmt_Write(this.v, a);
 	}
 }
 
@@ -611,6 +1097,10 @@ export class of$u8 {
 		this.v = v;
 	}
 
+	dynHash$DynHash(a: Hasher.Hasher): void {
+		return dynHash$stds_DynHash_u8(this.v, a);
+	}
+
 	left$Source(): rs.usize {
 		return left$dyns_Source_u8(this.v);
 	}
@@ -633,6 +1123,30 @@ export class ofPlace$Option_u8 {
 
 	constructor(v: rs.Place<rs.u8 | undefined>) {
 		this.v = v;
+	}
+}
+
+export class ofPlace$String {
+	v: rs.Place<string>;
+
+	constructor(v: rs.Place<string>) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		this.v.v = this.v.v + String.fromCodePoint(a);
+		return rs.OK;
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		const written = rs.fmtWriteString(this.v.v, a);
+		this.v.v = written.s;
+		return written.result;
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		this.v.v = this.v.v + a;
+		return rs.OK;
 	}
 }
 
@@ -709,6 +1223,30 @@ export class ofPlace$dyns_Tri {
 
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Tri.tally$dyns_Shape(this.v.v, a);
+	}
+}
+
+export class ofPlace$mut_String {
+	v: rs.Place<rs.Place<string>>;
+
+	constructor(v: rs.Place<rs.Place<string>>) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		this.v.v.v = this.v.v.v + String.fromCodePoint(a);
+		return rs.OK;
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		const written = rs.fmtWriteString(this.v.v.v, a);
+		this.v.v.v = written.s;
+		return written.result;
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		this.v.v.v = this.v.v.v + a;
+		return rs.OK;
 	}
 }
 
@@ -805,6 +1343,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		rests(data9.data, data9.start, data9.length, out9);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::generics", (_219: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
 		generics(data10, out10);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["stds::stds", (_220: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
+		stds(data11, out11);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

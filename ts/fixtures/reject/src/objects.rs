@@ -1,7 +1,9 @@
 //! Trait objects the translation doesn't make.
 
-pub fn dynamic(h: &mut dyn std::hash::Hasher) -> u64 {
-	h.finish()
+/// An object of std's trait of a std type whose impl no mapping makes.
+pub fn dynamic(v: &mut Vec<u8>) -> usize {
+	let w: &mut dyn std::io::Write = v;
+	w.write(&[1]).unwrap_or(0)
 }
 
 pub trait Reading {
