@@ -113,7 +113,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _026;
 		});
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part56, f)];
-		const _147: string = rs.fmtFormat(["all ", args18[0]]);
+		const _147: rs.String = rs.fmtFormat(["all ", args18[0]]);
 		rs.drop(_153);
 		Log.note(log, _147);
 		const _168: rs.Iter<Guard.Guard> = firsts(log, id, 60);
@@ -123,7 +123,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _027;
 		});
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part57, f, rs.usizeDebug)];
-		const _162: string = rs.fmtFormat(["position ", args20[0]]);
+		const _162: rs.String = rs.fmtFormat(["position ", args20[0]]);
 		rs.drop(_168);
 		Log.note(log, _162);
 	} else if (_6 === 3) {

@@ -8,7 +8,7 @@ import type * as Error from "./core/error.Error.ts";
 import { fromStr$1t58fis as num_fromStr$1t58fis } from "./core/num.ts";
 import { eq$1uroq6x as num_error_eq$1uroq6x } from "./core/num/error.ts";
 import { map$1hw1osb as option_map$1hw1osb, map$0jqf1o0 as option_map$0jqf1o0, map$0p4jgzx as option_map$0p4jgzx } from "./core/option.ts";
-import { eq$0ypn0py as result_eq$0ypn0py, eq$1amzj8d as result_eq$1amzj8d, eq$1357wj0 as result_eq$1357wj0, eq$0q0qbov as result_eq$0q0qbov, eq$1w4olsu as result_eq$1w4olsu, eq$1nt6phd as result_eq$1nt6phd, eq$0y6o605 as result_eq$0y6o605, eq$1ow2tmy as result_eq$1ow2tmy, eq$17fo3dq as result_eq$17fo3dq, eq$0trkzzw as result_eq$0trkzzw, eq$1fss0tv as result_eq$1fss0tv, eq$0rz6big as result_eq$0rz6big, eq$06v73px as result_eq$06v73px, eq$096f56j as result_eq$096f56j, eq$031vf96 as result_eq$031vf96, eq$1qyqhny as result_eq$1qyqhny, eq$0hvarbg as result_eq$0hvarbg, eq$03c8d7v as result_eq$03c8d7v, err$11tr79p, err$0bvotqj, err$1tv7qwu, err$069ojhs, map$1w6ihbb as result_map$1w6ihbb, map$18dk705 as result_map$18dk705, map$07r5pce as result_map$07r5pce, mapErr$1scmdah as result_mapErr$1scmdah, mapErr$0ka0di9 as result_mapErr$0ka0di9, mapErr$1a5uolr as result_mapErr$1a5uolr, mapErr$09oysgi as result_mapErr$09oysgi, mapErr$1xpyw31 as result_mapErr$1xpyw31, clone$0688qis as result_clone$0688qis } from "./core/result.ts";
+import { eq$0ypn0py as result_eq$0ypn0py, eq$1amzj8d as result_eq$1amzj8d, eq$1h622n4 as result_eq$1h622n4, eq$0q0qbov as result_eq$0q0qbov, eq$1w4olsu as result_eq$1w4olsu, eq$1nt6phd as result_eq$1nt6phd, eq$0y6o605 as result_eq$0y6o605, eq$1ow2tmy as result_eq$1ow2tmy, eq$17fo3dq as result_eq$17fo3dq, eq$0trkzzw as result_eq$0trkzzw, eq$1fss0tv as result_eq$1fss0tv, eq$0rz6big as result_eq$0rz6big, eq$06v73px as result_eq$06v73px, eq$096f56j as result_eq$096f56j, eq$031vf96 as result_eq$031vf96, eq$1qyqhny as result_eq$1qyqhny, eq$0hvarbg as result_eq$0hvarbg, eq$03c8d7v as result_eq$03c8d7v, err$11tr79p, err$0bvotqj, err$1tv7qwu, err$069ojhs, map$1w6ihbb as result_map$1w6ihbb, map$18dk705 as result_map$18dk705, map$07r5pce as result_map$07r5pce, mapErr$1102tun as result_mapErr$1102tun, mapErr$0ka0di9 as result_mapErr$0ka0di9, mapErr$1lqaapp as result_mapErr$1lqaapp, mapErr$09oysgi as result_mapErr$09oysgi, mapErr$1xpyw31 as result_mapErr$1xpyw31, clone$0688qis as result_clone$0688qis } from "./core/result.ts";
 import { parse$1yfzdza, parse$1kyj9pm, parse$02m1946, parse$04z9euf, parse$092epd5, parse$1brosjp } from "./core/str.ts";
 import { eq$1lr55px as str_error_eq$1lr55px } from "./core/str/error.ts";
 import type * as Coded from "./errors.Coded.ts";
@@ -67,17 +67,17 @@ export function pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_String_string_FromUtf8Error(values: rs.Slice<rs.Result<string, rs.FromUtf8Error>>, out: rs.ByteVec): void {
+export function pairs$Result_String_string_FromUtf8Error(values: rs.Slice<rs.Result<rs.String, rs.FromUtf8Error>>, out: rs.ByteVec): void {
 	l1: for (const a of rs.sliceItems(values)) {
-		const iterS2: rs.Result<string, rs.FromUtf8Error>[] = rs.sliceItems(values);
+		const iterS2: rs.Result<rs.String, rs.FromUtf8Error>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
-			const _11: rs.Result<string, rs.FromUtf8Error> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
+			const _11: rs.Result<rs.String, rs.FromUtf8Error> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
 			if (_11 === rs.DONE) {
 				continue l1;
 			}
-			const b: rs.Result<string, rs.FromUtf8Error> = _11;
-			rs.byteVecPush(out, (result_eq$1357wj0(a, b) ? 1 : 0) | (((!result_eq$1357wj0(a, b) ? 1 : 0) << 1) & 0xff));
+			const b: rs.Result<rs.String, rs.FromUtf8Error> = _11;
+			rs.byteVecPush(out, (result_eq$1h622n4(a, b) ? 1 : 0) | (((!result_eq$1h622n4(a, b) ? 1 : 0) << 1) & 0xff));
 		}
 	}
 }
@@ -471,15 +471,15 @@ export function parsed$u8(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u8, rs.Par
  * signs, and letters, or as bytes.
  */
 export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let input: string = "";
+	const input: rs.String = rs.stringNew();
 	for (const b of rs.byteSliceView(data)) {
 		const _14: rs.Slice<rs.char> = rs.sliceFrom([48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233]);
 		const _15: rs.usize = rs.usizeRem(b as rs.usize, rs.sliceFrom([48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233]).length);
 		rs.idx(_14, _15);
-		input = input + String.fromCodePoint(_14.data[_14.start + _15]);
+		rs.stringPush(input, _14.data[_14.start + _15]);
 	}
 	const all: rs.Vec<string> = rs.vecFrom(["", "0", "-0", "1", "-1", "+", "a", "ab", "😀", "true", "false", "127", "128", "-128", "-129", "256", "18446744073709551615", "18446744073709551616", "-170141183460469231731687303715884105729", "1.5", "1e400", "NaN", "inf"].slice());
-	all.items.push(input);
+	all.items.push(input.v);
 	const bytes: rs.Vec<rs.ByteSlice> = rs.vecFrom([rs.byteSliceFrom(Uint8Array.of()), rs.byteSliceFrom(Uint8Array.of(97)), rs.byteSliceFrom(Uint8Array.of(255)), rs.byteSliceFrom(Uint8Array.of(97, 255)), rs.byteSliceFrom(Uint8Array.of(195)), rs.byteSliceFrom(Uint8Array.of(97, 195)), rs.byteSliceFrom(Uint8Array.of(224, 128)), rs.byteSliceFrom(Uint8Array.of(240, 159, 152)), rs.byteSliceFrom(Uint8Array.of(240, 159, 152, 128)), rs.byteSliceFrom(Uint8Array.of(237, 160, 128))].slice());
 	bytes.items.push(data);
 	const _32: rs.u8 = rs.u8Rem(kind, 16);
@@ -513,7 +513,7 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.strFromUtf8(b7);
 		}), undefined, 12, true).items), out);
 	} else if (_32 === 10) {
-		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b6: rs.ByteSlice): rs.Result<string, rs.FromUtf8Error> => {
+		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b6: rs.ByteSlice): rs.Result<rs.String, rs.FromUtf8Error> => {
 			return rs.stringFromUtf8(rs.byteSliceToByteVec(b6));
 		}), undefined, 20, true).items), out);
 	} else if (_32 === 11) {
@@ -561,8 +561,8 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else {
 				n = b2 as rs.usize;
 			}
-			const text: string = rs.strSlice("ab", 0, rs.u8Rem(b2, 3) as rs.usize);
-			return [rs.byteVecTryReserve(new rs.ByteVec(), n), rs.stringTryReserve(text, n), rs.dequeTryReserve(rs.dequeNew(2) as rs.VecDeque<rs.u16>, n), rs.hashTryReserve(rs.hashNew() as rs.HashSet<rs.u8>, n, 469762048)];
+			const text: rs.String = rs.stringFrom(rs.strSlice("ab", 0, rs.u8Rem(b2, 3) as rs.usize));
+			return [rs.byteVecTryReserve(new rs.ByteVec(), n), rs.stringTryReserveExact(text, n), rs.dequeTryReserve(rs.dequeNew(2) as rs.VecDeque<rs.u16>, n), rs.hashTryReserve(rs.hashNew() as rs.HashSet<rs.u8>, n, 469762048)];
 		}, (value: rs.Result<undefined, rs.TryReserveError>[]) => rs.iterSlice(value), true, 4), undefined, 8, true);
 		pairs$collections_TryReserveError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(v7.items), (r: rs.Result<undefined, rs.TryReserveError>): rs.TryReserveError | undefined => {
 			return err$069ojhs(result_clone$0688qis(r));
@@ -598,16 +598,16 @@ export function DROPPED$init(): rs.Cell<rs.u32> {
 }
 
 /** Each error in the chain, by `Display` and `Debug`. */
-export function chain(e: Error.Error): string {
+export function chain(e: Error.Error): rs.String {
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => e.fmt$Display(f), (f: rs.Formatter) => e.fmt$Debug(f)];
-	let s: string = rs.fmtFormat([args2[0], " ", args2[1]]);
+	const s: rs.String = rs.fmtFormat([args2[0], " ", args2[1]]);
 	let cur: Error.Error | undefined = e.source$Error();
 	while (true) {
 		if (cur !== undefined) {
 			const c: Error.Error = cur;
 			const args4: rs.Fmt[] = [(f: rs.Formatter) => c.fmt$Display(f), (f: rs.Formatter) => c.fmt$Debug(f)];
-			const _17: string = rs.fmtFormat([" <- ", args4[0], " ", args4[1]]);
-			s = s + _17;
+			const _17: string = rs.fmtFormat([" <- ", args4[0], " ", args4[1]]).v;
+			rs.stringPushStr(s, _17);
 			cur = c.source$Error();
 		} else {
 			return s;
@@ -634,7 +634,7 @@ export function failure(kind: rs.u8, n: rs.u8): Failure.Failure {
 export function checked(kind: rs.u8, n: rs.u8): rs.Result<rs.u8, Error.Error> {
 	if (!(rs.u8Rem(n, 4) === 0)) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		const _8: rs.Result<rs.u8, Failure.Failure> = result_mapErr$09oysgi(num_fromStr$1t58fis(rs.fmtFormat([args2[0], args2[0]])), (a0: rs.ParseIntError): Failure.Failure => {
+		const _8: rs.Result<rs.u8, Failure.Failure> = result_mapErr$09oysgi(num_fromStr$1t58fis(rs.fmtFormat([args2[0], args2[0]]).v), (a0: rs.ParseIntError): Failure.Failure => {
 			return { tag: "Parse", _0: a0 };
 		});
 		if (_8.ok) {
@@ -661,37 +661,37 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		const a: rs.u8 = _10[0];
 		const b: rs.u8 = _10[1];
 		const _24: Failure.Failure = failure(a, b);
-		const _21: string = chain(new of$errors_Failure(_24));
+		const _21: rs.String = chain(new of$errors_Failure(_24));
 		const _29: Leaf.Leaf = new Leaf.Leaf(a);
-		const _26: string = chain(new of$errors_Leaf(_29));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _21), (f: rs.Formatter) => rs.fmtPad(f, _26)];
-		const _17: string = rs.fmtFormat([args2[0], " | ", args2[1], " | "]);
+		const _26: rs.String = chain(new of$errors_Leaf(_29));
+		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _21.v), (f: rs.Formatter) => rs.fmtPad(f, _26.v)];
+		const _17: rs.String = rs.fmtFormat([args2[0], " | ", args2[1], " | "]);
 		_29[Symbol.dispose]();
 		drop$errors_Failure(_24);
-		put(out, _17);
+		put(out, _17.v);
 		const part = chain(new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug)));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
-		put(out, rs.fmtFormat([args4[0], " | "]));
+		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part.v)];
+		put(out, rs.fmtFormat([args4[0], " | "]).v);
 		const reserved: Error.Error = rs.resultUnwrapErr(reserve(a), rs.fmtUnit);
-		const _63: string = chain(reserved);
+		const _63: rs.String = chain(reserved);
 		const _66: boolean = reserved instanceof of$collections_TryReserveError || reserved instanceof ofPlace$collections_TryReserveError;
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _63), (f: rs.Formatter) => reserved.fmt$Debug(f), (f: rs.Formatter) => rs.fmtBool(_66, f)];
-		put(out, rs.fmtFormat([args6[0], " ", rs.fmtSpec({ alternate: true }, args6[1]), " ", args6[2], " | "]));
+		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _63.v), (f: rs.Formatter) => reserved.fmt$Debug(f), (f: rs.Formatter) => rs.fmtBool(_66, f)];
+		put(out, rs.fmtFormat([args6[0], " ", rs.fmtSpec({ alternate: true }, args6[1]), " ", args6[2], " | "]).v);
 		const held: Failure.Failure = failure(a, b);
-		const _86: string = chain(new of$boxed_Box_errors_Failure(held));
-		const _90: string = chain(new of$ref_errors_Failure(held));
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _86), (f: rs.Formatter) => rs.fmtPad(f, _90)];
-		put(out, rs.fmtFormat([args8[0], " | ", args8[1], " | "]));
+		const _86: rs.String = chain(new of$boxed_Box_errors_Failure(held));
+		const _90: rs.String = chain(new of$ref_errors_Failure(held));
+		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _86.v), (f: rs.Formatter) => rs.fmtPad(f, _90.v)];
+		put(out, rs.fmtFormat([args8[0], " | ", args8[1], " | "]).v);
 		const coded: Coded.Coded = new of$errors_Failure(failure(b, a));
 		const up: Error.Error = coded;
 		const _111: rs.u8 = coded.code$Coded();
-		const _114: string = chain(up);
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_111, f), (f: rs.Formatter) => rs.fmtPad(f, _114)];
-		put(out, rs.fmtFormat([args10[0], " ", args10[1], " | "]));
+		const _114: rs.String = chain(up);
+		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_111, f), (f: rs.Formatter) => rs.fmtPad(f, _114.v)];
+		put(out, rs.fmtFormat([args10[0], " ", args10[1], " | "]).v);
 		const boxed: Transported.Transported = new Transported.Transported(coded);
-		const _129: string = chain(new of$errors_Transported(boxed));
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _129), (f: rs.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
-		put(out, rs.fmtFormat([args12[0], " ", rs.fmtSpec({ alternate: true }, args12[1]), " | "]));
+		const _129: rs.String = chain(new of$errors_Transported(boxed));
+		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _129.v), (f: rs.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
+		put(out, rs.fmtFormat([args12[0], " ", rs.fmtSpec({ alternate: true }, args12[1]), " | "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		const results: rs.Vec<rs.Result<rs.u8, Error.Error>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rs.u8): rs.Result<rs.u8, Error.Error> => {
 			const n: rs.u8 = _2;
@@ -701,40 +701,40 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 			if (_149.ok) {
 				const arg = _149.value;
 				const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-				put(out, rs.fmtFormat([args14[0], " "]));
+				put(out, rs.fmtFormat([args14[0], " "]).v);
 			} else {
 				const part2 = chain(_149.error);
-				const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2)];
-				put(out, rs.fmtFormat([args16[0], " "]));
+				const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2.v)];
+				put(out, rs.fmtFormat([args16[0], " "]).v);
 			}
 		}
 		rs.dropVec(results, drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send);
 		const part3 = get$0q7640n(DROPPED);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part3, f)];
-		put(out, rs.fmtFormat(["| ", args18[0], " "]));
+		put(out, rs.fmtFormat(["| ", args18[0], " "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		const leaf: Leaf.Leaf = new Leaf.Leaf(b);
 		const borrowed: Error.Error = new of$ref_errors_Leaf(leaf);
 		const part4 = chain(borrowed);
-		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4)];
-		put(out, rs.fmtFormat([args20[0], " "]));
+		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4.v)];
+		put(out, rs.fmtFormat([args20[0], " "]).v);
 		rs.drop(borrowed);
 		const part5 = get$0q7640n(DROPPED);
 		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part5, f)];
-		put(out, rs.fmtFormat([args22[0], " "]));
+		put(out, rs.fmtFormat([args22[0], " "]).v);
 		leaf[Symbol.dispose]();
 		const part6 = get$0q7640n(DROPPED);
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part6, f)];
-		put(out, rs.fmtFormat([args24[0], " | "]));
+		put(out, rs.fmtFormat([args24[0], " | "]).v);
 		const coded2: Coded.Coded = new of$errors_Failure(failure(a, b));
 		const part7 = downcast(coded2);
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part7)];
-		put(out, rs.fmtFormat([args26[0], " "]));
+		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part7.v)];
+		put(out, rs.fmtFormat([args26[0], " "]).v);
 		const errors: rs.Vec<Error.Error> = rs.vecFrom([coded2, new of$errors_Leaf(new Leaf.Leaf(a)), new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug))]);
 		for (const _277 of errors.items) {
 			const part8 = downcast(_277);
-			const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part8)];
-			put(out, rs.fmtFormat([args28[0], " "]));
+			const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part8.v)];
+			put(out, rs.fmtFormat([args28[0], " "]).v);
 		}
 		const leaf2: Leaf.Leaf = new Leaf.Leaf(a);
 		const e: Error.Error = new of$errors_Leaf(leaf2);
@@ -744,7 +744,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		}
 		const arg2 = leaf2.code;
 		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg2, f)];
-		put(out, rs.fmtFormat([args30[0], " "]));
+		put(out, rs.fmtFormat([args30[0], " "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		for (const e2 of errors.items) {
 			const _324: rs.Result<Failure.Failure, Error.Error> = e2 instanceof of$errors_Failure ? rs.Ok(e2.v) : rs.Err(e2);
@@ -753,7 +753,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 				const _334: rs.u8 = Failure.code$errors_Coded(f);
 				const _337: rs.u32 = get$0q7640n(DROPPED);
 				const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_334, f), (f: rs.Formatter) => rs.u32Display(_337, f)];
-				put(out, rs.fmtFormat(["failure ", args32[0], " ", args32[1], " "]));
+				put(out, rs.fmtFormat(["failure ", args32[0], " ", args32[1], " "]).v);
 				drop$errors_Failure(f);
 			} else {
 				const e3: Error.Error = _324.error;
@@ -763,34 +763,34 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 					const _356: rs.u32 = get$0q7640n(DROPPED);
 					const arg3 = l.code;
 					const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg3, f), (f: rs.Formatter) => rs.u32Display(_356, f)];
-					put(out, rs.fmtFormat(["leaf ", args34[0], " ", args34[1], " "]));
+					put(out, rs.fmtFormat(["leaf ", args34[0], " ", args34[1], " "]).v);
 					l[Symbol.dispose]();
 				} else {
 					const e4: Error.Error = _345.error;
 					const args36: rs.Fmt[] = [(f: rs.Formatter) => e4.fmt$Display(f)];
-					put(out, rs.fmtFormat([args36[0], " "]));
+					put(out, rs.fmtFormat([args36[0], " "]).v);
 					rs.drop(e4);
 				}
 			}
 		}
 		const part9 = get$0q7640n(DROPPED);
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part9, f)];
-		put(out, rs.fmtFormat([args38[0], " "]));
-		const part10 = result_mapErr$1scmdah(result_mapErr$0ka0di9(checked(b, rs.u8WrappingMul(a, 4)), (e5: Error.Error): rs.Result<rs.u8, Error.Error> => {
+		put(out, rs.fmtFormat([args38[0], " "]).v);
+		const part10 = result_mapErr$1102tun(result_mapErr$0ka0di9(checked(b, rs.u8WrappingMul(a, 4)), (e5: Error.Error): rs.Result<rs.u8, Error.Error> => {
 			return result_map$18dk705(e5 instanceof of$errors_Failure ? rs.Ok(e5.v) : rs.Err(e5), (f2: Failure.Failure): rs.u8 => {
 				const _03: rs.u8 = Failure.code$errors_Coded(f2);
 				drop$errors_Failure(f2);
 				return _03;
 			});
-		}), (e6: rs.Result<rs.u8, Error.Error>): rs.Result<rs.u8, string> => {
-			return result_mapErr$1a5uolr(e6, (e7: Error.Error): string => {
-				const _05: string = rs.fmtToString((f: rs.Formatter) => e7.fmt$Display(f));
+		}), (e6: rs.Result<rs.u8, Error.Error>): rs.Result<rs.u8, rs.String> => {
+			return result_mapErr$1lqaapp(e6, (e7: Error.Error): rs.String => {
+				const _05: rs.String = rs.fmtToString((f: rs.Formatter) => e7.fmt$Display(f));
 				rs.drop(e7);
 				return _05;
 			});
 		});
-		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, string>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, rs.fmtStr))];
-		put(out, rs.fmtFormat([args40[0]]));
+		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, rs.String>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))];
+		put(out, rs.fmtFormat([args40[0]]).v);
 		leaf2[Symbol.dispose]();
 		boxed[Symbol.dispose]();
 		drop$errors_Failure(held);
@@ -799,7 +799,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 }
 
 /** Which of the crate's errors and std's `e` and its source are, and the `Failure` it holds. */
-export function downcast(e: Error.Error): string {
+export function downcast(e: Error.Error): rs.String {
 	const is: [boolean, boolean, boolean] = [e instanceof of$errors_Failure || e instanceof ofPlace$errors_Failure, e instanceof of$errors_Leaf, e instanceof of$num_ParseIntError || e instanceof ofPlace$num_ParseIntError];
 	const source: [boolean, rs.IntErrorKind | undefined] | undefined = option_map$1hw1osb(e.source$Error(), (s: Error.Error): [boolean, rs.IntErrorKind | undefined] => {
 		return [s instanceof of$errors_Leaf, option_map$0p4jgzx(s instanceof of$num_ParseIntError ? s.v : s instanceof ofPlace$num_ParseIntError ? s.v.v : undefined, (p: rs.ParseIntError): rs.IntErrorKind => {

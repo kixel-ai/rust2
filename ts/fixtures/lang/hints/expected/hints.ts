@@ -2001,22 +2001,23 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			put(out, it2.sizeHint());
 		}
 	} else if (_37 === 16) {
-		const s: string = rs.stringExtendChars("", rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
+		const _353: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_29: rs.u8): rs.char => {
 			const _5: rs.usize = rs.u8Rem(_29, 4) as rs.usize;
 			if (!(_5 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _5);
 			}
 			return [97, 233, 128512, 2048][_5];
-		}));
+		});
+		const s: rs.String = rs.stringExtendChars(rs.stringNew(), _353);
 		const _355: rs.u8 = rs.u8Rem(arm, 4);
 		if (_355 === 0) {
-			walk$str_Chars(rs.strChars(s), steps, out);
+			walk$str_Chars(rs.strChars(s.v), steps, out);
 		} else if (_355 === 1) {
-			walkFront$str_Split_char(rs.strSplit(s, "é"), steps, out);
+			walkFront$str_Split_char(rs.strSplit(s.v, "é"), steps, out);
 		} else if (_355 === 2) {
-			walk$str_Bytes(rs.strBytes(s), steps, out);
+			walk$str_Bytes(rs.strBytes(s.v), steps, out);
 		} else {
-			let t: string = s;
+			const t: rs.String = rs.stringClone(s);
 			const _379: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.iterSum(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(bytes, 0, rs.usizeDiv(bytes.length, 2)))), (_231: rs.u8): rs.usize => {
 				const _512: rs.usize = rs.u8Rem(_231, 4) as rs.usize;
 				if (!(_512 < 4)) {
@@ -2024,7 +2025,7 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return [1, 2, 4, 3][_512];
 			}), rs.usizeAdd, 0), rs.usizeStep);
-			walk$string_Drain(rs.stringDrain(rs.place(() => t, (value) => t = value), _379), steps, out);
+			walk$string_Drain(rs.stringDrain(t, _379), steps, out);
 		}
 	} else if (_37 === 17) {
 		const size: rs.usize = rs.usizeAdd(rs.usizeRem(at(1) as rs.usize, 4), 1);

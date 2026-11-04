@@ -42,7 +42,7 @@ export function made$unit(): void {
 
 /** Each byte an operation, its value the operand; each puts what it read. */
 export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let s!: string;
+	let s!: rs.String;
 	for (const op of rs.byteSliceView(data)) {
 		const _10: rs.u8 = rs.u8Rem(op, 9);
 		if (_10 === 0) {
@@ -109,7 +109,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _142: rs.Arc<Made.Made> | undefined = rs.weakUpgrade(live);
 			const _140: boolean = _142 !== undefined;
 			const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_115, f), (f: rs.Formatter) => rs.usizeDisplay(_120, f), (f: rs.Formatter) => rs.fmtBool(_123, f), (f: rs.Formatter) => rs.fmtBool(_127, f), (f: rs.Formatter) => rs.fmtBool(_131, f), (f: rs.Formatter) => rs.fmtBool(_135, f), (f: rs.Formatter) => rs.fmtBool(_140, f)];
-			const _111: string = rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4], " ", args12[5], " ", args12[6]]);
+			const _111: rs.String = rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4], " ", args12[5], " ", args12[6]]);
 			rs.drop(_142);
 			rs.drop(_137);
 			rs.drop(_117);
@@ -170,10 +170,10 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _218: rs.u64 = rs.u64Add(made2.n, op as rs.u64);
 			const _224: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_218, f);
 			const arg = made2.tag;
-			const args18: rs.Fmt[] = [_224, (f: rs.Formatter) => rs.fmtPad(f, arg)];
+			const args18: rs.Fmt[] = [_224, (f: rs.Formatter) => rs.fmtPad(f, arg.v)];
 			s = rs.fmtFormat([args18[0], " ", args18[1]]);
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s.v));
 		rs.byteVecPush(out, 10);
 	}
 }

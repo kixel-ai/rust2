@@ -73,7 +73,7 @@ export function name(b: rs.u8): Name.Name {
 	if (rs.u8Rem(b, 2) === 0) {
 		text = new rs.Arc(_3[_4]);
 	} else {
-		text = new rs.Arc(_3[_4]);
+		text = new rs.Arc(rs.stringFrom(_3[_4]).v);
 	}
 	return new Name.Name(text, small(rs.u8Div(b, 64)));
 }
@@ -129,15 +129,15 @@ export function partial(o: rs.Ordering | undefined): rs.u8 {
 }
 
 /** The index of the first of `keys` that borrows as `q`. */
-export function find$String_str(keys: rs.Slice<string>, q: string): rs.u8 {
-	const iter: rs.Iter<[rs.usize, string]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys)));
+export function find$String_str(keys: rs.Slice<rs.String>, q: string): rs.u8 {
+	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(keys)));
 	while (true) {
-		const _7: [rs.usize, string] | rs.Done = iter.next();
+		const _7: [rs.usize, rs.String] | rs.Done = iter.next();
 		if (_7 === rs.DONE) {
 			break;
 		}
 		const i: rs.usize = _7[0];
-		if (_7[1] === q) {
+		if (_7[1].v === q) {
 			return i & 0xff;
 		}
 	}
@@ -676,7 +676,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.panic("index out of bounds: the len is " + 6 + " but the index is " + _106);
 		}
 		const _105: string[] = ["", "a", "ab", "", "￿", "𐀀"];
-		rs.byteVecPush(out, find$String_str(rs.sliceFrom([text, _105[_106]]), _105[_106]));
+		rs.byteVecPush(out, find$String_str(rs.sliceFrom([rs.stringFrom(text), rs.stringFrom(_105[_106])]), _105[_106]));
 		const _127: rs.Arc<string>[] = [a.text, b.text];
 		rs.byteVecPush(out, find$sync_Arc_str_str(rs.sliceFrom(_127), _105[_106]));
 		rs.dropAll(_127);

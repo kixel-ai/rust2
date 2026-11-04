@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$tuple2_u8_u8 } from "./lib.ts";
 import { thenSome$1qfl7tz } from "./core/bool.ts";
-import { min$0tf7r1u, min$0hz2v7s, min$1akgklh, min$094dtzd, minBy$18ytev0, minBy$0p6yz91, minByKey$1qsvvgc, max$0mrbrbr, max$0vq2d0c, max$0n458i1, max$1nu2xoq, max$12ifqlw, max$0we2ghu, maxBy$1ghjx71, maxBy$1gr65n2, maxByKey$1a9sf4b } from "./core/cmp.ts";
+import { min$10ohimp, min$0hz2v7s, min$1akgklh, min$094dtzd, minBy$18ytev0, minBy$0p6yz91, minByKey$1qsvvgc, max$16nac37, max$0vq2d0c, max$0n458i1, max$1nu2xoq, max$12ifqlw, max$0we2ghu, maxBy$1ghjx71, maxBy$1gr65n2, maxByKey$1a9sf4b } from "./core/cmp.ts";
 import { unwrapOr$18rai12 as option_unwrapOr$18rai12, map$0adj75b as option_map$0adj75b, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$13h3wxw as option_mapOr$13h3wxw, mapOr$172961h as option_mapOr$172961h, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$0i0fno7 as option_mapOr$0i0fno7 } from "./core/option.ts";
 import { eq$1wvyxyw as result_eq$1wvyxyw, eq$0p2ygx3 as result_eq$0p2ygx3, partialCmp$1frpo9k as result_partialCmp$1frpo9k, partialCmp$1ks7sga as result_partialCmp$1ks7sga, partialCmp$0rzsy3r as result_partialCmp$0rzsy3r, partialCmp$0wss1z6 as result_partialCmp$0wss1z6, cmp$0lhhufb as result_cmp$0lhhufb, cmp$13u97s2 as result_cmp$13u97s2, cmp$0h35u3j as result_cmp$0h35u3j, cmp$18cbpvu as result_cmp$18cbpvu } from "./core/result.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, cmp$17et0iz as poll_cmp$17et0iz, partialCmp$1gaal0x as poll_partialCmp$1gaal0x, partialCmp$12m7vp8 as poll_partialCmp$12m7vp8 } from "./core/task/poll.ts";
@@ -75,10 +75,10 @@ export function cmps(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const b: rs.u8 = _13[1];
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(max$0we2ghu(a, b), min$094dtzd(a, b), max$0n458i1((a << 24) >> 24, (b << 24) >> 24) & 0xff)), undefined, true);
 		const _37: rs.u8 = rs.u8Div(b, 2);
-		const _32: [string, string] = [rs.fmtToString((f: rs.Formatter) => rs.u8Display(a, f)), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_37, f))];
-		const s: string = _32[0];
-		const t: string = _32[1];
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.stringLen(max$0mrbrbr(s, t)) & 0xff, rs.stringLen(min$0tf7r1u(s, t)) & 0xff)), undefined, true);
+		const _32: [rs.String, rs.String] = [rs.fmtToString((f: rs.Formatter) => rs.u8Display(a, f), 0), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_37, f), 0)];
+		const s: rs.String = _32[0];
+		const t: rs.String = _32[1];
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(max$16nac37(rs.stringClone(s), rs.stringClone(t)).len & 0xff, min$10ohimp(s, t).len & 0xff)), undefined, true);
 		const _55: [Item.Item, Item.Item] = [item(rs.usizeMul(2, i), a), item(rs.usizeAdd(rs.usizeMul(2, i), 1), b)];
 		const x: Item.Item = _55[0];
 		const y: Item.Item = _55[1];
@@ -216,16 +216,16 @@ export function sorted(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.iterIsSortedBy(rs.iterMap(rs.vecIntoIter(rs.iterToVec(items(), undefined, 2, true), rs.drop), rs.lent(key)), rs.le, true) ? 1 : 0);
 		rs.byteVecPush(out, rs.iterIsSortedBy(rs.iterMap(rs.vecIntoIter(rs.iterToVec(items(), undefined, 2, true), rs.drop), rs.lent(key)), rs.le, true) ? 1 : 0);
 		flush(out);
-		const strings: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(_12)), (b7: rs.u8): string => {
+		const strings: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(_12)), (b7: rs.u8): rs.String => {
 			const _415: rs.u8 = rs.u8Rem(b7, 16);
-			return rs.fmtToString((f: rs.Formatter) => rs.u8Display(_415, f));
+			return rs.fmtToString((f: rs.Formatter) => rs.u8Display(_415, f), 0);
 		}), undefined, 12, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceIsSorted(_12, rs.le) ? 1 : 0, rs.iterIsSortedBy(rs.iterSlice(rs.byteSliceView(_12)), (a5: rs.u8, b8: rs.u8): boolean => {
 			return rs.u8Div(a5, 4) <= rs.u8Div(b8, 4);
 		}) ? 1 : 0, rs.iterIsSortedBy(rs.iterMap(rs.iterSlice(rs.byteSliceView(_12)), (_25: rs.u8): rs.u8 => {
 			return rs.u8Rem(_25, 8);
-		}), rs.le) ? 1 : 0, rs.iterIsSortedBy(rs.iterSlice(rs.byteSliceView(_12)), rs.le) ? 1 : 0, rs.sliceIsSorted(rs.sliceFrom(strings.items), rs.cmpLe(rs.cmpStr)) ? 1 : 0, rs.iterIsSortedBy(rs.iterMap(rs.iterSlice(strings.items), (a0: string): rs.usize => {
-			return rs.stringLen(a0);
+		}), rs.le) ? 1 : 0, rs.iterIsSortedBy(rs.iterSlice(rs.byteSliceView(_12)), rs.le) ? 1 : 0, rs.sliceIsSorted(rs.sliceFrom(strings.items), rs.cmpLe(rs.cmpStr)) ? 1 : 0, rs.iterIsSortedBy(rs.iterMap(rs.iterSlice(strings.items), (a0: rs.String): rs.usize => {
+			return a0.len;
 		}), rs.le) ? 1 : 0, rs.iterIsSortedBy(rs.iterMap(rs.iterSlice(rs.byteSliceView(_12)), (_29: rs.u8): rs.f64 => {
 			return (_29 as rs.f64) / 3.0;
 		}), rs.cmpLe(rs.f64PartialCmp)) ? 1 : 0)), undefined, true);
@@ -384,7 +384,7 @@ export function values(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.from(bytes.items)))), undefined, true);
 	rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.byteVecFromVec(rs.heapIntoSortedVec(rs.heapClone(bytes, undefined), rs.le, rs.ge, rs.lt))), undefined, true);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(bytes.items, f, rs.u8Debug)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0]]).v), undefined, true);
 	rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.byteVecFromVec(bytes)), undefined, true);
 	const least: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
 		return _2;
@@ -402,24 +402,26 @@ export function values(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	const _51: rs.usize = data.length;
-	const strings: rs.BinaryHeap<string> = rs.heapFrom(rs.iterToVec(rs.iterSlice(["pear", "apple", rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_51, f))]), undefined, 12, true), rs.cmpLe(rs.cmpStr), rs.cmpGe(rs.cmpStr), rs.cmpLt(rs.cmpStr));
-	const copy: rs.BinaryHeap<string> = rs.heapClone(strings, undefined);
-	const _56: rs.Iter<string> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b4: rs.u8): string => {
+	const strings: rs.BinaryHeap<rs.String> = rs.heapFrom(rs.iterToVec(rs.iterSlice([rs.stringFrom("pear"), rs.stringFrom("apple"), rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_51, f), 0)]), undefined, 12, true), rs.cmpLe(rs.cmpStr), rs.cmpGe(rs.cmpStr), rs.cmpLt(rs.cmpStr));
+	const copy: rs.BinaryHeap<rs.String> = rs.heapClone(strings, (a0: rs.String): rs.String => {
+		return rs.stringClone(a0);
+	});
+	const _56: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b4: rs.u8): rs.String => {
 		const _43: rs.u8 = rs.u8Rem(b4, 10);
-		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(_43, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(_43, f), 0);
 	});
 	rs.heapExtend(copy, _56, rs.cmpLe(rs.cmpStr), rs.cmpGe(rs.cmpStr), rs.cmpLt(rs.cmpStr), undefined, 12, true);
-	rs.heapRetain(copy, (s: string): boolean => {
-		if (!(rs.stringLen(s) > 1)) {
-			return rs.cmpStr(s, "5") === -1;
+	rs.heapRetain(copy, (s: rs.String): boolean => {
+		if (!(s.len > 1)) {
+			return rs.cmpStr(s.v, "5") === -1;
 		}
 		return true;
 	}, rs.cmpLe(rs.cmpStr), rs.cmpGe(rs.cmpStr), rs.cmpLt(rs.cmpStr));
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(copy.items), (s2: string): rs.Iter<rs.u8> => {
-		return rs.strBytes(s2);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(copy.items), (s2: rs.String): rs.Iter<rs.u8> => {
+		return rs.strBytes(s2.v);
 	}, undefined, true), "next");
-	rs.iterExtendBytes(out, rs.iterMap(rs.heapIter(strings), (s3: string): rs.u8 => {
-		return rs.stringLen(s3) & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.heapIter(strings), (s3: rs.String): rs.u8 => {
+		return s3.len & 0xff;
 	}), "next");
 	const pairs: rs.BinaryHeap<[rs.u8, rs.u8]> = rs.heapNew() as rs.BinaryHeap<[rs.u8, rs.u8]>;
 	const _73: rs.Iter<[rs.u8, rs.u8]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_24: rs.u8): [rs.u8, rs.u8] => {

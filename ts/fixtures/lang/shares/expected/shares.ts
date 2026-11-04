@@ -167,7 +167,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putBytes(borrowed.value, out);
 		const owned: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteVecSlice(rs.byteCowIntoOwned(rs.byteSliceToByteVec(data2))));
 		putBytes(owned.value, out);
-		const s: rs.Arc<string> = new rs.Arc(text(data2));
+		const s: rs.Arc<string> = new rs.Arc(text(data2).v);
 		const twin: rs.Arc<string> = rs.arcClone(s);
 		const ofStr: rs.Arc<rs.ByteSlice> = rs.arcStrBytes(s);
 		counts$slice_u8(ofStr, out);
@@ -177,7 +177,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		ofTwin[Symbol.dispose]();
 		counts$slice_u8(ofStr, out);
 		putBytes(ofStr.value, out);
-		const s2: rs.Arc<string> = new rs.Arc(text(data2));
+		const s2: rs.Arc<string> = new rs.Arc(text(data2).v);
 		rs.arcStrBytes(rs.arcClone(s2))[Symbol.dispose]();
 		const _121: rs.Place<string> | undefined = rs.arcGetMutPlace(s2);
 		if (_121 !== undefined) {
@@ -192,7 +192,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const same2: rs.Arc<rs.u32> = rs.arcClone(n);
 		rs.byteVecPush(out, same2 === n ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(same2.value).reverse()), undefined, true);
-		const arcOfStr: rs.Arc<rs.ByteSlice> = rs.arcStrBytes(new rs.Arc(text(data2)));
+		const arcOfStr: rs.Arc<rs.ByteSlice> = rs.arcStrBytes(new rs.Arc(text(data2).v));
 		putBytes(arcOfStr.value, out);
 		const v: rs.ByteVec = rs.byteSliceToByteVec(fromVec.value);
 		rs.byteVecPush(v, 238);
@@ -242,9 +242,9 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.u64Eq(hash$sync_Arc_slice_u8(arc), hash$Rc_slice_u8(a)) ? 1 : 0);
 		const _285: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(new Uint8Array(0)));
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b2.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arc.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_285.value), f, rs.u8Debug)];
-		const _281: string = rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]);
+		const _281: rs.String = rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]);
 		_285[Symbol.dispose]();
-		put(out, _281);
+		put(out, _281.v);
 		arc[Symbol.dispose]();
 		b2[Symbol.dispose]();
 		a[Symbol.dispose]();
@@ -369,7 +369,7 @@ export function wides(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.cmpArc(rs.cmpSlice(rs.cmp))(collected, fromRef) & 0xff);
 	rs.byteVecPush(out, rs.u64Eq(hash$Rc_slice_u16(collected), hash$slice_u16(collected.value)) ? 1 : 0);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected.value), f, rs.u16Debug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(fromVec.value), f, rs.u16Debug)];
-	put(out, rs.fmtFormat([args2[0], "|", args2[1]]));
+	put(out, rs.fmtFormat([args2[0], "|", args2[1]]).v);
 	let shared: rs.Arc<rs.Slice<rs.u16>> = rs.arcClone(fromRef);
 	counts$slice_u16(fromRef, out);
 	if (rs.u8Rem(kind, 2) === 0) {
@@ -563,23 +563,24 @@ export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** `Rc<str>` and `Arc<str>`, each way, read, counted, and written. */
 export function strs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const s: string = text(data);
-	const fromRef: rs.Arc<string> = new rs.Arc(s);
-	const fromString: rs.Arc<string> = new rs.Arc(s);
-	const fromBox: rs.Arc<string> = new rs.Arc(s);
-	let source: string = s;
-	const fromMut: rs.Arc<string> = new rs.Arc(source);
-	source = rs.strToAsciiUppercase(source);
-	const borrowed: rs.Arc<string> = new rs.Arc(rs.strCowStr(new rs.Borrowed(s)));
-	const owned: rs.Arc<string> = new rs.Arc(rs.strCowStr(s));
-	const into: rs.Arc<string> = new rs.Arc(s);
+	const s: rs.String = text(data);
+	const fromRef: rs.Arc<string> = new rs.Arc(s.v);
+	const fromString: rs.Arc<string> = new rs.Arc(rs.stringClone(s).v);
+	const fromBox: rs.Arc<string> = new rs.Arc(rs.stringClone(s).v);
+	const source: rs.String = rs.stringClone(s);
+	const fromMut: rs.Arc<string> = new rs.Arc(source.v);
+	const _21: rs.Place<string> = source;
+	_21.v = rs.strToAsciiUppercase(_21.v);
+	const borrowed: rs.Arc<string> = new rs.Arc(rs.strCowStr(new rs.Borrowed(s.v)));
+	const owned: rs.Arc<string> = new rs.Arc(rs.strCowStr(rs.stringClone(s)));
+	const into: rs.Arc<string> = new rs.Arc(rs.stringClone(s).v);
 	const empty: rs.Arc<string> = new rs.Arc("");
 	const arcEmpty: rs.Arc<string> = new rs.Arc("");
 	put(out, fromRef.value);
 	put(out, fromString.value);
 	put(out, fromBox.value);
 	put(out, fromMut.value);
-	put(out, source);
+	put(out, source.v);
 	put(out, borrowed.value);
 	put(out, owned.value);
 	put(out, into.value);
@@ -587,11 +588,11 @@ export function strs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, arcEmpty.value);
 	rs.byteVecPush(out, rs.eqArc(rs.same, true)(fromRef, into) ? 1 : 0);
 	rs.byteVecPush(out, rs.cmpArc(rs.cmpStr)(fromRef, empty) & 0xff);
-	rs.byteVecPush(out, rs.u64Eq(hash$Rc_str(fromRef), hash$str(s)) ? 1 : 0);
+	rs.byteVecPush(out, rs.u64Eq(hash$Rc_str(fromRef), hash$str(s.v)) ? 1 : 0);
 	rs.byteVecPush(out, rs.stringLen(fromRef.value) & 0xff);
 	rs.byteVecPush(out, rs.iterCount(rs.strChars(fromRef.value)) & 0xff);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, fromRef.value), (f: rs.Formatter) => rs.fmtStr(fromString.value, f), (f: rs.Formatter) => rs.fmtStr(empty.value, f)];
-	put(out, rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2]]));
+	put(out, rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2]]).v);
 	const twin: rs.Arc<string> = rs.arcClone(fromRef);
 	counts$str(twin, out);
 	rs.byteVecPush(out, twin === fromRef ? 1 : 0);
@@ -604,12 +605,12 @@ export function strs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	} else {
 		let _137: rs.Arc<string> = rs.arcClone(twin);
-		const _135: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => _137, (value2) => _137 = value2), undefined, rs.drop);
+		const _135: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => _137, (value) => _137 = value), undefined, rs.drop);
 		_135.v = rs.strToAsciiLowercase(_135.v);
 		_137[Symbol.dispose]();
 	}
 	let shared: rs.Arc<string> = twin;
-	const _141: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => shared, (value3) => shared = value3), undefined, rs.drop);
+	const _141: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => shared, (value2) => shared = value2), undefined, rs.drop);
 	_141.v = rs.strToAsciiUppercase(_141.v);
 	counts$str(shared, out);
 	counts$str(fromRef, out);
@@ -617,12 +618,12 @@ export function strs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, shared.value);
 	put(out, fromRef.value);
 	let arc: rs.Arc<string> = rs.arcClone(fromString);
-	const _159: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => arc, (value4) => arc = value4), undefined, rs.drop);
+	const _159: rs.Place<string> = rs.arcMakeMutPlace(rs.place(() => arc, (value3) => arc = value3), undefined, rs.drop);
 	_159.v = rs.strToAsciiUppercase(_159.v);
 	put(out, arc.value);
 	put(out, fromString.value);
-	put(out, arc.value);
-	put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtPad(f, fromBox.value)));
+	put(out, rs.stringFrom(arc.value).v);
+	put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtPad(f, fromBox.value)).v);
 	arc[Symbol.dispose]();
 	shared[Symbol.dispose]();
 	mine[Symbol.dispose]();
@@ -687,15 +688,15 @@ export function generics(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  */
 export function keys(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const data2: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.usizeRem(kind >> 3 as rs.usize, rs.usizeAdd(data.length, 1)));
-	const words: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data2, 2), text), undefined, 12, true);
-	const _19: rs.Iter<rs.Arc<string>> = rs.iterMap(rs.iterSlice(words.items), (w: string): rs.Arc<string> => {
-		return new rs.Arc(w);
+	const words: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data2, 2), text), undefined, 12, true);
+	const _19: rs.Iter<rs.Arc<string>> = rs.iterMap(rs.iterSlice(words.items), (w: rs.String): rs.Arc<string> => {
+		return new rs.Arc(w.v);
 	});
 	const interned: rs.HashSet<rs.Arc<string>> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashArc(rs.hashStr), rs.eqArc(rs.same, true))) as rs.HashSet<rs.Arc<string>>, _19, rs.drop, undefined, 117440512);
 	rs.byteVecPush(out, rs.hashLen(interned) & 0xff);
 	for (const _30 of words.items) {
-		rs.byteVecPush(out, rs.hashContains(interned, new rs.Arc(_30)) ? 1 : 0);
-		rs.byteVecPush(out, option_mapOr$00xrvtw(rs.hashKey(interned, new rs.Arc(_30)), 0, (k: rs.Arc<string>): rs.u8 => {
+		rs.byteVecPush(out, rs.hashContains(interned, new rs.Arc(_30.v)) ? 1 : 0);
+		rs.byteVecPush(out, option_mapOr$00xrvtw(rs.hashKey(interned, new rs.Arc(_30.v)), 0, (k: rs.Arc<string>): rs.u8 => {
 			return k.strong & 0xff;
 		}));
 	}
@@ -726,7 +727,7 @@ export function keys(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 2, true).items));
 	putWides(fromIter.value, out);
 	putWides(fromIter.value, out);
-	const text_: rs.Arc<string> = new rs.Arc(rs.strsJoin(words.items, ""));
+	const text_: rs.Arc<string> = new rs.Arc(rs.strsJoin(words.items, "").v);
 	put(out, text_.value);
 	put(out, text_.value);
 	let slot: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(rs.byteSliceToArray(data2)));

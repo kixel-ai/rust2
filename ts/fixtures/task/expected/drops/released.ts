@@ -36,7 +36,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			_252 = true;
 			const part27 = Guard.id(captured26);
 			const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part27, f)];
-			const _626: string = rs.fmtFormat(["reduce ", args64[0]]);
+			const _626: string = rs.fmtFormat(["reduce ", args64[0]]).v;
 			Guard.note(y4, _626);
 			if (!(Guard.id(x4) < Guard.id(y4))) {
 				_262 = false;
@@ -228,7 +228,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const part16 = rs.iterIsSortedBy(rs.iterMap(_235, rs.closure((g6: Guard.Guard): rs.u32 => {
 			const part15 = Guard.id(captured15);
 			const args62: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part15, f)];
-			const _517: string = rs.fmtFormat(["key ", args62[0]]);
+			const _517: string = rs.fmtFormat(["key ", args62[0]]).v;
 			Guard.note(g6, _517);
 			const _013: rs.u32 = Guard.id(g6);
 			g6[Symbol.dispose]();
@@ -327,7 +327,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.entryAndModify(_404, rs.closure((g4: Guard.Guard): undefined => {
 			const part12 = Guard.id(captured13);
 			const args58: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part12, f)];
-			Guard.note(g4, rs.fmtFormat(["modified ", args58[0]]));
+			Guard.note(g4, rs.fmtFormat(["modified ", args58[0]]).v);
 			captured13[Symbol.dispose]();
 		}, (): void => {
 			captured13[Symbol.dispose]();
@@ -337,7 +337,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const part14 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_409, rs.closure((g5: Guard.Guard): undefined => {
 			const part13 = Guard.id(captured14);
 			const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part13, f)];
-			Guard.note(g5, rs.fmtFormat([args60[0]]));
+			Guard.note(g5, rs.fmtFormat([args60[0]]).v);
 			captured14[Symbol.dispose]();
 		}, (): void => {
 			captured14[Symbol.dispose]();
@@ -405,7 +405,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.entryAndModify(_538, rs.closure((g2: Guard.Guard): undefined => {
 			const part5 = Guard.id(captured7);
 			const args54: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part5, f)];
-			Guard.note(g2, rs.fmtFormat(["modified ", args54[0]]));
+			Guard.note(g2, rs.fmtFormat(["modified ", args54[0]]).v);
 			captured7[Symbol.dispose]();
 		}, (): void => {
 			captured7[Symbol.dispose]();
@@ -415,7 +415,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const part7 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_543, rs.closure((g3: Guard.Guard): undefined => {
 			const part6 = Guard.id(captured8);
 			const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part6, f)];
-			Guard.note(g3, rs.fmtFormat([args56[0]]));
+			Guard.note(g3, rs.fmtFormat([args56[0]]).v);
 			captured8[Symbol.dispose]();
 		}, (): void => {
 			captured8[Symbol.dispose]();

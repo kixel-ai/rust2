@@ -6737,34 +6737,35 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return x67;
 		}, out);
 	} else if (_9 === 3) {
-		const text: string = rs.stringExtendChars("", rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_273: rs.u8): rs.char => {
+		const _111: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_273: rs.u8): rs.char => {
 			const _518: rs.usize = rs.u8Rem(_273, 4) as rs.usize;
 			if (!(_518 < 4)) {
 				rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _518);
 			}
 			return [97, 233, 20013, 129408][_518];
-		}));
-		turns$str_Chars_clones_iters_closure53_clones_iters_closure54(rs.strChars(text), (it53: rs.Iter<rs.char>): rs.char | undefined => {
+		});
+		const text: rs.String = rs.stringExtendChars(rs.stringNew(), _111);
+		turns$str_Chars_clones_iters_closure53_clones_iters_closure54(rs.strChars(text.v), (it53: rs.Iter<rs.char>): rs.char | undefined => {
 			return rs.iterToOption(it53.nextBack());
 		}, plan, (c4: rs.char): rs.u8 => {
 			return rs.u32Rem(c4 as rs.u32, 251) & 0xff;
 		}, out);
-		turns$str_Bytes_clones_iters_closure55_clones_iters_closure56(rs.strBytes(text), (it54: rs.Iter<rs.u8>): rs.u8 | undefined => {
+		turns$str_Bytes_clones_iters_closure55_clones_iters_closure56(rs.strBytes(text.v), (it54: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it54.nextBack());
 		}, plan, (b15: rs.u8): rs.u8 => {
 			return b15;
 		}, out);
-		turns$str_Split_char_clones_iters_closure57_clones_iters_closure58(rs.strSplit(text, "é"), (it55: rs.Iter<string>): string | undefined => {
+		turns$str_Split_char_clones_iters_closure57_clones_iters_closure58(rs.strSplit(text.v, "é"), (it55: rs.Iter<string>): string | undefined => {
 			return rs.iterToOption(it55.nextBack());
 		}, plan, (s: string): rs.u8 => {
 			return rs.stringLen(s) & 0xff;
 		}, out);
-		turns$str_Split_ref_str_clones_iters_closure59_clones_iters_closure60(rs.strSplit(text, "中"), (it56: rs.Iter<string>): string | undefined => {
+		turns$str_Split_ref_str_clones_iters_closure59_clones_iters_closure60(rs.strSplit(text.v, "中"), (it56: rs.Iter<string>): string | undefined => {
 			return rs.iterToOption(it56.next());
 		}, plan, (s2: string): rs.u8 => {
 			return rs.stringLen(s2) & 0xff;
 		}, out);
-		const _135: string = text;
+		const _135: string = text.v;
 		const make6 = (captured7: rs.u8): (a0: rs.char) => boolean => {
 			return rs.cloning((c5: rs.char): boolean => {
 				captured7 = rs.u8WrappingAdd(captured7, 1);
@@ -6779,7 +6780,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}, plan, (s3: string): rs.u8 => {
 			return rs.stringLen(s3) & 0xff;
 		}, out);
-		turns$str_MatchIndices_array2_char_clones_iters_closure64_clones_iters_closure65(rs.strMatchIndices(text, rs.patternChars([97, 129408])), (it58: rs.Iter<[rs.usize, string]>): [rs.usize, string] | undefined => {
+		turns$str_MatchIndices_array2_char_clones_iters_closure64_clones_iters_closure65(rs.strMatchIndices(text.v, rs.patternChars([97, 129408])), (it58: rs.Iter<[rs.usize, string]>): [rs.usize, string] | undefined => {
 			return rs.iterToOption(it58.nextBack());
 		}, plan, (_283: [rs.usize, string]): rs.u8 => {
 			return (_283[0] & 0xff) ^ (rs.stringLen(_283[1]) & 0xff);
@@ -7585,28 +7586,30 @@ export function closures(data: rs.ByteSlice, plan: Plan.Plan, out: rs.ByteVec): 
 	flush(log.value, out);
 	rs.drop(copy);
 	flush(log.value, out);
-	const text: string = "ab";
+	const text: rs.String = rs.stringFrom("ab");
 	const tag2: Logged.Logged = logged(7);
-	const make6 = (captured9: string, captured10: Logged.Logged): () => [string, Logged.Logged] => {
-		return rs.closure(rs.cloning((): [string, Logged.Logged] => {
-			captured9 = captured9 + "c";
-			return [captured9, captured10] as [string, Logged.Logged];
-		}, () => make6(captured9, Logged.clone$Clone(captured10))), (): void => {
+	const make6 = (captured9: rs.String, captured10: Logged.Logged): () => [rs.String, Logged.Logged] => {
+		return rs.closure(rs.cloning((): [rs.String, Logged.Logged] => {
+			rs.stringPush(captured9, 99);
+			return [captured9, captured10] as [rs.String, Logged.Logged];
+		}, () => make6(((a0: rs.String): rs.String => {
+			return rs.stringClone(a0);
+		})(captured9), Logged.clone$Clone(captured10))), (): void => {
 			captured10[Symbol.dispose]();
 		});
 	};
-	const once: () => [string, Logged.Logged] = make6(text, tag2);
-	const twice: () => [string, Logged.Logged] = rs.closureClone(once);
+	const once: () => [rs.String, Logged.Logged] = make6(text, tag2);
+	const twice: () => [rs.String, Logged.Logged] = rs.closureClone(once);
 	flush(log.value, out);
-	const _127: [string, Logged.Logged] = once();
-	const text2: string = _127[0];
+	const _127: [rs.String, Logged.Logged] = once();
+	const text2: rs.String = _127[0];
 	const tag3: Logged.Logged = _127[1];
-	rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(text2), rs.iterSlice(Uint8Array.of(Logged.id(tag3)))), undefined, true);
+	rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(text2.v), rs.iterSlice(Uint8Array.of(Logged.id(tag3)))), undefined, true);
 	tag3[Symbol.dispose]();
-	const _139: [string, Logged.Logged] = twice();
-	const text3: string = _139[0];
+	const _139: [rs.String, Logged.Logged] = twice();
+	const text3: rs.String = _139[0];
 	const tag4: Logged.Logged = _139[1];
-	rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(text3), rs.iterSlice(Uint8Array.of(Logged.id(tag4)))), undefined, true);
+	rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(text3.v), rs.iterSlice(Uint8Array.of(Logged.id(tag4)))), undefined, true);
 	tag4[Symbol.dispose]();
 	flush(log.value, out);
 	const captured11 = data.length & 0xff;
@@ -7711,12 +7714,14 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _166: Logged.Logged = logged(part13);
 		const part14 = at(1);
 		const _165: Logged.Logged[] = [_166, logged(part14)];
-		const _178: string = "t";
+		const _178: rs.String = rs.stringFrom("t");
 		const part15 = at(2);
-		const tuple: [Logged.Logged[], string, Logged.Logged] = [_165, _178, logged(part15)];
-		const copy: [Logged.Logged[], string, Logged.Logged] = rs.tupleClone(tuple, [(a05: Logged.Logged[]): Logged.Logged[] => {
-			return a05.map(Logged.clone$Clone);
-		}, undefined, Logged.clone$Clone]);
+		const tuple: [Logged.Logged[], rs.String, Logged.Logged] = [_165, _178, logged(part15)];
+		const copy: [Logged.Logged[], rs.String, Logged.Logged] = rs.tupleClone(tuple, [(a06: Logged.Logged[]): Logged.Logged[] => {
+			return a06.map(Logged.clone$Clone);
+		}, (a07: rs.String): rs.String => {
+			return rs.stringClone(a07);
+		}, Logged.clone$Clone]);
 		flush(log.value, out);
 		const part16 = rs.sliceFrom(copy[0]);
 		_13(part16, out);
@@ -7733,8 +7738,8 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		flush(log.value, out);
 		const part20 = rs.sliceFrom(other.left);
 		_13(part20, out);
-		rs.iterExtendBytes(out, rs.strBytes(other.tag), undefined, true);
-		drop$tuple2_tuple3_array2_clones_Logged_String_clones_Logged_clones_Pair([copy, pair] as [[Logged.Logged[], string, Logged.Logged], Pair.Pair]);
+		rs.iterExtendBytes(out, rs.strBytes(other.tag.v), undefined, true);
+		drop$tuple2_tuple3_array2_clones_Logged_String_clones_Logged_clones_Pair([copy, pair] as [[Logged.Logged[], rs.String, Logged.Logged], Pair.Pair]);
 		flush(log.value, out);
 		other[Symbol.dispose]();
 		flush(log.value, out);
@@ -7756,15 +7761,17 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part12 = rs.sliceFrom(copy2[1]);
 		_13(part12, out);
 		const _295: rs.u8 = at(4);
-		const words: string[] = ["a", rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f)), ""];
+		const words: rs.String[] = [rs.stringFrom("a"), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_295, f), 0), rs.stringNew()];
 		const vecs: rs.ByteVec[] = [rs.byteSliceToByteVec(data), rs.byteVecFrom(Uint8Array.of(at(5)))];
-		const _308: [string[], rs.ByteVec[]] = [words.slice(), vecs.map((a04: rs.ByteVec): rs.ByteVec => {
-			return rs.byteVecFrom(rs.byteVecView(a04));
+		const _308: [rs.String[], rs.ByteVec[]] = [words.map((a04: rs.String): rs.String => {
+			return rs.stringClone(a04);
+		}), vecs.map((a05: rs.ByteVec): rs.ByteVec => {
+			return rs.byteVecFrom(rs.byteVecView(a05));
 		})];
-		const words2: string[] = _308[0];
+		const words2: rs.String[] = _308[0];
 		const vecs2: rs.ByteVec[] = _308[1];
 		rs.byteVecPush(vecs2[0], 1);
-		rs.iterExtendBytes(out, rs.strBytes(rs.strsJoin(words2, "")), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(rs.strsJoin(words2, "").v), undefined, true);
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.iterChain(rs.iterSlice(vecs), rs.iterSlice(vecs2)), (value: rs.ByteVec) => rs.iterSlice(rs.byteVecView(value)), true), "next");
 		rs.dropAll(copy2, drop$array2_clones_Logged);
 		flush(log.value, out);
@@ -8139,8 +8146,8 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			return logged(at(rs.usizeAdd(2, i3)));
 		});
 		rs.iterExtend(row, _43, undefined, 8, true);
-		const v2: rs.Vec<rs.Vec<Logged.Logged>> = rs.vecFromElem(row, n(0), (a04: rs.Vec<Logged.Logged>): rs.Vec<Logged.Logged> => {
-			return rs.vecFrom(a04.items.map(Logged.clone$Clone));
+		const v2: rs.Vec<rs.Vec<Logged.Logged>> = rs.vecFromElem(row, n(0), (a05: rs.Vec<Logged.Logged>): rs.Vec<Logged.Logged> => {
+			return rs.vecFrom(a05.items.map(Logged.clone$Clone));
 		}, drop$Vec_clones_Logged);
 		flush(log.value, out);
 		for (const _62 of v2.items) {
@@ -8154,8 +8161,8 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const part14 = at(0);
 		const _80: Logged.Logged = logged(part14);
 		const part15 = at(1);
-		const v3: rs.Vec<Logged.Logged[]> = rs.vecFromElem([_80, logged(part15)], n(2), (a03: Logged.Logged[]): Logged.Logged[] => {
-			return a03.map(Logged.clone$Clone);
+		const v3: rs.Vec<Logged.Logged[]> = rs.vecFromElem([_80, logged(part15)], n(2), (a04: Logged.Logged[]): Logged.Logged[] => {
+			return a04.map(Logged.clone$Clone);
 		}, drop$array2_clones_Logged);
 		flush(log.value, out);
 		rs.iterForEach(rs.iterSlice(v3.items), (row3: Logged.Logged[]): undefined => {
@@ -8193,14 +8200,16 @@ export function repeats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		rs.byteVecPush(out, none.items.length & 0xff);
 		const part11 = at(3);
 		const _194: rs.u8 = at(4);
-		const pairs: rs.Vec<[Logged.Logged, string]> = rs.vecFromElem([logged(part11), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f))] as [Logged.Logged, string], n(5), (a02: [Logged.Logged, string]): [Logged.Logged, string] => {
-			return rs.tupleClone(a02, [Logged.clone$Clone, undefined]);
+		const pairs: rs.Vec<[Logged.Logged, rs.String]> = rs.vecFromElem([logged(part11), rs.fmtToString((f: rs.Formatter) => rs.u8Display(_194, f), 0)] as [Logged.Logged, rs.String], n(5), (a02: [Logged.Logged, rs.String]): [Logged.Logged, rs.String] => {
+			return rs.tupleClone(a02, [Logged.clone$Clone, (a03: rs.String): rs.String => {
+				return rs.stringClone(a03);
+			}]);
 		}, drop$tuple2_clones_Logged_String);
 		flush(log.value, out);
-		rs.iterForEach(rs.iterSlice(pairs.items), (_2: [Logged.Logged, string]): undefined => {
-			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_2[1]), rs.iterSlice(Uint8Array.of(Logged.id(_2[0])))), undefined, true);
+		rs.iterForEach(rs.iterSlice(pairs.items), (_2: [Logged.Logged, rs.String]): undefined => {
+			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_2[1].v), rs.iterSlice(Uint8Array.of(Logged.id(_2[0])))), undefined, true);
 		});
-		drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String([some, none, pairs] as [rs.Vec<Logged.Logged | undefined>, rs.Vec<Logged.Logged | undefined>, rs.Vec<[Logged.Logged, string]>]);
+		drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String([some, none, pairs] as [rs.Vec<Logged.Logged | undefined>, rs.Vec<Logged.Logged | undefined>, rs.Vec<[Logged.Logged, rs.String]>]);
 		flush(log.value, out);
 	} else if (_12 === 5) {
 		const part8 = at(0);

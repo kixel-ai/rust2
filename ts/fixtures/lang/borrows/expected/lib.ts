@@ -173,7 +173,7 @@ export function drop$tuple2_cell_Ref_tuple2_u8_ref_str_u8(_1: [rs.RefCell<[rs.u8
 	rs.refRelease(_1[0]);
 }
 
-export function drop$tuple3_cell_Ref_String_cell_Ref_array4_u8_cell_Ref_u32(_1: [rs.RefCell<string>, rs.RefCell<Uint8Array>, rs.RefCell<rs.u32>]): void {
+export function drop$tuple3_cell_Ref_String_cell_Ref_array4_u8_cell_Ref_u32(_1: [rs.RefCell<rs.String>, rs.RefCell<Uint8Array>, rs.RefCell<rs.u32>]): void {
 	rs.refRelease(_1[0]);
 	rs.refRelease(_1[1]);
 	rs.refRelease(_1[2]);

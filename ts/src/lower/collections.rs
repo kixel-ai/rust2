@@ -142,7 +142,10 @@ pub fn call<'tcx>(
 				{
 					return Err(args);
 				}
+				// A `String` against text of any form, as `eqStr` reads each.
+				let text = library::owned_string(tcx, t) || library::owned_string(tcx, peel(b, rhs));
 				let eq = match name {
+					_ if text => Expr::Rs("eqStr".into()),
 					"eq" => eq_fn(b, t, span),
 					_ => not_ne_fn(b, t, span),
 				};
@@ -155,7 +158,10 @@ pub fn call<'tcx>(
 			}
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
+				let text = library::owned_string(b.t.tcx, peel(b, t)) && !library::owned_string(b.t.tcx, peel(b, by));
 				let value = match (same_key(b, t, by), arc_of(b, peel(b, t))) {
+					// A `String`'s `str` is its text.
+					(true, _) if text => args.pop().map(|v| v.member("v")),
 					(true, _) => args.pop(),
 					(false, Some(inner)) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
 					_ => return Err(args),
@@ -245,11 +251,12 @@ pub fn call<'tcx>(
 			}
 		}
 	}
-	// A slice or an array finds an `rs.Vec` key, which the runtime reads alike, as its type.
+	// A slice or an array finds an `rs.Vec` key, and a `str` an `rs.String` or an
+	// `rs.StrCow` key, which the runtime reads alike, as its type.
 	if let Some(by) = by
 		&& !matches!(name, "range" | "range_mut")
 		&& let Some(at) = args.get_mut(1)
-		&& other_shape(b, arg(coll, 0), by)
+		&& (other_shape(b, arg(coll, 0), by) || text_key(b, arg(coll, 0), by))
 	{
 		let key = b.t.ty(arg(coll, 0), span);
 		*at = as_type(std::mem::replace(at, Expr::undefined()), key);
@@ -393,12 +400,21 @@ fn lookup_ty<'tcx>(b: &Body<'_, '_, 'tcx>, std: Std, call: &Call<'tcx>, owner: &
 }
 
 /// Whether a key of type `by` is a JS value that hashes, compares, and orders as one of
-/// type `key` does: the same type through references and boxes, or a string either way.
+/// type `key` does: the same type through references and boxes, or text either way, a JS
+/// string or an `rs.String`, which the runtime's string functions take both of.
 fn same_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
 	let tcx = b.t.tcx;
 	let (key, by) = (peel(b, key), peel(b, by));
-	tcx.erase_and_anonymize_regions(key) == tcx.erase_and_anonymize_regions(by)
-		|| (library::string(tcx, key) && library::string(tcx, by))
+	let text = |ty| library::string(tcx, ty) || library::owned_string(tcx, ty);
+	tcx.erase_and_anonymize_regions(key) == tcx.erase_and_anonymize_regions(by) || (text(key) && text(by))
+}
+
+/// Whether a key of type `by` is a JS string that finds a `key` that is a `String` or a
+/// `Cow<str>`, an object.
+fn text_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
+	let tcx = b.t.tcx;
+	let key = peel(b, key);
+	(library::owned_string(tcx, key) || library::cow_str(tcx, key)) && library::string(tcx, peel(b, by))
 }
 
 /// Whether a key of type `by` is a slice or an array that finds a `key` that is a `Vec`,
@@ -1066,8 +1082,8 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	};
 	let mut values = vec![hash_fn(b, key, hasher, span), eq_fn(b, key, span)];
 	// A fieldless enum is a JS string, and a bound value may be any primitive, which its
-	// own `Eq` may tell apart where JS can't, and an owned `Cow<str>` is a string its
-	// borrowed one equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
+	// own `Eq` may tell apart where JS can't, and a `String` and an owned `Cow<str>` are
+	// objects a `str` equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
 	// `Wrapping`, or a `Saturating` of one.
 	let mut held = peeled;
 	while let Some(inner) = option_of(b, held)
@@ -1077,6 +1093,7 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 		held = peel(b, inner);
 	}
 	if library::cow_str(b.t.tcx, held)
+		|| library::owned_string(b.t.tcx, held)
 		|| matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some())
 	{
 		values.push(Expr::lit("true"));
@@ -2436,7 +2453,7 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 			.then(|| b.fn_value(default, args, span).call(Vec::new()));
 	};
 	Some(match std {
-		Std::String => Expr::Str(String::new()),
+		Std::String => Expr::rs("stringNew", Vec::new()),
 		Std::Vec if super::byte(arg(coll, 0)) => Expr::New(Box::new(Expr::Rs("ByteVec".into())), Vec::new()),
 		Std::Vec => library::vec_new(false),
 		Std::VecDeque => deque_new(b, coll, span),
@@ -2727,6 +2744,7 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => {
 			library::string(b.t.tcx, ty)
+				|| library::owned_string(b.t.tcx, ty)
 				|| matches!(
 					b.t.std_of(ty),
 					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
@@ -2974,7 +2992,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		// `None` for a NaN: only `PartialOrd`, since a float is no `Ord`.
 		_ if partial && let Some(float) = super::float::Float::of(ty) => Expr::rs_of(float.name(), "partialCmp"),
 		ty::Str => Expr::Rs("cmpStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("cmpStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) || library::owned_string(tcx, ty) => Expr::Rs("cmpStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("cmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationCmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationCmp".into()),
@@ -3055,6 +3073,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		ty::Adt(..) if library::string(tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind)) => {
 			Expr::Rs("same".into())
 		}
+		ty::Adt(..) if library::owned_string(tcx, ty) => Expr::Rs("eqStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rs("tryReserveErrorEq".into()),
@@ -3073,6 +3092,8 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			eq => Expr::rs("eqOption", [eq].into_iter().chain(b.t.none_arg(inner)).collect()),
 		},
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => eq_fn(b, inner, span),
+		// An owned `Cow<str>` derefs to its `rs.String`, which `eqStr` reads.
+		ty::Adt(..) if library::cow_str(tcx, ty) => Expr::Rs("eqStr".into()),
 		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rs("cowBy", vec![eq_fn(b, borrowed, span)]),
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => Expr::rs("rangeEq", vec![eq_fn(b, bound, span)]),
 		// A slice compares its elements by `!=`, as a deque does each of its halves.
@@ -3286,7 +3307,7 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 				.into(),
 		),
 		ty::Str => Expr::Rs("hashStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("hashStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) || library::owned_string(tcx, ty) => Expr::Rs("hashStr".into()),
 		// Its derived `Hash` writes its `i8` discriminant.
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("hashI8".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationHash".into()),

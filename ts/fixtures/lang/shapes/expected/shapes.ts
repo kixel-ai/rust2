@@ -594,7 +594,7 @@ export function order(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _82: rs.ByteSlice = rs.byteSliceRange(_83, rs.usizeDiv(rs.min(mark(out, 15), len), 2), _85);
 	const _103: rs.usize = sum;
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rs.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rs.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.usizeDisplay(_63, f), (f: rs.Formatter) => rs.usizeDisplay(_103, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_82), f, rs.u8Debug)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]]).v));
 	const _125: rs.usize = mark(out, 16);
 	const _127: rs.usize = out.length;
 	rs.byteVecPush(out, _125 & 0xff);
@@ -1399,7 +1399,7 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const a2: rs.u8 = (parsed as { ok: true; value: rs.u8 }).value;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a2, (parsed as { ok: true; value: rs.u8 }).value, (parsed as { ok: true; value: rs.u8 }).value, early(a2))));
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(parsed, f, rs.u8Debug, (value: Void.Void, f: rs.Formatter) => Void.fmt$fmt_Debug(value, f))];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]]).v));
 	payloads(data.data, data.start, data.length, out);
 	known(data.data, data.start, data.length, out);
 	rematched(data, out);
@@ -1489,12 +1489,12 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 		replaced = { ok: true, value: 66 };
 		rs.byteVecPush(out, old);
 	}
-	let named: rs.Result<string, rs.u8> = rs.Ok("");
+	const named: rs.Result<rs.String, rs.u8> = rs.Ok(rs.stringNew());
 	if (named.ok) {
-		named = { ok: true, value: named.value + "r" };
+		rs.stringPush(named.value, 114);
 	}
 	if (named.ok) {
-		_86 = rs.stringLen(named.value) & 0xff;
+		_86 = named.value.len & 0xff;
 	} else {
 		_86 = named.error;
 	}
@@ -2316,12 +2316,12 @@ export function library(data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else {
 		rs.byteVecPush(out, 4);
 	}
-	const _46: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data));
+	const _46: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data));
 	if (_46.ok) {
-		const s: string = _46.value;
+		const s: rs.String = _46.value;
 		rs.byteVecPush(out, 1);
-		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(rs.stringLen(s) as rs.u32)));
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(s.len as rs.u32)));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s.v));
 	} else {
 		rs.byteVecPush(out, 0);
 	}

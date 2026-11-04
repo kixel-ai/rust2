@@ -624,7 +624,7 @@ import * as closures from "./closures.ts";
 import {{ harness }} from {harness:?};
 
 export {{ cases, input, ops }} from {harness:?};
-const fixture = {{ Pending: rs.Pending, u64: {{ of: rs.u64Of }}, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
+const fixture = {{ Pending: rs.Pending, u64: {{ of: rs.u64Of }}, string: rs.stringFrom, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
 const script = harness(fixture);
 export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 "#
@@ -820,11 +820,10 @@ fn crates() {
 	snapshot("crates", &out);
 	typecheck(&out);
 	differential(&workspace(), "crates-fixture", &[], &out, "harness.ts", 1_000);
-	let cases: [(&str, &str, &[&str]); 4] = [
+	let cases: [(&str, &str, &[&str]); 3] = [
 		("refused", "refused.toml", &[]),
 		("shared", "ts.toml", &["--", "--features", "shared"]),
 		("alike", "alike.toml", &["--", "--features", "alike"]),
-		("strings", "strings.toml", &[]),
 	];
 	for (case, config, cargo) in cases {
 		let out = scratch().join("crates").join(case);

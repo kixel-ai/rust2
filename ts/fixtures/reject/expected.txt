@@ -19,14 +19,6 @@ fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+2:17: `Bytes::is_unique` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+3:12: `Vec::from(Bytes)` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+4:14: `BytesMut::from(Bytes)` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+5:6: `BufMut::put` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+6:6: `BufMut::put` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet

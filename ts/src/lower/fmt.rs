@@ -204,12 +204,8 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		if !matches!(std, Some(Std::String | Std::Formatter)) && !self.t.translated(write_str, wargs) {
 			return None;
 		}
-		// A JS string can't change in place, so the place the `&mut` is gets a longer one.
 		if std == Some(Std::String) {
-			let read = receiver.member("v");
-			let (value, result) = self.string_write(name, read.clone(), arg, literal, out);
-			out.push(StmtKind::Expr(read.assign(value)).at(None));
-			return Some(result);
+			return Some(self.string_write(name, receiver, arg, literal, out));
 		}
 		// The crate's impl writes this method itself.
 		if self.t.translated(def_id, wargs) {
@@ -263,27 +259,18 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		Some(self.call_def(write_str, wargs, vec![receiver, text], span, out))
 	}
 
-	/// `fmt::Write`'s `name` of a `String` whose value `read` reads, writing `arg`, a
-	/// `fmt::Arguments` whose only piece is `literal` if it is one: the longer string and
-	/// what the call returns. What a placeholder wrote before an error stays written.
-	pub fn string_write(
-		&mut self,
-		name: &str,
-		read: Expr,
-		arg: Expr,
-		literal: Option<String>,
-		out: &mut Vec<Stmt>,
-	) -> (Expr, Expr) {
-		let ok = Expr::Rs("OK".into());
-		match (name, literal) {
-			("write_char", _) => (read.binary("+", library::char_text(arg)), ok),
-			("write_fmt", Some(s)) => (read.binary("+", Expr::Str(s)), ok),
-			("write_fmt", None) => {
-				let written = self.spill(Expr::rs("fmtWriteString", vec![read, arg]), "written", out);
-				(written.clone().member("s"), written.member("result"))
-			}
-			_ => (read.binary("+", arg), ok),
-		}
+	/// `fmt::Write`'s `name` of the `String` `s`, writing `arg`, a `fmt::Arguments` whose only
+	/// piece is `literal` if it is one, in place: what the call returns. What a placeholder
+	/// wrote before an error stays written.
+	pub fn string_write(&mut self, name: &str, s: Expr, arg: Expr, literal: Option<String>, out: &mut Vec<Stmt>) -> Expr {
+		let pushed = match (name, literal) {
+			("write_char", _) => Expr::rs("stringPush", vec![s, arg]),
+			("write_fmt", Some(text)) => Expr::rs("stringPushStr", vec![s, Expr::Str(text)]),
+			("write_fmt", None) => return Expr::rs("fmtWriteString", vec![s, arg]),
+			_ => Expr::rs("stringPushStr", vec![s, arg]),
+		};
+		out.push(StmtKind::Expr(pushed).at(None));
+		Expr::Rs("OK".into())
 	}
 }
 
@@ -480,8 +467,8 @@ pub fn std_impl<'tcx>(
 			e
 		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
-			(Std::String, Trait::Display) => Expr::rs("fmtPad", vec![f, value]),
-			(Std::String, Trait::Debug) => rs("str", vec![value, f]),
+			(Std::String, Trait::Display) => Expr::rs("fmtPad", vec![f, value.member("v")]),
+			(Std::String, Trait::Debug) => rs("str", vec![value.member("v"), f]),
 			// A `NonZero`, a `Wrapping`, and a `Saturating` write their integer, by each trait.
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)

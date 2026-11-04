@@ -279,7 +279,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_280, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_283[0], f), (f: rs.Formatter) => rs.fmtOption(_283[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_286[0], f), (f: rs.Formatter) => rs.fmtOption(_286[1], f, rs.usizeDebug)], f)];
 		Log.note(log, rs.fmtFormat(["first ", args28[0], " ", args28[1], " ", args28[2]]));
 		rs.drop(it5);
-		Log.note(log, "dropped");
+		Log.note(log, rs.stringFrom("dropped"));
 		rs.dropVec(made);
 	} else if (_17 === 6) {
 		const _303: rs.Iter<Guard.Guard> = rs.vecIntoIter(guards(1, 7), rs.drop);
@@ -376,7 +376,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		}));
-		Log.note(log, "made");
+		Log.note(log, rs.stringFrom("made"));
 		const _425: rs.u32 = lazy.force();
 		const _427: rs.u32 = lazy.force();
 		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_425, f), (f: rs.Formatter) => rs.u32Display(_427, f)];
@@ -390,7 +390,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured10[Symbol.dispose]();
 		})), undefined, rs.drop);
-		Log.note(log, "unused");
+		Log.note(log, rs.stringFrom("unused"));
 		const captured11 = guard(22);
 		const lazy2: rs.LazyCell<rs.u32> = new rs.LazyCell(rs.once(rs.closure((): rs.u32 => {
 			return Guard.id(captured11);
@@ -425,7 +425,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const _137: rs.Result<rs.RefCell<rs.u32>, rs.BorrowError> = rs.refCellTryBorrow(cell2);
 			const _1110: boolean = !_137.ok;
 			const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n8.v, f), (f: rs.Formatter) => rs.u32Display(_95, f), (f: rs.Formatter) => rs.fmtBool(_1110, f)];
-			const _511: string = rs.fmtFormat(["replace ", args64[0], " ", args64[1], " ", args64[2]]);
+			const _511: rs.String = rs.fmtFormat(["replace ", args64[0], " ", args64[1], " ", args64[2]]);
 			lib_drop$Result_cell_Ref_u32_cell_BorrowError(_137);
 			Log.note(log, _511);
 			n8.v = rs.u32Add(n8.v, 1);
@@ -433,7 +433,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, true);
 		const _484: rs.RefCell<rs.u32> = rs.refCellBorrow(cell2);
 		const args46: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(old, f), (f: rs.Formatter) => rs.u32Display(_484.value, f)];
-		const _480: string = rs.fmtFormat(["replaced ", args46[0], " ", args46[1]]);
+		const _480: rs.String = rs.fmtFormat(["replaced ", args46[0], " ", args46[1]]);
 		rs.refRelease(_484);
 		Log.note(log, _480);
 		const _494: [Guard.Guard, Guard.Guard] = [guard(22), guard(23)];
@@ -539,8 +539,8 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			if (!(Guard.id(g2) !== rs.u32Add(captured, 3))) {
 				const _142: rs.u32 = Guard.id(g2);
 				const _173: rs.u32 = Guard.id(captured2);
-				const _205: string = rs.resultUnwrap(rs.stringFromUtf8(Log.text(log)), rs.fmtFromUtf8ErrorDebug);
-				const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_142, f), (f: rs.Formatter) => rs.u32Display(_173, f), (f: rs.Formatter) => rs.fmtPad(f, _205)];
+				const _205: rs.String = rs.resultUnwrap(rs.stringFromUtf8(Log.text(log)), rs.fmtFromUtf8ErrorDebug);
+				const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_142, f), (f: rs.Formatter) => rs.u32Display(_173, f), (f: rs.Formatter) => rs.fmtPad(f, _205.v)];
 				rs.panicFmt(["try_fold of g", args60[0], " with g", args60[1], " after\n", args60[2]]);
 			} else {
 				const _04: rs.u32 | undefined = rs.u32Add(n4, Guard.id(g2));

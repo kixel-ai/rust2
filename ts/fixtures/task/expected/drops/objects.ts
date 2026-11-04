@@ -131,7 +131,7 @@ export function shared(log: Log.Log, id: rs.u32): void {
 	const _122: rs.Arc<Part.Part> | undefined = rs.weakUpgrade(weak);
 	const part4 = _122 === undefined;
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part4, f)];
-	const _116: string = rs.fmtFormat(["gone ", args10[0]]);
+	const _116: rs.String = rs.fmtFormat(["gone ", args10[0]]);
 	rs.drop(_122);
 	Log.note(log, _116);
 	const _132: rs.Arc<rs.Future<rs.u32>> = new rs.Arc(new sharedFuture$closure1(guard(6)));
@@ -229,7 +229,7 @@ export function anys(log: Log.Log, id: rs.u32): void {
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part4, f, (value: [rs.u32, rs.usize], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.usizeDebug(value[1], f)], f))];
 	Log.note(log, rs.fmtFormat(["typed ", args10[0]]));
 	lib_drop$Option_sync_Arc_tuple2_model_Guard_model_Guard(typed);
-	Log.note(log, "dropped");
+	Log.note(log, rs.stringFrom("dropped"));
 	b[Symbol.dispose]();
 	const _149: Any.Any = slot;
 	const part5 = (_149 instanceof of$drops_Held ? _149.v : _149 instanceof ofPlace$drops_Held ? _149.v.v : undefined) !== undefined;
@@ -380,7 +380,7 @@ export function fns(log: Log.Log, id: rs.u32): void {
 	const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part12, f)];
 	Log.note(log, rs.fmtFormat(["up ", args24[0]]));
 	again[Symbol.dispose]();
-	Log.note(log, "gone");
+	Log.note(log, rs.stringFrom("gone"));
 	const _257: [Guard.Guard, Guard.Guard] = [guard(13), guard(14)];
 	const n: Guard.Guard = _257[0];
 	const o: Guard.Guard = _257[1];
@@ -400,7 +400,7 @@ export function fns(log: Log.Log, id: rs.u32): void {
 	}));
 	const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part14, f)];
 	Log.note(log, rs.fmtFormat(["run ", args28[0]]));
-	Log.note(log, "ran");
+	Log.note(log, rs.stringFrom("ran"));
 	const _296: [Guard.Guard, Guard.Guard] = [guard(15), guard(16)];
 	const p: Guard.Guard = _296[0];
 	const captured15 = _296[1];

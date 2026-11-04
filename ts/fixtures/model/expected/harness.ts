@@ -88,8 +88,8 @@ export function putU128(out: rs.ByteVec, value: rs.u128): void {
 }
 
 /** Text callers see, such as a `Debug` or `Display`, ended by a zero byte. */
-export function putText(out: rs.ByteVec, text: string): void {
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(text));
+export function putText(out: rs.ByteVec, text: rs.String): void {
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(text.v));
 	rs.byteVecPush(out, 0);
 }
 

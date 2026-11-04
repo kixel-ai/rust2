@@ -224,7 +224,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured73[Symbol.dispose]();
 		});
 		const _173: string = "+";
-		const _171: string = rs.dropAfter(_172, () => rs.strReplace(text, _172, _173));
+		const _171: rs.String = rs.dropAfter(_172, () => rs.strReplace(text, _172, _173, false));
 		const captured74 = (c71: rs.char): boolean => {
 			if (!(c71 === 44)) {
 				return c71 === 59;
@@ -241,8 +241,8 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured75[Symbol.dispose]();
 		});
 		const _176: string = "+";
-		const part19 = [_171, rs.dropAfter(_175, () => rs.strReplace(text, _175, _176, 2))] as [string, string];
-		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(part19[0], f), (f: rs.Formatter) => rs.fmtStr(part19[1], f)], f)];
+		const part19 = [_171, rs.dropAfter(_175, () => rs.strReplacen(text, _175, _176, 2))] as [rs.String, rs.String];
+		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(part19[0].v, f), (f: rs.Formatter) => rs.fmtStr(part19[1].v, f)], f)];
 		Log.note(log, rs.fmtFormat(["replace ", args14[0]]));
 	} else if (_8 === 1) {
 		const a2: Guard.Guard = guard(1);
@@ -468,7 +468,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["indices ", args30[0]]));
 	} else if (_8 === 2) {
 		const a3: Guard.Guard = guard(1);
-		let s: string = text;
+		const s: rs.String = rs.stringFrom(text);
 		const captured27 = a3;
 		const captured28 = (c29: rs.char): boolean => {
 			if (!(c29 === 44)) {
@@ -478,14 +478,14 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		};
 		const _378: (a0: rs.char) => boolean = rs.closure((c30: rs.char): boolean => {
 			const args138: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtCharDisplay(c30, f)];
-			Guard.note(captured27, rs.fmtFormat(["retain ", args138[0]]));
+			Guard.note(captured27, rs.fmtFormat(["retain ", args138[0]]).v);
 			return !captured28(c30);
 		}, (): void => {
 			captured27[Symbol.dispose]();
 		});
-		s = rs.stringRetain(s, _378);
+		rs.stringRetain(s, _378);
 		rs.drop(_378);
-		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s)];
+		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s.v)];
 		Log.note(log, rs.fmtFormat(["retained ", args32[0]]));
 		const b3: Guard.Guard = guard(2);
 		let captured29: rs.i32 = 0;
@@ -499,24 +499,24 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured30[Symbol.dispose]();
 		});
-		s = rs.stringRetain(s, everyOther);
-		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s)];
+		rs.stringRetain(s, everyOther);
+		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s.v)];
 		Log.note(log, rs.fmtFormat(["every other ", args34[0]]));
-		s = rs.stringRetain(s, everyOther);
-		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s)];
+		rs.stringRetain(s, everyOther);
+		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s.v)];
 		Log.note(log, rs.fmtFormat(["every other ", args36[0]]));
 		rs.drop(everyOther);
 		const c3: Guard.Guard = guard(3);
-		let empty: string = "";
+		const empty: rs.String = rs.stringNew();
 		const captured31 = c3;
 		const _427: (a0: rs.char) => boolean = rs.closure((_24: rs.char): boolean => {
 			return Guard.id(captured31) > 0;
 		}, (): void => {
 			captured31[Symbol.dispose]();
 		});
-		empty = rs.stringRetain(empty, _427);
+		rs.stringRetain(empty, _427);
 		rs.drop(_427);
-		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStr(empty, f)];
+		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStr(empty.v, f)];
 		Log.note(log, rs.fmtFormat(["empty ", args38[0]]));
 	} else if (_8 === 3) {
 		const a4: Guard.Guard = guard(1);
@@ -544,8 +544,8 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["ends ", args42[0], " ", args42[1]]));
 		const once2: [[string, string] | undefined, [string, string] | undefined] = [rs.strSplitOnce(text, f3), rs.strRsplitOnce(text, f3)];
 		const trimmed2: [string, string, string] = [rs.strTrimMatches(",a,", f3), rs.strTrimStartMatches(",a,", f3), rs.strTrimEndMatches(",a,", f3)];
-		const replaced2: [string, string] = [rs.strReplace(text, f3, "+"), rs.strReplace(text, f3, "+", 2)];
-		const args44: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once2[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once2[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed2[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed2[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed2[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced2[0], f), (f: rs.Formatter) => rs.fmtStr(replaced2[1], f)], f)];
+		const replaced2: [rs.String, rs.String] = [rs.strReplace(text, f3, "+", false), rs.strReplacen(text, f3, "+", 2)];
+		const args44: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once2[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once2[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed2[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed2[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed2[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced2[0].v, f), (f: rs.Formatter) => rs.fmtStr(replaced2[1].v, f)], f)];
 		Log.note(log, rs.fmtFormat(["once ", args44[0], " ", args44[1], " ", args44[2]]));
 		const split2: rs.Iter<string> = rs.strSplit(text, rs.lent(f3));
 		const _526: string | undefined = rs.iterToOption(split2.next());
@@ -581,7 +581,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args58: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(spaced.items, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtBool(_659, f)];
 		Log.note(log, rs.fmtFormat(["spaced ", args58[0], " ", args58[1]]));
 		rs.drop(f3);
-		Log.note(log, "dropped");
+		Log.note(log, rs.stringFrom("dropped"));
 	} else if (_8 === 4) {
 		const a5: Guard.Guard = guard(1);
 		let captured22: rs.i32 = 0;
@@ -614,10 +614,10 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["ends ", args62[0], " ", args62[1], " ", args62[2]]));
 		const once3: [[string, string] | undefined, [string, string] | undefined] = [rs.strSplitOnce(text, f4), rs.strRsplitOnce(text, f4)];
 		const trimmed3: [string, string] = [rs.strTrimMatches(",,a,,", f4), rs.strTrimStartMatches(",,a", f4)];
-		const replaced3: [string, string] = [rs.strReplace(text, f4, "+"), rs.strReplace(text, f4, "+", 2)];
+		const replaced3: [rs.String, rs.String] = [rs.strReplace(text, f4, "+", false), rs.strReplacen(text, f4, "+", 2)];
 		const end: string = rs.strTrimEndMatches(",a,,", f4);
 		const _755: boolean = f4(120);
-		const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once3[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once3[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed3[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed3[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced3[0], f), (f: rs.Formatter) => rs.fmtStr(replaced3[1], f)], f), (f: rs.Formatter) => rs.fmtStr(end, f), (f: rs.Formatter) => rs.fmtBool(_755, f)];
+		const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once3[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once3[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed3[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed3[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced3[0].v, f), (f: rs.Formatter) => rs.fmtStr(replaced3[1].v, f)], f), (f: rs.Formatter) => rs.fmtStr(end, f), (f: rs.Formatter) => rs.fmtBool(_755, f)];
 		Log.note(log, rs.fmtFormat(["once ", args64[0], " ", args64[1], " ", args64[2], " ", args64[3], " ", args64[4]]));
 		const split3: rs.Iter<string> = rs.strSplit(text, rs.lent(f4));
 		const _778: string | undefined = rs.iterToOption(split3.next());
@@ -650,7 +650,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args76: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(parts2.items, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtBool(_905, f)];
 		Log.note(log, rs.fmtFormat(["lent ", args76[0], " ", args76[1]]));
 		rs.drop(f4);
-		Log.note(log, "dropped");
+		Log.note(log, rs.stringFrom("dropped"));
 	} else if (_8 === 5) {
 		if (!(id < 4294967295)) {
 			p = (a0: rs.char): boolean => {
@@ -666,8 +666,8 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["contains ", args78[0], " ", args78[1], " ", args78[2]]));
 		const once4: [[string, string] | undefined, [string, string] | undefined] = [rs.strSplitOnce(text, p), rs.strRsplitOnce(text, p)];
 		const trimmed4: [string, string, string] = [rs.strTrimMatches(",a,", p), rs.strTrimStartMatches(",a,", p), rs.strTrimEndMatches(",a,", p)];
-		const replaced4: [string, string] = [rs.strReplace(text, p, "+"), rs.strReplace(text, p, "+", 2)];
-		const args80: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once4[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once4[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed4[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed4[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed4[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced4[0], f), (f: rs.Formatter) => rs.fmtStr(replaced4[1], f)], f)];
+		const replaced4: [rs.String, rs.String] = [rs.strReplace(text, p, "+", false), rs.strReplacen(text, p, "+", 2)];
+		const args80: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once4[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once4[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed4[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed4[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed4[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced4[0].v, f), (f: rs.Formatter) => rs.fmtStr(replaced4[1].v, f)], f)];
 		Log.note(log, rs.fmtFormat(["once ", args80[0], " ", args80[1], " ", args80[2]]));
 		const split4: rs.Iter<string> = rs.strSplit(text, p);
 		const _998: string | undefined = rs.iterToOption(split4.next());
@@ -735,8 +735,8 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _1178: string = "+";
 		const once5: [[string, string] | undefined, [string, string] | undefined] = [rs.dropAfter(_1145, () => rs.strSplitOnce(text, _1145)), rs.dropAfter(_1149, () => rs.strRsplitOnce(text, _1149))];
 		const trimmed5: [string, string, string] = [rs.dropAfter(_1155, () => rs.strTrimMatches(_1154, _1155)), rs.dropAfter(_1160, () => rs.strTrimStartMatches(_1159, _1160)), rs.dropAfter(_1165, () => rs.strTrimEndMatches(_1164, _1165))];
-		const replaced5: [string, string] = [rs.dropAfter(_1170, () => rs.strReplace(text, _1170, _1173)), rs.dropAfter(_1175, () => rs.strReplace(text, _1175, _1178, 2))];
-		const args94: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once5[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once5[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed5[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed5[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed5[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced5[0], f), (f: rs.Formatter) => rs.fmtStr(replaced5[1], f)], f)];
+		const replaced5: [rs.String, rs.String] = [rs.dropAfter(_1170, () => rs.strReplace(text, _1170, _1173, false)), rs.dropAfter(_1175, () => rs.strReplacen(text, _1175, _1178, 2))];
+		const args94: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once5[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once5[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed5[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed5[1], f), (f: rs.Formatter) => rs.fmtStr(trimmed5[2], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced5[0].v, f), (f: rs.Formatter) => rs.fmtStr(replaced5[1].v, f)], f)];
 		Log.note(log, rs.fmtFormat(["once ", args94[0], " ", args94[1], " ", args94[2]]));
 		const split5: rs.Iter<string> = rs.strSplit(text, boxed(15));
 		const _1203: string | undefined = rs.iterToOption(split5.next());
@@ -817,10 +817,10 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["ends ", args110[0], " ", args110[1], " ", args110[2]]));
 		const once6: [[string, string] | undefined, [string, string] | undefined] = [rs.strSplitOnce(text, rs.place(() => b4, (value11) => b4 = value11).v), rs.strRsplitOnce(text, rs.place(() => b4, (value12) => b4 = value12).v)];
 		const trimmed6: [string, string] = [rs.strTrimMatches(",,a,,", rs.place(() => b4, (value13) => b4 = value13).v), rs.strTrimStartMatches(",,a", rs.place(() => b4, (value14) => b4 = value14).v)];
-		const replaced6: [string, string] = [rs.strReplace(text, rs.place(() => b4, (value15) => b4 = value15).v, "+"), rs.strReplace(text, rs.place(() => b4, (value16) => b4 = value16).v, "+", 2)];
+		const replaced6: [rs.String, rs.String] = [rs.strReplace(text, rs.place(() => b4, (value15) => b4 = value15).v, "+", false), rs.strReplacen(text, rs.place(() => b4, (value16) => b4 = value16).v, "+", 2)];
 		const end2: string = rs.strTrimEndMatches(",a,,", rs.place(() => b4, (value17) => b4 = value17).v);
 		const _1430: boolean = b4(120);
-		const args112: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once6[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once6[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed6[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed6[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced6[0], f), (f: rs.Formatter) => rs.fmtStr(replaced6[1], f)], f), (f: rs.Formatter) => rs.fmtStr(end2, f), (f: rs.Formatter) => rs.fmtBool(_1430, f)];
+		const args112: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(once6[0], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(once6[1], f, (value: [string, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(trimmed6[0], f), (f: rs.Formatter) => rs.fmtStr(trimmed6[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtStr(replaced6[0].v, f), (f: rs.Formatter) => rs.fmtStr(replaced6[1].v, f)], f), (f: rs.Formatter) => rs.fmtStr(end2, f), (f: rs.Formatter) => rs.fmtBool(_1430, f)];
 		Log.note(log, rs.fmtFormat(["once ", args112[0], " ", args112[1], " ", args112[2], " ", args112[3], " ", args112[4]]));
 		const split7: rs.Iter<string> = rs.strSplit(text, rs.lent(rs.place(() => b4, (value18) => b4 = value18).v));
 		const _1453: string | undefined = rs.iterToOption(split7.next());
@@ -848,7 +848,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args122: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(last7, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(indices6[0], f, (value: [rs.usize, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(indices6[1], f, (value: [rs.usize, string], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.fmtStr(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtBool(_1559, f)];
 		Log.note(log, rs.fmtFormat(["indices ", args122[0], " ", args122[1], " ", args122[2]]));
 		rs.drop(b4);
-		Log.note(log, "dropped");
+		Log.note(log, rs.stringFrom("dropped"));
 	} else {
 		const _1578: [Guard.Guard, Guard.Guard, Guard.Guard] = [guard(1), guard(2), guard(3)];
 		const a7: Guard.Guard = _1578[0];
@@ -896,8 +896,8 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured5[Symbol.dispose]();
 		});
 		const _1597: string = "+";
-		const replaced7: string = rs.dropAfter(_1595, () => rs.strReplace(text, _1595, _1597, 2));
-		const args124: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(found8, f), (f: rs.Formatter) => rs.fmtOption(at, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtPad(f, replaced7)];
+		const replaced7: rs.String = rs.dropAfter(_1595, () => rs.strReplacen(text, _1595, _1597, 2));
+		const args124: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(found8, f), (f: rs.Formatter) => rs.fmtOption(at, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtPad(f, replaced7.v)];
 		Log.note(log, rs.fmtFormat(["contains ", args124[0], " ", args124[1], " ", args124[2]]));
 		const d3: Guard.Guard = guard(4);
 		const captured6 = (c10: rs.char): boolean => {
@@ -1010,7 +1010,7 @@ export function searched(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args136: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_1736, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtList(parts4.items, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtOption(_1739, f, rs.usizeDebug)];
 		Log.note(log, rs.fmtFormat(["shared ", args136[0], " ", args136[1], " ", args136[2]]));
 		rs.drop(shared);
-		Log.note(log, "dropped");
+		Log.note(log, rs.stringFrom("dropped"));
 	}
 }
 

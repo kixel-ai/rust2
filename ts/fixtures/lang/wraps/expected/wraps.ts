@@ -369,7 +369,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(a, f), (f: rs.Formatter) => rs.u8Debug(b, f), (f: rs.Formatter) => rs.u8LowerHex(a, f), (f: rs.Formatter) => rs.u8UpperHex(b, f), (f: rs.Formatter) => rs.u8Octal(c, f), (f: rs.Formatter) => rs.u8Binary(a, f), (f: rs.Formatter) => rs.u8Display(b, f), (f: rs.Formatter) => rs.u8LowerHex(c, f), (f: rs.Formatter) => rs.u8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u8[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.u8WrappingAdd, 0);
@@ -394,7 +394,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.u8> = _357[1];
 		const _365: Tick.Tick<rs.u8> = Tick.default$Default_u8();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_u8(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_u8(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u8(x7), hashed$num_Wrapping_u8(a)) ? 1 : 0);
@@ -552,7 +552,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(a, f), (f: rs.Formatter) => rs.u16Debug(b, f), (f: rs.Formatter) => rs.u16LowerHex(a, f), (f: rs.Formatter) => rs.u16UpperHex(b, f), (f: rs.Formatter) => rs.u16Octal(c, f), (f: rs.Formatter) => rs.u16Binary(a, f), (f: rs.Formatter) => rs.u16Display(b, f), (f: rs.Formatter) => rs.u16LowerHex(c, f), (f: rs.Formatter) => rs.u16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u16[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.u16WrappingAdd, 0);
@@ -577,7 +577,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.u16> = _357[1];
 		const _365: Tick.Tick<rs.u16> = Tick.default$Default_u16();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_u16(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_u16(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u16(x7), hashed$num_Wrapping_u16(a)) ? 1 : 0);
@@ -735,7 +735,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(a, f), (f: rs.Formatter) => rs.u32Debug(b, f), (f: rs.Formatter) => rs.u32LowerHex(a, f), (f: rs.Formatter) => rs.u32UpperHex(b, f), (f: rs.Formatter) => rs.u32Octal(c, f), (f: rs.Formatter) => rs.u32Binary(a, f), (f: rs.Formatter) => rs.u32Display(b, f), (f: rs.Formatter) => rs.u32LowerHex(c, f), (f: rs.Formatter) => rs.u32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u32[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.u32WrappingAdd, 0);
@@ -760,7 +760,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.u32> = _357[1];
 		const _365: Tick.Tick<rs.u32> = Tick.default$Default_u32();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_u32(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_u32(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u32(x7), hashed$num_Wrapping_u32(a)) ? 1 : 0);
@@ -918,7 +918,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(a, f), (f: rs.Formatter) => rs.u64Debug(b, f), (f: rs.Formatter) => rs.u64LowerHex(a, f), (f: rs.Formatter) => rs.u64UpperHex(b, f), (f: rs.Formatter) => rs.u64Octal(c, f), (f: rs.Formatter) => rs.u64Binary(a, f), (f: rs.Formatter) => rs.u64Display(b, f), (f: rs.Formatter) => rs.u64LowerHex(c, f), (f: rs.Formatter) => rs.u64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u64[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.u64WrappingAdd, 0);
@@ -943,7 +943,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.u64> = _357[1];
 		const _365: Tick.Tick<rs.u64> = Tick.default$Default_u64();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_u64(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_u64(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u64(x7), hashed$num_Wrapping_u64(a)) ? 1 : 0);
@@ -1101,7 +1101,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(a, f), (f: rs.Formatter) => rs.u128Debug(b, f), (f: rs.Formatter) => rs.u128LowerHex(a, f), (f: rs.Formatter) => rs.u128UpperHex(b, f), (f: rs.Formatter) => rs.u128Octal(c, f), (f: rs.Formatter) => rs.u128Binary(a, f), (f: rs.Formatter) => rs.u128Display(b, f), (f: rs.Formatter) => rs.u128LowerHex(c, f), (f: rs.Formatter) => rs.u128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.u128[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.u128WrappingAdd, 0);
@@ -1126,7 +1126,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.u128> = _357[1];
 		const _365: Tick.Tick<rs.u128> = Tick.default$Default_u128();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_u128(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_u128(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_u128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_u128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_u128(x7), hashed$num_Wrapping_u128(a)) ? 1 : 0);
@@ -1284,7 +1284,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(a, f), (f: rs.Formatter) => rs.usizeDebug(b, f), (f: rs.Formatter) => rs.usizeLowerHex(a, f), (f: rs.Formatter) => rs.usizeUpperHex(b, f), (f: rs.Formatter) => rs.usizeOctal(c, f), (f: rs.Formatter) => rs.usizeBinary(a, f), (f: rs.Formatter) => rs.usizeDisplay(b, f), (f: rs.Formatter) => rs.usizeLowerHex(c, f), (f: rs.Formatter) => rs.usizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.usize[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.usizeWrappingAdd, 0);
@@ -1309,7 +1309,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.usize> = _357[1];
 		const _365: Tick.Tick<rs.usize> = Tick.default$Default_usize();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_usize(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_usize(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_usize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_usize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_usize(x7), hashed$num_Wrapping_usize(a)) ? 1 : 0);
@@ -1469,7 +1469,7 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(a, f), (f: rs.Formatter) => rs.i8Debug(b, f), (f: rs.Formatter) => rs.i8LowerHex(a, f), (f: rs.Formatter) => rs.i8UpperHex(b, f), (f: rs.Formatter) => rs.i8Octal(c, f), (f: rs.Formatter) => rs.i8Binary(a, f), (f: rs.Formatter) => rs.i8Display(b, f), (f: rs.Formatter) => rs.i8LowerHex(c, f), (f: rs.Formatter) => rs.i8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i8[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.i8WrappingAdd, 0);
@@ -1494,7 +1494,7 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.i8> = _357[1];
 		const _365: Tick.Tick<rs.i8> = Tick.default$Default_i8();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_i8(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_i8(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i8(x7), hashed$num_Wrapping_i8(a)) ? 1 : 0);
@@ -1654,7 +1654,7 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i16Display(a, f), (f: rs.Formatter) => rs.i16Debug(b, f), (f: rs.Formatter) => rs.i16LowerHex(a, f), (f: rs.Formatter) => rs.i16UpperHex(b, f), (f: rs.Formatter) => rs.i16Octal(c, f), (f: rs.Formatter) => rs.i16Binary(a, f), (f: rs.Formatter) => rs.i16Display(b, f), (f: rs.Formatter) => rs.i16LowerHex(c, f), (f: rs.Formatter) => rs.i16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i16[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.i16WrappingAdd, 0);
@@ -1679,7 +1679,7 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.i16> = _357[1];
 		const _365: Tick.Tick<rs.i16> = Tick.default$Default_i16();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_i16(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_i16(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i16(x7), hashed$num_Wrapping_i16(a)) ? 1 : 0);
@@ -1839,7 +1839,7 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i32Display(a, f), (f: rs.Formatter) => rs.i32Debug(b, f), (f: rs.Formatter) => rs.i32LowerHex(a, f), (f: rs.Formatter) => rs.i32UpperHex(b, f), (f: rs.Formatter) => rs.i32Octal(c, f), (f: rs.Formatter) => rs.i32Binary(a, f), (f: rs.Formatter) => rs.i32Display(b, f), (f: rs.Formatter) => rs.i32LowerHex(c, f), (f: rs.Formatter) => rs.i32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i32[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.i32WrappingAdd, 0);
@@ -1864,7 +1864,7 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.i32> = _357[1];
 		const _365: Tick.Tick<rs.i32> = Tick.default$Default_i32();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_i32(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_i32(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i32(x7), hashed$num_Wrapping_i32(a)) ? 1 : 0);
@@ -2024,7 +2024,7 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(a, f), (f: rs.Formatter) => rs.i64Debug(b, f), (f: rs.Formatter) => rs.i64LowerHex(a, f), (f: rs.Formatter) => rs.i64UpperHex(b, f), (f: rs.Formatter) => rs.i64Octal(c, f), (f: rs.Formatter) => rs.i64Binary(a, f), (f: rs.Formatter) => rs.i64Display(b, f), (f: rs.Formatter) => rs.i64LowerHex(c, f), (f: rs.Formatter) => rs.i64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i64[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.i64WrappingAdd, 0);
@@ -2049,7 +2049,7 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.i64> = _357[1];
 		const _365: Tick.Tick<rs.i64> = Tick.default$Default_i64();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_i64(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_i64(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i64(x7), hashed$num_Wrapping_i64(a)) ? 1 : 0);
@@ -2209,7 +2209,7 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i128Display(a, f), (f: rs.Formatter) => rs.i128Debug(b, f), (f: rs.Formatter) => rs.i128LowerHex(a, f), (f: rs.Formatter) => rs.i128UpperHex(b, f), (f: rs.Formatter) => rs.i128Octal(c, f), (f: rs.Formatter) => rs.i128Binary(a, f), (f: rs.Formatter) => rs.i128Display(b, f), (f: rs.Formatter) => rs.i128LowerHex(c, f), (f: rs.Formatter) => rs.i128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.i128[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.i128WrappingAdd, 0);
@@ -2234,7 +2234,7 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.i128> = _357[1];
 		const _365: Tick.Tick<rs.i128> = Tick.default$Default_i128();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_i128(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_i128(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_i128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_i128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_i128(x7), hashed$num_Wrapping_i128(a)) ? 1 : 0);
@@ -2394,7 +2394,7 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_31 === 20) {
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.isizeDisplay(a, f), (f: rs.Formatter) => rs.isizeDebug(b, f), (f: rs.Formatter) => rs.isizeLowerHex(a, f), (f: rs.Formatter) => rs.isizeUpperHex(b, f), (f: rs.Formatter) => rs.isizeOctal(c, f), (f: rs.Formatter) => rs.isizeBinary(a, f), (f: rs.Formatter) => rs.isizeDisplay(b, f), (f: rs.Formatter) => rs.isizeLowerHex(c, f), (f: rs.Formatter) => rs.isizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])]).v));
 	} else if (_31 === 21) {
 		const all: rs.isize[] = [a, b, c];
 		const part6 = rs.iterSum(rs.iterSlice(all), rs.isizeWrappingAdd, 0);
@@ -2419,7 +2419,7 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const y: Tick.Tick<rs.isize> = _357[1];
 		const _365: Tick.Tick<rs.isize> = Tick.default$Default_isize();
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => Tick.fmt$fmt_Debug_isize(x7, f), (f: rs.Formatter) => Tick.fmt$fmt_Debug_isize(_365, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]]).v));
 		rs.byteVecPush(out, Tick.eq$cmp_PartialEq_isize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Tick.cmp$cmp_Ord_isize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$wraps_Tick_isize(x7), hashed$num_Wrapping_isize(a)) ? 1 : 0);

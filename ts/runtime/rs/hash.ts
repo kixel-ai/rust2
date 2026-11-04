@@ -26,6 +26,7 @@ import {
 	u128Cast,
 } from "./int.ts";
 import type { LinkedList } from "./collections.ts";
+import type { String as RsString } from "./str.ts";
 import type { Arc } from "./task.ts";
 
 /** What `Hash` writes into, by `Hasher`'s methods: `DefaultHasher`, a hash collection's own, or the crate's. */
@@ -679,9 +680,9 @@ export function hashWrite(bytes: ByteSlice, s: Hasher): void {
 	s.write(bytes.data, bytes.start, bytes.length);
 }
 
-/** `Hash::hash` of a string. */
-export function hashStr(str: string, s: Hasher): void {
-	s.str(str);
+/** `Hash::hash` of a `str` or a `String`, which hash the same. */
+export function hashStr(str: string | RsString, s: Hasher): void {
+	s.str(typeof str === "string" ? str : str.v);
 }
 
 /** `Hash::hash` of what holds nothing, as `()` and `PhantomData`: nothing written. */

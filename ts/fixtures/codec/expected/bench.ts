@@ -10,7 +10,7 @@ import type * as EncodeError from "./coding/encode.EncodeError.ts";
 import * as Encoder from "./coding/encode.Encoder.ts";
 import { zigzag as varint_zigzag, unzigzag } from "./coding/varint.ts";
 import * as Form from "./coding/varint.Form.ts";
-import { unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, map$1haiqd3 as option_map$1haiqd3, mapOr$1glsik0 as option_mapOr$1glsik0 } from "./core/option.ts";
+import { unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$1haiqd3 as option_map$1haiqd3, mapOr$1glsik0 as option_mapOr$1glsik0 } from "./core/option.ts";
 import { form, liteVersion, putU64 as harness_putU64, putUsize, takeU64, decodeError, encodeError } from "./harness.ts";
 import * as Group from "./lite/group.Group.ts";
 import type * as lite_version_Version from "./lite/version.Version.ts";
@@ -56,6 +56,14 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 				format(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 17) {
 				parts(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 18) {
+				encoded(encodeStrings(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+			} else if (op === 19) {
+				decoded(decodeStrings(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+			} else if (op === 20) {
+				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 21) {
+				keyed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -501,7 +509,7 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  */
 export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const count2: rs.i64 = rs.i64Cast(rs.u64Min(takeU64(data)[0], 65536));
-	let s: string = "";
+	const s: rs.String = rs.stringNew();
 	const iter: rs.Range<rs.i64> = new rs.Range(0, count2, rs.i64Step);
 	while (true) {
 		const _14: rs.i64 | rs.Done = iter.next();
@@ -513,12 +521,152 @@ export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _26: rs.f64 = rs.i64ToF64(i) / 3.0;
 		const _29: rs.i64 = rs.i64Neg(i);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
-		s = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rs.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"]).s;
+		const _23: rs.Arguments = [rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rs.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"];
+		rs.fmtWriteString(s, _23);
 	}
-	putUsize(out, rs.stringLen(s));
-	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s), (a0: rs.u8): rs.u64 => {
+	putUsize(out, s.len);
+	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s.v), (a0: rs.u8): rs.u64 => {
 		return a0 as rs.u64;
 	}), rs.u64Add, 0));
+}
+
+/**
+ * The `selector`th name of [`NAMES`], `count` times, each size-prefixed, as moq-net's
+ * `Encoder::string` writes a path.
+ */
+export function encodeStrings(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): rs.Result<undefined, EncodeError.EncodeError> {
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const w: Encoder.Encoder = Encoder.new(out, { tag: "Quic" } as Form.Form);
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = rs.u64Low(count);
+	while (true) {
+		const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+		if (!(iterStart++ < iterEnd)) {
+			break;
+		}
+		const _24: rs.Result<undefined, EncodeError.EncodeError> = Encoder.string(w, _7[_8]);
+		if (!_24.ok) {
+			return _24;
+		}
+	}
+	return rs.OK;
+}
+
+/**
+ * Every string on the wire, each an owned `String`, as moq-net decodes a path: how many,
+ * their total length, and the last one's.
+ */
+export function decodeStrings(wire: rs.ByteSlice, out: rs.ByteVec): rs.Result<undefined, DecodeError.DecodeError> {
+	const r: Decoder.Decoder = Decoder.new(wire, { tag: "Quic" } as Form.Form);
+	let count: rs.usize = 0;
+	let total: rs.usize = 0;
+	let last: rs.String = rs.stringNew();
+	while (!Decoder.isEmpty(r)) {
+		const _10: rs.Result<rs.String, DecodeError.DecodeError> = Decoder.string(r);
+		if (_10.ok) {
+			last = _10.value;
+			total = rs.usizeAdd(total, last.len);
+			count = rs.usizeAdd(count, 1);
+		} else {
+			return _10;
+		}
+	}
+	putUsize(out, count);
+	putUsize(out, total);
+	putUsize(out, last.len);
+	return rs.OK;
+}
+
+/**
+ * `count` paths, each the `selector`th name of [`NAMES`] and a track joined into a
+ * `String` sized up front, as moq-net's `Path::concat` builds one, then stripped of the
+ * name at a segment boundary, as `Path::strip_prefix` is: their total length, and the
+ * stripped tracks'.
+ */
+export function join(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _25!: rs.usize;
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	let total: rs.usize = 0;
+	let stripped: rs.usize = 0;
+	const _19: rs.usize = rs.u64Low(rs.u64Min(count, 65536));
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = _19;
+	while ((_25 = iterStart++) < iterEnd) {
+		const _31: rs.usize = rs.usizeRem(_25, rs.sliceFrom(["video", "audio", "catalog.json", "字幕"]).length);
+		if (!(_31 < 4)) {
+			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _31);
+		}
+		const _30: string[] = ["video", "audio", "catalog.json", "字幕"];
+		const path: rs.String = rs.stringWithCapacity(rs.usizeAdd(rs.usizeAdd(rs.stringLen(_7[_8]), 1), rs.stringLen(_30[_31])));
+		rs.stringPushStr(path, _7[_8]);
+		rs.stringPush(path, 47);
+		rs.stringPushStr(path, _30[_31]);
+		total = rs.usizeAdd(total, path.len);
+		const _53: string | undefined = rs.strStripPrefix(path.v, _7[_8]);
+		if (_53 !== undefined) {
+			const _58: string | undefined = rs.strStripPrefix(_53, "/");
+			if (_58 !== undefined) {
+				stripped = rs.usizeAdd(stripped, rs.stringLen(_58));
+			}
+		}
+	}
+	putUsize(out, total);
+	putUsize(out, stripped);
+}
+
+/**
+ * `count` paths, the `selector`th name of [`NAMES`] and a number, each a key of a
+ * `HashMap` and looked up by its `&str` four times, as moq-net finds a broadcast by its
+ * path: the sum of what the lookups found.
+ */
+export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	const keys: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u64Low(rs.u64Min(count, 65536))), (i2: rs.u32): rs.String => {
+		const part = _7[_8];
+		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part), (f: rs.Formatter) => rs.u32Display(i2, f)];
+		return rs.fmtFormat([args2[0], "/", args2[1]]);
+	}), undefined, 12, true);
+	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashMap<rs.String, rs.u64>;
+	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(keys.items));
+	while (true) {
+		const _32: [rs.usize, rs.String] | rs.Done = iter.next();
+		if (_32 === rs.DONE) {
+			break;
+		}
+		const i: rs.usize = _32[0];
+		const _39: rs.String = rs.stringClone(_32[1]);
+		rs.hashInsert(map, _39, i as rs.u64);
+	}
+	let sum: rs.u64 = 0;
+	let iterStart: rs.i32 = 0;
+	const iterEnd: rs.i32 = 4;
+	l3: while (iterStart++ < iterEnd) {
+		const iterS: rs.String[] = keys.items;
+		let iterI: number = 0;
+		while (true) {
+			const _51: rs.String | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			if (_51 === rs.DONE) {
+				continue l3;
+			}
+			sum = rs.u64Add(sum, option_unwrapOr$15hbiwd(rs.hashGet(map, (_51.v as unknown) as rs.String), 0));
+		}
+	}
+	harness_putU64(out, sum);
+	putUsize(out, rs.hashLen(map));
 }
 
 /**

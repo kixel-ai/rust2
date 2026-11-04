@@ -15,10 +15,11 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
+import type { String as RsString } from "./str.ts";
 import {
 	type Clones,
 	DONE,
@@ -68,7 +69,9 @@ export function cmp<T extends number | boolean | Limbs>(a: T, b: T): Ordering {
  * `Ord::cmp` of two strings, by code point as Rust's UTF-8 bytes sort. JS's `<` compares
  * UTF-16 units, which puts a character past U+FFFF, a surrogate pair, below U+E000.
  */
-export function cmpStr(a: string, b: string): Ordering {
+export function cmpStr(x: string | RsString, y: string | RsString): Ordering {
+	const a = typeof x === "string" ? x : x.v;
+	const b = typeof y === "string" ? y : y.v;
 	if (a === b) return 0;
 	const n = Math.min(a.length, b.length);
 	for (let i = 0; i < n; i++) {
@@ -306,6 +309,16 @@ export function orderingThen(o: Ordering, other: Ordering | (() => Ordering), la
 /** `PartialEq::eq` of two values JS compares as Rust does: numbers, strings, booleans. */
 export function same<T>(a: T, b: T): boolean {
 	return a === b;
+}
+
+/** `PartialEq::eq` of text of any form, a `str`, a `String`, or a `Cow<str>`: their text. */
+export function eqStr(a: string | RsString | Borrowed<string>, b: string | RsString | Borrowed<string>): boolean {
+	return textOf(a) === textOf(b);
+}
+
+/** The text of a `str`, a `String`, or a `Cow<str>`. */
+function textOf(s: string | RsString | Borrowed<string>): string {
+	return typeof s === "string" ? s : s instanceof Borrowed ? s.slice : s.v;
 }
 
 /** `PartialEq::eq` of tuples, from each field's. */
@@ -2365,9 +2378,10 @@ export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>
 
 /**
  * What a range of keys `K` is bounded by: a key, or for an array's or a `Vec`'s, a `Slice`,
- * which `cmpSlice` orders alike.
+ * which `cmpSlice` orders alike, or for a `String`'s or a `Cow<str>`'s, a `str`, which
+ * `cmpStr` orders alike.
  */
-type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never);
+type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never) | (K extends RsString | Borrowed<string> ? string : never);
 
 /**
  * The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by `m`'s

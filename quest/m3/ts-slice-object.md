@@ -42,4 +42,3 @@ reference to an array.
 
 ## Related
 
-- [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

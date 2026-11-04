@@ -1098,6 +1098,14 @@ pub fn call<'tcx>(
 		};
 		let iter = iter_of(b.t, source)?;
 		let items = into_iter(b, source, value, span)?;
+		// Text of an array of `&str`s, which std's reserves for at once.
+		if str_array(source) && library::textual(b.t.tcx, targ(0)?) {
+			let s = Expr::rs("stringExtendArray", vec![Expr::rs("stringNew", vec![]), items]);
+			return Some(match b.t.std_of(targ(0)?) {
+				Some(Std::Box) => s.member("v"),
+				_ => s,
+			});
+		}
 		let trusted = implements(b.t, iter, "TrustedLen");
 		return collect(b, targ(0)?, targ(1)?, items, iter, trusted, span);
 	}
@@ -2146,18 +2154,21 @@ fn collect<'tcx>(
 				}
 			})
 		}
-		// From chars or text, as `extend` of an empty one, but for an owned string's, which
-		// the rest extend once `next` gives it. A `Cow<str>` and a `Box<str>` own the `String`
-		// std's collects.
+		// From chars or text, as `extend` of `String::new`, but for an owned string's, which
+		// the rest extend once `next` gives it. A `Cow<str>` owns the `String` std's collects,
+		// and a `Box<str>` is its text.
 		Std::String | Std::Cow | Std::Box if std == Std::String || args.types().next().is_some_and(|t| t.is_str()) => {
-			match b.t.std_of(item) {
+			let s = match b.t.std_of(item) {
 				Some(Std::String | Std::Cow) => {
 					let drops = iter_drops(b, from, span);
-					let texts = texts(b.t, iter, item);
-					Some(Expr::rs("stringFromStrings", tail(vec![texts], vec![drops])))
+					Expr::rs("stringFromStrings", tail(vec![iter], vec![drops]))
 				}
-				_ => string_extend(b, Expr::Str(String::new()), iter, item, from, span),
-			}
+				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, from, span)?,
+			};
+			Some(match std {
+				Std::Box => s.member("v"),
+				_ => s,
+			})
 		}
 		_ => super::collections::collect(b, ty, iter, from, trusted, span),
 	}
@@ -2188,6 +2199,11 @@ fn shunt<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, item: Ty<'tcx>, from: Ty<
 	sig.inputs().first()?.tuple_fields().first().copied()
 }
 
+/// Whether `ty` is an array of `&str`s, whose bytes `String`'s `Extend` reserves at once.
+pub(super) fn str_array(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Array(elem, _) if elem.is_ref() && elem.peel_refs().is_str())
+}
+
 /// `s` extended by `items`, an iterator of type `iter` of `item`s, as `String`'s `Extend`
 /// reads it, by `for_each`: of chars, through any `&`, or of text, a `&str`, `String`,
 /// `Box<str>`, or `Cow<str>`.
@@ -2205,15 +2221,7 @@ pub(super) fn string_extend<'tcx>(
 		"stringExtendChars"
 	};
 	let drops = iter_drops(b, iter, span);
-	Some(Expr::rs(extend, tail(vec![s, texts(b.t, items, item)], vec![drops])))
-}
-
-/// `items`, an iterator of `item`s, as one of the strings they are: a `Cow<str>`'s text.
-fn texts<'tcx>(t: &Translator<'_, 'tcx>, items: Expr, item: Ty<'tcx>) -> Expr {
-	match library::cow_str(t.tcx, item.peel_refs()) {
-		true => Expr::rs("iterMap", vec![items, Expr::Rs("strCowStr".into())]),
-		false => items,
-	}
+	Some(Expr::rs(extend, tail(vec![s, items], vec![drops])))
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or

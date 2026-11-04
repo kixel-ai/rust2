@@ -1661,8 +1661,8 @@ export function rfolded(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			if (!(Guard.id(g2) !== rs.u32Add(captured, 3))) {
 				const _145: rs.u32 = Guard.id(g2);
 				const _172: rs.u32 = Guard.id(captured2);
-				const _202: string = rs.resultUnwrap(rs.stringFromUtf8(Log.text(log)), rs.fmtFromUtf8ErrorDebug);
-				const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_145, f), (f: rs.Formatter) => rs.u32Display(_172, f), (f: rs.Formatter) => rs.fmtPad(f, _202)];
+				const _202: rs.String = rs.resultUnwrap(rs.stringFromUtf8(Log.text(log)), rs.fmtFromUtf8ErrorDebug);
+				const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_145, f), (f: rs.Formatter) => rs.u32Display(_172, f), (f: rs.Formatter) => rs.fmtPad(f, _202.v)];
 				rs.panicFmt(["try_rfold of g", args56[0], " with g", args56[1], " after\n", args56[2]]);
 			} else {
 				const _04: rs.u32 | undefined = rs.u32Add(n13, Guard.id(g2));

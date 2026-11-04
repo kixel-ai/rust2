@@ -487,7 +487,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 		return _05;
 	});
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-	const _63: string = rs.fmtFormat(["set ", args4[0]]);
+	const _63: rs.String = rs.fmtFormat(["set ", args4[0]]);
 	rs.drop(_70);
 	Log.note(log, _63);
 	const queue: rs.VecDeque<Guard.Guard> = rs.dequeNew(8) as rs.VecDeque<Guard.Guard>;
@@ -514,7 +514,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 		return _07;
 	});
 	const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_113, f), (f: rs.Formatter) => rs.u32Display(_116, f)];
-	const _109: string = rs.fmtFormat(["queue ", args8[0], " ", args8[1]]);
+	const _109: rs.String = rs.fmtFormat(["queue ", args8[0], " ", args8[1]]);
 	rs.drop(_119);
 	Log.note(log, _109);
 	const map: rs.HashMap<Key.Key, Guard.Guard> = rs.hashNew(rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rs.HashMap<Key.Key, Guard.Guard>;
@@ -525,7 +525,7 @@ export function drained(log: Log.Log, id: rs.u32): void {
 	const _145: [Key.Key, Guard.Guard] | undefined = rs.iterToOption(entries.next());
 	const part3 = _145 !== undefined;
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part3, f)];
-	const _139: string = rs.fmtFormat(["entry ", args10[0]]);
+	const _139: rs.String = rs.fmtFormat(["entry ", args10[0]]);
 	lib_drop$Option_tuple2_drops_Key_model_Guard(_145);
 	Log.note(log, _139);
 	const map2: rs.HashMap<Key.Key, Guard.Guard> = rs.hashNew(rs.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rs.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rs.HashMap<Key.Key, Guard.Guard>;

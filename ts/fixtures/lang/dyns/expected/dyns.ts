@@ -120,17 +120,17 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		let n: rs.u32 = c as rs.u32;
 		const part = total(rs.sliceFrom([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]));
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-		put(out, rs.fmtFormat([args2[0], " "]));
+		put(out, rs.fmtFormat([args2[0], " "]).v);
 		growTwice(new of$dyns_Square(sq), b);
 		growTwice(new ofPlace$dyns_Tri(rs.place(() => tri, (value) => tri = value)), c);
 		growTwice(new ofPlace$u32(rs.place(() => n, (value2) => n = value2)), a);
 		const arg = sq.side;
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(arg, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(tri, f), (f: rs.Formatter) => rs.u32Display(n, f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " "]));
+		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " "]).v);
 		const _78: rs.u8 = sidesOf$dyn_dyns_Shape(new of$dyns_Tri(tri));
 		const _82: rs.u8 = sidesOf$dyns_Square(sq);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_78, f), (f: rs.Formatter) => rs.u8Display(_82, f)];
-		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]));
+		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]).v);
 		const shapes: rs.Vec<Named.Named> = new rs.Vec();
 		const iter: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 3, dataLen - 3))));
 		while (true) {
@@ -153,11 +153,11 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			if (rs.usizeRem(i2, 2) === 0) {
 				s.v.grow$Shape(a);
 			}
-			const _129: string = s.v.label$Named();
+			const _129: rs.String = s.v.label$Named();
 			const _132: rs.u32 = s.v.area$Shape();
 			const _135: rs.u8 = sidesOf$dyn_dyns_Shape(upcast(s.v));
-			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _129), (f: rs.Formatter) => rs.u32Display(_132, f), (f: rs.Formatter) => rs.u8Display(_135, f), (f: rs.Formatter) => s.v.fmt$Debug(f)];
-			put(out, rs.fmtFormat([args8[0], ":", args8[1], ":", args8[2], ":", args8[3], " "]));
+			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _129.v), (f: rs.Formatter) => rs.u32Display(_132, f), (f: rs.Formatter) => rs.u8Display(_135, f), (f: rs.Formatter) => s.v.fmt$Debug(f)];
+			put(out, rs.fmtFormat([args8[0], ":", args8[1], ":", args8[2], ":", args8[3], " "]).v);
 		}
 		let sum: rs.u32 = 0;
 		for (const _150 of shapes.items) {
@@ -169,42 +169,42 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const _169: rs.u32 = shapes.items[at2].larger$Shape(b as rs.u32);
 		const _175: rs.u32 = sum;
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_175, f), (f: rs.Formatter) => Shown.fmt$fmt_Debug(_165, f), (f: rs.Formatter) => rs.u32Display(_169, f)];
-		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]));
+		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]).v);
 		for (const s2 of shapes.items) {
 			sum = rs.u32WrappingAdd(sum, s2.intoArea$Shape());
 		}
 		const _203: rs.u32 = new of$u32(n).intoArea$Shape();
 		const _204: rs.u32 = sum;
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_204, f), (f: rs.Formatter) => rs.u32Display(_203, f)];
-		put(out, rs.fmtFormat([args12[0], " ", args12[1]]));
+		put(out, rs.fmtFormat([args12[0], " ", args12[1]]).v);
 	}
 }
 
-export function counts$dyn_dyns_Named(arcs: rs.Slice<rs.Arc<Named.Named>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Named.Named>): string => {
+export function counts$dyn_dyns_Named(arcs: rs.Slice<rs.Arc<Named.Named>>): rs.String {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Named.Named>): rs.String => {
 		const _42: rs.usize = a.strong;
-		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f), 0);
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Shape.Shape>): string => {
+export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): rs.String {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Shape.Shape>): rs.String => {
 		const _42: rs.usize = a.strong;
-		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f), 0);
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Hits.Hits>): string => {
+export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): rs.String {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Hits.Hits>): rs.String => {
 		const _42: rs.usize = a.strong;
-		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f), 0);
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Square.Square>): string => {
+export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): rs.String {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Square.Square>): rs.String => {
 		const _42: rs.usize = a.strong;
-		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f), 0);
 	}), undefined, 12, true).items, ",");
 }
 
@@ -218,14 +218,14 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const shape: rs.Arc<Shape.Shape> = rs.arcClone(named);
 		const up: rs.Arc<Shape.Shape> = rs.arcClone(again);
 		const part = counts$dyns_Square(rs.sliceFrom([sq]));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
-		put(out, rs.fmtFormat([args2[0], " "]));
-		const _49: string = named.value.label$Named();
+		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part.v)];
+		put(out, rs.fmtFormat([args2[0], " "]).v);
+		const _49: rs.String = named.value.label$Named();
 		const _53: rs.u32 = shape.value.area$Shape();
 		const _57: rs.u8 = sidesOf$dyn_dyns_Shape(up.value);
 		const _62: Named.Named = named.value;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _49), (f: rs.Formatter) => rs.u32Display(_53, f), (f: rs.Formatter) => rs.u8Display(_57, f), (f: rs.Formatter) => _62.fmt$Debug(f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " "]));
+		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _49.v), (f: rs.Formatter) => rs.u32Display(_53, f), (f: rs.Formatter) => rs.u8Display(_57, f), (f: rs.Formatter) => _62.fmt$Debug(f)];
+		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " "]).v);
 		const _73: [rs.Weak<Shape.Shape>, rs.Weak<Shape.Shape>] = [new rs.Weak(shape), new rs.Weak(up)];
 		const weak: rs.Weak<Shape.Shape> = _73[0];
 		const other: rs.Weak<Shape.Shape> = _73[1];
@@ -233,13 +233,13 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _90: boolean = rs.arcPtrEq(shape, up);
 		const _94: boolean = rs.arcPtrEq(weak.arc, other.arc);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_86, f), (f: rs.Formatter) => rs.fmtBool(_90, f), (f: rs.Formatter) => rs.fmtBool(_94, f)];
-		put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]));
+		put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]).v);
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
-		const _113: string = counts$dyn_dyns_Named(rs.sliceFrom([again]));
+		const _113: rs.String = counts$dyn_dyns_Named(rs.sliceFrom([again]));
 		const _119: rs.usize = weak.arc.strong;
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _113), (f: rs.Formatter) => rs.usizeDisplay(_119, f)];
-		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]));
+		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _113.v), (f: rs.Formatter) => rs.usizeDisplay(_119, f)];
+		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]).v);
 		const upgraded: rs.u32 | undefined = option_map$1mach0o(rs.weakUpgrade(weak), (s: rs.Arc<Shape.Shape>): rs.u32 => {
 			const _0: rs.u32 = s.value.area$Shape();
 			s[Symbol.dispose]();
@@ -247,24 +247,24 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		});
 		again[Symbol.dispose]();
 		const part2 = counts$dyn_dyns_Shape(rs.sliceFrom([up]));
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2)];
-		put(out, rs.fmtFormat([args10[0], " "]));
+		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2.v)];
+		put(out, rs.fmtFormat([args10[0], " "]).v);
 		up[Symbol.dispose]();
-		const _156: string = counts$dyn_dyns_Shape(rs.sliceFrom([shape]));
+		const _156: rs.String = counts$dyn_dyns_Shape(rs.sliceFrom([shape]));
 		const _164: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak);
 		const _162: boolean = _164 !== undefined;
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _156), (f: rs.Formatter) => rs.fmtBool(_162, f), (f: rs.Formatter) => rs.fmtOption(upgraded, f, rs.u32Debug)];
-		const _152: string = rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]);
+		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _156.v), (f: rs.Formatter) => rs.fmtBool(_162, f), (f: rs.Formatter) => rs.fmtOption(upgraded, f, rs.u32Debug)];
+		const _152: rs.String = rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]);
 		rs.drop(_164);
-		put(out, _152);
+		put(out, _152.v);
 		shape[Symbol.dispose]();
 		const _184: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak);
 		const _182: boolean = _184 === undefined;
 		const _187: rs.usize = other.arc.strong;
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_182, f), (f: rs.Formatter) => rs.usizeDisplay(_187, f)];
-		const _178: string = rs.fmtFormat([args14[0], " ", args14[1], " "]);
+		const _178: rs.String = rs.fmtFormat([args14[0], " ", args14[1], " "]);
 		rs.drop(_184);
-		put(out, _178);
+		put(out, _178.v);
 		const hits: rs.Arc<Hits.Hits> = new rs.Arc({ _0: new rs.Atomic(dataData[dataStart + 1] as rs.u32) });
 		const objects: rs.Vec<rs.Arc<Shape.Shape>> = rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (_2: rs.i32): rs.Arc<Shape.Shape> => {
 			const _34: rs.Arc<Hits.Hits> = rs.arcClone(hits);
@@ -274,13 +274,13 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return rs.u32WrappingAdd(sum2, s2.value.area$Shape());
 		});
 		const _216: rs.u32 = rs.atomicLoad(hits.value._0, 0);
-		const _222: string = counts$dyns_Hits(rs.sliceFrom([hits]));
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.u32Display(_216, f), (f: rs.Formatter) => rs.fmtPad(f, _222)];
-		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]));
+		const _222: rs.String = counts$dyns_Hits(rs.sliceFrom([hits]));
+		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.u32Display(_216, f), (f: rs.Formatter) => rs.fmtPad(f, _222.v)];
+		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]).v);
 		rs.dropVec(objects);
 		const part3 = counts$dyns_Hits(rs.sliceFrom([hits]));
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3)];
-		put(out, rs.fmtFormat([args18[0], " "]));
+		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3.v)];
+		put(out, rs.fmtFormat([args18[0], " "]).v);
 		const _253: rs.Arc<rs.u32> = new rs.Arc(dataData[dataStart + 1] as rs.u32);
 		const n: rs.Arc<Shape.Shape> = new rs.ArcDyn(_253, new of$u32(_253.value));
 		const _257: rs.Arc<rs.u32> = new rs.Arc(dataData[dataStart + 1] as rs.u32);
@@ -288,7 +288,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const _268: rs.u32 = n.value.area$Shape();
 		const _272: boolean = rs.arcPtrEq(n, m);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_268, f), (f: rs.Formatter) => rs.fmtBool(_272, f)];
-		put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]));
+		put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]).v);
 		const tris: rs.Vec<rs.Arc<Named.Named>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_23: rs.u8): rs.Arc<Named.Named> => {
 			const x: rs.u8 = _23;
 			const _43: rs.u8 = rs.u8Rem(x, 3);
@@ -307,20 +307,20 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return rs.arcClone(a0);
 		}), undefined, 8, true);
 		for (const _292 of tris.items) {
-			const _304: string = _292.value.label$Named();
+			const _304: rs.String = _292.value.label$Named();
 			const _307: rs.u32 = _292.value.area$Shape();
 			const _310: rs.usize = _292.strong;
-			const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _304), (f: rs.Formatter) => rs.u32Display(_307, f), (f: rs.Formatter) => rs.usizeDisplay(_310, f)];
-			put(out, rs.fmtFormat([args22[0], ":", args22[1], ":", args22[2], " "]));
+			const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _304.v), (f: rs.Formatter) => rs.u32Display(_307, f), (f: rs.Formatter) => rs.usizeDisplay(_310, f)];
+			put(out, rs.fmtFormat([args22[0], ":", args22[1], ":", args22[2], " "]).v);
 		}
 		rs.dropVec(tris);
 		let total: rs.u32 = 0;
 		for (const _322 of kept.items) {
 			_322.value.tally$Shape(rs.place(() => total, (value) => total = value));
 		}
-		const _337: string = counts$dyn_dyns_Named(rs.sliceFrom(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items));
-		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(total, f), (f: rs.Formatter) => rs.fmtPad(f, _337)];
-		put(out, rs.fmtFormat([args24[0], " ", args24[1]]));
+		const _337: rs.String = counts$dyn_dyns_Named(rs.sliceFrom(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items));
+		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(total, f), (f: rs.Formatter) => rs.fmtPad(f, _337.v)];
+		put(out, rs.fmtFormat([args24[0], " ", args24[1]]).v);
 		rs.dropVec(kept);
 		m[Symbol.dispose]();
 		n[Symbol.dispose]();
@@ -343,7 +343,7 @@ export function key$dyns_Keyed_u32(self: rs.u32): rs.u32 {
 }
 
 /** What `a` holds, by the type it downcasts to. */
-export function kind(a: Any.Any): string {
+export function kind(a: Any.Any): rs.String {
 	const _2: Square.Square | undefined = a instanceof of$dyns_Square ? a.v : undefined;
 	if (_2 !== undefined) {
 		const arg = _2.side;
@@ -361,9 +361,9 @@ export function kind(a: Any.Any): string {
 		return rs.fmtFormat(["tri ", args6[0]]);
 	}
 	if (!(a instanceof of$u8 || a instanceof ofPlace$u8)) {
-		return "other";
+		return rs.stringFrom("other");
 	}
-	return "u8";
+	return rs.stringFrom("u8");
 }
 
 /** Bumps the number or enum `a` holds where it is. */
@@ -419,8 +419,8 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 				break;
 			}
 			const part = kind(_33);
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
-			put(out, rs.fmtFormat([args2[0], " "]));
+			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part.v)];
+			put(out, rs.fmtFormat([args2[0], " "]).v);
 		}
 		const _51: boolean = bump(new of$dyns_Square(sq), a);
 		const _54: boolean = bump(new ofPlace$dyns_Tri(rs.place(() => tri, (value) => tri = value)), b);
@@ -430,7 +430,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const _72: Tri.Tri = tri;
 		const arg = sq.side;
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(arg, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_72, f), (f: rs.Formatter) => rs.u32Display(n, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(hit[0], f), (f: rs.Formatter) => rs.fmtBool(hit[1], f), (f: rs.Formatter) => rs.fmtBool(hit[2], f), (f: rs.Formatter) => rs.fmtBool(hit[3], f)], f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " "]));
+		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " "]).v);
 		const iter2: rs.Iter<dyns_Erased.Erased> = rs.iterSlice([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]);
 		while (true) {
 			const _91: dyns_Erased.Erased | rs.Done = iter2.next();
@@ -439,9 +439,9 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 			const _103: boolean = isA$dyns_Square(_91);
 			const _105: boolean = isA$u32(_91);
-			const _107: string = kind(_91.asAny$Erased());
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_103, f), (f: rs.Formatter) => rs.fmtBool(_105, f), (f: rs.Formatter) => rs.fmtPad(f, _107)];
-			put(out, rs.fmtFormat([args6[0], args6[1], args6[2], " "]));
+			const _107: rs.String = kind(_91.asAny$Erased());
+			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_103, f), (f: rs.Formatter) => rs.fmtBool(_105, f), (f: rs.Formatter) => rs.fmtPad(f, _107.v)];
+			put(out, rs.fmtFormat([args6[0], args6[1], args6[2], " "]).v);
 		}
 		let m: rs.u32 = a as rs.u32;
 		const _119: Any.Any = new ofPlace$u32(rs.place(() => m, (value4) => m = value4)).asAnyMut$Erased();
@@ -450,11 +450,11 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			_118.v = rs.u32WrappingMul(_118.v, 3);
 		}
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(m, f)];
-		put(out, rs.fmtFormat([args8[0], " "]));
+		put(out, rs.fmtFormat([args8[0], " "]).v);
 		const unit: Any.Any = new of$unit(undefined);
 		const part2 = [unit instanceof of$unit ? unit.v : unit instanceof ofPlace$unit ? unit.v.v : rs.None, unit instanceof of$Option_u8 || unit instanceof ofPlace$Option_u8] as [undefined | rs.None, boolean];
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part2[0], f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtBool(part2[1], f)], f)];
-		put(out, rs.fmtFormat([args10[0], " "]));
+		put(out, rs.fmtFormat([args10[0], " "]).v);
 		let some: rs.u8 | undefined = a;
 		let none: rs.u8 | undefined = undefined;
 		const iter3: rs.Iter<Any.Any> = rs.iterSlice([new ofPlace$Option_u8(rs.place(() => some, (value5) => some = value5)), new ofPlace$Option_u8(rs.place(() => none, (value6) => none = value6)), new ofPlace$u32(rs.place(() => n, (value7) => n = value7))]);
@@ -465,7 +465,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 			const part3 = [_167 instanceof of$unit ? _167.v : _167 instanceof ofPlace$unit ? _167.v.v : rs.None, _167 instanceof of$Option_u8 ? _167.v : _167 instanceof ofPlace$Option_u8 ? _167.v.v : rs.None] as [undefined | rs.None, rs.u8 | undefined | rs.None];
 			const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part3[0], f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtOption(part3[1], f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)], f)];
-			put(out, rs.fmtFormat([args12[0]]));
+			put(out, rs.fmtFormat([args12[0]]).v);
 			const _189: rs.Place<rs.u8 | undefined> | undefined = _167 instanceof of$Option_u8 ? _167 : _167 instanceof ofPlace$Option_u8 ? _167.v : undefined;
 			if (_189 !== undefined) {
 				_189.v = option_mapOr$19a4gco(_189.v, b, (_2: rs.u8): rs.u8 | undefined => {
@@ -474,10 +474,10 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 			const arg2 = (_167 instanceof of$unit ? _167 : _167 instanceof ofPlace$unit ? _167.v : undefined) !== undefined;
 			const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(arg2, f)];
-			put(out, rs.fmtFormat([args14[0], " "]));
+			put(out, rs.fmtFormat([args14[0], " "]).v);
 		}
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(some, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(none, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args16[0], " ", args16[1], " "]));
+		put(out, rs.fmtFormat([args16[0], " ", args16[1], " "]).v);
 		const boxes: rs.Vec<Any.Any> = new rs.Vec();
 		const iter4: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))));
 		while (true) {
@@ -512,19 +512,19 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			if (_261.ok) {
 				const part5 = _261.value;
 				const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part5, f)];
-				put(out, rs.fmtFormat(["n", args18[0], " "]));
+				put(out, rs.fmtFormat(["n", args18[0], " "]).v);
 			} else if (!(rs.usizeRem(i2, 2) === 0)) {
 				const other2: Any.Any = _261.error;
 				const _282: rs.Result<rs.u8, Any.Any> = other2 instanceof of$u8 ? rs.Ok(other2.v) : rs.Err(other2);
 				if (_282.ok) {
 					const arg3 = _282.value;
 					const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg3, f)];
-					put(out, rs.fmtFormat(["u8 ", args20[0], " "]));
+					put(out, rs.fmtFormat(["u8 ", args20[0], " "]).v);
 				} else {
 					const other3: Any.Any = _282.error;
 					const part4 = kind(other3);
-					const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4)];
-					put(out, rs.fmtFormat([args22[0], " "]));
+					const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4.v)];
+					put(out, rs.fmtFormat([args22[0], " "]).v);
 					rs.drop(other3);
 				}
 			} else {
@@ -538,10 +538,10 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			if (_316 === rs.DONE) {
 				break;
 			}
-			const _328: string = kind(_316.v);
+			const _328: rs.String = kind(_316.v);
 			const _331: boolean = bump(_316.v, a);
-			const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _328), (f: rs.Formatter) => rs.fmtBool(_331, f)];
-			put(out, rs.fmtFormat([args24[0], ":", args24[1], " "]));
+			const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _328.v), (f: rs.Formatter) => rs.fmtBool(_331, f)];
+			put(out, rs.fmtFormat([args24[0], ":", args24[1], " "]).v);
 		}
 		const _339: rs.Arc<[rs.u8, rs.u8]> = new rs.Arc([a, b] as [rs.u8, rs.u8]);
 		const hold: rs.Arc<Any.Any> = new rs.ArcDyn(_339, new of$tuple2_u8_u8(_339.value));
@@ -550,11 +550,11 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const _354: rs.usize = hold.strong;
 		const _357: [rs.u8, rs.u8] | undefined = _358 instanceof of$tuple2_u8_u8 ? _358.v : undefined;
 		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_354, f), (f: rs.Formatter) => rs.fmtOption(_357, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-		put(out, rs.fmtFormat([args26[0], " ", args26[1], " "]));
+		put(out, rs.fmtFormat([args26[0], " ", args26[1], " "]).v);
 		rs.dropAll(held);
 		const part6 = hold.strong;
 		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part6, f)];
-		put(out, rs.fmtFormat([args28[0], " "]));
+		put(out, rs.fmtFormat([args28[0], " "]).v);
 		const _381: rs.Result<rs.Arc<rs.u8>, rs.Arc<Any.Any>> = rs.arcDowncast(hold, of$u8, (object) => object.v);
 		if (_381.ok) {
 			rs.panic("internal error: entered unreachable code");
@@ -565,7 +565,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 				return _02;
 			}));
 			const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part7, f, (value: [rs.usize, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-			put(out, rs.fmtFormat([args30[0], " "]));
+			put(out, rs.fmtFormat([args30[0], " "]).v);
 			let n3: rs.u32 = a as rs.u32;
 			const iter7: rs.Iter<Keyed.Keyed> = rs.iterSlice([new of$dyns_Square(sq), new of$u32(n3)]);
 			while (true) {
@@ -575,21 +575,21 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 				}
 				const any: Any.Any = _407;
 				const _420: rs.u32 = _407.key$Keyed();
-				const _422: string = kind(any);
-				const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_420, f), (f: rs.Formatter) => rs.fmtPad(f, _422)];
-				put(out, rs.fmtFormat([args32[0], args32[1], " "]));
+				const _422: rs.String = kind(any);
+				const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_420, f), (f: rs.Formatter) => rs.fmtPad(f, _422.v)];
+				put(out, rs.fmtFormat([args32[0], args32[1], " "]).v);
 			}
 			const part8 = bump(new ofPlace$u32(rs.place(() => n3, (value8) => n3 = value8)), b);
 			const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part8, f)];
-			put(out, rs.fmtFormat([args34[0], " "]));
+			put(out, rs.fmtFormat([args34[0], " "]).v);
 			const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n3, f)];
-			put(out, rs.fmtFormat([args36[0], " "]));
+			put(out, rs.fmtFormat([args36[0], " "]).v);
 			const any3: Any.Any = new of$dyns_Square({ side: b as rs.u16 });
 			const part9 = ok$1wwd922(result_map$0tx2z7o(any3 instanceof of$dyns_Square ? rs.Ok(any3.v) : rs.Err(any3), (sq2: Square.Square): rs.u16 => {
 				return sq2.side;
 			}));
 			const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part9, f, rs.u16Debug)];
-			put(out, rs.fmtFormat([args38[0], " "]));
+			put(out, rs.fmtFormat([args38[0], " "]).v);
 			const _477: rs.Arc<rs.u32> = new rs.Arc(n3);
 			const shared: rs.Arc<Keyed.Keyed> = new rs.ArcDyn(_477, new of$u32(_477.value));
 			const weak2: rs.Weak<Any.Any> = new rs.Weak(shared);
@@ -603,7 +603,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			});
 			const _495: rs.u32 | undefined = _496 instanceof of$u32 ? _496.v : _496 instanceof ofPlace$u32 ? _496.v.v : undefined;
 			const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_491, f), (f: rs.Formatter) => rs.fmtOption(_495, f, rs.u32Debug)];
-			put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]));
+			put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]).v);
 			const typed2: [rs.usize, rs.u32] | undefined = ok$0y6a1w6(result_map$0njbm3o(rs.arcDowncast(any4, of$u32, (object) => object.v), (n4: rs.Arc<rs.u32>): [rs.usize, rs.u32] => {
 				const _05: [rs.usize, rs.u32] = [n4.strong, n4.value];
 				n4[Symbol.dispose]();
@@ -612,9 +612,9 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			const _516: rs.Arc<Any.Any> | undefined = rs.weakUpgrade(weak2);
 			const _514: boolean = _516 !== undefined;
 			const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(typed2, f, (value: [rs.usize, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtBool(_514, f)];
-			const _510: string = rs.fmtFormat([args42[0], " ", args42[1]]);
+			const _510: rs.String = rs.fmtFormat([args42[0], " ", args42[1]]);
 			rs.drop(_516);
-			put(out, _510);
+			put(out, _510.v);
 			weak2[Symbol.dispose]();
 			rs.dropVec(kept);
 		}
@@ -669,12 +669,12 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _31: rs.u8 = twice(halve, a);
 		const _35: rs.u8 = twice(ptr, a);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_27, f), (f: rs.Formatter) => rs.u8Display(_31, f), (f: rs.Formatter) => rs.u8Display(_35, f)];
-		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "]));
+		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "]).v);
 		const part = firstWord((s: string): string => {
 			return option_unwrapOr$1iemzn8(rs.iterToOption(rs.strSplit(s, " ").next()), "");
 		}, "ab cd");
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		put(out, rs.fmtFormat([args4[0], " "]));
+		put(out, rs.fmtFormat([args4[0], " "]).v);
 		let sum: rs.u32 = 0;
 		const seen: rs.ByteVec = new rs.ByteVec();
 		bumpAll((x2: rs.u8): undefined => {
@@ -682,7 +682,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(seen, x2);
 		}, rs.byteSliceRange(data, 2));
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(seen), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]));
+		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]).v);
 		const fs: rs.Vec<(a0: rs.u8) => rs.u8> = rs.vecFrom([adder(a), halve, mul, ptr]);
 		const captured = a;
 		const _94: (a0: rs.u8) => rs.u8 = (x3: rs.u8): rs.u8 => {
@@ -706,7 +706,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const y: rs.u8 = _115[1](option_unwrapOr$1fr498u(rs.byteSliceGet(rs.byteSliceRange(data, 2), i), b));
 			const _133: rs.u32 = hook.f(y);
 			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(y, f), (f: rs.Formatter) => rs.u32Display(_133, f)];
-			put(out, rs.fmtFormat([args8[0], ":", args8[1], " "]));
+			put(out, rs.fmtFormat([args8[0], ":", args8[1], " "]).v);
 		}
 		const _142: (a0: rs.u8) => rs.u32 = (x5: rs.u8): rs.u32 => {
 			return x5 as rs.u32;
@@ -715,7 +715,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		hook.f = _142;
 		const part4 = hook.f(a);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part4, f)];
-		put(out, rs.fmtFormat([args10[0], " "]));
+		put(out, rs.fmtFormat([args10[0], " "]).v);
 		const captured3 = rs.byteVecFrom(Uint8Array.of(a));
 		const part6 = ((x6: rs.u8): rs.ByteVec => {
 			const list2: rs.ByteVec = captured3;
@@ -723,10 +723,10 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return list2;
 		})(b);
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part6), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args12[0], " "]));
+		put(out, rs.fmtFormat([args12[0], " "]).v);
 		const part7 = rs.once(rs.optionUnwrap(rs.vecPop(fs)))(a);
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(part7, f)];
-		put(out, rs.fmtFormat([args14[0], " "]));
+		put(out, rs.fmtFormat([args14[0], " "]).v);
 		const captured4 = b;
 		const _196: rs.Arc<(a0: rs.u8) => rs.u8> = new rs.Arc((x7: rs.u8): rs.u8 => {
 			return x7 ^ captured4;
@@ -737,7 +737,7 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _213: rs.u8 = other.value(b);
 		const _218: rs.usize = other.strong;
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_208, f), (f: rs.Formatter) => rs.u8Display(_213, f), (f: rs.Formatter) => rs.usizeDisplay(_218, f)];
-		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2]]));
+		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2]]).v);
 		other[Symbol.dispose]();
 		shared[Symbol.dispose]();
 		hook[Symbol.dispose]();
@@ -757,7 +757,7 @@ export function dropped(out: rs.ByteVec): void {
 		return rs.replaceIn(d, new rs.ByteVec());
 	});
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(part), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " "]));
+	put(out, rs.fmtFormat([args2[0], " "]).v);
 }
 
 /** Each of the vtable's methods, then std's adaptors over the borrow, then by value. */
@@ -770,7 +770,7 @@ export function read(it: rs.Iter<rs.u8>, out: rs.ByteVec): void {
 		return a0 as rs.u32;
 	}), rs.u32Add, 0);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(hint[0], f), (f: rs.Formatter) => rs.fmtOption(hint[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.fmtOption(first, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(third, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(pair), f, rs.u8Debug), (f: rs.Formatter) => rs.u32Display(rest, f)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " "]));
+	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " "]).v);
 }
 
 /**
@@ -793,7 +793,7 @@ export function scan$dyns_iters_closure1(map: rs.BTreeMap<rs.u64, rs.u8>, from: 
 }
 
 /** The length on either side of an item, and an upcast that reads the rest. */
-export function lens(it: rs.Iter<rs.u8>): string {
+export function lens(it: rs.Iter<rs.u8>): rs.String {
 	const before: rs.usize = rs.iterBorrow(it).len();
 	const first: rs.u8 | undefined = rs.iterToOption(it.next());
 	const after: rs.usize = rs.iterBorrow(it).len();
@@ -831,10 +831,10 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return thenSome$0quywni(rs.u8Rem(v2, 2) === 1, v2);
 		});
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_44, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_50, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args2[0], " ", args2[1], " "]));
+		put(out, rs.fmtFormat([args2[0], " ", args2[1], " "]).v);
 		const part = lens(rs.iterDyn(rs.iterBorrow(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 2))))));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
-		put(out, rs.fmtFormat([args4[0], " "]));
+		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part.v)];
+		put(out, rs.fmtFormat([args4[0], " "]).v);
 		const _79: rs.usize = rs.usizeRem(a as rs.usize, rs.usizeAdd(rs.byteSliceRange(data, 2).length, 1));
 		const slice: rs.ByteSlice = rs.byteSliceRange(data, 2);
 		if (_79 > slice.length) {
@@ -859,7 +859,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		dropped(out);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(ends[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(ends[1], f, rs.u8Debug)], f), (f: rs.Formatter) => rs.fmtOption(nth, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]));
+		put(out, rs.fmtFormat([args6[0], " ", args6[1], " "]).v);
 		rs.drop(boxed);
 		dropped(out);
 		const last: rs.u8 | undefined = option_map$11l9b8r(rs.ownedLast(rs.iterBox(rs.iterDyn(rs.iterChain(rs.vecIntoIter(tagged(front), rs.drop), rs.vecIntoIter(tagged(back), rs.drop)))), rs.drop), (t4: Tagged.Tagged): rs.u8 => {
@@ -869,10 +869,10 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		dropped(out);
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args8[0], " "]));
+		put(out, rs.fmtFormat([args8[0], " "]).v);
 		const part2 = rs.ownedCount(rs.iterBox(rs.iterDyn(rs.iterChain(rs.vecIntoIter(tagged(back), rs.drop), rs.vecIntoIter(tagged(front), rs.drop)))), rs.drop);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part2, f)];
-		put(out, rs.fmtFormat([args10[0], " "]));
+		put(out, rs.fmtFormat([args10[0], " "]).v);
 		dropped(out);
 		const own: rs.Iter<rs.u8> = rs.iterDyn(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(b, 16)), Countdown.next$iter_Iterator, rs.drop));
 		let sum: rs.u32 = 0;
@@ -886,7 +886,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.drop(iter);
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f)];
-		put(out, rs.fmtFormat([args12[0], " "]));
+		put(out, rs.fmtFormat([args12[0], " "]).v);
 		dropped(out);
 		const nested: rs.Iter<rs.u8> = rs.iterDyn(rs.iterBox(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(a, 8)), Countdown.next$iter_Iterator, rs.drop)));
 		const inner: Countdown.Countdown = new Countdown.Countdown(rs.u8Rem(b, 8));
@@ -903,7 +903,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _235: rs.usize = rs.ownedCount(rs.iterBox(erased));
 		const _238: rs.usize = rs.ownedCount(rs.iterBox(rs.iterFrom(doubled, Countdown.next$iter_Iterator, rs.drop)));
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_233), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(first, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(second, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(third, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(fourth, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(mapped), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_235, f), (f: rs.Formatter) => rs.usizeDisplay(_238, f)];
-		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " ", args14[6], " ", args14[7], " "]));
+		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " ", args14[3], " ", args14[4], " ", args14[5], " ", args14[6], " ", args14[7], " "]).v);
 		dropped(out);
 		inner[Symbol.dispose]();
 		dropped(out);
@@ -920,7 +920,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const sixth: rs.u8 | undefined = rs.iterToOption(Countdown.next$iter_Iterator(layered.v.v));
 		const _301: rs.usize = rs.ownedCount(rs.iterBox(rs.iterFrom(held, Countdown.next$iter_Iterator, rs.drop)));
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(hints, f, (value: [rs.usize, rs.usize | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.usizeDebug)], f)), (f: rs.Formatter) => rs.fmtOption(fifth, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sixth, f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_301, f)];
-		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", args16[3], " "]));
+		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", args16[3], " "]).v);
 		dropped(out);
 		own2[Symbol.dispose]();
 		dropped(out);
@@ -937,28 +937,28 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const lent3: rs.Vec<[rs.u8, rs.u8]> = rs.iterToVec(rs.iterBorrow(rs.iterBox(rs.iterBorrow(zipped()))), "next", 2);
 		const _339: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(seen2);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(owned.items, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtList(lent3.items, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_339.value), f, rs.u8Debug)];
-		const _335: string = rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]);
+		const _335: rs.String = rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]);
 		rs.refRelease(_339);
-		put(out, _335);
+		put(out, _335.v);
 		const split: Chunks.Chunks = new of$dyns_Lease({ _0: rs.byteSliceToByteVec(rs.byteSliceRange(data, 2)), _1: rs.usizeAdd(rs.u8Rem(b, 4) as rs.usize, 1) });
 		const lens_: rs.Vec<rs.usize> = rs.iterToVec(rs.iterMap(rs.iterBox(split.chunks$Chunks()), (a0: rs.ByteSlice): rs.usize => {
 			return a0.length;
 		}), "next", 4);
 		const _369: rs.usize = rs.ownedCount(rs.iterBox(split.chunks$Chunks()));
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(lens_.items, f, rs.usizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_369, f)];
-		put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]));
+		put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]).v);
 		const part3 = drain(rs.iterDyn(rs.iterBorrow(rs.iterFuse(rs.iterFrom({ _0: rs.u8Rem(a, 4) }, Resuming.next$iter_Iterator)))));
-		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3)];
-		put(out, rs.fmtFormat([args22[0], " "]));
+		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3.v)];
+		put(out, rs.fmtFormat([args22[0], " "]).v);
 		const resuming: Resuming.Resuming = { _0: rs.u8Rem(b, 4) };
 		const up: rs.Iter<rs.u8> = rs.iterDyn(rs.iterFrom(resuming, Resuming.next$iter_Iterator));
 		const part4 = [rs.iterToOption(up.next()), rs.iterToOption(up.next()), rs.iterToOption(up.next()), rs.iterToOption(up.next()), rs.iterToOption(up.next())] as [rs.u8 | undefined, rs.u8 | undefined, rs.u8 | undefined, rs.u8 | undefined, rs.u8 | undefined];
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part4[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(part4[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(part4[2], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(part4[3], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(part4[4], f, rs.u8Debug)], f)];
-		put(out, rs.fmtFormat([args24[0], " "]));
+		put(out, rs.fmtFormat([args24[0], " "]).v);
 		const boxed3: rs.Iter<rs.u8> = rs.iterDyn(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(a, 8)), Countdown.next$iter_Iterator, rs.drop));
 		const part5 = drain(boxed3);
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part5)];
-		put(out, rs.fmtFormat([args26[0], " "]));
+		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part5.v)];
+		put(out, rs.fmtFormat([args26[0], " "]).v);
 		rs.drop(boxed3);
 		dropped(out);
 		const concrete: rs.Arc<rs.Iter<Tagged.Tagged>> = new rs.Arc(rs.vecIntoIter(tagged(front), rs.drop));
@@ -968,7 +968,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _456: [rs.usize, rs.usize | undefined] = other.value.sizeHint();
 		const _460: boolean = rs.arcGetMut(shared) === undefined;
 		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_456[0], f), (f: rs.Formatter) => rs.fmtOption(_456[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.fmtBool(_460, f)];
-		put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]));
+		put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]).v);
 		other[Symbol.dispose]();
 		weak[Symbol.dispose]();
 		const taken: rs.u8 | undefined = option_map$11l9b8r(option_andThen$1xlvufy(rs.arcGetMut(shared), (it2: rs.Iter<Tagged.Tagged>): Tagged.Tagged | undefined => {
@@ -980,7 +980,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		dropped(out);
 		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(taken, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args30[0], " "]));
+		put(out, rs.fmtFormat([args30[0], " "]).v);
 		shared[Symbol.dispose]();
 		dropped(out);
 		const _492: rs.Arc<rs.Iter<rs.u8>> = new rs.Arc(rs.byteVecIntoIter(rs.byteSliceToByteVec(back)));
@@ -991,20 +991,20 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.iterToOption(it3.next());
 		});
 		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_506, f), (f: rs.Formatter) => rs.fmtOption(_510, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)];
-		put(out, rs.fmtFormat([args32[0], " ", args32[1], " "]));
+		put(out, rs.fmtFormat([args32[0], " ", args32[1], " "]).v);
 		exact[Symbol.dispose]();
 		const next: rs.u8 | undefined = option_andThen$0imujmv(rs.arcGetMut(up2), (it4: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it4.next());
 		});
 		const _530: [rs.usize, rs.usize | undefined] = up2.value.sizeHint();
 		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(next, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_530[0], f), (f: rs.Formatter) => rs.fmtOption(_530[1], f, rs.usizeDebug)], f)];
-		put(out, rs.fmtFormat([args34[0], " ", args34[1], " "]));
+		put(out, rs.fmtFormat([args34[0], " ", args34[1], " "]).v);
 		const fromBox: rs.Arc<rs.Iter<rs.u8>> = new rs.Arc(rs.iterDyn(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(b, 8)), Countdown.next$iter_Iterator, rs.drop)));
 		const part6 = option_andThen$0imujmv(rs.arcGetMut(fromBox), (it5: rs.Iter<rs.u8>): rs.u8 | undefined => {
 			return rs.iterToOption(it5.next());
 		});
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part6, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args36[0], " "]));
+		put(out, rs.fmtFormat([args36[0], " "]).v);
 		fromBox[Symbol.dispose]();
 		dropped(out);
 		const counted2: rs.Arc<Countdown.Countdown> = new rs.Arc(new Countdown.Countdown(rs.u8Rem(a, 8)));
@@ -1017,19 +1017,19 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return _018;
 		});
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part7, f, (value: [rs.usize, rs.usize | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.usizeDebug)], f))];
-		put(out, rs.fmtFormat([args38[0], " "]));
+		put(out, rs.fmtFormat([args38[0], " "]).v);
 		counted2[Symbol.dispose]();
 		const _596: rs.Arc<rs.Iter<rs.u8>> | undefined = rs.weakUpgrade(weak3);
 		const part8 = _596 === undefined;
 		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part8, f)];
-		const _590: string = rs.fmtFormat([args40[0], " "]);
+		const _590: rs.String = rs.fmtFormat([args40[0], " "]);
 		rs.drop(_596);
-		put(out, _590);
+		put(out, _590.v);
 		dropped(out);
 		const pinned: rs.Iter<rs.u8> = rs.iterDyn(rs.iterFrom(new Countdown.Countdown(rs.u8Rem(b, 8)), Countdown.next$iter_Iterator, rs.drop));
 		const part9 = rs.iterToOption(pinned.next());
 		const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part9, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args42[0]]));
+		put(out, rs.fmtFormat([args42[0]]).v);
 		rs.drop(pinned);
 		dropped(out);
 		weak3[Symbol.dispose]();
@@ -1038,7 +1038,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 /** What `it` yields up to its end and twice past it. */
-export function drain(it: rs.Iter<rs.u8>): string {
+export function drain(it: rs.Iter<rs.u8>): rs.String {
 	const items: rs.ByteVec = rs.iterToByteVec(rs.iterBorrow(it), "next");
 	const _7: rs.u8 | undefined = rs.iterToOption(it.next());
 	const _9: rs.u8 | undefined = rs.iterToOption(it.next());
@@ -1064,14 +1064,14 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const named: rs.Arc<Named.Named> = new rs.ArcDyn(_19, new of$dyns_Square(_19.value));
 		const shape: rs.Arc<Shape.Shape> = rs.arcClone(named);
 		const other: rs.Weak<Shape.Shape> = new rs.Weak(shape);
-		const _34: string = named.value.label$Named();
+		const _34: rs.String = named.value.label$Named();
 		const _38: rs.u32 = shape.value.area$Shape();
 		const _42: rs.usize = sq.strong;
 		const _45: rs.usize = weak2.arc.strong;
 		const _48: rs.usize = rs.weakWeakCount(weak2);
 		const _51: boolean = rs.arcPtrEq(weak2.arc, other.arc);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _34), (f: rs.Formatter) => rs.u32Display(_38, f), (f: rs.Formatter) => rs.usizeDisplay(_42, f), (f: rs.Formatter) => rs.usizeDisplay(_45, f), (f: rs.Formatter) => rs.usizeDisplay(_48, f), (f: rs.Formatter) => rs.fmtBool(_51, f)];
-		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " "]));
+		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _34.v), (f: rs.Formatter) => rs.u32Display(_38, f), (f: rs.Formatter) => rs.usizeDisplay(_42, f), (f: rs.Formatter) => rs.usizeDisplay(_45, f), (f: rs.Formatter) => rs.usizeDisplay(_48, f), (f: rs.Formatter) => rs.fmtBool(_51, f)];
+		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " "]).v);
 		const again: rs.Weak<Shape.Shape> = rs.weakClone(weak2);
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
@@ -1082,7 +1082,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		});
 		const _79: rs.usize = shape.strong;
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_75, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_79, f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " "]));
+		put(out, rs.fmtFormat([args4[0], " ", args4[1], " "]).v);
 		shape[Symbol.dispose]();
 		const _97: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak2);
 		const _95: boolean = _97 === undefined;
@@ -1090,10 +1090,10 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const _100: boolean = _102 === undefined;
 		const _105: rs.usize = weak2.arc.strong;
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_95, f), (f: rs.Formatter) => rs.fmtBool(_100, f), (f: rs.Formatter) => rs.usizeDisplay(_105, f)];
-		const _91: string = rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]);
+		const _91: rs.String = rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]);
 		rs.drop(_102);
 		rs.drop(_97);
-		put(out, _91);
+		put(out, _91.v);
 		const noisy: rs.Arc<Noisy.Noisy> = new rs.Arc(new Noisy.Noisy(dataData[dataStart + 1], rs.arcClone(log)));
 		const weak4: rs.Weak<Shape.Shape> = rs.weakDyn(new rs.Weak(noisy), (arc2: rs.Arc<Noisy.Noisy>): rs.Arc<Shape.Shape> => {
 			return new rs.ArcDyn(arc2, new of$dyns_Noisy(arc2.value));
@@ -1104,16 +1104,16 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			return _02;
 		});
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part, f, rs.u32Debug)];
-		put(out, rs.fmtFormat([args8[0], " "]));
+		put(out, rs.fmtFormat([args8[0], " "]).v);
 		noisy[Symbol.dispose]();
 		const _147: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak4);
 		const _145: boolean = _147 === undefined;
 		const _150: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_145, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_150.value), f, rs.u8Debug)];
-		const _141: string = rs.fmtFormat([args10[0], " ", args10[1], " "]);
+		const _141: rs.String = rs.fmtFormat([args10[0], " ", args10[1], " "]);
 		rs.refRelease(_150);
 		rs.drop(_147);
-		put(out, _141);
+		put(out, _141.v);
 		const looped: rs.Arc<Looped.Looped> = rs.arcNewCyclic((me: rs.Weak<Looped.Looped>): Looped.Looped => {
 			return new Looped.Looped(dataData[dataStart], rs.weakDyn(rs.weakClone(me), (arc3: rs.Arc<Looped.Looped>): rs.Arc<Shape.Shape> => {
 				return new rs.ArcDyn(arc3, new of$dyns_Looped(arc3.value));
@@ -1127,7 +1127,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const _174: rs.usize = looped.strong;
 		const _177: rs.usize = looped.weak;
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_168, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_174, f), (f: rs.Formatter) => rs.usizeDisplay(_177, f)];
-		put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]));
+		put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]).v);
 		const pinned: Shape.Shape = new of$dyns_Noisy(new Noisy.Noisy(rs.u8WrappingAdd(dataData[dataStart], 1), rs.arcClone(log)));
 		let n: rs.u32 = dataData[dataStart + 1] as rs.u32;
 		const borrowed2: Shape.Shape = new ofPlace$u32(rs.place(() => n, (value) => n = value));
@@ -1135,13 +1135,13 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const _209: rs.u8 = pinned.sides$Shape();
 		const _213: rs.u32 = borrowed2.area$Shape();
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_205, f), (f: rs.Formatter) => rs.u8Display(_209, f), (f: rs.Formatter) => rs.u32Display(_213, f)];
-		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " "]));
+		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " "]).v);
 		rs.drop(pinned);
 		const _230: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_230.value), f, rs.u8Debug)];
-		const _226: string = rs.fmtFormat([args16[0], " "]);
+		const _226: rs.String = rs.fmtFormat([args16[0], " "]);
 		rs.refRelease(_230);
-		put(out, _226);
+		put(out, _226.v);
 		const boxes: rs.Vec<Shape.Shape> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rs.u8): Shape.Shape => {
 			const x2: rs.u8 = _2;
 			const _43: rs.u8 = rs.u8Rem(x2, 3);
@@ -1181,28 +1181,28 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			return s5.value.area$Shape();
 		})), undefined, 4, true);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u32Debug)];
-		put(out, rs.fmtFormat([args18[0], " "]));
+		put(out, rs.fmtFormat([args18[0], " "]).v);
 		const _291: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_291.value);
 		rs.refMutRelease(_291);
 		rs.dropVec(arcs);
 		const _304: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_304.value), f, rs.u8Debug)];
-		const _300: string = rs.fmtFormat([args20[0], " "]);
+		const _300: rs.String = rs.fmtFormat([args20[0], " "]);
 		rs.refRelease(_304);
-		put(out, _300);
+		put(out, _300.v);
 		rs.dropVec(rcs);
 		const _321: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_321.value), f, rs.u8Debug)];
-		const _317: string = rs.fmtFormat([args22[0], " "]);
+		const _317: rs.String = rs.fmtFormat([args22[0], " "]);
 		rs.refRelease(_321);
-		put(out, _317);
+		put(out, _317.v);
 		rs.dropVec(kept);
 		const _337: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_337.value), f, rs.u8Debug)];
-		const _333: string = rs.fmtFormat([args24[0], " "]);
+		const _333: rs.String = rs.fmtFormat([args24[0], " "]);
 		rs.refRelease(_337);
-		put(out, _333);
+		put(out, _333.v);
 		const _345: rs.Arc<Square.Square> = new rs.Arc({ side: dataData[dataStart + 1] as rs.u16 });
 		const any: rs.Arc<Any.Any> = new rs.ArcDyn(_345, new of$dyns_Square(_345.value));
 		const _351: rs.Result<rs.Arc<Tri.Tri>, rs.Arc<Any.Any>> = rs.arcDowncast(rs.arcClone(any), of$dyns_Tri, (object) => object.v);
@@ -1216,7 +1216,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const _372: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(wrong, f);
 			const arg = _365.side;
 			const args26: rs.Fmt[] = [_372, (f: rs.Formatter) => rs.u16Display(arg, f), (f: rs.Formatter) => rs.usizeDisplay(_368, f)];
-			put(out, rs.fmtFormat([args26[0], " ", args26[1], " ", args26[2], " "]));
+			put(out, rs.fmtFormat([args26[0], " ", args26[1], " ", args26[2], " "]).v);
 			sq2[Symbol.dispose]();
 		} else {
 			put(out, "none ");
@@ -1244,7 +1244,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 					const _424: boolean = rs.arcPtrEq(ex, held);
 					const _428: rs.usize = x.strong;
 					const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_416, f), (f: rs.Formatter) => rs.fmtBool(_420, f), (f: rs.Formatter) => rs.fmtBool(_424, f), (f: rs.Formatter) => rs.usizeDisplay(_428, f)];
-					put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " "]));
+					put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " "]).v);
 					ey[Symbol.dispose]();
 					ex[Symbol.dispose]();
 					y[Symbol.dispose]();
@@ -1273,15 +1273,15 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 			const _458: rs.usize = n2.strong;
 			const arg2 = _455._0;
 			const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => rs.usizeDisplay(_458, f)];
-			put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]));
+			put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]).v);
 			_595 = false;
 			held[Symbol.dispose]();
 			const _475: rs.usize = n2.strong;
 			const _478: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 			const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_475, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_478.value), f, rs.u8Debug)];
-			const _471: string = rs.fmtFormat([args32[0], " ", args32[1], " "]);
+			const _471: rs.String = rs.fmtFormat([args32[0], " ", args32[1], " "]);
 			rs.refRelease(_478);
-			put(out, _471);
+			put(out, _471.v);
 			n2[Symbol.dispose]();
 		} else {
 			put(out, "none ");
@@ -1291,16 +1291,16 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		}
 		const _495: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_495.value), f, rs.u8Debug)];
-		const _491: string = rs.fmtFormat([args34[0], " "]);
+		const _491: rs.String = rs.fmtFormat([args34[0], " "]);
 		rs.refRelease(_495);
-		put(out, _491);
+		put(out, _491.v);
 		const part3 = option_map$1bn5ufk(ok$1oks8md(rs.arcDowncast(new rs.Arc(new of$u32(dataData[dataStart] as rs.u32)), of$u32, (object) => object.v)), (n3: rs.Arc<rs.u32>): rs.u32 => {
 			const _09: rs.u32 = n3.value;
 			n3[Symbol.dispose]();
 			return _09;
 		});
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part3, f, rs.u32Debug)];
-		put(out, rs.fmtFormat([args36[0], " "]));
+		put(out, rs.fmtFormat([args36[0], " "]).v);
 		const _523: rs.Arc<(a0: rs.u8) => rs.u8> = new rs.Arc((x3: rs.u8): rs.u8 => {
 			return rs.u8WrappingAdd(x3, dataData[dataStart]);
 		});
@@ -1311,7 +1311,7 @@ export function pointers(dataData: Uint8Array, dataStart: number, dataLen: numbe
 		const _537: rs.u8 = f.value(dataData[dataStart + 1]);
 		const _543: rs.u8 = g.value(dataData[dataStart]);
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_537, f), (f: rs.Formatter) => rs.u8Display(_543, f)];
-		put(out, rs.fmtFormat([args38[0], " ", args38[1]]));
+		put(out, rs.fmtFormat([args38[0], " ", args38[1]]).v);
 		g[Symbol.dispose]();
 		f[Symbol.dispose]();
 		if (_595) {
@@ -1382,19 +1382,19 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const nths: [[rs.u8, rs.u8] | undefined, [rs.u8, rs.u8] | undefined] = [tags(rs.iterNth(rs.iterBox(boxed), 1, drop$tuple2_dyns_Tagged_dyns_Tagged)), tags(rs.iterNthBack(rs.iterBox(boxed), 0, drop$tuple2_dyns_Tagged_dyns_Tagged))];
 	dropped(out);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(hint[0][0], f), (f: rs.Formatter) => rs.fmtOption(hint[0][1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.usizeDebug(hint[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(ends[0], f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(ends[1], f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(nths[0], f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(nths[1], f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))], f)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "]));
+	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " "]).v);
 	dropped(out);
 	const part = tags(rs.ownedLast(rs.iterBox(it()), drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args4[0], " "]));
+	put(out, rs.fmtFormat([args4[0], " "]).v);
 	dropped(out);
 	const part2 = tags(rs.ownedLast(rs.iterBox(it()), drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part2, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args6[0], " "]));
+	put(out, rs.fmtFormat([args6[0], " "]).v);
 	dropped(out);
 	const part3 = rs.ownedCount(rs.iterBox(it()), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part3, f)];
-	put(out, rs.fmtFormat([args8[0], " "]));
+	put(out, rs.fmtFormat([args8[0], " "]).v);
 	dropped(out);
 	const sum: rs.u32 = rs.iterFold(rs.iterBox(it()), 0, (n3: rs.u32, _3: [Tagged.Tagged, Tagged.Tagged]): rs.u32 => {
 		const x: Tagged.Tagged = _3[0];
@@ -1406,7 +1406,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	dropped(out);
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f)];
-	put(out, rs.fmtFormat([args10[0], " "]));
+	put(out, rs.fmtFormat([args10[0], " "]).v);
 	rs.iterForEach(rs.iterBox(it()), (_24: [Tagged.Tagged, Tagged.Tagged]): undefined => {
 		const x2: Tagged.Tagged = _24[0];
 		const y2: Tagged.Tagged = _24[1];
@@ -1414,7 +1414,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _142: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg, f);
 		const arg2 = y2._0;
 		const args44: rs.Fmt[] = [_142, (f: rs.Formatter) => rs.u8Display(arg2, f)];
-		put(out, rs.fmtFormat([args44[0], " ", args44[1], " "]));
+		put(out, rs.fmtFormat([args44[0], " ", args44[1], " "]).v);
 		y2[Symbol.dispose]();
 		x2[Symbol.dispose]();
 	});
@@ -1428,7 +1428,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	dropped(out);
 	const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(found, f, rs.usizeDebug)];
-	put(out, rs.fmtFormat([args12[0], " "]));
+	put(out, rs.fmtFormat([args12[0], " "]).v);
 	const found2: [rs.u8, rs.u8] | undefined = tags(rs.iterFind(rs.iterBox(it()), (_26: [Tagged.Tagged, Tagged.Tagged]): boolean => {
 		return rs.u8Rem(_26[1]._0, 3) === 0;
 	}, drop$tuple2_dyns_Tagged_dyns_Tagged));
@@ -1441,13 +1441,13 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _05;
 	});
 	const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(found2, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtBool(_148, f)];
-	put(out, rs.fmtFormat([args14[0], " ", args14[1], " "]));
+	put(out, rs.fmtFormat([args14[0], " ", args14[1], " "]).v);
 	dropped(out);
 	const part4 = tags(rs.iterMaxByKey(rs.iterBox(it()), (p: [Tagged.Tagged, Tagged.Tagged]): rs.u8 => {
 		return p[1]._0;
 	}, rs.lt, undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part4, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args16[0], " "]));
+	put(out, rs.fmtFormat([args16[0], " "]).v);
 	dropped(out);
 	const all: rs.Vec<[rs.u8, rs.u8]> = rs.iterToVec(rs.iterMap(rs.vecIntoIter(rs.iterToVec(rs.iterBox(it()), "next", 2), drop$tuple2_dyns_Tagged_dyns_Tagged), (p2: [Tagged.Tagged, Tagged.Tagged]): [rs.u8, rs.u8] => {
 		const _07: [rs.u8, rs.u8] = [p2[0]._0, p2[1]._0];
@@ -1456,7 +1456,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), "next", 2, true, 2);
 	dropped(out);
 	const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args18[0], " "]));
+	put(out, rs.fmtFormat([args18[0], " "]).v);
 	const back: rs.u32 = rs.iterFold(rs.iterRev(rs.iterBox(it())), 0, (n4: rs.u32, _33: [Tagged.Tagged, Tagged.Tagged]): rs.u32 => {
 		const x5: Tagged.Tagged = _33[0];
 		const y3: Tagged.Tagged = _33[1];
@@ -1475,24 +1475,24 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _09;
 	}), rs.u32Add, 0);
 	const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(back, f), (f: rs.Formatter) => rs.u32Display(_208, f)];
-	put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]));
+	put(out, rs.fmtFormat([args20[0], " ", args20[1], " "]).v);
 	dropped(out);
 	const _227: rs.usize = rs.ownedCount(rs.iterSkip(rs.iterBox(it()), 1, drop$tuple2_dyns_Tagged_dyns_Tagged), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	const _232: rs.usize = rs.ownedCount(rs.iterStepBy(rs.iterBox(it()), 2, drop$tuple2_dyns_Tagged_dyns_Tagged), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_227, f), (f: rs.Formatter) => rs.usizeDisplay(_232, f)];
-	put(out, rs.fmtFormat([args22[0], " ", args22[1], " "]));
+	put(out, rs.fmtFormat([args22[0], " ", args22[1], " "]).v);
 	dropped(out);
 	const _253: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = rs.iterChain(rs.iterBox(it()), rs.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const part5 = tags(rs.iterNth(_253, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part5, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	const _246: string = rs.fmtFormat([args24[0], " "]);
+	const _246: rs.String = rs.fmtFormat([args24[0], " "]);
 	rs.drop(_253);
-	put(out, _246);
+	put(out, _246.v);
 	dropped(out);
 	const last: [rs.u8, rs.u8] | undefined = tags(rs.ownedLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(it()))), drop$tuple2_dyns_Tagged_dyns_Tagged));
 	dropped(out);
 	const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(last, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args26[0], " "]));
+	put(out, rs.fmtFormat([args26[0], " "]).v);
 	const boxed3: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = it();
 	const _285: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = rs.iterChain(rs.iterBorrow(rs.iterBox(rs.iterBorrow(boxed3))), rs.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const nth: [rs.u8, rs.u8] | undefined = tags(rs.iterNth(_285, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
@@ -1501,7 +1501,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.usize = rs.ownedCount(rs.iterBorrow(rs.iterBox(rs.iterBorrow(boxed3))), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	dropped(out);
 	const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(nth, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.usizeDisplay(n, f)];
-	put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]));
+	put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]).v);
 	const boxed4: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = it();
 	const first: [rs.u8, rs.u8] | undefined = tags(rs.iterToOption(boxed4.next()));
 	const sum2: rs.u32 = rs.iterFold(rs.iterBorrow(rs.iterBox(rs.iterBorrow(boxed4))), 0, (n5: rs.u32, _34: [Tagged.Tagged, Tagged.Tagged]): rs.u32 => {
@@ -1514,7 +1514,7 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	dropped(out);
 	const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(first, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.u32Display(sum2, f)];
-	put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]));
+	put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]).v);
 	dropped(out);
 	const n2: rs.u8 = option_mapOr$0vxw5sq(rs.byteSliceFirst(data), 0, (n6: rs.u8): rs.u8 => {
 		return rs.u8Rem(n6, 4);
@@ -1532,16 +1532,16 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _351: [rs.u8, rs.u8] | undefined = rs.iterLast(rs.iterBorrow(rs.iterBox(rs.iterBorrow(logged()))));
 	const _354: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(seen);
 	const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(last2, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(_351, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_354.value), f, rs.u8Debug)];
-	const _347: string = rs.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " "]);
+	const _347: rs.String = rs.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " "]);
 	rs.refRelease(_354);
-	put(out, _347);
+	put(out, _347.v);
 	const part6 = tags(rs.ownedLast(rs.iterBox(rs.iterBorrow(skipped(data))), drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part6, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	put(out, rs.fmtFormat([args34[0], " "]));
+	put(out, rs.fmtFormat([args34[0], " "]).v);
 	dropped(out);
 	const part7 = rs.ownedCount(rs.iterBox(rs.iterBorrow(skipped(data))), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part7, f)];
-	put(out, rs.fmtFormat([args36[0], " "]));
+	put(out, rs.fmtFormat([args36[0], " "]).v);
 	dropped(out);
 	const erased: () => rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = (): rs.Iter<[Tagged.Tagged, Tagged.Tagged]> => {
 		return rs.iterDyn(skipped(data));
@@ -1549,22 +1549,22 @@ export function boxes(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _410: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = rs.iterChain(rs.iterBox(erased()), rs.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const part8 = tags(rs.iterNth(_410, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part8, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	const _403: string = rs.fmtFormat([args38[0], " "]);
+	const _403: rs.String = rs.fmtFormat([args38[0], " "]);
 	rs.drop(_410);
-	put(out, _403);
+	put(out, _403.v);
 	dropped(out);
 	const _427: [rs.u8, rs.u8] | undefined = tags(rs.ownedLast(rs.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const _432: rs.usize = rs.ownedCount(rs.iterBox(erased()), drop$tuple2_dyns_Tagged_dyns_Tagged);
 	const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_427, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.usizeDisplay(_432, f)];
-	put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]));
+	put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]).v);
 	dropped(out);
 	const boxed6: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = erased();
 	const _455: rs.Iter<[Tagged.Tagged, Tagged.Tagged]> = rs.iterChain(rs.iterBorrow(boxed6), rs.iterOption(undefined as [Tagged.Tagged, Tagged.Tagged] | undefined, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const part9 = tags(rs.iterNth(_455, 1, drop$tuple2_dyns_Tagged_dyns_Tagged));
 	const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part9, f, (value: [rs.u8, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))];
-	const _448: string = rs.fmtFormat([args42[0], " "]);
+	const _448: rs.String = rs.fmtFormat([args42[0], " "]);
 	rs.drop(_455);
-	put(out, _448);
+	put(out, _448.v);
 	dropped(out);
 	rs.drop(boxed6);
 	dropped(out);
@@ -1622,11 +1622,11 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _93: rs.Fmt = (f: rs.Formatter) => rs.fmtList(areas.items, f, rs.u32Debug);
 		const arg = _78.side;
 		const args2: rs.Fmt[] = [_93, (f: rs.Formatter) => rs.u16Display(arg, f), (f: rs.Formatter) => rs.u32Display(_84.value, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_88.value, f)];
-		const _74: string = rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " "]);
+		const _74: rs.String = rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " "]);
 		rs.refRelease(_88);
 		rs.refRelease(_84);
 		rs.refRelease(_80);
-		put(out, _74);
+		put(out, _74.v);
 		const held: rs.RefCell<rs.u32> = rs.refCellBorrowMut(n.value);
 		const shared: rs.RefCell<Shape.Shape> = rs.refCellBorrow(shapes.items[rs.idx(shapes.items, 0)].value);
 		const _116: rs.Result<rs.RefCell<Shape.Shape>, rs.BorrowError> = rs.refCellTryBorrow(shapes.items[rs.idx(shapes.items, 1)].value);
@@ -1639,10 +1639,10 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return _02;
 		}), 0);
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_114, f), (f: rs.Formatter) => rs.fmtBool(_121, f), (f: rs.Formatter) => rs.u8Display(_127, f)];
-		const _110: string = rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " "]);
+		const _110: rs.String = rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " "]);
 		drop$Result_cell_RefMut_dyns_Square_cell_BorrowMutError(_123);
 		drop$Result_cell_Ref_dyn_dyns_Shape_cell_BorrowError(_116);
-		put(out, _110);
+		put(out, _110.v);
 		rs.refMutRelease(held);
 		rs.refRelease(shared);
 		const r: rs.RefCell<Shape.Shape> = rs.refCellBorrow(shapes.items[rs.idx(shapes.items, 2)].value);
@@ -1650,14 +1650,14 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _153: boolean = !_155.ok;
 		const _159: rs.u8 = r.value.sides$Shape();
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_153, f), (f: rs.Formatter) => rs.u8Display(_159, f)];
-		const _149: string = rs.fmtFormat([args6[0], " ", args6[1], " "]);
+		const _149: rs.String = rs.fmtFormat([args6[0], " ", args6[1], " "]);
 		drop$Result_cell_RefMut_dyns_Tri_cell_BorrowMutError(_155);
-		put(out, _149);
+		put(out, _149.v);
 		rs.refRelease(r);
 		const _175: rs.usize = sq.strong;
 		const _178: rs.usize = shapes.items[rs.idx(shapes.items, 1)].strong;
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_175, f), (f: rs.Formatter) => rs.usizeDisplay(_178, f)];
-		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]));
+		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]).v);
 		const _187: rs.Arc<rs.RefCell<Tri.Tri>> = new rs.Arc(new rs.RefCell({ tag: "Flat" } as Tri.Tri));
 		const named: rs.Arc<rs.RefCell<Named.Named>> = new rs.ArcDyn(_187, rs.tailDyn(_187.value, { value: (value5: rs.RefCell<Tri.Tri>) => new ofPlace$dyns_Tri(rs.valuePlace(value5)) }));
 		const _193: rs.RefCell<Named.Named> = rs.refCellBorrowMut(named.value);
@@ -1669,17 +1669,17 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		_202.value.grow$Shape(a);
 		rs.refMutRelease(_202);
 		const _217: rs.RefCell<Named.Named> = rs.refCellBorrow(named.value);
-		const _214: string = _217.value.label$Named();
+		const _214: rs.String = _217.value.label$Named();
 		const _224: rs.RefCell<Shape.Shape> = rs.refCellBorrow(upcast.value);
 		const _221: rs.u32 = _224.value.area$Shape();
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.refCellDebug(named.value, f, (value: Named.Named, f: rs.Formatter) => value.fmt$Debug(f)), (f: rs.Formatter) => rs.fmtPad(f, _214), (f: rs.Formatter) => rs.u32Display(_221, f)];
-		const _209: string = rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]);
+		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.refCellDebug(named.value, f, (value: Named.Named, f: rs.Formatter) => value.fmt$Debug(f)), (f: rs.Formatter) => rs.fmtPad(f, _214.v), (f: rs.Formatter) => rs.u32Display(_221, f)];
+		const _209: rs.String = rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " "]);
 		rs.refRelease(_224);
 		rs.refRelease(_217);
-		put(out, _209);
+		put(out, _209.v);
 		const _held: rs.RefCell<Named.Named> = rs.refCellBorrowMut(named.value);
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.refCellDebug(named.value, f, (value: Named.Named, f: rs.Formatter) => value.fmt$Debug(f))];
-		put(out, rs.fmtFormat([args12[0], " "]));
+		put(out, rs.fmtFormat([args12[0], " "]).v);
 		rs.refMutRelease(_held);
 		const noisy: rs.Arc<rs.RefCell<Noisy.Noisy>> = new rs.Arc(new rs.RefCell(new Noisy.Noisy(c, rs.arcClone(log))));
 		const _254: rs.Arc<rs.RefCell<Noisy.Noisy>> = rs.arcClone(noisy);
@@ -1695,24 +1695,24 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return _03;
 		});
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_268.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_272, f, rs.u32Debug)];
-		const _264: string = rs.fmtFormat([args14[0], " ", args14[1], " "]);
+		const _264: rs.String = rs.fmtFormat([args14[0], " ", args14[1], " "]);
 		rs.refRelease(_268);
-		put(out, _264);
+		put(out, _264.v);
 		shape[Symbol.dispose]();
 		const _289: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const _295: rs.Arc<rs.RefCell<Shape.Shape>> | undefined = rs.weakUpgrade(weak);
 		const _293: boolean = _295 === undefined;
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_289.value), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(_293, f)];
-		const _285: string = rs.fmtFormat([args16[0], " ", args16[1], " "]);
+		const _285: rs.String = rs.fmtFormat([args16[0], " ", args16[1], " "]);
 		rs.drop(_295);
 		rs.refRelease(_289);
-		put(out, _285);
+		put(out, _285.v);
 		rs.dropVec(shapes);
 		const _311: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_311.value), f, rs.u8Debug)];
-		const _307: string = rs.fmtFormat([args18[0], " "]);
+		const _307: rs.String = rs.fmtFormat([args18[0], " "]);
 		rs.refRelease(_311);
-		put(out, _307);
+		put(out, _307.v);
 		const _321: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_321.value);
 		rs.refMutRelease(_321);
@@ -1726,9 +1726,9 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _351: rs.Result<rs.Mutex<Shape.Shape>, rs.TryLockError<rs.Mutex<Shape.Shape>>> = rs.mutexTryLock(locked.value);
 		const part = !_351.ok;
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part, f)];
-		const _345: string = rs.fmtFormat([args20[0], " "]);
+		const _345: rs.String = rs.fmtFormat([args20[0], " "]);
 		drop$Result_sync_MutexGuard_dyn_dyns_Shape_sync_TryLockError_sync_MutexGuard_dyn_dyns_Shape(_351);
-		put(out, _345);
+		put(out, _345.v);
 		rs.mutexUnlock(_guard);
 		const weak2: rs.Weak<rs.Mutex<Shape.Shape>> = new rs.Weak(locked);
 		const area: rs.u32 | undefined = option_map$13cu53u(rs.weakUpgrade(weak2), (l: rs.Arc<rs.Mutex<Shape.Shape>>): rs.u32 => {
@@ -1741,9 +1741,9 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _372: rs.Mutex<Tri.Tri> = rs.mutexLock(m.value);
 		const _377: rs.usize = m.strong;
 		const args22: rs.Fmt[] = [(f: rs.Formatter) => Tri.fmt$fmt_Debug(_372.value, f), (f: rs.Formatter) => rs.fmtOption(area, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_377, f)];
-		const _368: string = rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2], " "]);
+		const _368: rs.String = rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2], " "]);
 		rs.mutexUnlock(_372);
-		put(out, _368);
+		put(out, _368.v);
 		const rw: rs.Arc<rs.RefCell<rs.u32>> = new rs.Arc(new rs.RefCell(c as rs.u32));
 		const _390: rs.Arc<rs.RefCell<rs.u32>> = rs.arcClone(rw);
 		const lock: rs.Arc<rs.RefCell<Shape.Shape>> = new rs.ArcDyn(_390, rs.tailDyn(_390.value, { value: (value9: rs.RefCell<rs.u32>) => new ofPlace$u32(rs.valuePlace(value9)) }));
@@ -1756,16 +1756,16 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _420: rs.RefCell<Shape.Shape> = rs.rwLockRead(lock.value);
 		const _417: rs.u32 = _420.value.area$Shape();
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_411, f), (f: rs.Formatter) => rs.u32Display(_417, f)];
-		const _407: string = rs.fmtFormat([args24[0], " ", args24[1], " "]);
+		const _407: rs.String = rs.fmtFormat([args24[0], " ", args24[1], " "]);
 		rs.refRelease(_420);
 		drop$Result_sync_RwLockWriteGuard_dyn_dyns_Shape_sync_TryLockError_sync_RwLockWriteGuard_dyn_dyns_Shape(_413);
-		put(out, _407);
+		put(out, _407.v);
 		rs.refRelease(_read);
 		const _437: rs.RefCell<rs.u32> = rs.rwLockRead(rw.value);
 		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_437.value, f)];
-		const _433: string = rs.fmtFormat([args26[0], " "]);
+		const _433: rs.String = rs.fmtFormat([args26[0], " "]);
 		rs.refRelease(_437);
-		put(out, _433);
+		put(out, _433.v);
 		const t: Tail.Tail<rs.u32> = new Tail.Tail(a, new Noisy.Noisy(b, rs.arcClone(log)), c as rs.u32);
 		const area2: rs.u32 = bumpTail(rs.tailDyn(t, { value: (value10: Tail.Tail<rs.u32>) => new ofPlace$u32(rs.place(() => value10.value, (value11) => value10.value = value11)) }), b);
 		const shared2: Tail.Tail<Shape.Shape> = rs.tailDyn(t, { value: (value12: Tail.Tail<rs.u32>) => new ofPlace$u32(rs.place(() => value12.value, (value13) => value12.value = value13)) });
@@ -1778,7 +1778,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _473: rs.Fmt = (f: rs.Formatter) => rs.u32Display(_465, f);
 		const arg4 = t.value;
 		const args28: rs.Fmt[] = [_470, _471, _472, _473, (f: rs.Formatter) => rs.u32Display(arg4, f)];
-		put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " ", args28[4], " "]));
+		put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " ", args28[4], " "]).v);
 		const cell: rs.Arc<rs.RefCell<Tail.Tail<Square.Square>>> = new rs.Arc(new rs.RefCell(new Tail.Tail(b, new Noisy.Noisy(a, rs.arcClone(log)), { side: b as rs.u16 })));
 		const _486: rs.Arc<rs.RefCell<Tail.Tail<Square.Square>>> = rs.arcClone(cell);
 		const nested: rs.Arc<rs.RefCell<Tail.Tail<Shape.Shape>>> = new rs.ArcDyn(_486, rs.tailDyn(_486.value, { value: (value14: rs.RefCell<Tail.Tail<Square.Square>>) => rs.tailDyn(value14.value, { value: (value15: Tail.Tail<Square.Square>) => new of$dyns_Square(value15.value) }) }, rs.drop));
@@ -1794,28 +1794,28 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _516: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg5, f);
 		const arg6 = _508.value.side;
 		const args30: rs.Fmt[] = [_515, _516, (f: rs.Formatter) => rs.u16Display(arg6, f)];
-		const _498: string = rs.fmtFormat([args30[0], " ", args30[1], " ", args30[2], " "]);
+		const _498: rs.String = rs.fmtFormat([args30[0], " ", args30[1], " ", args30[2], " "]);
 		rs.refRelease(_510);
 		rs.refRelease(_504);
-		put(out, _498);
+		put(out, _498.v);
 		cell[Symbol.dispose]();
 		t[Symbol.dispose]();
 		const _531: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_531.value), f, rs.u8Debug)];
-		const _527: string = rs.fmtFormat([args32[0], " "]);
+		const _527: rs.String = rs.fmtFormat([args32[0], " "]);
 		rs.refRelease(_531);
-		put(out, _527);
+		put(out, _527.v);
 		nested[Symbol.dispose]();
 		const boxed: Tail.Tail<Shape.Shape> = rs.tailDyn(new Tail.Tail(c, new Noisy.Noisy(c, rs.arcClone(log)), new Noisy.Noisy(rs.u8WrappingAdd(c, 1), rs.arcClone(log))), { value: (value17: Tail.Tail<Noisy.Noisy>) => new of$dyns_Noisy(value17.value) }, rs.drop);
 		const part2 = boxed.value.area$Shape();
 		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part2, f)];
-		put(out, rs.fmtFormat([args34[0], " "]));
+		put(out, rs.fmtFormat([args34[0], " "]).v);
 		boxed[Symbol.dispose]();
 		const _572: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_572.value), f, rs.u8Debug)];
-		const _568: string = rs.fmtFormat([args36[0], " "]);
+		const _568: rs.String = rs.fmtFormat([args36[0], " "]);
 		rs.refRelease(_572);
-		put(out, _568);
+		put(out, _568.v);
 		const pinned: Tail.Tail<Shape.Shape> = rs.tailDyn(new Tail.Tail(a, new Noisy.Noisy(a, rs.arcClone(log)), { tag: "Tall", _0: b } as Tri.Tri), { value: (value19: Tail.Tail<Tri.Tri>) => new ofPlace$dyns_Tri(rs.place(() => value19.value, (value20) => value19.value = value20)) }, rs.drop);
 		const own: rs.Arc<rs.RefCell<rs.u32>> = new rs.Arc(new rs.RefCell(a as rs.u32));
 		const weak4: rs.Weak<rs.RefCell<Shape.Shape>> = rs.weakDyn(new rs.Weak(own), (arc: rs.Arc<rs.RefCell<rs.u32>>): rs.Arc<rs.RefCell<Shape.Shape>> => {
@@ -1835,15 +1835,15 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _622: rs.usize = weak4.arc.strong;
 		const arg7 = _610.count;
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg7, f), (f: rs.Formatter) => rs.u32Display(_613, f), (f: rs.Formatter) => rs.u32Display(_618.value, f), (f: rs.Formatter) => rs.usizeDisplay(_622, f)];
-		const _606: string = rs.fmtFormat([args38[0], " ", args38[1], " ", args38[2], " ", args38[3], " "]);
+		const _606: rs.String = rs.fmtFormat([args38[0], " ", args38[1], " ", args38[2], " ", args38[3], " "]);
 		rs.refRelease(_618);
-		put(out, _606);
+		put(out, _606.v);
 		pinned[Symbol.dispose]();
 		const _640: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_640.value), f, rs.u8Debug)];
-		const _636: string = rs.fmtFormat([args40[0], " "]);
+		const _636: rs.String = rs.fmtFormat([args40[0], " "]);
 		rs.refRelease(_640);
-		put(out, _636);
+		put(out, _636.v);
 		const shared3: rs.Arc<rs.RefCell<Shape.Shape>> = new rs.Arc(rs.tailDyn(new rs.RefCell(new Noisy.Noisy(b, rs.arcClone(log))), { value: (value22: rs.RefCell<Noisy.Noisy>) => new of$dyns_Noisy(value22.value) }, rs.drop));
 		const again: rs.Arc<rs.RefCell<Shape.Shape>> = rs.arcClone(shared3);
 		const _659: rs.RefCell<Shape.Shape> = rs.refCellBorrowMut(again.value);
@@ -1854,16 +1854,16 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _671: rs.u32 = _674.value.area$Shape();
 		const _678: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_671, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_678.value), f, rs.u8Debug)];
-		const _667: string = rs.fmtFormat([args42[0], " ", args42[1], " "]);
+		const _667: rs.String = rs.fmtFormat([args42[0], " ", args42[1], " "]);
 		rs.refRelease(_678);
 		rs.refRelease(_674);
-		put(out, _667);
+		put(out, _667.v);
 		again[Symbol.dispose]();
 		const _695: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args44: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_695.value), f, rs.u8Debug)];
-		const _691: string = rs.fmtFormat([args44[0], " "]);
+		const _691: rs.String = rs.fmtFormat([args44[0], " "]);
 		rs.refRelease(_695);
-		put(out, _691);
+		put(out, _691.v);
 		const guarded: rs.Vec<Guarded.Guarded<Shape.Shape>> = rs.vecFrom([rs.tailDyn(new Guarded.Guarded(rs.arcClone(log), { tag: "Full", _0: new Noisy.Noisy(a, rs.arcClone(log)) } as Held.Held), { value: (value23: Guarded.Guarded<Held.Held>) => new ofPlace$dyns_Held(rs.place(() => value23.value, (value24) => value23.value = value24)) }, drop$dyns_Guarded_dyns_Held), rs.tailDyn(new Guarded.Guarded(rs.arcClone(log), new Noisy.Noisy(b, rs.arcClone(log))), { value: (value25: Guarded.Guarded<Noisy.Noisy>) => new of$dyns_Noisy(value25.value) }, drop$dyns_Guarded_dyns_Noisy), rs.tailDyn(new Guarded.Guarded(rs.arcClone(log), { tag: "Empty" } as Held.Held), { value: (value27: Guarded.Guarded<Held.Held>) => new ofPlace$dyns_Held(rs.place(() => value27.value, (value28) => value27.value = value28)) }, drop$dyns_Guarded_dyns_Held)]);
 		const _728: rs.Arc<rs.RefCell<Guarded.Guarded<Held.Held>>> = new rs.Arc(new rs.RefCell(new Guarded.Guarded(rs.arcClone(log), { tag: "Full", _0: new Noisy.Noisy(c, rs.arcClone(log)) } as Held.Held)));
 		const cell2: rs.Arc<rs.RefCell<Guarded.Guarded<Shape.Shape>>> = new rs.ArcDyn(_728, rs.tailDyn(_728.value, { value: (value29: rs.RefCell<Guarded.Guarded<Held.Held>>) => rs.tailDyn(value29.value, { value: (value30: Guarded.Guarded<Held.Held>) => new ofPlace$dyns_Held(rs.place(() => value30.value, (value31) => value30.value = value31)) }) }, drop$cell_RefCell_dyns_Guarded_dyns_Held));
@@ -1876,24 +1876,24 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _761: rs.RefCell<Guarded.Guarded<Shape.Shape>> = rs.refCellBorrow(cell2.value);
 		const _757: rs.u32 = _761.value.value.area$Shape();
 		const args46: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(areas2.items, f, rs.u32Debug), (f: rs.Formatter) => rs.u32Display(_757, f)];
-		const _753: string = rs.fmtFormat([args46[0], " ", args46[1], " "]);
+		const _753: rs.String = rs.fmtFormat([args46[0], " ", args46[1], " "]);
 		rs.refRelease(_761);
-		put(out, _753);
+		put(out, _753.v);
 		const _773: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_773.value);
 		rs.refMutRelease(_773);
 		rs.dropVec(guarded, drop$boxed_Box_dyns_Guarded_dyn_dyns_Shape);
 		const _785: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args48: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_785.value), f, rs.u8Debug)];
-		const _781: string = rs.fmtFormat([args48[0], " "]);
+		const _781: rs.String = rs.fmtFormat([args48[0], " "]);
 		rs.refRelease(_785);
-		put(out, _781);
+		put(out, _781.v);
 		rs.arcDrop(cell2, drop$cell_RefCell_dyns_Guarded_dyn_dyns_Shape);
 		const _801: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args50: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_801.value), f, rs.u8Debug)];
-		const _797: string = rs.fmtFormat([args50[0], " "]);
+		const _797: rs.String = rs.fmtFormat([args50[0], " "]);
 		rs.refRelease(_801);
-		put(out, _797);
+		put(out, _797.v);
 		const t2: Tail.Tail<rs.u32> = new Tail.Tail(a, new Noisy.Noisy(a, rs.arcClone(log)), b as rs.u32);
 		const apart: Tail.Tail<rs.u32> = new Tail.Tail(a, new Noisy.Noisy(b, rs.arcClone(log)), b as rs.u32);
 		const _822: Tail.Tail<Shape.Shape> = rs.tailDyn(t2, { value: (value32: Tail.Tail<rs.u32>) => new ofPlace$u32(rs.place(() => value32.value, (value33) => value32.value = value33)) });
@@ -1917,7 +1917,7 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _871: boolean = rs.arcPtrEq(r2, other);
 		const _875: boolean = rs.arcPtrEq(u.arc, v.arc);
 		const args52: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_859, f), (f: rs.Formatter) => rs.fmtBool(_863, f), (f: rs.Formatter) => rs.fmtBool(_867, f), (f: rs.Formatter) => rs.fmtBool(_871, f), (f: rs.Formatter) => rs.fmtBool(_875, f)];
-		put(out, rs.fmtFormat([args52[0], " ", args52[1], " ", args52[2], " ", args52[3], " ", args52[4], " "]));
+		put(out, rs.fmtFormat([args52[0], " ", args52[1], " ", args52[2], " ", args52[3], " ", args52[4], " "]).v);
 		v[Symbol.dispose]();
 		u[Symbol.dispose]();
 		other[Symbol.dispose]();
@@ -1955,9 +1955,9 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _952: rs.Mutex<rs.Iter<rs.u8>> = rs.mutexLock(it.value);
 		const _949: rs.u8 | undefined = rs.iterToOption(_952.value.next());
 		const args54: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.refCellDebug(shown, f, (value: rs.Fmt, f: rs.Formatter) => value(f)), (f: rs.Formatter) => rs.fmtOption(_943, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtBool(_946, f), (f: rs.Formatter) => rs.fmtOption(next, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_949, f, rs.u8Debug)];
-		const _939: string = rs.fmtFormat([args54[0], " ", args54[1], " ", args54[2], " ", args54[3], " ", args54[4], " ", args54[5], " "]);
+		const _939: rs.String = rs.fmtFormat([args54[0], " ", args54[1], " ", args54[2], " ", args54[3], " ", args54[4], " ", args54[5], " "]);
 		rs.mutexUnlock(_952);
-		put(out, _939);
+		put(out, _939.v);
 		const _968: rs.u8 | undefined = option_map$1yjmt5m(rs.byteSliceFirst(rs.byteSliceRange(data, 3)), (x3: rs.u8): rs.u8 => {
 			return rs.u8Rem(x3, 4);
 		});
@@ -1980,9 +1980,9 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const _held2: rs.RefCell<Shape.Shape> = rs.refCellBorrowMut(dynamic2.value);
 					const _997: rs.RefCell<rs.u32> = rs.refCellBorrow(n.value);
 					const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_997.value, f)];
-					const _993: string = rs.fmtFormat([args56[0]]);
+					const _993: rs.String = rs.fmtFormat([args56[0]]);
 					rs.refRelease(_997);
-					put(out, _993);
+					put(out, _993.v);
 					rs.refMutRelease(_held2);
 					dynamic2[Symbol.dispose]();
 					break b6;
@@ -1992,18 +1992,18 @@ export function tails(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const _1019: rs.Mutex<Shape.Shape> = rs.mutexLock(locked.value);
 					const part3 = _1019.value.area$Shape();
 					const args58: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part3, f)];
-					const _1012: string = rs.fmtFormat([args58[0]]);
+					const _1012: rs.String = rs.fmtFormat([args58[0]]);
 					rs.mutexUnlock(_1019);
-					put(out, _1012);
+					put(out, _1012.v);
 					rs.mutexUnlock(_guard2);
 					break b6;
 				}
 			}
 			const _1034: rs.RefCell<rs.u32> = rs.refCellBorrow(n.value);
 			const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_1034.value, f)];
-			const _1030: string = rs.fmtFormat([args60[0]]);
+			const _1030: rs.String = rs.fmtFormat([args60[0]]);
 			rs.refRelease(_1034);
-			put(out, _1030);
+			put(out, _1030.v);
 		}
 		it[Symbol.dispose]();
 		any[Symbol.dispose]();
@@ -2076,7 +2076,7 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _68: rs.Fmt = (f: rs.Formatter) => rs.u32Display(_58, f);
 		const arg = _61.side;
 		const args2: rs.Fmt[] = [_68, (f: rs.Formatter) => rs.u16Display(arg, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_64, f), (f: rs.Formatter) => rs.u32Display(area, f)];
-		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " "]));
+		put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " "]).v);
 		const noisy: rs.Arc<rs.Cell<Noisy.Noisy>> = new rs.Arc(new rs.Cell(new Noisy.Noisy(a, rs.arcClone(log))));
 		const _80: rs.Arc<rs.Cell<Noisy.Noisy>> = rs.arcClone(noisy);
 		const cell: rs.Arc<rs.Cell<Shape.Shape>> = new rs.ArcDyn(_80, rs.tailDyn(_80.value, { v: (value5: rs.Cell<Noisy.Noisy>) => new of$dyns_Noisy(value5.v) }, rs.drop));
@@ -2084,15 +2084,15 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		noisy[Symbol.dispose]();
 		const _95: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(area2, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_95.value), f, rs.u8Debug)];
-		const _91: string = rs.fmtFormat([args4[0], " ", args4[1], " "]);
+		const _91: rs.String = rs.fmtFormat([args4[0], " ", args4[1], " "]);
 		rs.refRelease(_95);
-		put(out, _91);
+		put(out, _91.v);
 		cell[Symbol.dispose]();
 		const _113: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_113.value), f, rs.u8Debug)];
-		const _109: string = rs.fmtFormat([args6[0], " "]);
+		const _109: rs.String = rs.fmtFormat([args6[0], " "]);
 		rs.refRelease(_113);
-		put(out, _109);
+		put(out, _109.v);
 		const _123: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_123.value);
 		rs.refMutRelease(_123);
@@ -2106,13 +2106,13 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _158: Tri.Tri = copy$dyns_Tri(u.value.v);
 		const _163: rs.u32 = boxed.v.area$Shape();
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(area3, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_158, f), (f: rs.Formatter) => rs.u32Display(_163, f)];
-		put(out, rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " "]));
+		put(out, rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " "]).v);
 		boxed[Symbol.dispose]();
 		const _183: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_183.value), f, rs.u8Debug)];
-		const _179: string = rs.fmtFormat([args10[0], " "]);
+		const _179: rs.String = rs.fmtFormat([args10[0], " "]);
 		rs.refRelease(_183);
-		put(out, _179);
+		put(out, _179.v);
 		const _193: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_193.value);
 		rs.refMutRelease(_193);
@@ -2125,25 +2125,25 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _218: rs.u32 = m.area$Shape();
 		const _222: rs.u32 = t.area$Shape();
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_218, f), (f: rs.Formatter) => rs.u32Display(_222, f)];
-		put(out, rs.fmtFormat([args12[0], " ", args12[1], " "]));
+		put(out, rs.fmtFormat([args12[0], " ", args12[1], " "]).v);
 		const _244: rs.u32 = new of$dyns_Noisy(new Noisy.Noisy(b, rs.arcClone(log))).area$Shape();
 		const _248: Noisy.Noisy = kept;
 		const _250: Tri.Tri = held;
 		const _253: rs.Fmt = (f: rs.Formatter) => rs.u32Display(_244, f);
 		const arg2 = _248._0;
 		const args14: rs.Fmt[] = [_253, (f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_250, f)];
-		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " "]));
+		put(out, rs.fmtFormat([args14[0], " ", args14[1], " ", args14[2], " "]).v);
 		const _267: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_267.value), f, rs.u8Debug)];
-		const _263: string = rs.fmtFormat([args16[0], " "]);
+		const _263: rs.String = rs.fmtFormat([args16[0], " "]);
 		rs.refRelease(_267);
-		put(out, _263);
+		put(out, _263.v);
 		rs.drop(new of$dyns_Noisy(kept));
 		const _285: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_285.value), f, rs.u8Debug)];
-		const _281: string = rs.fmtFormat([args18[0], " "]);
+		const _281: rs.String = rs.fmtFormat([args18[0], " "]);
 		rs.refRelease(_285);
-		put(out, _281);
+		put(out, _281.v);
 		const _295: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_295.value);
 		rs.refMutRelease(_295);
@@ -2158,15 +2158,15 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		ticks[Symbol.dispose]();
 		const _332: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(first[0], f), (f: rs.Formatter) => rs.fmtOption(first[1], f, rs.u8Debug)], f), (f: rs.Formatter) => rs.u8Display(polls, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(rest[0], f), (f: rs.Formatter) => rs.fmtOption(rest[1], f, rs.u8Debug)], f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_332.value), f, rs.u8Debug)];
-		const _328: string = rs.fmtFormat([args20[0], " ", args20[1], " ", args20[2], " ", args20[3], " "]);
+		const _328: rs.String = rs.fmtFormat([args20[0], " ", args20[1], " ", args20[2], " ", args20[3], " "]);
 		rs.refRelease(_332);
-		put(out, _328);
+		put(out, _328.v);
 		future[Symbol.dispose]();
 		const _354: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_354.value), f, rs.u8Debug)];
-		const _350: string = rs.fmtFormat([args22[0], " "]);
+		const _350: rs.String = rs.fmtFormat([args22[0], " "]);
 		rs.refRelease(_354);
-		put(out, _350);
+		put(out, _350.v);
 		const _364: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_364.value);
 		rs.refMutRelease(_364);
@@ -2186,15 +2186,15 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		block[Symbol.dispose]();
 		const _398: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(ready, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_398.value), f, rs.u8Debug)];
-		const _394: string = rs.fmtFormat([args24[0], " ", args24[1], " "]);
+		const _394: rs.String = rs.fmtFormat([args24[0], " ", args24[1], " "]);
 		rs.refRelease(_398);
-		put(out, _394);
+		put(out, _394.v);
 		erased[Symbol.dispose]();
 		const _416: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_416.value), f, rs.u8Debug)];
-		const _412: string = rs.fmtFormat([args26[0], " "]);
+		const _412: rs.String = rs.fmtFormat([args26[0], " "]);
 		rs.refRelease(_416);
-		put(out, _412);
+		put(out, _412.v);
 		const _426: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_426.value);
 		rs.refMutRelease(_426);
@@ -2218,13 +2218,13 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _475: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg4, f);
 		const arg5 = t2.value;
 		const args28: rs.Fmt[] = [_471, _472, _473, _474, _475, (f: rs.Formatter) => Tri.fmt$fmt_Debug(arg5, f)];
-		put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " ", args28[4], " ", args28[5], " "]));
+		put(out, rs.fmtFormat([args28[0], " ", args28[1], " ", args28[2], " ", args28[3], " ", args28[4], " ", args28[5], " "]).v);
 		t2[Symbol.dispose]();
 		const _489: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_489.value), f, rs.u8Debug)];
-		const _485: string = rs.fmtFormat([args30[0], " "]);
+		const _485: rs.String = rs.fmtFormat([args30[0], " "]);
 		rs.refRelease(_489);
-		put(out, _485);
+		put(out, _485.v);
 		let sq2: rs.Cell<Square.Square> = new rs.Cell({ side: c as rs.u16 });
 		let tri2: rs.RefCell<Tri.Tri> = new rs.RefCell({ tag: "Tall", _0: a } as Tri.Tri);
 		const p2: rs.Place<rs.Cell<Shape.Shape>> = rs.rawUnsizePlace(rs.place(() => sq2, (value14) => sq2 = value14), (p7) => rs.tailDyn(p7, { v: (value15: rs.Cell<Square.Square>) => new of$dyns_Square(value15.v) }));
@@ -2242,9 +2242,9 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _538: rs.Fmt = (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(areas2[0], f), (f: rs.Formatter) => rs.u32Debug(areas2[1], f)], f);
 		const arg6 = _531.side;
 		const args32: rs.Fmt[] = [_538, (f: rs.Formatter) => rs.u16Display(arg6, f), (f: rs.Formatter) => Tri.fmt$fmt_Debug(_534.value, f)];
-		const _527: string = rs.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " "]);
+		const _527: rs.String = rs.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " "]);
 		rs.refRelease(_534);
-		put(out, _527);
+		put(out, _527.v);
 		const _546: [Ticks.Ticks, Noisy.Noisy, Tail.Tail<Noisy.Noisy>] = [new Ticks.Ticks(rs.u8Rem(b, 3), 0, rs.arcClone(log)), new Noisy.Noisy(a, rs.arcClone(log)), new Tail.Tail(b, new Noisy.Noisy(b, rs.arcClone(log)), new Noisy.Noisy(c, rs.arcClone(log)))];
 		const ticks2: Ticks.Ticks = _546[0];
 		const noisy2: Noisy.Noisy = _546[1];
@@ -2260,9 +2260,9 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		tail3[Symbol.dispose]();
 		const _599: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(polled, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_599.value), f, rs.u8Debug)];
-		const _595: string = rs.fmtFormat([args34[0], " ", args34[1], " "]);
+		const _595: rs.String = rs.fmtFormat([args34[0], " ", args34[1], " "]);
 		rs.refRelease(_599);
-		put(out, _595);
+		put(out, _595.v);
 		const _611: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
 		rs.byteVecClear(_611.value);
 		rs.refMutRelease(_611);
@@ -2274,7 +2274,7 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const second: rs.u8 | undefined = rs.iterToOption(_632.value.next());
 		rs.mutexUnlock(_632);
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(first2, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(second, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args36[0], " ", args36[1], " "]));
+		put(out, rs.fmtFormat([args36[0], " ", args36[1], " "]).v);
 		cell2[Symbol.dispose]();
 		dropped(out);
 		locked[Symbol.dispose]();
@@ -2288,11 +2288,11 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const area5: rs.u32 = wide.v.v.area$Shape();
 		const _677: rs.u32 = slot.v;
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(null_, f), (f: rs.Formatter) => rs.u32Display(area5, f), (f: rs.Formatter) => rs.u32Display(_677, f)];
-		put(out, rs.fmtFormat([args38[0], " ", args38[1], " ", args38[2], " "]));
+		put(out, rs.fmtFormat([args38[0], " ", args38[1], " ", args38[2], " "]).v);
 		const shown: rs.Fmt = rs.rawUnsize(side, (p13) => rs.fmtOwned(p13, (value: Square.Square, f: rs.Formatter) => Square.fmt$fmt_Debug(value, f)));
 		const _703: boolean = rs.rawUnsize(rs.NULL, (p14) => new of$dyns_Square(p14)) === rs.NULL;
 		const args40: rs.Fmt[] = [(f: rs.Formatter) => shown(f), (f: rs.Formatter) => rs.fmtBool(_703, f)];
-		put(out, rs.fmtFormat([args40[0], " ", args40[1]]));
+		put(out, rs.fmtFormat([args40[0], " ", args40[1]]).v);
 		owned[Symbol.dispose]();
 		shape[Symbol.dispose]();
 		u[Symbol.dispose]();
@@ -2353,7 +2353,7 @@ export function pick$dyns_Scaled_u16_u16(_self: rs.u16, a: rs.u16, b: rs.u16): r
 	return a;
 }
 
-export function take$dyns_Source_u8(self: rs.Place<rs.u8>): string | undefined {
+export function take$dyns_Source_u8(self: rs.Place<rs.u8>): rs.String | undefined {
 	const _2: rs.u8 | undefined = rs.u8CheckedSub(self.v, 1);
 	if (_2 !== undefined) {
 		self.v = _2;
@@ -2367,13 +2367,13 @@ export function left$dyns_Source_u8(self: rs.u8): rs.usize {
 	return self as rs.usize;
 }
 
-export function taken$String(s: Source.Source<string>): string {
-	const taken: rs.Vec<string> = new rs.Vec();
+export function taken$String(s: Source.Source<rs.String>): rs.String {
+	const taken: rs.Vec<rs.String> = new rs.Vec();
 	while (true) {
-		const _3: string | undefined = s.take$Source();
+		const _3: rs.String | undefined = s.take$Source();
 		if (_3 !== undefined) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStr(_3, f)];
-			const _8: string = rs.fmtFormat([args2[0]]);
+			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStr(_3.v, f)];
+			const _8: rs.String = rs.fmtFormat([args2[0]]);
 			taken.items.push(_8);
 		} else {
 			break;
@@ -2382,13 +2382,13 @@ export function taken$String(s: Source.Source<string>): string {
 	return rs.strsJoin(taken.items, ",");
 }
 
-export function taken$u32(s: Source.Source<rs.u32>): string {
-	const taken: rs.Vec<string> = new rs.Vec();
+export function taken$u32(s: Source.Source<rs.u32>): rs.String {
+	const taken: rs.Vec<rs.String> = new rs.Vec();
 	while (true) {
 		const _3: rs.u32 | undefined = s.take$Source();
 		if (_3 !== undefined) {
 			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Debug(_3, f)];
-			const _8: string = rs.fmtFormat([args2[0]]);
+			const _8: rs.String = rs.fmtFormat([args2[0]]);
 			taken.items.push(_8);
 		} else {
 			break;
@@ -2412,31 +2412,31 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			tri = { tag: "Flat" } as Tri.Tri;
 		}
-		const named: Scaled.Scaled<string> = new of$dyns_Tri(tri);
+		const named: Scaled.Scaled<rs.String> = new of$dyns_Tri(tri);
 		const _37: rs.u16 = ((c as rs.u16) << 8) & 0xffff;
-		const _41: string = "s";
+		const _41: rs.String = rs.stringFrom("s");
 		let n: rs.u8 = b;
 		let w: rs.u16 = _37;
-		let s: string = _41;
+		const s: rs.String = _41;
 		narrow.bump$Scaled(rs.place(() => n, (value) => n = value) as rs.Ptr<rs.u8>);
 		wide.bump$Scaled(rs.place(() => w, (value2) => w = value2) as rs.Ptr<rs.u16>);
-		named.bump$Scaled(rs.place(() => s, (value3) => s = value3) as rs.Ptr<string>);
+		named.bump$Scaled(s as rs.Ptr<rs.String>);
 		const _57: rs.u8 = narrow.scale$Scaled(b);
 		const _59: rs.u16 = wide.scale$Scaled(rs.u16Mul(c as rs.u16, 300));
 		const args3: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(a, f)];
-		const _65: string = named.scale$Scaled(rs.fmtFormat([args3[0]]));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_57, f), (f: rs.Formatter) => rs.u16Display(_59, f), (f: rs.Formatter) => rs.fmtPad(f, _65), (f: rs.Formatter) => rs.u8Display(n, f), (f: rs.Formatter) => rs.u16Display(w, f), (f: rs.Formatter) => rs.fmtPad(f, s)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " "]));
-		const _90: string = "ab";
+		const _65: rs.String = named.scale$Scaled(rs.fmtFormat([args3[0]]));
+		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_57, f), (f: rs.Formatter) => rs.u16Display(_59, f), (f: rs.Formatter) => rs.fmtPad(f, _65.v), (f: rs.Formatter) => rs.u8Display(n, f), (f: rs.Formatter) => rs.u16Display(w, f), (f: rs.Formatter) => rs.fmtPad(f, s.v)];
+		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " "]).v);
+		const _90: rs.String = rs.stringFrom("ab");
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(c, f)];
-		const _89: [string, string] = [_90, rs.fmtFormat([args6[0]])];
-		const x: string = _90;
-		const y: string = _89[1];
+		const _89: [rs.String, rs.String] = [_90, rs.fmtFormat([args6[0]])];
+		const x: rs.String = _90;
+		const y: rs.String = _89[1];
 		const _108: rs.u8 = narrow.pick$Scaled(b as rs.Ptr<rs.u8>, c as rs.Ptr<rs.u8>) as rs.u8;
 		const _112: rs.u16 = wide.pick$Scaled((a as rs.u16) as rs.Ptr<rs.u16>, w as rs.Ptr<rs.u16>) as rs.u16;
-		const _118: string = named.pick$Scaled(x as rs.Ptr<string>, y as rs.Ptr<string>) as string;
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_108, f), (f: rs.Formatter) => rs.u16Display(_112, f), (f: rs.Formatter) => rs.fmtPad(f, _118)];
-		put(out, rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " "]));
+		const _118: rs.String = named.pick$Scaled(x as rs.Ptr<rs.String>, y as rs.Ptr<rs.String>) as rs.String;
+		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_108, f), (f: rs.Formatter) => rs.u16Display(_112, f), (f: rs.Formatter) => rs.fmtPad(f, _118.v)];
+		put(out, rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " "]).v);
 		const paired: Paired.Paired<rs.u8> = new of$dyns_Many({ _0: b });
 		const up: Scaled.Scaled<rs.ByteVec> = paired as Scaled.Scaled<rs.ByteVec>;
 		const v: rs.ByteVec = rs.byteSliceToByteVec(rs.byteSliceRange(data, 3));
@@ -2446,7 +2446,7 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _150: [rs.u8, rs.u8] = paired.pair$Paired(c);
 		const _152: rs.ByteVec = up.scale$Scaled(rs.byteSliceToByteVec(rs.byteSliceRange(data, 3)));
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_150[0], f), (f: rs.Formatter) => rs.u8Debug(_150[1], f)], f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_152), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(v), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(picked), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " "]));
+		put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " "]).v);
 		const _164: rs.Arc<Many.Many> = new rs.Arc({ _0: c });
 		const shared: rs.Arc<Paired.Paired<rs.u8>> = new rs.ArcDyn(_164, new of$dyns_Many(_164.value));
 		const up2: rs.Arc<Scaled.Scaled<rs.ByteVec>> = rs.arcClone(shared) as rs.Arc<Scaled.Scaled<rs.ByteVec>>;
@@ -2455,7 +2455,7 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _183: [rs.u8, rs.u8] = shared.value.pair$Paired(b);
 		const _187: rs.usize = up2.strong;
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_183[0], f), (f: rs.Formatter) => rs.u8Debug(_183[1], f)], f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(v2), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_187, f)];
-		put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]));
+		put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " "]).v);
 		const weak2: rs.Weak<Scaled.Scaled<rs.ByteVec>> = new rs.Weak(shared) as rs.Weak<Scaled.Scaled<rs.ByteVec>>;
 		up2[Symbol.dispose]();
 		const scaled: rs.ByteVec | undefined = option_map$00ac22d(rs.weakUpgrade(weak2), (s2: rs.Arc<Scaled.Scaled<rs.ByteVec>>): rs.ByteVec => {
@@ -2467,15 +2467,15 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _217: rs.Arc<Scaled.Scaled<rs.ByteVec>> | undefined = rs.weakUpgrade(weak2);
 		const _215: boolean = _217 === undefined;
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(scaled, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtBool(_215, f)];
-		const _211: string = rs.fmtFormat([args14[0], " ", args14[1], " "]);
+		const _211: rs.String = rs.fmtFormat([args14[0], " ", args14[1], " "]);
 		rs.drop(_217);
-		put(out, _211);
+		put(out, _211.v);
 		const nest: Nest.Nest<rs.u8> = new of$dyns_Leaf({ _0: c });
 		const _236: boolean = (nest.next$Nest() as Nest.Nest<rs.ByteVec> | undefined) === undefined;
 		const _240: rs.u8 = nest.depth$Nest();
 		const _242: rs.u8 = narrow.apply$Scaled(doubled as (a0: rs.Ptr<rs.u8>) => rs.u8, c);
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(_236, f), (f: rs.Formatter) => rs.u8Display(_240, f), (f: rs.Formatter) => rs.u8Display(_242, f)];
-		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]));
+		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]).v);
 		const owned: Source.Source<Noisy.Noisy> = new of$dyns_Drained(new Drained.Drained(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data, 3))), (_2: rs.u8): Noisy.Noisy => {
 			return new Noisy.Noisy(_2, rs.arcClone(log));
 		}), undefined, 8, true)));
@@ -2483,40 +2483,40 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _268: rs.usize = owned.left$Source();
 		const _271: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_268, f), (f: rs.Formatter) => rs.fmtOption(first, f, (value: Noisy.Noisy, f: rs.Formatter) => Noisy.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_271.value), f, rs.u8Debug)];
-		const _264: string = rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]);
+		const _264: rs.String = rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]);
 		rs.refRelease(_271);
-		put(out, _264);
+		put(out, _264.v);
 		rs.drop(first);
 		const _290: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_290.value), f, rs.u8Debug)];
-		const _286: string = rs.fmtFormat([args20[0], " "]);
+		const _286: rs.String = rs.fmtFormat([args20[0], " "]);
 		rs.refRelease(_290);
-		put(out, _286);
+		put(out, _286.v);
 		if (rs.u8Rem(a, 2) === 0) {
 			rs.drop(owned.take$Source());
 		}
 		rs.drop(owned);
 		const _311: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
 		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_311.value), f, rs.u8Debug)];
-		const _307: string = rs.fmtFormat([args22[0], " "]);
+		const _307: rs.String = rs.fmtFormat([args22[0], " "]);
 		rs.refRelease(_311);
-		put(out, _307);
+		put(out, _307.v);
 		const steps: Steps.Steps = { _0: rs.u8Rem(a, 6) as rs.u32, _1: b as rs.u32 };
 		const counted: Counted.Counted = new of$dyns_Steps(steps);
 		const next: rs.u32 | undefined = counted.take$Source();
 		const _334: rs.usize = counted.left$Source();
 		const _337: rs.u32 = counted.total$Counted();
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(next, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_334, f), (f: rs.Formatter) => rs.u32Display(_337, f)];
-		put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2], " "]));
-		const _354: string = taken$u32(counted as Source.Source<rs.u32>);
-		const _358: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, _354);
+		put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2], " "]).v);
+		const _354: rs.String = taken$u32(counted as Source.Source<rs.u32>);
+		const _358: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, _354.v);
 		const arg = steps._1;
 		const args26: rs.Fmt[] = [_358, (f: rs.Formatter) => rs.u32Display(arg, f)];
-		put(out, rs.fmtFormat([args26[0], " ", args26[1], " "]));
+		put(out, rs.fmtFormat([args26[0], " ", args26[1], " "]).v);
 		let left: rs.u8 = rs.u8Rem(c, 5);
-		const _372: string = taken$String(new ofPlace$u8(rs.place(() => left, (value4) => left = value4)));
-		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _372), (f: rs.Formatter) => rs.u8Display(left, f)];
-		put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]));
+		const _372: rs.String = taken$String(new ofPlace$u8(rs.place(() => left, (value3) => left = value3)));
+		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _372.v), (f: rs.Formatter) => rs.u8Display(left, f)];
+		put(out, rs.fmtFormat([args28[0], " ", args28[1], " "]).v);
 		const tasks: rs.Vec<Task.Task<undefined>> = rs.vecFrom([new of$dyns_Steps({ _0: 1, _1: a as rs.u32 })]);
 		const square: Task.Task<rs.u32> = new of$dyns_Square({ side: c as rs.u16 });
 		tasks.items[rs.idx(tasks.items, 0)].run$Task();
@@ -2525,11 +2525,11 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}));
 		const _408: rs.u32 = square.run$Task();
 		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(ran, f), (f: rs.Formatter) => rs.u32Display(_408, f)];
-		put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]));
-		const over: Over.Over<string> = new Over.Over(new of$dyns_Tri(copy$dyns_Tri(tri)), new of$u8(rs.u8Rem(a, 4)));
-		const runs: rs.Vec<string> = new rs.Vec();
+		put(out, rs.fmtFormat([args30[0], " ", args30[1], " "]).v);
+		const over: Over.Over<rs.String> = new Over.Over(new of$dyns_Tri(copy$dyns_Tri(tri)), new of$u8(rs.u8Rem(a, 4)));
+		const runs: rs.Vec<rs.String> = new rs.Vec();
 		while (true) {
-			const _425: string | undefined = Over.run$String(over);
+			const _425: rs.String | undefined = Over.run$String(over);
 			if (_425 !== undefined) {
 				runs.items.push(_425);
 			} else {
@@ -2537,8 +2537,8 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		}
 		const _439: rs.usize = over.source.left$Source();
-		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(runs.items, f, rs.fmtStr), (f: rs.Formatter) => rs.usizeDisplay(_439, f)];
-		put(out, rs.fmtFormat([args32[0], " ", args32[1]]));
+		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(runs.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.usizeDisplay(_439, f)];
+		put(out, rs.fmtFormat([args32[0], " ", args32[1]]).v);
 		over[Symbol.dispose]();
 		rs.drop(square);
 		rs.dropVec(tasks);

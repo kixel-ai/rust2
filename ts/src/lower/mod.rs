@@ -211,11 +211,6 @@ pub struct Translator<'a, 'tcx> {
 	census: bool,
 	/// Refusals collected until translation settles, then reported or counted.
 	refusals: Option<Vec<(Span, String)>>,
-	/// Reads of a `Bytes`' capacity, refused once translation settles if `string_bytes`, as
-	/// [`Self::string_capacity`] notes them.
-	capacity_reads: Vec<(Span, String)>,
-	/// Whether a crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes, whose capacity JS keeps none of.
-	string_bytes: bool,
 	/// Whether each type's drop does something JS can see, as [`Self::drops`] found.
 	drops: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
 	/// The types [`Self::drops`] is still deciding, and whether the query open now read one.
@@ -443,7 +438,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				&& t.comparing.is_subset(&t.compared)
 				&& (t.hooked || !t.hooking)
 			{
-				t.refuse_capacity_reads();
 				return Some((t, out));
 			}
 			read = std::mem::take(&mut t.read);
@@ -501,8 +495,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			env: TypingEnv::fully_monomorphized(),
 			census,
 			refusals: Some(Vec::new()),
-			capacity_reads: Vec::new(),
-			string_bytes: false,
 			drops: Default::default(),
 			drops_open: Default::default(),
 			drops_cycle: false,
@@ -655,32 +647,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		match self.site {
 			Some((site, def_id)) => (site, format!("{msg}, in `{}`", self.tcx.def_path_str(def_id))),
 			None => (span, msg),
-		}
-	}
-
-	/// Note a `Bytes` or a `Vec<u8>` made of a `String`'s bytes, whose capacity JS keeps none
-	/// of, so every crate is refused what [`Self::string_capacity`] notes: the bytes may
-	/// reach any of them.
-	pub fn string_bytes(&mut self) {
-		self.string_bytes = true;
-	}
-
-	/// Note `what`, which reads the capacity of a `Bytes`' storage, refused once translation
-	/// settles if any crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes.
-	pub fn string_capacity(&mut self, span: Span, what: &str) {
-		let msg = format!(
-			"`{what}` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported"
-		);
-		let read = self.sited(span, msg);
-		self.capacity_reads.push(read);
-	}
-
-	fn refuse_capacity_reads(&mut self) {
-		let reads = std::mem::take(&mut self.capacity_reads);
-		if self.string_bytes {
-			for (span, msg) in reads {
-				self.refuse(span, msg);
-			}
 		}
 	}
 
@@ -1338,6 +1304,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(..) if let Some(slice) = stock::uninit_slice(self.tcx, ty) => self.object_kind(slice),
 			ty::Adt(adt, args) => match library::Std::of(self.tcx, adt.did()) {
 				Some(library::Std::Vec) => Some(ObjectKind::Vec),
+				// Its text, length, and capacity, edited in place.
+				Some(library::Std::String) => Some(ObjectKind::Class),
 				Some(
 					library::Std::Formatter
 					| library::Std::DebugStruct
@@ -1699,7 +1667,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					true => Type::Rs("ByteVec", vec![]),
 					false => Type::Rs("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
-				library::Std::String => Type::Builtin("string"),
+				library::Std::String => Type::Rs("String", vec![]),
 				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rs("StrCow", vec![]),
 				library::Std::Cow if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, args)) => {
 					match elem.kind() {

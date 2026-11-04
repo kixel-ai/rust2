@@ -2,19 +2,19 @@
 
 import * as rs from "../../rs.ts";
 
-export function withBorrow$03hv9ge(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>, f: (a0: rs.Arc<rs.LazyCell<string>> | undefined) => string): string {
+export function withBorrow$15t368r(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>>, f: (a0: rs.Arc<rs.LazyCell<rs.String>> | undefined) => rs.String): rs.String {
 	const captured = f;
-	return ((cell: rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>): string => {
-		const _32: (a0: rs.Arc<rs.LazyCell<string>> | undefined) => string = captured;
-		const _7: rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined> = rs.refCellBorrow(cell);
-		const _02: string = _32(_7.value);
+	return ((cell: rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>): rs.String => {
+		const _32: (a0: rs.Arc<rs.LazyCell<rs.String>> | undefined) => rs.String = captured;
+		const _7: rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined> = rs.refCellBorrow(cell);
+		const _02: rs.String = _32(_7.value);
 		rs.refRelease(_7);
 		return _02;
 	})(self.get());
 }
 
-export function take$1ni7uux(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>>): rs.Arc<rs.LazyCell<string>> | undefined {
-	return ((a0: rs.RefCell<rs.Arc<rs.LazyCell<string>> | undefined>): rs.Arc<rs.LazyCell<string>> | undefined => {
+export function take$1o1xmz7(self: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>>): rs.Arc<rs.LazyCell<rs.String>> | undefined {
+	return ((a0: rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>): rs.Arc<rs.LazyCell<rs.String>> | undefined => {
 		return rs.refCellReplace(a0, undefined);
 	})(self.get());
 }

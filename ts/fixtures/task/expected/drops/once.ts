@@ -20,7 +20,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _17: rs.Result<undefined, Guard.Guard> = rs.onceSet(cell, _19);
 		const part13 = _17.ok;
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part13, f)];
-		const _11: string = rs.fmtFormat(["set ", args2[0]]);
+		const _11: rs.String = rs.fmtFormat(["set ", args2[0]]);
 		lib_drop$Result_unit_model_Guard(_17);
 		Log.note(log, _11);
 		const _28: Guard.Guard = guard(2);
@@ -113,7 +113,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _198: Guard.Guard | undefined = rs.onceTake(cell3);
 		const part9 = _198 === undefined;
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part9, f)];
-		const _192: string = rs.fmtFormat(["empty ", args18[0]]);
+		const _192: rs.String = rs.fmtFormat(["empty ", args18[0]]);
 		rs.drop(_198);
 		Log.note(log, _192);
 		const _206: Guard.Guard = guard(22);
@@ -170,14 +170,14 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _315: rs.Result<undefined, Guard.Guard | undefined> = rs.onceSet(cell5, undefined as Guard.Guard | undefined, rs.None);
 		const part = _315.ok;
 		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part, f)];
-		const _309: string = rs.fmtFormat(["none ", args26[0]]);
+		const _309: rs.String = rs.fmtFormat(["none ", args26[0]]);
 		lib_drop$Result_unit_Option_model_Guard(_315);
 		Log.note(log, _309);
 		const _332: Guard.Guard | undefined = guard(71);
 		const _330: rs.Result<undefined, Guard.Guard | undefined> = rs.onceSet(cell5, _332, rs.None);
 		const part2 = !_330.ok;
 		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part2, f)];
-		const _324: string = rs.fmtFormat(["full ", args28[0]]);
+		const _324: rs.String = rs.fmtFormat(["full ", args28[0]]);
 		lib_drop$Result_unit_Option_model_Guard(_330);
 		Log.note(log, _324);
 		const unit: rs.OnceLock<undefined, rs.None> = new rs.OnceLock(rs.None);

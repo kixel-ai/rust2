@@ -16,7 +16,7 @@ export function fmt$fmt_Debug(self: Named, f: rs.Formatter): rs.Result<undefined
 }
 
 export function default$Default(): Named {
-	return { name: "", id: 0 };
+	return { name: rs.stringNew(), id: 0 };
 }
 
 export function eq$cmp_PartialEq(self: Named, other: Named): boolean {
@@ -64,12 +64,12 @@ function new_(s: string, id: rs.u8): Named {
 
 /** Through `to_mut` of the field. */
 export function tag(self: Named, c: rs.char): void {
-	self.name = rs.strCowStr(self.name);
-	self.name = self.name + String.fromCodePoint(c);
+	self.name = rs.strCowIntoOwned(self.name);
+	rs.stringPush(self.name as rs.String, c);
 }
 
 export function intoOwned(self: Named): Named {
-	return { name: rs.strCowStr(self.name), id: self.id };
+	return { name: rs.strCowIntoOwned(self.name), id: self.id };
 }
 
 export { new_ as new };

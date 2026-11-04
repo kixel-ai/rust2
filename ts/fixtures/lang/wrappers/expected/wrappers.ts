@@ -461,7 +461,7 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.byteVecPush(out, d);
 			rs.byteVecPush(out, i2 & 0xff);
 		}
-		put(out, "held");
+		put(out, rs.stringFrom("held").v);
 	} else if (_21 === 3) {
 		const n: rs.u64 | undefined = rs.nonZero(a);
 		if (n === undefined) {
@@ -473,7 +473,7 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			const _519: rs.u64 = option_unwrapOr$15hbiwd(rs.nonZero(b), n2);
 			const _516: boolean = rs.u64Eq(n2, _519);
 			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(n2, f), (f: rs.Formatter) => rs.u64Debug(n2, f), (f: rs.Formatter) => rs.fmtBool(_516, f)];
-			put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]));
+			put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]).v);
 			rs.byteVecPush(out, rs.u64Gt(n2, { _0: 1 }._0) ? 1 : 0);
 			rs.byteVecPush(out, rs.cmp(n2, { _0: 1000 }._0) & 0xff);
 		}

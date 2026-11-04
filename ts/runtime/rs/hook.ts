@@ -1,7 +1,8 @@
 // `std::panic`'s hook, for rust2-ts output: only a program that sets one reaches this
 // module, so a bundler drops all of it from one that doesn't. `rs.ts` re-exports all of it.
 
-import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtWriteString, Panic, panic } from "../rs.ts";
+import { type String as RsString, stringFrom } from "./str.ts";
+import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtFormatText, Panic, panic } from "../rs.ts";
 import { fmtLocationDisplay, type Location } from "./location.ts";
 import { drop } from "./task.ts";
 
@@ -49,7 +50,7 @@ function run(message: string | Arguments | undefined, at: Location | string | un
 	if (location === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${literal ?? "a formatted message"}`);
 	hooking = true;
 	try {
-		const text = typeof message === "object" ? fmtWriteString("", message).s : message;
+		const text = typeof message === "object" ? fmtFormatText(message) : message;
 		hook({ text, owned: owned ?? literal === undefined, payload, location });
 		return text;
 	} finally {
@@ -97,8 +98,9 @@ export function panicAny(payload: object, at?: Location): never {
  * `PanicHookInfo::payload`: what `panic_any` was given, or else the text, as a `str` or a
  * `String` object, whose classes translation makes.
  */
-export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: string) => object): object {
-	return info.payload ?? new (info.owned ? string : str)(info.text ?? "");
+export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: RsString) => object): object {
+	if (info.payload !== undefined) return info.payload;
+	return info.owned ? new string(stringFrom(info.text ?? "")) : new str(info.text ?? "");
 }
 
 /** `PanicHookInfo`'s `Display`: where it panicked, then any text, as the default hook's first lines. */
