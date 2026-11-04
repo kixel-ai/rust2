@@ -2885,7 +2885,9 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 			Expr::rt("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
 		}
 		ty::Adt(..) if let Some(inner) = overflowing_of(b, ty) => cmp_fn(b, inner, partial, span),
-		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rt("cowBy", vec![cmp_fn(b, borrowed, partial, span)]),
+		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => {
+			Expr::rt("cowBy", vec![cmp_fn(b, borrowed, partial, span)])
+		}
 		_ if let Some(elem) = elements_of(b, ty) => Expr::rt("cmpSlice", vec![cmp_fn(b, elem, partial, span)]),
 		// A deque's is its iterator's, which compares each item by its own impls, as a slice's does.
 		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rt("cmpDeque", vec![cmp_fn(b, item, partial, span)]),

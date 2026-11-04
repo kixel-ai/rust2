@@ -1557,7 +1557,11 @@ fn mapping<'tcx>(
 			// its text.
 			if cow_str(tcx, to) && string(tcx, from.peel_refs()) {
 				let owned = rustc_abi::VariantIdx::from_u32((!targ(gargs, 1).is_ref()).into());
-				return Some(cow_made(tcx.types.str_, owned, b.t.pointee_value(targ(gargs, 1), value)));
+				return Some(cow_made(
+					tcx.types.str_,
+					owned,
+					b.t.pointee_value(targ(gargs, 1), value),
+				));
 			}
 			if string(tcx, to) && cow_str(tcx, from) {
 				return Some(text(tcx, from, value));
@@ -1579,7 +1583,11 @@ fn mapping<'tcx>(
 					true => vec_view(value, elem),
 					false => value,
 				};
-				return Some(cow_made(Ty::new_slice(tcx, elem), rustc_abi::VariantIdx::from_u32(owned.into()), value));
+				return Some(cow_made(
+					Ty::new_slice(tcx, elem),
+					rustc_abi::VariantIdx::from_u32(owned.into()),
+					value,
+				));
 			}
 			if let Some(elem) = cow_slice(tcx, from)
 				&& b.t.std_of(to) == Some(Std::Vec)
@@ -2684,9 +2692,10 @@ fn mapping<'tcx>(
 		("String", "from_utf8_lossy") => Expr::rt("stringFromUtf8Lossy", args),
 		// UTF-8 by their contract, which the lossy decoder reads as the text.
 		("converts" | "str", "from_utf8_unchecked") => Expr::rt("strFromUtf8Unchecked", args),
-		("String", "from_utf8_unchecked") => {
-			Expr::rt("strFromUtf8Unchecked", vec![Expr::rt("byteVecSlice", vec![args.pop()?])])
-		}
+		("String", "from_utf8_unchecked") => Expr::rt(
+			"strFromUtf8Unchecked",
+			vec![Expr::rt("byteVecSlice", vec![args.pop()?])],
+		),
 		("FromUtf8Error", "as_bytes") => Expr::rt("byteVecSlice", vec![args.pop()?.member("bytes")]),
 		("FromUtf8Error", "into_bytes") => args.pop()?.member("bytes"),
 		("FromUtf8Error", "utf8_error") => args.pop()?.member("error"),

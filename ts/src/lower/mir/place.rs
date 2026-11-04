@@ -628,7 +628,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				// Cast to its variant's class: what an `rt.Borrowed` wraps, or what it owns.
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
-					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(|e| matches!(e.kind(), ty::Uint(ty::UintTy::U8)));
+					let bytes = crate::lower::library::cow_slice(tcx, ty)
+						.is_some_and(|e| matches!(e.kind(), ty::Uint(ty::UintTy::U8)));
 					let owned = variant.is_some_and(|v| v.index() == 1);
 					let held = match borrowed.kind() {
 						ty::Slice(elem) => crate::ts::Type::Array(Box::new(self.b.t.ty(*elem, span))),
