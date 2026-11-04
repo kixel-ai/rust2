@@ -170,6 +170,8 @@ pub struct Translator<'tcx> {
 	allocs: HashMap<rustc_middle::mir::interpret::AllocId, ((u64, u64, Ty<'tcx>), String)>,
 	/// Each type's parts, if Go holds it split.
 	splits: HashMap<Ty<'tcx>, Option<std::rc::Rc<split::Split<'tcx>>>>,
+	/// The types whose parts are being found.
+	splitting: Vec<Ty<'tcx>>,
 	/// Each refusal reported, so a construct met again at the same place is reported once.
 	reported: HashSet<(Span, String)>,
 	failed: bool,
@@ -203,6 +205,7 @@ impl<'tcx> Translator<'tcx> {
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
 			splits: HashMap::new(),
+			splitting: Vec::new(),
 			reported: HashSet::new(),
 			failed: false,
 		}

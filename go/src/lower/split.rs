@@ -28,7 +28,8 @@ pub struct Split<'tcx> {
 }
 
 pub struct Part<'tcx> {
-	/// Its variable's suffix: `tag`, `Ok_F0`.
+	/// Its variable's suffix: `tag`, or its variant's and field's indices, `v1_0`, which no
+	/// two parts share as two names joined could.
 	pub name: String,
 	/// Its selector in the whole value: `.tag`, `.Ok.F0`.
 	pub path: String,
@@ -89,7 +90,20 @@ impl<'tcx> Translator<'tcx> {
 		if let Some(split) = self.splits.get(&ty) {
 			return split.clone();
 		}
+		// A part's Go type reaching the enum again, as `fn(E) -> E` held in `E`, would be
+		// a Go function type holding itself, which only a named type can.
+		if self.splitting.contains(&ty) {
+			self.err(
+				span,
+				format!(
+					"`{ty}`, an enum held as its parts that a function pointer in it takes or returns, is not supported"
+				),
+			);
+			return None;
+		}
+		self.splitting.push(ty);
 		let split = self.find_split(ty, span).map(Rc::new);
+		self.splitting.pop();
 		self.splits.insert(ty, split.clone());
 		split
 	}
@@ -122,7 +136,7 @@ impl<'tcx> Translator<'tcx> {
 				let fty = self.field_of(field, args);
 				let name = names::field(field.name.as_str(), f.as_usize());
 				parts.push(Part {
-					name: format!("{label}_{name}"),
+					name: format!("v{}_{}", v.as_usize(), f.as_usize()),
 					path: format!(".{label}.{name}"),
 					label: label.clone(),
 					field_name: name,

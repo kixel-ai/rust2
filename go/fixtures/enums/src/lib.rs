@@ -53,6 +53,30 @@ fn overwrite(b: Big, r: &mut Big) -> u64 {
 	sum(b)
 }
 
+/// Fields whose names joined to their variants' are one: `A_B` and `c`, `A` and `B_c`.
+#[allow(non_camel_case_types, non_snake_case, reason = "the names that collide")]
+enum Joined {
+	A_B { c: Five },
+	A { B_c: u64 },
+}
+
+fn joined(x: u8) -> Joined {
+	match x % 2 {
+		0 => Joined::A { B_c: x as u64 },
+		_ => Joined::A_B {
+			c: (1, 2, 3, 4, x as u64),
+		},
+	}
+}
+
+#[inline(never)]
+fn unjoined(j: Joined) -> u64 {
+	match j {
+		Joined::A_B { c } => c.0 + c.4,
+		Joined::A { B_c } => B_c * 3,
+	}
+}
+
 /// Builds its result through a reference to it.
 fn filled(x: u8) -> Big {
 	let mut r = Big::Narrow(0);
@@ -154,7 +178,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 			let t = overwrite(*r, r);
 			put_five(&mut out, (s, sum(b), t, sum(c), 0));
 		}
-		2 => put_five(&mut out, (sum(filled(x)), 0, 0, 0, 0)),
+		2 => put_five(&mut out, (sum(filled(x)), unjoined(joined(y)), 0, 0, 0)),
 		3 => {
 			let mut b = wide(x);
 			for _ in 0..y % 7 {
