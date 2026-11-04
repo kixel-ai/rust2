@@ -11,7 +11,7 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 
 - Pull the latest origin changes before working.
 - Dig into the root cause and fix it at the source. Never work around a fixable bug with a retry, sleep, or timeout, nor pass a flaky test by loosening its assertion.
-- Fail loud and early. An unsupported construct or malformed input is an error with a source span, never a warning or a silent fallback.
+- Fail loud and early. An unsupported construct or malformed input is a compile error with a source span, never a warning, a silent fallback, or a runtime failure. Generated code panics only where the Rust source does.
 - Generated output must match the source's semantics exactly: integer widths and overflow, drop order, laziness, and error paths. Prove it with differential tests against native Rust, not by inspection.
 - Reproduce bugs before fixing them. Tests must be worth their weight long-term: cover edge cases, not old bugs or trivial values.
 - Keep the PR to one problem: no unrelated refactors, formatting churn, or drive-by changes. Fix every instance of that problem in the same PR.
