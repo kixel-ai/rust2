@@ -3,6 +3,7 @@
 
 use std::cell::Cell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use bytes::buf::UninitSlice;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -908,6 +909,131 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 		}
 	};
 	out.extend_from_slice(format!("{part:?} {bytes:?} {} {}", part.is_unique(), bytes.is_unique()).as_bytes());
+}
+
+/// An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it drops.
+struct Logged {
+	data: Arc<Vec<u8>>,
+	tag: u8,
+	log: Arc<Mutex<Vec<u8>>>,
+}
+
+impl AsRef<[u8]> for Logged {
+	fn as_ref(&self) -> &[u8] {
+		&self.data
+	}
+}
+
+impl Drop for Logged {
+	fn drop(&mut self) {
+		self.log.lock().unwrap().push(self.tag);
+	}
+}
+
+/// Handles of two owners' `Bytes` cloned, sliced, split, truncated, taken back, put, and
+/// dropped, each op logged after it: an owner drops with the last handle of its bytes, in
+/// the order the handles drop, and a handle of one is never unique, so taking it back copies.
+pub fn owners(data: &[u8], out: &mut Vec<u8>) {
+	let [cut, ops @ ..] = data else {
+		return;
+	};
+	let (ops, input) = ops.split_at(ops.len() / 2);
+	let log = Arc::new(Mutex::new(Vec::new()));
+	let owner = |tag, data: &[u8]| {
+		Bytes::from_owner(Logged {
+			data: Arc::new(data.to_vec()),
+			tag,
+			log: log.clone(),
+		})
+	};
+	let (a, b) = input.split_at(*cut as usize % (input.len() + 1));
+	let mut handles = vec![owner(0xf0, a), owner(0xf1, b)];
+	for &op in ops {
+		let i = usize::from(op >> 4) % handles.len().max(1);
+		if handles.is_empty() {
+			handles.push(owner(0xf2, input));
+		}
+		let at = usize::from(op >> 4) % (handles[i].len() + 1);
+		let noted = match op % 16 {
+			0 => {
+				let clone = handles[i].clone();
+				handles.push(clone);
+				None
+			}
+			1 => {
+				let part = handles[i].slice(at..);
+				handles.push(part);
+				None
+			}
+			2 => {
+				let part = handles[i].split_to(at);
+				handles.push(part);
+				None
+			}
+			3 => {
+				let part = handles[i].split_off(at);
+				handles.push(part);
+				None
+			}
+			4 => {
+				handles[i].truncate(at);
+				None
+			}
+			5 => {
+				handles[i].clear();
+				None
+			}
+			6 => Some(handles[i].is_unique() as u8),
+			7 => match handles.remove(i).try_into_mut() {
+				Ok(taken) => {
+					handles.push(taken.freeze());
+					Some(1)
+				}
+				Err(back) => {
+					handles.insert(i, back);
+					Some(0)
+				}
+			},
+			8 => Some(Vec::from(handles.remove(i)).len() as u8),
+			9 => Some(BytesMut::from(handles.remove(i)).len() as u8),
+			10 => {
+				drop(handles.remove(i));
+				None
+			}
+			11 => {
+				handles[i].advance(at);
+				None
+			}
+			12 => {
+				let part = handles[i].copy_to_bytes(at);
+				handles.push(part);
+				None
+			}
+			13 => {
+				let sub = &handles[i][at..];
+				let part = handles[i].slice_ref(sub);
+				handles.push(part);
+				None
+			}
+			14 => {
+				let mut buf = BytesMut::new();
+				buf.put(handles.remove(i));
+				Some(buf.len() as u8)
+			}
+			_ => {
+				handles[i] = Bytes::new();
+				None
+			}
+		};
+		let mut log = log.lock().unwrap();
+		log.push(op);
+		log.extend(noted);
+	}
+	for handle in &handles {
+		out.extend_from_slice(format!("{handle:?}").as_bytes());
+	}
+	drop(handles);
+	out.extend_from_slice(&log.lock().unwrap());
 }
 
 /// `Chain`s of buffers of each kind, nested, and as and of `dyn Buf`s: `copy_to_bytes` of a

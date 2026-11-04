@@ -44,7 +44,7 @@ export type Bytes = ByteSlice;
 
 /**
  * The storage handles share once one was split or frozen, or a `Bytes` was made of a
- * vector: the vector, and how many live handles hold it.
+ * vector or an owner: the vector or the owner's bytes, and how many live handles hold it.
  */
 export class Shared {
 	/** The vector's allocation, as long as its capacity. */
@@ -56,26 +56,37 @@ export class Shared {
 	 * `BytesMut` taking it makes a vector of its own again.
 	 */
 	readonly original: number | undefined;
+	/**
+	 * What drops the owner `Bytes::from_owner` took, once no handle holds it, or `undefined`
+	 * for a vector. A `Bytes` of an owner is never unique, as `bytes`' is not.
+	 */
+	readonly owner: (() => void) | undefined;
 
-	constructor(data: Uint8Array, original: number | undefined) {
+	constructor(data: Uint8Array, original: number | undefined, owner?: () => void) {
 		this.data = data;
 		this.original = original;
+		this.owner = owner;
 	}
 }
 
 /** Whether `b` is the one handle of its storage, as `Bytes::is_unique` says. */
 export function bytesIsUnique(b: Bytes): boolean {
-	return b instanceof CountedBytes && b.shared.refs === 1;
+	return b instanceof CountedBytes && b.shared.refs === 1 && b.shared.owner === undefined;
 }
 
-/** A `Bytes` of the bytes `s` lends, which counts no storage, as `from_static` and `from_owner` make. */
+/** A `Bytes` of the bytes `s` lends, which counts no storage, as `from_static` makes, and `from_owner` of an owner that drops nothing. */
 export function bytesStatic(s: ByteSlice): Bytes {
 	return s instanceof CountedBytes ? new ByteSlice(s.data, s.start, s.length) : s;
 }
 
-/** Drop a `Bytes`, which counts its storage down. */
+/** `Bytes::from_owner` of `owner`, whose bytes are `s`, which `drop` drops with the last handle of them. */
+export function bytesFromOwner<T>(owner: T, s: ByteSlice, drop: (owner: T) => void): Bytes {
+	return new CountedBytes(s.data, s.start, s.length, new Shared(s.data, undefined, () => drop(owner)), false);
+}
+
+/** Drop a `Bytes`, which counts its storage down, dropping its owner with the last handle. */
 export function bytesDrop(b: Bytes): void {
-	if (b instanceof CountedBytes) b.shared.refs--;
+	if (b instanceof CountedBytes && --b.shared.refs === 0 && b.shared.owner !== undefined) b.shared.owner();
 }
 
 /** `Bytes::clone`: the same bytes, counted once more, which is never promotable. */

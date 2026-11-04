@@ -10,7 +10,6 @@ roots = [
     "bound_ranges",
     "buffers::blank_bytes",
     "buffers::capacity_reads",
-    "buffers::owned_bytes",
     "buffers::shared",
     "buffers::spare",
     "buffers::string_bytes",

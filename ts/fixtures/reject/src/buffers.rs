@@ -5,11 +5,6 @@ pub fn shared(b: std::sync::Arc<[u8; 2]>) -> std::sync::Arc<[u8]> {
 	b
 }
 
-/// An owner that drops, which would drop with the last clone of the `Bytes`.
-pub fn owned_bytes(owner: std::sync::Arc<[u8]>) -> usize {
-	bytes::Bytes::from_owner(owner).len()
-}
-
 /// A buffer of the crate's own that JS copies, so `&mut` to it is an `rs.Place`, which the
 /// provided `copy_to_bytes` doesn't read through.
 pub enum Blank {

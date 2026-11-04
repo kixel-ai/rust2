@@ -704,8 +704,9 @@ of them:
   `Vec<u8>`, and `put` of a `Buf` but a `BytesMut` or a slice into a `BytesMut`. `slice_ref` of
   bytes from other storage throws, since Rust may share what JS copied, as a `&'static
   str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
-  reads its owner's bytes once, as `bytes` does, and is refused for an owner that drops,
-  which would drop with the last clone of what it makes.
+  reads its owner's bytes once, as `bytes` does, and an owner that drops is kept in the
+  `rs.Shared` they count, which drops it with the last `Bytes` sharing them; one of an owner
+  is never unique, so taking it back copies.
 - `bytes::BytesMut` is an `rs.BytesMut`: a vector of its own, or a window of storage that
   the handles `split_to`, `split_off`, and `split` make and the `Bytes` that `freeze`
   makes share without overlapping, as `bytes`' do. Its constructors, `len`, `is_empty`,

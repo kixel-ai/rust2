@@ -60,7 +60,6 @@ there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 - [Writes through a crate's DerefMut](/quest/m2/ts-model/guard-writes.md) - `*guard = value` through kio's lock guards
 - [Iterators into a crate's own collections](/quest/m2/ts-model/from-iterator.md) - `collect`, `flat_map`, and `flatten` through moq-pattern's `Patterns`
 - [std's impls through a reference](/quest/m2/ts-model/reference-impls.md) - `<&[u8] as AsRef<[u8]>>::as_ref`
-- [Bytes from an owner that drops](/quest/m2/ts-model/bytes-owner.md) - `Bytes::from_owner` of a frame's segment
 - [rangemap](/quest/m2/ts-model/rangemap.md) - B-tree ranges by a borrowed key, and std's iterators in a crate's fields
 - [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
 
