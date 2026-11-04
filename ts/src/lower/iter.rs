@@ -1763,8 +1763,16 @@ fn clones<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<
 		| [
 			"str",
 			"iter",
-			"Chars" | "CharIndices" | "Bytes" | "Lines" | "SplitWhitespace" | "EncodeUtf16" | "EscapeUnicode"
-			| "EscapeDebug" | "EscapeDefault",
+			"Chars"
+			| "CharIndices"
+			| "Bytes"
+			| "Lines"
+			| "SplitWhitespace"
+			| "SplitAsciiWhitespace"
+			| "EncodeUtf16"
+			| "EscapeUnicode"
+			| "EscapeDebug"
+			| "EscapeDefault",
 		]
 		| ["ascii", "EscapeDefault"]
 		| ["slice", "ascii", "EscapeAscii"]
