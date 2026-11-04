@@ -2249,4 +2249,17 @@ pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 		unsafe { Rc::decrement_strong_count(&*rc) };
 	}
 	out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&rc) as u8, *rc as u8]);
+	// A pointer remade from a reference borrowed through another reference, which the body
+	// points elsewhere after: still at the value it borrowed.
+	let (first, second) = (Shelf(Arc::new(1)), Shelf(Arc::new(2)));
+	let mut shelf = &first;
+	let value = &*shelf.0;
+	if data.first().is_some_and(|b| b % 2 == 0) {
+		shelf = &second;
+	}
+	let p = ptr::from_ref(value);
+	out.extend([unsafe { *p } as u8, *shelf.0 as u8]);
 }
+
+/// What holds an `Arc` a reference to it borrows through.
+struct Shelf(Arc<u32>);

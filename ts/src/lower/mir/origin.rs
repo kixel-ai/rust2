@@ -375,15 +375,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				self.tcx.mk_place_deref(mir::Place::from(r))
 			}
 		};
-		// Only through references and boxes, which the borrow keeps where they are.
-		let stays = place.iter_projections().all(|(base, elem)| match elem {
-			ProjectionElem::Field(..) => true,
-			ProjectionElem::Deref => {
-				let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
-				ty.is_ref() || ty.is_box()
-			}
-			_ => false,
-		});
+		// Only through boxes, which the borrow keeps where they are, and a reference in a
+		// variable the body never points elsewhere, as it may one the borrow went through.
+		let fixed = match self.is_arg(place.local) {
+			true => self.defs[place.local] == 0,
+			false => self.defs[place.local] == 1,
+		};
+		let stays = place
+			.iter_projections()
+			.enumerate()
+			.all(|(i, (base, elem))| match elem {
+				ProjectionElem::Field(..) => true,
+				ProjectionElem::Deref => {
+					let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
+					ty.is_box() || (i == 0 && fixed && ty.is_ref())
+				}
+				_ => false,
+			});
 		stays.then_some((place, owner))
 	}
 
