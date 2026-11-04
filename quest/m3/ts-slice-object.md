@@ -11,8 +11,8 @@
   whole write.
 - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate, writing the byte
   through the slice where the caller holds it.
-- Pointers to a `[T]` of values JS copies, and to its elements and other places of such
-  values, compare where they point, as pointers to a `[T; N]` do.
+- Pointers to a `[T]` of values JS copies compare where they point, as pointers to a
+  `[T; N]` do.
 
 Each is proven by differential tests against native Rust.
 
@@ -31,17 +31,11 @@ A slice of one over a `&mut u8` was found fragile when it meant a one-byte buffe
 local; an `rs.ByteSlice` whose storage can be an `rs.Place` may avoid that. Measure what
 each form costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
 
-✅ Decided with the maintainer on 2026-11-04: a pointer comparison the translator can't
-answer statically is refused at translation, never a runtime error. Pointers to arrays
-compare as slices; JS may make two `rs.Place`s for one place, such as two borrows of a
-variable, so comparing those stays refused.
-
-Element-place comparison waits for a consumer, then lands as a slower form, possibly
-opt-in, that makes one place per variable: each element `&mut` an `rs.AtIndex` of its
-array, and each local that a compared pointer may point at held in one `rs.Place` for its
-life, so pointers to it compare by identity. Measure what that costs a hot loop before
-choosing between always and opt-in. An `rs.RawSlice` then compares by its first element's
-place and its length.
+✅ Decided with the maintainer on 2026-11-04: generated code fails at run time only where
+Rust panics, so a pointer comparison the translator can't answer exactly is refused at
+translation with a span. Pointers to arrays compare as slices; comparing pointers to
+elements and other places of values JS copies, which JS may make two `rs.Place`s for,
+stays refused, and its exact path is planned with the other runtime throws.
 
 Public API: the translator's output and what a hand-written caller passes for a slice of
 arrays.
