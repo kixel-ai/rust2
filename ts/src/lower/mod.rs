@@ -1388,7 +1388,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
 				// A place, unless a pointer to what it holds is that object.
 				Some(library::Std::MaybeUninit | library::Std::ManuallyDrop) => match self.pointee(args.type_at(0)) {
-					pointer::Pointee::Object | pointer::Pointee::Bytes => self.object_kind(args.type_at(0)),
+					pointer::Pointee::Object | pointer::Pointee::Array => self.object_kind(args.type_at(0)),
 					pointer::Pointee::Place | pointer::Pointee::Slice => None,
 				},
 				Some(_) => None,
@@ -1527,7 +1527,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Type::Rs("Place", vec![self.ty(*inner, span)])
 			}
 			ty::RawPtr(inner, _) => self.pointer_ty(*inner, span),
-			ty::Ref(..) if bytes_ref(ty) => Type::Rs("ByteSlice", vec![]),
+			ty::Ref(..) if let Some(elem) = array_ref(ty) => match byte(elem) {
+				true => Type::Rs("ByteSlice", vec![]),
+				false if self.open_elem(elem) => Type::Rs("SliceOf", vec![self.ty(elem, span)]),
+				false => Type::Rs("Slice", vec![self.ty(elem, span)]),
+			},
 			ty::Ref(_, inner, _) => self.ty(*inner, span),
 			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rs("ArrayOf", vec![self.ty(*elem, span)]),
 			ty::Slice(elem) if self.open_elem(*elem) => Type::Rs("SliceOf", vec![self.ty(*elem, span)]),
@@ -2283,6 +2287,26 @@ pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 /// `&[u8]` is: a split's chunk is then no view.
 pub fn bytes_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(..)) && byte_array(ty.peel_refs())
+}
+
+/// The runtime's function `name` of the slice a reference to `ty`, a `[T; N]`, is:
+/// `byteSlice{name}` of bytes, and else `slice{name}`.
+pub fn array_fn(ty: Ty<'_>, name: &str) -> ts::Expr {
+	let prefix = match byte_array(ty) {
+		true => "byteSlice",
+		false => "slice",
+	};
+	ts::Expr::Rs(format!("{prefix}{name}"))
+}
+
+/// The element of the `[T; N]` that `ty` is a reference to, if it is one: an `rs.Slice` of
+/// its elements, as a `&[T]` is, or an `rs.ByteSlice` of bytes, so a part a slice lends as
+/// an array is read and written where the slice holds it.
+pub fn array_ref(ty: Ty<'_>) -> Option<Ty<'_>> {
+	match (ty.kind(), ty.peel_refs().kind()) {
+		(ty::Ref(..), ty::Array(elem, _)) => Some(*elem),
+		_ => None,
+	}
 }
 
 /// `snake_case` to `camelCase`, keeping leading underscores.

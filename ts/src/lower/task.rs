@@ -496,7 +496,7 @@ fn atomic<'tcx>(
 		Expr::rs("atomicFetch", args)
 	};
 	// A pointer compares as `ptr::eq` does only where it is the object it points at, or
-	// a slice of the bytes it points at, which `rs.byteSliceSame` compares.
+	// a slice of the array it points at, which `rs.sliceSame` compares.
 	let generics = tcx.generics_of(imp).count();
 	let atomic = tcx
 		.type_of(imp)
@@ -521,12 +521,14 @@ fn atomic<'tcx>(
 			format!("comparing pointers to `{pointee}` in an atomic, which JS has no address of"),
 		)));
 	}
-	let bytes = pointee.is_some_and(|p| b.t.pointee(p) == crate::lower::pointer::Pointee::Bytes);
+	let same = pointee
+		.filter(|&p| b.t.pointee(p) == crate::lower::pointer::Pointee::Array)
+		.map(|p| b.t.array_rs(p, "Same"));
 	// A compare-exchange, given what compares a wide integer, whose limbs `===` can't, or
-	// pointers to bytes.
+	// pointers to arrays.
 	let exchange = |f: &str, mut args: Vec<Expr>| {
 		args.extend(int.filter(|int| int.big()).map(|int| int.func("eq")));
-		args.extend(bytes.then(|| Expr::Rs("byteSliceSame".into())));
+		args.extend(same.clone());
 		Expr::rs(f, args)
 	};
 	let e = match name {

@@ -546,10 +546,10 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		let Some(instance) = own_method(b, ty, tr, name) else {
 			continue;
 		};
-		// The closure is given a reference to each item, which std lends a `[u8; N]` to as
+		// The closure is given a reference to each item, which std lends a `[T; N]` to as
 		// the array, where the crate's is a slice of it.
 		if matches!(*name, "find" | "rfind" | "is_sorted_by")
-			&& let Some(item) = item.filter(|&item| super::byte_array(item))
+			&& let Some(item) = item.filter(|&item| item.is_array())
 		{
 			b.t.err(
 				span,
@@ -867,11 +867,11 @@ fn result_places(place: Expr) -> Expr {
 }
 
 /// `iter`, over the elements of a slice or `Vec` of `elem`s or the payload of an `Option`
-/// or a `Result`, yielding references to them: a slice of each array of bytes.
+/// or a `Result`, yielding references to them: a slice of each array.
 pub(super) fn by_ref(iter: Expr, elem: Ty<'_>) -> Expr {
-	match super::byte_array(elem) {
-		true => Expr::rs("iterLend", vec![iter, Expr::Rs("byteSliceFrom".into())]),
-		false => iter,
+	match elem.kind() {
+		ty::Array(..) => Expr::rs("iterLend", vec![iter, super::array_fn(elem, "From")]),
+		_ => iter,
 	}
 }
 
@@ -1490,7 +1490,7 @@ pub fn call<'tcx>(
 				// Each item through its `Clone`.
 				_ if !copies => Some(clone(b)?),
 				// Out of the slice each item is.
-				_ if super::byte_array(*inner) => Some(Expr::Rs("byteSliceToArray".into())),
+				_ if inner.is_array() => Some(b.t.array_copy_fn(*inner, span)),
 				_ => b.t.copy_fn(*inner, span),
 			};
 			// std's `copied` skips through its iterator's `nth`, and `cloned` by its own `next`.
@@ -1604,7 +1604,7 @@ pub(super) fn size_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span
 /// Whether `copied` of an iterator of `&inner`s is that iterator itself, as JS reads an
 /// `inner` as its value already.
 pub(super) fn copies_itself<'tcx>(t: &Translator<'_, 'tcx>, inner: Ty<'tcx>) -> bool {
-	!super::byte_array(inner) && !t.needs_copy(inner)
+	!inner.is_array() && !t.needs_copy(inner)
 }
 
 /// Whether an iterator of type `ty` is a `FusedIterator`, which std's `fuse` and `flatten`

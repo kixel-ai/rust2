@@ -2996,7 +2996,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		_ if let Some(pointee) = raw_pointee(tcx, ty) => match b.t.incomparable(pointee) {
 			Some(why) => b.err(span, why),
-			None if b.t.pointee(pointee) == super::pointer::Pointee::Bytes => Expr::Rs("byteSliceSame".into()),
+			None if b.t.pointee(pointee) == super::pointer::Pointee::Array => b.t.array_rs(pointee, "Same"),
 			None => Expr::Rs("same".into()),
 		},
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => match eq_fn(b, inner, span) {

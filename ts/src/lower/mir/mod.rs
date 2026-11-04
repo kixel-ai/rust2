@@ -1093,10 +1093,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// A borrow: borrow checking keeps the place as it is but through the borrow,
 			// unless the path to it goes through a reference held in a field or element,
 			// which can be replaced while the borrow lives.
-			// A borrow of bytes not yet in a slice makes one, and one of a `MaybeUninit` of
-			// bytes in a slice a view of them.
+			// A borrow of an array not yet in a slice makes one, and one of a `MaybeUninit` of
+			// an array in a slice the array of its elements.
 			(ty::Ref(..), Rvalue::Ref(_, _, place))
-				if crate::lower::byte_array(place.ty(&mir.local_decls, self.tcx).ty) != self.in_bytes(*place) =>
+				if place.ty(&mir.local_decls, self.tcx).ty.is_array() != self.in_array(*place) =>
 			{
 				false
 			}
@@ -2544,7 +2544,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			match self.slots[local] {
 				Slot::Alias(_) => {
 					let target = match rvalue {
-						Rvalue::Ref(_, kind, p) => match self.mut_subslice(*kind, *p, span, out) {
+						Rvalue::Ref(_, kind, p) => match self.array_subslice(*kind, *p, span, out) {
 							// One view, however many times it is read.
 							Some(e) => self.path(e, "view", out),
 							None => match self.reborrowed(*kind, *p, span, out) {

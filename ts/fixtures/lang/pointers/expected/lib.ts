@@ -43,10 +43,6 @@ export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
 
-export function copy$array_unit(v: undefined[]): undefined[] {
-	return v.slice();
-}
-
 export function copy$mem_MaybeUninit_array_u32(v: rs.u32[]): rs.u32[] {
 	if (v === undefined) {
 		return v;
@@ -73,7 +69,7 @@ export function copy$pointers_Aimed_Cell_u8(v: Aimed.Aimed<rs.Cell<rs.u8>>): Aim
 }
 
 export function copy$pointers_Aimed_array2_u16(v: Aimed.Aimed<rs.u16[]>): Aimed.Aimed<rs.u16[]> {
-	return { at: v.at as rs.u16[], seen: v.seen as rs.u16[], held: v.held as rs.u16[], maybe: v.maybe as rs.u16[] | undefined, tagged: copy$tuple2_mutPtr_array2_u16_u8(v.tagged as [rs.u16[], rs.u8]), to: v.to, read: (v.read as (a0: rs.u16[]) => rs.u8) as (a0: rs.Ptr<rs.u16[]>) => rs.u8 };
+	return { at: v.at as rs.Slice<rs.u16>, seen: v.seen as rs.Slice<rs.u16>, held: v.held as rs.Slice<rs.u16>, maybe: v.maybe as rs.Slice<rs.u16> | undefined, tagged: copy$tuple2_mutPtr_array2_u16_u8(v.tagged as [rs.Slice<rs.u16>, rs.u8]), to: v.to, read: (v.read as (a0: rs.Slice<rs.u16>) => rs.u8) as (a0: rs.Ptr<rs.u16[]>) => rs.u8 };
 }
 
 export function copy$pointers_Aimed_array4_u8(v: Aimed.Aimed<Uint8Array>): Aimed.Aimed<Uint8Array> {
@@ -144,7 +140,7 @@ export function copy$tuple2_mutPtr_Cell_u8_u8(v: [rs.Place<rs.Cell<rs.u8>>, rs.u
 	return [v[0], v[1]];
 }
 
-export function copy$tuple2_mutPtr_array2_u16_u8(v: [rs.u16[], rs.u8]): [rs.u16[], rs.u8] {
+export function copy$tuple2_mutPtr_array2_u16_u8(v: [rs.Slice<rs.u16>, rs.u8]): [rs.Slice<rs.u16>, rs.u8] {
 	return [v[0], v[1]];
 }
 
