@@ -73,7 +73,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		// Only a cast types memory from `alloc`, which has no bytes before or after.
-		if crate::lower::byte(pointee)
+		if matches!(pointee.kind(), ty::Uint(ty::UintTy::U8))
 			&& matches!(owner.as_str(), "ptr" | "NonNull" | "raw")
 			&& !matches!(name.as_str(), "cast" | "as_ptr" | "new" | "new_unchecked" | "is_null")
 			&& args.iter().any(|a| self.allocated(&a.node))
