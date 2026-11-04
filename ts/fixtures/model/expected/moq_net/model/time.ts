@@ -2,7 +2,7 @@
 
 import * as rs from "../../rs.ts";
 import type * as Timescale from "../../moq_net/model/time.Timescale.ts";
-import * as time_Timestamp from "../../moq_net/model/time.Timestamp.ts";
+import * as Timestamp from "../../moq_net/model/time.Timestamp.ts";
 
 export function bounded(value: rs.u128, max: rs.u64): rs.u64 | undefined {
 	if (!rs.u128Le(value, rs.u128Cast(max))) {
@@ -19,9 +19,9 @@ export function from$convert_From_moq_net_Timescale_num_NonZero_u64(scale: Times
 	return scale._0;
 }
 
-export function from$convert_From_moq_net_Timestamp_time_Duration(time: time_Timestamp.Timestamp): rs.Duration {
-	const nanos: rs.u128 = time_Timestamp.asNanos(time);
-	return rs.durationNew(time_Timestamp.asSecs(time), rs.u128Low(rs.u128Rem(nanos, 1000000000)));
+export function from$convert_From_moq_net_Timestamp_time_Duration(time: Timestamp.Timestamp): rs.Duration {
+	const nanos: rs.u128 = Timestamp.asNanos(time);
+	return rs.durationNew(Timestamp.asSecs(time), rs.u128Low(rs.u128Rem(nanos, 1000000000)));
 }
 
 //# sourceMappingURL=time.ts.map
