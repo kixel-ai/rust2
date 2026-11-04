@@ -2,12 +2,16 @@
 name = "model-fixture"
 description = "A harness over moq-net's model at the moq revision `just ts moq` translates"
 version = "0.0.0"
-edition.workspace = true
-license.workspace = true
+edition = "2024"
+license = "MIT OR Apache-2.0"
 publish = false
 
 [package.metadata.cargo-shear]
 ignored = ["uuid"]
+
+# Its own workspace and lockfile, so the moq checkout it builds stays out of the
+# rust2-ts package's inputs.
+[workspace]
 
 [lib]
 # The cdylib is the native side of the differential test, built for wasm32.
@@ -23,5 +27,7 @@ moq-net = { git = "https://github.com/moq-dev/moq", rev = "4b8e37bd44e407b3416a1
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 uuid = { version = "1.29.0", features = ["rng-getrandom"] }
 
-[lints]
-workspace = true
+# The ts workspace's differential profile, which the tests build the native side with.
+[profile.differential]
+inherits = "dev"
+opt-level = 1

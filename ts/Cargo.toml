@@ -22,7 +22,6 @@ members = [
     "fixtures/crates",
     # A fixture per module of the language, beside what they share.
     "fixtures/lang/*",
-    "fixtures/model",
     "fixtures/names",
     "fixtures/reject",
     "fixtures/share",

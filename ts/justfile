@@ -8,6 +8,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
+# The model fixture, its own workspace, which builds moq-net at the moq pin.
+model := "fixtures/model/Cargo.toml"
+
 # The moq revision `moq` and `census` translate by default: the one the model fixture builds.
 moq_rev := `taplo get -f fixtures/model/Cargo.toml dependencies.moq-net.rev`
 
@@ -17,9 +20,13 @@ default:
 # Lint and format-check the driver, its fixtures, and the bench.
 check:
     cargo clippy --locked --all-targets -- -D warnings
+    cargo clippy --locked --all-targets --manifest-path {{ model }} -- -D warnings
     cargo fmt --all --check
+    cargo fmt --check --manifest-path {{ model }}
     cargo shear
+    cargo shear fixtures/model
     cargo sort --workspace --check --no-format
+    cargo sort --check --no-format fixtures/model
     tsc -p runtime
     # The bench against moq's TypeScript at the pin, so a pin that drops what it uses fails here.
     just moq-pin
@@ -33,9 +40,13 @@ test *args:
 # Apply formatters without changing program behavior.
 fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
+    cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ model }}
     cargo fmt --all
+    cargo fmt --manifest-path {{ model }}
     cargo shear --fix
+    cargo shear --fix fixtures/model
     cargo sort --workspace --no-format
+    cargo sort --no-format fixtures/model
 
 # Run the driver: `just ts run --config <ts.toml> --out <dir>`.
 run *args:
