@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 
 // Drops
@@ -336,6 +336,20 @@ export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
 	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
 	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
 	return arc as Arc<T>;
+}
+
+/**
+ * `p as *const ()`, as `ptrErase` casts it, of a pointer to a value JS copies: the place
+ * of an `Arc`'s or `Rc`'s value that `into_raw` or `as_ptr` gave, or arithmetic moved back
+ * to, which is its one place as its address is, or one at no memory. Any other place is a
+ * borrow's own, which no other pointer to the value would compare as, so it fails.
+ */
+export function arcErase(p: object, type: string, align: number): Place<undefined> {
+	const home = ptrHome(p);
+	if (!RAW_ARCS.has(home) && !RAW_RCS.has(home) && !ptrNowhere(home)) {
+		throw new Error(`rust2-ts: a pointer to \`${type}\` cast to one to \`()\`, which only an \`Arc\`'s or \`Rc\`'s raw pointer keeps the place of`);
+	}
+	return ptrErase(home, type, align);
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */

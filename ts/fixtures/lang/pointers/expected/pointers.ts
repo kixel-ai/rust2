@@ -2693,4 +2693,129 @@ export function rawArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	num[Symbol.dispose]();
 }
 
+/** A waker's data, an `Arc<AtomicBool>`'s raw pointer, which waking sets. */
+export function flagClone(data: rt.Place<undefined>): rt.RawWaker {
+	rt.arcClone(rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc"));
+	undefined;
+	return { data, vtable: FLAG };
+}
+
+export function flagWake(data: rt.Place<undefined>): void {
+	const _5: rt.Arc<rt.Atomic<boolean>> = rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc");
+	rt.atomicStore(_5.value, true, 4);
+	_5[Symbol.dispose]();
+}
+
+export function flagWakeByRef(data: rt.Place<undefined>): void {
+	rt.atomicStore((rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>).v, true, 4);
+}
+
+export function flagDrop(data: rt.Place<undefined>): void {
+	rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc")[Symbol.dispose]();
+}
+
+export const FLAG: rt.WakerVTable = /* @__PURE__ */ rt.wakerVTable(flagClone, flagWake as (a0: rt.Place<undefined>) => undefined, flagWakeByRef as (a0: rt.Place<undefined>) => undefined, flagDrop as (a0: rt.Place<undefined>) => undefined);
+
+/** A waker that sets `flag`, holding a count of it. */
+export function flagWaker(flag: rt.Arc<rt.Atomic<boolean>>): rt.Waker {
+	const arc = rt.arcClone(flag);
+	return rt.wakerFromRaw({ data: rt.arcErase(rt.arcRaw(arc, rt.arcPlace(arc), "Arc"), "std::sync::atomic::Atomic<bool>", 1), vtable: FLAG });
+}
+
+/** `p`, a pointer this body doesn't show the source of, erased. */
+export function eraseFlag(p: rt.Place<rt.Atomic<boolean>>): rt.Place<undefined> {
+	return rt.arcErase(p, "std::sync::atomic::Atomic<bool>", 1);
+}
+
+/**
+ * The raw pointers of `Arc`s and `Rc`s of values JS copies: a number's remade from a
+ * shared reference to its value, counted up and down, cloned, and taken back through it,
+ * and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
+ * vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives.
+ */
+export function rawPlaces(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const num: rt.Arc<rt.u32> = new rt.Arc(data.length as rt.u32);
+	const rc: rt.Arc<rt.u16> = new rt.Arc(9);
+	const flag: rt.Arc<rt.Atomic<boolean>> = new rt.Arc(new rt.Atomic(false));
+	const wakers: rt.Waker[] = [flagWaker(flag)];
+	for (const byte of rt.byteSliceView(data)) {
+		const numAt: rt.Place<rt.u32> = rt.arcRaw(num, rt.arcPlace(num), "Arc");
+		const rcAt: rt.Place<rt.u16> = rt.arcRaw(rc, rt.arcPlace(rc), "Rc");
+		b2: {
+			const _26: rt.u8 = rt.u8Rem(byte, 8);
+			if (_26 === 0) {
+				rt.arcClone(rt.arcFromRaw(numAt, "Arc"));
+				break b2;
+			}
+			if (_26 === 1) {
+				if (num.strong > 1) {
+					rt.arcFromRaw(numAt, "Arc")[Symbol.dispose]();
+					break b2;
+				}
+			} else {
+				if (_26 === 2) {
+					rt.arcClone(rt.arcFromRaw(rcAt, "Rc"));
+					break b2;
+				}
+				if (_26 === 3) {
+					if (rc.strong > 1) {
+						rt.arcFromRaw(rcAt, "Rc")[Symbol.dispose]();
+						break b2;
+					}
+				} else {
+					if (_26 === 4) {
+						rt.arcClone(rt.arcFromRaw(rt.arcRaw(num, rt.arcPlace(num), "Arc"), "Arc"));
+						break b2;
+					}
+					if (_26 === 5) {
+						const _47: rt.Waker = wakers[rt.idx(wakers, rt.usizeRem(byte as rt.usize, wakers.length))].clone();
+						wakers.push(_47);
+						break b2;
+					}
+					if (_26 === 6) {
+						if (wakers.length > 1) {
+							rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.length))[Symbol.dispose]();
+							break b2;
+						}
+					}
+				}
+			}
+			rt.atomicStore(flag.value, false, 4);
+			if ((byte & 8) === 0) {
+				wakers[rt.idx(wakers, 0)].wakeByRef();
+			} else {
+				rt.optionUnwrap(wakers.pop()).wake();
+			}
+			if (wakers.length === 0) {
+				const _80: rt.Waker = flagWaker(flag);
+				wakers.push(_80);
+			}
+		}
+		const taken2: rt.Arc<rt.u32> = rt.arcFromRaw(rt.arcRaw(num, rt.arcPlace(num), "Arc"), "Arc");
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(num.strong & 0xff, taken2 === num ? 1 : 0, rc.strong & 0xff, flag.strong & 0xff, rt.atomicLoad(flag.value, 4) ? 1 : 0)), undefined, true);
+		const arc = num;
+		const _111: boolean = rt.arcErase(numAt, "u32", 4) === rt.arcErase(rt.arcRaw(arc, rt.arcPlace(arc), "Arc"), "u32", 4);
+		const _117: rt.Place<undefined> = rt.arcErase(rcAt, "u16", 2);
+		const arc2 = rc;
+		const _116: boolean = _117 === rt.arcErase(rt.arcRaw(arc2, rt.arcPlace(arc2), "Rc"), "u16", 2);
+		const arc3 = flag;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_111, _116, eraseFlag(rt.arcRaw(arc3, rt.arcPlace(arc3), "Arc")) === wakers[rt.idx(wakers, 0)].data as rt.Place<undefined>, rt.arcErase(rt.arcRaw(flag, rt.arcPlace(flag), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers[rt.idx(wakers, 0)].data as rt.Place<undefined>], (a0: boolean): rt.u8 => {
+			return a0 ? 1 : 0;
+		})), undefined, true);
+	}
+	rt.dropAll(wakers);
+	rt.byteVecPush(out, flag.strong & 0xff);
+	while (num.strong > 1) {
+		const arc4 = num;
+		rt.arcFromRaw(rt.arcRaw(arc4, rt.arcPlace(arc4), "Arc"), "Arc")[Symbol.dispose]();
+	}
+	while (rc.strong > 1) {
+		rt.arcFromRaw(rt.arcRaw(rc, rt.arcPlace(rc), "Rc"), "Rc")[Symbol.dispose]();
+	}
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(num.strong & 0xff, rc.strong & 0xff, rc.value & 0xff)), undefined, true);
+	flag[Symbol.dispose]();
+	rc[Symbol.dispose]();
+	num[Symbol.dispose]();
+}
+
 //# sourceMappingURL=pointers.ts.map

@@ -506,6 +506,13 @@ pub fn erased_empty() -> *const () {
 	(&raw const unit).cast()
 }
 
+/// Pointers to values JS copies that no `Arc` holds, cast to ones to `()`, which would be
+/// a new identity each borrow, beside one to an `Arc`'s value, which is its one place.
+pub fn erased_borrows(n: &u32, c: &std::cell::UnsafeCell<u32>, a: &std::sync::Arc<u32>) -> bool {
+	let arc = std::ptr::from_ref(&**a).cast::<()>();
+	std::ptr::from_ref(n) as *const () == arc && c.get().cast_const().cast() == arc
+}
+
 /// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
 pub fn erased_box(b: Box<(u8, u8)>) -> bool {
 	let p = &raw const b;
@@ -520,4 +527,10 @@ pub fn arc_raw_slice(a: std::sync::Arc<[u32]>) -> *const [u32] {
 /// An `Rc` taken back from a raw pointer to bytes, which no `Rc` gave.
 pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
 	unsafe { std::rc::Rc::from_raw(p)[0] }
+}
+
+/// An `Arc` taken back from a pointer remade from a reference to a number no `Arc` the body
+/// shows holds, which JS copies.
+pub fn arc_from_borrow(n: &u32) -> u32 {
+	unsafe { *std::sync::Arc::from_raw(std::ptr::from_ref(n)) }
 }

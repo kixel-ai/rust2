@@ -16,6 +16,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
+use std::task::{RawWaker, RawWakerVTable, Waker};
 
 struct Links<V> {
 	next: NonNull<Node<V>>,
@@ -2152,4 +2153,100 @@ pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
 		out.push(dropped.get());
 	}
 	out.push(dropped.get());
+}
+
+/// A waker's data, an `Arc<AtomicBool>`'s raw pointer, which waking sets.
+unsafe fn flag_clone(data: *const ()) -> RawWaker {
+	unsafe { Arc::increment_strong_count(data.cast::<AtomicBool>()) };
+	RawWaker::new(data, &FLAG)
+}
+
+unsafe fn flag_wake(data: *const ()) {
+	unsafe { Arc::from_raw(data as *const AtomicBool) }.store(true, SeqCst);
+}
+
+unsafe fn flag_wake_by_ref(data: *const ()) {
+	unsafe { &*data.cast::<AtomicBool>() }.store(true, SeqCst);
+}
+
+unsafe fn flag_drop(data: *const ()) {
+	unsafe { Arc::decrement_strong_count(data as *const AtomicBool) };
+}
+
+static FLAG: RawWakerVTable = RawWakerVTable::new(flag_clone, flag_wake, flag_wake_by_ref, flag_drop);
+
+/// A waker that sets `flag`, holding a count of it.
+fn flag_waker(flag: &Arc<AtomicBool>) -> Waker {
+	let data = Arc::into_raw(Arc::clone(flag)) as *const ();
+	unsafe { Waker::from_raw(RawWaker::new(data, &FLAG)) }
+}
+
+/// `p`, a pointer this body doesn't show the source of, erased.
+fn erase_flag(p: *const AtomicBool) -> *const () {
+	p.cast()
+}
+
+/// The raw pointers of `Arc`s and `Rc`s of values JS copies: a number's remade from a
+/// shared reference to its value, counted up and down, cloned, and taken back through it,
+/// and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
+/// vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives.
+pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
+	let num = Arc::new(data.len() as u32);
+	let rc = Rc::new(9u16);
+	let flag = Arc::new(AtomicBool::new(false));
+	let mut wakers = vec![flag_waker(&flag)];
+	for &byte in data {
+		let num_at = ptr::from_ref(&*num);
+		let rc_at = &*rc as *const u16;
+		match byte % 8 {
+			0 => unsafe { Arc::increment_strong_count(num_at) },
+			1 if Arc::strong_count(&num) > 1 => unsafe { Arc::decrement_strong_count(num_at) },
+			2 => unsafe { Rc::increment_strong_count(rc_at) },
+			3 if Rc::strong_count(&rc) > 1 => drop(unsafe { Rc::from_raw(rc_at) }),
+			// A clone of the `Arc` `from_raw` takes back, which the count holds after.
+			4 => {
+				let taken = mem::ManuallyDrop::new(unsafe { Arc::from_raw(NonNull::from(&*num).as_ptr()) });
+				mem::forget(Arc::clone(&taken));
+			}
+			5 => wakers.push(wakers[usize::from(byte) % wakers.len()].clone()),
+			6 if wakers.len() > 1 => drop(wakers.swap_remove(usize::from(byte) % wakers.len())),
+			_ => {
+				flag.store(false, SeqCst);
+				match byte & 8 {
+					0 => wakers[0].wake_by_ref(),
+					_ => wakers.pop().unwrap().wake(),
+				}
+				if wakers.is_empty() {
+					wakers.push(flag_waker(&flag));
+				}
+			}
+		}
+		let taken = mem::ManuallyDrop::new(unsafe { Arc::from_raw(ptr::from_ref(&*num)) });
+		out.extend([
+			Arc::strong_count(&num) as u8,
+			u8::from(Arc::ptr_eq(&taken, &num)),
+			Rc::strong_count(&rc) as u8,
+			Arc::strong_count(&flag) as u8,
+			u8::from(flag.load(SeqCst)),
+		]);
+		// Erased, the pointers compare as `as_ptr`'s, which is the value's one place.
+		out.extend(
+			[
+				num_at as *const () == Arc::as_ptr(&num).cast(),
+				rc_at.cast::<()>() == Rc::as_ptr(&rc) as *const (),
+				erase_flag(Arc::as_ptr(&flag)) == wakers[0].data(),
+				ptr::from_ref(&*flag).cast::<()>() == wakers[0].data(),
+			]
+			.map(u8::from),
+		);
+	}
+	drop(wakers);
+	out.push(Arc::strong_count(&flag) as u8);
+	while Arc::strong_count(&num) > 1 {
+		unsafe { Arc::decrement_strong_count(Arc::as_ptr(&num)) };
+	}
+	while Rc::strong_count(&rc) > 1 {
+		unsafe { Rc::decrement_strong_count(&*rc) };
+	}
+	out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&rc) as u8, *rc as u8]);
 }

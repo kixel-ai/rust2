@@ -909,9 +909,11 @@ pub fn call<'tcx>(
 }
 
 /// Why a pointer to `ty` can't be erased to a `*const ()`, an identity that compares as
-/// itself, if it can't: one JS reaches through a place, or a view of bytes, is a new one
-/// each borrow, and one to a value of no fixed size loses its size.
-fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
+/// itself, if it can't: one JS reaches through a slice's places, or a view of bytes, is a
+/// new one each borrow, and one to a value of no fixed size loses its size. Of a place,
+/// only an `Arc`'s is the value's one, which `rt.arcErase` checks where the body doesn't
+/// show it.
+pub fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
 	if b.t.polymorphic() && ty.has_param() {
 		return None;
 	}
@@ -931,10 +933,16 @@ fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
 				)
 			});
 		}
-		Pointee::Place | Pointee::Slice => "a place",
+		Pointee::Place => return None,
+		Pointee::Slice => "a place",
 		Pointee::Bytes => "a view",
 	};
 	Some(format!("{erase}, whose JS value is {what} of its own each borrow"))
+}
+
+/// Why a borrow's pointer to `ty`, which JS copies, can't be erased to a `*const ()`.
+pub fn erased_place(ty: Ty<'_>) -> String {
+	format!("a pointer to `{ty}` cast to one to `()`, whose JS value is a place of its own each borrow")
 }
 
 /// A part `ty` holds by value at its start, at any depth, which a pointer to is an object
@@ -1012,7 +1020,11 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 		if let Some(why) = unerasable(b, inner) {
 			return b.err(span, why);
 		}
-		return Expr::rt("ptrErase", vec![p, key(inner), align(inner)]);
+		let erase = match b.t.pointee(inner) {
+			Pointee::Place => "arcErase",
+			_ => "ptrErase",
+		};
+		return Expr::rt(erase, vec![p, key(inner), align(inner)]);
 	}
 	if b.t.identity_pointee(inner) {
 		let restored = Expr::rt("ptrUnerase", vec![p, key(into), align(into)]);

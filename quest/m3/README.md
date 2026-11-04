@@ -33,4 +33,3 @@ generic std gap is planned here even when moq never calls it.
 - [Python's wake on the loop's own thread](/quest/m3/ffi-python-wake.md) - a wake on the event loop's thread resumes the future with no socket pair
 - [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook
 - [A string Cow's variant](/quest/m3/ts-cow-str-variant.md) - matching a `Cow<str>`'s `Borrowed` or `Owned`, and `to_mut`'s change of it, translate as std's
-- [An Arc's raw pointer to a value JS copies](/quest/m3/ts-arc-raw-place.md) - `from_raw` of a pointer remade from a reference to an `Arc`'s number, and an `Arc<AtomicBool>`'s raw pointer cast to `*const ()`, translate

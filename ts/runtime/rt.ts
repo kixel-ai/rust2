@@ -267,6 +267,11 @@ class Address implements Place<never> {
 	}
 }
 
+/** Whether `p` points at no memory: null, dangling, or an address arithmetic moved one to. */
+export function ptrNowhere(p: object): boolean {
+	return p === NULL || p === DANGLING || p instanceof Address;
+}
+
 /** Each `Address` by its address, while any pointer holds it, so pointers at one compare as one. */
 const ADDRESSES = /* @__PURE__ */ new Map<number, WeakRef<Address>>();
 
