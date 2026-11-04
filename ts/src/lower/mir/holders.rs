@@ -4,6 +4,9 @@
 //! Std's code given one, as its iterators are, keeps it only in what it returns if it can
 //! run none of the crate's code: each of the crate's types it is given has no drop glue
 //! and meets only bounds that call nothing or that std's own impls, inert in turn, meet.
+//! Its code over a type parameter puts a value of it only where an argument naming that
+//! parameter, or a bound relating the two, gave one, so the part of what it returns that
+//! holds another parameter's values holds none, as a zip's other half does not.
 
 use std::cell::RefCell;
 
@@ -18,14 +21,14 @@ use rustc_middle::mir::{
 	StatementKind, TerminatorKind,
 };
 use rustc_middle::traits::ImplSource;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TypingEnv};
+use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TypeVisitableExt, TypingEnv};
 use rustc_mir_dataflow::impls::MaybeLiveLocals;
 use rustc_mir_dataflow::{Analysis, ResultsCursor};
 use rustc_span::Spanned;
 
 use super::{Fx, own};
 use crate::lower::Translator;
-use crate::lower::copy::field_ty;
+use crate::lower::copy::{field_ty, instantiate};
 use crate::lower::library::Std;
 use crate::lower::pointer::{self, Derives};
 
@@ -48,8 +51,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		let memo = RefCell::default();
-		let held =
-			Trace::new(self.b.t, self.mir, self.b.t.typing_env_pub(), &memo).holders(made.local, Holds::Pointers, true);
+		let held = Trace::new(self.b.t, self.mir, self.b.t.typing_env_pub(), &memo).holders(
+			made.local,
+			Holds::Pointers,
+			true,
+			ty::List::empty(),
+		);
 		held.escapes.is_empty().then_some(held.all)
 	}
 }
@@ -75,14 +82,16 @@ pub(in crate::lower) struct Memo<'tcx> {
 	kept: FxHashMap<(DefId, Vec<Local>, bool), bool>,
 	/// Where each function's result may point: where its parameters do, or at a constant
 	/// or a thread-local; or `None` if anywhere else.
-	returned: FxHashMap<DefId, Option<Vec<Source>>>,
+	returned: FxHashMap<DefId, Option<Vec<Source<'tcx>>>>,
 	/// Whether std's function or impl, given these arguments, is [`Trace::inert`].
 	inert: FxHashMap<(DefId, GenericArgsRef<'tcx>), bool>,
 }
 
 /// The locals that may hold a pointer, and where one may escape them.
-pub(in crate::lower) struct Held {
+pub(in crate::lower) struct Held<'tcx> {
 	pub all: DenseBitSet<Local>,
+	/// What each of `all` holds none of the pointers in, as a [`Mask`].
+	masks: FxHashMap<Local, Mask<'tcx>>,
 	/// Those that may hold a pointer to a part of what one points at, or to anything else
 	/// made of it, rather than only to its whole.
 	pub parts: DenseBitSet<Local>,
@@ -144,12 +153,17 @@ enum Level {
 	Part,
 }
 
+/// Types whose values, wherever what a local holds or reaches has one, hold none of the
+/// pointers followed and reach none of them: where std's code generic over a type
+/// parameter keeps values of it that no argument holding one gave it.
+type Mask<'tcx> = &'tcx ty::List<Ty<'tcx>>;
+
 /// Where a pointer may have come from.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum Source {
+enum Source<'tcx> {
 	/// Memory the call assigning this local, or changing it through a borrow, may have
-	/// allocated, reached only through what the local holds.
-	Fresh(Local),
+	/// allocated, reached only through what the local holds outside the [`Mask`].
+	Fresh(Local, Mask<'tcx>),
 	/// A borrow of this local or a part of it.
 	Local(Local),
 	/// This parameter.
@@ -189,11 +203,13 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// returns given one. Without `loads`, a value read through a pointer that points at no
 	/// holder, as std's `ptr::read` reads one, holds none of them: what the pointer points
 	/// at holds it only once it is put in memory, which is an escape. Only a pointer read
-	/// after counts then, not one into memory a holder reaches.
-	pub fn holders(&self, root: Local, holds: Holds, loads: bool) -> Held {
+	/// after counts then, not one into memory a holder reaches. `root` holds none of them in
+	/// what `mask` names.
+	pub fn holders(&self, root: Local, holds: Holds, loads: bool, mask: Mask<'tcx>) -> Held<'tcx> {
 		let mir = self.mir;
 		let mut held = Held {
 			all: DenseBitSet::new_empty(mir.local_decls.len()),
+			masks: FxHashMap::from_iter([(root, mask)]),
 			parts: DenseBitSet::new_empty(mir.local_decls.len()),
 			elems: DenseBitSet::new_empty(mir.local_decls.len()),
 			value: (holds == Holds::Value).then_some(root),
@@ -232,7 +248,16 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 								}
 								_ => level(rvalue, &held),
 							};
-							match self.held_in(*to, level, &mut held) {
+							// What a value read out of a holder, or a pointer to one, reaches is
+							// what the holder does; a cast reads memory as another type.
+							let mask = match rvalue {
+								Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _)
+								| Rvalue::CopyForDeref(p)
+								| Rvalue::Ref(_, _, p)
+								| Rvalue::RawPtr(_, p) => held.mask(p.local),
+								_ => ty::List::empty(),
+							};
+							match self.held_in(*to, level, mask, &mut held) {
 								Some(new) => grew |= new,
 								None => held.escapes.push(at),
 							}
@@ -274,7 +299,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 							continue;
 						}
 						match self.call(func, args, returned, &given, &held) {
-							Some(level) => match self.held_in(*destination, level, &mut held) {
+							Some((level, mask)) => match self.held_in(*destination, level, mask, &mut held) {
 								Some(new) => grew |= new,
 								None => held.escapes.push(at),
 							},
@@ -306,18 +331,27 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		held
 	}
 
-	/// Whether `to`, given a pointer at `level` of what it points at, newly holds it; `None`
-	/// if that is memory, reached through a pointer. A value of a type parameter, which a
-	/// pointer is only as [`Holds`] tells, holds one only if read as a part.
-	fn held_in(&self, to: Place<'tcx>, level: Level, held: &mut Held) -> Option<bool> {
+	/// Whether `to`, given a pointer at `level` of what it points at, outside what `mask`
+	/// names, newly holds it; `None` if that is memory, reached through a pointer. A value
+	/// of a type parameter, which a pointer is only as [`Holds`] tells, holds one only if
+	/// read as a part.
+	fn held_in(&self, to: Place<'tcx>, level: Level, mask: Mask<'tcx>, held: &mut Held<'tcx>) -> Option<bool> {
 		let ty = to.ty(&self.mir.local_decls, self.t.tcx).ty;
-		if !self.carries(ty) || level != Level::Part && !held.params && !self.shows_pointer(ty) {
+		if !self.carries(ty) || level != Level::Part && !held.params && !self.shows_pointer(ty) || self.masked(ty, mask)
+		{
 			return Some(false);
 		}
 		if !own(to) {
 			return None;
 		}
+		// A local assigned in part may be of a type the mask names.
+		let mask = match to.projection.is_empty() {
+			true if held.all.contains(to.local) => self.meet(held.mask(to.local), mask),
+			true => mask,
+			false => ty::List::empty(),
+		};
 		let mut new = held.all.insert(to.local);
+		new |= held.masks.insert(to.local, mask) != Some(mask);
 		// A local assigned in part holds whatever else it held, too.
 		match level {
 			_ if !to.projection.is_empty() => new |= held.parts.insert(to.local),
@@ -329,16 +363,16 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// What a call of `func` given `args`, of which those at `given` hold pointers, returns
-	/// as a `returned`: a pointer at what level of what one points at; `None` if it may keep
-	/// one anywhere else.
+	/// as a `returned`: a pointer at what level of what one points at, outside what the
+	/// [`Mask`] names; `None` if it may keep one anywhere else.
 	fn call(
 		&self,
 		func: &Operand<'tcx>,
 		args: &[Spanned<Operand<'tcx>>],
 		returned: Ty<'tcx>,
 		given: &[usize],
-		held: &Held,
-	) -> Option<Level> {
+		held: &Held<'tcx>,
+	) -> Option<(Level, Mask<'tcx>)> {
 		if reads_operand(func, &held.all) {
 			return None;
 		}
@@ -354,24 +388,39 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 			if pointer::stores(self.t.tcx, def_id) && given.iter().any(|&i| i > 0) {
 				return None;
 			}
-			return Some(match derives {
+			let level = match derives {
 				Derives::Same if given == [0] => {
 					self.retyped(arg(0), args[0].node.ty(&self.mir.local_decls, self.t.tcx), returned)
 				}
 				_ => Level::Part,
-			});
+			};
+			return Some((level, ty::List::empty()));
 		}
 		if let Some(did) = self.read_fn(def_id, gargs.skip_binder()) {
 			let params = given.iter().map(|&i| Local::from_usize(i + 1)).collect();
 			let loads = held.loads || given.iter().any(|&i| held.behind_arg(&args[i].node));
-			return (!self.keeps(did, params, loads)).then_some(Level::Part);
+			return (!self.keeps(did, params, loads)).then_some((Level::Part, ty::List::empty()));
 		}
 		let tys: Vec<Ty<'tcx>> = given
 			.iter()
 			.map(|&i| args[i].node.ty(&self.mir.local_decls, self.t.tcx))
 			.collect();
-		self.leaves(def_id, gargs.skip_binder(), args, &tys)
-			.then(|| given.iter().map(|&i| arg(i)).fold(Level::Elems, Level::max))
+		self.leaves(def_id, gargs.skip_binder(), args, &tys).then(|| {
+			let masks: Vec<_> = given
+				.iter()
+				.map(|&i| {
+					(
+						i,
+						args[i].node.place().map_or(ty::List::empty(), |p| held.mask(p.local)),
+					)
+				})
+				.collect();
+			let level = given.iter().map(|&i| arg(i)).fold(Level::Elems, Level::max);
+			(
+				level,
+				self.returned_mask(def_id, gargs.skip_binder(), args.len(), &masks),
+			)
+		})
 	}
 
 	/// `level`, of a pointer of type `from` made one of type `to`: a part where it pointed at
@@ -418,17 +467,19 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		// Until found, as for a function that calls itself, it may.
 		self.memo.borrow_mut().kept.insert(key.clone(), true);
 		let callee = self.callee(did);
-		let kept = key
-			.1
-			.iter()
-			.any(|&param| !callee.holders(param, Holds::Any, key.2).escapes.is_empty());
+		let kept = key.1.iter().any(|&param| {
+			!callee
+				.holders(param, Holds::Any, key.2, ty::List::empty())
+				.escapes
+				.is_empty()
+		});
 		self.memo.borrow_mut().kept.insert(key, kept);
 		kept
 	}
 
 	/// Where the crate's function `did`'s result may point: where each [`Source::Param`]
 	/// does, or at a [`Source::Static`]; or `None` if anywhere else.
-	fn returned(&self, did: DefId) -> Option<Vec<Source>> {
+	fn returned(&self, did: DefId) -> Option<Vec<Source<'tcx>>> {
 		if let Some(returned) = self.memo.borrow().returned.get(&did) {
 			return returned.clone();
 		}
@@ -438,7 +489,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				.into_iter()
 				.map(|source| match source {
 					Source::Param(_) | Source::Static => Some(source),
-					Source::Fresh(_) | Source::Local(_) => None,
+					Source::Fresh(..) | Source::Local(_) => None,
 				})
 				.collect()
 		});
@@ -680,8 +731,8 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		};
 		sources.into_iter().all(|source| {
 			let held = match source {
-				Source::Fresh(root) => self.holders(root, Holds::Pointers, true),
-				Source::Local(root) => self.holders(root, Holds::Value, true),
+				Source::Fresh(root, mask) => self.holders(root, Holds::Pointers, true, mask),
+				Source::Local(root) => self.holders(root, Holds::Value, true, ty::List::empty()),
 				Source::Param(_) | Source::Static => return false,
 			};
 			if held.escapes.iter().any(|&escape| self.reaches(escape, at)) {
@@ -697,18 +748,18 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				&& held.elems.iter().all(|local| {
 					Some(local) == made
 						|| !live.contains(local)
-						|| !self.points_inside(self.mir.local_decls[local].ty, ty)
+						|| !self.points_inside(self.mir.local_decls[local].ty, ty, held.mask(local))
 				})
 		})
 	}
 
 	/// Whether a value of `ty` may hold a pointer into a part of a `filled` value, as its
-	/// type tells: to a type a `filled` value holds in place.
-	fn points_inside(&self, ty: Ty<'tcx>, filled: Ty<'tcx>) -> bool {
+	/// type tells: to a type a `filled` value holds in place, outside what `mask` names.
+	fn points_inside(&self, ty: Ty<'tcx>, filled: Ty<'tcx>, mask: Mask<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		let filled = self.peel(filled);
 		let parts = self.inline_parts(filled);
-		self.points_to(ty, |pointee| {
+		self.points_to(ty, mask, |pointee| {
 			pointee != filled
 				&& parts
 					.as_ref()
@@ -717,14 +768,14 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a value of `ty` may hold a pointer, or one behind it, to a value `to` holds
-	/// for, as what it points at is peeled; or one its type doesn't tell. A vector's buffer
-	/// is its own allocation, never a part of another value, so only what its elements hold
-	/// may point at one.
-	fn points_to(&self, ty: Ty<'tcx>, to: impl Fn(Ty<'tcx>) -> bool) -> bool {
+	/// for, as what it points at is peeled, outside what `mask` names; or one its type
+	/// doesn't tell. A vector's buffer is its own allocation, never a part of another value,
+	/// so only what its elements hold may point at one.
+	fn points_to(&self, ty: Ty<'tcx>, mask: Mask<'tcx>, to: impl Fn(Ty<'tcx>) -> bool) -> bool {
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![ty];
 		while let Some(ty) = stack.pop() {
-			if !seen.insert(ty) {
+			if !seen.insert(ty) || self.masked(ty, mask) {
 				continue;
 			}
 			match ty.kind() {
@@ -832,6 +883,305 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		})
 	}
 
+	/// Whether `mask` names `ty`, as storage JS keeps alike.
+	fn masked(&self, ty: Ty<'tcx>, mask: Mask<'tcx>) -> bool {
+		mask.iter().any(|m| self.same(m, ty))
+	}
+
+	/// Whether values of `a` and `b` are kept as the same storage.
+	fn same(&self, a: Ty<'tcx>, b: Ty<'tcx>) -> bool {
+		let tcx = self.t.tcx;
+		storage(tcx, self.peel(a)) == storage(tcx, self.peel(b))
+	}
+
+	/// The [`Mask`] of `tys`.
+	fn mask(&self, tys: impl IntoIterator<Item = Ty<'tcx>>) -> Mask<'tcx> {
+		let tys: FxIndexSet<_> = tys.into_iter().collect();
+		self.t.tcx.mk_type_list_from_iter(tys.into_iter())
+	}
+
+	/// The types both masks name.
+	fn meet(&self, a: Mask<'tcx>, b: Mask<'tcx>) -> Mask<'tcx> {
+		self.mask(a.iter().filter(|t| b.contains(t)))
+	}
+
+	/// `mask`, of a value read out of `place` that may hold the pointers, or with `deep`
+	/// reach them, as of `place`'s local: less the types of what holds the value there, with
+	/// those of what lies beside it but any the value holds, or with `deep` reaches.
+	fn narrowed(&self, place: Place<'tcx>, mask: Mask<'tcx>, deep: bool) -> Mask<'tcx> {
+		let tcx = self.t.tcx;
+		let mut outer = Vec::new();
+		let mut beside = Vec::new();
+		for (base, elem) in place.iter_projections() {
+			let base = base.ty(&self.mir.local_decls, tcx);
+			outer.push(base.ty);
+			match (elem, base.ty.kind()) {
+				(ProjectionElem::Field(field, _), ty::Tuple(tys)) => beside.extend(
+					tys.iter()
+						.enumerate()
+						.filter(|&(i, _)| i != field.index())
+						.map(|(_, t)| t),
+				),
+				(ProjectionElem::Field(field, _), ty::Adt(adt, args)) if !adt.is_union() => {
+					let variant = adt.variant(base.variant_index.unwrap_or(rustc_abi::FIRST_VARIANT));
+					beside.extend(
+						variant
+							.fields
+							.iter_enumerated()
+							.filter(|&(i, _)| i != field)
+							.map(|(_, f)| field_ty(tcx, self.env, f.did, args)),
+					);
+				}
+				(ProjectionElem::Downcast(_, at), ty::Adt(adt, args)) => beside.extend(
+					adt.variants()
+						.iter_enumerated()
+						.filter(|&(i, _)| i != at)
+						.flat_map(|(_, v)| v.fields.iter().map(|f| field_ty(tcx, self.env, f.did, args))),
+				),
+				(
+					ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } | ProjectionElem::Subslice { .. },
+					_,
+				) => {}
+				_ => return ty::List::empty(),
+			}
+		}
+		let value = place.ty(&self.mir.local_decls, tcx).ty;
+		let outer = |m: Ty<'tcx>| outer.iter().any(|&o| self.same(o, m));
+		let held = |m: Ty<'tcx>| self.shows(value, None, |_| false, deep, |t| self.same(t, m));
+		self.mask(
+			mask.iter()
+				.filter(|&m| !outer(m))
+				.chain(beside.into_iter().filter(|&m| !outer(m) && !held(m))),
+		)
+	}
+
+	/// The body a call of std's `def_id` with `args`, given `count` arguments, runs, over its
+	/// own generics; `None` if it takes another count, as a closure's call does.
+	fn generic(&self, def_id: DefId, args: GenericArgsRef<'tcx>, count: usize) -> Option<Generic<'tcx>> {
+		let tcx = self.t.tcx;
+		let instance = Instance::try_resolve(tcx, self.env, def_id, args).ok()??;
+		let ty::InstanceKind::Item(did) = instance.def else {
+			return None;
+		};
+		// As its own bounds normalize it, so that `Self::Item` names what it is made of.
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(did).instantiate_identity().skip_norm_wip());
+		let sig = tcx
+			.try_normalize_erasing_regions(TypingEnv::post_analysis(tcx, did), ty::Unnormalized::new_wip(sig))
+			.unwrap_or(sig);
+		if sig.inputs().len() != count {
+			return None;
+		}
+		let mut generic = Generic {
+			args: instance.args,
+			inputs: sig.inputs(),
+			output: sig.output(),
+			bounds: Vec::new(),
+		};
+		for clause in tcx.clauses_of(did).instantiate_identity(tcx).clauses {
+			let tys: Vec<Ty<'tcx>> = match clause.kind().skip_binder() {
+				ty::ClauseKind::Trait(bound) => bound.trait_ref.args.types().collect(),
+				ty::ClauseKind::Projection(bound) => {
+					bound.projection_term.args.types().chain(bound.term.as_type()).collect()
+				}
+				_ => continue,
+			};
+			let mut named: FxHashSet<u32> = tys.iter().flat_map(|&t| params(t)).collect();
+			if tys
+				.iter()
+				.any(|&t| self.shows(t, Some(&generic), |_| true, true, pointer))
+			{
+				named.insert(OPEN);
+			}
+			if named.len() > 1 {
+				generic.bounds.push(named);
+			}
+		}
+		Some(generic)
+	}
+
+	/// What of the result of a call of std's `def_id` with `args`, given `count` arguments
+	/// of which those at `given` hold the pointers outside what their mask names, holds none
+	/// of them: where it keeps values of type parameters none of those places name.
+	fn returned_mask(
+		&self,
+		def_id: DefId,
+		args: GenericArgsRef<'tcx>,
+		count: usize,
+		given: &[(usize, Mask<'tcx>)],
+	) -> Mask<'tcx> {
+		let Some(g) = self.generic(def_id, args, count) else {
+			return ty::List::empty();
+		};
+		let mut held: FxHashSet<u32> = given
+			.iter()
+			.flat_map(|&(i, mask)| self.named(g.inputs[i], &g, mask))
+			.collect();
+		if given
+			.iter()
+			.any(|&(i, _)| self.shows(g.inputs[i], Some(&g), node, true, pointer))
+		{
+			held.insert(OPEN);
+		}
+		let held = related(&g, held);
+		let from: Vec<_> = given.iter().map(|&(i, _)| g.inputs[i]).collect();
+		let passed = given.iter().map(|&(_, mask)| mask).reduce(|a, b| self.meet(a, b));
+		self.split(
+			g.output,
+			&g,
+			|t| node(t) && params(t).all(|p| !held.contains(&p)),
+			&from,
+			passed.unwrap_or(ty::List::empty()),
+		)
+	}
+
+	/// The arguments of a call of std's `def_id` with `args`, given `count`, that may reach
+	/// the pointers its result, or what the argument `into` points at, holds outside what
+	/// `mask` names, each with what of it holds none of them: those that name a type
+	/// parameter whose values it keeps there. Every argument, whole, where std's own parts
+	/// of it may hold them.
+	fn reached_masks(
+		&self,
+		def_id: DefId,
+		args: GenericArgsRef<'tcx>,
+		count: usize,
+		mask: Mask<'tcx>,
+		into: Option<usize>,
+	) -> Vec<Option<Mask<'tcx>>> {
+		let all = vec![Some(ty::List::empty()); count];
+		let Some(g) = self.generic(def_id, args, count) else {
+			return all;
+		};
+		let made = match into {
+			Some(at) => match g.inputs[at].builtin_deref(true) {
+				Some(pointee) => pointee,
+				None => return all,
+			},
+			None => g.output,
+		};
+		if self.shows(made, Some(&g), node, true, pointer) {
+			return all;
+		}
+		let needed = related(&g, self.named(made, &g, mask));
+		if needed.contains(&OPEN) {
+			return all;
+		}
+		let unneeded = |t: Ty<'tcx>| node(t) && params(t).all(|p| !needed.contains(&p));
+		g.inputs
+			.iter()
+			.map(|&input| {
+				nodes(input)
+					.into_iter()
+					.any(|t| !unneeded(t))
+					.then(|| self.split(input, &g, unneeded, &[made], mask))
+			})
+			.collect()
+	}
+
+	/// What of a value of `ty`, over `g`'s generics, holds none of the pointers: the type,
+	/// as `g`'s arguments make it, of each place of type parameters `cut` names, and each of
+	/// `passed`, which `from` holds none of them in, that the value holds only in the place
+	/// of a type parameter `from` names whole and no bound relates to another. Each where no
+	/// other place the value holds or reaches has a value of it.
+	fn split(
+		&self,
+		ty: Ty<'tcx>,
+		g: &Generic<'tcx>,
+		cut: impl Fn(Ty<'tcx>) -> bool,
+		from: &[Ty<'tcx>],
+		passed: Mask<'tcx>,
+	) -> Mask<'tcx> {
+		let kept = |t: Ty<'tcx>| {
+			matches!(t.kind(), ty::Param(p) if !g.bounds.iter().any(|b| b.contains(&p.index)))
+				&& from.iter().any(|&f| nodes(f).contains(&t))
+		};
+		let cuts = nodes(ty).into_iter().filter(|&t| cut(t)).map(|t| self.at(t, g));
+		let cuts: Vec<_> = cuts
+			.filter(|&m| !self.shows(ty, Some(g), &cut, true, |t| self.same(t, m)))
+			.collect();
+		let passed = passed
+			.iter()
+			.filter(|&m| !self.shows(ty, Some(g), |t| cut(t) || kept(t), true, |t| self.same(t, m)));
+		self.mask(cuts.into_iter().chain(passed))
+	}
+
+	/// The type parameters of `g` whose values a value of `ty`, over its generics, holds in
+	/// a place whose type, as `g`'s arguments make it, `mask` doesn't name.
+	fn named(&self, ty: Ty<'tcx>, g: &Generic<'tcx>, mask: Mask<'tcx>) -> FxHashSet<u32> {
+		nodes(ty)
+			.into_iter()
+			.filter(|&t| !self.masked(self.at(t, g), mask))
+			.flat_map(params)
+			.collect()
+	}
+
+	/// `ty`, over `g`'s generics, as `g`'s arguments make it.
+	fn at(&self, ty: Ty<'tcx>, g: &Generic<'tcx>) -> Ty<'tcx> {
+		instantiate(self.t.tcx, self.env, ty, g.args)
+	}
+
+	/// Whether a value of `ty`, over `generic`'s generics if any, holds, or with `behind`
+	/// reaches, a value whose type, as the call's arguments make it, `found` names, outside
+	/// the places of type parameters `cut` names; or one its type doesn't tell.
+	fn shows(
+		&self,
+		ty: Ty<'tcx>,
+		generic: Option<&Generic<'tcx>>,
+		cut: impl Fn(Ty<'tcx>) -> bool,
+		behind: bool,
+		found: impl Fn(Ty<'tcx>) -> bool,
+	) -> bool {
+		let tcx = self.t.tcx;
+		let mut seen = FxHashSet::default();
+		// Each type, and whether it is over the call's generics rather than the body's.
+		let mut stack = vec![(ty, generic.is_some())];
+		while let Some((ty, over)) = stack.pop() {
+			if !seen.insert((ty, over)) {
+				continue;
+			}
+			let (ty, over) = match generic {
+				Some(g) if over && (node(ty) || !ty.has_param()) => {
+					if node(ty) && cut(ty) {
+						continue;
+					}
+					(self.at(ty, g), false)
+				}
+				_ => (ty, over),
+			};
+			if found(match generic {
+				Some(g) if over => self.at(ty, g),
+				_ => ty,
+			}) {
+				return true;
+			}
+			match ty.kind() {
+				ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => {
+					if behind {
+						stack.push((*pointee, over));
+					}
+				}
+				ty::Adt(adt, args) if over => {
+					stack.extend(
+						adt.all_fields()
+							.map(|f| (tcx.type_of(f.did).instantiate(tcx, args).skip_norm_wip(), true)),
+					);
+				}
+				_ => {
+					if behind
+						&& let ty::Adt(adt, args) = ty.kind()
+						&& crate::lower::library::std_path(tcx, adt.did()) == ["raw_vec", "RawVec"]
+					{
+						stack.extend(args.types().map(|t| (t, false)));
+					}
+					match self.fields(ty) {
+						Some(fields) => stack.extend(fields.into_iter().map(|t| (t, over))),
+						None => return true,
+					}
+				}
+			}
+		}
+		false
+	}
+
 	/// `ty`, or what it holds if JS keeps that as it: a `MaybeUninit`'s or a
 	/// `ManuallyDrop`'s payload.
 	fn peel(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
@@ -883,25 +1233,33 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	/// crate that return where they point, or of std's that run none of the crate's code,
 	/// which may return what their arguments reach, or memory they allocate, and change what
 	/// their mutable borrows of a local hold; `None` if from anywhere else, such as memory.
-	fn origins(&self, local: Local, filled: Option<Ty<'tcx>>) -> Option<FxIndexSet<Source>> {
+	fn origins(&self, local: Local, filled: Option<Ty<'tcx>>) -> Option<FxIndexSet<Source<'tcx>>> {
 		let defs = self.defs();
 		let defs = defs.as_ref().expect("defs are found");
 		let tcx = self.t.tcx;
+		let empty = ty::List::empty();
 		let mut sources = FxIndexSet::default();
 		let mut seen = FxHashSet::default();
-		// Each local, and whether what it points to may hold the pointers too.
-		let mut stack = vec![(local, false)];
-		// The arguments of a call of std's, which may reach the pointers it returns.
-		let reached = |args: &[Spanned<Operand<'tcx>>], stack: &mut Vec<(Local, bool)>| {
-			for arg in args {
-				if self.carries(arg.node.ty(&self.mir.local_decls, tcx)) {
-					stack.push((direct(arg.node.place()?)?, true));
+		// Each local, whether what it points to may hold the pointers too, and what of it
+		// holds none of them.
+		let mut stack = vec![(local, false, empty)];
+		// The arguments of a call of std's, which may reach the pointers it returns, each
+		// outside what its mask names.
+		let reached = |args: &[Spanned<Operand<'tcx>>],
+		               masks: Vec<Option<Mask<'tcx>>>,
+		               stack: &mut Vec<(Local, bool, Mask<'tcx>)>| {
+			for (arg, mask) in args.iter().zip(masks) {
+				if let Some(mask) = mask
+					&& self.carries(arg.node.ty(&self.mir.local_decls, tcx))
+				{
+					stack.push((direct(arg.node.place()?)?, true, mask));
 				}
 			}
 			Some(())
 		};
-		while let Some((local, deep)) = stack.pop() {
-			if !seen.insert((local, deep)) || deep && !self.shows_pointer(self.mir.local_decls[local].ty) {
+		while let Some((local, deep, mask)) = stack.pop() {
+			let ty = self.mir.local_decls[local].ty;
+			if !seen.insert((local, deep, mask)) || deep && !self.shows_pointer(ty) || self.masked(ty, mask) {
 				continue;
 			}
 			if defs[local].other {
@@ -911,10 +1269,17 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				sources.insert(Source::Param(local));
 			}
 			for &lent in &defs[local].lent {
-				for args in self.lent_to(lent)? {
+				for (def_id, gargs, args) in self.lent_to(lent)? {
 					// What std's code puts there may be memory it allocated, as `Vec::push` does.
-					sources.insert(Source::Fresh(local));
-					reached(args, &mut stack)?;
+					sources.insert(Source::Fresh(local, mask));
+					let at = args
+						.iter()
+						.position(|a| a.node.place().and_then(|p| p.as_local()) == Some(lent));
+					reached(
+						args,
+						self.reached_masks(def_id, gargs, args.len(), mask, at),
+						&mut stack,
+					)?;
 				}
 			}
 			for def in &defs[local].whole {
@@ -924,14 +1289,18 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 						| Rvalue::Cast(_, Operand::Constant(_), _)
 						| Rvalue::ThreadLocalRef(_),
 					) => _ = sources.insert(Source::Static),
-					Def::Assign(Rvalue::Use(op, _) | Rvalue::Cast(_, op, _)) => {
-						stack.push((direct(op.place()?)?, deep))
+					Def::Assign(Rvalue::Use(op, _)) => {
+						let place = op.place()?;
+						stack.push((direct(place)?, deep, self.narrowed(place, mask, deep)))
 					}
-					Def::Assign(Rvalue::CopyForDeref(place)) => stack.push((direct(*place)?, deep)),
+					Def::Assign(Rvalue::Cast(_, op, _)) => stack.push((direct(op.place()?)?, deep, empty)),
+					Def::Assign(Rvalue::CopyForDeref(place)) => {
+						stack.push((direct(*place)?, deep, self.narrowed(*place, mask, deep)))
+					}
 					Def::Assign(Rvalue::Ref(_, _, place) | Rvalue::RawPtr(_, place)) => {
 						match place.projection.split_first() {
 							Some((ProjectionElem::Deref, rest)) if !rest.contains(&ProjectionElem::Deref) => {
-								stack.push((place.local, deep))
+								stack.push((place.local, deep, empty))
 							}
 							_ if !place.is_indirect() => {
 								// What a local reaches may point into it only if it can hold one.
@@ -942,7 +1311,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 									sources.insert(Source::Local(place.local));
 								}
 								if deep {
-									stack.push((place.local, true));
+									stack.push((place.local, true, self.narrowed(*place, mask, true)));
 								}
 							}
 							_ => return None,
@@ -954,21 +1323,21 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 							return None;
 						};
 						if pointer::allocates(tcx, def_id) {
-							sources.insert(Source::Fresh(local));
+							sources.insert(Source::Fresh(local, mask));
 						} else if let Some(derives) = pointer::derives(tcx, def_id) {
 							if derives == Derives::Loaded {
 								return None;
 							}
 							for arg in args {
 								if self.carries(arg.node.ty(&self.mir.local_decls, tcx)) {
-									stack.push((direct(arg.node.place()?)?, deep));
+									stack.push((direct(arg.node.place()?)?, deep, empty));
 								}
 							}
 						} else if let Some(did) = self.read_fn(def_id, gargs.skip_binder()) {
 							for source in self.returned(did)? {
 								match source {
 									Source::Param(param) => {
-										stack.push((direct(args[param.as_usize() - 1].node.place()?)?, deep))
+										stack.push((direct(args[param.as_usize() - 1].node.place()?)?, deep, empty))
 									}
 									_ => _ = sources.insert(source),
 								}
@@ -976,8 +1345,9 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 						} else if self.runs_std(def_id, gargs.skip_binder(), args)
 							|| self.repeats(def_id, gargs.skip_binder())
 						{
-							sources.insert(Source::Fresh(local));
-							reached(args, &mut stack)?;
+							sources.insert(Source::Fresh(local, mask));
+							let masks = self.reached_masks(def_id, gargs.skip_binder(), args.len(), mask, None);
+							reached(args, masks, &mut stack)?;
 						} else {
 							return None;
 						}
@@ -988,11 +1358,15 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		Some(sources)
 	}
 
-	/// The arguments of each call `lent`, a mutable borrow of a local, is given to; `None` if
-	/// it is used anywhere else, or given to a call that may run the crate's code or keep it
-	/// where code could change the local through it after: in another argument or in what
+	/// Each call `lent`, a mutable borrow of a local, is given to, with its arguments; `None`
+	/// if it is used anywhere else, or given to a call that may run the crate's code or keep
+	/// it where code could change the local through it after: in another argument or in what
 	/// the call returns.
-	fn lent_to(&self, lent: Local) -> Option<Vec<&'x [Spanned<Operand<'tcx>>]>> {
+	#[allow(
+		clippy::type_complexity,
+		reason = "a call's function, its generic arguments, and its arguments"
+	)]
+	fn lent_to(&self, lent: Local) -> Option<Vec<(DefId, GenericArgsRef<'tcx>, &'x [Spanned<Operand<'tcx>>])>> {
 		let (mir, tcx) = (self.mir, self.t.tcx);
 		let ty = mir.local_decls[lent].ty;
 		let borrowed = ty.builtin_deref(true)?;
@@ -1017,12 +1391,13 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 					let returned = destination.ty(&mir.local_decls, tcx).ty;
 					if pointer::derives(tcx, def_id).is_some()
 						|| !self.leaves(def_id, gargs.skip_binder(), args, &[ty])
-						|| self.points_to(returned, |pointee| self.holds_in_place(pointee, borrowed))
-					{
+						|| self.points_to(returned, ty::List::empty(), |pointee| {
+							self.holds_in_place(pointee, borrowed)
+						}) {
 						return None;
 					}
 					given += n;
-					calls.push(&args[..]);
+					calls.push((def_id, gargs.skip_binder(), &args[..]));
 				}
 			}
 		}
@@ -1125,7 +1500,12 @@ fn level(rvalue: &Rvalue<'_>, held: &Held) -> Level {
 	}
 }
 
-impl Held {
+impl<'tcx> Held<'tcx> {
+	/// What the pointers `local` holds are in none of, as a [`Mask`].
+	fn mask(&self, local: Local) -> Mask<'tcx> {
+		self.masks.get(&local).copied().unwrap_or(ty::List::empty())
+	}
+
 	/// Whether `rvalue`, which reads a holder, only reads a value through one that points at
 	/// no holder, which then holds none of the pointers without `loads`.
 	fn loaded(&self, rvalue: &Rvalue<'_>) -> bool {
@@ -1162,6 +1542,72 @@ impl Held {
 			Level::Whole
 		}
 	}
+}
+
+/// A call of std's code over type parameters, as the body it runs declares it.
+struct Generic<'tcx> {
+	/// The arguments for the body's generics.
+	args: GenericArgsRef<'tcx>,
+	/// Its parameters' types, over its generics.
+	inputs: &'tcx [Ty<'tcx>],
+	/// Its result's type, over its generics.
+	output: Ty<'tcx>,
+	/// The type parameters each of its bounds names, with [`OPEN`] for a type it names that
+	/// shows a pointer, where it names two: code may make a value of one out of another.
+	bounds: Vec<FxHashSet<u32>>,
+}
+
+/// What stands, in [`Generic::bounds`], for a pointer of std's own a bound names.
+const OPEN: u32 = u32::MAX;
+
+/// Whether `ty`, over a call's generics, is the place of a value of its type parameters,
+/// which std's code over them gets only from the places of its arguments that name them,
+/// or from what their bounds give it: a type parameter, or a projection of them.
+fn node(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Param(_)) || matches!(ty.kind(), ty::Alias(..)) && ty.has_param()
+}
+
+/// The places of type parameters `ty` names, as [`node`] finds them, outermost.
+fn nodes(ty: Ty<'_>) -> Vec<Ty<'_>> {
+	let mut nodes = Vec::new();
+	let mut walk = ty.walk();
+	while let Some(arg) = walk.next() {
+		if let Some(t) = arg.as_type()
+			&& node(t)
+		{
+			walk.skip_current_subtree();
+			nodes.push(t);
+		}
+	}
+	nodes
+}
+
+/// The type parameters `ty` names.
+fn params(ty: Ty<'_>) -> impl Iterator<Item = u32> {
+	ty.walk().filter_map(|arg| match arg.as_type()?.kind() {
+		ty::Param(p) => Some(p.index),
+		_ => None,
+	})
+}
+
+/// `named`, with each type parameter a bound of `g` relates to one of them.
+fn related(g: &Generic<'_>, mut named: FxHashSet<u32>) -> FxHashSet<u32> {
+	loop {
+		let before = named.len();
+		for bound in &g.bounds {
+			if bound.iter().any(|p| named.contains(p)) {
+				named.extend(bound);
+			}
+		}
+		if named.len() == before {
+			return named;
+		}
+	}
+}
+
+/// Whether `ty` is a pointer itself.
+fn pointer(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Ref(..) | ty::RawPtr(..))
 }
 
 /// Whether a bound of `trait_id` lets code call nothing: it and its supertraits have no
