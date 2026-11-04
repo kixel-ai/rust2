@@ -74,7 +74,7 @@ pub fn call<'tcx>(
 			// `<=`, and `>`, and of `&mut`s to values JS copies, their `rs.Place`s, by what they
 			// hold, as std's impls for a `&mut` forward them.
 			("Ord", "max" | "min" | "clamp", ..) if let Some(t) = self_ty => {
-				let held = b.t.place_pointee(t);
+				let held = mut_place(b, t);
 				let t = peel_ord(b, held.unwrap_or(t), false);
 				let own = matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || pointee(b, t).is_some();
 				if !(std_key(b, t) || own) || held.is_none() && Int::of(t).is_some() {
@@ -164,7 +164,7 @@ pub fn call<'tcx>(
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
 				// A `&mut` to a value JS copies is its `rs.Place`, which `borrow` reads.
-				let held = b.t.place_pointee(t).is_some_and(|inner| same_key(b, inner, by));
+				let held = mut_place(b, t).is_some_and(|inner| same_key(b, inner, by));
 				let value = match arc_of(b, peel(b, t)) {
 					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
 						"borrow" if held => b.t.pointee_value(t, value),
@@ -538,6 +538,15 @@ fn peel<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	match pointee(b, ty) {
 		Some(inner) => peel(b, inner),
 		None => ty,
+	}
+}
+
+/// What `ty`, a `&mut` that is an `rs.Place`, points at; not a raw pointer, which orders
+/// by its address.
+fn mut_place<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Ref(_, _, ty::Mutability::Mut) => b.t.place_pointee(ty),
+		_ => None,
 	}
 }
 
