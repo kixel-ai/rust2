@@ -5585,13 +5585,12 @@ export function referenced$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void
 	const list: rs.Vec<rs.u16 | undefined> = rs.vecFrom([make$conversions_Value_Option_u16(data, 16), make$conversions_Value_Option_u16(data, 17)]);
 	readAs$Option_u16_ref_slice_Option_u16(rs.sliceFrom(array), out);
 	readAs$Option_u16_ref_ref_slice_Option_u16(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$Option_u16_ref_array3_Option_u16(array, out);
+	readAs$Option_u16_ref_array3_Option_u16(rs.sliceFrom(array), out);
 	readAs$Option_u16_ref_Vec_Option_u16(list, out);
 	readAs$Option_u16_mut_Vec_Option_u16(list, out);
 	readAs$Option_u16_ref_mut_Vec_Option_u16(list, out);
 	writeAs$Option_u16_mut_slice_Option_u16(rs.sliceFrom(array), make$conversions_Value_Option_u16(data, 18));
-	const _35: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 19);
-	writeAs$Option_u16_mut_array3_Option_u16(array, _35);
+	writeAs$Option_u16_mut_array3_Option_u16(rs.sliceFrom(array), make$conversions_Value_Option_u16(data, 19));
 	const _38: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 20);
 	writeAs$Option_u16_mut_Vec_Option_u16(list, _38);
 	let _41: rs.Vec<rs.u16 | undefined> = list;
@@ -5645,13 +5644,12 @@ export function referenced$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const list: rs.Vec<string> = rs.vecFrom([make$conversions_Value_String(data, 16), make$conversions_Value_String(data, 17)]);
 	readAs$String_ref_slice_String(rs.sliceFrom(array), out);
 	readAs$String_ref_ref_slice_String(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$String_ref_array3_String(array, out);
+	readAs$String_ref_array3_String(rs.sliceFrom(array), out);
 	readAs$String_ref_Vec_String(list, out);
 	readAs$String_mut_Vec_String(list, out);
 	readAs$String_ref_mut_Vec_String(list, out);
 	writeAs$String_mut_slice_String(rs.sliceFrom(array), make$conversions_Value_String(data, 18));
-	const _35: string = make$conversions_Value_String(data, 19);
-	writeAs$String_mut_array3_String(array, _35);
+	writeAs$String_mut_array3_String(rs.sliceFrom(array), make$conversions_Value_String(data, 19));
 	const _38: string = make$conversions_Value_String(data, 20);
 	writeAs$String_mut_Vec_String(list, _38);
 	let _41: rs.Vec<string> = list;
@@ -5705,13 +5703,12 @@ export function referenced$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const list: rs.Vec<rs.ByteVec> = rs.vecFrom([make$conversions_Value_Vec_u8(data, 16), make$conversions_Value_Vec_u8(data, 17)]);
 	readAs$Vec_u8_ref_slice_Vec_u8(rs.sliceFrom(array), out);
 	readAs$Vec_u8_ref_ref_slice_Vec_u8(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$Vec_u8_ref_array3_Vec_u8(array, out);
+	readAs$Vec_u8_ref_array3_Vec_u8(rs.sliceFrom(array), out);
 	readAs$Vec_u8_ref_Vec_Vec_u8(list, out);
 	readAs$Vec_u8_mut_Vec_Vec_u8(list, out);
 	readAs$Vec_u8_ref_mut_Vec_Vec_u8(list, out);
 	writeAs$Vec_u8_mut_slice_Vec_u8(rs.sliceFrom(array), make$conversions_Value_Vec_u8(data, 18));
-	const _35: rs.ByteVec = make$conversions_Value_Vec_u8(data, 19);
-	writeAs$Vec_u8_mut_array3_Vec_u8(array, _35);
+	writeAs$Vec_u8_mut_array3_Vec_u8(rs.sliceFrom(array), make$conversions_Value_Vec_u8(data, 19));
 	const _38: rs.ByteVec = make$conversions_Value_Vec_u8(data, 20);
 	writeAs$Vec_u8_mut_Vec_Vec_u8(list, _38);
 	let _41: rs.Vec<rs.ByteVec> = list;
@@ -5764,13 +5761,12 @@ export function referenced$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void 
 	const list: rs.Vec<Uint8Array> = rs.vecFrom(copy$array_array3_u8([make$conversions_Value_array3_u8(data, 16), make$conversions_Value_array3_u8(data, 17)]).map(copy$array_u8));
 	readAs$array3_u8_ref_slice_array3_u8(rs.sliceFrom(array), out);
 	readAs$array3_u8_ref_ref_slice_array3_u8(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$array3_u8_ref_array3_array3_u8(array, out);
+	readAs$array3_u8_ref_array3_array3_u8(rs.sliceFrom(array), out);
 	readAs$array3_u8_ref_Vec_array3_u8(list, out);
 	readAs$array3_u8_mut_Vec_array3_u8(list, out);
 	readAs$array3_u8_ref_mut_Vec_array3_u8(list, out);
 	writeAs$array3_u8_mut_slice_array3_u8(rs.sliceFrom(array), make$conversions_Value_array3_u8(data, 18));
-	const _35: Uint8Array = make$conversions_Value_array3_u8(data, 19);
-	writeAs$array3_u8_mut_array3_array3_u8(array, _35);
+	writeAs$array3_u8_mut_array3_array3_u8(rs.sliceFrom(array), make$conversions_Value_array3_u8(data, 19));
 	const _38: Uint8Array = make$conversions_Value_array3_u8(data, 20);
 	writeAs$array3_u8_mut_Vec_array3_u8(list, _38);
 	let _41: rs.Vec<Uint8Array> = list;
@@ -5819,13 +5815,12 @@ export function referenced$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVe
 	const list: rs.Vec<Logged.Logged> = rs.vecFrom([Logged.make$conversions_Value(data, 16), Logged.make$conversions_Value(data, 17)]);
 	readAs$conversions_Logged_ref_slice_conversions_Logged(rs.sliceFrom(array), out);
 	readAs$conversions_Logged_ref_ref_slice_conversions_Logged(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$conversions_Logged_ref_array3_conversions_Logged(array, out);
+	readAs$conversions_Logged_ref_array3_conversions_Logged(rs.sliceFrom(array), out);
 	readAs$conversions_Logged_ref_Vec_conversions_Logged(list, out);
 	readAs$conversions_Logged_mut_Vec_conversions_Logged(list, out);
 	readAs$conversions_Logged_ref_mut_Vec_conversions_Logged(list, out);
 	writeAs$conversions_Logged_mut_slice_conversions_Logged(rs.sliceFrom(array), Logged.make$conversions_Value(data, 18));
-	const _35: Logged.Logged = Logged.make$conversions_Value(data, 19);
-	writeAs$conversions_Logged_mut_array3_conversions_Logged(array, _35);
+	writeAs$conversions_Logged_mut_array3_conversions_Logged(rs.sliceFrom(array), Logged.make$conversions_Value(data, 19));
 	const _38: Logged.Logged = Logged.make$conversions_Value(data, 20);
 	writeAs$conversions_Logged_mut_Vec_conversions_Logged(list, _38);
 	let _41: rs.Vec<Logged.Logged> = list;
@@ -5886,13 +5881,12 @@ export function referenced$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec
 	const list: rs.Vec<Named.Named> = rs.vecFrom([Named.make$conversions_Value(data, 16), Named.make$conversions_Value(data, 17)]);
 	readAs$conversions_Named_ref_slice_conversions_Named(rs.sliceFrom(array), out);
 	readAs$conversions_Named_ref_ref_slice_conversions_Named(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$conversions_Named_ref_array3_conversions_Named(array, out);
+	readAs$conversions_Named_ref_array3_conversions_Named(rs.sliceFrom(array), out);
 	readAs$conversions_Named_ref_Vec_conversions_Named(list, out);
 	readAs$conversions_Named_mut_Vec_conversions_Named(list, out);
 	readAs$conversions_Named_ref_mut_Vec_conversions_Named(list, out);
 	writeAs$conversions_Named_mut_slice_conversions_Named(rs.sliceFrom(array), Named.make$conversions_Value(data, 18));
-	const _35: Named.Named = Named.make$conversions_Value(data, 19);
-	writeAs$conversions_Named_mut_array3_conversions_Named(array, _35);
+	writeAs$conversions_Named_mut_array3_conversions_Named(rs.sliceFrom(array), Named.make$conversions_Value(data, 19));
 	const _38: Named.Named = Named.make$conversions_Value(data, 20);
 	writeAs$conversions_Named_mut_Vec_conversions_Named(list, _38);
 	let _41: rs.Vec<Named.Named> = list;
@@ -5945,13 +5939,12 @@ export function referenced$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const list: rs.Vec<rs.u32> = rs.vecFrom([make$conversions_Value_u32(data, 16), make$conversions_Value_u32(data, 17)]);
 	readAs$u32_ref_slice_u32(rs.sliceFrom(array), out);
 	readAs$u32_ref_ref_slice_u32(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$u32_ref_array3_u32(array, out);
+	readAs$u32_ref_array3_u32(rs.sliceFrom(array), out);
 	readAs$u32_ref_Vec_u32(list, out);
 	readAs$u32_mut_Vec_u32(list, out);
 	readAs$u32_ref_mut_Vec_u32(list, out);
 	writeAs$u32_mut_slice_u32(rs.sliceFrom(array), make$conversions_Value_u32(data, 18));
-	const _35: rs.u32 = make$conversions_Value_u32(data, 19);
-	writeAs$u32_mut_array3_u32(array, _35);
+	writeAs$u32_mut_array3_u32(rs.sliceFrom(array), make$conversions_Value_u32(data, 19));
 	const _38: rs.u32 = make$conversions_Value_u32(data, 20);
 	writeAs$u32_mut_Vec_u32(list, _38);
 	let _41: rs.Vec<rs.u32> = list;
@@ -6005,13 +5998,12 @@ export function referenced$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const list: rs.Vec<rs.u64> = rs.vecFrom([make$conversions_Value_u64(data, 16), make$conversions_Value_u64(data, 17)]);
 	readAs$u64_ref_slice_u64(rs.sliceFrom(array), out);
 	readAs$u64_ref_ref_slice_u64(rs.sliceRange(rs.sliceFrom(array), 1), out);
-	readAs$u64_ref_array3_u64(array, out);
+	readAs$u64_ref_array3_u64(rs.sliceFrom(array), out);
 	readAs$u64_ref_Vec_u64(list, out);
 	readAs$u64_mut_Vec_u64(list, out);
 	readAs$u64_ref_mut_Vec_u64(list, out);
 	writeAs$u64_mut_slice_u64(rs.sliceFrom(array), make$conversions_Value_u64(data, 18));
-	const _35: rs.u64 = make$conversions_Value_u64(data, 19);
-	writeAs$u64_mut_array3_u64(array, _35);
+	writeAs$u64_mut_array3_u64(rs.sliceFrom(array), make$conversions_Value_u64(data, 19));
 	const _38: rs.u64 = make$conversions_Value_u64(data, 20);
 	writeAs$u64_mut_Vec_u64(list, _38);
 	let _41: rs.Vec<rs.u64> = list;
@@ -6152,8 +6144,8 @@ export function readAs$Option_u16_ref_Vec_Option_u16(b: rs.Vec<rs.u16 | undefine
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$Option_u16_ref_array3_Option_u16(b: Array<rs.u16 | undefined>, out: rs.ByteVec): void {
-	const s: rs.Slice<rs.u16 | undefined> = rs.sliceFrom(b);
+export function readAs$Option_u16_ref_array3_Option_u16(b: rs.Slice<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		put$conversions_Value_Option_u16(_10, out);
@@ -6206,8 +6198,8 @@ export function readAs$String_ref_Vec_String(b: rs.Vec<string>, out: rs.ByteVec)
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$String_ref_array3_String(b: string[], out: rs.ByteVec): void {
-	const s: rs.Slice<string> = rs.sliceFrom(b);
+export function readAs$String_ref_array3_String(b: rs.Slice<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		put$conversions_Value_String(_10, out);
@@ -6260,8 +6252,8 @@ export function readAs$Vec_u8_ref_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, out: rs.Byte
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$Vec_u8_ref_array3_Vec_u8(b: rs.ByteVec[], out: rs.ByteVec): void {
-	const s: rs.Slice<rs.ByteVec> = rs.sliceFrom(b);
+export function readAs$Vec_u8_ref_array3_Vec_u8(b: rs.Slice<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		put$conversions_Value_Vec_u8(_10, out);
@@ -6324,8 +6316,8 @@ export function readAs$array3_u8_ref_Vec_array3_u8(b: rs.Vec<Uint8Array>, out: r
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$array3_u8_ref_array3_array3_u8(b: Uint8Array[], out: rs.ByteVec): void {
-	const s: rs.Slice<Uint8Array> = rs.sliceFrom(b);
+export function readAs$array3_u8_ref_array3_array3_u8(b: rs.Slice<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
 	while (true) {
@@ -6398,8 +6390,8 @@ export function readAs$conversions_Logged_ref_Vec_conversions_Logged(b: rs.Vec<L
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$conversions_Logged_ref_array3_conversions_Logged(b: Logged.Logged[], out: rs.ByteVec): void {
-	const s: rs.Slice<Logged.Logged> = rs.sliceFrom(b);
+export function readAs$conversions_Logged_ref_array3_conversions_Logged(b: rs.Slice<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		Logged.put$conversions_Value(_10, out);
@@ -6452,8 +6444,8 @@ export function readAs$conversions_Named_ref_Vec_conversions_Named(b: rs.Vec<Nam
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$conversions_Named_ref_array3_conversions_Named(b: Named.Named[], out: rs.ByteVec): void {
-	const s: rs.Slice<Named.Named> = rs.sliceFrom(b);
+export function readAs$conversions_Named_ref_array3_conversions_Named(b: rs.Slice<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		Named.put$conversions_Value(_10, out);
@@ -6506,8 +6498,8 @@ export function readAs$u32_ref_Vec_u32(b: rs.Vec<rs.u32>, out: rs.ByteVec): void
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$u32_ref_array3_u32(b: rs.u32[], out: rs.ByteVec): void {
-	const s: rs.Slice<rs.u32> = rs.sliceFrom(b);
+export function readAs$u32_ref_array3_u32(b: rs.Slice<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		put$conversions_Value_u32(_10, out);
@@ -6560,8 +6552,8 @@ export function readAs$u64_ref_Vec_u64(b: rs.Vec<rs.u64>, out: rs.ByteVec): void
 }
 
 /** What `b` reads as a slice: its length, then each element. */
-export function readAs$u64_ref_array3_u64(b: rs.u64[], out: rs.ByteVec): void {
-	const s: rs.Slice<rs.u64> = rs.sliceFrom(b);
+export function readAs$u64_ref_array3_u64(b: rs.Slice<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = b;
 	rs.byteVecPush(out, s.length & 0xff);
 	for (const _10 of rs.sliceItems(s)) {
 		put$conversions_Value_u64(_10, out);
@@ -6658,8 +6650,8 @@ export function writeAs$Option_u16_mut_Vec_Option_u16(b: rs.Vec<rs.u16 | undefin
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$Option_u16_mut_array3_Option_u16(b: Array<rs.u16 | undefined>, value: rs.u16 | undefined): void {
-	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(rs.sliceFrom(b));
+export function writeAs$Option_u16_mut_array3_Option_u16(b: rs.Slice<rs.u16 | undefined>, value: rs.u16 | undefined): void {
+	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(b);
 	if (_3 !== undefined) {
 		_3.v = value;
 	}
@@ -6690,8 +6682,8 @@ export function writeAs$String_mut_Vec_String(b: rs.Vec<string>, value: string):
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$String_mut_array3_String(b: string[], value: string): void {
-	const _3: rs.Place<string> | undefined = rs.sliceLastMut(rs.sliceFrom(b));
+export function writeAs$String_mut_array3_String(b: rs.Slice<string>, value: string): void {
+	const _3: rs.Place<string> | undefined = rs.sliceLastMut(b);
 	if (_3 !== undefined) {
 		_3.v = value;
 	}
@@ -6722,8 +6714,8 @@ export function writeAs$Vec_u8_mut_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, value: rs.B
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$Vec_u8_mut_array3_Vec_u8(b: rs.ByteVec[], value: rs.ByteVec): void {
-	const _3: rs.ByteVec | undefined = rs.sliceLast(rs.sliceFrom(b));
+export function writeAs$Vec_u8_mut_array3_Vec_u8(b: rs.Slice<rs.ByteVec>, value: rs.ByteVec): void {
+	const _3: rs.ByteVec | undefined = rs.sliceLast(b);
 	if (_3 !== undefined) {
 		Object.assign(_3, value);
 	}
@@ -6755,9 +6747,9 @@ export function writeAs$array3_u8_mut_Vec_array3_u8(b: rs.Vec<Uint8Array>, value
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$array3_u8_mut_array3_array3_u8(b: Uint8Array[], value: Uint8Array): void {
+export function writeAs$array3_u8_mut_array3_array3_u8(b: rs.Slice<Uint8Array>, value: Uint8Array): void {
 	value = copy$array_u8(value);
-	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(rs.sliceFrom(b)), rs.byteSliceFrom);
+	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(b), rs.byteSliceFrom);
 	if (_3 !== undefined) {
 		_3.data.set(value, _3.start);
 	}
@@ -6797,10 +6789,10 @@ export function writeAs$conversions_Logged_mut_Vec_conversions_Logged(b: rs.Vec<
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$conversions_Logged_mut_array3_conversions_Logged(b: Logged.Logged[], value: Logged.Logged): void {
+export function writeAs$conversions_Logged_mut_array3_conversions_Logged(b: rs.Slice<Logged.Logged>, value: Logged.Logged): void {
 	let _9: boolean = false;
 	_9 = true;
-	const _3: Logged.Logged | undefined = rs.sliceLast(rs.sliceFrom(b));
+	const _3: Logged.Logged | undefined = rs.sliceLast(b);
 	if (_3 !== undefined) {
 		_9 = false;
 		_3[Symbol.dispose]();
@@ -6850,8 +6842,8 @@ export function writeAs$conversions_Named_mut_Vec_conversions_Named(b: rs.Vec<Na
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$conversions_Named_mut_array3_conversions_Named(b: Named.Named[], value: Named.Named): void {
-	const _3: Named.Named | undefined = rs.sliceLast(rs.sliceFrom(b));
+export function writeAs$conversions_Named_mut_array3_conversions_Named(b: rs.Slice<Named.Named>, value: Named.Named): void {
+	const _3: Named.Named | undefined = rs.sliceLast(b);
 	if (_3 !== undefined) {
 		Object.assign(_3, value);
 	}
@@ -6882,8 +6874,8 @@ export function writeAs$u32_mut_Vec_u32(b: rs.Vec<rs.u32>, value: rs.u32): void 
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$u32_mut_array3_u32(b: rs.u32[], value: rs.u32): void {
-	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(b));
+export function writeAs$u32_mut_array3_u32(b: rs.Slice<rs.u32>, value: rs.u32): void {
+	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(b);
 	if (_3 !== undefined) {
 		_3.v = value;
 	}
@@ -6914,8 +6906,8 @@ export function writeAs$u64_mut_Vec_u64(b: rs.Vec<rs.u64>, value: rs.u64): void 
 }
 
 /** Writes `value` over the last element of what `b` lends as a slice. */
-export function writeAs$u64_mut_array3_u64(b: rs.u64[], value: rs.u64): void {
-	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(rs.sliceFrom(b));
+export function writeAs$u64_mut_array3_u64(b: rs.Slice<rs.u64>, value: rs.u64): void {
+	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(b);
 	if (_3 !== undefined) {
 		_3.v = value;
 	}
