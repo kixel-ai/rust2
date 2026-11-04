@@ -1255,14 +1255,14 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		})));
 		rt.iterEmpty();
 		put(out, rt.stringFromStrings(rt.iterEmpty() as rt.Iter<string>));
-		put(out, rt.stringExtendChars("", rt.iterRev(rt.strChars(s))));
+		put(out, rt.strCowStr(rt.stringExtendChars("", rt.iterRev(rt.strChars(s)))));
 		put(out, rt.stringExtend("", rt.iterSlice(parts)));
 		const owned: string[] = rt.iterToArray(rt.iterMap(rt.iterSlice(parts), (p6: string): string => {
 			return p6;
 		}), undefined, 12, true);
-		put(out, rt.stringFromStrings(rt.iterMap(rt.iterSlice(owned), (p7: string): string => {
-			return p7;
-		})));
+		put(out, rt.stringFromStrings(rt.iterMap(rt.iterMap(rt.iterSlice(owned), (p7: string): rt.StrCow => {
+			return new rt.Borrowed(p7);
+		}), rt.strCowStr)));
 		put(out, rt.stringFromStrings(rt.iterFrom({ items: owned, nexts }, Counted.next$iter_Iterator_String)));
 	} else if (_21 === 2) {
 		let t: string = "é";
@@ -1287,10 +1287,10 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		t2 = rt.stringExtend(t2, _184);
 		const _190: rt.Iter<string> = rt.iterRev(rt.iterSlice(parts));
 		named.name = rt.stringExtend(named.name, _190);
-		const _197: rt.Iter<string> = rt.iterMap(rt.iterSlice(parts), (p2: string): string => {
+		const _197: rt.Iter<rt.StrCow> = rt.iterMap(rt.iterSlice(parts), (p2: string): rt.StrCow => {
 			return p2;
 		});
-		named.name = rt.stringExtend(named.name, _197);
+		named.name = rt.stringExtend(named.name, rt.iterMap(_197, rt.strCowStr));
 		rt.iterEmpty();
 		named.name = rt.stringExtend(named.name, rt.iterEmpty() as rt.Iter<string>);
 		const counted4: Counted.Counted<string> = { items: parts, nexts };

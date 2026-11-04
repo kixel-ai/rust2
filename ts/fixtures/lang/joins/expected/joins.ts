@@ -224,14 +224,14 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, 12, true);
 		wides(rt.slicesJoin(wide3, 2, undefined, rt.cowSlice), out);
 		wides(rt.slicesJoin(wide3, 2, [65535], rt.cowSlice), out);
-		const texts: string[] = rt.iterToArray(rt.iterMap(rt.iterEnumerate(rt.iterSlice(parts)), (_214: [rt.usize, rt.ByteSlice]): string => {
+		const texts: rt.StrCow[] = rt.iterToArray(rt.iterMap(rt.iterEnumerate(rt.iterSlice(parts)), (_214: [rt.usize, rt.ByteSlice]): rt.StrCow => {
 			if (rt.usizeRem(_214[0], 2) === 0) {
-				return "ab";
+				return new rt.Borrowed("ab");
 			}
 			return text(_214[1]);
 		}), undefined, 12, true);
-		put(out, rt.strsJoin(texts, ""));
-		put(out, rt.strsJoin(texts, "--"));
+		put(out, rt.strsJoin(texts.map(rt.strCowStr), ""));
+		put(out, rt.strsJoin(texts.map(rt.strCowStr), "--"));
 	} else {
 		const big: rt.ByteVec = rt.byteVecOf(1, 1 << 16);
 		const wide4: rt.u16[] = rt.vecFromElem(1, 1 << 16, undefined);

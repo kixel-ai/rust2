@@ -22,6 +22,13 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
+export function unwrapOrDefault$0301ewp(self: rt.ByteSlice | undefined): rt.ByteSlice {
+	if (self === undefined) {
+		return rt.byteSliceFrom(new Uint8Array(0));
+	}
+	return self;
+}
+
 export function unwrapOrDefault$001fvl5(self: rt.u16 | undefined): rt.u16 {
 	if (self === undefined) {
 		return 0;
