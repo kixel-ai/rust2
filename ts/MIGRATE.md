@@ -2,13 +2,6 @@
 
 ## Unreleased
 
-- `rt.Write` has `writeChar(c)` beside `writeStr(s)`, which std's `write_char` calls, so a
-  hand-written writer implements both; the runtime's formatting calls each as std does.
-- `rt.fmtPadFormatted(f, sign, parts)` takes the sign and the `rt.FmtPart`s std's
-  `pad_formatted_parts` does, each ASCII text or that many zeros, in place of a head and
-  digits.
-- `rt.cellDebug` takes a function giving the cell's value, which it calls once the name is
-  written, as std reads it, in place of the value.
 - `rt.handleAllocError`, and a `LocalKey` initialized while it drops, throw `rt.Abort`
   rather than an `rt.Panic`, as std aborts there without running the panic hook. An
   `rt.Abort` is an `rt.Panic`, so a caller catching one still catches both; one telling
