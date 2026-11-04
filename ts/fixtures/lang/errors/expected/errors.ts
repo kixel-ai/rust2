@@ -19,9 +19,9 @@ import { put } from "./harness.ts";
 import { set$1ljkjlf, get$0q7640n } from "./std/thread/local.ts";
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Option_Result_u8_num_ParseIntError(values: Array<rs.Result<rs.u8, rs.ParseIntError> | undefined>, out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: Array<rs.Result<rs.u8, rs.ParseIntError> | undefined> = values;
+export function pairs$Option_Result_u8_num_ParseIntError(values: rs.Slice<rs.Result<rs.u8, rs.ParseIntError> | undefined>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: Array<rs.Result<rs.u8, rs.ParseIntError> | undefined> = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u8, rs.ParseIntError> | undefined | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -35,9 +35,9 @@ export function pairs$Option_Result_u8_num_ParseIntError(values: Array<rs.Result
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_Option_u8_num_ParseIntError(values: rs.Result<rs.u8 | undefined, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u8 | undefined, rs.ParseIntError>[] = values;
+export function pairs$Result_Option_u8_num_ParseIntError(values: rs.Slice<rs.Result<rs.u8 | undefined, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u8 | undefined, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u8 | undefined, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -51,9 +51,9 @@ export function pairs$Result_Option_u8_num_ParseIntError(values: rs.Result<rs.u8
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(values: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>[] = values;
+export function pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(values: rs.Slice<rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -67,9 +67,9 @@ export function pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_String_string_FromUtf8Error(values: rs.Result<string, rs.FromUtf8Error>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<string, rs.FromUtf8Error>[] = values;
+export function pairs$Result_String_string_FromUtf8Error(values: rs.Slice<rs.Result<string, rs.FromUtf8Error>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<string, rs.FromUtf8Error>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<string, rs.FromUtf8Error> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -83,9 +83,9 @@ export function pairs$Result_String_string_FromUtf8Error(values: rs.Result<strin
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_bool_str_ParseBoolError(values: rs.Result<boolean, rs.ParseBoolError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<boolean, rs.ParseBoolError>[] = values;
+export function pairs$Result_bool_str_ParseBoolError(values: rs.Slice<rs.Result<boolean, rs.ParseBoolError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<boolean, rs.ParseBoolError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<boolean, rs.ParseBoolError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -99,9 +99,9 @@ export function pairs$Result_bool_str_ParseBoolError(values: rs.Result<boolean, 
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_char_char_ParseCharError(values: rs.Result<rs.char, rs.ParseCharError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.char, rs.ParseCharError>[] = values;
+export function pairs$Result_char_char_ParseCharError(values: rs.Slice<rs.Result<rs.char, rs.ParseCharError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.char, rs.ParseCharError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.char, rs.ParseCharError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -115,9 +115,9 @@ export function pairs$Result_char_char_ParseCharError(values: rs.Result<rs.char,
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_f64_num_ParseFloatError(values: rs.Result<rs.f64, rs.ParseFloatError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.f64, rs.ParseFloatError>[] = values;
+export function pairs$Result_f64_num_ParseFloatError(values: rs.Slice<rs.Result<rs.f64, rs.ParseFloatError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.f64, rs.ParseFloatError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.f64, rs.ParseFloatError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -131,9 +131,9 @@ export function pairs$Result_f64_num_ParseFloatError(values: rs.Result<rs.f64, r
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_i128_num_ParseIntError(values: rs.Result<rs.i128, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.i128, rs.ParseIntError>[] = values;
+export function pairs$Result_i128_num_ParseIntError(values: rs.Slice<rs.Result<rs.i128, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.i128, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.i128, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -147,9 +147,9 @@ export function pairs$Result_i128_num_ParseIntError(values: rs.Result<rs.i128, r
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_i8_num_ParseIntError(values: rs.Result<rs.i8, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.i8, rs.ParseIntError>[] = values;
+export function pairs$Result_i8_num_ParseIntError(values: rs.Slice<rs.Result<rs.i8, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.i8, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.i8, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -163,9 +163,9 @@ export function pairs$Result_i8_num_ParseIntError(values: rs.Result<rs.i8, rs.Pa
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_i8_num_TryFromIntError(values: rs.Result<rs.i8, rs.TryFromIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.i8, rs.TryFromIntError>[] = values;
+export function pairs$Result_i8_num_TryFromIntError(values: rs.Slice<rs.Result<rs.i8, rs.TryFromIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.i8, rs.TryFromIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.i8, rs.TryFromIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -179,9 +179,9 @@ export function pairs$Result_i8_num_TryFromIntError(values: rs.Result<rs.i8, rs.
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_num_NonZero_u32_num_ParseIntError(values: rs.Result<rs.u32, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u32, rs.ParseIntError>[] = values;
+export function pairs$Result_num_NonZero_u32_num_ParseIntError(values: rs.Slice<rs.Result<rs.u32, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u32, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u32, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -195,9 +195,9 @@ export function pairs$Result_num_NonZero_u32_num_ParseIntError(values: rs.Result
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_ref_str_str_Utf8Error(values: rs.Result<string, rs.Utf8Error>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<string, rs.Utf8Error>[] = values;
+export function pairs$Result_ref_str_str_Utf8Error(values: rs.Slice<rs.Result<string, rs.Utf8Error>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<string, rs.Utf8Error>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<string, rs.Utf8Error> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -211,9 +211,9 @@ export function pairs$Result_ref_str_str_Utf8Error(values: rs.Result<string, rs.
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_time_Duration_time_TryFromFloatSecsError(values: rs.Result<rs.Duration, rs.TryFromFloatSecsError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.Duration, rs.TryFromFloatSecsError>[] = values;
+export function pairs$Result_time_Duration_time_TryFromFloatSecsError(values: rs.Slice<rs.Result<rs.Duration, rs.TryFromFloatSecsError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.Duration, rs.TryFromFloatSecsError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.Duration, rs.TryFromFloatSecsError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -227,9 +227,9 @@ export function pairs$Result_time_Duration_time_TryFromFloatSecsError(values: rs
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_u16_never(values: rs.Result<rs.u16, never>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u16, never>[] = values;
+export function pairs$Result_u16_never(values: rs.Slice<rs.Result<rs.u16, never>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u16, never>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u16, never> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -243,9 +243,9 @@ export function pairs$Result_u16_never(values: rs.Result<rs.u16, never>[], out: 
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_u64_num_ParseIntError(values: rs.Result<rs.u64, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u64, rs.ParseIntError>[] = values;
+export function pairs$Result_u64_num_ParseIntError(values: rs.Slice<rs.Result<rs.u64, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u64, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u64, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -259,9 +259,9 @@ export function pairs$Result_u64_num_ParseIntError(values: rs.Result<rs.u64, rs.
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_u8_num_IntErrorKind(values: rs.Result<rs.u8, rs.IntErrorKind>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u8, rs.IntErrorKind>[] = values;
+export function pairs$Result_u8_num_IntErrorKind(values: rs.Slice<rs.Result<rs.u8, rs.IntErrorKind>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u8, rs.IntErrorKind>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u8, rs.IntErrorKind> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -275,9 +275,9 @@ export function pairs$Result_u8_num_IntErrorKind(values: rs.Result<rs.u8, rs.Int
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_u8_num_ParseIntError(values: rs.Result<rs.u8, rs.ParseIntError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<rs.u8, rs.ParseIntError>[] = values;
+export function pairs$Result_u8_num_ParseIntError(values: rs.Slice<rs.Result<rs.u8, rs.ParseIntError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<rs.u8, rs.ParseIntError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<rs.u8, rs.ParseIntError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -291,9 +291,9 @@ export function pairs$Result_u8_num_ParseIntError(values: rs.Result<rs.u8, rs.Pa
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_unit_collections_TryReserveError(values: rs.Result<undefined, rs.TryReserveError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<undefined, rs.TryReserveError>[] = values;
+export function pairs$Result_unit_collections_TryReserveError(values: rs.Slice<rs.Result<undefined, rs.TryReserveError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<undefined, rs.TryReserveError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<undefined, rs.TryReserveError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -307,9 +307,9 @@ export function pairs$Result_unit_collections_TryReserveError(values: rs.Result<
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Result_unit_fmt_Error(values: rs.Result<undefined, rs.FmtError>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Result<undefined, rs.FmtError>[] = values;
+export function pairs$Result_unit_fmt_Error(values: rs.Slice<rs.Result<undefined, rs.FmtError>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Result<undefined, rs.FmtError>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Result<undefined, rs.FmtError> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -323,9 +323,9 @@ export function pairs$Result_unit_fmt_Error(values: rs.Result<undefined, rs.FmtE
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$Vec_Result_bool_str_ParseBoolError(values: rs.Vec<rs.Result<boolean, rs.ParseBoolError>>[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.Vec<rs.Result<boolean, rs.ParseBoolError>>[] = values;
+export function pairs$Vec_Result_bool_str_ParseBoolError(values: rs.Slice<rs.Vec<rs.Result<boolean, rs.ParseBoolError>>>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.Vec<rs.Result<boolean, rs.ParseBoolError>>[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.Vec<rs.Result<boolean, rs.ParseBoolError>> | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -339,9 +339,9 @@ export function pairs$Vec_Result_bool_str_ParseBoolError(values: rs.Vec<rs.Resul
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$char_ParseCharError(values: rs.ParseCharError[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.ParseCharError[] = values;
+export function pairs$char_ParseCharError(values: rs.Slice<rs.ParseCharError>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.ParseCharError[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.ParseCharError | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -355,9 +355,9 @@ export function pairs$char_ParseCharError(values: rs.ParseCharError[], out: rs.B
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$collections_TryReserveError(values: rs.TryReserveError[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.TryReserveError[] = values;
+export function pairs$collections_TryReserveError(values: rs.Slice<rs.TryReserveError>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.TryReserveError[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.TryReserveError | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -371,9 +371,9 @@ export function pairs$collections_TryReserveError(values: rs.TryReserveError[], 
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$num_ParseIntError(values: rs.ParseIntError[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.ParseIntError[] = values;
+export function pairs$num_ParseIntError(values: rs.Slice<rs.ParseIntError>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.ParseIntError[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.ParseIntError | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -387,9 +387,9 @@ export function pairs$num_ParseIntError(values: rs.ParseIntError[], out: rs.Byte
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$str_ParseBoolError(values: rs.ParseBoolError[], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: rs.ParseBoolError[] = values;
+export function pairs$str_ParseBoolError(values: rs.Slice<rs.ParseBoolError>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: rs.ParseBoolError[] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: rs.ParseBoolError | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -403,9 +403,9 @@ export function pairs$str_ParseBoolError(values: rs.ParseBoolError[], out: rs.By
 }
 
 /** Each pair's `==` and `!=`, a bit each. */
-export function pairs$tuple2_Result_char_char_ParseCharError_usize(values: [rs.Result<rs.char, rs.ParseCharError>, rs.usize][], out: rs.ByteVec): void {
-	l1: for (const a of values) {
-		const iterS2: [rs.Result<rs.char, rs.ParseCharError>, rs.usize][] = values;
+export function pairs$tuple2_Result_char_char_ParseCharError_usize(values: rs.Slice<[rs.Result<rs.char, rs.ParseCharError>, rs.usize]>, out: rs.ByteVec): void {
+	l1: for (const a of rs.sliceItems(values)) {
+		const iterS2: [rs.Result<rs.char, rs.ParseCharError>, rs.usize][] = rs.sliceItems(values);
 		let iterI2: number = 0;
 		while (true) {
 			const _11: [rs.Result<rs.char, rs.ParseCharError>, rs.usize] | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
@@ -418,50 +418,50 @@ export function pairs$tuple2_Result_char_char_ParseCharError_usize(values: [rs.R
 	}
 }
 
-export function parsed$bool(all: string[]): rs.Vec<rs.Result<boolean, rs.ParseBoolError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<boolean, rs.ParseBoolError> => {
+export function parsed$bool(all: rs.Slice<string>): rs.Vec<rs.Result<boolean, rs.ParseBoolError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<boolean, rs.ParseBoolError> => {
 		return parse$1yfzdza(s);
 	}), undefined, 1, true);
 }
 
-export function parsed$char(all: string[]): rs.Vec<rs.Result<rs.char, rs.ParseCharError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.char, rs.ParseCharError> => {
+export function parsed$char(all: rs.Slice<string>): rs.Vec<rs.Result<rs.char, rs.ParseCharError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.char, rs.ParseCharError> => {
 		return rs.charFromStr(s);
 	}), undefined, 8, true);
 }
 
-export function parsed$f64(all: string[]): rs.Vec<rs.Result<rs.f64, rs.ParseFloatError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.f64, rs.ParseFloatError> => {
+export function parsed$f64(all: rs.Slice<string>): rs.Vec<rs.Result<rs.f64, rs.ParseFloatError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.f64, rs.ParseFloatError> => {
 		return rs.f64FromStr(s);
 	}), undefined, 16, true);
 }
 
-export function parsed$i128(all: string[]): rs.Vec<rs.Result<rs.i128, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.i128, rs.ParseIntError> => {
+export function parsed$i128(all: rs.Slice<string>): rs.Vec<rs.Result<rs.i128, rs.ParseIntError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.i128, rs.ParseIntError> => {
 		return parse$1kyj9pm(s);
 	}), undefined, 32, true);
 }
 
-export function parsed$i8(all: string[]): rs.Vec<rs.Result<rs.i8, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.i8, rs.ParseIntError> => {
+export function parsed$i8(all: rs.Slice<string>): rs.Vec<rs.Result<rs.i8, rs.ParseIntError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.i8, rs.ParseIntError> => {
 		return parse$02m1946(s);
 	}), undefined, 2, true);
 }
 
-export function parsed$num_NonZero_u32(all: string[]): rs.Vec<rs.Result<rs.u32, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.u32, rs.ParseIntError> => {
+export function parsed$num_NonZero_u32(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u32, rs.ParseIntError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u32, rs.ParseIntError> => {
 		return parse$04z9euf(s);
 	}), undefined, 8, true);
 }
 
-export function parsed$u64(all: string[]): rs.Vec<rs.Result<rs.u64, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.u64, rs.ParseIntError> => {
+export function parsed$u64(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u64, rs.ParseIntError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u64, rs.ParseIntError> => {
 		return parse$092epd5(s);
 	}), undefined, 16, true);
 }
 
-export function parsed$u8(all: string[]): rs.Vec<rs.Result<rs.u8, rs.ParseIntError>> {
-	return rs.iterToVec(rs.iterMap(rs.iterSlice(all), (s: string): rs.Result<rs.u8, rs.ParseIntError> => {
+export function parsed$u8(all: rs.Slice<string>): rs.Vec<rs.Result<rs.u8, rs.ParseIntError>> {
+	return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(all)), (s: string): rs.Result<rs.u8, rs.ParseIntError> => {
 		return parse$1brosjp(s);
 	}), undefined, 2, true);
 }
@@ -473,10 +473,10 @@ export function parsed$u8(all: string[]): rs.Vec<rs.Result<rs.u8, rs.ParseIntErr
 export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let input: string = "";
 	for (const b of rs.byteSliceView(data)) {
-		const _14: rs.char[] = [48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233];
-		const _15: rs.usize = rs.usizeRem(b as rs.usize, [48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233].length);
+		const _14: rs.Slice<rs.char> = rs.sliceFrom([48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233]);
+		const _15: rs.usize = rs.usizeRem(b as rs.usize, rs.sliceFrom([48, 49, 50, 53, 57, 43, 45, 46, 101, 97, 98, 78, 116, 102, 233]).length);
 		rs.idx(_14, _15);
-		input = input + String.fromCodePoint(_14[_15]);
+		input = input + String.fromCodePoint(_14.data[_14.start + _15]);
 	}
 	const all: rs.Vec<string> = rs.vecFrom(["", "0", "-0", "1", "-1", "+", "a", "ab", "😀", "true", "false", "127", "128", "-128", "-129", "256", "18446744073709551615", "18446744073709551616", "-170141183460469231731687303715884105729", "1.5", "1e400", "NaN", "inf"].slice());
 	all.items.push(input);
@@ -484,74 +484,74 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	bytes.items.push(data);
 	const _32: rs.u8 = rs.u8Rem(kind, 16);
 	if (_32 === 0) {
-		pairs$Result_bool_str_ParseBoolError(parsed$bool(all.items).items, out);
+		pairs$Result_bool_str_ParseBoolError(rs.sliceFrom(parsed$bool(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 1) {
-		pairs$Result_char_char_ParseCharError(parsed$char(all.items).items, out);
+		pairs$Result_char_char_ParseCharError(rs.sliceFrom(parsed$char(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 2) {
-		pairs$Result_u8_num_ParseIntError(parsed$u8(all.items).items, out);
+		pairs$Result_u8_num_ParseIntError(rs.sliceFrom(parsed$u8(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 3) {
-		pairs$Result_i8_num_ParseIntError(parsed$i8(all.items).items, out);
+		pairs$Result_i8_num_ParseIntError(rs.sliceFrom(parsed$i8(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 4) {
-		pairs$Result_num_NonZero_u32_num_ParseIntError(parsed$num_NonZero_u32(all.items).items, out);
+		pairs$Result_num_NonZero_u32_num_ParseIntError(rs.sliceFrom(parsed$num_NonZero_u32(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 5) {
-		pairs$Result_u64_num_ParseIntError(parsed$u64(all.items).items, out);
+		pairs$Result_u64_num_ParseIntError(rs.sliceFrom(parsed$u64(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 6) {
-		pairs$Result_i128_num_ParseIntError(parsed$i128(all.items).items, out);
+		pairs$Result_i128_num_ParseIntError(rs.sliceFrom(parsed$i128(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 7) {
-		pairs$Result_f64_num_ParseFloatError(parsed$f64(all.items).items, out);
+		pairs$Result_f64_num_ParseFloatError(rs.sliceFrom(parsed$f64(rs.sliceFrom(all.items)).items), out);
 	} else if (_32 === 8) {
 		const ints: rs.Vec<rs.i64> = rs.vecFrom([0, 127, 128, -128, -129, { hi: 0x7fffffff, lo: 0xffffffff } as rs.i64, { hi: -0x80000000, lo: 0 } as rs.i64]);
 		const _78: rs.Iter<rs.i64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_218: rs.u8): rs.i64 => {
 			return rs.i64Mul((_218 << 24) >> 24 as rs.i64, 2);
 		});
 		rs.iterExtend(ints, _78, undefined, 8, true);
-		pairs$Result_i8_num_TryFromIntError(rs.iterToVec(rs.iterMap(rs.vecIntoIter(ints), (a02: rs.i64): rs.Result<rs.i8, rs.TryFromIntError> => {
+		pairs$Result_i8_num_TryFromIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.vecIntoIter(ints), (a02: rs.i64): rs.Result<rs.i8, rs.TryFromIntError> => {
 			return rs.i8TryFrom(a02);
-		}), undefined, 2, true).items, out);
+		}), undefined, 2, true).items), out);
 	} else if (_32 === 9) {
-		pairs$Result_ref_str_str_Utf8Error(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b7: rs.ByteSlice): rs.Result<string, rs.Utf8Error> => {
+		pairs$Result_ref_str_str_Utf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b7: rs.ByteSlice): rs.Result<string, rs.Utf8Error> => {
 			return rs.strFromUtf8(b7);
-		}), undefined, 12, true).items, out);
+		}), undefined, 12, true).items), out);
 	} else if (_32 === 10) {
-		pairs$Result_String_string_FromUtf8Error(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b6: rs.ByteSlice): rs.Result<string, rs.FromUtf8Error> => {
+		pairs$Result_String_string_FromUtf8Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(bytes.items), (b6: rs.ByteSlice): rs.Result<string, rs.FromUtf8Error> => {
 			return rs.stringFromUtf8(rs.byteSliceToByteVec(b6));
-		}), undefined, 20, true).items, out);
+		}), undefined, 20, true).items), out);
 	} else if (_32 === 11) {
 		const secs: rs.Vec<rs.f64> = rs.vecFrom([0.0, -0.0, 1.5, -1.0, NaN, Infinity, -Infinity, 1e30]);
 		const _105: rs.Iter<rs.f64> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_211: rs.u8): rs.f64 => {
 			return ((_211 << 24) >> 24 as rs.f64) / 4.0;
 		});
 		rs.iterExtend(secs, _105, undefined, 8, true);
-		pairs$Result_time_Duration_time_TryFromFloatSecsError(rs.iterToVec(rs.iterMap(rs.vecIntoIter(secs), (a0: rs.f64): rs.Result<rs.Duration, rs.TryFromFloatSecsError> => {
+		pairs$Result_time_Duration_time_TryFromFloatSecsError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.vecIntoIter(secs), (a0: rs.f64): rs.Result<rs.Duration, rs.TryFromFloatSecsError> => {
 			return rs.durationTryFromSecsF64(a0);
-		}), undefined, 16, true).items, out);
+		}), undefined, 16, true).items), out);
 	} else if (_32 === 12) {
-		pairs$Result_Option_u8_num_ParseIntError(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s6: string): rs.Result<rs.u8 | undefined, rs.ParseIntError> => {
+		pairs$Result_Option_u8_num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s6: string): rs.Result<rs.u8 | undefined, rs.ParseIntError> => {
 			return result_map$07r5pce(parse$1brosjp(s6), (v11: rs.u8): rs.u8 | undefined => {
 				return rs.u8CheckedSub(v11, 1);
 			});
-		}), undefined, 2, true).items, out);
-		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s7: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
+		}), undefined, 2, true).items), out);
+		pairs$Result_Result_char_char_ParseCharError_str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s7: string): rs.Result<rs.Result<rs.char, rs.ParseCharError>, rs.ParseBoolError> => {
 			const _610: string = s7;
 			return result_map$1w6ihbb(parse$1yfzdza(s7), (_210: boolean): rs.Result<rs.char, rs.ParseCharError> => {
 				return rs.charFromStr(_610);
 			});
-		}), undefined, 8, true).items, out);
-		pairs$Result_u8_num_IntErrorKind(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s8: string): rs.Result<rs.u8, rs.IntErrorKind> => {
+		}), undefined, 8, true).items), out);
+		pairs$Result_u8_num_IntErrorKind(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s8: string): rs.Result<rs.u8, rs.IntErrorKind> => {
 			return result_mapErr$1xpyw31(parse$1brosjp(s8), (e: rs.ParseIntError): rs.IntErrorKind => {
 				return e.kind;
 			});
-		}), undefined, 2, true).items, out);
+		}), undefined, 2, true).items), out);
 	} else if (_32 === 13) {
-		pairs$Result_u16_never(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.Result<rs.u16, never> => {
+		pairs$Result_u16_never(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.Result<rs.u16, never> => {
 			return rs.Ok(_22 as rs.u16);
-		}), undefined, 2, true).items, out);
-		pairs$Result_unit_fmt_Error(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.Result<undefined, rs.FmtError> => {
+		}), undefined, 2, true).items), out);
+		pairs$Result_unit_fmt_Error(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.Result<undefined, rs.FmtError> => {
 			if (!(rs.u8Rem(_25, 2) === 0)) {
 				return rs.Err(new rs.FmtError());
 			}
 			return rs.OK;
-		}), undefined, 1, true).items, out);
+		}), undefined, 1, true).items), out);
 	} else if (_32 === 14) {
 		const v7: rs.Vec<rs.Result<undefined, rs.TryReserveError>> = rs.iterToVec(rs.iterFlatMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 6), (_2: rs.u8): rs.Result<undefined, rs.TryReserveError>[] => {
 			let n!: rs.usize;
@@ -564,30 +564,30 @@ export function eqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const text: string = rs.strSlice("ab", 0, rs.u8Rem(b2, 3) as rs.usize);
 			return [rs.byteVecTryReserve(new rs.ByteVec(), n), rs.stringTryReserve(text, n), rs.dequeTryReserve(rs.dequeNew(2) as rs.VecDeque<rs.u16>, n), rs.hashTryReserve(rs.hashNew() as rs.HashSet<rs.u8>, n, 469762048)];
 		}, (value: rs.Result<undefined, rs.TryReserveError>[]) => rs.iterSlice(value), true, 4), undefined, 8, true);
-		pairs$collections_TryReserveError(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(v7.items), (r: rs.Result<undefined, rs.TryReserveError>): rs.TryReserveError | undefined => {
+		pairs$collections_TryReserveError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(v7.items), (r: rs.Result<undefined, rs.TryReserveError>): rs.TryReserveError | undefined => {
 			return err$069ojhs(result_clone$0688qis(r));
-		}), "next", 8).items, out);
-		pairs$Result_unit_collections_TryReserveError(rs.slicesJoin([rs.vecFrom(v7.items.map(result_clone$0688qis)), v7], 8, undefined, rs.asSlice, result_clone$0688qis).items, out);
+		}), "next", 8).items), out);
+		pairs$Result_unit_collections_TryReserveError(rs.sliceFrom(rs.slicesJoin(rs.sliceFrom([rs.vecFrom(v7.items.map(result_clone$0688qis)), v7]), 8, undefined, rs.vecSlice, result_clone$0688qis).items), out);
 	} else {
-		pairs$Option_Result_u8_num_ParseIntError(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
+		pairs$Option_Result_u8_num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s: string): rs.Result<rs.u8, rs.ParseIntError> | undefined => {
 			const _73: string = s;
 			return then$11t2u23(!(s.length === 0), (): rs.Result<rs.u8, rs.ParseIntError> => {
 				return parse$1brosjp(_73);
 			});
-		}), undefined, 2, true).items, out);
-		pairs$Vec_Result_bool_str_ParseBoolError(rs.iterToVec(rs.iterMap(rs.sliceChunks(all.items, 2), parsed$bool), undefined, 12, true).items, out);
-		pairs$tuple2_Result_char_char_ParseCharError_usize(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s2: string): [rs.Result<rs.char, rs.ParseCharError>, rs.usize] => {
+		}), undefined, 2, true).items), out);
+		pairs$Vec_Result_bool_str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(all.items), 2), parsed$bool), undefined, 12, true).items), out);
+		pairs$tuple2_Result_char_char_ParseCharError_usize(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(all.items), (s2: string): [rs.Result<rs.char, rs.ParseCharError>, rs.usize] => {
 			return [rs.charFromStr(s2), rs.usizeRem(rs.stringLen(s2), 2)] as [rs.Result<rs.char, rs.ParseCharError>, rs.usize];
-		}), undefined, 12, true).items, out);
-		pairs$char_ParseCharError(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s3: string): rs.ParseCharError | undefined => {
+		}), undefined, 12, true).items), out);
+		pairs$char_ParseCharError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s3: string): rs.ParseCharError | undefined => {
 			return err$0bvotqj(rs.charFromStr(s3));
-		}), "next", 1).items, out);
-		pairs$str_ParseBoolError(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s4: string): rs.ParseBoolError | undefined => {
+		}), "next", 1).items), out);
+		pairs$str_ParseBoolError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s4: string): rs.ParseBoolError | undefined => {
 			return err$11tr79p(parse$1yfzdza(s4));
-		}), "next", 0).items, out);
-		pairs$num_ParseIntError(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s5: string): rs.ParseIntError | undefined => {
+		}), "next", 0).items), out);
+		pairs$num_ParseIntError(rs.sliceFrom(rs.iterToVec(rs.iterFilterMap(rs.iterSlice(all.items), (s5: string): rs.ParseIntError | undefined => {
 			return err$1tv7qwu(parse$02m1946(s5));
-		}), "next", 1).items, out);
+		}), "next", 1).items), out);
 	}
 }
 

@@ -2727,7 +2727,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let (base, from) = range.unwrap_or((slice, 0));
 		let base = self.slice_path(base, out);
 		(from..from + n)
-			.map(|i| place::byte_at(base.clone(), Expr::lit(i.to_string())))
+			.map(|i| place::slice_at(base.clone(), Expr::lit(i.to_string())))
 			.collect()
 	}
 
@@ -3665,6 +3665,19 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 					.all(|e| e.is_path() || matches!(e.unlocated(), Expr::Arrow(..) | Expr::Lambda(..)))
 			{
 				*e = value.clone();
+			}
+			// The elements of a slice of all of an array are the array, and a copy of them its copy.
+			if let Expr::Call(f, args) = &*e
+				&& let (Expr::Rs(read), [slice]) = (&**f, args.as_slice())
+				&& matches!(read.as_str(), "sliceItems" | "sliceToArray")
+				&& let Expr::Call(from, items) = slice.unlocated()
+				&& matches!(&**from, Expr::Rs(from) if from == "sliceFrom")
+				&& let [items] = items.as_slice()
+			{
+				*e = match read.as_str() {
+					"sliceItems" => items.clone(),
+					_ => items.clone().member("slice").call(Vec::new()),
+				};
 			}
 			true
 		}

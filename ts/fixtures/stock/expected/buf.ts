@@ -145,7 +145,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					rs.idx(_150, at);
 					_150.data[_150.start + at] = _150.data[_150.start + at] ^ 255;
 				}
-				const _155: rs.BytesMut | undefined = rs.sliceLast(pieces.items);
+				const _155: rs.BytesMut | undefined = rs.sliceLast(rs.sliceFrom(pieces.items));
 				if (_155 !== undefined) {
 					rs.bytesMutExtend(_155, rs.byteSliceFrom(Uint8Array.of(120, 121)));
 					continue;
@@ -201,7 +201,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else {
 				if (_20 === 22) {
-					const _227: rs.ByteSlice | undefined = rs.sliceGet(frozen.items, rs.usizeRem(n, rs.usizeAdd(frozen.items.length, 1)));
+					const _227: rs.ByteSlice | undefined = rs.sliceGet(rs.sliceFrom(frozen.items), rs.usizeRem(n, rs.usizeAdd(frozen.items.length, 1)));
 					if (_227 !== undefined) {
 						const _240: rs.ByteSlice = rs.bytesClone(_227);
 						frozen.items.push(_240);
@@ -238,7 +238,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					continue;
 				}
 				if (_20 === 24) {
-					const _268: rs.Place<rs.ByteSlice> | undefined = rs.sliceLastMut(frozen.items);
+					const _268: rs.Place<rs.ByteSlice> | undefined = rs.sliceLastMut(rs.sliceFrom(frozen.items));
 					if (_268 !== undefined) {
 						const _273: rs.usize = rs.usizeRem(n, 3);
 						if (_273 === 0) {
@@ -255,7 +255,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					continue;
 				}
 				if (_20 === 25) {
-					const _286: rs.BytesMut | undefined = rs.sliceLast(pieces.items);
+					const _286: rs.BytesMut | undefined = rs.sliceLast(rs.sliceFrom(pieces.items));
 					if (_286 !== undefined) {
 						buf = rs.replaceIn(_286, buf);
 						continue;
@@ -266,7 +266,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const spare: rs.ByteSlice = rs.bytesMutSpare(buf);
 					rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(spare.length as rs.u32).reverse()));
 					const k: rs.usize = rs.usizeRem(n, rs.usizeAdd(spare.length, 1));
-					const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceRange(spare, 0, k))));
+					const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceRange(spare, 0, k)));
 					while (true) {
 						const _314: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
 						if (_314 === rs.DONE) {
@@ -293,7 +293,7 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 					continue;
 				}
 				if (_20 === 28) {
-					const _356: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(rs.byteSliceView(rs.bytesMutSpare(buf)));
+					const _356: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(rs.bytesMutSpare(buf));
 					if (_356 !== undefined) {
 						_356.v = n & 0xff;
 					}
@@ -2755,7 +2755,7 @@ export function vecSpares(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const k: rs.usize = _20[1];
 			const _31: rs.u8 = rs.u8Rem(op, 7);
 			if (_31 === 0) {
-				const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceRange(spare, 0, k))));
+				const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceRange(spare, 0, k)));
 				while (true) {
 					const _39: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
 					if (_39 === rs.DONE) {
@@ -2786,13 +2786,13 @@ export function vecSpares(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecSetLen(vec, rs.usizeAdd(vec.length, k2));
 			} else if (_31 === 3) {
 				rs.byteSliceFill(rs.byteSliceRange(spare, 0, k), n);
-				const _93: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceView(rs.byteSliceSplitAt(rs.byteSliceRange(spare, 0, k), rs.usizeDiv(k, 2))[0]));
+				const _93: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceSplitAt(rs.byteSliceRange(spare, 0, k), rs.usizeDiv(k, 2))[0]);
 				if (_93 !== undefined) {
 					_93.v = ~n & 0xff;
 				}
 				rs.byteVecSetLen(vec, rs.usizeAdd(vec.length, k));
 			} else if (_31 === 4) {
-				const _109: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(rs.byteSliceView(spare));
+				const _109: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(spare);
 				if (_109 !== undefined) {
 					const uninit = _109;
 					uninit.v = n;

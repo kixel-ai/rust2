@@ -279,7 +279,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 1, true);
 	const _7: rs.u8 = rs.u8Rem(kind, 4);
 	if (_7 === 0) {
-		const _11: Tagged.Tagged<string> | undefined = rs.sliceFirst(tags.items);
+		const _11: Tagged.Tagged<string> | undefined = rs.sliceFirst(rs.sliceFrom(tags.items));
 		const t: Tagged.Tagged<string> = option_unwrapOrDefault$1b97y1a(_11 === undefined ? undefined : Tagged.clone$Clone_String(_11));
 		const _15: rs.u8 = t.n;
 		Tagged.default$Default_u8();
@@ -294,20 +294,20 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.iterCount(rs.iterEmpty() as rs.Iter<rs.u8>) & 0xff);
 	} else if (_7 === 1) {
 		const sorted: rs.Vec<Tagged.Tagged<string>> = rs.vecFrom(tags.items.map(Tagged.clone$Clone_String));
-		rs.sliceSort(sorted.items, rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
+		rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
 		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (t3: Tagged.Tagged<string>): rs.u8 => {
 			return t3.n;
 		}), undefined, true);
-		const iter: rs.Iter<Tagged.Tagged<string>[]> = rs.sliceWindows(tags.items, 2);
+		const iter: rs.Iter<rs.Slice<Tagged.Tagged<string>>> = rs.sliceWindows(rs.sliceFrom(tags.items), 2);
 		while (true) {
-			const _76: Tagged.Tagged<string>[] | rs.Done = iter.next();
+			const _76: rs.Slice<Tagged.Tagged<string>> | rs.Done = iter.next();
 			if (_76 === rs.DONE) {
 				break;
 			}
 			rs.idx(_76, 0);
 			rs.idx(_76, 1);
-			const part = _76[0];
-			const part2 = _76[1];
+			const part = _76.data[_76.start];
+			const part2 = _76.data[_76.start + 1];
 			const a: Tagged.Tagged<string> = part;
 			const b: Tagged.Tagged<string> = part2;
 			rs.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rs.Ordering | undefined ? 1 : 0) << 3) & 0xff));
@@ -447,11 +447,11 @@ export function rewritten(_1: undefined, n: rs.u8): rs.u8 {
  * How many items `xs` hold if `value` is `()`, which it always is, beside a function
  * std's `flatten` makes, whose own parameter is `value` too.
  */
-export function flattened(_value: undefined, xs: rs.ByteVec[]): rs.u8 {
+export function flattened(_value: undefined, xs: rs.Slice<rs.ByteVec>): rs.u8 {
 	if (false) {
 		return 0;
 	}
-	return rs.iterCount(rs.iterFlatten(rs.iterSlice(xs), (value: rs.ByteVec) => rs.iterSlice(rs.byteVecView(value)), true)) & 0xff;
+	return rs.iterCount(rs.iterFlatten(rs.iterSlice(rs.sliceItems(xs)), (value: rs.ByteVec) => rs.iterSlice(rs.byteVecView(value)), true)) & 0xff;
 }
 
 /**
@@ -479,7 +479,7 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, phantomEq$String(undefined, n));
 		rs.byteVecPush(out, unitEq(undefined, n));
 		rs.byteVecPush(out, rewritten(undefined, n));
-		rs.byteVecPush(out, flattened(undefined, [rs.byteSliceToByteVec(data), rs.byteSliceToByteVec(data)]));
+		rs.byteVecPush(out, flattened(undefined, rs.sliceFrom([rs.byteSliceToByteVec(data), rs.byteSliceToByteVec(data)])));
 	} else {
 		const lock: Lock.Lock<rs.u32> = Lock.new$u32(option_map$12cu62z(rs.byteSliceFirst(data), (_2: rs.u8): rs.u32 => {
 			return _2 as rs.u32;
@@ -540,10 +540,10 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		rs.cellReplace(_113, undefined);
 		rs.cellReplace(_113, undefined);
 		rs.cellSet(_113, undefined);
-		rs.sliceSwap([undefined, undefined, undefined], 0, n as rs.usize);
+		rs.sliceSwap(rs.sliceFrom([undefined, undefined, undefined]), 0, n as rs.usize);
 		const v: rs.Vec<Unit.Unit> = rs.vecFromElem({}, 2, undefined);
-		rs.sliceSwap(v.items, 0, 1);
-		rs.byteVecPush(out, ([undefined, undefined, undefined].length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
+		rs.sliceSwap(rs.sliceFrom(v.items), 0, 1);
+		rs.byteVecPush(out, (rs.sliceFrom([undefined, undefined, undefined]).length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);
 		rs.cellReplace(_141, undefined);

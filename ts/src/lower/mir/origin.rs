@@ -1,7 +1,7 @@
 //! Where a raw pointer a body makes points, as far as the body shows. JS keeps a value in
-//! no array, and a shared subslice of values it copies, apart from what holds them in
-//! Rust, so a pointer leaving one, or measured against another, fails at run time; where
-//! the body proves that it does, translation refuses it with a span instead. A pointer the
+//! no array, and a shared slice of a byte in no array, apart from what holds them in Rust,
+//! so a pointer leaving one, or measured against another, fails at run time; where the
+//! body proves that it does, translation refuses it with a span instead. A pointer the
 //! body takes from elsewhere, such as a field or a parameter, is left to the runtime.
 //!
 //! So is whether a pointer to a value JS copies is an `Arc`'s, the one place of its value,
@@ -14,7 +14,6 @@ use rustc_span::Spanned;
 
 use super::Fx;
 use crate::lower::library::{self, Std};
-use crate::lower::num::Int;
 use crate::lower::pointer::Pointee;
 use crate::ts::{Expr, Stmt};
 
@@ -23,8 +22,8 @@ use crate::ts::{Expr, Stmt};
 enum Array<'tcx> {
 	/// An array of one, around the place a `&raw` here took, which each `&raw` makes anew.
 	Lone(Location),
-	/// A shared slice JS copies, of values it copies or of a byte in no array, made by the
-	/// call ending this block, with its length if the body fixes it.
+	/// A shared slice JS copies, of a byte in no array, made by the call ending this block,
+	/// with its length if the body fixes it.
 	Copy(BasicBlock, Option<i128>),
 	/// The array of a variable of this body's own, or of a field of one, at this place.
 	Owned(mir::Place<'tcx>),
@@ -61,7 +60,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
 	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, a
 	/// raw or mutable slice of a byte in no array of bytes, or a pointer, slice, or copy
-	/// reaching out of an array of one or a copied subslice.
+	/// reaching out of an array of one or a copied byte.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -273,60 +272,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			};
 		}
 		let (def_id, gargs, args) = self.def_call(local)?;
-		let (owner, name) = library::key(self.tcx, def_id)?;
-		let mut types = gargs.types();
-		let container = types.next()?.peel_refs();
-		let byte = crate::lower::byte;
-		let copy = |len| {
-			Some(Origin {
-				array: Array::Copy(self.def_block(local)?, len),
-				index: Some(0),
-			})
-		};
-		// `get_unchecked` and `from_raw_parts` are generic over the element, not the slice.
-		let elem = match (owner.as_str(), name.as_str(), container.kind()) {
-			("raw", "from_raw_parts" | "from_raw_parts_mut", _) => {
+		// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can share
+		// it, unless empty, which keeps the pointer. Any other slice is a view of where it is.
+		match library::key(self.tcx, def_id)? {
+			(owner, name) if owner == "raw" && matches!(name.as_str(), "from_raw_parts" | "from_raw_parts_mut") => {
 				let o = self.origin(&args[0].node)?;
-				// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can
-				// share it, unless empty, which keeps the pointer.
 				let len = self.const_int(&args[1].node);
-				return match (byte(container), o.array) {
-					(true, Array::Lone(_)) if len != Some(0) => copy(len),
+				match (crate::lower::byte(gargs.types().next()?), o.array) {
+					(true, Array::Lone(_)) if len != Some(0) => Some(Origin {
+						array: Array::Copy(self.def_block(local)?, len),
+						index: Some(0),
+					}),
 					_ => Some(o),
-				};
+				}
 			}
-			("slice", "get_unchecked", _) => container,
-			("Index", "index", ty::Slice(e) | ty::Array(e, _)) => *e,
-			("Index", "index", ty::Adt(adt, a)) if Std::of(self.tcx, adt.did()) == Some(Std::Vec) => a.type_at(0),
-			_ => return None,
-		};
-		let range = types.next()?;
-		// A shared range of bytes is a view of them.
-		if byte(elem) || Int::of(range).is_some() {
-			return None;
-		}
-		copy(self.range_len(&args[1].node, container))
-	}
-
-	/// How many elements the range `op` takes of `container`, if the body fixes it.
-	fn range_len(&self, op: &Operand<'tcx>, container: ty::Ty<'tcx>) -> Option<i128> {
-		let local = self.traced(op)?;
-		let Rvalue::Aggregate(kind, ops) = self.def_rvalue(local)? else {
-			return None;
-		};
-		let mir::AggregateKind::Adt(did, ..) = **kind else {
-			return None;
-		};
-		let all = match container.kind() {
-			ty::Array(_, n) => n.try_to_target_usize(self.tcx).map(i128::from),
-			_ => None,
-		};
-		let ops: Vec<_> = ops.iter().map(|op| self.const_int(op)).collect();
-		match (self.tcx.item_name(did).as_str(), ops.as_slice()) {
-			("Range", [Some(start), Some(end)]) => Some(end - start),
-			("RangeTo", [Some(end)]) => Some(*end),
-			("RangeFrom", [Some(start)]) => Some(all? - start),
-			("RangeFull", []) => all,
 			_ => None,
 		}
 	}

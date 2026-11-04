@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -120,6 +120,15 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 
 	// `bench.rs`'s op 16: log lines formatted into one `String`.
 	out.push({ name: "fmt/lines", op: "format", items: count, input: Uint8Array.of(16, 0, ...u64(BigInt(count))) });
+
+	// `bench.rs`'s op 17: steps through the mutable parts of a slice, a heap's sift through
+	// `split_at_mut` and the writes of a prefix, at each size.
+	for (const [selector, name] of ["heap-sift", "prefix-writes"].entries()) {
+		for (const size of [16, 256, 4096]) {
+			const input = Uint8Array.of(17, selector, ...[BigInt(count), BigInt(size)].flatMap(u64));
+			out.push({ name: `parts/${name}/${size}`, op: "write", items: count, input });
+		}
+	}
 	return out;
 }
 

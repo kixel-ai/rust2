@@ -205,6 +205,17 @@ pub fn call<'tcx>(
 			*at = Expr::rs("byteSliceView", vec![std::mem::replace(at, Expr::undefined())]);
 		}
 	}
+	// An array or a `Vec` key is a JS array, so the elements of an `rs.Slice` stand in.
+	if let Some(by) = by
+		&& !matches!(name, "range" | "range_mut")
+		&& let ty::Slice(elem) = by.kind()
+		&& !super::byte(*elem)
+		&& let key = peel(b, arg(coll, 0))
+		&& (key.is_array() || b.t.std_of(key) == Some(Std::Vec))
+		&& let Some(at) = args.get_mut(1)
+	{
+		*at = Expr::rs("sliceItems", vec![std::mem::replace(at, Expr::undefined())]);
+	}
 	// Elements of any form, an array, a slice, or a `Vec`, hash and compare alike, so each
 	// finds the others. A reference key finds what it points at by that value's own impls,
 	// whatever `alike` makes of its `PartialEq` against a reference.
@@ -1725,8 +1736,7 @@ fn deque<'tcx>(
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
 		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rs("dequeByteSlices", values),
-		(_, "as_slices") => Expr::rs("dequeAsSlices", values),
-		(_, "as_mut_slices") => Expr::rs("dequeAsSlices", flagged(values, true, false)),
+		(_, "as_slices" | "as_mut_slices") => Expr::rs("dequeAsSlices", values),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());

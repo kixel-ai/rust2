@@ -226,16 +226,12 @@ fixtures/reject/src/pointers.rs:pointers_apart+9:5: `offset_from` between a poin
 fixtures/reject/src/pointers.rs:pointers_apart+10:26: `offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+11:24: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+12:23: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
-fixtures/reject/src/pointers.rs:pointers_apart+13:20: `offset_from` between a pointer into a shared slice JS copies and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `pointers::Window`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
-fixtures/reject/src/pointers.rs:reached_out+4:3: a copy reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
-fixtures/reject/src/pointers.rs:reached_out+6:18: a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
-fixtures/reject/src/pointers.rs:reached_out+9:21: a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes
@@ -291,6 +287,7 @@ fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::M
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
+fixtures/reject/src/values.rs:shared_values+1:2: a coercion to `std::rc::Rc<[u16]>`
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

@@ -220,7 +220,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _452: rs.Iter<Guard.Guard> = rs.iterMap(_453, (_223: rs.u32): Guard.Guard => {
 			return captured15(_223);
 		});
-		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured16 = made;
 		const it7: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterZip(_452, rs.iterMap(_458, (_224: rs.u32): Guard.Guard => {
 			return captured16(_224);
@@ -238,7 +238,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _498: rs.Iter<Guard.Guard> = rs.iterMap(_499, (_228: rs.u32): Guard.Guard => {
 			return captured17(_228);
 		});
-		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 2));
+		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 2)));
 		const captured18 = made;
 		const part17 = rs.ownedCount(rs.iterRev(rs.iterZip(rs.iterZip(_498, rs.iterMap(_504, (_230: rs.u32): Guard.Guard => {
 			return captured18(_230);
@@ -250,7 +250,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _521: rs.Iter<Guard.Guard> = rs.iterMap(_522, (_231: rs.u32): Guard.Guard => {
 			return captured19(_231);
 		});
-		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured20 = made;
 		const it8: rs.Iter<[Guard.Guard, Guard.Guard]> = rs.iterZip(_521, rs.iterMap(_527, (_235: rs.u32): Guard.Guard => {
 			return captured20(_235);
@@ -316,7 +316,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _665: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(rs.iterMap(_667, (_240: rs.u32): Guard.Guard => {
 			return captured21(_240);
 		}));
-		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured22 = made;
 		const part34 = option_map$1pp5yot(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_241: rs.u32): Guard.Guard => {
 			return captured22(_241);
