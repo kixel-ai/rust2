@@ -1,7 +1,7 @@
 //! Each fixture under `fixtures/` is translated, vetted with `go vet`, and run on the
 //! same inputs as its native build, failing on any difference.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -64,21 +64,32 @@ enum Outcome {
 }
 
 thread_local! {
-	/// The message of this thread's last panic, which the hook records.
+	/// Whether `native` is catching this thread's panics, which the hook then records
+	/// instead of printing.
+	static CATCHING: Cell<bool> = const { Cell::new(false) };
+	/// The message of the last panic `native` caught on this thread.
 	static PANIC: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 fn native(run: fn(&[u8]) -> Vec<u8>, input: &[u8]) -> Outcome {
 	static HOOK: std::sync::Once = std::sync::Once::new();
 	HOOK.call_once(|| {
-		std::panic::set_hook(Box::new(|info| {
+		// Any other panic, such as a failing test's assertion, goes to the default hook.
+		let rest = std::panic::take_hook();
+		std::panic::set_hook(Box::new(move |info| {
+			if !CATCHING.get() {
+				return rest(info);
+			}
 			let msg = info
 				.payload_as_str()
 				.unwrap_or("a panic of a payload other than a message");
 			PANIC.set(Some(msg.to_string()));
 		}))
 	});
-	match std::panic::catch_unwind(|| run(input)) {
+	CATCHING.set(true);
+	let result = std::panic::catch_unwind(|| run(input));
+	CATCHING.set(false);
+	match result {
 		Ok(out) => Outcome::Output(out),
 		Err(_) => Outcome::Panic(PANIC.take().expect("a panic message")),
 	}
