@@ -13,6 +13,7 @@ generic std gap is planned here even when moq never calls it.
 
 ## Required
 
+- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - translated code and hand-written callers import the runtime as `rs`, not `rt`
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
@@ -20,13 +21,14 @@ generic std gap is planned here even when moq never calls it.
 - [Placeholders written to a crate's own fmt::Write](/quest/m3/ts-fmt-calls.md) - `write!` with placeholders into a crate's own writer translates, its `write_str` seeing each call std makes
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [Waiting: a slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate once a consumer calls them
-- [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
+- [rs.Slice](/quest/m3/ts-slice-object.md) - slices and arrays of other values are a runtime type of array, start, and length, splitting in O(1) and comparing by where they point
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - every step that drops a pushed `Vec`'s length keeps its capacity, as std guarantees
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
-- [A string's exact capacity](/quest/m3/ts-string-capacity.md) - a `String` holds std's capacity, so a program making a `Bytes` of one reads its capacity
+- [rs.String](/quest/m3/ts-string-capacity.md) - `String`, `Box<str>`, and `&str` are a runtime type holding std's capacity
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [Every panic of a hooked program has its location](/quest/m3/ts-panic-sites.md) - no panic in a program that sets a hook lacks the location native code gives it
 - [The chunk a BufMut lends](/quest/m3/ts-chunk-mut.md) - `BufMut::chunk_mut` and its `UninitSlice`'s writes translate, reaching the buffer's storage
 - [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
+- [Python methods without a wrapper frame](/quest/m3/ffi-python-methods.md) - a method call on a generated Python object enters the extension with no wrapper frame
+- [Python calls skip the loop lookup](/quest/m3/ffi-python-loop-lookup.md) - a call while an asyncio loop runs costs what one outside does unless something waits

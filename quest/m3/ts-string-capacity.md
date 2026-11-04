@@ -1,45 +1,44 @@
-# [M] A string's exact capacity
+# [L] rs.String
 
 ## Goal
 
-[rust2-ts](/ts/README.md) holds a `String`'s exact capacity as std's does, through
+[rust2-ts](/ts/README.md) translates `String`, `Box<str>`, and `&str` as a runtime type
+rather than a JS `string`, holding what std's do: a `String`'s exact capacity through
 `with_capacity`, `reserve`, `reserve_exact`, push growth, `shrink_to_fit`, `shrink_to`,
 `format!`'s estimate, and `into_bytes`, `Vec::from`, and `Bytes::from`, which take it.
-Differential tests against native Rust prove it, and the refusal below is lifted.
+Differential tests against native Rust prove it, and the refusal of reading a `Bytes`'
+capacity where a `String`'s bytes may reach it is lifted. Hand-written callers convert at
+the boundary with helpers, as for `rs.Vec`.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-03
-([moq-dev/rust2#532](https://github.com/moq-dev/rust2/pull/532)):
+Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as std's do
+get a runtime wrapper, converted at API boundaries, rather than a JS native type. In their
+words on [#555](https://github.com/moq-dev/rust2/pull/555), "trying to support native
+types is probably a mistake". `Vec` became one there and `Cow<str>` in
+[#567](https://github.com/moq-dev/rust2/pull/567). Primitives, `Option`, tuples, and
+closures stay native. A native type, aliased or branded, stays where it holds all of std's
+semantics with no extra allocation, as a branded `number` does for an integer and a
+`Uint8Array` for a `[u8; N]`; prefer one if it holds them, but capacity and the like
+usually need a wrapper.
 
-> A `Bytes` of a `String`'s bytes is unique, and truncates to nothing, by the `String`'s
-> capacity, which JS keeps none of. How should what reads it behave?
->
-> - Throw a `rust2-ts:` error at runtime.
-> - Refuse `From<String> for Bytes` at translation.
-> - Treat a `String`'s capacity as its length.
-> - ✅ Track String capacity, as its own quest. Until then, refuse at translation.
+What it holds:
 
-A `String` is a JS string, so `capacity` is refused and `with_capacity`, `reserve`, and
-`shrink_to_fit` do nothing. A `Vec<u8>` or a `Bytes` of its bytes gets a buffer as long
-as its UTF-8, whose capacity std's differs from after `with_capacity`, `format!`, or a
-push that grew it. So where any translated crate makes a `Bytes` or a `Vec<u8>` of a
-`String`'s bytes, every crate is refused what reads a `Bytes`' capacity (`is_unique`,
-`try_into_mut`, `truncate`, `clear`, `From` into a `BytesMut` or a `Vec<u8>`, and
-`BufMut::put` into a `BytesMut`), since the bytes may reach any of them. Lifting that
-needs the capacity on the `String` itself.
+- ✅ Measure both, and bring the numbers back as a decision.
+- A JS string and its capacity: engine string operations and `Display` stay cheap, but
+  byte offsets still convert from UTF-16.
+- UTF-8 bytes, as `rs.ByteVec` holds: byte indexing and in-place edits are as Rust's, but
+  every `Display` and JS boundary decodes.
 
-Measure first: a `String` as a wrapper object holding its text and capacity, and a side
-table, such as a `WeakMap` from an object, against plain JS strings, on `just ts bench`
-and the moq codec in Node, Chrome, Bun, and Firefox, before choosing. A string's text is
-a primitive, so a side table needs an object to key on, and a wrapper changes every
-string operation's output; weigh both against how few strings ever read a capacity.
-[The pushed capacity quest](/quest/m3/ts-vec-clear-capacity.md) measures a `Vec`
-wrapper the same way, so share the harness and compare the two.
+Measure on `just ts bench` and moq's translated codec in Node, Chrome, Bun, and Firefox,
+with an A/A run of main for noise, as #555 did.
 
-Public API: the translator's output.
+Earlier, on [#532](https://github.com/moq-dev/rust2/pull/532), the maintainer chose to
+track capacity rather than refuse it; until this lands, the refusal stays.
+
+Public API: the translator's output and what a hand-written caller passes for a string.
 
 ## Related
 
-- [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - measures a `Vec` wrapper holding its own capacity
-- [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a `Vec`'s exact capacity, which a `String`'s bytes become
+- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - runs in parallel
+- [rs.Slice](/quest/m3/ts-slice-object.md) - the other native mapping becoming a wrapper
