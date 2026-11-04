@@ -700,10 +700,10 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T, at?: Location): T[] {
+export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): T[] {
 	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
 	// std's makes one with room for exactly them.
-	const v = vecWithCapacity<T>(joinedLength(parts, sep, size, at), size);
+	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) vecExtendFromSlice(v, sep, size, clone);
 		vecExtendFromSlice(v, parts[i], size, clone);
@@ -716,9 +716,9 @@ export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayL
  * read from it by `slice` unless it is the slice, with `sep` between them, into a
  * `Vec<u8>` of the capacity std's has, their exact length.
  */
-export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice, at?: Location): ByteVec {
+export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
 	const parts = slice === undefined ? (items as unknown as readonly ByteSlice[]) : items.map(slice);
-	const v = new ByteVec(joinedLength(parts, sep, 1, at));
+	const v = new ByteVec(joinedLength(parts, sep, 1));
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) byteVecExtendFromSlice(v, sep);
 		byteVecExtendFromSlice(v, parts[i]);
@@ -732,13 +732,13 @@ export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: 
  * separators' count wraps, and `Vec::with_capacity` of that panics past what the `Vec` may
  * hold. Where the count wraps, the `Vec` grows as it fills, which memory bounds first.
  */
-function joinedLength(parts: readonly { length: number }[], sep: { length: number } | undefined, size: number, at?: Location): number {
+function joinedLength(parts: readonly { length: number }[], sep: { length: number } | undefined, size: number): number {
 	let sum = 0;
 	for (const part of parts) sum += part.length;
-	if (sum > USIZE_MAX) panic("attempt to add with overflow", at);
+	if (sum > USIZE_MAX) panic("attempt to add with overflow", "int_sum");
 	const seps = sep === undefined || parts.length === 0 ? 0 : Math.imul(sep.length, parts.length - 1) >>> 0;
 	const length = (sum + seps) % (USIZE_MAX + 1);
-	if (length > vecMax(size)) panic("capacity overflow", at);
+	if (length > vecMax(size)) panic("capacity overflow", "capacity");
 	return length;
 }
 
@@ -5189,11 +5189,12 @@ export function boundsContains<T>([start, end]: readonly [RangeBound<T>, RangeBo
 }
 
 /** std's `Step::forward` in a debug build: `n + by`, panicking past `int`'s last value. */
-function forward<T>(n: T, by: number, int: Step<T> | undefined, at?: Location): T {
+function forward<T>(n: T, by: number, int: Step<T> | undefined): T {
 	if (int === undefined) throw new Error("rust2-ts: stepping a range of no integer type");
 	const [sum, over] = int(n, by);
-	if (over) panic(int === (charStep as unknown) ? "overflow in `Step::forward`" : "attempt to add with overflow", at);
-	return sum;
+	if (!over) return sum;
+	if (int === (charStep as unknown)) panic("overflow in `Step::forward`", "char_forward");
+	return panic("attempt to add with overflow", "int_forward");
 }
 
 /** `ops::RangeInclusive`: `start..=end`, which remembers once it has yielded `end`. */
