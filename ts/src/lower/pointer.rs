@@ -649,12 +649,17 @@ pub fn call<'tcx>(
 				),
 			)
 		}
-		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of.
+		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of. One
+		// to an object finds it by that object, which each copy of its type then needs of
+		// its own, as a comparison of pointers to it does.
 		("Arc" | "Rc", "as_ptr" | "into_raw") => {
 			let arc = b.spill(arg(), "arc", out);
 			let p = match kind(b, pointee()) {
 				Some(Pointee::Place) => Expr::rt("arcPlace", vec![arc.clone()]),
-				_ => arc.clone().member("value"),
+				_ => {
+					b.t.compare(pointee());
+					arc.clone().member("value")
+				}
 			};
 			Expr::rt("arcRaw", vec![arc, p, Expr::Str(owner.into())])
 		}

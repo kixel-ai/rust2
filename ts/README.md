@@ -448,7 +448,7 @@ function refers to a binding `x`. A `Copy` struct, enum, tuple,
 or array, or an `Option`, `Result`, or `Poll` holding one, is copied where Rust copies
 it, since JS would share the object: by a function of `lib.ts` made for its type, such
 as `copy$shapes_Point`, which copies what it holds by value and shares what it holds by
-reference. Only a type the crate writes into in place or compares pointers to is copied,
+reference. Only a type the crate writes into in place, compares pointers to, or takes an `Arc`'s raw pointer to is copied,
 or one holding such a type by value: a value of any other type never changes once made
 and has no address that tells its copies apart, so it is shared. A write counts through a field, an element, a reference, or a box, and a mutable reference
 a std function's parameters take, where the crate calls it or takes it as a value, or

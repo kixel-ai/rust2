@@ -2041,6 +2041,10 @@ impl Drop for Counted<'_> {
 	}
 }
 
+/// What two `Arc`s hold copies of, which nothing compares pointers to.
+#[derive(Clone, Copy)]
+struct Twin(u8, u8);
+
 /// `Arc`s and `Rc`s of a number, a struct, `()`, and a value that drops, through the
 /// pointers `into_raw` and `as_ptr` give: counted up and down by `increment_strong_count`
 /// and `decrement_strong_count`, the value dropping with the last, taken back by
@@ -2118,6 +2122,31 @@ pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
 		Arc::strong_count(&unit) as u8,
 	]);
 	drop(unsafe { Arc::from_raw(other_raw) });
+	// Two `Arc`s of copies of one value, which are two allocations though no pointers to a
+	// `Twin` compare.
+	let twin = Twin(data.len() as u8, 1);
+	let (a, b) = (Arc::new(twin), Rc::new(twin));
+	let (c, d) = (Arc::new(twin), Rc::new(twin));
+	let (p, q) = (Arc::into_raw(Arc::clone(&a)), Rc::into_raw(Rc::clone(&b)));
+	let (r, s) = (Arc::into_raw(Arc::clone(&c)), Rc::into_raw(Rc::clone(&d)));
+	unsafe {
+		Arc::increment_strong_count(p);
+		Rc::increment_strong_count(q);
+	}
+	out.extend([a.as_ref(), &b, &c, &d].map(|t| t.0 ^ t.1));
+	out.extend(
+		[
+			Arc::strong_count(&a),
+			Rc::strong_count(&b),
+			Arc::strong_count(&c),
+			Rc::strong_count(&d),
+		]
+		.map(|n| n as u8),
+	);
+	unsafe {
+		drop((Arc::from_raw(p), Arc::from_raw(p), Rc::from_raw(q), Rc::from_raw(q)));
+		drop((Arc::from_raw(r), Rc::from_raw(s)));
+	}
 	while dropped.get() == 0 {
 		unsafe { Rc::decrement_strong_count(held_raw) };
 		out.push(dropped.get());

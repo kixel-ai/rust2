@@ -17,6 +17,7 @@ import type * as Outer from "./pointers.Outer.ts";
 import type * as Pair from "./pointers.Pair.ts";
 import type * as Paired from "./pointers.Paired.ts";
 import type * as Spot from "./pointers.Spot.ts";
+import type * as Twin from "./pointers.Twin.ts";
 
 export function copy$Option_pointers_Pair(v: Pair.Pair | undefined): Pair.Pair | undefined {
 	return v === undefined ? v : copy$pointers_Pair(v);
@@ -131,6 +132,10 @@ export function copy$pointers_Spot(v: Spot.Spot): Spot.Spot {
 	return { at: copy$tuple2_u16_u8(v.at), tag: v.tag };
 }
 
+export function copy$pointers_Twin(v: Twin.Twin): Twin.Twin {
+	return { _0: v._0, _1: v._1 };
+}
+
 export function copy$tuple2_array2_u32_u8(v: [rt.u32[], rt.u8]): [rt.u32[], rt.u8] {
 	return [copy$array_u32(v[0]), v[1]];
 }
@@ -191,6 +196,11 @@ export function drop$pointers_List_sync_Arc_u8(_1: List.List<rt.Arc<rt.u8>>): vo
 	List.drop$ops_Drop_sync_Arc_u8(_1);
 }
 
+export function drop$tuple2_sync_Arc_pointers_Twin_Rc_pointers_Twin(_1: [rt.Arc<Twin.Twin>, rt.Arc<Twin.Twin>]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+}
+
 export function drop$tuple2_u8_sync_Arc_u8(_1: [rt.u8, rt.Arc<rt.u8>]): void {
 	_1[1][Symbol.dispose]();
 }
@@ -199,6 +209,13 @@ export function drop$tuple3_sync_Arc_u32_Rc_pointers_Duo_sync_Arc_unit(_1: [rt.A
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 	_1[2][Symbol.dispose]();
+}
+
+export function drop$tuple4_sync_Arc_pointers_Twin_sync_Arc_pointers_Twin_Rc_pointers_Twin_Rc_pointers_Twin(_1: [rt.Arc<Twin.Twin>, rt.Arc<Twin.Twin>, rt.Arc<Twin.Twin>, rt.Arc<Twin.Twin>]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+	_1[2][Symbol.dispose]();
+	_1[3][Symbol.dispose]();
 }
 
 export class of$pointers_Bin_pointers_ByObject {
