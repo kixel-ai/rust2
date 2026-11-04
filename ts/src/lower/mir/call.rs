@@ -239,7 +239,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// An argument, which the callee copies if it changes it in place.
 	fn operand_frozen(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		match op {
-			Operand::Copy(place) | Operand::Move(place) if !self.in_bytes(*place) => self.place_expr(*place, span, out),
+			Operand::Copy(place) | Operand::Move(place) if !self.in_array(*place) => self.place_expr(*place, span, out),
 			_ => self.operand(op, span, out),
 		}
 	}
@@ -652,6 +652,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let to = self.operand(target, span, out);
 				let to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
 				let source = self.operand(source, span, out);
+				// A reference to an array is a slice of it, cloned over element by element.
+				if let ty::Array(elem, _) = ty.kind() {
+					let fns = library::clone_from_fns(self.b, *elem, span);
+					return done(Expr::rs("sliceCloneFromSlice", [vec![to, source], fns].concat()), true);
+				}
 				done(library::clone_from(self.b, to, source, ty, span), true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
@@ -701,7 +706,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("raw" | "array", "from_mut") | ("Cell", "from_mut")
 				if owner != "raw" || library::std_path(tcx, def_id) == ["slice", "raw", "from_mut"] =>
 			{
-				let made = self.one_of(owner == "Cell", owner == "array", targ(0)?, &args[0].node, span, out)?;
+				let made = self.one_of(owner == "Cell", targ(0)?, &args[0].node, span, out)?;
 				done(made, true)
 			}
 			// A range of numbers steps in place, with nothing between it and the loop.
@@ -1168,10 +1173,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						return done(Expr::undefined(), false);
 					}
 				};
-				// An array of bytes comes by reference, which is a slice of them.
-				let ty = match targ(0)? {
-					ty if crate::lower::byte_array(ty) => Ty::new_slice(tcx, tcx.types.u8),
-					ty => ty,
+				// An array comes by reference, which is a slice of it.
+				let ty = match targ(0)?.kind() {
+					ty::Array(elem, _) => Ty::new_slice(tcx, *elem),
+					_ => targ(0)?,
 				};
 				let value = self.operand(&args[0].node, span, out);
 				// The function reads it later, in a closure, where TypeScript no longer
@@ -1199,7 +1204,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 					return done(Expr::undefined(), false);
 				};
-				let values = self.operand(&args[1].node, span, out);
+				// A reference to the arguments array, which is a slice of all of it.
+				let values = library::slice_items(self.operand(&args[1].node, span, out));
 				// The arguments array made once in place: each piece its function.
 				let made: Option<Vec<Expr>> = match &values {
 					Expr::Ident(name) => self.local_named(name).and_then(|l| self.var_parts.get(&l).cloned()),
@@ -1353,11 +1359,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return None;
 		}
 		let deref = self.tcx.mk_place_deref(*place);
-		if self.in_bytes(deref) {
+		if self.in_array(deref) {
 			// Named before the copy, as the store names it.
 			let slice = self.place_expr(deref, span, out);
 			let slice = self.slice_path(slice, out);
-			return Some((Expr::rs("byteSliceToArray", vec![slice]), Some(deref)));
+			let ty = deref.ty(&self.mir.local_decls, self.tcx).ty;
+			return Some((self.b.t.array_copy(slice, ty, span), Some(deref)));
 		}
 		let borrowed = match &self.slots[place.local] {
 			Slot::Alias(Some(target)) if assignable(target) && self.alias_of_place(place.local) => {
@@ -1389,7 +1396,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn one_of(
 		&mut self,
 		cell: bool,
-		array: bool,
 		ty: Ty<'tcx>,
 		op: &Operand<'tcx>,
 		span: Span,
@@ -1398,11 +1404,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let tcx = self.tcx;
 		let place = op.place().filter(|p| p.projection.is_empty())?;
 		let deref = tcx.mk_place_deref(place);
-		// `array::from_mut` makes a `[T; 1]`, an array of its own.
-		let (of_place, of_object) = match (cell, array) {
-			(true, _) => ("cellOfPlace", "cellIn"),
-			(false, true) => ("arrayOfPlace", "arrayIn"),
-			(false, false) => ("sliceOfPlace", "sliceIn"),
+		// `array::from_mut` makes a `&mut [T; 1]`, which is a slice as a `&mut [T]` is.
+		let (of_place, of_object) = match cell {
+			true => ("cellOfPlace", "cellIn"),
+			false => ("sliceOfPlace", "sliceIn"),
 		};
 		let of = |made: Expr| Expr::rs(of_place, vec![made]);
 		if !cell && crate::lower::byte(ty) {
@@ -1411,10 +1416,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				"a slice of one byte's place, which a byte slice can view only in an array of bytes",
 			));
 		}
-		if self.in_bytes(deref) {
+		if self.in_array(deref) {
 			let slice = self.place_expr(deref, span, out);
-			let view = Expr::rs("byteSliceView", vec![slice]);
-			return Some(Expr::rs(of_object, vec![view]));
+			let mut made = vec![self.b.t.array_rs(ty, "View").call(vec![slice])];
+			if cell {
+				made.extend(self.copy_depth(ty));
+			}
+			return Some(Expr::rs(of_object, made));
 		}
 		// A cell of an object reads a copy wherever it is, as its place may be one a write
 		// lands in, such as an element of a slice of one.
@@ -1651,6 +1659,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			out.push(StmtKind::If { cond, then, els }.at(None));
 		}
 		let read = Expr::As(Box::new(target.clone()), self.b.t.ty(payload_ty, span));
+		// A reference to an array is a slice of it.
+		if payload_ty.is_array() {
+			return Some(Some((self.b.t.array_rs(payload_ty, "From").call(vec![read]), true)));
+		}
 		if let Some(local) = dest.as_local()
 			&& self.defs[local] == 1
 			&& matches!(self.slots[local], Slot::Var(_))
@@ -1731,9 +1743,18 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		span: Span,
 		out: &mut Vec<Stmt>,
 	) -> Expr {
-		// The object written in place gives what it held as an object of its own.
-		if place.1.is_some_and(|p| self.in_object(p)) {
-			let mut made = vec![place.0, value];
+		// The object written in place gives what it held as an object of its own, as does
+		// the array a slice of other values than bytes holds.
+		let array = place.1.filter(|&p| self.in_array(p) && !self.in_bytes(p));
+		if place.1.is_some_and(|p| self.in_object(p)) || array.is_some() {
+			let object = match array {
+				Some(p) => {
+					let slice = self.place_expr(p, span, out);
+					Expr::rs("sliceView", vec![slice])
+				}
+				None => place.0,
+			};
+			let mut made = vec![object, value];
 			made.extend(self.copy_depth(ty));
 			let old = Expr::rs("replaceIn", made);
 			let Some(base) = base else {
@@ -1897,15 +1918,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let checked = self.path(checked, "at", out);
 				let place = match container.kind() {
 					ty::Adt(..) if bytes => base.member("data").index(checked),
-					// An array's bytes come through a reference, which is a slice of them.
-					_ if container.is_slice() || crate::lower::byte_array(container) => {
-						super::place::slice_at(base, checked)
-					}
+					// An array comes through a reference, which is a slice of it.
+					_ if container.is_slice() || container.is_array() => super::place::slice_at(base, checked),
 					_ => base.index(checked),
 				};
-				// A reference to an array of bytes is a slice of them.
-				if crate::lower::byte_array(elem_ty) {
-					return Some(Some((Expr::rs("byteSliceFrom", vec![place]), true)));
+				// A reference to an array is a slice of it.
+				if elem_ty.is_array() {
+					return Some(Some((self.b.t.array_rs(elem_ty, "From").call(vec![place]), true)));
 				}
 				// The reference reads and writes the element where it is.
 				if let Some(local) = dest.as_local()
@@ -1935,7 +1954,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let base = match container.kind() {
 					ty::Adt(..) => library::vec_view(base, elem_ty),
-					ty::Array(..) if !bytes => Expr::rs("sliceFrom", vec![base]),
 					_ => base,
 				};
 				// All of a slice of other values is the slice itself.

@@ -1,10 +1,5 @@
 //! `bytes`' buffers, and buffers of the crate's own, where JS's storage would tell apart what Rust's doesn't.
 
-/// An `Arc`'s bytes would need a `ByteSlice` made inside it.
-pub fn shared(b: std::sync::Arc<[u8; 2]>) -> std::sync::Arc<[u8]> {
-	b
-}
-
 /// A buffer of the crate's own that JS copies, so `&mut` to it is an `rs.Place`, which the
 /// provided `copy_to_bytes` doesn't read through.
 pub enum Blank {

@@ -27,7 +27,6 @@ fixtures/reject/src/buffers.rs:capacity_reads+6:6: `BufMut::put` in a program th
 fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
 fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
@@ -106,6 +105,7 @@ fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u
 fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`
 fixtures/reject/src/objects.rs:any_type_id+1:4: `std::any::Any::type_id` of `dyn std::any::Any`, which is not supported yet
 fixtures/reject/src/objects.rs:any_type_id+1:17: unsupported call to `std::any::TypeId::of::<u8>`
+fixtures/reject/src/objects.rs:array_object+1:2: a trait object of `[u16; 2]`, which is not supported yet
 fixtures/reject/src/objects.rs:dyn_compared+3:2: comparing pointers to `dyn objects::Reading`, each an object JS makes of its own as it unsizes
 fixtures/reject/src/objects.rs:dyn_size+1:2: unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>`
 fixtures/reject/src/objects.rs:dynamic+2:4: unsupported call to `<std::vec::Vec<u8> as std::io::Write>::write`
@@ -170,7 +170,7 @@ fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a re
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/pointers.rs:arc_from_borrow+1:12: `Arc::from_raw` of a pointer to `u32` a borrow made, whose JS value is a place of its own, which no `Arc` gave
 fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
-fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
+fixtures/reject/src/pointers.rs:array_of_one+1:2: comparing pointers to `[u32; 1]`, an array of one JS may make of its own for a value, as `array::from_ref` does
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in

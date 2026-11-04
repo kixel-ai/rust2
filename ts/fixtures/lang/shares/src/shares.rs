@@ -4,7 +4,8 @@
 //! written through `get_mut` and `make_mut`, and downgraded, of bytes, of `u16`s, of
 //! values JS copies, and of values that log their clones and drops, empty or not, with
 //! what drops dropped when its last owner does; held by a generic type at each of those,
-//! looked up as map keys by a borrow of their slice or text, and pointed at by `as_ptr`.
+//! looked up as map keys by a borrow of their slice or text, pointed at by `as_ptr`, and
+//! unsized from an `Rc` or `Arc` of an array, sharing its count.
 
 use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
@@ -597,4 +598,63 @@ pub fn addresses(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	out.push(u8::from(
 		other.is_some() || weak.is_some_and(|(a, b)| a.upgrade().is_none() && b.upgrade().is_none()),
 	));
+}
+
+/// An `Rc` and an `Arc` of an array, and a `Weak` of one, unsized to their slice while
+/// clones of the array's are kept: counted, compared, read, written through `get_mut` and
+/// `make_mut`, and dropped by whichever owner is last, of values that log, of `u16`s, and
+/// of bytes.
+pub fn unsized_arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let logged = |id: u8| Logged { id, log: log.clone() };
+	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8) & 0x7e;
+	let array: Rc<[Logged; 2]> = Rc::new([logged(at(0)), logged(at(1))]);
+	let kept = (kind & 1 != 0).then(|| array.clone());
+	let weak = Rc::downgrade(&array);
+	let weak: Weak<[Logged]> = weak;
+	let mut shared: Rc<[Logged]> = array;
+	out.extend([Rc::strong_count(&shared) as u8, Rc::weak_count(&shared) as u8]);
+	out.push(u8::from(
+		kept.as_ref()
+			.is_some_and(|k| Rc::ptr_eq(&(k.clone() as Rc<[Logged]>), &shared)),
+	));
+	ids(&shared, out);
+	if let Some(items) = Rc::get_mut(&mut shared) {
+		items[0] = logged(0x40);
+	}
+	flush(&log, out);
+	Rc::make_mut(&mut shared)[1] = logged(0x42);
+	flush(&log, out);
+	ids(&shared, out);
+	if let Some(k) = &kept {
+		ids(&k[..], out);
+	}
+	let upgraded = weak.upgrade();
+	out.push(upgraded.as_ref().map_or(0xff, |u| u.len() as u8));
+	drop(upgraded);
+	match kind & 2 {
+		0 => {
+			drop(shared);
+			flush(&log, out);
+			drop(kept);
+		}
+		_ => {
+			drop(kept);
+			flush(&log, out);
+			drop(shared);
+		}
+	}
+	flush(&log, out);
+	out.push(u8::from(weak.upgrade().is_none()));
+	let words: Arc<[u16; 3]> = Arc::new([u16::from(at(2)) << 8 | 1, 2, 3]);
+	let twin = words.clone();
+	let mut wide: Arc<[u16]> = words;
+	out.push(Arc::strong_count(&twin) as u8);
+	Arc::make_mut(&mut wide)[2] = 0x700;
+	out.extend(wide.iter().chain(twin.iter()).map(|&w| (w ^ w >> 8) as u8));
+	let bytes: Arc<[u8; 2]> = Arc::new([at(3), at(4)]);
+	let more = bytes.clone();
+	let slice: Arc<[u8]> = bytes;
+	out.extend(slice.iter().chain(more.iter()));
+	out.push(u8::from(Arc::ptr_eq(&slice, &(more as Arc<[u8]>))));
 }

@@ -174,6 +174,7 @@ const VERBATIM: &[&str] = &[
 	"Vec::spare_capacity_mut",
 	"Vec::splice",
 	"alloc",
+	"array::from_ref",
 	"async fn",
 	"become",
 	"bool",

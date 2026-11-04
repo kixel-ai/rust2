@@ -20,6 +20,13 @@ export function map$1sh08h7(self: rs.u16[] | undefined, f: (a0: rs.u16[]) => rs.
 	return f(self);
 }
 
+export function map$0duedp1(self: rs.Slice<rs.u16> | undefined, f: (a0: rs.Slice<rs.u16>) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0q6fk7x(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -27,7 +34,7 @@ export function map$0q6fk7x(self: rs.ByteSlice | undefined, f: (a0: rs.ByteSlice
 	return f(self);
 }
 
-export function map$0k54dqg(self: Pair.Pair[] | undefined, f: (a0: Pair.Pair[]) => rs.u8): rs.u8 | undefined {
+export function map$1uud0v7(self: rs.Slice<Pair.Pair> | undefined, f: (a0: rs.Slice<Pair.Pair>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

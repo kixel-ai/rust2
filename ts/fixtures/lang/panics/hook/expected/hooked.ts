@@ -23,8 +23,7 @@ export function record(info: rs.PanicHookInfo): void {
 		if (!(payload instanceof of$String || payload instanceof ofPlace$String)) {
 			const _8: rs.u32 | undefined = payload instanceof of$u32 ? payload.v : payload instanceof ofPlace$u32 ? payload.v.v : undefined;
 			if (_8 !== undefined) {
-				const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_8, f)];
-				kind = rs.fmtFormat(["u32 ", args2[0]]);
+				kind = rs.fmtFormat(["u32 ", (f: rs.Formatter) => rs.u32Display(_8, f)]);
 			} else {
 				kind = "other";
 			}
@@ -41,8 +40,8 @@ export function record(info: rs.PanicHookInfo): void {
 	const _42: rs.u32 = at.line;
 	const _44: rs.u32 = at.col;
 	const _46: boolean = rs.panicking();
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _27), (f: rs.Formatter) => rs.fmtPad(f, kind), (f: rs.Formatter) => rs.fmtOption(_37, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtPad(f, _39), (f: rs.Formatter) => rs.u32Display(_42, f), (f: rs.Formatter) => rs.u32Display(_44, f), (f: rs.Formatter) => rs.fmtBool(_46, f)];
-	const line: string = rs.fmtFormat([args4[0], "\n", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " ", args4[6], "\n"]);
+	const args6 = [(f: rs.Formatter) => rs.fmtPad(f, _27), (f: rs.Formatter) => rs.fmtPad(f, kind), (f: rs.Formatter) => rs.fmtOption(_37, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtPad(f, _39), (f: rs.Formatter) => rs.u32Display(_42, f), (f: rs.Formatter) => rs.u32Display(_44, f), (f: rs.Formatter) => rs.fmtBool(_46, f)];
+	const line: string = rs.fmtFormat([args6[0], "\n", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", args6[6], "\n"]);
 	rs.localKeyWithBorrowMutPlace(NOTE, (note: rs.Place<string>): undefined => {
 		note.v = note.v + line;
 	}, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/thread/local.rs", line: 721, col: 38 });
@@ -64,8 +63,7 @@ export function stdNamed(file: string): string {
 				}
 			}
 			const part = _2[1];
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
-			return rs.fmtFormat(["<std>/library/", args2[0]]);
+			return rs.fmtFormat(["<std>/library/", (f: rs.Formatter) => rs.fmtPad(f, part)]);
 		}
 	}
 	return file;
@@ -83,8 +81,7 @@ export function hook(): void {
 }
 
 export function tracked(n: rs.u8, caller: rs.Location): rs.u8 {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-	rs.panicFmt(["tracked ", args2[0]], caller);
+	rs.panicFmt(["tracked ", (f: rs.Formatter) => rs.u8Display(n, f)], caller);
 }
 
 /** One panic, by `kind`, with a hook set. `data`'s first byte varies its operands. */
@@ -96,8 +93,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	if (_10 === 0) {
 		rs.panicFmt(["literal"], { file: "fixtures/lang/panics/src/hooked.rs", line: 85, col: 14 });
 	} else if (_10 === 1) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		rs.panicFmt(["formatted ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 14 });
+		rs.panicFmt(["formatted ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 14 });
 	} else if (_10 === 2) {
 		rs.byteVecPush(out, v.data[rs.idx(v, rs.usizeAdd(n as rs.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 25 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 24 })]);
 	} else if (_10 === 3) {
@@ -137,8 +133,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (_10 === 15) {
 		rs.panicAny(new of$u32(n as rs.u32), { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 15 });
 	} else if (_10 === 16) {
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		rs.panic(rs.fmtFormat(["any ", args4[0]]), { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 15 }, true);
+		rs.panic(rs.fmtFormat(["any ", (f: rs.Formatter) => rs.u8Display(n, f)]), { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 15 }, true);
 	} else if (_10 === 17) {
 		const _104: rs.u8 = rs.u8WrappingAdd(n, 1);
 		if (!(n === _104)) {
@@ -178,8 +173,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.assertFailed("!=", (f: rs.Formatter) => rs.u8Debug(n, f), (f: rs.Formatter) => rs.u8Debug(n, f), undefined as rs.Arguments | undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 119, col: 15 });
 		}
 	} else if (_10 === 31) {
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		rs.panicFmt(["not implemented: not ", args6[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 120, col: 15 });
+		rs.panicFmt(["not implemented: not ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 120, col: 15 });
 	} else {
 		rs.byteVecPush(out, rs.hashLen(rs.hashWithCapacity(4294967295, 469762048) as rs.HashMap<rs.u8, rs.u8>) & 0xff);
 	}
@@ -211,11 +205,10 @@ export function aborted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const _13: rs.u8 = rs.u8Rem(kind, 5, { file: "fixtures/lang/panics/src/hooked.rs", line: 159, col: 11 });
 	if (_13 === 3 || _13 === 4) {
 		const _19: Shown.Shown = { again: rs.u8Rem(kind, 5, { file: "fixtures/lang/panics/src/hooked.rs", line: 160, col: 56 }) === 4 };
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f), (f: rs.Formatter) => Shown.fmt$fmt_Display(_19, f)];
-		rs.panicFmt(["first ", args2[0], " ", args2[1]], { file: "fixtures/lang/panics/src/hooked.rs", line: 160, col: 18 });
+		const args6 = [(f: rs.Formatter) => rs.u8Display(n, f), (f: rs.Formatter) => Shown.fmt$fmt_Display(_19, f)];
+		rs.panicFmt(["first ", args6[0], " ", args6[1]], { file: "fixtures/lang/panics/src/hooked.rs", line: 160, col: 18 });
 	} else {
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		rs.panicFmt(["first ", args4[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 14 });
+		rs.panicFmt(["first ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 14 });
 	}
 }
 
@@ -548,9 +541,9 @@ export function compared(kind: rs.u8, n: rs.u8): rs.u8 {
 		const _57: rs.RefCell<rs.u8> = b;
 		_0 = rs.cmpReverse(rs.refCellBy(rs.lt, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1504, col: 15 }, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1504, col: 33 }))(_54, _57) ? 1 : 0;
 	} else {
-		const _61: rs.RefCell<rs.u8>[] = [a];
-		const _64: rs.RefCell<rs.u8>[] = [b];
-		_0 = rs.eqSlice(rs.refCellBy(rs.same, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1482, col: 15 }, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1482, col: 34 }))(_61, _64) ? 1 : 0;
+		const _60: rs.Slice<rs.RefCell<rs.u8>> = rs.sliceFrom([a]);
+		const _63: rs.Slice<rs.RefCell<rs.u8>> = rs.sliceFrom([b]);
+		_0 = rs.eqSlice(rs.refCellBy(rs.same, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1482, col: 15 }, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1482, col: 34 }))(_60, _63) ? 1 : 0;
 	}
 	rs.refMutRelease(_held);
 	return _0;
@@ -574,8 +567,8 @@ export function stock(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					const _10: string = at2.file;
 					const _126: rs.u32 = at2.line;
 					const _14: rs.u32 = at2.col;
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _10), (f: rs.Formatter) => rs.u32Display(_126, f), (f: rs.Formatter) => rs.u32Display(_14, f)];
-					const line: string = rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], "\n"]);
+					const args3 = [(f: rs.Formatter) => rs.fmtPad(f, _10), (f: rs.Formatter) => rs.u32Display(_126, f), (f: rs.Formatter) => rs.u32Display(_14, f)];
+					const line: string = rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], "\n"]);
 					rs.localKeyWithBorrowMutPlace(NOTE, (note: rs.Place<string>): undefined => {
 						note.v = note.v + line;
 					}, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/thread/local.rs", line: 721, col: 38 });

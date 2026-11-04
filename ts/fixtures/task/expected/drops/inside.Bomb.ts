@@ -21,8 +21,8 @@ export function drop$ops_Drop(self: Bomb): void {
 	const arg = self._0;
 	const _8: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
 	const arg2 = self._1;
-	const args2: rs.Fmt[] = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
-	rs.panicFmt(["range ", args2[0], "..", args2[1], " dropped"]);
+	const args3 = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
+	rs.panicFmt(["range ", args3[0], "..", args3[1], " dropped"]);
 }
 
 export function startBound$ops_RangeBounds_usize(self: Bomb): rs.RangeBound<rs.usize> {

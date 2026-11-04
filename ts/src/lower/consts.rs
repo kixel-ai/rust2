@@ -77,7 +77,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						_ => Expr::rs("sliceFrom", vec![Expr::Array(items)]),
 					}
 				}
-				_ if super::byte_array(*inner) => Expr::rs("byteSliceFrom", vec![self.value(*inner, valtree, span)]),
+				_ if inner.is_array() => super::array_fn(*inner, "From").call(vec![self.value(*inner, valtree, span)]),
 				_ => self.value(*inner, valtree, span),
 			},
 			ty::Array(elem, _) => {
