@@ -22,4 +22,3 @@ generic std gap is planned here even when moq never calls it.
 - [rs.Slice](/quest/m3/ts-slice-object.md) - references to arrays of other values are a runtime slice too, and pointers compare by where they point
 - [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
 - [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
-- [std's panic messages with std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads std's capacity from the `String` payload of std's own formatted panics
