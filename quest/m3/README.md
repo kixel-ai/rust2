@@ -29,6 +29,5 @@ generic std gap is planned here even when moq never calls it.
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A string's exact capacity](/quest/m3/ts-string-capacity.md) - a `String` holds std's capacity, so a program making a `Bytes` of one reads its capacity
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
-- [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook
+- [Every panic of a hooked program has its location](/quest/m3/ts-panic-sites.md) - no panic in a program that sets a hook lacks the location native code gives it
 - [A string Cow's variant](/quest/m3/ts-cow-str-variant.md) - matching a `Cow<str>`'s `Borrowed` or `Owned`, and `to_mut`'s change of it, translate as std's
-- [An Arc's raw pointer to a value JS copies](/quest/m3/ts-arc-raw-place.md) - `from_raw` of a pointer remade from a reference to an `Arc`'s number, and an `Arc<AtomicBool>`'s raw pointer cast to `*const ()`, translate

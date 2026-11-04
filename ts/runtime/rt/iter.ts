@@ -27,6 +27,7 @@ import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
 import { closure, drop as dispose, dropRange } from "./task.ts";
+import type { Location } from "./location.ts";
 
 /** What `next` returns once an iterator is exhausted, which no item is. */
 export const DONE: unique symbol = /* @__PURE__ */ Symbol("DONE");
@@ -68,7 +69,7 @@ function hintLen(it: Iter<unknown>): number {
 	const [lower, upper] = it.sizeHint();
 	if (upper !== lower) {
 		const left = upper === undefined ? "None" : `Some(${upper})`;
-		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`);
+		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, "exact_len", true);
 	}
 	return lower;
 }
@@ -380,75 +381,75 @@ export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Pla
 }
 
 /** `slice::windows`: each run of `size` elements, panicking on a size of 0 as std's does. */
-export function sliceWindows<T>(s: T[], size: number): Iter<T[]> {
-	if (size === 0) panic("window size must be non-zero");
+export function sliceWindows<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	if (size === 0) panic("window size must be non-zero", at, true);
 	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, sliceCopy);
 }
 
 /** `slice::chunks`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
-export function sliceChunks<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceCopy);
+export function sliceChunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, false, false, sliceCopy, at);
 }
 
 /** `slice::chunks_exact`: each `size` elements, leaving the rest as its remainder. */
-export function sliceChunksExact<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceCopy);
+export function sliceChunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, true, false, sliceCopy, at);
 }
 
 /** `slice::rchunks`: `chunks` from the back, the last part the front of the slice. */
-export function sliceRchunks<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceCopy);
+export function sliceRchunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, false, true, sliceCopy, at);
 }
 
 /** `slice::rchunks_exact`: `chunks_exact` from the back, the remainder the front. */
-export function sliceRchunksExact<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceCopy);
+export function sliceRchunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, true, true, sliceCopy, at);
 }
 
 /** `slice::chunks_mut`: as `chunks`, but each part a view of `s` that writes through to it. */
-export function sliceChunksMut<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceView);
+export function sliceChunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, false, false, sliceView, at);
 }
 
 /** `slice::chunks_exact_mut`. */
-export function sliceChunksExactMut<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceView);
+export function sliceChunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, true, false, sliceView, at);
 }
 
 /** `slice::rchunks_mut`. */
-export function sliceRchunksMut<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceView);
+export function sliceRchunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, false, true, sliceView, at);
 }
 
 /** `slice::rchunks_exact_mut`. */
-export function sliceRchunksExactMut<T>(s: T[], size: number): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceView);
+export function sliceRchunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+	return chunks(s, s.length, size, true, true, sliceView, at);
 }
 
 /** `slice::windows` of bytes. */
-export function byteSliceWindows(s: ByteSlice, size: number): Iter<ByteSlice> {
-	if (size === 0) panic("window size must be non-zero");
+export function byteSliceWindows(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
+	if (size === 0) panic("window size must be non-zero", at, true);
 	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, byteSlicePart);
 }
 
 /** `slice::chunks` and `chunks_mut` of bytes, whose parts are views already. */
-export function byteSliceChunks(s: ByteSlice, size: number): Iter<ByteSlice> {
-	return chunks(s, s.length, size, false, false, byteSlicePart);
+export function byteSliceChunks(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
+	return chunks(s, s.length, size, false, false, byteSlicePart, at);
 }
 
 /** `slice::chunks_exact` and `chunks_exact_mut` of bytes. */
-export function byteSliceChunksExact(s: ByteSlice, size: number): Iter<ByteSlice> {
-	return chunks(s, s.length, size, true, false, byteSlicePart);
+export function byteSliceChunksExact(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
+	return chunks(s, s.length, size, true, false, byteSlicePart, at);
 }
 
 /** `slice::rchunks` and `rchunks_mut` of bytes. */
-export function byteSliceRchunks(s: ByteSlice, size: number): Iter<ByteSlice> {
-	return chunks(s, s.length, size, false, true, byteSlicePart);
+export function byteSliceRchunks(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
+	return chunks(s, s.length, size, false, true, byteSlicePart, at);
 }
 
 /** `slice::rchunks_exact` and `rchunks_exact_mut` of bytes. */
-export function byteSliceRchunksExact(s: ByteSlice, size: number): Iter<ByteSlice> {
-	return chunks(s, s.length, size, true, true, byteSlicePart);
+export function byteSliceRchunksExact(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
+	return chunks(s, s.length, size, true, true, byteSlicePart, at);
 }
 
 /**
@@ -540,8 +541,8 @@ export function splitAsSlice<S>(parts: Iter<S>): S {
 }
 
 /** `size` elements at a time, all of them or `exact`ly so, from the back if `rev`. */
-function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: boolean, part: (s: S, start: number, end: number) => S): Iter<S> {
-	if (size === 0) panic("chunk size must be non-zero");
+function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: boolean, part: (s: S, start: number, end: number) => S, at?: Location): Iter<S> {
+	if (size === 0) panic("chunk size must be non-zero", at);
 	const count = exact ? Math.floor(length / size) : Math.ceil(length / size);
 	return new PartsIter(s, length, size, size, count, rev, part);
 }
@@ -685,7 +686,7 @@ export function iterBox<T>(it: Iter<T>): Iter<T> {
 /** The upper bound of a `TrustedLen` iterator `it`, which std's reserves, panicking without one. */
 export function trustedUpper(it: Iter<unknown>): number {
 	const upper = it.sizeHint()[1];
-	if (upper === undefined) panic("capacity overflow");
+	if (upper === undefined) panic("capacity overflow", "trusted_capacity");
 	return upper;
 }
 
@@ -699,10 +700,10 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): T[] {
+export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T, at?: Location): T[] {
 	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
 	// std's makes one with room for exactly them.
-	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
+	const v = vecWithCapacity<T>(joinedLength(parts, sep, size, at), size);
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) vecExtendFromSlice(v, sep, size, clone);
 		vecExtendFromSlice(v, parts[i], size, clone);
@@ -715,9 +716,9 @@ export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayL
  * read from it by `slice` unless it is the slice, with `sep` between them, into a
  * `Vec<u8>` of the capacity std's has, their exact length.
  */
-export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
+export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice, at?: Location): ByteVec {
 	const parts = slice === undefined ? (items as unknown as readonly ByteSlice[]) : items.map(slice);
-	const v = new ByteVec(joinedLength(parts, sep, 1));
+	const v = new ByteVec(joinedLength(parts, sep, 1, at));
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) byteVecExtendFromSlice(v, sep);
 		byteVecExtendFromSlice(v, parts[i]);
@@ -731,13 +732,13 @@ export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: 
  * separators' count wraps, and `Vec::with_capacity` of that panics past what the `Vec` may
  * hold. Where the count wraps, the `Vec` grows as it fills, which memory bounds first.
  */
-function joinedLength(parts: readonly { length: number }[], sep: { length: number } | undefined, size: number): number {
+function joinedLength(parts: readonly { length: number }[], sep: { length: number } | undefined, size: number, at?: Location): number {
 	let sum = 0;
 	for (const part of parts) sum += part.length;
-	if (sum > USIZE_MAX) panic("attempt to add with overflow");
+	if (sum > USIZE_MAX) panic("attempt to add with overflow", at);
 	const seps = sep === undefined || parts.length === 0 ? 0 : Math.imul(sep.length, parts.length - 1) >>> 0;
 	const length = (sum + seps) % (USIZE_MAX + 1);
-	if (length > vecMax(size)) panic("capacity overflow");
+	if (length > vecMax(size)) panic("capacity overflow", at);
 	return length;
 }
 
@@ -894,9 +895,9 @@ export function iterScan<T, S, U>(it: Iter<T>, state: S, f: (state: never, item:
  * Of a `Range` of an unsigned integer no wider than a `usize`, whose greatest is `max`, it
  * counts down the range's end, as std's specializes it to.
  */
-export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>, max?: number): Iter<T> {
+export function iterStepBy<T>(it: Iter<T>, step: number, drop?: Drop<T>, max?: number, at?: Location): Iter<T> {
+	if (step === 0) panic("assertion failed: step != 0", at);
 	if (max === undefined) return new StepByIter(it, step, drop);
-	if (step === 0) panic("assertion failed: step != 0");
 	const range = it as never as Range<number>;
 	range.end = Math.ceil(range.sizeHint()[0] / step);
 	return new RangeStepBy(range, step - 1, max) as never as Iter<T>;
@@ -1761,15 +1762,15 @@ export function iterCollectOption<U, C>(it: Iter<U | undefined | None>, into: (v
 // only where an item or the iterator drops.
 
 /** `Iterator::count` of an iterator that drops what it holds: each item by `drop`, as its own `count` does, and then it. */
-export function ownedCount<T>(it: Iter<T>, drop?: Drop<T>): number {
-	return count(it, drop);
+export function ownedCount<T>(it: Iter<T>, drop?: Drop<T>, at?: Location): number {
+	return count(it, drop, at);
 }
 
 /** `Iterator::last` of an iterator that drops what it holds: each item but the last by `drop`, as its own `last` does, and then it. */
-export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>): T | undefined;
-export function ownedLast<T>(it: Iter<T>, drop: Drop<T> | undefined, none: None): T | None;
-export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>, none?: None): T | undefined | None {
-	return iterToOption(last(it, drop), none);
+export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>, none?: undefined, at?: Location): T | undefined;
+export function ownedLast<T>(it: Iter<T>, drop: Drop<T> | undefined, none: None, at?: Location): T | None;
+export function ownedLast<T>(it: Iter<T>, drop?: Drop<T>, none?: None, at?: Location): T | undefined | None {
+	return iterToOption(last(it, drop, at), none);
 }
 
 /** `min`, or with `back`, `max`, of a B-tree's `into_keys` that drops what it holds: an end, as std's reads it, and then the rest drop with it. */
@@ -1780,22 +1781,22 @@ export function ownedEnd<T>(it: Iter<T>, back: boolean, none?: None): T | undefi
 }
 
 /** `count`, dropping each item by `drop`, and then `it`, as std's of its kind does. */
-function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
-	if (it instanceof RepeatIter) panic("iterator is infinite");
+function count<T>(it: Iter<T>, drop: Drop<T> | undefined, at?: Location): number {
+	if (it instanceof RepeatIter) panic("iterator is infinite", at);
 	// std's: its length, and then its element drops with it.
 	if (it instanceof RepeatNIter) return consumed(it, () => it.left);
 	if (it instanceof FromNext && it.own?.count !== undefined) return it.taken(it.own.count);
-	if (it instanceof EnumerateIter) return count(it.inner, items(drop));
+	if (it instanceof EnumerateIter) return count(it.inner, items(drop), at);
 	if (it instanceof ChainIter) {
 		// std's: each iterator's own `count`, the first's first.
 		const { a, b } = it;
 		it.a = it.b = undefined;
-		const n = a === undefined ? 0 : count(a, drop);
-		return n + (b === undefined ? 0 : count(b, drop));
+		const n = a === undefined ? 0 : count(a, drop, at);
+		return n + (b === undefined ? 0 : count(b, drop, at));
 	}
 	if (it instanceof SkipIter) {
 		// std's: past what it skips by `nth`, and then its iterator's own `count`.
-		return skipped(it, drop) ? 0 : count(it.inner, drop);
+		return skipped(it, drop) ? 0 : count(it.inner, drop, at);
 	}
 	if (it instanceof TakeIter) {
 		// std's: its iterator advanced through the limit, dropping what it passes.
@@ -1806,21 +1807,21 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
 	if (it instanceof FuseIter) {
 		const inner = it.inner;
 		it.inner = undefined;
-		return inner === undefined ? 0 : count(inner, drop);
+		return inner === undefined ? 0 : count(inner, drop, at);
 	}
 	if (it instanceof FlattenIter) {
 		// std's: each iterator's own `count` in turn.
-		return flattenFold(it as FlattenIter<unknown, T>, false, 0, (n, inner) => n + count(inner, drop));
+		return flattenFold(it as FlattenIter<unknown, T>, false, 0, (n, inner) => n + count(inner, drop, at));
 	}
 	if (it instanceof Peekable) {
 		// std's: the item it peeked drops after its iterator is counted.
-		if (!it.peeked) return count(it.inner, drop);
+		if (!it.peeked) return count(it.inner, drop, at);
 		const peeked = it.take();
 		if (peeked === DONE) {
 			dispose(it.inner);
 			return 0;
 		}
-		const n = 1 + count(it.inner, drop);
+		const n = 1 + count(it.inner, drop, at);
 		drop?.(peeked);
 		return n;
 	}
@@ -1840,11 +1841,11 @@ function count<T>(it: Iter<T>, drop: Drop<T> | undefined): number {
  * `last`, dropping each item but the last by `drop`, and then `it`, as std's of its kind
  * does. By `fold`, each item drops as the next replaces it.
  */
-function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
+function last<T>(it: Iter<T>, drop: Drop<T> | undefined, at?: Location): T | Done {
 	if (it instanceof FromNext && it.own?.last !== undefined) return it.taken(it.own.last);
 	// std's of a box: what it holds, by its own.
-	if (it instanceof Boxed) return last(it.inner, drop);
-	if (it instanceof RepeatIter) panic("iterator is infinite");
+	if (it instanceof Boxed) return last(it.inner, drop, at);
+	if (it instanceof RepeatIter) panic("iterator is infinite", at);
 	// std's: its element, uncloned.
 	if (it instanceof RepeatNIter) return it.left === 0 ? DONE : it.take();
 	if ((it instanceof SliceIter && drop !== undefined) || (it instanceof BTreeIter && it.back)) {
@@ -1859,23 +1860,23 @@ function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
 		// dropped once the second has one.
 		const { a, b } = it;
 		it.a = it.b = undefined;
-		const aLast = a === undefined ? DONE : last(a, drop);
+		const aLast = a === undefined ? DONE : last(a, drop, at);
 		if (b === undefined) return aLast;
-		return or(last(b, drop), aLast, drop);
+		return or(last(b, drop, at), aLast, drop);
 	}
 	if (it instanceof SkipIter) {
 		// std's: past what it skips by `nth`, and then its iterator's own `last`.
-		return skipped(it, drop) ? DONE : last(it.inner, drop);
+		return skipped(it, drop) ? DONE : last(it.inner, drop, at);
 	}
 	if (it instanceof FuseIter) {
 		const inner = it.inner;
 		it.inner = undefined;
-		return inner === undefined ? DONE : last(inner, drop);
+		return inner === undefined ? DONE : last(inner, drop, at);
 	}
 	if (it instanceof FlattenIter) {
 		// std's: the last of each iterator in turn, the last so far dropped once a later
 		// one has one.
-		return flattenFold<unknown, T, T | Done>(it as FlattenIter<unknown, T>, false, DONE, (prev, inner) => or(last(inner, drop), prev, drop));
+		return flattenFold<unknown, T, T | Done>(it as FlattenIter<unknown, T>, false, DONE, (prev, inner) => or(last(inner, drop, at), prev, drop));
 	}
 	if (it instanceof Peekable) {
 		// std's: the item it peeked, unless its iterator has a last, which drops it after.
@@ -1887,7 +1888,7 @@ function last<T>(it: Iter<T>, drop: Drop<T> | undefined): T | Done {
 				return DONE;
 			}
 		}
-		return or(last(it.inner, drop), peeked, drop);
+		return or(last(it.inner, drop, at), peeked, drop);
 	}
 	return it.fold<T | Done>(DONE, (prev, item) => {
 		if (prev !== DONE) drop?.(prev);
@@ -4110,7 +4111,6 @@ class StepByIter<T> extends Adaptor<T, T> {
 
 	constructor(inner: Iter<T>, step: number, drop?: Drop<T>) {
 		super(inner);
-		if (step === 0) panic("assertion failed: step != 0");
 		this.step = step - 1;
 		this.drop = drop;
 	}
@@ -5189,10 +5189,10 @@ export function boundsContains<T>([start, end]: readonly [RangeBound<T>, RangeBo
 }
 
 /** std's `Step::forward` in a debug build: `n + by`, panicking past `int`'s last value. */
-function forward<T>(n: T, by: number, int: Step<T> | undefined): T {
+function forward<T>(n: T, by: number, int: Step<T> | undefined, at?: Location): T {
 	if (int === undefined) throw new Error("rust2-ts: stepping a range of no integer type");
 	const [sum, over] = int(n, by);
-	if (over) panic(int === (charStep as unknown) ? "overflow in `Step::forward`" : "attempt to add with overflow");
+	if (over) panic(int === (charStep as unknown) ? "overflow in `Step::forward`" : "attempt to add with overflow", at);
 	return sum;
 }
 

@@ -134,3 +134,10 @@ assert.throws(() => rt.arcFromRaw(raw, "Arc"), /`Arc::from_raw` of a pointer to 
 const counted = new rt.Arc(7);
 const at = rt.arcRaw(counted, rt.arcPlace(counted), "Rc");
 assert.equal(rt.arcFromRaw(rt.ptrAdd(rt.ptrAdd(at, 1), -1), "Rc"), counted);
+// A pointer to a value JS copies cast to `*const ()`, which only an `Arc`'s raw pointer is
+// the one place of, moved off and back too, or one at no memory.
+const flag = new rt.Arc(false);
+const flagAt = rt.arcRaw(flag, rt.arcPlace(flag), "Arc");
+assert.equal(rt.arcErase(rt.ptrAdd(rt.ptrAdd(flagAt, 1), -1), "bool", 1), flagAt);
+assert.equal(rt.arcErase(rt.NULL, "bool", 1), rt.NULL);
+assert.throws(() => rt.arcErase({ v: false }, "bool", 1), /only an `Arc`'s or `Rc`'s raw pointer keeps the place of/);

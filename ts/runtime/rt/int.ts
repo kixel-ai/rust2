@@ -7,6 +7,7 @@
 // never wraps silently. Every panic's message is the one native Rust panics with.
 
 import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rt.ts";
+import type { Location } from "./location.ts";
 
 declare const brand: unique symbol;
 
@@ -134,9 +135,9 @@ function safe(n: number): boolean {
 	return n <= MAX_SAFE && n >= -MAX_SAFE;
 }
 
-function shift(b: number | Limbs, bits: number, direction: string): number {
+function shift(b: number | Limbs, bits: number, direction: string, at?: Location): number {
 	const n = typeof b === "number" ? b : approx(b);
-	if (n < 0 || n >= bits) panic(`attempt to shift ${direction} with overflow`);
+	if (n < 0 || n >= bits) panic(`attempt to shift ${direction} with overflow`, at);
 	return n;
 }
 
@@ -175,8 +176,8 @@ export function min(a: number, b: number): number {
 }
 
 /** `Ord::clamp` of integers in numbers: `a` within `[min, max]`, panicking unless `min <= max`. */
-export function clamp(a: number, min: number, max: number): number {
-	if (min > max) panic(`min > max. min = ${min}, max = ${max}`);
+export function clamp(a: number, min: number, max: number, at?: Location): number {
+	if (min > max) panic(`min > max. min = ${min}, max = ${max}`, at, true);
 	return a < min ? min : a > max ? max : a;
 }
 
@@ -185,8 +186,8 @@ export function clamp(a: number, min: number, max: number): number {
 // fails. JS's 32-bit operators do the rest. Each type's functions pass its bounds to
 // these as literals, which engines inline.
 
-function checked(value: number, min: number, max: number, op: string): number {
-	if (value < min || value > max) panic(`attempt to ${op} with overflow`);
+function checked(value: number, min: number, max: number, op: string, at?: Location): number {
+	if (value < min || value > max) panic(`attempt to ${op} with overflow`, at);
 	return value;
 }
 
@@ -199,8 +200,8 @@ function saturate(value: number, min: number, max: number): number {
 }
 
 /** An unsigned `a / b`, rounded up, panicking on a zero divisor. */
-function ceilDivide(a: number, b: number): number {
-	if (b === 0) panic("attempt to divide by zero");
+function ceilDivide(a: number, b: number, at?: Location): number {
+	if (b === 0) panic("attempt to divide by zero", at);
 	return a % b === 0 ? a / b : Math.trunc(a / b) + 1;
 }
 
@@ -209,14 +210,14 @@ function multipleOf(a: number, b: number): boolean {
 	return b === 0 ? a === 0 : a % b === 0;
 }
 
-function divide(a: number, b: number, min: number, max: number): number {
-	if (b === 0) panic("attempt to divide by zero");
-	return checked(Math.trunc(a / b), min, max, "divide");
+function divide(a: number, b: number, min: number, max: number, at?: Location): number {
+	if (b === 0) panic("attempt to divide by zero", at);
+	return checked(Math.trunc(a / b), min, max, "divide", at);
 }
 
-function remainder(a: number, b: number, min: number): number {
-	if (b === 0) panic("attempt to calculate the remainder with a divisor of zero");
-	if (b === -1 && a === min && min < 0) panic("attempt to calculate the remainder with overflow");
+function remainder(a: number, b: number, min: number, at?: Location): number {
+	if (b === 0) panic("attempt to calculate the remainder with a divisor of zero", at);
+	if (b === -1 && a === min && min < 0) panic("attempt to calculate the remainder with overflow", at);
 	return a % b;
 }
 
@@ -317,19 +318,19 @@ const wrapI16 = (v: number) => (v << 16) >> 16;
 const wrapI32 = (v: number) => v | 0;
 
 /** `u8`'s `a + b`, panicking on overflow. */
-export const u8Add = (a: u8, b: u8): u8 => checked(a + b, 0, 0xff, "add");
+export const u8Add = (a: u8, b: u8, at?: Location): u8 => checked(a + b, 0, 0xff, "add", at);
 /** `u8`'s `a - b`, panicking on overflow. */
-export const u8Sub = (a: u8, b: u8): u8 => checked(a - b, 0, 0xff, "subtract");
+export const u8Sub = (a: u8, b: u8, at?: Location): u8 => checked(a - b, 0, 0xff, "subtract", at);
 /** `u8`'s `a * b`, panicking on overflow. */
-export const u8Mul = (a: u8, b: u8): u8 => checked(a * b, 0, 0xff, "multiply");
+export const u8Mul = (a: u8, b: u8, at?: Location): u8 => checked(a * b, 0, 0xff, "multiply", at);
 /** `u8`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const u8Div = (a: u8, b: u8): u8 => divide(a, b, 0, 0xff);
+export const u8Div = (a: u8, b: u8, at?: Location): u8 => divide(a, b, 0, 0xff, at);
 /** `u8`'s `a % b`, panicking on a zero divisor or overflow. */
-export const u8Rem = (a: u8, b: u8): u8 => remainder(a, b, 0);
+export const u8Rem = (a: u8, b: u8, at?: Location): u8 => remainder(a, b, 0, at);
 /** `u8`'s `a << b`, panicking on a shift by the width or more. */
-export const u8Shl = (a: u8, b: number | Limbs): u8 => (a << shift(b, 8, "left")) & 0xff;
+export const u8Shl = (a: u8, b: number | Limbs, at?: Location): u8 => (a << shift(b, 8, "left", at)) & 0xff;
 /** `u8`'s `a >> b`, panicking on a shift by the width or more. */
-export const u8Shr = (a: u8, b: number | Limbs): u8 => a >>> shift(b, 8, "right");
+export const u8Shr = (a: u8, b: number | Limbs, at?: Location): u8 => a >>> shift(b, 8, "right", at);
 /** `u8`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const u8CheckedAdd = (a: u8, b: u8): u8 | undefined => inRange(a + b, 0, 0xff);
 /** `u8`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -349,7 +350,7 @@ export const u8SaturatingMul = (a: u8, b: u8): u8 => saturate(a * b, 0, 0xff);
 /** `u8`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const u8WrappingMul = (a: u8, b: u8): u8 => Math.imul(a, b) & 0xff;
 /** `u8`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const u8DivCeil = (a: u8, b: u8): u8 => ceilDivide(a, b);
+export const u8DivCeil = (a: u8, b: u8, at?: Location): u8 => ceilDivide(a, b, at);
 /** `u8`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
 export const u8IsMultipleOf = (a: u8, b: u8): boolean => multipleOf(a, b);
 /** `u8`'s `leading_ones`: the count of leading one bits. */
@@ -382,19 +383,19 @@ export const u8UpperExp = (a: u8, f: Formatter): FmtResult => exp(a >= 0, String
 export const u8Step: Step<u8> = (n, by) => narrowStep(n, by, 0, 0xff, wrapU8);
 
 /** `u16`'s `a + b`, panicking on overflow. */
-export const u16Add = (a: u16, b: u16): u16 => checked(a + b, 0, 0xffff, "add");
+export const u16Add = (a: u16, b: u16, at?: Location): u16 => checked(a + b, 0, 0xffff, "add", at);
 /** `u16`'s `a - b`, panicking on overflow. */
-export const u16Sub = (a: u16, b: u16): u16 => checked(a - b, 0, 0xffff, "subtract");
+export const u16Sub = (a: u16, b: u16, at?: Location): u16 => checked(a - b, 0, 0xffff, "subtract", at);
 /** `u16`'s `a * b`, panicking on overflow. */
-export const u16Mul = (a: u16, b: u16): u16 => checked(a * b, 0, 0xffff, "multiply");
+export const u16Mul = (a: u16, b: u16, at?: Location): u16 => checked(a * b, 0, 0xffff, "multiply", at);
 /** `u16`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const u16Div = (a: u16, b: u16): u16 => divide(a, b, 0, 0xffff);
+export const u16Div = (a: u16, b: u16, at?: Location): u16 => divide(a, b, 0, 0xffff, at);
 /** `u16`'s `a % b`, panicking on a zero divisor or overflow. */
-export const u16Rem = (a: u16, b: u16): u16 => remainder(a, b, 0);
+export const u16Rem = (a: u16, b: u16, at?: Location): u16 => remainder(a, b, 0, at);
 /** `u16`'s `a << b`, panicking on a shift by the width or more. */
-export const u16Shl = (a: u16, b: number | Limbs): u16 => (a << shift(b, 16, "left")) & 0xffff;
+export const u16Shl = (a: u16, b: number | Limbs, at?: Location): u16 => (a << shift(b, 16, "left", at)) & 0xffff;
 /** `u16`'s `a >> b`, panicking on a shift by the width or more. */
-export const u16Shr = (a: u16, b: number | Limbs): u16 => a >>> shift(b, 16, "right");
+export const u16Shr = (a: u16, b: number | Limbs, at?: Location): u16 => a >>> shift(b, 16, "right", at);
 /** `u16`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const u16CheckedAdd = (a: u16, b: u16): u16 | undefined => inRange(a + b, 0, 0xffff);
 /** `u16`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -414,7 +415,7 @@ export const u16SaturatingMul = (a: u16, b: u16): u16 => saturate(a * b, 0, 0xff
 /** `u16`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const u16WrappingMul = (a: u16, b: u16): u16 => Math.imul(a, b) & 0xffff;
 /** `u16`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const u16DivCeil = (a: u16, b: u16): u16 => ceilDivide(a, b);
+export const u16DivCeil = (a: u16, b: u16, at?: Location): u16 => ceilDivide(a, b, at);
 /** `u16`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
 export const u16IsMultipleOf = (a: u16, b: u16): boolean => multipleOf(a, b);
 /** `u16`'s `leading_ones`: the count of leading one bits. */
@@ -447,19 +448,19 @@ export const u16UpperExp = (a: u16, f: Formatter): FmtResult => exp(a >= 0, Stri
 export const u16Step: Step<u16> = (n, by) => narrowStep(n, by, 0, 0xffff, wrapU16);
 
 /** `u32`'s `a + b`, panicking on overflow. */
-export const u32Add = (a: u32, b: u32): u32 => checked(a + b, 0, 0xffffffff, "add");
+export const u32Add = (a: u32, b: u32, at?: Location): u32 => checked(a + b, 0, 0xffffffff, "add", at);
 /** `u32`'s `a - b`, panicking on overflow. */
-export const u32Sub = (a: u32, b: u32): u32 => checked(a - b, 0, 0xffffffff, "subtract");
+export const u32Sub = (a: u32, b: u32, at?: Location): u32 => checked(a - b, 0, 0xffffffff, "subtract", at);
 /** `u32`'s `a * b`, panicking on overflow. */
-export const u32Mul = (a: u32, b: u32): u32 => checked(a * b, 0, 0xffffffff, "multiply");
+export const u32Mul = (a: u32, b: u32, at?: Location): u32 => checked(a * b, 0, 0xffffffff, "multiply", at);
 /** `u32`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const u32Div = (a: u32, b: u32): u32 => divide(a, b, 0, 0xffffffff);
+export const u32Div = (a: u32, b: u32, at?: Location): u32 => divide(a, b, 0, 0xffffffff, at);
 /** `u32`'s `a % b`, panicking on a zero divisor or overflow. */
-export const u32Rem = (a: u32, b: u32): u32 => remainder(a, b, 0);
+export const u32Rem = (a: u32, b: u32, at?: Location): u32 => remainder(a, b, 0, at);
 /** `u32`'s `a << b`, panicking on a shift by the width or more. */
-export const u32Shl = (a: u32, b: number | Limbs): u32 => (a << shift(b, 32, "left")) >>> 0;
+export const u32Shl = (a: u32, b: number | Limbs, at?: Location): u32 => (a << shift(b, 32, "left", at)) >>> 0;
 /** `u32`'s `a >> b`, panicking on a shift by the width or more. */
-export const u32Shr = (a: u32, b: number | Limbs): u32 => a >>> shift(b, 32, "right");
+export const u32Shr = (a: u32, b: number | Limbs, at?: Location): u32 => a >>> shift(b, 32, "right", at);
 /** `u32`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const u32CheckedAdd = (a: u32, b: u32): u32 | undefined => inRange(a + b, 0, 0xffffffff);
 /** `u32`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -479,7 +480,7 @@ export const u32SaturatingMul = (a: u32, b: u32): u32 => saturate(a * b, 0, 0xff
 /** `u32`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const u32WrappingMul = (a: u32, b: u32): u32 => Math.imul(a, b) >>> 0;
 /** `u32`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const u32DivCeil = (a: u32, b: u32): u32 => ceilDivide(a, b);
+export const u32DivCeil = (a: u32, b: u32, at?: Location): u32 => ceilDivide(a, b, at);
 /** `u32`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
 export const u32IsMultipleOf = (a: u32, b: u32): boolean => multipleOf(a, b);
 /** `u32`'s `leading_ones`: the count of leading one bits. */
@@ -512,21 +513,21 @@ export const u32UpperExp = (a: u32, f: Formatter): FmtResult => exp(a >= 0, Stri
 export const u32Step: Step<u32> = (n, by) => narrowStep(n, by, 0, 0xffffffff, wrapU32);
 
 /** `i8`'s `a + b`, panicking on overflow. */
-export const i8Add = (a: i8, b: i8): i8 => checked(a + b, -0x80, 0x7f, "add");
+export const i8Add = (a: i8, b: i8, at?: Location): i8 => checked(a + b, -0x80, 0x7f, "add", at);
 /** `i8`'s `a - b`, panicking on overflow. */
-export const i8Sub = (a: i8, b: i8): i8 => checked(a - b, -0x80, 0x7f, "subtract");
+export const i8Sub = (a: i8, b: i8, at?: Location): i8 => checked(a - b, -0x80, 0x7f, "subtract", at);
 /** `i8`'s `a * b`, panicking on overflow. */
-export const i8Mul = (a: i8, b: i8): i8 => checked(a * b, -0x80, 0x7f, "multiply");
+export const i8Mul = (a: i8, b: i8, at?: Location): i8 => checked(a * b, -0x80, 0x7f, "multiply", at);
 /** `i8`'s `-a`, panicking on overflow. */
-export const i8Neg = (a: i8): i8 => checked(-a, -0x80, 0x7f, "negate");
+export const i8Neg = (a: i8, at?: Location): i8 => checked(-a, -0x80, 0x7f, "negate", at);
 /** `i8`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const i8Div = (a: i8, b: i8): i8 => divide(a, b, -0x80, 0x7f);
+export const i8Div = (a: i8, b: i8, at?: Location): i8 => divide(a, b, -0x80, 0x7f, at);
 /** `i8`'s `a % b`, panicking on a zero divisor or overflow. */
-export const i8Rem = (a: i8, b: i8): i8 => remainder(a, b, -0x80);
+export const i8Rem = (a: i8, b: i8, at?: Location): i8 => remainder(a, b, -0x80, at);
 /** `i8`'s `a << b`, panicking on a shift by the width or more. */
-export const i8Shl = (a: i8, b: number | Limbs): i8 => ((a << shift(b, 8, "left")) << 24) >> 24;
+export const i8Shl = (a: i8, b: number | Limbs, at?: Location): i8 => ((a << shift(b, 8, "left", at)) << 24) >> 24;
 /** `i8`'s `a >> b`, panicking on a shift by the width or more. */
-export const i8Shr = (a: i8, b: number | Limbs): i8 => a >> shift(b, 8, "right");
+export const i8Shr = (a: i8, b: number | Limbs, at?: Location): i8 => a >> shift(b, 8, "right", at);
 /** `i8`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const i8CheckedAdd = (a: i8, b: i8): i8 | undefined => inRange(a + b, -0x80, 0x7f);
 /** `i8`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -546,11 +547,11 @@ export const i8SaturatingMul = (a: i8, b: i8): i8 => saturate(a * b, -0x80, 0x7f
 /** `i8`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const i8WrappingMul = (a: i8, b: i8): i8 => (Math.imul(a, b) << 24) >> 24;
 /** `i8`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const i8WrappingDiv = (a: i8, b: i8): i8 => (b === -1 ? i8WrappingSub(0, a) : i8Div(a, b));
+export const i8WrappingDiv = (a: i8, b: i8, at?: Location): i8 => (b === -1 ? i8WrappingSub(0, a) : i8Div(a, b, at));
 /** `i8`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const i8WrappingRem = (a: i8, b: i8): i8 => (b === -1 ? 0 : i8Rem(a, b));
+export const i8WrappingRem = (a: i8, b: i8, at?: Location): i8 => (b === -1 ? 0 : i8Rem(a, b, at));
 /** `i8`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const i8SaturatingDiv = (a: i8, b: i8): i8 => (b === -1 ? i8SaturatingSub(0, a) : i8Div(a, b));
+export const i8SaturatingDiv = (a: i8, b: i8, at?: Location): i8 => (b === -1 ? i8SaturatingSub(0, a) : i8Div(a, b, at));
 /** `i8`'s `leading_ones`: the count of leading one bits. */
 export const i8LeadingOnes = (a: i8): number => Math.clz32(~(a << 24));
 /** `i8`'s `leading_zeros`: the count of leading zero bits. */
@@ -581,21 +582,21 @@ export const i8UpperExp = (a: i8, f: Formatter): FmtResult => exp(a >= 0, String
 export const i8Step: Step<i8> = (n, by) => narrowStep(n, by, -0x80, 0x7f, wrapI8);
 
 /** `i16`'s `a + b`, panicking on overflow. */
-export const i16Add = (a: i16, b: i16): i16 => checked(a + b, -0x8000, 0x7fff, "add");
+export const i16Add = (a: i16, b: i16, at?: Location): i16 => checked(a + b, -0x8000, 0x7fff, "add", at);
 /** `i16`'s `a - b`, panicking on overflow. */
-export const i16Sub = (a: i16, b: i16): i16 => checked(a - b, -0x8000, 0x7fff, "subtract");
+export const i16Sub = (a: i16, b: i16, at?: Location): i16 => checked(a - b, -0x8000, 0x7fff, "subtract", at);
 /** `i16`'s `a * b`, panicking on overflow. */
-export const i16Mul = (a: i16, b: i16): i16 => checked(a * b, -0x8000, 0x7fff, "multiply");
+export const i16Mul = (a: i16, b: i16, at?: Location): i16 => checked(a * b, -0x8000, 0x7fff, "multiply", at);
 /** `i16`'s `-a`, panicking on overflow. */
-export const i16Neg = (a: i16): i16 => checked(-a, -0x8000, 0x7fff, "negate");
+export const i16Neg = (a: i16, at?: Location): i16 => checked(-a, -0x8000, 0x7fff, "negate", at);
 /** `i16`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const i16Div = (a: i16, b: i16): i16 => divide(a, b, -0x8000, 0x7fff);
+export const i16Div = (a: i16, b: i16, at?: Location): i16 => divide(a, b, -0x8000, 0x7fff, at);
 /** `i16`'s `a % b`, panicking on a zero divisor or overflow. */
-export const i16Rem = (a: i16, b: i16): i16 => remainder(a, b, -0x8000);
+export const i16Rem = (a: i16, b: i16, at?: Location): i16 => remainder(a, b, -0x8000, at);
 /** `i16`'s `a << b`, panicking on a shift by the width or more. */
-export const i16Shl = (a: i16, b: number | Limbs): i16 => ((a << shift(b, 16, "left")) << 16) >> 16;
+export const i16Shl = (a: i16, b: number | Limbs, at?: Location): i16 => ((a << shift(b, 16, "left", at)) << 16) >> 16;
 /** `i16`'s `a >> b`, panicking on a shift by the width or more. */
-export const i16Shr = (a: i16, b: number | Limbs): i16 => a >> shift(b, 16, "right");
+export const i16Shr = (a: i16, b: number | Limbs, at?: Location): i16 => a >> shift(b, 16, "right", at);
 /** `i16`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const i16CheckedAdd = (a: i16, b: i16): i16 | undefined => inRange(a + b, -0x8000, 0x7fff);
 /** `i16`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -615,11 +616,11 @@ export const i16SaturatingMul = (a: i16, b: i16): i16 => saturate(a * b, -0x8000
 /** `i16`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const i16WrappingMul = (a: i16, b: i16): i16 => (Math.imul(a, b) << 16) >> 16;
 /** `i16`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const i16WrappingDiv = (a: i16, b: i16): i16 => (b === -1 ? i16WrappingSub(0, a) : i16Div(a, b));
+export const i16WrappingDiv = (a: i16, b: i16, at?: Location): i16 => (b === -1 ? i16WrappingSub(0, a) : i16Div(a, b, at));
 /** `i16`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const i16WrappingRem = (a: i16, b: i16): i16 => (b === -1 ? 0 : i16Rem(a, b));
+export const i16WrappingRem = (a: i16, b: i16, at?: Location): i16 => (b === -1 ? 0 : i16Rem(a, b, at));
 /** `i16`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const i16SaturatingDiv = (a: i16, b: i16): i16 => (b === -1 ? i16SaturatingSub(0, a) : i16Div(a, b));
+export const i16SaturatingDiv = (a: i16, b: i16, at?: Location): i16 => (b === -1 ? i16SaturatingSub(0, a) : i16Div(a, b, at));
 /** `i16`'s `leading_ones`: the count of leading one bits. */
 export const i16LeadingOnes = (a: i16): number => Math.clz32(~(a << 16));
 /** `i16`'s `leading_zeros`: the count of leading zero bits. */
@@ -650,21 +651,21 @@ export const i16UpperExp = (a: i16, f: Formatter): FmtResult => exp(a >= 0, Stri
 export const i16Step: Step<i16> = (n, by) => narrowStep(n, by, -0x8000, 0x7fff, wrapI16);
 
 /** `i32`'s `a + b`, panicking on overflow. */
-export const i32Add = (a: i32, b: i32): i32 => checked(a + b, -0x80000000, 0x7fffffff, "add");
+export const i32Add = (a: i32, b: i32, at?: Location): i32 => checked(a + b, -0x80000000, 0x7fffffff, "add", at);
 /** `i32`'s `a - b`, panicking on overflow. */
-export const i32Sub = (a: i32, b: i32): i32 => checked(a - b, -0x80000000, 0x7fffffff, "subtract");
+export const i32Sub = (a: i32, b: i32, at?: Location): i32 => checked(a - b, -0x80000000, 0x7fffffff, "subtract", at);
 /** `i32`'s `a * b`, panicking on overflow. */
-export const i32Mul = (a: i32, b: i32): i32 => checked(a * b, -0x80000000, 0x7fffffff, "multiply");
+export const i32Mul = (a: i32, b: i32, at?: Location): i32 => checked(a * b, -0x80000000, 0x7fffffff, "multiply", at);
 /** `i32`'s `-a`, panicking on overflow. */
-export const i32Neg = (a: i32): i32 => checked(-a, -0x80000000, 0x7fffffff, "negate");
+export const i32Neg = (a: i32, at?: Location): i32 => checked(-a, -0x80000000, 0x7fffffff, "negate", at);
 /** `i32`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const i32Div = (a: i32, b: i32): i32 => divide(a, b, -0x80000000, 0x7fffffff);
+export const i32Div = (a: i32, b: i32, at?: Location): i32 => divide(a, b, -0x80000000, 0x7fffffff, at);
 /** `i32`'s `a % b`, panicking on a zero divisor or overflow. */
-export const i32Rem = (a: i32, b: i32): i32 => remainder(a, b, -0x80000000);
+export const i32Rem = (a: i32, b: i32, at?: Location): i32 => remainder(a, b, -0x80000000, at);
 /** `i32`'s `a << b`, panicking on a shift by the width or more. */
-export const i32Shl = (a: i32, b: number | Limbs): i32 => a << shift(b, 32, "left");
+export const i32Shl = (a: i32, b: number | Limbs, at?: Location): i32 => a << shift(b, 32, "left", at);
 /** `i32`'s `a >> b`, panicking on a shift by the width or more. */
-export const i32Shr = (a: i32, b: number | Limbs): i32 => a >> shift(b, 32, "right");
+export const i32Shr = (a: i32, b: number | Limbs, at?: Location): i32 => a >> shift(b, 32, "right", at);
 /** `i32`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const i32CheckedAdd = (a: i32, b: i32): i32 | undefined => inRange(a + b, -0x80000000, 0x7fffffff);
 /** `i32`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -684,11 +685,11 @@ export const i32SaturatingMul = (a: i32, b: i32): i32 => saturate(a * b, -0x8000
 /** `i32`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const i32WrappingMul = (a: i32, b: i32): i32 => Math.imul(a, b);
 /** `i32`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const i32WrappingDiv = (a: i32, b: i32): i32 => (b === -1 ? i32WrappingSub(0, a) : i32Div(a, b));
+export const i32WrappingDiv = (a: i32, b: i32, at?: Location): i32 => (b === -1 ? i32WrappingSub(0, a) : i32Div(a, b, at));
 /** `i32`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const i32WrappingRem = (a: i32, b: i32): i32 => (b === -1 ? 0 : i32Rem(a, b));
+export const i32WrappingRem = (a: i32, b: i32, at?: Location): i32 => (b === -1 ? 0 : i32Rem(a, b, at));
 /** `i32`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const i32SaturatingDiv = (a: i32, b: i32): i32 => (b === -1 ? i32SaturatingSub(0, a) : i32Div(a, b));
+export const i32SaturatingDiv = (a: i32, b: i32, at?: Location): i32 => (b === -1 ? i32SaturatingSub(0, a) : i32Div(a, b, at));
 /** `i32`'s `leading_ones`: the count of leading one bits. */
 export const i32LeadingOnes = (a: i32): number => Math.clz32(~a);
 /** `i32`'s `leading_zeros`: the count of leading zero bits. */
@@ -730,19 +731,19 @@ export {
 	display as isizeDisplay,
 };
 /** `usize`'s `a + b`, panicking on overflow. */
-export const usizeAdd: (a: usize, b: usize) => usize = u32Add as never;
+export const usizeAdd: (a: usize, b: usize, at?: Location) => usize = u32Add as never;
 /** `usize`'s `a - b`, panicking on overflow. */
-export const usizeSub: (a: usize, b: usize) => usize = u32Sub as never;
+export const usizeSub: (a: usize, b: usize, at?: Location) => usize = u32Sub as never;
 /** `usize`'s `a * b`, panicking on overflow. */
-export const usizeMul: (a: usize, b: usize) => usize = u32Mul as never;
+export const usizeMul: (a: usize, b: usize, at?: Location) => usize = u32Mul as never;
 /** `usize`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const usizeDiv: (a: usize, b: usize) => usize = u32Div as never;
+export const usizeDiv: (a: usize, b: usize, at?: Location) => usize = u32Div as never;
 /** `usize`'s `a % b`, panicking on a zero divisor or overflow. */
-export const usizeRem: (a: usize, b: usize) => usize = u32Rem as never;
+export const usizeRem: (a: usize, b: usize, at?: Location) => usize = u32Rem as never;
 /** `usize`'s `a << b`, panicking on a shift by the width or more. */
-export const usizeShl: (a: usize, b: number | Limbs) => usize = u32Shl as never;
+export const usizeShl: (a: usize, b: number | Limbs, at?: Location) => usize = u32Shl as never;
 /** `usize`'s `a >> b`, panicking on a shift by the width or more. */
-export const usizeShr: (a: usize, b: number | Limbs) => usize = u32Shr as never;
+export const usizeShr: (a: usize, b: number | Limbs, at?: Location) => usize = u32Shr as never;
 /** `usize`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const usizeCheckedAdd: (a: usize, b: usize) => usize | undefined = u32CheckedAdd as never;
 /** `usize`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -762,7 +763,7 @@ export const usizeSaturatingMul: (a: usize, b: usize) => usize = u32SaturatingMu
 /** `usize`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const usizeWrappingMul: (a: usize, b: usize) => usize = u32WrappingMul as never;
 /** `usize`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const usizeDivCeil: (a: usize, b: usize) => usize = u32DivCeil as never;
+export const usizeDivCeil: (a: usize, b: usize, at?: Location) => usize = u32DivCeil as never;
 /** `usize`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
 export const usizeIsMultipleOf: (a: usize, b: usize) => boolean = u32IsMultipleOf as never;
 /** `usize`'s `leading_ones`: the count of leading one bits. */
@@ -794,21 +795,21 @@ export const usizeUpperExp: (a: usize, f: Formatter) => FmtResult = u32UpperExp 
 /** `usize`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const usizeStep: Step<usize> = u32Step as never;
 /** `isize`'s `a + b`, panicking on overflow. */
-export const isizeAdd: (a: isize, b: isize) => isize = i32Add as never;
+export const isizeAdd: (a: isize, b: isize, at?: Location) => isize = i32Add as never;
 /** `isize`'s `a - b`, panicking on overflow. */
-export const isizeSub: (a: isize, b: isize) => isize = i32Sub as never;
+export const isizeSub: (a: isize, b: isize, at?: Location) => isize = i32Sub as never;
 /** `isize`'s `a * b`, panicking on overflow. */
-export const isizeMul: (a: isize, b: isize) => isize = i32Mul as never;
+export const isizeMul: (a: isize, b: isize, at?: Location) => isize = i32Mul as never;
 /** `isize`'s `-a`, panicking on overflow. */
-export const isizeNeg: (a: isize) => isize = i32Neg as never;
+export const isizeNeg: (a: isize, at?: Location) => isize = i32Neg as never;
 /** `isize`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const isizeDiv: (a: isize, b: isize) => isize = i32Div as never;
+export const isizeDiv: (a: isize, b: isize, at?: Location) => isize = i32Div as never;
 /** `isize`'s `a % b`, panicking on a zero divisor or overflow. */
-export const isizeRem: (a: isize, b: isize) => isize = i32Rem as never;
+export const isizeRem: (a: isize, b: isize, at?: Location) => isize = i32Rem as never;
 /** `isize`'s `a << b`, panicking on a shift by the width or more. */
-export const isizeShl: (a: isize, b: number | Limbs) => isize = i32Shl as never;
+export const isizeShl: (a: isize, b: number | Limbs, at?: Location) => isize = i32Shl as never;
 /** `isize`'s `a >> b`, panicking on a shift by the width or more. */
-export const isizeShr: (a: isize, b: number | Limbs) => isize = i32Shr as never;
+export const isizeShr: (a: isize, b: number | Limbs, at?: Location) => isize = i32Shr as never;
 /** `isize`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const isizeCheckedAdd: (a: isize, b: isize) => isize | undefined = i32CheckedAdd as never;
 /** `isize`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -828,11 +829,11 @@ export const isizeSaturatingMul: (a: isize, b: isize) => isize = i32SaturatingMu
 /** `isize`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const isizeWrappingMul: (a: isize, b: isize) => isize = i32WrappingMul as never;
 /** `isize`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const isizeWrappingDiv: (a: isize, b: isize) => isize = i32WrappingDiv as never;
+export const isizeWrappingDiv: (a: isize, b: isize, at?: Location) => isize = i32WrappingDiv as never;
 /** `isize`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const isizeWrappingRem: (a: isize, b: isize) => isize = i32WrappingRem as never;
+export const isizeWrappingRem: (a: isize, b: isize, at?: Location) => isize = i32WrappingRem as never;
 /** `isize`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const isizeSaturatingDiv: (a: isize, b: isize) => isize = i32SaturatingDiv as never;
+export const isizeSaturatingDiv: (a: isize, b: isize, at?: Location) => isize = i32SaturatingDiv as never;
 /** `isize`'s `leading_ones`: the count of leading one bits. */
 export const isizeLeadingOnes: (a: isize) => number = i32LeadingOnes as never;
 /** `isize`'s `leading_zeros`: the count of leading zero bits. */
@@ -934,8 +935,8 @@ function limbs(v: Wide, bits: number, signed: boolean): Limbs {
 }
 
 /** `v` in range, as limbs; past it, a panic naming `op`. */
-function bigChecked(v: bigint, bits: number, signed: boolean, op: string): Limbs {
-	if (!fitsBig(v, bits, signed)) panic(`attempt to ${op} with overflow`);
+function bigChecked(v: bigint, bits: number, signed: boolean, op: string, at?: Location): Limbs {
+	if (!fitsBig(v, bits, signed)) panic(`attempt to ${op} with overflow`, at);
 	return box(v, bits, signed);
 }
 
@@ -1006,8 +1007,8 @@ function extreme(top: boolean, bits: number, signed: boolean): Wide {
 }
 
 /** The last sum, `v`, or a panic naming `op` if it overflowed. */
-function strict(v: Wide, op: string): Wide {
-	if (overflow !== 0) panic(`attempt to ${op} with overflow`);
+function strict(v: Wide, op: string, at?: Location): Wide {
+	if (overflow !== 0) panic(`attempt to ${op} with overflow`, at);
 	return v;
 }
 
@@ -1037,8 +1038,8 @@ function wrappingProduct(a: Wide, b: Wide, bits: number, signed: boolean): Wide 
 }
 
 /** Whether `a` is a multiple of `b`, unsigned: of 0, only 0 is. */
-function multiple(a: Wide, b: Wide, bits: number): boolean {
-	return b === 0 ? a === 0 : rem(a, b, bits, false) === 0;
+function multiple(a: Wide, b: Wide, bits: number, at?: Location): boolean {
+	return b === 0 ? a === 0 : rem(a, b, bits, false, at) === 0;
 }
 
 /** A wide value's decimal text, as its `Debug` writes it. */
@@ -1047,14 +1048,14 @@ function decimal(v: Wide): string {
 }
 
 /** `Ord::clamp` of wide values: `a` within `[min, max]`, panicking unless `min <= max`. */
-function clampWide(a: Wide, min: Wide, max: Wide): Wide {
-	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`);
+function clampWide(a: Wide, min: Wide, max: Wide, at?: Location): Wide {
+	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`, at, true);
 	return lt(a, min) ? min : lt(max, a) ? max : a;
 }
 
-function mul(a: Wide, b: Wide, bits: number, signed: boolean): Wide {
+function mul(a: Wide, b: Wide, bits: number, signed: boolean, at?: Location): Wide {
 	const v = product(a, b, bits, signed);
-	if (v === undefined) panic("attempt to multiply with overflow");
+	if (v === undefined) panic("attempt to multiply with overflow", at);
 	return v;
 }
 
@@ -1128,38 +1129,38 @@ function product128(a: number, b: number): Limbs {
 }
 
 /** An unsigned 64-bit `a / b`, rounded up, panicking on a zero divisor. */
-function ceil64(a: Wide, b: Wide): Wide {
-	const q = div(a, b, 64, false);
-	return rem(a, b, 64, false) === 0 ? q : sum64(q, 1, 1, false);
+function ceil64(a: Wide, b: Wide, at?: Location): Wide {
+	const q = div(a, b, 64, false, at);
+	return rem(a, b, 64, false, at) === 0 ? q : sum64(q, 1, 1, false);
 }
 
 /** An unsigned 128-bit `a / b`, rounded up, panicking on a zero divisor. */
-function ceil128(a: Wide, b: Wide): Wide {
-	const q = div(a, b, 128, false);
-	return rem(a, b, 128, false) === 0 ? q : sum128(q, 1, 1, false);
+function ceil128(a: Wide, b: Wide, at?: Location): Wide {
+	const q = div(a, b, 128, false, at);
+	return rem(a, b, 128, false, at) === 0 ? q : sum128(q, 1, 1, false);
 }
 
-function div(a: Wide, b: Wide, bits: number, signed: boolean): Wide {
-	if (b === 0) panic("attempt to divide by zero");
-	return quotient(a, b, bits, signed, false);
+function div(a: Wide, b: Wide, bits: number, signed: boolean, at?: Location): Wide {
+	if (b === 0) panic("attempt to divide by zero", at);
+	return quotient(a, b, bits, signed, false, at);
 }
 
-function rem(a: Wide, b: Wide, bits: number, signed: boolean): Wide {
-	if (b === 0) panic("attempt to calculate the remainder with a divisor of zero");
-	return quotient(a, b, bits, signed, true);
+function rem(a: Wide, b: Wide, bits: number, signed: boolean, at?: Location): Wide {
+	if (b === 0) panic("attempt to calculate the remainder with a divisor of zero", at);
+	return quotient(a, b, bits, signed, true, at);
 }
 
 /** `a / b`, truncated, or `a % b` if `remainder`, by a divisor other than 0. */
-function quotient(a: Wide, b: Wide, bits: number, signed: boolean, remainder: boolean): Wide {
+function quotient(a: Wide, b: Wide, bits: number, signed: boolean, remainder: boolean, at?: Location): Wide {
 	// Below 2^53, a quotient of doubles truncates to the exact one.
 	if (typeof a === "number" && typeof b === "number") return (remainder ? a % b : Math.trunc(a / b)) + 0;
 	// Limbs pass every number in magnitude.
 	if (typeof a === "number") return remainder ? a : 0;
-	if (typeof b === "number" && b < TWO32 && b > -TWO32) return divideWords(a, b, bits, signed, remainder);
+	if (typeof b === "number" && b < TWO32 && b > -TWO32) return divideWords(a, b, bits, signed, remainder, at);
 	const n = exact(a);
 	const d = exact(limbs(b, bits, signed));
 	if (remainder) return one(box(n % d, bits, signed));
-	return one(bigChecked(n / d, bits, signed, "divide"));
+	return one(bigChecked(n / d, bits, signed, "divide", at));
 }
 
 // A magnitude's 32-bit words, most significant first, which `divideWords` divides in place.
@@ -1179,10 +1180,10 @@ function negateWords() {
  * `a / b` or `a % b` of limbs by a number below 2^32 in magnitude: a long division of
  * their magnitudes in 16-bit digits, each step exact, then signed as Rust's truncation is.
  */
-function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remainder: boolean): Wide {
+function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remainder: boolean, at?: Location): Wide {
 	const negative = a.hi < 0;
 	if (b === -1 && a.hi === -0x80000000 && a.lo === 0 && (!("w1" in a) || (a.w2 === 0 && a.w1 === 0))) {
-		panic(remainder ? "attempt to calculate the remainder with overflow" : "attempt to divide with overflow");
+		panic(remainder ? "attempt to calculate the remainder with overflow" : "attempt to divide with overflow", at);
 	}
 	if ("w1" in a) {
 		words[0] = a.hi;
@@ -1214,8 +1215,8 @@ function divideWords(a: Limbs, b: number, bits: number, signed: boolean, remaind
 // The shifts and bitwise operators compute 64 bits on limbs and 128 through bigints, each
 // width its own function, so a bundle keeps only the widths it calls.
 
-function shl64(a: Wide, b: number | Limbs, signed: boolean): Wide {
-	const n = shift(b, 64, "left");
+function shl64(a: Wide, b: number | Limbs, signed: boolean, at?: Location): Wide {
+	const n = shift(b, 64, "left", at);
 	if (typeof a === "number" && safe(a * 2 ** n)) return a * 2 ** n;
 	const x = limbs(a, 64, signed);
 	if (n === 0) return one(x);
@@ -1223,14 +1224,14 @@ function shl64(a: Wide, b: number | Limbs, signed: boolean): Wide {
 	return join(high(x.lo << (n - 32), signed), 0);
 }
 
-function shl128(a: Wide, b: number | Limbs, signed: boolean): Wide {
-	const n = shift(b, 128, "left");
+function shl128(a: Wide, b: number | Limbs, signed: boolean, at?: Location): Wide {
+	const n = shift(b, 128, "left", at);
 	if (typeof a === "number" && safe(a * 2 ** n)) return a * 2 ** n;
 	return one(box(exact(limbs(a, 128, signed)) << BigInt(n), 128, signed));
 }
 
-function shr64(a: Wide, b: number | Limbs, signed: boolean): Wide {
-	const n = shift(b, 64, "right");
+function shr64(a: Wide, b: number | Limbs, signed: boolean, at?: Location): Wide {
+	const n = shift(b, 64, "right", at);
 	if (typeof a === "number") return Math.floor(a / 2 ** n) + 0;
 	if (n === 0) return one(a);
 	if (signed) {
@@ -1241,8 +1242,8 @@ function shr64(a: Wide, b: number | Limbs, signed: boolean): Wide {
 	return join(0, a.hi >>> (n - 32));
 }
 
-function shr128(a: Wide, b: number | Limbs, signed: boolean): Wide {
-	const n = shift(b, 128, "right");
+function shr128(a: Wide, b: number | Limbs, signed: boolean, at?: Location): Wide {
+	const n = shift(b, 128, "right", at);
 	if (typeof a === "number") return Math.floor(a / 2 ** n) + 0;
 	return one(box((signed ? exact(a) : BigInt.asUintN(128, exact(a))) >> BigInt(n), 128, signed));
 }
@@ -1460,19 +1461,19 @@ function stepped(v: Wide): [Wide, boolean] {
 }
 
 /** `u64`'s `a + b`, panicking on overflow. */
-export const u64Add = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && fits(a + b, false) ? a + b : strict(sum64(a, b, 1, false), "add")) as u64;
+export const u64Add = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && fits(a + b, false) ? a + b : strict(sum64(a, b, 1, false), "add", at)) as u64;
 /** `u64`'s `a - b`, panicking on overflow. */
-export const u64Sub = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && fits(a - b, false) ? a - b : strict(sum64(a, b, -1, false), "subtract")) as u64;
+export const u64Sub = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && fits(a - b, false) ? a - b : strict(sum64(a, b, -1, false), "subtract", at)) as u64;
 /** `u64`'s `a * b`, panicking on overflow. */
-export const u64Mul = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 64, false)) as u64;
+export const u64Mul = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 64, false, at)) as u64;
 /** `u64`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const u64Div = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 64, false)) as u64;
+export const u64Div = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 64, false, at)) as u64;
 /** `u64`'s `a % b`, panicking on a zero divisor or overflow. */
-export const u64Rem = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 64, false)) as u64;
+export const u64Rem = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 64, false, at)) as u64;
 /** `u64`'s `a << b`, panicking on a shift by the width or more. */
-export const u64Shl = (a: u64, b: number | Limbs): u64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 && safe(a * 2 ** b) ? a * 2 ** b : shl64(a, b, false)) as u64;
+export const u64Shl = (a: u64, b: number | Limbs, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 && safe(a * 2 ** b) ? a * 2 ** b : shl64(a, b, false, at)) as u64;
 /** `u64`'s `a >> b`, panicking on a shift by the width or more. */
-export const u64Shr = (a: u64, b: number | Limbs): u64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 ? Math.floor(a / 2 ** b) + 0 : shr64(a, b, false)) as u64;
+export const u64Shr = (a: u64, b: number | Limbs, at?: Location): u64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 ? Math.floor(a / 2 ** b) + 0 : shr64(a, b, false, at)) as u64;
 /** `u64`'s `a & b`. */
 export const u64And = (a: u64, b: u64): u64 => {
 	const n = typeof a === "number" && typeof b === "number" ? wordAnd(a, b) : NaN;
@@ -1509,9 +1510,9 @@ export const u64SaturatingMul = (a: u64, b: u64): u64 => (typeof a === "number" 
 /** `u64`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const u64WrappingMul = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 64, false)) as u64;
 /** `u64`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const u64DivCeil = (a: u64, b: u64): u64 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b) : ceil64(a, b)) as u64;
+export const u64DivCeil = (a: u64, b: u64, at?: Location): u64 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b, at) : ceil64(a, b, at)) as u64;
 /** `u64`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
-export const u64IsMultipleOf = (a: u64, b: u64): boolean => (typeof a === "number" && typeof b === "number" ? multipleOf(a, b) : multiple(a, b, 64));
+export const u64IsMultipleOf = (a: u64, b: u64, at?: Location): boolean => (typeof a === "number" && typeof b === "number" ? multipleOf(a, b) : multiple(a, b, 64, at));
 /** `u64`'s `leading_ones`: the count of leading one bits. */
 export const u64LeadingOnes = (a: u64): number => leadingOnes64(a, false);
 /** `u64`'s `leading_zeros`: the count of leading zero bits. */
@@ -1565,26 +1566,26 @@ export const u64Max = (a: u64, b: u64): u64 => (lt(b, a) ? a : b);
 /** `u64`'s `Ord::min`: the lesser, `a` if they are equal. */
 export const u64Min = (a: u64, b: u64): u64 => (lt(b, a) ? b : a);
 /** `u64`'s `Ord::clamp`: `a` within `[min, max]`, panicking unless `min <= max`. */
-export const u64Clamp = (a: u64, min: u64, max: u64): u64 => clampWide(a, min, max) as u64;
+export const u64Clamp = (a: u64, min: u64, max: u64, at?: Location): u64 => clampWide(a, min, max, at) as u64;
 /** `u64`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const u64Step: Step<u64> = (n, by) => stepped(sum64(n, Math.abs(by), by < 0 ? -1 : 1, false)) as [u64, boolean];
 
 /** `i64`'s `a + b`, panicking on overflow. */
-export const i64Add = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && fits(a + b, true) ? a + b : strict(sum64(a, b, 1, true), "add")) as i64;
+export const i64Add = (a: i64, b: i64, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && fits(a + b, true) ? a + b : strict(sum64(a, b, 1, true), "add", at)) as i64;
 /** `i64`'s `a - b`, panicking on overflow. */
-export const i64Sub = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && fits(a - b, true) ? a - b : strict(sum64(a, b, -1, true), "subtract")) as i64;
+export const i64Sub = (a: i64, b: i64, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && fits(a - b, true) ? a - b : strict(sum64(a, b, -1, true), "subtract", at)) as i64;
 /** `i64`'s `a * b`, panicking on overflow. */
-export const i64Mul = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 64, true)) as i64;
+export const i64Mul = (a: i64, b: i64, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 64, true, at)) as i64;
 /** `i64`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const i64Div = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 64, true)) as i64;
+export const i64Div = (a: i64, b: i64, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 64, true, at)) as i64;
 /** `i64`'s `a % b`, panicking on a zero divisor or overflow. */
-export const i64Rem = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 64, true)) as i64;
+export const i64Rem = (a: i64, b: i64, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 64, true, at)) as i64;
 /** `i64`'s `-a`, panicking on overflow. */
-export const i64Neg = (a: i64): i64 => (typeof a === "number" ? -a + 0 : strict(sum64(0, a, -1, true), "negate")) as i64;
+export const i64Neg = (a: i64, at?: Location): i64 => (typeof a === "number" ? -a + 0 : strict(sum64(0, a, -1, true), "negate", at)) as i64;
 /** `i64`'s `a << b`, panicking on a shift by the width or more. */
-export const i64Shl = (a: i64, b: number | Limbs): i64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 && safe(a * 2 ** b) ? a * 2 ** b : shl64(a, b, true)) as i64;
+export const i64Shl = (a: i64, b: number | Limbs, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 && safe(a * 2 ** b) ? a * 2 ** b : shl64(a, b, true, at)) as i64;
 /** `i64`'s `a >> b`, panicking on a shift by the width or more. */
-export const i64Shr = (a: i64, b: number | Limbs): i64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 ? Math.floor(a / 2 ** b) + 0 : shr64(a, b, true)) as i64;
+export const i64Shr = (a: i64, b: number | Limbs, at?: Location): i64 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 64 ? Math.floor(a / 2 ** b) + 0 : shr64(a, b, true, at)) as i64;
 /** `i64`'s `a & b`. */
 export const i64And = (a: i64, b: i64): i64 => {
 	const n = typeof a === "number" && typeof b === "number" ? wordAnd(a, b) : NaN;
@@ -1621,11 +1622,11 @@ export const i64SaturatingMul = (a: i64, b: i64): i64 => (typeof a === "number" 
 /** `i64`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const i64WrappingMul = (a: i64, b: i64): i64 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 64, true)) as i64;
 /** `i64`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const i64WrappingDiv = (a: i64, b: i64): i64 => (b === -1 ? i64WrappingSub(0, a) : i64Div(a, b));
+export const i64WrappingDiv = (a: i64, b: i64, at?: Location): i64 => (b === -1 ? i64WrappingSub(0, a) : i64Div(a, b, at));
 /** `i64`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const i64WrappingRem = (a: i64, b: i64): i64 => (b === -1 ? 0 : i64Rem(a, b));
+export const i64WrappingRem = (a: i64, b: i64, at?: Location): i64 => (b === -1 ? 0 : i64Rem(a, b, at));
 /** `i64`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const i64SaturatingDiv = (a: i64, b: i64): i64 => (b === -1 ? i64SaturatingSub(0, a) : i64Div(a, b));
+export const i64SaturatingDiv = (a: i64, b: i64, at?: Location): i64 => (b === -1 ? i64SaturatingSub(0, a) : i64Div(a, b, at));
 /** `i64`'s `leading_ones`: the count of leading one bits. */
 export const i64LeadingOnes = (a: i64): number => leadingOnes64(a, true);
 /** `i64`'s `leading_zeros`: the count of leading zero bits. */
@@ -1677,24 +1678,24 @@ export const i64Max = (a: i64, b: i64): i64 => (lt(b, a) ? a : b);
 /** `i64`'s `Ord::min`: the lesser, `a` if they are equal. */
 export const i64Min = (a: i64, b: i64): i64 => (lt(b, a) ? b : a);
 /** `i64`'s `Ord::clamp`: `a` within `[min, max]`, panicking unless `min <= max`. */
-export const i64Clamp = (a: i64, min: i64, max: i64): i64 => clampWide(a, min, max) as i64;
+export const i64Clamp = (a: i64, min: i64, max: i64, at?: Location): i64 => clampWide(a, min, max, at) as i64;
 /** `i64`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const i64Step: Step<i64> = (n, by) => stepped(sum64(n, Math.abs(by), by < 0 ? -1 : 1, true)) as [i64, boolean];
 
 /** `u128`'s `a + b`, panicking on overflow. */
-export const u128Add = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && fits(a + b, false) ? a + b : strict(sum128(a, b, 1, false), "add")) as u128;
+export const u128Add = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && fits(a + b, false) ? a + b : strict(sum128(a, b, 1, false), "add", at)) as u128;
 /** `u128`'s `a - b`, panicking on overflow. */
-export const u128Sub = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && fits(a - b, false) ? a - b : strict(sum128(a, b, -1, false), "subtract")) as u128;
+export const u128Sub = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && fits(a - b, false) ? a - b : strict(sum128(a, b, -1, false), "subtract", at)) as u128;
 /** `u128`'s `a * b`, panicking on overflow. */
-export const u128Mul = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 128, false)) as u128;
+export const u128Mul = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 128, false, at)) as u128;
 /** `u128`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const u128Div = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 128, false)) as u128;
+export const u128Div = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 128, false, at)) as u128;
 /** `u128`'s `a % b`, panicking on a zero divisor or overflow. */
-export const u128Rem = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 128, false)) as u128;
+export const u128Rem = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 128, false, at)) as u128;
 /** `u128`'s `a << b`, panicking on a shift by the width or more. */
-export const u128Shl = (a: u128, b: number | Limbs): u128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 && safe(a * 2 ** b) ? a * 2 ** b : shl128(a, b, false)) as u128;
+export const u128Shl = (a: u128, b: number | Limbs, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 && safe(a * 2 ** b) ? a * 2 ** b : shl128(a, b, false, at)) as u128;
 /** `u128`'s `a >> b`, panicking on a shift by the width or more. */
-export const u128Shr = (a: u128, b: number | Limbs): u128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 ? Math.floor(a / 2 ** b) + 0 : shr128(a, b, false)) as u128;
+export const u128Shr = (a: u128, b: number | Limbs, at?: Location): u128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 ? Math.floor(a / 2 ** b) + 0 : shr128(a, b, false, at)) as u128;
 /** `u128`'s `a & b`. */
 export const u128And = (a: u128, b: u128): u128 => {
 	const n = typeof a === "number" && typeof b === "number" ? wordAnd(a, b) : NaN;
@@ -1731,9 +1732,9 @@ export const u128SaturatingMul = (a: u128, b: u128): u128 => (typeof a === "numb
 /** `u128`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const u128WrappingMul = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 128, false)) as u128;
 /** `u128`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const u128DivCeil = (a: u128, b: u128): u128 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b) : ceil128(a, b)) as u128;
+export const u128DivCeil = (a: u128, b: u128, at?: Location): u128 => (typeof a === "number" && typeof b === "number" ? ceilDivide(a, b, at) : ceil128(a, b, at)) as u128;
 /** `u128`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
-export const u128IsMultipleOf = (a: u128, b: u128): boolean => (typeof a === "number" && typeof b === "number" ? multipleOf(a, b) : multiple(a, b, 128));
+export const u128IsMultipleOf = (a: u128, b: u128, at?: Location): boolean => (typeof a === "number" && typeof b === "number" ? multipleOf(a, b) : multiple(a, b, 128, at));
 /** `u128`'s `leading_ones`: the count of leading one bits. */
 export const u128LeadingOnes = (a: u128): number => leadingOnes128(a, false);
 /** `u128`'s `leading_zeros`: the count of leading zero bits. */
@@ -1785,26 +1786,26 @@ export const u128Max = (a: u128, b: u128): u128 => (lt(b, a) ? a : b);
 /** `u128`'s `Ord::min`: the lesser, `a` if they are equal. */
 export const u128Min = (a: u128, b: u128): u128 => (lt(b, a) ? b : a);
 /** `u128`'s `Ord::clamp`: `a` within `[min, max]`, panicking unless `min <= max`. */
-export const u128Clamp = (a: u128, min: u128, max: u128): u128 => clampWide(a, min, max) as u128;
+export const u128Clamp = (a: u128, min: u128, max: u128, at?: Location): u128 => clampWide(a, min, max, at) as u128;
 /** `u128`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const u128Step: Step<u128> = (n, by) => stepped(sum128(n, Math.abs(by), by < 0 ? -1 : 1, false)) as [u128, boolean];
 
 /** `i128`'s `a + b`, panicking on overflow. */
-export const i128Add = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && fits(a + b, true) ? a + b : strict(sum128(a, b, 1, true), "add")) as i128;
+export const i128Add = (a: i128, b: i128, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && fits(a + b, true) ? a + b : strict(sum128(a, b, 1, true), "add", at)) as i128;
 /** `i128`'s `a - b`, panicking on overflow. */
-export const i128Sub = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && fits(a - b, true) ? a - b : strict(sum128(a, b, -1, true), "subtract")) as i128;
+export const i128Sub = (a: i128, b: i128, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && fits(a - b, true) ? a - b : strict(sum128(a, b, -1, true), "subtract", at)) as i128;
 /** `i128`'s `a * b`, panicking on overflow. */
-export const i128Mul = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 128, true)) as i128;
+export const i128Mul = (a: i128, b: i128, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : mul(a, b, 128, true, at)) as i128;
 /** `i128`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const i128Div = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 128, true)) as i128;
+export const i128Div = (a: i128, b: i128, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? Math.trunc(a / b) + 0 : div(a, b, 128, true, at)) as i128;
 /** `i128`'s `a % b`, panicking on a zero divisor or overflow. */
-export const i128Rem = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 128, true)) as i128;
+export const i128Rem = (a: i128, b: i128, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && b !== 0 ? (a % b) + 0 : rem(a, b, 128, true, at)) as i128;
 /** `i128`'s `-a`, panicking on overflow. */
-export const i128Neg = (a: i128): i128 => (typeof a === "number" ? -a + 0 : strict(sum128(0, a, -1, true), "negate")) as i128;
+export const i128Neg = (a: i128, at?: Location): i128 => (typeof a === "number" ? -a + 0 : strict(sum128(0, a, -1, true), "negate", at)) as i128;
 /** `i128`'s `a << b`, panicking on a shift by the width or more. */
-export const i128Shl = (a: i128, b: number | Limbs): i128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 && safe(a * 2 ** b) ? a * 2 ** b : shl128(a, b, true)) as i128;
+export const i128Shl = (a: i128, b: number | Limbs, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 && safe(a * 2 ** b) ? a * 2 ** b : shl128(a, b, true, at)) as i128;
 /** `i128`'s `a >> b`, panicking on a shift by the width or more. */
-export const i128Shr = (a: i128, b: number | Limbs): i128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 ? Math.floor(a / 2 ** b) + 0 : shr128(a, b, true)) as i128;
+export const i128Shr = (a: i128, b: number | Limbs, at?: Location): i128 => (typeof a === "number" && typeof b === "number" && b >= 0 && b < 128 ? Math.floor(a / 2 ** b) + 0 : shr128(a, b, true, at)) as i128;
 /** `i128`'s `a & b`. */
 export const i128And = (a: i128, b: i128): i128 => {
 	const n = typeof a === "number" && typeof b === "number" ? wordAnd(a, b) : NaN;
@@ -1841,11 +1842,11 @@ export const i128SaturatingMul = (a: i128, b: i128): i128 => (typeof a === "numb
 /** `i128`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const i128WrappingMul = (a: i128, b: i128): i128 => (typeof a === "number" && typeof b === "number" && safe(a * b) ? a * b + 0 : wrappingProduct(a, b, 128, true)) as i128;
 /** `i128`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const i128WrappingDiv = (a: i128, b: i128): i128 => (b === -1 ? i128WrappingSub(0, a) : i128Div(a, b));
+export const i128WrappingDiv = (a: i128, b: i128, at?: Location): i128 => (b === -1 ? i128WrappingSub(0, a) : i128Div(a, b, at));
 /** `i128`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const i128WrappingRem = (a: i128, b: i128): i128 => (b === -1 ? 0 : i128Rem(a, b));
+export const i128WrappingRem = (a: i128, b: i128, at?: Location): i128 => (b === -1 ? 0 : i128Rem(a, b, at));
 /** `i128`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const i128SaturatingDiv = (a: i128, b: i128): i128 => (b === -1 ? i128SaturatingSub(0, a) : i128Div(a, b));
+export const i128SaturatingDiv = (a: i128, b: i128, at?: Location): i128 => (b === -1 ? i128SaturatingSub(0, a) : i128Div(a, b, at));
 /** `i128`'s `leading_ones`: the count of leading one bits. */
 export const i128LeadingOnes = (a: i128): number => leadingOnes128(a, true);
 /** `i128`'s `leading_zeros`: the count of leading zero bits. */
@@ -1897,7 +1898,7 @@ export const i128Max = (a: i128, b: i128): i128 => (lt(b, a) ? a : b);
 /** `i128`'s `Ord::min`: the lesser, `a` if they are equal. */
 export const i128Min = (a: i128, b: i128): i128 => (lt(b, a) ? b : a);
 /** `i128`'s `Ord::clamp`: `a` within `[min, max]`, panicking unless `min <= max`. */
-export const i128Clamp = (a: i128, min: i128, max: i128): i128 => clampWide(a, min, max) as i128;
+export const i128Clamp = (a: i128, min: i128, max: i128, at?: Location): i128 => clampWide(a, min, max, at) as i128;
 /** `i128`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const i128Step: Step<i128> = (n, by) => stepped(sum128(n, Math.abs(by), by < 0 ? -1 : 1, true)) as [i128, boolean];
 
@@ -1925,8 +1926,8 @@ function wrappingOf(v: bigint, bits: number, signed: boolean): Int {
 }
 
 /** The exact `v`, or a panic naming `op` past the type's range. */
-function strictOf(v: bigint, bits: number, signed: boolean, op: string): Int {
-	if (!fitsBig(v, bits, signed)) panic(`attempt to ${op} with overflow`);
+function strictOf(v: bigint, bits: number, signed: boolean, op: string, at?: Location): Int {
+	if (!fitsBig(v, bits, signed)) panic(`attempt to ${op} with overflow`, at);
 	return intFromBig(v, bits, signed);
 }
 
@@ -1965,10 +1966,10 @@ function power(a: Int, exp: number, bits: number): bigint {
 }
 
 /** `a / b`, truncated, or for `euclid` rounded so the remainder is not negative, panicking on a zero divisor. */
-function quotientOf(a: Int, b: Int, euclid: boolean): bigint {
+function quotientOf(a: Int, b: Int, euclid: boolean, at?: Location): bigint {
 	const x = intToBig(a);
 	const y = intToBig(b);
-	if (y === 0n) panic("attempt to divide by zero");
+	if (y === 0n) panic("attempt to divide by zero", at);
 	const q = x / y;
 	return euclid && x % y < 0n ? (y > 0n ? q - 1n : q + 1n) : q;
 }
@@ -1977,10 +1978,10 @@ function quotientOf(a: Int, b: Int, euclid: boolean): bigint {
  * `a % b`, of `a`'s sign, or for `euclid` not negative, and whether it overflowed: only
  * `MIN % -1` does, whose remainder is 0. Panics on a zero divisor.
  */
-function remainderOf(a: Int, b: Int, bits: number, signed: boolean, euclid: boolean): [bigint, boolean] {
+function remainderOf(a: Int, b: Int, bits: number, signed: boolean, euclid: boolean, at?: Location): [bigint, boolean] {
 	const x = intToBig(a);
 	const y = intToBig(b);
-	if (y === 0n) panic("attempt to calculate the remainder with a divisor of zero");
+	if (y === 0n) panic("attempt to calculate the remainder with a divisor of zero", at);
 	const r = x % y;
 	const over = y === -1n && x === least(bits, signed);
 	return [euclid && r < 0n ? r + (y < 0n ? -y : y) : r, over];
@@ -2031,8 +2032,8 @@ function sqrt(v: bigint): bigint {
 }
 
 /** `ilog`'s, `ilog2`'s, or `ilog10`'s panic unless `v` is positive. */
-function positive(v: bigint): bigint {
-	if (v <= 0n) panic("argument of integer logarithm must be positive");
+function positive(v: bigint, at?: Location): bigint {
+	if (v <= 0n) panic("argument of integer logarithm must be positive", at);
 	return v;
 }
 
@@ -2050,7 +2051,7 @@ function nextPower(a: Int): bigint {
 }
 
 /** `pow`: `a ** exp`, panicking on overflow, as a debug build's `pow` does. */
-export const intPow = <T extends Int>(a: T, exp: number, bits: number, signed: boolean): T => strictOf(power(a, exp, bits), bits, signed, "exponentiate") as T;
+export const intPow = <T extends Int>(a: T, exp: number, bits: number, signed: boolean, at?: Location): T => strictOf(power(a, exp, bits), bits, signed, "exponentiate", at) as T;
 /** `checked_pow`: `a ** exp`, or `undefined` on overflow. */
 export const intCheckedPow = <T extends Int>(a: T, exp: number, bits: number, signed: boolean): T | undefined => checkedOf(power(a, exp, bits), bits, signed) as T | undefined;
 /** `wrapping_pow`: `a ** exp`, wrapped into the type's range. */
@@ -2061,7 +2062,7 @@ export const intSaturatingPow = <T extends Int>(a: T, exp: number, bits: number,
 export const intOverflowingPow = <T extends Int>(a: T, exp: number, bits: number, signed: boolean): [T, boolean] => overflowingOf(power(a, exp, bits), bits, signed) as [T, boolean];
 
 /** `strict_add_signed` and `strict_add_unsigned`: `a + b`, panicking on overflow. */
-export const intStrictAdd = <T extends Int>(a: T, b: Int, bits: number, signed: boolean): T => strictOf(intToBig(a) + intToBig(b), bits, signed, "add") as T;
+export const intStrictAdd = <T extends Int>(a: T, b: Int, bits: number, signed: boolean, at?: Location): T => strictOf(intToBig(a) + intToBig(b), bits, signed, "add", at) as T;
 /** `checked_add_signed` and `checked_add_unsigned`: `a + b`, or `undefined` on overflow. */
 export const intCheckedAdd = <T extends Int>(a: T, b: Int, bits: number, signed: boolean): T | undefined => checkedOf(intToBig(a) + intToBig(b), bits, signed) as T | undefined;
 /** `wrapping_add_signed` and `wrapping_add_unsigned`: `a + b`, wrapped into the type's range. */
@@ -2071,7 +2072,7 @@ export const intSaturatingAdd = <T extends Int>(a: T, b: Int, bits: number, sign
 /** `overflowing_add` and its `_signed` and `_unsigned` forms: `a + b` wrapped, and whether it overflowed. */
 export const intOverflowingAdd = <T extends Int>(a: T, b: Int, bits: number, signed: boolean): [T, boolean] => overflowingOf(intToBig(a) + intToBig(b), bits, signed) as [T, boolean];
 /** `strict_sub_signed` and `strict_sub_unsigned`: `a - b`, panicking on overflow. */
-export const intStrictSub = <T extends Int>(a: T, b: Int, bits: number, signed: boolean): T => strictOf(intToBig(a) - intToBig(b), bits, signed, "subtract") as T;
+export const intStrictSub = <T extends Int>(a: T, b: Int, bits: number, signed: boolean, at?: Location): T => strictOf(intToBig(a) - intToBig(b), bits, signed, "subtract", at) as T;
 /** `checked_sub_signed` and `checked_sub_unsigned`: `a - b`, or `undefined` on overflow. */
 export const intCheckedSub = <T extends Int>(a: T, b: Int, bits: number, signed: boolean): T | undefined => checkedOf(intToBig(a) - intToBig(b), bits, signed) as T | undefined;
 /** `wrapping_sub_signed` and `wrapping_sub_unsigned`: `a - b`, wrapped into the type's range. */
@@ -2095,56 +2096,56 @@ export const intCarryingMulAdd = <T extends Int>(a: T, b: T, c: T, d: T, bits: n
 export const intCarryingMul = <T extends Int>(a: T, b: T, c: T, bits: number, signed: boolean): [T, T] => intCarryingMulAdd(a, b, c, 0 as T, bits, signed);
 
 /** `checked_div`: `a / b`, truncated, or `undefined` on a zero divisor or overflow. */
-export const intCheckedDiv = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T | undefined => (b === 0 ? undefined : (checkedOf(quotientOf(a, b, false), bits, signed) as T | undefined));
+export const intCheckedDiv = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T | undefined => (b === 0 ? undefined : (checkedOf(quotientOf(a, b, false, at), bits, signed) as T | undefined));
 /** `overflowing_div`: `a / b` truncated and wrapped, and whether it overflowed, panicking on a zero divisor. */
-export const intOverflowingDiv = <T extends Int>(a: T, b: T, bits: number, signed: boolean): [T, boolean] => overflowingOf(quotientOf(a, b, false), bits, signed) as [T, boolean];
+export const intOverflowingDiv = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): [T, boolean] => overflowingOf(quotientOf(a, b, false, at), bits, signed) as [T, boolean];
 /** `div_euclid`: the quotient whose remainder is not negative, panicking on a zero divisor or overflow. */
-export const intDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T => strictOf(quotientOf(a, b, true), bits, signed, "divide") as T;
+export const intDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T => strictOf(quotientOf(a, b, true, at), bits, signed, "divide", at) as T;
 /** `checked_div_euclid`: `div_euclid`, or `undefined` on a zero divisor or overflow. */
-export const intCheckedDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T | undefined => (b === 0 ? undefined : (checkedOf(quotientOf(a, b, true), bits, signed) as T | undefined));
+export const intCheckedDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T | undefined => (b === 0 ? undefined : (checkedOf(quotientOf(a, b, true, at), bits, signed) as T | undefined));
 /** `wrapping_div_euclid`: `div_euclid`, wrapped into the type's range, panicking on a zero divisor. */
-export const intWrappingDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T => wrappingOf(quotientOf(a, b, true), bits, signed) as T;
+export const intWrappingDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T => wrappingOf(quotientOf(a, b, true, at), bits, signed) as T;
 /** `overflowing_div_euclid`: `div_euclid` wrapped, and whether it overflowed, panicking on a zero divisor. */
-export const intOverflowingDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): [T, boolean] => overflowingOf(quotientOf(a, b, true), bits, signed) as [T, boolean];
+export const intOverflowingDivEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): [T, boolean] => overflowingOf(quotientOf(a, b, true, at), bits, signed) as [T, boolean];
 /** `checked_rem`: `a % b`, or `undefined` on a zero divisor or overflow. */
-export const intCheckedRem = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T | undefined => {
+export const intCheckedRem = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T | undefined => {
 	if (b === 0) return undefined;
-	const [r, over] = remainderOf(a, b, bits, signed, false);
+	const [r, over] = remainderOf(a, b, bits, signed, false, at);
 	return over ? undefined : (intFromBig(r, bits, signed) as T);
 };
 /** `overflowing_rem`: `a % b`, 0 where it overflows, and whether it did, panicking on a zero divisor. */
-export const intOverflowingRem = <T extends Int>(a: T, b: T, bits: number, signed: boolean): [T, boolean] => {
-	const [r, over] = remainderOf(a, b, bits, signed, false);
+export const intOverflowingRem = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): [T, boolean] => {
+	const [r, over] = remainderOf(a, b, bits, signed, false, at);
 	return [intFromBig(r, bits, signed) as T, over];
 };
 /** `rem_euclid`: the remainder that is not negative, panicking on a zero divisor or overflow. */
-export const intRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T => {
-	const [r, over] = remainderOf(a, b, bits, signed, true);
-	if (over) panic("attempt to calculate the remainder with overflow");
+export const intRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T => {
+	const [r, over] = remainderOf(a, b, bits, signed, true, at);
+	if (over) panic("attempt to calculate the remainder with overflow", at);
 	return intFromBig(r, bits, signed) as T;
 };
 /** `checked_rem_euclid`: `rem_euclid`, or `undefined` on a zero divisor or overflow. */
-export const intCheckedRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T | undefined => {
+export const intCheckedRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T | undefined => {
 	if (b === 0) return undefined;
-	const [r, over] = remainderOf(a, b, bits, signed, true);
+	const [r, over] = remainderOf(a, b, bits, signed, true, at);
 	return over ? undefined : (intFromBig(r, bits, signed) as T);
 };
 /** `wrapping_rem_euclid`: `rem_euclid`, 0 where it overflows, panicking on a zero divisor. */
-export const intWrappingRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T => intFromBig(remainderOf(a, b, bits, signed, true)[0], bits, signed) as T;
+export const intWrappingRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T => intFromBig(remainderOf(a, b, bits, signed, true, at)[0], bits, signed) as T;
 /** `overflowing_rem_euclid`: `rem_euclid`, 0 where it overflows, and whether it did, panicking on a zero divisor. */
-export const intOverflowingRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean): [T, boolean] => {
-	const [r, over] = remainderOf(a, b, bits, signed, true);
+export const intOverflowingRemEuclid = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): [T, boolean] => {
+	const [r, over] = remainderOf(a, b, bits, signed, true, at);
 	return [intFromBig(r, bits, signed) as T, over];
 };
 /** `next_multiple_of` of an unsigned type: the least multiple of `b` at or above `a`, panicking on a zero `b` or overflow. */
-export const intNextMultipleOf = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T => {
-	const [r] = remainderOf(a, b, bits, signed, false);
-	return (r === 0n ? a : strictOf(intToBig(a) + intToBig(b) - r, bits, signed, "add")) as T;
+export const intNextMultipleOf = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T => {
+	const [r] = remainderOf(a, b, bits, signed, false, at);
+	return (r === 0n ? a : strictOf(intToBig(a) + intToBig(b) - r, bits, signed, "add", at)) as T;
 };
 /** `checked_next_multiple_of` of an unsigned type: `next_multiple_of`, or `undefined` on a zero `b` or overflow. */
-export const intCheckedNextMultipleOf = <T extends Int>(a: T, b: T, bits: number, signed: boolean): T | undefined => {
+export const intCheckedNextMultipleOf = <T extends Int>(a: T, b: T, bits: number, signed: boolean, at?: Location): T | undefined => {
 	if (b === 0) return undefined;
-	const [r] = remainderOf(a, b, bits, signed, false);
+	const [r] = remainderOf(a, b, bits, signed, false, at);
 	return (r === 0n ? a : checkedOf(intToBig(a) + intToBig(b) - r, bits, signed)) as T | undefined;
 };
 /** `midpoint`: `(a + b) / 2`, rounded toward zero, without overflow. */
@@ -2155,7 +2156,7 @@ export const intAbsDiff = (a: Int, b: Int, bits: number, _signed: boolean): Int 
 export const intCheckedSignedDiff = (a: Int, b: Int, bits: number, _signed: boolean): Int | undefined => checkedOf(intToBig(a) - intToBig(b), bits, true);
 
 /** `strict_neg`: `-a`, panicking on overflow. */
-export const intStrictNeg = <T extends Int>(a: T, bits: number, signed: boolean): T => strictOf(-intToBig(a), bits, signed, "negate") as T;
+export const intStrictNeg = <T extends Int>(a: T, bits: number, signed: boolean, at?: Location): T => strictOf(-intToBig(a), bits, signed, "negate", at) as T;
 /** `checked_neg`: `-a`, or `undefined` on overflow. */
 export const intCheckedNeg = <T extends Int>(a: T, bits: number, signed: boolean): T | undefined => checkedOf(-intToBig(a), bits, signed) as T | undefined;
 /** `wrapping_neg`: `-a`, wrapped into the type's range. */
@@ -2163,7 +2164,7 @@ export const intWrappingNeg = <T extends Int>(a: T, bits: number, signed: boolea
 /** `overflowing_neg`: `-a` wrapped, and whether it overflowed. */
 export const intOverflowingNeg = <T extends Int>(a: T, bits: number, signed: boolean): [T, boolean] => overflowingOf(-intToBig(a), bits, signed) as [T, boolean];
 /** `abs`: `|a|`, panicking on overflow, as a debug build's `abs` does. */
-export const intAbs = <T extends Int>(a: T, bits: number, signed: boolean): T => strictOf(magnitude(intToBig(a)), bits, signed, "negate") as T;
+export const intAbs = <T extends Int>(a: T, bits: number, signed: boolean, at?: Location): T => strictOf(magnitude(intToBig(a)), bits, signed, "negate", at) as T;
 /** `checked_abs`: `|a|`, or `undefined` on overflow. */
 export const intCheckedAbs = <T extends Int>(a: T, bits: number, signed: boolean): T | undefined => checkedOf(magnitude(intToBig(a)), bits, signed) as T | undefined;
 /** `wrapping_abs`: `|a|`, wrapped into the type's range. */
@@ -2180,9 +2181,9 @@ export const intSignum = <T extends Int>(a: T, _bits: number, _signed: boolean):
 	return (v < 0n ? -1 : v > 0n ? 1 : 0) as T;
 };
 /** `isqrt`: the integer square root, panicking on a negative `a`. */
-export const intIsqrt = <T extends Int>(a: T, bits: number, signed: boolean): T => {
+export const intIsqrt = <T extends Int>(a: T, bits: number, signed: boolean, at?: Location): T => {
 	const v = intToBig(a);
-	if (v < 0n) panic("argument of integer square root cannot be negative");
+	if (v < 0n) panic("argument of integer square root cannot be negative", at);
 	return intFromBig(sqrt(v), bits, signed) as T;
 };
 /** `checked_isqrt`: the integer square root, or `undefined` for a negative `a`. */
@@ -2191,15 +2192,15 @@ export const intCheckedIsqrt = <T extends Int>(a: T, bits: number, signed: boole
 	return v < 0n ? undefined : (intFromBig(sqrt(v), bits, signed) as T);
 };
 /** `ilog`: the floor of `a`'s logarithm in `base`, panicking unless `base` is at least 2 and `a` is positive. */
-export const intIlog = (a: Int, base: Int, _bits: number, _signed: boolean): number => {
+export const intIlog = (a: Int, base: Int, _bits: number, _signed: boolean, at?: Location): number => {
 	const b = intToBig(base);
-	if (b < 2n) panic("base of integer logarithm must be at least 2");
-	return log(positive(intToBig(a)), b);
+	if (b < 2n) panic("base of integer logarithm must be at least 2", at);
+	return log(positive(intToBig(a), at), b);
 };
 /** `ilog2`: the floor of `a`'s base-2 logarithm, panicking unless `a` is positive. */
-export const intIlog2 = (a: Int, _bits: number, _signed: boolean): number => bitLength(positive(intToBig(a))) - 1;
+export const intIlog2 = (a: Int, _bits: number, _signed: boolean, at?: Location): number => bitLength(positive(intToBig(a), at)) - 1;
 /** `ilog10`: the floor of `a`'s base-10 logarithm, panicking unless `a` is positive. */
-export const intIlog10 = (a: Int, _bits: number, _signed: boolean): number => String(positive(intToBig(a))).length - 1;
+export const intIlog10 = (a: Int, _bits: number, _signed: boolean, at?: Location): number => String(positive(intToBig(a), at)).length - 1;
 /** `checked_ilog`: `ilog`, or `undefined` unless `base` is at least 2 and `a` is positive. */
 export const intCheckedIlog = (a: Int, base: Int, _bits: number, _signed: boolean): number | undefined => {
 	const v = intToBig(a);
@@ -2234,13 +2235,13 @@ export const intUnboundedShl = <T extends Int>(a: T, n: number, bits: number, si
 /** `unbounded_shr`: `a >> n`, past the width all sign bits: 0, or -1 for a negative `a`. */
 export const intUnboundedShr = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => intFromBig(intToBig(a) >> BigInt(Math.min(n, bits)), bits, signed) as T;
 /** `funnel_shl` of an unsigned type: the high half of `a:b` shifted left by `n`, panicking unless `n` is below the width. */
-export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T => {
-	if (n >= bits) panic("attempt to funnel shift left with overflow");
+export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
+	if (n >= bits) panic("attempt to funnel shift left with overflow", at);
 	return wrappingOf((((intToBig(a) << BigInt(bits)) | intToBig(b)) << BigInt(n)) >> BigInt(bits), bits, signed) as T;
 };
 /** `funnel_shr` of an unsigned type: the low half of `a:b` shifted right by `n`, panicking unless `n` is below the width. */
-export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T => {
-	if (n >= bits) panic("attempt to funnel shift right with overflow");
+export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
+	if (n >= bits) panic("attempt to funnel shift right with overflow", at);
 	return wrappingOf(((intToBig(a) << BigInt(bits)) | intToBig(b)) >> BigInt(n), bits, signed) as T;
 };
 /** `rotate_left`: `a`'s bits rotated left by `n`, modulo the width. */
@@ -2303,7 +2304,7 @@ export const intIsolateLowestOne = <T extends Int>(a: T, bits: number, signed: b
 /** `is_power_of_two` of an unsigned type. */
 export const intIsPowerOfTwo = (a: Int, bits: number, _signed: boolean): boolean => popcount(bitsOf(a, bits)) === 1;
 /** `next_power_of_two` of an unsigned type: the least power of two at or above `a`, panicking past the type's range, as a debug build's does. */
-export const intNextPowerOfTwo = <T extends Int>(a: T, bits: number, signed: boolean): T => strictOf(nextPower(a), bits, signed, "add") as T;
+export const intNextPowerOfTwo = <T extends Int>(a: T, bits: number, signed: boolean, at?: Location): T => strictOf(nextPower(a), bits, signed, "add", at) as T;
 /** `checked_next_power_of_two` of an unsigned type: `next_power_of_two`, or `undefined` past the type's range. */
 export const intCheckedNextPowerOfTwo = <T extends Int>(a: T, bits: number, signed: boolean): T | undefined => checkedOf(nextPower(a), bits, signed) as T | undefined;
 /** `wrapping_next_power_of_two` of an unsigned type: `next_power_of_two`, or 0 past the type's range. */

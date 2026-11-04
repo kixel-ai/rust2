@@ -5,7 +5,7 @@
 // write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
 // the array go; a pointer into it after either reads what Rust leaves undefined.
 
-import { Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, panic, type Place, type Result } from "../rt.ts";
+import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result } from "../rt.ts";
 import { AtIndex } from "./collections.ts";
 import { type u32, u32Debug, type usize, usizeDebug } from "./int.ts";
 
@@ -215,7 +215,7 @@ export function realloc(p: Place<number>, size: usize): Block {
 	return next;
 }
 
-/** `alloc::handle_alloc_error`, which wasm32's std aborts by, as a panic does there. */
+/** `alloc::handle_alloc_error`, which wasm32's std aborts by, running no panic hook. */
 export function handleAllocError(layout: Layout): never {
-	panic(`memory allocation of ${layout.size} bytes failed`);
+	throw new Abort(`memory allocation of ${layout.size} bytes failed`);
 }

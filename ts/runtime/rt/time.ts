@@ -11,6 +11,7 @@ import { type Hasher, hash32, hash64 } from "./hash.ts";
 import { f64ToBits } from "./float.ts";
 import { type char, type f32, type f64, type u32, type u64, type u128, u64CheckedAdd, u64CheckedMul, u64CheckedSub, u64Div, u64Eq, u64Of, u64Rem, u64ToF32, u64ToF64, u64TryFrom, u128Add, u128Cast, u128Div, u128Mul, u128Rem } from "./int.ts";
 import { type Iter, iterFold } from "./iter.ts";
+import type { Location } from "./location.ts";
 
 /** `core::time::Duration`: whole seconds, and the nanoseconds past them, below 10^9. */
 export interface Duration {
@@ -30,7 +31,7 @@ function max(): Duration {
 export function durationNew(secs: u64, nanos: u32): Duration {
 	if (nanos < NANOS_PER_SEC) return { secs, nanos };
 	const carried = u64CheckedAdd(secs, Math.floor(nanos / NANOS_PER_SEC));
-	if (carried === undefined) panic("adding carry-over seconds from nanoseconds should not exceed u64::MAX");
+	if (carried === undefined) panic("adding carry-over seconds from nanoseconds should not exceed u64::MAX", "duration_new", true);
 	return { secs: carried, nanos: nanos % NANOS_PER_SEC };
 }
 
@@ -40,35 +41,35 @@ export function durationFromSecs(secs: u64): Duration {
 }
 
 /** `Duration::from_millis`. */
-export function durationFromMillis(millis: u64): Duration {
-	return { secs: u64Div(millis, 1000), nanos: (u64Rem(millis, 1000) as number) * 1_000_000 };
+export function durationFromMillis(millis: u64, at?: Location): Duration {
+	return { secs: u64Div(millis, 1000, at), nanos: (u64Rem(millis, 1000, at) as number) * 1_000_000 };
 }
 
 /** `Duration::from_micros`. */
-export function durationFromMicros(micros: u64): Duration {
-	return { secs: u64Div(micros, 1_000_000), nanos: (u64Rem(micros, 1_000_000) as number) * 1000 };
+export function durationFromMicros(micros: u64, at?: Location): Duration {
+	return { secs: u64Div(micros, 1_000_000, at), nanos: (u64Rem(micros, 1_000_000, at) as number) * 1000 };
 }
 
 /** `Duration::from_nanos`. */
-export function durationFromNanos(nanos: u64): Duration {
-	return { secs: u64Div(nanos, NANOS_PER_SEC), nanos: u64Rem(nanos, NANOS_PER_SEC) as number };
+export function durationFromNanos(nanos: u64, at?: Location): Duration {
+	return { secs: u64Div(nanos, NANOS_PER_SEC, at), nanos: u64Rem(nanos, NANOS_PER_SEC, at) as number };
 }
 
 /** `Duration::from_mins`, panicking past `u64::MAX` seconds. */
 export function durationFromMins(mins: u64): Duration {
-	return { secs: u64CheckedMul(mins, 60 as u64) ?? panic("overflow in Duration::from_mins"), nanos: 0 };
+	return { secs: u64CheckedMul(mins, 60 as u64) ?? panic("overflow in Duration::from_mins", "duration_from_mins"), nanos: 0 };
 }
 
 /** `Duration::from_hours`, panicking past `u64::MAX` seconds. */
 export function durationFromHours(hours: u64): Duration {
-	return { secs: u64CheckedMul(hours, 3600 as u64) ?? panic("overflow in Duration::from_hours"), nanos: 0 };
+	return { secs: u64CheckedMul(hours, 3600 as u64) ?? panic("overflow in Duration::from_hours", "duration_from_hours"), nanos: 0 };
 }
 
 /** `Duration::from_nanos_u128`, panicking past `u64::MAX` seconds. */
-export function durationFromNanosU128(nanos: u128): Duration {
-	const secs = u64TryFrom(u128Div(nanos, NANOS_PER_SEC));
-	if (!secs.ok) panic("overflow in `Duration::from_nanos_u128`");
-	return { secs: secs.value, nanos: u128Rem(nanos, NANOS_PER_SEC) as number };
+export function durationFromNanosU128(nanos: u128, at?: Location): Duration {
+	const secs = u64TryFrom(u128Div(nanos, NANOS_PER_SEC, at));
+	if (!secs.ok) panic("overflow in `Duration::from_nanos_u128`", at);
+	return { secs: secs.value, nanos: u128Rem(nanos, NANOS_PER_SEC, at) as number };
 }
 
 /** `Duration::is_zero`. */
@@ -97,28 +98,28 @@ export function durationSubsecNanos(d: Duration): u32 {
 }
 
 /** `secs * per + sub` as a `u128`, a number while that is a safe integer. */
-function total(secs: u64, per: number, sub: number): u128 {
+function total(secs: u64, per: number, sub: number, at?: Location): u128 {
 	if (typeof secs === "number") {
 		// Exact up to 2^53, and past it rounded to no less than 2^53.
 		const n = secs * per + sub;
 		if (n <= MAX_SAFE) return n;
 	}
-	return u128Add(u128Mul(u128Cast(secs), per), sub);
+	return u128Add(u128Mul(u128Cast(secs), per, at), sub, at);
 }
 
 /** `Duration::as_millis`. */
-export function durationAsMillis(d: Duration): u128 {
-	return total(d.secs, 1000, Math.floor(d.nanos / 1_000_000));
+export function durationAsMillis(d: Duration, at?: Location): u128 {
+	return total(d.secs, 1000, Math.floor(d.nanos / 1_000_000), at);
 }
 
 /** `Duration::as_micros`. */
-export function durationAsMicros(d: Duration): u128 {
-	return total(d.secs, 1_000_000, Math.floor(d.nanos / 1000));
+export function durationAsMicros(d: Duration, at?: Location): u128 {
+	return total(d.secs, 1_000_000, Math.floor(d.nanos / 1000), at);
 }
 
 /** `Duration::as_nanos`. */
-export function durationAsNanos(d: Duration): u128 {
-	return total(d.secs, NANOS_PER_SEC, d.nanos);
+export function durationAsNanos(d: Duration, at?: Location): u128 {
+	return total(d.secs, NANOS_PER_SEC, d.nanos, at);
 }
 
 /** `Duration::checked_add`: `a + b`, or `undefined` past `u64::MAX` seconds. */
@@ -166,11 +167,11 @@ export function durationCheckedMul(d: Duration, n: u32): Duration | undefined {
 }
 
 /** `Duration::checked_div` by a `u32`: `d / n`, truncated, or `undefined` if `n` is zero. */
-export function durationCheckedDiv(d: Duration, n: u32): Duration | undefined {
+export function durationCheckedDiv(d: Duration, n: u32, at?: Location): Duration | undefined {
 	if (n === 0) return undefined;
-	const secs = u64Div(d.secs, n as u64);
+	const secs = u64Div(d.secs, n as u64, at);
 	// What `secs` leaves is below `n`, so its nanoseconds are below 2^62.
-	const left = u64Rem(d.secs, n as u64) as number;
+	const left = u64Rem(d.secs, n as u64, at) as number;
 	const rest = left * NANOS_PER_SEC + (d.nanos % n);
 	const nanos = Math.floor(d.nanos / n) + (rest <= MAX_SAFE ? Math.floor(rest / n) : Number((BigInt(left) * 1_000_000_000n + BigInt(d.nanos % n)) / BigInt(n)));
 	return { secs, nanos };
@@ -257,16 +258,16 @@ function f64Bits(x: number): bigint {
 }
 
 /** `Duration::from_secs_f64`, panicking where `try_from_secs_f64` errs. */
-export function durationFromSecsF64(secs: f64): Duration {
+export function durationFromSecsF64(secs: f64, at?: Location): Duration {
 	const r = durationTryFromSecsF64(secs);
-	return r.ok ? r.value : panic(tryFromFloatSecsErrorText(r.error));
+	return r.ok ? r.value : panic(tryFromFloatSecsErrorText(r.error), at, true);
 }
 
 /** `Duration::mul_f64`: through seconds as an `f64`, as std computes it. */
-export const durationMulF64 = (d: Duration, rhs: f64): Duration => durationFromSecsF64(rhs * durationAsSecsF64(d));
+export const durationMulF64 = (d: Duration, rhs: f64, at?: Location): Duration => durationFromSecsF64(rhs * durationAsSecsF64(d), at);
 
 /** `Duration::div_f64`: through seconds as an `f64`, as std computes it. */
-export const durationDivF64 = (d: Duration, rhs: f64): Duration => durationFromSecsF64(durationAsSecsF64(d) / rhs);
+export const durationDivF64 = (d: Duration, rhs: f64, at?: Location): Duration => durationFromSecsF64(durationAsSecsF64(d) / rhs, at);
 
 /** `Duration::as_secs_f32`, each step rounded to a single as std's. */
 export function durationAsSecsF32(d: Duration): f32 {
@@ -286,13 +287,13 @@ export function durationDivDurationF32(a: Duration, b: Duration): f32 {
 export const durationTryFromSecsF32: (secs: f32) => Result<Duration, TryFromFloatSecsError> = durationTryFromSecsF64 as never;
 
 /** `Duration::from_secs_f32`, with `from_secs_f64`'s panic. */
-export const durationFromSecsF32: (secs: f32) => Duration = durationFromSecsF64 as never;
+export const durationFromSecsF32: (secs: f32, at?: Location) => Duration = durationFromSecsF64 as never;
 
 /** `Duration::mul_f32`, which std computes as `mul_f64`. */
-export const durationMulF32: (d: Duration, rhs: f32) => Duration = durationMulF64 as never;
+export const durationMulF32: (d: Duration, rhs: f32, at?: Location) => Duration = durationMulF64 as never;
 
 /** `Duration::div_f32`, which std computes as `div_f64`. */
-export const durationDivF32: (d: Duration, rhs: f32) => Duration = durationDivF64 as never;
+export const durationDivF32: (d: Duration, rhs: f32, at?: Location) => Duration = durationDivF64 as never;
 
 function tryFromFloatSecsErrorText(e: TryFromFloatSecsError): string {
 	const why = e.kind === "Negative" ? "value is negative" : "value is either too big or NaN";
@@ -308,17 +309,17 @@ export const fmtTryFromFloatSecsErrorDebug = (e: TryFromFloatSecsError, f: Forma
 
 /** `a + b`, panicking past `u64::MAX` seconds. */
 export function durationAdd(a: Duration, b: Duration): Duration {
-	return durationCheckedAdd(a, b) ?? panic("adding durations should not exceed u64::MAX");
+	return durationCheckedAdd(a, b) ?? panic("adding durations should not exceed u64::MAX", "duration_add", true);
 }
 
 /** `a - b`, panicking below zero. */
 export function durationSub(a: Duration, b: Duration): Duration {
-	return durationCheckedSub(a, b) ?? panic("subtracting durations should not be negative");
+	return durationCheckedSub(a, b) ?? panic("subtracting durations should not be negative", "duration_sub", true);
 }
 
 /** `d * n` by a `u32`, panicking past `u64::MAX` seconds. */
 export function durationMul(d: Duration, n: u32): Duration {
-	return durationCheckedMul(d, n) ?? panic("multiplying duration by scalar should not exceed u64::MAX");
+	return durationCheckedMul(d, n) ?? panic("multiplying duration by scalar should not exceed u64::MAX", "duration_mul", true);
 }
 
 /** `n * d`, which std computes as `d * n`. */
@@ -327,8 +328,8 @@ export function durationTimes(n: u32, d: Duration): Duration {
 }
 
 /** `d / n` by a `u32`, truncated, panicking if `n` is zero. */
-export function durationDiv(d: Duration, n: u32): Duration {
-	return durationCheckedDiv(d, n) ?? panic("divisor should not be zero");
+export function durationDiv(d: Duration, n: u32, at?: Location): Duration {
+	return durationCheckedDiv(d, n, at) ?? panic("divisor should not be zero", at, true);
 }
 
 /**
@@ -336,7 +337,7 @@ export function durationDiv(d: Duration, n: u32): Duration {
  * into them only when it would overflow and at the end, each overflow past `u64::MAX`
  * seconds a panic.
  */
-export function durationSum(it: Iter<Duration>, drops = false): Duration {
+export function durationSum(it: Iter<Duration>, drops = false, at?: Location): Duration {
 	const overflow = "sum over duration iterator should not overflow u64::MAX";
 	let secs = 0 as u64;
 	let nanos = 0 as u64;
@@ -344,19 +345,19 @@ export function durationSum(it: Iter<Duration>, drops = false): Duration {
 		it,
 		undefined,
 		(_, d) => {
-			secs = u64CheckedAdd(secs, d.secs) ?? panic(overflow);
+			secs = u64CheckedAdd(secs, d.secs) ?? panic(overflow, at, true);
 			const sum = u64CheckedAdd(nanos, d.nanos as u64);
 			if (sum !== undefined) {
 				nanos = sum;
 			} else {
-				secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC)) ?? panic(overflow);
-				nanos = (u64Rem(nanos, NANOS_PER_SEC) as number) + d.nanos;
+				secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at, true);
+				nanos = (u64Rem(nanos, NANOS_PER_SEC, at) as number) + d.nanos;
 			}
 		},
 		drops,
 	);
-	secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC)) ?? panic(overflow);
-	return { secs, nanos: u64Rem(nanos, NANOS_PER_SEC) as number };
+	secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at, true);
+	return { secs, nanos: u64Rem(nanos, NANOS_PER_SEC, at) as number };
 }
 
 /** `PartialEq::eq`. */
@@ -401,9 +402,9 @@ function decimal(f: Formatter, whole: u64, fraction: number, divisor: number, pr
 		const last = digits.length > 0 ? Number(digits[digits.length - 1]) : typeof whole === "number" ? whole : whole.lo;
 		if (fraction > divisor * 5 || last % 2 === 1) {
 			const nines = /9*$/.exec(digits)![0].length;
-			const at = digits.length - nines - 1;
-			carry = at < 0;
-			digits = (carry ? "" : digits.slice(0, at) + (Number(digits[at]) + 1)) + "0".repeat(nines);
+			const pos = digits.length - nines - 1;
+			carry = pos < 0;
+			digits = (carry ? "" : digits.slice(0, pos) + (Number(digits[pos]) + 1)) + "0".repeat(nines);
 		}
 	}
 	const big = typeof whole === "number" ? BigInt(whole) : (BigInt(whole.hi) << 32n) | BigInt(whole.lo);
