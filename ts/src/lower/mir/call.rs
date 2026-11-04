@@ -970,7 +970,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// empty one.
 			("Option", "as_mut_slice") => {
 				let inner = targ(0)?;
-				if matches!(inner.kind(), ty::Uint(ty::UintTy::U8)) {
+				if crate::lower::byte(inner) {
 					let refused = self.err(
 						span,
 						"a slice of one byte's place, which a byte slice can view only in an array of bytes",
@@ -1105,7 +1105,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let dest = self.operand(&args[2].node, span, out);
 				let mut values = vec![s, start, end, dest];
 				let f = match elem.kind() {
-					ty::Uint(ty::UintTy::U8) => "byteSliceCopyWithin",
+					_ if crate::lower::byte(elem) => "byteSliceCopyWithin",
 					_ => {
 						values.extend(self.b.t.copy_fn(elem, span));
 						"sliceCopyWithin"
@@ -1381,7 +1381,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			true => Expr::rt("cellOfPlace", vec![made]),
 			false => Expr::rt("sliceOfPlace", vec![made]),
 		};
-		if !cell && matches!(ty.kind(), ty::Uint(ty::UintTy::U8)) {
+		if !cell && crate::lower::byte(ty) {
 			return Some(self.err(
 				span,
 				"a slice of one byte's place, which a byte slice can view only in an array of bytes",
@@ -1914,7 +1914,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return Some(Some((Expr::rt(f, values), true)));
 		}
 		let elem_ty = elem(self.tcx, container)?;
-		let bytes = matches!(elem_ty.kind(), ty::Uint(ty::UintTy::U8));
+		let bytes = crate::lower::byte(elem_ty);
 		let base = self.operand(&args[0].node, span, out);
 		match Int::of(index_ty) {
 			Some(_) => {

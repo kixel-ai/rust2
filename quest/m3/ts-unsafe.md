@@ -47,8 +47,8 @@ none of its own `unsafe`.
   foldhash's seed and arrayvec's `as_ptr`: the reference is the value, not where it is
   kept, so it needs the place the reference came from.
 - A `Vec`'s spare capacity written through `as_mut_ptr` and committed by `set_len`:
-  `set_len` is refused, and a write past the length fails loudly at run time, since the
-  JS array would grow by it. The spare slots need to live outside the array's length
+  `set_len` is refused but a byte `Vec`'s, and a write past the length fails loudly at run
+  time, since the JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.

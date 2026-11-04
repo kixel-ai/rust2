@@ -40,7 +40,7 @@ pub fn counted() -> u8 {
 	}
 }
 
-/// The room past a `BytesMut`'s bytes, as a slice JS would hold apart from its storage.
-pub fn spare(n: usize) -> usize {
-	bytes::BytesMut::with_capacity(n).spare_capacity_mut().len()
+/// A `Bytes` of an owner that drops, which would drop with the last clone of what it makes.
+pub fn owned(owner: std::sync::Arc<[u8]>) -> usize {
+	bytes::Bytes::from_owner(owner).len()
 }
