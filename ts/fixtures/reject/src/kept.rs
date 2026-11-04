@@ -2,7 +2,7 @@
 
 use crate::parts::cell;
 
-/// Structs JS keeps as objects, each holding an `rt.Cell` of an object, one for each write
+/// Structs JS keeps as objects, each holding an `rs.Cell` of an object, one for each write
 /// of fresh memory made while a pointer into it may still be read, which gives the cell
 /// another object.
 pub struct Escaped(pub std::cell::UnsafeCell<(u16, u16)>);
@@ -202,7 +202,7 @@ pub fn pushed_part_kept(n: u16) -> u16 {
 	unsafe { (*part).0 }
 }
 
-/// Structs JS keeps as objects, each holding an `rt.Cell`, one for each path by which a
+/// Structs JS keeps as objects, each holding an `rs.Cell`, one for each path by which a
 /// pointer kept in memory reaches a whole write of what it points at, which gives it
 /// another cell, while a pointer to the cell, taken through a reference to the struct,
 /// may still be read.
@@ -372,7 +372,7 @@ pub fn atomic_exchanged(n: u16) -> u16 {
 	unsafe { *part }
 }
 
-/// Structs JS keeps as objects, each holding an `rt.Cell`, one for each std function that
+/// Structs JS keeps as objects, each holding an `rs.Cell`, one for each std function that
 /// puts another object in place of a `RefCell`'s value through a shared reference, while a
 /// pointer to the cell, taken through a borrow of that value, may still be read.
 pub struct ByRefReplace(pub std::cell::UnsafeCell<u16>);

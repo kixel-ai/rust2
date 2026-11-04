@@ -794,7 +794,7 @@ pub fn enums(data: &[u8], out: &mut Vec<u8>) {
 		0 => ControlFlow::Break(None),
 		_ => ControlFlow::Continue(at(2)),
 	};
-	// `()` is `undefined`, so its `None` is `rt.None`.
+	// `()` is `undefined`, so its `None` is `rs.None`.
 	let unit_none: ControlFlow<Option<Infallible>> = match at(2) % 2 {
 		0 => ControlFlow::Break(None),
 		_ => ControlFlow::Continue(()),

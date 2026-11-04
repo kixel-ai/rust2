@@ -2,9 +2,9 @@ binding `blob::Blob`: no such item, or more than one, in the crate or a crate it
 binding `buf::Source`: a binding is of a function or a type, not Trait
 binding `buf::empty`: ../blob.ts must be relative to ts.toml, inside its directory
 binding `nowhere::Thing`: no such item, or more than one, in the crate or a crate it depends on
-binding `raw::Held::new`: RT/held.ts would replace the runtime, rt.ts and rt/
+binding `raw::Held::new`: RS/held.ts would replace the runtime, rs.ts and rs/
 binding `raw::Tally::get`: only a type's value drops
-binding `raw::Tally::new`: rt/tally.ts would replace the runtime, rt.ts and rt/
+binding `raw::Tally::new`: rs/tally.ts would replace the runtime, rs.ts and rs/
 binding `raw::Tally`: bind/blob.ts binds another type
 binding `raw::checksum`: `checksum` binds the same item
 binding `raw`: a binding is of a function or a type, not Mod

@@ -32,7 +32,7 @@ impl Float {
 		}
 	}
 
-	/// The Rust name, which also prefixes the type's runtime functions: `rt.f32Round`.
+	/// The Rust name, which also prefixes the type's runtime functions: `rs.f32Round`.
 	pub fn name(self) -> &'static str {
 		match self {
 			Self::F32 => "f32",
@@ -42,7 +42,7 @@ impl Float {
 
 	/// The TypeScript type of a value.
 	pub fn ty(self) -> Type {
-		Type::Rt(self.name(), Vec::new())
+		Type::Rs(self.name(), Vec::new())
 	}
 
 	/// `e`, a number JS computed exactly or as a double, rounded to this type.
@@ -71,7 +71,7 @@ impl Float {
 
 	/// The type's runtime function `name`, uncalled.
 	fn func(self, name: &str) -> Expr {
-		Expr::rt_of(self.name(), name)
+		Expr::rs_of(self.name(), name)
 	}
 }
 
@@ -90,7 +90,7 @@ pub fn lit(v: f64) -> Expr {
 				signed: false,
 				pointer: false,
 			};
-			Expr::rt("f64FromBits", vec![u64.lit(i128::from(v.to_bits()))])
+			Expr::rs("f64FromBits", vec![u64.lit(i128::from(v.to_bits()))])
 		}
 		_ if v.is_nan() => Expr::lit("NaN"),
 		f64::INFINITY => Expr::lit("Infinity"),
@@ -108,7 +108,7 @@ fn lit32(v: f32) -> Expr {
 				signed: false,
 				pointer: false,
 			};
-			Expr::rt("f32FromBits", vec![u32.lit(i128::from(v.to_bits()))])
+			Expr::rs("f32FromBits", vec![u32.lit(i128::from(v.to_bits()))])
 		}
 		_ => lit(f64::from(v)),
 	}
@@ -179,7 +179,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to
 /// A call of the float type's own `name`, or `None` if it is not mapped.
 pub fn method(float: Float, name: &str, args: Vec<Expr>) -> Option<Expr> {
 	let math = |f: &str, args: Vec<Expr>| float.round(Expr::ident("Math").member(f).call(args));
-	let rt = |f: &str, args: Vec<Expr>| float.func(f).call(args);
+	let rs = |f: &str, args: Vec<Expr>| float.func(f).call(args);
 	let one = |args: Vec<Expr>| <[Expr; 1]>::try_from(args).ok().map(|[x]| x);
 	Some(match name {
 		// Exact in JS as in std.
@@ -220,11 +220,11 @@ pub fn method(float: Float, name: &str, args: Vec<Expr>) -> Option<Expr> {
 		| "is_subnormal" | "is_sign_positive" | "is_sign_negative" | "next_up" | "next_down" | "max" | "min"
 		| "midpoint" | "to_bits" | "from_bits" | "to_be_bytes" | "to_le_bytes" | "from_be_bytes" | "from_le_bytes"
 		| "total_cmp" | "powi" | "powf" | "sin_cos" | "atanh" | "div_euclid" | "rem_euclid" | "clamp" | "mul_add" => {
-			rt(&super::camel(name), args)
+			rs(&super::camel(name), args)
 		}
 		// wasm32 is little-endian.
-		"to_ne_bytes" => rt("toLeBytes", args),
-		"from_ne_bytes" => rt("fromLeBytes", args),
+		"to_ne_bytes" => rs("toLeBytes", args),
+		"from_ne_bytes" => rs("fromLeBytes", args),
 		_ => return None,
 	})
 }

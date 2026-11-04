@@ -1,8 +1,8 @@
 // `raw::checksum`, which reads through a raw pointer.
 
-import type * as rt from "../rt.ts";
+import type * as rs from "../rs.ts";
 
-export function checksum(bytes: rt.ByteSlice): rt.u32 {
+export function checksum(bytes: rs.ByteSlice): rs.u32 {
 	let sum = 0;
 	for (let i = 0; i < bytes.length; i++) sum = (Math.imul(sum, 31) + bytes.data[bytes.start + i]) >>> 0;
 	return sum;

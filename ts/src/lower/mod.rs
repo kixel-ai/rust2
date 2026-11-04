@@ -196,7 +196,7 @@ pub struct Translator<'a, 'tcx> {
 	queue: VecDeque<(Instance<'tcx>, SymId)>,
 	adts: rustc_data_structures::fx::FxHashMap<DefId, Adt>,
 	/// The fields of generic types whose definition types a form only an instance decides,
-	/// such as an `rt.Ptr` or an `rt.VecOf`, which an instance's read casts to what it
+	/// such as an `rs.Ptr` or an `rs.VecOf`, which an instance's read casts to what it
 	/// holds, with that type where a function type in it takes one, which an instance's
 	/// value is cast to.
 	instanced_fields: rustc_data_structures::fx::FxHashMap<DefId, Option<Type>>,
@@ -235,7 +235,7 @@ pub struct Translator<'a, 'tcx> {
 	pub values: rustc_data_structures::fx::FxHashMap<DefId, SymId>,
 	/// The statics whose values are being read, which a pointer within one can't name yet.
 	pub reading: rustc_data_structures::fx::FxHashSet<DefId>,
-	/// The statics made on first use, as an `rt.LazyCell` of their value.
+	/// The statics made on first use, as an `rs.LazyCell` of their value.
 	pub deferred: rustc_data_structures::fx::FxHashSet<SymId>,
 	/// The types the crate writes into in place, which alone are copied.
 	writes: copy::Writes<'tcx>,
@@ -253,7 +253,7 @@ pub struct Translator<'a, 'tcx> {
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
-	/// `rt.Location` its hook reads.
+	/// `rs.Location` its hook reads.
 	pub hooked: bool,
 	/// Whether this run did.
 	hooking: bool,
@@ -287,7 +287,7 @@ pub struct Translator<'a, 'tcx> {
 	slotted: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, Option<mir::Slotted<'tcx>>>,
 	/// The slot of each `Ok` payload type, which every function returning one shares.
 	slots: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
-	/// The `rt.HasherImpl` of each `Hasher` of the crate's own.
+	/// The `rs.HasherImpl` of each `Hasher` of the crate's own.
 	pub hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The field of each struct's byte slice field held as its parts that holds its bytes.
 	pub slices: rustc_data_structures::fx::FxHashSet<FieldId>,
@@ -361,13 +361,15 @@ pub enum ObjectKind {
 	Class,
 	Bytes,
 	Array,
+	/// An `rs.Slice`, whose elements change in place, and whose length never does.
+	Slice,
 	Vec,
 	Closure,
 }
 
 /// The JS values a type's own can be that `Option` and `Poll` erase to: `None` is
-/// `undefined`, or `rt.None` where `Some` can already be `undefined`, and `Pending` is
-/// `rt.Pending`, or `rt.OuterPending` where `Ready` can already be `rt.Pending`.
+/// `undefined`, or `rs.None` where `Some` can already be `undefined`, and `Pending` is
+/// `rs.Pending`, or `rs.OuterPending` where `Ready` can already be `rs.Pending`.
 #[derive(Clone, Copy, Default)]
 pub struct Erased {
 	pub undefined: bool,
@@ -380,7 +382,7 @@ pub struct Erased {
 
 impl Erased {
 	/// What an `Option` of a type erased so erases to: its `None` is `undefined`, or
-	/// `rt.None` where `Some` can already be `undefined`.
+	/// `rs.None` where `Some` can already be `undefined`.
 	fn option(self) -> Self {
 		match self.undefined {
 			true => Self { none: true, ..self },
@@ -391,8 +393,8 @@ impl Erased {
 		}
 	}
 
-	/// What a `Poll` of a type erased so erases to: its `Pending` is `rt.Pending`, or
-	/// `rt.OuterPending` where `Ready` can already be `rt.Pending`.
+	/// What a `Poll` of a type erased so erases to: its `Pending` is `rs.Pending`, or
+	/// `rs.OuterPending` where `Ready` can already be `rs.Pending`.
 	fn poll(self) -> Self {
 		match self.pending {
 			true => Self {
@@ -572,7 +574,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		match field {
 			StructField::Whole(id) => base.field(id),
 			StructField::Slice(ids) => ts::Expr::New(
-				Box::new(ts::Expr::Rt("ByteSlice".into())),
+				Box::new(ts::Expr::Rs("ByteSlice".into())),
 				ids.map(|id| base.clone().field(id)).to_vec(),
 			),
 		}
@@ -1318,9 +1320,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What kind of JS object a `&mut` to `ty` can change in place, if any.
 	pub fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => match byte(*elem) {
+			ty::Array(elem, _) => match byte(*elem) {
 				true => Some(ObjectKind::Bytes),
 				false => Some(ObjectKind::Array),
+			},
+			ty::Slice(elem) => match byte(*elem) {
+				true => Some(ObjectKind::Bytes),
+				false => Some(ObjectKind::Slice),
 			},
 			// A JS array, whose elements change in place as an array's do.
 			ty::Tuple(tys) if !tys.is_empty() => Some(ObjectKind::Array),
@@ -1399,7 +1405,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether a JS value of `ty` is a copy that no JS value can point at, such as a number
 	/// or a reference, or an object its clones may share, as an `Arc`'s and a `Waker`'s are,
-	/// pinned or boxed too, which JS erases, so a `&mut` to it is an `rt.Place`: where the
+	/// pinned or boxed too, which JS erases, so a `&mut` to it is an `rs.Place`: where the
 	/// value is, read and written through `v`. A `LocalKey`'s copies share its storage too.
 	pub fn needs_place(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
@@ -1413,7 +1419,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether `ty`'s JS value, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s JS
-	/// erases, is of an `rt` class that keeps its state private, which `rt.ptrWrite` moves in
+	/// erases, is of an `rs` class that keeps its state private, which `rs.ptrWrite` moves in
 	/// by its `$move`.
 	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
@@ -1449,8 +1455,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let hidden = match erased.kind() {
 			ty::Adt(adt, _) => self.bound_drops(adt.did()).is_some(),
 			ty::Dynamic(..) | ty::Closure(..) => true,
-			// A `Uint8Array`'s length never changes, as a boxed slice's may.
-			ty::Slice(elem) => byte(*elem),
+			// A slice's length never changes, as a boxed slice's may.
+			ty::Slice(_) => true,
 			_ => false,
 		};
 		// Copying fields into an object others share would change their handles too.
@@ -1470,7 +1476,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// What `ty` points at, if it is a `&mut` that is an `rt.Place`.
+	/// What `ty` points at, if it is a `&mut` that is an `rs.Place`.
 	pub fn place_pointee(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		match ty.kind() {
 			ty::Ref(_, inner, rustc_ast::Mutability::Mut) if self.needs_place(*inner) => Some(*inner),
@@ -1479,7 +1485,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// What `value`, a `ty` that is a reference, points at: an `rt.Place`'s `v`, and
+	/// What `value`, a `ty` that is a reference, points at: an `rs.Place`'s `v`, and
 	/// otherwise the reference's own JS value.
 	pub fn pointee_value(&self, ty: Ty<'tcx>, value: ts::Expr) -> ts::Expr {
 		match (self.place_pointee(ty), value.place_read()) {
@@ -1489,7 +1495,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// Whether `ty` holds a `&mut` that is an `rt.Place`, other than in what a closure or
+	/// Whether `ty` holds a `&mut` that is an `rs.Place`, other than in what a closure or
 	/// coroutine captured.
 	pub fn has_place(&self, ty: Ty<'tcx>) -> bool {
 		let mut walker = ty.walk();
@@ -1511,27 +1517,27 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Bool => Type::Builtin("boolean"),
 			ty::Int(_) | ty::Uint(_) => num::Int::of(ty).unwrap().ty(),
 			_ if let Some(float) = float::Float::of(ty) => float.ty(),
-			ty::Char => Type::Rt("char", Vec::new()),
+			ty::Char => Type::Rs("char", Vec::new()),
 			ty::Str => Type::Builtin("string"),
 			ty::Never => Type::Builtin("never"),
 			ty::Tuple(tys) if tys.is_empty() => Type::Builtin("undefined"),
 			ty::Tuple(tys) => Type::Tuple(tys.iter().map(|t| self.ty(t, span)).collect()),
-			ty::Ref(_, inner, _) if self.instance_pointee(*inner) => Type::Rt("Ptr", vec![self.ty(*inner, span)]),
+			ty::Ref(_, inner, _) if self.instance_pointee(*inner) => Type::Rs("Ptr", vec![self.ty(*inner, span)]),
 			ty::Ref(_, inner, rustc_ast::Mutability::Mut) if self.needs_place(*inner) => {
-				Type::Rt("Place", vec![self.ty(*inner, span)])
+				Type::Rs("Place", vec![self.ty(*inner, span)])
 			}
 			ty::RawPtr(inner, _) => self.pointer_ty(*inner, span),
-			ty::Ref(..) if bytes_ref(ty) => Type::Rt("ByteSlice", vec![]),
+			ty::Ref(..) if bytes_ref(ty) => Type::Rs("ByteSlice", vec![]),
 			ty::Ref(_, inner, _) => self.ty(*inner, span),
-			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rt("ArrayOf", vec![self.ty(*elem, span)]),
-			ty::Slice(elem) if self.open_elem(*elem) => Type::Rt("SliceOf", vec![self.ty(*elem, span)]),
+			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rs("ArrayOf", vec![self.ty(*elem, span)]),
+			ty::Slice(elem) if self.open_elem(*elem) => Type::Rs("SliceOf", vec![self.ty(*elem, span)]),
 			ty::Array(elem, _) => match byte(*elem) {
 				true => Type::Builtin("Uint8Array"),
 				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
 			ty::Slice(elem) => match byte(*elem) {
-				true => Type::Rt("ByteSlice", vec![]),
-				false => Type::Array(Box::new(self.ty(*elem, span))),
+				true => Type::Rs("ByteSlice", vec![]),
+				false => Type::Rs("Slice", vec![self.ty(*elem, span)]),
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			ty::FnDef(def_id, args) => {
@@ -1566,7 +1572,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Pat(base, _) => self.ty(*base, span),
 			ty::Coroutine(_, args) => self.future_ty(args.as_coroutine().return_ty(), span),
 			ty::Dynamic(..) if let Some(output) = self.dyn_future(ty) => self.future_ty(output, span),
-			ty::Dynamic(..) if let Some(item) = self.dyn_iter(ty) => Type::Rt("Iter", vec![self.ty(item, span)]),
+			ty::Dynamic(..) if let Some(item) = self.dyn_iter(ty) => Type::Rs("Iter", vec![self.ty(item, span)]),
 			// `&dyn Debug` and `&dyn Display` are values ready to write.
 			ty::Dynamic(preds, ..)
 				if preds
@@ -1574,7 +1580,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					.and_then(|did| fmt::Trait::of(tcx, did))
 					.is_some() =>
 			{
-				Type::Rt("Fmt", vec![])
+				Type::Rs("Fmt", vec![])
 			}
 			ty::Dynamic(..) if let Some(f) = self.dyn_fn(ty) => self.fn_ty(&f.inputs, f.output, span),
 			ty::Dynamic(..) => match self.object(ty, span) {
@@ -1633,7 +1639,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				let inner = args.type_at(0);
 				let erased = self.erases_to(inner);
 				(erased.undefined && erased.none).then(|| {
-					format!("`Option<{inner}>` is not supported: its `None` and `Some` would both be `rt.None`")
+					format!("`Option<{inner}>` is not supported: its `None` and `Some` would both be `rs.None`")
 				})
 			}
 			library::Std::Poll => {
@@ -1641,14 +1647,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				let erased = self.erases_to(inner);
 				(erased.pending && erased.outer_pending).then(|| {
 					format!(
-						"`Poll<{inner}>` is not supported: its `Pending` and `Ready` would both be `rt.OuterPending`"
+						"`Poll<{inner}>` is not supported: its `Pending` and `Ready` would both be `rs.OuterPending`"
 					)
 				})
 			}
 			library::Std::ControlFlow if library::Flow::of(self.tcx, args) == library::Flow::Option => {
 				let erased = self.erases_to(args.type_at(1));
 				(erased.undefined && erased.none)
-					.then(|| format!("`{ty}` is not supported: its break and its continue would both be `rt.None`"))
+					.then(|| format!("`{ty}` is not supported: its break and its continue would both be `rs.None`"))
 			}
 			_ => None,
 		}
@@ -1683,24 +1689,24 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					}
 					self.option_ty(args.type_at(0), span)
 				}
-				library::Std::Result => Type::Rt(
+				library::Std::Result => Type::Rs(
 					"Result",
 					vec![self.ty(args.type_at(0), span), self.ty(args.type_at(1), span)],
 				),
 				library::Std::Vec if self.open_elem(args.type_at(0)) => {
-					Type::Rt("VecOf", vec![self.ty(args.type_at(0), span)])
+					Type::Rs("VecOf", vec![self.ty(args.type_at(0), span)])
 				}
 				library::Std::Vec => match byte(args.type_at(0)) {
-					true => Type::Rt("ByteVec", vec![]),
-					false => Type::Rt("Vec", vec![self.ty(args.type_at(0), span)]),
+					true => Type::Rs("ByteVec", vec![]),
+					false => Type::Rs("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
 				library::Std::String => Type::Builtin("string"),
-				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rt("StrCow", vec![]),
+				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rs("StrCow", vec![]),
 				library::Std::Cow if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, args)) => {
 					match elem.kind() {
-						_ if self.open_elem(elem) => Type::Rt("CowOf", vec![self.ty(elem, span)]),
-						_ if byte(elem) => Type::Rt("ByteCow", vec![]),
-						_ => Type::Rt("Cow", vec![self.ty(elem, span)]),
+						_ if self.open_elem(elem) => Type::Rs("CowOf", vec![self.ty(elem, span)]),
+						_ if byte(elem) => Type::Rs("ByteCow", vec![]),
+						_ => Type::Rs("Cow", vec![self.ty(elem, span)]),
 					}
 				}
 				library::Std::Cow => {
@@ -1714,73 +1720,73 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| library::Std::Wrapping
 				| library::Std::Saturating
 				| library::Std::PoisonError => self.ty(args.type_at(0), span),
-				library::Std::Bound => Type::Rt("RangeBound", vec![self.ty(args.type_at(0), span)]),
-				library::Std::TryLockError => Type::Rt("TryLockError", vec![self.ty(args.type_at(0), span)]),
-				library::Std::FromUtf8Error => Type::Rt("FromUtf8Error", vec![]),
-				library::Std::Utf8Error => Type::Rt("Utf8Error", vec![]),
-				library::Std::TryFromIntError => Type::Rt("TryFromIntError", vec![]),
-				library::Std::ParseIntError => Type::Rt("ParseIntError", vec![]),
+				library::Std::Bound => Type::Rs("RangeBound", vec![self.ty(args.type_at(0), span)]),
+				library::Std::TryLockError => Type::Rs("TryLockError", vec![self.ty(args.type_at(0), span)]),
+				library::Std::FromUtf8Error => Type::Rs("FromUtf8Error", vec![]),
+				library::Std::Utf8Error => Type::Rs("Utf8Error", vec![]),
+				library::Std::TryFromIntError => Type::Rs("TryFromIntError", vec![]),
+				library::Std::ParseIntError => Type::Rs("ParseIntError", vec![]),
 				library::Std::ErrorKind => match self.tcx.item_name(adt.did()).as_str() {
-					"IntErrorKind" => Type::Rt("IntErrorKind", vec![]),
-					"CharErrorKind" => Type::Rt("CharErrorKind", vec![]),
-					"FloatErrorKind" => Type::Rt("FloatErrorKind", vec![]),
-					_ => Type::Rt("TryFromFloatSecsErrorKind", vec![]),
+					"IntErrorKind" => Type::Rs("IntErrorKind", vec![]),
+					"CharErrorKind" => Type::Rs("CharErrorKind", vec![]),
+					"FloatErrorKind" => Type::Rs("FloatErrorKind", vec![]),
+					_ => Type::Rs("TryFromFloatSecsErrorKind", vec![]),
 				},
-				library::Std::ParseBoolError => Type::Rt("ParseBoolError", vec![]),
-				library::Std::BorrowError => Type::Rt("BorrowError", vec![]),
-				library::Std::BorrowMutError => Type::Rt("BorrowMutError", vec![]),
-				library::Std::ParseCharError => Type::Rt("ParseCharError", vec![]),
-				library::Std::FromUtf16Error => Type::Rt("FromUtf16Error", vec![]),
-				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
-				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
-				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),
-				library::Std::Utf8Chunk => Type::Rt("Utf8Chunk", vec![]),
-				library::Std::ParseFloatError => Type::Rt("ParseFloatError", vec![]),
-				library::Std::TryFromFloatSecsError => Type::Rt("TryFromFloatSecsError", vec![]),
-				library::Std::Formatter => Type::Rt("Formatter", vec![]),
-				library::Std::Arguments => Type::Rt("Arguments", vec![]),
-				library::Std::FmtError => Type::Rt("FmtError", vec![]),
-				library::Std::DebugStruct => Type::Rt("DebugStruct", vec![]),
-				library::Std::DebugTuple => Type::Rt("DebugTuple", vec![]),
-				library::Std::DebugList => Type::Rt("DebugList", vec![]),
+				library::Std::ParseBoolError => Type::Rs("ParseBoolError", vec![]),
+				library::Std::BorrowError => Type::Rs("BorrowError", vec![]),
+				library::Std::BorrowMutError => Type::Rs("BorrowMutError", vec![]),
+				library::Std::ParseCharError => Type::Rs("ParseCharError", vec![]),
+				library::Std::FromUtf16Error => Type::Rs("FromUtf16Error", vec![]),
+				library::Std::CharTryFromError => Type::Rs("CharTryFromError", vec![]),
+				library::Std::TryFromCharError => Type::Rs("TryFromCharError", vec![]),
+				library::Std::DecodeUtf16Error => Type::Rs("DecodeUtf16Error", vec![]),
+				library::Std::Utf8Chunk => Type::Rs("Utf8Chunk", vec![]),
+				library::Std::ParseFloatError => Type::Rs("ParseFloatError", vec![]),
+				library::Std::TryFromFloatSecsError => Type::Rs("TryFromFloatSecsError", vec![]),
+				library::Std::Formatter => Type::Rs("Formatter", vec![]),
+				library::Std::Arguments => Type::Rs("Arguments", vec![]),
+				library::Std::FmtError => Type::Rs("FmtError", vec![]),
+				library::Std::DebugStruct => Type::Rs("DebugStruct", vec![]),
+				library::Std::DebugTuple => Type::Rs("DebugTuple", vec![]),
+				library::Std::DebugList => Type::Rs("DebugList", vec![]),
 				library::Std::AssertKind => Type::Builtin("string"),
-				library::Std::Arc => Type::Rt("Arc", vec![self.ty(args.type_at(0), span)]),
-				library::Std::Weak => Type::Rt("Weak", vec![self.ty(args.type_at(0), span)]),
+				library::Std::Arc => Type::Rs("Arc", vec![self.ty(args.type_at(0), span)]),
+				library::Std::Weak => Type::Rs("Weak", vec![self.ty(args.type_at(0), span)]),
 				// A guard's first argument is its lifetime.
 				library::Std::Mutex | library::Std::MutexGuard => {
 					let inner = args.types().next().expect("a guarded type");
-					Type::Rt("Mutex", vec![self.ty(inner, span)])
+					Type::Rs("Mutex", vec![self.ty(inner, span)])
 				}
 				library::Std::RefCell | library::Std::Ref | library::Std::RefMut => {
 					let inner = args.types().next().expect("a borrowed type");
-					Type::Rt("RefCell", vec![self.ty(inner, span)])
+					Type::Rs("RefCell", vec![self.ty(inner, span)])
 				}
-				library::Std::Cell => Type::Rt("Cell", vec![self.ty(args.type_at(0), span)]),
-				library::Std::LocalKey => Type::Rt("LocalKey", vec![self.ty(args.type_at(0), span)]),
-				library::Std::Atomic => Type::Rt("Atomic", vec![self.ty(args.type_at(0), span)]),
-				library::Std::AtomicOrdering => Type::Rt("AtomicOrdering", vec![]),
-				// With the `Option`'s `None` where it is `rt.None`.
+				library::Std::Cell => Type::Rs("Cell", vec![self.ty(args.type_at(0), span)]),
+				library::Std::LocalKey => Type::Rs("LocalKey", vec![self.ty(args.type_at(0), span)]),
+				library::Std::Atomic => Type::Rs("Atomic", vec![self.ty(args.type_at(0), span)]),
+				library::Std::AtomicOrdering => Type::Rs("AtomicOrdering", vec![]),
+				// With the `Option`'s `None` where it is `rs.None`.
 				std @ (library::Std::OnceCell | library::Std::OnceLock) => {
 					let inner = args.type_at(0);
 					if let Some(msg) = self.erasure_conflict(Ty::new_option(tcx, inner)) {
 						self.err(span, msg);
 					}
 					let mut args = vec![self.ty(inner, span)];
-					args.extend(self.erases_to(inner).undefined.then(|| Type::Rt("None", vec![])));
+					args.extend(self.erases_to(inner).undefined.then(|| Type::Rs("None", vec![])));
 					let name = match std {
 						library::Std::OnceCell => "OnceCell",
 						_ => "OnceLock",
 					};
-					Type::Rt(name, args)
+					Type::Rs(name, args)
 				}
-				library::Std::Once => Type::Rt("Once", vec![]),
-				library::Std::OnceState => Type::Rt("OnceState", vec![]),
-				library::Std::LazyCell => Type::Rt("LazyCell", vec![self.ty(args.type_at(0), span)]),
-				library::Std::LazyLock => Type::Rt("LazyLock", vec![self.ty(args.type_at(0), span)]),
-				library::Std::Waker => Type::Rt("Waker", vec![]),
-				library::Std::WakerVTable => Type::Rt("WakerVTable", vec![]),
-				library::Std::RawWaker => Type::Rt("RawWaker", vec![]),
-				library::Std::Context => Type::Rt("Context", vec![]),
+				library::Std::Once => Type::Rs("Once", vec![]),
+				library::Std::OnceState => Type::Rs("OnceState", vec![]),
+				library::Std::LazyCell => Type::Rs("LazyCell", vec![self.ty(args.type_at(0), span)]),
+				library::Std::LazyLock => Type::Rs("LazyLock", vec![self.ty(args.type_at(0), span)]),
+				library::Std::Waker => Type::Rs("Waker", vec![]),
+				library::Std::WakerVTable => Type::Rs("WakerVTable", vec![]),
+				library::Std::RawWaker => Type::Rs("RawWaker", vec![]),
+				library::Std::Context => Type::Rs("Context", vec![]),
 				library::Std::Poll => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);
@@ -1796,23 +1802,23 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// that can be pending, as any future's output is.
 				library::Std::Ready => {
 					self.future_ty(args.type_at(0), span);
-					Type::Rt("Ready", vec![self.ty(args.type_at(0), span)])
+					Type::Rs("Ready", vec![self.ty(args.type_at(0), span)])
 				}
-				library::Std::Range => Type::Rt("Range", vec![self.ty(args.type_at(0), span)]),
-				library::Std::RangeInclusive => Type::Rt("RangeInclusive", vec![self.ty(args.type_at(0), span)]),
+				library::Std::Range => Type::Rs("Range", vec![self.ty(args.type_at(0), span)]),
+				library::Std::RangeInclusive => Type::Rs("RangeInclusive", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeTo => Type::Object(vec![("end".into(), self.ty(args.type_at(0), span))]),
 				library::Std::RangeToInclusive => Type::Object(vec![
 					("end".into(), self.ty(args.type_at(0), span)),
 					("inclusive".into(), Type::Builtin("true")),
 				]),
-				library::Std::RangeFrom => Type::Rt("RangeFrom", vec![self.ty(args.type_at(0), span)]),
+				library::Std::RangeFrom => Type::Rs("RangeFrom", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeFull | library::Std::BuildHasherDefault => Type::Builtin("undefined"),
-				library::Std::Argument => Type::Rt("Fmt", vec![]),
+				library::Std::Argument => Type::Rs("Fmt", vec![]),
 				library::Std::NonNull => self.pointer_ty(args.type_at(0), span),
 				library::Std::MaybeUninit | library::Std::ManuallyDrop => self.ty(args.type_at(0), span),
 				library::Std::Peekable => {
 					let item = self.iter_item(Ty::new_adt(tcx, adt, args));
-					Type::Rt("Peekable", vec![self.item_ty(item, span)])
+					Type::Rs("Peekable", vec![self.item_ty(item, span)])
 				}
 				library::Std::Infallible => Type::Builtin("never"),
 				// The key and value types, or the item type, without the hasher or allocator.
@@ -1841,20 +1847,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						_ => ("VecDeque", 1),
 					};
 					let tys: Vec<Ty<'tcx>> = args.types().take(n).collect();
-					Type::Rt(name, tys.into_iter().map(|t| self.ty(t, span)).collect())
+					Type::Rs(name, tys.into_iter().map(|t| self.ty(t, span)).collect())
 				}
-				library::Std::Ordering => Type::Rt("Ordering", vec![]),
-				library::Std::Hasher => Type::Rt("Hasher", vec![]),
-				library::Std::RandomState => Type::Rt("RandomState", vec![]),
-				library::Std::Duration => Type::Rt("Duration", vec![]),
-				library::Std::Layout => Type::Rt("Layout", vec![]),
-				library::Std::Location => Type::Rt("Location", vec![]),
-				library::Std::PanicHookInfo => Type::Rt("PanicHookInfo", vec![]),
-				library::Std::LayoutError => Type::Rt("LayoutError", vec![]),
-				library::Std::TryReserveError => Type::Rt("TryReserveError", vec![]),
-				library::Std::Bytes => Type::Rt("ByteSlice", vec![]),
-				library::Std::BytesMut => Type::Rt("BytesMut", vec![]),
-				library::Std::ThreadRng => Type::Rt("ThreadRng", vec![]),
+				library::Std::Ordering => Type::Rs("Ordering", vec![]),
+				library::Std::Hasher => Type::Rs("Hasher", vec![]),
+				library::Std::RandomState => Type::Rs("RandomState", vec![]),
+				library::Std::Duration => Type::Rs("Duration", vec![]),
+				library::Std::Layout => Type::Rs("Layout", vec![]),
+				library::Std::Location => Type::Rs("Location", vec![]),
+				library::Std::PanicHookInfo => Type::Rs("PanicHookInfo", vec![]),
+				library::Std::LayoutError => Type::Rs("LayoutError", vec![]),
+				library::Std::TryReserveError => Type::Rs("TryReserveError", vec![]),
+				library::Std::Bytes => Type::Rs("ByteSlice", vec![]),
+				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
+				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
 				library::Std::ControlFlow => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);
@@ -1865,10 +1871,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							let ty::Adt(_, residual) = residual.kind() else {
 								unreachable!("a `Result` residual")
 							};
-							Type::Rt("Result", vec![self.ty(value, span), self.ty(residual.type_at(1), span)])
+							Type::Rs("Result", vec![self.ty(value, span), self.ty(residual.type_at(1), span)])
 						}
 						library::Flow::Option => self.option_ty(value, span),
-						library::Flow::Other => Type::Rt("Result", vec![self.ty(value, span), self.ty(residual, span)]),
+						library::Flow::Other => Type::Rs("Result", vec![self.ty(value, span), self.ty(residual, span)]),
 					}
 				}
 			};
@@ -1880,11 +1886,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if library::nothing(tcx, Ty::new_adt(tcx, adt, args)) {
 			return Type::Builtin("undefined");
 		}
-		// Every other iterator std has is an `rt.Iter` of its items.
+		// Every other iterator std has is an `rs.Iter` of its items.
 		if !self.crates.translates(adt.did())
 			&& let Some(item) = self.iter_item(Ty::new_adt(tcx, adt, args))
 		{
-			return Type::Rt("Iter", vec![self.ty(item, span)]);
+			return Type::Rs("Iter", vec![self.ty(item, span)]);
 		}
 		if !self.crates.translates(adt.did()) {
 			self.unrepresented(
@@ -1911,7 +1917,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
 		let ty = copy::field_ty(tcx, TypingEnv::post_analysis(tcx, adt), field.did, identity);
 		let ty = self.ty(ty, span);
-		let instanced = |t: &Type| matches!(t, Type::Rt("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _));
+		let instanced = |t: &Type| matches!(t, Type::Rs("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _));
 		if ty.any(&instanced) {
 			self.instanced_fields
 				.insert(field.did, ty.takes(&instanced).then(|| ty.clone()));
@@ -1958,8 +1964,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Why an instance of the crate's generic `adt` with `args` can't hold its fields' values,
 	/// if it can't: an `Option` or a `Poll` over a type parameter that its definition types
-	/// `T | undefined` or `rt.Poll<T>`, whose `None` or `Pending` this instance's `T` makes
-	/// `rt.None` or `rt.OuterPending`.
+	/// `T | undefined` or `rs.Poll<T>`, whose `None` or `Pending` this instance's `T` makes
+	/// `rs.None` or `rs.OuterPending`.
 	fn generic_erasure(&self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>) -> Option<String> {
 		let tcx = self.tcx;
 		if !args.types().any(|t| {
@@ -1986,7 +1992,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					Some(library::Std::Option) if erased.param && !erased.undefined => {
 						self.erases_to(instance).undefined.then(|| {
 							format!(
-								"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rt.None` as `Option<{instance}>`",
+								"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`",
 								field.name
 							)
 						})
@@ -1994,7 +2000,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					Some(library::Std::Poll) if erased.param && !erased.pending => {
 						self.erases_to(instance).pending.then(|| {
 							format!(
-								"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `rt.Poll<{inner}>`, whose `Pending` would be `rt.OuterPending` as `Poll<{instance}>`",
+								"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`",
 								field.name
 							)
 						})
@@ -2016,64 +2022,64 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// The TypeScript type of an `Option<inner>`: `T | undefined`, or `T | rt.None` where
+	/// The TypeScript type of an `Option<inner>`: `T | undefined`, or `T | rs.None` where
 	/// `T` can already be `undefined`.
 	fn option_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
 		let none = match self.erases_to(inner).undefined {
-			true => Type::Rt("None", vec![]),
+			true => Type::Rs("None", vec![]),
 			false => Type::Builtin("undefined"),
 		};
 		Type::Union(vec![self.ty(inner, span), none])
 	}
 
-	/// The TypeScript type of a future of `output`, an `rt.Future`, whose `poll` returns
-	/// `rt.Pending` as its own `Pending`, so an `output` that can already be one is refused.
+	/// The TypeScript type of a future of `output`, an `rs.Future`, whose `poll` returns
+	/// `rs.Pending` as its own `Pending`, so an `output` that can already be one is refused.
 	fn future_ty(&mut self, output: Ty<'tcx>, span: Span) -> Type {
 		if self.erases_to(output).pending {
 			self.unrepresented(
 				span,
-				format!("a future of `{output}`, which can be `rt.Pending`, as the future's own `Pending` is"),
+				format!("a future of `{output}`, which can be `rs.Pending`, as the future's own `Pending` is"),
 			);
 		}
-		Type::Rt("Future", vec![self.ty(output, span)])
+		Type::Rs("Future", vec![self.ty(output, span)])
 	}
 
-	/// The TypeScript type of a `Poll<inner>`: `rt.Poll<T>`, or `T | rt.OuterPending` where
-	/// `T` can already be `rt.Pending`.
+	/// The TypeScript type of a `Poll<inner>`: `rs.Poll<T>`, or `T | rs.OuterPending` where
+	/// `T` can already be `rs.Pending`.
 	fn poll_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
 		let ready = self.ty(inner, span);
 		match self.erases_to(inner).pending {
-			true => Type::Union(vec![ready, Type::Rt("OuterPending", vec![])]),
-			false => Type::Rt("Poll", vec![ready]),
+			true => Type::Union(vec![ready, Type::Rs("OuterPending", vec![])]),
+			false => Type::Rs("Poll", vec![ready]),
 		}
 	}
 
-	/// The JS value of `Pending` in a `Poll<inner>`: `rt.Pending`, or `rt.OuterPending`
-	/// where `inner` can already be `rt.Pending`.
+	/// The JS value of `Pending` in a `Poll<inner>`: `rs.Pending`, or `rs.OuterPending`
+	/// where `inner` can already be `rs.Pending`.
 	pub fn pending(&self, inner: Ty<'tcx>) -> ts::Expr {
 		self.pending_arg(inner)
-			.unwrap_or_else(|| ts::Expr::Rt("Pending".into()))
+			.unwrap_or_else(|| ts::Expr::Rs("Pending".into()))
 	}
 
-	/// `rt.OuterPending` where it is a `Poll<inner>`'s `Pending`, for a runtime function
-	/// whose `pending` is `rt.Pending` unless given.
+	/// `rs.OuterPending` where it is a `Poll<inner>`'s `Pending`, for a runtime function
+	/// whose `pending` is `rs.Pending` unless given.
 	pub fn pending_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
 		self.erases_to(inner)
 			.pending
-			.then(|| ts::Expr::Rt("OuterPending".into()))
+			.then(|| ts::Expr::Rs("OuterPending".into()))
 	}
 
 	/// The JS value of `None` in an `Option<inner>`, and of `Break` in a `ControlFlow`
-	/// that `?` on one makes: `undefined`, or `rt.None` where `inner` can already be
+	/// that `?` on one makes: `undefined`, or `rs.None` where `inner` can already be
 	/// `undefined`.
 	pub fn none(&self, inner: Ty<'tcx>) -> ts::Expr {
 		self.none_arg(inner).unwrap_or_else(ts::Expr::undefined)
 	}
 
-	/// `rt.None`, if it is an `Option<inner>`'s `None`, which a runtime function taking
+	/// `rs.None`, if it is an `Option<inner>`'s `None`, which a runtime function taking
 	/// one takes after its own arguments.
 	pub fn none_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
-		self.erases_to(inner).undefined.then(|| ts::Expr::Rt("None".into()))
+		self.erases_to(inner).undefined.then(|| ts::Expr::Rs("None".into()))
 	}
 
 	/// Which of the values `Option` and `Poll` erase to a `ty`'s JS value can already be,
@@ -2088,7 +2094,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				param: true,
 				..Erased::default()
 			},
-			// An `rt.Place`, which is an object.
+			// An `rs.Place`, which is an object.
 			ty::Ref(..) if self.place_pointee(ty).is_some() => Erased::default(),
 			ty::Ref(_, inner, _) => self.erases_to(*inner),
 			ty::Adt(adt, args) => match library::Std::of(self.tcx, adt.did()) {
@@ -2237,7 +2243,7 @@ pub fn byte_array(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Array(elem, _) if byte(*elem))
 }
 
-/// The parts of `slice`, an `rt.ByteSlice`, each read once: those it is made of, or those of a
+/// The parts of `slice`, an `rs.ByteSlice`, each read once: those it is made of, or those of a
 /// path or a slice made from a view of known length, or `undefined`'s, as a value not yet
 /// written. `None` for what must be held in a path first.
 pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
@@ -2252,7 +2258,7 @@ pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 	match slice {
 		Expr::Lit(text) if text == "undefined" => Some([(); 3].map(|()| Expr::undefined())),
 		e if e.is_path() => Some(["data", "start", "length"].map(|key| e.clone().member(key))),
-		Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(name) if name == "byteSliceFrom") && args.len() == 1 => {
+		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(name) if name == "byteSliceFrom") && args.len() == 1 => {
 			let bytes = args.pop().expect("one argument");
 			let length = match &bytes {
 				e if e.is_path() => e.clone().member("length"),
@@ -2273,7 +2279,7 @@ pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 	}
 }
 
-/// Whether `ty` is a reference to a `[u8; N]`, which is an `rt.ByteSlice` of its bytes, as a
+/// Whether `ty` is a reference to a `[u8; N]`, which is an `rs.ByteSlice` of its bytes, as a
 /// `&[u8]` is: a split's chunk is then no view.
 pub fn bytes_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(..)) && byte_array(ty.peel_refs())
@@ -2377,7 +2383,7 @@ pub fn escape(name: &str) -> String {
 		"while",
 		"with",
 		"yield",
-		"rt",
+		"rs",
 		// Globals the output calls.
 		"Array",
 		"Infinity",

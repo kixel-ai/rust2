@@ -1,11 +1,11 @@
 // Hashing, for rust2-ts output: `DefaultHasher`, which is std's SipHash-1-3 byte for byte,
 // `RandomState`, which keys it, the crate's own `Hasher`, and the `Hash` of std's types,
-// which call the `Hasher` methods std's call. `rt.ts` re-exports all of it.
+// which call the `Hasher` methods std's call. `rs.ts` re-exports all of it.
 //
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { asSlice, ByteSlice, type ByteVec, type None, type Vec } from "../rt.ts";
+import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rs.ts";
 import {
 	type i8,
 	type i16,
@@ -695,11 +695,11 @@ export function hashTuple<T extends readonly unknown[]>(fields: readonly ((value
 }
 
 /** `Hash::hash` of a slice: its length as a `usize`, then its elements' in order. */
-export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: ArrayLike<T> | Vec<T>, s: Hasher) => void {
+export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: Elements<T>, s: Hasher) => void {
 	return (items, s) => {
-		const value = asSlice(items);
-		s.prefix(value.length);
-		for (let i = 0; i < value.length; i++) hash(value[i], s);
+		const [a, i, n] = [sliceData(items), sliceStart(items), sliceLength(items)];
+		s.prefix(n);
+		for (let k = 0; k < n; k++) hash(a[i + k], s);
 	};
 }
 
@@ -707,11 +707,10 @@ export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: Array
  * `Hash::hash` of a slice of integers `size` bytes wide: its length as a `usize`, then
  * their bytes in one `write`, as their `hash_slice` writes them.
  */
-export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: ArrayLike<number | Limbs> | Vec<number | Limbs>, s: Hasher) => void {
+export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: Elements<number | Limbs>, s: Hasher) => void {
 	return (items, s) => {
-		const value = asSlice(items);
-		s.prefix(value.length);
-		s.ints(value, size);
+		s.prefix(sliceLength(items));
+		s.ints(items instanceof Slice ? sliceItems(items) : items instanceof Vec ? items.items : items, size);
 	};
 }
 

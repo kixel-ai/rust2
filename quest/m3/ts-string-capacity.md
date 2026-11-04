@@ -40,5 +40,4 @@ Public API: the translator's output and what a hand-written caller passes for a 
 
 ## Related
 
-- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - runs in parallel
 - [rs.Slice](/quest/m3/ts-slice-object.md) - the other native mapping becoming a wrapper

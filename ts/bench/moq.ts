@@ -17,6 +17,7 @@ import { iterate } from "./iter.ts";
 import { order } from "./order.ts";
 import { hashed } from "./hashed.ts";
 import { packets } from "./packets.ts";
+import { parts } from "./parts.ts";
 import { push } from "./push.ts";
 import { rescale } from "./rescale.ts";
 import { ordered } from "./sorted.ts";
@@ -74,6 +75,8 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return packets(selector, data);
 		case 16:
 			return format(data);
+		case 17:
+			return parts(selector, data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}

@@ -18,7 +18,7 @@ read into a group, to the benchmark's workloads, which hold only its sync frame 
 codec's WASM route stays in the benchmark as the baseline of compiled Rust in a browser.
 
 The codec's differential harness is the pattern to repeat. The shared npm runtime
-(for checked integer ops and the rest of `rt.ts`) is published only once two
+(for checked integer ops and the rest of `rs.ts`) is published only once two
 generated packages need it.
 
 Decided with the maintainer on 2026-10-23, for the subset: `u128` stays, on the

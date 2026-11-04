@@ -6,7 +6,7 @@
 //
 // usage: node btree.ts
 
-import * as rt from "../runtime/rt.ts";
+import * as rs from "../runtime/rs.ts";
 
 // xorshift32, as `runtime.rs` runs it.
 let state = 0x2545f491;
@@ -19,14 +19,14 @@ function rand(): number {
 	return state;
 }
 
-const cmp = (a: number, b: number): rt.Ordering => (a < b ? -1 : a > b ? 1 : 0);
+const cmp = (a: number, b: number): rs.Ordering => (a < b ? -1 : a > b ? 1 : 0);
 const out: string[] = [];
 const show = (v: number | undefined) => (v === undefined ? "-" : String(v));
-const walk = (it: rt.Iter<[number, number]>) => {
+const walk = (it: rs.Iter<[number, number]>) => {
 	const seen: number[] = [];
 	for (let i = 0; i < 40; i++) {
 		const item = rand() & 1 ? it.next() : it.nextBack();
-		if (item === rt.DONE) break;
+		if (item === rs.DONE) break;
 		seen.push(item[0]);
 	}
 	return seen.join(",");
@@ -38,7 +38,7 @@ const walk = (it: rt.Iter<[number, number]>) => {
  * count right, and every node but the root at least half as full as the fullest, so its
  * height is logarithmic.
  */
-function check(m: rt.BTreeMap<number, number>): void {
+function check(m: rs.BTreeMap<number, number>): void {
 	type Node = { k: number[]; c?: Node[]; prev?: Node; next?: Node };
 	const tree = m as unknown as { t: Node; h: number; n: number };
 	const leaves: Node[] = [];
@@ -76,7 +76,7 @@ function check(m: rt.BTreeMap<number, number>): void {
 	if (tree.n === 0 && tree.h !== 0) fail("an empty tree above its root leaf");
 }
 
-let m = rt.btreeNew<number, number>(cmp);
+let m = rs.btreeNew<number, number>(cmp);
 const steps = 120_000;
 for (let step = 0; step < steps; step++) {
 	const keys = 65_536;
@@ -85,54 +85,54 @@ for (let step = 0; step < steps; step++) {
 	const op = rand() % 10;
 	const k = rand() % keys;
 	if (op < 5) {
-		if (phase === 0 || (phase === 1 && k % 2 === 0)) out.push(`insert ${k} ${show(rt.btreeInsert(m, k, step))}`);
-		else out.push(`remove ${k} ${show(rt.btreeRemove(m, k))}`);
+		if (phase === 0 || (phase === 1 && k % 2 === 0)) out.push(`insert ${k} ${show(rs.btreeInsert(m, k, step))}`);
+		else out.push(`remove ${k} ${show(rs.btreeRemove(m, k))}`);
 	} else if (op === 5) {
-		out.push(`get ${k} ${show(rt.btreeGet(m, k))}`);
+		out.push(`get ${k} ${show(rs.btreeGet(m, k))}`);
 	} else if (op === 6) {
 		const j = rand() % keys;
 		const [lo, hi] = k < j ? [k, j] : [j, k];
 		const inclusive = rand() & 1;
-		const r = inclusive ? new rt.RangeInclusive(lo, hi) : { start: lo, end: hi };
-		out.push(`range ${lo} ${hi} ${inclusive} ${walk(rt.btreeRange(m, r))}`);
+		const r = inclusive ? new rs.RangeInclusive(lo, hi) : { start: lo, end: hi };
+		out.push(`range ${lo} ${hi} ${inclusive} ${walk(rs.btreeRange(m, r))}`);
 	} else if (op === 7) {
 		const last = (rand() & 1) === 1;
-		out.push(`pop ${last} ${rt.btreePop(m, last)?.join(" ") ?? "-"}`);
+		out.push(`pop ${last} ${rs.btreePop(m, last)?.join(" ") ?? "-"}`);
 	} else if (op === 8) {
-		out.push(`remove ${k} ${show(rt.btreeRemove(m, k))}`);
+		out.push(`remove ${k} ${show(rs.btreeRemove(m, k))}`);
 	} else if (step % 97 === 0) {
-		const it = rt.btreeIter(m);
+		const it = rs.btreeIter(m);
 		const seen = walk(it);
-		out.push(`iter ${rt.btreeLen(m)} ${it.len()} ${seen}`);
+		out.push(`iter ${rs.btreeLen(m)} ${it.len()} ${seen}`);
 	} else if (step % 1009 === 0) {
-		const copy = rt.btreeClone(m);
-		rt.btreeRetain(m, (key) => key % 7 !== k % 7);
-		out.push(`retain ${rt.btreeLen(m)} ${rt.btreeFirst(m)?.join(" ") ?? "-"} ${rt.btreeFirst(m, true)?.join(" ") ?? "-"}`);
+		const copy = rs.btreeClone(m);
+		rs.btreeRetain(m, (key) => key % 7 !== k % 7);
+		out.push(`retain ${rs.btreeLen(m)} ${rs.btreeFirst(m)?.join(" ") ?? "-"} ${rs.btreeFirst(m, true)?.join(" ") ?? "-"}`);
 		m = rand() & 1 ? copy : m;
-		out.push(`kept ${rt.btreeLen(m)}`);
+		out.push(`kept ${rs.btreeLen(m)}`);
 	} else if (step % 211 === 0) {
 		const j = rand() % keys;
 		const [lo, hi] = k < j ? [k, j] : [j, k];
 		const limit = rand() % 400;
-		const copy = rt.btreeClone(m);
-		const it = rt.btreeExtractIf(m, { start: lo, end: hi }, (key, value) => (key ^ value) % 3 !== 0);
+		const copy = rs.btreeClone(m);
+		const it = rs.btreeExtractIf(m, { start: lo, end: hi }, (key, value) => (key ^ value) % 3 !== 0);
 		const taken: number[] = [];
 		for (let i = 0; i < limit; i++) {
 			const entry = it.next();
-			if (entry === rt.DONE) break;
+			if (entry === rs.DONE) break;
 			taken.push(entry[0]);
 		}
-		out.push(`extract ${lo} ${hi} ${rt.btreeLen(m)} ${taken.join(",")}`);
+		out.push(`extract ${lo} ${hi} ${rs.btreeLen(m)} ${taken.join(",")}`);
 		check(m);
 		m = rand() & 1 ? copy : m;
 	}
 	if (step % 499 === 0) check(m);
 }
-out.push(`end ${rt.btreeLen(m)} ${rt.iterToVec(rt.btreeKeys(m)).items.join(",")}`);
+out.push(`end ${rs.btreeLen(m)} ${rs.iterToVec(rs.btreeKeys(m)).items.join(",")}`);
 // Emptied from both ends, down to its root leaf.
 const drained: number[] = [];
-while (rt.btreeLen(m) > 0) {
-	drained.push((rt.btreePop(m, (rand() & 1) === 1) as [number, number])[0]);
+while (rs.btreeLen(m) > 0) {
+	drained.push((rs.btreePop(m, (rand() & 1) === 1) as [number, number])[0]);
 	if (drained.length % 37 === 0) check(m);
 }
 check(m);

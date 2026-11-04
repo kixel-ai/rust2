@@ -1,5 +1,5 @@
 // Iterators, for rust2-ts output: std's `Iterator`, its adaptors, and `Range`, lazy as
-// Rust's are. `rt.ts` re-exports all of it.
+// Rust's are. `rs.ts` re-exports all of it.
 //
 // `next` returns an item or `DONE`, never `undefined`, so an iterator of `Option<T>` keeps
 // its `None` items apart from its end. Each adaptor calls what it wraps, and the closures
@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -383,54 +383,37 @@ export function byteVecIntoIter(v: ByteVec): Iter<number> {
 }
 
 /** `slice::IterMut` of elements JS copies: the place of each. */
-export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Place<T>> {
-	return new SliceMutIter(s);
+export function iterSliceMut<T>(s: SliceLike<T>): Iter<Place<T>> {
+	const it = new SliceMutIter(s.data);
+	it.front = s.start;
+	it.back = s.start + s.length;
+	return it;
 }
 
 /** `slice::windows`: each run of `size` elements, panicking on a size of 0 as std's does. */
-export function sliceWindows<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+export function sliceWindows<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
 	if (size === 0) panic("window size must be non-zero", at, true);
-	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, sliceCopy);
+	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, slicePart);
 }
 
-/** `slice::chunks`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
-export function sliceChunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceCopy, at);
+/** `slice::chunks` and `chunks_mut`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
+export function sliceChunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, false, slicePart, at);
 }
 
-/** `slice::chunks_exact`: each `size` elements, leaving the rest as its remainder. */
-export function sliceChunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceCopy, at);
+/** `slice::chunks_exact` and `chunks_exact_mut`: each `size` elements, leaving the rest as its remainder. */
+export function sliceChunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, false, slicePart, at);
 }
 
-/** `slice::rchunks`: `chunks` from the back, the last part the front of the slice. */
-export function sliceRchunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceCopy, at);
+/** `slice::rchunks` and `rchunks_mut`: `chunks` from the back, the last part the front of the slice. */
+export function sliceRchunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, true, slicePart, at);
 }
 
-/** `slice::rchunks_exact`: `chunks_exact` from the back, the remainder the front. */
-export function sliceRchunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceCopy, at);
-}
-
-/** `slice::chunks_mut`: as `chunks`, but each part a view of `s` that writes through to it. */
-export function sliceChunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceView, at);
-}
-
-/** `slice::chunks_exact_mut`. */
-export function sliceChunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceView, at);
-}
-
-/** `slice::rchunks_mut`. */
-export function sliceRchunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceView, at);
-}
-
-/** `slice::rchunks_exact_mut`. */
-export function sliceRchunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceView, at);
+/** `slice::rchunks_exact` and `rchunks_exact_mut`: `chunks_exact` from the back, the remainder the front. */
+export function sliceRchunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, true, slicePart, at);
 }
 
 /** `slice::windows` of bytes. */
@@ -467,54 +450,29 @@ export function partsRemainder<S>(parts: Iter<S>): S {
 	return (parts as PartsIter<S>).remainder();
 }
 
-/** `slice::split`: the parts between the elements `f` is true of, the empty ones too. */
-export function sliceSplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false);
+/** `slice::split` and `split_mut`: the parts between the elements `f` is true of, the empty ones too. */
+export function sliceSplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false);
 }
 
-/** `slice::split_mut`: as `split`, but each part a view of `s` that writes through to it. */
-export function sliceSplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false);
+/** `slice::rsplit` and `rsplit_mut`: `split` from the back. */
+export function sliceRsplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false);
 }
 
-/** `slice::rsplit`: `split` from the back. */
-export function sliceRsplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false);
+/** `slice::split_inclusive` and `split_inclusive_mut`: as `split`, but each part ends with its separator. */
+export function sliceSplitInclusive<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, true);
 }
 
-/** `slice::rsplit_mut`. */
-export function sliceRsplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false);
+/** `slice::splitn` and `splitn_mut`: `split`, but the `n`th part all that is left. */
+export function sliceSplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false, n);
 }
 
-/** `slice::split_inclusive`: as `split`, but each part ends with its separator. */
-export function sliceSplitInclusive<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, true);
-}
-
-/** `slice::split_inclusive_mut`. */
-export function sliceSplitInclusiveMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, true);
-}
-
-/** `slice::splitn`: `split`, but the `n`th part all that is left. */
-export function sliceSplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false, n);
-}
-
-/** `slice::splitn_mut`. */
-export function sliceSplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false, n);
-}
-
-/** `slice::rsplitn`: `rsplit`, but the `n`th part all that is left. */
-export function sliceRsplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false, n);
-}
-
-/** `slice::rsplitn_mut`. */
-export function sliceRsplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false, n);
+/** `slice::rsplitn` and `rsplitn_mut`: `rsplit`, but the `n`th part all that is left. */
+export function sliceRsplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false, n);
 }
 
 /** `slice::split` and `split_mut` of bytes, whose parts are views already. */
@@ -552,10 +510,6 @@ function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: bool
 	if (size === 0) panic("chunk size must be non-zero", at);
 	const count = exact ? Math.floor(length / size) : Math.ceil(length / size);
 	return new PartsIter(s, length, size, size, count, rev, part);
-}
-
-function sliceCopy<T>(s: T[], start: number, end: number): T[] {
-	return slicePart(s, start, end);
 }
 
 function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
@@ -707,8 +661,9 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): Vec<T> {
-	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
+export function slicesJoin<V, T>(items: Slice<V>, size: number, sep?: Slice<T>, slice?: (item: V) => Slice<T>, clone?: (item: T) => T): Vec<T> {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly Slice<T>[]) : all.map(slice);
 	// std's makes one with room for exactly them.
 	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
 	for (let i = 0; i < parts.length; i++) {
@@ -723,8 +678,9 @@ export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayL
  * read from it by `slice` unless it is the slice, with `sep` between them, into a
  * `Vec<u8>` of the capacity std's has, their exact length.
  */
-export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
-	const parts = slice === undefined ? (items as unknown as readonly ByteSlice[]) : items.map(slice);
+export function byteSlicesJoin<V>(items: Slice<V>, sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly ByteSlice[]) : all.map(slice);
 	const v = new ByteVec(joinedLength(parts, sep, 1));
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) byteVecExtendFromSlice(v, sep);
@@ -805,7 +761,7 @@ export function iterMap<T, U>(it: Iter<T>, f: (item: T) => U): Iter<U> {
 
 /**
  * `it` with each item lent by `f` as translated code reads it, as a `&[u8; N]` of a
- * `Uint8Array` is lent as an `rt.ByteSlice`.
+ * `Uint8Array` is lent as an `rs.ByteSlice`.
  */
 export function iterLend<T, U>(it: Iter<T>, f: (item: T) => U): Iter<U> {
 	return new LendIter(it, f);
@@ -1299,7 +1255,7 @@ export function iterRfold<T, A>(it: Iter<T>, init: A, f: (acc: A, item: T) => A,
 
 /**
  * `Iterator::try_fold`, as `try_fold` steps it, until `f` breaks: by an `Option`'s `None`,
- * `none` where that is `rt.None`, if `option`, and else by an `rt.Result`'s `Err`, as a
+ * `none` where that is `rs.None`, if `option`, and else by an `rs.Result`'s `Err`, as a
  * `Result` or a `ControlFlow` breaks. It returns what broke, or the accumulator as the type
  * continues with it. If it `owns` `f`, `f` drops as it returns.
  */
@@ -1750,7 +1706,7 @@ export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values
 /**
  * `collect` of `Option`s: `None` at the first `None`, or every value collected by `into`,
  * as `iterCollectResult`. An item's `None` is `itemNone`, and the result's `none`, each
- * `rt.None` where `undefined` is a value.
+ * `rs.None` where `undefined` is a value.
  */
 export function iterCollectOption<U, C>(it: Iter<U | undefined>, into: (values: Iter<U>) => C, drop?: Drop<C>): C | undefined;
 export function iterCollectOption<U, C>(it: Iter<U | None>, into: (values: Iter<U>) => C, drop: Drop<C> | undefined, itemNone: None): C | undefined;
@@ -1959,7 +1915,7 @@ function flattenFold<T, V, A>(it: FlattenIter<T, V>, back: boolean, acc: A, g: (
 }
 
 // Iterators. One has `[Symbol.dispose]` if it owns items or wraps an iterator: what holds
-// it drops it by `rt.drop`, not knowing its kind.
+// it drops it by `rs.drop`, not knowing its kind.
 
 class SliceIter<T> extends Iter<T> implements Disposable {
 	readonly s: ArrayLike<T>;
@@ -2038,8 +1994,8 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 /** The places of a slice's elements, from both ends. */
 class SliceMutIter<T> extends Iter<Place<T>> {
 	private readonly s: { [i: number]: T; length: number };
-	private front = 0;
-	private back: number;
+	front = 0;
+	back: number;
 
 	constructor(s: { [i: number]: T; length: number }) {
 		super();
@@ -5054,8 +5010,8 @@ function stepsBetween<T>(a: T, b: T, int: Step<T> | undefined): SizeHint {
 
 /**
  * `ops::Range`: `start..end`, which iterates its integers by moving `start`. A 64- or
- * 128-bit range takes its type's `Step`, `rt.u64Step`, to step past 2^53, and a range
- * of `char`s `rt.charStep`, to step past the surrogates.
+ * 128-bit range takes its type's `Step`, `rs.u64Step`, to step past 2^53, and a range
+ * of `char`s `rs.charStep`, to step past the surrogates.
  */
 export class Range<T> extends Iter<T> {
 	start: T;
@@ -5145,7 +5101,7 @@ export function rangeContains<T>(r: Range<T>, item: T): boolean {
 
 /**
  * `ops::RangeFrom`: `start..`, which iterates by moving `start` and never ends. It takes
- * its type's `Step`, `rt.u8Step` or `rt.charStep`, past whose last value it panics, as
+ * its type's `Step`, `rs.u8Step` or `rs.charStep`, past whose last value it panics, as
  * std's does in a debug build.
  */
 export class RangeFrom<T> extends Iter<T> {

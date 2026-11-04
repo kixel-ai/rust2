@@ -62,7 +62,7 @@ fn counted<const N: usize>(op: u8) -> [usize; N] {
 
 /// Arrays `map` makes, calling its closure on each element in order; each byte an
 /// operation, its value the operand. From bytes and to them, of none at all, through what
-/// the closure captured by reference and by move, of `Option`s whose `None` is `rt.None`,
+/// the closure captured by reference and by move, of `Option`s whose `None` is `rs.None`,
 /// and of arrays, each element the closure's own to change.
 pub fn maps(data: &[u8], out: &mut Vec<u8>) {
 	for &op in data {
