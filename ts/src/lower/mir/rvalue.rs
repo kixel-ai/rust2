@@ -126,6 +126,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							};
 							self.place_expr(base, span, out)
 						}
+						// A reference to an `Arc`'s value, which is that value's one place.
+						[mir::ProjectionElem::Deref]
+							if let Some(p) = self.arc_raw(&Operand::Copy(Place::from(place.local)), span, out) =>
+						{
+							p
+						}
 						_ if self.b.t.identity_pointee(pointee) => self.err(
 							span,
 							"a raw pointer to a place of `()`, which has no address of its own",
@@ -326,7 +332,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let v = self.operand(op, span, out);
 		match elem_ty.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if crate::lower::byte(elem_ty) => {
 				let array = Expr::rt("bytes", vec![Expr::lit(n.to_string())]);
 				match &v {
 					Expr::Lit(text) if text == "0" => array,
@@ -447,6 +453,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
 					&& from.is_raw_ptr() =>
 			{
+				if let Some(why) = self.erased_borrow(op, a, b) {
+					return self.err(span, why);
+				}
 				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {
 					return cast;
 				}
@@ -654,7 +663,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Expr::As(Box::new(Expr::Array(values)), ts_ty)
 			}
 			AggregateKind::Array(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+				_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 				_ => Expr::Array(values),
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {

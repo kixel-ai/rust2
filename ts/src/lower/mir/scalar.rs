@@ -769,12 +769,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}),
 			_ => false,
 		};
-		let bytes = || {
-			gargs
-				.types()
-				.next()
-				.is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8)))
-		};
+		let bytes = || gargs.types().next().is_some_and(crate::lower::byte);
 		match (owner.as_str(), name.as_str()) {
 			("slice", "split_first") if bytes() => Some(Producer::SplitFirst),
 			("slice", "split_first_chunk") if bytes() => {
@@ -1748,11 +1743,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							true => parts.push(pure(mid.clone().binary("<=", n.clone()), ns)),
 							false => {
 								let loc = self.b.t.loc(span);
+								let mut panic = vec![Expr::Str("mid > len".into())];
+								// Where `split_at`'s caller is, in a program with a panic hook.
+								if self.b.t.hooked {
+									let at = self.b.std_site.as_ref().and_then(|(_, at)| at.clone());
+									panic.push(at.unwrap_or_else(Expr::undefined));
+								}
 								let check = StmtKind::If {
 									cond: mid.clone().binary(">", n.clone()),
-									then: vec![
-										StmtKind::Expr(Expr::rt("panic", vec![Expr::Str("mid > len".into())])).at(loc),
-									],
+									then: vec![StmtKind::Expr(Expr::rt("panic", panic)).at(loc)],
 									els: Vec::new(),
 								}
 								.at(None);

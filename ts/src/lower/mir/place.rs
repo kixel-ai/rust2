@@ -323,7 +323,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => return self.err(span, format!("a subslice of `{ty}`")),
 					};
 					let method = match elem_ty.kind() {
-						ty::Uint(ty::UintTy::U8) => "subarray",
+						_ if crate::lower::byte(elem_ty) => "subarray",
 						_ => "slice",
 					};
 					let base = self.path(e, "slice", out);
@@ -445,7 +445,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ProjectionElem::Subslice { from, to, from_end } => {
 				let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
 				match ty.kind() {
-					ty::Array(elem, _) | ty::Slice(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+					ty::Array(elem, _) | ty::Slice(elem) if !crate::lower::byte(*elem) => {
 						Some((base, ty, from, to, from_end))
 					}
 					_ => None,
@@ -628,7 +628,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				// Cast to its variant's class: the slice an `rt.Borrowed` wraps, or the `Vec`.
 				Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-					let bytes = matches!(elem.kind(), ty::Uint(ty::UintTy::U8));
+					let bytes = crate::lower::byte(elem);
 					let owned = variant.is_some_and(|v| v.index() == 1);
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
@@ -1545,7 +1545,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::As(Box::new(Expr::Array(values)), ts_ty)
 				}
 				ty::Array(elem, _) => match elem.kind() {
-					ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+					_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 					_ => Expr::Array(values),
 				},
 				ty::Adt(adt, args) => self.adt(
@@ -1623,7 +1623,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let ty::Array(elem, len) = inner.kind() else {
 					return self.err(span, unnamed);
 				};
-				let (Some(len), ty::Uint(ty::UintTy::U8)) = (len.try_to_target_usize(tcx), elem.kind()) else {
+				let (Some(len), true) = (len.try_to_target_usize(tcx), crate::lower::byte(*elem)) else {
 					return self.err(span, unnamed);
 				};
 				let start = offset.bytes() as usize;
@@ -1642,7 +1642,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						Ok(s) => Expr::Str(s.to_string()),
 						Err(_) => self.err(span, "a string constant that is not UTF-8"),
 					},
-					ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => bytes_lit(bytes),
+					ty::Slice(elem) if crate::lower::byte(*elem) => bytes_lit(bytes),
 					_ => self.err(span, format!("a slice constant of type `{ty}`")),
 				}
 			}
@@ -1850,7 +1850,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 /// Whether `ty` is `[u8]`, which is an `rt.ByteSlice`.
 pub fn byte_slice(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	matches!(ty.kind(), ty::Slice(elem) if crate::lower::byte(*elem))
 }
 
 /// Byte `i` of `slice`, an `rt.ByteSlice` that reading twice reads the same.

@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_ptr_array4_u8, copy$array_u16, copy$array_u8, copy$array_unit, copy$mem_MaybeUninit_array_u32, copy$mem_MaybeUninit_array_u8, copy$mem_MaybeUninit_tuple2_u8_u8, copy$pointers_Aimed_Cell_u8, copy$pointers_Aimed_array2_u16, copy$pointers_Aimed_array4_u8, copy$pointers_Aimed_pointers_Housed_u8, copy$pointers_Aimed_pointers_Leaning, copy$pointers_Aimed_pointers_Paired, copy$pointers_Aimed_u8, copy$pointers_ByCall, copy$pointers_ByClosure, copy$pointers_ByObject, copy$pointers_Duo, copy$pointers_Halves, copy$pointers_Outer, copy$pointers_Pair, copy$pointers_Spot, copy$pointers_Twin, copy$tuple2_array2_u32_u8, copy$tuple2_u16_u8, copy$tuple2_u32_u32, copy$tuple2_u8_u8, drop$pointers_List_String, drop$pointers_List_sync_Arc_u8, drop$tuple2_sync_Arc_pointers_Twin_Rc_pointers_Twin, drop$tuple3_sync_Arc_u32_Rc_pointers_Duo_sync_Arc_unit, drop$tuple4_sync_Arc_pointers_Twin_sync_Arc_pointers_Twin_Rc_pointers_Twin_Rc_pointers_Twin, of$pointers_Bin_pointers_ByObject } from "./lib.ts";
 import { then$1vx3p6m, then$04p7jmh, then$1d2br9m } from "./core/bool.ts";
-import { isSomeAnd$0h2dqit, isSomeAnd$10niqnm, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$1l4p6jc as option_unwrapOr$1l4p6jc, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1cfrse5 as option_map$1cfrse5, mapOr$1j1wsle as option_mapOr$1j1wsle, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$1wxcg5q as option_mapOr$1wxcg5q, filter$0tnmmii } from "./core/option.ts";
+import { isSomeAnd$09tpccf, isSomeAnd$0h2dqit, isSomeAnd$10niqnm, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$1l4p6jc as option_unwrapOr$1l4p6jc, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1cfrse5 as option_map$1cfrse5, mapOr$1j1wsle as option_mapOr$1j1wsle, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$1wxcg5q as option_mapOr$1wxcg5q, filter$0tnmmii } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
 import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
@@ -33,6 +33,7 @@ import type * as Reattached from "./pointers.Reattached.ts";
 import type * as Refilled from "./pointers.Refilled.ts";
 import type * as Run from "./pointers.Run.ts";
 import * as Segment from "./pointers.Segment.ts";
+import * as Shelf from "./pointers.Shelf.ts";
 import type * as Span from "./pointers.Span.ts";
 import type * as Spot from "./pointers.Spot.ts";
 import type * as Stable from "./pointers.Stable.ts";
@@ -2690,6 +2691,150 @@ export function rawArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	a[Symbol.dispose]();
 	unit[Symbol.dispose]();
 	duo[Symbol.dispose]();
+	num[Symbol.dispose]();
+}
+
+/** A waker's data, an `Arc<AtomicBool>`'s raw pointer, which waking sets. */
+export function flagClone(data: rt.Place<undefined>): rt.RawWaker {
+	rt.arcClone(rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc"));
+	undefined;
+	return { data, vtable: FLAG };
+}
+
+export function flagWake(data: rt.Place<undefined>): void {
+	const _5: rt.Arc<rt.Atomic<boolean>> = rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc");
+	rt.atomicStore(_5.value, true, 4);
+	_5[Symbol.dispose]();
+}
+
+export function flagWakeByRef(data: rt.Place<undefined>): void {
+	rt.atomicStore((rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>).v, true, 4);
+}
+
+export function flagDrop(data: rt.Place<undefined>): void {
+	rt.arcFromRaw(rt.ptrUnerase(data, "std::sync::atomic::Atomic<bool>", 1) as rt.Place<rt.Atomic<boolean>>, "Arc")[Symbol.dispose]();
+}
+
+export const FLAG: rt.WakerVTable = /* @__PURE__ */ rt.wakerVTable(flagClone, flagWake as (a0: rt.Place<undefined>) => undefined, flagWakeByRef as (a0: rt.Place<undefined>) => undefined, flagDrop as (a0: rt.Place<undefined>) => undefined);
+
+/** A waker that sets `flag`, holding a count of it. */
+export function flagWaker(flag: rt.Arc<rt.Atomic<boolean>>): rt.Waker {
+	const arc = rt.arcClone(flag);
+	return rt.wakerFromRaw({ data: rt.arcErase(rt.arcRaw(arc, rt.arcPlace(arc), "Arc"), "std::sync::atomic::Atomic<bool>", 1), vtable: FLAG });
+}
+
+/** `p`, a pointer this body doesn't show the source of, erased. */
+export function eraseFlag(p: rt.Place<rt.Atomic<boolean>>): rt.Place<undefined> {
+	return rt.arcErase(p, "std::sync::atomic::Atomic<bool>", 1);
+}
+
+/**
+ * The raw pointers of `Arc`s and `Rc`s of values JS copies: a number's remade from a
+ * shared reference to its value, counted up and down, cloned, and taken back through it,
+ * and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
+ * vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives.
+ */
+export function rawPlaces(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const num: rt.Arc<rt.u32> = new rt.Arc(data.length as rt.u32);
+	const rc: rt.Arc<rt.u16> = new rt.Arc(9);
+	const flag: rt.Arc<rt.Atomic<boolean>> = new rt.Arc(new rt.Atomic(false));
+	const wakers: rt.Vec<rt.Waker> = rt.vecFrom([flagWaker(flag)]);
+	for (const byte of rt.byteSliceView(data)) {
+		const numAt: rt.Place<rt.u32> = rt.arcRaw(num, rt.arcPlace(num), "Arc");
+		const rcAt: rt.Place<rt.u16> = rt.arcRaw(rc, rt.arcPlace(rc), "Rc");
+		b2: {
+			const _26: rt.u8 = rt.u8Rem(byte, 8);
+			if (_26 === 0) {
+				rt.arcClone(rt.arcFromRaw(numAt, "Arc"));
+				break b2;
+			}
+			if (_26 === 1) {
+				if (num.strong > 1) {
+					rt.arcFromRaw(numAt, "Arc")[Symbol.dispose]();
+					break b2;
+				}
+			} else {
+				if (_26 === 2) {
+					rt.arcClone(rt.arcFromRaw(rcAt, "Rc"));
+					break b2;
+				}
+				if (_26 === 3) {
+					if (rc.strong > 1) {
+						rt.arcFromRaw(rcAt, "Rc")[Symbol.dispose]();
+						break b2;
+					}
+				} else {
+					if (_26 === 4) {
+						rt.arcClone(rt.arcFromRaw(rt.arcRaw(num, rt.arcPlace(num), "Arc"), "Arc"));
+						break b2;
+					}
+					if (_26 === 5) {
+						const _47: rt.Waker = wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))].clone();
+						wakers.items.push(_47);
+						break b2;
+					}
+					if (_26 === 6) {
+						if (wakers.items.length > 1) {
+							rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.items.length))[Symbol.dispose]();
+							break b2;
+						}
+					}
+				}
+			}
+			rt.atomicStore(flag.value, false, 4);
+			if ((byte & 8) === 0) {
+				wakers.items[rt.idx(wakers.items, 0)].wakeByRef();
+			} else {
+				rt.optionUnwrap(rt.vecPop(wakers)).wake();
+			}
+			if (wakers.items.length === 0) {
+				const _80: rt.Waker = flagWaker(flag);
+				wakers.items.push(_80);
+			}
+		}
+		const taken2: rt.Arc<rt.u32> = rt.arcFromRaw(rt.arcRaw(num, rt.arcPlace(num), "Arc"), "Arc");
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(num.strong & 0xff, taken2 === num ? 1 : 0, rc.strong & 0xff, flag.strong & 0xff, rt.atomicLoad(flag.value, 4) ? 1 : 0)), undefined, true);
+		const arc = num;
+		const _111: boolean = rt.arcErase(numAt, "u32", 4) === rt.arcErase(rt.arcRaw(arc, rt.arcPlace(arc), "Arc"), "u32", 4);
+		const _117: rt.Place<undefined> = rt.arcErase(rcAt, "u16", 2);
+		const arc2 = rc;
+		const _116: boolean = _117 === rt.arcErase(rt.arcRaw(arc2, rt.arcPlace(arc2), "Rc"), "u16", 2);
+		const arc3 = flag;
+		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_111, _116, eraseFlag(rt.arcRaw(arc3, rt.arcPlace(arc3), "Arc")) === wakers.items[rt.idx(wakers.items, 0)].data as rt.Place<undefined>, rt.arcErase(rt.arcRaw(flag, rt.arcPlace(flag), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers.items[rt.idx(wakers.items, 0)].data as rt.Place<undefined>], (a0: boolean): rt.u8 => {
+			return a0 ? 1 : 0;
+		})), undefined, true);
+	}
+	rt.dropVec(wakers);
+	rt.byteVecPush(out, flag.strong & 0xff);
+	while (num.strong > 1) {
+		const arc4 = num;
+		rt.arcFromRaw(rt.arcRaw(arc4, rt.arcPlace(arc4), "Arc"), "Arc")[Symbol.dispose]();
+	}
+	while (rc.strong > 1) {
+		rt.arcFromRaw(rt.arcRaw(rc, rt.arcPlace(rc), "Rc"), "Rc")[Symbol.dispose]();
+	}
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(num.strong & 0xff, rc.strong & 0xff, rc.value & 0xff)), undefined, true);
+	const _169: [Shelf.Shelf, Shelf.Shelf] = [new Shelf.Shelf(new rt.Arc(1)), new Shelf.Shelf(new rt.Arc(2))];
+	const first: Shelf.Shelf = _169[0];
+	const second: Shelf.Shelf = _169[1];
+	let shelf: Shelf.Shelf = first;
+	const value: rt.u32 = shelf._0.value;
+	if (isSomeAnd$09tpccf(rt.byteSliceFirst(data), (b: rt.u8): boolean => {
+		return rt.u8Rem(b, 2) === 0;
+	})) {
+		shelf = second;
+	}
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of({ v: value }.v & 0xff, shelf._0.value & 0xff)), undefined, true);
+	let shelf2: Shelf.Shelf = first;
+	const value2: rt.u32 = shelf2._0.value;
+	if (rt.usizeRem(data.length, 3) === 0) {
+		shelf2 = second;
+	}
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of({ v: value2 }.v & 0xff, shelf2._0.value & 0xff)), undefined, true);
+	second[Symbol.dispose]();
+	first[Symbol.dispose]();
+	flag[Symbol.dispose]();
+	rc[Symbol.dispose]();
 	num[Symbol.dispose]();
 }
 

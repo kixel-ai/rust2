@@ -2,6 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { arcs, needsDrops } from "./manual.ts";
+import { uninits } from "./uninit.ts";
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
@@ -27,6 +28,8 @@ export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.By
 		arcs(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["manual::needs_drops", (_23: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		needsDrops(data2, out2);
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["uninit::uninits", (_24: rt.u8, data3: rt.ByteSlice, out3: rt.ByteVec): undefined => {
+		uninits(data3, out3);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 

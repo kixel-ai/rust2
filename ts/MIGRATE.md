@@ -4,17 +4,20 @@
 
 - A `Vec<T>` of other than bytes is an `rt.Vec<T>` rather than a `T[]`: its items are the
   array `items`, and `rt.vecFrom(items)` makes one of an array with room for exactly
-  them, so a caller passes `rt.vecFrom([a, b])` and reads `v.items`. An `rt.BinaryHeap<T>` is an
-  `rt.Vec<T>`, and `rt.Cow<T>` owns one. The runtime's `vec*` functions, `rt.iterExtend`,
-  `rt.dequeFromVec`, `rt.heapFrom`, and `rt.byteVecFromVec` take one, and those that made
-  a `T[]` for a `Vec`, such as `rt.vecWithCapacity`, `rt.slicesJoin`, `rt.dequeToVec`,
-  `rt.byteVecToVec`, and `rt.cowIntoOwned`, make one. `rt.iterToArray` is
-  `rt.iterToVec`, which makes one too. `rt.Capped`, `rt.capSet`, and `rt.capHold` are gone
-  for the `rt.Vec`'s own `cap` and `peak` fields, `rt.vecExact(v, size)` is
-  `rt.vecFrom(v)`, and `rt.vecAssign` is `rt.arrayAssign`, of a boxed slice's items
-  alone. `rt.vecSplitOff`, `rt.heapClone`, `rt.cowIntoOwned`, and `rt.cowClone` no longer
-  take the element's size, and `rt.heapAppend` takes it last.
-
+  them, so a caller passes `rt.vecFrom([a, b])` and reads `v.items`. An
+  `rt.BinaryHeap<T>` is an `rt.Vec<T>`, and `rt.Cow<T>` owns one. The runtime's `vec*`
+  functions, `rt.iterExtend`, `rt.dequeFromVec`, `rt.heapFrom`, and `rt.byteVecFromVec`
+  take one, and those that made a `T[]` for a `Vec`, such as `rt.vecWithCapacity`,
+  `rt.slicesJoin`, `rt.dequeToVec`, `rt.byteVecToVec`, and `rt.cowIntoOwned`, make one.
+  `rt.iterToArray` is `rt.iterToVec`, which makes one too. `rt.Capped`, `rt.capSet`, and
+  `rt.capHold` are gone for the `rt.Vec`'s own `cap` and `peak` fields,
+  `rt.vecExact(v, size)` is `rt.vecFrom(v)`, and `rt.vecAssign` is `rt.arrayAssign`, of a
+  boxed slice's items alone. `rt.vecSplitOff`, `rt.heapClone`, `rt.cowIntoOwned`, and
+  `rt.cowClone` no longer take the element's size, and `rt.heapAppend` takes it last.
+- `rt.handleAllocError`, and a `LocalKey` initialized while it drops, throw `rt.Abort`
+  rather than an `rt.Panic`, as std aborts there without running the panic hook. An
+  `rt.Abort` is an `rt.Panic`, so a caller catching one still catches both; one telling
+  them apart by `name` sees `"Abort"`.
 - `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
   it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.

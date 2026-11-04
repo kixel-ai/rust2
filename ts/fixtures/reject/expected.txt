@@ -19,7 +19,6 @@ fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:bytes_mut_spare+1:6: `BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+2:17: `Bytes::is_unique` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+3:12: `Vec::from(Bytes)` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+4:14: `BytesMut::from(Bytes)` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
@@ -30,7 +29,7 @@ fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program t
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:shared+1:2: a coercion to `std::sync::Arc<[u8]>`
-fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut`, whose length is a capacity the runtime holds only as std guarantees it, which is not supported
+fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of
@@ -126,8 +125,6 @@ fixtures/reject/src/panics.rs:caller+1:37: `panics::at`, a `#[track_caller]` fun
 fixtures/reject/src/panics.rs:caller+1:37: a call through std's code of `panics::at`, a `#[track_caller]` function, whose caller is in std's source, in `std::option::Option::<T>::map`
 fixtures/reject/src/panics.rs:caller+2:38: `panics::at`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
 fixtures/reject/src/panics.rs:caller+3:22: `panics::here`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
-fixtures/reject/src/panics.rs:hooked+1:13: `panic::take_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
-fixtures/reject/src/panics.rs:hooked+2:2: `panic::set_hook`, whose hook reads each panic's `Location`, which panics don't carry yet
 fixtures/reject/src/panics.rs:impl Drop for Counted+2:2: `<panics::Counted as std::ops::Drop>::drop`, a `#[track_caller]` function std's code calls, whose caller is in std's source
 fixtures/reject/src/panics.rs:impl Iterator for Counted+4:2: `<panics::Counted as std::iter::Iterator>::next`, a `#[track_caller]` function std's code calls, whose caller is in std's source
 fixtures/reject/src/panics.rs:pointed+1:24: `std::panic::Location::<'a>::caller`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source
@@ -171,6 +168,7 @@ fixtures/reject/src/places.rs:replace_boxed_future+4:2: an assignment through a 
 fixtures/reject/src/places.rs:replace_guard+1:2: an assignment through a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a reference to `std::pin::Pin<&mut places::Noisy>`
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
+fixtures/reject/src/pointers.rs:arc_from_borrow+1:12: `Arc::from_raw` of a pointer to `u32` a borrow made, whose JS value is a place of its own, which no `Arc` gave
 fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
@@ -199,6 +197,8 @@ fixtures/reject/src/pointers.rs:element_pointer+2:10: a raw pointer to `(u32, u3
 fixtures/reject/src/pointers.rs:element_to_array+1:13: a cast from a pointer to `u32` to one to `[u32; 2]`, which reads the bytes of one type as another
 fixtures/reject/src/pointers.rs:elements_replaced+2:10: a raw pointer to `[u32; 3]` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:elements_replaced+4:10: a raw pointer to `[u32; 3]` in `pointers::Lanes`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:erased_borrows+2:2: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
+fixtures/reject/src/pointers.rs:erased_borrows+2:68: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
 fixtures/reject/src/pointers.rs:erased_box+2:2: a pointer to `std::boxed::Box<(u8, u8)>` cast to one to `()`, which JS keeps as what it holds
 fixtures/reject/src/pointers.rs:erased_bytes+1:22: a pointer to `[u8; 4]` cast to one to `()`, whose JS value is a view of its own each borrow
 fixtures/reject/src/pointers.rs:erased_dyn+1:2: a pointer to `dyn std::fmt::Debug` cast to one to `()`, which loses its size
