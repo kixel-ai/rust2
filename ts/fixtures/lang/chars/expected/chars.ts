@@ -381,10 +381,10 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			const units: rs.u16[] = Array.from({ length: 2 }, (): rs.u16 => {
 				return 43690;
 			});
-			const u: rs.u16[] = rs.charEncodeUtf16(c, units);
+			const u: rs.Slice<rs.u16> = rs.charEncodeUtf16(c, rs.sliceFrom(units));
 			rs.byteVecPush(out, u.length & 0xff);
 			rs.idx(u, 0);
-			u[0] = u[0] ^ 1;
+			u.data[u.start] = u.data[u.start] ^ 1;
 			const iter2: rs.Iter<rs.u16> = rs.iterSlice(units);
 			while (true) {
 				const _62: rs.u16 | rs.Done = iter2.next();
@@ -398,7 +398,7 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			rs.byteVecPush(out, rs.stringLen(rs.charEncodeUtf8(c, rs.byteSliceRange(rs.byteSliceFrom(bytes2), 2)).v) & 0xff);
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes2));
 			const units2: rs.Vec<rs.u16> = rs.vecFromElem(7, 4, undefined);
-			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceRangeMut(units2.items, 1)).length & 0xff);
+			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceRange(rs.sliceFrom(units2.items), 1)).length & 0xff);
 			for (const _94 of units2.items) {
 				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_94)));
 			}
@@ -407,7 +407,7 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				return rs.u8Rem(_2, 5) as rs.usize;
 			});
 			put(out, rs.charEncodeUtf8(c, rs.byteVecSlice(rs.byteVecOf(0, n2))).v);
-			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.vecFromElem(0, rs.usizeRem(n2, 3), undefined).items).length & 0xff);
+			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceFrom(rs.vecFromElem(0, rs.usizeRem(n2, 3), undefined).items)).length & 0xff);
 		}
 	}
 }

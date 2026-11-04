@@ -16,7 +16,7 @@ export function map$1pv2dfs(self: rs.u8 | undefined, f: (a0: rs.u8) => [rs.u8, r
 	return f(self);
 }
 
-export function mapOr$17byac0(self: rs.u32[] | undefined, default_: rs.u32, f: (a0: rs.u32[]) => rs.u32): rs.u32 {
+export function mapOr$0e6re16(self: rs.Slice<rs.u32> | undefined, default_: rs.u32, f: (a0: rs.Slice<rs.u32>) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}

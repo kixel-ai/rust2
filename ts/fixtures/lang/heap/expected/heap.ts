@@ -79,11 +79,11 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, shared.strong & 0xff);
 	}
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(Spill.asSlice$u32(ints)), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$u32(ints))), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.byteVecPush(out, ints.cap & 0xff);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(Spill.asSlice$Option_tuple2_u8_u16(pairs)), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$Option_tuple2_u8_u16(pairs))), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
 		return option_mapOr$12lsao8(p, 0, (_2: [rs.u8, rs.u16]): rs.u8 => {
 			return _2[0] ^ (_2[1] & 0xff);
 		});
@@ -114,7 +114,7 @@ export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrAdd(slots, i).v = ((((b as rs.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rs.Place<rs.u32> = slots;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.ptrSlice(words, data.length)), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.dealloc(rs.allocBytes(words, 4, "u32"));

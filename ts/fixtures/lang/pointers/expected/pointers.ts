@@ -268,15 +268,15 @@ export function unchecked(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const dropped: rs.Arc<rs.u8> = rs.arcClone(held);
 	for (const byte of rs.byteSliceView(data)) {
 		const at: rs.usize = rs.u8Rem(byte, 4) as rs.usize;
-		const _23: rs.u32[] = counts;
+		const _23: rs.Slice<rs.u32> = rs.sliceFrom(counts);
 		const at2 = rs.idx(_23, at);
-		_23[at2] = rs.u32Add(_23[at2], 1);
+		_23.data[_23.start + at2] = rs.u32Add(_23.data[_23.start + at2], 1);
 		boxed.v = rs.u32Add(boxed.v, byte as rs.u32);
 		const _28: rs.u32 = byte as rs.u32;
 		const _29: rs.Place<rs.u32> = rs.place(() => slot, (value2) => slot = value2);
 		_29.v = (_29.v ^ _28) >>> 0;
-		const _35: rs.u32[] = counts;
-		rs.byteVecPush(out, _35[rs.idx(_35, at)] & 0xff);
+		const _35: rs.Slice<rs.u32> = rs.sliceFrom(counts);
+		rs.byteVecPush(out, _35.data[_35.start + rs.idx(_35, at)] & 0xff);
 	}
 	rs.byteVecPush(out, boxed.v & 0xff);
 	rs.byteVecPush(out, slot & 0xff);
@@ -403,7 +403,7 @@ export function sentinels(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const units: undefined[] = (new Array(2) as unknown) as undefined[];
 		copy$array_unit(units);
 		rs.byteVecPush(out, rs.iterCount(rs.iterSlice([undefined, undefined])) & 0xff);
-		rs.byteVecPush(out, units.length & 0xff);
+		rs.byteVecPush(out, rs.sliceFrom(units).length & 0xff);
 	}
 }
 
@@ -909,10 +909,10 @@ export function iteratedRuns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrWrite(uninit, { span: [byte(0), ~byte(0) & 0xff] as [rs.u8, rs.u8], n: 0 });
 		uninit;
 	}
-	const boxed: Run.Run[] = Array.from({ length: 4 }, (): Run.Run => {
+	const boxed: rs.Slice<Run.Run> = rs.sliceFrom(Array.from({ length: 4 }, (): Run.Run => {
 		return ({ span: [undefined, undefined], n: undefined } as unknown) as Run.Run;
-	});
-	const iter2: rs.Iter<Run.Run> = rs.iterSlice(boxed);
+	}));
+	const iter2: rs.Iter<Run.Run> = rs.iterSlice(rs.sliceItems(boxed));
 	while (true) {
 		const _30: Run.Run | rs.Done = iter2.next();
 		if (_30 === rs.DONE) {
@@ -922,14 +922,14 @@ export function iteratedRuns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrWrite(uninit2, { span: [byte(1), 1] as [rs.u8, rs.u8], n: 1 });
 		uninit2;
 	}
-	const iter3: rs.Iter<[Run.Run[], rs.u8]> = rs.iterZip(rs.sliceChunksExactMut(boxed, 2), new rs.RangeFrom(0, rs.u8Step), "len");
+	const iter3: rs.Iter<[rs.Slice<Run.Run>, rs.u8]> = rs.iterZip(rs.sliceChunksExact(boxed, 2), new rs.RangeFrom(0, rs.u8Step), "len");
 	l5: while (true) {
-		const _46: [Run.Run[], rs.u8] | rs.Done = iter3.next();
+		const _46: [rs.Slice<Run.Run>, rs.u8] | rs.Done = iter3.next();
 		if (_46 === rs.DONE) {
 			break;
 		}
 		const at: rs.u8 = _46[1];
-		const iterS: Run.Run[] = _46[0];
+		const iterS: Run.Run[] = rs.sliceItems(_46[0]);
 		let iterI: number = 0;
 		while (true) {
 			const _53: Run.Run | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
@@ -964,11 +964,12 @@ export function iteratedRuns(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, span[0]);
 		const _107: rs.usize = rs.usizeRem(byte2 as rs.usize, 4);
 		rs.idx(boxed, _107);
-		const span2: [rs.u8, rs.u8] = boxed[_107].span;
+		const _136: rs.Slice<Run.Run> = boxed;
+		const span2: [rs.u8, rs.u8] = _136.data[_136.start + _107].span;
 		span2[1] = span2[1] ^ byte2;
 		rs.byteVecPush(out, span2[1]);
 	}
-	const iter7: rs.Iter<Run.Run> = rs.iterChain(rs.iterSlice(runs), rs.iterSlice(boxed));
+	const iter7: rs.Iter<Run.Run> = rs.iterChain(rs.iterSlice(runs), rs.iterSlice(rs.sliceItems(boxed)));
 	while (true) {
 		const _123: Run.Run | rs.Done = iter7.next();
 		if (_123 === rs.DONE) {
@@ -1198,7 +1199,7 @@ export function held(n: rs.u8): Uint8Array {
 	const _22: [rs.ByteSlice, rs.i32] = [q, 1];
 	const _17: rs.u8 = rs.eqTuple([rs.byteSliceSame, rs.same])(_20, _22) ? 1 : 0;
 	const _23: rs.u8 = rs.eqSlice(rs.byteSliceSame)([p], [r]) ? 1 : 0;
-	const _29: rs.u8 = rs.sliceContains(rs.vecFrom(copy$array_ptr_array4_u8([r, p])).items, q, rs.byteSliceSame) ? 1 : 0;
+	const _29: rs.u8 = rs.sliceContains(rs.sliceFrom(rs.vecFrom(copy$array_ptr_array4_u8([r, p])).items), q, rs.byteSliceSame) ? 1 : 0;
 	const _39: rs.ByteSlice | undefined = p;
 	const _41: rs.ByteSlice | undefined = q;
 	return Uint8Array.of(_17, _23, _29, rs.eqOption(rs.byteSliceSame)(_39, _41) ? 1 : 0, rs.eqOption(rs.byteSliceSame)(p, r) ? 1 : 0, Pointing.eq$cmp_PartialEq({ _0: p }, { _0: q }) ? 1 : 0);
@@ -1482,18 +1483,18 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _528!: boolean;
 	let _536!: boolean;
 	let _538!: boolean;
-	const _322: (a0: boolean[]) => rs.u8 = (b: boolean[]): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(b), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
+	const _322: (a0: rs.Slice<boolean>) => rs.u8 = (b: rs.Slice<boolean>): rs.u8 => {
+		return rs.iterFold(rs.iterSlice(rs.sliceItems(b)), 0, (acc: rs.u8, _33: boolean): rs.u8 => {
 			return ((acc << 1) & 0xff) | (_33 ? 1 : 0);
 		});
 	};
-	const _455: (a0: boolean[]) => rs.u8 = (b3: boolean[]): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(b3), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
+	const _455: (a0: rs.Slice<boolean>) => rs.u8 = (b3: rs.Slice<boolean>): rs.u8 => {
+		return rs.iterFold(rs.iterSlice(rs.sliceItems(b3)), 0, (acc2: rs.u8, _36: boolean): rs.u8 => {
 			return ((acc2 << 1) & 0xff) | (_36 ? 1 : 0);
 		});
 	};
-	const _588: (a0: boolean[]) => rs.u8 = (b5: boolean[]): rs.u8 => {
-		return rs.iterFold(rs.iterSlice(b5), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
+	const _588: (a0: rs.Slice<boolean>) => rs.u8 = (b5: rs.Slice<boolean>): rs.u8 => {
+		return rs.iterFold(rs.iterSlice(rs.sliceItems(b5)), 0, (acc3: rs.u8, _38: boolean): rs.u8 => {
 			return ((acc3 << 1) & 0xff) | (_38 ? 1 : 0);
 		});
 	};
@@ -1723,7 +1724,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _289: boolean = (nest8.inner.maybe as Paired.Paired | undefined) !== nest8.inner.held as Paired.Paired;
 		const pointer11 = other2;
 		const optional: boolean[] = [_284, _289, (nest8.inner.maybe as Paired.Paired | undefined) === (pointer11 === rs.NULL ? undefined : pointer11), (nest8.inner.maybe as Paired.Paired | undefined) === none, none === undefined, (nest8.inner.seen as Paired.Paired) === nest8.inner.at as Paired.Paired, (nest8.inner.seen as Paired.Paired) !== null_, null_ === rs.NULL];
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_322(same), _322(apart), _322(optional))), undefined, true);
+		const part = rs.sliceFrom(same);
+		const _323: rs.u8 = _322(part);
+		const part2 = rs.sliceFrom(apart);
+		const _328: rs.u8 = _322(part2);
+		const part3 = rs.sliceFrom(optional);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_323, _328, _322(part3))), undefined, true);
 		const other3: rs.ByteSlice = rs.byteSliceFrom(otherBytes);
 		const at10: rs.ByteSlice = rs.byteSliceFrom(bytes);
 		const pointer12 = at10;
@@ -1807,7 +1813,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _437: boolean = rs.eqOption(rs.byteSliceSame)(_439, _442);
 		const _447: rs.ByteSlice | undefined = nest9.inner.seen as rs.ByteSlice;
 		const optional2: boolean[] = [_417, _422, _427, _431, _434, _437, !rs.eqOption(rs.byteSliceSame)(_447, null_2), rs.eqOption(rs.byteSliceSame)(null_2, rs.NULL)];
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_455(same2), _455(apart2), _455(optional2))), undefined, true);
+		const part4 = rs.sliceFrom(same2);
+		const _456: rs.u8 = _455(part4);
+		const part5 = rs.sliceFrom(apart2);
+		const _461: rs.u8 = _455(part5);
+		const part6 = rs.sliceFrom(optional2);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_456, _461, _455(part6))), undefined, true);
 		const other4: Housed.Housed<rs.u8> = otherWrap;
 		const at12: Housed.Housed<rs.u8> = wrap;
 		const pointer16 = at12;
@@ -1882,7 +1893,12 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _555: boolean = (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) !== nest10.inner.held as Housed.Housed<rs.u8>;
 		const pointer19 = other4;
 		const optional3: boolean[] = [_550, _555, (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === (pointer19 === rs.NULL ? undefined : pointer19), (nest10.inner.maybe as Housed.Housed<rs.u8> | undefined) === none3, none3 === undefined, (nest10.inner.seen as Housed.Housed<rs.u8>) === nest10.inner.at as Housed.Housed<rs.u8>, (nest10.inner.seen as Housed.Housed<rs.u8>) !== null_3, null_3 === rs.NULL];
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_588(same3), _588(apart3), _588(optional3))), undefined, true);
+		const part7 = rs.sliceFrom(same3);
+		const _589: rs.u8 = _588(part7);
+		const part8 = rs.sliceFrom(apart3);
+		const _594: rs.u8 = _588(part8);
+		const part9 = rs.sliceFrom(optional3);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_589, _594, _588(part9))), undefined, true);
 	}
 }
 
@@ -2486,7 +2502,8 @@ export function distinct(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const copied: rs.Vec<[rs.u16, rs.u8]> = rs.iterToVec(rs.iterCopied(rs.iterSlice(list.items), copy$tuple2_u16_u8), undefined, 4, true);
 			const cloned: rs.Vec<Spot.Spot> = rs.iterToVec(rs.iterMap(rs.iterSlice(pushed.items), copy$pointers_Spot), undefined, 6, true);
 			const extended: rs.Vec<[rs.u16, rs.u8]> = rs.vecFrom(list.items.map(copy$tuple2_u16_u8));
-			rs.vecExtendFromSlice(extended, list.items, 4, copy$tuple2_u16_u8);
+			const _338: rs.Slice<[rs.u16, rs.u8]> = rs.sliceFrom(list.items);
+			rs.vecExtendFromSlice(extended, _338, 4, copy$tuple2_u16_u8);
 			extended.items.push(copy$tuple2_u16_u8(pair));
 			extended.items.push(copy$tuple2_u16_u8(pair));
 			const _346: rs.Iter<[rs.u16, rs.u8]> = rs.iterSlice(list.items);

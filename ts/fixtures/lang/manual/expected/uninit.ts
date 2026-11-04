@@ -13,7 +13,7 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const dst = rs.byteSliceRange(rs.byteSliceFrom(array), 0, n);
 	rs.byteSliceCopyFromSlice(dst, rs.byteSliceRange(data, 0, n));
 	rs.byteSliceView(dst).sort();
-	const _17: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceView(rs.byteSliceRange(rs.byteSliceFrom(array), 0, n)));
+	const _17: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceRange(rs.byteSliceFrom(array), 0, n));
 	if (_17 !== undefined) {
 		const uninit = _17;
 		uninit.v = 238;
@@ -28,7 +28,7 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _2;
 	}), undefined, true);
 	rs.byteVecPush(vec, 7);
-	const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteVecSlice(vec))));
+	const iter: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteVecSlice(vec)));
 	while (true) {
 		const _52: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter.next();
 		if (_52 === rs.DONE) {
@@ -53,14 +53,16 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const words: rs.u16[] = Array.from({ length: 4 }, (): rs.u16 => {
 		return _79;
 	});
-	const k: rs.usize = rs.min(wide.items.length, words.length);
-	const dst2 = rs.sliceRangeMut(words, 0, k);
-	rs.sliceCopyFromSlice(dst2, rs.sliceRange(wide.items, 0, k));
+	const k: rs.usize = rs.min(wide.items.length, rs.sliceFrom(words).length);
+	const _88: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, k);
+	const slice2 = rs.sliceFrom(wide.items);
+	const dst2 = _88;
+	rs.sliceCopyFromSlice(dst2, rs.sliceRange(slice2, 0, k));
 	const _86: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(dst2);
 	if (_86 !== undefined) {
 		_86.v = _86.v ^ 257;
 	}
-	for (const _102 of rs.sliceRange(words, 0, k)) {
+	for (const _102 of rs.sliceItems(rs.sliceRange(rs.sliceFrom(words), 0, k))) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_102).reverse()));
 	}
 	const fresh: Uint8Array = rs.bytes(2).fill((0 as unknown) as rs.u8);
@@ -88,8 +90,10 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteSliceCopyFromSlice(dst5, rs.byteSliceRange(data, 0, 0));
 			dst5;
 		} else if (_155 === 255) {
-			const dst4 = rs.sliceRangeMut(words, 0, 1);
-			rs.sliceCopyFromSlice(dst4, rs.sliceRange(wide.items, 0, 0));
+			const _164: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, 1);
+			const slice5 = rs.sliceFrom(wide.items);
+			const dst4 = _164;
+			rs.sliceCopyFromSlice(dst4, rs.sliceRange(slice5, 0, 0));
 			dst4;
 		}
 	}

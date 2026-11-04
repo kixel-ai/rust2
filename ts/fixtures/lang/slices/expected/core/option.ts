@@ -34,7 +34,7 @@ export function map$0k54dqg(self: Pair.Pair[] | undefined, f: (a0: Pair.Pair[]) 
 	return f(self);
 }
 
-export function map$07x3qxw(self: rs.u16[] | undefined, _: (a0: rs.u16[]) => rs.u8): rs.u8 | undefined {
+export function map$1j0y4j0(self: rs.Slice<rs.u16> | undefined, _: (a0: rs.Slice<rs.u16>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

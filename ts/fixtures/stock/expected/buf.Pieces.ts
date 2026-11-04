@@ -96,7 +96,7 @@ export function remaining$bytes_Buf(self: Pieces): rs.usize {
  * return an empty slice.
  */
 export function chunk$bytes_Buf(self: Pieces): rs.ByteSlice {
-	const _3: rs.ByteVec | undefined = rs.sliceFirst(self.parts.items);
+	const _3: rs.ByteVec | undefined = rs.sliceFirst(rs.sliceFrom(self.parts.items));
 	if (_3 === undefined) {
 		return rs.byteSliceFrom(Uint8Array.of());
 	}

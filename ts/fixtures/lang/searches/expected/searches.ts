@@ -3716,76 +3716,49 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _206: string = s;
 		const part3 = _6[1];
 		if (m === 9) {
-			const _211: rs.char[] = [c, d];
-			harness_put(out, rs.strTrimMatches(_206, rs.patternChars(rs.sliceRange(_211, 0))));
+			harness_put(out, rs.strTrimMatches(_206, rs.patternChars([c, d])));
 		} else if (m === 10) {
-			const _215: rs.char[] = [c, d];
-			both$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars(rs.sliceRange(_215, 0))), part3, out);
+			both$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 11) {
-			const _219: rs.char[] = [c, d];
-			both$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars(rs.sliceRange(_219, 0))), part3, out);
+			both$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 12) {
-			const _223: rs.char[] = [c, d];
-			both$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars(rs.sliceRange(_223, 0))), part3, out);
+			both$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 13) {
-			const _227: rs.char[] = [c, d];
-			both$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars(rs.sliceRange(_227, 0))), part3, out);
+			both$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 14) {
-			const _231: rs.char[] = [c, d];
-			both$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars(rs.sliceRange(_231, 0))), part3, out);
+			both$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 15) {
-			const _236: rs.char[] = [c, d];
-			both$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars(rs.sliceRange(_236, 0))), part3, out);
-			const _241: rs.char[] = [c, d];
-			both$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars(rs.sliceRange(_241, 0))), part3, out);
+			both$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars([c, d])), part3, out);
+			both$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 16) {
-			const _246: rs.char[] = [c, d];
-			both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars(rs.sliceRange(_246, 0))), part3, out);
-			const _251: rs.char[] = [c, d];
-			both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars(rs.sliceRange(_251, 0))), part3, out);
+			both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars([c, d])), part3, out);
+			both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 0) {
-			const _259: rs.char[] = [c, d];
-			putOffset(out, rs.strFind(_206, rs.patternChars(rs.sliceRange(_259, 0))));
-			const _264: rs.char[] = [c, d];
-			putOffset(out, rs.strRfind(_206, rs.patternChars(rs.sliceRange(_264, 0))));
+			putOffset(out, rs.strFind(_206, rs.patternChars([c, d])));
+			putOffset(out, rs.strRfind(_206, rs.patternChars([c, d])));
 		} else if (m === 1) {
-			const _269: rs.char[] = [c, d];
-			putOption(out, rs.strStripPrefix(_206, rs.patternChars(rs.sliceRange(_269, 0))));
-			const _274: rs.char[] = [c, d];
-			putOption(out, rs.strStripSuffix(_206, rs.patternChars(rs.sliceRange(_274, 0))));
+			putOption(out, rs.strStripPrefix(_206, rs.patternChars([c, d])));
+			putOption(out, rs.strStripSuffix(_206, rs.patternChars([c, d])));
 		} else if (m === 2) {
-			const _281: rs.char[] = [c, d];
-			harness_put(out, rs.strReplace(_206, rs.patternChars(rs.sliceRange(_281, 0)), "<>"));
-			const _289: rs.char[] = [c, d];
-			harness_put(out, rs.strReplace(_206, rs.patternChars(rs.sliceRange(_289, 0)), "é", n));
+			harness_put(out, rs.strReplace(_206, rs.patternChars([c, d]), "<>"));
+			harness_put(out, rs.strReplace(_206, rs.patternChars([c, d]), "é", n));
 		} else if (m === 3) {
-			const _295: rs.char[] = [c, d];
-			front$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars(rs.sliceRange(_295, 0))), out);
-			const _300: rs.char[] = [c, d];
-			front$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars(rs.sliceRange(_300, 0))), out);
+			front$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars([c, d])), out);
 		} else if (m === 4) {
-			const _305: rs.char[] = [c, d];
-			front$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars(rs.sliceRange(_305, 0))), out);
-			const _310: rs.char[] = [c, d];
-			front$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars(rs.sliceRange(_310, 0))), out);
+			front$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars([c, d])), out);
 		} else if (m === 5) {
-			const _315: rs.char[] = [c, d];
-			front$ref_str_str_SplitN_ref_slice_char(rs.strSplitn(_206, n, rs.patternChars(rs.sliceRange(_315, 0))), out);
-			const _320: rs.char[] = [c, d];
-			front$ref_str_str_RSplitN_ref_slice_char(rs.strRsplitn(_206, n, rs.patternChars(rs.sliceRange(_320, 0))), out);
+			front$ref_str_str_SplitN_ref_slice_char(rs.strSplitn(_206, n, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplitN_ref_slice_char(rs.strRsplitn(_206, n, rs.patternChars([c, d])), out);
 		} else if (m === 6) {
-			const _324: rs.char[] = [c, d];
-			front$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars(rs.sliceRange(_324, 0))), out);
+			front$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars([c, d])), out);
 		} else if (m === 7) {
-			const _329: rs.char[] = [c, d];
-			front$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars(rs.sliceRange(_329, 0))), out);
-			const _334: rs.char[] = [c, d];
-			front$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars(rs.sliceRange(_334, 0))), out);
+			front$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars([c, d])), out);
 		} else {
-			const _339: rs.char[] = [c, d];
-			front$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars(rs.sliceRange(_339, 0))), out);
-			const _344: rs.char[] = [c, d];
-			front$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars(rs.sliceRange(_344, 0))), out);
+			front$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars([c, d])), out);
+			front$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars([c, d])), out);
 		}
 	} else if (_42 === 3) {
 		const _349: string = s;
