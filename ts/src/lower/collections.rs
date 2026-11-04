@@ -3318,7 +3318,10 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 			Expr::Lit(l) if l == "undefined" => items.member("slice").call(Vec::new()),
 			clone => items.member("map").call(vec![clone]),
 		};
-		let param = crate::ts::Param { name: "a".into(), ty: Some(b.t.ty(ty, span)) };
+		let param = crate::ts::Param {
+			name: "a".into(),
+			ty: Some(b.t.ty(ty, span)),
+		};
 		return Expr::Lambda(vec![param], Box::new(made));
 	}
 	let clone = trait_fn(tcx, "Clone", "clone");

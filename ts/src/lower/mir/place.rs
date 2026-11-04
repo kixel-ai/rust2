@@ -424,7 +424,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				_ => false,
 			};
 		}
-		in_array && self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty).is_array()
+		in_array
+			&& self
+				.b
+				.t
+				.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty)
+				.is_array()
 	}
 
 	/// Whether `place` is a `[u8; N]` that [`Self::in_array`] reads as an `rs.ByteSlice`.
@@ -478,7 +483,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		})?;
 		if base.projection.len() + 1 != place.projection.len() {
 			return match kind {
-				mir::BorrowKind::Mut { .. } => Some(self.err(span, format!("a mutable borrow within a subslice of `{ty}`"))),
+				mir::BorrowKind::Mut { .. } => {
+					Some(self.err(span, format!("a mutable borrow within a subslice of `{ty}`")))
+				}
 				_ => None,
 			};
 		}
@@ -799,7 +806,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let target = self.place_expr(place, span, &mut out);
 			let target = self.slice_path(target, &mut out);
 			let e = match self.in_bytes(place) {
-				true => target.clone().member("data").member("set").call(vec![value, target.member("start")]),
+				true => target
+					.clone()
+					.member("data")
+					.member("set")
+					.call(vec![value, target.member("start")]),
 				false => Expr::rs("sliceSet", vec![target, value]),
 			};
 			out.push(StmtKind::Expr(e).at(self.b.t.loc(span)));
@@ -2418,7 +2429,10 @@ fn narrowed(value: Expr) -> Expr {
 
 /// Whether `place` is an element of an array or a slice.
 pub(super) fn element(place: Place<'_>) -> bool {
-	matches!(place.projection.last(), Some(ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. }))
+	matches!(
+		place.projection.last(),
+		Some(ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. })
+	)
 }
 
 /// The `rs.AtIndex` of an element at `target`, its path in its array, where it is in that

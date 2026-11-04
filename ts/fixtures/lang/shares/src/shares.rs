@@ -614,7 +614,10 @@ pub fn unsized_arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let weak: Weak<[Logged]> = weak;
 	let mut shared: Rc<[Logged]> = array;
 	out.extend([Rc::strong_count(&shared) as u8, Rc::weak_count(&shared) as u8]);
-	out.push(u8::from(kept.as_ref().is_some_and(|k| Rc::ptr_eq(&(k.clone() as Rc<[Logged]>), &shared))));
+	out.push(u8::from(
+		kept.as_ref()
+			.is_some_and(|k| Rc::ptr_eq(&(k.clone() as Rc<[Logged]>), &shared)),
+	));
 	ids(&shared, out);
 	if let Some(items) = Rc::get_mut(&mut shared) {
 		items[0] = logged(0x40);

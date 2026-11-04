@@ -173,7 +173,8 @@ fn collection<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRe
 /// Whether every `&[T; N]` `ty` holds is of bytes, which a collection's runtime reads in
 /// either form.
 fn reads_either(ty: Ty<'_>) -> bool {
-	ty.walk().all(|arg| arg.as_type().and_then(super::array_ref).is_none_or(super::byte))
+	ty.walk()
+		.all(|arg| arg.as_type().and_then(super::array_ref).is_none_or(super::byte))
 }
 
 /// Whether `ty` holds a `[T; N]` other than behind a reference or in a closure, which std

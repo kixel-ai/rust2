@@ -161,7 +161,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	pub fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.array_copy(Expr::ident("s"), ty, span) {
 			Expr::Call(f, args) if args.len() == 1 => *f,
-			copy => Expr::Lambda(vec![ts::Param { name: "s".into(), ty: None }], Box::new(copy)),
+			copy => Expr::Lambda(
+				vec![ts::Param {
+					name: "s".into(),
+					ty: None,
+				}],
+				Box::new(copy),
+			),
 		}
 	}
 

@@ -2261,4 +2261,3 @@ fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
 		_ => {}
 	}
 }
-

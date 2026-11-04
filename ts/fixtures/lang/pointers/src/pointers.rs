@@ -2302,7 +2302,12 @@ pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
 			u8::from(ptr::eq(e0, &raw const b[0])),
 			u8::from(ptr::eq(e0, ptr::null())),
 			u8::from([e0, e1].contains(&&raw const a[1])),
-			u8::from(Some(e1) == NonNull::new(e1.cast_mut()).map(NonNull::as_ptr).map(<*mut u32>::cast_const)),
+			u8::from(
+				Some(e1)
+					== NonNull::new(e1.cast_mut())
+						.map(NonNull::as_ptr)
+						.map(<*mut u32>::cast_const),
+			),
 		]);
 		let chunk = a.first_chunk_mut::<2>().unwrap();
 		chunk[1] ^= 0x8000;
@@ -2329,14 +2334,21 @@ pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
 /// Pointers to arrays in a `Vec`, and to elements of one, compared where they point, and
 /// swapped in and out of an `AtomicPtr`.
 fn runs(n: u8) -> [u8; 6] {
-	let mut v = vec![[n, n ^ 1].map(|b| char::from(b).to_string()), [String::new(), String::from("x")]];
+	let mut v = vec![
+		[n, n ^ 1].map(|b| char::from(b).to_string()),
+		[String::new(), String::from("x")],
+	];
 	let first: *const [String; 2] = &v[0];
 	let last: *const [String; 2] = v.last().unwrap();
 	let words: Vec<u32> = vec![u32::from(n); 3];
 	let at = AtomicPtr::new(words.as_ptr().cast_mut());
 	let next = words.as_ptr().wrapping_add(1).cast_mut();
-	let swapped = at.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst).is_ok();
-	let again = at.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst).is_ok();
+	let swapped = at
+		.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst)
+		.is_ok();
+	let again = at
+		.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst)
+		.is_ok();
 	v[1][0].push('y');
 	[
 		u8::from(ptr::eq(first, &v[0])),

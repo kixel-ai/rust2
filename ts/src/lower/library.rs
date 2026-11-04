@@ -4013,7 +4013,9 @@ fn array_of(s: Expr, read: &str) -> Expr {
 /// `rs.sliceItems` or `rs.sliceView` read of a slice are that slice.
 pub fn slice_from(items: Expr) -> Expr {
 	match items {
-		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "sliceItems" || n == "sliceView") && args.len() == 1 => {
+		Expr::Call(f, mut args)
+			if matches!(&*f, Expr::Rs(n) if n == "sliceItems" || n == "sliceView") && args.len() == 1 =>
+		{
 			args.pop().unwrap()
 		}
 		items => Expr::rs("sliceFrom", vec![items]),

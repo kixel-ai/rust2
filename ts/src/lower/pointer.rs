@@ -1135,7 +1135,12 @@ pub fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>,
 	let null = |e: &Expr| matches!(e, Expr::Rs(n) if n == "NULL");
 	match b.t.incomparable(ty) {
 		Some(why) if !null(&x) && !null(&y) => b.err(span, why),
-		_ if !null(&x) && !null(&y) && let Some(same) = b.t.same_fn(ty) => same.call(vec![x, y]),
+		_ if !null(&x)
+			&& !null(&y)
+			&& let Some(same) = b.t.same_fn(ty) =>
+		{
+			same.call(vec![x, y])
+		}
 		// Each is a view of the struct it was made from.
 		_ if !ty.is_trait() && super::dynamic::unsized_object(b.t.tcx, ty) => Expr::rs("tailSame", vec![x, y]),
 		_ => x.binary("===", y),
