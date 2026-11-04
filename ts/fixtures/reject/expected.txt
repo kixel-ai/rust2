@@ -64,6 +64,9 @@ fixtures/reject/src/iters.rs:parts_summed+1:38: unsupported call to `<std::vec::
 fixtures/reject/src/iters.rs:tens+1:31: `Extend` of `(std::vec::Vec<u8>, iters::Tens)` by `(u8, u8)`, whose `iters::Tens` of `u8` is not supported yet
 fixtures/reject/src/kept.rs:atomic_exchanged+4:30: a raw pointer to `std::cell::UnsafeCell<u16>` in `kept::ByExchanged`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:atomic_swapped+3:76: a raw pointer to `std::cell::UnsafeCell<u16>` in `kept::BySwapped`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:collected_parts+2:22: a reference through which a raw pointer may be made into `[u8; 2]` in `kept::Collected`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:collected_parts+2:44: a reference through which a raw pointer may be made into `[u8; 2]` in `kept::Collected`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:collected_parts+7:14: a raw pointer to `(u8, u8)` in `kept::Collected`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:impl Clone for Copied+2:31: a raw pointer to `(u16, u16)` in `kept::Copied`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:keep_part+1:43: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Escaped`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:kept_across_iterations+10:18: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Repeated`, which the crate may put another object in place of
@@ -88,9 +91,13 @@ fixtures/reject/src/kept.rs:reaimed+2:13: a raw pointer to `(u16, u16)` in `kept
 fixtures/reject/src/kept.rs:ref_replaced+2:32: a raw pointer to `kept::ByRefReplace` in `(u16, kept::ByRefReplace)`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:ref_taken+2:32: a raw pointer to `kept::ByRefTake` in `(u16, kept::ByRefTake)`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:reversed+3:13: a raw pointer to `(u16, u16)` in `kept::Reversed`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:rezipped_parts+8:16: a reference through which a raw pointer may be made into `[u8; 3]` in `[[u8; 3]; 2]`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:uninit_rewritten+3:47: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Rewritten`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:written_through_alias+3:29: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Aliased`, which the crate may put another object in place of
 fixtures/reject/src/kept.rs:written_through_loaded+3:29: a raw pointer to `std::cell::UnsafeCell<(u16, u16)>` in `kept::Loaded`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:zipped_parts+2:22: a reference through which a raw pointer may be made into `[u8; 2]` in `kept::Zipped`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:zipped_parts+2:44: a reference through which a raw pointer may be made into `[u8; 2]` in `kept::Zipped`, which the crate may put another object in place of
+fixtures/reject/src/kept.rs:zipped_parts+6:14: a raw pointer to `(u8, u8)` in `kept::Zipped`, which the crate may put another object in place of
 fixtures/reject/src/keys.rs:batched+1:16: hashing `std::vec::Vec<keys::Batched>` through `keys::Batched`'s own `Hash::hash_slice`, which is not supported yet
 fixtures/reject/src/keys.rs:borrowed+1:6: `HashMap::contains_key` of `std::collections::HashMap<keys::Id, u8>` by `u8`, which is not supported yet
 fixtures/reject/src/keys.rs:keyed+1:8: unsupported call to `std::ops::Range::<keys::Key>::contains::<keys::Key>`
@@ -164,6 +171,7 @@ fixtures/reject/src/places.rs:replace_boxed_future+4:2: an assignment through a 
 fixtures/reject/src/places.rs:replace_guard+1:2: an assignment through a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a reference to `std::pin::Pin<&mut places::Noisy>`
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
+fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
@@ -226,6 +234,7 @@ fixtures/reject/src/pointers.rs:pointers_apart+13:20: `offset_from` between a po
 fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `pointers::Window`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:reached_out+4:3: a copy reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+6:18: a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust

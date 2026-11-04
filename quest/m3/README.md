@@ -22,7 +22,6 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Waiting: a slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate once a consumer calls them
-- [A raw waker's data through an Arc](/quest/m3/ts-raw-waker.md) - `Arc::into_raw`, `from_raw`, and the strong counts translate for a hand-built waker's data
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [Debug of a str's searches](/quest/m3/ts-iter-source-debug.md) - `Debug` of `str`'s `Split` and its forms, `Matches`, `Lines`, and `SplitWhitespace` writes their searcher's state as std's does
@@ -30,6 +29,6 @@ generic std gap is planned here even when moq never calls it.
 - [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a deque made from a `Vec` splits its slices where std's does
 - [A string's exact capacity](/quest/m3/ts-string-capacity.md) - a `String` holds std's capacity, so a program making a `Bytes` of one reads its capacity
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
-- [Fresh writes beside a zipped iterator that points at a part](/quest/m3/ts-fresh-shapes.md) - zipping slots with a `Vec<[T; N]>`, `vec![row; n]`, or `copied` of what the slot holds translates
 - [A panic hook](/quest/m3/ts-panic-hook.md) - `set_hook`, `take_hook`, and `PanicHookInfo` translate, every panic running the hook
 - [A string Cow's variant](/quest/m3/ts-cow-str-variant.md) - matching a `Cow<str>`'s `Borrowed` or `Owned`, and `to_mut`'s change of it, translate as std's
+- [An Arc's raw pointer to a value JS copies](/quest/m3/ts-arc-raw-place.md) - `from_raw` of a pointer remade from a reference to an `Arc`'s number, and an `Arc<AtomicBool>`'s raw pointer cast to `*const ()`, translate
