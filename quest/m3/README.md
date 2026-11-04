@@ -23,3 +23,7 @@ generic std gap is planned here even when moq never calls it.
 - [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
 - [rs.String](/quest/m3/ts-string-capacity.md) - `String`, `Box<str>`, and `&str` are a runtime type holding std's capacity
 - [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
+- [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
+- [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
+- [Buf on a deque of bytes](/quest/m3/ts-vecdeque-buf.md) - `bytes`' `Buf` for a deque of bytes translates
+- [A B-tree drops as std's does](/quest/m3/ts-btree-drop-order.md) - keys and values drop node by node, in std's order
