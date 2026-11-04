@@ -139,7 +139,7 @@ export function copy$tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt.u8] {
 
 export function drop$generics_Run_generics_Ticked(_1: Run.Run<Ticked.Ticked>): void {
 	if (_1.tag === "Listed") {
-		rt.dropAll(_1._0 as Ticked.Ticked[]);
+		rt.dropVec(_1._0 as rt.Vec<Ticked.Ticked>);
 	} else if (_1.tag === "Fixed") {
 		rt.dropAll(_1.array as Ticked.Ticked[]);
 	}
@@ -153,8 +153,8 @@ export const out$u8: { err: unknown } = { err: undefined };
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["fmt::ints", ints as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::strings", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["fmt::ints", ints as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::strings", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		strings(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::derived", (_211: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		derived(data2, out2);
@@ -204,7 +204,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		sources(data23, out24);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["fmt::sets", (_234: rt.u8, data24: rt.ByteSlice, out25: rt.ByteVec): undefined => {
 		sets(data24, out25);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

@@ -9,7 +9,7 @@ import { cases as named, op, run } from "./harness.ts";
 export { run };
 
 /** Each case's name and the byte that picks it. */
-export const ops = new Map(named().map(([name]): [string, Uint8Array] => [name, Uint8Array.of(op(name))]));
+export const ops = new Map(named().d.map(([name]): [string, Uint8Array] => [name, Uint8Array.of(op(name))]));
 
 /** Its cases read full-width values. */
 export const wide = true;

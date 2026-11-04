@@ -26,17 +26,17 @@ export function boxed(log: Log.Log, id: rt.u32): void {
 		return Guard.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const first: Part.Part = new of$model_Guard(guard(1));
-	const parts: Part.Part[] = [];
+	const parts: rt.Vec<Part.Part> = new rt.Vec();
 	const _13: Part.Part = new of$drops_Held({ tag: "Two", _0: guard(2), _1: guard(3) } as Held.Held);
-	parts.push(_13);
+	parts.d.push(_13);
 	const _24: Part.Part = new of$u32(7);
-	parts.push(_24);
+	parts.d.push(_24);
 	const _28: Part.Part = new of$drops_Wrap_u32(new Wrap.Wrap(rt.u32Add(id, 4), Log.clone$Clone(log), 0));
-	parts.push(_28);
+	parts.d.push(_28);
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
-	parts.push(_36);
-	rt.sliceSwap(parts, 2, 3);
-	const part = rt.iterFold(rt.iterMap(rt.iterSlice(parts), (p: Part.Part): rt.u32 => {
+	parts.d.push(_36);
+	rt.sliceSwap(parts.d, 2, 3);
+	const part = rt.iterFold(rt.iterMap(rt.iterSlice(parts.d), (p: Part.Part): rt.u32 => {
 		return p.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -59,13 +59,13 @@ export function boxed(log: Log.Log, id: rt.u32): void {
 	const part4 = first.take$Part();
 	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part4, f)];
 	Log.note(log, rt.fmtFormat(["took ", args8[0]]));
-	const part5 = option_map$0s8hob8(parts.pop(), (a02: Part.Part): rt.u32 => {
+	const part5 = option_map$0s8hob8(rt.vecPop(parts), (a02: Part.Part): rt.u32 => {
 		return a02.take$Part();
 	});
 	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part5, f, rt.u32Debug)];
 	Log.note(log, rt.fmtFormat(["last ", args10[0]]));
 	const kept: Part.Part | undefined = new of$model_Guard(guard(7));
-	rt.dropAll(parts);
+	rt.dropVec(parts);
 	const _130: rt.u32 = option_mapOr$1jn2pas(kept, 0, (p2: Part.Part): rt.u32 => {
 		return p2.id$Part();
 	});
@@ -100,18 +100,18 @@ export function shared(log: Log.Log, id: rt.u32): void {
 	Log.note(log, rt.fmtFormat(["count ", args4[0]]));
 	const kept: rt.Arc<Guard.Guard> = new rt.Arc(guard(3));
 	const wrap: rt.Arc<Wrap.Wrap<rt.u32>> = new rt.Arc(new Wrap.Wrap(rt.u32Add(id, 4), Log.clone$Clone(log), 0));
-	const parts: rt.Arc<Part.Part>[] = [];
+	const parts: rt.Vec<rt.Arc<Part.Part>> = new rt.Vec();
 	const _63: rt.Arc<Wrap.Wrap<rt.u32>> = rt.arcClone(wrap);
-	parts.push(new rt.ArcDyn(_63, new of$drops_Wrap_u32(_63.value)));
+	parts.d.push(new rt.ArcDyn(_63, new of$drops_Wrap_u32(_63.value)));
 	const _68: rt.Arc<Guard.Guard> = rt.arcClone(kept);
-	parts.push(new rt.ArcDyn(_68, new of$model_Guard(_68.value)));
+	parts.d.push(new rt.ArcDyn(_68, new of$model_Guard(_68.value)));
 	const _72: rt.Arc<Part.Part> = rt.arcClone(second);
-	parts.push(_72);
+	parts.d.push(_72);
 	const _77: rt.Arc<rt.u32> = new rt.Arc(7);
-	parts.push(new rt.ArcDyn(_77, new of$u32(_77.value)));
-	const weak: rt.Weak<Part.Part> = new rt.Weak(parts[rt.idx(parts, 1)]);
+	parts.d.push(new rt.ArcDyn(_77, new of$u32(_77.value)));
+	const weak: rt.Weak<Part.Part> = new rt.Weak(parts.d[rt.idx(parts.d, 1)]);
 	second[Symbol.dispose]();
-	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(parts), (p: rt.Arc<Part.Part>): rt.u32 => {
+	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(parts.d), (p: rt.Arc<Part.Part>): rt.u32 => {
 		return p.value.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -119,7 +119,7 @@ export function shared(log: Log.Log, id: rt.u32): void {
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part2, f)];
 	Log.note(log, rt.fmtFormat(["ids ", args6[0]]));
 	rt.arcDrop(wrap, lib_drop$drops_Wrap_u32);
-	rt.dropAll(parts);
+	rt.dropVec(parts);
 	const part3 = option_mapOr$0lu2pr2(rt.weakUpgrade(weak), 0, (p2: rt.Arc<Part.Part>): rt.u32 => {
 		const _04: rt.u32 = p2.value.id$Part();
 		p2[Symbol.dispose]();
@@ -178,16 +178,16 @@ export function anys(log: Log.Log, id: rt.u32): void {
 	const guard: (a0: rt.u32) => Guard.Guard = (n: rt.u32): Guard.Guard => {
 		return Guard.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const boxes: Any.Any[] = [];
+	const boxes: rt.Vec<Any.Any> = new rt.Vec();
 	const _8: Any.Any = new of$model_Guard(guard(1));
-	boxes.push(_8);
+	boxes.d.push(_8);
 	const _15: Any.Any = new of$drops_Held({ tag: "Two", _0: guard(2), _1: guard(3) } as Held.Held);
-	boxes.push(_15);
+	boxes.d.push(_15);
 	const _26: Any.Any = new of$u32(7);
-	boxes.push(_26);
+	boxes.d.push(_26);
 	const _30: Any.Any = new of$model_Guard(guard(4));
-	boxes.push(_30);
-	const last: rt.Result<Guard.Guard, Any.Any> | undefined = option_map$09vq4lk(boxes.pop(), (b2: Any.Any): rt.Result<Guard.Guard, Any.Any> => {
+	boxes.d.push(_30);
+	const last: rt.Result<Guard.Guard, Any.Any> | undefined = option_map$09vq4lk(rt.vecPop(boxes), (b2: Any.Any): rt.Result<Guard.Guard, Any.Any> => {
 		return b2 instanceof of$model_Guard ? rt.Ok(b2.v) : rt.Err(b2);
 	});
 	const part = option_map$19e1ji3(last, (g: rt.Result<Guard.Guard, Any.Any>): boolean => {
@@ -212,7 +212,7 @@ export function anys(log: Log.Log, id: rt.u32): void {
 	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(arg, f)];
 	Log.note(log, rt.fmtFormat(["slot ", args6[0]]));
 	lib_drop$Result_boxed_Box_model_Guard_boxed_Box_dyn_Any(held);
-	rt.dropAll(boxes);
+	rt.dropVec(boxes);
 	const _90: rt.Arc<[Guard.Guard, Guard.Guard]> = new rt.Arc([guard(6), guard(7)] as [Guard.Guard, Guard.Guard]);
 	const hold: rt.Arc<Any.Any> = new rt.ArcDyn(_90, new of$tuple2_model_Guard_model_Guard(_90.value));
 	const clones: rt.Arc<Any.Any>[] = [rt.arcClone(hold), rt.arcClone(hold)];
@@ -317,15 +317,15 @@ export function fns(log: Log.Log, id: rt.u32): void {
 		captured7[Symbol.dispose]();
 	});
 	const captured8 = h;
-	const list: Array<() => rt.u32> = [_113, rt.closure((): rt.u32 => {
+	const list: rt.Vec<() => rt.u32> = rt.vecFrom([_113, rt.closure((): rt.u32 => {
 		return Guard.id(captured8);
 	}, (): void => {
 		captured8[Symbol.dispose]();
-	})];
-	const part6 = rt.u32Add(list[rt.idx(list, 1)](), list[rt.idx(list, 0)]());
+	})]);
+	const part6 = rt.u32Add(list.d[rt.idx(list.d, 1)](), list.d[rt.idx(list.d, 0)]());
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part6, f)];
 	Log.note(log, rt.fmtFormat(["list ", args12[0]]));
-	rt.dropAll(list);
+	rt.dropVec(list);
 	const captured9 = guard(9);
 	const _143: rt.Arc<() => rt.u32> = new rt.Arc(rt.closure((): rt.u32 => {
 		return Guard.id(captured9);
@@ -480,16 +480,16 @@ export function fns(log: Log.Log, id: rt.u32): void {
 		captured21[Symbol.dispose]();
 	});
 	const borrowed: (a0: Guard.Guard) => rt.u32 = f2;
-	const part21 = rt.iterSum(rt.iterMap(rt.iterSlice([guard(22), guard(23)], rt.drop), rt.lent(borrowed)), rt.u32Add, 0, true);
+	const part21 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([guard(22), guard(23)]), rt.drop), rt.lent(borrowed)), rt.u32Add, 0, true);
 	const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part21, f)];
 	Log.note(log, rt.fmtFormat(["borrowed ", args42[0]]));
-	const part22 = rt.iterSum(rt.iterMap(rt.iterSlice([guard(24)], rt.drop), rt.lent(f2)), rt.u32Add, 0, true);
+	const part22 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([guard(24)]), rt.drop), rt.lent(f2)), rt.u32Add, 0, true);
 	const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part22, f)];
 	Log.note(log, rt.fmtFormat(["by ref ", args44[0]]));
-	const part23 = rt.iterSum(rt.iterMap(rt.iterSlice([guard(26)], rt.drop), rt.lent(borrowed)), rt.u32Add, 0, true);
+	const part23 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([guard(26)]), rt.drop), rt.lent(borrowed)), rt.u32Add, 0, true);
 	const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part23, f)];
 	Log.note(log, rt.fmtFormat(["twice ", args46[0]]));
-	const part24 = rt.iterSum(rt.iterMap(rt.iterSlice([guard(27)], rt.drop), rt.lent(f2)), rt.u32Add, 0, true);
+	const part24 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([guard(27)]), rt.drop), rt.lent(f2)), rt.u32Add, 0, true);
 	const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part24, f)];
 	Log.note(log, rt.fmtFormat(["boxed ", args48[0]]));
 	const captured22 = guard(28);
@@ -500,13 +500,13 @@ export function fns(log: Log.Log, id: rt.u32): void {
 	}, (): void => {
 		captured22[Symbol.dispose]();
 	});
-	const part25 = rt.iterSum(rt.iterMap(rt.iterSlice([guard(29)], rt.drop), rt.lent(rt.place(() => h2, (value6) => h2 = value6).v)), rt.u32Add, 0, true);
+	const part25 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([guard(29)]), rt.drop), rt.lent(rt.place(() => h2, (value6) => h2 = value6).v)), rt.u32Add, 0, true);
 	const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part25, f)];
 	Log.note(log, rt.fmtFormat(["mut ", args50[0]]));
 	let p2: (a0: rt.u32) => rt.u32 = (a0: rt.u32): rt.u32 => {
 		return a0;
 	};
-	const part26 = rt.iterSum(rt.iterMap(rt.iterSlice([1, 2]), rt.place(() => p2, (value7) => p2 = value7).v), rt.u32Add, 0);
+	const part26 = rt.iterSum(rt.iterMap(rt.vecIntoIter(rt.vecFrom([1, 2])), rt.place(() => p2, (value7) => p2 = value7).v), rt.u32Add, 0);
 	const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part26, f)];
 	Log.note(log, rt.fmtFormat(["pointer ", args52[0]]));
 	const part27 = guard(25);

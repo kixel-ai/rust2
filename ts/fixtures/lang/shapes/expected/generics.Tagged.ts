@@ -11,7 +11,7 @@ export function fmt$fmt_Debug_generics_Either_u8_u16_i16(self: Tagged<Either.Eit
 	const _7: string = "inner";
 	const _8: rt.Fmt = (f: rt.Formatter) => Wrap.fmt$fmt_Debug_i16(self.inner, f);
 	const _10: string = "all";
-	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.all, f, (value: Wrap.Wrap<rt.i16>, f: rt.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f));
+	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.all.d, f, (value: Wrap.Wrap<rt.i16>, f: rt.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f));
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
 }
 
@@ -19,9 +19,9 @@ export function fmt$fmt_Debug_generics_Either_u8_u16_i16(self: Tagged<Either.Eit
 export class Tagged<K, V> {
 	key: K;
 	inner: Wrap.Wrap<V>;
-	all: Wrap.Wrap<V>[];
+	all: rt.Vec<Wrap.Wrap<V>>;
 
-	constructor(key: K, inner: Wrap.Wrap<V>, all: Wrap.Wrap<V>[]) {
+	constructor(key: K, inner: Wrap.Wrap<V>, all: rt.Vec<Wrap.Wrap<V>>) {
 		this.key = key;
 		this.inner = inner;
 		this.all = all;
@@ -29,7 +29,7 @@ export class Tagged<K, V> {
 }
 
 export function first$generics_Either_u8_u16_i16(self: Tagged<Either.Either<rt.u8, rt.u16>, rt.i16>): Wrap.Wrap<rt.i16> | undefined {
-	return rt.sliceFirst(self.all);
+	return rt.sliceFirst(self.all.d);
 }
 
 //# sourceMappingURL=generics.Tagged.ts.map

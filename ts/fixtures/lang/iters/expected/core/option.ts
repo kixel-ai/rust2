@@ -61,7 +61,7 @@ export function map$1uo1d4o(self: string | undefined, _: (a0: string) => string)
 	return self;
 }
 
-export function map$1httady(self: string[] | undefined, f: (a0: string[]) => string): string | undefined {
+export function map$0xa8rra(self: rt.Vec<string> | undefined, f: (a0: rt.Vec<string>) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -111,7 +111,7 @@ export function mapOr$0lcrgk1(self: string | undefined, default_: rt.u8, f: (a0:
 	return f(self);
 }
 
-export function mapOr$1kiffmd(self: rt.u16[] | undefined, default_: rt.u8, f: (a0: rt.u16[]) => rt.u8): rt.u8 {
+export function mapOr$0zwtv9w(self: rt.Vec<rt.u16> | undefined, default_: rt.u8, f: (a0: rt.Vec<rt.u16>) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;
 	}

@@ -229,6 +229,15 @@ pub fn call<'tcx>(
 			}
 		}
 	}
+	// A slice or an array finds an `rt.Vec` key, which the runtime reads alike, as its type.
+	if let Some(by) = by
+		&& !matches!(name, "range" | "range_mut")
+		&& let Some(at) = args.get_mut(1)
+		&& other_shape(b, arg(coll, 0), by)
+	{
+		let key = b.t.ty(arg(coll, 0), span);
+		*at = as_type(std::mem::replace(at, Expr::undefined()), key);
+	}
 	let e = match std {
 		Std::HashMap | Std::HashSet => hash(b, coll, call, owner, name, args, out),
 		Std::HashTable => table(b, coll, call, owner, name, args, out),
@@ -374,6 +383,19 @@ fn same_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
 	let (key, by) = (peel(b, key), peel(b, by));
 	tcx.erase_and_anonymize_regions(key) == tcx.erase_and_anonymize_regions(by)
 		|| (library::string(tcx, key) && library::string(tcx, by))
+}
+
+/// Whether a key of type `by` is a slice or an array that finds a `key` that is a `Vec`,
+/// whose JS value is an `rt.Vec` of the array.
+fn other_shape<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
+	b.t.std_of(peel(b, key)) == Some(Std::Vec)
+		&& elements_of(b, peel(b, by)).is_some()
+		&& b.t.std_of(peel(b, by)) != Some(Std::Vec)
+}
+
+/// `value` as a `ty`, through `unknown`.
+fn as_type(value: Expr, ty: Type) -> Expr {
+	Expr::As(Box::new(Expr::As(Box::new(value), Type::Builtin("unknown"))), ty)
 }
 
 /// Whether a `ty` compares to an `other` as to another `ty`: as keys do, as bytes do, or
@@ -1332,12 +1354,15 @@ fn btree<'tcx>(
 	let mut ranged = None;
 	if matches!(name, "range" | "range_mut") {
 		let range = bounds(b, call, values.pop()?);
-		values.push(range.bounds.clone());
+		let target = range_input(b, call).1;
+		values.push(match other_shape(b, key, target) {
+			true => as_type(range.bounds.clone(), Type::Rt("Bounds", vec![b.t.ty(key, span)])),
+			false => range.bounds.clone(),
+		});
 		ranged = Some(range);
 		// std checks the ends by `==` and `>`, which a key of std's alone does as its `Ord`
 		// does, and one holding the crate's own or a bound type by that type's `PartialEq`
 		// and `PartialOrd`.
-		let target = range_input(b, call).1;
 		if target.walk().filter_map(|arg| arg.as_type()).any(|t| local(b, t)) {
 			values.push(eq_fn(b, target, span));
 			values.push(test_fn(b, target, "gt", span));
@@ -1492,7 +1517,7 @@ fn btree_collect<'tcx>(
 		let f = if set { "btreeExtendKeys" } else { "btreeExtend" };
 		return Expr::rt(f, super::iter::tail(vec![target, source], droppers));
 	}
-	let entries = super::iter::to_array(b, source, iter, elem, trusted, span);
+	let entries = super::iter::to_vec(b, source, iter, elem, trusted, span).member("d");
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
 	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
 	if set {
@@ -1844,8 +1869,6 @@ fn heap<'tcx>(
 			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
 			| "shrink_to_fit",
 		) => {
-			let h = values.remove(0);
-			values.insert(0, h.member("d"));
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
 			}
@@ -1875,9 +1898,12 @@ fn heap<'tcx>(
 				"retain" => "heapRetain",
 				_ => return Some(heap_vec(Expr::rt("heapIntoSortedVec", values), bytes)),
 			};
+			if name == "append" {
+				values.push(super::iter::size_of(b, item, span));
+			}
 			Expr::rt(f, values)
 		}
-		(_, "into_vec") => heap_vec(values.pop()?.member("d"), bytes),
+		(_, "into_vec") => heap_vec(values.pop()?, bytes),
 		(_, "as_slice") if bytes => Expr::rt(
 			"byteSliceFrom",
 			vec![
@@ -1895,7 +1921,6 @@ fn heap<'tcx>(
 		(_, "iter") => Expr::rt("heapIter", values),
 		("Clone", "clone") => {
 			values.push(clone_fn(b, item, span));
-			values.push(super::iter::size_of(b, item, span));
 			Expr::rt("heapClone", values)
 		}
 		// `From<Vec<T>>` rebuilds the vector in place, and `From<[T; N]>` collects the array
@@ -1912,7 +1937,7 @@ fn heap<'tcx>(
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
 			if owner == "From" {
 				let trusted = super::iter::implements(b.t, iter, "TrustedLen");
-				let d = super::iter::to_array(b, source, iter, item, trusted, span);
+				let d = super::iter::to_vec(b, source, iter, item, trusted, span);
 				return Some(Expr::rt(
 					"heapFrom",
 					[vec![d], heap_tests(b, item, true, span)].concat(),
@@ -1925,11 +1950,11 @@ fn heap<'tcx>(
 	Some(e)
 }
 
-/// A `Vec` of a heap's elements `d`, an `rt.ByteVec` of bytes, with its capacity.
-pub fn heap_vec(d: Expr, bytes: bool) -> Expr {
+/// The `Vec` a heap, `h`, is, an `rt.ByteVec` of bytes, with its capacity.
+pub fn heap_vec(h: Expr, bytes: bool) -> Expr {
 	match bytes {
-		true => Expr::rt("byteVecFromVec", vec![d]),
-		false => d,
+		true => Expr::rt("byteVecFromVec", vec![h]),
+		false => h,
 	}
 }
 
@@ -2319,7 +2344,7 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 		Std::Vec if matches!(arg(coll, 0).kind(), ty::Uint(ty::UintTy::U8)) => {
 			Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new())
 		}
-		Std::Vec => Expr::Array(Vec::new()),
+		Std::Vec => library::vec_new(false),
 		Std::VecDeque => deque_new(b, coll, span),
 		Std::LinkedList => list_new(b, coll, span),
 		Std::BinaryHeap => empty(b, Expr::rt("heapNew", Vec::new()), coll, span),
@@ -2676,8 +2701,8 @@ fn cow_deref<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &mut [Expr], n: u
 	Ty::new_slice(b.t.tcx, elem)
 }
 
-/// The elements of `ty` if it is a `Vec`, a slice, or an array that is a JS array: of any
-/// type but `u8`, whose bytes are typed arrays.
+/// The elements of `ty` if it is a `Vec`, a slice, or an array of any type but `u8`, whose
+/// bytes are typed arrays: an `rt.Vec` or a JS array, which the runtime reads alike.
 fn elements_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let elem = match ty.kind() {
 		ty::Slice(elem) | ty::Array(elem, _) => *elem,
@@ -3341,7 +3366,7 @@ pub fn collect<'tcx>(
 		// std's collects into a `Vec`, and rebuilds it in place.
 		Std::BinaryHeap => {
 			let item = arg(ty, 0);
-			let d = super::iter::to_array(b, iter, from, item, trusted, span);
+			let d = super::iter::to_vec(b, iter, from, item, trusted, span);
 			Expr::rt("heapFrom", [vec![d], heap_tests(b, item, true, span)].concat())
 		}
 		Std::LinkedList => {
@@ -3362,7 +3387,7 @@ pub fn collect<'tcx>(
 			let made = match whole {
 				true => Expr::rt("dequeFromIntoIter", [vec![iter], deque_items(b, item, span)].concat()),
 				false => {
-					let items = super::iter::to_array(b, iter, from, item, trusted, span);
+					let items = super::iter::to_vec(b, iter, from, item, trusted, span);
 					Expr::rt("dequeFromVec", [vec![items], deque_items(b, item, span)].concat())
 				}
 			};

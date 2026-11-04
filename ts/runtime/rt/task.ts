@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, arrayAssign, type Vec } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 
 // Drops
@@ -17,6 +17,11 @@ export function drop(value: unknown): void {
 /** Drop every element of `values` from `from` on, in order, by `f` if it has no `[Symbol.dispose]`. */
 export function dropAll<T>(values: ArrayLike<T> | undefined, f: (value: T) => void = drop, from = 0): void {
 	if (values !== undefined) dropRange(values, f, from, values.length);
+}
+
+/** Drop every item of `v` in order, as `dropAll` does. */
+export function dropVec<T>(v: Vec<T> | undefined, f: (value: T) => void = drop): void {
+	if (v !== undefined) dropRange(v.d, f, 0, v.d.length);
 }
 
 /** Drop `values[from..to]` as `dropAll` does. */
@@ -740,7 +745,7 @@ export function partPlace<T extends object>(part: T): Place<T> {
 	return place(
 		() => part,
 		(value) => {
-			if (Array.isArray(part)) vecAssign(part, value as unknown[]);
+			if (Array.isArray(part)) arrayAssign(part, value as unknown[]);
 			else ptrWrite(part, value);
 		},
 	);

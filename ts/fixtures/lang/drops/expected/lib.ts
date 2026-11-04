@@ -70,7 +70,7 @@ export function drop$drops_Guard_drops_Logged(_1: Guard.Guard<Logged.Logged>): v
 
 export function drop$drops_InBox_drops_Logged(_1: InBox.InBox<Logged.Logged>): void {
 	drop$drops_Guard_drops_Logged(_1.b);
-	rt.dropAll(_1.v, drop$drops_Guard_drops_Logged);
+	rt.dropVec(_1.v, drop$drops_Guard_drops_Logged);
 }
 
 export function drop$drops_InEnum_drops_Logged(_1: InEnum.InEnum<Logged.Logged>): void {
@@ -89,7 +89,7 @@ export function drop$drops_InOption_drops_Logged(_1: InOption.InOption<Logged.Lo
 }
 
 export function drop$drops_InPlain_drops_Logged(_1: InPlain.InPlain<Logged.Logged>): void {
-	drop$drops_Plain_Vec_drops_Logged(_1.p as Plain.Plain<Logged.Logged[]>);
+	drop$drops_Plain_Vec_drops_Logged(_1.p as Plain.Plain<rt.Vec<Logged.Logged>>);
 	drop$tuple2_drops_Either_drops_Logged_drops_Logged(_1.t);
 }
 
@@ -103,8 +103,8 @@ export function drop$drops_Ping_drops_Logged(_1: Ping.Ping<Logged.Logged>): void
 	_1.v[Symbol.dispose]();
 }
 
-export function drop$drops_Plain_Vec_drops_Logged(_1: Plain.Plain<Logged.Logged[]>): void {
-	rt.dropAll(_1.u);
+export function drop$drops_Plain_Vec_drops_Logged(_1: Plain.Plain<rt.Vec<Logged.Logged>>): void {
+	rt.dropVec(_1.u);
 }
 
 export function drop$drops_Pong_drops_Logged(_1: Pong.Pong<Logged.Logged>): void {
@@ -114,7 +114,7 @@ export function drop$drops_Pong_drops_Logged(_1: Pong.Pong<Logged.Logged>): void
 
 export function drop$drops_Tree_drops_Logged(_1: Tree.Tree<Logged.Logged>): void {
 	drop$drops_Either_drops_Logged(_1.e);
-	rt.dropAll(_1.kids, drop$drops_Tree_drops_Logged);
+	rt.dropVec(_1.kids, drop$drops_Tree_drops_Logged);
 }
 
 export function drop$tuple2_drops_Either_drops_Logged_drops_Logged(_1: [Either.Either<Logged.Logged>, Logged.Logged]): void {
@@ -126,8 +126,8 @@ export function drop$tuple2_drops_Either_drops_Logged_drops_Logged(_1: [Either.E
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["drops::drops", drops as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["drops::drops", drops as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

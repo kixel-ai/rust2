@@ -24,20 +24,20 @@ export function copy$tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt.u8] {
 	return [v[0], v[1]];
 }
 
-export function drop$Vec_Rc_counts_Noisy(value: rt.Arc<Noisy.Noisy>[]): void {
-	rt.dropAll(value);
+export function drop$Vec_Rc_counts_Noisy(value: rt.Vec<rt.Arc<Noisy.Noisy>>): void {
+	rt.dropVec(value);
 }
 
-export function drop$Vec_sync_Arc_counts_Noisy(value: rt.Arc<Noisy.Noisy>[]): void {
-	rt.dropAll(value);
+export function drop$Vec_sync_Arc_counts_Noisy(value: rt.Vec<rt.Arc<Noisy.Noisy>>): void {
+	rt.dropVec(value);
 }
 
-export function drop$cell_RefCell_Vec_Rc_counts_RcReleasing(value: rt.RefCell<rt.Arc<RcReleasing.RcReleasing>[]>): void {
-	rt.dropAll(value.value);
+export function drop$cell_RefCell_Vec_Rc_counts_RcReleasing(value: rt.RefCell<rt.Vec<rt.Arc<RcReleasing.RcReleasing>>>): void {
+	rt.dropVec(value.value);
 }
 
-export function drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing(value: rt.RefCell<rt.Arc<ArcReleasing.ArcReleasing>[]>): void {
-	rt.dropAll(value.value);
+export function drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing(value: rt.RefCell<rt.Vec<rt.Arc<ArcReleasing.ArcReleasing>>>): void {
+	rt.dropVec(value.value);
 }
 
 export function drop$tuple2_Option_rc_Weak_tuple2_u16_u8_Option_Rc_tuple2_u16_u8(_1: [rt.Weak<[rt.u16, rt.u8]> | undefined, rt.Arc<[rt.u16, rt.u8]> | undefined]): void {
@@ -50,20 +50,20 @@ export function drop$tuple2_Option_sync_Weak_tuple2_u16_u8_Option_sync_Arc_tuple
 	rt.drop(_1[1]);
 }
 
-export function drop$tuple5_Vec_Rc_counts_Noisy_Vec_Rc_counts_Noisy_Vec_counts_RcShared_Vec_counts_Noisy_Vec_Vec_Rc_counts_Noisy(_1: [rt.Arc<Noisy.Noisy>[], rt.Arc<Noisy.Noisy>[], RcShared.RcShared[], Noisy.Noisy[], rt.Arc<Noisy.Noisy>[][]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
-	rt.dropAll(_1[2]);
-	rt.dropAll(_1[3]);
-	rt.dropAll(_1[4], drop$Vec_Rc_counts_Noisy);
+export function drop$tuple5_Vec_Rc_counts_Noisy_Vec_Rc_counts_Noisy_Vec_counts_RcShared_Vec_counts_Noisy_Vec_Vec_Rc_counts_Noisy(_1: [rt.Vec<rt.Arc<Noisy.Noisy>>, rt.Vec<rt.Arc<Noisy.Noisy>>, rt.Vec<RcShared.RcShared>, rt.Vec<Noisy.Noisy>, rt.Vec<rt.Vec<rt.Arc<Noisy.Noisy>>>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
+	rt.dropVec(_1[2]);
+	rt.dropVec(_1[3]);
+	rt.dropVec(_1[4], drop$Vec_Rc_counts_Noisy);
 }
 
-export function drop$tuple5_Vec_sync_Arc_counts_Noisy_Vec_sync_Arc_counts_Noisy_Vec_counts_ArcShared_Vec_counts_Noisy_Vec_Vec_sync_Arc_counts_Noisy(_1: [rt.Arc<Noisy.Noisy>[], rt.Arc<Noisy.Noisy>[], ArcShared.ArcShared[], Noisy.Noisy[], rt.Arc<Noisy.Noisy>[][]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
-	rt.dropAll(_1[2]);
-	rt.dropAll(_1[3]);
-	rt.dropAll(_1[4], drop$Vec_sync_Arc_counts_Noisy);
+export function drop$tuple5_Vec_sync_Arc_counts_Noisy_Vec_sync_Arc_counts_Noisy_Vec_counts_ArcShared_Vec_counts_Noisy_Vec_Vec_sync_Arc_counts_Noisy(_1: [rt.Vec<rt.Arc<Noisy.Noisy>>, rt.Vec<rt.Arc<Noisy.Noisy>>, rt.Vec<ArcShared.ArcShared>, rt.Vec<Noisy.Noisy>, rt.Vec<rt.Vec<rt.Arc<Noisy.Noisy>>>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
+	rt.dropVec(_1[2]);
+	rt.dropVec(_1[3]);
+	rt.dropVec(_1[4], drop$Vec_sync_Arc_counts_Noisy);
 }
 
 export class of$counts_Noisy {
@@ -86,8 +86,8 @@ export class of$counts_Noisy {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["counts::arcs", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["counts::arcs", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		arcs(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["counts::rcs", (_211: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		rcs(data2, out2);
@@ -109,7 +109,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		addressedArcs(data10, out10);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["counts::addressed_rcs", (_220: rt.u8, data11: rt.ByteSlice, out11: rt.ByteVec): undefined => {
 		addressedRcs(data11, out11);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

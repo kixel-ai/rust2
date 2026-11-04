@@ -234,8 +234,8 @@ export class of$pointers_Bin_pointers_ByObject {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["pointers::copies", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["pointers::copies", (_210: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		copies(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["pointers::lists", (_211: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		lists(data2.data, data2.start, data2.length, out2);
@@ -285,7 +285,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		distinct(data24, out24);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["pointers::raw_arcs", (_234: rt.u8, data25: rt.ByteSlice, out25: rt.ByteVec): undefined => {
 		rawArcs(data25, out25);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

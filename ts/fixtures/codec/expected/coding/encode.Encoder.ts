@@ -92,18 +92,18 @@ export function string(self: Encoder, v: string): rt.Result<undefined, EncodeErr
  */
 export function prefixVarint(self: Encoder): Prefix.Prefix {
 	rt.byteVecPush(self.buf, 0);
-	return { body: self.buf.length, kind: "Varint" as PrefixKind.PrefixKind };
+	return { body: rt.byteVecSlice(self.buf).length, kind: "Varint" as PrefixKind.PrefixKind };
 }
 
 /** Reserve a big-endian `u16` size prefix for the body written next; [`Self::fill`] sizes it. */
 export function prefixU16(self: Encoder): Prefix.Prefix {
 	rt.byteVecExtendFromSlice(self.buf, rt.byteSliceFrom(Uint8Array.of(0, 0)));
-	return { body: self.buf.length, kind: "U16" as PrefixKind.PrefixKind };
+	return { body: rt.byteVecSlice(self.buf).length, kind: "U16" as PrefixKind.PrefixKind };
 }
 
 /** The number of bytes written since `prefix` was reserved. */
 export function since(self: Encoder, prefix: Prefix.Prefix): rt.usize {
-	return rt.usizeSub(self.buf.length, prefix.body);
+	return rt.usizeSub(rt.byteVecSlice(self.buf).length, prefix.body);
 }
 
 /** Drop a reserved prefix and everything written since, as if neither was written. */
@@ -120,10 +120,10 @@ export function discard(self: Encoder, prefix: Prefix.Prefix): void {
 /** Size a reserved prefix to everything written since. */
 export function fill(self: Encoder, prefix: Prefix.Prefix): rt.Result<undefined, EncodeError.EncodeError> {
 	const body: rt.usize = prefix.body;
-	const end: rt.usize = self.buf.length;
+	const end: rt.usize = rt.byteVecSlice(self.buf).length;
 	if (prefix.kind === "Varint") {
 		if (write(rt.usizeSub(end, body) as rt.u64, self.form, self.buf).ok) {
-			const len: rt.usize = rt.usizeSub(self.buf.length, end);
+			const len: rt.usize = rt.usizeSub(rt.byteVecSlice(self.buf).length, end);
 			if (!(len === 1)) {
 				const size2: Uint8Array = rt.bytes(9);
 				rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(size2), 0, len), rt.byteSliceRange(rt.byteVecSlice(self.buf), end));

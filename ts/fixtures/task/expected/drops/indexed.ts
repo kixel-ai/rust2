@@ -157,7 +157,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		});
 		const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n4, f), (f: rt.Formatter) => rt.u32Display(m, f)];
 		Log.note(log, rt.fmtFormat(["take past ", args28[0], " ", args28[1]]));
-		const part37 = rt.ownedCount(rt.iterZip(rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), rt.iterSlice([0, 1]), "index", lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
+		const part37 = rt.ownedCount(rt.iterZip(rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), rt.vecIntoIter(rt.vecFrom([0, 1])), "index", lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
 		const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part37, f)];
 		Log.note(log, rt.fmtFormat(["vec count ", args30[0]]));
 	} else if (_16 === 4) {
@@ -337,7 +337,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const a: Guard.Guard = _695[0];
 		const b: Guard.Guard = _695[1];
 		const x: rt.u32 = rt.u32Sub(Guard.id(a), id);
-		const _712: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3, 4]);
+		const _712: rt.Iter<rt.u32> = rt.vecIntoIter(rt.vecFrom([1, 2, 3, 4]));
 		const captured6 = a;
 		const captured7 = id;
 		const captured8 = x;
@@ -349,33 +349,33 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const captured9 = b;
 		const captured10 = id;
 		const captured11 = x;
-		const part5 = rt.iterToArray(rt.iterMap(_710, rt.closure((_216: [rt.u32, rt.u32]): rt.u32 => {
+		const part5 = rt.iterToVec(rt.iterMap(_710, rt.closure((_216: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Sub(rt.u32Sub(rt.u32Sub(rt.u32Add(rt.u32Add(rt.u32Mul(_216[0], 10), _216[1]), Guard.id(captured9)), captured10), captured11), 1);
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		})), "index", 4, true, 4);
-		const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5, f, rt.u32Debug)];
+		const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5.d, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args66[0]]));
 		const c: Guard.Guard = guard(22);
-		const _732: rt.Iter<rt.u32> = rt.iterSlice([5, 6, 7]);
+		const _732: rt.Iter<rt.u32> = rt.vecIntoIter(rt.vecFrom([5, 6, 7]));
 		const _736: rt.Range<rt.u32> = new rt.Range(0, 9);
 		const captured12 = c;
 		const captured13 = id;
-		const part6 = rt.iterToArray(rt.iterMap(rt.iterZip(_732, rt.iterMap(_736, rt.closure((k4: rt.u32): rt.u32 => {
+		const part6 = rt.iterToVec(rt.iterMap(rt.iterZip(_732, rt.iterMap(_736, rt.closure((k4: rt.u32): rt.u32 => {
 			return rt.u32Sub(rt.u32Sub(rt.u32Add(k4, Guard.id(captured12)), captured13), 22);
 		}, (): void => {
 			captured12[Symbol.dispose]();
 		})), "index"), (_217: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_217[0], _217[1]);
 		}), "index", 4, true, 4);
-		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6, f, rt.u32Debug)];
+		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6.d, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args68[0]]));
 	} else {
 		const d: Guard.Guard = guard(23);
-		const _756: rt.Iter<rt.u32> = rt.iterSlice([1, 2, 3, 4]);
+		const _756: rt.Iter<rt.u32> = rt.vecIntoIter(rt.vecFrom([1, 2, 3, 4]));
 		const captured3 = d;
 		const captured4 = id;
-		const part2 = rt.iterToArray(rt.iterMap(rt.iterSkip(rt.iterZip(rt.iterMap(_756, rt.closure((n14: rt.u32): rt.u32 => {
+		const part2 = rt.iterToVec(rt.iterMap(rt.iterSkip(rt.iterZip(rt.iterMap(_756, rt.closure((n14: rt.u32): rt.u32 => {
 			const args78: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n14, f)];
 			Log.note(log, rt.fmtFormat(["map ", args78[0]]));
 			const _156: rt.u32 = Guard.id(captured3);
@@ -385,9 +385,9 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		})), new rt.Range(0, 3), "index"), 1), (_29: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_29[0], _29[1]);
 		}), "index", 4, true, 4);
-		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2, f, rt.u32Debug)];
+		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.d, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["skipped ", args70[0]]));
-		const part3 = rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterSlice([1, 2, 3]), rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), "index", undefined, lib_drop$tuple2_model_Guard_model_Guard), (_211: [rt.u32, [Guard.Guard, Guard.Guard]]): rt.u32 => {
+		const part3 = rt.iterToVec(rt.iterMap(rt.iterZip(rt.vecIntoIter(rt.vecFrom([1, 2, 3])), rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), "index", undefined, lib_drop$tuple2_model_Guard_model_Guard), (_211: [rt.u32, [Guard.Guard, Guard.Guard]]): rt.u32 => {
 			const n16: rt.u32 = _211[0];
 			const a3: Guard.Guard = _211[1][0];
 			const b3: Guard.Guard = _211[1][1];
@@ -396,20 +396,19 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			a3[Symbol.dispose]();
 			return _010;
 		}), "index", 4, true, 4);
-		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3, f, rt.u32Debug)];
+		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3.d, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["beside ", args72[0]]));
 		const e2: Guard.Guard = guard(24);
-		const _800: rt.u32[] = [];
-		const _799: rt.Iter<rt.u32> = rt.iterSlice(_800);
+		const _799: rt.Iter<rt.u32> = rt.vecIntoIter(new rt.Vec());
 		const captured5 = e2;
-		const part4 = rt.iterToArray(rt.iterMap(rt.iterZip(rt.iterMap(_799, rt.closure((n17: rt.u32): rt.u32 => {
+		const part4 = rt.iterToVec(rt.iterMap(rt.iterZip(rt.iterMap(_799, rt.closure((n17: rt.u32): rt.u32 => {
 			return rt.u32Add(n17, Guard.id(captured5));
 		}, (): void => {
 			captured5[Symbol.dispose]();
 		})), new rt.Range(0, 3), "index"), (_212: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_212[0], _212[1]);
 		}), "index", 4, true, 4);
-		const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4, f, rt.u32Debug)];
+		const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4.d, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["empty ", args74[0]]));
 	}
 }

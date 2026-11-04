@@ -27,8 +27,8 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _101!: rt.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	let buf: rt.BytesMut = rt.bytesMutWithCapacity(rt.usizeRem(Ops.byte(ops) as rt.usize, 24));
-	const pieces: rt.BytesMut[] = [];
-	const frozen: rt.ByteSlice[] = [];
+	const pieces: rt.Vec<rt.BytesMut> = new rt.Vec();
+	const frozen: rt.Vec<rt.ByteSlice> = new rt.Vec();
 	while (true) {
 		const _13: rt.u8 | undefined = Ops.next(ops);
 		if (_13 !== undefined) {
@@ -50,14 +50,14 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			if (_20 === 3) {
 				const _34: rt.BytesMut = rt.bytesMutSplitTo(buf, rt.usizeRem(n, rt.usizeAdd(buf.length, 2)));
-				pieces.push(_34);
+				pieces.d.push(_34);
 				continue;
 			}
 			if (_20 === 4) {
-				const _42: rt.BytesMut | undefined = pieces.pop();
+				const _42: rt.BytesMut | undefined = rt.vecPop(pieces);
 				if (_42 !== undefined) {
 					const _48: rt.ByteSlice = rt.bytesMutFreeze(_42);
-					frozen.push(_48);
+					frozen.d.push(_48);
 					continue;
 				}
 				continue;
@@ -102,7 +102,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 			if (_20 === 8) {
-				const _109: rt.BytesMut | undefined = pieces.pop();
+				const _109: rt.BytesMut | undefined = rt.vecPop(pieces);
 				if (_109 !== undefined) {
 					rt.bytesMutUnsplit(buf, _109);
 					continue;
@@ -124,12 +124,12 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 			if (_20 === 12) {
 				const buf2 = buf;
 				const _129: rt.BytesMut = rt.bytesMutSplitTo(buf2, buf2.length);
-				pieces.push(_129);
+				pieces.d.push(_129);
 				continue;
 			}
 			if (_20 === 13) {
 				const _132: rt.ByteSlice = rt.bytesMutFreeze(rt.bytesMutSplitTo(buf, rt.usizeRem(n, rt.usizeAdd(buf.length, 2))));
-				frozen.push(_132);
+				frozen.d.push(_132);
 				continue;
 			}
 			if (_20 === 14) {
@@ -143,7 +143,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 					rt.idx(_150, at);
 					_150.data[_150.start + at] = _150.data[_150.start + at] ^ 255;
 				}
-				const _155: rt.BytesMut | undefined = rt.sliceLast(pieces);
+				const _155: rt.BytesMut | undefined = rt.sliceLast(pieces.d);
 				if (_155 !== undefined) {
 					rt.bytesMutExtend(_155, rt.byteSliceFrom(Uint8Array.of(120, 121)));
 					continue;
@@ -164,7 +164,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			if (_20 === 18) {
 				const _182: rt.BytesMut = rt.bytesMutSplitOff(buf, rt.usizeRem(n, rt.usizeAdd(buf.cap, 2)));
-				pieces.push(_182);
+				pieces.d.push(_182);
 				continue;
 			}
 			if (_20 === 19) {
@@ -172,7 +172,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 				continue;
 			}
 			if (_20 === 20) {
-				const _193: rt.BytesMut | undefined = pieces.pop();
+				const _193: rt.BytesMut | undefined = rt.vecPop(pieces);
 				if (_193 !== undefined) {
 					const _197: rt.Result<undefined, rt.BytesMut> = rt.bytesMutTryUnsplit(buf, _193);
 					if (_197.ok) {
@@ -181,51 +181,51 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 					}
 					const piece4: rt.BytesMut = _197.error;
 					rt.byteVecPush(out, 0);
-					pieces.push(piece4);
+					pieces.d.push(piece4);
 					continue;
 				}
 				continue;
 			}
 			if (_20 === 21) {
 				if (rt.usizeRem(n, 2) === 0) {
-					if (!(pieces.length === 0)) {
-						rt.vecSwapRemove(pieces, rt.usizeRem(rt.usizeDiv(n, 2), pieces.length))[Symbol.dispose]();
+					if (!(pieces.d.length === 0)) {
+						rt.vecSwapRemove(pieces, rt.usizeRem(rt.usizeDiv(n, 2), pieces.d.length))[Symbol.dispose]();
 						continue;
 					}
 				}
-				if (!(frozen.length === 0)) {
-					rt.bytesDrop(rt.vecSwapRemove(frozen, rt.usizeRem(rt.usizeDiv(n, 2), frozen.length)));
+				if (!(frozen.d.length === 0)) {
+					rt.bytesDrop(rt.vecSwapRemove(frozen, rt.usizeRem(rt.usizeDiv(n, 2), frozen.d.length)));
 					continue;
 				}
 			} else {
 				if (_20 === 22) {
-					const _227: rt.ByteSlice | undefined = rt.sliceGet(frozen, rt.usizeRem(n, rt.usizeAdd(frozen.length, 1)));
+					const _227: rt.ByteSlice | undefined = rt.sliceGet(frozen.d, rt.usizeRem(n, rt.usizeAdd(frozen.d.length, 1)));
 					if (_227 !== undefined) {
 						const _240: rt.ByteSlice = rt.bytesClone(_227);
-						frozen.push(_240);
+						frozen.d.push(_240);
 						continue;
 					}
 					continue;
 				}
 				if (_20 === 23) {
-					const _241: rt.ByteSlice | undefined = frozen.pop();
+					const _241: rt.ByteSlice | undefined = rt.vecPop(frozen);
 					if (_241 !== undefined) {
 						const bytes: rt.ByteSlice = _241;
 						const _245: rt.usize = rt.usizeRem(n, 3);
 						if (_245 === 0) {
 							const _248: rt.BytesMut = rt.bytesMutFromBytes(bytes);
-							pieces.push(_248);
+							pieces.d.push(_248);
 							continue;
 						}
 						if (_245 === 1) {
 							const _249: rt.Result<rt.BytesMut, rt.ByteSlice> = rt.bytesTryIntoMut(bytes);
 							if (_249.ok) {
-								pieces.push(_249.value);
+								pieces.d.push(_249.value);
 								continue;
 							}
 							const bytes2: rt.ByteSlice = _249.error;
 							rt.byteVecPush(out, 2);
-							frozen.push(bytes2);
+							frozen.d.push(bytes2);
 							continue;
 						}
 						const vec: rt.ByteVec = rt.bytesToByteVec(bytes);
@@ -236,7 +236,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 				if (_20 === 24) {
-					const _268: rt.Place<rt.ByteSlice> | undefined = rt.sliceLastMut(frozen);
+					const _268: rt.Place<rt.ByteSlice> | undefined = rt.sliceLastMut(frozen.d);
 					if (_268 !== undefined) {
 						const _273: rt.usize = rt.usizeRem(n, 3);
 						if (_273 === 0) {
@@ -253,7 +253,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 					continue;
 				}
 				if (_20 === 25) {
-					const _286: rt.BytesMut | undefined = rt.sliceLast(pieces);
+					const _286: rt.BytesMut | undefined = rt.sliceLast(pieces.d);
 					if (_286 !== undefined) {
 						buf = rt.replaceIn(_286, buf);
 						continue;
@@ -276,12 +276,12 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _327: rt.usize = buf.cap;
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(buf), f), (f: rt.Formatter) => rt.usizeDisplay(_324, f), (f: rt.Formatter) => rt.usizeDisplay(_327, f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], "\n"])));
-	for (const piece6 of pieces) {
+	for (const piece6 of pieces.d) {
 		const _351: rt.usize = piece6.cap;
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(piece6), f), (f: rt.Formatter) => rt.usizeDisplay(_351, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args4[0], " ", args4[1], "\n"])));
 	}
-	for (const bytes3 of frozen) {
+	for (const bytes3 of frozen.d) {
 		const _373: boolean = rt.bytesIsUnique(bytes3);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(bytes3, f), (f: rt.Formatter) => rt.fmtBool(_373, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args6[0], " ", args6[1], "\n"])));
@@ -290,8 +290,8 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(vec2.data.length as rt.u32).reverse()));
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(vec2));
 	tail[Symbol.dispose]();
-	rt.dropAll(frozen, rt.bytesDrop);
-	rt.dropAll(pieces);
+	rt.dropVec(frozen, rt.bytesDrop);
+	rt.dropVec(pieces);
 }
 
 /** The next byte, or 0 if none remains. */

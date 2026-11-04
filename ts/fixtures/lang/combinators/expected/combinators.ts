@@ -177,11 +177,11 @@ export function owned(a: rt.u8 | undefined, b: rt.u8 | undefined, out: rt.ByteVe
 		}
 		rt.byteVecPush(out, 124);
 	}
-	rt.byteVecPush(out, option_unwrapOrDefault$0wx44sw(option_map$0ejznqm(filter$0v80fk8(b, (y3: rt.u8): boolean => {
+	rt.byteVecPush(out, rt.byteVecSlice(option_unwrapOrDefault$0wx44sw(option_map$0ejznqm(filter$0v80fk8(b, (y3: rt.u8): boolean => {
 		return rt.u8Rem(y3, 2) === 0;
 	}), (y4: rt.u8): rt.ByteVec => {
 		return rt.byteVecFrom(Uint8Array.of(y4));
-	})).length & 0xff);
+	}))).length & 0xff);
 	const pair: rt.Result<rt.u32[], rt.u8> = option_okOr$07zal2e(option_map$0jg2jop(a, (x4: rt.u8): rt.u32[] => {
 		return [x4 as rt.u32, 2];
 	}), 3);

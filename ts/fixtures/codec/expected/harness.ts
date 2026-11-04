@@ -21,8 +21,8 @@ import type * as lite_version_Version from "./lite/version.Version.ts";
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
  * case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] {
-	return [["decode_script", (a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["decode_script", (a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
 		decodeScript(a0.data, a0.start, a0.length, a1);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["encode_script", (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		encodeScript(a02.data, a02.start, a02.length, a12);
@@ -36,7 +36,7 @@ export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefine
 		encodeMessages(a06.data, a06.start, a06.length, a16);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["errors", (a07: rt.ByteSlice, a17: rt.ByteVec): undefined => {
 		errors(a07.data, a07.start, a07.length, a17);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]]);
 }
 
 /** Run one case. */
@@ -44,8 +44,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	const out: rt.ByteVec = new rt.ByteVec();
 	if (input.length !== 0) {
 		const op: rt.u8 = input.data[input.start];
-		const cases_: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] = cases();
-		cases_[rt.idx(cases_, rt.usizeRem(op as rt.usize, cases_.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
+		const cases_: rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> = cases();
+		cases_.d[rt.idx(cases_.d, rt.usizeRem(op as rt.usize, cases_.d.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
 		return out;
 	}
 	return out;
@@ -335,7 +335,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 			const buf: rt.ByteVec = new rt.ByteVec();
 			const _20: Form.Form = form(selector);
 			const w: Encoder.Encoder = Encoder.new(buf, _20);
-			const prefixes: Prefix.Prefix[] = [];
+			const prefixes: rt.Vec<Prefix.Prefix> = new rt.Vec();
 			for (const step of rt.byteSliceView(new rt.ByteSlice(dataData, dataStart + 2, mid))) {
 				const _30: [rt.u64, rt.ByteSlice] = takeU64(values);
 				const value: rt.u64 = _30[0];
@@ -378,10 +378,10 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					} else {
 						_74 = Encoder.prefixU16(w);
 					}
-					prefixes.push(_74);
+					prefixes.d.push(_74);
 					result = rt.OK as rt.Result<undefined, EncodeError.EncodeError>;
 				} else if (_33 === 8) {
-					const _79: Prefix.Prefix | undefined = prefixes.pop();
+					const _79: Prefix.Prefix | undefined = rt.vecPop(prefixes);
 					if (_79 === undefined) {
 						result = rt.OK as rt.Result<undefined, EncodeError.EncodeError>;
 					} else {
@@ -390,7 +390,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 						result = Encoder.fill(w, prefix);
 					}
 				} else {
-					const _88: Prefix.Prefix | undefined = prefixes.pop();
+					const _88: Prefix.Prefix | undefined = rt.vecPop(prefixes);
 					if (_88 !== undefined) {
 						Encoder.discard(w, _88);
 					}
@@ -401,7 +401,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 				}
 			}
 			while (true) {
-				const _98: Prefix.Prefix | undefined = prefixes.pop();
+				const _98: Prefix.Prefix | undefined = rt.vecPop(prefixes);
 				if (_98 !== undefined) {
 					const _102: rt.Result<undefined, EncodeError.EncodeError> = Encoder.fill(w, _98);
 					if (!_102.ok) {
@@ -411,7 +411,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					break;
 				}
 			}
-			putUsize(out, buf.length);
+			putUsize(out, rt.byteVecSlice(buf).length);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 		}
 	}
@@ -539,7 +539,7 @@ export function encodeMessage$lite_group_Group(msg: Group.Group, version: lite_v
 	const _8: rt.Result<undefined, EncodeError.EncodeError> = Group.encode$coding_encode_Encode_lite_version_Version(msg, w, version);
 	if (_8.ok) {
 		rt.byteVecPush(out, w.control !== undefined ? 1 : 0);
-		putUsize(out, buf.length);
+		putUsize(out, rt.byteVecSlice(buf).length);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 	} else {
 		encodeFailed(out, _8.error);
@@ -553,7 +553,7 @@ export function encodeMessage$lite_probe_Probe(msg: Probe.Probe, version: lite_v
 	const _8: rt.Result<undefined, EncodeError.EncodeError> = Probe.encode$coding_encode_Encode_lite_version_Version(msg, w, version);
 	if (_8.ok) {
 		rt.byteVecPush(out, w.control !== undefined ? 1 : 0);
-		putUsize(out, buf.length);
+		putUsize(out, rt.byteVecSlice(buf).length);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 	} else {
 		encodeFailed(out, _8.error);

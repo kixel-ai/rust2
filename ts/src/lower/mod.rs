@@ -1672,7 +1672,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				library::Std::Vec => match args.type_at(0).kind() {
 					ty::Uint(ty::UintTy::U8) => Type::Rt("ByteVec", vec![]),
-					_ => Type::Array(Box::new(self.ty(args.type_at(0), span))),
+					_ => Type::Rt("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
 				library::Std::String => Type::Builtin("string"),
 				library::Std::Cow if library::string(tcx, Ty::new_adt(tcx, adt, args)) => Type::Builtin("string"),

@@ -755,13 +755,9 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		unboxed if unboxed != ty => (unboxed, b.t.pointee_value(ty, value)),
 		_ => (ty, value),
 	};
-	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, with
-	// room for exactly them.
+	// A boxed slice owns its elements, as the `Vec` std's `into_iter` makes of it does, whose
+	// capacity is exactly their count, as an iterator over a bare array keeps.
 	let (ty, value) = match library::box_slice(tcx, ty) {
-		Some(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
-			let size = size_of(b, elem, span);
-			(Ty::new_slice(tcx, elem), Expr::rt("vecExact", vec![value, size]))
-		}
 		Some(elem) => (Ty::new_slice(tcx, elem), value),
 		None => (ty, value),
 	};
@@ -828,10 +824,12 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 			Std::Vec if owned && matches!(args.type_at(0).kind(), ty::Uint(ty::UintTy::U8)) => {
 				Some(Expr::rt("byteVecIntoIter", vec![value]))
 			}
-			Std::Vec => {
-				let values = each(b, args.type_at(0), vec![library::elements(value, ty)]);
-				Some(items(Expr::rt("iterSlice", values), args.type_at(0)))
-			}
+			// An owned `Vec`'s items keep its buffer, as a collect in place or into a deque does.
+			Std::Vec if owned => Some(Expr::rt("vecIntoIter", each(b, args.type_at(0), vec![value]))),
+			Std::Vec => Some(items(
+				Expr::rt("iterSlice", vec![library::elements(value, ty)]),
+				args.type_at(0),
+			)),
 			// A `&mut` lends the payload JS copies as the `Option`'s own place, while it has one.
 			Std::Option if places(b, args.type_at(0)) => {
 				let mut values = vec![value];
@@ -2074,7 +2072,7 @@ fn collect<'tcx>(
 					),
 				)
 			}
-			_ => to_array(b, iter, from, elem, trusted, span),
+			_ => to_vec(b, iter, from, elem, trusted, span),
 		};
 		return Some(match boxed {
 			Some(elem) => library::vec_boxed(v, elem),
@@ -2258,10 +2256,10 @@ fn drops_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> boo
 	true
 }
 
-/// `rt.iterToArray` of `iter`, an iterator of type `from`, collected into a `Vec<elem>` as
+/// `rt.iterToVec` of `iter`, an iterator of type `from`, collected into a `Vec<elem>` as
 /// `collect_take` says std's reads it. It reserves as std's does for a `TrustedLen`
 /// iterator if `trusted`.
-pub(super) fn to_array<'tcx>(
+pub(super) fn to_vec<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	iter: Expr,
 	from: Ty<'tcx>,
@@ -2272,7 +2270,7 @@ pub(super) fn to_array<'tcx>(
 	let (take, by_index, src) = collect_take(b, from, elem, span);
 	let size = size_of(b, elem, span);
 	Expr::rt(
-		"iterToArray",
+		"iterToVec",
 		tail(
 			vec![iter],
 			vec![take, size, Expr::lit((trusted || by_index).to_string()), src_size(src)],

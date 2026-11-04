@@ -22,12 +22,12 @@ export function copy$tuple2_u8_u16(v: [rt.u8, rt.u16]): [rt.u8, rt.u16] {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["manual::arcs", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["manual::arcs", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		arcs(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["manual::needs_drops", (_23: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		needsDrops(data2, out2);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

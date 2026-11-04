@@ -381,7 +381,7 @@ export function steps$String(dataData: Uint8Array, dataStart: number, dataLen: n
 				}
 				text$collections_vec_deque_IterMut_String(out, it);
 			} else if (_46 === 29) {
-				const v: string[] = rt.dequeToVec(q);
+				const v: rt.Vec<string> = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 12));
 				q = rt.dequeFromVec(v, 12) as rt.VecDeque<string>;
 			} else if (_46 === 30) {
@@ -522,7 +522,7 @@ export function steps$rings_Big(dataData: Uint8Array, dataStart: number, dataLen
 				}
 				text$collections_vec_deque_IterMut_rings_Big(out, it);
 			} else if (_46 === 29) {
-				const v: Big.Big[] = rt.dequeToVec(q);
+				const v: rt.Vec<Big.Big> = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 1101));
 				q = rt.dequeFromVec(v, 1101) as rt.VecDeque<Big.Big>;
 			} else if (_46 === 30) {
@@ -663,7 +663,7 @@ export function steps$u32(dataData: Uint8Array, dataStart: number, dataLen: numb
 				}
 				text$collections_vec_deque_IterMut_u32(out, it);
 			} else if (_46 === 29) {
-				const v: rt.u32[] = rt.dequeToVec(q);
+				const v: rt.Vec<rt.u32> = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 4));
 				q = rt.dequeFromVec(v, 4) as rt.VecDeque<rt.u32>;
 			} else if (_46 === 30) {
@@ -955,7 +955,7 @@ export function steps$unit(dataData: Uint8Array, dataStart: number, dataLen: num
 				}
 				text$collections_vec_deque_IterMut_unit(out, it);
 			} else if (_46 === 29) {
-				const v: undefined[] = rt.dequeToVec(q);
+				const v: rt.Vec<undefined> = rt.dequeToVec(q);
 				put(out, rt.vecCapacity(v, 0));
 				q = rt.dequeFromVec(v, 0) as rt.VecDeque<undefined>;
 			} else if (_46 === 30) {
@@ -1029,18 +1029,18 @@ export function remade$String(q: rt.VecDeque<string>, arg: rt.u8): rt.VecDeque<s
 	}
 	if (_8 === 3) {
 		if (!((arg & 32) === 0)) {
-			const v: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
+			const v: rt.Vec<string> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 12, true);
 			let kept: boolean = false;
-			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: string): boolean => {
+			return rt.dequeFromVec(rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_2: string): boolean => {
 				kept = !kept;
 				return kept;
 			}), "next", 12, false, 12), 12) as rt.VecDeque<string>;
 		}
-		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true), 12) as rt.VecDeque<string>;
+		return rt.dequeFromVec(rt.iterToVec(rt.dequeIntoIter(q), undefined, 12, true), 12) as rt.VecDeque<string>;
 	}
-	const v2: string[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 12, true);
+	const v2: rt.Vec<string> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 12, true);
 	rt.vecReserve(v2, skip, 12);
-	const it3: rt.Iter<string> = rt.iterSlice(v2);
+	const it3: rt.Iter<string> = rt.vecIntoIter(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -1095,18 +1095,18 @@ export function remade$rings_Big(q: rt.VecDeque<Big.Big>, arg: rt.u8): rt.VecDeq
 	}
 	if (_8 === 3) {
 		if (!((arg & 32) === 0)) {
-			const v: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
+			const v: rt.Vec<Big.Big> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 1101, true);
 			let kept: boolean = false;
-			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: Big.Big): boolean => {
+			return rt.dequeFromVec(rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_2: Big.Big): boolean => {
 				kept = !kept;
 				return kept;
 			}), "next", 1101, false, 1101), 1101) as rt.VecDeque<Big.Big>;
 		}
-		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true), 1101) as rt.VecDeque<Big.Big>;
+		return rt.dequeFromVec(rt.iterToVec(rt.dequeIntoIter(q), undefined, 1101, true), 1101) as rt.VecDeque<Big.Big>;
 	}
-	const v2: Big.Big[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 1101, true);
+	const v2: rt.Vec<Big.Big> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 1101, true);
 	rt.vecReserve(v2, skip, 1101);
-	const it3: rt.Iter<Big.Big> = rt.iterSlice(v2);
+	const it3: rt.Iter<Big.Big> = rt.vecIntoIter(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -1161,18 +1161,18 @@ export function remade$u32(q: rt.VecDeque<rt.u32>, arg: rt.u8): rt.VecDeque<rt.u
 	}
 	if (_8 === 3) {
 		if (!((arg & 32) === 0)) {
-			const v: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
+			const v: rt.Vec<rt.u32> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 4, true);
 			let kept: boolean = false;
-			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: rt.u32): boolean => {
+			return rt.dequeFromVec(rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_2: rt.u32): boolean => {
 				kept = !kept;
 				return kept;
 			}), "next", 4, false, 4), 4) as rt.VecDeque<rt.u32>;
 		}
-		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true), 4) as rt.VecDeque<rt.u32>;
+		return rt.dequeFromVec(rt.iterToVec(rt.dequeIntoIter(q), undefined, 4, true), 4) as rt.VecDeque<rt.u32>;
 	}
-	const v2: rt.u32[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 4, true);
+	const v2: rt.Vec<rt.u32> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 4, true);
 	rt.vecReserve(v2, skip, 4);
-	const it3: rt.Iter<rt.u32> = rt.iterSlice(v2);
+	const it3: rt.Iter<rt.u32> = rt.vecIntoIter(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {
@@ -1229,7 +1229,7 @@ export function remade$u8(q: rt.VecDeque<rt.u8>, arg: rt.u8): rt.VecDeque<rt.u8>
 		if (!((arg & 32) === 0)) {
 			const v: rt.ByteVec = rt.iterToByteVec(rt.dequeIntoIter(q), undefined, true);
 			let kept: boolean = false;
-			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.byteVecIntoIter(v), (_2: rt.u8): boolean => {
+			return rt.dequeFromVec(rt.iterToVec(rt.iterFilter(rt.byteVecIntoIter(v), (_2: rt.u8): boolean => {
 				kept = !kept;
 				return kept;
 			}), "next", 1, false, 1), 1, true) as rt.VecDeque<rt.u8>;
@@ -1293,18 +1293,18 @@ export function remade$unit(q: rt.VecDeque<undefined>, arg: rt.u8): rt.VecDeque<
 	}
 	if (_8 === 3) {
 		if (!((arg & 32) === 0)) {
-			const v: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
+			const v: rt.Vec<undefined> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 0, true);
 			let kept: boolean = false;
-			return rt.dequeFromVec(rt.iterToArray(rt.iterFilter(rt.iterSlice(v), (_2: undefined): boolean => {
+			return rt.dequeFromVec(rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_2: undefined): boolean => {
 				kept = !kept;
 				return kept;
 			}), "next", 0), 0) as rt.VecDeque<undefined>;
 		}
-		return rt.dequeFromVec(rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true), 0) as rt.VecDeque<undefined>;
+		return rt.dequeFromVec(rt.iterToVec(rt.dequeIntoIter(q), undefined, 0, true), 0) as rt.VecDeque<undefined>;
 	}
-	const v2: undefined[] = rt.iterToArray(rt.dequeIntoIter(q), undefined, 0, true);
+	const v2: rt.Vec<undefined> = rt.iterToVec(rt.dequeIntoIter(q), undefined, 0, true);
 	rt.vecReserve(v2, skip, 0);
-	const it3: rt.Iter<undefined> = rt.iterSlice(v2);
+	const it3: rt.Iter<undefined> = rt.vecIntoIter(v2);
 	let iterStart2: rt.usize = 0;
 	const iterEnd2: rt.usize = skip;
 	while (iterStart2++ < iterEnd2) {

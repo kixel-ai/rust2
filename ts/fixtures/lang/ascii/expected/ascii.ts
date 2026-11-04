@@ -107,7 +107,7 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				pair[1] = rt.toAsciiLowercase(pair[1]);
 				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(pair[0], pair[1])));
 			}
-			const _64: rt.usize = all.length;
+			const _64: rt.usize = rt.byteVecSlice(all).length;
 			let iterStart: rt.usize = 0;
 			const iterEnd: rt.usize = _64;
 			while ((_67 = iterStart++) < iterEnd) {
@@ -170,15 +170,15 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
  * each method of `char`.
  */
 export function chars(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	const all: rt.char[] = rt.vecExact([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].slice(), 4);
+	const all: rt.Vec<rt.char> = rt.vecFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].slice());
 	const _9: rt.Iter<rt.char> = rt.iterFilterMap(rt.byteSliceChunks(data, 4), (c2: rt.ByteSlice): rt.char | undefined => {
 		return rt.charFromU32(rt.u32FromBeBytes(rt.bytesFromFn(4, (i2: rt.usize): rt.u8 => {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c2, i2), 0);
 		})));
 	});
 	rt.iterExtend(all, _9, "next", 4);
-	const others: rt.char[] = rt.vecExact(all.slice(), 4);
-	const iter: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(all));
+	const others: rt.Vec<rt.char> = rt.vecFrom(all.d.slice());
+	const iter: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(all.d));
 	while (true) {
 		const _19: [rt.usize, rt.char] | rt.Done = iter.next();
 		if (_19 === rt.DONE) {
@@ -192,11 +192,11 @@ export function chars(_1: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		let local: rt.char = c;
 		local = rt.toAsciiUppercase(local);
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(local as rt.u32)));
-		const held: rt.char[] = [c, c];
-		const at = rt.idx(held, 1);
-		lowerChar(rt.place(() => held[at], (value) => held[at] = value));
-		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(held[rt.idx(held, 1)] as rt.u32)));
-		const iter2: rt.Iter<rt.char> = rt.iterSlice([others[rt.idx(others, rt.usizeRem(rt.usizeAdd(i, 1), others.length))], local, held[rt.idx(held, 1)]]);
+		const held: rt.Vec<rt.char> = rt.vecFrom([c, c]);
+		const at = rt.idx(held.d, 1);
+		lowerChar(rt.place(() => held.d[at], (value) => held.d[at] = value));
+		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(held.d[rt.idx(held.d, 1)] as rt.u32)));
+		const iter2: rt.Iter<rt.char> = rt.iterSlice([others.d[rt.idx(others.d, rt.usizeRem(rt.usizeAdd(i, 1), others.d.length))], local, held.d[rt.idx(held.d, 1)]]);
 		while (true) {
 			const _81: rt.char | rt.Done = iter2.next();
 			if (_81 === rt.DONE) {
@@ -371,7 +371,7 @@ export function parts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let s: string = text;
 	const pair: [rt.u8, string] = [7, text];
 	const array: string[] = ["q", text];
-	const v: string[] = [text, text];
+	const v: rt.Vec<string> = rt.vecFrom([text, text]);
 	const _32: rt.u8 = rt.u8Rem(kind, 8);
 	if (_32 === 0) {
 		s = rt.strToAsciiUppercase(s);
@@ -394,7 +394,7 @@ export function parts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		put(out, array[1]);
 		put(out, array[0]);
 	} else if (_32 === 3) {
-		const iter: rt.Iter<rt.Place<string>> = rt.iterSliceMut(v);
+		const iter: rt.Iter<rt.Place<string>> = rt.iterSliceMut(v.d);
 		while (true) {
 			const _93: rt.Place<string> | rt.Done = iter.next();
 			if (_93 === rt.DONE) {
@@ -402,14 +402,14 @@ export function parts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			_93.v = rt.strToAsciiUppercase(_93.v);
 		}
-		const at6 = rt.idx(v, 0);
-		const _100: rt.Place<string> = rt.strPart(rt.place(() => v[at6], (value11) => v[at6] = value11), 0);
+		const at6 = rt.idx(v.d, 0);
+		const _100: rt.Place<string> = rt.strPart(rt.place(() => v.d[at6], (value11) => v.d[at6] = value11), 0);
 		_100.v = rt.strToAsciiLowercase(_100.v);
-		const at7 = rt.idx(v, 1);
-		const _105: rt.Place<string> = rt.strPart(rt.place(() => v[at7], (value12) => v[at7] = value12), a, b);
+		const at7 = rt.idx(v.d, 1);
+		const _105: rt.Place<string> = rt.strPart(rt.place(() => v.d[at7], (value12) => v.d[at7] = value12), a, b);
 		_105.v = rt.strToAsciiLowercase(_105.v);
-		put(out, v[rt.idx(v, 0)]);
-		put(out, v[rt.idx(v, 1)]);
+		put(out, v.d[rt.idx(v.d, 0)]);
+		put(out, v.d[rt.idx(v.d, 1)]);
 	} else if (_32 === 4) {
 		const _119: [rt.Place<string>, rt.Place<string>] = rt.strSplitAtMut(rt.place(() => s, (value10) => s = value10), a);
 		_119[0].v = rt.strToAsciiUppercase(_119[0].v);
@@ -425,11 +425,11 @@ export function parts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_32 === 5) {
 		putUpper(out, rt.strGetMut(rt.place(() => s, (value7) => s = value7), a, b));
 		putUpper(out, rt.strGetMut(rt.place(() => pair[1], (value8) => pair[1] = value8), a));
-		const at4 = rt.idx(v, 1);
-		putUpper(out, rt.strGetMut(rt.place(() => v[at4], (value9) => v[at4] = value9), 0, b));
+		const at4 = rt.idx(v.d, 1);
+		putUpper(out, rt.strGetMut(rt.place(() => v.d[at4], (value9) => v.d[at4] = value9), 0, b));
 		put(out, s);
 		put(out, pair[1]);
-		put(out, v[rt.idx(v, 1)]);
+		put(out, v.d[rt.idx(v.d, 1)]);
 	} else if (_32 === 6) {
 		const _168: [rt.Place<string>, rt.Place<string>] | undefined = rt.strSplitAtMutChecked(rt.place(() => array[1], (value5) => array[1] = value5), a);
 		if (_168 === undefined) {
@@ -446,9 +446,9 @@ export function parts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		put(out, option_unwrapOr$1iemzn8(option_asDeref$0w8at8i(held), "-"));
 	} else {
-		const at2 = rt.idx(v, 1);
-		upperPart(rt.strPart(rt.place(() => v[at2], (value) => v[at2] = value), a), 0, rt.usizeSaturatingSub(b, a));
-		put(out, v[rt.idx(v, 1)]);
+		const at2 = rt.idx(v.d, 1);
+		upperPart(rt.strPart(rt.place(() => v.d[at2], (value) => v.d[at2] = value), a), 0, rt.usizeSaturatingSub(b, a));
+		put(out, v.d[rt.idx(v.d, 1)]);
 		upperPart(rt.place(() => s, (value2) => s = value2), a, b);
 		put(out, rt.strPart(rt.place(() => s, (value3) => s = value3), 0, a).v);
 		put(out, rt.strPart(rt.place(() => s, (value4) => s = value4), a).v);

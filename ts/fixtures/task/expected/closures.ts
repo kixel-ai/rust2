@@ -31,7 +31,7 @@ export class closuresFuture {
 	#guard: Guard.Guard;
 	#id!: rt.u32;
 	#log!: Log.Log;
-	#seen!: Array<rt.u64 | undefined>;
+	#seen!: rt.Vec<rt.u64 | undefined>;
 	#reads!: rt.u32;
 	#next!: (a0: rt.u64) => rt.Future<rt.u64 | undefined>;
 	#first!: rt.u64 | undefined;
@@ -161,7 +161,7 @@ export class closuresFuture {
 																		const _3: [rt.u32, Log.Log] = [Guard.id(this.#guard), Log.clone$Clone(Guard.log(this.#guard))];
 																		this.#id = _3[0];
 																		this.#log = _3[1];
-																		this.#seen = [];
+																		this.#seen = new rt.Vec();
 																		this.#reads = 0;
 																		this.#next = (scale: rt.u64): rt.Future<rt.u64 | undefined> => {
 																			return new closuresFuture$closure0_closure0(scale, this.#rx, this.#seen, rt.place(() => this.#reads, (value) => this.#reads = value));
@@ -269,7 +269,7 @@ export class closuresFuture {
 														rt.drop(this.#awaitee$2);
 														this.#tallied = [this.#saved, this.#saved$2, result4] as [rt.u32, rt.u32, rt.u32];
 														const arg = this.#seen;
-														const _87: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg, f, (value: rt.u64 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u64Debug));
+														const _87: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg.d, f, (value: rt.u64 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u64Debug));
 														const arg2 = this.#first;
 														const _88: rt.Fmt = (f: rt.Formatter) => rt.fmtOption(arg2, f, rt.u64Debug);
 														const arg3 = this.#second;
@@ -501,11 +501,11 @@ export class closuresFuture$closure0_closure0 {
 	#state: number = 0;
 	#scale: rt.u64;
 	#rx: Consumer.Consumer;
-	#seen: Array<rt.u64 | undefined>;
+	#seen: rt.Vec<rt.u64 | undefined>;
 	#reads: rt.Place<rt.u32>;
 	#awaitee!: rt.Future<rt.u64 | undefined>;
 
-	constructor(scale: rt.u64, rx: Consumer.Consumer, seen: Array<rt.u64 | undefined>, reads: rt.Place<rt.u32>) {
+	constructor(scale: rt.u64, rx: Consumer.Consumer, seen: rt.Vec<rt.u64 | undefined>, reads: rt.Place<rt.u32>) {
 		this.#scale = scale;
 		this.#rx = rx;
 		this.#seen = seen;
@@ -528,7 +528,7 @@ export class closuresFuture$closure0_closure0 {
 		if (_5 !== rt.Pending) {
 			const value: rt.u64 | undefined = _5;
 			rt.drop(this.#awaitee);
-			this.#seen.push(value);
+			this.#seen.d.push(value);
 			this.#reads.v = rt.u32Add(this.#reads.v, 1);
 			const _0: rt.Poll<rt.u64 | undefined> = option_map$1cf8u0y(value, (value2: rt.u64): rt.u64 => {
 				return rt.u64Mul(value2, this.#scale);

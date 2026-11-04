@@ -7,14 +7,14 @@ export function fmt$fmt_Debug(self: Reading, f: rt.Formatter): rt.Result<undefin
 	const _4: string = "level";
 	const _5: rt.Fmt = (f: rt.Formatter) => rt.f32Debug(self.level, f);
 	const _7: string = "history";
-	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.history, f, rt.f32Debug);
+	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.history.d, f, rt.f32Debug);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
 }
 
 /** A reading whose derived `Debug` writes each `f32` with the placeholder's options. */
 export interface Reading {
 	level: rt.f32;
-	history: rt.f32[];
+	history: rt.Vec<rt.f32>;
 }
 
 //# sourceMappingURL=singles.Reading.ts.map

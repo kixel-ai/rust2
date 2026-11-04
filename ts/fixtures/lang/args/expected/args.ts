@@ -44,8 +44,8 @@ export function lenOf(data: rt.ByteSlice): rt.usize {
 }
 
 /** A parameter made whole in a loop, which takes it whole. */
-export function kept(data: rt.ByteSlice, n: rt.u8): rt.ByteSlice[] {
-	const all: rt.ByteSlice[] = [];
+export function kept(data: rt.ByteSlice, n: rt.u8): rt.Vec<rt.ByteSlice> {
+	const all: rt.Vec<rt.ByteSlice> = new rt.Vec();
 	const _6: rt.u8 = rt.u8Rem(n, 4);
 	let iterStart: rt.u8 = 0;
 	const iterEnd: rt.u8 = _6;
@@ -53,7 +53,7 @@ export function kept(data: rt.ByteSlice, n: rt.u8): rt.ByteSlice[] {
 		if (!(iterStart++ < iterEnd)) {
 			return all;
 		}
-		all.push(data);
+		all.d.push(data);
 	}
 }
 
@@ -158,7 +158,7 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, sum(data.data, data.start, data.length));
 		rt.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rt.byteVecPush(out, byRef(data) & 0xff);
-		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind)), (s: rt.ByteSlice): rt.u8 => {
+		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind).d), (s: rt.ByteSlice): rt.u8 => {
 			return opaque(s);
 		}), 0, (a03: rt.u8, a1: rt.u8): rt.u8 => {
 			return rt.u8WrappingAdd(a03, a1);

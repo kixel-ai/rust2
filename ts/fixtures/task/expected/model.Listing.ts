@@ -3,9 +3,7 @@
 import * as rt from "./rt.ts";
 
 export function default$Default(): Listing {
-	const _1: rt.u64 | undefined = undefined;
-	const _2: rt.u64[] = [];
-	return { last: _1, listed: _2 };
+	return { last: undefined, listed: new rt.Vec() };
 }
 
 export function fmt$fmt_Debug(self: Listing, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
@@ -13,14 +11,14 @@ export function fmt$fmt_Debug(self: Listing, f: rt.Formatter): rt.Result<undefin
 	const _4: string = "last";
 	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtOption(self.last, f, rt.u64Debug);
 	const _7: string = "listed";
-	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.listed, f, rt.u64Debug);
+	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.listed.d, f, rt.u64Debug);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
 }
 
 /** What [`front`] lists. */
 export interface Listing {
 	last: rt.u64 | undefined;
-	listed: rt.u64[];
+	listed: rt.Vec<rt.u64>;
 }
 
 //# sourceMappingURL=model.Listing.ts.map

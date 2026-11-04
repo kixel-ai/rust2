@@ -22,7 +22,7 @@ export class Full {
 export function finish$hash_Hasher(self: Full): rt.u64 {
 	record(self._0, 102, rt.byteSliceFrom(Uint8Array.of()));
 	const _9: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(self._0);
-	const _0: rt.u64 = rt.u64Mul(_9.value.length as rt.u64, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rt.u64);
+	const _0: rt.u64 = rt.u64Mul(rt.byteVecSlice(_9.value).length as rt.u64, { hi: 0x9e3779b9, lo: 0x7f4a7c15 } as rt.u64);
 	rt.refRelease(_9);
 	return _0;
 }

@@ -82,13 +82,13 @@ export function run(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	} else if (_6 === 7) {
 		arcs(log, id);
 	} else if (_6 === 0) {
-		const v: Held.Held[] = [];
+		const v: rt.Vec<Held.Held> = new rt.Vec();
 		const _12 = { tag: "One", _0: guard(1) } as Held.Held;
-		v.push(_12);
-		v.push({ tag: "Empty" } as Held.Held);
+		v.d.push(_12);
+		v.d.push({ tag: "Empty" } as Held.Held);
 		const _21 = { tag: "Two", _0: guard(2), _1: guard(3) } as Held.Held;
-		v.push(_21);
-		const held: Held.Held[] = v;
+		v.d.push(_21);
+		const held: rt.Vec<Held.Held> = v;
 		const arc: rt.Arc<Held.Held> = new rt.Arc({ tag: "One", _0: guard(4) } as Held.Held);
 		const shared: rt.Arc<Held.Held> = rt.arcClone(arc);
 		rt.arcDrop(arc, lib_drop$drops_Held);
@@ -100,61 +100,61 @@ export function run(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part6, f)];
 		Log.note(log, rt.fmtFormat(["counted ", args4[0]]));
 		rt.arcDrop(cloned, lib_drop$drops_Held);
-		const v2: Held.Held[] = [];
+		const v2: rt.Vec<Held.Held> = new rt.Vec();
 		const _70 = { tag: "One", _0: guard(5) } as Held.Held;
-		v2.push(_70);
-		const mutex: rt.Mutex<Held.Held[]> = new rt.Mutex(v2);
+		v2.d.push(_70);
+		const mutex: rt.Mutex<rt.Vec<Held.Held>> = new rt.Mutex(v2);
 		const boxed: Held.Held = { tag: "Two", _0: guard(6), _1: guard(7) };
 		const maybe = ({ tag: "One", _0: guard(8) } as Held.Held) as Held.Held | undefined;
-		const _94: rt.usize = held.length;
+		const _94: rt.usize = held.d.length;
 		const _97: boolean = maybe !== undefined;
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_94, f), (f: rt.Formatter) => rt.fmtBool(_97, f)];
 		Log.note(log, rt.fmtFormat(["held ", args6[0], " ", args6[1]]));
 		lib_drop$drops_Held(boxed);
-		rt.dropAll(mutex.value, lib_drop$drops_Held);
+		rt.dropVec(mutex.value, lib_drop$drops_Held);
 		lib_drop$Option_boxed_Box_drops_Held(maybe);
 		rt.arcDrop(shared, lib_drop$drops_Held);
-		rt.dropAll(held, lib_drop$drops_Held);
+		rt.dropVec(held, lib_drop$drops_Held);
 	} else if (_6 === 1) {
 		const wrapped: Wrap.Wrap<Held.Held> = new Wrap.Wrap(rt.u32Add(id, 10), Log.clone$Clone(log), { tag: "One", _0: guard(11) } as Held.Held);
 		const guarded: Wrap.Wrap<Guard.Guard> = new Wrap.Wrap(rt.u32Add(id, 20), Log.clone$Clone(log), guard(21));
 		const pair: Pair.Pair<Held.Held> = new Pair.Pair({ tag: "Two", _0: guard(31), _1: guard(32) } as Held.Held, guard(33));
-		const v3: Pair.Pair<Guard.Guard>[] = [];
+		const v3: rt.Vec<Pair.Pair<Guard.Guard>> = new rt.Vec();
 		const _136: Pair.Pair<Guard.Guard> = new Pair.Pair(guard(41), guard(42));
-		v3.push(_136);
+		v3.d.push(_136);
 		const _145: Pair.Pair<Guard.Guard> = new Pair.Pair(guard(43), guard(44));
-		v3.push(_145);
-		const pairs: Pair.Pair<Guard.Guard>[] = v3;
+		v3.d.push(_145);
+		const pairs: rt.Vec<Pair.Pair<Guard.Guard>> = v3;
 		const _owned: Named.Named = new Named.Named({ tag: "Owned", _0: guard(45) } as Text.Text);
 		const _161: rt.u32 = rt.u32Add(id, 50);
 		const _163: Log.Log = Log.clone$Clone(log);
-		const v4: Wrap.Wrap<Held.Held>[] = [];
+		const v4: rt.Vec<Wrap.Wrap<Held.Held>> = new rt.Vec();
 		const _borrowed: Named.Named = new Named.Named({ tag: "Borrowed", _0: "text" } as Text.Text);
 		const _168: Wrap.Wrap<Held.Held> = new Wrap.Wrap(rt.u32Add(id, 60), Log.clone$Clone(log), { tag: "One", _0: guard(61) } as Held.Held);
-		v4.push(_168);
-		const nested: Wrap.Wrap<Wrap.Wrap<Held.Held>[]> = new Wrap.Wrap(_161, _163, v4);
+		v4.d.push(_168);
+		const nested: Wrap.Wrap<rt.Vec<Wrap.Wrap<Held.Held>>> = new Wrap.Wrap(_161, _163, v4);
 		lib_drop$drops_Pair_drops_Held(pair);
 		const _183: boolean = Held.isSome(wrapped.inner);
 		const _186: rt.u32 = Guard.id(guarded.inner);
-		const _189: rt.u32 = rt.u32Add(rt.u32Add(Guard.id(pairs[rt.idx(pairs, 1)].first), Guard.id(pairs[rt.idx(pairs, 0)].second)), nested.inner.length as rt.u32);
+		const _189: rt.u32 = rt.u32Add(rt.u32Add(Guard.id(pairs.d[rt.idx(pairs.d, 1)].first), Guard.id(pairs.d[rt.idx(pairs.d, 0)].second)), nested.inner.d.length as rt.u32);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_183, f), (f: rt.Formatter) => rt.u32Display(_186, f), (f: rt.Formatter) => rt.u32Display(_189, f)];
 		Log.note(log, rt.fmtFormat(["wraps ", args8[0], " ", args8[1], " ", args8[2]]));
 		lib_drop$drops_Wrap_Vec_drops_Wrap_drops_Held(nested);
 		_owned[Symbol.dispose]();
 		_borrowed[Symbol.dispose]();
-		rt.dropAll(pairs);
+		rt.dropVec(pairs);
 		lib_drop$drops_Wrap_model_Guard(guarded);
 		lib_drop$drops_Wrap_drops_Held(wrapped);
 	} else if (_6 === 2) {
 		const shared2: rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>> = new rt.Arc(new Wrap.Wrap(rt.u32Add(id, 70), Log.clone$Clone(log), new Pair.Pair({ tag: "One", _0: guard(71) } as Held.Held, guard(72))));
-		const v5: rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>>[] = [];
+		const v5: rt.Vec<rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>>> = new rt.Vec();
 		const _227: rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>> = rt.arcClone(shared2);
-		v5.push(_227);
+		v5.d.push(_227);
 		const _231: rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>> = rt.arcClone(shared2);
-		v5.push(_231);
-		const clones: rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>>[] = v5;
+		v5.d.push(_231);
+		const clones: rt.Vec<rt.Arc<Wrap.Wrap<Pair.Pair<Held.Held>>>> = v5;
 		rt.arcDrop(shared2, lib_drop$drops_Wrap_drops_Pair_drops_Held);
-		const part2 = clones.length;
+		const part2 = clones.d.length;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
 		Log.note(log, rt.fmtFormat(["clones ", args10[0]]));
 		const part3: rt.u32 | undefined = bail(log, id, true);
@@ -165,7 +165,7 @@ export function run(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const _259: boolean = !((err2 !== undefined ? rt.Err(err2 as rt.u32) : rt.Ok(part4 as rt.u32)) as rt.Result<rt.u32, rt.u32>).ok;
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_256, f), (f: rt.Formatter) => rt.fmtBool(_259, f)];
 		Log.note(log, rt.fmtFormat(["bailed ", args12[0], " ", args12[1]]));
-		rt.dropAll(clones, lib_drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held);
+		rt.dropVec(clones, lib_drop$sync_Arc_drops_Wrap_drops_Pair_drops_Held);
 	} else {
 		const arc2: rt.Arc<rt.Mutex<Held.Held>> = new rt.Arc(new rt.Mutex({ tag: "Two", _0: guard(81), _1: guard(82) } as Held.Held));
 		const other: rt.Arc<rt.Mutex<Held.Held>> = rt.arcClone(arc2);
@@ -196,28 +196,28 @@ export function bail(log: Log.Log, id: rt.u32, fails: boolean): rt.u32 | undefin
 	let _0Err!: boolean;
 	let _02!: rt.u32;
 	let _03!: rt.u32;
-	const v: Held.Held[] = [];
+	const v: rt.Vec<Held.Held> = new rt.Vec();
 	const _8 = { tag: "One", _0: Guard.new(rt.u32Add(id, 90), Log.clone$Clone(log)) } as Held.Held;
-	v.push(_8);
-	const held: Held.Held[] = v;
+	v.d.push(_8);
+	const held: rt.Vec<Held.Held> = v;
 	const wrap: Wrap.Wrap<Held.Held> = new Wrap.Wrap(rt.u32Add(id, 91), Log.clone$Clone(log), { tag: "Empty" } as Held.Held);
 	const part: rt.u32 | undefined = failed(fails);
 	const err: rt.u32 | undefined = part === undefined ? out$u32.err as rt.u32 : undefined;
 	if (err === undefined) {
 		const n: rt.u32 = part as rt.u32;
-		const _29: rt.usize = held.length;
+		const _29: rt.usize = held.d.length;
 		const _32: boolean = Held.isSome(wrap.inner);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_29, f), (f: rt.Formatter) => rt.fmtBool(_32, f)];
 		Log.note(log, rt.fmtFormat(["not bailed ", args2[0], " ", args2[1]]));
 		_0Err = false;
 		_02 = n;
 		lib_drop$drops_Wrap_drops_Held(wrap);
-		rt.dropAll(held, lib_drop$drops_Held);
+		rt.dropVec(held, lib_drop$drops_Held);
 	} else {
 		_0Err = true;
 		_03 = err as rt.u32;
 		lib_drop$drops_Wrap_drops_Held(wrap);
-		rt.dropAll(held, lib_drop$drops_Held);
+		rt.dropVec(held, lib_drop$drops_Held);
 	}
 	if (_0Err) {
 		out$u32.err = _03;
@@ -248,7 +248,7 @@ export class heldFuture {
 	#guard: Guard.Guard;
 	#log!: Log.Log;
 	#id!: rt.u32;
-	#held!: Held.Held[];
+	#held!: rt.Vec<Held.Held>;
 	#wrap!: Wrap.Wrap<rt.Arc<Held.Held>>;
 	#awaitee!: rt.Future<rt.u64 | undefined>;
 
@@ -264,7 +264,7 @@ export class heldFuture {
 		} else if (this.#state === 3) {
 			rt.drop(this.#awaitee);
 			lib_drop$drops_Wrap_sync_Arc_drops_Held(this.#wrap);
-			rt.dropAll(this.#held, lib_drop$drops_Held);
+			rt.dropVec(this.#held, lib_drop$drops_Held);
 			this.#log[Symbol.dispose]();
 			this.#guard[Symbol.dispose]();
 			this.#rx[Symbol.dispose]();
@@ -275,10 +275,10 @@ export class heldFuture {
 		if (this.#state === 0) {
 			this.#log = Log.clone$Clone(Guard.log(this.#guard));
 			this.#id = Guard.id(this.#guard);
-			const v: Held.Held[] = [];
+			const v: rt.Vec<Held.Held> = new rt.Vec();
 			const _9 = { tag: "One", _0: Guard.new(rt.u32Add(this.#id, 500), Log.clone$Clone(this.#log)) } as Held.Held;
-			v.push(_9);
-			v.push({ tag: "Empty" } as Held.Held);
+			v.d.push(_9);
+			v.d.push({ tag: "Empty" } as Held.Held);
 			this.#held = v;
 			this.#wrap = new Wrap.Wrap(rt.u32Add(this.#id, 510), Log.clone$Clone(this.#log), new rt.Arc({ tag: "One", _0: Guard.new(rt.u32Add(this.#id, 520), Log.clone$Clone(this.#log)) } as Held.Held));
 			this.#awaitee = new recvFuture$kio_Consumer(this.#rx);
@@ -290,14 +290,14 @@ export class heldFuture {
 			const result: rt.u64 | undefined = _36;
 			rt.drop(this.#awaitee);
 			const value: rt.u64 = option_unwrapOr$1tvry1i(result, 0);
-			const _51: rt.usize = this.#held.length;
+			const _51: rt.usize = this.#held.d.length;
 			const _54: boolean = Held.isSome(this.#wrap.inner.value);
 			const arg = this.#id;
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(arg, f), (f: rt.Formatter) => rt.usizeDisplay(_51, f), (f: rt.Formatter) => rt.fmtBool(_54, f)];
 			const _46: string = rt.fmtFormat(["g", args2[0], " held ", args2[1], " ", args2[2]]);
 			Log.note(this.#log, _46);
 			lib_drop$drops_Wrap_sync_Arc_drops_Held(this.#wrap);
-			rt.dropAll(this.#held, lib_drop$drops_Held);
+			rt.dropVec(this.#held, lib_drop$drops_Held);
 			this.#log[Symbol.dispose]();
 			this.#guard[Symbol.dispose]();
 			this.#rx[Symbol.dispose]();
@@ -504,7 +504,7 @@ export function hashed(log: Log.Log, id: rt.u32): void {
 		const sum: rt.u32 = rt.iterSum(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(text))), (_2: rt.u8): rt.u32 => {
 			return _2 as rt.u32;
 		}), rt.u32Add, 0);
-		const _152: rt.usize = text.length;
+		const _152: rt.usize = rt.byteVecSlice(text).length;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, what), (f: rt.Formatter) => rt.usizeDisplay(_152, f), (f: rt.Formatter) => rt.u32Display(sum, f)];
 		Log.note(log, rt.fmtFormat([args10[0], ": ", args10[1], " ", args10[2]]));
 	};
@@ -829,37 +829,37 @@ export function elements(log: Log.Log, id: rt.u32): void {
 	const key: (a0: rt.u32) => Key.Key = (n2: rt.u32): Key.Key => {
 		return Key.new(rt.u32Add(id, n2), Log.clone$Clone(log));
 	};
-	const v2: Array<Guard.Guard | undefined> = [];
+	const v2: rt.Vec<Guard.Guard | undefined> = new rt.Vec();
 	const _12: Guard.Guard | undefined = guard(1);
-	v2.push(_12);
-	v2.push(undefined as Guard.Guard | undefined);
+	v2.d.push(_12);
+	v2.d.push(undefined as Guard.Guard | undefined);
 	const _21: Guard.Guard | undefined = guard(2);
-	v2.push(_21);
-	v2.push(undefined as Guard.Guard | undefined);
-	const v: Array<Guard.Guard | undefined> = v2;
-	const _34: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceFirst(v, rt.None), (o5: Guard.Guard | undefined): rt.u32 | undefined => {
+	v2.d.push(_21);
+	v2.d.push(undefined as Guard.Guard | undefined);
+	const v: rt.Vec<Guard.Guard | undefined> = v2;
+	const _34: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceFirst(v.d, rt.None), (o5: Guard.Guard | undefined): rt.u32 | undefined => {
 		return option_map$0lq7mno(o5, Guard.id);
 	});
-	const _39: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceLast(v, rt.None), (o6: Guard.Guard | undefined): rt.u32 | undefined => {
+	const _39: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceLast(v.d, rt.None), (o6: Guard.Guard | undefined): rt.u32 | undefined => {
 		return option_map$0lq7mno(o6, Guard.id);
 	});
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_34, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None), (f: rt.Formatter) => rt.fmtOption(_39, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None)];
 	Log.note(log, rt.fmtFormat(["vec ", args2[0], " ", args2[1]]));
-	const _54: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceGet(v, 1, rt.None), (o7: Guard.Guard | undefined): rt.u32 | undefined => {
+	const _54: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceGet(v.d, 1, rt.None), (o7: Guard.Guard | undefined): rt.u32 | undefined => {
 		return option_map$0lq7mno(o7, Guard.id);
 	});
-	const _59: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceGet(v, 4, rt.None), (o8: Guard.Guard | undefined): rt.u32 | undefined => {
+	const _59: rt.u32 | undefined | rt.None = option_map$0ccnsmq(rt.sliceGet(v.d, 4, rt.None), (o8: Guard.Guard | undefined): rt.u32 | undefined => {
 		return option_map$0lq7mno(o8, Guard.id);
 	});
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_54, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None), (f: rt.Formatter) => rt.fmtOption(_59, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug), rt.None)];
 	Log.note(log, rt.fmtFormat(["get ", args4[0], " ", args4[1]]));
-	const _68: rt.Place<Guard.Guard | undefined> | undefined = rt.sliceLastMut(v);
+	const _68: rt.Place<Guard.Guard | undefined> | undefined = rt.sliceLastMut(v.d);
 	if (_68 !== undefined) {
 		const _73: Guard.Guard | undefined = guard(3);
 		rt.drop(_68.v);
 		_68.v = _73;
 	}
-	const _77: rt.Place<Guard.Guard | undefined> | undefined = rt.sliceFirstMut(v);
+	const _77: rt.Place<Guard.Guard | undefined> | undefined = rt.sliceFirstMut(v.d);
 	if (_77 !== undefined) {
 		rt.drop(_77.v);
 		_77.v = undefined;
@@ -914,7 +914,7 @@ export function elements(log: Log.Log, id: rt.u32): void {
 	const _145: string = rt.fmtFormat(["uncalled ", args12[0]]);
 	rt.drop(_151);
 	Log.note(log, _145);
-	v.push(undefined as Guard.Guard | undefined);
+	v.d.push(undefined as Guard.Guard | undefined);
 	const captured2 = guard(15);
 	const part8 = option_map$0ccnsmq(rt.vecPopIfMut(v, rt.closure((o13: rt.Place<Guard.Guard | undefined>): boolean => {
 		const part6 = Guard.id(captured2);
@@ -1170,7 +1170,7 @@ export function elements(log: Log.Log, id: rt.u32): void {
 	rt.heapDrop(heap, rt.drop);
 	rt.dequeDrop(q, rt.drop);
 	rt.drop(kept);
-	rt.dropAll(v);
+	rt.dropVec(v);
 }
 
 /**
@@ -1356,132 +1356,132 @@ export function edited(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		return Key.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const ids: (a0: Key.Key[]) => string = (v13: Key.Key[]): string => {
-		return rt.strsJoin(rt.iterToArray(rt.iterMap(rt.iterSlice(v13), (k: Key.Key): string => {
+		return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.iterSlice(v13), (k: Key.Key): string => {
 			const _43: rt.u32 = rt.u32Sub(k.id, id);
 			return rt.fmtToString((f: rt.Formatter) => rt.u32Display(_43, f));
-		}), undefined, 12, true), ",");
+		}), undefined, 12, true).d, ",");
 	};
 	const _8: rt.u8 = rt.u8Rem(arg, 9);
 	if (_8 === 0) {
-		const v2: Key.Key[] = [];
+		const v2: rt.Vec<Key.Key> = new rt.Vec();
 		const _14: Key.Key = key(1);
-		v2.push(_14);
+		v2.d.push(_14);
 		const _19: Key.Key = key(2);
-		v2.push(_19);
+		v2.d.push(_19);
 		const _24: Key.Key = key(3);
-		v2.push(_24);
+		v2.d.push(_24);
 		const _29: Key.Key = key(4);
-		v2.push(_29);
-		const v: Key.Key[] = v2;
+		v2.d.push(_29);
+		const v: rt.Vec<Key.Key> = v2;
 		rt.vecRetain(v, (k6: Key.Key): boolean => {
 			return rt.u32Rem(rt.u32Sub(k6.id, id), 2) === 1;
 		}, rt.drop);
-		const part25 = ids(v);
+		const part25 = ids(v.d);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part25)];
 		Log.note(log, rt.fmtFormat(["retained ", args2[0]]));
 		rt.vecRetain(v, (k7: Key.Key): boolean => {
 			return k7.id !== rt.u32Add(id, 3);
 		}, rt.drop);
-		const part27 = ids(v);
+		const part27 = ids(v.d);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part27)];
 		Log.note(log, rt.fmtFormat(["retained ", args4[0]]));
-		rt.dropAll(v);
+		rt.dropVec(v);
 	} else if (_8 === 1) {
-		const v4: Key.Key[] = [];
+		const v4: rt.Vec<Key.Key> = new rt.Vec();
 		const _74: Key.Key = key(1);
-		v4.push(_74);
+		v4.d.push(_74);
 		const _79: Key.Key = key(1);
-		v4.push(_79);
+		v4.d.push(_79);
 		const _84: Key.Key = key(2);
-		v4.push(_84);
+		v4.d.push(_84);
 		const _89: Key.Key = key(2);
-		v4.push(_89);
+		v4.d.push(_89);
 		const _94: Key.Key = key(3);
-		v4.push(_94);
-		const v3: Key.Key[] = v4;
+		v4.d.push(_94);
+		const v3: rt.Vec<Key.Key> = v4;
 		rt.vecDedupBy(v3, Key.eq$cmp_PartialEq, rt.drop);
-		const part19 = ids(v3);
+		const part19 = ids(v3.d);
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part19)];
 		Log.note(log, rt.fmtFormat(["deduped ", args6[0]]));
 		rt.vecDedupByKey(v3, (k5: Key.Key): rt.u32 => {
 			return rt.u32Div(k5.id, 2);
 		}, rt.same, rt.drop);
-		const part21 = ids(v3);
+		const part21 = ids(v3.d);
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part21)];
 		Log.note(log, rt.fmtFormat(["deduped ", args8[0]]));
 		rt.vecDedupBy(v3, (a: Key.Key, b: Key.Key): boolean => {
 			return a.id > b.id;
 		}, rt.drop);
-		const part23 = ids(v3);
+		const part23 = ids(v3.d);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part23)];
 		Log.note(log, rt.fmtFormat(["deduped ", args10[0]]));
-		rt.dropAll(v3);
+		rt.dropVec(v3);
 	} else if (_8 === 2) {
-		const v6: Key.Key[] = [];
+		const v6: rt.Vec<Key.Key> = new rt.Vec();
 		const _152: Key.Key = key(1);
-		v6.push(_152);
+		v6.d.push(_152);
 		const _157: Key.Key = key(2);
-		v6.push(_157);
+		v6.d.push(_157);
 		const _162: Key.Key = key(3);
-		v6.push(_162);
-		const v5: Key.Key[] = v6;
+		v6.d.push(_162);
+		const v5: rt.Vec<Key.Key> = v6;
 		rt.vecSwapRemove(v5, 0)[Symbol.dispose]();
-		const part17 = ids(v5);
+		const part17 = ids(v5.d);
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part17)];
 		Log.note(log, rt.fmtFormat(["swapped ", args12[0]]));
 		rt.vecSwapRemove(v5, 3)[Symbol.dispose]();
-		rt.dropAll(v5);
+		rt.dropVec(v5);
 	} else if (_8 === 3) {
-		const v8: Key.Key[] = [];
+		const v8: rt.Vec<Key.Key> = new rt.Vec();
 		const _190: Key.Key = key(1);
-		v8.push(_190);
+		v8.d.push(_190);
 		const _195: Key.Key = key(2);
-		v8.push(_195);
-		const v7: Key.Key[] = v8;
-		const _209: Key.Key[] = rt.vecExact(v7.map(Key.clone$Clone), 12);
-		const part15 = ids(_209);
+		v8.d.push(_195);
+		const v7: rt.Vec<Key.Key> = v8;
+		const _209: rt.Vec<Key.Key> = rt.vecFrom(v7.d.map(Key.clone$Clone));
+		const part15 = ids(_209.d);
 		const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part15)];
 		const _200: string = rt.fmtFormat(["cloned ", args14[0]]);
-		rt.dropAll(_209);
+		rt.dropVec(_209);
 		Log.note(log, _200);
-		rt.dropAll(v7);
+		rt.dropVec(v7);
 	} else if (_8 === 4) {
 		const pair: [Key.Key, Key.Key] = [key(1), key(2)];
 		lib_drop$tuple2_drops_Key_drops_Key(rt.tupleClone(pair, [Key.clone$Clone, Key.clone$Clone]));
 		lib_drop$tuple2_drops_Key_drops_Key(pair);
 	} else if (_8 === 5) {
-		const v10: Key.Key[] = [];
+		const v10: rt.Vec<Key.Key> = new rt.Vec();
 		const _229: Key.Key = key(1);
-		v10.push(_229);
+		v10.d.push(_229);
 		const _234: Key.Key = key(2);
-		v10.push(_234);
+		v10.d.push(_234);
 		const _239: Key.Key = key(3);
-		v10.push(_239);
-		const v9: Key.Key[] = v10;
+		v10.d.push(_239);
+		const v9: rt.Vec<Key.Key> = v10;
 		const _244: Key.Key = key(4);
 		rt.vecInsert(v9, 1, _244);
-		const part9 = ids(v9);
+		const part9 = ids(v9.d);
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part9)];
 		Log.note(log, rt.fmtFormat(["inserted ", args16[0]]));
 		rt.vecRemove(v9, 0)[Symbol.dispose]();
-		const part11 = ids(v9);
+		const part11 = ids(v9.d);
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part11)];
 		Log.note(log, rt.fmtFormat(["removed ", args18[0]]));
 		rt.vecTruncate(v9, 1, rt.drop);
-		const part13 = ids(v9);
+		const part13 = ids(v9.d);
 		const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, part13)];
 		Log.note(log, rt.fmtFormat(["truncated ", args20[0]]));
 		rt.vecTruncate(v9, 0, rt.drop);
-		rt.dropAll(v9);
+		rt.dropVec(v9);
 	} else if (_8 === 6) {
-		const v11: Key.Key[] = [];
+		const v11: rt.Vec<Key.Key> = new rt.Vec();
 		const _305: Key.Key = key(1);
-		v11.push(_305);
+		v11.d.push(_305);
 		const _310: Key.Key = key(3);
-		v11.push(_310);
+		v11.d.push(_310);
 		const _315: Key.Key = key(5);
-		v11.push(_315);
-		const part6 = option_mapOr$1w10sgd(rt.iterMaxByKey(rt.iterSlice(v11, rt.drop), (k2: Key.Key): rt.u32 => {
+		v11.d.push(_315);
+		const part6 = option_mapOr$1w10sgd(rt.iterMaxByKey(rt.vecIntoIter(v11, rt.drop), (k2: Key.Key): rt.u32 => {
 			return rt.u32Rem(rt.u32Sub(k2.id, id), 3);
 		}, rt.lt, true, rt.drop), 0, (k3: Key.Key): rt.u32 => {
 			const _05: rt.u32 = rt.u32Sub(k3.id, id);
@@ -1490,14 +1490,14 @@ export function edited(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		});
 		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part6, f)];
 		Log.note(log, rt.fmtFormat(["max ", args22[0]]));
-		const v12: Key.Key[] = [];
+		const v12: rt.Vec<Key.Key> = new rt.Vec();
 		const _339: Key.Key = key(3);
-		v12.push(_339);
+		v12.d.push(_339);
 		const _344: Key.Key = key(1);
-		v12.push(_344);
+		v12.d.push(_344);
 		const _349: Key.Key = key(2);
-		v12.push(_349);
-		const part7 = option_mapOr$1w10sgd(rt.iterMin(rt.iterSlice(v12, rt.drop), rt.cmpLt(Key.partialCmp$cmp_PartialOrd), true, rt.drop), 0, (k4: Key.Key): rt.u32 => {
+		v12.d.push(_349);
+		const part7 = option_mapOr$1w10sgd(rt.iterMin(rt.vecIntoIter(v12, rt.drop), rt.cmpLt(Key.partialCmp$cmp_PartialOrd), true, rt.drop), 0, (k4: Key.Key): rt.u32 => {
 			const _06: rt.u32 = rt.u32Sub(k4.id, id);
 			k4[Symbol.dispose]();
 			return _06;

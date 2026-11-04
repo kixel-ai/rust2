@@ -24,10 +24,10 @@ export function fmt$fmt_Debug_Result_u8_shapes_Shape(self: Wrap<rt.Result<rt.u8,
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
 }
 
-export function fmt$fmt_Debug_Vec_u16(self: Wrap<rt.u16[]>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+export function fmt$fmt_Debug_Vec_u16(self: Wrap<rt.Vec<rt.u16>>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _3: string = "Wrap";
 	const _4: string = "value";
-	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.value, f, rt.u16Debug);
+	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.value.d, f, rt.u16Debug);
 	const _7: string = "count";
 	const _8: rt.Fmt = (f: rt.Formatter) => rt.u8Debug(self.count, f);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
@@ -149,7 +149,7 @@ export function get$u8(self: Wrap<rt.u8>): rt.u8 {
 	return self.value;
 }
 
-export function bump$Vec_u16(self: Wrap<rt.u16[]>): rt.u8 {
+export function bump$Vec_u16(self: Wrap<rt.Vec<rt.u16>>): rt.u8 {
 	self.count = rt.u8WrappingAdd(self.count, 1);
 	return self.count;
 }

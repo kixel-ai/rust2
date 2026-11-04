@@ -194,10 +194,10 @@ export function durations(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		let c3: rt.Duration = a;
 		c3 = rt.durationMul(c3, n);
 		putDuration(out, c3);
-		const v2: rt.Duration[] = [a];
-		const at = rt.idx(v2, 0);
-		v2[at] = rt.durationDiv(v2[at], n);
-		putDuration(out, v2[rt.idx(v2, 0)]);
+		const v2: rt.Vec<rt.Duration> = rt.vecFrom([a]);
+		const at = rt.idx(v2.d, 0);
+		v2.d[at] = rt.durationDiv(v2.d[at], n);
+		putDuration(out, v2.d[rt.idx(v2.d, 0)]);
 	} else if (_24 === 12) {
 		const units2: rt.u64 = take(data)[0];
 		const wide: Uint8Array = rt.bytes(16);

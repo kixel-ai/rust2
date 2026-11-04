@@ -372,16 +372,16 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	bump(copy5.slot);
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(a, copy5.n)));
 	rt.byteVecPush(out, lensBumped(lens));
-	for (const _104 of rt.vecExact(Array.from({ length: 2 }, (): Lens.Lens => {
+	for (const _104 of rt.vecFrom(Array.from({ length: 2 }, (): Lens.Lens => {
 		return copy$shapes_Lens(lens);
-	}).map(copy$shapes_Lens), 8)) {
+	}).map(copy$shapes_Lens)).d) {
 		bump(_104.slot);
 	}
-	const lenses: Lens.Lens[] = [];
-	lenses.push(copy$shapes_Lens(lens));
+	const lenses: rt.Vec<Lens.Lens> = new rt.Vec();
+	lenses.d.push(copy$shapes_Lens(lens));
 	const _114: rt.Iter<Lens.Lens> = rt.iterSlice([lens]);
 	rt.iterExtend(lenses, rt.iterMap(_114, copy$shapes_Lens), undefined, 8, true);
-	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses), copy$shapes_Lens);
+	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses.d), copy$shapes_Lens);
 	while (true) {
 		const _124: Lens.Lens | rt.Done = iter4.next();
 		if (_124 === rt.DONE) {
@@ -417,9 +417,9 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	});
 	rt.byteVecPush(out, writeAt(rt.byteSliceFrom(bytes), at, a));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes));
-	const points: Point.Point[] = rt.vecFromElem(copy$shapes_Point(Point.new(a as rt.i32, 0)), 2, copy$shapes_Point);
-	movedAt(points, at);
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(points[rt.idx(points, 0)].x & 0xff, points[rt.idx(points, 1)].x & 0xff, points[rt.idx(points, 1)].y & 0xff)));
+	const points: rt.Vec<Point.Point> = rt.vecFromElem(copy$shapes_Point(Point.new(a as rt.i32, 0)), 2, copy$shapes_Point);
+	movedAt(points.d, at);
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(points.d[rt.idx(points.d, 0)].x & 0xff, points.d[rt.idx(points.d, 1)].x & 0xff, points.d[rt.idx(points.d, 1)].y & 0xff)));
 	arc[Symbol.dispose]();
 }
 
@@ -545,7 +545,7 @@ export function same(a: Uint8Array): Uint8Array {
 /** Logs `b`, returning how much is logged. */
 export function mark(out: rt.ByteVec, b: rt.u8): rt.usize {
 	rt.byteVecPush(out, b);
-	return out.length;
+	return rt.byteVecSlice(out).length;
 }
 
 /**
@@ -596,12 +596,12 @@ export function order(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rt.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rt.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rt.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rt.Formatter) => rt.usizeDisplay(_64, f), (f: rt.Formatter) => rt.usizeDisplay(_63, f), (f: rt.Formatter) => rt.usizeDisplay(_103, f), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_82), f, rt.u8Debug)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]])));
 	const _125: rt.usize = mark(out, 16);
-	const _127: rt.usize = out.length;
+	const _127: rt.usize = rt.byteVecSlice(out).length;
 	rt.byteVecPush(out, _125 & 0xff);
 	rt.byteVecPush(out, _127 & 0xff);
-	const part = mark(out, 17);
+	const _136: [rt.usize, rt.usize] = [mark(out, 17), rt.byteVecSlice(out).length];
 	const _143: [rt.usize, rt.usize] = [mark(out, 18), mark(out, 19)];
-	rt.byteVecPush(out, part & 0xff);
+	rt.byteVecPush(out, _136[0] & 0xff);
 	rt.byteVecPush(out, _143[0] & 0xff);
 	indexed(data, out);
 }
@@ -1539,7 +1539,7 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	if (owned.ok) {
 		_133 = owned.value;
 	} else {
-		_133 = owned.error.length & 0xff;
+		_133 = rt.byteVecSlice(owned.error).length & 0xff;
 	}
 	rt.byteVecPush(out, _133);
 	if (flow.ok) {
@@ -2232,13 +2232,13 @@ export function closures(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const whole: Uint8Array = Uint8Array.of(data.length & 0xff);
 	overwrite(rt.byteSliceFrom(whole));
 	rt.byteVecPush(out, whole[0]);
-	const parsed: Array<Dir.Dir | undefined> = [];
+	const parsed: rt.Vec<Dir.Dir | undefined> = new rt.Vec();
 	for (const _53 of rt.byteSliceView(data)) {
 		const _59: Dir.Dir | undefined = dir(_53);
-		parsed.push(_59);
+		parsed.d.push(_59);
 	}
 	const tags: rt.ByteVec = new rt.ByteVec();
-	for (const _64 of parsed) {
+	for (const _64 of parsed.d) {
 		const _70: rt.u8 = option_unwrapOr$0r2bmpr(option_map$18z3v8h(_64, from$convert_From_shapes_Dir_u8), 0);
 		rt.byteVecPush(tags, _70);
 	}
@@ -2340,7 +2340,7 @@ export function library(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, option_mapOr$1a3irjf(then$1i9qaz4(x > 128, (): rt.ByteVec => {
 			return new rt.ByteVec();
 		}), 2, (v: rt.ByteVec): rt.u8 => {
-			return v.length & 0xff;
+			return rt.byteVecSlice(v).length & 0xff;
 		}));
 		const flag: boolean = rt.u8Rem(x, 3) === 0;
 		rt.byteVecPush(out, rt.u8Add(rt.u8Add(flag ? 1 : 0, (flag ? 1 : 0) & 0xff), (flag ? 1 : 0) & 0xff));

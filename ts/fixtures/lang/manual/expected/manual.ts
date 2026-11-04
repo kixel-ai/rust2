@@ -17,7 +17,7 @@ export function held$sync_Arc_u8(value: rt.Arc<rt.u8>): rt.Arc<rt.u8> {
  */
 export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const shared: rt.Arc<rt.u8> = new rt.Arc(7);
-	const kept: rt.Arc<rt.u8>[] = [];
+	const kept: rt.Vec<rt.Arc<rt.u8>> = new rt.Vec();
 	for (const b of rt.byteSliceView(data)) {
 		const _12: rt.u8 = rt.u8Rem(b, 9);
 		if (_12 === 0) {
@@ -29,9 +29,9 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _24: rt.Arc<rt.u8> = ((a0: rt.Arc<rt.u8>): rt.Arc<rt.u8> => {
 				return rt.arcClone(a0);
 			})(m);
-			kept.push(_24);
+			kept.d.push(_24);
 			rt.byteVecPush(out, m.value);
-			kept.push(m);
+			kept.d.push(m);
 		} else if (_12 === 3) {
 			let m2: rt.Arc<rt.u8> = held$sync_Arc_u8(shared);
 			rt.place(() => m2, (value2) => m2 = value2).v[Symbol.dispose]();
@@ -117,7 +117,7 @@ export function needsDrops(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rt.byteVecPush(out, (named() & 0xff) ^ (copied() & 0xff));
-	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$String(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): string => {
+	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$String(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (b2: rt.u8): string => {
 		return rt.fmtToString((f: rt.Formatter) => rt.u8Display(b2, f));
 	}), undefined, 12, true))).reverse()), undefined, true);
 	rt.iterExtendBytes(out, rt.iterSlice(rt.u32ToBeBytes(droppedByHand$u8(rt.byteSliceToByteVec(data))).reverse()), undefined, true);
@@ -155,12 +155,12 @@ export function nameOf$u8(): string {
  * How many items a generic body drops one by one, as std's collections do only of a type
  * that needs dropping, and forgets the rest.
  */
-export function droppedByHand$String(items: string[]): rt.u32 {
+export function droppedByHand$String(items: rt.Vec<string>): rt.u32 {
 	if (false) {
 		return 0;
 	}
 	let n: rt.u32 = 0;
-	for (const _7 of items) {
+	for (const _7 of items.d) {
 		n = rt.u32Add(n, 1);
 	}
 	return n;

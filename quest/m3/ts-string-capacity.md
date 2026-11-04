@@ -34,12 +34,8 @@ table, such as a `WeakMap` from an object, against plain JS strings, on `just ts
 and the moq codec in Node, Chrome, Bun, and Firefox, before choosing. A string's text is
 a primitive, so a side table needs an object to key on, and a wrapper changes every
 string operation's output; weigh both against how few strings ever read a capacity.
-[The pushed capacity quest](/quest/m3/ts-vec-clear-capacity.md) measures a `Vec`
-wrapper the same way, so share the harness and compare the two.
+A `Vec` is such a wrapper already, `rt.Vec`, measured the same way in
+[moq-dev/rust2#555](https://github.com/moq-dev/rust2/pull/555), so share its harness and
+compare the two.
 
 Public API: the translator's output.
-
-## Related
-
-- [A vector keeps the capacity its pushes grew as it shrinks](/quest/m3/ts-vec-clear-capacity.md) - measures a `Vec` wrapper holding its own capacity
-- [A vector's exact capacity as it shrinks](/quest/m3/ts-vec-exact-capacity.md) - a `Vec`'s exact capacity, which a `String`'s bytes become

@@ -4,9 +4,9 @@ import * as rt from "./rt.ts";
 
 export function fmt$fmt_Debug_u16(self: Run<rt.u16>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	if (self.tag === "Listed") {
-		const arg2 = self._0 as rt.u16[];
+		const arg2 = self._0 as rt.Vec<rt.u16>;
 		const _5: string = "Listed";
-		const _6: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2, f, rt.u16Debug);
+		const _6: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2.d, f, rt.u16Debug);
 		return rt.debugTupleFinish(rt.debugTupleField(rt.fmtDebugTuple(f, _5), _6));
 	}
 	if (self.tag === "Fixed") {
@@ -44,7 +44,7 @@ export type Run<T> =
 
 export function first$u16(self: Run<rt.u16>): rt.u16 | undefined {
 	if (self.tag === "Listed") {
-		return rt.sliceFirst(self._0 as rt.u16[]);
+		return rt.sliceFirst((self._0 as rt.Vec<rt.u16>).d);
 	}
 	if (self.tag === "Fixed") {
 		return (self.array as rt.u16[])[0];

@@ -814,6 +814,7 @@ pub fn call<'tcx>(
 			match (owner, byte) {
 				("slice", true) => Expr::rt("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rt("byteVecAsPtr", vec![s]),
+				("Vec", false) => Expr::rt("sliceAsPtr", vec![s.member("d")]),
 				_ => Expr::rt("sliceAsPtr", vec![s]),
 			}
 		}

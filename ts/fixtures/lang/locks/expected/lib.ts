@@ -231,8 +231,8 @@ export function drop$sync_TryLockError_sync_RwLockWriteGuard_u32(_1: rt.TryLockE
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["locks::locks", (_27: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["locks::locks", (_27: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		locks(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::relock", (_28: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		relock(data2, out2);
@@ -248,7 +248,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		downgraded(data7, out7);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["locks::shown", (_214: rt.u8, data8: rt.ByteSlice, out8: rt.ByteVec): undefined => {
 		shown(data8, out8);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

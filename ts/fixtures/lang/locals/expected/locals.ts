@@ -85,7 +85,7 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 	})(POLLING.get()));
 	rt.byteVecPush(out, ((p2: Polling.Polling): rt.u8 => {
 		const _64: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(p2.held);
-		const _06: rt.u8 = _64.value.length & 0xff;
+		const _06: rt.u8 = rt.byteVecSlice(_64.value).length & 0xff;
 		rt.refRelease(_64);
 		return _06;
 	})(POLLING.get()));
@@ -119,7 +119,7 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_46 === 2) {
 			rt.byteVecPush(out, result_mapOr$18ipla0(rt.Ok(((log6: rt.RefCell<rt.ByteVec>): rt.usize => {
 				const _512: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log6);
-				const _021: rt.usize = _512.value.length;
+				const _021: rt.usize = rt.byteVecSlice(_512.value).length;
 				rt.refRelease(_512);
 				return _021;
 			})(LOG.get())), 253, (n4: rt.usize): rt.u8 => {
@@ -146,7 +146,7 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(_611.value, op);
 				rt.refMutRelease(_611);
 				const _1110: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(p4.held);
-				const _017: rt.usize = _1110.value.length;
+				const _017: rt.usize = rt.byteVecSlice(_1110.value).length;
 				rt.refRelease(_1110);
 				return _017;
 			})(POLLING.get());
@@ -177,7 +177,7 @@ export function locals(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(log3, op);
 			});
 			rt.byteVecPush(out, withBorrow$0r4ucls(LOG, (log4: rt.ByteVec): rt.u8 => {
-				return log4.length & 0xff;
+				return rt.byteVecSlice(log4).length & 0xff;
 			}));
 			rt.iterExtendBytes(out, rt.byteVecIntoIter(replace$1xk72wn(LOG, rt.byteVecFrom(Uint8Array.of(op)))), undefined, true);
 			rt.localKeyRefCellSet(LOG, rt.byteVecFrom(Uint8Array.of(op, op)));

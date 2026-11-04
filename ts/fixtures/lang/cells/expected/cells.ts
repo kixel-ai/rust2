@@ -1118,7 +1118,7 @@ export function cellVec(dataData: Uint8Array, dataStart: number, dataLen: number
 
 /** Steps on the cell and value type `kind` picks. */
 export function cells(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	const cases: Array<(a0: rt.ByteSlice, a1: rt.ByteVec) => undefined> = [(a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
+	const cases: rt.Vec<(a0: rt.ByteSlice, a1: rt.ByteVec) => undefined> = rt.vecFrom([(a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
 		cellU8(a0.data, a0.start, a0.length, a1);
 	}, (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		lockU8(a02.data, a02.start, a02.length, a12);
@@ -1142,8 +1142,8 @@ export function cells(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		cellVec(a011.data, a011.start, a011.length, a111);
 	}, (a012: rt.ByteSlice, a112: rt.ByteVec): undefined => {
 		lockVec(a012.data, a012.start, a012.length, a112);
-	}];
-	cases[rt.idx(cases, rt.usizeRem(kind as rt.usize, cases.length))](data, out);
+	}]);
+	cases.d[rt.idx(cases.d, rt.usizeRem(kind as rt.usize, cases.d.length))](data, out);
 }
 
 /** Steps of an operation and an operand on one cell, each putting what it read. */

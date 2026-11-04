@@ -216,8 +216,8 @@ export type ArrayOf<T> = T[] | Uint8Array;
 /** A generic type's `[T]`, as behind a reference: the array, or the `ByteSlice` of a `[u8]`. */
 export type SliceOf<T> = T[] | ByteSlice;
 
-/** A generic type's `Vec<T>`: the array, or the `ByteVec` of a `Vec<u8>`. */
-export type VecOf<T> = T[] | ByteVec;
+/** A generic type's `Vec<T>`: the `Vec`, or the `ByteVec` of a `Vec<u8>`. */
+export type VecOf<T> = Vec<T> | ByteVec;
 
 /** A generic type's `Cow<[T]>`: the `Cow`, or the `ByteCow` of a `Cow<[u8]>`. */
 export type CowOf<T> = Cow<T> | ByteCow;
@@ -526,26 +526,25 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
 
 /**
  * `mem::replace` of what a `&mut` to an object points at, in place: `value`'s fields, or
- * its items and capacity for a JS array, moved into `p`, and what `p` held returned as an
+ * its items for a JS array, moved into `p`, and what `p` held returned as an
  * object of its own, copied as `objectCopy` copies to `depth`.
  */
 export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 	const old = objectCopy(p, depth);
-	if (Array.isArray(p)) vecAssign(p, value as unknown[]);
+	if (Array.isArray(p)) arrayAssign(p, value as unknown[]);
 	else ptrWrite(p, value);
 	return old;
 }
 
 /**
- * A copy of the object `p`, one object deep: its fields, its bytes, or its items and
- * capacity for a JS array. Its items, and theirs to `depth` levels of arrays, are objects
+ * A copy of the object `p`, one object deep: its fields, its bytes, or its items for a JS
+ * array. Its items, and theirs to `depth` levels of arrays, are objects
  * a write may land in, as a `sliceIn`'s, which a view of one copies too.
  */
 export function objectCopy<T extends object>(p: T, depth = 0): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
-		const old: unknown[] & Capped = p.slice();
-		if ((p as Capped).cap !== undefined) old.cap = (p as Capped).cap;
+		const old: unknown[] = p.slice();
 		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;
 	}
@@ -1475,114 +1474,137 @@ function dedupAt<T>(a: { [i: number]: T }, n: number, same: (i: number, kept: nu
 }
 
 /** `Vec::retain`, and `retain_mut` of an element that is an object. */
-export function vecRetain<T>(v: T[], f: (item: T) => boolean, drop?: (item: T) => void): void {
-	v.length = retainAt(v, v.length, (i) => f(v[i]), drop);
+export function vecRetain<T>(v: Vec<T>, f: (item: T) => boolean, drop?: (item: T) => void): void {
+	const d = v.d;
+	vecKeep(v);
+	d.length = retainAt(d, d.length, (i) => f(d[i]), drop);
 }
 
 /** `Vec::retain_mut` of an element JS copies, which `f` takes the place of. */
-export function vecRetainMut<T>(v: T[], f: (item: Place<T>) => boolean, drop?: (item: T) => void): void {
-	v.length = retainAt(v, v.length, (i) => f(new AtIndex(v, i)), drop);
+export function vecRetainMut<T>(v: Vec<T>, f: (item: Place<T>) => boolean, drop?: (item: T) => void): void {
+	const d = v.d;
+	vecKeep(v);
+	d.length = retainAt(d, d.length, (i) => f(new AtIndex(d, i)), drop);
 }
 
 /** `Vec::dedup_by`: drops each element `same(element, previous kept)` is true for, in order. */
-export function vecDedupBy<T>(v: T[], same: (a: T, b: T) => boolean, drop?: (item: T) => void): void {
-	v.length = dedupAt(v, v.length, (i, j) => same(v[i], v[j]), drop);
+export function vecDedupBy<T>(v: Vec<T>, same: (a: T, b: T) => boolean, drop?: (item: T) => void): void {
+	const d = v.d;
+	vecKeep(v);
+	d.length = dedupAt(d, d.length, (i, j) => same(d[i], d[j]), drop);
 }
 
 /** `Vec::dedup_by` of an element JS copies, whose places `same` takes. */
-export function vecDedupByMut<T>(v: T[], same: (a: Place<T>, b: Place<T>) => boolean, drop?: (item: T) => void): void {
-	v.length = dedupAt(v, v.length, (i, j) => same(new AtIndex(v, i), new AtIndex(v, j)), drop);
+export function vecDedupByMut<T>(v: Vec<T>, same: (a: Place<T>, b: Place<T>) => boolean, drop?: (item: T) => void): void {
+	const d = v.d;
+	vecKeep(v);
+	d.length = dedupAt(d, d.length, (i, j) => same(new AtIndex(d, i), new AtIndex(d, j)), drop);
 }
 
 /** `Vec::dedup_by_key`: as `vecDedupBy`, by `eq` of `key` of each element, then of the previous kept. */
-export function vecDedupByKey<T, K>(v: T[], key: (item: T) => K, eq: (a: K, b: K) => boolean, drop?: (item: T) => void): void {
+export function vecDedupByKey<T, K>(v: Vec<T>, key: (item: T) => K, eq: (a: K, b: K) => boolean, drop?: (item: T) => void): void {
 	vecDedupBy(v, (a, b) => eq(key(a), key(b)), drop);
 }
 
 /** `Vec::dedup_by_key` of an element JS copies, whose places `key` takes. */
-export function vecDedupByKeyMut<T, K>(v: T[], key: (item: Place<T>) => K, eq: (a: K, b: K) => boolean, drop?: (item: T) => void): void {
+export function vecDedupByKeyMut<T, K>(v: Vec<T>, key: (item: Place<T>) => K, eq: (a: K, b: K) => boolean, drop?: (item: T) => void): void {
 	vecDedupByMut(v, (a, b) => eq(key(a), key(b)), drop);
 }
 
-/** `*v = value` through a `&mut` to a `Vec<T>` other than of bytes, or to a boxed slice: `value`'s items and capacity, in place. */
-export function vecAssign<T>(v: T[] & Capped, value: T[] & Capped): void {
-	v.length = value.length;
-	for (let i = 0; i < value.length; i++) v[i] = value[i]!;
-	if (v.cap !== undefined || value.cap !== undefined) v.cap = value.cap;
+/** `*p = value` through a `&mut` to a JS array, a boxed slice's: `value`'s items, in place. */
+export function arrayAssign<T>(p: T[], value: T[]): void {
+	p.length = value.length;
+	for (let i = 0; i < value.length; i++) p[i] = value[i]!;
 }
 
 /** `Vec::insert`: `item` at `i`, with those from `i` on moved up. */
-export function vecInsert<T>(v: T[], i: number, item: T): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`);
-	v.splice(i, 0, item);
+export function vecInsert<T>(v: Vec<T>, i: number, item: T): void {
+	if (i > v.d.length) panic(`insertion index (is ${i}) should be <= len (is ${v.d.length})`);
+	v.d.splice(i, 0, item);
 }
 
-/** `Vec::pop` of an element that can be `undefined`: the last element, or `none` if empty. */
-export function vecPop<T>(v: T[], none: None): T | None {
-	return v.length === 0 ? none : (v.pop() as T);
+/** `Vec::pop`: the last element, or `none` if empty, `undefined` unless an element can be. */
+export function vecPop<T>(v: Vec<T>): T | undefined;
+export function vecPop<T>(v: Vec<T>, none: None): T | None;
+export function vecPop<T>(v: Vec<T>, none?: None): T | None | undefined {
+	const d = v.d;
+	if (d.length === 0) return none;
+	if (d.length > v.peak) v.peak = d.length;
+	return d.pop() as T;
 }
 
 /**
  * `Vec::pop_if`: the last element if `f` takes it, given the element, or else `none`. An
  * empty `v` drops `f` by `dropF` uncalled.
  */
-export function vecPopIf<T>(v: T[], f: (item: T) => boolean, dropF?: (f: (item: T) => boolean) => void): T | undefined;
-export function vecPopIf<T>(v: T[], f: (item: T) => boolean, dropF: ((f: (item: T) => boolean) => void) | undefined, none: None): T | None;
-export function vecPopIf<T>(v: T[], f: (item: T) => boolean, dropF?: (f: (item: T) => boolean) => void, none?: None): T | None | undefined {
-	if (v.length === 0) {
+export function vecPopIf<T>(v: Vec<T>, f: (item: T) => boolean, dropF?: (f: (item: T) => boolean) => void): T | undefined;
+export function vecPopIf<T>(v: Vec<T>, f: (item: T) => boolean, dropF: ((f: (item: T) => boolean) => void) | undefined, none: None): T | None;
+export function vecPopIf<T>(v: Vec<T>, f: (item: T) => boolean, dropF?: (f: (item: T) => boolean) => void, none?: None): T | None | undefined {
+	const d = v.d;
+	if (d.length === 0) {
 		dropF?.(f);
 		return none;
 	}
-	return f(v[v.length - 1]) ? (v.pop() as T) : none;
+	if (!f(d[d.length - 1])) return none;
+	vecKeep(v);
+	return d.pop() as T;
 }
 
 /** `Vec::pop_if` of an element JS copies, which `f` takes the place of. */
-export function vecPopIfMut<T>(v: T[], f: (item: Place<T>) => boolean, dropF?: (f: (item: Place<T>) => boolean) => void): T | undefined;
+export function vecPopIfMut<T>(v: Vec<T>, f: (item: Place<T>) => boolean, dropF?: (f: (item: Place<T>) => boolean) => void): T | undefined;
 export function vecPopIfMut<T>(
-	v: T[],
+	v: Vec<T>,
 	f: (item: Place<T>) => boolean,
 	dropF: ((f: (item: Place<T>) => boolean) => void) | undefined,
 	none: None,
 ): T | None;
 export function vecPopIfMut<T>(
-	v: T[],
+	v: Vec<T>,
 	f: (item: Place<T>) => boolean,
 	dropF?: (f: (item: Place<T>) => boolean) => void,
 	none?: None,
 ): T | None | undefined {
-	if (v.length === 0) {
+	const d = v.d;
+	if (d.length === 0) {
 		dropF?.(f);
 		return none;
 	}
-	return f(new AtIndex(v, v.length - 1)) ? (v.pop() as T) : none;
+	if (!f(new AtIndex(d, d.length - 1))) return none;
+	vecKeep(v);
+	return d.pop() as T;
 }
 
 /** `Vec::remove`: the element at `i`, with those after it moved down. */
-export function vecRemove<T>(v: T[], i: number): T {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`);
-	return v.splice(i, 1)[0];
+export function vecRemove<T>(v: Vec<T>, i: number): T {
+	if (i >= v.d.length) panic(`removal index (is ${i}) should be < len (is ${v.d.length})`);
+	vecKeep(v);
+	return v.d.splice(i, 1)[0];
 }
 
 /** `Vec::truncate`, and `clear` to 0: the first `len` elements, if there are more, and then each other drops in order. */
-export function vecTruncate<T>(v: T[], len: number, drop?: (item: T) => void): void {
-	if (len >= v.length) return;
-	const cut = v.splice(len);
+export function vecTruncate<T>(v: Vec<T>, len: number, drop?: (item: T) => void): void {
+	if (len >= v.d.length) return;
+	vecKeep(v);
+	const cut = v.d.splice(len);
 	if (drop !== undefined) dropAll(cut, drop);
 }
 
 /** `Vec::swap_remove`: the element at `i`, with the last moved into its place. */
-export function vecSwapRemove<T>(v: T[], i: number): T {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`);
-	const item = v[i];
-	v[i] = v[v.length - 1];
-	v.pop();
+export function vecSwapRemove<T>(v: Vec<T>, i: number): T {
+	const d = v.d;
+	if (i >= d.length) panic(`swap_remove index (is ${i}) should be < len (is ${d.length})`);
+	vecKeep(v);
+	const item = d[i];
+	d[i] = d[d.length - 1];
+	d.pop();
 	return item;
 }
 
 /** `Vec::extend_from_slice` of `size`-byte elements: room reserved for `s`, then a clone of each of its elements pushed in order, as far as they clone. */
-export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
+export function vecExtendFromSlice<T>(v: Vec<T>, s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
 	vecReserve(v, s.length, size);
-	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
+	const d = v.d;
+	for (let i = 0; i < s.length; i++) d.push(clone === undefined ? s[i] : clone(s[i]));
 }
 
 /**
@@ -1590,28 +1612,29 @@ export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clo
  * elements, as std's: truncated to `src`'s length, each element it keeps cloned over by
  * `cloneOver`, and then the rest of `src` cloned onto its end.
  */
-export function vecCloneFrom<T>(v: T[] & Capped, src: ArrayLike<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
-	// Its buffer, kept as it is cut, where its length was all that said how big it is.
-	const cap = vecCapacity(v, size);
+export function vecCloneFrom<T>(v: Vec<T>, from: ArrayLike<T> | Vec<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Vec<T> {
+	const src = asSlice(from);
 	vecTruncate(v, src.length, drop);
-	capSet(v, v.length, cap, size);
-	const kept = v.length;
-	for (let i = 0; i < kept; i++) v[i] = cloneOver(v[i], src[i], clone, drop, over);
+	const d = v.d;
+	const kept = d.length;
+	for (let i = 0; i < kept; i++) d[i] = cloneOver(d[i], src[i], clone, drop, over);
 	vecReserve(v, src.length - kept, size);
-	for (let i = kept; i < src.length; i++) v.push(clone === undefined ? src[i] : clone(src[i]));
+	for (let i = kept; i < src.length; i++) d.push(clone === undefined ? src[i] : clone(src[i]));
 	return v;
 }
 
-/** `vecCloneFrom` as a `CloneFrom`. */
-export function vecCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
+/** `vecCloneFrom` as a `CloneFrom`, of a `Vec` from another. */
+export function vecCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Vec<T>> {
 	return (old, src) => vecCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `Vec::append` of `size`-byte elements: room reserved for `other`'s, which then move over in order, leaving it empty. */
-export function vecAppend<T>(v: T[] & Capped, other: T[], size: number): void {
-	vecReserve(v, other.length, size);
-	for (let i = 0; i < other.length; i++) v.push(other[i]);
-	other.length = 0;
+export function vecAppend<T>(v: Vec<T>, other: Vec<T>, size: number): void {
+	vecReserve(v, other.d.length, size);
+	const d = v.d;
+	for (const item of other.d) d.push(item);
+	vecKeep(other);
+	other.d.length = 0;
 }
 
 /**
@@ -1619,45 +1642,46 @@ export function vecAppend<T>(v: T[] & Capped, other: T[], size: number): void {
  * rest, then `len - 1` clones of `value` by `clone` and `value` itself; else truncated,
  * each element cut dropping in order, and then `value`.
  */
-export function vecResize<T>(v: T[] & Capped, len: number, value: T, size: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
-	if (len <= v.length) {
+export function vecResize<T>(v: Vec<T>, len: number, value: T, size: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+	const d = v.d;
+	if (len <= d.length) {
 		vecTruncate(v, len, drop);
 		drop?.(value);
 		return;
 	}
-	vecReserve(v, len - v.length, size);
-	while (v.length < len - 1) v.push(clone === undefined ? value : clone(value));
-	v.push(value);
+	vecReserve(v, len - d.length, size);
+	while (d.length < len - 1) d.push(clone === undefined ? value : clone(value));
+	d.push(value);
 }
 
 /** `Vec::resize_with` of `size`-byte elements to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
-export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size: number, drop?: (item: T) => void): void {
-	if (len <= v.length) return vecTruncate(v, len, drop);
-	vecReserve(v, len - v.length, size);
-	while (v.length < len) v.push(f());
+export function vecResizeWith<T>(v: Vec<T>, len: number, f: () => T, size: number, drop?: (item: T) => void): void {
+	const d = v.d;
+	if (len <= d.length) return vecTruncate(v, len, drop);
+	vecReserve(v, len - d.length, size);
+	while (d.length < len) d.push(f());
 }
 
-/** `Vec::split_off` of `size`-byte elements: those from `at` on, moved to a new vector with room for exactly them. */
-export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
-	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
-	return vecExact(v.splice(at), size);
+/** `Vec::split_off`: those from `at` on, moved to a new vector with room for exactly them. */
+export function vecSplitOff<T>(v: Vec<T>, at: number): Vec<T> {
+	if (at > v.d.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.d.length})`);
+	vecKeep(v);
+	return vecFrom(v.d.splice(at));
 }
 
 /**
  * `Vec::into_flattened` of arrays of `n` `size`-byte elements: their elements in order,
  * with room for `n` times as many as it had room for arrays, as std's keeps its buffer.
  */
-export function vecIntoFlattened<T>(v: (T[] & Capped)[] & Capped, n: number, size: number): T[] {
-	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow");
-	const out: T[] & Capped = v.flat() as T[];
-	capSet(out, out.length, vecCapacity(v, size * n) * n, size);
-	return out;
+export function vecIntoFlattened<T>(v: Vec<T[]>, n: number, size: number): Vec<T> {
+	if (size === 0 && v.d.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow");
+	return new Vec(v.d.flat() as T[], size === 0 ? 0 : vecCapacity(v, size * n) * n);
 }
 
 /** `Vec::into_flattened` of byte arrays of `n`. */
-export function byteVecIntoFlattened(v: Uint8Array[] & Capped, n: number): ByteVec {
+export function byteVecIntoFlattened(v: Vec<Uint8Array>, n: number): ByteVec {
 	const out = new ByteVec(vecCapacity(v, n) * n);
-	for (const a of v) {
+	for (const a of v.d) {
 		out.data.set(a, out.length);
 		out.length += n;
 	}
@@ -1909,16 +1933,15 @@ export function byteSliceToByteVec(s: ByteSlice): ByteVec {
 }
 
 /** `vec![value; n]`: `n - 1` clones of `value`, in order, then `value` itself, with room for exactly them, or `value` dropped where `n` is 0; `clone` is `undefined` where a clone is the value. */
-export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): T[] {
-	const v: T[] & Capped = [];
+export function vecFromElem<T>(value: T, n: number, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): Vec<T> {
+	const d: T[] = [];
 	if (n === 0) {
 		drop?.(value);
-		return v;
+		return new Vec(d);
 	}
-	for (let i = 1; i < n; i++) v.push(clone === undefined ? value : clone(value));
-	v.push(value);
-	v.cap = n;
-	return v;
+	for (let i = 1; i < n; i++) d.push(clone === undefined ? value : clone(value));
+	d.push(value);
+	return new Vec(d, n);
 }
 
 const SLAB = 8192;
@@ -2121,11 +2144,11 @@ export function byteVecDedupByKeyMut<K>(v: ByteVec, key: (byte: Place<number>) =
 	byteVecDedupByMut(v, (a, b) => eq(key(a), key(b)));
 }
 
-// Capacity. std leaves a vector's growth unspecified past `capacity() >= len` and what
-// `with_capacity` and `reserve` ask for, so a `Vec` or `VecDeque` holds one, as `cap`,
-// only where an operation sets it, and a push never reads or writes it. Reading one
-// doubles it while short of the length, from the least `RawVec` allocates, as std's
-// pushes grow it. An `rt.ByteVec`'s is its buffer's length.
+// Capacity. A `Vec` holds std's exactly: `cap`, the capacity an operation last set, and
+// `peak`, the most it held since, where a step shortened it, so a push reads and writes
+// neither. Reading one doubles `cap` while short of the length or the peak, from the
+// least `RawVec` allocates, as std's pushes grow it. A `VecDeque`'s is its buffer's
+// length, and so is an `rt.ByteVec`'s.
 
 /** wasm32's `isize::MAX`, the most bytes std's `Layout` describes. */
 const ISIZE_MAX = 0x7fffffff;
@@ -2133,9 +2156,29 @@ const ISIZE_MAX = 0x7fffffff;
 /** wasm32's `usize::MAX`. */
 const USIZE_MAX = 0xffffffff;
 
-/** A vector's storage, and `cap`, the capacity an operation last set it to, if any. */
-export interface Capped {
-	cap?: number;
+/** `Vec<T>` of other than bytes: its items, which its slices are, and what gives its capacity. */
+export class Vec<T> {
+	/** Its items, which a `&[T]` of it is. */
+	d: T[];
+	/** The capacity an operation last set, which pushes double from, or 0. */
+	cap: number;
+	/** The most it held since `cap` was set, where a step shortened it, which its capacity holds. */
+	peak = 0;
+
+	constructor(d: T[] = [], cap = 0) {
+		this.d = d;
+		this.cap = cap;
+	}
+}
+
+/** A `Vec` of `items`, which it takes, with room for exactly them: how a caller hands one in, and reads one back as `d`. */
+export function vecFrom<T>(items: T[]): Vec<T> {
+	return new Vec(items, items.length);
+}
+
+/** The items of `s`, a slice or a `Vec`, as `Vec`'s `Deref` borrows them. */
+export function asSlice<T>(s: ArrayLike<T> | Vec<T>): ArrayLike<T> {
+	return s instanceof Vec ? s.d : s;
 }
 
 /** How many `size`-byte elements a vector holds at most: `usize::MAX` of zero-sized ones. */
@@ -2144,21 +2187,22 @@ export function vecMax(size: number): number {
 }
 
 /** The capacity of a vector holding `len` of `size`-byte elements, from `cap`, the one last set, as pushes grow std's. */
-export function capOf(len: number, cap: number | undefined, size: number): number {
+export function capOf(len: number, cap: number, size: number): number {
 	if (size === 0) return USIZE_MAX;
-	let c = cap ?? 0;
+	let c = cap;
 	while (c < len) c = Math.max(c * 2, size === 1 ? 8 : size <= 1024 ? 4 : 1);
 	return c;
 }
 
-/** `c`'s capacity set to `cap`, holding `len`, where reading it would not give that. */
-export function capSet(c: object & Capped, len: number, cap: number, size: number): void {
-	if (size !== 0 && (c.cap !== undefined || cap !== capOf(len, undefined, size))) c.cap = cap;
+/** `v`'s capacity set to `cap`, as a step that fixes it sets std's. */
+export function vecHold<T>(v: Vec<T>, cap: number): void {
+	v.cap = cap;
+	v.peak = 0;
 }
 
-/** `c`'s capacity set to `cap`, which `reserve` asked for, so it holds as the length drops. */
-export function capHold(c: object & Capped, cap: number, size: number): void {
-	if (size !== 0) c.cap = cap;
+/** `v`'s length recorded as its peak, before a step shortens it, so its capacity holds. */
+export function vecKeep<T>(v: Vec<T>): void {
+	if (v.d.length > v.peak) v.peak = v.d.length;
 }
 
 /**
@@ -2193,48 +2237,46 @@ export function capShrink(len: number, cap: number, min: number): number {
 }
 
 /** `Vec::with_capacity` of `size`-byte elements, which panics past what it may hold. */
-export function vecWithCapacity<T>(n: number, size: number): T[] {
+export function vecWithCapacity<T>(n: number, size: number): Vec<T> {
 	if (n > vecMax(size)) panic("capacity overflow");
-	const v: T[] & Capped = [];
-	capSet(v, 0, n, size);
-	return v;
+	return new Vec<T>([], n);
 }
 
 /** `Vec::capacity` of `size`-byte elements. */
-export function vecCapacity<T>(v: T[] & Capped, size: number): number {
-	return capOf(v.length, v.cap, size);
+export function vecCapacity<T>(v: Vec<T>, size: number): number {
+	return capOf(v.peak > v.d.length ? v.peak : v.d.length, v.cap, size);
 }
 
 /** `Vec::reserve` of `size`-byte elements. */
-export function vecReserve<T>(v: T[] & Capped, additional: number, size: number): void {
-	capHold(v, capReserve(v.length, vecCapacity(v, size), additional, size), size);
+export function vecReserve<T>(v: Vec<T>, additional: number, size: number): void {
+	vecHold(v, capReserve(v.d.length, vecCapacity(v, size), additional, size));
 }
 
 /** `Vec::reserve_exact` of `size`-byte elements. */
-export function vecReserveExact<T>(v: T[] & Capped, additional: number, size: number): void {
-	capHold(v, capReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+export function vecReserveExact<T>(v: Vec<T>, additional: number, size: number): void {
+	vecHold(v, capReserveExact(v.d.length, vecCapacity(v, size), additional, size));
 }
 
 /** `Vec::try_reserve` of `size`-byte elements: `reserve`'s capacity, or the error where it panics. */
-export function vecTryReserve<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
-	return capTried(v, capTryReserve(v.length, vecCapacity(v, size), additional, size), size);
+export function vecTryReserve<T>(v: Vec<T>, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserve(v.d.length, vecCapacity(v, size), additional, size));
 }
 
 /** `Vec::try_reserve_exact` of `size`-byte elements. */
-export function vecTryReserveExact<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
-	return capTried(v, capTryReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+export function vecTryReserveExact<T>(v: Vec<T>, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserveExact(v.d.length, vecCapacity(v, size), additional, size));
 }
 
 /** `v`'s capacity held at `cap`, or the overflow `undefined` is. */
-function capTried(v: object & Capped, cap: number | undefined, size: number): Result<undefined, TryReserveError> {
+function capTried<T>(v: Vec<T>, cap: number | undefined): Result<undefined, TryReserveError> {
 	if (cap === undefined) return CAPACITY_OVERFLOW;
-	capHold(v, cap, size);
+	vecHold(v, cap);
 	return OK;
 }
 
 /** `Vec::shrink_to` of `size`-byte elements, and `shrink_to_fit` of 0. */
-export function vecShrinkTo<T>(v: T[] & Capped, min: number, size: number): void {
-	capSet(v, v.length, capShrink(v.length, vecCapacity(v, size), min), size);
+export function vecShrinkTo<T>(v: Vec<T>, min: number, size: number): void {
+	vecHold(v, capShrink(v.d.length, vecCapacity(v, size), min));
 }
 
 /**
@@ -2254,12 +2296,6 @@ export function byteVecCloneFromFn(): CloneFrom<ByteVec> {
 	return byteVecCloneFrom;
 }
 
-/** `v`, a new `Vec` of `size`-byte elements, with room for exactly what it holds, as std's `clone` makes one. */
-export function vecExact<T>(v: T[], size: number): T[] {
-	capSet(v, v.length, v.length, size);
-	return v;
-}
-
 /** `v`'s storage moved to `cap` bytes. */
 function realloc(v: ByteVec, cap: number): void {
 	const data = bytes(cap);
@@ -2271,17 +2307,15 @@ function realloc(v: ByteVec, cap: number): void {
  * The bytes of `v` as a `Vec<number>`, with its capacity, as a deque or heap takes it:
  * held, as `reserve` may have asked for it, though its length gives it now.
  */
-export function byteVecToVec(v: ByteVec): number[] {
-	const out = Array.from(byteVecView(v));
-	capHold(out, v.data.length, 1);
-	return out;
+export function byteVecToVec(v: ByteVec): Vec<number> {
+	return new Vec(Array.from(byteVecView(v)), v.data.length);
 }
 
 /** A `Vec<u8>` of the bytes in `v`, with its capacity, as a heap gives them up. */
-export function byteVecFromVec(v: number[] & Capped): ByteVec {
-	const out = new ByteVec(capOf(v.length, v.cap, 1));
-	out.data.set(v);
-	out.length = v.length;
+export function byteVecFromVec(v: Vec<number>): ByteVec {
+	const out = new ByteVec(vecCapacity(v, 1));
+	out.data.set(v.d);
+	out.length = v.d.length;
 	return out;
 }
 
@@ -2371,8 +2405,8 @@ export function byteVecShrinkTo(v: ByteVec, min: number): void {
 }
 
 // Cows of slices. An owned one is its `Vec` and a borrowed one its slice, told apart by
-// class: a `Cow<[u8]>` is an `rt.ByteVec` or an `rt.ByteSlice`, and any other is an array
-// or the `rt.Borrowed` wrapping the array it borrows.
+// class: a `Cow<[u8]>` is an `rt.ByteVec` or an `rt.ByteSlice`, and any other is an
+// `rt.Vec` or the `rt.Borrowed` wrapping the array it borrows.
 
 /**
  * The slice a `Cow<[T]>` borrows, which it clones before it changes. A `&mut` to the
@@ -2387,13 +2421,13 @@ export class Borrowed<T> {
 }
 
 /** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows. */
-export type Cow<T> = T[] | Borrowed<T>;
+export type Cow<T> = Vec<T> | Borrowed<T>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 
 /** `Deref` of a `Cow<[T]>`: its slice. */
 export function cowSlice<T>(c: Cow<T>): T[] {
-	return c instanceof Borrowed ? c.slice : c;
+	return c instanceof Borrowed ? c.slice : c.d;
 }
 
 /** `Deref` of a `Cow<[u8]>`: its bytes. */
@@ -2402,12 +2436,11 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
 }
 
 /**
- * `Cow::into_owned` of a `Cow<[T]>`, of `size`-byte items: its `Vec`, or a clone of what it
- * borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
+ * `Cow::into_owned` of a `Cow<[T]>`: its `Vec`, or a clone of what it borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
  */
-export function cowIntoOwned<T>(c: Cow<T>, size: number, clone?: (item: T) => T): T[] {
+export function cowIntoOwned<T>(c: Cow<T>, clone?: (item: T) => T): Vec<T> {
 	if (!(c instanceof Borrowed)) return c;
-	return vecExact(clone === undefined ? c.slice.slice() : c.slice.map(clone), size);
+	return vecFrom(clone === undefined ? c.slice.slice() : c.slice.map(clone));
 }
 
 /** `Cow::into_owned` of a `Cow<[u8]>`. */
@@ -2416,12 +2449,12 @@ export function byteCowIntoOwned(c: ByteCow): ByteVec {
 }
 
 /**
- * `Clone` of a `Cow<[T]>`, of `size`-byte items: a borrow of the same slice, or a clone of
- * its `Vec` with room for exactly its items, as `to_vec` makes it.
+ * `Clone` of a `Cow<[T]>`: a borrow of the same slice, or a clone of its `Vec` with room
+ * for exactly its items, as `to_vec` makes it.
  */
-export function cowClone<T>(c: Cow<T>, size: number, clone?: (item: T) => T): Cow<T> {
+export function cowClone<T>(c: Cow<T>, clone?: (item: T) => T): Cow<T> {
 	if (c instanceof Borrowed) return new Borrowed(c.slice);
-	return vecExact(clone === undefined ? c.slice() : c.map(clone), size);
+	return vecFrom(clone === undefined ? c.d.slice() : c.d.map(clone));
 }
 
 /** `Clone` of a `Cow<[u8]>`. */
@@ -2434,8 +2467,8 @@ export function byteCowClone(c: ByteCow): ByteCow {
  * one's, as `vecCloneFrom` clones into it, and else `src`'s clone, made before `c` drops.
  */
 export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T> {
-	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src, size, clone, drop, over);
-	const item = cowClone(src, size, clone);
+	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src.d, size, clone, drop, over);
+	const item = cowClone(src, clone);
 	cowDrop(c, drop);
 	return item;
 }
@@ -2457,7 +2490,7 @@ export function byteCowCloneFromFn(): CloneFrom<ByteCow> {
 
 /** Drop a `Cow<[T]>`: the items it owns, by `f` if given. */
 export function cowDrop<T>(c: Cow<T>, f?: (item: T) => void): void {
-	if (!(c instanceof Borrowed)) dropAll(c, f);
+	if (!(c instanceof Borrowed)) dropAll(c.d, f);
 }
 
 /** `f` of the slices two `Cow<[T]>`s deref to, as their `PartialEq` and `Ord` compare them. */
