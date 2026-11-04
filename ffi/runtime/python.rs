@@ -206,8 +206,14 @@ fn resume() {
 		let running = match Obj::new(PyObject_CallNoArgs(resume)) {
 			Ok(queue) => is_type(queue.ptr(), &QUEUE).then(|| queue_of(queue.ptr()).ok()).flatten(),
 			Err(Raised) => {
-				// Nothing is lost: each queue's socket signals it instead.
-				PyErr_WriteUnraisable(resume);
+				// Nothing is lost: each queue's socket signals it instead, and an interrupt
+				// its Python ran into is raised again at the thread's next chance.
+				if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
+				} else {
+					PyErr_WriteUnraisable(resume);
+				}
 				None
 			}
 		};
