@@ -1073,16 +1073,18 @@ fn own_ne<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// Whether `ty`'s `PartialOrd::{test}`, `lt` or another of its tests, reaches the crate's
-/// own `test` of a type it holds, or a `RefCell`'s, which `partial_cmp` stands for only
-/// while that is the default: through a tuple's last element, `Arc`s, `Reverse`s, and
-/// cells. A `RefCell`'s borrows elsewhere than its `partial_cmp`, where a hook reads.
+/// own `test` of a type it holds, which `partial_cmp` stands for only while that is the
+/// default: through a tuple's last element, `Arc`s, `Reverse`s, and cells. In a program
+/// with a panic hook, a `RefCell`'s own too, which borrows elsewhere than its `partial_cmp`.
 fn own_test<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str) -> bool {
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, true);
 	match ty.kind() {
 		ty::Tuple(tys) => tys.last().is_some_and(|&t| own_test(b, t, test)),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty).or_else(|| reverse_of(b, ty)) => own_test(b, inner, test),
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => by == "refCellBy" || own_test(b, inner, test),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			(by == "refCellBy" && b.t.hooked) || own_test(b, inner, test)
+		}
 		_ if by_own(b, ty) => {
 			let f = trait_fn(tcx, "PartialOrd", test);
 			Instance::try_resolve(tcx, b.t.typing_env_pub(), f, tcx.mk_args(&[ty.into(), ty.into()]))
