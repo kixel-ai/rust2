@@ -65,11 +65,11 @@ export function exactHint(n: number): SizeHint {
  * std's default `ExactSizeIterator::len` of `it`: its size hint's lower bound, which
  * panics unless the upper bound is the same.
  */
-function hintLen(it: Iter<unknown>, at?: Location): number {
+function hintLen(it: Iter<unknown>): number {
 	const [lower, upper] = it.sizeHint();
 	if (upper !== lower) {
 		const left = upper === undefined ? "None" : `Some(${upper})`;
-		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, at, true);
+		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, "exact_len", true);
 	}
 	return lower;
 }

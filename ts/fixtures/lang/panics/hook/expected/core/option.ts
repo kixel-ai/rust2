@@ -9,6 +9,20 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
+export function map$1vkt7xs(self: rt.char | undefined, _: (a0: rt.char) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return self as rt.u32;
+}
+
+export function map$0a57co2(self: rt.u32 | undefined, f: (a0: rt.u32) => rt.u8): rt.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function mapOr$1e4a1e0(self: rt.Ordering | undefined, default_: rt.u8, f: (a0: rt.Ordering) => rt.u8): rt.u8 {
 	if (self === undefined) {
 		return default_;

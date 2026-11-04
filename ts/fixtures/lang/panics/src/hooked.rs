@@ -13,6 +13,7 @@ use std::future::Future;
 use std::ops::Bound;
 use std::panic::{self, PanicHookInfo};
 use std::pin::Pin;
+use std::sync::atomic::{Ordering, compiler_fence, fence};
 use std::sync::{Mutex, OnceLock};
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
@@ -77,7 +78,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 26 {
+	match kind % 32 {
 		0 => panic!("literal"),
 		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),
@@ -107,6 +108,12 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		22 => out.extend((0..n).step_by(usize::from(n) * 0)),
 		23 => out.extend(v.clone().drain(usize::from(n) + 3..)),
 		24 => panic::panic_any("any"),
+		26 => assert!(n == n.wrapping_add(1)),
+		27 => panic!(),
+		28 => unreachable!(),
+		29 => todo!(),
+		30 => assert_ne!(n, n),
+		31 => unimplemented!("not {n}"),
 		_ => {
 			let len = HashMap::<u8, u8>::with_capacity(usize::MAX).len();
 			out.push(len as u8);
@@ -149,7 +156,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 36 {
+	match kind % 44 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -220,6 +227,31 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			EXCLUSIVE.with(|cell| cell.try_borrow_mut().map(std::mem::forget).unwrap_or_default());
 			EXCLUSIVE.with_borrow(|&v| out.push(v));
 		}
-		_ => out.extend(v.clone().splice(at + 3.., [n])),
+		35 => out.extend(v.clone().splice(at + 3.., [n])),
+		36 => out.extend(char::from_digit(u32::from(n), 37 + u32::from(n)).map(u32::from).map(|c| c as u8)),
+		37 => fence([Ordering::Relaxed, Ordering::SeqCst][at / 256]),
+		38 => compiler_fence([Ordering::Relaxed, Ordering::SeqCst][at / 256]),
+		39 => out.push(Duration::from_secs_f64(-1.0 - f64::from(n)).subsec_nanos() as u8),
+		40 => out.push(Duration::from_secs_f32(-1.0 - f32::from(n)).subsec_nanos() as u8),
+		41 => out.push(Duration::from_secs(1).mul_f64(-1.0 - f64::from(n)).subsec_nanos() as u8),
+		42 => out.push(Duration::from_secs(1).div_f32(-1.0 - f32::from(n)).subsec_nanos() as u8),
+		_ => out.push(Lying(n).len() as u8),
 	}
 }
+
+/// An iterator whose size hint has no upper bound, though it says its length is exact.
+struct Lying(u8);
+
+impl Iterator for Lying {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		None
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		(usize::from(self.0), None)
+	}
+}
+
+impl ExactSizeIterator for Lying {}

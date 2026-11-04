@@ -1352,6 +1352,15 @@ fn dropping_operand<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> Opti
 		.map(|(_, ty)| ty)
 }
 
+/// Where std's `#[track_caller]` panic being mapped is, as `rt.panic` takes it after its
+/// message, in a program with a panic hook: nothing in one without.
+fn hook_at(b: &Body<'_, '_, '_>) -> Vec<Expr> {
+	match b.t.hooked {
+		true => vec![b.panic_at.clone().unwrap_or_else(Expr::undefined)],
+		false => Vec::new(),
+	}
+}
+
 /// `owner::name` for a standard library function.
 pub fn key(tcx: TyCtxt<'_>, def_id: DefId) -> Option<(String, String)> {
 	let name = tcx.item_name(def_id).to_string();
@@ -2798,11 +2807,11 @@ fn mapping<'tcx>(
 		("panicking", "panic_fmt") => {
 			let message = args.pop()?;
 			match literal(&message) {
-				Some(s) => Expr::rt("panic", vec![Expr::Str(s)]),
+				Some(s) => Expr::rt("panic", [vec![Expr::Str(s)], hook_at(b)].concat()),
 				None => Expr::rt("panicFmt", vec![message]),
 			}
 		}
-		("panicking", "panic") => Expr::rt("panic", args),
+		("panicking", "panic") => Expr::rt("panic", [args, hook_at(b)].concat()),
 		// The harness writes a payload of text, and `Box<dyn Any>` for any other. A hook reads
 		// the payload itself: a `String`, a `&str`, or the `dyn Any` object of any other.
 		("panic", "panic_any") | ("rt", "begin_panic") => {
@@ -2856,7 +2865,9 @@ fn mapping<'tcx>(
 		("PanicHookInfo", "location") => args.pop()?.member("location"),
 		// A panic aborts.
 		("PanicHookInfo", "can_unwind") => Expr::lit("false"),
-		("panicking", "panic_explicit") => Expr::rt("panic", vec![Expr::Str("explicit panic".into())]),
+		("panicking", "panic_explicit") => {
+			Expr::rt("panic", [vec![Expr::Str("explicit panic".into())], hook_at(b)].concat())
+		}
 		("panicking", "panic_display" | "unreachable_display") => {
 			let value = args.pop()?;
 			let value = b.fmt_value(fmt::Trait::Display, targ(gargs, 0), value, span, out);

@@ -3,8 +3,9 @@
 import * as rt from "./rt.ts";
 import { drop$Result_sync_MutexGuard_u8_sync_PoisonError_sync_MutexGuard_u8, of$String, of$ref_str, of$u32, ofPlace$String, ofPlace$ref_str, ofPlace$u32, NOTE } from "./lib.ts";
 import type * as Any from "./core/any.Any.ts";
-import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, filter$0v80fk8 } from "./core/option.ts";
+import { unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$1vkt7xs as option_map$1vkt7xs, map$0a57co2 as option_map$0a57co2, filter$0v80fk8 } from "./core/option.ts";
 import { map$170q7dc as result_map$170q7dc, unwrapOrDefault$0ry0sbh as result_unwrapOrDefault$0ry0sbh, unwrapOr$02rbyvl as result_unwrapOr$02rbyvl } from "./core/result.ts";
+import * as Lying from "./hooked.Lying.ts";
 import { withBorrow$1s4hgxf } from "./std/thread/local.ts";
 
 /**
@@ -29,7 +30,7 @@ export function record(info: rt.PanicHookInfo): void {
 	} else {
 		kind = "&str";
 	}
-	const at: rt.Location = rt.optionUnwrap(info.location, undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 35, col: 30 });
+	const at: rt.Location = rt.optionUnwrap(info.location, undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 36, col: 30 });
 	const _27: string = rt.strReplace(rt.fmtToString((f: rt.Formatter) => rt.fmtPanicHookInfoDisplay(info, f)), at.file, stdNamed(at.file));
 	const _37: string | undefined = info.text;
 	const _39: string = stdNamed(at.file);
@@ -74,7 +75,7 @@ export function hook(): void {
 		captured(info);
 	}, (): void => {
 		rt.drop(captured);
-	}), { capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/raw_vec/mod.rs", line: 29, col: 5 }, trusted_capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/spec_from_iter_nested.rs", line: 57, col: 18 }, swap_remove: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 2178, col: 13 }, into_flattened: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3667, col: 36 }, rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3902, col: 9 }, rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3948, col: 9 }, ord_violation: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/sort/shared/smallsort.rs", line: 854, col: 5 }, ord_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cmp.rs", line: 1166, col: 9 }, f32_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f32.rs", line: 1665, col: 9 }, f64_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f64.rs", line: 1643, col: 9 }, encode_utf8: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2507, col: 9 }, encode_utf16: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2601, col: 13 }, format: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/fmt.rs", line: 657, col: 14 }, to_string: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/string.rs", line: 2997, col: 14 }, debug_struct_fields: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/fmt/mod.rs", line: 2572, col: 9 }, join_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/str.rs", line: 177, col: 10 }, hash_capacity: { file: "/cargo/registry/25cdd57fae9f0462/hashbrown-0.17.1/src/raw.rs", line: 36, col: 40 }, btree_range_equal_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 110, col: 21 }, btree_range_equal_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 112, col: 21 }, btree_range_order_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 119, col: 21 }, btree_range_order_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 121, col: 21 }, deque_insert: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2612, col: 9 }, deque_swap_i: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1062, col: 9 }, deque_swap_j: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1063, col: 9 }, deque_rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3198, col: 9 }, deque_rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3243, col: 9 }, deque_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2724, col: 9 }, list_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/linked_list.rs", line: 1015, col: 9 }, mutex_lock: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sys/sync/mutex/no_threads.rs", line: 28, col: 9 }, once_force: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sync/once.rs", line: 227, col: 20 }, reentrant_init: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/once.rs", line: 325, col: 66 }, lazy_poisoned: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/lazy.rs", line: 386, col: 5 }, ready_poll: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 23, col: 35 }, ready_into_inner: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 46, col: 16 }, duration_new: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 281, col: 18 }, duration_from_mins: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 540, col: 13 }, duration_from_hours: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 510, col: 13 }, duration_add: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1345, col: 31 }, duration_sub: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1365, col: 31 }, duration_mul: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1385, col: 31 } });
+	}), { capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/raw_vec/mod.rs", line: 29, col: 5 }, trusted_capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/spec_from_iter_nested.rs", line: 57, col: 18 }, swap_remove: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 2178, col: 13 }, into_flattened: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3667, col: 36 }, rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3902, col: 9 }, rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3948, col: 9 }, ord_violation: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/sort/shared/smallsort.rs", line: 854, col: 5 }, ord_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cmp.rs", line: 1166, col: 9 }, f32_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f32.rs", line: 1665, col: 9 }, f64_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f64.rs", line: 1643, col: 9 }, encode_utf8: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2507, col: 9 }, encode_utf16: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2601, col: 13 }, format: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/fmt.rs", line: 657, col: 14 }, to_string: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/string.rs", line: 2997, col: 14 }, debug_struct_fields: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/fmt/mod.rs", line: 2572, col: 9 }, exact_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/traits/exact_size.rs", line: 122, col: 9 }, join_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/str.rs", line: 177, col: 10 }, hash_capacity: { file: "/cargo/registry/25cdd57fae9f0462/hashbrown-0.17.1/src/raw.rs", line: 36, col: 40 }, btree_range_equal_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 110, col: 21 }, btree_range_equal_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 112, col: 21 }, btree_range_order_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 119, col: 21 }, btree_range_order_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 121, col: 21 }, deque_insert: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2612, col: 9 }, deque_swap_i: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1062, col: 9 }, deque_swap_j: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1063, col: 9 }, deque_rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3198, col: 9 }, deque_rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3243, col: 9 }, deque_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2724, col: 9 }, list_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/linked_list.rs", line: 1015, col: 9 }, mutex_lock: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sys/sync/mutex/no_threads.rs", line: 28, col: 9 }, once_force: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sync/once.rs", line: 227, col: 20 }, reentrant_init: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/once.rs", line: 325, col: 66 }, lazy_poisoned: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/lazy.rs", line: 386, col: 5 }, ready_poll: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 23, col: 35 }, ready_into_inner: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 46, col: 16 }, duration_new: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 281, col: 18 }, duration_from_mins: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 540, col: 13 }, duration_from_hours: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 510, col: 13 }, duration_add: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1345, col: 31 }, duration_sub: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1365, col: 31 }, duration_mul: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1385, col: 31 } });
 }
 
 export function tracked(n: rt.u8, caller: rt.Location): rt.u8 {
@@ -87,74 +88,92 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const n: rt.u8 = option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data), 0);
 	hook();
 	const v: rt.ByteVec = rt.byteVecFrom(Uint8Array.of(n, n));
-	const _10: rt.u8 = rt.u8Rem(kind, 26, { file: "fixtures/lang/panics/src/hooked.rs", line: 80, col: 11 });
+	const _10: rt.u8 = rt.u8Rem(kind, 32, { file: "fixtures/lang/panics/src/hooked.rs", line: 81, col: 11 });
 	if (_10 === 0) {
-		rt.panicFmt(["literal"], { file: "fixtures/lang/panics/src/hooked.rs", line: 81, col: 14 });
+		rt.panicFmt(["literal"], { file: "fixtures/lang/panics/src/hooked.rs", line: 82, col: 14 });
 	} else if (_10 === 1) {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
-		rt.panicFmt(["formatted ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 82, col: 14 });
+		rt.panicFmt(["formatted ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 14 });
 	} else if (_10 === 2) {
-		rt.byteVecPush(out, v.data[rt.idx(v, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 25 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 24 })]);
+		rt.byteVecPush(out, v.data[rt.idx(v, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 25 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 24 })]);
 	} else if (_10 === 3) {
-		rt.byteVecPush(out, rt.u8Add(rt.max(n, 200), rt.max(n, 100), { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 23 }));
+		rt.byteVecPush(out, rt.u8Add(rt.max(n, 200), rt.max(n, 100), { file: "fixtures/lang/panics/src/hooked.rs", line: 85, col: 23 }));
 	} else if (_10 === 4) {
 		rt.byteVecPush(out, rt.optionUnwrap(filter$0v80fk8(n, (_24: rt.u8): boolean => {
 			return false;
-		}), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 85, col: 49 }));
+		}), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 49 }));
 	} else if (_10 === 5) {
-		rt.byteVecPush(out, rt.resultUnwrap(rt.Err(n), rt.u8Debug, { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 40 }));
+		rt.byteVecPush(out, rt.resultUnwrap(rt.Err(n), rt.u8Debug, { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 40 }));
 	} else if (_10 === 6) {
 		rt.byteVecPush(out, rt.optionExpect(filter$0v80fk8(n, (_2: rt.u8): boolean => {
 			return false;
-		}), "expected", undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 49 }));
+		}), "expected", undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 49 }));
 	} else if (_10 === 7) {
-		const part2 = rt.usizeAdd(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 51 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 39 });
-		rt.byteVecExtendFromSlice(out, rt.byteSliceRange(rt.byteVecSlice(v), part2, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 38 }));
+		const part2 = rt.usizeAdd(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 89, col: 51 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 89, col: 39 });
+		rt.byteVecExtendFromSlice(out, rt.byteSliceRange(rt.byteVecSlice(v), part2, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 89, col: 38 }));
 	} else if (_10 === 8) {
 		const cell: rt.RefCell<rt.u8> = new rt.RefCell(n);
-		const _held: rt.RefCell<rt.u8> = rt.refCellBorrowMut(cell, { file: "fixtures/lang/panics/src/hooked.rs", line: 91, col: 30 });
-		const _56: rt.RefCell<rt.u8> = rt.refCellBorrowMut(cell, { file: "fixtures/lang/panics/src/hooked.rs", line: 92, col: 28 });
+		const _held: rt.RefCell<rt.u8> = rt.refCellBorrowMut(cell, { file: "fixtures/lang/panics/src/hooked.rs", line: 92, col: 30 });
+		const _56: rt.RefCell<rt.u8> = rt.refCellBorrowMut(cell, { file: "fixtures/lang/panics/src/hooked.rs", line: 93, col: 28 });
 		rt.byteVecPush(out, _56.value);
 		rt.refMutRelease(_56);
 		rt.refMutRelease(_held);
 	} else if (_10 === 9) {
 		rt.byteVecPush(out, rt.intPow(rt.max(n, 2), 9, 8, false, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/mod.rs", line: 590, col: 5 }));
 	} else if (_10 === 10) {
-		rt.byteVecPush(out, rt.u8Div(100, rt.u8WrappingMul(n, 0), { file: "fixtures/lang/panics/src/hooked.rs", line: 95, col: 24 }));
+		rt.byteVecPush(out, rt.u8Div(100, rt.u8WrappingMul(n, 0), { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 24 }));
 	} else if (_10 === 11) {
-		rt.byteVecPush(out, rt.byteVecRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 34 }));
+		rt.byteVecPush(out, rt.byteVecRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 97, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 97, col: 34 }));
 	} else if (_10 === 12) {
-		rt.byteVecPush(out, rt.byteVecSwapRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 97, col: 46 })));
+		rt.byteVecPush(out, rt.byteVecSwapRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 98, col: 46 })));
 	} else if (_10 === 13) {
-		rt.byteSliceRotateLeft(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 98, col: 37 }));
+		rt.byteSliceRotateLeft(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 99, col: 37 }));
 	} else if (_10 === 14) {
-		rt.byteVecPush(out, rt.hashIndex(rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, n, { file: "fixtures/lang/panics/src/hooked.rs", line: 99, col: 48 }));
+		rt.byteVecPush(out, rt.hashIndex(rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, n, { file: "fixtures/lang/panics/src/hooked.rs", line: 100, col: 48 }));
 	} else if (_10 === 15) {
-		rt.panicAny(new of$u32(n as rt.u32), { file: "fixtures/lang/panics/src/hooked.rs", line: 100, col: 15 });
+		rt.panicAny(new of$u32(n as rt.u32), { file: "fixtures/lang/panics/src/hooked.rs", line: 101, col: 15 });
 	} else if (_10 === 16) {
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
-		rt.panic(rt.fmtFormat(["any ", args4[0]]), { file: "fixtures/lang/panics/src/hooked.rs", line: 101, col: 15 }, true);
+		rt.panic(rt.fmtFormat(["any ", args4[0]]), { file: "fixtures/lang/panics/src/hooked.rs", line: 102, col: 15 }, true);
 	} else if (_10 === 17) {
 		const _104: rt.u8 = rt.u8WrappingAdd(n, 1);
 		if (!(n === _104)) {
-			rt.assertFailed("==", (f: rt.Formatter) => rt.u8Debug(n, f), (f: rt.Formatter) => rt.u8Debug(_104, f), ["differ"], { file: "fixtures/lang/panics/src/hooked.rs", line: 102, col: 15 });
+			rt.assertFailed("==", (f: rt.Formatter) => rt.u8Debug(n, f), (f: rt.Formatter) => rt.u8Debug(_104, f), ["differ"], { file: "fixtures/lang/panics/src/hooked.rs", line: 103, col: 15 });
 		}
 	} else if (_10 === 18) {
-		rt.byteVecPush(out, tracked(n, { file: "fixtures/lang/panics/src/hooked.rs", line: 103, col: 24 }));
+		rt.byteVecPush(out, tracked(n, { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 24 }));
 	} else if (_10 === 19) {
-		rt.byteVecPush(out, rt.dequeIndex(rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(v))), 1, true) as rt.VecDeque<rt.u8>, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 50 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 49 }));
+		rt.byteVecPush(out, rt.dequeIndex(rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(v))), 1, true) as rt.VecDeque<rt.u8>, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 50 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 49 }));
 	} else if (_10 === 20) {
 		rt.byteVecPush(out, result_unwrapOr$02rbyvl(rt.u8TryFrom(rt.durationAsSecs(rt.durationAdd({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationFromSecs(rt.max(n, 1) as rt.u64)))), 0));
 	} else if (_10 === 21) {
-		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strSlice("éé", 0, rt.usizeAdd(rt.usizeMul(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 56 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 44 }), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 44 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 41 })));
+		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strSlice("éé", 0, rt.usizeAdd(rt.usizeMul(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 56 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 44 }), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 44 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 41 })));
 	} else if (_10 === 22) {
-		rt.iterExtendBytes(out, rt.iterStepBy(new rt.Range(0, n), rt.usizeMul(n as rt.usize, 0, { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 41 }), undefined, 255, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/adapters/step_by.rs", line: 36, col: 9 }), undefined, true);
+		rt.iterExtendBytes(out, rt.iterStepBy(new rt.Range(0, n), rt.usizeMul(n as rt.usize, 0, { file: "fixtures/lang/panics/src/hooked.rs", line: 108, col: 41 }), undefined, 255, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/adapters/step_by.rs", line: 36, col: 9 }), undefined, true);
 	} else if (_10 === 23) {
 		const _150: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-		const _152: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 108, col: 42 }), rt.usizeStep);
+		const _152: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 109, col: 42 }), rt.usizeStep);
 		rt.iterExtendBytes(out, rt.byteVecDrain(_150, _152, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3007, col: 36 }), "fold", true);
 	} else if (_10 === 24) {
-		rt.panic("any", { file: "fixtures/lang/panics/src/hooked.rs", line: 109, col: 15 }, false);
+		rt.panic("any", { file: "fixtures/lang/panics/src/hooked.rs", line: 110, col: 15 }, false);
+	} else if (_10 === 26) {
+		const _158: rt.u8 = rt.u8WrappingAdd(n, 1);
+		if (!(n === _158)) {
+			rt.panic("assertion failed: n == n.wrapping_add(1)", { file: "fixtures/lang/panics/src/hooked.rs", line: 111, col: 15 });
+		}
+	} else if (_10 === 27) {
+		rt.panic("explicit panic", { file: "fixtures/lang/panics/src/hooked.rs", line: 112, col: 15 });
+	} else if (_10 === 28) {
+		rt.panic("internal error: entered unreachable code", { file: "fixtures/lang/panics/src/hooked.rs", line: 113, col: 15 });
+	} else if (_10 === 29) {
+		rt.panic("not yet implemented", { file: "fixtures/lang/panics/src/hooked.rs", line: 114, col: 15 });
+	} else if (_10 === 30) {
+		if (n === n) {
+			rt.assertFailed("!=", (f: rt.Formatter) => rt.u8Debug(n, f), (f: rt.Formatter) => rt.u8Debug(n, f), undefined as rt.Arguments | undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 115, col: 15 });
+		}
+	} else if (_10 === 31) {
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
+		rt.panicFmt(["not implemented: not ", args6[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 116, col: 15 });
 	} else {
 		rt.byteVecPush(out, rt.hashLen(rt.hashWithCapacity(4294967295, 469762048) as rt.HashMap<rt.u8, rt.u8>) & 0xff);
 	}
@@ -171,9 +190,9 @@ export function aborted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	const captured2 = prev;
 	rt.setHook(rt.closure((info: rt.PanicHookInfo): undefined => {
 		record(info);
-		const _4: rt.u8 = rt.u8Rem(captured, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 124, col: 15 });
+		const _4: rt.u8 = rt.u8Rem(captured, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 131, col: 15 });
 		if (_4 === 0) {
-			rt.panicFmt(["again"], { file: "fixtures/lang/panics/src/hooked.rs", line: 125, col: 18 });
+			rt.panicFmt(["again"], { file: "fixtures/lang/panics/src/hooked.rs", line: 132, col: 18 });
 		} else if (_4 === 1) {
 			rt.drop(rt.takeHook());
 		} else {
@@ -181,10 +200,10 @@ export function aborted(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		}
 	}, (): void => {
 		rt.drop(captured2);
-	}), { capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/raw_vec/mod.rs", line: 29, col: 5 }, trusted_capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/spec_from_iter_nested.rs", line: 57, col: 18 }, swap_remove: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 2178, col: 13 }, into_flattened: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3667, col: 36 }, rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3902, col: 9 }, rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3948, col: 9 }, ord_violation: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/sort/shared/smallsort.rs", line: 854, col: 5 }, ord_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cmp.rs", line: 1166, col: 9 }, f32_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f32.rs", line: 1665, col: 9 }, f64_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f64.rs", line: 1643, col: 9 }, encode_utf8: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2507, col: 9 }, encode_utf16: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2601, col: 13 }, format: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/fmt.rs", line: 657, col: 14 }, to_string: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/string.rs", line: 2997, col: 14 }, debug_struct_fields: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/fmt/mod.rs", line: 2572, col: 9 }, join_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/str.rs", line: 177, col: 10 }, hash_capacity: { file: "/cargo/registry/25cdd57fae9f0462/hashbrown-0.17.1/src/raw.rs", line: 36, col: 40 }, btree_range_equal_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 110, col: 21 }, btree_range_equal_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 112, col: 21 }, btree_range_order_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 119, col: 21 }, btree_range_order_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 121, col: 21 }, deque_insert: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2612, col: 9 }, deque_swap_i: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1062, col: 9 }, deque_swap_j: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1063, col: 9 }, deque_rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3198, col: 9 }, deque_rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3243, col: 9 }, deque_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2724, col: 9 }, list_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/linked_list.rs", line: 1015, col: 9 }, mutex_lock: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sys/sync/mutex/no_threads.rs", line: 28, col: 9 }, once_force: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sync/once.rs", line: 227, col: 20 }, reentrant_init: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/once.rs", line: 325, col: 66 }, lazy_poisoned: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/lazy.rs", line: 386, col: 5 }, ready_poll: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 23, col: 35 }, ready_into_inner: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 46, col: 16 }, duration_new: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 281, col: 18 }, duration_from_mins: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 540, col: 13 }, duration_from_hours: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 510, col: 13 }, duration_add: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1345, col: 31 }, duration_sub: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1365, col: 31 }, duration_mul: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1385, col: 31 } });
+	}), { capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/raw_vec/mod.rs", line: 29, col: 5 }, trusted_capacity: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/spec_from_iter_nested.rs", line: 57, col: 18 }, swap_remove: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 2178, col: 13 }, into_flattened: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3667, col: 36 }, rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3902, col: 9 }, rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/mod.rs", line: 3948, col: 9 }, ord_violation: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/slice/sort/shared/smallsort.rs", line: 854, col: 5 }, ord_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cmp.rs", line: 1166, col: 9 }, f32_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f32.rs", line: 1665, col: 9 }, f64_clamp: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/num/f64.rs", line: 1643, col: 9 }, encode_utf8: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2507, col: 9 }, encode_utf16: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/methods.rs", line: 2601, col: 13 }, format: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/fmt.rs", line: 657, col: 14 }, to_string: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/string.rs", line: 2997, col: 14 }, debug_struct_fields: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/fmt/mod.rs", line: 2572, col: 9 }, exact_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/traits/exact_size.rs", line: 122, col: 9 }, join_len: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/str.rs", line: 177, col: 10 }, hash_capacity: { file: "/cargo/registry/25cdd57fae9f0462/hashbrown-0.17.1/src/raw.rs", line: 36, col: 40 }, btree_range_equal_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 110, col: 21 }, btree_range_equal_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 112, col: 21 }, btree_range_order_BTreeSet: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 119, col: 21 }, btree_range_order_BTreeMap: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/btree/search.rs", line: 121, col: 21 }, deque_insert: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2612, col: 9 }, deque_swap_i: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1062, col: 9 }, deque_swap_j: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1063, col: 9 }, deque_rotate_left: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3198, col: 9 }, deque_rotate_right: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 3243, col: 9 }, deque_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 2724, col: 9 }, list_split_off: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/linked_list.rs", line: 1015, col: 9 }, mutex_lock: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sys/sync/mutex/no_threads.rs", line: 28, col: 9 }, once_force: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/sync/once.rs", line: 227, col: 20 }, reentrant_init: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/once.rs", line: 325, col: 66 }, lazy_poisoned: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell/lazy.rs", line: 386, col: 5 }, ready_poll: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 23, col: 35 }, ready_into_inner: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/future/ready.rs", line: 46, col: 16 }, duration_new: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 281, col: 18 }, duration_from_mins: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 540, col: 13 }, duration_from_hours: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 510, col: 13 }, duration_add: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1345, col: 31 }, duration_sub: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1365, col: 31 }, duration_mul: { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1385, col: 31 } });
 	rt.byteVecPush(out, n);
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
-	rt.panicFmt(["first ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 131, col: 5 });
+	rt.panicFmt(["first ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 138, col: 5 });
 }
 
 export const EXCLUSIVE: rt.LocalKey<rt.RefCell<rt.u8>> = /* @__PURE__ */ new rt.LocalKey(EXCLUSIVE$init, false);
@@ -214,13 +233,13 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _19: rt.u16[] = [n as rt.u16];
 	const set: rt.BTreeSet<rt.u16> = rt.btreeExtendKeys(rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u16>, rt.iterSlice(_19), true, undefined, undefined, 2, true);
 	b0: {
-		const _21: rt.u8 = rt.u8Rem(kind, 36, { file: "fixtures/lang/panics/src/hooked.rs", line: 152, col: 11 });
+		const _21: rt.u8 = rt.u8Rem(kind, 44, { file: "fixtures/lang/panics/src/hooked.rs", line: 159, col: 11 });
 		if (_21 === 0) {
-			rt.byteVecPush(out, rt.byteVecWithCapacity(rt.usizeSub(4294967295, at, { file: "fixtures/lang/panics/src/hooked.rs", line: 153, col: 48 })).length & 0xff);
+			rt.byteVecPush(out, rt.byteVecWithCapacity(rt.usizeSub(4294967295, at, { file: "fixtures/lang/panics/src/hooked.rs", line: 160, col: 48 })).length & 0xff);
 		} else if (_21 === 1) {
-			rt.byteSliceRotateRight(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 154, col: 37 }));
+			rt.byteSliceRotateRight(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 37 }));
 		} else if (_21 === 2) {
-			rt.byteVecPush(out, rt.clamp(n, rt.max(n, 1), rt.u8Sub(rt.max(n, 1), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 155, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 155, col: 25 }));
+			rt.byteVecPush(out, rt.clamp(n, rt.max(n, 1), rt.u8Sub(rt.max(n, 1), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 162, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 162, col: 25 }));
 		} else if (_21 === 3) {
 			rt.byteVecPush(out, rt.u8FromF64(rt.f64Clamp(n as rt.f64, 1.0, 0.0)));
 		} else if (_21 === 4) {
@@ -228,7 +247,7 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_21 === 5) {
 			rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.charEncodeUtf8(rt.max(n, 128) as rt.char, rt.byteSliceFrom(Uint8Array.of(0))).v));
 		} else if (_21 === 6) {
-			const _58: rt.char = rt.optionUnwrap(rt.charFromU32(rt.u32Add(128512, n as rt.u32, { file: "fixtures/lang/panics/src/hooked.rs", line: 159, col: 38 })), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 159, col: 62 });
+			const _58: rt.char = rt.optionUnwrap(rt.charFromU32(rt.u32Add(128512, n as rt.u32, { file: "fixtures/lang/panics/src/hooked.rs", line: 166, col: 38 })), undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 166, col: 62 });
 			const _65: rt.u16[] = [0];
 			rt.byteVecPush(out, rt.charEncodeUtf16(_58, _65).length & 0xff);
 		} else if (_21 === 7) {
@@ -237,7 +256,7 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return _233[1];
 			}), "next");
 		} else if (_21 === 8) {
-			const _77: rt.Range<rt.u16> = new rt.Range(rt.u16Add(n as rt.u16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 35 }), n as rt.u16);
+			const _77: rt.Range<rt.u16> = new rt.Range(rt.u16Add(n as rt.u16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 168, col: 35 }), n as rt.u16);
 			rt.iterExtendBytes(out, rt.iterMap(rt.btreeRange(map, _77), (_228: [rt.u16, rt.u8]): rt.u8 => {
 				return _228[1];
 			}), "next");
@@ -247,29 +266,29 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return _226 & 0xff;
 			}), "next");
 		} else if (_21 === 10) {
-			const _93: rt.Range<rt.u16> = new rt.Range(rt.u16Add(n as rt.u16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 163, col: 36 }), n as rt.u16);
+			const _93: rt.Range<rt.u16> = new rt.Range(rt.u16Add(n as rt.u16, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 170, col: 36 }), n as rt.u16);
 			rt.iterExtendBytes(out, rt.iterMap(rt.btreeRangeKeys(set, _93), (_221: rt.u16): rt.u8 => {
 				return _221 & 0xff;
 			}), "next");
 		} else if (_21 === 11) {
-			rt.dequeInsert(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 164, col: 36 }), n);
+			rt.dequeInsert(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 171, col: 36 }), n);
 		} else if (_21 === 12) {
-			rt.dequeSwap(rt.dequeClone(deque), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 165, col: 34 }), 0);
+			rt.dequeSwap(rt.dequeClone(deque), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 172, col: 34 }), 0);
 		} else if (_21 === 13) {
-			rt.dequeSwap(rt.dequeClone(deque), 0, rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 166, col: 37 }));
+			rt.dequeSwap(rt.dequeClone(deque), 0, rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 173, col: 37 }));
 		} else if (_21 === 14) {
-			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 167, col: 41 }));
+			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 174, col: 41 }));
 		} else if (_21 === 15) {
-			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 168, col: 42 }), true);
+			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 175, col: 42 }), true);
 		} else if (_21 === 16) {
-			rt.iterExtendBytes(out, rt.dequeIntoIter(rt.dequeSplitOff(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 169, col: 50 }))), undefined, true);
+			rt.iterExtendBytes(out, rt.dequeIntoIter(rt.dequeSplitOff(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 176, col: 50 }))), undefined, true);
 		} else if (_21 === 17) {
 			const _132: Uint8Array = Uint8Array.of(n);
-			rt.iterExtendBytes(out, rt.listIter(rt.listSplitOff(rt.listExtend(rt.listNew() as rt.LinkedList<rt.u8>, rt.iterSlice(_132)), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 170, col: 58 }))), undefined, true);
+			rt.iterExtendBytes(out, rt.listIter(rt.listSplitOff(rt.listExtend(rt.listNew() as rt.LinkedList<rt.u8>, rt.iterSlice(_132)), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 177, col: 58 }))), undefined, true);
 		} else if (_21 === 18) {
 			const mutex: rt.Mutex<rt.u8> = new rt.Mutex(n);
 			const _held: rt.Result<rt.Mutex<rt.u8>, rt.Mutex<rt.u8>> = rt.Ok(rt.mutexLock(mutex));
-			const _142: rt.Mutex<rt.u8> = rt.resultUnwrap(rt.Ok(rt.mutexLock(mutex)), rt.fmtPoisonErrorDebug, { file: "fixtures/lang/panics/src/hooked.rs", line: 174, col: 36 });
+			const _142: rt.Mutex<rt.u8> = rt.resultUnwrap(rt.Ok(rt.mutexLock(mutex)), rt.fmtPoisonErrorDebug, { file: "fixtures/lang/panics/src/hooked.rs", line: 181, col: 36 });
 			rt.byteVecPush(out, _142.value);
 			rt.mutexUnlock(_142);
 			drop$Result_sync_MutexGuard_u8_sync_PoisonError_sync_MutexGuard_u8(_held);
@@ -311,58 +330,86 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				}
 				rt.byteVecPush(out, ready2.intoInner());
 			} else if (_21 === 23) {
-				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationNew({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, rt.u32Add(1000000000, n as rt.u32, { file: "fixtures/lang/panics/src/hooked.rs", line: 201, col: 48 }))) & 0xff);
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationNew({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, rt.u32Add(1000000000, n as rt.u32, { file: "fixtures/lang/panics/src/hooked.rs", line: 208, col: 48 }))) & 0xff);
 			} else if (_21 === 24) {
-				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromMins(rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, n as rt.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 202, col: 44 }))) & 0xff);
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromMins(rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, n as rt.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 209, col: 44 }))) & 0xff);
 			} else if (_21 === 25) {
-				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromHours(rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, n as rt.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 203, col: 45 }))) & 0xff);
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromHours(rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, n as rt.u64, { file: "fixtures/lang/panics/src/hooked.rs", line: 210, col: 45 }))) & 0xff);
 			} else if (_21 === 26) {
-				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationSub({ secs: 0, nanos: 0 }, rt.durationFromSecs(rt.u64Add(n as rt.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 204, col: 62 })))) & 0xff);
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationSub({ secs: 0, nanos: 0 }, rt.durationFromSecs(rt.u64Add(n as rt.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 211, col: 62 })))) & 0xff);
 			} else if (_21 === 27) {
-				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationMul({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.u32Add(n as rt.u32, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 205, col: 41 }))) & 0xff);
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationMul({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.u32Add(n as rt.u32, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 212, col: 41 }))) & 0xff);
 			} else if (_21 === 28) {
 				const _227: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-				const _229: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 206, col: 44 }), rt.usizeStep);
+				const _229: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 213, col: 44 }), rt.usizeStep);
 				rt.byteVecExtendFromWithin(_227, _229, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3614, col: 21 });
 			} else if (_21 === 29) {
 				const _234: rt.VecDeque<rt.u8> = rt.dequeClone(deque);
-				const _236: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 207, col: 46 }), rt.usizeStep);
+				const _236: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 214, col: 46 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.dequeDrain(_234, _236, undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1998, col: 36 }), "next");
 			} else if (_21 === 30) {
-				const _241: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 208, col: 38 }), rt.usizeStep);
+				const _241: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 215, col: 38 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.dequeRange(deque, _241, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1845, col: 36 }), undefined, true);
 			} else if (_21 === 31) {
 				const _247: rt.VecDeque<rt.u8> = rt.dequeClone(deque);
-				const _249: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 209, col: 50 }), rt.usizeStep);
+				const _249: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 216, col: 50 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.iterMap(rt.dequeRangeMut(_247, _249, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1845, col: 36 }), (v4: rt.Place<rt.u8>): rt.u8 => {
 					return v4.v;
 				}), undefined, true);
 			} else if (_21 === 32) {
 				const cell2: rt.RefCell<rt.ByteVec> = new rt.RefCell(rt.byteVecFrom(Uint8Array.of(n)));
-				const _held2: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(cell2, { file: "fixtures/lang/panics/src/hooked.rs", line: 212, col: 30 });
+				const _held2: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(cell2, { file: "fixtures/lang/panics/src/hooked.rs", line: 219, col: 30 });
 				rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.refCellReplace(cell2, new rt.ByteVec(), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/cell.rs", line: 1434, col: 14 })), undefined, true);
 				rt.refRelease(_held2);
 			} else if (_21 === 33) {
 				((cell4: rt.RefCell<rt.u8>): undefined => {
-					rt.refCellBorrow(cell4, { file: "fixtures/lang/panics/src/hooked.rs", line: 216, col: 54 });
+					rt.refCellBorrow(cell4, { file: "fixtures/lang/panics/src/hooked.rs", line: 223, col: 54 });
 				})(SHARED.get());
 				rt.localKeyWithBorrowMutPlace(SHARED, (v3: rt.Place<rt.u8>): undefined => {
 					v3.v = n;
 				}, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/thread/local.rs", line: 721, col: 38 });
 			} else if (_21 === 34) {
 				((cell3: rt.RefCell<rt.u8>): undefined => {
-					result_unwrapOrDefault$0ry0sbh(result_map$170q7dc(rt.refCellTryBorrowMut(cell3), (_a0: rt.RefCell<rt.u8>): undefined => {
+					result_unwrapOrDefault$0ry0sbh(result_map$170q7dc(rt.refCellTryBorrowMut(cell3), (_a02: rt.RefCell<rt.u8>): undefined => {
 						undefined;
 					}));
 				})(EXCLUSIVE.get());
 				withBorrow$1s4hgxf(EXCLUSIVE, (_2: rt.u8): undefined => {
 					rt.byteVecPush(out, _2);
 				});
-			} else {
+			} else if (_21 === 35) {
 				const _273: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-				const _275: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 223, col: 42 }), rt.usizeStep);
+				const _275: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 230, col: 43 }), rt.usizeStep);
 				const _278: Uint8Array = Uint8Array.of(n);
 				rt.iterExtendBytes(out, rt.spliceFrom(rt.byteVecSplice(_273, _275, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3007, col: 36 }), rt.iterSlice(_278), true), "next");
+			} else if (_21 === 36) {
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0a57co2(option_map$1vkt7xs(rt.charFromDigit(n as rt.u32, rt.u32Add(37, n as rt.u32, { file: "fixtures/lang/panics/src/hooked.rs", line: 231, col: 57 }), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/char/convert.rs", line: 332, col: 9 }), (a0: rt.char): rt.u32 => {
+					return a0 as rt.u32;
+				}), (c: rt.u32): rt.u8 => {
+					return c & 0xff;
+				})), undefined, true);
+			} else if (_21 === 37) {
+				const _290: rt.usize = rt.usizeDiv(at, 256, { file: "fixtures/lang/panics/src/hooked.rs", line: 232, col: 59 });
+				if (!(_290 < 2)) {
+					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _290, { file: "fixtures/lang/panics/src/hooked.rs", line: 232, col: 21 }, true);
+				}
+				rt.fence([0, 4][_290], { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/sync/atomic.rs", line: 4822, col: 24 });
+			} else if (_21 === 38) {
+				const _297: rt.usize = rt.usizeDiv(at, 256, { file: "fixtures/lang/panics/src/hooked.rs", line: 233, col: 68 });
+				if (!(_297 < 2)) {
+					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _297, { file: "fixtures/lang/panics/src/hooked.rs", line: 233, col: 30 }, true);
+				}
+				rt.fence([0, 4][_297], { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/sync/atomic.rs", line: 4907, col: 24 });
+			} else if (_21 === 39) {
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromSecsF64(-1.0 - (n as rt.f64), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1050, col: 23 })) & 0xff);
+			} else if (_21 === 40) {
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationFromSecsF32(Math.fround(-1.0 - Math.fround(n)), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1087, col: 23 })) & 0xff);
+			} else if (_21 === 41) {
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationMulF64(rt.durationFromSecs(1), -1.0 - (n as rt.f64), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1050, col: 23 })) & 0xff);
+			} else if (_21 === 42) {
+				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationDivF32(rt.durationFromSecs(1), Math.fround(-1.0 - Math.fround(n)), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1050, col: 23 })) & 0xff);
+			} else {
+				rt.byteVecPush(out, rt.iterFrom({ _0: n }, Lying.next$iter_Iterator, undefined, { hint: Lying.sizeHint$iter_Iterator }).len() & 0xff);
 			}
 		}
 	}

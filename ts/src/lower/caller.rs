@@ -104,6 +104,7 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 	("format", "alloc/src/fmt.rs", "fn format_inner", "expect("),
 	("to_string", "alloc/src/string.rs", "", "expect(\"a Display implementation"),
 	("debug_struct_fields", "core/src/fmt/mod.rs", "pub fn debug_struct_fields_finish", "assert_eq!("),
+	("exact_len", "core/src/iter/traits/exact_size.rs", "let (lower, upper) = self.size_hint();", "assert_eq!("),
 	("join_len", "alloc/src/str.rs", "fn join_generic_copy", "expect("),
 	("hash_capacity", "vendor/hashbrown-*/src/raw.rs", "", "panic!(\"Hash table capacity overflow\")"),
 	("btree_range_equal_BTreeSet", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start and end are equal and excluded in BTreeSet\")"),
@@ -142,6 +143,15 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 	("collections::vec_deque::range", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "slice::range("),
 	("collections::vec_deque::range_mut", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "slice::range("),
 	("iter::traits::iterator::Iterator::step_by", "core/src/iter/adapters/step_by.rs", "fn new(", "assert!("),
+	("char::methods::from_digit", "core/src/char/convert.rs", "const fn from_digit(", "panic!("),
+	("sync::atomic::fence", "core/src/sync/atomic.rs", "pub const fn fence(", "panic!("),
+	("sync::atomic::compiler_fence", "core/src/sync/atomic.rs", "pub const fn compiler_fence(", "panic!("),
+	("time::from_secs_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
+	("time::mul_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
+	("time::mul_f32", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
+	("time::div_f64", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
+	("time::div_f32", "core/src/time.rs", "pub fn from_secs_f64(secs: f64)", "panic!("),
+	("time::from_secs_f32", "core/src/time.rs", "pub fn from_secs_f32(secs: f32)", "panic!("),
 	("cell::take", "core/src/cell.rs", "pub fn take(&self) -> T", "replace("),
 	("thread::local::with_borrow_mut", "std/src/thread/local.rs", "pub fn with_borrow_mut<F, R>", "borrow_mut("),
 	("thread::local::with_borrow", "std/src/thread/local.rs", "pub fn with_borrow<F, R>", "borrow("),
@@ -300,7 +310,7 @@ pub fn param_ty() -> Type {
 	Type::Rt("Location", Vec::new())
 }
 
-/// Each runtime function that takes where a panic it makes is, as an `at?: Location` last
+/// Each runtime function that takes where a panic it makes is, as an `at?: Location`
 /// parameter, by how many parameters come before it.
 fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usize> {
 	static LOCATED: OnceLock<rustc_data_structures::fx::FxHashMap<&'static str, usize>> = OnceLock::new();
@@ -311,7 +321,7 @@ fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usiz
 	})
 }
 
-/// The functions `text` exports whose last parameter is `at?: Location`, or one that also
+/// The functions `text` exports that take an `at?: Location` parameter, or one that also
 /// takes a key of `rt.Sites`, and its index.
 fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)> {
 	["export function ", "export const "].into_iter().flat_map(move |keyword| {
@@ -326,8 +336,8 @@ fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)>
 				None => rest,
 			};
 			let params = split(rest.strip_prefix('(')?);
-			let last = params.last()?;
-			matches!(last.trim(), "at?: Location" | "at?: Location | string").then_some((name, params.len() - 1))
+			let at = params.iter().position(|p| matches!(p.trim(), "at?: Location" | "at?: Location | string"))?;
+			Some((name, at))
 		})
 	})
 }
