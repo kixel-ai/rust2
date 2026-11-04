@@ -45,7 +45,7 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-04: 69 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-04: 82 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
 model, so each child below unblocks all of them together. The rest is moq's, for its
@@ -62,7 +62,6 @@ kept separate since each lands alone; rejected: one quest for `ArrayString`.
 
 ## Required
 
-- [Iterators into a crate's own collections](/quest/m2/ts-model/from-iterator.md) - `collect`, `flat_map`, and `flatten` through moq-pattern's `Patterns`
 - [Bytes from an owner that drops](/quest/m2/ts-model/bytes-owner.md) - `Bytes::from_owner` of a frame's segment
 - [rangemap](/quest/m2/ts-model/rangemap.md) - B-tree ranges by a borrowed key, and std's iterators in a crate's fields
 - [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision

@@ -442,6 +442,7 @@ mod lang {
 		chars,
 		chunks,
 		clones,
+		collects,
 		collections,
 		combinators,
 		constants,
