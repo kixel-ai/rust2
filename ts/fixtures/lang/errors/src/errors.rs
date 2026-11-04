@@ -5,6 +5,7 @@
 //! the type it was made of, and dropping what it owns as its box drops.
 
 use std::cell::Cell;
+use std::collections::{HashSet, TryReserveError, VecDeque};
 use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
@@ -83,7 +84,7 @@ pub fn eqs(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	all.push(&input);
 	let mut bytes = BYTES.to_vec();
 	bytes.push(data);
-	match kind % 15 {
+	match kind % 16 {
 		0 => pairs(&parsed::<bool>(&all), out),
 		// `EmptyString` and `TooManyChars`, private but for `==`, `Display`, and `Debug`.
 		1 => pairs(&parsed::<char>(&all), out),
@@ -140,6 +141,29 @@ pub fn eqs(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				.map(|&b| if b % 2 == 0 { Ok(()) } else { Err(std::fmt::Error) })
 				.collect();
 			pairs(&v, out);
+		}
+		// `Ok`, or a capacity past what each collection holds, and the error's clone.
+		14 => {
+			let v: Vec<Result<(), TryReserveError>> = data
+				.iter()
+				.take(6)
+				.flat_map(|&b| {
+					let n = if b % 2 == 0 {
+						usize::from(b)
+					} else {
+						usize::MAX - usize::from(b)
+					};
+					let mut text = String::from(&"ab"[..usize::from(b % 3)]);
+					[
+						Vec::<u8>::new().try_reserve(n),
+						text.try_reserve_exact(n),
+						VecDeque::<u16>::new().try_reserve(n),
+						HashSet::<u8>::new().try_reserve(n),
+					]
+				})
+				.collect();
+			pairs(&v.iter().filter_map(|r| r.clone().err()).collect::<Vec<_>>(), out);
+			pairs(&[v.clone(), v].concat(), out);
 		}
 		// Held in an `Option`, a `Vec`, and a tuple, and the errors on their own.
 		_ => {
@@ -277,6 +301,12 @@ fn checked(kind: u8, n: u8) -> Result<u8, Box<dyn Error + Send + Sync>> {
 	Ok(parsed)
 }
 
+/// `?` boxes the error of a `Vec` reserving past the most `u64`s it holds.
+fn reserve(n: u8) -> Result<(), Box<dyn Error>> {
+	Vec::<u64>::new().try_reserve(isize::MAX as usize / 8 + 1 + usize::from(n))?;
+	Ok(())
+}
+
 pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	let [a, b, rest @ ..] = data else {
 		return;
@@ -290,6 +320,15 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	);
 	let parse = u8::from_str("x").unwrap_err();
 	put(out, &format!("{} | ", chain(&parse)));
+	let reserved = reserve(a).unwrap_err();
+	put(
+		out,
+		&format!(
+			"{} {reserved:#?} {} | ",
+			chain(&*reserved),
+			reserved.is::<TryReserveError>()
+		),
+	);
 	// A box and a reference are errors too, whose `source` is what they point at's.
 	let held = Box::new(failure(a, b));
 	let lent = &*held;

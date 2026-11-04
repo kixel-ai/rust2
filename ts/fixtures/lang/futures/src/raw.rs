@@ -2,8 +2,9 @@
 //! the vtable's function as std's does, which each logs: through `Waker::from_raw` and
 //! `Waker::new`, cloned over another by `clone_from`, compared by `will_wake`, dropped
 //! unpolled or forgotten, and polling a future to its end in an executor of its own; vtables
-//! compared by `==`; `RawWaker::from` an `Arc` of a `Wake` impl; and data cast to `*const
-//! ()` and back, which the vtable's functions read.
+//! compared by `==`; `RawWaker::from` an `Arc` of a `Wake` impl; data cast to `*const
+//! ()` and back, which the vtable's functions read; and data that is an `Arc`'s raw
+//! pointer, which they count and take back.
 
 use std::cell::{Cell, RefCell};
 use std::future::Future;
@@ -16,13 +17,14 @@ use std::task::{Context, Poll, RawWaker, RawWakerVTable, Wake, Waker};
 
 /// The wakers `kind` picks.
 pub fn raw(kind: u8, data: &[u8], out: &mut Vec<u8>) {
-	match kind % 6 {
+	match kind % 7 {
 		0 => calls(data, out),
 		1 => clones(data, out),
 		2 => executor(data, out),
 		3 => vtables(data, out),
 		4 => arcs(data, out),
-		_ => erased(data, out),
+		5 => erased(data, out),
+		_ => tasks(data, out),
 	}
 	out.extend(LOG.take());
 }
@@ -457,4 +459,96 @@ fn erased(data: &[u8], out: &mut Vec<u8>) {
 	// Typed pointers at an address no type of theirs dangles at, compared as they are.
 	let (a, b) = (note as *const Byte, note.cast::<Byte>());
 	out.extend([a == b, a == NonNull::<Byte>::dangling().as_ptr(), a.is_null()].map(u8::from));
+}
+
+/// A task a waker's data is the `Arc` of, by `Arc::into_raw`, which logs its drop.
+struct Task {
+	id: u8,
+	wakes: Cell<u8>,
+}
+
+impl Drop for Task {
+	fn drop(&mut self) {
+		LOG.with_borrow_mut(|log| log.extend([b'D', self.id, self.wakes.get()]));
+	}
+}
+
+/// The `Task` a waker's data is the `Arc` of, borrowed, which a wake notes, and its count.
+fn woken(call: u8, data: *const ()) {
+	let task = ManuallyDrop::new(unsafe { Arc::from_raw(data.cast::<Task>()) });
+	task.wakes.set(task.wakes.get().wrapping_add(1));
+	LOG.with_borrow_mut(|log| log.extend([call, task.id, Arc::strong_count(&task) as u8]));
+}
+
+unsafe fn task_clone(data: *const ()) -> RawWaker {
+	unsafe { Arc::increment_strong_count(data as *const Task) };
+	RawWaker::new(data, &TASK)
+}
+
+unsafe fn task_wake(data: *const ()) {
+	woken(b'w', data);
+	drop(unsafe { Arc::from_raw(data as *const Task) });
+}
+
+unsafe fn task_wake_by_ref(data: *const ()) {
+	woken(b'r', data);
+}
+
+unsafe fn task_drop(data: *const ()) {
+	unsafe { Arc::decrement_strong_count(data.cast::<Task>()) };
+}
+
+static TASK: RawWakerVTable = RawWakerVTable::new(task_clone, task_wake, task_wake_by_ref, task_drop);
+
+/// A waker of `task`, which holds one count of it.
+fn task_waker(task: Arc<Task>) -> Waker {
+	unsafe { Waker::new(Arc::into_raw(task).cast(), &TASK) }
+}
+
+/// Wakers whose data is an `Arc` of a `Task`, as most executors make them: cloned, woken,
+/// and dropped as each byte says, each counting the `Arc` as std's do, so the `Task` drops
+/// with the last; and polling a future to its end.
+fn tasks(data: &[u8], out: &mut Vec<u8>) {
+	let task = Arc::new(Task {
+		id: 1,
+		wakes: Cell::new(0),
+	});
+	let mut wakers = vec![task_waker(Arc::clone(&task))];
+	for &byte in data {
+		match byte % 5 {
+			0 => wakers.push(wakers[usize::from(byte) % wakers.len()].clone()),
+			1 if wakers.len() > 1 => wakers.swap_remove(usize::from(byte) % wakers.len()).wake(),
+			2 => wakers[usize::from(byte) % wakers.len()].wake_by_ref(),
+			3 if wakers.len() > 1 => drop(wakers.swap_remove(usize::from(byte) % wakers.len())),
+			_ => out.push(wakers[0].will_wake(&wakers[usize::from(byte) % wakers.len()]).into()),
+		}
+		out.extend([Arc::strong_count(&task) as u8, wakers.len() as u8, task.wakes.get()]);
+	}
+	// Its last count a waker's, which the last wake drops.
+	drop(task);
+	while let Some(w) = wakers.pop() {
+		w.wake();
+	}
+	// Polled to its end by a waker that owns its task.
+	let task = Arc::new(Task {
+		id: 2,
+		wakes: Cell::new(0),
+	});
+	let waker = task_waker(Arc::clone(&task));
+	let mut cx = Context::from_waker(&waker);
+	let counts: Vec<u8> = data.iter().map(|b| b % 4).collect();
+	let mut f = pin!(async {
+		let mut sum = 0u8;
+		for &n in counts.iter() {
+			sum = sum.wrapping_add(Yields(n, None).await);
+		}
+		sum
+	});
+	let done = loop {
+		if let Poll::Ready(v) = f.as_mut().poll(&mut cx) {
+			break v;
+		}
+	};
+	out.extend([done, task.wakes.get(), Arc::strong_count(&task) as u8]);
+	drop((waker, task));
 }

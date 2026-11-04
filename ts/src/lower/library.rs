@@ -197,6 +197,8 @@ pub enum Std {
 	PanicHookInfo,
 	/// `rt.LayoutError`.
 	LayoutError,
+	/// `rt.TryReserveError`: the layout whose allocation failed, if any, never changed once made.
+	TryReserveError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -331,6 +333,7 @@ impl Std {
 			["panic", "location", "Location"] => Some(Self::Location),
 			["panic", "PanicHookInfo"] => Some(Self::PanicHookInfo),
 			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
+			["collections", "TryReserveError"] => Some(Self::TryReserveError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -978,6 +981,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("MaybeUninit", "new" | "write" | "assume_init")
 		| ("ManuallyDrop", "new" | "into_inner")
 		| ("Box", "into_raw" | "leak" | "from_raw")
+		| ("Arc" | "Rc", "into_raw")
 		| ("hint", "must_use")
 		| ("From", "from")
 		| ("Into", "into")
@@ -1814,7 +1818,12 @@ fn mapping<'tcx>(
 					Expr::rt("fromUtf8ErrorClone", vec![value])
 				}
 				// Never changed once made.
-				ty::Adt(adt, _) if matches!(Std::of(tcx, adt.did()), Some(Std::DecodeUtf16Error | Std::Utf8Chunk)) => {
+				ty::Adt(adt, _)
+					if matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::DecodeUtf16Error | Std::Utf8Chunk | Std::TryReserveError)
+					) =>
+				{
 					value
 				}
 				// Another that holds nothing.
@@ -2359,13 +2368,19 @@ fn mapping<'tcx>(
 		// grows it.
 		("Vec", "with_capacity") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecWithCapacity", args),
 		("Vec", "capacity") if is_u8(targ(gargs, 0)) => args.pop()?.member("data").member("length"),
-		("Vec", "reserve" | "reserve_exact" | "shrink_to") if is_u8(targ(gargs, 0)) => {
+		("Vec", "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to")
+			if is_u8(targ(gargs, 0)) =>
+		{
 			rt2(args, "byteVec", &super::camel(&name))
 		}
 		("Vec", "shrink_to_fit") if is_u8(targ(gargs, 0)) => {
 			Expr::rt("byteVecShrinkTo", vec![args.pop()?, Expr::lit("0")])
 		}
-		("Vec", "with_capacity" | "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			"Vec",
+			"with_capacity" | "capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact"
+			| "shrink_to" | "shrink_to_fit",
+		) => {
 			let mut values = args;
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));

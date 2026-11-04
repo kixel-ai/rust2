@@ -198,8 +198,9 @@ impl Key {
 pub struct Scope {
 	keep: Vec<Obj>,
 	arrays: Vec<Box<dyn std::any::Any>>,
-	held: Vec<Obj>,
-	moved: Vec<*mut Handle>,
+	/// The handles held, each with whether the call moves its value out. Inline, as a
+	/// call holds few, so holding one allocates nothing.
+	held: smallvec::SmallVec<[(Obj, bool); 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and waker nodes given to Rust, taken back unless the call
@@ -219,11 +220,13 @@ impl Scope {
 	/// Note that the call happened: what it moved out of is closed, and what it was given
 	/// is Rust's.
 	pub fn done(&mut self) {
-		for handle in self.moved.drain(..) {
-			// SAFETY: a handle this scope holds, so live.
-			unsafe { close(handle) };
+		for (held, moved) in &self.held {
+			if *moved {
+				// SAFETY: a handle this scope holds, so live.
+				unsafe { close(held.ptr().cast()) };
+			}
 		}
-		for given in self.given.drain(..) {
+		while let Some(given) = self.given.pop() {
 			given.into_ptr();
 		}
 		self.nodes.clear();
@@ -231,21 +234,22 @@ impl Scope {
 
 	/// The handles held, which a future keeps until it ends.
 	pub fn take_held(&mut self) -> Vec<Obj> {
-		std::mem::take(&mut self.held)
+		self.held.drain(..).map(|(held, _)| held).collect()
 	}
 }
 
+// Popping rather than draining, as each call drops a scope whose lists are mostly empty.
 impl Drop for Scope {
 	fn drop(&mut self) {
-		for waker in self.nodes.drain(..) {
+		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a reference the call never took.
 			unsafe { node_drop(waker.data) };
 		}
-		for lent in self.lent.drain(..) {
+		while let Some(lent) = self.lent.pop() {
 			// SAFETY: an object [`lent`] made.
 			unsafe { end(lent.ptr().cast()) };
 		}
-		for held in self.held.drain(..) {
+		while let Some((held, _)) = self.held.pop() {
 			// SAFETY: a handle this scope holds.
 			unsafe { release(held.ptr().cast()) };
 		}
@@ -1015,10 +1019,7 @@ pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
 		(*handle).holds += 1;
-		s.held.push(Obj::borrowed(obj));
-		if moved {
-			s.moved.push(handle);
-		}
+		s.held.push((Obj::borrowed(obj), moved));
 		Ok((*handle).raw)
 	}
 }

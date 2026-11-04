@@ -565,6 +565,8 @@ pub fn std_impl<'tcx>(
 			(Std::PanicHookInfo, Trait::Display) => rt("panicHookInfoDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
+			(Std::TryReserveError, Trait::Debug) => rt("tryReserveErrorDebug", vec![value, f]),
+			(Std::TryReserveError, Trait::Display) => rt("tryReserveErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rt("bytesDebug", vec![Expr::rt("bytesMutView", vec![value]), f]),
 			_ => return None,

@@ -13,7 +13,5 @@ fixtures/bind/src/harness.rs:refused+3:6: `raw::Held` binds without drop, so it 
 fixtures/bind/src/harness.rs:refused+3:13: `raw::Held` binds without drop, so it would never drop its `raw::Tally`
 fixtures/bind/src/harness.rs:replace+1:2: an assignment through a reference to `blob::Blob`
 fixtures/bind/src/harness.rs:run+14:12: reading bind/missing.ts: No such file or directory (os error 2)
-fixtures/bind/src/raw.rs:impl Drop for Tally+3:17: unsupported call to `std::sync::Arc::<u32>::from_raw`
-fixtures/bind/src/raw.rs:impl Tally+3:11: unsupported call to `std::sync::Arc::<u32>::into_raw`
 fixtures/bind/src/raw.rs:value+0:1: a binding of `raw::value`, whose `N` one export for every instance can't recover from its arguments
 fixtures/bind/src/raw.rs:zero+0:1: a binding of `raw::zero`, whose `T` one export for every instance can't recover from its arguments

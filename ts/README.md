@@ -132,7 +132,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `static` | a module's value, named for the static, that every use shares, read from the memory rustc evaluated; one that reads another static or a class is an `rt.LazyCell` of it, made on first use, since that may not be made yet when its module is. A `static mut`, and a pointer in one into memory the translation can't name, fail translation |
 | a type that drops | a class with `[Symbol.dispose]`: its `Drop` impl, then its fields |
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
-| `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` pointing where a reference to its value does, or at its place where JS copies it, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
+| `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rt.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rt.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` and `into_raw` pointing where a reference to its value does, or at its place where JS copies it, which `from_raw`, `increment_strong_count`, and `decrement_strong_count` take back to its `rt.Arc` and count, failing at run time on a pointer no `as_ptr` or `into_raw` of that type of `Arc` gave, or one whose value dropped, and refused for one to a slice or bytes, which JS makes anew each time, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rt.Weak`, counted in its `rt.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rt.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rt.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rt.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rt.TryLockError<T>`, tagged as `Bound` is |
 | `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rt.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s and `Cell::as_ptr`'s pointer, and `get_mut`'s reference, is the cell where it is an `rt.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rt.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rt.BorrowError` and `rt.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rt.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
 | `thread_local!`, `LocalKey<T>` | an `rt.LocalKey`, a module's value that each copy of the key is, which makes its value on first use from the `const` or the expression and never drops it, as wasm32's do; `with` calls its function on that value, `try_with` never fails, the `Cell` and `RefCell` helpers lower from std, and a `RefCell` key's `set` and `with_borrow_mut` borrow it as `borrow_mut` does |
@@ -344,7 +344,8 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 `try_fold` and the other by `next`, as std's `iter_compare` does, and `eq` of two
 `TrustedLen` iterators whose size hints' upper bounds differ reads neither.
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
-moves read steps in place, as two variables: the array and an index into it, or the
+moves into other variables read steps in place, not one moved into a field, as an `async`
+block's is when held across an `.await`, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
@@ -451,7 +452,7 @@ function refers to a binding `x`. A `Copy` struct, enum, tuple,
 or array, or an `Option`, `Result`, or `Poll` holding one, is copied where Rust copies
 it, since JS would share the object: by a function of `lib.ts` made for its type, such
 as `copy$shapes_Point`, which copies what it holds by value and shares what it holds by
-reference. Only a type the crate writes into in place or compares pointers to is copied,
+reference. Only a type the crate writes into in place, compares pointers to, or takes an `Arc`'s raw pointer to is copied,
 or one holding such a type by value: a value of any other type never changes once made
 and has no address that tells its copies apart, so it is shared. A write counts through a field, an element, a reference, or a box, and a mutable reference
 a std function's parameters take, where the crate calls it or takes it as a value, or
@@ -645,7 +646,7 @@ signal's reason; a future ready in that poll resolves it. A waker's identity is 
 and `vtable`, as std's is, and its vtable an `rt.WakerVTable` of the four functions std's
 `RawWakerVTable` holds, which `RawWakerVTable::new` and a `static` of one make, `==`
 compares, and `Waker::new`, `Waker::from_raw`'s `rt.VTableWaker`, calls on its data for
-each clone, wake, and drop, which a function casts back to what it points at. `Waker::from(arc)` and `RawWaker::from(arc)`, of an `Arc` of the
+each clone, wake, and drop, which a function casts back to what it points at, such as an `Arc`'s `into_raw` it counts and takes back. `Waker::from(arc)` and `RawWaker::from(arc)`, of an `Arc` of the
 crate's `Wake` impl, hold a count of the `Arc` and wake through the impl: their data is
 the `Arc`, and their vtable the impl's, so clones and wakers made apart from one `Arc`
 share them. `Waker::noop()` is `rt.NOOP_WAKER`, and a caller's own waker gives its own
@@ -720,7 +721,7 @@ of them:
   map, and so do its entries' `insert`, `or_insert`, `or_insert_with`, `and_modify`,
   `get`, `get_mut`, `into_mut`, `remove`, and `into_table`. What reads hashbrown's
   buckets, such as `find_bucket_index` and `iter_hash`, is refused, as are
-  `get_many_mut`, `extract_if`, and `try_reserve`. hashbrown's `DefaultHashBuilder` and
+  `get_many_mut`, `extract_if`, and `try_reserve`, whose error is hashbrown's own. hashbrown's `DefaultHashBuilder` and
   `DefaultHasher` are std's `RandomState` and `DefaultHasher`: foldhash's state is seeded
   at random as std's is, so which hash a key gets is never observable, through
   `hashlink`'s default too, a crate's own `Hasher` over hashbrown's. Nothing of hashbrown
@@ -969,7 +970,11 @@ they need.
   `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
   writes one. Reading it doubles it while short of the length, from the least std's
   `RawVec` allocates for the element size, which a run of pushes grows std's to. A
-  `Vec<u8>`'s is its buffer's length. A `LinkedList` is nodes linked both ways, as std's are,
+  `Vec<u8>`'s is its buffer's length. Their `try_reserve` and `try_reserve_exact`, and a
+  `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
+  `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
+  where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
+  maintainer on 2026-11-03). A `LinkedList` is nodes linked both ways, as std's are,
   so `append` is O(1) and `split_off` walks from the nearer end; each node is the place
   `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole map or set drops its entries in the
   runtime's order, keys' for a B-tree, not std's node by node: std leaves that order

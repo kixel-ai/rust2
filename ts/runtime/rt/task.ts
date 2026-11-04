@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -309,6 +309,34 @@ export function arcPlace<T>(arc: Arc<T>): Place<T> {
 	let pos = places.get(arc);
 	if (pos === undefined) places.set(arc, (pos = valuePlace(arc)));
 	return pos as Place<T>;
+}
+
+/** The `Arc` each raw pointer `Arc::into_raw` or `as_ptr` gave points into, by that pointer, which is its identity. */
+const RAW_ARCS = /* @__PURE__ */ new WeakMap<object, Arc<unknown>>();
+
+/** The `Rc` each raw pointer `Rc::into_raw` or `as_ptr` gave points into, as `RAW_ARCS`. */
+const RAW_RCS = /* @__PURE__ */ new WeakMap<object, Arc<unknown>>();
+
+/**
+ * `Arc::into_raw` or `as_ptr` of `arc`, an `Arc` or an `Rc` as `of` says: `p`, the pointer
+ * to its value, which `arcFromRaw` takes back to `arc`.
+ */
+export function arcRaw<P extends object>(arc: Arc<unknown>, p: P, of: "Arc" | "Rc"): P {
+	(of === "Arc" ? RAW_ARCS : RAW_RCS).set(p, arc);
+	return p;
+}
+
+/**
+ * `Arc::from_raw`, of an `Arc` or an `Rc` as `of` says: the one `p` points into, which
+ * `into_raw` or `as_ptr` gave, or arithmetic moved back to, and a count of which it takes,
+ * as std's does. Any other pointer, or one to a value already dropped, fails, as JS keeps
+ * no count beside it.
+ */
+export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
+	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(ptrHome(p));
+	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
+	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
+	return arc as Arc<T>;
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */

@@ -511,3 +511,13 @@ pub fn erased_box(b: Box<(u8, u8)>) -> bool {
 	let p = &raw const b;
 	p as *const () == (&raw const *b).cast()
 }
+
+/// An `Arc`'s raw pointer to a slice, which `from_raw` would take back to no `Arc`.
+pub fn arc_raw_slice(a: std::sync::Arc<[u32]>) -> *const [u32] {
+	std::sync::Arc::into_raw(a)
+}
+
+/// An `Rc` taken back from a raw pointer to bytes, which no `Rc` gave.
+pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
+	unsafe { std::rc::Rc::from_raw(p)[0] }
+}

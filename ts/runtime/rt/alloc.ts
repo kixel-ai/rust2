@@ -5,9 +5,9 @@
 // write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
 // the array go; a pointer into it after either reads what Rust leaves undefined.
 
-import { Abort, Err, type FmtResult, type Formatter, fmtDebugStructFields, Ok, type Place, type Result } from "../rt.ts";
+import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, Ok, type Place, type Result } from "../rt.ts";
 import { AtIndex } from "./collections.ts";
-import type { usize } from "./int.ts";
+import { type usize, usizeDebug } from "./int.ts";
 
 /** `core::alloc::Layout`: a size, and an alignment that is a power of two. */
 export interface Layout {
@@ -38,13 +38,13 @@ export function layoutArray(n: usize, size: usize, align: usize): Result<Layout,
 	return Ok({ size: size * n, align });
 }
 
-/** `Debug` of a `Layout`, as std's: its alignment also as a power of two. */
+/** `Debug` of a `Layout`, as std's: its size by the formatter's flags, and its alignment also as a power of two, by none. */
 export function fmtLayoutDebug(l: Layout, f: Formatter): FmtResult {
 	return fmtDebugStructFields(
 		f,
 		"Layout",
 		["size", "align"],
-		[(f) => f.out.writeStr(String(l.size)), (f) => f.out.writeStr(`${l.align} (1 << ${31 - Math.clz32(l.align)})`)],
+		[(f) => usizeDebug(l.size, f), (f) => f.out.writeStr(`${l.align} (1 << ${31 - Math.clz32(l.align)})`)],
 	);
 }
 
@@ -56,6 +56,51 @@ export function fmtLayoutErrorDebug(_: LayoutError, f: Formatter): FmtResult {
 /** `Display` of a `LayoutError`. */
 export function fmtLayoutErrorDisplay(_: LayoutError, f: Formatter): FmtResult {
 	return f.out.writeStr("invalid parameters to Layout::from_size_align");
+}
+
+/**
+ * `alloc::collections::TryReserveError`, never changed once made: why `try_reserve` failed,
+ * the capacity past what the collection holds, or no `layout` for it.
+ */
+export class TryReserveError {
+	/** The layout whose allocation failed, or none where the capacity overflowed. */
+	readonly layout: Layout | undefined;
+
+	constructor(layout?: Layout) {
+		this.layout = layout;
+	}
+}
+
+/** `Err` of the capacity's overflow, which every `try_reserve` shares. */
+export const CAPACITY_OVERFLOW: Result<never, TryReserveError> = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Err(/* @__PURE__ */ new TryReserveError()));
+
+/** `Err` of the allocation of `size` bytes, if `e` is what JS throws for one it can't make; else `e` again. */
+export function allocError(e: unknown, size: usize): Result<never, TryReserveError> {
+	if (e instanceof RangeError) return Err(new TryReserveError({ size, align: 1 }));
+	throw e;
+}
+
+/** `PartialEq` of `TryReserveError`s. */
+export function tryReserveErrorEq(a: TryReserveError, b: TryReserveError): boolean {
+	if (a.layout === undefined || b.layout === undefined) return a.layout === b.layout;
+	return a.layout.size === b.layout.size && a.layout.align === b.layout.align;
+}
+
+/** `Debug` of a `TryReserveError`, derived as std's is, of its `TryReserveErrorKind`. */
+export function fmtTryReserveErrorDebug(e: TryReserveError, f: Formatter): FmtResult {
+	const layout = e.layout;
+	const kind: Fmt =
+		layout === undefined
+			? (f) => f.out.writeStr("CapacityOverflow")
+			: (f) => fmtDebugStructFields(f, "AllocError", ["layout", "non_exhaustive"], [(f) => fmtLayoutDebug(layout, f), (f) => fmtPad(f, "()")]);
+	return fmtDebugStructFields(f, "TryReserveError", ["kind"], [kind]);
+}
+
+/** `Display` of a `TryReserveError`, unpadded as std's. */
+export function fmtTryReserveErrorDisplay(e: TryReserveError, f: Formatter): FmtResult {
+	const reason =
+		e.layout === undefined ? " because the computed capacity exceeded the collection's maximum" : " because the memory allocator returned an error";
+	return f.out.writeStr(`memory allocation failed${reason}`);
 }
 
 /**
