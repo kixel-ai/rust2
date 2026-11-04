@@ -504,7 +504,7 @@ export function hashed(log: Log.Log, id: rt.u32): void {
 		const sum: rt.u32 = rt.iterSum(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(text))), (_2: rt.u8): rt.u32 => {
 			return _2 as rt.u32;
 		}), rt.u32Add, 0);
-		const _152: rt.usize = rt.byteVecSlice(text).length;
+		const _152: rt.usize = text.length;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, what), (f: rt.Formatter) => rt.usizeDisplay(_152, f), (f: rt.Formatter) => rt.u32Display(sum, f)];
 		Log.note(log, rt.fmtFormat([args10[0], ": ", args10[1], " ", args10[2]]));
 	};

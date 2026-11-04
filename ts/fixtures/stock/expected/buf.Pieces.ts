@@ -27,7 +27,7 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
 	}
 	const parts: rt.Vec<rt.ByteVec> = rt.vecFrom([rt.byteSliceToByteVec(new rt.ByteSlice(inputData, inputStart, cut)), rt.byteSliceToByteVec(new rt.ByteSlice(inputData, inputStart + cut, inputLen - cut))]);
 	rt.vecRetain(parts, (part: rt.ByteVec): boolean => {
-		return !(rt.byteVecSlice(part).length === 0);
+		return !(part.length === 0);
 	});
 	return { parts, at: 0 };
 }
@@ -61,7 +61,7 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
  */
 export function remaining$bytes_Buf(self: Pieces): rt.usize {
 	return rt.usizeSub(rt.iterSum(rt.iterMap(rt.iterSlice(self.parts.d), (a0: rt.ByteVec): rt.usize => {
-		return rt.byteVecSlice(a0).length;
+		return a0.length;
 	}), rt.usizeAdd, 0), self.at);
 }
 
@@ -138,7 +138,7 @@ export function chunk$bytes_Buf(self: Pieces): rt.ByteSlice {
  */
 export function advance$bytes_Buf(self: Pieces, cnt: rt.usize): void {
 	while (cnt > 0) {
-		const left: rt.usize = rt.usizeSub(rt.byteVecSlice(self.parts.d[rt.idx(self.parts.d, 0)]).length, self.at);
+		const left: rt.usize = rt.usizeSub(self.parts.d[rt.idx(self.parts.d, 0)].length, self.at);
 		if (!(cnt < left)) {
 			cnt = rt.usizeSub(cnt, left);
 			rt.vecRemove(self.parts, 0);

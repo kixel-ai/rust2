@@ -835,8 +835,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 		} else if (_39 === 2) {
 			rt.byteVecPop(v);
 		} else if (_39 === 3 || _39 === 4) {
-			const _46: rt.usize = rt.byteVecSlice(v).length;
-			const additional: rt.usize = amount(arg, _46, size);
+			const additional: rt.usize = amount(arg, v.length, size);
 			if (rt.u8Rem(op, 41) === 3) {
 				rt.byteVecReserve(v, additional);
 			} else {
@@ -849,10 +848,10 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 		} else if (_39 === 7) {
 			rt.byteVecTruncate(v, rt.u8Rem(arg, 8) as rt.usize);
 		} else if (_39 === 8) {
-			rt.byteVecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(rt.byteVecSlice(v).length, 1)), make(arg));
+			rt.byteVecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), make(arg));
 		} else if (_39 === 9) {
-			if (!(rt.byteVecSlice(v).length === 0)) {
-				rt.byteVecRemove(v, rt.usizeRem(arg as rt.usize, rt.byteVecSlice(v).length));
+			if (!(v.length === 0)) {
+				rt.byteVecRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 			}
 		} else if (_39 === 10) {
 			rt.iterExtendBytes(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
@@ -870,7 +869,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				return keep();
 			});
 		} else if (_39 === 15) {
-			rt.drop(rt.byteVecDrain(v, { end: rt.min(rt.byteVecSlice(v).length, rt.u8Rem(arg, 4) as rt.usize) }));
+			rt.drop(rt.byteVecDrain(v, { end: rt.min(v.length, rt.u8Rem(arg, 4) as rt.usize) }));
 		} else if (_39 === 16) {
 			v = rt.byteVecFrom(rt.byteVecView(v));
 		} else if (_39 === 17) {
@@ -897,15 +896,15 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			let taken: rt.ByteVec = rt.replaceIn(v, new rt.ByteVec());
 			const _149: rt.u8 = make(arg);
 			rt.byteVecPush(taken, _149);
-			sized(out, rt.byteVecSlice(taken).length, taken.data.length);
+			sized(out, taken.length, taken.data.length);
 			const _157: rt.ByteVec = rt.byteVecWithCapacity(rt.u8Rem(arg, 6) as rt.usize);
 			const old = taken;
 			taken = _157;
 			v = old;
-			sized(out, rt.byteVecSlice(taken).length, taken.data.length);
+			sized(out, taken.length, taken.data.length);
 		} else if (_39 === 21) {
-			if (!(rt.byteVecSlice(v).length === 0)) {
-				rt.byteVecSwapRemove(v, rt.usizeRem(arg as rt.usize, rt.byteVecSlice(v).length));
+			if (!(v.length === 0)) {
+				rt.byteVecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.length));
 			}
 		} else if (_39 === 22) {
 			rt.byteVecDedup(v);
@@ -919,7 +918,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			}
 			v = rt.iterToByteVec(it2.clone({ v: rt.itself }), "next", true, 1);
 			const rest: rt.ByteVec = rt.iterToByteVec(it2, "next", true, 1);
-			sized(out, rt.byteVecSlice(rest).length, rest.data.length);
+			sized(out, rest.length, rest.data.length);
 		} else if (_39 === 24) {
 			v = rt.byteVecOf(make(arg), rt.u8Rem(arg, 6) as rt.usize);
 		} else if (_39 === 25) {
@@ -941,7 +940,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			const _236: rt.Iter<rt.u8> = rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 12)), make);
 			rt.iterExtendBytes(other, _236, undefined, true);
 			rt.byteVecAppend(v, other);
-			sized(out, rt.byteVecSlice(other).length, other.data.length);
+			sized(out, other.length, other.data.length);
 		} else if (_39 === 30 || _39 === 31) {
 			b8: {
 				if ((arg >> 5) === 6) {
@@ -960,14 +959,14 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				});
 			}
 		} else if (_39 === 32) {
-			const tail: rt.ByteVec = rt.byteVecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(rt.byteVecSlice(v).length, 1)));
-			sized(out, rt.byteVecSlice(tail).length, tail.data.length);
+			const tail: rt.ByteVec = rt.byteVecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)));
+			sized(out, tail.length, tail.data.length);
 		} else if (_39 === 33) {
-			rt.byteVecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(rt.byteVecSlice(v).length, 1)), rt.usizeStep));
+			rt.byteVecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep));
 		} else if (_39 === 34) {
 			v = rt.byteVecFromVec(rt.dequeToVec(rt.dequeFromVec(rt.byteVecToVec(v), 1, true) as rt.VecDeque<rt.u8>));
 		} else if (_39 === 35) {
-			const len: rt.usize = rt.byteVecSlice(v).length;
+			const len: rt.usize = v.length;
 			const start: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len, 1));
 			if ((arg & 128) === 0) {
 				end = rt.usizeAdd(start, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len, start), 1)));
@@ -1007,8 +1006,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			}
 		} else if (_39 === 36) {
 			const keep3: () => boolean = alternate();
-			const start2: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(rt.byteVecSlice(v).length, 1));
-			rt.ownedCount(rt.iterTake(rt.byteVecExtractIf(v, new rt.RangeFrom(start2, rt.usizeStep), (_23: rt.Place<rt.u8>): boolean => {
+			rt.ownedCount(rt.iterTake(rt.byteVecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), (_23: rt.Place<rt.u8>): boolean => {
 				return keep3();
 			}), rt.u8Rem(arg, 5) as rt.usize));
 		} else if (_39 === 37) {
@@ -1026,13 +1024,11 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				pairs.d.push(_398);
 			}
 			const flat: rt.ByteVec = rt.byteVecIntoFlattened(pairs, 2);
-			sized(out, rt.byteVecSlice(flat).length, flat.data.length);
+			sized(out, flat.length, flat.data.length);
 		} else if (_39 === 38) {
-			const start3: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(rt.byteVecSlice(v).length, 1));
-			rt.spliceFrom(rt.byteVecSplice(v, new rt.RangeFrom(start3, rt.usizeStep)), rt.iterSlice(Uint8Array.of()), true);
+			rt.spliceFrom(rt.byteVecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep)), rt.iterSlice(Uint8Array.of()), true);
 		} else if (_39 === 39 || _39 === 40) {
-			const _428: rt.usize = rt.byteVecSlice(v).length;
-			const additional2: rt.usize = amount(arg, _428, size);
+			const additional2: rt.usize = amount(arg, v.length, size);
 			if (rt.u8Rem(op, 41) === 39) {
 				tried = rt.byteVecTryReserve(v, additional2);
 			} else {
@@ -1041,7 +1037,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, rt.byteVecSlice(v).length, v.data.length);
+		sized(out, v.length, v.data.length);
 	}
 }
 
@@ -1916,7 +1912,7 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	const _17: (a0: rt.ByteVec[], a1: rt.ByteVec) => undefined = (vs: rt.ByteVec[], out2: rt.ByteVec): undefined => {
 		put(out2, vs.length);
 		for (const _8 of vs) {
-			put(out2, rt.byteVecSlice(_8).length);
+			put(out2, _8.length);
 			put(out2, _8.data.length);
 		}
 	};
@@ -3364,9 +3360,9 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 		sized(out, h.d.length, rt.vecCapacity(h, 1));
 	}
 	const cloned: rt.ByteVec = rt.byteVecFromVec(rt.heapClone(h, undefined));
-	sized(out, rt.byteVecSlice(cloned).length, cloned.data.length);
+	sized(out, cloned.length, cloned.data.length);
 	const sorted: rt.ByteVec = rt.byteVecFromVec(rt.heapIntoSortedVec(h, rt.le, rt.ge, rt.lt));
-	sized(out, rt.byteVecSlice(sorted).length, sorted.data.length);
+	sized(out, sorted.length, sorted.data.length);
 }
 
 export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: number, make: (a0: rt.u8) => undefined, out: rt.ByteVec): void {
@@ -3478,11 +3474,11 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const bytes: rt.ByteVec = rt.byteVecWithCapacity(rt.usizeAdd(n, 3));
 		const _34: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.min(n, data.length));
 		rt.byteVecExtendFromSlice(bytes, _34);
-		sized(out, rt.byteVecSlice(bytes).length, bytes.data.length);
+		sized(out, bytes.length, bytes.data.length);
 		const odd: rt.ByteVec = rt.iterToByteVec(rt.iterFilter(rt.byteVecIntoIter(rt.byteVecFrom(rt.byteVecView(bytes))), (b5: rt.u8): boolean => {
 			return rt.u8Rem(b5, 2) === 1;
 		}), "next", false, 1);
-		sized(out, rt.byteVecSlice(odd).length, odd.data.length);
+		sized(out, odd.length, odd.data.length);
 		const wide: rt.Vec<rt.u16> = rt.iterToVec(rt.iterMap(rt.byteVecIntoIter(bytes), (a0: rt.u8): rt.u16 => {
 			return a0 as rt.u16;
 		}), undefined, 2, true);
@@ -3502,7 +3498,7 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const _82: [rt.ByteVec, rt.BinaryHeap<rt.u32>] = rt.tupleExtend([new rt.ByteVec(), rt.heapNew() as rt.BinaryHeap<rt.u32>] as [rt.ByteVec, rt.BinaryHeap<rt.u32>], _83, [rt.byteVecPart(), rt.heapPart(rt.le, 4)]);
 		const c: rt.ByteVec = _82[0];
 		const d: rt.BinaryHeap<rt.u32> = _82[1];
-		sized(out, rt.byteVecSlice(c).length, c.data.length);
+		sized(out, c.length, c.data.length);
 		sized(out, d.d.length, rt.vecCapacity(d, 4));
 	} else if (_18 === 3) {
 		const filled: rt.Vec<rt.u16> = rt.vecFromElem(0, n, undefined);
@@ -3522,16 +3518,16 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.byteVecToVec(bytes2), rt.le, rt.ge, rt.lt);
 		sized(out, heap.d.length, rt.vecCapacity(heap, 1));
 		const v2: rt.ByteVec = rt.byteVecFromVec(heap);
-		sized(out, rt.byteVecSlice(v2).length, v2.data.length);
+		sized(out, v2.length, v2.data.length);
 	} else {
 		const grown: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(rt.byteVecOf(7, n)));
 		const _156: rt.Iter<rt.u8> = rt.iterFilter(new rt.Range(0, n & 0xff), (b3: rt.u8): boolean => {
 			return rt.u8Rem(b3, 2) === 0;
 		});
 		rt.iterExtendBytes(grown, _156, "next");
-		sized(out, rt.byteVecSlice(grown).length, grown.data.length);
+		sized(out, grown.length, grown.data.length);
 		rt.byteVecShrinkTo(grown, rt.usizeDiv(n, 2));
-		sized(out, rt.byteVecSlice(grown).length, grown.data.length);
+		sized(out, grown.length, grown.data.length);
 	}
 }
 

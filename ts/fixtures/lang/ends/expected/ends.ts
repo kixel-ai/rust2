@@ -31,7 +31,7 @@ export function putHint(out: rt.ByteVec, _2: [rt.usize, rt.usize | undefined]): 
  * by their hints.
  */
 export function putVec(out: rt.ByteVec, v: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.byteVecSlice(v).length & 0xff, v.data.length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(v.length & 0xff, v.data.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(v), undefined, true);
 }
 

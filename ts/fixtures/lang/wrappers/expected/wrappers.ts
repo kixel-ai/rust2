@@ -562,7 +562,7 @@ export function reverses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecPush(kept, _98);
 		rt.byteVecCloneFrom(kept, a3);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(kept))), undefined, true);
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.byteVecSlice(kept).length & 0xff, kept.data.length & 0xff)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(kept.length & 0xff, kept.data.length & 0xff)), undefined, true);
 	}
 }
 

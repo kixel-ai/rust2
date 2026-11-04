@@ -83,8 +83,8 @@ export function adaptors(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 				const mapped: rt.ByteVec = rt.iterToByteVec(rt.iterMapWhile(rt.iterSlice(rt.byteSliceView(data)), (_215: rt.u8): rt.u8 | undefined => {
 					return rt.u8CheckedAdd(_215, 64);
 				}), "next");
-				rt.byteVecPush(out, rt.byteVecSlice(taken).length & 0xff);
-				rt.byteVecPush(out, rt.byteVecSlice(skipped).length & 0xff);
+				rt.byteVecPush(out, taken.length & 0xff);
+				rt.byteVecPush(out, skipped.length & 0xff);
 				rt.byteVecExtendFromSlice(out, rt.byteVecSlice(mapped));
 			} else if (_4 === 4) {
 				const words: rt.Vec<rt.ByteVec> = chunksByZero$iters_ChunksByZero_slice_u8(data);
@@ -341,9 +341,9 @@ export function reducers(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const b4: rt.u8 = _22;
 		return rt.byteVecOf(b4, rt.u8Rem(b4, 3) as rt.usize);
 	}), (a3: rt.ByteVec, b5: rt.ByteVec): rt.Ordering => {
-		return rt.cmp(rt.byteVecSlice(a3).length, rt.byteVecSlice(b5).length);
+		return rt.cmp(a3.length, b5.length);
 	}), 204, (v: rt.ByteVec): rt.u8 => {
-		return rt.byteVecSlice(v).length & 0xff;
+		return v.length & 0xff;
 	}));
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(option_unwrapOrDefault$0wx44sw(rt.iterReduce(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_23: rt.u8): rt.ByteVec => {
 		return rt.byteVecFrom(Uint8Array.of(_23));
@@ -527,10 +527,10 @@ export function peekedOthers(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, option_mapOr$1a3irjf(rt.peekableNextIfEq(it8, _203, (a016: rt.ByteVec, a112: rt.ByteSlice): boolean => {
 		return rt.eqBytes(a016, a112);
 	}), 170, (v5: rt.ByteVec): rt.u8 => {
-		return rt.byteVecSlice(v5).length & 0xff;
+		return v5.length & 0xff;
 	}));
 	rt.byteVecPush(out, option_mapOr$1a3irjf(rt.iterToOption(it8.next()), 170, (v6: rt.ByteVec): rt.u8 => {
-		return rt.byteVecSlice(v6).length & 0xff;
+		return v6.length & 0xff;
 	}));
 	const calls: rt.Cell<rt.u8> = new rt.Cell(0);
 	const it9: rt.Peekable<Uint8Array> = rt.iterPeekable(rt.iterMap(rt.byteSliceChunksExact(data, 2), (c: rt.ByteSlice): Uint8Array => {

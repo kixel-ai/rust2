@@ -25,7 +25,7 @@ export function finish$hash_Hasher(self: Switch): rt.u64 {
 		const log: rt.RefCell<rt.ByteVec> = self._0;
 		record(log, 102, rt.byteSliceFrom(Uint8Array.of()));
 		const _10: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
-		const _0: rt.u64 = rt.byteVecSlice(_10.value).length as rt.u64;
+		const _0: rt.u64 = _10.value.length as rt.u64;
 		rt.refRelease(_10);
 		return _0;
 	}

@@ -13,7 +13,7 @@ export interface Bare {
 
 export function finish$hash_Hasher(self: Bare): rt.u64 {
 	const _5: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(self._0);
-	const _0: rt.u64 = rt.byteVecSlice(_5.value).length as rt.u64;
+	const _0: rt.u64 = _5.value.length as rt.u64;
 	rt.refRelease(_5);
 	return _0;
 }

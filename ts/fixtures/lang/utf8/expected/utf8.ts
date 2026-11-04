@@ -22,7 +22,7 @@ export function input(kind: rt.u8, data: rt.ByteSlice): rt.ByteVec {
 
 export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const bytes: rt.ByteVec = input(kind, data);
-	const iter: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(0, rt.byteVecSlice(bytes).length, rt.usizeStep);
+	const iter: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(0, bytes.length, rt.usizeStep);
 	while (true) {
 		const _10: rt.usize | rt.Done = iter.next();
 		if (_10 === rt.DONE) {
@@ -54,7 +54,7 @@ export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 
 export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const bytes: rt.ByteVec = input(kind, data);
-	const iter: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(0, rt.byteVecSlice(bytes).length, rt.usizeStep);
+	const iter: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(0, bytes.length, rt.usizeStep);
 	while (true) {
 		const _10: rt.usize | rt.Done = iter.next();
 		if (_10 === rt.DONE) {

@@ -698,7 +698,7 @@ export function cloneFroms(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): vo
 			if (_167 === rt.DONE) {
 				break;
 			}
-			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.byteVecSlice(_167).length & 0xff, _167.data.length & 0xff)), undefined, true);
+			rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_167.length & 0xff, _167.data.length & 0xff)), undefined, true);
 		}
 	} else {
 		const _179: [string, string] = [text(left), text(right)];

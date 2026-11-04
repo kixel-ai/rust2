@@ -2400,8 +2400,8 @@ fn mapping<'tcx>(
 		("Vec", "pop_if") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecPopIf", args),
 		("Vec", "pop_if") if b.t.needs_place(targ(gargs, 0)) => Expr::rt("vecPopIfMut", args),
 		("Vec", "pop_if") => Expr::rt("vecPopIf", args),
-		("Vec", "len") => vec_view(args.pop()?, targ(gargs, 0)).member("length"),
-		("Vec", "is_empty") => vec_view(args.pop()?, targ(gargs, 0))
+		("Vec", "len") => vec_items(args.pop()?, targ(gargs, 0)).member("length"),
+		("Vec", "is_empty") => vec_items(args.pop()?, targ(gargs, 0))
 			.member("length")
 			.binary("===", Expr::lit("0")),
 		("Vec", "truncate") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecTruncate", args),
@@ -3782,6 +3782,14 @@ pub fn primitive(ty: Ty<'_>) -> bool {
 pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
+		_ => v.member("d"),
+	}
+}
+
+/// What holds a `Vec` of `elem`s' length: an `rt.ByteVec` itself, or an `rt.Vec`'s items.
+fn vec_items(v: Expr, elem: Ty<'_>) -> Expr {
+	match elem.kind() {
+		ty::Uint(ty::UintTy::U8) => v,
 		_ => v.member("d"),
 	}
 }

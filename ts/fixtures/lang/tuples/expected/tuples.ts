@@ -485,14 +485,14 @@ export function reserved(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _18: [rt.HashSet<rt.u8>, rt.ByteVec] = rt.tupleExtend([rt.hashNew() as rt.HashSet<rt.u8>, new rt.ByteVec()] as [rt.HashSet<rt.u8>, rt.ByteVec], _19, [rt.hashKeysPart(undefined, 469762048), rt.byteVecPart()]);
 		const set: rt.HashSet<rt.u8> = _18[0];
 		const v2: rt.ByteVec = _18[1];
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.hashLen(set) & 0xff, rt.byteVecSlice(v2).length & 0xff)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.hashLen(set) & 0xff, v2.length & 0xff)), undefined, true);
 	} else if (_4 === 2) {
 		const _31: rt.Iter<[rt.u8, rt.u8]> = rt.iterMap(items, (i3: rt.u32): [rt.u8, rt.u8] => {
 			return [i3 & 0xff, i3 & 0xff] as [rt.u8, rt.u8];
 		});
 		const _30: [rt.ByteVec, rt.HashSet<rt.u8>] = rt.tupleExtend([new rt.ByteVec(), rt.hashNew() as rt.HashSet<rt.u8>] as [rt.ByteVec, rt.HashSet<rt.u8>], _31, [rt.byteVecPart(), rt.hashKeysPart(undefined, 469762048)]);
 		const v3: rt.ByteVec = _30[0];
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.hashLen(_30[1]) & 0xff, rt.byteVecSlice(v3).length & 0xff)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.hashLen(_30[1]) & 0xff, v3.length & 0xff)), undefined, true);
 	} else if (_4 === 3) {
 		const _43: rt.Iter<[undefined, rt.char]> = rt.iterMap(items, (_2: rt.u32): [undefined, rt.char] => {
 			return [undefined, 97] as [undefined, rt.char];
@@ -511,7 +511,7 @@ export function reserved(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _66: rt.Iter<[rt.u8]> = rt.iterMap(items, (i: rt.u32): [rt.u8] => {
 			return [i & 0xff] as [rt.u8];
 		});
-		rt.byteVecPush(out, rt.byteVecSlice(rt.tupleExtendOne([new rt.ByteVec()] as [rt.ByteVec], _66, (c, items2) => rt.iterExtendBytes(c, items2, undefined, true))[0]).length & 0xff);
+		rt.byteVecPush(out, rt.tupleExtendOne([new rt.ByteVec()] as [rt.ByteVec], _66, (c, items2) => rt.iterExtendBytes(c, items2, undefined, true))[0].length & 0xff);
 	}
 }
 

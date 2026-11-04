@@ -155,7 +155,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return _2;
 	}), undefined, true);
 	const n: rt.u8 = option_unwrapOrDefault$1q0ps0j(rt.byteSliceFirst(rt.byteVecSlice(data2)));
-	const runs: Runs.Runs<rt.u8> = new Runs.Runs(rt.bytes(3).fill(n), rt.byteVecFrom(rt.byteVecView(data2)), rt.byteVecSlice(data2), rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(data2))), rt.byteVecSlice(data2), new rt.Vec(), then$1i9qaz4(rt.usizeRem(rt.byteVecSlice(data2).length, 2) === 0, (): rt.ByteVec => {
+	const runs: Runs.Runs<rt.u8> = new Runs.Runs(rt.bytes(3).fill(n), rt.byteVecFrom(rt.byteVecView(data2)), rt.byteVecSlice(data2), rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(data2))), rt.byteVecSlice(data2), new rt.Vec(), then$1i9qaz4(rt.usizeRem(data2.length, 2) === 0, (): rt.ByteVec => {
 		return new rt.ByteVec();
 	}));
 	const before: Runs.Runs<rt.u8> = Runs.clone$Clone_u8(runs);

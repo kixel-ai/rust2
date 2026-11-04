@@ -122,7 +122,7 @@ export function total$u16(self: Runs<rt.u16>): rt.usize {
 }
 
 export function total$u8(self: Runs<rt.u8>): rt.usize {
-	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.byteSliceFrom(self.array as Uint8Array).length, rt.byteVecSlice(self.list as rt.ByteVec).length), (self.view as rt.ByteSlice).length), (self.boxed as rt.ByteSlice).length), rt.byteCowSlice(self.cow as rt.ByteCow).length), (self.pairs as rt.Vec<Uint8Array>).d.length);
+	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.byteSliceFrom(self.array as Uint8Array).length, (self.list as rt.ByteVec).length), (self.view as rt.ByteSlice).length), (self.boxed as rt.ByteSlice).length), rt.byteCowSlice(self.cow as rt.ByteCow).length), (self.pairs as rt.Vec<Uint8Array>).d.length);
 }
 
 export function push$u16(self: Runs<rt.u16>, item: rt.u16): void {
@@ -170,7 +170,7 @@ export function run$u16(self: Runs<rt.u16>): Run.Run<rt.u16> {
 }
 
 export function run$u8(self: Runs<rt.u8>): Run.Run<rt.u8> {
-	const _2: rt.usize = rt.usizeRem(rt.byteVecSlice(self.list as rt.ByteVec).length, 3);
+	const _2: rt.usize = rt.usizeRem((self.list as rt.ByteVec).length, 3);
 	if (_2 === 0) {
 		return { tag: "Listed", _0: rt.byteVecFrom(rt.byteVecView(self.list as rt.ByteVec)) } as Run.Run<rt.u8>;
 	}

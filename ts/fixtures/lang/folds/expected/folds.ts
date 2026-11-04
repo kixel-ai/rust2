@@ -298,9 +298,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return x51;
 			})), rt.lt), r12);
 			const r13: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterMap(rt.iterBorrow(r13), (x52: rt.u8): rt.u8 => {
+			state$u8_usize(out, rt.iterToByteVec(rt.iterMap(rt.iterBorrow(r13), (x52: rt.u8): rt.u8 => {
 				return x52;
-			}), undefined, true)).length, r13);
+			}), undefined, true).length, r13);
 			const r14: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_usize(out, rt.iterCount(rt.iterInspect(rt.iterBorrow(r14), (_226: rt.u8): undefined => {})), r14);
 			const r15: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
@@ -308,7 +308,7 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return isK(x53);
 			}), r15);
 			const r16: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterInspect(rt.iterBorrow(r16), (_229: rt.u8): undefined => {}), "next")).length, r16);
+			state$u8_usize(out, rt.iterToByteVec(rt.iterInspect(rt.iterBorrow(r16), (_229: rt.u8): undefined => {}), "next").length, r16);
 			const r17: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _191: rt.RangeInclusive<rt.u8> = r17;
 			const _193: (a0: rt.u8) => boolean = (x54: rt.u8): boolean => {
@@ -320,9 +320,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const r19: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_u8(out, rt.iterToOption(rt.iterFilter(rt.iterBorrow(r19), isK).nextBack()), r19);
 			const r20: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFilter(rt.iterBorrow(r20), (_230: rt.u8): boolean => {
+			state$u8_usize(out, rt.iterToByteVec(rt.iterFilter(rt.iterBorrow(r20), (_230: rt.u8): boolean => {
 				return true;
-			}), "next")).length, r20);
+			}), "next").length, r20);
 			const r21: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _225: rt.RangeInclusive<rt.u8> = r21;
 			const _227: (a0: rt.u8) => rt.u8 | undefined = (x55: rt.u8): rt.u8 | undefined => {
@@ -400,7 +400,7 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const r44: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_u8(out, rt.iterMax(rt.iterSkip(rt.iterBorrow(r44), n2), rt.lt), r44);
 			const r45: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterSkip(rt.iterBorrow(r45), n2), "next")).length, r45);
+			state$u8_usize(out, rt.iterToByteVec(rt.iterSkip(rt.iterBorrow(r45), n2), "next").length, r45);
 			const r46: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_u8(out, rt.iterToOption(rt.iterSkipWhile(rt.iterBorrow(r46), below).next()), r46);
 			const r47: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
@@ -412,7 +412,7 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return true;
 			})), r49);
 			const r50: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterTakeWhile(rt.iterBorrow(r50), below), "next")).length, r50);
+			state$u8_usize(out, rt.iterToByteVec(rt.iterTakeWhile(rt.iterBorrow(r50), below), "next").length, r50);
 			const r51: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _468: rt.RangeInclusive<rt.u8> = r51;
 			const _470: (a0: rt.u8) => rt.u8 | undefined = (x62: rt.u8): rt.u8 | undefined => {
@@ -424,9 +424,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return x63;
 			})), r52);
 			const r53: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterMapWhile(rt.iterBorrow(r53), (x64: rt.u8): rt.u8 | undefined => {
+			state$u8_usize(out, rt.iterToByteVec(rt.iterMapWhile(rt.iterBorrow(r53), (x64: rt.u8): rt.u8 | undefined => {
 				return x64;
-			}), "next")).length, r53);
+			}), "next").length, r53);
 			const r54: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_usize(out, rt.iterCount(rt.iterFuse(rt.iterBorrow(r54), true)), r54);
 			const r55: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
@@ -498,9 +498,9 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const r69: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_tuple2_u8_usize(out, rt.iterLast(rt.iterZip(rt.iterBorrow(r69), new rt.Range(0, n2), "len")), r69);
 			const r70: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
-			state$u8_usize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterMap(rt.iterZip(rt.iterBorrow(r70), new rt.Range(0, n2), "len"), (_236: [rt.u8, rt.usize]): rt.u8 => {
+			state$u8_usize(out, rt.iterToByteVec(rt.iterMap(rt.iterZip(rt.iterBorrow(r70), new rt.Range(0, n2), "len"), (_236: [rt.u8, rt.usize]): rt.u8 => {
 				return _236[0];
-			}), undefined, true)).length, r70);
+			}), undefined, true).length, r70);
 			const r71: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			state$u8_Option_usize(out, rt.iterPosition(rt.iterZip(rt.iterBorrow(r71), new rt.Range(0, n2), "len"), (_238: [rt.u8, rt.usize]): boolean => {
 				return false;
@@ -509,7 +509,7 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			state$u8_Result_usize_unit(out, result_map$1w3j91w(rt.iterCollectResult(rt.iterMap(rt.iterBorrow(r72), (x74: rt.u8): rt.Result<rt.u8, undefined> => {
 				return rt.Ok(x74);
 			}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values)), (v161: rt.ByteVec): rt.usize => {
-				return rt.byteVecSlice(v161).length;
+				return v161.length;
 			}), r72);
 			const r73: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const _685: rt.RangeInclusive<rt.u8> = r73;
@@ -520,7 +520,7 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return undefined;
 			};
 			state$u8_Option_usize(out, option_map$1c7fhtg(rt.iterCollectOption(rt.iterMap(rt.iterBorrow(_685), _687), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values)), (v162: rt.ByteVec): rt.usize => {
-				return rt.byteVecSlice(v162).length;
+				return v162.length;
 			}), r73);
 			const r74: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const v73: rt.ByteVec = new rt.ByteVec();
@@ -528,14 +528,14 @@ export function folds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return x76;
 			});
 			rt.iterExtendBytes(v73, _697, undefined, true);
-			state$u8_usize(out, rt.byteVecSlice(v73).length, r74);
+			state$u8_usize(out, v73.length, r74);
 			const r75: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(lo2, hi2, rt.u8Step);
 			const v75: rt.ByteVec = new rt.ByteVec();
 			const _708: rt.Iter<rt.u8> = rt.iterTakeWhile(rt.iterBorrow(r75), (_239: rt.u8): boolean => {
 				return true;
 			});
 			rt.iterExtendBytes(v75, _708, "next");
-			state$u8_usize(out, rt.byteVecSlice(v75).length, r75);
+			state$u8_usize(out, v75.length, r75);
 			const lo3: rt.u8 = lo;
 			const hi3: rt.u8 = hi;
 			const n3: rt.usize = n;

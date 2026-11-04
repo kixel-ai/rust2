@@ -108,9 +108,9 @@ export function segments(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(v, 9);
 	const a: Uint8Array = rt.bytes(4);
 	const p2: rt.Place<rt.u8> = rt.byteVecAsPtr(v);
-	const _52: rt.Place<rt.u8> = rt.ptrAdd(p2, rt.usizeSub(rt.byteVecSlice(v).length, 1));
+	const _52: rt.Place<rt.u8> = rt.ptrAdd(p2, rt.usizeSub(v.length, 1));
 	_52.v = rt.u8Add(_52.v, 1);
-	rt.ptrCopy(p2, rt.byteSliceAsPtr(rt.byteSliceFrom(a)), rt.min(rt.byteVecSlice(v).length, 4));
+	rt.ptrCopy(p2, rt.byteSliceAsPtr(rt.byteSliceFrom(a)), rt.min(v.length, 4));
 	const byte: rt.Place<rt.u8> = rt.ptrAdd(rt.byteSliceAsPtr(rt.byteSliceFrom(a)), 1);
 	rt.ptrAdd(byte, 2).v = 85;
 	rt.byteVecExtendFromSlice(out, rt.ptrByteSlice(rt.ptrAdd(byte, -1), 4, true));
@@ -363,7 +363,7 @@ export function rawSlices(data: rt.ByteSlice, out: rt.ByteVec): void {
 	emit(v.d, out);
 	const bytes: rt.ByteVec = rt.byteSliceToByteVec(data);
 	rt.iterExtendBytes(bytes, rt.iterSlice(Uint8Array.of(3, 4)), undefined, true);
-	const b: rt.RawSlice<rt.u8> = new rt.RawSlice(rt.byteVecAsPtr(bytes), rt.byteVecSlice(bytes).length);
+	const b: rt.RawSlice<rt.u8> = new rt.RawSlice(rt.byteVecAsPtr(bytes), bytes.length);
 	rt.idx(b, 0);
 	const slice2 = b.derefBytes(false);
 	const slice3 = b.derefBytes(false);

@@ -380,9 +380,7 @@ export function hashMaps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			if (_530 === rt.DONE) {
 				break;
 			}
-			const _537: string = _530[0];
-			const _538: rt.usize = rt.byteVecSlice(_530[1]).length;
-			rt.btreeInsert(lens, _537, _538);
+			rt.btreeInsert(lens, _530[0], _530[1].length);
 		}
 		const iter17: rt.Iter<[string, rt.usize]> = rt.btreeIter(lens);
 		while (true) {
@@ -394,7 +392,7 @@ export function hashMaps(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.byteVecPush(out, _542[1] & 0xff);
 		}
 		rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.hashDrain(words), (_2: [string, rt.ByteVec]): rt.usize => {
-			return rt.byteVecSlice(_2[1]).length;
+			return _2[1].length;
 		}), rt.usizeAdd, 0) & 0xff);
 		rt.byteVecPush(out, rt.hashLen(words) === 0 ? 1 : 0);
 		const clashes: rt.HashMap<Clash.Clash, Tally.Tally> = rt.hashNew(rt.hashing(Clash.hash$Hash_hash_DefaultHasher as (a0: Clash.Clash, a1: rt.Hasher) => undefined, Clash.eq$cmp_PartialEq)) as rt.HashMap<Clash.Clash, Tally.Tally>;
@@ -1209,7 +1207,7 @@ export function vecs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(grown));
 	const _178: rt.ByteVec = rt.byteVecOf(b, n);
 	for (const _183 of rt.vecFrom([bytes, _178]).d) {
-		rt.byteVecPush(out, rt.byteVecSlice(_183).length & 0xff);
+		rt.byteVecPush(out, _183.length & 0xff);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_183));
 	}
 	const wrapped: rt.Vec<Wrap.Wrap<rt.u8>> = rt.vecFromElem(new Wrap.Wrap(a, b), n, copy$collections_Wrap_u8);
@@ -2314,7 +2312,7 @@ export function setOpsOf$u8(left: rt.ByteSlice, right: rt.ByteSlice, make: (a0: 
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_collections_btree_set_Difference_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2324,13 +2322,13 @@ export function putAll$Option_u8_collections_btree_set_Difference_Option_u8(item
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_collections_btree_set_Intersection_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2340,13 +2338,13 @@ export function putAll$Option_u8_collections_btree_set_Intersection_Option_u8(it
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_collections_btree_set_Iter_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2356,13 +2354,13 @@ export function putAll$Option_u8_collections_btree_set_Iter_Option_u8(items: rt.
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_collections_btree_set_SymmetricDifference_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2372,13 +2370,13 @@ export function putAll$Option_u8_collections_btree_set_SymmetricDifference_Optio
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_collections_btree_set_Union_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2388,13 +2386,13 @@ export function putAll$Option_u8_collections_btree_set_Union_Option_u8(items: rt
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_iter_Rev_collections_btree_set_Iter_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2404,13 +2402,13 @@ export function putAll$Option_u8_iter_Rev_collections_btree_set_Iter_Option_u8(i
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$Option_u8_vec_IntoIter_ref_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2420,13 +2418,13 @@ export function putAll$Option_u8_vec_IntoIter_ref_Option_u8(items: rt.Iter<rt.u8
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_collections_btree_set_Difference_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2436,13 +2434,13 @@ export function putAll$array2_u8_collections_btree_set_Difference_array2_u8(item
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_collections_btree_set_Intersection_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2452,13 +2450,13 @@ export function putAll$array2_u8_collections_btree_set_Intersection_array2_u8(it
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_collections_btree_set_Iter_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2468,13 +2466,13 @@ export function putAll$array2_u8_collections_btree_set_Iter_array2_u8(items: rt.
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_collections_btree_set_SymmetricDifference_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2484,13 +2482,13 @@ export function putAll$array2_u8_collections_btree_set_SymmetricDifference_array
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_collections_btree_set_Union_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2500,13 +2498,13 @@ export function putAll$array2_u8_collections_btree_set_Union_array2_u8(items: rt
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_iter_Rev_collections_btree_set_Iter_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2516,13 +2514,13 @@ export function putAll$array2_u8_iter_Rev_collections_btree_set_Iter_array2_u8(i
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$array2_u8_vec_IntoIter_ref_array2_u8(items: rt.Iter<rt.ByteSlice>, put: (a0: rt.ByteSlice) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.ByteSlice> = items;
 	while (true) {
@@ -2532,13 +2530,13 @@ export function putAll$array2_u8_vec_IntoIter_ref_array2_u8(items: rt.Iter<rt.By
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Difference_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2548,13 +2546,13 @@ export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Difference_cm
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Intersection_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2564,13 +2562,13 @@ export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Intersection_
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Iter_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2580,13 +2578,13 @@ export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Iter_cmp_Reve
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_collections_btree_set_SymmetricDifference_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2596,13 +2594,13 @@ export function putAll$cmp_Reverse_Option_u8_collections_btree_set_SymmetricDiff
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Union_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2612,13 +2610,13 @@ export function putAll$cmp_Reverse_Option_u8_collections_btree_set_Union_cmp_Rev
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_iter_Rev_collections_btree_set_Iter_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2628,13 +2626,13 @@ export function putAll$cmp_Reverse_Option_u8_iter_Rev_collections_btree_set_Iter
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$cmp_Reverse_Option_u8_vec_IntoIter_ref_cmp_Reverse_Option_u8(items: rt.Iter<rt.u8 | undefined>, put: (a0: rt.u8 | undefined) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8 | undefined> = items;
 	while (true) {
@@ -2644,13 +2642,13 @@ export function putAll$cmp_Reverse_Option_u8_vec_IntoIter_ref_cmp_Reverse_Option
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_collections_btree_set_Difference_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2660,13 +2658,13 @@ export function putAll$collections_Nibble_collections_btree_set_Difference_colle
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_collections_btree_set_Intersection_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2676,13 +2674,13 @@ export function putAll$collections_Nibble_collections_btree_set_Intersection_col
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_collections_btree_set_Iter_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2692,13 +2690,13 @@ export function putAll$collections_Nibble_collections_btree_set_Iter_collections
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_collections_btree_set_SymmetricDifference_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2708,13 +2706,13 @@ export function putAll$collections_Nibble_collections_btree_set_SymmetricDiffere
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_collections_btree_set_Union_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2724,13 +2722,13 @@ export function putAll$collections_Nibble_collections_btree_set_Union_collection
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_iter_Rev_collections_btree_set_Iter_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2740,13 +2738,13 @@ export function putAll$collections_Nibble_iter_Rev_collections_btree_set_Iter_co
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$collections_Nibble_vec_IntoIter_ref_collections_Nibble(items: rt.Iter<Nibble.Nibble>, put: (a0: Nibble.Nibble) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<Nibble.Nibble> = items;
 	while (true) {
@@ -2756,13 +2754,13 @@ export function putAll$collections_Nibble_vec_IntoIter_ref_collections_Nibble(it
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_collections_btree_set_Difference_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2772,13 +2770,13 @@ export function putAll$u8_collections_btree_set_Difference_u8(items: rt.Iter<rt.
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_collections_btree_set_Intersection_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2788,13 +2786,13 @@ export function putAll$u8_collections_btree_set_Intersection_u8(items: rt.Iter<r
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_collections_btree_set_Iter_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2804,13 +2802,13 @@ export function putAll$u8_collections_btree_set_Iter_u8(items: rt.Iter<rt.u8>, p
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_collections_btree_set_SymmetricDifference_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2820,13 +2818,13 @@ export function putAll$u8_collections_btree_set_SymmetricDifference_u8(items: rt
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_collections_btree_set_Union_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2836,13 +2834,13 @@ export function putAll$u8_collections_btree_set_Union_u8(items: rt.Iter<rt.u8>, 
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_iter_Rev_collections_btree_set_Iter_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2852,13 +2850,13 @@ export function putAll$u8_iter_Rev_collections_btree_set_Iter_u8(items: rt.Iter<
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
 /** How many `items` there are, then each. */
 export function putAll$u8_vec_IntoIter_ref_u8(items: rt.Iter<rt.u8>, put: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
-	const at: rt.usize = rt.byteVecSlice(out).length;
+	const at: rt.usize = out.length;
 	rt.byteVecPush(out, 0);
 	const iter: rt.Iter<rt.u8> = items;
 	while (true) {
@@ -2868,7 +2866,7 @@ export function putAll$u8_vec_IntoIter_ref_u8(items: rt.Iter<rt.u8>, put: (a0: r
 		}
 		rt.byteVecPush(out, put(_9));
 	}
-	const _15: rt.usize = rt.usizeSub(rt.usizeSub(rt.byteVecSlice(out).length, at), 1);
+	const _15: rt.usize = rt.usizeSub(rt.usizeSub(out.length, at), 1);
 	out.data[rt.idx(out, at)] = _15 & 0xff;
 }
 
@@ -5717,7 +5715,7 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(_73[1])), undefined, true);
 		}
 		rt.byteVecPush(out, rt.iterSum(rt.iterMap(rt.hashValues(words), (a0: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(a0).length;
+			return a0.length;
 		}), rt.usizeAdd, 0) & 0xff);
 	} else if (_6 === 1) {
 		const _88: rt.Iter<Pair.Pair> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_210: rt.u8): Pair.Pair => {

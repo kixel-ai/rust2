@@ -92,7 +92,7 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		const _16: rt.Arc<rt.u8> = new rt.Arc(9);
 		replace$panic_AssertUnwindSafe_sync_Arc_u8(rt.place(() => a, (value) => a = value), _16);
 		const v: rt.ByteVec = rt.byteSliceToByteVec(data);
-		const before: rt.usize = rt.byteVecSlice(v).length;
+		const before: rt.usize = v.length;
 		const _25: rt.ByteVec = rt.byteVecOf(first, 3);
 		replace$panic_AssertUnwindSafe_Vec_u8(v, _25);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(shared.value, a.value, shared.strong & 0xff, before & 0xff)), undefined, true);
@@ -115,7 +115,7 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			return rt.u8Rem(b2, 2) === 0;
 		});
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v2));
-		rt.byteVecPush(out, rt.byteVecSlice(v2).length & 0xff);
+		rt.byteVecPush(out, v2.length & 0xff);
 	} else if (_7 === 2) {
 		const p: Point.Point = { x: first, y: 2 };
 		const _89: rt.u8 = rt.u8WrappingAdd(p.x, 1);
@@ -144,7 +144,7 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		const v3: rt.ByteVec = new rt.ByteVec();
 		const e: rt.u8 = first;
 		f = rt.byteSliceToByteVec(data);
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(d, rt.stringLen(s2) & 0xff, p2.x, p2.y, rt.byteVecSlice(v3).length & 0xff, e, rt.byteVecSlice(f).length & 0xff)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(d, rt.stringLen(s2) & 0xff, p2.x, p2.y, v3.length & 0xff, e, f.length & 0xff)), undefined, true);
 	} else {
 		const log: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
 		const a2: Logged.Logged = new Logged.Logged(1, log);

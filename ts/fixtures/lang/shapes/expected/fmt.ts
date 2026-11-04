@@ -341,16 +341,16 @@ export function note(log: rt.ByteVec, v: rt.u8): rt.u8 {
 
 /** Arguments that read `log` before and after one changes it, through a reference. */
 export function logged(log: rt.ByteVec, dataData: Uint8Array, dataStart: number, dataLen: number): string {
-	const _7: rt.usize = rt.byteVecSlice(log).length;
+	const _7: rt.usize = log.length;
 	if (0 >= dataLen) {
 		rt.panic("index out of bounds: the len is " + dataLen + " but the index is " + 0);
 	}
 	const _10: rt.u8 = note(log, dataData[dataStart]);
-	const _16: rt.usize = rt.usizeRem(rt.byteVecSlice(log).length, dataLen);
+	const _16: rt.usize = rt.usizeRem(log.length, dataLen);
 	if (_16 >= dataLen) {
 		rt.panic("index out of bounds: the len is " + dataLen + " but the index is " + _16);
 	}
-	const _24: rt.usize = rt.byteVecSlice(log).length;
+	const _24: rt.usize = log.length;
 	const part = dataData[dataStart + _16];
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_7, f), (f: rt.Formatter) => rt.u8Display(_10, f), (f: rt.Formatter) => rt.u8Display(part, f), (f: rt.Formatter) => rt.usizeDisplay(_24, f)];
 	return rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3]]);
@@ -400,7 +400,7 @@ export function written(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _185: rt.u8 = note(log, _187);
 	const _194: rt.u8 = at(10);
 	const _191: boolean = note(log, _194) === 3;
-	const _198: rt.usize = rt.byteVecSlice(log).length;
+	const _198: rt.usize = log.length;
 	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(_191, f), (f: rt.Formatter) => rt.u8Display(_185, f), (f: rt.Formatter) => rt.u8Debug(_185, f), (f: rt.Formatter) => rt.usizeDisplay(_198, f)];
 	put(out, rt.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " ", args18[3], " ", args18[1]]));
 	const _218: Noted.Noted = { _0: at(11) };
@@ -414,14 +414,14 @@ export function written(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const part2 = note(log, _241);
 	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Debug(part2, f)];
 	const once: string = rt.fmtFormat([args22[0]]);
-	const _257: rt.usize = rt.byteVecSlice(log).length;
+	const _257: rt.usize = log.length;
 	const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, once), (f: rt.Formatter) => rt.usizeDisplay(_257, f)];
 	put(out, rt.fmtFormat([args24[0], " ", args24[1]]));
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(log));
 	if (at(12) > 250) {
 		const _277: rt.u8 = at(12);
 		const _275: rt.u8 = note(log, _277);
-		const _281: rt.usize = rt.byteVecSlice(log).length;
+		const _281: rt.usize = log.length;
 		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(_275, f), (f: rt.Formatter) => rt.usizeDisplay(_281, f)];
 		rt.panicFmt([args26[0], " ", args26[1]]);
 	}

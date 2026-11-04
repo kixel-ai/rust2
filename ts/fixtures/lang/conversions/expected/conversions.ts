@@ -163,7 +163,7 @@ export function make$conversions_Value_Vec_u8(data: rt.ByteSlice, at: rt.usize):
 
 /** Its bytes. */
 export function put$conversions_Value_Vec_u8(self: rt.ByteVec, out: rt.ByteVec): void {
-	rt.byteVecPush(out, rt.byteVecSlice(self).length & 0xff);
+	rt.byteVecPush(out, self.length & 0xff);
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(self));
 }
 
@@ -3226,7 +3226,7 @@ export function converted$u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const list: rt.ByteVec = rt.byteVecFrom(Uint8Array.of(make$conversions_Value_u8(data, 13), make$conversions_Value_u8(data, 14)));
 	const none: rt.ByteVec = new rt.ByteVec();
-	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.byteVecSlice(list).length, rt.byteVecSlice(list).length, rt.byteVecSlice(none).length, rt.byteVecSlice(none).length, rt.byteVecSlice(list).length], (n2: rt.usize): rt.u8 => {
+	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.byteVecSlice(list).length, list.length, rt.byteVecSlice(none).length, rt.byteVecSlice(none).length, rt.byteVecSlice(list).length], (n2: rt.usize): rt.u8 => {
 		return n2 & 0xff;
 	})), undefined, true);
 	const _163: rt.u8 = b;
@@ -5319,13 +5319,13 @@ export function searched$u8(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(v)).sort();
 	const tagged: rt.Vec<[rt.u8, rt.u8]> = rt.iterToVec(rt.iterZip(rt.iterCloned(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(v)))), new rt.RangeFrom(0, rt.u8Step), "len"), undefined, 2, true);
-	const iter: rt.Iter<rt.usize> = rt.iterSlice([0, 1, 2, 3, rt.byteVecSlice(v).length]);
+	const iter: rt.Iter<rt.usize> = rt.iterSlice([0, 1, 2, 3, v.length]);
 	l1: while (true) {
 		const _24: rt.usize | rt.Done = iter.next();
 		if (_24 === rt.DONE) {
 			break;
 		}
-		const part = rt.min(_24, rt.byteVecSlice(v).length);
+		const part = rt.min(_24, v.length);
 		const s: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(v), 0, part);
 		const t: [rt.u8, rt.u8][] = rt.sliceRange(tagged.d, 0, s.length);
 		const _40: rt.usize = rt.usizeAdd(rt.min(data.length, 8), 1);

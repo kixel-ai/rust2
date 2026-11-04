@@ -51,7 +51,7 @@ export function u8s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.u8 => {
-		n3 = rt.u8WrappingAdd(n3, rt.byteVecSlice(captured).length & 0xff);
+		n3 = rt.u8WrappingAdd(n3, captured.length & 0xff);
 		return n3;
 	})();
 	put(part8);
@@ -152,7 +152,7 @@ export function u16s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.u16 => {
-		n3 = rt.u16WrappingAdd(n3, rt.byteVecSlice(captured).length & 0xffff);
+		n3 = rt.u16WrappingAdd(n3, captured.length & 0xffff);
 		return n3;
 	})();
 	put(part8);
@@ -253,7 +253,7 @@ export function u32s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.u32 => {
-		n3 = rt.u32WrappingAdd(n3, rt.byteVecSlice(captured).length as rt.u32);
+		n3 = rt.u32WrappingAdd(n3, captured.length as rt.u32);
 		return n3;
 	})();
 	put(part8);
@@ -354,7 +354,7 @@ export function u64s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.u64 => {
-		n3 = rt.u64WrappingAdd(n3, rt.byteVecSlice(captured).length as rt.u64);
+		n3 = rt.u64WrappingAdd(n3, captured.length as rt.u64);
 		return n3;
 	})();
 	put(part8);
@@ -455,7 +455,7 @@ export function u128s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.u128 => {
-		n3 = rt.u128WrappingAdd(n3, rt.byteVecSlice(captured).length as rt.u128);
+		n3 = rt.u128WrappingAdd(n3, captured.length as rt.u128);
 		return n3;
 	})();
 	put(part8);
@@ -556,7 +556,7 @@ export function usizes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.usize => {
-		n3 = rt.usizeWrappingAdd(n3, rt.byteVecSlice(captured).length);
+		n3 = rt.usizeWrappingAdd(n3, captured.length);
 		return n3;
 	})();
 	put(part8);
@@ -650,7 +650,7 @@ export function i8s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.i8 => {
-		n3 = rt.i8WrappingAdd(n3, (rt.byteVecSlice(captured).length << 24) >> 24);
+		n3 = rt.i8WrappingAdd(n3, (captured.length << 24) >> 24);
 		return n3;
 	})();
 	put(part8);
@@ -751,7 +751,7 @@ export function i16s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.i16 => {
-		n3 = rt.i16WrappingAdd(n3, (rt.byteVecSlice(captured).length << 16) >> 16);
+		n3 = rt.i16WrappingAdd(n3, (captured.length << 16) >> 16);
 		return n3;
 	})();
 	put(part8);
@@ -852,7 +852,7 @@ export function i32s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.i32 => {
-		n3 = rt.i32WrappingAdd(n3, rt.byteVecSlice(captured).length | 0);
+		n3 = rt.i32WrappingAdd(n3, captured.length | 0);
 		return n3;
 	})();
 	put(part8);
@@ -953,7 +953,7 @@ export function i64s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.i64 => {
-		n3 = rt.i64WrappingAdd(n3, rt.byteVecSlice(captured).length as rt.i64);
+		n3 = rt.i64WrappingAdd(n3, captured.length as rt.i64);
 		return n3;
 	})();
 	put(part8);
@@ -1054,7 +1054,7 @@ export function i128s(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.i128 => {
-		n3 = rt.i128WrappingAdd(n3, rt.byteVecSlice(captured).length as rt.i128);
+		n3 = rt.i128WrappingAdd(n3, captured.length as rt.i128);
 		return n3;
 	})();
 	put(part8);
@@ -1155,7 +1155,7 @@ export function isizes(data: rt.ByteSlice, out: rt.ByteVec): void {
 	put(n3);
 	const captured = rt.byteSliceToByteVec(_20);
 	const part8 = ((): rt.isize => {
-		n3 = rt.isizeWrappingAdd(n3, rt.byteVecSlice(captured).length | 0);
+		n3 = rt.isizeWrappingAdd(n3, captured.length | 0);
 		return n3;
 	})();
 	put(part8);

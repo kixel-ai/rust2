@@ -993,7 +993,7 @@ export class inlineFuture$closure0 {
 				case 0:
 					if (this.#state === 0) {
 						this.#sum = 0;
-						this.#len = rt.byteVecSlice(this.#v).length;
+						this.#len = this.#v.length;
 						this.#iter = rt.byteVecIntoIter(this.#v);
 						bb0 = 3;
 						continue;

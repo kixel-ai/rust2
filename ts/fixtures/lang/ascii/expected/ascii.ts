@@ -107,7 +107,7 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				pair[1] = rt.toAsciiLowercase(pair[1]);
 				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(pair[0], pair[1])));
 			}
-			const _64: rt.usize = rt.byteVecSlice(all).length;
+			const _64: rt.usize = all.length;
 			let iterStart: rt.usize = 0;
 			const iterEnd: rt.usize = _64;
 			while ((_67 = iterStart++) < iterEnd) {

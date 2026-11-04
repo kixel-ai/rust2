@@ -562,9 +562,9 @@ export function iterate(chain: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			return _216 === 255;
 		}) ? 1 : 0);
 	} else if (chain === 2) {
-		putUsize(out, rt.byteVecSlice(rt.iterToByteVec(rt.iterFilter(rt.iterSlice(rt.byteSliceView(data)), (_215: rt.u8): boolean => {
+		putUsize(out, rt.iterToByteVec(rt.iterFilter(rt.iterSlice(rt.byteSliceView(data)), (_215: rt.u8): boolean => {
 			return (_215 & 1) === 1;
-		}), "next")).length);
+		}), "next").length);
 	} else if (chain === 3) {
 		harness_putU64(out, rt.iterSum(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_214: rt.u8): rt.u32 => {
 			return _214 as rt.u32;

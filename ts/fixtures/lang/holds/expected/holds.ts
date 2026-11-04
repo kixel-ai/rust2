@@ -117,7 +117,7 @@ export function indexed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.vecIntoIter(kept), undefined, true);
 	const v: rt.ByteVec = rt.byteSliceToByteVec(data);
 	let i2: rt.usize = 0;
-	while (i2 < rt.byteVecSlice(v).length) {
+	while (i2 < v.length) {
 		const at = rt.idx(v, i2);
 		i2 = rt.usizeAdd(i2, 2);
 		const _31: rt.u8 = rt.u8WrappingAdd(v.data[at], i2 & 0xff);
@@ -202,7 +202,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 			return _17;
 		});
 	}
-	const _28: rt.usize = rt.byteVecSlice(v).length;
+	const _28: rt.usize = v.length;
 	let iterStart: rt.usize = 0;
 	const iterEnd: rt.usize = _28;
 	while ((_31 = iterStart++) < iterEnd) {

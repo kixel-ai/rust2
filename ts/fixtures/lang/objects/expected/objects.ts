@@ -7,9 +7,9 @@ import * as Window from "./objects.Window.ts";
 
 /** moq-net's growing buffer: the `Arc` behind a parameter, replaced by a bigger one. */
 export function reserve(current: rt.Place<rt.Arc<rt.ByteVec>>, needed: rt.usize): void {
-	if (!(rt.byteVecSlice(current.v.value).length >= needed)) {
-		const next: rt.ByteVec = rt.byteVecOf(0, rt.max(needed, rt.usizeMul(rt.byteVecSlice(current.v.value).length, 2)));
-		const part = rt.byteVecSlice(current.v.value).length;
+	if (!(current.v.value.length >= needed)) {
+		const next: rt.ByteVec = rt.byteVecOf(0, rt.max(needed, rt.usizeMul(current.v.value.length, 2)));
+		const part = current.v.value.length;
 		rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteVecSlice(next), 0, part), rt.byteVecSlice(current.v.value));
 		const _24: rt.Arc<rt.ByteVec> = new rt.Arc(next);
 		current.v[Symbol.dispose]();
@@ -294,7 +294,7 @@ export function objects(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _122: rt.usize = rt.u8Rem(_116, 16) as rt.usize;
 		reserve(rt.place(() => buffer, (value2) => buffer = value2), _122);
 	}
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(rt.byteVecSlice(buffer.value).length & 0xff, rt.byteVecSlice(reader.value).length & 0xff)));
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(buffer.value.length & 0xff, reader.value.length & 0xff)));
 	rt.byteVecPush(out, reader.strong & 0xff);
 	let pinned: rt.Arc<rt.u8> = new rt.Arc(by);
 	const _145: rt.u8 = rt.u8WrappingAdd(by, 7);

@@ -7202,7 +7202,7 @@ export function iters(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const make2 = (captured2: rt.ByteVec): (a0: rt.u8) => boolean => {
 			return rt.cloning((_26: rt.u8): boolean => {
 				rt.byteVecPush(captured2, _26);
-				return rt.usizeRem(rt.byteVecSlice(captured2).length, 2) === 0;
+				return rt.usizeRem(captured2.length, 2) === 0;
 			}, () => make2(((a0: rt.ByteVec): rt.ByteVec => {
 				return rt.byteVecFrom(rt.byteVecView(a0));
 			})(captured2)));
@@ -7256,7 +7256,7 @@ export function unordered$iter_Copied_collections_hash_map_Keys_u8_u8(it: rt.Ite
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7274,7 +7274,7 @@ export function unordered$iter_Copied_collections_hash_map_Values_u8_u8(it: rt.I
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7292,7 +7292,7 @@ export function unordered$iter_Copied_collections_hash_set_Difference_u8_hash_Ra
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7310,7 +7310,7 @@ export function unordered$iter_Copied_collections_hash_set_Intersection_u8_hash_
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7328,7 +7328,7 @@ export function unordered$iter_Copied_collections_hash_set_Iter_u8(it: rt.Iter<r
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7346,7 +7346,7 @@ export function unordered$iter_Copied_collections_hash_set_SymmetricDifference_u
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7364,7 +7364,7 @@ export function unordered$iter_Copied_collections_hash_set_Union_u8_hash_RandomS
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);
@@ -7382,7 +7382,7 @@ export function unordered$iter_Map_collections_hash_map_Iter_u8_u8_clones_iters_
 	const _17: rt.ByteVec = rt.iterToByteVec(it, "next");
 	const _16: [rt.ByteVec, rt.ByteVec] = [_17, rt.iterToByteVec(other, "next")];
 	const rest: rt.ByteVec = _17;
-	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rt.byteVecSlice(rest).length & 0xff)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(rt.eqBytes(rest, _16[1]) ? 1 : 0, rest.length & 0xff)), undefined, true);
 	rt.iterExtendBytes(all, rt.byteVecIntoIter(rest), undefined, true);
 	rt.byteSliceView(rt.byteVecSlice(all)).sort();
 	rt.iterExtendBytes(out, rt.byteVecIntoIter(all), undefined, true);

@@ -4336,15 +4336,15 @@ export function fill$u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0_hints_typed_closure2_u8_hints_reserves_closure0(coll: rt.u8, items: rt.Iter<rt.u8>, seed: rt.u8, out: rt.ByteVec): void {
 	let len!: rt.usize;
 	if (coll === 0) {
-		len = rt.byteVecSlice(rt.iterToByteVec(items, "next")).length;
+		len = rt.iterToByteVec(items, "next").length;
 	} else if (coll === 1) {
 		const v: rt.ByteVec = new rt.ByteVec();
 		rt.iterExtendBytes(v, items, "next");
-		len = rt.byteVecSlice(v).length;
+		len = v.length;
 	} else if (coll === 2) {
 		const v2: rt.ByteVec = rt.byteVecOf(seed, 2);
 		rt.iterExtendBytes(v2, items, "next");
-		len = rt.byteVecSlice(v2).length;
+		len = v2.length;
 	} else if (coll === 3) {
 		len = (rt.dequeFromVec(rt.iterToVec(items, "next", 1), 1, true) as rt.VecDeque<rt.u8>).n;
 	} else if (coll === 4) {
@@ -4378,7 +4378,7 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 		len = option_mapOr$08xwngs(rt.iterCollectOption(rt.iterMap(items, (a0: rt.u8): rt.u8 | undefined => {
 			return a0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next")), 255, (v4: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(v4).length;
+			return v4.length;
 		});
 	} else {
 		const _53: rt.Result<rt.ByteVec, rt.usize> = rt.iterCollectResult(rt.iterMap(rt.iterEnumerate(items), (_2: [rt.usize, rt.u8]): rt.Result<rt.u8, rt.usize> => {
@@ -4393,7 +4393,7 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 			return _0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next"));
 		if (_53.ok) {
-			len = rt.byteVecSlice(_53.value).length;
+			len = _53.value.length;
 		} else {
 			len = rt.usizeAdd(256, _53.error);
 		}
@@ -4405,15 +4405,15 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_u8_hints_reserves_closure0(coll: rt.u8, items: rt.Iter<rt.u8>, seed: rt.u8, out: rt.ByteVec): void {
 	let len!: rt.usize;
 	if (coll === 0) {
-		len = rt.byteVecSlice(rt.iterToByteVec(items, "next")).length;
+		len = rt.iterToByteVec(items, "next").length;
 	} else if (coll === 1) {
 		const v: rt.ByteVec = new rt.ByteVec();
 		rt.iterExtendBytes(v, items, "next");
-		len = rt.byteVecSlice(v).length;
+		len = v.length;
 	} else if (coll === 2) {
 		const v2: rt.ByteVec = rt.byteVecOf(seed, 2);
 		rt.iterExtendBytes(v2, items, "next");
-		len = rt.byteVecSlice(v2).length;
+		len = v2.length;
 	} else if (coll === 3) {
 		len = (rt.dequeFromVec(rt.iterToVec(items, "next", 1), 1, true) as rt.VecDeque<rt.u8>).n;
 	} else if (coll === 4) {
@@ -4447,7 +4447,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 		len = option_mapOr$08xwngs(rt.iterCollectOption(rt.iterMap(items, (a0: rt.u8): rt.u8 | undefined => {
 			return a0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next")), 255, (v4: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(v4).length;
+			return v4.length;
 		});
 	} else {
 		const _53: rt.Result<rt.ByteVec, rt.usize> = rt.iterCollectResult(rt.iterMap(rt.iterEnumerate(items), (_2: [rt.usize, rt.u8]): rt.Result<rt.u8, rt.usize> => {
@@ -4462,7 +4462,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 			return _0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next"));
 		if (_53.ok) {
-			len = rt.byteVecSlice(_53.value).length;
+			len = _53.value.length;
 		} else {
 			len = rt.usizeAdd(256, _53.error);
 		}
@@ -4474,15 +4474,15 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_3_hints_typed_closure1_u8_hints_reserves_closure0(coll: rt.u8, items: rt.Iter<rt.u8>, seed: rt.u8, out: rt.ByteVec): void {
 	let len!: rt.usize;
 	if (coll === 0) {
-		len = rt.byteVecSlice(rt.iterToByteVec(items, "next")).length;
+		len = rt.iterToByteVec(items, "next").length;
 	} else if (coll === 1) {
 		const v: rt.ByteVec = new rt.ByteVec();
 		rt.iterExtendBytes(v, items, "next");
-		len = rt.byteVecSlice(v).length;
+		len = v.length;
 	} else if (coll === 2) {
 		const v2: rt.ByteVec = rt.byteVecOf(seed, 2);
 		rt.iterExtendBytes(v2, items, "next");
-		len = rt.byteVecSlice(v2).length;
+		len = v2.length;
 	} else if (coll === 3) {
 		len = (rt.dequeFromVec(rt.iterToVec(items, "next", 1), 1, true) as rt.VecDeque<rt.u8>).n;
 	} else if (coll === 4) {
@@ -4516,7 +4516,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 		len = option_mapOr$08xwngs(rt.iterCollectOption(rt.iterMap(items, (a0: rt.u8): rt.u8 | undefined => {
 			return a0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next")), 255, (v4: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(v4).length;
+			return v4.length;
 		});
 	} else {
 		const _53: rt.Result<rt.ByteVec, rt.usize> = rt.iterCollectResult(rt.iterMap(rt.iterEnumerate(items), (_2: [rt.usize, rt.u8]): rt.Result<rt.u8, rt.usize> => {
@@ -4531,7 +4531,7 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 			return _0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next"));
 		if (_53.ok) {
-			len = rt.byteVecSlice(_53.value).length;
+			len = _53.value.length;
 		} else {
 			len = rt.usizeAdd(256, _53.error);
 		}
@@ -4543,15 +4543,15 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0(coll: rt.u8, items: rt.Iter<rt.u8>, seed: rt.u8, out: rt.ByteVec): void {
 	let len!: rt.usize;
 	if (coll === 0) {
-		len = rt.byteVecSlice(rt.iterToByteVec(items, undefined, true)).length;
+		len = rt.iterToByteVec(items, undefined, true).length;
 	} else if (coll === 1) {
 		const v: rt.ByteVec = new rt.ByteVec();
 		rt.iterExtendBytes(v, items, undefined, true);
-		len = rt.byteVecSlice(v).length;
+		len = v.length;
 	} else if (coll === 2) {
 		const v2: rt.ByteVec = rt.byteVecOf(seed, 2);
 		rt.iterExtendBytes(v2, items, undefined, true);
-		len = rt.byteVecSlice(v2).length;
+		len = v2.length;
 	} else if (coll === 3) {
 		len = (rt.dequeFromVec(rt.iterToVec(items, undefined, 1, true), 1, true) as rt.VecDeque<rt.u8>).n;
 	} else if (coll === 4) {
@@ -4585,7 +4585,7 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 		len = option_mapOr$08xwngs(rt.iterCollectOption(rt.iterMap(items, (a0: rt.u8): rt.u8 | undefined => {
 			return a0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values)), 255, (v4: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(v4).length;
+			return v4.length;
 		});
 	} else {
 		const _53: rt.Result<rt.ByteVec, rt.usize> = rt.iterCollectResult(rt.iterMap(rt.iterEnumerate(items), (_2: [rt.usize, rt.u8]): rt.Result<rt.u8, rt.usize> => {
@@ -4600,7 +4600,7 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 			return _0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values));
 		if (_53.ok) {
-			len = rt.byteVecSlice(_53.value).length;
+			len = _53.value.length;
 		} else {
 			len = rt.usizeAdd(256, _53.error);
 		}
@@ -4612,15 +4612,15 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_hints_reserves_closure0(coll: rt.u8, items: rt.Iter<rt.u8>, seed: rt.u8, out: rt.ByteVec): void {
 	let len!: rt.usize;
 	if (coll === 0) {
-		len = rt.byteVecSlice(rt.iterToByteVec(items, "next")).length;
+		len = rt.iterToByteVec(items, "next").length;
 	} else if (coll === 1) {
 		const v: rt.ByteVec = new rt.ByteVec();
 		rt.iterExtendBytes(v, items, "next");
-		len = rt.byteVecSlice(v).length;
+		len = v.length;
 	} else if (coll === 2) {
 		const v2: rt.ByteVec = rt.byteVecOf(seed, 2);
 		rt.iterExtendBytes(v2, items, "next");
-		len = rt.byteVecSlice(v2).length;
+		len = v2.length;
 	} else if (coll === 3) {
 		len = (rt.dequeFromVec(rt.iterToVec(items, "next", 1), 1, true) as rt.VecDeque<rt.u8>).n;
 	} else if (coll === 4) {
@@ -4654,7 +4654,7 @@ export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 		len = option_mapOr$08xwngs(rt.iterCollectOption(rt.iterMap(items, (a0: rt.u8): rt.u8 | undefined => {
 			return a0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next")), 255, (v4: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(v4).length;
+			return v4.length;
 		});
 	} else {
 		const _53: rt.Result<rt.ByteVec, rt.usize> = rt.iterCollectResult(rt.iterMap(rt.iterEnumerate(items), (_2: [rt.usize, rt.u8]): rt.Result<rt.u8, rt.usize> => {
@@ -4669,7 +4669,7 @@ export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 			return _0;
 		}), (values: rt.Iter<rt.u8>) => rt.iterToByteVec(values, "next"));
 		if (_53.ok) {
-			len = rt.byteVecSlice(_53.value).length;
+			len = _53.value.length;
 		} else {
 			len = rt.usizeAdd(256, _53.error);
 		}

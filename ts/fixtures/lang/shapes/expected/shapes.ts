@@ -545,7 +545,7 @@ export function same(a: Uint8Array): Uint8Array {
 /** Logs `b`, returning how much is logged. */
 export function mark(out: rt.ByteVec, b: rt.u8): rt.usize {
 	rt.byteVecPush(out, b);
-	return rt.byteVecSlice(out).length;
+	return out.length;
 }
 
 /**
@@ -596,12 +596,12 @@ export function order(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rt.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rt.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rt.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rt.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rt.Formatter) => rt.usizeDisplay(_64, f), (f: rt.Formatter) => rt.usizeDisplay(_63, f), (f: rt.Formatter) => rt.usizeDisplay(_103, f), (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_82), f, rt.u8Debug)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]])));
 	const _125: rt.usize = mark(out, 16);
-	const _127: rt.usize = rt.byteVecSlice(out).length;
+	const _127: rt.usize = out.length;
 	rt.byteVecPush(out, _125 & 0xff);
 	rt.byteVecPush(out, _127 & 0xff);
-	const _136: [rt.usize, rt.usize] = [mark(out, 17), rt.byteVecSlice(out).length];
+	const part = mark(out, 17);
 	const _143: [rt.usize, rt.usize] = [mark(out, 18), mark(out, 19)];
-	rt.byteVecPush(out, _136[0] & 0xff);
+	rt.byteVecPush(out, part & 0xff);
 	rt.byteVecPush(out, _143[0] & 0xff);
 	indexed(data, out);
 }
@@ -1539,7 +1539,7 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	if (owned.ok) {
 		_133 = owned.value;
 	} else {
-		_133 = rt.byteVecSlice(owned.error).length & 0xff;
+		_133 = owned.error.length & 0xff;
 	}
 	rt.byteVecPush(out, _133);
 	if (flow.ok) {
@@ -2340,7 +2340,7 @@ export function library(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, option_mapOr$1a3irjf(then$1i9qaz4(x > 128, (): rt.ByteVec => {
 			return new rt.ByteVec();
 		}), 2, (v: rt.ByteVec): rt.u8 => {
-			return rt.byteVecSlice(v).length & 0xff;
+			return v.length & 0xff;
 		}));
 		const flag: boolean = rt.u8Rem(x, 3) === 0;
 		rt.byteVecPush(out, rt.u8Add(rt.u8Add(flag ? 1 : 0, (flag ? 1 : 0) & 0xff), (flag ? 1 : 0) & 0xff));

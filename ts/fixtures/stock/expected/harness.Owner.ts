@@ -9,7 +9,7 @@ export interface Owner {
 }
 
 export function asRef$convert_AsRef_slice_u8(self: Owner): rt.ByteSlice {
-	const part = rt.min(self.skip, rt.byteVecSlice(self.data).length);
+	const part = rt.min(self.skip, self.data.length);
 	return rt.byteSliceRange(rt.byteVecSlice(self.data), part);
 }
 

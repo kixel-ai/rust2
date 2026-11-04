@@ -411,7 +411,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					break;
 				}
 			}
-			putUsize(out, rt.byteVecSlice(buf).length);
+			putUsize(out, buf.length);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 		}
 	}
@@ -539,7 +539,7 @@ export function encodeMessage$lite_group_Group(msg: Group.Group, version: lite_v
 	const _8: rt.Result<undefined, EncodeError.EncodeError> = Group.encode$coding_encode_Encode_lite_version_Version(msg, w, version);
 	if (_8.ok) {
 		rt.byteVecPush(out, w.control !== undefined ? 1 : 0);
-		putUsize(out, rt.byteVecSlice(buf).length);
+		putUsize(out, buf.length);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 	} else {
 		encodeFailed(out, _8.error);
@@ -553,7 +553,7 @@ export function encodeMessage$lite_probe_Probe(msg: Probe.Probe, version: lite_v
 	const _8: rt.Result<undefined, EncodeError.EncodeError> = Probe.encode$coding_encode_Encode_lite_version_Version(msg, w, version);
 	if (_8.ok) {
 		rt.byteVecPush(out, w.control !== undefined ? 1 : 0);
-		putUsize(out, rt.byteVecSlice(buf).length);
+		putUsize(out, buf.length);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(buf));
 	} else {
 		encodeFailed(out, _8.error);

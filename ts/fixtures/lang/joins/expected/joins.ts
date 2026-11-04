@@ -17,7 +17,7 @@ export function flush(log: rt.RefCell<rt.ByteVec>, out: rt.ByteVec): void {
 
 /** Puts `v`'s length, then its bytes. */
 export function bytes(v: rt.ByteVec, out: rt.ByteVec): void {
-	rt.byteVecPush(out, rt.byteVecSlice(v).length & 0xff);
+	rt.byteVecPush(out, v.length & 0xff);
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v));
 }
 

@@ -576,7 +576,7 @@ export function taken(data: rt.ByteSlice, out: rt.ByteVec): void {
 				return rt.u32Div(x3, 2);
 			}), "next", 4, false, 4);
 		})();
-		return rt.byteVecSlice(held).length === 0;
+		return held.length === 0;
 	}) as rt.u32)));
 	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(held));
 	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(wide.d, f, rt.u32Debug)];

@@ -550,13 +550,13 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}), 1, true, true);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v13));
 			const v14: rt.ByteVec = rt.byteSliceToByteVec(_109);
-			const part3 = rt.min(rt.byteVecSlice(v14).length, 1);
+			const part3 = rt.min(v14.length, 1);
 			const tail: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(v14), part3);
 			rt.byteSliceView(tail).sort();
 			rt.byteSliceView(tail).reverse();
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v14));
 			rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.byteSliceLast(rt.byteVecSlice(v14)), 253));
-			const part4 = rt.min(rt.byteVecSlice(v14).length, 1);
+			const part4 = rt.min(v14.length, 1);
 			rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.byteSliceLast(rt.byteSliceRange(rt.byteVecSlice(v14), part4)), 253));
 			rt.byteSliceView(rt.byteVecSlice(v14)).reverse();
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v14));
@@ -567,18 +567,15 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const i: rt.usize = _192[0];
 		const j: rt.usize = _192[1];
 		const v15: rt.ByteVec = rt.byteSliceToByteVec(data);
-		const _208: rt.usize = rt.min(i, rt.byteVecSlice(v15).length);
-		rt.byteVecInsert(v15, _208, 170);
+		rt.byteVecInsert(v15, rt.min(i, v15.length), 170);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
-		const _217: rt.usize = rt.usizeRem(j, rt.byteVecSlice(v15).length);
-		rt.byteVecPush(out, rt.byteVecSwapRemove(v15, _217));
+		rt.byteVecPush(out, rt.byteVecSwapRemove(v15, rt.usizeRem(j, v15.length)));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
-		if (!(rt.byteVecSlice(v15).length === 0)) {
-			const _229: rt.usize = rt.usizeRem(i, rt.byteVecSlice(v15).length);
-			rt.byteVecPush(out, rt.byteVecRemove(v15, _229));
+		if (!(v15.length === 0)) {
+			rt.byteVecPush(out, rt.byteVecRemove(v15, rt.usizeRem(i, v15.length)));
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v15));
-		const part = rt.min(rt.byteVecSlice(v15).length, 1);
+		const part = rt.min(v15.length, 1);
 		const tail2: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(v15), part);
 		if (!(tail2.length === 0)) {
 			rt.byteSliceSwap(tail2, rt.usizeRem(i, tail2.length), rt.usizeRem(j, tail2.length));
@@ -706,12 +703,12 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterExtendBytes(out, rt.iterMap(rt.iterMap(rt.iterSlice(rt.iterToVec(rt.iterMap(rt.iterSlice(held.d), (a021: rt.ByteVec): rt.ByteVec => {
 			return rt.replaceIn(a021, new rt.ByteVec());
 		}), undefined, 12, true).d), (a022: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(a022).length;
+			return a022.length;
 		}), (n2: rt.usize): rt.u8 => {
 			return n2 & 0xff;
 		}), undefined, true);
 		rt.iterExtendBytes(out, rt.iterMap(rt.iterMap(rt.iterSlice(held.d), (a023: rt.ByteVec): rt.usize => {
-			return rt.byteVecSlice(a023).length;
+			return a023.length;
 		}), (n3: rt.usize): rt.u8 => {
 			return n3 & 0xff;
 		}), undefined, true);
@@ -753,8 +750,8 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const old2: rt.ByteVec = ((a011: rt.ByteVec): rt.ByteVec => {
 			return rt.replaceIn(a011, new rt.ByteVec());
 		})(v);
-		rt.byteVecPush(out, rt.byteVecSlice(old2).length & 0xff);
-		rt.byteVecPush(out, rt.byteVecSlice(v).length & 0xff);
+		rt.byteVecPush(out, old2.length & 0xff);
+		rt.byteVecPush(out, v.length & 0xff);
 		let held2: rt.u8 | undefined = thenSome$0d5am30(rt.u8Rem(at(0), 2) === 0, at(1));
 		const _121: rt.u8 = at(2);
 		rt.iterExtendBytes(out, rt.iterOption(apply$Option_u8_u8_Option_u8_Option_T_replace_u8((a012: rt.Place<rt.u8 | undefined>, a110: rt.u8): rt.u8 | undefined => {
@@ -769,7 +766,7 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		apply$String_char_unit_String_push((a014: rt.Place<string>, a112: rt.char): undefined => {
 			a014.v = a014.v + String.fromCodePoint(a112);
 		}, rt.place(() => s, (value8) => s = value8), 33);
-		const _136: rt.usize = rt.byteVecSlice(old2).length;
+		const _136: rt.usize = old2.length;
 		const _134: string = rt.fmtToString((f: rt.Formatter) => rt.usizeDisplay(_136, f));
 		apply$String_ref_String_unit_Clone_clone_from_String((a015: rt.Place<string>, a113: string): undefined => {
 			a015.v = a113;
@@ -1183,24 +1180,24 @@ export function resizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			};
 			rt.byteVecResizeWith(v4, _440, _446);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v4));
-			const _453: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeRem(at2(2) as rt.usize, rt.usizeAdd(rt.byteVecSlice(v4).length, 1)), rt.usizeStep);
+			const _453: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeRem(at2(2) as rt.usize, rt.usizeAdd(v4.length, 1)), rt.usizeStep);
 			rt.byteVecExtendFromWithin(v4, _453);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v4));
-			const _469: rt.usize = rt.usizeRem(at2(3) as rt.usize, rt.usizeAdd(rt.byteVecSlice(v4).length, 1));
+			const _469: rt.usize = rt.usizeRem(at2(3) as rt.usize, rt.usizeAdd(v4.length, 1));
 			const tail2: rt.ByteVec = rt.byteVecSplitOff(v4, _469);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(tail2));
 			rt.byteVecPush(tail2, 187);
 			rt.byteVecAppend(v4, tail2);
 			rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v4));
-			rt.byteVecPush(out, rt.byteVecSlice(tail2).length & 0xff);
+			rt.byteVecPush(out, tail2.length & 0xff);
 			rt.byteVecPush(out, 254);
 		}
 		const v5: rt.ByteVec = rt.byteSliceToByteVec(data);
 		if (((kind >> 3) & 1) === 0) {
-			const _503: rt.usize = rt.usizeRem(at(5) as rt.usize, rt.usizeAdd(rt.byteVecSlice(v5).length, 2));
+			const _503: rt.usize = rt.usizeRem(at(5) as rt.usize, rt.usizeAdd(v5.length, 2));
 			rt.byteVecSplitOff(v5, _503);
 		} else {
-			const _514: rt.Range<rt.usize> = picked(at(5), at(6), rt.byteVecSlice(v5).length);
+			const _514: rt.Range<rt.usize> = picked(at(5), at(6), v5.length);
 			rt.byteVecExtendFromWithin(v5, _514);
 		}
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(v5));
@@ -1632,7 +1629,7 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecExtractIf(bytes, undefined, (b14: rt.Place<rt.u8>): boolean => {
 			return rt.u8Rem(b14.v, 2) === 0;
 		}).next();
-		rt.byteVecPush(out, rt.byteVecSlice(bytes).length & 0xff);
+		rt.byteVecPush(out, bytes.length & 0xff);
 		if ((kind & 128) !== 0) {
 			const _199: rt.Range<rt.usize> = picked(at(6), at(7), w.d.length);
 			rt.drop(rt.vecExtractIfMut(w, _199, (_228: rt.Place<rt.u16>): boolean => {
@@ -1733,7 +1730,7 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_390)), undefined, true);
 		}
 		const bytes2: rt.ByteVec = rt.byteSliceToByteVec(data);
-		const r5: rt.Range<rt.usize> = within(at(7), at(8), rt.byteVecSlice(bytes2).length);
+		const r5: rt.Range<rt.usize> = within(at(7), at(8), bytes2.length);
 		const _409: rt.Iter<rt.u8> = rt.iterFilter(rt.iterTake(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))), rt.u8Rem(at(9), 8) as rt.usize), (b9: rt.u8): boolean => {
 			return rt.u8Rem(b9, 2) === 0;
 		});
@@ -1745,7 +1742,7 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.iterExtendBytes(out, rt.iterOption(back), undefined, true);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(bytes2));
 		const tail: rt.ByteVec = rt.byteSliceToByteVec(data);
-		const _453: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeRem(at(10) as rt.usize, rt.usizeAdd(rt.byteVecSlice(tail).length, 1)), rt.usizeStep);
+		const _453: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeRem(at(10) as rt.usize, rt.usizeAdd(tail.length, 1)), rt.usizeStep);
 		const _454: Uint8Array = Uint8Array.of(170, 187);
 		const s3: rt.Iter<rt.u8> = rt.spliceFrom(rt.byteVecSplice(tail, _453), rt.iterSlice(_454), true);
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtVecSplice(s3, f, rt.u8Debug, (value: rt.Iter<rt.u8>, f: rt.Formatter) => rt.fmtIter(value, f, rt.u8Debug, ["IntoIter"]))];
@@ -1762,7 +1759,7 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_508.value));
 		rt.refRelease(_508);
 		if ((kind & 128) !== 0) {
-			const _515: rt.Range<rt.usize> = picked(at(11), at(12), rt.byteVecSlice(tail).length);
+			const _515: rt.Range<rt.usize> = picked(at(11), at(12), tail.length);
 			rt.drop(rt.spliceFrom(rt.byteVecSplice(tail, _515), rt.iterSlice(Uint8Array.of()), true));
 		}
 	} else if (_12 === 2) {

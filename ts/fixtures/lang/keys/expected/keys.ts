@@ -1393,14 +1393,14 @@ export function lentKeys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const lens: rt.Vec<rt.ByteVec> = rt.iterToVec(rt.hashKeys(rt.hashExtend(rt.hashNew(rt.hashing(rt.hashBytes, rt.eqBytes)) as rt.HashMap<rt.ByteVec, rt.u8>, _548, undefined, undefined, undefined, 58720256)), "next", 4);
 	rt.sliceSort(lens.d, rt.cmpLt(rt.cmpBytes), 4, true);
 	for (const _559 of lens.d) {
-		rt.byteVecPush(out, rt.byteVecSlice(_559).length & 0xff);
+		rt.byteVecPush(out, _559.length & 0xff);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_559));
 	}
 	const _569: rt.Iter<rt.ByteVec> = rt.iterMap(rt.byteSliceChunks(data, 2), (a0: rt.ByteSlice): rt.ByteVec => {
 		return rt.byteSliceToByteVec(a0);
 	});
 	rt.byteVecPush(out, option_mapOr$1a3irjf(rt.hashKey(rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashBytes, rt.eqBytes)) as rt.HashSet<rt.ByteVec>, _569, undefined, undefined, 117440512), window), 221, (k17: rt.ByteVec): rt.u8 => {
-		return rt.byteVecSlice(k17).length & 0xff;
+		return k17.length & 0xff;
 	}));
 	const _576: rt.Iter<rt.ByteSlice> = rt.byteSliceChunks(data, 2);
 	const borrowed: rt.BTreeSet<rt.ByteSlice> = rt.btreeExtendKeys(rt.btreeNew(rt.cmpBytes) as rt.BTreeSet<rt.ByteSlice>, _576, true, undefined, undefined, 8, true);
