@@ -10,8 +10,10 @@ import {
 	ByteSlice,
 	byteSliceView,
 	Err,
+	type Fmt,
 	type FmtResult,
 	type Formatter,
+	fmtBool,
 	fmtCharDebug,
 	fmtChars,
 	fmtDebugStructFields,
@@ -29,10 +31,11 @@ import {
 	utf8Check,
 } from "../rt.ts";
 import { CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
+import { isAsciiWhitespace } from "./ascii.ts";
 import { escapeDebug } from "./char.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
-import { type char, type u8, type u16, type usize, u8Debug, usizeDebug } from "./int.ts";
-import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
+import { type char, type u8, type u16, type usize, u8Debug, u64Debug, u64Of, usizeDebug } from "./int.ts";
+import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterHeld, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 import type { Location } from "./location.ts";
 
@@ -349,11 +352,17 @@ class Searcher implements Disposable {
 	#front = 0;
 	#back: number;
 	// An empty pattern matches before each char and after the last, as std's does, from
-	// whichever end it searches.
-	#matched = false;
-	#matchedBack = false;
+	// whichever end it searches: 0 before its first match there, 1 after it, and 2 once it
+	// has found no more.
+	#matched = 0;
+	#matchedBack = 0;
 	start = 0;
 	end = 0;
+
+	/** For `Debug`: its pattern, where it is from each end, and an empty pattern's state from each. */
+	static state(m: Searcher): [p: Pattern, front: number, back: number, matched: number, matchedBack: number] {
+		return [m.#p, m.#front, m.#back, m.#matched, m.#matchedBack];
+	}
 
 	constructor(s: string, p: Pattern) {
 		this.s = s;
@@ -378,10 +387,13 @@ class Searcher implements Disposable {
 		const p = this.#p;
 		if (p === "") {
 			if (this.#matched) {
-				if (this.#front >= this.#back) return false;
+				if (this.#front >= this.#back) {
+					this.#matched = 2;
+					return false;
+				}
 				this.#front += (s.codePointAt(this.#front) as number) > 0xffff ? 2 : 1;
 			}
-			this.#matched = true;
+			this.#matched = 1;
 			this.start = this.end = this.#front;
 			return true;
 		}
@@ -413,10 +425,13 @@ class Searcher implements Disposable {
 		const p = this.#p;
 		if (p === "") {
 			if (this.#matchedBack) {
-				if (this.#back <= this.#front) return false;
+				if (this.#back <= this.#front) {
+					this.#matchedBack = 2;
+					return false;
+				}
 				this.#back = before(s, this.#back);
 			}
-			this.#matchedBack = true;
+			this.#matchedBack = 1;
 			this.start = this.end = this.#back;
 			return true;
 		}
@@ -498,6 +513,45 @@ export function strSplitWhitespace(s: string): Iter<string> {
 	return iterFilter(strSplit(s, charIsWhitespace), (part) => part !== "");
 }
 
+/** `str::split_ascii_whitespace`: the parts between ASCII whitespace, but empty ones. */
+export function strSplitAsciiWhitespace(s: string): Iter<string> {
+	return new SplitAsciiWhitespace(new Split(new Searcher(s, isAsciiWhitespace), true));
+}
+
+/** std's `SplitAsciiWhitespace`: a slice's `Split` of the bytes, without its empty parts. */
+class SplitAsciiWhitespace extends Iter<string> {
+	readonly split: Split;
+
+	constructor(split: Split) {
+		super();
+		this.split = split;
+	}
+
+	next(): string | Done {
+		for (;;) {
+			const part = this.split.next();
+			if (part !== "") return part;
+		}
+	}
+
+	override nextBack(): string | Done {
+		for (;;) {
+			const part = this.split.nextBack();
+			if (part !== "") return part;
+		}
+	}
+
+	/** std's slice `Split`'s: up to a part per byte left and one more, which a filter keeps as its upper bound. */
+	override sizeHint(): SizeHint {
+		const [start, end, , finished] = Split.state(this.split);
+		return [0, finished ? 0 : utf8Len(this.split.m.s, start, end) + 1];
+	}
+
+	override clone(): Iter<string> {
+		return new SplitAsciiWhitespace(this.split.clone() as Split);
+	}
+}
+
 /** `char::is_whitespace`: Unicode's `White_Space`. */
 export function charIsWhitespace(c: char): boolean {
 	if (c <= 0x20) return c === 0x20 || (c >= 0x09 && c <= 0x0d);
@@ -507,7 +561,7 @@ export function charIsWhitespace(c: char): boolean {
 
 /** std's `SplitInternal`, and with a count, `SplitNInternal`. */
 class Split extends Iter<string> implements Disposable {
-	readonly #m: Searcher;
+	readonly m: Searcher;
 	#start = 0;
 	#end: number;
 	// Whether an empty last part is yielded, which `nextBack` sets once it has passed it.
@@ -518,9 +572,14 @@ class Split extends Iter<string> implements Disposable {
 	#count: number;
 	#finished = false;
 
+	/** For `Debug`: where the parts left start and end, its flags, and its count. */
+	static state(it: Split): [start: number, end: number, trailing: boolean, finished: boolean, count: number] {
+		return [it.#start, it.#end, it.#trailing, it.#finished, it.#count];
+	}
+
 	constructor(m: Searcher, trailing: boolean, inclusive = false, count = Infinity) {
 		super();
-		this.#m = m;
+		this.m = m;
 		this.#end = m.s.length;
 		this.#trailing = trailing;
 		this.#inclusive = inclusive;
@@ -528,7 +587,7 @@ class Split extends Iter<string> implements Disposable {
 	}
 
 	override clone(h?: Clones): Iter<string> {
-		const it = new Split(this.#m.clone(h), this.#trailing, this.#inclusive, this.#count);
+		const it = new Split(this.m.clone(h), this.#trailing, this.#inclusive, this.#count);
 		it.#start = this.#start;
 		it.#end = this.#end;
 		it.#finished = this.#finished;
@@ -539,7 +598,7 @@ class Split extends Iter<string> implements Disposable {
 		if (this.#count === 0) return DONE;
 		if (--this.#count === 0) return this.#rest();
 		if (this.#finished) return DONE;
-		const m = this.#m;
+		const m = this.m;
 		if (!m.nextMatch()) return this.#rest();
 		const part = m.s.slice(this.#start, this.#inclusive ? m.end : m.start);
 		this.#start = m.end;
@@ -561,7 +620,7 @@ class Split extends Iter<string> implements Disposable {
 			if (part !== DONE && part !== "") return part;
 			if (this.#finished) return DONE;
 		}
-		const m = this.#m;
+		const m = this.m;
 		if (m.nextMatchBack()) {
 			const part = m.s.slice(m.end, this.#end);
 			this.#end = this.#inclusive ? m.end : m.start;
@@ -575,12 +634,302 @@ class Split extends Iter<string> implements Disposable {
 	#rest(): string | Done {
 		if (this.#finished) return DONE;
 		this.#finished = true;
-		return this.#trailing || this.#start < this.#end ? this.#m.s.slice(this.#start, this.#end) : DONE;
+		return this.#trailing || this.#start < this.#end ? this.m.s.slice(this.#start, this.#end) : DONE;
 	}
 
 	[Symbol.dispose](): void {
-		dispose(this.#m);
+		dispose(this.m);
 	}
+}
+
+/**
+ * `Debug` of a `str` search, `name`, std's struct of it: a `Split`, one of its forms, a
+ * `Matches`, a `MatchIndices`, or one of those from the back, by `searcher`, the name of
+ * std's searcher of its pattern; or a `Lines`, a `SplitWhitespace`, or a
+ * `SplitAsciiWhitespace`. Each writes std's state in UTF-8 bytes, from where it is.
+ */
+export function fmtStrSearch(it: Iter<unknown>, f: Formatter, name: string, searcher = "CharSearcher"): FmtResult {
+	let held = iterHeld<Iter<unknown>>(it);
+	// One from the back is `iterRev` of one from the front, `lines` a map of a split and
+	// `split_whitespace` a filter of one.
+	if (name.startsWith("R") || name === "Lines" || name === "SplitWhitespace") held = iterHeld((held as unknown as { inner: Iter<unknown> }).inner);
+	if (name === "SplitAsciiWhitespace") {
+		const { split } = held as SplitAsciiWhitespace;
+		const [start, end, , finished] = Split.state(split);
+		const bytes = encoder.encode(split.m.s.slice(start, end));
+		const slice: Fmt = (f) => fmtDebugStructFields(f, "Split", ["v", "finished"], [(f) => fmtList(bytes as Iterable<u8>, f, u8Debug), (f) => fmtBool(finished, f)]);
+		const filter: Fmt = (f) => fmtDebugStructFields(f, "Filter", ["iter"], [slice]);
+		return fmtDebugStructFields(f, name, ["inner"], [(f) => fmtDebugStructFields(f, "Map", ["iter"], [filter])]);
+	}
+	if (name === "Lines") {
+		const split: Fmt = (f) => fmtDebugStructFields(f, "SplitInclusive", ["0"], [(f) => fmtSplitInternal(held as Split, f, searcher)]);
+		return fmtDebugTupleFields(f, name, [(f) => fmtDebugStructFields(f, "Map", ["iter"], [split])]);
+	}
+	if (name === "SplitWhitespace") {
+		const split: Fmt = (f) => fmtDebugTupleFields(f, "Split", [(f) => fmtSplitInternal(held as Split, f, "CharPredicateSearcher")]);
+		return fmtDebugStructFields(f, name, ["inner"], [(f) => fmtDebugStructFields(f, "Filter", ["iter"], [split])]);
+	}
+	const inner: Fmt = (f) => {
+		switch (name.replace(/^R/, "")) {
+			case "SplitN": {
+				const split = held as Split;
+				return fmtDebugStructFields(f, "SplitNInternal", ["iter", "count"], [(f) => fmtSplitInternal(split, f, searcher), (f) => usizeDebug(Split.state(split)[4] as usize, f)]);
+			}
+			case "Matches":
+				return fmtDebugTupleFields(f, "MatchesInternal", [(f) => fmtSearcher((held as Matches).m, f, searcher)]);
+			case "MatchIndices":
+				return fmtDebugTupleFields(f, "MatchIndicesInternal", [(f) => fmtSearcher((held as MatchIndices).m, f, searcher)]);
+			default:
+				return fmtSplitInternal(held as Split, f, searcher);
+		}
+	};
+	return name === "SplitInclusive" ? fmtDebugStructFields(f, name, ["0"], [inner]) : fmtDebugTupleFields(f, name, [inner]);
+}
+
+/** `Debug` of std's `SplitInternal`: where the parts left start and end, its searcher, and its flags. */
+function fmtSplitInternal(split: Split, f: Formatter, searcher: string): FmtResult {
+	const { s } = split.m;
+	const [start, end, trailing, finished] = Split.state(split);
+	return fmtDebugStructFields(
+		f,
+		"SplitInternal",
+		["start", "end", "matcher", "allow_trailing_empty", "finished"],
+		[
+			(f) => usizeDebug(utf8Len(s, 0, start) as usize, f),
+			(f) => usizeDebug(utf8Len(s, 0, end) as usize, f),
+			(f) => fmtSearcher(split.m, f, searcher),
+			(f) => fmtBool(trailing, f),
+			(f) => fmtBool(finished, f),
+		],
+	);
+}
+
+/**
+ * `Debug` of std's searcher, `name`, of `m`'s pattern: each keeps where it is from each end
+ * in UTF-8 bytes, a `char`'s its UTF-8, a `&str`'s its byte or its two-way search, and the
+ * others the chars left between the ends.
+ */
+function fmtSearcher(m: Searcher, f: Formatter, name: string): FmtResult {
+	const { s } = m;
+	const [p, front, back, matched, matchedBack] = Searcher.state(m);
+	const haystack: Fmt = (f) => fmtStr(s, f);
+	const at = (i: number): Fmt => (f) => usizeDebug(utf8Len(s, 0, i) as usize, f);
+	if (name === "CharSearcher") {
+		const c = (p as string).codePointAt(0) as char;
+		const utf8 = new Uint8Array(4);
+		encoder.encodeInto(p as string, utf8);
+		const names = ["haystack", "finger", "finger_back", "needle", "utf8_size", "utf8_encoded"];
+		const fields: Fmt[] = [haystack, at(front), at(back), (f) => fmtCharDebug(c, f), (f) => u8Debug(charLen(c) as u8, f), (f) => fmtList(utf8 as Iterable<u8>, f, u8Debug)];
+		return fmtDebugStructFields(f, name, names, fields);
+	}
+	if (name === "StrSearcher") {
+		const needle = p as string;
+		let searcher: Fmt;
+		if (needle === "") {
+			const names = ["position", "end", "is_match_fw", "is_match_bw", "is_finished"];
+			const flags = [matched !== 1, matchedBack !== 1, matched === 2 || matchedBack === 2];
+			const empty: Fmt = (f) => fmtDebugStructFields(f, "EmptyNeedle", names, [at(front), at(back), ...flags.map((b): Fmt => (f) => fmtBool(b, f))]);
+			searcher = (f) => fmtDebugTupleFields(f, "Empty", [empty]);
+		} else if (needle.length === 1 && needle.charCodeAt(0) < 0x80) {
+			const byte: Fmt = (f) => fmtDebugStructFields(f, "ByteNeedle", ["b", "position", "end"], [(f) => u8Debug(needle.charCodeAt(0) as u8, f), at(front), at(back)]);
+			searcher = (f) => fmtDebugTupleFields(f, "Byte", [byte]);
+		} else {
+			const w = twoWay(m);
+			const names = ["crit_pos", "crit_pos_back", "period", "byteset", "position", "end", "memory", "memory_back"];
+			const sizes = [w.critPos, w.critPosBack, w.period].map((n): Fmt => (f) => usizeDebug(n as usize, f));
+			const byteset: Fmt = (f) => u64Debug(u64Of((BigInt(w.byteset[1] >>> 0) << 32n) | BigInt(w.byteset[0] >>> 0)), f);
+			const state = [w.position, w.end, w.memory, w.memoryBack].map((n): Fmt => (f) => usizeDebug(n as usize, f));
+			const two: Fmt = (f) => fmtDebugStructFields(f, "TwoWaySearcher", names, [...sizes, byteset, ...state]);
+			searcher = (f) => fmtDebugTupleFields(f, "TwoWay", [two]);
+		}
+		return fmtDebugStructFields(f, name, ["haystack", "needle", "searcher"], [haystack, (f) => fmtStr(needle, f), searcher]);
+	}
+	// A `MultiCharEqSearcher`'s chars left, which std's `CharIndices` keeps from the front.
+	const indices: Fmt = (f) => fmtDebugStructFields(f, "CharIndices", ["front_offset", "iter"], [at(front), (f) => fmtChars(new Chars(s.slice(front, back)), f)]);
+	if (name === "CharPredicateSearcher") return fmtDebugStructFields(f, name, ["haystack", "char_indices"], [haystack, indices]);
+	const chars = Array.from((p as CharSet).chars);
+	const multi: Fmt = (f) => fmtDebugStructFields(f, "MultiCharEqSearcher", ["char_eq", "haystack", "char_indices"], [(f) => fmtList(chars, f, fmtCharDebug), haystack, indices]);
+	return fmtDebugTupleFields(f, name, [multi]);
+}
+
+/** usize::MAX on wasm32, std's `memory` of a needle whose period is long. */
+const LONG = 0xffffffff;
+
+/**
+ * std's `TwoWaySearcher` of `m`'s `&str` pattern, where it is: from an end it has searched
+ * to its limit, where a search that found nothing leaves it, its memory of that search,
+ * which a replay of each from the start finds; otherwise just past the last match.
+ */
+function twoWay(m: Searcher): TwoWay {
+	const [p, front, back] = Searcher.state(m);
+	const h = encoder.encode(m.s);
+	const n = encoder.encode(p as string);
+	const w = new TwoWay(n, h.length);
+	if (front === m.s.length) while (w.next(h, n));
+	else w.position = utf8Len(m.s, 0, front);
+	if (back === 0) while (w.nextBack(h, n));
+	else w.end = utf8Len(m.s, 0, back);
+	return w;
+}
+
+/** std's two-way search of a needle's UTF-8, with its fields, for `Debug` to replay. */
+class TwoWay {
+	readonly critPos: number;
+	readonly critPosBack: number;
+	readonly period: number;
+	/** Each bit of `byte & 63` the needle holds, in two halves of 32 bits. */
+	readonly byteset: [number, number] = [0, 0];
+	position = 0;
+	end: number;
+	memory: number;
+	memoryBack: number;
+
+	constructor(n: Uint8Array, end: number) {
+		const [critFalse, periodFalse] = maximalSuffix(n, false);
+		const [critTrue, periodTrue] = maximalSuffix(n, true);
+		const [critPos, period] = critFalse > critTrue ? [critFalse, periodFalse] : [critTrue, periodTrue];
+		this.critPos = critPos;
+		this.end = end;
+		let short = period + critPos <= n.length;
+		for (let i = 0; short && i < critPos; i++) short = n[i] === n[period + i];
+		if (short) {
+			this.critPosBack = n.length - Math.max(reverseMaximalSuffix(n, period, false), reverseMaximalSuffix(n, period, true));
+			this.period = period;
+			this.#bytes(n.subarray(0, period));
+			this.memory = 0;
+			this.memoryBack = n.length;
+		} else {
+			this.critPosBack = critPos;
+			this.period = Math.max(critPos, n.length - critPos) + 1;
+			this.#bytes(n);
+			this.memory = this.memoryBack = LONG;
+		}
+	}
+
+	#bytes(bytes: Uint8Array): void {
+		for (const b of bytes) this.byteset[(b & 0x3f) >> 5] |= 1 << (b & 0x1f);
+	}
+
+	#contains(b: number): boolean {
+		return ((this.byteset[(b & 0x3f) >> 5] >>> (b & 0x1f)) & 1) !== 0;
+	}
+
+	/** std's `next`, whether it matched. */
+	next(h: Uint8Array, n: Uint8Array): boolean {
+		const long = this.memory === LONG;
+		search: for (;;) {
+			if (this.position + n.length - 1 >= h.length) {
+				this.position = h.length;
+				return false;
+			}
+			const at = this.position;
+			if (!this.#contains(h[at + n.length - 1])) {
+				this.position += n.length;
+				if (!long) this.memory = 0;
+				continue;
+			}
+			for (let i = long ? this.critPos : Math.max(this.critPos, this.memory); i < n.length; i++) {
+				if (n[i] !== h[at + i]) {
+					this.position += i - this.critPos + 1;
+					if (!long) this.memory = 0;
+					continue search;
+				}
+			}
+			for (let i = this.critPos - 1; i >= (long ? 0 : this.memory); i--) {
+				if (n[i] !== h[at + i]) {
+					this.position += this.period;
+					if (!long) this.memory = n.length - this.period;
+					continue search;
+				}
+			}
+			this.position += n.length;
+			if (!long) this.memory = 0;
+			return true;
+		}
+	}
+
+	/** std's `next_back`, whether it matched. */
+	nextBack(h: Uint8Array, n: Uint8Array): boolean {
+		const long = this.memory === LONG;
+		search: for (;;) {
+			if (this.end < n.length) {
+				this.end = 0;
+				return false;
+			}
+			const at = this.end - n.length;
+			if (!this.#contains(h[at])) {
+				this.end -= n.length;
+				if (!long) this.memoryBack = n.length;
+				continue;
+			}
+			for (let i = (long ? this.critPosBack : Math.min(this.critPosBack, this.memoryBack)) - 1; i >= 0; i--) {
+				if (n[i] !== h[at + i]) {
+					this.end -= this.critPosBack - i;
+					if (!long) this.memoryBack = n.length;
+					continue search;
+				}
+			}
+			for (let i = this.critPosBack; i < (long ? n.length : this.memoryBack); i++) {
+				if (n[i] !== h[at + i]) {
+					this.end -= this.period;
+					if (!long) this.memoryBack = this.period;
+					continue search;
+				}
+			}
+			this.end -= n.length;
+			if (!long) this.memoryBack = n.length;
+			return true;
+		}
+	}
+}
+
+/** std's `maximal_suffix`: where the needle's maximal suffix by one order starts, and its period. */
+function maximalSuffix(n: Uint8Array, greater: boolean): [number, number] {
+	let [left, right, offset, period] = [0, 1, 0, 1];
+	while (right + offset < n.length) {
+		const [a, b] = [n[right + offset], n[left + offset]];
+		if (greater ? a > b : a < b) {
+			right += offset + 1;
+			offset = 0;
+			period = right - left;
+		} else if (a === b) {
+			if (offset + 1 === period) {
+				right += offset + 1;
+				offset = 0;
+			} else offset++;
+		} else {
+			left = right;
+			right++;
+			offset = 0;
+			period = 1;
+		}
+	}
+	return [left, period];
+}
+
+/** std's `reverse_maximal_suffix`: the reversed needle's, stopping at `known` period. */
+function reverseMaximalSuffix(n: Uint8Array, known: number, greater: boolean): number {
+	let [left, right, offset, period] = [0, 1, 0, 1];
+	while (right + offset < n.length) {
+		const [a, b] = [n[n.length - (1 + right + offset)], n[n.length - (1 + left + offset)]];
+		if (greater ? a > b : a < b) {
+			right += offset + 1;
+			offset = 0;
+			period = right - left;
+		} else if (a === b) {
+			if (offset + 1 === period) {
+				right += offset + 1;
+				offset = 0;
+			} else offset++;
+		} else {
+			left = right;
+			right++;
+			offset = 0;
+			period = 1;
+		}
+		if (period === known) break;
+	}
+	return left;
 }
 
 /** `str::matches`. */
@@ -594,29 +943,29 @@ export function strRmatches(s: string, p: Pattern): Iter<string> {
 }
 
 class Matches extends Iter<string> implements Disposable {
-	readonly #m: Searcher;
+	readonly m: Searcher;
 
 	constructor(m: Searcher) {
 		super();
-		this.#m = m;
+		this.m = m;
 	}
 
 	override clone(h?: Clones): Iter<string> {
-		return new Matches(this.#m.clone(h));
+		return new Matches(this.m.clone(h));
 	}
 
 	next(): string | Done {
-		const m = this.#m;
+		const m = this.m;
 		return m.nextMatch() ? m.s.slice(m.start, m.end) : DONE;
 	}
 
 	override nextBack(): string | Done {
-		const m = this.#m;
+		const m = this.m;
 		return m.nextMatchBack() ? m.s.slice(m.start, m.end) : DONE;
 	}
 
 	[Symbol.dispose](): void {
-		dispose(this.#m);
+		dispose(this.m);
 	}
 }
 
@@ -631,7 +980,7 @@ export function strRmatchIndices(s: string, p: Pattern): Iter<[usize, string]> {
 }
 
 class MatchIndices extends Iter<[usize, string]> implements Disposable {
-	readonly #m: Searcher;
+	readonly m: Searcher;
 	// Where the last match from each end starts, in code units and in bytes. The back's
 	// bytes are counted once it first moves.
 	#front = 0;
@@ -641,11 +990,11 @@ class MatchIndices extends Iter<[usize, string]> implements Disposable {
 
 	constructor(m: Searcher) {
 		super();
-		this.#m = m;
+		this.m = m;
 	}
 
 	override clone(h?: Clones): Iter<[usize, string]> {
-		const it = new MatchIndices(this.#m.clone(h));
+		const it = new MatchIndices(this.m.clone(h));
 		it.#front = this.#front;
 		it.#frontBytes = this.#frontBytes;
 		it.#back = this.#back;
@@ -654,7 +1003,7 @@ class MatchIndices extends Iter<[usize, string]> implements Disposable {
 	}
 
 	next(): [usize, string] | Done {
-		const m = this.#m;
+		const m = this.m;
 		if (!m.nextMatch()) return DONE;
 		this.#frontBytes += utf8Len(m.s, this.#front, m.start);
 		this.#front = m.start;
@@ -662,7 +1011,7 @@ class MatchIndices extends Iter<[usize, string]> implements Disposable {
 	}
 
 	override nextBack(): [usize, string] | Done {
-		const m = this.#m;
+		const m = this.m;
 		if (!m.nextMatchBack()) return DONE;
 		if (this.#back < 0) {
 			this.#back = m.s.length;
@@ -674,7 +1023,7 @@ class MatchIndices extends Iter<[usize, string]> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		dispose(this.#m);
+		dispose(this.m);
 	}
 }
 
@@ -780,13 +1129,17 @@ export function strRfind(s: string, p: Pattern): usize | undefined {
 	return m.nextMatchBack() ? (utf8Len(s, 0, m.start) as usize) : undefined;
 }
 
-/** A pattern of `[char; N]` or `&[char]`: whether a char is any of `cs`. */
-export function patternChars(cs: ArrayLike<char>): (c: char) => boolean {
-	return (c) => {
+/** A pattern of `[char; N]` or `&[char]`: whether a char is any of `cs`, which it keeps for `Debug`. */
+export function patternChars(cs: ArrayLike<char>): CharSet {
+	const p = ((c: char) => {
 		for (let i = 0; i < cs.length; i++) if (cs[i] === c) return true;
 		return false;
-	};
+	}) as CharSet;
+	p.chars = cs;
+	return p;
 }
+
+type CharSet = ((c: char) => boolean) & { chars: ArrayLike<char> };
 
 /** `str::ends_with`. */
 export function strEndsWith(s: string, p: Pattern): boolean {

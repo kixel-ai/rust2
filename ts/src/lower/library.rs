@@ -2765,7 +2765,9 @@ fn mapping<'tcx>(
 			let f = format!("{}_matches", name);
 			Expr::rt_of("str", &super::camel(&f)).call(vec![args.pop()?, Expr::Rt("charIsWhitespace".into())])
 		}
-		("str", "char_indices" | "lines" | "split_whitespace") => Expr::rt_of("str", &super::camel(&name)).call(args),
+		("str", "char_indices" | "lines" | "split_whitespace" | "split_ascii_whitespace") => {
+			Expr::rt_of("str", &super::camel(&name)).call(args)
+		}
 		// A slice of strings concatenated, or joined by a `&str`.
 		("slice", "concat" | "join")
 			if string(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
@@ -3514,6 +3516,26 @@ fn pattern<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, p: Expr) -> Option<Expr
 		}
 		_ => None,
 	}
+}
+
+/// The name of std's searcher of a `str` method's pattern of type `ty`, which `Debug`
+/// writes, as `pattern` reads it, or `None` for any other.
+pub fn searcher<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<&'static str> {
+	let (called, _, _) = called_through(t, ty, None);
+	Some(match ty.kind() {
+		ty::Char => "CharSearcher",
+		_ if matches!(called.kind(), ty::Closure(..) | ty::FnDef(..) | ty::FnPtr(..)) || t.dyn_fn(called).is_some() => {
+			"CharPredicateSearcher"
+		}
+		ty::Ref(..) if is_text(t, ty) => "StrSearcher",
+		ty::Array(c, _) if c.is_char() => "CharArraySearcher",
+		ty::Ref(_, inner, _) => match inner.kind() {
+			ty::Array(c, _) if c.is_char() => "CharArrayRefSearcher",
+			ty::Slice(c) if c.is_char() => "CharSliceSearcher",
+			_ => return None,
+		},
+		_ => return None,
+	})
 }
 
 /// Whether `ty` is a `str` or a `String`, behind any references: a JS string.

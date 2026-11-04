@@ -316,10 +316,12 @@ splits, each writing what is left of its slice as std's does, emptied where std'
 the end empties a `Windows`; a hash set's operations write the list a clone yields, and a
 `BTreeSet`'s the way std picked to make each, by the iterators it reads, the set it looks
 keys up in, and the key it peeked or holds back. A list's and a B-tree's `ExtractIf` write
-the item or entry it reads next, until it stops, and a hash map's and set's nothing. A slice's `chunks_mut` and its forms are
-refused, as std writes their slice's address, and so are a `str`'s searches, `Split` and
-its forms, `Matches`, `MatchIndices`, `Lines`, and `SplitWhitespace`, as std writes its
-searcher's state in UTF-8 bytes. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
+the item or entry it reads next, until it stops, and a hash map's and set's nothing. A
+`str`'s searches, `Split` and its forms, `Matches`, `MatchIndices`, `Lines`,
+`SplitWhitespace`, and `SplitAsciiWhitespace`, write their searcher's state in UTF-8 bytes
+as std's does, a `&str`'s two-way search replayed to find what it last compared, which
+plain searches never keep. A slice's `chunks_mut` and its forms are refused, as std writes
+their slice's address. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and

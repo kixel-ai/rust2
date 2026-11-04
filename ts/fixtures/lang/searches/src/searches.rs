@@ -200,14 +200,15 @@ const SPACES: [char; 16] = [
 	'\u{3000}', '\u{feff}', 'é', '😀',
 ];
 
-/// `str`'s text iterators and trims, `kind % 4` picking which, of text of `SPACES` by the
+/// `str`'s text iterators and trims, `kind % 5` picking which, of text of `SPACES` by the
 /// low bits of each byte, read from the end each byte's high bit picks.
 pub fn texts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let s: String = data.iter().map(|&b| SPACES[usize::from(b % 16)]).collect();
-	match kind % 4 {
+	match kind % 5 {
 		0 => both(s.char_indices(), data, out),
 		1 => both(s.lines(), data, out),
 		2 => both(s.split_whitespace(), data, out),
+		3 => both(s.split_ascii_whitespace(), data, out),
 		_ => {
 			put(out, s.trim());
 			put(out, s.trim_start());

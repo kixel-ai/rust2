@@ -626,19 +626,25 @@ fn iter_debug<'tcx>(
 	let (item, wraps): (Item, &[Wrap]) = match path.as_slice() {
 		["str", "iter", "Chars"] => return Some(Expr::rt("fmtChars", vec![value.clone(), f.clone()])),
 		["str", "iter", "CharIndices"] => return Some(call("fmtCharIndices", Vec::new())),
+		// Its searcher's state, by the name of std's searcher of its pattern.
 		[
 			"str",
 			"iter",
-			"Split" | "RSplit" | "SplitTerminator" | "RSplitTerminator" | "SplitN" | "RSplitN" | "SplitInclusive"
-			| "Matches" | "RMatches" | "MatchIndices" | "RMatchIndices" | "Lines" | "LinesAny" | "SplitWhitespace",
+			name @ ("Split" | "RSplit" | "SplitTerminator" | "RSplitTerminator" | "SplitN" | "RSplitN"
+			| "SplitInclusive" | "Matches" | "RMatches" | "MatchIndices" | "RMatchIndices"),
 		] => {
-			let name = tcx.item_name(did);
-			return Some(b.err(
-				span,
-				format!(
-					"`Debug` of a `str::{name}`, whose searcher std writes with its state in UTF-8 bytes, which the runtime does not keep yet"
-				),
+			let searcher = library::searcher(b.t, args.types().next()?)?;
+			return Some(call(
+				"fmtStrSearch",
+				vec![Expr::Str((*name).into()), Expr::Str(searcher.into())],
 			));
+		}
+		[
+			"str",
+			"iter",
+			name @ ("Lines" | "SplitWhitespace" | "SplitAsciiWhitespace"),
+		] => {
+			return Some(call("fmtStrSearch", vec![Expr::Str((*name).into())]));
 		}
 		["string", "Drain"] => return Some(call("fmtStringDrain", Vec::new())),
 		["str", "lossy", "Utf8Chunks"] => return Some(Expr::rt("fmtUtf8Chunks", vec![value.clone(), f.clone()])),
