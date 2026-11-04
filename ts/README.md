@@ -1202,13 +1202,14 @@ comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 25
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
 whose cross products do too, integers sorted, searched for their greatest and least,
-and kept in a `BinaryHeap`, and TS packets numbered through `as_chunks_mut` as moq-mux
-numbers them, each also read by value, a copy of its bytes. Each runs four ways: natively, as wasm32 at the
+and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
+numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
+group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs four ways: natively, as wasm32 at the
 size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, typed arrays and a heap of its own in `bench/order.ts`, and offsets into one
-`Uint8Array` in `bench/packets.ts`), and translated; every route's output must match
+timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
+`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`), and translated; every route's output must match
 native Rust's first. The JS routes run minified, the same bundles whose size it reports,
 in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the
