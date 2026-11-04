@@ -48,6 +48,7 @@ const TAKEN: &[&str] = &[
 	"_Wakeup",
 	"_wakeups",
 	"_wakeup",
+	"_resume",
 	"_Const",
 	"_PENDING",
 	"_consts",
@@ -69,8 +70,9 @@ const TAKEN: &[&str] = &[
 	"_AttributeError",
 ];
 
-/// The registry's first classes, the runtime's: the glue's `T_FUTURE` and `T_TIMEDELTA`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`, and
+/// `T_RESUME`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
