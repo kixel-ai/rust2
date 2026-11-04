@@ -40,7 +40,7 @@ pub fn counted() -> u8 {
 	}
 }
 
-/// The address of a std type's value, whose API is its path without its arguments.
-pub fn located(v: Vec<u8>) -> usize {
-	&v as *const Vec<u8> as usize
+/// The address of a dependency's type's value, whose API is its path.
+pub fn located(b: bytes::Bytes) -> usize {
+	&b as *const bytes::Bytes as usize
 }

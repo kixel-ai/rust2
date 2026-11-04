@@ -912,19 +912,19 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it drops.
-struct Logged {
+struct Tagged {
 	data: Arc<Vec<u8>>,
 	tag: u8,
 	log: Arc<Mutex<Vec<u8>>>,
 }
 
-impl AsRef<[u8]> for Logged {
+impl AsRef<[u8]> for Tagged {
 	fn as_ref(&self) -> &[u8] {
 		&self.data
 	}
 }
 
-impl Drop for Logged {
+impl Drop for Tagged {
 	fn drop(&mut self) {
 		self.log.lock().unwrap().push(self.tag);
 	}
@@ -940,7 +940,7 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 	let (ops, input) = ops.split_at(ops.len() / 2);
 	let log = Arc::new(Mutex::new(Vec::new()));
 	let owner = |tag, data: &[u8]| {
-		Bytes::from_owner(Logged {
+		Bytes::from_owner(Tagged {
 			data: Arc::new(data.to_vec()),
 			tag,
 			log: log.clone(),
