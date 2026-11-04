@@ -108,8 +108,7 @@ export function putResult$moq_net_Timescale_harness_conversions_closure0(out: rs
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -124,8 +123,7 @@ export function putResult$moq_net_Timescale_harness_timescales_closure0(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -140,8 +138,7 @@ export function putResult$moq_net_Timescale_harness_timescales_closure1(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -156,8 +153,7 @@ export function putResult$moq_net_Timescale_harness_timescales_closure2(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -172,8 +168,7 @@ export function putResult$moq_net_Timestamp_harness_durations_closure0(out: rs.B
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -188,8 +183,7 @@ export function putResult$moq_net_Timestamp_harness_put_timestamp(out: rs.ByteVe
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -202,8 +196,7 @@ export function putTimestamp(out: rs.ByteVec, time: time_Timestamp.Timestamp): v
 	putU128(out, time_Timestamp.asMillis(time));
 	putU128(out, time_Timestamp.asMicros(time));
 	putU128(out, time_Timestamp.asNanos(time));
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(time, f)];
-	putText(out, rs.fmtFormat([args2[0]]));
+	putText(out, rs.fmtFormat([(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(time, f)]));
 }
 
 /** A raw scale through each constructor, and what the scale reads back. */
@@ -213,10 +206,8 @@ export function timescales(data: rs.ByteSlice, out: rs.ByteVec): void {
 		putU64(out2, Timescale.asU64(scale));
 		putU64(out2, time_from$convert_From_moq_net_Timescale_u64(scale));
 		putU64(out2, time_from$convert_From_moq_net_Timescale_num_NonZero_u64(scale));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Timescale.fmt$fmt_Debug(scale, f)];
-		putText(out2, rs.fmtFormat([args2[0]]));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Timescale.fmt$fmt_Display(scale, f)];
-		putText(out2, rs.fmtFormat([args4[0]]));
+		putText(out2, rs.fmtFormat([(f: rs.Formatter) => Timescale.fmt$fmt_Debug(scale, f)]));
+		putText(out2, rs.fmtFormat([(f: rs.Formatter) => Timescale.fmt$fmt_Display(scale, f)]));
 	});
 	putResult$moq_net_Timescale_harness_timescales_closure1(out, Timescale.tryFrom$convert_TryFrom_u64(raw), (out3: rs.ByteVec, scale2: Timescale.Timescale): undefined => {
 		putU64(out3, Timescale.asU64(scale2));
@@ -278,8 +269,7 @@ export function arithmetic(data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecPush(out, time_Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === -1 ? 1 : 0);
 				rs.byteVecPush(out, time_Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === 1 ? 1 : 0);
 				const part = rs.ordMax(a2, b2, rs.cmpLt(time_Timestamp.partialCmp$cmp_PartialOrd));
-				const args2: rs.Fmt[] = [(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(part, f)];
-				putText(out, rs.fmtFormat([args2[0]]));
+				putText(out, rs.fmtFormat([(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(part, f)]));
 				const sorted: rs.Vec<time_Timestamp.Timestamp> = rs.iterToVec(rs.iterChain(rs.iterSlice([a2, b2]), rs.iterResult(c)), undefined, 16, true);
 				rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(time_Timestamp.partialCmp$cmp_PartialOrd), 16, true);
 				for (const _65 of sorted.items) {
