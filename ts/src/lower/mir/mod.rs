@@ -12,7 +12,6 @@
 
 mod alloc;
 mod call;
-mod cfg;
 pub mod coroutine;
 mod decided;
 pub mod glue;
@@ -26,6 +25,7 @@ mod scalar;
 mod step;
 mod vec;
 
+use rust2_driver::cfg;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::DefKind;
 use rustc_index::IndexVec;
@@ -33,7 +33,6 @@ use rustc_middle::mir::{self, BasicBlock, Local, Operand, Place, Rvalue, Stateme
 use rustc_middle::ty::{self, EarlyBinder, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::{Span, Spanned};
 
-use self::cfg::Exit;
 pub use self::place::{made_slice, slice_member, writes_captures};
 pub use self::scalar::Slotted;
 use super::Translator;
@@ -41,6 +40,9 @@ use super::body::Body;
 use super::copy::field_ty;
 
 use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
+
+/// How a block leaves.
+type Exit = cfg::Exit<Expr>;
 
 /// Translate one function instance's body from its MIR.
 pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
@@ -3196,7 +3198,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 }
 
-impl cfg::Lower for Fx<'_, '_, '_, '_> {
+impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
 		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
@@ -3217,7 +3219,7 @@ impl cfg::Lower for Fx<'_, '_, '_, '_> {
 
 impl Fx<'_, '_, '_, '_> {
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
-		cfg::Lower::flush(self, out);
+		cfg::Lower::<Stmt>::flush(self, out);
 	}
 }
 
@@ -4319,7 +4321,7 @@ fn sink_return(stmts: &mut Vec<Stmt>) {
 		match &mut last.kind {
 			StmtKind::If { then, els, .. } => {
 				for branch in [then, els] {
-					if !crate::ts::diverges(branch) {
+					if !cfg::diverges(branch) {
 						branch.push(ret.clone());
 					}
 				}
@@ -4331,7 +4333,7 @@ fn sink_return(stmts: &mut Vec<Stmt>) {
 			} => {
 				let label = label.clone();
 				breaks_to_return(body, &label, &ret);
-				if !crate::ts::diverges(body) {
+				if !cfg::diverges(body) {
 					body.push(ret);
 				}
 				let StmtKind::Block { body, .. } = stmts.pop().expect("checked above").kind else {

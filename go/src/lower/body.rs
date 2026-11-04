@@ -1,12 +1,13 @@
 //! One function instance's MIR as a Go function: each local a variable, but a temporary
-//! folded into its reader (`fold`), each block a label, and each terminator a `goto`, a
-//! `return`, or a panic, as the MIR has them. A panic is Go's, with native Rust's
-//! message, and runs no cleanup, as `panic = "abort"` doesn't: the MIR's cleanup blocks
-//! are left out.
+//! folded into its reader (`fold`), and its blocks structured into loops, `if`s, and
+//! blocks by [`cfg`], as rust2-ts structures them, so a small function stays within Go's
+//! inlining budget. A panic is Go's, with native Rust's message, and runs no cleanup, as
+//! `panic = "abort"` doesn't: the MIR's cleanup blocks are left out.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::Write;
 
+use rust2_driver::cfg;
 use rustc_hir::def::DefKind;
 use rustc_middle::mir::visit::Visitor;
 use rustc_middle::mir::{
@@ -22,7 +23,11 @@ use super::Translator;
 use super::fold::{self, Does, Effect, Held, Pending, Temps};
 use super::library::{self, Mapped};
 use super::names;
+use super::stmt::{self, Cond, Stmt};
 use super::ty::variant_field;
+
+/// How a block leaves.
+type Exit = cfg::Exit<Cond>;
 
 /// Translate one function instance, or `None` after reporting what it refuses.
 pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reached: Span) -> Option<String> {
@@ -37,8 +42,6 @@ pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reache
 		local: instance.def_id().is_local(),
 		used: HashSet::new(),
 		mentioned: HashSet::new(),
-		targets: HashSet::new(),
-		succ: Vec::new(),
 		sites: Vec::new(),
 		temps: Temps::new(&mir),
 		held: Held::default(),
@@ -88,10 +91,6 @@ pub struct Fx<'a, 'tcx> {
 	mentioned: HashSet<Local>,
 	/// Where each `tracing` event in the body is invoked, which translation leaves out.
 	sites: Vec<Span>,
-	/// Blocks some `goto` jumps to, which Go requires of every label.
-	targets: HashSet<BasicBlock>,
-	/// The blocks the block being translated goes to.
-	succ: Vec<BasicBlock>,
 	temps: Temps,
 	held: Held,
 	/// Whether the operand being lowered may fold in a temporary: false where Go would
@@ -175,79 +174,13 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		self.sites = self.tracing_sites();
 		// Only the blocks the translation goes to, from the first: no cleanup, and no block
 		// of a left-out event.
-		let mut blocks = std::collections::BTreeMap::new();
-		// What each block only one other goes to is given, held back.
-		let mut carried: HashMap<BasicBlock, Vec<Pending>> = HashMap::new();
-		let mut stack = vec![mir::START_BLOCK];
-		while let Some(bb) = stack.pop() {
-			if blocks.contains_key(&bb) {
-				continue;
-			}
-			let data = &mir.basic_blocks[bb];
-			let mut text = String::new();
-			let before = self.succ.len();
-			self.held.pending = carried.remove(&bb).unwrap_or_default();
-			for (i, stmt) in data.statements.iter().enumerate() {
-				if self.in_site(stmt.source_info.span).is_none() {
-					self.statement(
-						stmt,
-						Location {
-							block: bb,
-							statement_index: i,
-						},
-						&mut text,
-					);
-				}
-			}
-			let term = data.terminator();
-			match self.in_site(term.source_info.span) {
-				Some(site) => {
-					self.begin(&fold::Access::default(), Effect::default(), true, &mut text);
-					match self.site_exit(bb, site) {
-						Some(exit) => self.goto(exit, &mut text),
-						None => {
-							self.err(site, "a `tracing` event whose expansion has no single exit");
-						}
-					}
-				}
-				None => {
-					let to = fold::carried(mir, bb, term);
-					let acc = self.temps.access(|v| v.visit_terminator(term, mir.terminator_loc(bb)));
-					let effect = match term.kind {
-						TerminatorKind::Call { .. } => Effect {
-							writes: true,
-							panics: true,
-						},
-						TerminatorKind::Assert { .. } => Effect {
-							writes: false,
-							panics: true,
-						},
-						_ => Effect::default(),
-					};
-					self.begin(&acc, effect, to.is_none(), &mut text);
-					self.carry = to.is_some();
-					let mut tail = String::new();
-					let result = self.terminator(term, &mut tail);
-					self.carry = false;
-					let mut does = self.end(&mut text);
-					text.push_str(&tail);
-					if let Some((local, expr)) = result {
-						does.join(&acc.does());
-						does.effect = true;
-						self.held.pending.push(Pending { local, expr, does });
-					}
-					if let Some(to) = to {
-						carried.insert(to, std::mem::take(&mut self.held.pending));
-					}
-				}
-			}
-			assert!(
-				self.held.pending.is_empty(),
-				"a temporary held past the end of its block"
-			);
-			blocks.insert(bb, text);
-			stack.extend(self.succ.drain(before..));
+		let succs = mir.basic_blocks.indices().map(|bb| self.successors(bb)).collect();
+		let mut body = cfg::structure(&cfg::Graph { succs }, self, &mut 0);
+		if ret.is_empty() {
+			cfg::strip_return(&mut body);
 		}
+		cfg::hoist_else(&mut body);
+		cfg::tidy_loops(&mut body);
 		let mut decls = String::new();
 		for local in mir.local_decls.indices().skip(1 + mir.arg_count) {
 			self.declare(local, &mut decls);
@@ -264,14 +197,112 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		);
 		out.push_str(&prologue);
 		out.push_str(&decls);
-		for (bb, text) in blocks {
-			if self.targets.contains(&bb) {
-				writeln!(out, "bb{}:", bb.as_usize()).unwrap();
-			}
-			out.push_str(&text);
-		}
+		stmt::print(&body, &mut HashSet::new(), &mut out);
 		out.push_str("}\n");
 		out
+	}
+
+	/// The blocks `bb` goes on to, as [`cfg::Lower::node`] says it leaves.
+	fn successors(&self, bb: BasicBlock) -> Vec<usize> {
+		let term = self.mir.basic_blocks[bb].terminator();
+		let succs = match self.in_site(term.source_info.span) {
+			Some(site) => self.site_exit(bb, site).into_iter().collect(),
+			None => match &term.kind {
+				TerminatorKind::Goto { target, .. }
+				| TerminatorKind::Drop { target, .. }
+				| TerminatorKind::Assert { target, .. }
+				| TerminatorKind::Call {
+					target: Some(target), ..
+				} => vec![*target],
+				TerminatorKind::FalseEdge { real_target, .. } | TerminatorKind::FalseUnwind { real_target, .. } => {
+					vec![*real_target]
+				}
+				TerminatorKind::SwitchInt { targets, .. } => {
+					let (arms, default) = self.switch_targets(targets);
+					arms.into_iter().map(|(_, t)| t).chain([default]).collect()
+				}
+				_ => Vec::new(),
+			},
+		};
+		let mut out: Vec<usize> = Vec::new();
+		for bb in succs {
+			if !out.contains(&bb.as_usize()) {
+				out.push(bb.as_usize());
+			}
+		}
+		out
+	}
+
+	/// Emit the block `bb`'s statements and say how it leaves, holding back for the block
+	/// it goes on to what only that block reads.
+	fn block(&mut self, bb: BasicBlock, out: &mut Vec<Stmt>) -> Exit {
+		let mir = self.mir;
+		let data = &mir.basic_blocks[bb];
+		let mut text = String::new();
+		for (i, stmt) in data.statements.iter().enumerate() {
+			if self.in_site(stmt.source_info.span).is_none() {
+				self.statement(
+					stmt,
+					Location {
+						block: bb,
+						statement_index: i,
+					},
+					&mut text,
+				);
+			}
+		}
+		let term = data.terminator();
+		let (exit, carried) = match self.in_site(term.source_info.span) {
+			Some(site) => {
+				self.begin(&fold::Access::default(), Effect::default(), true, &mut text);
+				match self.site_exit(bb, site) {
+					Some(exit) => (Exit::Goto(exit.as_usize()), false),
+					None => {
+						self.err(site, "a `tracing` event whose expansion has no single exit");
+						(Exit::End, false)
+					}
+				}
+			}
+			None => {
+				let to = fold::carried(mir, bb, term);
+				let acc = self.temps.access(|v| v.visit_terminator(term, mir.terminator_loc(bb)));
+				let effect = match term.kind {
+					TerminatorKind::Call { .. } => Effect {
+						writes: true,
+						panics: true,
+					},
+					TerminatorKind::Assert { .. } => Effect {
+						writes: false,
+						panics: true,
+					},
+					_ => Effect::default(),
+				};
+				self.begin(&acc, effect, to.is_none(), &mut text);
+				self.carry = to.is_some();
+				let mut tail = String::new();
+				let (exit, result) = self.terminator(term, &mut tail);
+				self.carry = false;
+				let mut does = self.end(&mut text);
+				text.push_str(&tail);
+				if let Some((local, expr)) = result {
+					does.join(&acc.does());
+					does.effect = true;
+					self.held.pending.push(Pending { local, expr, does });
+				}
+				(exit, to.is_some())
+			}
+		};
+		assert!(
+			carried || self.held.pending.is_empty(),
+			"a temporary held past the end of its block"
+		);
+		if !text.is_empty() {
+			out.push(Stmt::Lines(text));
+		}
+		if let TerminatorKind::Return = term.kind {
+			out.push(Stmt::Return(self.returned()));
+		}
+		exit
 	}
 
 	/// Where each `tracing` event the body holds is invoked: the outermost of its macros,
@@ -940,57 +971,28 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		}
 	}
 
-	/// Translate a terminator, giving a call's result if it is held back instead.
-	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut String) -> Option<(Local, String)> {
+	/// Translate a terminator and say where it goes, giving a call's result if it is held
+	/// back instead.
+	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut String) -> (Exit, Option<(Local, String)>) {
 		let span = term.source_info.span;
-		match &term.kind {
-			TerminatorKind::Goto { target, .. } => self.goto(*target, out),
-			TerminatorKind::SwitchInt { discr, targets } => {
-				let ty = self.operand_ty(discr);
-				let v = self.operand(discr, span);
-				if ty.is_bool() {
-					let (zero, other) = (targets.target_for_value(0), targets.otherwise());
-					writeln!(out, "\tif {v} {{").unwrap();
-					let t = if targets.iter().any(|(val, _)| val == 1) {
-						targets.target_for_value(1)
-					} else {
-						other
-					};
-					self.goto(t, out);
-					writeln!(out, "\t}}").unwrap();
-					self.goto(zero, out);
-					return None;
-				}
-				writeln!(out, "\tswitch {v} {{").unwrap();
-				for (value, target) in targets.iter() {
-					let lit = match ty.kind() {
-						ty::Char => format!("{value}"),
-						_ => self.int_lit(ty, value, span),
-					};
-					writeln!(out, "\tcase {lit}:").unwrap();
-					self.goto(target, out);
-				}
-				writeln!(out, "\t}}").unwrap();
-				self.goto(targets.otherwise(), out);
+		let exit = match &term.kind {
+			TerminatorKind::Goto { target, .. } => Exit::Goto(target.as_usize()),
+			TerminatorKind::SwitchInt { discr, targets } => self.switch(discr, targets, span, out),
+			TerminatorKind::Return => Exit::End,
+			TerminatorKind::Unreachable => {
+				writeln!(out, "\tpanic(\"unreachable\")").unwrap();
+				Exit::End
 			}
-			TerminatorKind::Return => match Translator::no_value(self.mir.return_ty()) {
-				true => writeln!(out, "\treturn").unwrap(),
-				false => {
-					self.used.insert(mir::RETURN_PLACE);
-					self.mentioned.insert(mir::RETURN_PLACE);
-					writeln!(out, "\treturn _0").unwrap()
-				}
-			},
-			TerminatorKind::Unreachable => writeln!(out, "\tpanic(\"unreachable\")").unwrap(),
 			TerminatorKind::UnwindResume | TerminatorKind::UnwindTerminate(_) => {
-				writeln!(out, "\tpanic(\"unwind\")").unwrap()
+				writeln!(out, "\tpanic(\"unwind\")").unwrap();
+				Exit::End
 			}
 			TerminatorKind::Drop { place, target, .. } => {
 				let ty = place.ty(self.mir, self.tcx).ty;
 				if let Some(why) = library::drop_refused(self.tcx, self.t.env(), ty) {
 					self.err(span, format!("dropping `{ty}`, {why}"));
 				}
-				self.goto(*target, out);
+				Exit::Goto(target.as_usize())
 			}
 			TerminatorKind::Call {
 				func,
@@ -1003,12 +1005,15 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let args: Vec<&Operand<'tcx>> = args.iter().map(|a| &a.node).collect();
 				let start = out.len();
 				let held = self.call(func, &args, *destination, *fn_span, out);
-				match target {
-					Some(target) => self.goto(*target, out),
-					None if out[start..].trim_start().starts_with("panic(") => {}
-					None => writeln!(out, "\tpanic(\"unreachable\")").unwrap(),
-				}
-				return held;
+				let exit = match target {
+					Some(target) => Exit::Goto(target.as_usize()),
+					None if out[start..].trim_start().starts_with("panic(") => Exit::End,
+					None => {
+						writeln!(out, "\tpanic(\"unreachable\")").unwrap();
+						Exit::End
+					}
+				};
+				return (exit, held);
 			}
 			TerminatorKind::Assert {
 				cond,
@@ -1021,21 +1026,124 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				let check = if *expected { format!("!{c}") } else { c };
 				let msg = self.assert_message(msg, span);
 				writeln!(out, "\tif {check} {{\n\t\tpanic({msg})\n\t}}").unwrap();
-				self.goto(*target, out);
+				Exit::Goto(target.as_usize())
 			}
-			TerminatorKind::FalseEdge { real_target, .. } => self.goto(*real_target, out),
-			TerminatorKind::FalseUnwind { real_target, .. } => self.goto(*real_target, out),
+			TerminatorKind::FalseEdge { real_target, .. } | TerminatorKind::FalseUnwind { real_target, .. } => {
+				Exit::Goto(real_target.as_usize())
+			}
 			kind => {
 				self.err(span, format!("the terminator `{:?}`", kind.name()));
+				Exit::End
 			}
-		}
-		None
+		};
+		(exit, None)
 	}
 
-	fn goto(&mut self, target: BasicBlock, out: &mut String) {
-		self.targets.insert(target);
-		self.succ.push(target);
-		writeln!(out, "\tgoto bb{}", target.as_usize()).unwrap();
+	/// A `switchInt` as tests in order, each target's values one test, and the target if
+	/// none holds, or a `goto` where every value goes there. Its discriminant is read once per test, so it folds in a held-back value
+	/// only where there is one test or the value does nothing but read.
+	fn switch(&mut self, discr: &Operand<'tcx>, targets: &mir::SwitchTargets, span: Span, out: &mut String) -> Exit {
+		let ty = self.operand_ty(discr);
+		let (arms, default) = self.switch_targets(targets);
+		// The local whose value a test of it, or of a field of it, may fold in.
+		let held = discr.place().map(|p| p.local);
+		if arms.is_empty() {
+			if let Some(local) = held {
+				self.held.discard(local, out);
+			}
+			return Exit::Goto(default.as_usize());
+		}
+		self.fold_ok = arms.len() < 2 || held.is_none_or(|l| !self.held.effects(l));
+		let v = self.operand(discr, span);
+		self.fold_ok = true;
+		// `if v` goes on where `0` doesn't.
+		if let (ty::Bool, &[(0, zero)]) = (ty.kind(), arms.as_slice()) {
+			return Exit::Branch(vec![(Cond(v), default.as_usize())], zero.as_usize());
+		}
+		let mut tests: Vec<(Vec<String>, BasicBlock)> = Vec::new();
+		for (value, target) in arms {
+			let test = match ty.kind() {
+				ty::Bool if value == 0 => {
+					let mut c = Cond(v.clone());
+					cfg::Cond::negate(&mut c);
+					c.0
+				}
+				ty::Bool => v.clone(),
+				ty::Char => format!("{v} == {value}"),
+				_ => format!("{v} == {}", self.int_lit(ty, value, span)),
+			};
+			match tests.iter_mut().find(|(_, t)| *t == target) {
+				Some((tests, _)) => tests.push(test),
+				None => tests.push((vec![test], target)),
+			}
+		}
+		let tests = tests
+			.into_iter()
+			.map(|(tests, target)| (Cond(tests.join(" || ")), target.as_usize()))
+			.collect();
+		Exit::Branch(tests, default.as_usize())
+	}
+
+	/// A `switchInt`'s values and their targets, and the target if none matches. Where no
+	/// value is left, as an exhaustive `match` has it, the last value's target is that;
+	/// and a value going there is no test.
+	fn switch_targets(&self, targets: &mir::SwitchTargets) -> (Vec<(u128, BasicBlock)>, BasicBlock) {
+		let mut arms: Vec<(u128, BasicBlock)> = targets.iter().collect();
+		let mut default = targets.otherwise();
+		let data = &self.mir.basic_blocks[default];
+		if matches!(data.terminator().kind, TerminatorKind::Unreachable)
+			&& self.empty(data)
+			&& let Some((_, last)) = arms.pop()
+		{
+			default = last;
+		}
+		let default = self.forward(default);
+		arms.retain_mut(|(_, target)| {
+			*target = self.forward(*target);
+			*target != default
+		});
+		(arms, default)
+	}
+
+	/// Where `bb` goes, past blocks that do nothing but go on, such as a drop that does
+	/// nothing, which a drop flag's test goes to.
+	fn forward(&self, mut bb: BasicBlock) -> BasicBlock {
+		for _ in 0..self.mir.basic_blocks.len() {
+			let data = &self.mir.basic_blocks[bb];
+			if !self.empty(data) || self.in_site(data.terminator().source_info.span).is_some() {
+				break;
+			}
+			bb = match &data.terminator().kind {
+				TerminatorKind::Goto { target, .. } => *target,
+				TerminatorKind::Drop { place, target, .. }
+					if library::drop_refused(self.tcx, self.t.env(), place.ty(self.mir, self.tcx).ty).is_none() =>
+				{
+					*target
+				}
+				_ => break,
+			};
+		}
+		bb
+	}
+
+	/// Whether `data` has no statement that does anything.
+	fn empty(&self, data: &mir::BasicBlockData<'tcx>) -> bool {
+		data.statements.iter().all(|s| {
+			matches!(
+				s.kind,
+				StatementKind::StorageLive(_) | StatementKind::StorageDead(_) | StatementKind::Nop
+			)
+		})
+	}
+
+	/// What a `return` gives: nothing, or the return place.
+	fn returned(&mut self) -> Option<String> {
+		if Translator::no_value(self.mir.return_ty()) {
+			return None;
+		}
+		self.used.insert(mir::RETURN_PLACE);
+		self.mentioned.insert(mir::RETURN_PLACE);
+		Some(Self::local_name(mir::RETURN_PLACE))
 	}
 
 	/// The panic of a failed assertion, with native Rust's message.
@@ -1184,5 +1292,19 @@ pub fn int_bits<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> u32 {
 		ty::Char => 32,
 		ty::Bool => 8,
 		_ => 64,
+	}
+}
+
+impl cfg::Lower<Stmt> for Fx<'_, '_> {
+	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
+		self.block(BasicBlock::from_usize(node), out)
+	}
+
+	fn flush(&mut self, out: &mut Vec<Stmt>) {
+		let mut text = String::new();
+		self.begin(&fold::Access::default(), Effect::default(), true, &mut text);
+		if !text.is_empty() {
+			out.push(Stmt::Lines(text));
+		}
 	}
 }
