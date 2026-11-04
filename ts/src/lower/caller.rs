@@ -179,6 +179,24 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 	),
 	("join_len", "alloc/src/str.rs", "fn join_generic_copy", "expect("),
 	(
+		"int_sum",
+		"core/src/iter/traits/accum.rs",
+		"macro_rules! float_sum_product",
+		"integer_sum_product! {",
+	),
+	(
+		"int_forward",
+		"core/src/iter/range.rs",
+		"#[cfg(target_pointer_width = \"32\")]",
+		"step_integer_impls! {",
+	),
+	(
+		"char_forward",
+		"core/src/iter/range.rs",
+		"fn forward(start: Self, count: usize) -> Self {",
+		"expect(",
+	),
+	(
 		"hash_capacity",
 		"vendor/hashbrown-*/src/raw.rs",
 		"",
@@ -421,7 +439,7 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	let tcx = t.tcx;
 	let mut props = Vec::new();
 	for &(key, file, after, needle) in SITES {
-		match find(tcx, file, after, needle) {
+		match find(tcx, file, &[after], needle) {
 			Some(at) => props.push((Key::Name(key.into()), at)),
 			None => {
 				t.err(
@@ -438,7 +456,7 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 	let path = library::std_path(tcx, def_id).join("::");
 	let &(_, file, after, needle) = CALLEES.iter().find(|(callee, ..)| *callee == path)?;
-	Some(found(tcx, file, after, needle))
+	Some(found(tcx, file, &[after], needle))
 }
 
 /// Where std's `Sum` of `Duration`s panics, or of `&Duration`s if `by_ref`, or else an
@@ -446,30 +464,48 @@ pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 /// where it is called. `Iterator::sum` reaches each, so no one place in [`CALLEES`] holds.
 pub fn sum_site(tcx: TyCtxt<'_>, duration: Option<bool>) -> Expr {
 	match duration {
-		Some(false) => found(tcx, "core/src/time.rs", "impl Sum for Duration", "sum_durations!("),
-		Some(true) => found(tcx, "core/src/time.rs", "impl<'a> Sum<&'a Duration>", "sum_durations!("),
-		None => found(
+		Some(false) => found(tcx, "core/src/time.rs", &["impl Sum for Duration"], "sum_durations!("),
+		Some(true) => found(
 			tcx,
-			"core/src/iter/traits/accum.rs",
-			"macro_rules! float_sum_product",
-			"integer_sum_product! {",
+			"core/src/time.rs",
+			&["impl<'a> Sum<&'a Duration>"],
+			"sum_durations!(",
 		),
+		None => site(tcx, "int_sum"),
 	}
 }
 
+/// Where the panic [`SITES`] names `key` is.
+fn site(tcx: TyCtxt<'_>, key: &str) -> Expr {
+	let &(_, file, after, needle) = SITES.iter().find(|(site, ..)| *site == key).expect("a site of `SITES`");
+	found(tcx, file, &[after], needle)
+}
+
+/// Where a `RefCell`'s `method`, of `PartialEq`, `PartialOrd`, or `Ord`, borrows each: its
+/// own, then the other's, either of which panics while it is mutably borrowed.
+pub fn cell_sites(tcx: TyCtxt<'_>, method: &str) -> [Expr; 2] {
+	let header = format!("fn {method}(&self, other: &RefCell<T>)");
+	[
+		found(tcx, "core/src/cell.rs", &[&header], "borrow("),
+		found(tcx, "core/src/cell.rs", &[&header, "other."], "borrow("),
+	]
+}
+
 /// [`find`], which std's source always has.
-fn found(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Expr {
+fn found(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Expr {
 	match find(tcx, file, after, needle) {
 		Some(at) => at,
 		None => tcx.dcx().fatal(format!(
-			"rust2-ts: std's source has no `{needle}` in `{file}` after `{after}`, where it panics"
+			"rust2-ts: std's source has no `{needle}` in `{file}` after `{}`, where it panics",
+			after.join("`, then `")
 		)),
 	}
 }
 
-/// The `rt.Location` of the first `needle` after `after` in `file`, a file under std's
-/// `library/` whose `*` stands for a vendored crate's version, in the toolchain's source.
-fn find(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Option<Expr> {
+/// The `rt.Location` of the first `needle` after each of `after` in turn in `file`, a file
+/// under std's `library/` whose `*` stands for a vendored crate's version, in the
+/// toolchain's source.
+fn find(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Option<Expr> {
 	type Sources = rustc_data_structures::fx::FxHashMap<String, Option<(String, String)>>;
 	static SOURCES: std::sync::Mutex<Option<Sources>> = std::sync::Mutex::new(None);
 	static LIBRARY: OnceLock<Option<String>> = OnceLock::new();
@@ -496,7 +532,10 @@ fn find(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Option<Expr> 
 			Some((std::fs::read_to_string(format!("{dir}/{path}")).ok()?, path))
 		});
 	let (text, path) = source.as_ref()?;
-	let from = text.find(after)? + after.len();
+	let mut from = 0;
+	for after in after {
+		from += text[from..].find(after)? + after.len();
+	}
 	let at = from + text[from..].find(needle)?;
 	let line_start = text[..at].rfind('\n').map_or(0, |i| i + 1);
 	let line = text[..at].matches('\n').count() + 1;

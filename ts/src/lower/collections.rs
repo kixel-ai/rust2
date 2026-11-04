@@ -1073,15 +1073,16 @@ fn own_ne<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 }
 
 /// Whether `ty`'s `PartialOrd::{test}`, `lt` or another of its tests, reaches the crate's
-/// own `test` of a type it holds, which `partial_cmp` stands for only while that is the
-/// default: through a tuple's last element, `Arc`s, `Reverse`s, and cells.
+/// own `test` of a type it holds, or a `RefCell`'s, which `partial_cmp` stands for only
+/// while that is the default: through a tuple's last element, `Arc`s, `Reverse`s, and
+/// cells. A `RefCell`'s borrows elsewhere than its `partial_cmp`, where a hook reads.
 fn own_test<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str) -> bool {
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, true);
 	match ty.kind() {
 		ty::Tuple(tys) => tys.last().is_some_and(|&t| own_test(b, t, test)),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty).or_else(|| reverse_of(b, ty)) => own_test(b, inner, test),
-		ty::Adt(..) if let Some((inner, _)) = cell_of(b, ty) => own_test(b, inner, test),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => by == "refCellBy" || own_test(b, inner, test),
 		_ if by_own(b, ty) => {
 			let f = trait_fn(tcx, "PartialOrd", test);
 			Instance::try_resolve(tcx, b.t.typing_env_pub(), f, tcx.mk_args(&[ty.into(), ty.into()]))
@@ -1123,7 +1124,10 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
 			Expr::rt("cmpReverse", vec![test_fn(b, inner, test, span)])
 		}
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![test_fn(b, inner, test, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let f = test_fn(b, inner, test, span);
+			cell_by(b, by, f, test)
+		}
 		_ => {
 			let f = trait_fn(tcx, "PartialOrd", test);
 			b.fn_value(f, tcx.mk_args(&[ty.into(), ty.into()]), span)
@@ -2834,6 +2838,16 @@ fn cell_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'st
 	}
 }
 
+/// The runtime's `by` of `f`, as [`cell_of`] says a cell compares, for its `method`: given
+/// where a `RefCell`'s borrows, in a program with a panic hook.
+fn cell_by(b: &Body<'_, '_, '_>, by: &str, f: Expr, method: &str) -> Expr {
+	let mut values = vec![f];
+	if by == "refCellBy" && b.t.hooked {
+		values.extend(super::caller::cell_sites(b.t.tcx, method));
+	}
+	Expr::rt(by, values)
+}
+
 /// `Ord::cmp` of `ty` as a function, or `PartialOrd::partial_cmp` if `partial`: the
 /// runtime's for a std type, which calls the same of what it holds, or the crate's, of its
 /// type or a reference to it.
@@ -2867,7 +2881,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 			Expr::rt("cmpOption", [cmp].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![cmp_fn(b, inner, partial, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let cmp = cmp_fn(b, inner, partial, span);
+			cell_by(b, by, cmp, if partial { "partial_cmp" } else { "cmp" })
+		}
 		// An `rt.Place` compares by its value, as std's impl on `&mut` does by what it points at.
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
 			Expr::rt("cellBy", vec![cmp_fn(b, inner, partial, span)])
@@ -2959,7 +2976,10 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			arc_eq(b, inner, eq)
 		}
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let eq = eq_fn(b, inner, span);
+			cell_by(b, by, eq, "eq")
+		}
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
