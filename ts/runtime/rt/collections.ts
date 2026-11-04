@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, site, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -48,6 +48,7 @@ import {
 	trustedUpper,
 } from "./iter.ts";
 import { type Arc, closure, drop as dispose, dropAll, dropRange } from "./task.ts";
+import type { Location } from "./location.ts";
 
 // Ordering
 
@@ -184,7 +185,7 @@ export function cmpDeque<T, O extends Ordering | undefined>(cmp: (a: T, b: T) =>
 	return (a, b) => {
 		const n = Math.min(a.n, b.n);
 		for (let i = 0; i < n; i++) {
-			const c = cmp(a.b[at(a, i)] as T, b.b[at(b, i)] as T);
+			const c = cmp(a.b[phys(a, i)] as T, b.b[phys(b, i)] as T);
 			if (c !== 0) return c;
 		}
 		return (a.n < b.n ? -1 : a.n > b.n ? 1 : 0) as O;
@@ -260,9 +261,8 @@ export function ordClamp<T>(
 	le: (a: T, b: T) => boolean,
 	lt: (a: T, b: T) => boolean,
 	gt: (a: T, b: T) => boolean,
-	drop?: (value: T) => void,
-): T {
-	if (!le(min, max)) panic("assertion failed: min <= max");
+	drop?: (value: T) => void): T {
+	if (!le(min, max)) panic("assertion failed: min <= max", site("ord_clamp"));
 	const out = lt(a, min) ? 1 : gt(a, max) ? 2 : 0;
 	if (drop !== undefined) dropAll([max, min, a].filter((_, i) => 2 - i !== out), drop);
 	return out === 1 ? min : out === 2 ? max : a;
@@ -330,7 +330,7 @@ type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | VecDeque<T>;
 function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof ByteSlice) return [s.length, (i) => s.data[s.start + i] as T];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
-	if (!("length" in s)) return [s.n, (i) => s.b[at(s, i)] as T];
+	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
 	return [s.length, (i) => s[i] as T];
 }
 
@@ -511,7 +511,7 @@ function hold<K, V>(m: HashMap<K, V>): void {
 
 /** `with_capacity`, of at most `max` entries, past which it panics, as hashbrown's does. */
 export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
-	if (n > max) panic("Hash table capacity overflow");
+	if (n > max) panic("Hash table capacity overflow", site("hash_capacity"));
 	const m = hashNew<K, V>(h, s);
 	if (n > 0) m.cap = n;
 	return m;
@@ -525,7 +525,7 @@ export function hashReserve<K, V>(m: HashMap<K, V>, additional: number, max: num
 	const n = hashLen(m);
 	const cap = hashCapacity(m);
 	if (additional <= cap - n) return;
-	if (n + additional > max) panic("Hash table capacity overflow");
+	if (n + additional > max) panic("Hash table capacity overflow", site("hash_capacity"));
 	m.cap = Math.min(Math.max(cap * 2, n + additional), max);
 }
 
@@ -573,7 +573,7 @@ export function hashContains<K, V>(m: HashMap<K, V>, key: K): boolean {
 
 /** `HashMap::index`: `map[&key]`. */
 export function hashIndex<K, V>(m: HashMap<K, V>, key: K): V {
-	if (!hashContains(m, key)) panic("no entry found for key");
+	if (!hashContains(m, key)) panic("no entry found for key", site("hash_index"), true);
 	return hashGet(m, key) as V;
 }
 
@@ -1100,11 +1100,11 @@ function extending<C, T>(c: C, items: Iter<T>, add: (item: T) => void, take?: Ta
  * `iterExtend` does, into the capacity `at` holds: a `trusted` iterator up front, and any
  * other by `next`.
  */
-function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, at: object & Capped = {}): C {
+function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, phys: object & Capped = {}): C {
 	if (size === undefined) return extending(c, items, add, take);
-	let cap = capOf(len, at.cap, size);
+	let cap = capOf(len, phys.cap, size);
 	if (trusted) {
-		capSet(at, len, capReserve(len, cap, trustedUpper(items), size), size);
+		capSet(phys, len, capReserve(len, cap, trustedUpper(items), size), size);
 		return extending(c, items, add, take);
 	}
 	for (let item = items.next(); item !== DONE; item = items.next()) {
@@ -1112,7 +1112,7 @@ function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) =>
 		add(item);
 		len++;
 	}
-	capSet(at, len, cap, size);
+	capSet(phys, len, cap, size);
 	if (take !== undefined) dispose(items);
 	return c;
 }
@@ -1125,7 +1125,7 @@ function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) =>
 function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number | undefined): void {
 	if (max === undefined) return;
 	const n = hashLen(m);
-	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow");
+	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow", site("hash_capacity"));
 }
 
 /**
@@ -1148,8 +1148,7 @@ export function hashFromIter<K, V>(
 	k?: (key: K) => void,
 	v?: (value: V) => void,
 	take?: Take,
-	max?: number,
-): HashMap<K, V> {
+	max?: number): HashMap<K, V> {
 	const n = items.sizeHint()[0];
 	const m = make();
 	extendReserve(m, n, max);
@@ -1575,7 +1574,7 @@ export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K): boolean {
 export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K): V {
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
-	if (i < 0) panic("no entry found for key");
+	if (i < 0) panic("no entry found for key", site("btree_index"), true);
 	return l.v[i];
 }
 
@@ -1889,9 +1888,9 @@ export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K): BTreeMap<K, V> {
 	if (m.n === 0) return out;
 	const [keys, values] = flatten(m);
 	const i = search(keys, key, m.c);
-	const at = i < 0 ? ~i : i;
-	build(out, keys.slice(at), values.slice(at));
-	build(m, keys.slice(0, at), values.slice(0, at));
+	const phys = i < 0 ? ~i : i;
+	build(out, keys.slice(phys), values.slice(phys));
+	build(m, keys.slice(0, phys), values.slice(0, phys));
 	out.r = true;
 	return out;
 }
@@ -2162,9 +2161,9 @@ function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: strin
 		const s = start._0;
 		const e = stop._0;
 		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? m.c(s, e) === 0 : eq(s, e))) {
-			panic(`range start and end are equal and excluded in ${name}`);
+			panic(`range start and end are equal and excluded in ${name}`, site(`btree_range_equal_${name}`));
 		}
-		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`);
+		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, site(`btree_range_order_${name}`));
 	}
 	const [fl, fi] = start.tag === "Unbounded" ? [end(m, false), 0] : edge(m, start._0, start.tag === "Excluded");
 	const last = end(m, true);
@@ -2323,8 +2322,7 @@ export function btreeExtend<K, V>(
 	v?: (value: V) => void,
 	take?: Take,
 	size?: number,
-	trusted = false,
-): BTreeMap<K, V> {
+	trusted = false): BTreeMap<K, V> {
 	const add = (item: [K, V]) => {
 		if (!last) {
 			const old = btreeInsert(m, item[0], item[1], k);
@@ -2675,11 +2673,11 @@ export function btreeIntersection<K>(a: BTreeSet<K>, b: BTreeSet<K>): Iter<K> {
  * `SymmetricDifference`, `name`, each key by `debug`: the way std picked to make it, by
  * the iterators it reads, a set it looks keys up in, and the key it peeked or holds back.
  */
-export function fmtBTreeSetOp<K>(it: Iter<unknown>, f: Formatter, debug: Debug<K>, name: string): FmtResult {
+export function fmtBTreeSetOp<K>(it: Iter<unknown>, f: Formatter, debug: Debug<K>, name: string, at?: Location): FmtResult {
 	const keys =
 		(it: Iter<unknown>): Fmt =>
 		(f) =>
-			fmtIter(it, f, debug, ["Iter"]);
+			fmtIter(it, f, debug, ["Iter"], at);
 	const none: Fmt = (f) => f.out.writeStr("None");
 	const some =
 		(value: Fmt): Fmt =>
@@ -2999,7 +2997,7 @@ export function dequeNew<T>(size: number, bytes = false): VecDeque<T> {
 
 /** `VecDeque::with_capacity` of `size`-byte items, which panics past what it may hold. */
 export function dequeWithCapacity<T>(n: number, size: number, bytes = false): VecDeque<T> {
-	if (n > vecMax(size)) panic("capacity overflow");
+	if (n > vecMax(size)) panic("capacity overflow", site("capacity"));
 	const q = dequeNew<T>(size, bytes);
 	if (size !== 0) q.b = slots(n, bytes);
 	return q;
@@ -3063,7 +3061,7 @@ function wrap<T>(q: VecDeque<T>, j: number): number {
 }
 
 /** The slot of item `i`. */
-function at<T>(q: VecDeque<T>, i: number): number {
+function phys<T>(q: VecDeque<T>, i: number): number {
 	return wrap(q, q.h + i);
 }
 
@@ -3092,7 +3090,7 @@ function regrow<T>(q: VecDeque<T>, cap: number): void {
 /** `q`'s items moved, in order, to `cap` new slots from `h` on. */
 function place<T>(q: VecDeque<T>, cap: number, h: number): void {
 	const b = slots<T>(cap, holdsBytes(q));
-	for (let i = 0, j = h; i < q.n; i++, j = j + 1 === cap ? 0 : j + 1) b[j] = q.b[at(q, i)];
+	for (let i = 0, j = h; i < q.n; i++, j = j + 1 === cap ? 0 : j + 1) b[j] = q.b[phys(q, i)];
 	q.b = b;
 	q.h = h;
 }
@@ -3104,7 +3102,7 @@ function grow<T>(q: VecDeque<T>): void {
 
 export function dequePushBack<T>(q: VecDeque<T>, item: T): void {
 	grow(q);
-	q.b[at(q, q.n++)] = item;
+	q.b[phys(q, q.n++)] = item;
 }
 
 export function dequePushFront<T>(q: VecDeque<T>, item: T): void {
@@ -3121,7 +3119,7 @@ export function dequePopFront<T>(q: VecDeque<T>, none?: None): T | None | undefi
 	if (q.n === 0) return none;
 	const item = q.b[q.h];
 	q.b[q.h] = undefined;
-	q.h = at(q, 1);
+	q.h = phys(q, 1);
 	q.n--;
 	return item;
 }
@@ -3131,7 +3129,7 @@ export function dequePopBack<T>(q: VecDeque<T>): T | undefined;
 export function dequePopBack<T>(q: VecDeque<T>, none: None): T | None;
 export function dequePopBack<T>(q: VecDeque<T>, none?: None): T | None | undefined {
 	if (q.n === 0) return none;
-	const i = at(q, --q.n);
+	const i = phys(q, --q.n);
 	const item = q.b[i];
 	q.b[i] = undefined;
 	return item;
@@ -3141,42 +3139,42 @@ export function dequePopBack<T>(q: VecDeque<T>, none?: None): T | None | undefin
 export function dequeGet<T>(q: VecDeque<T>, i: number): T | undefined;
 export function dequeGet<T>(q: VecDeque<T>, i: number, none: None): T | None;
 export function dequeGet<T>(q: VecDeque<T>, i: number, none?: None): T | None | undefined {
-	return i < q.n ? (q.b[at(q, i)] as T) : none;
+	return i < q.n ? (q.b[phys(q, i)] as T) : none;
 }
 
 /** `front`, and with `back`, `back`, or else `none`. */
 export function dequeEnd<T>(q: VecDeque<T>, back?: boolean): T | undefined;
 export function dequeEnd<T>(q: VecDeque<T>, back: boolean, none: None): T | None;
 export function dequeEnd<T>(q: VecDeque<T>, back = false, none?: None): T | None | undefined {
-	return q.n === 0 ? none : (q.b[at(q, back ? q.n - 1 : 0)] as T);
+	return q.n === 0 ? none : (q.b[phys(q, back ? q.n - 1 : 0)] as T);
 }
 
 /** `get_mut` of an item JS copies: its place, or `undefined` past the end. */
 export function dequeGetMut<T>(q: VecDeque<T>, i: number): Place<T> | undefined {
-	return i < q.n ? new AtIndex(q.b as T[], at(q, i)) : undefined;
+	return i < q.n ? new AtIndex(q.b as T[], phys(q, i)) : undefined;
 }
 
 /** `front_mut` of an item JS copies, and with `back`, `back_mut`. */
 export function dequeEndMut<T>(q: VecDeque<T>, back = false): Place<T> | undefined {
-	return q.n === 0 ? undefined : new AtIndex(q.b as T[], at(q, back ? q.n - 1 : 0));
+	return q.n === 0 ? undefined : new AtIndex(q.b as T[], phys(q, back ? q.n - 1 : 0));
 }
 
 /** `index` and `index_mut`: `q[i]`. */
 export function dequeIndex<T>(q: VecDeque<T>, i: number): T {
-	if (i >= q.n) panic("out of bounds access");
-	return q.b[at(q, i)] as T;
+	if (i >= q.n) panic("out of bounds access", site("deque_index"), true);
+	return q.b[phys(q, i)] as T;
 }
 
 /** `q[i] = item`, through `index_mut`. */
 export function dequeSet<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i >= q.n) panic("out of bounds access");
-	q.b[at(q, i)] = item;
+	if (i >= q.n) panic("out of bounds access", site("deque_index_mut"), true);
+	q.b[phys(q, i)] = item;
 }
 
 /** Drop `q`: each item by `f`, front to back. */
 export function dequeDrop<T>(q: VecDeque<T>, f: (item: T) => void): void {
 	const items: T[] = [];
-	for (let i = 0; i < q.n; i++) items.push(q.b[at(q, i)] as T);
+	for (let i = 0; i < q.n; i++) items.push(q.b[phys(q, i)] as T);
 	dropAll(items, f);
 }
 
@@ -3184,8 +3182,8 @@ export function dequeDrop<T>(q: VecDeque<T>, f: (item: T) => void): void {
 export function dequeClear<T>(q: VecDeque<T>, f?: (item: T) => void): void {
 	const items: T[] = [];
 	for (let i = 0; i < q.n; i++) {
-		items.push(q.b[at(q, i)] as T);
-		q.b[at(q, i)] = undefined;
+		items.push(q.b[phys(q, i)] as T);
+		q.b[phys(q, i)] = undefined;
 	}
 	q.h = 0;
 	q.n = 0;
@@ -3199,7 +3197,7 @@ export function dequeTruncate<T>(q: VecDeque<T>, len: number, f?: (item: T) => v
 		return;
 	}
 	const cut: T[] = [];
-	for (let i = len; i < q.n; i++) cut.push(q.b[at(q, i)] as T);
+	for (let i = len; i < q.n; i++) cut.push(q.b[phys(q, i)] as T);
 	while (q.n > len) dequePopBack(q);
 	dropAll(cut, f);
 }
@@ -3221,18 +3219,18 @@ export function dequeRetainMut<T>(q: VecDeque<T>, f: (item: Place<T>) => boolean
 function retainDeque<T>(q: VecDeque<T>, f: (item: T | Place<T>) => boolean, lend: boolean, drop?: (item: T) => void): void {
 	let kept = 0;
 	for (let i = 0; i < q.n; i++) {
-		const keep = f(lend ? new AtIndex(q.b as T[], at(q, i)) : (q.b[at(q, i)] as T));
-		const item = q.b[at(q, i)] as T;
+		const keep = f(lend ? new AtIndex(q.b as T[], phys(q, i)) : (q.b[phys(q, i)] as T));
+		const item = q.b[phys(q, i)] as T;
 		if (!keep) continue;
-		q.b[at(q, i)] = q.b[at(q, kept)];
-		q.b[at(q, kept++)] = item;
+		q.b[phys(q, i)] = q.b[phys(q, kept)];
+		q.b[phys(q, kept++)] = item;
 	}
 	dequeTruncate(q, kept, drop);
 }
 
 /** `contains`, by `eq`. */
 export function dequeContains<T>(q: VecDeque<T>, item: T, eq: (a: T, b: T) => boolean): boolean {
-	for (let i = 0; i < q.n; i++) if (eq(q.b[at(q, i)] as T, item)) return true;
+	for (let i = 0; i < q.n; i++) if (eq(q.b[phys(q, i)] as T, item)) return true;
 	return false;
 }
 
@@ -3244,7 +3242,7 @@ export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back?: boolean): T
 export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back: boolean, none: None): T | None;
 export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back = false, none?: None): T | None | undefined {
 	if (i >= q.n) return none;
-	const [j, end] = [at(q, i), at(q, back ? q.n - 1 : 0)];
+	const [j, end] = [phys(q, i), phys(q, back ? q.n - 1 : 0)];
 	[q.b[j], q.b[end]] = [q.b[end], q.b[j]];
 	return (back ? dequePopBack(q) : dequePopFront(q)) as T;
 }
@@ -3254,14 +3252,14 @@ export function dequeRemove<T>(q: VecDeque<T>, i: number): T | undefined;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none: None): T | None;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none?: None): T | None | undefined {
 	if (i >= q.n) return none;
-	const item = q.b[at(q, i)] as T;
+	const item = q.b[phys(q, i)] as T;
 	if (q.n - i - 1 < i) {
-		for (let j = i; j + 1 < q.n; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
-		q.b[at(q, q.n - 1)] = undefined;
+		for (let j = i; j + 1 < q.n; j++) q.b[phys(q, j)] = q.b[phys(q, j + 1)];
+		q.b[phys(q, q.n - 1)] = undefined;
 	} else {
-		for (let j = i; j > 0; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
+		for (let j = i; j > 0; j--) q.b[phys(q, j)] = q.b[phys(q, j - 1)];
 		q.b[q.h] = undefined;
-		q.h = at(q, 1);
+		q.h = phys(q, 1);
 	}
 	q.n--;
 	return item;
@@ -3269,24 +3267,24 @@ export function dequeRemove<T>(q: VecDeque<T>, i: number, none?: None): T | None
 
 /** `insert`: `item` at `i`, with the shorter side moved to make room, as std's. */
 export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i > q.n) panic("index out of bounds");
+	if (i > q.n) panic("index out of bounds", site("deque_insert"));
 	grow(q);
 	if (q.n - i < i) {
-		for (let j = q.n; j > i; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
+		for (let j = q.n; j > i; j--) q.b[phys(q, j)] = q.b[phys(q, j - 1)];
 	} else {
 		q.h = before(q);
-		for (let j = 0; j < i; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
+		for (let j = 0; j < i; j++) q.b[phys(q, j)] = q.b[phys(q, j + 1)];
 	}
-	q.b[at(q, i)] = item;
+	q.b[phys(q, i)] = item;
 	q.n++;
 }
 
 /** `swap` of items `i` and `j`, each checked as std's asserts. */
 export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
-	if (i >= q.n) panic("assertion failed: i < self.len()");
-	if (j >= q.n) panic("assertion failed: j < self.len()");
-	const a = at(q, i);
-	const b = at(q, j);
+	if (i >= q.n) panic("assertion failed: i < self.len()", site("deque_swap_i"));
+	if (j >= q.n) panic("assertion failed: j < self.len()", site("deque_swap_j"));
+	const a = phys(q, i);
+	const b = phys(q, j);
 	const item = q.b[a];
 	q.b[a] = q.b[b];
 	q.b[b] = item;
@@ -3297,7 +3295,7 @@ export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
  * around the end of its slots, the first items past the last or the last before the first.
  */
 export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
-	if (n > q.n) panic("assertion failed: n <= self.len()");
+	if (n > q.n) panic("assertion failed: n <= self.len()", site(right ? "deque_rotate_right" : "deque_rotate_left"));
 	const k = q.n - n;
 	if ((n <= k) !== right) rotateLeft(q, right ? k : n);
 	else rotateRight(q, right ? n : k);
@@ -3306,14 +3304,14 @@ export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
 /** The first `mid` items moved past the last, as std's `rotate_left_inner`. */
 function rotateLeft<T>(q: VecDeque<T>, mid: number): void {
 	// Each slot written is free or one already read.
-	const end = at(q, q.n);
+	const end = phys(q, q.n);
 	for (let i = 0; i < mid; i++) {
-		const from = at(q, i);
+		const from = phys(q, i);
 		const item = q.b[from];
 		q.b[from] = undefined;
 		q.b[wrap(q, end + i)] = item;
 	}
-	q.h = at(q, mid);
+	q.h = phys(q, mid);
 }
 
 /**
@@ -3324,7 +3322,7 @@ function rotateRight<T>(q: VecDeque<T>, k: number): void {
 	const h = wrap(q, q.h - k + q.b.length);
 	// Back to front, so each slot written is free or one already read.
 	for (let i = k - 1; i >= 0; i--) {
-		const from = at(q, q.n - k + i);
+		const from = phys(q, q.n - k + i);
 		const item = q.b[from];
 		q.b[from] = undefined;
 		q.b[wrap(q, h + i)] = item;
@@ -3372,7 +3370,7 @@ export function dequeBinarySearchBy<T>(q: VecDeque<T>, f: (item: T) => Ordering)
 	const front = firstEnd(q, 0, q.n);
 	const order = front < q.n ? f(q.b[0] as T) : 1;
 	if (order === 0) return Ok(front);
-	if (order === 1) return searchBy(q.b as T[], at(q, 0), front, f);
+	if (order === 1) return searchBy(q.b as T[], phys(q, 0), front, f);
 	const found = searchBy(q.b as T[], 0, q.n - front, f);
 	return found.ok ? Ok(found.value + front) : Err(found.error + front);
 }
@@ -3403,7 +3401,7 @@ export function dequePartitionPoint<T>(q: VecDeque<T>, pred: (item: T) => boolea
  * `slice_ranges` splits them at the end of its slots.
  */
 function firstEnd<T>(q: VecDeque<T>, start: number, end: number): number {
-	return start === end ? end : Math.min(end, start + q.b.length - at(q, start));
+	return start === end ? end : Math.min(end, start + q.b.length - phys(q, start));
 }
 
 /**
@@ -3430,7 +3428,7 @@ class DequeIter<T> extends Iter<T | Place<T>> {
 
 	/** Item `i`, or its place. */
 	private item(i: number): T | Place<T> {
-		return this.lend ? new AtIndex(this.q.b as T[], at(this.q, i)) : (this.q.b[at(this.q, i)] as T);
+		return this.lend ? new AtIndex(this.q.b as T[], phys(this.q, i)) : (this.q.b[phys(this.q, i)] as T);
 	}
 
 	/** The two slices, swapped, as std's once the one it reads from ends. */
@@ -3442,7 +3440,7 @@ class DequeIter<T> extends Iter<T | Place<T>> {
 	slices(): [T[], T[]] {
 		const items = (f: number, e: number) => {
 			const out: T[] = [];
-			for (let i = f; i < e; i++) out.push(this.q.b[at(this.q, i)] as T);
+			for (let i = f; i < e; i++) out.push(this.q.b[phys(this.q, i)] as T);
 			return out;
 		};
 		return [items(this.f1, this.e1), items(this.f2, this.e2)];
@@ -3516,14 +3514,14 @@ export function dequeIter<T>(q: VecDeque<T>): Iter<T> {
 }
 
 /** `range`: `iter` of the items within `r`, split as std's `slice_ranges` splits them, which panics as std's does past the length. */
-export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>): Iter<T> {
-	const [start, end] = boundsRange(r, q.n);
+export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, q.n, at);
 	return dequeSlices(q, false, start, end) as Iter<T>;
 }
 
 /** `range_mut` of items JS copies: the place of each within `r`, as `range` reads them. */
-export function dequeRangeMut<T>(q: VecDeque<T>, r: Bounds<number>): Iter<Place<T>> {
-	const [start, end] = boundsRange(r, q.n);
+export function dequeRangeMut<T>(q: VecDeque<T>, r: Bounds<number>, at?: Location): Iter<Place<T>> {
+	const [start, end] = boundsRange(r, q.n, at);
 	return dequeSlices(q, true, start, end) as Iter<Place<T>>;
 }
 
@@ -3540,7 +3538,7 @@ export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>
 
 /** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
 export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
-	const p = at(q, 0);
+	const p = phys(q, 0);
 	const n = firstEnd(q, 0, q.n);
 	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
 	return [part(p, p + n), part(0, q.n - n)];
@@ -3550,7 +3548,7 @@ export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
 export function dequeByteSlices(q: VecDeque<number>): [ByteSlice, ByteSlice] {
 	const n = firstEnd(q, 0, q.n);
 	const b = q.b as unknown as Uint8Array;
-	return [new ByteSlice(b, at(q, 0), n), new ByteSlice(b, 0, q.n - n)];
+	return [new ByteSlice(b, phys(q, 0), n), new ByteSlice(b, 0, q.n - n)];
 }
 
 /**
@@ -3639,8 +3637,8 @@ export function dequeFromIntoIter<T>(it: Iter<T>, size: number, bytes = false): 
  * drop by `drop`, front to back, and then the shorter of the items before and after the
  * range moves next to the other.
  */
-export function dequeDrain<T>(q: VecDeque<T>, r: Bounds<number>, drop?: (item: T) => void): Iter<T> {
-	const [start, end] = boundsRange(r, q.n);
+export function dequeDrain<T>(q: VecDeque<T>, r: Bounds<number>, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, q.n, at);
 	return new DequeDrain(q, start, end - start, drop);
 }
 
@@ -3668,12 +3666,12 @@ class DequeDrain<T> extends Iter<T> implements Disposable {
 	next(): T | Done {
 		if (this.rest === 0) return DONE;
 		this.rest--;
-		return this.q.b[at(this.q, this.idx++)] as T;
+		return this.q.b[phys(this.q, this.idx++)] as T;
 	}
 
 	override nextBack(): T | Done {
 		if (this.rest === 0) return DONE;
-		return this.q.b[at(this.q, this.idx + --this.rest)] as T;
+		return this.q.b[phys(this.q, this.idx + --this.rest)] as T;
 	}
 
 	override len(): number {
@@ -3689,7 +3687,7 @@ class DequeDrain<T> extends Iter<T> implements Disposable {
 		this.joined = true;
 		const q = this.q;
 		const items: T[] = [];
-		for (; this.rest > 0; this.rest--) items.push(q.b[at(q, this.idx++)] as T);
+		for (; this.rest > 0; this.rest--) items.push(q.b[phys(q, this.idx++)] as T);
 		if (this.drop !== undefined) dropAll(items, this.drop);
 		const head = q.n;
 		const tail = this.tailLen;
@@ -3698,14 +3696,14 @@ class DequeDrain<T> extends Iter<T> implements Disposable {
 		if (q.s === 0) return;
 		// The shorter side moves next to the other, and the slots it leaves are cleared.
 		if (head < tail) {
-			for (let i = head - 1; i >= 0; i--) q.b[at(q, i + gap)] = q.b[at(q, i)];
-			for (let i = 0; i < gap; i++) q.b[at(q, i)] = undefined;
+			for (let i = head - 1; i >= 0; i--) q.b[phys(q, i + gap)] = q.b[phys(q, i)];
+			for (let i = 0; i < gap; i++) q.b[phys(q, i)] = undefined;
 		} else {
-			for (let i = 0; i < tail; i++) q.b[at(q, head + i)] = q.b[at(q, head + gap + i)];
-			for (let i = 0; i < gap; i++) q.b[at(q, q.n + i)] = undefined;
+			for (let i = 0; i < tail; i++) q.b[phys(q, head + i)] = q.b[phys(q, head + gap + i)];
+			for (let i = 0; i < gap; i++) q.b[phys(q, q.n + i)] = undefined;
 		}
 		if (q.n === 0) q.h = 0;
-		else if (head < tail) q.h = at(q, gap);
+		else if (head < tail) q.h = phys(q, gap);
 	}
 }
 
@@ -3717,26 +3715,26 @@ export function fmtDequeDrain(it: Iter<unknown>, f: Formatter, debug: Debug<usiz
 }
 
 /** `slice::range`: the start and end of `r` within `n` elements, panicking as std's does. */
-export function boundsRange(r: Bounds<number>, n: number): [number, number] {
+export function boundsRange(r: Bounds<number>, n: number, at?: Location): [number, number] {
 	const [lo, hi] = bounds(r);
 	let end = n;
 	if (hi.tag !== "Unbounded") {
 		end = hi._0;
-		if (hi.tag === "Included" ? end >= n : end > n) sliceIndexFail(0, end, n);
+		if (hi.tag === "Included" ? end >= n : end > n) sliceIndexFail(0, end, n, at);
 		if (hi.tag === "Included") end++;
 	}
 	let start = 0;
 	if (lo.tag !== "Unbounded") {
 		start = lo._0;
-		if (lo.tag === "Excluded" ? start >= end : start > end) sliceIndexFail(start, end, n);
+		if (lo.tag === "Excluded" ? start >= end : start > end) sliceIndexFail(start, end, n, at);
 		if (lo.tag === "Excluded") start++;
 	}
 	return [start, end];
 }
 
 /** `slice::range` itself: `r` within `n` elements, as `{ start, end }`, panicking as std's does. */
-export function boundsChecked(r: Bounds<number>, n: number): { start: number; end: number } {
-	const [start, end] = boundsRange(r, n);
+export function boundsChecked(r: Bounds<number>, n: number, at?: Location): { start: number; end: number } {
+	const [start, end] = boundsRange(r, n, at);
 	return { start, end };
 }
 
@@ -3744,12 +3742,12 @@ export function boundsChecked(r: Bounds<number>, n: number): { start: number; en
  * A slice's index `r` other than `a..b`, `a..`, `..b`, and `..`, as the start and end of
  * the part it reads within `n` elements, panicking as std's `index` does.
  */
-export function sliceIndexBounds(r: Bounds<number>, n: number): [number, number] {
-	if (!inclusive(r)) return boundsRange(r, n);
+export function sliceIndexBounds(r: Bounds<number>, n: number, at?: Location): [number, number] {
+	if (!inclusive(r)) return boundsRange(r, n, at);
 	// std checks `a..=b` by its own fields, not by the bounds it gives.
-	if (r.hi >= n) sliceIndexFail(r.lo, r.hi, n);
+	if (r.hi >= n) sliceIndexFail(r.lo, r.hi, n, at);
 	const bounds = sliceGetBounds(r, n);
-	if (bounds[0] > bounds[1]) sliceIndexFail(bounds[0], bounds[1], n);
+	if (bounds[0] > bounds[1]) sliceIndexFail(bounds[0], bounds[1], n, at);
 	return bounds;
 }
 
@@ -3772,9 +3770,9 @@ function inclusive<K>(r: Bounds<K>): r is RangeInclusive<K> {
 }
 
 /** std's `slice_index_fail`, which names the end where neither bound is out of order. */
-function sliceIndexFail(start: number, end: number, n: number): never {
-	rangeCheck(n, start, end);
-	return panic(`range end index ${end} out of range for slice of length ${n}`);
+function sliceIndexFail(start: number, end: number, n: number, at?: Location): never {
+	rangeCheck(n, start, end, at);
+	return panic(`range end index ${end} out of range for slice of length ${n}`, at, true);
 }
 
 // `Vec::drain`, which leaves the vector only what comes before the range until the drain
@@ -3785,8 +3783,8 @@ function sliceIndexFail(start: number, end: number, n: number): never {
  * `Vec::drain`: the elements within `r`. Those it still holds as it drops each drop by
  * `drop`, front to back, before the tail moves back.
  */
-export function vecDrain<T>(v: T[], r: Bounds<number>, drop?: (item: T) => void): Iter<T> {
-	const [start, end] = boundsRange(r, v.length);
+export function vecDrain<T>(v: T[], r: Bounds<number>, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, v.length, at);
 	return new VecDrain(v, v.splice(start), end - start, drop);
 }
 
@@ -3852,8 +3850,8 @@ class VecDrain<T> extends Iter<T> implements Disposable {
  * collected as std's collects them. The tail moves back to the last item, and `items`
  * drops last if it `drops`.
  */
-export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, size: number, drop?: (item: T) => void): Iter<T> {
-	const [start, end] = boundsRange(r, v.length);
+export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, size: number, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, v.length, at);
 	const cap = vecCapacity(v, size);
 	const rest = v.splice(start);
 	// Held by the vector, which keeps it if the splice is leaked.
@@ -4039,23 +4037,23 @@ export function fmtVecExtractIf<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): 
 }
 
 /** `Vec::extend_from_within` of `size`-byte elements: room reserved for those within `r`, then a clone of each by `clone` pushed in order. */
-export function vecExtendFromWithin<T>(v: T[] & Capped, r: Bounds<number>, size: number, clone?: (item: T) => T): void {
-	const [start, end] = boundsRange(r, v.length);
+export function vecExtendFromWithin<T>(v: T[] & Capped, r: Bounds<number>, size: number, clone?: (item: T) => T, at?: Location): void {
+	const [start, end] = boundsRange(r, v.length, at);
 	vecReserve(v, end - start, size);
 	for (let i = start; i < end; i++) v.push(clone === undefined ? v[i] : clone(v[i]));
 }
 
 /** `Vec::extend_from_within` of bytes. */
-export function byteVecExtendFromWithin(v: ByteVec, r: Bounds<number>): void {
-	const [start, end] = boundsRange(r, v.length);
+export function byteVecExtendFromWithin(v: ByteVec, r: Bounds<number>, at?: Location): void {
+	const [start, end] = boundsRange(r, v.length, at);
 	byteVecReserve(v, end - start);
 	v.data.copyWithin(v.length, start, end);
 	v.length += end - start;
 }
 
 /** `Vec::drain` of bytes. */
-export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
-	const [start, end] = boundsRange(r, v.length);
+export function byteVecDrain(v: ByteVec, r: Bounds<number>, at?: Location): Iter<number> {
+	const [start, end] = boundsRange(r, v.length, at);
 	const length = v.length;
 	v.length = start;
 	return new ByteVecDrain(v, start, end, length);
@@ -4110,8 +4108,8 @@ class ByteVecDrain extends Iter<number> implements Disposable {
 }
 
 /** `Vec::splice` of bytes, as `vecSplice`, given its items by `spliceFrom`. */
-export function byteVecSplice(v: ByteVec, r: Bounds<number>): Iter<number> {
-	const [start, end] = boundsRange(r, v.length);
+export function byteVecSplice(v: ByteVec, r: Bounds<number>, at?: Location): Iter<number> {
+	const [start, end] = boundsRange(r, v.length, at);
 	const length = v.length;
 	v.length = start;
 	return new ByteVecSplice(v, start, end, length);
@@ -4180,7 +4178,7 @@ export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, trus
 	// std's reserves for the lower bound past each item it reads into a full deque, and the first.
 	for (let item = items.next(), first = true; item !== DONE; item = items.next(), first = false) {
 		if (first || q.n === q.b.length) dequeReserve(q, satAdd(items.sizeHint()[0], 1));
-		q.b[at(q, q.n++)] = item;
+		q.b[phys(q, q.n++)] = item;
 	}
 	if (take !== undefined) dispose(items);
 	return q;
@@ -4189,7 +4187,7 @@ export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, trus
 /** `clone`, with each item through its `Clone`, or as itself without one, with room for exactly them. */
 export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): VecDeque<T> {
 	const out = dequeWithCapacity<T>(q.n, q.s, holdsBytes(q));
-	for (let i = 0; i < q.n; i++) out.b[i] = item(q.b[at(q, i)] as T);
+	for (let i = 0; i < q.n; i++) out.b[i] = item(q.b[phys(q, i)] as T);
 	out.n = q.n;
 	return out;
 }
@@ -4201,7 +4199,7 @@ export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): V
 export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): VecDeque<T> {
 	dequeClear(q, drop);
 	dequeReserve(q, src.n);
-	for (let i = 0; i < src.n; i++) q.b[at(q, q.n++)] = item(src.b[at(src, i)] as T);
+	for (let i = 0; i < src.n; i++) q.b[phys(q, q.n++)] = item(src.b[phys(src, i)] as T);
 	return q;
 }
 
@@ -4214,8 +4212,8 @@ export function dequeCloneFromFn<T>(item?: (value: T) => T, drop?: (item: T) => 
 export function dequeAppend<T>(q: VecDeque<T>, other: VecDeque<T>): void {
 	dequeReserve(q, other.n);
 	for (let i = 0; i < other.n; i++) {
-		q.b[at(q, q.n + i)] = other.b[at(other, i)];
-		other.b[at(other, i)] = undefined;
+		q.b[phys(q, q.n + i)] = other.b[phys(other, i)];
+		other.b[phys(other, i)] = undefined;
 	}
 	q.n += other.n;
 	other.n = 0;
@@ -4234,24 +4232,24 @@ export function dequeResize<T>(q: VecDeque<T>, len: number, value: T, clone: ((v
 		return;
 	}
 	dequeReserve(q, len - q.n);
-	while (q.n < len - 1) q.b[at(q, q.n++)] = clone === undefined ? value : clone(value);
-	q.b[at(q, q.n++)] = value;
+	while (q.n < len - 1) q.b[phys(q, q.n++)] = clone === undefined ? value : clone(value);
+	q.b[phys(q, q.n++)] = value;
 }
 
 /** `resize_with` to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
 export function dequeResizeWith<T>(q: VecDeque<T>, len: number, f: () => T, drop?: (item: T) => void): void {
 	if (len <= q.n) return dequeTruncate(q, len, drop);
 	dequeReserve(q, len - q.n);
-	while (q.n < len) q.b[at(q, q.n++)] = f();
+	while (q.n < len) q.b[phys(q, q.n++)] = f();
 }
 
 /** `split_off`: the items from `i` on, moved to a new deque with room for exactly them. */
 export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
-	if (i > q.n) panic("`at` out of bounds");
+	if (i > q.n) panic("`at` out of bounds", site("deque_split_off"));
 	const other = dequeWithCapacity<T>(q.n - i, q.s, holdsBytes(q));
 	for (let j = i; j < q.n; j++) {
-		other.b[j - i] = q.b[at(q, j)];
-		q.b[at(q, j)] = undefined;
+		other.b[j - i] = q.b[phys(q, j)];
+		q.b[phys(q, j)] = undefined;
 	}
 	other.n = q.n - i;
 	q.n = i;
@@ -4261,7 +4259,7 @@ export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
 /** `Vec::from` of a deque: its items in order, with its capacity, as std's makes its buffer contiguous and keeps it, however the length then drops. */
 export function dequeToVec<T>(q: VecDeque<T>): T[] {
 	const v: T[] & Capped = [];
-	for (let i = 0; i < q.n; i++) v.push(q.b[at(q, i)] as T);
+	for (let i = 0; i < q.n; i++) v.push(q.b[phys(q, i)] as T);
 	capHold(v, q.b.length, q.s);
 	return v;
 }
@@ -4388,28 +4386,28 @@ export function listAppend<T>(l: LinkedList<T>, other: LinkedList<T>): void {
  * `split_off`: the nodes from `at` on, unlinked from `l`, found from whichever end is
  * nearer, as std's does. Past the end, it panics as std's does.
  */
-export function listSplitOff<T>(l: LinkedList<T>, at: number): LinkedList<T> {
-	if (at > l.n) panic("Cannot split off at a nonexistent index");
+export function listSplitOff<T>(l: LinkedList<T>, phys: number): LinkedList<T> {
+	if (phys > l.n) panic("Cannot split off at a nonexistent index", site("list_split_off"));
 	const out = listNew<T>();
-	if (at === l.n) return out;
-	if (at === 0) {
+	if (phys === l.n) return out;
+	if (phys === 0) {
 		listAppend(out, l);
 		return out;
 	}
 	// The last node `l` keeps.
 	let last = l.h as ListNode<T>;
-	if (at - 1 <= l.n - at) for (let i = 1; i < at; i++) last = last.x as ListNode<T>;
+	if (phys - 1 <= l.n - phys) for (let i = 1; i < phys; i++) last = last.x as ListNode<T>;
 	else {
 		last = l.t as ListNode<T>;
-		for (let i = l.n; i > at; i--) last = last.p as ListNode<T>;
+		for (let i = l.n; i > phys; i--) last = last.p as ListNode<T>;
 	}
 	out.h = last.x as ListNode<T>;
 	out.h.p = undefined;
 	out.t = l.t;
-	out.n = l.n - at;
+	out.n = l.n - phys;
 	last.x = undefined;
 	l.t = last;
-	l.n = at;
+	l.n = phys;
 	return out;
 }
 

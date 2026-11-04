@@ -1717,6 +1717,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		out.extend(entry);
 		out.extend(body);
+		if crate::lower::caller::unlocated_in(&mut out) {
+			self.err(self.span, "a panic of the runtime's whose location translation gave nowhere");
+		}
 		drop_self_assignments(&mut out);
 		// A return folds in the value assigned only to a local: a closure's captures are
 		// read after it returns.
@@ -2204,6 +2207,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		reads_of(&value, &mut reads);
 		let copy = std::mem::take(&mut self.copy_on_flush);
 		let loc = self.here();
+		let mut value = value;
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.pending.push(Pending {
 			name,
 			value,
@@ -2221,7 +2228,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// Hold back `value`, the assignment of the flag `flag`, to fold into the switch that
 	/// reads it.
-	fn hold_flag(&mut self, flag: String, value: Expr) {
+	fn hold_flag(&mut self, flag: String, mut value: Expr) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.order += 1;
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
@@ -2440,7 +2450,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					block: bb,
 					statement_index: i,
 				};
+				let start = out.len();
 				self.statement(stmt, out);
+				self.locate(&mut out[start..]);
 				if self.returning.contains(&self.at) {
 					self.flush(out);
 					return Exit::End;
@@ -2454,7 +2466,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			block: bb,
 			statement_index: data.statements.len(),
 		};
-		self.terminator(data.terminator(), out)
+		let start = out.len();
+		let exit = self.terminator(data.terminator(), out);
+		self.locate(&mut out[start..]);
+		exit
+	}
+
+	/// Where a panic the statement being lowered makes is, in a program with a panic hook:
+	/// its caller's, if this function takes one, as rustc's codegen passes it.
+	fn panic_at(&self) -> Option<Expr> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		Some(match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, self.mir.source_info(self.at).span),
+		})
+	}
+
+	/// Pass where the statement being lowered is to each runtime call in `stmts` that
+	/// panics there, in a program with a panic hook.
+	fn locate(&self, stmts: &mut [Stmt]) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate(stmts, &at);
+		}
 	}
 
 	fn statement(&mut self, stmt: &mir::Statement<'tcx>, out: &mut Vec<Stmt>) {
@@ -2712,6 +2747,34 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some((instance, location))
 	}
 
+	/// The std function a call of `func` at `span` runs a mapping of, in a program with a
+	/// panic hook, and where its panics are, if rustc says: its caller's if it takes it, or
+	/// for one a macro defines, as an integer's methods are, that macro's call.
+	fn std_site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Option<Expr>)> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if self.b.t.crates.translates(def_id) || self.b.t.lowers(env, instance) {
+			return None;
+		}
+		let at = match instance.def.requires_caller_location(self.tcx) {
+			true => Some(match &self.caller {
+				Some(caller) => Expr::ident(caller),
+				None => crate::lower::caller::location(self.tcx, span),
+			}),
+			false => {
+				let def = self.tcx.def_span(instance.def_id());
+				def.from_expansion().then(|| crate::lower::caller::location(self.tcx, def))
+			}
+		};
+		Some((instance, at))
+	}
+
 	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut Vec<Stmt>) -> Exit {
 		let span = term.source_info.span;
 		match &term.kind {
@@ -2800,7 +2863,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			} => {
 				// Where rustc's codegen says the call is: from the callee's name on.
 				self.b.site = self.site(func, *fn_span);
+				self.b.std_site = self.std_site(func, *fn_span);
 				self.call(func, args, *destination, *fn_span, out);
+				self.b.std_site = None;
 				if let Some((instance, _)) = self.b.site.take()
 					&& self.b.t.crates.translates(instance.def_id())
 				{

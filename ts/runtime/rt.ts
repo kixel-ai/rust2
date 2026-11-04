@@ -10,7 +10,7 @@ import type { Ordering } from "./rt/collections.ts";
 import type { ParseFloatError } from "./rt/float.ts";
 import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
-import type { Location } from "./rt/location.ts";
+import { fmtLocationDisplay, type Location } from "./rt/location.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
 
 import { AtIndex } from "./rt/collections.ts";
@@ -31,11 +31,9 @@ export * from "./rt/str.ts";
 export * from "./rt/task.ts";
 export * from "./rt/time.ts";
 
-/** A Rust panic, and in a program that sets a panic hook, where it panicked. */
+/** A Rust panic. */
 export class Panic extends Error {
 	override name = "Panic";
-	/** Where it panicked, as its hook reads it: in a program that sets one, once it has. */
-	location: Location | undefined = undefined;
 }
 
 /** An abort that runs no panic hook, as std's `rtabort!`: a `Panic`, so catching one catches both. */
@@ -51,6 +49,7 @@ export interface PanicHookInfo {
 	readonly owned: boolean;
 	/** Any other payload, as the `dyn Any` object `panic_any` made of it. */
 	readonly payload: object | undefined;
+	/** Where it panicked. */
 	readonly location: Location;
 }
 
@@ -72,17 +71,18 @@ export interface Sites {
 }
 
 /** `panic::set_hook`, given where std's own code panics, which its hooks read. */
-export function setHook(f: Hook, at: Sites): void {
-	if (hooking) throw new Abort("cannot modify the panic hook from a panicking thread");
+export function setHook(f: Hook, table: Sites): void {
+	// Within a hook, which a panic there aborts.
+	if (hooking) panic("cannot modify the panic hook from a panicking thread");
 	const old = hook;
 	hook = f;
-	sites = at;
+	sites = table;
 	dispose(old);
 }
 
 /** `panic::take_hook`: the hook, which the default replaces. */
 export function takeHook(): Hook {
-	if (hooking) throw new Abort("cannot modify the panic hook from a panicking thread");
+	if (hooking) panic("cannot modify the panic hook from a panicking thread");
 	const old = hook;
 	hook = defaultHook;
 	return old;
@@ -104,7 +104,6 @@ export function site(site: string): Location | undefined {
  */
 function raise(err: Panic, at: Location | undefined, text: string | undefined, owned: boolean, payload: object | undefined): never {
 	if (hooking) throw new Abort(`${err.message}\nthread panicked while processing panic. aborting.`);
-	err.location = at;
 	if (hook !== defaultHook) {
 		if (at === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${err.message}`);
 		hooking = true;
@@ -120,6 +119,21 @@ function raise(err: Panic, at: Location | undefined, text: string | undefined, o
 /** Panic at `at` with `message`, a `String` if `owned` and else a `&'static str`. */
 export function panic(message: string, at?: Location, owned = false): never {
 	raise(new Panic(message), at, message, owned, undefined);
+}
+
+/**
+ * `PanicHookInfo::payload`: what `panic_any` was given, or else the text, as a `str` or a
+ * `String` object, whose classes translation makes.
+ */
+export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: string) => object): object {
+	return info.payload ?? new (info.owned ? string : str)(info.text ?? "");
+}
+
+/** `PanicHookInfo`'s `Display`: where it panicked, then any text, as the default hook's first lines. */
+export function fmtPanicHookInfoDisplay(info: PanicHookInfo, f: Formatter): FmtResult {
+	const r = fmtWriteFmt(f, ["panicked at ", (f) => fmtLocationDisplay(info.location, f)]);
+	if (!r.ok || info.text === undefined) return r;
+	return fmtWriteFmt(f, [":\n", info.text]);
 }
 
 /** `panic_any` of a payload that is no text: the `dyn Any` object made of it. */
@@ -726,7 +740,7 @@ export function optionMap<T, U>(o: T | undefined, f: (value: T) => U): U | undef
 }
 
 /** `Option::unwrap`: the value, or a panic. */
-export function optionUnwrap<T>(o: T | undefined, at?: Location): T;
+export function optionUnwrap<T>(o: T | undefined, none?: undefined, at?: Location): T;
 export function optionUnwrap<T>(o: T | None, none: None, at?: Location): T;
 export function optionUnwrap<T>(o: T | undefined | None, none?: None, at?: Location): T {
 	if (o === none) panic("called `Option::unwrap()` on a `None` value", at);
@@ -734,10 +748,10 @@ export function optionUnwrap<T>(o: T | undefined | None, none?: None, at?: Locat
 }
 
 /** `Option::expect`: the value, or a panic with `message`. */
-export function optionExpect<T>(o: T | undefined, message: string, at?: Location): T;
+export function optionExpect<T>(o: T | undefined, message: string, none?: undefined, at?: Location): T;
 export function optionExpect<T>(o: T | None, message: string, none: None, at?: Location): T;
 export function optionExpect<T>(o: T | undefined | None, message: string, none?: None, at?: Location): T {
-	if (o === none) panic(message, at);
+	if (o === none) panic(message, at, true);
 	return o as T;
 }
 
@@ -745,7 +759,7 @@ export function optionExpect<T>(o: T | undefined | None, message: string, none?:
 
 /** A bounds-checked index into a slice. */
 export function idx(slice: { readonly length: number }, index: number, at?: Location): number {
-	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`, at);
+	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`, at, true);
 	return index;
 }
 
@@ -756,9 +770,9 @@ export function at<T>(slice: ArrayLike<T>, index: number, at?: Location): T {
 
 /** Panic unless `start..end` is in a slice of `length`, as std's range checks do. */
 export function rangeCheck(length: number, start: number, end: number, at?: Location): void {
-	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`, at);
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at);
-	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`, at);
+	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`, at, true);
+	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
+	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`, at, true);
 }
 
 /** `&s[start..end]`, with `end` defaulting to the length. */
@@ -1087,13 +1101,13 @@ export function sliceLastChunkMut<T>(s: T[], n: number): T[] | undefined {
 }
 
 /** `split_last_chunk`: the rest and the last `n` elements, or `undefined` if fewer. */
-export function sliceSplitLastChunk<T>(s: T[], n: number): [T[], T[]] | undefined {
-	return n > s.length ? undefined : sliceSplitAt(s, s.length - n);
+export function sliceSplitLastChunk<T>(s: T[], n: number, at?: Location): [T[], T[]] | undefined {
+	return n > s.length ? undefined : sliceSplitAt(s, s.length - n, at);
 }
 
 /** `split_last_chunk_mut`: views of the rest and the last `n` elements, or `undefined` if fewer. */
-export function sliceSplitLastChunkMut<T>(s: T[], n: number): [T[], T[]] | undefined {
-	return n > s.length ? undefined : sliceSplitAtMut(s, s.length - n);
+export function sliceSplitLastChunkMut<T>(s: T[], n: number, at?: Location): [T[], T[]] | undefined {
+	return n > s.length ? undefined : sliceSplitAtMut(s, s.length - n, at);
 }
 
 /** `as_chunks`: copies of each run of `n` elements from the front, and the rest, panicking at a size of 0. */
@@ -1352,13 +1366,13 @@ export function sliceFillWith<T>(s: T[], f: () => T, drop?: (item: T) => void): 
 
 /** `rotate_left`, panicking past the length. */
 export function sliceRotateLeft<T>(s: T[], mid: number): void {
-	if (mid > s.length) panic("assertion failed: mid <= self.len()");
+	if (mid > s.length) panic("assertion failed: mid <= self.len()", site("rotate_left"));
 	rotate(s, mid);
 }
 
 /** `rotate_right`, panicking past the length. */
 export function sliceRotateRight<T>(s: T[], k: number): void {
-	if (k > s.length) panic("assertion failed: k <= self.len()");
+	if (k > s.length) panic("assertion failed: k <= self.len()", site("rotate_right"));
 	rotate(s, s.length - k);
 }
 
@@ -1387,7 +1401,7 @@ export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: num
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
 function copyWithinCheck(length: number, start: number, end: number, dest: number, at?: Location): void {
 	// `slice::range` checks the end first, then `range` reports the rest.
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at);
+	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
 	rangeCheck(length, start, end, at);
 	if (dest > length - (end - start)) panic("dest is out of bounds", at);
 }
@@ -1406,21 +1420,21 @@ export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((val
 }
 
 /** `sliceCloneFromSlice` as a `CloneFrom` of an array. */
-export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
-	return (old, src) => sliceCloneFromSlice(old, src, clone, drop, over);
+export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<T[]> {
+	return (old, src) => sliceCloneFromSlice(old, src, clone, drop, over, at);
 }
 
 /** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
-export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
-	if (dst.length === src.length) return sliceCloneFromSlice(dst, src, clone, drop, over);
+export function boxSliceCloneFrom<T>(dst: T[], src: T[], clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): T[] {
+	if (dst.length === src.length) return sliceCloneFromSlice(dst, src, clone, drop, over, at);
 	const v = clone === undefined ? src.slice() : src.map(clone);
 	if (drop !== undefined) for (const item of dst) drop(item);
 	return v;
 }
 
 /** `boxSliceCloneFrom` as a `CloneFrom`. */
-export function boxSliceCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<T[]> {
-	return (old, src) => boxSliceCloneFrom(old, src, clone, drop, over);
+export function boxSliceCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<T[]> {
+	return (old, src) => boxSliceCloneFrom(old, src, clone, drop, over, at);
 }
 
 /**
@@ -1484,14 +1498,14 @@ export function resultCloneFromFn<T, E>(
 }
 
 /** `Clone::clone_from` of a `Box<[u8]>`, `dst`: itself, `src` copied in, where the lengths match, or else a copy of `src`. */
-export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice): ByteSlice {
+export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice, at?: Location): ByteSlice {
 	if (dst.length !== src.length) return byteSliceFrom(byteSliceToArray(src));
-	byteSliceCopyFromSlice(dst, src);
+	byteSliceCopyFromSlice(dst, src, at);
 	return dst;
 }
 
 function copyLengthFail(dst: number, src: number, at?: Location): never {
-	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`, at);
+	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`, at, true);
 }
 
 /**
@@ -1580,7 +1594,7 @@ export function vecAssign<T>(v: T[] & Capped, value: T[] & Capped): void {
 
 /** `Vec::insert`: `item` at `i`, with those from `i` on moved up. */
 export function vecInsert<T>(v: T[], i: number, item: T, at?: Location): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at);
+	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at, true);
 	v.splice(i, 0, item);
 }
 
@@ -1626,7 +1640,7 @@ export function vecPopIfMut<T>(
 
 /** `Vec::remove`: the element at `i`, with those after it moved down. */
 export function vecRemove<T>(v: T[], i: number, at?: Location): T {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at);
+	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at, true);
 	return v.splice(i, 1)[0];
 }
 
@@ -1639,7 +1653,7 @@ export function vecTruncate<T>(v: T[], len: number, drop?: (item: T) => void): v
 
 /** `Vec::swap_remove`: the element at `i`, with the last moved into its place. */
 export function vecSwapRemove<T>(v: T[], i: number): T {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`);
+	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, site("swap_remove"), true);
 	const item = v[i];
 	v[i] = v[v.length - 1];
 	v.pop();
@@ -1715,7 +1729,7 @@ export function vecSplitOff<T>(v: T[], mid: number, size: number, at?: Location)
  * with room for `n` times as many as it had room for arrays, as std's keeps its buffer.
  */
 export function vecIntoFlattened<T>(v: (T[] & Capped)[] & Capped, n: number, size: number): T[] {
-	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow");
+	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow", site("into_flattened"), true);
 	const out: T[] & Capped = v.flat() as T[];
 	capSet(out, out.length, vecCapacity(v, size * n) * n, size);
 	return out;
@@ -1805,8 +1819,8 @@ export function byteSliceLastChunk(s: ByteSlice, n: number): ByteSlice | undefin
 }
 
 /** `split_last_chunk`: the rest and the last `n` bytes, or `undefined` if fewer. */
-export function byteSliceSplitLastChunk(s: ByteSlice, n: number): [ByteSlice, ByteSlice] | undefined {
-	return n > s.length ? undefined : byteSliceSplitAt(s, s.length - n);
+export function byteSliceSplitLastChunk(s: ByteSlice, n: number, at?: Location): [ByteSlice, ByteSlice] | undefined {
+	return n > s.length ? undefined : byteSliceSplitAt(s, s.length - n, at);
 }
 
 /** `split_first`: the first byte and the rest, or `undefined` if empty. */
@@ -1859,15 +1873,15 @@ export function byteSliceSplitAtChecked(s: ByteSlice, n: number): [ByteSlice, By
 /** `as_chunks` of bytes: views of each run of `n` from the front, and the rest, panicking at a size of 0. */
 export function byteSliceAsChunks(s: ByteSlice, n: number, at?: Location): [Uint8Array[], ByteSlice] {
 	const count = chunkCount(s.length, n, at);
-	const at = s.start;
-	return [runs(count, n, (start, end) => s.data.subarray(at + start, at + end)), new ByteSlice(s.data, at + count * n, s.length - count * n)];
+	const from = s.start;
+	return [runs(count, n, (start, end) => s.data.subarray(from + start, from + end)), new ByteSlice(s.data, from + count * n, s.length - count * n)];
 }
 
 /** `as_rchunks` of bytes: the rest, and views of each run of `n` up to the back, panicking at a size of 0. */
 export function byteSliceAsRchunks(s: ByteSlice, n: number, at?: Location): [ByteSlice, Uint8Array[]] {
 	const count = chunkCount(s.length, n, at);
-	const at = s.start + s.length - count * n;
-	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(at + start, at + end))];
+	const from = s.start + s.length - count * n;
+	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(from + start, from + end))];
 }
 
 /** `as_chunks_mut` of bytes: each run of `n` from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
@@ -1950,13 +1964,13 @@ export function byteSliceFillWith(s: ByteSlice, f: () => number): void {
 
 /** `rotate_left` of bytes, panicking past the length. */
 export function byteSliceRotateLeft(s: ByteSlice, mid: number): void {
-	if (mid > s.length) panic("assertion failed: mid <= self.len()");
+	if (mid > s.length) panic("assertion failed: mid <= self.len()", site("rotate_left"));
 	byteRotate(s, mid);
 }
 
 /** `rotate_right` of bytes, panicking past the length. */
 export function byteSliceRotateRight(s: ByteSlice, k: number): void {
-	if (k > s.length) panic("assertion failed: k <= self.len()");
+	if (k > s.length) panic("assertion failed: k <= self.len()", site("rotate_right"));
 	byteRotate(s, s.length - k);
 }
 
@@ -2139,7 +2153,7 @@ export function byteVecClear(v: ByteVec): void {
 
 /** `Vec::insert`: `byte` at `i`, with those from `i` on moved up. */
 export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at);
+	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at, true);
 	reserve(v, 1);
 	v.data.copyWithin(i + 1, i, v.length);
 	v.data[i] = byte;
@@ -2148,7 +2162,7 @@ export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location
 
 /** `Vec::remove`: the byte at `i`, with those after it moved down. */
 export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at);
+	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at, true);
 	const byte = v.data[i];
 	v.data.copyWithin(i, i + 1, v.length);
 	v.length--;
@@ -2157,7 +2171,7 @@ export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
 
 /** `Vec::swap_remove`: the byte at `i`, with the last moved into its place. */
 export function byteVecSwapRemove(v: ByteVec, i: number): number {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`);
+	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, site("swap_remove"), true);
 	const byte = v.data[i];
 	v.data[i] = v.data[--v.length];
 	return byte;
@@ -2235,14 +2249,14 @@ export function capHold(c: object & Capped, cap: number, size: number): void {
 export function capReserve(len: number, cap: number, additional: number, size: number): number {
 	if (additional <= cap - len) return cap;
 	const grown = Math.max(cap * 2, len + additional, size === 1 ? 8 : size <= 1024 ? 4 : 1);
-	if (grown > vecMax(size)) panic("capacity overflow");
+	if (grown > vecMax(size)) panic("capacity overflow", site("capacity"));
 	return grown;
 }
 
 /** The capacity `cap`, holding `len`, once `reserve_exact` made room for `additional` more. */
 export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
 	if (additional <= cap - len) return cap;
-	if (len + additional > vecMax(size)) panic("capacity overflow");
+	if (len + additional > vecMax(size)) panic("capacity overflow", site("capacity"));
 	return len + additional;
 }
 
@@ -2253,7 +2267,7 @@ export function capShrink(len: number, cap: number, min: number): number {
 
 /** `Vec::with_capacity` of `size`-byte elements, which panics past what it may hold. */
 export function vecWithCapacity<T>(n: number, size: number): T[] {
-	if (n > vecMax(size)) panic("capacity overflow");
+	if (n > vecMax(size)) panic("capacity overflow", site("capacity"));
 	const v: T[] & Capped = [];
 	capSet(v, 0, n, size);
 	return v;
@@ -2329,7 +2343,7 @@ export function byteVecFromVec(v: number[] & Capped): ByteVec {
 
 /** `Vec::with_capacity` of bytes, which panics past what it may hold. */
 export function byteVecWithCapacity(n: number): ByteVec {
-	if (n > ISIZE_MAX) panic("capacity overflow");
+	if (n > ISIZE_MAX) panic("capacity overflow", site("capacity"));
 	return new ByteVec(n);
 }
 
@@ -2801,6 +2815,8 @@ export function fmtDebugStructFields(f: Formatter, name: string, names: readonly
 			"==",
 			(f) => usizeDisplay(names.length, f),
 			(f) => usizeDisplay(values.length, f),
+			undefined,
+			site("debug_struct_fields"),
 		);
 	}
 	const builder = fmtDebugStruct(f, name);
@@ -2963,7 +2979,7 @@ function closePretty(f: Formatter, close: string): FmtResult {
 export function fmtFormat(args: Arguments): string {
 	const out = new StringWriter();
 	if (!write(out, args).ok) {
-		panic("a formatting trait implementation returned an error when the underlying stream did not: Error");
+		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", site("format"), true);
 	}
 	return out.s;
 }
@@ -2971,7 +2987,7 @@ export function fmtFormat(args: Arguments): string {
 /** `ToString::to_string` of a `Display` value. */
 export function fmtToString(value: Fmt): string {
 	const out = new StringWriter();
-	if (!value({ out, spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error");
+	if (!value({ out, spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", site("to_string"), true);
 	return out.s;
 }
 
@@ -3046,14 +3062,14 @@ export function fmtMap<K, V>(entries: Iterable<[K, V]>, f: Formatter, key: Debug
 export type IterWrap = string | readonly [name: string, field: string];
 
 /** `Debug` of one of std's iterators: the items `it` has left, as a list inside `wraps`, outermost first. */
-export function fmtIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[] = []): FmtResult {
-	return wrapIn(f, wraps, (f) => fmtList(it.remaining() as Iterable<T>, f, debug));
+export function fmtIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[] = [], at?: Location): FmtResult {
+	return wrapIn(f, wraps, (f) => fmtList(it.remaining() as Iterable<T>, f, debug), at);
 }
 
 /** `Debug` of an `Option`'s, a `Result`'s, or a `Once`'s iterator: the item `it` has left, if any, as an `Option` inside `wraps`, outermost first. */
-export function fmtIterOption<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[]): FmtResult {
+export function fmtIterOption<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, wraps: readonly IterWrap[], at?: Location): FmtResult {
 	const items = [...it.remaining()] as T[];
-	return wrapIn(f, wraps, (f) => (items.length === 0 ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(items[0], f)])));
+	return wrapIn(f, wraps, (f) => (items.length === 0 ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(items[0], f)])), at);
 }
 
 /** `Debug` of what std writes as the list of what a clone of it yields: a `HashSet`'s set operations. */
@@ -3067,10 +3083,10 @@ export function fmtListIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>,
 	return fmtDebugTupleFields(f, name, [list, (f) => len(it.len(), f)]);
 }
 
-function wrapIn(f: Formatter, wraps: readonly IterWrap[], inner: Fmt): FmtResult {
+function wrapIn(f: Formatter, wraps: readonly IterWrap[], inner: Fmt, at?: Location): FmtResult {
 	if (wraps.length === 0) return inner(f);
 	const [wrap, ...rest] = wraps;
-	const field: Fmt = (f) => wrapIn(f, rest, inner);
+	const field: Fmt = (f) => wrapIn(f, rest, inner, at);
 	if (typeof wrap === "string") return fmtDebugTupleFields(f, wrap, [field]);
 	return fmtDebugStructFields(f, wrap[0], [wrap[1]], [field]);
 }

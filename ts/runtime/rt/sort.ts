@@ -9,7 +9,7 @@
 // plain loops here. A panic in `less` leaves the slice as it is, which wasm32, where a
 // panic aborts, never shows.
 
-import { byValue, panic } from "../rt.ts";
+import { byValue, panic, site } from "../rt.ts";
 import { drop as dispose } from "./task.ts";
 
 type Slice<T> = { [i: number]: T; length: number };
@@ -453,7 +453,7 @@ function bidirectionalMerge<T>(src: Slice<T>, i: number, n: number, dst: Slice<T
 		if (left < leftEnd) dst[out] = src[left++];
 		else dst[out] = src[right++];
 	}
-	if (left !== leftEnd || right !== rightEnd) panic("user-provided comparison function does not correctly implement a total order");
+	if (left !== leftEnd || right !== rightEnd) panic("user-provided comparison function does not correctly implement a total order", site("ord_violation"));
 }
 
 // ipnsort: a quicksort of in-place partitions, after too many bad pivots a heapsort.

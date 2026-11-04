@@ -24,6 +24,7 @@ import {
 	panic,
 	panicFmt,
 	type Result,
+	site,
 	stringLen,
 	utf8Check,
 } from "../rt.ts";
@@ -32,6 +33,7 @@ import { type Bounds, boundsRange, type Part } from "./collections.ts";
 import { type char, type u8, type u16, type usize, u8Debug, usizeDebug } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
+import type { Location } from "./location.ts";
 
 const encoder = /* @__PURE__ */ new TextEncoder();
 
@@ -86,17 +88,17 @@ export function strSlice(s: string, start: number, end?: number): string {
 
 /** `str::get` by a range's UTF-8 byte offsets, with `end` defaulting to the length. */
 export function strGet(s: string, start: number, end?: number): string | undefined {
-	const at = unitsChecked(s, start, end);
-	return at && s.slice(...at);
+	const pos = unitsChecked(s, start, end);
+	return pos && s.slice(...pos);
 }
 
 /**
  * The byte offsets `&s[r]` reads for an `a..=b` or a `..=b`, panicking as std's does where
  * `b` is not before the end; the part is checked as `a..b + 1`'s is.
  */
-export function strInclusive(s: string, r: RangeInclusive<usize> | { readonly end: usize; readonly inclusive: true }): [number, number] {
+export function strInclusive(s: string, r: RangeInclusive<usize> | { readonly end: usize; readonly inclusive: true }, at?: Location): [number, number] {
 	const [lo, hi] = "lo" in r ? [r.lo, r.hi] : [0, r.end];
-	if (hi >= stringLen(s)) sliceFailed(s, lo, hi);
+	if (hi >= stringLen(s)) sliceFailed(s, lo, hi, at);
 	// An `a..=b` iterated to its end starts past it, at `b + 1`, which JS doesn't overflow.
 	return ["exhausted" in r && r.exhausted ? hi + 1 : lo, hi + 1];
 }
@@ -113,8 +115,8 @@ function unitsChecked(s: string, start: number, end?: number): [number, number] 
 }
 
 /** `unitsChecked`, panicking as std's indexing does where it gives `undefined`. */
-function units(s: string, start: number, end?: number): [number, number] {
-	return unitsChecked(s, start, end) ?? sliceFailed(s, start, end ?? stringLen(s));
+function units(s: string, start: number, end?: number, at?: Location): [number, number] {
+	return unitsChecked(s, start, end) ?? sliceFailed(s, start, end ?? stringLen(s), at);
 }
 
 /**
@@ -143,57 +145,57 @@ class StrPart implements Place<string> {
 }
 
 /** `&mut p[start..end]` by UTF-8 byte offsets, with `end` defaulting to the length. */
-export function strPart(p: Place<string>, start: number, end?: number): Place<string> {
-	return new StrPart(p, units(p.v, start, end));
+export function strPart(p: Place<string>, start: number, end?: number, at?: Location): Place<string> {
+	return new StrPart(p, units(p.v, start, end, at));
 }
 
 /** `str::get_mut` by a range's UTF-8 byte offsets, with `end` defaulting to the length. */
 export function strGetMut(p: Place<string>, start: number, end?: number): Place<string> | undefined {
-	const at = unitsChecked(p.v, start, end);
-	return at && new StrPart(p, at);
+	const pos = unitsChecked(p.v, start, end);
+	return pos && new StrPart(p, pos);
 }
 
 /** `str::split_at_mut`. */
-export function strSplitAtMut(p: Place<string>, mid: number): [Place<string>, Place<string>] {
-	const [, at] = units(p.v, 0, mid);
-	return [new StrPart(p, [0, at]), new StrPart(p, [at, p.v.length])];
+export function strSplitAtMut(p: Place<string>, mid: number, at?: Location): [Place<string>, Place<string>] {
+	const [, pos] = units(p.v, 0, mid, at);
+	return [new StrPart(p, [0, pos]), new StrPart(p, [pos, p.v.length])];
 }
 
 /** `str::split_at_mut_checked`. */
 export function strSplitAtMutChecked(p: Place<string>, mid: number): [Place<string>, Place<string>] | undefined {
-	const at = unitsChecked(p.v, 0, mid);
-	return at && [new StrPart(p, at), new StrPart(p, [at[1], p.v.length])];
+	const pos = unitsChecked(p.v, 0, mid);
+	return pos && [new StrPart(p, pos), new StrPart(p, [pos[1], p.v.length])];
 }
 
 /**
  * std's panic for a slice of `s` that is out of bounds, backwards, or inside a char, or that
  * ends inclusively at the length.
  */
-function sliceFailed(s: string, start: number, end: number): never {
+function sliceFailed(s: string, start: number, end: number, at?: Location): never {
 	const len = stringLen(s);
-	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`);
-	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`);
-	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`);
+	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`, at);
+	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`, at);
+	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`, at);
 	// Neither inside a char: an inclusive end at the length, which is past the last byte.
-	const [which, at] =
+	const [which, pos] =
 		unitAt(s, 0, 0, start) < 0
 			? ["start", start]
 			: unitAt(s, 0, 0, end) < 0
 				? ["end", end]
-				: panic(`end byte index ${end} is out of bounds for string of length ${len}`);
+				: panic(`end byte index ${end} is out of bounds for string of length ${len}`, at);
 	// The char `at` is inside, and where its bytes start.
 	let floor = 0;
 	let c = 0;
 	for (const ch of s) {
 		c = ch.codePointAt(0) as number;
-		if (floor + charLen(c) > at) break;
+		if (floor + charLen(c) > pos) break;
 		floor += charLen(c);
 	}
 	panicFmt([
-		`${which} byte index ${at} is not a char boundary; it is inside `,
+		`${which} byte index ${pos} is not a char boundary; it is inside `,
 		(f) => fmtCharDebug(c as char, f),
 		` (bytes ${floor}..${floor + charLen(c)} of string)`,
-	]);
+	], at);
 }
 
 /** `str::chars`. */
@@ -308,9 +310,9 @@ class CharIndices extends Iter<[usize, char]> {
 	next(): [usize, char] | Done {
 		const c = this.chars.next();
 		if (c === DONE) return DONE;
-		const at = this.front;
+		const pos = this.front;
 		this.front += charLen(c);
-		return [at as usize, c];
+		return [pos as usize, c];
 	}
 
 	override nextBack(): [usize, char] | Done {
@@ -914,8 +916,8 @@ export function strsJoin(parts: readonly string[], sep: string): string {
 		};
 		let len = count(sep) * seps;
 		for (const part of parts) len += count(part);
-		if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX");
-		if (len > ISIZE_MAX) panic("capacity overflow");
+		if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX", site("join_len"), true);
+		if (len > ISIZE_MAX) panic("capacity overflow", site("capacity"));
 	}
 	return parts.join(sep);
 }
@@ -1005,7 +1007,7 @@ export function fmtFromUtf16ErrorDisplay(e: FromUtf16Error, f: Formatter): FmtRe
 
 /** `String::with_capacity`: the empty string, which keeps no capacity. */
 export function stringWithCapacity(capacity: usize): string {
-	if (capacity > ISIZE_MAX) panic("capacity overflow");
+	if (capacity > ISIZE_MAX) panic("capacity overflow", site("capacity"));
 	return "";
 }
 
@@ -1013,29 +1015,29 @@ export function stringWithCapacity(capacity: usize): string {
 export function stringReserve(s: string, additional: usize): void {
 	// A code unit is at most three bytes, so only a large `additional` needs the length.
 	if (additional > ISIZE_MAX - 3 * s.length && additional > ISIZE_MAX - utf8Len(s, 0, s.length)) {
-		panic("capacity overflow");
+		panic("capacity overflow", site("capacity"));
 	}
 }
 
 /** The code unit where byte `i` of `s` starts a char, or panic with `message`. */
-function boundary(s: string, i: number, message: string): number {
-	const at = unitAt(s, 0, 0, i);
-	if (at < 0) panic(message);
-	return at;
+function boundary(s: string, i: number, message: string, at?: Location): number {
+	const pos = unitAt(s, 0, 0, i);
+	if (pos < 0) panic(message, at);
+	return pos;
 }
 
 /** `String::truncate`: `s` to `len` bytes, or as it is if no longer. */
-export function stringTruncate(s: string, len: usize): string {
-	const at = unitAt(s, 0, 0, len);
-	if (at >= 0) return s.slice(0, at);
+export function stringTruncate(s: string, len: usize, at?: Location): string {
+	const pos = unitAt(s, 0, 0, len);
+	if (pos >= 0) return s.slice(0, pos);
 	if (len > utf8Len(s, 0, s.length)) return s;
-	panic("assertion failed: self.is_char_boundary(new_len)");
+	panic("assertion failed: self.is_char_boundary(new_len)", at);
 }
 
 /** `String::insert_str`, and `insert` of a char's text. */
-export function stringInsertStr(s: string, i: usize, text: string): string {
-	const at = boundary(s, i, "assertion failed: self.is_char_boundary(idx)");
-	return s.slice(0, at) + text + s.slice(at);
+export function stringInsertStr(s: string, i: usize, text: string, at?: Location): string {
+	const pos = boundary(s, i, "assertion failed: self.is_char_boundary(idx)", at);
+	return s.slice(0, pos) + text + s.slice(pos);
 }
 
 /** `String::retain`: the chars `f` keeps, calling it on each in order. */
@@ -1046,41 +1048,41 @@ export function stringRetain(s: string, f: (c: char) => boolean): string {
 }
 
 /** `String::replace_range`. */
-export function stringReplaceRange(s: string, r: Bounds<number>, text: string): string {
-	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length));
-	const from = boundary(s, start, "start of range should be a character boundary");
-	const to = boundary(s, end, "end of range should be a character boundary");
+export function stringReplaceRange(s: string, r: Bounds<number>, text: string, at?: Location): string {
+	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length), at);
+	const from = boundary(s, start, "start of range should be a character boundary", at);
+	const to = boundary(s, end, "end of range should be a character boundary", at);
 	return s.slice(0, from) + text + s.slice(to);
 }
 
 /** `String::extend_from_within`. */
-export function stringExtendFromWithin(s: string, r: Bounds<number>): string {
-	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length));
-	const from = boundary(s, start, "assertion failed: self.is_char_boundary(start)");
-	const to = boundary(s, end, "assertion failed: self.is_char_boundary(end)");
+export function stringExtendFromWithin(s: string, r: Bounds<number>, at?: Location): string {
+	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length), at);
+	const from = boundary(s, start, "assertion failed: self.is_char_boundary(start)", at);
+	const to = boundary(s, end, "assertion failed: self.is_char_boundary(end)", at);
 	return s + s.slice(from, to);
 }
 
 /** `String::pop`: the rest, and the last char if any. */
 export function stringPop(s: string): [string, char | undefined] {
 	if (s.length === 0) return [s, undefined];
-	const at = before(s, s.length);
-	return [s.slice(0, at), s.codePointAt(at) as char];
+	const pos = before(s, s.length);
+	return [s.slice(0, pos), s.codePointAt(pos) as char];
 }
 
 /** `String::remove`: the rest, and the char at byte `i`. */
-export function stringRemove(s: string, i: usize): [string, char] {
-	const at = unitAt(s, 0, 0, i);
-	if (at < 0) sliceFailed(s, i, utf8Len(s, 0, s.length));
-	if (at === s.length) panic("cannot remove a char from the end of a string");
-	const c = s.codePointAt(at) as number;
-	return [s.slice(0, at) + s.slice(at + (c > 0xffff ? 2 : 1)), c as char];
+export function stringRemove(s: string, i: usize, at?: Location): [string, char] {
+	const pos = unitAt(s, 0, 0, i);
+	if (pos < 0) sliceFailed(s, i, utf8Len(s, 0, s.length), at);
+	if (pos === s.length) panic("cannot remove a char from the end of a string", at);
+	const c = s.codePointAt(pos) as number;
+	return [s.slice(0, pos) + s.slice(pos + (c > 0xffff ? 2 : 1)), c as char];
 }
 
 /** `String::split_off`: what comes before byte `i`, and after it. */
-export function stringSplitOff(s: string, i: usize): [string, string] {
-	const at = boundary(s, i, "assertion failed: self.is_char_boundary(at)");
-	return [s.slice(0, at), s.slice(at)];
+export function stringSplitOff(s: string, i: usize, at?: Location): [string, string] {
+	const pos = boundary(s, i, "assertion failed: self.is_char_boundary(at)", at);
+	return [s.slice(0, pos), s.slice(pos)];
 }
 
 // `String` from and into iterators. Each reads the iterator by `for_each`, as std's does,
@@ -1136,11 +1138,11 @@ export function stringFromStrings(it: Iter<string>, drops = false): string {
  * the string without them as it drops, and as it was if it never does, as `mem::forget`
  * leaves it.
  */
-export function stringDrain(s: Place<string>, r: Bounds<number>): Iter<char> {
+export function stringDrain(s: Place<string>, r: Bounds<number>, at?: Location): Iter<char> {
 	const text = s.v;
-	const [start, end] = boundsRange(r, utf8Len(text, 0, text.length));
-	const from = boundary(text, start, "assertion failed: self.is_char_boundary(start)");
-	const to = boundary(text, end, "assertion failed: self.is_char_boundary(end)");
+	const [start, end] = boundsRange(r, utf8Len(text, 0, text.length), at);
+	const from = boundary(text, start, "assertion failed: self.is_char_boundary(start)", at);
+	const to = boundary(text, end, "assertion failed: self.is_char_boundary(end)", at);
 	return new StringDrain(s, text, from, to);
 }
 

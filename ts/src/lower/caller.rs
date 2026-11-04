@@ -75,10 +75,13 @@ pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 	])
 }
 
-/// Whether a call of `instance` passes its caller's location: the crate's own, as std's
-/// read it only to say where they panic, which translated panics do not carry.
+/// Whether a call of `instance` passes its caller's location: the crate's own, and in a
+/// program with a panic hook, std's whose body translates. Std reads it only to say where
+/// it panics, which only a hook reads.
 pub fn tracks<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> bool {
-	t.crates.translates(instance.def_id()) && instance.def.requires_caller_location(t.tcx)
+	instance.def.requires_caller_location(t.tcx)
+		&& (t.crates.translates(instance.def_id())
+			|| t.hooked && library::from_mir(t, t.typing_env_pub(), instance))
 }
 
 /// Whether `def_id` is `Location::caller`, which gives the location its call passes.
@@ -234,6 +237,13 @@ pub fn unlocated_in(stmts: &mut [Stmt]) -> bool {
 	for stmt in stmts {
 		stmt_exprs(stmt, &mut |e| walk(e, &mut |e| found |= unlocated(e).is_some()));
 	}
+	found
+}
+
+/// Whether `e` calls a runtime function that takes where it panics without saying where.
+pub fn unlocated_expr(e: &mut Expr) -> bool {
+	let mut found = false;
+	walk(e, &mut |e| found |= unlocated(e).is_some());
 	found
 }
 
