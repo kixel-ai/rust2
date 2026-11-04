@@ -44,7 +44,6 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 # Public API
 
 - Report the public API impact of every change in the PR description.
-- A breaking change adds an entry under `## Unreleased` in the affected package's `MIGRATE.md`.
 - Keep things private until a consumer needs them.
 - Never add `foo_with_x`, `foo_checked`, or a compatibility shim. Make the breaking change to `foo` instead.
 - Name by role, not today's implementation. Short names under a module namespace.
