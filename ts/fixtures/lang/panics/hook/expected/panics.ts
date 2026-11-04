@@ -226,7 +226,7 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return data.length & 0xff;
 		}));
 		rt.byteVecPush(out, caught$u8_panics_seven(seven));
-		rt.byteVecPush(out, rt.resultUnwrap(rt.Ok(seven()), (_value: Any.Any, f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), { file: "fixtures/lang/panics/src/panics.rs", line: 165, col: 49 }));
+		rt.byteVecPush(out, rt.resultUnwrap(rt.Ok(seven()), (_value: Any.Any, f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), { file: "fixtures/lang/panics/src/panics.rs", line: 165, col: 49 }));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(caught$Vec_u8_panics_called_closure5((): rt.ByteVec => {
 			return rt.iterToByteVec(rt.iterRev(rt.iterSlice(rt.byteSliceView(data))), undefined, true);
 		})));
@@ -249,7 +249,7 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				}
 				sum = rt.u8WrappingAdd(sum, _59);
 			}
-		})()), (_value: Any.Any, f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), { file: "fixtures/lang/panics/src/panics.rs", line: 182, col: 24 }));
+		})()), (_value: Any.Any, f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), { file: "fixtures/lang/panics/src/panics.rs", line: 182, col: 24 }));
 		rt.byteVecPush(out, sum);
 	} else if (_10 === 4) {
 		const owned2: Logged.Logged = new Logged.Logged(1, _8);
@@ -261,7 +261,7 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return captured;
 		})());
 		const _92: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(_8, { file: "fixtures/lang/panics/src/panics.rs", line: 191, col: 17 });
-		const _93: rt.u8 = rt.u8Add(30, rt.resultUnwrap(r3, (_value: Any.Any, f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), { file: "fixtures/lang/panics/src/panics.rs", line: 191, col: 42 }), { file: "fixtures/lang/panics/src/panics.rs", line: 191, col: 35 });
+		const _93: rt.u8 = rt.u8Add(30, rt.resultUnwrap(r3, (_value: Any.Any, f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), { file: "fixtures/lang/panics/src/panics.rs", line: 191, col: 42 }), { file: "fixtures/lang/panics/src/panics.rs", line: 191, col: 35 });
 		rt.byteVecPush(_92.value, _93);
 		rt.refMutRelease(_92);
 		const captured2 = first;
@@ -284,7 +284,7 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _120: rt.u8 = result_mapOr$059pexg(asRef$16amweg(r4), 0, (n2: rt.u8): rt.u8 => {
 			return n2;
 		});
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(r4, f, rt.u8Debug, (_value: Any.Any, f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }")), (f: rt.Formatter) => rt.fmtBool(_117, f), (f: rt.Formatter) => rt.u8Display(_120, f)];
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(r4, f, rt.u8Debug, (_value: Any.Any, f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any"))), (f: rt.Formatter) => rt.fmtBool(_117, f), (f: rt.Formatter) => rt.u8Display(_120, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])));
 		drop$Result_u8_boxed_Box_dyn_Any_marker_Send(r4);
 	} else {
@@ -296,7 +296,7 @@ export function called(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const part = owned3._0;
 			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(part, f)];
 			rt.panicFmt(["caught ", args4[0]], { file: "fixtures/lang/panics/src/panics.rs", line: 206, col: 21 });
-		})()), (_value: Any.Any, f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), { file: "fixtures/lang/panics/src/panics.rs", line: 210, col: 24 }));
+		})()), (_value: Any.Any, f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), { file: "fixtures/lang/panics/src/panics.rs", line: 210, col: 24 }));
 		owned3[Symbol.dispose]();
 		const _147: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(_8, { file: "fixtures/lang/panics/src/panics.rs", line: 212, col: 28 });
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(_147.value))), undefined, true);
@@ -523,7 +523,7 @@ export function raised(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const boxed: Any.Any = new of$u8(first);
 		new of$u8(first);
 		const synced: Any.Any = new of$String("");
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), (f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), (f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }"), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.fmtWriteStr(f, "Any { .. }")])];
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), (f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any")), (f: rt.Formatter) => rt.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "Any"))])];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], "|", rt.fmtSpec({ alternate: true }, args2[1]), "|", rt.fmtSpec({ align: ">", width: 20 }, args2[2]), "|", args2[3]])));
 		rt.drop(synced);
 		rt.drop(boxed);

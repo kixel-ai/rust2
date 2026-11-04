@@ -3,7 +3,7 @@
 // Every operation is its own exported function, named by what it acts on, `sliceRange`
 // or `fmtPad`, so a bundler drops every one translated code never calls. Methods are
 // left only where a call dispatches on its receiver: an iterator's `next`, a writer's
-// `writeStr`, a future's `poll`, a waker's, and `[Symbol.dispose]`.
+// `writeStr` and `writeChar`, a future's `poll`, a waker's, and `[Symbol.dispose]`.
 
 import type { Shared } from "./rt/bytes.ts";
 import type { Ordering } from "./rt/collections.ts";
@@ -2699,9 +2699,10 @@ export function fmtCountOf(argument: Fmt): number {
 	return (argument as Count).count;
 }
 
-/** `dyn fmt::Write`: where a `Formatter` writes. */
+/** `dyn fmt::Write`: where a `Formatter` writes, each call as std makes it. */
 export interface Write {
 	writeStr(s: string): FmtResult;
+	writeChar(c: char): FmtResult;
 }
 
 class StringWriter implements Write {
@@ -2709,6 +2710,11 @@ class StringWriter implements Write {
 
 	writeStr(s: string): FmtResult {
 		this.s += s;
+		return OK;
+	}
+
+	writeChar(c: char): FmtResult {
+		this.s += String.fromCodePoint(c);
 		return OK;
 	}
 }
@@ -2735,6 +2741,15 @@ class PadAdapter implements Write {
 		}
 		return OK;
 	}
+
+	writeChar(c: char): FmtResult {
+		if (this.onNewline) {
+			const r = this.out.writeStr("    ");
+			if (!r.ok) return r;
+		}
+		this.onNewline = c === 0x0a;
+		return this.out.writeChar(c);
+	}
 }
 
 /** `core::fmt::Formatter`: where it writes, and its placeholder's options. */
@@ -2752,6 +2767,11 @@ function write(out: Write, args: Arguments): FmtResult {
 	return OK;
 }
 
+/** `fmt::write` into the crate's own writer, by its `write_str` and `write_char`. */
+export function fmtWrite(writeStr: (s: string) => FmtResult, writeChar: (c: char) => FmtResult, args: Arguments): FmtResult {
+	return write({ writeStr, writeChar }, args);
+}
+
 /** The number of chars in `s`, as Rust counts them for padding. */
 function chars(s: string): number {
 	let n = 0;
@@ -2762,6 +2782,11 @@ function chars(s: string): number {
 /** `Formatter::write_str`. */
 export function fmtWriteStr(f: Formatter, s: string): FmtResult {
 	return f.out.writeStr(s);
+}
+
+/** `Formatter::write_char`. */
+export function fmtWriteChar(f: Formatter, c: char): FmtResult {
+	return f.out.writeChar(c);
 }
 
 /** `Formatter::write_fmt`. */
@@ -2804,31 +2829,106 @@ export function fmtPad(f: Formatter, s: string): FmtResult {
 		s = s.slice(0, end);
 	}
 	if (width === undefined || count >= width) return f.out.writeStr(s);
-	return padded(f, width - count, f.spec.align ?? "<", f.spec.fill ?? " ", s);
+	return padded(f.out, width - count, f.spec.align ?? "<", f.spec.fill, () => f.out.writeStr(s));
 }
 
-/** Write an integer's sign, `prefix` if alternate, and `digits`, padded to the width. */
+/** Write an integer's sign, as a char, and `prefix` if alternate, before `digits`, padded to the width. */
 export function fmtPadIntegral(f: Formatter, nonnegative: boolean, prefix: string, digits: string): FmtResult {
-	return fmtPadFormatted(f, (nonnegative ? (f.spec.plus ? "+" : "") : "-") + (fmtAlternate(f) ? prefix : ""), digits);
-}
-
-/** `Formatter::pad_formatted_parts`: `head` and `digits`, ASCII, padded to the width, the `0` flag's zeros between them. */
-export function fmtPadFormatted(f: Formatter, head: string, digits: string): FmtResult {
-	const length = head.length + digits.length;
-	const width = f.spec.width ?? 0;
-	if (length >= width) return f.out.writeStr(head + digits);
-	if (f.spec.zero) {
-		const r = f.out.writeStr(head);
-		return r.ok ? padded(f, width - length, ">", "0", digits) : r;
+	const { out, spec } = f;
+	const sign = nonnegative ? (spec.plus ? PLUS : undefined) : MINUS;
+	const shown = spec.alternate ? prefix : undefined;
+	const length = digits.length + (sign === undefined ? 0 : 1) + (shown === undefined ? 0 : shown.length);
+	const width = spec.width ?? 0;
+	if (length >= width) return integral(out, sign, shown, digits);
+	if (spec.zero) {
+		const r = integral(out, sign, shown, undefined);
+		return r.ok ? padded(out, width - length, ">", "0", () => out.writeStr(digits)) : r;
 	}
-	return padded(f, width - length, f.spec.align ?? ">", f.spec.fill ?? " ", head + digits);
+	return padded(out, width - length, spec.align ?? ">", spec.fill, () => integral(out, sign, shown, digits));
 }
 
-/** Write `s` with `padding` fills around it. */
-function padded(f: Formatter, padding: number, align: "<" | "^" | ">", fill: string, s: string): FmtResult {
+const PLUS = 0x2b as char;
+const MINUS = 0x2d as char;
+
+/** `pad_integral`'s `write_prefix`, the sign a `write_char`, and then `digits` unless none. */
+function integral(out: Write, sign: char | undefined, prefix: string | undefined, digits: string | undefined): FmtResult {
+	if (sign !== undefined) {
+		const r = out.writeChar(sign);
+		if (!r.ok) return r;
+	}
+	if (prefix !== undefined) {
+		const r = out.writeStr(prefix);
+		if (!r.ok) return r;
+	}
+	return digits === undefined ? OK : out.writeStr(digits);
+}
+
+/** A `numfmt::Part`: ASCII text, or that many zeros. */
+export type FmtPart = string | number;
+
+/** `Formatter::pad_formatted_parts`: `sign` and `parts`, padded to the width, the `0` flag's zeros between them. */
+export function fmtPadFormatted(f: Formatter, sign: string, parts: readonly FmtPart[]): FmtResult {
+	let width = f.spec.width ?? 0;
+	if (width === 0) return writeParts(f.out, sign, parts);
+	let align = f.spec.align;
+	let fill = f.spec.fill;
+	if (f.spec.zero) {
+		// The sign, even none, goes first, and zeros pad what follows.
+		const r = f.out.writeStr(sign);
+		if (!r.ok) return r;
+		width = Math.max(0, width - sign.length);
+		sign = "";
+		align = ">";
+		fill = "0";
+	}
+	let length = sign.length;
+	for (const part of parts) length += typeof part === "string" ? part.length : part;
+	if (width <= length) return writeParts(f.out, sign, parts);
+	return padded(f.out, width - length, align ?? ">", fill, () => writeParts(f.out, sign, parts));
+}
+
+const ZEROS = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/** `Formatter::write_formatted_parts`: a sign unless empty, then each part, zeros at most 64 a call. */
+function writeParts(out: Write, sign: string, parts: readonly FmtPart[]): FmtResult {
+	if (sign !== "") {
+		const r = out.writeStr(sign);
+		if (!r.ok) return r;
+	}
+	for (const part of parts) {
+		if (typeof part === "string") {
+			const r = out.writeStr(part);
+			if (!r.ok) return r;
+			continue;
+		}
+		for (let n = part; n > 0; n -= ZEROS.length) {
+			const r = out.writeStr(n > ZEROS.length ? ZEROS : ZEROS.slice(0, n));
+			if (!r.ok) return r;
+		}
+	}
+	return OK;
+}
+
+/** `Formatter::padding` around `write`: `padding` fills, by the spec's alignment, else `align`. */
+export function fmtPadding(f: Formatter, padding: number, align: "<" | "^" | ">", write: () => FmtResult): FmtResult {
+	return padded(f.out, padding, f.spec.align ?? align, f.spec.fill, write);
+}
+
+/** `write` with `padding` fills around it, each a `write_char`, as `Formatter::padding` and `PostPadding` write them. */
+function padded(out: Write, padding: number, align: "<" | "^" | ">", fill: string | undefined, write: () => FmtResult): FmtResult {
+	const c = (fill === undefined ? 0x20 : fill.codePointAt(0)!) as char;
 	const left = align === "<" ? 0 : align === ">" ? padding : Math.floor(padding / 2);
-	const r = f.out.writeStr(fill.repeat(left) + s);
-	return r.ok ? f.out.writeStr(fill.repeat(padding - left)) : r;
+	for (let i = 0; i < left; i++) {
+		const r = out.writeChar(c);
+		if (!r.ok) return r;
+	}
+	const r = write();
+	if (!r.ok) return r;
+	for (let i = left; i < padding; i++) {
+		const r = out.writeChar(c);
+		if (!r.ok) return r;
+	}
+	return OK;
 }
 
 /** `Formatter::debug_struct`. */
@@ -2883,8 +2983,11 @@ export function debugStructField(b: DebugStruct, name: string, value: Fmt): Debu
 			const head = b.hasFields ? OK : b.fmt.out.writeStr(" {\n");
 			b.result = head.ok ? pretty(b.fmt, [name, ": ", value, ",\n"]) : head;
 		} else {
-			b.result = b.fmt.out.writeStr((b.hasFields ? ", " : " { ") + name + ": ");
-			if (b.result.ok) b.result = value(b.fmt);
+			const out = b.fmt.out;
+			let r = out.writeStr(b.hasFields ? ", " : " { ");
+			if (r.ok) r = out.writeStr(name);
+			if (r.ok) r = out.writeStr(": ");
+			b.result = r.ok ? value(b.fmt) : r;
 		}
 	}
 	b.hasFields = true;
@@ -2944,7 +3047,8 @@ export function debugTupleFinishNonExhaustive(b: DebugTuple): FmtResult {
 export function debugTupleFinish(b: DebugTuple): FmtResult {
 	if (b.fields > 0 && b.result.ok) {
 		const comma = b.fields === 1 && b.emptyName && !fmtAlternate(b.fmt);
-		b.result = b.fmt.out.writeStr(comma ? ",)" : ")");
+		const r = comma ? b.fmt.out.writeStr(",") : OK;
+		b.result = r.ok ? b.fmt.out.writeStr(")") : r;
 	}
 	return b.result;
 }
@@ -3039,21 +3143,48 @@ export function fmtBool(value: boolean, f: Formatter): FmtResult {
 	return fmtPad(f, value ? "true" : "false");
 }
 
-/** `Debug` of a string. */
+/** `Debug` of a string: in quotes, each run left as is, empty or not, apart from each escape. */
 export function fmtStr(s: string, f: Formatter): FmtResult {
-	let out = '"';
-	for (const c of s) out += escapeDebug(c, '"');
-	return f.out.writeStr(out + '"');
+	let r = f.out.writeChar(QUOTE);
+	if (!r.ok) return r;
+	r = escapeRuns(f.out, s);
+	return r.ok ? f.out.writeChar(QUOTE) : r;
 }
 
-/** `Display` of a `char`. */
+const QUOTE = 0x22 as char;
+const APOSTROPHE = 0x27 as char;
+
+/** `s` escaped for `Debug` in double quotes: each run it leaves as is, and each escape, a `write_str` apiece. */
+export function escapeRuns(out: Write, s: string): FmtResult {
+	let start = 0;
+	let i = 0;
+	for (const c of s) {
+		const escaped = escapeDebug(c, '"');
+		if (escaped !== c) {
+			let r = out.writeStr(s.slice(start, i));
+			if (r.ok) r = out.writeStr(escaped);
+			if (!r.ok) return r;
+			start = i + c.length;
+		}
+		i += c.length;
+	}
+	return out.writeStr(s.slice(start));
+}
+
+/** `Display` of a `char`: padded only with a width or a precision. */
 export function fmtCharDisplay(c: char, f: Formatter): FmtResult {
+	if (f.spec.width === undefined && f.spec.precision === undefined) return f.out.writeChar(c);
 	return fmtPad(f, String.fromCodePoint(c));
 }
 
-/** `Debug` of a `char`, which no width pads. */
+/** `Debug` of a `char`, which no width pads: an escape a `write_str`, else the char a `write_char`. */
 export function fmtCharDebug(c: char, f: Formatter): FmtResult {
-	return f.out.writeStr(`'${escapeDebug(String.fromCodePoint(c), "'")}'`);
+	let r = f.out.writeChar(APOSTROPHE);
+	if (!r.ok) return r;
+	const s = String.fromCodePoint(c);
+	const escaped = escapeDebug(s, "'");
+	r = escaped === s ? f.out.writeChar(c) : f.out.writeStr(escaped);
+	return r.ok ? f.out.writeChar(APOSTROPHE) : r;
 }
 
 /** `Debug` of `()`. */
@@ -3287,7 +3418,7 @@ export function fmtParseFloatErrorDisplay(e: ParseFloatError, f: Formatter): Fmt
 
 /** `Debug` of `PoisonError`. */
 export function fmtPoisonErrorDebug(_: unknown, f: Formatter): FmtResult {
-	return f.out.writeStr("PoisonError { .. }");
+	return debugStructFinishNonExhaustive(fmtDebugStruct(f, "PoisonError"));
 }
 
 /** `Display` of `PoisonError`. */
@@ -3314,8 +3445,10 @@ export function fmtUtf8ErrorDebug(e: Utf8Error, f: Formatter): FmtResult {
 
 /** `Display` of `Utf8Error`, which `write!`s and so ignores the formatter's options. */
 export function fmtUtf8ErrorDisplay(e: Utf8Error, f: Formatter): FmtResult {
-	if (e.errorLen === undefined) return f.out.writeStr(`incomplete utf-8 byte sequence from index ${e.validUpTo}`);
-	return f.out.writeStr(`invalid utf-8 sequence of ${e.errorLen} bytes from index ${e.validUpTo}`);
+	const at: Fmt = (f) => usizeDisplay(e.validUpTo, f);
+	const len = e.errorLen;
+	if (len === undefined) return fmtWriteFmt(f, ["incomplete utf-8 byte sequence from index ", at]);
+	return fmtWriteFmt(f, ["invalid utf-8 sequence of ", (f) => usizeDisplay(len, f), " bytes from index ", at]);
 }
 
 /** `Debug` of `FromUtf8Error`. */

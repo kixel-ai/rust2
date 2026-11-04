@@ -1465,7 +1465,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// A `fmt::Write` method of a `String`, a `Formatter`, or the crate's own writer, or of
 	/// std's impl for a `&mut W`, which calls `W`'s. A provided method of the crate's impl
-	/// writes through its `write_str`. `None` for any other writer.
+	/// writes through its `write_str`, and its `write_fmt` through the runtime's port of
+	/// `fmt::write`, which calls its `write_str` and `write_char` as std does. `None` for any
+	/// other writer.
 	fn fmt_write(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
@@ -1540,7 +1542,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let [arg] = <[Expr; 1]>::try_from(rest).ok()?;
 		if std == Some(Std::Formatter) {
 			let e = match (name, literal) {
-				("write_char", _) => Expr::rt("fmtWriteStr", vec![receiver, library::char_text(arg)]),
+				("write_char", _) => Expr::rt("fmtWriteChar", vec![receiver, arg]),
 				("write_fmt", Some(s)) => Expr::rt("fmtWriteStr", vec![receiver, Expr::Str(s)]),
 				("write_fmt", None) => Expr::rt("fmtWriteFmt", vec![receiver, arg]),
 				_ => Expr::rt("fmtWriteStr", vec![receiver, arg]),
@@ -1552,10 +1554,34 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("write_char", _) => library::char_text(arg),
 			("write_fmt", Some(s)) => Expr::Str(s),
 			_ => {
-				let msg = format!(
-					"`fmt::Arguments` with a placeholder, or not made in place, written to `{w}`'s own `fmt::Write`, which is not supported yet: std splits what a placeholder writes into `write_str` calls the runtime does not make"
-				);
-				return done(self.err(span, msg), true);
+				let receiver = self.path(receiver, "w", out);
+				let write_char = crate::lower::collections::trait_fn(tcx, "FmtWrite", "write_char");
+				let (s, c) = (self.b.fresh("s"), self.b.fresh("c"));
+				let (s_arg, c_arg) = (Expr::ident(&s), Expr::ident(&c));
+				let mut pre = Vec::new();
+				let str_call = self
+					.b
+					.call_def(write_str, wargs, vec![receiver.clone(), s_arg], span, &mut pre);
+				// std's provided `write_char` writes the char's UTF-8 through `write_str`.
+				let char_call = match self.b.t.translated(write_char, wargs) {
+					true => self
+						.b
+						.call_def(write_char, wargs, vec![receiver, c_arg], span, &mut pre),
+					false => self.b.call_def(
+						write_str,
+						wargs,
+						vec![receiver, library::char_text(c_arg)],
+						span,
+						&mut pre,
+					),
+				};
+				if !pre.is_empty() {
+					return done(self.err(span, format!("`write_str` of `{w}` needs statements")), true);
+				}
+				let lambda =
+					|name: String, body: Expr| Expr::Lambda(vec![crate::ts::Param { name, ty: None }], Box::new(body));
+				let write = Expr::rt("fmtWrite", vec![lambda(s, str_call), lambda(c, char_call), arg]);
+				return done(write, true);
 			}
 		};
 		done(self.b.call_def(write_str, wargs, vec![receiver, text], span, out), true)

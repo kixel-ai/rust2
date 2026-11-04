@@ -27,7 +27,7 @@ import {
 	Err,
 	Ok,
 } from "../rt.ts";
-import type { usize } from "./int.ts";
+import { type char, type u8, u8LowerHex, type usize } from "./int.ts";
 import type { Location } from "./location.ts";
 
 /** `isize::MAX` on wasm32, the most bytes an allocation holds. */
@@ -166,26 +166,30 @@ export function bytesSliceToInclusive(b: Bytes, end: usize, at?: Location): Byte
 /** `Debug`: a byte string literal, `b"\x00ab"`, written a piece at a time as `bytes` does. */
 export function bytesDebug(b: Bytes, f: Formatter): FmtResult {
 	let r = fmtWriteStr(f, 'b"');
-	for (let i = 0; i < b.length && r.ok; i++) r = fmtWriteStr(f, escape(b.data[b.start + i]));
+	for (let i = 0; i < b.length && r.ok; i++) r = byteDebug(b.data[b.start + i] as u8, f);
 	return r.ok ? fmtWriteStr(f, '"') : r;
 }
 
-function escape(byte: number): string {
+/** One byte of `bytesDebug`, by the `write!` `bytes` makes of it. */
+function byteDebug(byte: u8, f: Formatter): FmtResult {
 	switch (byte) {
 		case 0x0a:
-			return "\\n";
+			return f.out.writeStr("\\n");
 		case 0x0d:
-			return "\\r";
+			return f.out.writeStr("\\r");
 		case 0x09:
-			return "\\t";
+			return f.out.writeStr("\\t");
 		case 0x5c:
-		case 0x22:
-			return `\\${String.fromCharCode(byte)}`;
+		case 0x22: {
+			const r = f.out.writeStr("\\");
+			return r.ok ? f.out.writeChar(byte as number as char) : r;
+		}
 		case 0:
-			return "\\0";
+			return f.out.writeStr("\\0");
 	}
-	if (byte >= 0x20 && byte < 0x7f) return String.fromCharCode(byte);
-	return `\\x${byte.toString(16).padStart(2, "0")}`;
+	if (byte >= 0x20 && byte < 0x7f) return f.out.writeChar(byte as number as char);
+	const r = f.out.writeStr("\\x");
+	return r.ok ? u8LowerHex(byte, { out: f.out, spec: { zero: true, width: 2 } }) : r;
 }
 
 /** `Bytes::split_to`: the first `at` bytes, leaving the rest; all of it is the handle itself. */

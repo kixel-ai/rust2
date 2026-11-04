@@ -12,6 +12,7 @@ import { Version as Lite } from "moq/js/net/src/lite/version.ts";
 import { Cursor, Reader, type StreamVersion, Writer } from "moq/js/net/src/stream.ts";
 import * as Varint from "moq/js/net/src/varint.ts";
 
+import { format } from "./fmt.ts";
 import { iterate } from "./iter.ts";
 import { order } from "./order.ts";
 import { hashed } from "./hashed.ts";
@@ -71,6 +72,8 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return hashed(selector, data);
 		case 15:
 			return packets(selector, data);
+		case 16:
+			return format(data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}
