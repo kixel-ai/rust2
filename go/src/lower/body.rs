@@ -1,7 +1,8 @@
 //! One function instance's MIR as a Go function: each local a variable, but a temporary
-//! folded into its reader (`fold`), and its blocks structured into loops, `if`s, and
-//! blocks by [`cfg`], as rust2-ts structures them, so a small function stays within Go's
-//! inlining budget. A panic is Go's, with native Rust's message, and runs no cleanup, as
+//! folded into its reader (`fold`) and a large enum a variable per part (`split`), each
+//! declared where it is used, and its blocks structured into loops, `if`s, and blocks by
+//! [`cfg`], as rust2-ts structures them, so a small function stays within Go's inlining
+//! budget. A panic is Go's, with native Rust's message, and runs no cleanup, as
 //! `panic = "abort"` doesn't: the MIR's cleanup blocks are left out.
 
 use std::collections::{HashMap, HashSet};
@@ -698,46 +699,32 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// pointer the callee only reads through, to its storage where nothing else can
 	/// change it while the callee runs, or else to a copy made into `out` first.
 	fn arg_parts(&mut self, op: &Operand<'tcx>, split: &Split<'tcx>, span: Span, out: &mut String) -> Vec<String> {
-		let place = match op {
-			Operand::Copy(place) | Operand::Move(place) => Some(*place),
-			_ => None,
-		};
-		// Storage nothing else reaches, which a temporary held back is once assigned.
-		let own = place.is_some_and(|p| !p.is_indirect() && !self.temps.borrowed.contains(&p.local));
-		let local = place
-			.filter(|p| p.projection.is_empty() && self.split.contains_key(&p.local))
-			.map(|p| p.local);
-		let whole = match (place, local) {
-			(_, Some(_)) => String::new(),
-			(Some(place), None) => {
-				let fold_ok = std::mem::replace(&mut self.fold_ok, false);
-				let whole = self.place(place, span).expr;
-				self.fold_ok = fold_ok;
-				whole
+		let (values, own) = match op {
+			Operand::Copy(place) | Operand::Move(place) => (
+				self.parts_of(*place, split, span),
+				// As a temporary held back is, once assigned.
+				!place.is_indirect() && !self.temps.borrowed.contains(&place.local),
+			),
+			_ => {
+				let whole = self.operand(op, span);
+				(
+					split.parts.iter().map(|p| format!("({whole}){}", p.path)).collect(),
+					false,
+				)
 			}
-			(None, None) => format!("({})", self.operand(op, span)),
 		};
-		let mut values = Vec::new();
-		for (i, p) in split.parts.iter().enumerate() {
-			let value = match local {
-				Some(local) => self.read_part(local, i),
-				None => format!("{whole}{}", p.path),
-			};
-			values.push(match (p.big, own) {
+		(split.parts.iter().zip(values))
+			.map(|(p, value)| match (p.big, own) {
 				(false, _) => value,
-				(true, true) => match local.filter(|l| self.pointed(*l)) {
-					Some(local) => format!("{}_{}", Self::local_name(local), p.name),
-					None => format!("&{value}"),
-				},
+				(true, true) => format!("&{value}"),
 				(true, false) => {
 					let name = format!("_s{}", self.scratch.len());
 					self.scratch.push((name.clone(), p.go.clone()));
 					writeln!(out, "\t{name} = {value}").unwrap();
 					format!("&{name}")
 				}
-			});
-		}
-		values
+			})
+			.collect()
 	}
 
 	/// `value`, a whole value of the enum `split`, assigned to a scratch variable: its
@@ -755,11 +742,10 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		let (mut lhs, mut outs) = (Vec::new(), Vec::new());
 		if place.projection.is_empty() && self.split.contains_key(&place.local) {
 			for (i, p) in split.parts.iter().enumerate() {
-				match (p.big, place.local == mir::RETURN_PLACE) {
-					(false, _) => lhs.push(self.part(place.local, i)),
-					// Its caller's storage, handed on.
-					(true, true) => outs.push(format!("_0_{}", p.name)),
-					(true, false) => outs.push(format!("&{}", self.read_part(place.local, i))),
+				match p.big {
+					false => lhs.push(self.part(place.local, i)),
+					// The return place's is its caller's storage, handed on.
+					true => outs.push(format!("&{}", self.read_part(place.local, i))),
 				}
 			}
 			return (lhs, outs);

@@ -1,5 +1,5 @@
-//! A function body as Go statements: the lines lowering writes, and the control flow
-//! [`cfg`] structures around them and tidies.
+//! A function body as Go statements: the lines lowering writes, the control flow [`cfg`]
+//! structures around them and tidies, and where each variable is declared.
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
