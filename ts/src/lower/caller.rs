@@ -75,7 +75,7 @@ fn commit(tcx: TyCtxt<'_>) -> &'static str {
 		Some(commit) => commit,
 		None => tcx
 			.dcx()
-			.fatal("rust2-ts: the wrapped rustc's `-vV` names no commit, which std's files are named by"),
+			.fatal("rust2-ts: the wrapped rustc's verbose version names no commit, which std's files are named by"),
 	}
 }
 
