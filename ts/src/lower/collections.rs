@@ -403,7 +403,7 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let name = tcx.item_name(call.def_id);
 	let coll = impl_self_ty(b, call);
 	let (methods, value): (&[&str], usize) = match std {
-		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if"], 0),
+		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if", "extract_if"], 0),
 		Std::VecDeque => (
 			&[
 				"get_mut",
@@ -1645,6 +1645,26 @@ fn deque<'tcx>(
 			Expr::rt("dequeResize", values)
 		}
 		(_, "resize_with") => Expr::rt("dequeResizeWith", values),
+		(_, "swap") => Expr::rt("dequeSwap", values),
+		(_, "rotate_left") => Expr::rt("dequeRotate", values),
+		(_, "rotate_right") => Expr::rt("dequeRotate", flagged(values, true, false)),
+		(_, "make_contiguous") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
+			Expr::rt("dequeByteMakeContiguous", values)
+		}
+		(_, "make_contiguous") => Expr::rt("dequeMakeContiguous", values),
+		(_, "binary_search") => {
+			values.push(cmp_fn(b, item, false, span));
+			Expr::rt("dequeBinarySearch", values)
+		}
+		(_, "binary_search_by") => Expr::rt("dequeBinarySearchBy", values),
+		// `VecDeque<T, A>::binary_search_by_key::<B, F>`.
+		(_, "binary_search_by_key") => {
+			let key = library::targ(call.args, 2);
+			values.push(cmp_fn(b, key, false, span));
+			let drop = b.t.dropper(key, span);
+			Expr::rt("dequeBinarySearchByKey", super::iter::tail(values, vec![drop]))
+		}
+		(_, "partition_point") => Expr::rt("dequePartitionPoint", values),
 		(_, "retain_mut") if b.t.needs_place(item) => Expr::rt("dequeRetainMut", values),
 		(_, "retain" | "retain_mut") => Expr::rt("dequeRetain", values),
 		(_, "remove") => Expr::rt("dequeRemove", values),

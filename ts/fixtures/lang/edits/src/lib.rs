@@ -20,5 +20,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("edits::bytes", edits::bytes),
 		("edits::values", edits::values),
 		("edits::resizes", edits::resizes),
+		("edits::extracts", edits::extracts),
 	]
 }
