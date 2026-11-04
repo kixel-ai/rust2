@@ -31,4 +31,11 @@ export function map$0cdr4co(self: rs.Arc<rs.RefCell<rs.Mutex<Probe.Probe>>> | un
 	return f(self);
 }
 
+export function mapOr$19a4gco(self: rs.u8 | undefined, default_: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined): rs.u8 | undefined {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 //# sourceMappingURL=option.ts.map

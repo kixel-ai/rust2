@@ -1041,7 +1041,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// A `&mut` to a value JS copies, such as through a `MutexGuard`, reads and writes
 			// the place it borrows, as an index does, and so does one to any value a guard or
 			// a `RefMut` holds, which is where its mutex or cell keeps it, or that an
-			// `rs.Place` lends, as one to a pinned box of an `Arc` does.
+			// `rs.Place` lends, as one to a pinned box of an `Arc` does. An impl that
+			// translates, such as a crate's own guard's, returns the `rs.Place` a `&mut` is.
 			("DerefMut", "deref_mut")
 				if let ty::Ref(_, pointee, _) = dest.ty(&self.mir.local_decls, tcx).ty.kind()
 					&& (self.b.t.object_kind(*pointee).is_none()
@@ -1049,6 +1050,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							matches!(self.b.t.std_of(t), Some(Std::MutexGuard | Std::RefMut))
 								|| self.b.t.needs_place(t) && self.b.t.needs_place(*pointee)
 						}))
+					&& self.b.t.mapped(def_id, gargs)
 					&& let Some(local) = dest.as_local()
 					&& self.defs[local] == 1
 					&& matches!(self.slots[local], Slot::Var(_)) =>
