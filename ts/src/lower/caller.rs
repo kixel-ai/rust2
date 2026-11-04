@@ -9,7 +9,9 @@
 //! A program that reaches `panic::set_hook` passes where each panic is, which its hook
 //! reads: each statement's own, the caller's location to each std function that takes it,
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
-//! own code is where the toolchain's source has it, which `rt.setHook` is given.
+//! own code is where the toolchain's source has it, and one in `bytes`' where the
+//! program's `bytes` has it, named as the session names that file, which `rt.setHook` is
+//! given.
 
 use std::sync::OnceLock;
 
@@ -439,8 +441,66 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 	),
 ];
 
+/// Where `bytes`' code panics, for each of its panics the runtime makes, by the key it
+/// passes in place of a location: a file under the crate's `src/`, the texts before it in
+/// turn, and the text the call that panics starts with. None of its public functions takes
+/// its caller's location, so each panic is where its source has it.
+const BYTES: &[(&str, &str, &[&str], &str)] = &[
+	("bytes_advance", "lib.rs", &["fn panic_advance("], "panic!("),
+	("bytes_does_not_fit", "lib.rs", &["fn panic_does_not_fit("], "panic!("),
+	// `range` takes its caller's location, so its panics are at its call.
+	("bytes_slice", "bytes.rs", &["pub fn slice(&self"], "crate::range("),
+	("bytes_slice_ref_start", "bytes.rs", &["pub fn slice_ref("], "assert!("),
+	(
+		"bytes_slice_ref_end",
+		"bytes.rs",
+		&["pub fn slice_ref(", "assert!("],
+		"assert!(",
+	),
+	("bytes_split_off", "bytes.rs", &["pub fn split_off("], "assert!("),
+	("bytes_split_to", "bytes.rs", &["pub fn split_to("], "assert!("),
+	(
+		"bytes_buf_advance",
+		"bytes.rs",
+		&["impl Buf for Bytes", "fn advance("],
+		"assert!(",
+	),
+	(
+		"bytes_mut_split_off",
+		"bytes_mut.rs",
+		&["pub fn split_off("],
+		"assert!(",
+	),
+	("bytes_mut_split_to", "bytes_mut.rs", &["pub fn split_to("], "assert!("),
+	(
+		"bytes_mut_set_len",
+		"bytes_mut.rs",
+		&["pub unsafe fn set_len("],
+		"debug_assert!(",
+	),
+	(
+		"bytes_mut_overflow",
+		"bytes_mut.rs",
+		&["fn reserve_inner(", "len.checked_add(additional)"],
+		"panic!(",
+	),
+	(
+		"bytes_mut_overflow_offset",
+		"bytes_mut.rs",
+		&["fn reserve_inner(", "new_cap.checked_add(offset)"],
+		"panic!(",
+	),
+	(
+		"bytes_mut_buf_advance",
+		"bytes_mut.rs",
+		&["impl Buf for BytesMut", "fn advance("],
+		"assert!(",
+	),
+];
+
 /// The `rt.Sites` of the toolchain's std, which `rt.setHook` takes: where each panic
-/// [`SITES`] names is, as the native build names it.
+/// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
+/// program's `bytes`, if it has one.
 pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	let tcx = t.tcx;
 	let mut props = Vec::new();
@@ -455,7 +515,69 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 			}
 		}
 	}
+	props.extend(bytes_sites(t, span));
 	Expr::Object(props)
+}
+
+/// The sites [`BYTES`] names, in the program's `bytes`: none without one, and an error for
+/// versions whose sites differ, as the runtime's panics are one crate's.
+fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
+	let tcx = t.tcx;
+	let mut tables: Vec<Vec<(Key, Expr)>> = Vec::new();
+	for &krate in tcx.crates(()) {
+		if tcx.crate_name(krate).as_str() != "bytes" {
+			continue;
+		}
+		tcx.import_source_files(krate);
+		let mut props = Vec::new();
+		for &(key, file, after, needle) in BYTES {
+			match bytes_find(tcx, krate, file, after, needle) {
+				Some(at) => props.push((Key::Name(key.into()), at)),
+				None => {
+					let after = after.join("` then `");
+					t.err(
+						span,
+						format!("`bytes`' source has no `{needle}` in `src/{file}` after `{after}`, where it panics"),
+					);
+				}
+			}
+		}
+		if !tables.contains(&props) {
+			tables.push(props);
+		}
+	}
+	if tables.len() > 1 {
+		t.err(
+			span,
+			"a panic hook in a program of two versions of `bytes`, whose panics are at different places",
+		);
+	}
+	tables.pop().unwrap_or_default()
+}
+
+/// The `rt.Location` of the first `needle` after each of `after` in turn in `file`, under
+/// `krate`'s `src/`, named as the session names it.
+fn bytes_find(
+	tcx: TyCtxt<'_>,
+	krate: rustc_span::def_id::CrateNum,
+	file: &str,
+	after: &[&str],
+	needle: &str,
+) -> Option<Expr> {
+	let map = tcx.sess.source_map();
+	let suffix = format!("/src/{file}");
+	let source = (map.files().iter())
+		.find(|f| f.cnum == krate && self::file(tcx, f).ends_with(&suffix))
+		.cloned()?;
+	if !map.ensure_source_file_source_present(&source) {
+		return None;
+	}
+	let text = match &source.src {
+		Some(src) => src.to_string(),
+		None => source.external_src.read().get_source()?.to_string(),
+	};
+	let (line, col) = position(&text, after, needle)?;
+	Some(object(self::file(tcx, &source), line, col))
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.
@@ -538,6 +660,12 @@ fn find(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Option<Exp
 			Some((std::fs::read_to_string(format!("{dir}/{path}")).ok()?, path))
 		});
 	let (text, path) = source.as_ref()?;
+	let (line, col) = position(text, after, needle)?;
+	Some(object(std_file(tcx, path), line, col))
+}
+
+/// The line and column, from 1, of the first `needle` after each of `after` in turn in `text`.
+fn position(text: &str, after: &[&str], needle: &str) -> Option<(usize, usize)> {
 	let mut from = 0;
 	for after in after {
 		from += text[from..].find(after)? + after.len();
@@ -546,7 +674,7 @@ fn find(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Option<Exp
 	let line_start = text[..at].rfind('\n').map_or(0, |i| i + 1);
 	let line = text[..at].matches('\n').count() + 1;
 	let col = text[line_start..at].chars().count() + 1;
-	Some(object(std_file(tcx, path), line, col))
+	Some((line, col))
 }
 
 /// The `rt.Location` of `file`, `line`, and `col`.

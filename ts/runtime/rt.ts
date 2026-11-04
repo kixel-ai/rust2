@@ -50,7 +50,7 @@ export class Abort extends Panic {
 }
 
 /**
- * Panic with `message`, at `at`, or at the key of std's site the hook finds it at, whose
+ * Panic with `message`, at `at`, or at the key of std's or `bytes`' site the hook finds it at, whose
  * text is a `String` if `owned` says so, as `Panic.hooked` reads it.
  */
 export function panic(message: string, at?: Location | string, owned?: boolean): never {

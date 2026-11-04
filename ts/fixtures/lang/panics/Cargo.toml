@@ -10,10 +10,13 @@ publish = false
 # The cdylib is the native side of the differential test, built for wasm32.
 crate-type = ["lib", "cdylib"]
 
+[dependencies]
+bytes = { version = "1.12.1", optional = true }
+
 [features]
 # Adds the cases that set a panic hook, which has the translation give every panic its
-# location: the other shape of its output.
-hook = []
+# location: the other shape of its output. `bytes`' panics are among them.
+hook = ["dep:bytes"]
 
 [lints]
 workspace = true
