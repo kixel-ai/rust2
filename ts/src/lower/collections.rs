@@ -213,18 +213,18 @@ pub fn call<'tcx>(
 		&& !same_key(b, key, by)
 		&& !alike(b, key, by)
 	{
-		// An `Arc`'s `Hash`, `Eq`, and `Ord` are its value's, and a `Cow`'s what it borrows,
-		// so the value it is looked up by stands in as an `Arc` or a borrowed `Cow` of it, which
+		// A `Cow`'s `Hash`, `Eq`, and `Ord` are what it borrows', so what it is looked up by,
+		// or a range's bounds, stands in as it is, as JS reads it as an owned `Cow`. An `Arc`'s
+		// are its value's, so the value it is looked up by stands in as an `Arc` of it, which
 		// the collection only compares.
-		let class = match peel(b, key) {
-			k if arc_of(b, k).is_some_and(|inner| same_key(b, inner, by)) => Some("Arc"),
-			k if cow_of(b, k).is_some_and(|borrowed| same_key(b, borrowed, by)) => Some("Borrowed"),
-			_ => None,
-		};
-		match (args.get_mut(1), class) {
-			(Some(key), Some(class)) if !matches!(name, "range" | "range_mut") => {
+		let key = peel(b, key);
+		let cow = cow_of(b, key).is_some_and(|borrowed| same_key(b, borrowed, by));
+		let arc = arc_of(b, key).is_some_and(|inner| same_key(b, inner, by));
+		match args.get_mut(1) {
+			_ if cow => {}
+			Some(key) if arc && !matches!(name, "range" | "range_mut") => {
 				let value = std::mem::replace(key, Expr::undefined());
-				*key = Expr::New(Box::new(Expr::Rt(class.into())), vec![value]);
+				*key = Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]);
 			}
 			_ => {
 				return Ok(Some(b.err(
@@ -1033,8 +1033,9 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	};
 	let mut values = vec![hash_fn(b, key, hasher, span), eq_fn(b, key, span)];
 	// A fieldless enum is a JS string, and a bound value may be any primitive, which its
-	// own `Eq` may tell apart where JS can't, as is the `Some` of an `Option` of one, and a
-	// `Reverse`, a `Wrapping`, or a `Saturating` of one.
+	// own `Eq` may tell apart where JS can't, and an owned `Cow<str>` is a string its
+	// borrowed one equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
+	// `Wrapping`, or a `Saturating` of one.
 	let mut held = peeled;
 	while let Some(inner) = option_of(b, held)
 		.or_else(|| reverse_of(b, held))
@@ -1042,7 +1043,9 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	{
 		held = peel(b, inner);
 	}
-	if matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some()) {
+	if library::cow_str(b.t.tcx, held)
+		|| matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some())
+	{
 		values.push(Expr::lit("true"));
 	}
 	Some(Some(Expr::rt("hashing", values)))

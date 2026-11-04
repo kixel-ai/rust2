@@ -6,8 +6,9 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::ops::Bound;
 use std::sync::Arc;
 
 use crate::harness::{put, text};
@@ -334,6 +335,27 @@ pub fn variants(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			if let Some((k, _)) = counts.get_key_value(first) {
 				out.push(borrows(k));
 			}
+			// Ranges and lookups by what the keys borrow.
+			for (k, n) in counts.range::<str, _>((Bound::Included(first), Bound::Unbounded)) {
+				put(out, k);
+				out.push(*n);
+			}
+			for (_, n) in counts.range_mut::<str, _>((Bound::Excluded(rest), Bound::Unbounded)) {
+				*n += 1;
+			}
+			let keys: BTreeSet<Cow<'_, str>> = counts.keys().cloned().collect();
+			out.extend(
+				keys.range::<str, _>((Bound::Unbounded, Bound::Included(rest)))
+					.map(borrows),
+			);
+			let hashed: HashMap<Cow<'_, str>, u8> = counts.into_iter().collect();
+			out.push(hashed.get(first).copied().unwrap_or(0xff));
+			out.push(hashed.contains_key(rest) as u8);
+			// Equal keys of either variant are one key.
+			let mut both: HashSet<Cow<'_, str>> = HashSet::new();
+			both.insert(cow(first, owned));
+			out.push(both.insert(cow(first, !owned)) as u8);
+			out.push(both.len() as u8);
 			let mut named = Named::new(first, kind);
 			out.push(borrows(&named.name));
 			named.tag('x');

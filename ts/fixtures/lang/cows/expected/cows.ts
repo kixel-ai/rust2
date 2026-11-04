@@ -131,7 +131,7 @@ export function cows(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			put(out, rt.strCowStr(_303[0]));
 			rt.byteVecPush(out, _303[1]);
 		}
-		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.btreeGet(counts, new rt.Borrowed(first)), 255));
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.btreeGet(counts, first), 255));
 		const names: rt.HashSet<Named.Named> = rt.hashNew(rt.hashing(Named.hash$Hash_hash_DefaultHasher as (a0: Named.Named, a1: rt.Hasher) => undefined, Named.eq$cmp_PartialEq)) as rt.HashSet<Named.Named>;
 		const iter5: rt.Iter<string> = rt.strSplit(s, "/");
 		while (true) {
@@ -259,8 +259,8 @@ export function variants(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			put(out, borrowed.slice);
 			borrowed.slice = first;
 		} else {
-			const _162: rt.usize = option_mapOr$1612aex(rt.iterToOption(rt.strChars(e as string).next()), 0, (a04: rt.char): rt.usize => {
-				return rt.charLenUtf8(a04);
+			const _162: rt.usize = option_mapOr$1612aex(rt.iterToOption(rt.strChars(e as string).next()), 0, (a05: rt.char): rt.usize => {
+				return rt.charLenUtf8(a05);
 			});
 			(e as string) = rt.stringTruncate(e as string, _162);
 			(e as string) = (e as string) + "?";
@@ -274,11 +274,11 @@ export function variants(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		}
 		put(out, made2);
 		let d: rt.StrCow = cow(first, !owned);
-		b14: {
+		b18: {
 			if (d instanceof rt.Borrowed) {
 				if (!((d as rt.Borrowed<string>).slice.length === 0)) {
 					_184 = rt.stringExtendChars("", rt.iterSkip(rt.strChars((d as rt.Borrowed<string>).slice), 1));
-					break b14;
+					break b18;
 				}
 			}
 			_184 = d;
@@ -336,18 +336,49 @@ export function variants(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.byteVecPush(out, borrows(_292[0]));
 			rt.byteVecPush(out, _292[1]);
 		}
-		const _301: [rt.StrCow, rt.u8] | undefined = rt.btreeGetKeyValue(counts, new rt.Borrowed(first));
+		const _301: [rt.StrCow, rt.u8] | undefined = rt.btreeGetKeyValue(counts, first);
 		if (_301 !== undefined) {
 			rt.byteVecPush(out, borrows(_301[0]));
 		}
+		const iter7: rt.Iter<[rt.StrCow, rt.u8]> = rt.btreeRange(counts, [{ tag: "Included", _0: first } as rt.RangeBound<string>, { tag: "Unbounded" } as rt.RangeBound<string>] as [rt.RangeBound<string>, rt.RangeBound<string>]);
+		while (true) {
+			const _314: [rt.StrCow, rt.u8] | rt.Done = iter7.next();
+			if (_314 === rt.DONE) {
+				break;
+			}
+			put(out, rt.strCowStr(_314[0]));
+			rt.byteVecPush(out, _314[1]);
+		}
+		const iter8: rt.Iter<[rt.StrCow, rt.Place<rt.u8>]> = rt.btreeRangeMut(counts, [{ tag: "Excluded", _0: rest } as rt.RangeBound<string>, { tag: "Unbounded" } as rt.RangeBound<string>] as [rt.RangeBound<string>, rt.RangeBound<string>]);
+		while (true) {
+			const _330: [rt.StrCow, rt.Place<rt.u8>] | rt.Done = iter8.next();
+			if (_330 === rt.DONE) {
+				break;
+			}
+			_330[1].v = rt.u8Add(_330[1].v, 1);
+		}
+		const _336: rt.Iter<rt.StrCow> = rt.iterMap(rt.btreeKeys(counts), (a03: rt.StrCow): rt.StrCow => {
+			return rt.strCowClone(a03);
+		});
+		rt.iterExtendBytes(out, rt.iterMap(rt.btreeRangeKeys(rt.btreeExtendKeys(rt.btreeNew(rt.cowBy(rt.cmpStr)) as rt.BTreeSet<rt.StrCow>, _336, true, undefined, undefined, 12, true), [{ tag: "Unbounded" } as rt.RangeBound<string>, { tag: "Included", _0: rest } as rt.RangeBound<string>] as [rt.RangeBound<string>, rt.RangeBound<string>]), borrows), "next");
+		const _347: rt.Iter<[rt.StrCow, rt.u8]> = rt.btreeIter(counts);
+		const hashed: rt.HashMap<rt.StrCow, rt.u8> = rt.hashExtend(rt.hashNew(rt.hashing(rt.hashCow(rt.hashStr), rt.cowBy(rt.same), true)) as rt.HashMap<rt.StrCow, rt.u8>, _347, undefined, undefined, undefined, 58720256);
+		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.hashGet(hashed, first), 255));
+		rt.byteVecPush(out, rt.hashContains(hashed, rest) ? 1 : 0);
+		const both: rt.HashSet<rt.StrCow> = rt.hashNew(rt.hashing(rt.hashCow(rt.hashStr), rt.cowBy(rt.same), true)) as rt.HashSet<rt.StrCow>;
+		const _361: rt.StrCow = cow(first, owned);
+		rt.hashAdd(both, _361);
+		const _366: rt.StrCow = cow(first, !owned);
+		rt.byteVecPush(out, rt.hashAdd(both, _366) ? 1 : 0);
+		rt.byteVecPush(out, rt.hashLen(both) & 0xff);
 		const named: Named.Named = Named.new(first, kind);
 		rt.byteVecPush(out, borrows(named.name));
 		Named.tag(named, 120);
 		rt.byteVecPush(out, borrows(named.name));
 		const o2: rt.StrCow | undefined = rt.iterNth(rt.iterSlice(parts), 1);
 		rt.byteVecPush(out, option_mapOr$1nwl1hk(o2, 2, borrows));
-		rt.byteVecPush(out, option_mapOr$0lcrgk1(option_map$00b7lvf(o2, (a03: rt.StrCow): string => {
-			return rt.strCowStr(a03);
+		rt.byteVecPush(out, option_mapOr$0lcrgk1(option_map$00b7lvf(o2, (a04: rt.StrCow): string => {
+			return rt.strCowStr(a04);
 		}), 0, (t: string): rt.u8 => {
 			return rt.stringLen(t) & 0xff;
 		}));
