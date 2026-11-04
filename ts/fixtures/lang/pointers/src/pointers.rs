@@ -2327,6 +2327,19 @@ pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
 		let r: *const [u32; 4] = whole;
 		out.push(u8::from(ptr::eq(r, p)));
 		out.extend(a.iter().map(|&x| (x ^ x >> 8) as u8));
+		// Runs a shared slice lends, which point where the slice holds them.
+		let (chunks, _) = a.as_chunks::<2>();
+		let (_, back) = a.as_rchunks::<3>();
+		out.push(
+			u8::from(ptr::eq(chunks[0].as_ptr(), a.first_chunk::<2>().unwrap().as_ptr()))
+				| u8::from(ptr::eq(chunks[1].as_ptr(), chunks[0].as_ptr())) << 1
+				| u8::from(ptr::eq(back[0].as_ptr(), e1)) << 2,
+		);
+		// A read through a pointer of arrays of arrays, a value of its own.
+		let nested = [[w, 1], [2, 3]];
+		let mut read = unsafe { ptr::read(&nested) };
+		read[0][0] ^= 0xff;
+		out.extend([nested[0][0] as u8, read[0][0] as u8]);
 		out.extend(runs(n));
 	}
 }

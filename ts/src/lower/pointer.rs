@@ -1099,7 +1099,10 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 	let value = match b.t.pointee(ty) {
 		Pointee::Place => p.member("v"),
 		Pointee::Object => p,
-		Pointee::Array => return b.t.array_rs(ty, "ToArray").call(vec![p]),
+		Pointee::Array => {
+			let ty = b.t.uninit_inner(ty);
+			return b.t.array_copy(p, ty, span);
+		}
 		Pointee::Slice => return b.err(span, format!("a read of `{ty}`, which has no size")),
 	};
 	b.t.snapshot(value, ty, span)

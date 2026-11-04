@@ -27,6 +27,10 @@ export function copy$Option_tuple2_u16_u8(v: [rs.u16, rs.u8] | undefined): [rs.u
 	return v === undefined ? v : copy$tuple2_u16_u8(v);
 }
 
+export function copy$array_array2_u32(v: rs.u32[][]): rs.u32[][] {
+	return v.map(copy$array_u32);
+}
+
 export function copy$array_ptr_array4_u8(v: rs.ByteSlice[]): rs.ByteSlice[] {
 	return v.slice();
 }

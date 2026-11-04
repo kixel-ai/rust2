@@ -658,3 +658,4 @@ pub fn unsized_arrays(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	out.extend(slice.iter().chain(more.iter()));
 	out.push(u8::from(Arc::ptr_eq(&slice, &(more as Arc<[u8]>))));
 }
+

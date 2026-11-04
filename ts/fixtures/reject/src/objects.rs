@@ -177,3 +177,15 @@ pub fn dyn_compared(n: &mut u8) -> bool {
 	let q: *mut dyn Reading = n;
 	std::ptr::eq(p, q)
 }
+
+impl Reading for [u16; 2] {
+	fn read(&self) -> u8 {
+		self[0] as u8
+	}
+}
+
+/// An array as an object, whose class's methods would take the array a box holds and the
+/// slice of it a reference is.
+pub fn array_object(a: std::sync::Arc<[u16; 2]>) -> std::sync::Arc<dyn Reading> {
+	a
+}

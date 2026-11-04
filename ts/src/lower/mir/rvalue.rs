@@ -528,7 +528,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		};
 		let (from, to) = (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object));
-		let value = if pointee.is_array() {
+		let value = if pointee.is_array() && object.is_slice() {
 			crate::lower::array_fn(pointee, "From").call(vec![value])
 		} else if self.b.t.dyn_future(object).is_some() {
 			self.b.dyn_future(from, to, value, span)

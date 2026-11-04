@@ -595,7 +595,8 @@ object of the type shares, whose methods call that type's impls; one from a `&mu
 value JS copies holds its `rs.Place`, as `ofPlace$dyns_Square`, so `&mut self` writes
 where the value is. An upcast, to `dyn Any` too, is the same object. Objects of two traits
 of one name, with a method of one name, or of one generic trait at two arguments, are
-refused for one type, whose class can't hold both. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
+refused for one type, whose class can't hold both, as are objects of an array, which a
+box holds as the array and a reference as a slice of it. A `Box<dyn Trait>` drops what it holds through its `[Symbol.dispose]`, which
 a TS caller's object may leave out. An `Arc<T>` unsized to an `Arc<dyn Trait>`, or to an
 `Arc<dyn Future>`, is an `rs.ArcDyn`: the object a box of its value would be, and the
 `Arc<T>` it was made from, whose one count both sides' clones and drops change, and the
