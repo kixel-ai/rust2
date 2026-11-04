@@ -54,7 +54,7 @@ def round(loop):
 
 	# A u64 getter, timed as bench/ffi/README.md timed BoltFFI's `group.sequence()`: a bound
 	# method called in a loop. BoltFFI holds the GIL through the call, where the export
-	# releases it so Rust may call Python back from another thread, at about 30 ns a call.
+	# releases it so Rust may call Python back from another thread, at about 40 ns a call.
 	sequence = track.append_group().demand().sequence
 	start = time.perf_counter_ns()
 	for _ in range(GROUPS * FRAMES):
