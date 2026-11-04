@@ -4068,8 +4068,7 @@ export function owners(dataData: Uint8Array, dataStart: number, dataLen: number,
 			rs.mutexUnlock(log2);
 		}
 		for (const _170 of handles.items) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(_170, f)];
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(_170, f)])));
 		}
 		rs.dropVec(handles, rs.bytesDrop);
 		const _192: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
