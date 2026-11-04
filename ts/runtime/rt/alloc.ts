@@ -72,7 +72,7 @@ export class TryReserveError {
 }
 
 /** `Err` of the capacity's overflow, which every `try_reserve` shares. */
-export const CAPACITY_OVERFLOW: Result<never, TryReserveError> = /* @__PURE__ */ Object.freeze(Err(new TryReserveError()));
+export const CAPACITY_OVERFLOW: Result<never, TryReserveError> = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Err(/* @__PURE__ */ new TryReserveError()));
 
 /** `Err` of the allocation of `size` bytes, if `e` is what JS throws for one it can't make; else `e` again. */
 export function allocError(e: unknown, size: usize): Result<never, TryReserveError> {
