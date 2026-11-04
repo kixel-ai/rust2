@@ -90,6 +90,7 @@ roots = [
     "objects::nested_item",
     "objects::passed",
     "objects::raw_dyn_iter",
+    "objects::received",
     "objects::same_named",
     "objects::scaled_twice",
     "panics::caller",

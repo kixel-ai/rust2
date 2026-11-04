@@ -292,7 +292,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// Refuse the trait object `ty` of `principal` if a method its object holds takes or
 	/// returns, at its arguments, what its type gives in another form than a cast reaches,
 	/// as a `T | undefined` of an `Option<T>` whose `T` is an `Option` too. Checked where a
-	/// value becomes one, by which time the object holds each method of a crate's own
+	/// value becomes one or a call dispatches through one, by which time the object holds each method of a crate's own
 	/// trait, and not where a type names one, as a method may return an object of other
 	/// arguments without end, `Nest<Vec<T>>` of `Nest<T>`.
 	fn check_object(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) {
@@ -875,6 +875,8 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let name = methods[index].name.clone();
 		let generic = !self.t.objects[&principal].params.is_empty();
 		self.t.hold(principal, index, span);
+		// Called, an object a TS caller made too.
+		self.t.check_object(principal, object, span);
 		let receiver = args.remove(0);
 		if !generic {
 			return receiver.member(name).call(args);

@@ -57,6 +57,11 @@ pub fn nested_item(x: &mut u8) -> bool {
 	s.take().is_some()
 }
 
+/// An object of nested options a caller made, which a call dispatches through.
+pub fn received(x: &mut dyn Taken<Item = Option<u16>>) -> bool {
+	x.take().is_some()
+}
+
 pub trait Passed<T> {
 	fn pass(&self) -> &dyn Passed<Option<u8>>;
 	fn item(&self) -> Option<T>;
