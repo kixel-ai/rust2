@@ -477,7 +477,7 @@ pub fn sum_site(tcx: TyCtxt<'_>, duration: Option<bool>) -> Expr {
 
 /// Where the panic [`SITES`] names `key` is.
 fn site(tcx: TyCtxt<'_>, key: &str) -> Expr {
-	let &(_, file, after, needle) = SITES.iter().find(|(site, ..)| *site == key).expect("a site of `SITES`");
+	let &(_, file, after, needle) = SITES.iter().find(|(site, ..)| *site == key).expect("a key of SITES");
 	found(tcx, file, &[after], needle)
 }
 
@@ -497,7 +497,7 @@ fn found(tcx: TyCtxt<'_>, file: &str, after: &[&str], needle: &str) -> Expr {
 		Some(at) => at,
 		None => tcx.dcx().fatal(format!(
 			"rust2-ts: std's source has no `{needle}` in `{file}` after `{}`, where it panics",
-			after.join("`, then `")
+			after.join(" then ")
 		)),
 	}
 }
