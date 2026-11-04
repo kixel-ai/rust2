@@ -1280,7 +1280,11 @@ pub fn call<'tcx>(
 		// `Duration`'s carries its nanoseconds and panics as std's does, not as `+` would.
 		"sum" if b.t.std_of(targ(1)?) == Some(Std::Duration) => {
 			let drops = iter_drops(b, self_ty, span);
-			Some(Expr::rt("durationSum", tail(vec![recv.clone()], vec![drops])))
+			let at =
+				b.t.hooked
+					.then(|| super::caller::sum_site(b.t.tcx, Some(item.is_ref())));
+			let args = [drops].into_iter().chain(at).collect();
+			Some(Expr::rt("durationSum", tail(vec![recv.clone()], args)))
 		}
 		// std's float sum starts from -0.0, so a sum of none, or of -0.0s, is -0.0.
 		"sum" | "product" if let Some(float) = super::float::Float::of(targ(1)?) => {
@@ -1306,8 +1310,22 @@ pub fn call<'tcx>(
 				Some((overflow, _)) => overflow.method(op),
 				None => op.to_lowercase(),
 			};
+			// In a program with a panic hook, called with where std's panics.
+			let f = match b.t.hooked && overflowing.is_none() {
+				true => {
+					let ty = b.t.ty(targ(1)?, span);
+					let params = ["a", "b"].map(|name| Param {
+						name: name.into(),
+						ty: Some(ty.clone()),
+					});
+					let at = super::caller::sum_site(b.t.tcx, None);
+					let args = params.iter().map(|p| Expr::ident(&p.name)).chain([at]).collect();
+					Expr::Lambda(params.into(), Box::new(int.func(&op).call(args)))
+				}
+				false => int.func(&op),
+			};
 			let drops = iter_drops(b, self_ty, span);
-			method(name, tail(vec![int.func(&op), int.lit(unit)], vec![drops]))
+			method(name, tail(vec![f, int.lit(unit)], vec![drops]))
 		}
 		// `ExactSizeIterator::len` and `size_hint` are each iterator's own.
 		"len" => Some(recv.member("len").call(rest)),

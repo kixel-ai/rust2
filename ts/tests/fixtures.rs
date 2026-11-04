@@ -377,10 +377,19 @@ mod lang {
 			$(
 				#[test]
 				fn $module() {
-					super::lang(stringify!($module));
+					super::lang(stringify!($module), None);
 				}
 			)*
 		};
+	}
+
+	/// Panics as a program without a hook has them, and with one, built with the `hook`
+	/// feature, whose own snapshot has every panic carry its location; one after the other,
+	/// as both build the same wasm32 module.
+	#[test]
+	fn panics() {
+		super::lang("panics", None);
+		super::lang("panics", Some("hook"));
 	}
 
 	lang!(
@@ -419,7 +428,6 @@ mod lang {
 		hashes,
 		heap,
 		hints,
-		panics,
 		holds,
 		ints,
 		iters,
@@ -459,10 +467,30 @@ mod lang {
 	);
 }
 
-fn lang(module: &str) {
+/// A `lang` fixture's tests, with `feature`, whose snapshot is in the directory it names.
+fn lang(module: &str, feature: Option<&str>) {
 	let name = format!("lang/{module}");
-	let out = translated(&name);
-	snapshot(&name, &out);
+	let (out, build, expected) = match feature {
+		None => (translated(&name), vec![], name.clone()),
+		Some(feature) => {
+			let out = scratch().join(&name).join(feature);
+			let args: [&std::ffi::OsStr; 5] = [
+				"--out".as_ref(),
+				out.as_ref(),
+				"--".as_ref(),
+				"--features".as_ref(),
+				feature.as_ref(),
+			];
+			let output = driver(&name, &fixture(&name).join("ts.toml"), &args, "build");
+			assert!(
+				output.status.success(),
+				"translating {name} with {feature} failed:\n{}",
+				String::from_utf8_lossy(&output.stderr)
+			);
+			(out, vec!["--features", feature], format!("{name}/{feature}"))
+		}
+	};
+	snapshot(&expected, &out);
 	// Hand-written callers, type-checked against the output they call: `lang.ts` runs the
 	// harness, and a fixture's own name the inputs it covers, accept the one difference from
 	// native it accepts, or mix integer types, which `tsc` must refuse.
@@ -481,7 +509,7 @@ fn lang(module: &str) {
 	}
 	typecheck(&out);
 	// As many random inputs per case as when one fixture held every module.
-	differential(&format!("lang-{module}-fixture"), &[], &out, entry, 151);
+	differential(&format!("lang-{module}-fixture"), &build, &out, entry, 151);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.

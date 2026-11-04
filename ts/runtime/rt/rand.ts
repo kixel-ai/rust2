@@ -5,6 +5,7 @@
 
 import { panic, type RangeInclusive } from "../rt.ts";
 import { intFromBig, intToBig, type Limbs } from "./int.ts";
+import type { Location } from "./location.ts";
 
 /** `rand::rngs::ThreadRng`: a handle to the platform's source, which holds no state. */
 export class ThreadRng {}
@@ -43,16 +44,16 @@ export function randBool(): boolean {
 }
 
 /** `random_range(lo..hi)` of an integer type of `bits`, panicking on an empty range as `rand` does. */
-export function randRange(lo: number | Limbs, hi: number | Limbs, bits: number, signed: boolean): number | Limbs {
+export function randRange(lo: number | Limbs, hi: number | Limbs, bits: number, signed: boolean, at?: Location): number | Limbs {
 	const [l, h] = [intToBig(lo), intToBig(hi)];
-	if (l >= h) panic("cannot sample empty range");
+	if (l >= h) panic("cannot sample empty range", at);
 	return intFromBig(l + below(h - l), bits, signed);
 }
 
 /** `random_range(lo..=hi)`, from its bounds alone, as `rand` reads even an exhausted range. */
-export function randRangeInclusive<T extends number | Limbs>(range: RangeInclusive<T>, bits: number, signed: boolean): number | Limbs {
+export function randRangeInclusive<T extends number | Limbs>(range: RangeInclusive<T>, bits: number, signed: boolean, at?: Location): number | Limbs {
 	const [l, h] = [intToBig(range.lo), intToBig(range.hi)];
-	if (l > h) panic("cannot sample empty range");
+	if (l > h) panic("cannot sample empty range", at);
 	return intFromBig(l + below(h - l + 1n), bits, signed);
 }
 
