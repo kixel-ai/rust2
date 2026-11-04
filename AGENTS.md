@@ -31,7 +31,8 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 
 - Prefer upstream and maintained crates over hand-rolling. Measure before claiming an improvement over them.
 - Every change needs a consumer that uses it now and is worth its cost; name it in the PR. moq is the first consumer of every project here.
-- Translators take stock crates as they are: no annotations, and no config beyond true platform boundaries. Each config key or source change a consumer needs is a gap to close.
+- Everything is configless, with opinionated names and defaults. Translators take stock crates as they are: no annotations, and no config beyond true platform boundaries. Each config key or source change a consumer needs is a gap to close.
+- A vanity rename, if ever supported, is opt-in and lives inline in source next to the item, never in a config file.
 - Deleting code is better than adding code.
 - Comments explain the non-obvious why, never the history.
 - New dependencies use the newest stable version. Do not bump package versions unless asked.
