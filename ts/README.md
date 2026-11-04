@@ -114,7 +114,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | an iterator | `rt.Iter<Item>`, whose adaptors are runtime functions: `rt.iterMap(rt.iterSlice(v), f)` |
 | `a..b`, `a..=b` | `rt.Range<T>`, `rt.RangeInclusive<T>`, which are iterators too |
 | `a..`, `..b`, `..=b`, `Bound<T>` | `{ start }`, `{ end }`, `{ end, inclusive: true }`; `rt.RangeBound<T>`, a union tagged by variant |
-| a range a drain or a B-tree's `range` takes | itself, or of a type other than std's ranges and a pair of `Bound`s, `rt.boundsOf` of it and its `start_bound` and `end_bound`, which the runtime calls where std's does; one that drops, the parameter of the call `rt.dropAfter` makes, which drops it once the call returns, as std drops it before it does anything JS can see |
+| a range a drain or a B-tree's `range` or `extract_if` takes | itself, or of a type other than std's ranges and a pair of `Bound`s, `rt.boundsOf` of it and its `start_bound` and `end_bound`, which the runtime calls where std's does; one that drops, the parameter of the call `rt.dropAfter` makes, which drops it once the call returns, as std drops it before it does anything JS can see, or of an `extract_if`, which holds it, the parameter of a call that hands its iterator what drops it after its closure |
 | `HashMap`, `HashSet`, `BTreeMap`, `BTreeSet`, `VecDeque`, `LinkedList`, `BinaryHeap` | `rt.HashMap<K, V>` and so on, each a plain object whose functions are the runtime's: `rt.hashGet(map, key)` |
 | `PeekMut<T>` | `rt.PeekMut<T>`, the `rt.Place` of a heap's greatest element, which sifts it down as it drops once `DerefMut` lent it |
 | `Ordering`, `DefaultHasher`, `RandomState`, `BuildHasherDefault<H>` | `rt.Ordering`, which is `-1`, `0`, or `1`; `rt.Hasher`; `rt.RandomState`, the keys of the `DefaultHasher` it builds, never changed once made; `undefined`, as `PhantomData` is, whose `build_hasher` is `H::default()` |
@@ -309,8 +309,8 @@ iterators, a `CharIndices`, a `String`'s `Drain`, and a slice's `Windows`, chunk
 splits, each writing what is left of its slice as std's does, emptied where std's `nth` past
 the end empties a `Windows`; a hash set's operations write the list a clone yields, and a
 `BTreeSet`'s the way std picked to make each, by the iterators it reads, the set it looks
-keys up in, and the key it peeked or holds back. A list's `ExtractIf` writes the item it
-reads next, and a hash map's and set's nothing. A slice's `chunks_mut` and its forms are
+keys up in, and the key it peeked or holds back. A list's and a B-tree's `ExtractIf` write
+the item or entry it reads next, until it stops, and a hash map's and set's nothing. A slice's `chunks_mut` and its forms are
 refused, as std writes their slice's address, and so are a `str`'s searches, `Split` and
 its forms, `Matches`, `MatchIndices`, `Lines`, and `SplitWhitespace`, as std writes its
 searcher's state in UTF-8 bytes. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
@@ -773,7 +773,7 @@ a translation replaces it.
 A bound type keys a collection, alone or in a tuple, `Option`, or `Arc`, by the exports of
 its Rust impls: `hash$Hash(self, state: rt.Hasher): undefined` and `eq$cmp_PartialEq` for a
 `HashMap` or `HashSet`, `cmp$cmp_Ord` for a `BTreeMap` or `BTreeSet`, and
-`partialCmp$cmp_PartialOrd` too for a B-tree's `range`. A derived impl's are the same exports.
+`partialCmp$cmp_PartialOrd` too for a B-tree's `range` and `extract_if`. A derived impl's are the same exports.
 Each must agree with the Rust impl: `hash` writes what it writes, through `rt.hash8` to
 `rt.hash128`, `rt.hashI8` to `rt.hashI128`, `rt.hashUsize`, `rt.hashIsize`, `rt.hashStr`,
 and `rt.hashBytes`, so values `eq` finds equal hash alike, and

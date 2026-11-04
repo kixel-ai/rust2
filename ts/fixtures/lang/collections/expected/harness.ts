@@ -37,4 +37,10 @@ export function op(name: string): rt.u16 {
 	}
 }
 
+/** Write `s` and the byte no UTF-8 holds, which ends it. */
+export function put(out: rt.ByteVec, s: string): void {
+	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(s));
+	rt.byteVecPush(out, 255);
+}
+
 //# sourceMappingURL=harness.ts.map
