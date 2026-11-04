@@ -1002,6 +1002,27 @@ impl<'a> Iterator for Hinted<'a> {
 	}
 }
 
+/// `n` units, logging each `size_hint` read of them, whose lower bound is none.
+struct Units<'a> {
+	n: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Iterator for Units<'_> {
+	type Item = ();
+
+	fn next(&mut self) -> Option<()> {
+		self.n = self.n.checked_sub(1)?;
+		self.log.borrow_mut().push(self.n);
+		Some(())
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.log.borrow_mut().push(0xd5);
+		(0, None)
+	}
+}
+
 /// `v.splice(r, items)`, read `read % 4` times from alternate ends and then dropped, each
 /// step marked.
 fn spliced<'a>(
@@ -1200,6 +1221,19 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.extend(format!("{s:?}").as_bytes());
 			out.extend(s.rev());
 			out.extend_from_slice(&tail);
+			// Zero-sized ones, collected as std's collects them.
+			let hints = RefCell::new(Vec::new());
+			let mut units = vec![(); usize::from(at(13) % 4)];
+			let r = within(at(14), at(15), units.len());
+			drop(units.splice(
+				r,
+				Units {
+					n: at(16) % 5,
+					log: &hints,
+				},
+			));
+			out.push(units.len() as u8);
+			out.extend_from_slice(&hints.borrow());
 			// Panics past the end, or with a range that ends before it starts.
 			if kind & 0x80 != 0 {
 				drop(tail.splice(picked(at(11), at(12), tail.len()), []));

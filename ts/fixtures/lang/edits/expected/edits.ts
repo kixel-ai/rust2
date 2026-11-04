@@ -12,6 +12,7 @@ import * as Named from "./edits.Named.ts";
 import * as Stamp from "./edits.Stamp.ts";
 import * as Tally from "./edits.Tally.ts";
 import * as Tracked from "./edits.Tracked.ts";
+import * as Units from "./edits.Units.ts";
 import { put, text } from "./harness.ts";
 
 /** Into an `Option`, as a parameter that takes either. */
@@ -1551,9 +1552,9 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const r: rt.Range<rt.usize> = within(at(0), at(1), v.length);
 		const captured2 = tracked(224);
 		const it: rt.Iter<Tracked.Tracked> = rt.vecExtractIf(v, r, rt.closure((t5: Tracked.Tracked): boolean => {
-			const _715: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(captured2.log);
-			rt.iterExtendBytes(_715.value, rt.iterSlice(Uint8Array.of(225, t5.id)), undefined, true);
-			rt.refMutRelease(_715);
+			const _722: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(captured2.log);
+			rt.iterExtendBytes(_722.value, rt.iterSlice(Uint8Array.of(225, t5.id)), undefined, true);
+			rt.refMutRelease(_722);
 			t5.copies = rt.u8Add(t5.copies, 1);
 			return rt.u8Rem(t5.id, 3) === rt.u8Rem(captured2.id, 3);
 		}, (): void => {
@@ -1646,9 +1647,9 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const n: rt.u8 = rt.u8Rem(at(2), 6);
 		const captured = owned2;
 		const make: (a0: rt.u8) => Tracked.Tracked = rt.closure((i6: rt.u8): Tracked.Tracked => {
-			const _713: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(captured.log);
-			rt.iterExtendBytes(_713.value, rt.iterSlice(Uint8Array.of(225, i6)), undefined, true);
-			rt.refMutRelease(_713);
+			const _718: rt.RefCell<rt.ByteVec> = rt.refCellBorrowMut(captured.log);
+			rt.iterExtendBytes(_718.value, rt.iterSlice(Uint8Array.of(225, i6)), undefined, true);
+			rt.refMutRelease(_718);
 			return new Tracked.Tracked(rt.u8Add(176, i6), 0, captured.log);
 		}, (): void => {
 			captured[Symbol.dispose]();
@@ -1742,9 +1743,18 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.stringAsBytes(rt.fmtFormat([args10[0]])))), undefined, true);
 		rt.iterExtendBytes(out, rt.iterRev(s3), "next");
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(tail));
+		const hints: rt.RefCell<rt.ByteVec> = new rt.RefCell(new rt.ByteVec());
+		const units: undefined[] = rt.vecFromElem(undefined, rt.u8Rem(at(13), 4) as rt.usize, undefined);
+		const r6: rt.Range<rt.usize> = within(at(14), at(15), units.length);
+		const _469: Units.Units = { n: rt.u8Rem(at(16), 5), log: hints };
+		rt.drop(rt.vecSplice(units, r6, rt.iterFrom(_469, Units.next$iter_Iterator, undefined, { hint: Units.sizeHint$iter_Iterator }), 0));
+		rt.byteVecPush(out, units.length & 0xff);
+		const _484: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(hints);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_484.value));
+		rt.refRelease(_484);
 		if ((kind & 128) !== 0) {
-			const _453: rt.Range<rt.usize> = picked(at(11), at(12), tail.length);
-			rt.drop(rt.byteVecSplice(tail, _453, rt.iterSlice(Uint8Array.of()), true));
+			const _491: rt.Range<rt.usize> = picked(at(11), at(12), tail.length);
+			rt.drop(rt.byteVecSplice(tail, _491, rt.iterSlice(Uint8Array.of()), true));
 		}
 	} else if (_12 === 2) {
 		const flat: Tracked.Tracked[] = rt.vecIntoFlattened(rt.iterToArray(rt.iterMap(rt.iterTake(rt.byteSliceChunksExact(data, 2), 3), (c: rt.ByteSlice): Tracked.Tracked[] => {
@@ -1754,19 +1764,19 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			return [_312, tracked(c.data[c.start + 1])];
 		}), undefined, 16, true), 2, 8);
 		mark(240);
-		const _474: rt.usize = rt.u8Rem(at(0), 4) as rt.usize;
-		rt.vecTruncate(flat, _474, rt.drop);
+		const _512: rt.usize = rt.u8Rem(at(0), 4) as rt.usize;
+		rt.vecTruncate(flat, _512, rt.drop);
 		mark(241);
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(flat)), undefined, true);
 		const leaked: Tracked.Tracked[] = flat;
-		const _491: Tracked.Tracked | undefined = rt.sliceFirst(leaked);
-		if (_491 !== undefined) {
-			_491.copies = rt.u8Add(_491.copies, 5);
+		const _529: Tracked.Tracked | undefined = rt.sliceFirst(leaked);
+		if (_529 !== undefined) {
+			_529.copies = rt.u8Add(_529.copies, 5);
 		}
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(leaked)), undefined, true);
-		const _504: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
-		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_504.value));
-		rt.refRelease(_504);
+		const _542: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_542.value));
+		rt.refRelease(_542);
 		const flat2: rt.u16[] = rt.vecIntoFlattened(rt.iterToArray(rt.iterMap(rt.byteSliceChunksExact(data, 3), (c2: rt.ByteSlice): rt.u16[] => {
 			rt.idx(c2, 0);
 			const _317: rt.u16 = c2.data[c2.start] as rt.u16;
@@ -1777,14 +1787,14 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		}), undefined, 6, true), 3, 2);
 		const iter7: rt.Iter<[rt.usize, rt.Place<rt.u16>]> = rt.iterStepBy(rt.iterEnumerate(rt.iterSliceMut(flat2)), 2);
 		while (true) {
-			const _517: [rt.usize, rt.Place<rt.u16>] | rt.Done = iter7.next();
-			if (_517 === rt.DONE) {
+			const _555: [rt.usize, rt.Place<rt.u16>] | rt.Done = iter7.next();
+			if (_555 === rt.DONE) {
 				break;
 			}
-			_517[1].v = rt.u16Add(_517[1].v, _517[0] & 0xffff);
+			_555[1].v = rt.u16Add(_555[1].v, _555[0] & 0xffff);
 		}
-		for (const _527 of flat2) {
-			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_527)), undefined, true);
+		for (const _565 of flat2) {
+			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_565)), undefined, true);
 		}
 		const flat3: Named.Named[] = rt.vecIntoFlattened(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 4), (_29: rt.u8): Named.Named[] => {
 			const b5: rt.u8 = _29;
@@ -1793,14 +1803,14 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		}), undefined, 32, true), 2, 16);
 		const iter9: rt.Iter<Named.Named> = rt.iterStepBy(rt.iterSlice(flat3), 2);
 		while (true) {
-			const _545: Named.Named | rt.Done = iter9.next();
-			if (_545 === rt.DONE) {
+			const _583: Named.Named | rt.Done = iter9.next();
+			if (_583 === rt.DONE) {
 				break;
 			}
-			_545.name = _545.name + "!";
+			_583.name = _583.name + "!";
 		}
-		for (const _554 of flat3) {
-			put(out, _554.name);
+		for (const _592 of flat3) {
+			put(out, _592.name);
 		}
 		const flat4: rt.ByteVec = rt.byteVecIntoFlattened(rt.iterToArray(rt.iterMap(rt.byteSliceChunksExact(data, 2), (c3: rt.ByteSlice): Uint8Array => {
 			rt.idx(c3, 0);
@@ -1814,17 +1824,17 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			return _213 as rt.u16;
 		}), undefined, 2, true);
 		leaked2.reverse();
-		const _577: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(leaked2);
-		if (_577 !== undefined) {
-			_577.v = _577.v ^ 65535;
+		const _615: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(leaked2);
+		if (_615 !== undefined) {
+			_615.v = _615.v ^ 65535;
 		}
 		const iter11: rt.Iter<rt.u16> = rt.iterSlice(leaked2);
 		while (true) {
-			const _584: rt.u16 | rt.Done = iter11.next();
-			if (_584 === rt.DONE) {
+			const _622: rt.u16 | rt.Done = iter11.next();
+			if (_622 === rt.DONE) {
 				break;
 			}
-			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_584)), undefined, true);
+			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_622)), undefined, true);
 		}
 		const leaked3: rt.ByteSlice = rt.byteVecSlice(flat4);
 		rt.byteSliceRotateLeft(leaked3, rt.usizeDiv(leaked3.length, 2));
@@ -1833,8 +1843,8 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const q: rt.VecDeque<Tracked.Tracked> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 7), (_25: rt.u8): Tracked.Tracked => {
 			return tracked(_25);
 		}), undefined, 8, true), 8) as rt.VecDeque<Tracked.Tracked>;
-		const _608: rt.u8 = at(0);
-		wrap$edits_Tracked(q, _608);
+		const _646: rt.u8 = at(0);
+		wrap$edits_Tracked(q, _646);
 		const part2 = at(1);
 		const probe: Tracked.Tracked = tracked(part2);
 		const found: rt.Result<rt.usize, rt.usize> = rt.dequeBinarySearchByKey(q, probe, (t3: Tracked.Tracked): Tracked.Tracked => {
@@ -1853,46 +1863,46 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			return t4.id < probe.id;
 		}) & 0xff);
 		const n2: rt.usize = q.n;
-		const _660: rt.usize = rt.usizeRem(at(2) as rt.usize, rt.usizeAdd(n2, 1));
-		rt.dequeRotate(q, _660);
-		const _670: rt.usize = rt.usizeRem(at(3) as rt.usize, rt.usizeAdd(n2, 1));
-		rt.dequeRotate(q, _670, true);
+		const _698: rt.usize = rt.usizeRem(at(2) as rt.usize, rt.usizeAdd(n2, 1));
+		rt.dequeRotate(q, _698);
+		const _708: rt.usize = rt.usizeRem(at(3) as rt.usize, rt.usizeAdd(n2, 1));
+		rt.dequeRotate(q, _708, true);
 		if (n2 > 0) {
-			const _681: rt.usize = rt.usizeRem(at(4) as rt.usize, n2);
-			const _687: rt.usize = rt.usizeRem(at(5) as rt.usize, n2);
-			rt.dequeSwap(q, _681, _687);
+			const _719: rt.usize = rt.usizeRem(at(4) as rt.usize, n2);
+			const _725: rt.usize = rt.usizeRem(at(5) as rt.usize, n2);
+			rt.dequeSwap(q, _719, _725);
 		}
-		for (const _697 of rt.dequeMakeContiguous(q)) {
-			_697.copies = rt.u8Add(_697.copies, 1);
+		for (const _735 of rt.dequeMakeContiguous(q)) {
+			_735.copies = rt.u8Add(_735.copies, 1);
 		}
-		const _704: [Tracked.Tracked[], Tracked.Tracked[]] = rt.dequeAsSlices(q);
-		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(_704[0])), undefined, true);
+		const _742: [Tracked.Tracked[], Tracked.Tracked[]] = rt.dequeAsSlices(q);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(_742[0])), undefined, true);
 		rt.byteVecPush(out, 254);
-		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(_704[1])), undefined, true);
+		rt.iterExtendBytes(out, rt.byteVecIntoIter(_11(_742[1])), undefined, true);
 		mark(241);
 		probe[Symbol.dispose]();
 		rt.dequeDrop(q, rt.drop);
-		const _722: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
-		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_722.value));
-		rt.refRelease(_722);
+		const _760: rt.RefCell<rt.ByteVec> = rt.refCellBorrow(log);
+		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(_760.value));
+		rt.refRelease(_760);
 		const q2: rt.VecDeque<rt.u16> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_28: rt.u8): rt.u16 => {
 			return _28 as rt.u16;
 		}), undefined, 2, true), 2) as rt.VecDeque<rt.u16>;
 		const n3: rt.usize = q2.n;
-		const _730: rt.u8 = (kind >> 3) & 3;
+		const _768: rt.u8 = (kind >> 3) & 3;
 		if (!((kind & 128) === 0)) {
-			if (_730 === 0) {
-				const _737: rt.usize = rt.usizeAdd(n3, rt.u8Rem(at(6), 2) as rt.usize);
-				rt.dequeRotate(q2, _737);
-			} else if (_730 === 1) {
-				const _746: rt.usize = rt.usizeAdd(n3, rt.u8Rem(at(6), 2) as rt.usize);
-				rt.dequeRotate(q2, _746, true);
-			} else if (_730 === 2) {
-				const _755: rt.usize = rt.min(n3, at(6) as rt.usize);
-				rt.dequeSwap(q2, _755, 0);
+			if (_768 === 0) {
+				const _775: rt.usize = rt.usizeAdd(n3, rt.u8Rem(at(6), 2) as rt.usize);
+				rt.dequeRotate(q2, _775);
+			} else if (_768 === 1) {
+				const _784: rt.usize = rt.usizeAdd(n3, rt.u8Rem(at(6), 2) as rt.usize);
+				rt.dequeRotate(q2, _784, true);
+			} else if (_768 === 2) {
+				const _793: rt.usize = rt.min(n3, at(6) as rt.usize);
+				rt.dequeSwap(q2, _793, 0);
 			} else {
-				const _761: rt.usize = rt.min(n3, at(6) as rt.usize);
-				rt.dequeSwap(q2, 0, _761);
+				const _799: rt.usize = rt.min(n3, at(6) as rt.usize);
+				rt.dequeSwap(q2, 0, _799);
 			}
 		}
 		rt.byteVecPush(out, q2.n & 0xff);
@@ -1900,29 +1910,29 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const q3: rt.VecDeque<rt.u16> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u16 => {
 			return _2 as rt.u16;
 		}), undefined, 2, true), 2) as rt.VecDeque<rt.u16>;
-		const _775: rt.u8 = at(0);
-		wrap$u16(q3, _775);
+		const _813: rt.u8 = at(0);
+		wrap$u16(q3, _813);
 		rt.dequePushFront(q3, 511);
 		const iter13: rt.Iter<[rt.usize, rt.Place<rt.u16>]> = rt.iterEnumerate(rt.iterSliceMut(rt.dequeMakeContiguous(q3)));
 		while (true) {
-			const _786: [rt.usize, rt.Place<rt.u16>] | rt.Done = iter13.next();
-			if (_786 === rt.DONE) {
+			const _824: [rt.usize, rt.Place<rt.u16>] | rt.Done = iter13.next();
+			if (_824 === rt.DONE) {
 				break;
 			}
-			_786[1].v = rt.u16Add(_786[1].v, _786[0] & 0xffff);
+			_824[1].v = rt.u16Add(_824[1].v, _824[0] & 0xffff);
 		}
 		rt.dequeRotate(q3, rt.usizeDiv(q3.n, 3), true);
 		const iter14: rt.Iter<rt.u16> = rt.dequeIter(q3);
 		while (true) {
-			const _802: rt.u16 | rt.Done = iter14.next();
-			if (_802 === rt.DONE) {
+			const _840: rt.u16 | rt.Done = iter14.next();
+			if (_840 === rt.DONE) {
 				break;
 			}
-			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_802)), undefined, true);
+			rt.iterExtendBytes(out, rt.iterSlice(rt.u16ToBeBytes(_840)), undefined, true);
 		}
 		const bytes4: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.iterToArray(rt.iterSlice(rt.byteSliceView(data)), undefined, 1, true), 1, true) as rt.VecDeque<rt.u8>;
-		const _814: rt.u8 = at(1);
-		wrap$u8(bytes4, _814);
+		const _852: rt.u8 = at(1);
+		wrap$u8(bytes4, _852);
 		rt.dequePushFront(bytes4, 221);
 		rt.byteSliceView(rt.dequeByteMakeContiguous(bytes4)).reverse();
 		rt.dequeRotate(bytes4, rt.usizeDiv(bytes4.n, 2));
@@ -1930,15 +1940,15 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.dequeSwap(bytes4, 0, rt.usizeSub(bytes4.n, 1));
 		}
 		rt.iterExtendBytes(out, rt.dequeIter(bytes4), undefined, true);
-		const _842: [rt.ByteSlice, rt.ByteSlice] = rt.dequeByteSlices(bytes4);
-		rt.byteVecPush(out, _842[0].length & 0xff);
-		rt.byteVecPush(out, _842[1].length & 0xff);
+		const _880: [rt.ByteSlice, rt.ByteSlice] = rt.dequeByteSlices(bytes4);
+		rt.byteVecPush(out, _880[0].length & 0xff);
+		rt.byteVecPush(out, _880[1].length & 0xff);
 		const named4: rt.VecDeque<Named.Named> = rt.dequeFromVec(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 6), (_22: rt.u8): Named.Named => {
 			const b2: rt.u8 = _22;
 			return { id: b2 as rt.u16, name: text(rt.byteSliceFrom(Uint8Array.of(b2))) };
 		}), undefined, 16, true), 16) as rt.VecDeque<Named.Named>;
-		const _856: rt.u8 = at(2);
-		wrap$edits_Named(named4, _856);
+		const _894: rt.u8 = at(2);
+		wrap$edits_Named(named4, _894);
 		rt.sliceSort(rt.dequeMakeContiguous(named4), rt.keyLt((n4: Named.Named): rt.u16 => {
 			return n4.id;
 		}, rt.lt), 16, true);
@@ -1948,8 +1958,8 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		});
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(part, f, rt.usizeDebug, rt.usizeDebug)];
 		rt.iterExtendBytes(out, rt.iterSlice(rt.byteSliceView(rt.stringAsBytes(rt.fmtFormat([args16[0]])))), undefined, true);
-		const _885: string = text(rt.byteSliceFrom(Uint8Array.of(at(3))));
-		const found4: rt.Result<rt.usize, rt.usize> = rt.dequeBinarySearchByKey(named4, _885, (n6: Named.Named): string => {
+		const _923: string = text(rt.byteSliceFrom(Uint8Array.of(at(3))));
+		const found4: rt.Result<rt.usize, rt.usize> = rt.dequeBinarySearchByKey(named4, _923, (n6: Named.Named): string => {
 			return n6.name;
 		}, rt.cmpStr);
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(found4, f, rt.usizeDebug, rt.usizeDebug)];
@@ -1962,17 +1972,17 @@ export function extracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		} else {
 			i4 = found4.error;
 		}
-		const _912: Named.Named | undefined = rt.dequeGet(named4, i4);
-		if (_912 !== undefined) {
-			_912.name = _912.name + "?";
+		const _950: Named.Named | undefined = rt.dequeGet(named4, i4);
+		if (_950 !== undefined) {
+			_950.name = _950.name + "?";
 		}
 		const iter15: rt.Iter<Named.Named> = rt.dequeIter(named4);
 		while (true) {
-			const _922: Named.Named | rt.Done = iter15.next();
-			if (_922 === rt.DONE) {
+			const _960: Named.Named | rt.Done = iter15.next();
+			if (_960 === rt.DONE) {
 				break;
 			}
-			put(out, _922.name);
+			put(out, _960.name);
 		}
 	}
 }
