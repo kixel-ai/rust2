@@ -14,27 +14,13 @@ its compiler, target, and inputs. Local worktrees share it too, where the dev sh
 can.
 
 The dev shell puts mbx's Cargo shim ahead of its toolchains wherever `mbx setup` installed
-one. mbx must first print real paths in diagnostics: through 1.29.1, an error in a build
-script's `OUT_DIR` names the file by mbx's placeholder (`${out_dir}`, `${target}`), which
-fails `uniffi_uitests`'s trybuild snapshots
-([jdx/mr-boxington#896](https://github.com/jdx/mr-boxington/issues/896)). Decided with the
-maintainer on 2026-11-02: wait for the upstream fix rather than keep that test off mbx.
+one. That needs mbx 1.29.2 or later: older releases name a file in a build script's `OUT_DIR`
+by mbx's placeholder in compile errors, which fails `uniffi_uitests`' trybuild snapshots
+([jdx/mr-boxington#896](https://github.com/jdx/mr-boxington/issues/896)).
 
-Once a release fixes it, kixelated/nixos's `quest-land` module moves its mbx pin to that
-release (the version in `packages/mbx.nix` and `mbxCheck`'s `prepare` stamp), and the `rust2`
-land instance takes moq-pro's profile (maintainer, 2026-11-02):
-
-```nix
-rust2 = mbxCheck // {
-  id = 9;
-  enable = lib.mkDefault false;
-  # check.yml's Check runs the same recipe; it needs no base.
-  command = "just ci";
-  cpuQuota = 800;
-  memoryHigh = "8G";
-  memorySwapMax = "1G";
-};
-```
+What remains is on the host: its mbx pin moves to 1.29.2 or later, and rust2's land instance
+takes a per-repository mbx profile, as moq's has (maintainer, 2026-11-02).
+[#426](https://github.com/moq-dev/rust2/pull/426)'s `## Host changes` lists both.
 
 Check it by reading a gate run's log for mbx's cache summary.
 
