@@ -280,3 +280,24 @@ fn measure<T>(_x: T) -> usize {
 pub fn measures() -> usize {
 	Measures.map(|b| b + 1).count()
 }
+
+/// An iterator whose own `by_ref` std's `splice` reads it through.
+pub struct Borrows(pub u8);
+
+impl Iterator for Borrows {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+
+	fn by_ref(&mut self) -> &mut Self {
+		self.0 /= 2;
+		self
+	}
+}
+
+pub fn borrows(v: &mut Vec<u8>) {
+	v.splice(..1, Borrows(4));
+}

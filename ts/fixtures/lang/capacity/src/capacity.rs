@@ -2,8 +2,8 @@
 //! grows, shrinks, remakes, or reads one, of elements of each size its growth tells apart:
 //! a byte, at most 1 KiB, past it, and none. A `Vec`'s and a `BinaryHeap`'s it checks
 //! exactly through steps that fix it from what they held, such as pushes, `with_capacity`,
-//! `reserve`, `shrink_to`, a clone, `clone_from`, and a `collect` in place, and past a
-//! step that shortens one only what std guarantees, as the runtime holds no more. A
+//! `reserve`, `shrink_to`, a clone, `clone_from`, a splice, and a `collect` in place, and
+//! past a step that shortens one only what std guarantees, as the runtime holds no more. A
 //! `VecDeque`'s it checks exactly past every step, as where its slices split depends on it. A `HashMap`'s and a `HashSet`'s it checks only by std's guarantees.
 
 use std::cell::RefCell;
@@ -109,7 +109,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 	put(out, v.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 35 {
+		match op % 39 {
 			0 | 1 => v.push(make(arg)),
 			2 => {
 				drop(v.pop());
@@ -117,7 +117,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			3 | 4 => {
 				let additional = amount(arg, v.len(), size);
-				match op % 35 {
+				match op % 39 {
 					3 => v.reserve(additional),
 					_ => v.reserve_exact(additional),
 				}
@@ -250,7 +250,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
 					_ => usize::from(arg % 24),
 				};
-				match op % 35 {
+				match op % 39 {
 					30 => v.resize(new_len, make(arg)),
 					_ => v.resize_with(new_len, || make(arg)),
 				}
@@ -273,6 +273,47 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			// Through a deque, which keeps its buffer both ways.
 			34 => v = Vec::from(VecDeque::from(v)),
+			// Room for the tail past what fills the range, reserved for the whole vector:
+			// by a lower bound that is exact, short, or none, and by the rest once counted,
+			// or by `extend` of a range to the end.
+			35 => {
+				let len = v.len();
+				let start = usize::from(arg & 3) % (len + 1);
+				let end = match arg & 0x80 {
+					0 => start + usize::from(arg >> 2 & 1) % (len - start + 1),
+					_ => len,
+				};
+				let n = [0, 2, 6, 17][usize::from(arg >> 5 & 3)];
+				match arg >> 3 & 3 {
+					0 => drop(v.splice(start..end, (0..n as u8).map(make))),
+					1 => drop(v.splice(start..end, (0..n as u8).filter(|i| i % 4 != 1).map(make))),
+					2 => drop(v.splice(
+						start..end,
+						(0..n as u8).chain((0..n as u8).filter(|i| i % 2 == 0)).map(make),
+					)),
+					_ => drop(v.splice(start..end, vec![make(arg); n])),
+				}
+			}
+			36 => {
+				let mut keep = alternate();
+				let start = usize::from(arg) % (v.len() + 1);
+				drop(v.extract_if(start.., |_| keep()).take(usize::from(arg % 5)).count());
+				k.loose();
+			}
+			// Pairs, flattened into room for twice as many as there was for pairs.
+			37 => {
+				let mut pairs: Vec<[T; 2]> = Vec::with_capacity(usize::from(arg % 6));
+				for c in v.chunks_exact(2) {
+					pairs.push([c[0].clone(), c[1].clone()]);
+				}
+				let flat = pairs.into_flattened();
+				Known::new(0).put(out, flat.len(), flat.capacity());
+			}
+			// A splice leaked before it drops keeps the vector's capacity.
+			38 => {
+				let start = usize::from(arg) % (v.len() + 1);
+				std::mem::forget(v.splice(start.., []));
+			}
 			_ => {}
 		}
 		k.put(out, v.len(), v.capacity());

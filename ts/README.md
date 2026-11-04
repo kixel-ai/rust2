@@ -340,7 +340,8 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 `try_fold` and the other by `next`, as std's `iter_compare` does, and `eq` of two
 `TrustedLen` iterators whose size hints' upper bounds differ reads neither.
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
-moves read steps in place, as two variables: the array and an index into it, or the
+moves into other variables read steps in place, not one moved into a field, as an `async`
+block's is when held across an `.await`, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
@@ -353,7 +354,7 @@ enum's, it holds as an `rt.Place` of its own, which its `next` and std's methods
 own `collect` into a `Vec` runs where std's `FromIterator` of a `Box<[T]>`, `Rc<[T]>`,
 `Arc<[T]>`, `BTreeMap`, `BTreeSet`, or `BinaryHeap` calls it first, its own `eq` and
 `partial_cmp` where `ne` and the tests on `partial_cmp` call them, and its own `by_ref`,
-which std calls only from `Vec::splice`, which is not supported, `position`, `max`, and the
+which std calls only from `Vec::splice`, which refuses one that overrides it, `position`, `max`, and the
 others std never calls in place of another only where the crate calls them, and `fuse` reads on past the end of one that is a `FusedIterator`, as std's does. A caller calls `next()` for one item, or iterates
 an `rt.Iter` with `for ... of`. Each `rt.Iter`'s `sizeHint` is std's `size_hint`, its upper
 bound `undefined` for `None`, and a `collect` or `extend` into a `Vec`, `VecDeque`,
@@ -546,7 +547,12 @@ and `try_for_each` drop their closure as they return, leaving what the iterator 
 with it. `scan` hands its closure its state, or the state's place where JS copies it, and
 drops the state after the closure, as std's fields drop. A `Vec`'s `drain` leaves the vector
 what precedes its range until it drops, then drops what it still holds and moves the tail
-back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does.
+back, so one never dropped, as `mem::forget` leaves it, leaks the rest, as std's does. A
+`splice` drains so too, then fills the gap from its iterator as std's does, reserving
+for the tail by that iterator's lower bound and then by what is left of it, collected,
+and drops the iterator once the tail is back; an `extract_if` takes out each element its
+closure picks as it reads them, moves the rest back over the gaps once dropped, and then
+drops the closure.
 
 A trait object of the crate's own trait, a dependency's, or `bytes`' `Buf`, behind `&`, `&mut`, `Box`, `Arc`, `Rc`, or a `Pin` of one, is an object with
 a method for each function a call can dispatch to, its supertraits' included, named for
@@ -977,8 +983,9 @@ they need.
 - A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
-  leaves first. `Vec::drain` is ported for the same reason: std's reads its range out
-  and moves the tail back through raw pointers. The sorts, `max` and `min`, the heap,
+  leaves first. `Vec::drain`, `splice`, and `extract_if`, and `VecDeque`'s rotations
+  and `make_contiguous`, are ported for the same reason: std's move elements through raw
+  pointers. The sorts, `max` and `min`, the heap,
   and `is_sorted` take an integer's tests as the runtime's `rt.lt`, `rt.le`, `rt.gt`,
   and `rt.ge` rather than through its `partial_cmp`, `rt.cmpLt(rt.cmp)`: on `just ts
   bench`'s `order/` workloads that took Firefox 0.8-0.86x the time on sorts and

@@ -1,8 +1,9 @@
 //! `Vec`'s and slices' editing and sorting methods, with closures that log what they are
 //! called with, `Clone` and comparisons of vectors, tuples, boxes, and `Option`s that are
 //! not `Copy`, `mem::take`, `replace`, and `swap`, called and as function values,
-//! `mem::size_of`, `Ord`'s defaults on the crate's own types, `str`'s byte searches, and
-//! the `Vec` and `VecDeque` methods that resize, split, and append one.
+//! `mem::size_of`, `Ord`'s defaults on the crate's own types, `str`'s byte searches, the
+//! `Vec` and `VecDeque` methods that resize, split, and append one, and those that take
+//! out, splice, flatten, leak, search, and rotate one.
 
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -684,6 +685,27 @@ impl Drop for Tracked<'_> {
 	}
 }
 
+/// By id, as a deque's searches compare the keys they make.
+impl PartialEq for Tracked<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.id == other.id
+	}
+}
+
+impl Eq for Tracked<'_> {}
+
+impl PartialOrd for Tracked<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Tracked<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.id.cmp(&other.id)
+	}
+}
+
 /// The range of `0..=len + 1` two bytes pick, which may be past `len` or end before it
 /// starts.
 fn picked(a: u8, b: u8, len: usize) -> std::ops::Range<usize> {
@@ -941,6 +963,459 @@ pub fn resizes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			pairs.append(&mut moved);
 			for p in Vec::from(pairs).iter().flatten() {
 				out.extend(p.to_be_bytes());
+			}
+		}
+	}
+}
+
+/// A range within `0..=len` two bytes pick.
+fn within(a: u8, b: u8, len: usize) -> std::ops::Range<usize> {
+	let start = usize::from(a) % (len + 1);
+	start..start + usize::from(b) % (len - start + 1)
+}
+
+/// Items a counter makes up to `n`, logging each `size_hint` read of it, whose lower bound
+/// is one at odd counts while any are left.
+struct Hinted<'a> {
+	n: u8,
+	i: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl<'a> Iterator for Hinted<'a> {
+	type Item = Tracked<'a>;
+
+	fn next(&mut self) -> Option<Tracked<'a>> {
+		(self.i < self.n).then(|| {
+			self.i += 1;
+			Tracked {
+				id: 0xd0 + self.i,
+				copies: 0,
+				log: self.log,
+			}
+		})
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.log.borrow_mut().push(0xd5);
+		(usize::from((self.i % 2).min(self.n - self.i)), None)
+	}
+}
+
+/// A range that holds what drops, as a splice takes it.
+struct Held<'a>(usize, Tracked<'a>);
+
+impl std::ops::RangeBounds<usize> for Held<'_> {
+	fn start_bound(&self) -> std::ops::Bound<&usize> {
+		std::ops::Bound::Included(&self.0)
+	}
+
+	fn end_bound(&self) -> std::ops::Bound<&usize> {
+		std::ops::Bound::Unbounded
+	}
+}
+
+/// `n` units, logging each `size_hint` read of them, whose lower bound is none.
+struct Units<'a> {
+	n: u8,
+	log: &'a RefCell<Vec<u8>>,
+}
+
+impl Iterator for Units<'_> {
+	type Item = ();
+
+	fn next(&mut self) -> Option<()> {
+		self.n = self.n.checked_sub(1)?;
+		self.log.borrow_mut().push(self.n);
+		Some(())
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		self.log.borrow_mut().push(0xd5);
+		(0, None)
+	}
+}
+
+/// `v.splice(r, items)`, read `read % 4` times from alternate ends and then dropped, each
+/// step marked.
+fn spliced<'a>(
+	v: &mut Vec<Tracked<'a>>,
+	r: std::ops::Range<usize>,
+	items: impl IntoIterator<Item = Tracked<'a>>,
+	read: u8,
+	log: &RefCell<Vec<u8>>,
+) {
+	let mut s = v.splice(r, items);
+	for i in 0..read % 4 {
+		let t = match i % 2 {
+			0 => s.next(),
+			_ => s.next_back(),
+		};
+		log.borrow_mut().push(0xf0);
+		drop(t);
+	}
+	drop(s);
+	log.borrow_mut().push(0xf1);
+}
+
+/// `Vec`'s `extract_if`, `splice`, `into_flattened`, and `leak`, and `VecDeque`'s
+/// searches, rotations, `swap`, and `make_contiguous`: which values clone and drop, in
+/// order, against closures and iterators that own one; `{:?}` of an `ExtractIf` and a
+/// `Splice` as each is read; writes through the `&mut` each lends, of elements JS copies and of bytes; and a
+/// splice by iterators whose lower bound is exact, short, or none. Each panics with std's
+/// message past the end.
+pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let log = RefCell::new(Vec::new());
+	let tracked = |id: u8| Tracked {
+		id,
+		copies: 0,
+		log: &log,
+	};
+	let mark = |m: u8| log.borrow_mut().push(m);
+	let ids = |v: &[Tracked]| v.iter().flat_map(|t| [t.id, t.copies]).collect::<Vec<u8>>();
+	match kind % 5 {
+		0 => {
+			{
+				let mut v: Vec<Tracked> = data.iter().take(8).map(|&b| tracked(b)).collect();
+				let r = within(at(0), at(1), v.len());
+				let owned = tracked(0xe0);
+				// Through the `&mut` each element lends, and the whole of `owned`, which
+				// drops with the iterator.
+				let mut it = v.extract_if(r, move |t| {
+					let owned = &owned;
+					owned.log.borrow_mut().extend([0xe1, t.id]);
+					t.copies += 1;
+					t.id % 3 == owned.id % 3
+				});
+				for _ in 0..at(2) % 4 {
+					let t = it.next();
+					mark(0xf0);
+					drop(t);
+				}
+				drop(it);
+				mark(0xf1);
+				out.extend(ids(&v));
+			}
+			out.extend_from_slice(&log.borrow());
+			let mut w: Vec<u16> = data.iter().map(|&b| u16::from(b)).collect();
+			let r = within(at(3), at(4), w.len());
+			let mut it = w.extract_if(r, |x| {
+				*x += 0x100;
+				*x & 1 == 1
+			});
+			for _ in 0..3 {
+				out.extend(format!("{it:?}").as_bytes());
+				it.next();
+			}
+			drop(it);
+			for x in &w {
+				out.extend(x.to_be_bytes());
+			}
+			let named: Vec<Named> = data
+				.iter()
+				.take(5)
+				.map(|&b| Named {
+					id: u16::from(b),
+					name: text(&[b]),
+				})
+				.collect();
+			let mut named = named;
+			let taken: Vec<Named> = named
+				.extract_if(.., |n| {
+					n.name.push('+');
+					n.id % 2 == 0
+				})
+				.collect();
+			for n in named.iter().chain(&taken) {
+				put(out, &n.name);
+			}
+			let mut bytes = data.to_vec();
+			let mut it = bytes.extract_if(usize::from(at(5)) % (data.len() + 1).., |b| {
+				*b = b.wrapping_add(1);
+				*b % 3 == 0
+			});
+			let first = it.next();
+			out.extend(format!("{it:?}{first:?}").as_bytes());
+			let rest: Vec<u8> = it.collect();
+			out.extend_from_slice(&rest);
+			out.extend_from_slice(&bytes);
+			// A leaked one leaves the vector empty, as std's holds none meanwhile.
+			let mut it = w.extract_if(.., |x| *x % 2 == 0);
+			it.next();
+			std::mem::forget(it);
+			out.push(w.len() as u8);
+			let mut it = bytes.extract_if(.., |b| *b % 2 == 0);
+			it.next();
+			std::mem::forget(it);
+			out.push(bytes.len() as u8);
+			// Panics past the end, or with a range that ends before it starts.
+			if kind & 0x80 != 0 {
+				drop(w.extract_if(picked(at(6), at(7), w.len()), |_| true));
+			}
+		}
+		1 => {
+			{
+				let mut v: Vec<Tracked> = data.iter().take(6).map(|&b| tracked(b)).collect();
+				let mut r = within(at(0), at(1), v.len());
+				if kind & 0x20 != 0 {
+					r.end = v.len();
+				}
+				let owned = tracked(0xe0);
+				let n = at(2) % 6;
+				// The whole of `owned`, which drops with the iterator.
+				let make = move |i: u8| {
+					let owned = &owned;
+					owned.log.borrow_mut().extend([0xe1, i]);
+					Tracked {
+						id: 0xb0 + i,
+						copies: 0,
+						log: owned.log,
+					}
+				};
+				let read = at(3);
+				match kind >> 3 & 3 {
+					_ if kind & 0x40 != 0 => {
+						drop(make);
+						spliced(&mut v, r, Hinted { n, i: 0, log: &log }, read, &log);
+					}
+					0 => spliced(&mut v, r, (0..n).map(make), read, &log),
+					1 => spliced(&mut v, r, (0..n).filter(|i| i % 2 == 0).map(make), read, &log),
+					2 => {
+						let first: Vec<Tracked> = (0..n % 3).map(|i| tracked(0xc0 + i)).collect();
+						spliced(
+							&mut v,
+							r,
+							first.into_iter().chain((0..n).filter(|i| i % 2 == 1).map(make)),
+							read,
+							&log,
+						)
+					}
+					_ => {
+						let items: Vec<Tracked> = (0..n).map(make).collect();
+						spliced(&mut v, r, items, read, &log)
+					}
+				}
+				// The range drops as the drain is made, before the error its items drop.
+				let start = usize::from(at(17)) % (v.len() + 1);
+				mark(0xf2);
+				drop(v.splice(Held(start, tracked(0x71)), Err::<Tracked, _>(tracked(0x77))));
+				out.extend(ids(&v));
+			}
+			out.extend_from_slice(&log.borrow());
+			// Values JS copies, each its own once spliced in.
+			let mut pairs: Vec<[u16; 2]> = data.iter().take(4).map(|&b| [u16::from(b), 0]).collect();
+			let r = within(at(4), at(5), pairs.len());
+			let fill = [7u16, 8];
+			let mut s = pairs.splice(r, (0..at(6) % 4).map(|_| fill));
+			let first = s.next();
+			out.extend(format!("{s:?}{first:?}").as_bytes());
+			let removed: Vec<[u16; 2]> = first.into_iter().chain(s).collect();
+			for (i, p) in pairs.iter_mut().enumerate() {
+				p[i % 2] += i as u16;
+			}
+			for p in pairs.iter().chain(&removed).flatten() {
+				out.extend(p.to_be_bytes());
+			}
+			let mut bytes = data.to_vec();
+			let r = within(at(7), at(8), bytes.len());
+			let mut s = bytes.splice(
+				r,
+				data.iter()
+					.rev()
+					.take(usize::from(at(9) % 8))
+					.copied()
+					.filter(|b| b % 2 == 0),
+			);
+			let back = s.next_back();
+			out.extend(format!("{s:?}").as_bytes());
+			drop(s);
+			out.extend(back);
+			out.extend_from_slice(&bytes);
+			let mut tail = data.to_vec();
+			let start = usize::from(at(10)) % (tail.len() + 1);
+			let s = tail.splice(start.., [0xaa, 0xbb]);
+			out.extend(format!("{s:?}").as_bytes());
+			out.extend(s.rev());
+			out.extend_from_slice(&tail);
+			// Zero-sized ones, collected as std's collects them.
+			let hints = RefCell::new(Vec::new());
+			let mut units = vec![(); usize::from(at(13) % 4)];
+			let r = within(at(14), at(15), units.len());
+			drop(units.splice(
+				r,
+				Units {
+					n: at(16) % 5,
+					log: &hints,
+				},
+			));
+			out.push(units.len() as u8);
+			out.extend_from_slice(&hints.borrow());
+			// Panics past the end, or with a range that ends before it starts.
+			if kind & 0x80 != 0 {
+				drop(tail.splice(picked(at(11), at(12), tail.len()), []));
+			}
+		}
+		2 => {
+			{
+				let pairs: Vec<[Tracked; 2]> = data
+					.chunks_exact(2)
+					.take(3)
+					.map(|c| [tracked(c[0]), tracked(c[1])])
+					.collect();
+				let mut flat = pairs.into_flattened();
+				mark(0xf0);
+				flat.truncate(usize::from(at(0) % 4));
+				mark(0xf1);
+				out.extend(ids(&flat));
+				// What a leaked vector holds never drops.
+				let leaked = flat.leak();
+				if let Some(t) = leaked.first_mut() {
+					t.copies += 5;
+				}
+				out.extend(ids(leaked));
+			}
+			out.extend_from_slice(&log.borrow());
+			let words: Vec<[u16; 3]> = data
+				.chunks_exact(3)
+				.map(|c| [u16::from(c[0]), u16::from(c[1]), u16::from(c[2])])
+				.collect();
+			let mut flat = words.into_flattened();
+			for (i, x) in flat.iter_mut().enumerate().step_by(2) {
+				*x += i as u16;
+			}
+			for x in &flat {
+				out.extend(x.to_be_bytes());
+			}
+			let named: Vec<[Named; 2]> = data
+				.iter()
+				.take(4)
+				.map(|&b| {
+					let n = Named {
+						id: u16::from(b),
+						name: text(&[b]),
+					};
+					[n.clone(), n]
+				})
+				.collect();
+			let mut flat = named.into_flattened();
+			for n in flat.iter_mut().step_by(2) {
+				n.name.push('!');
+			}
+			for n in &flat {
+				put(out, &n.name);
+			}
+			let bytes: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+			let mut flat = bytes.into_flattened();
+			flat.push(0xcc);
+			out.extend_from_slice(&flat);
+			let leaked: &mut [u16] = flat.iter().map(|&b| u16::from(b)).collect::<Vec<u16>>().leak();
+			leaked.reverse();
+			if let Some(x) = leaked.first_mut() {
+				*x ^= 0xffff;
+			}
+			for x in leaked.iter() {
+				out.extend(x.to_be_bytes());
+			}
+			let leaked: &mut [u8] = flat.leak();
+			leaked.rotate_left(leaked.len() / 2);
+			out.extend_from_slice(leaked);
+		}
+		3 => {
+			{
+				let mut q: VecDeque<Tracked> = data.iter().take(7).map(|&b| tracked(b)).collect();
+				wrap(&mut q, at(0));
+				let probe = tracked(at(1));
+				// Each key it makes drops once compared.
+				let found = q.binary_search_by_key(&probe, |t| {
+					t.log.borrow_mut().extend([0xe1, t.id]);
+					Tracked {
+						id: t.id,
+						copies: 9,
+						log: t.log,
+					}
+				});
+				mark(0xf0);
+				out.extend(format!("{found:?}").as_bytes());
+				let found = q.binary_search(&probe);
+				out.extend(format!("{found:?}").as_bytes());
+				let point = q.partition_point(|t| t.id < probe.id);
+				out.push(point as u8);
+				let n = q.len();
+				q.rotate_left(usize::from(at(2)) % (n + 1));
+				q.rotate_right(usize::from(at(3)) % (n + 1));
+				if n > 0 {
+					q.swap(usize::from(at(4)) % n, usize::from(at(5)) % n);
+				}
+				for t in q.make_contiguous() {
+					t.copies += 1;
+				}
+				let (a, b) = q.as_slices();
+				out.extend(ids(a));
+				out.push(0xfe);
+				out.extend(ids(b));
+				mark(0xf1);
+			}
+			out.extend_from_slice(&log.borrow());
+			// Panics with std's assertions.
+			let mut q: VecDeque<u16> = data.iter().map(|&b| u16::from(b)).collect();
+			let n = q.len();
+			match kind >> 3 & 3 {
+				_ if kind & 0x80 == 0 => {}
+				0 => q.rotate_left(n + usize::from(at(6) % 2)),
+				1 => q.rotate_right(n + usize::from(at(6) % 2)),
+				2 => q.swap(n.min(usize::from(at(6))), 0),
+				_ => q.swap(0, n.min(usize::from(at(6)))),
+			}
+			out.push(q.len() as u8);
+		}
+		_ => {
+			// Writes through the run `make_contiguous` lends, of values JS copies and of
+			// bytes, and objects whose searches take them.
+			let mut q: VecDeque<u16> = data.iter().map(|&b| u16::from(b)).collect();
+			wrap(&mut q, at(0));
+			q.push_front(0x1ff);
+			for (i, x) in q.make_contiguous().iter_mut().enumerate() {
+				*x += i as u16;
+			}
+			q.rotate_right(q.len() / 3);
+			for x in &q {
+				out.extend(x.to_be_bytes());
+			}
+			let mut bytes: VecDeque<u8> = data.iter().copied().collect();
+			wrap(&mut bytes, at(1));
+			bytes.push_front(0xdd);
+			bytes.make_contiguous().reverse();
+			bytes.rotate_left(bytes.len() / 2);
+			if bytes.len() > 1 {
+				bytes.swap(0, bytes.len() - 1);
+			}
+			out.extend(bytes.iter());
+			let (a, b) = bytes.as_slices();
+			out.push(a.len() as u8);
+			out.push(b.len() as u8);
+			let mut named: VecDeque<Named> = data
+				.iter()
+				.take(6)
+				.map(|&b| Named {
+					id: u16::from(b),
+					name: text(&[b]),
+				})
+				.collect();
+			wrap(&mut named, at(2));
+			named.make_contiguous().sort_by_key(|n| n.id);
+			let probe = u16::from(at(3));
+			let found = named.binary_search_by(|n| n.id.cmp(&probe));
+			out.extend(format!("{found:?}").as_bytes());
+			let found = named.binary_search_by_key(&text(&[at(3)]), |n| n.name.clone());
+			out.extend(format!("{found:?}").as_bytes());
+			out.push(named.partition_point(|n| n.id <= probe) as u8);
+			let (Ok(i) | Err(i)) = found;
+			if let Some(n) = named.get_mut(i) {
+				n.name.push('?');
+			}
+			for n in &named {
+				put(out, &n.name);
 			}
 		}
 	}
