@@ -143,6 +143,8 @@ impl Expr {
 	pub fn not(self) -> Self {
 		match self {
 			Self::Unary("!", inner) => *inner,
+			Self::Lit(t) if t == "true" => Self::lit("false"),
+			Self::Lit(t) if t == "false" => Self::lit("true"),
 			Self::Binary(l, "===", r) => Self::Binary(l, "!==", r),
 			Self::Binary(l, "!==", r) => Self::Binary(l, "===", r),
 			other => Self::unary("!", other),

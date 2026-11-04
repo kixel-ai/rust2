@@ -26,7 +26,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty};
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 
@@ -59,7 +59,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, 
 		// built with {p}.h, through CGO_LDFLAGS.\n\
 		package {p}\n\n\
 		/*\n#cgo CFLAGS: -I${{SRCDIR}}/../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
-		extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n"
+		extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
+		static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n"
 	);
 	for decl in &g.decls {
 		out.push_str(decl);
@@ -67,11 +68,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, 
 	}
 	let _ = write!(
 		out,
-		"*/\nimport \"C\"\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
+		"*/\nimport \"C\"\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
 		// The runtime's names for the export's C types and functions.\n\
 		type (\n\tcBuf      = C.{p}_buf\n\tcWaker    = C.{p}_waker\n\tcDuration = C.{p}_duration\n\tcAddr     = C.{p}_socket_addr\n)\n\n\
 		var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
 		func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
+		// cBufsFree frees bufs, which are not empty, in one call.\n\
+		func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 		// A Go file and a library from different builds must not mix: checked when the package\n\
 		// loads, before any other call.\n\
 		func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"{p}.go and the library are from different builds\")\n\t}}\n}}\n\n\
@@ -1129,7 +1132,7 @@ impl<'a> Gen<'a> {
 		for method in &callback.methods {
 			let member = pascal(&abi::snake(method.name()));
 			members.push(member.clone());
-			let names = locals(method.params.iter().map(|p| p.name.as_str()));
+			let names = locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
 				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
 				.collect();
@@ -1217,7 +1220,7 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The trampoline C calls for a closure of type `ty`, lent for a call, taking `lent` and
-	/// returning `ret`: it lends each object as its type, closed once it returns.
+	/// returning `ret`: it lends each object as its type, ended once it returns.
 	fn trampoline(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> String {
 		let go = self.go(ty);
 		if let Some(name) = self.closures.get(&go) {
@@ -1234,7 +1237,7 @@ impl<'a> Gen<'a> {
 					let Type::Object(i) = **object else { unreachable!() };
 					let l = format!("l{k}_");
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
-					let _ = writeln!(body, "\tdefer {l}.h.close()");
+					let _ = writeln!(body, "\tdefer {l}.h.end()");
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),
@@ -1391,7 +1394,7 @@ impl<'a> Gen<'a> {
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
 		}
-		let names = locals(function.params.iter().map(|p| p.name.as_str()));
+		let names = locals(&function.params);
 		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			if let Type::Closure(..) = param.ty {
@@ -1785,6 +1788,7 @@ fn local(name: &str) -> String {
 		"netip",
 		"runtime",
 		"strconv",
+		"sync",
 		"atomic",
 		"time",
 		"unsafe",
@@ -1803,23 +1807,9 @@ fn local(name: &str) -> String {
 	}
 }
 
-/// The Go names of parameters, each [`local`], distinct even where Rust's differ only in
-/// underscores: a later one takes the lowest free number after it.
-fn locals<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<String> {
-	let names: Vec<String> = names.into_iter().map(local).collect();
-	let mut taken: BTreeSet<String> = BTreeSet::new();
-	(names.iter())
-		.map(|name| {
-			let mut unique = name.clone();
-			let mut n = 2;
-			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
-				unique = format!("{name}{n}");
-				n += 1;
-			}
-			taken.insert(unique.clone());
-			unique
-		})
-		.collect()
+/// The Go names of parameters, each [`local`], [`abi::distinct`].
+fn locals(params: &[Param]) -> Vec<String> {
+	abi::distinct(params.iter().map(|p| local(&p.name)))
 }
 
 /// A C field as cgo names it: one Go reads as a keyword takes a leading `_`.

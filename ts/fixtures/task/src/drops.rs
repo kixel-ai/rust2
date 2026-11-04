@@ -22,13 +22,19 @@ macro_rules! list {
 	}};
 }
 
+mod called;
 mod closures;
+mod flattened;
 mod folds;
+mod indexed;
 mod inside;
 mod iters;
 mod lists;
 mod objects;
 mod once;
+mod orders;
+mod released;
+mod searched;
 
 /// A value of a type that drops, with no `[Symbol.dispose]` of its own.
 pub enum Held {
@@ -721,8 +727,14 @@ pub fn folded(log: &Log, id: u32, arg: u8) {
 	folds::folded(log, id, arg);
 }
 
-/// Run scenario `arg % 9` of what folds back to front, and through what wraps a closure
-/// beside another.
+/// Run scenario `arg % 12` of std's calls of a closure that owns a guard. The last panics
+/// in a `try_fold`.
+pub fn called(log: &Log, id: u32, arg: u8) {
+	called::called(log, id, arg);
+}
+
+/// Run scenario `arg % 18` of what folds back to front, through what wraps a closure beside
+/// another, and through a crate's iterator with folds of its own. The last panics in a fold.
 pub fn rfolded(log: &Log, id: u32, arg: u8) {
 	folds::rfolded(log, id, arg);
 }
@@ -732,6 +744,35 @@ pub fn rfolded(log: &Log, id: u32, arg: u8) {
 /// range that panics as `String`'s drop it.
 pub fn inside(log: &Log, id: u32, arg: u8) {
 	inside::inside(log, id, arg);
+}
+
+/// Run scenario `arg % 10` of what a `flatten` drops of inner iterators that hold items
+/// once they end.
+pub fn flattened(log: &Log, id: u32, arg: u8) {
+	flattened::flattened(log, id, arg);
+}
+
+/// Run scenario `arg % 9` of what std drops of a zip it reads by index.
+pub fn indexed(log: &Log, id: u32, arg: u8) {
+	indexed::indexed(log, id, arg);
+}
+
+/// Run scenario `arg % 7` of where std drops a closure given to a consumer or an entry.
+/// The last panics in a fold.
+pub fn released(log: &Log, id: u32, arg: u8) {
+	released::released(log, id, arg);
+}
+
+/// Run scenario `arg % 8` of what std drops as it orders: a B-tree's `collect` and `from`
+/// of keys whose own impls disagree, `max_by_key` and `min_by_key` by keys that drop, and
+/// a map's `into_keys`' `max` and `min`. The last panics in the sort.
+pub fn orders(log: &Log, id: u32, arg: u8) {
+	orders::orders(log, id, arg);
+}
+
+/// Run scenario `arg % 3` of where std drops a closure given to a string's search or edit.
+pub fn searched(log: &Log, id: u32, arg: u8) {
+	searched::searched(log, id, arg);
 }
 
 /// Run scenario `arg % 9` of what std's comparisons of iterators drop.

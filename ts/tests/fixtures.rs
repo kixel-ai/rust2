@@ -8,6 +8,9 @@ use std::process::{Command, Output};
 
 const TARGET: &str = "wasm32-unknown-unknown";
 
+/// The native side's profile, from `Cargo.toml`.
+const PROFILE: &str = "differential";
+
 fn manifest_dir() -> PathBuf {
 	PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -27,15 +30,35 @@ fn fixture(name: &str) -> PathBuf {
 /// Run the driver on a fixture with `config` and `args`, in its own build directory per
 /// `build`.
 fn driver(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Output {
-	Command::new(env!("CARGO_BIN_EXE_rust2-ts"))
+	driver_command(name, config, args, build)
+		.output()
+		.expect("running rust2-ts")
+}
+
+/// The command [`driver`] runs.
+fn driver_command(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
+	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ts"));
+	command
 		.arg("--config")
 		.arg(config)
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.args(args)
 		.env("CARGO_TARGET_DIR", scratch().join(build))
-		.output()
-		.expect("running rust2-ts")
+		.env("RUSTFLAGS", remap());
+	command
+}
+
+/// The flag that names cargo's home `/cargo` in both builds, so the files of the registry's
+/// crates, which a hook's locations name, are named alike on any host.
+fn remap() -> String {
+	let home = match std::env::var_os("CARGO_HOME") {
+		Some(home) => PathBuf::from(home),
+		None => std::env::home_dir()
+			.expect("a home directory, which holds cargo's")
+			.join(".cargo"),
+	};
+	format!("--remap-path-prefix={}=/cargo", home.display())
 }
 
 /// Run the driver on a fixture, returning its output directory and what it printed.
@@ -161,11 +184,14 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 			package,
 			"--target",
 			TARGET,
+			"--profile",
+			PROFILE,
 			"--target-dir",
 		])
 		.arg(&target_dir)
 		.args(build)
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
+		.env("RUSTFLAGS", remap())
 		.arg("--manifest-path")
 		.arg(manifest_dir().join("Cargo.toml"))
 		.status()
@@ -173,10 +199,13 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 	assert!(status.success(), "building {package} for {TARGET} failed");
 	let wasm = target_dir
 		.join(TARGET)
-		.join("debug")
+		.join(PROFILE)
 		.join(format!("{}.wasm", package.replace('-', "_")));
 	std::fs::write(out.join("package.json"), "{ \"type\": \"module\" }\n").unwrap();
+	// One thread: the cases run one at a time, and V8's background compilers and
+	// collectors would spend more CPU than they save.
 	let output = Command::new("node")
+		.arg("--single-threaded")
 		.arg(manifest_dir().join("tests").join("differential.ts"))
 		.arg(&wasm)
 		.arg(out.join(entry))
@@ -197,8 +226,10 @@ fn codec() {
 	let out = translated("codec");
 	snapshot("codec", &out);
 	std::fs::write(out.join("shake.ts"), SHAKE).unwrap();
+	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
-	differential("codec-fixture", &[], &out, "harness.ts", 20_000);
+	// As many random inputs per case as each had of 20,000 picked by their first byte.
+	differential("codec-fixture", &[], &out, "caller.ts", 2_300);
 	shake(&out);
 }
 
@@ -264,12 +295,12 @@ fn shake(out: &Path) {
 			"usizeSub",
 			// The translation's, and the caller.
 			"new_",
-			"sliceOut",
+			"out$ref_slice_u8",
+			"out$u8",
 			"run",
 			"short",
 			"slice",
 			"u8",
-			"u8Out",
 		];
 		let mut want: Vec<String> = want.map(unnumbered).to_vec();
 		want.sort_unstable();
@@ -284,50 +315,46 @@ fn shake(out: &Path) {
 /// text and order, though translation reaches it in another order.
 #[test]
 fn source_order() {
-	added_root(
-		"codec",
-		r#"roots = ["harness::run", "bench::run"]"#,
-		r#"roots = ["harness::run"]"#,
-		// First, so that translation reaches what both share in another order.
-		r#"roots = ["bench::run", "harness::run"]"#,
-	);
+	let roots = r#"roots = ["harness::run", "bench::run"]"#;
+	let base = rooted("codec", roots, "base", r#"roots = ["harness::run"]"#);
+	// First, so that translation reaches what both share in another order.
+	let added = r#"roots = ["bench::run", "harness::run"]"#;
+	kept(&base, &rooted("codec", roots, "added", added), added);
 }
 
 /// Adding a root that reaches another instance of a generic function, or another trait's
 /// impl of a method, renames nothing the old roots reach.
 #[test]
 fn stable_names() {
-	let roots = r#"roots = ["harness::run", "harness::op", "fmt::Fault"]"#;
-	added_root(
-		"lang",
-		roots,
-		roots,
-		r#"roots = ["fmt::added", "harness::run", "harness::op", "fmt::Fault"]"#,
-	);
+	let out = translated("names");
+	snapshot("names", &out);
+	typecheck(&out);
+	let added = r#"roots = ["added", "run"]"#;
+	let more = rooted("names", r#"roots = ["run"]"#, "added", added);
+	kept(&sources(&out), &more, added);
 }
 
-/// Translate fixture `name` with its config's `roots` line replaced by `base`, then by
-/// `added`, and check that every line of the first output stays, in order, in the second.
-fn added_root(name: &str, roots: &str, base: &str, added: &str) {
+/// Translate fixture `name` into `file` with its config's `roots` line replaced by `with`.
+fn rooted(name: &str, roots: &str, file: &str, with: &str) -> Vec<(PathBuf, String)> {
 	let config = std::fs::read_to_string(fixture(name).join("ts.toml")).unwrap();
 	assert!(config.contains(roots), "{name}'s roots changed: update this test");
 	let dir = scratch().join(name).join("order");
 	std::fs::create_dir_all(&dir).unwrap();
-	let run = |file: &str, with: &str| {
-		let path = dir.join(format!("{file}.toml"));
-		std::fs::write(&path, config.replace(roots, with)).unwrap();
-		let out = dir.join(file);
-		let output = driver(name, &path, &["--out".as_ref(), out.as_ref()], "order");
-		assert!(
-			output.status.success(),
-			"translating {name} with {with} failed:\n{}",
-			String::from_utf8_lossy(&output.stderr)
-		);
-		sources(&out)
-	};
-	let base = run("base", base);
-	let more = run("added", added);
-	for (rel, text) in &base {
+	let path = dir.join(format!("{file}.toml"));
+	std::fs::write(&path, config.replace(roots, with)).unwrap();
+	let out = dir.join(file);
+	let output = driver(name, &path, &["--out".as_ref(), out.as_ref()], "order");
+	assert!(
+		output.status.success(),
+		"translating {name} with {with} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	sources(&out)
+}
+
+/// Check that every line of `base` stays, in order, in `more`, its translation once `added`.
+fn kept(base: &[(PathBuf, String)], more: &[(PathBuf, String)], added: &str) {
+	for (rel, text) in base {
 		let more = more.iter().find(|(r, _)| r == rel).map(|(_, text)| text);
 		let more = more.unwrap_or_else(|| panic!("{} is gone once {added}", rel.display()));
 		let mut rest = lines(more).into_iter();
@@ -356,21 +383,147 @@ fn lines(text: &str) -> Vec<String> {
 	lines
 }
 
-#[test]
-fn lang() {
-	let out = translated("lang");
-	snapshot("lang", &out);
-	lang_differential(&out);
+/// The language, a fixture per module: each translated, compared with its snapshot,
+/// type-checked with its hand-written callers, and run against its native build.
+mod lang {
+	macro_rules! lang {
+		($($module:ident),* $(,)?) => {
+			$(
+				#[test]
+				fn $module() {
+					super::lang(stringify!($module), None);
+				}
+			)*
+		};
+	}
+
+	/// Panics as a program without a hook has them, and with one, built with the `hook`
+	/// feature, whose own snapshot has every panic carry its location; one after the other,
+	/// as both build the same wasm32 module.
+	#[test]
+	fn panics() {
+		super::lang("panics", None);
+		super::lang("panics", Some("hook"));
+	}
+
+	lang!(
+		args,
+		arrays,
+		ascii,
+		atomics,
+		borrows,
+		bounds,
+		boxes,
+		capacity,
+		captures,
+		cells,
+		chars,
+		chunks,
+		clones,
+		collections,
+		combinators,
+		constants,
+		conversions,
+		counts,
+		cows,
+		cycles,
+		defaults,
+		drops,
+		durations,
+		dyns,
+		edits,
+		elements,
+		ends,
+		errors,
+		fields,
+		floats,
+		folds,
+		futures,
+		hashes,
+		heap,
+		hints,
+		holds,
+		ints,
+		iters,
+		joins,
+		keys,
+		lengths,
+		lists,
+		locals,
+		locks,
+		manual,
+		methods,
+		nested,
+		objects,
+		operators,
+		orders,
+		pointers,
+		refs,
+		results,
+		returns,
+		rings,
+		saturates,
+		searches,
+		separated,
+		shapes,
+		shares,
+		singles,
+		slices,
+		sorts,
+		splits,
+		statics,
+		strs,
+		tuples,
+		utf8,
+		wrappers,
+		wraps,
+		zeros
+	);
 }
 
-fn lang_differential(out: &Path) {
-	// Hand-written callers, type-checked against the output they call: one runs it, and
-	// one mixes integer types, which `tsc` must refuse.
-	for file in ["caller.ts", "brands.ts"] {
-		std::fs::copy(manifest_dir().join("fixtures/lang").join(file), out.join(file)).unwrap();
+/// A `lang` fixture's tests, with `feature`, whose snapshot is in the directory it names.
+fn lang(module: &str, feature: Option<&str>) {
+	let name = format!("lang/{module}");
+	let (out, build, expected) = match feature {
+		None => (translated(&name), vec![], name.clone()),
+		Some(feature) => {
+			let out = scratch().join(&name).join(feature);
+			let args: [&std::ffi::OsStr; 5] = [
+				"--out".as_ref(),
+				out.as_ref(),
+				"--".as_ref(),
+				"--features".as_ref(),
+				feature.as_ref(),
+			];
+			let output = driver(&name, &fixture(&name).join("ts.toml"), &args, "build");
+			assert!(
+				output.status.success(),
+				"translating {name} with {feature} failed:\n{}",
+				String::from_utf8_lossy(&output.stderr)
+			);
+			(out, vec!["--features", feature], format!("{name}/{feature}"))
+		}
+	};
+	snapshot(&expected, &out);
+	// Hand-written callers, type-checked against the output they call: `lang.ts` runs the
+	// harness, and a fixture's own name the inputs it covers, accept the one difference from
+	// native it accepts, or mix integer types, which `tsc` must refuse.
+	let shared = manifest_dir().join("fixtures/lang");
+	let mut entry = "lang.ts";
+	for dir in [shared.clone(), fixture(&name)] {
+		for file in std::fs::read_dir(&dir).unwrap() {
+			let path = file.unwrap().path();
+			if path.extension().is_some_and(|e| e == "ts") {
+				std::fs::copy(&path, out.join(path.file_name().unwrap())).unwrap();
+				if path.file_name().unwrap() == "caller.ts" {
+					entry = "caller.ts";
+				}
+			}
+		}
 	}
-	typecheck(out);
-	differential("lang-fixture", &[], out, "caller.ts", 50_000);
+	typecheck(&out);
+	// As many random inputs per case as when one fixture held every module.
+	differential(&format!("lang-{module}-fixture"), &build, &out, entry, 151);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.
@@ -401,6 +554,17 @@ fn share() {
 	}
 }
 
+/// Each case's generated inputs are its own, which `stable.ts` checks: adding, removing,
+/// or reordering a case changes no other case's.
+#[test]
+fn case_inputs() {
+	let output = Command::new("node")
+		.arg(manifest_dir().join("tests").join("stable.ts"))
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// Futures and drops: the harness is hand-written TS around the translation, whose FIFO
 /// executor logs every poll, wake, and drop as the fixture's native one does.
 #[test]
@@ -423,7 +587,7 @@ import * as futures from "./futures.ts";
 import * as closures from "./closures.ts";
 import {{ harness }} from {harness:?};
 
-export {{ cases, steps }} from {harness:?};
+export {{ cases, input, ops }} from {harness:?};
 const fixture = {{ Pending: rt.Pending, u64: {{ of: rt.u64Of }}, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
 const script = harness(fixture);
 export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
@@ -431,7 +595,8 @@ export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
 	);
 	std::fs::write(out.join("caller.ts"), text).unwrap();
 	typecheck(out);
-	differential("task-fixture", &[], out, "caller.ts", 20_000);
+	// Each step as often in random scripts as its share of 20,000 that mixed every step.
+	differential("task-fixture", &[], out, "caller.ts", 800);
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.
@@ -439,6 +604,128 @@ export const run = (input: rt.ByteSlice) => script(rt.byteSliceView(input));
 fn reject() {
 	let (out, output) = translate("reject");
 	rejected(&out, &output, &fixture("reject").join("expected.txt"));
+}
+
+/// Each error `tsc` finds in translated code is reported at the Rust that made it: a
+/// stand-in `tsc` on `PATH` fails each `return` and each call's argument where `tsc`
+/// reports them, in output that translates.
+#[test]
+fn spans() {
+	let config = fixture("reject").join("spans.toml");
+	let out = scratch().join("spans").join("out");
+	// A build of its own, which `reject`'s, of the same crate, would race.
+	let output = driver("reject", &config, &["--out".as_ref(), out.as_ref()], "spans-build");
+	assert!(
+		output.status.success(),
+		"translating spans failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let mut diagnostics = String::new();
+	// The fixture's own modules, not std's it reaches.
+	for (rel, text) in sources(&out)
+		.into_iter()
+		.filter(|(rel, _)| rel.to_string_lossy().starts_with("spans"))
+	{
+		for (line, col, what) in failures(&text) {
+			diagnostics.push_str(&format!("{}({line},{col}): error {what}\n", rel.display()));
+		}
+	}
+	let bin = scratch().join("spans").join("bin");
+	std::fs::create_dir_all(&bin).unwrap();
+	std::fs::write(bin.join("diagnostics.txt"), diagnostics).unwrap();
+	let tsc = bin.join("tsc");
+	std::fs::write(
+		&tsc,
+		format!(
+			"#!/bin/sh\ncase \"$1\" in --version) echo 'Version 7.0.0' ;; *) cat {:?}; exit 2 ;; esac\n",
+			bin.join("diagnostics.txt")
+		),
+	)
+	.unwrap();
+	std::fs::set_permissions(&tsc, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+	let path =
+		std::env::join_paths(std::iter::once(bin).chain(std::env::split_paths(&std::env::var_os("PATH").unwrap())))
+			.unwrap();
+	let output = driver_command("reject", &config, &["--out".as_ref(), out.as_ref()], "spans-build")
+		.env("PATH", path)
+		.output()
+		.expect("running rust2-ts");
+	rejected(&out, &output, &fixture("reject").join("spans.txt"));
+}
+
+/// Where `tsc` would report a mistyped `return` or argument in the module `text`: each
+/// `return`'s keyword, and each argument of a call where it starts, by one-based line and
+/// column, with what is there.
+fn failures(text: &str) -> Vec<(usize, usize, String)> {
+	// Each open bracket, and whether it is a call's.
+	let mut open: Vec<bool> = Vec::new();
+	let mut found = Vec::new();
+	for (i, line) in text.lines().enumerate() {
+		if ["import", "export function", "function", "//"]
+			.iter()
+			.any(|p| line.starts_with(p))
+		{
+			continue;
+		}
+		let chars: Vec<char> = line.chars().collect();
+		// Where an argument starts, once past the spaces after its `(` or `,`.
+		let mut argument = false;
+		let mut at = 0;
+		while at < chars.len() {
+			let c = chars[at];
+			if argument && c != ' ' {
+				argument = false;
+				if c != ')' {
+					let rest: String = chars[at..].iter().collect();
+					found.push((i + 1, at + 1, format!("TS2345: an argument, {}", argument_text(&rest))));
+				}
+			}
+			let word: String = chars[..at]
+				.iter()
+				.rev()
+				.take_while(|c| c.is_alphanumeric() || **c == '_' || **c == '$')
+				.collect();
+			match c {
+				'"' => {
+					at += 1;
+					while at < chars.len() && chars[at] != '"' {
+						at += if chars[at] == '\\' { 2 } else { 1 };
+					}
+				}
+				'r' if word.is_empty() && chars[at..].starts_with(&['r', 'e', 't', 'u', 'r', 'n', ' ']) => {
+					found.push((i + 1, at + 1, "TS2322: a return".to_string()));
+				}
+				'(' => {
+					let keyword = ["if", "while", "for", "switch", "return"]
+						.contains(&word.chars().rev().collect::<String>().as_str());
+					let call = !keyword && at > 0 && (!word.is_empty() || matches!(chars[at - 1], ')' | ']'));
+					open.push(call);
+					argument = call;
+				}
+				'[' | '{' => open.push(false),
+				')' | ']' | '}' => _ = open.pop(),
+				',' if open.last() == Some(&true) => argument = true,
+				_ => {}
+			}
+			at += 1;
+		}
+	}
+	found
+}
+
+/// The argument at the start of `rest`, up to the `,` or `)` that ends it on its line.
+fn argument_text(rest: &str) -> &str {
+	let mut depth = 0;
+	for (i, c) in rest.char_indices() {
+		match c {
+			'(' | '[' | '{' => depth += 1,
+			')' | ']' | '}' if depth == 0 => return &rest[..i],
+			')' | ']' | '}' => depth -= 1,
+			',' if depth == 0 => return &rest[..i],
+			_ => {}
+		}
+	}
+	rest
 }
 
 /// Bindings stand in for what translation refuses, `bytes::Bytes` and the crate's own
@@ -488,9 +775,9 @@ fn bind() {
 
 /// A package and its dependency translate as one program, trait objects of the
 /// dependency's trait and its safe twin of its `unsafe` included, and run as native Rust
-/// does. Its `unsafe` that nothing binds is refused at its span, and so are its iterator
-/// that runs from either end, a module of the package's that would share the
-/// dependency's files, and two instances whose suffixes are alike.
+/// does. Its `unsafe` that nothing binds is refused at its span, and so are a module of
+/// the package's that would share the dependency's files, two instances whose suffixes
+/// are alike, and the package's read of the capacity of the dependency's `String` bytes.
 #[test]
 fn crates() {
 	let out = translated("crates");
@@ -499,9 +786,9 @@ fn crates() {
 	differential("crates-fixture", &[], &out, "harness.ts", 1_000);
 	let cases: [(&str, &str, &[&str]); 4] = [
 		("refused", "refused.toml", &[]),
-		("rev", "ts.toml", &["--", "--features", "rev"]),
 		("shared", "ts.toml", &["--", "--features", "shared"]),
 		("alike", "alike.toml", &["--", "--features", "alike"]),
+		("strings", "strings.toml", &[]),
 	];
 	for (case, config, cargo) in cases {
 		let out = scratch().join("crates").join(case);
@@ -512,51 +799,196 @@ fn crates() {
 	}
 }
 
-/// The errors of a failed translation, each with where it points, against `expected`.
+/// The errors of a failed translation, each with where it points, against `expected`: by
+/// item rather than line and sorted, so that a case added or removed moves no other's.
 fn rejected(out: &Path, output: &Output, expected: &Path) {
 	assert!(!output.status.success(), "translating {} succeeded", expected.display());
 	assert!(!out.join("lib.ts").exists(), "a failed translation wrote output");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	// Each error and where it points, without rustc's rendering of the source, and with a
 	// dependency's source from wherever cargo keeps it.
-	let mut got = String::new();
+	let mut errors = Vec::new();
 	let mut lines = stderr.lines().peekable();
 	while let Some(line) = lines.next() {
 		if let Some(error) = line.strip_prefix("error: rust2-ts: ") {
-			got.push_str(error);
+			let mut message = error.to_string();
 			// What goes on in the lines after, as `tsc`'s messages do.
 			while let Some(more) = lines
 				.peek()
 				.filter(|l| l.starts_with("   ") && !l.trim_start().starts_with("--> "))
 			{
-				got.push_str(&format!("\n{more}"));
+				message.push_str(&format!("\n{more}"));
 				lines.next();
 			}
-			if let Some(at) = lines.peek().and_then(|l| l.trim_start().strip_prefix("--> ")) {
-				let at = at
-					.split_once("/registry/src/")
-					.map_or(at, |(_, rest)| rest.split_once('/').map_or(rest, |(_, path)| path));
-				got.push_str(&format!(" at {at}"));
-			}
-			got.push('\n');
+			let at = lines
+				.peek()
+				.and_then(|l| l.trim_start().strip_prefix("--> "))
+				.map(|at| {
+					at.split_once("/registry/src/")
+						.map_or(at, |(_, rest)| rest.split_once('/').map_or(rest, |(_, path)| path))
+						.to_string()
+				});
+			errors.push((at, message));
 		}
 	}
+	expect(expected, &listed(errors));
+}
+
+/// Each refusal on a line, sorted, those without a span first: where it points as its
+/// item and the line and column from where that starts, so a case added elsewhere moves
+/// none of them.
+fn listed(errors: Vec<(Option<String>, String)>) -> String {
+	let mut errors: Vec<_> = errors
+		.into_iter()
+		.map(|(at, message)| (at.map(|at| keyed(&at)), closures(&message)))
+		.collect();
+	errors.sort();
+	let mut got = String::new();
+	for (at, message) in &errors {
+		match at {
+			Some((file, item, line, col)) if item.is_empty() => got.push_str(&format!("{file}:{line}:{col}: ")),
+			Some((file, item, line, col)) => got.push_str(&format!("{file}:{item}{line:+}:{col}: ")),
+			None => {}
+		}
+		got.push_str(message);
+		got.push('\n');
+	}
+	got
+}
+
+/// Compare `got` with the snapshot at `path`, or rewrite it under `UPDATE_EXPECT`.
+fn expect(path: &Path, got: &str) {
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
-		std::fs::write(expected, &got).unwrap();
+		std::fs::write(path, got).unwrap();
 		return;
 	}
-	let want = std::fs::read_to_string(expected).unwrap_or_default();
+	let want = std::fs::read_to_string(path).unwrap_or_default();
 	assert!(
 		got == want,
-		"the errors differ; rerun with UPDATE_EXPECT=1\n{}",
-		diff(&want, &got)
+		"{} differs; rerun with UPDATE_EXPECT=1\n{}",
+		path.display(),
+		diff(&want, got)
 	);
+}
+
+/// `text` with each closure's span, `{closure@file:line:col: line:col}`, keyed by item.
+fn closures(text: &str) -> String {
+	let mut out = String::new();
+	let mut rest = text;
+	while let Some((before, after)) = rest.split_once("{closure@") {
+		let (span, after) = after.split_once('}').unwrap();
+		let (start, end) = span.split_once(": ").unwrap();
+		let span = match keyed(start) {
+			(_, item, ..) if item.is_empty() => span.to_string(),
+			(file, item, line, col) => {
+				let (end_line, end_col) = end.split_once(':').unwrap();
+				let lines =
+					end_line.parse::<i64>().unwrap() - start.rsplit(':').nth(1).unwrap().parse::<i64>().unwrap();
+				format!("{file}:{item}{line:+}:{col}: {:+}:{end_col}", line + lines)
+			}
+		};
+		out.push_str(&format!("{before}{{closure@{span}}}"));
+		rest = after;
+	}
+	out.push_str(rest);
+	out
+}
+
+/// Where `at`, a `file:line:col`, points: the file, the item there, the line counted from
+/// the item's own, and the column. A file outside this crate, as a dependency's, keys by
+/// its line, with no item.
+fn keyed(at: &str) -> (String, String, i64, i64) {
+	let mut parts = at.rsplitn(3, ':');
+	let (Some(col), Some(line), Some(file)) = (parts.next(), parts.next(), parts.next()) else {
+		panic!("{at} is no file:line:col");
+	};
+	let (line, col): (i64, i64) = (line.parse().unwrap(), col.parse().unwrap());
+	let Ok(text) = std::fs::read_to_string(manifest_dir().join(file)) else {
+		return (file.to_string(), String::new(), line, col);
+	};
+	let lines: Vec<&str> = text.lines().collect();
+	// Each item's name, the line its docs and attributes start at, and its header's.
+	let items: Vec<(String, usize, usize)> = (lines.iter().enumerate())
+		.filter_map(|(i, header)| {
+			let name = item(header)?;
+			let mut first = i;
+			while first > 0 && (lines[first - 1].starts_with("///") || lines[first - 1].starts_with("#[")) {
+				first -= 1;
+			}
+			Some((name, first, i))
+		})
+		.collect();
+	// The last item that starts at or before the line.
+	let (name, _, header) = (items.iter())
+		.take_while(|(_, first, _)| (*first as i64) < line)
+		.last()
+		.unwrap_or_else(|| panic!("{at} is in no item"));
+	assert!(
+		items.iter().filter(|(n, ..)| n == name).count() == 1,
+		"{file} has two items named {name}, which errors in it can't tell apart"
+	);
+	(file.to_string(), name.clone(), line - *header as i64 - 1, col)
+}
+
+/// The name of the item a line at the top level of a file starts, if it starts one: a
+/// function's, a type's, a trait's, or a static's name, an impl's header, or a macro's
+/// name and `!`.
+fn item(line: &str) -> Option<String> {
+	if !line.starts_with(|c: char| c.is_ascii_lowercase()) {
+		return None;
+	}
+	let ident = |s: &str| {
+		s.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+			.next()
+			.unwrap()
+			.to_string()
+	};
+	if let Some(header) = line.strip_prefix("impl") {
+		return Some(format!("impl{}", header.trim_end_matches('{').trim_end()));
+	}
+	if let Some(name) = line.strip_prefix("macro_rules! ") {
+		return Some(format!("{}!", ident(name)));
+	}
+	if let Some((name, _)) = line.split_once("! ").filter(|(name, _)| !name.contains(' ')) {
+		return Some(format!("{name}!"));
+	}
+	let mut words = line
+		.split_whitespace()
+		.skip_while(|w| ["pub", "pub(crate)", "async", "unsafe"].contains(w));
+	let kind = words.next()?;
+	if ![
+		"fn", "struct", "enum", "union", "trait", "static", "const", "type", "mod",
+	]
+	.contains(&kind)
+	{
+		return None;
+	}
+	let name = words.find(|w| *w != "mut")?;
+	Some(ident(name))
 }
 
 /// A census of a config without roots ranks every refusal in the crate, reached from each
 /// of its items, and succeeds where translation fails.
 #[test]
 fn census() {
+	let census = scratch().join("census").join("census.md");
+	let config = fixture("census").join("ts.toml");
+	let output = driver("census", &config, &["--census".as_ref(), census.as_ref()], "census");
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	expect(
+		&fixture("census").join("census.md"),
+		&std::fs::read_to_string(&census).unwrap(),
+	);
+}
+
+/// A census of `reject` from each of its items, a generic one lowered over its type
+/// parameters, which no root reaches: each span it lists, keyed as `reject`'s errors are.
+#[test]
+fn reject_census() {
 	let census = scratch().join("reject").join("census.md");
 	let config = fixture("reject").join("census.toml");
 	let output = driver("reject", &config, &["--census".as_ref(), census.as_ref()], "census");
@@ -565,18 +997,17 @@ fn census() {
 		"the census of reject failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	let got = std::fs::read_to_string(&census).unwrap();
-	let path = fixture("reject").join("census.md");
-	if std::env::var_os("UPDATE_EXPECT").is_some() {
-		std::fs::write(&path, &got).unwrap();
-		return;
-	}
-	let want = std::fs::read_to_string(&path).unwrap_or_default();
-	assert!(
-		got == want,
-		"the census differs; rerun with UPDATE_EXPECT=1\n{}",
-		diff(&want, &got)
-	);
+	let census = std::fs::read_to_string(&census).unwrap();
+	let spans = census.split_once("\n## Spans\n").expect("a census lists its spans").1;
+	let errors = spans
+		.lines()
+		.filter_map(|line| line.strip_prefix("- "))
+		.map(|line| {
+			let (at, message) = line.split_once(": ").unwrap();
+			(Some(at.to_string()), message.to_string())
+		})
+		.collect();
+	expect(&fixture("reject").join("census.txt"), &listed(errors));
 }
 
 /// One target directory keeps what it checked against each sysroot apart: a crate
@@ -596,7 +1027,7 @@ fn sysroot() {
 	let checked = |sysroot: &str| {
 		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ts"))
 			.arg("--config")
-			.arg(fixture("reject").join("census.toml"))
+			.arg(fixture("census").join("ts.toml"))
 			.arg("--census")
 			.arg(dir.join("census.md"))
 			.env("CARGO_TARGET_DIR", dir.join("build"))
@@ -623,14 +1054,14 @@ fn sysroot() {
 	);
 	assert_eq!(
 		checked(&std),
-		["reject-fixture"],
+		["census-fixture"],
 		"switching back to {std} checked its crates again"
 	);
 }
 
 /// Selects the fixture's own getrandom backend, which `rand::rng()` seeds from natively:
 /// wasm32 has no OS to read. Only getrandom's flags change, so nothing else rebuilds.
-const GETRANDOM: &str = r#"profile.dev.package.getrandom.rustflags=["--cfg", 'getrandom_backend="custom"']"#;
+const GETRANDOM: &str = r#"profile.differential.package.getrandom.rustflags=["--cfg", 'getrandom_backend="custom"']"#;
 
 /// `bytes`, `rand`, and `tracing`, which translation maps without a binding or config:
 /// it picks getrandom's backend itself, as a browser's binary would.
@@ -645,8 +1076,9 @@ fn stock() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	snapshot("stock", &out);
-	// A hand-written caller, which names inputs the generated ones never reach.
+	// A hand-written caller, which names the cases and inputs the generated ones never reach.
 	std::fs::copy(fixture("stock").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
-	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 5_000);
+	// As many random inputs per case as each had of 5,000 picked by their first byte.
+	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 320);
 }

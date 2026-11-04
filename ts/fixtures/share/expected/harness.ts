@@ -19,17 +19,17 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	rt.byteVecPush(out, bytes[1]);
 	rt.byteVecPush(out, copy[0]);
 	rt.byteVecPush(out, copy[1]);
-	const pairs: Uint8Array[] = rt.iterToArray(rt.iterMap(rt.byteSliceWindows(input, 2), (w: rt.ByteSlice): Uint8Array => {
+	const pairs: rt.Vec<Uint8Array> = rt.iterToVec(rt.iterMap(rt.byteSliceWindows(input, 2), (w: rt.ByteSlice): Uint8Array => {
 		rt.idx(w, 0);
 		const _3: rt.u8 = w.data[w.start];
 		rt.idx(w, 1);
 		return Uint8Array.of(_3, w.data[w.start + 1]);
 	}), undefined, 2, true);
-	const deque: rt.VecDeque<Uint8Array> = rt.dequeNew() as rt.VecDeque<Uint8Array>;
-	rt.dequeExtend(deque, rt.iterMap(rt.iterLend(rt.iterSlice(pairs), rt.byteSliceFrom), rt.byteSliceToArray), undefined, 2, true);
+	const deque: rt.VecDeque<Uint8Array> = rt.dequeNew(2) as rt.VecDeque<Uint8Array>;
+	rt.dequeExtend(deque, rt.iterMap(rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom), rt.byteSliceToArray), undefined, true);
 	const _47: rt.Iter<rt.u8> = rt.iterFlatMap(rt.iterLend(rt.dequeIter(deque), rt.byteSliceFrom), (p: rt.ByteSlice): Uint8Array => {
 		return Uint8Array.of(p.data[p.start], p.data[p.start + 1]);
-	}, (value: Uint8Array) => rt.iterSlice(value), false, 2);
+	}, (value: Uint8Array) => rt.iterSlice(value), true, 2);
 	rt.iterExtendBytes(out, _47, undefined, true);
 	return out;
 }

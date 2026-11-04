@@ -2,13 +2,19 @@
 
 import * as rt from "./rt.ts";
 import type * as Any from "./core/any.Any.ts";
-import type * as Held from "./drops.Held.ts";
+import { take$drops_objects_Part_u32 as objects_take$drops_objects_Part_u32, id$drops_objects_Part_u32 } from "./drops/objects.ts";
+import type * as Ranked from "./drops/orders.Ranked.ts";
+import * as Held from "./drops.Held.ts";
 import type * as Key from "./drops.Key.ts";
 import type * as Pair from "./drops.Pair.ts";
 import type * as Text from "./drops.Text.ts";
 import * as Wrap from "./drops.Wrap.ts";
-import type * as Guard from "./model.Guard.ts";
+import * as Guard from "./model.Guard.ts";
 import type * as Tally from "./model.Tally.ts";
+
+export function copy$array_u32(v: rt.u32[]): rt.u32[] {
+	return v.slice();
+}
 
 export function copy$model_Tally(v: Tally.Tally): Tally.Tally {
 	return { n: v.n };
@@ -62,9 +68,9 @@ export function drop$Option_tuple2_tuple2_model_Guard_model_Guard_model_Guard(_1
 	}
 }
 
-export function drop$Result_Vec_model_Guard_model_Guard(_1: rt.Result<Guard.Guard[], Guard.Guard>): void {
+export function drop$Result_Vec_model_Guard_model_Guard(_1: rt.Result<rt.Vec<Guard.Guard>, Guard.Guard>): void {
 	if (_1.ok) {
-		rt.dropAll(_1.value);
+		rt.dropVec(_1.value);
 	} else {
 		_1.error[Symbol.dispose]();
 	}
@@ -75,6 +81,12 @@ export function drop$Result_boxed_Box_model_Guard_boxed_Box_dyn_Any(_1: rt.Resul
 		_1.value[Symbol.dispose]();
 	} else {
 		rt.drop(_1.error);
+	}
+}
+
+export function drop$Result_cell_Ref_u32_cell_BorrowError(_1: rt.Result<rt.RefCell<rt.u32>, rt.BorrowError>): void {
+	if (_1.ok) {
+		rt.refRelease(_1.value);
 	}
 }
 
@@ -124,8 +136,8 @@ export function drop$Result_unit_model_Guard(_1: rt.Result<undefined, Guard.Guar
 	}
 }
 
-export function drop$Vec_model_Guard(value: Guard.Guard[]): void {
-	rt.dropAll(value);
+export function drop$Vec_model_Guard(value: rt.Vec<Guard.Guard>): void {
+	rt.dropVec(value);
 }
 
 export function drop$drops_Held(_1: Held.Held): void {
@@ -148,10 +160,10 @@ export function drop$drops_Text(_1: Text.Text): void {
 	}
 }
 
-export function drop$drops_Wrap_Vec_drops_Wrap_drops_Held(_1: Wrap.Wrap<Wrap.Wrap<Held.Held>[]>): void {
+export function drop$drops_Wrap_Vec_drops_Wrap_drops_Held(_1: Wrap.Wrap<rt.Vec<Wrap.Wrap<Held.Held>>>): void {
 	Wrap.drop$ops_Drop_Vec_drops_Wrap_drops_Held(_1);
 	_1.log[Symbol.dispose]();
-	rt.dropAll(_1.inner, drop$drops_Wrap_drops_Held);
+	rt.dropVec(_1.inner, drop$drops_Wrap_drops_Held);
 }
 
 export function drop$drops_Wrap_drops_Held(_1: Wrap.Wrap<Held.Held>): void {
@@ -219,6 +231,11 @@ export function drop$tuple2_drops_Key_model_Guard(_1: [Key.Key, Guard.Guard]): v
 	_1[1][Symbol.dispose]();
 }
 
+export function drop$tuple2_drops_orders_Ranked_model_Guard(_1: [Ranked.Ranked, Guard.Guard]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+}
+
 export function drop$tuple2_i32_model_Guard(_1: [rt.i32, Guard.Guard]): void {
 	_1[1][Symbol.dispose]();
 }
@@ -245,9 +262,30 @@ export function drop$tuple2_sync_Arc_str_sync_Arc_str(_1: [rt.Arc<string>, rt.Ar
 	_1[1][Symbol.dispose]();
 }
 
+export function drop$tuple2_tuple2_model_Guard_model_Guard_i32(_1: [[Guard.Guard, Guard.Guard], rt.i32]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[0]);
+}
+
 export function drop$tuple2_tuple2_model_Guard_model_Guard_model_Guard(_1: [[Guard.Guard, Guard.Guard], Guard.Guard]): void {
 	drop$tuple2_model_Guard_model_Guard(_1[0]);
 	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_tuple2_model_Guard_model_Guard_u32(_1: [[Guard.Guard, Guard.Guard], rt.u32]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[0]);
+}
+
+export function drop$tuple2_tuple2_tuple2_model_Guard_model_Guard_i32_i32(_1: [[[Guard.Guard, Guard.Guard], rt.i32], rt.i32]): void {
+	drop$tuple2_tuple2_model_Guard_model_Guard_i32(_1[0]);
+}
+
+export function drop$tuple2_tuple2_usize_model_Guard_model_Guard(_1: [[rt.usize, Guard.Guard], Guard.Guard]): void {
+	drop$tuple2_usize_model_Guard(_1[0]);
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32(_1: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32]): void {
+	drop$tuple2_usize_tuple2_model_Guard_model_Guard(_1[0]);
 }
 
 export function drop$tuple2_u32_model_Guard(_1: [rt.u32, Guard.Guard]): void {
@@ -258,11 +296,117 @@ export function drop$tuple2_usize_model_Guard(_1: [rt.usize, Guard.Guard]): void
 	_1[1][Symbol.dispose]();
 }
 
+export function drop$tuple2_usize_tuple2_model_Guard_model_Guard(_1: [rt.usize, [Guard.Guard, Guard.Guard]]): void {
+	drop$tuple2_model_Guard_model_Guard(_1[1]);
+}
+
 export function drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker(_1: [rt.Waker, rt.Waker, rt.Waker, rt.Waker]): void {
 	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 	_1[2][Symbol.dispose]();
 	_1[3][Symbol.dispose]();
 }
+
+export class of$drops_Held {
+	v: Held.Held;
+
+	constructor(v: Held.Held) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$drops_Held(this.v);
+	}
+
+	id$Part(): rt.u32 {
+		return Held.id$drops_objects_Part(this.v);
+	}
+
+	take$Part(): rt.u32 {
+		return Held.take$drops_objects_Part(this.v);
+	}
+}
+
+export class of$drops_Wrap_u32 {
+	v: Wrap.Wrap<rt.u32>;
+
+	constructor(v: Wrap.Wrap<rt.u32>) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$drops_Wrap_u32(this.v);
+	}
+
+	id$Part(): rt.u32 {
+		return Wrap.id$drops_objects_Part_u32(this.v);
+	}
+
+	take$Part(): rt.u32 {
+		return Wrap.take$drops_objects_Part_u32(this.v);
+	}
+}
+
+export class of$model_Guard {
+	v: Guard.Guard;
+
+	constructor(v: Guard.Guard) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	id$Part(): rt.u32 {
+		return Guard.id$drops_objects_Part(this.v);
+	}
+
+	take$Part(): rt.u32 {
+		return Guard.take$drops_objects_Part(this.v);
+	}
+}
+
+export class of$tuple2_model_Guard_model_Guard {
+	v: [Guard.Guard, Guard.Guard];
+
+	constructor(v: [Guard.Guard, Guard.Guard]) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$tuple2_model_Guard_model_Guard(this.v);
+	}
+}
+
+export class of$u32 {
+	v: rt.u32;
+
+	constructor(v: rt.u32) {
+		this.v = v;
+	}
+
+	id$Part(): rt.u32 {
+		return id$drops_objects_Part_u32(this.v);
+	}
+
+	take$Part(): rt.u32 {
+		return objects_take$drops_objects_Part_u32(this.v);
+	}
+}
+
+export class ofPlace$drops_Held {
+	v: rt.Place<Held.Held>;
+
+	constructor(v: rt.Place<Held.Held>) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		drop$drops_Held(this.v.v);
+	}
+}
+
+export const out$u32: { err: unknown } = { err: undefined };
 
 //# sourceMappingURL=lib.ts.map

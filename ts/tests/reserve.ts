@@ -1,6 +1,6 @@
-// A `BytesMut` whose storage was shared throws a rust2-ts error on a reserve past 512 MiB,
-// counting what it read past, which native Rust can't show: there `bytes` panics with
-// "overflow" or "capacity overflow", or grows, by whether other handles of it dropped.
+// `try_reserve` of a byte vector or deque gives std's `AllocError`, of the layout it asked
+// for, where JS can't make the bytes, and leaves the collection as it was. No allocation
+// fails on demand natively, so `Uint8Array` throws here as JS does past what it can make.
 //
 // usage: node reserve.ts
 
@@ -8,36 +8,51 @@ import { strict as assert } from "node:assert";
 
 import * as rt from "../runtime/rt.ts";
 
-const LIMIT = 2 ** 29;
-const unsure = (f: () => void) => assert.throws(f, (e: Error) => !(e instanceof rt.Panic) && e.message.startsWith("rust2-ts: "));
-const from = (s: string) => rt.bytesMutFrom(rt.stringAsBytes(s));
+/** The length past which a `Uint8Array` throws, as V8's does out of memory. */
+const LIMIT = 1 << 20;
 
-// One past the limit, counting the two bytes read past.
-const edge = from("edges");
-rt.bytesMutAdvance(edge, 2);
-const head = rt.bytesMutSplitTo(edge, 0);
-unsure(() => rt.bytesMutReserve(edge, LIMIT + 1 - 2 - 3));
-// Its sibling, from the same place, reaches it exactly.
-rt.bytesMutReserve(head, LIMIT - 2);
+const Native = Uint8Array;
+globalThis.Uint8Array = class extends Native {
+	constructor(...args: unknown[]) {
+		if (typeof args[0] === "number" && args[0] >= LIMIT) throw new RangeError("Array buffer allocation failed");
+		super(...(args as []));
+	}
+} as Uint8ArrayConstructor;
 
-// Uniquely held after the split, `bytes` panics with "overflow", and held, "capacity overflow".
-const unique = from("ab");
-rt.bytesMutSplitTo(unique, 1);
-unsure(() => rt.bytesMutReserve(unique, 0xffffffff - 1));
+const debug = (e: rt.TryReserveError, spec: rt.Spec = {}) => rt.fmtToString(rt.fmtSpec(spec, (f) => rt.fmtTryReserveErrorDebug(e, f)));
+const display = (e: rt.TryReserveError) => rt.fmtToString((f) => rt.fmtTryReserveErrorDisplay(e, f));
+const failed = (r: rt.Result<undefined, rt.TryReserveError>, size: number): rt.TryReserveError => {
+	assert.ok(!r.ok);
+	assert.deepEqual(r.error.layout, { size, align: 1 });
+	return r.error;
+};
 
-// Grown, split again, and grown within what it holds here, `bytes` may have moved it into a vector.
-const grown = from("x");
-rt.bytesMutSplitTo(grown, 0);
-rt.bytesMutReserve(grown, 1);
-rt.bytesMutSplitTo(grown, 0);
-rt.bytesMutReserve(grown, 2);
-unsure(() => rt.bytesMutReserve(grown, 0xffffffff));
+// Grown as `reserve` grows it, to double or to what it needs; exactly to what it needs.
+const v = rt.byteVecWithCapacity(LIMIT / 2);
+rt.byteVecPush(v, 7);
+const data = v.data;
+const grown = failed(rt.byteVecTryReserve(v, LIMIT / 2 + 1), LIMIT);
+failed(rt.byteVecTryReserveExact(v, LIMIT), LIMIT + 1);
+assert.equal(v.data, data);
+assert.deepEqual([...rt.byteVecView(v)], [7]);
+assert.deepEqual(rt.byteVecTryReserve(v, LIMIT / 2 - 1), rt.OK);
 
-// Taken from a `Bytes`, the same.
-unsure(() => rt.bytesMutReserve(rt.bytesMutFromBytes(rt.stringAsBytes("x")), LIMIT));
+assert.equal(debug(grown), "TryReserveError { kind: AllocError { layout: Layout { size: 1048576, align: 1 (1 << 0) }, non_exhaustive: () } }");
+assert.equal(debug(grown, { debugHex: "x" }), "TryReserveError { kind: AllocError { layout: Layout { size: 100000, align: 1 (1 << 0) }, non_exhaustive: () } }");
+assert.equal(display(grown), "memory allocation failed because the memory allocator returned an error");
+const overflow = rt.byteVecTryReserve(v, 0x7fffffff);
+assert.ok(!overflow.ok);
+assert.ok(rt.tryReserveErrorEq(grown, new rt.TryReserveError({ size: LIMIT, align: 1 })));
+assert.ok(!rt.tryReserveErrorEq(grown, overflow.error));
+assert.ok(!rt.tryReserveErrorEq(grown, new rt.TryReserveError({ size: LIMIT + 1, align: 1 })));
 
-// A vector of its own panics as `Vec` does past `isize::MAX`.
-assert.throws(
-	() => rt.bytesMutReserve(from("x"), 0xffffffff),
-	(e: Error) => e instanceof rt.Panic && e.message === "capacity overflow",
-);
+// A deque of bytes, wrapped around its end, keeps its items in place.
+const q = rt.dequeWithCapacity<number>(4, 1, true);
+for (const b of [1, 2, 3, 4]) rt.dequePushBack(q, b);
+rt.dequePopFront(q);
+rt.dequePushBack(q, 5);
+const slots = q.b;
+failed(rt.dequeTryReserve(q, LIMIT), LIMIT + 4);
+failed(rt.dequeTryReserveExact(q, LIMIT - 4), LIMIT);
+assert.equal(q.b, slots);
+assert.deepEqual(rt.iterToVec(rt.dequeIter(q)).items, [2, 3, 4, 5]);

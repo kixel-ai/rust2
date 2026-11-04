@@ -30,6 +30,7 @@ pub fn module(program: &Program, module: &ModPath, items: &[&Item], path: &Path)
 		col: 0,
 		indent: 0,
 		tokens: Vec::new(),
+		current: None,
 		uses_rt: false,
 		renames: HashMap::new(),
 		aliases: Vec::new(),
@@ -168,6 +169,7 @@ impl Texts {
 			col: 0,
 			indent: 0,
 			tokens: Vec::new(),
+			current: None,
 			uses_rt: false,
 			renames: HashMap::new(),
 			aliases: Vec::new(),
@@ -443,6 +445,9 @@ struct Printer<'p> {
 	col: u32,
 	indent: usize,
 	tokens: Vec<(u32, u32, Loc)>,
+	/// The Rust the node being printed maps to, which the text after a node inside it
+	/// maps back to.
+	current: Option<Loc>,
 	uses_rt: bool,
 	/// Locals of the function being printed renamed away from the module's bindings.
 	renames: HashMap<String, String>,
@@ -476,9 +481,27 @@ impl Printer<'_> {
 		}
 	}
 
+	/// Map what is printed next to `loc`, in place of a mapping already here.
 	fn mark(&mut self, loc: Option<Loc>) {
-		if let Some(loc) = loc {
-			self.tokens.push((self.line, self.col, loc));
+		let Some(loc) = loc else {
+			return;
+		};
+		match self.tokens.last_mut() {
+			Some(last) if (last.0, last.1) == (self.line, self.col) => last.2 = loc,
+			_ => self.tokens.push((self.line, self.col, loc)),
+		}
+	}
+
+	/// Print with `loc` as the node being printed, and if `back`, map what follows back to
+	/// the one enclosing it, as the rest of an expression holding a call is.
+	fn within(&mut self, loc: Option<Loc>, back: bool, print: impl FnOnce(&mut Self)) {
+		self.mark(loc);
+		let outer = self.current;
+		self.current = loc.or(outer);
+		print(self);
+		self.current = outer;
+		if back && loc.is_some() {
+			self.mark(outer);
 		}
 	}
 
@@ -655,7 +678,10 @@ impl Printer<'_> {
 		self.renames = self.renames_for(f);
 		self.doc(&f.doc);
 		self.start();
-		self.mark(f.loc);
+		self.within(f.loc, false, |p| p.function_text(f, module));
+	}
+
+	fn function_text(&mut self, f: &Function, module: bool) {
 		let name = self.program.syms[f.sym].name.clone();
 		match (module, &self.program.syms[f.sym].alias) {
 			(true, Some(alias)) => {
@@ -737,8 +763,11 @@ impl Printer<'_> {
 
 	fn stmt(&mut self, stmt: &Stmt) {
 		self.start();
-		self.mark(stmt.loc);
-		match &stmt.kind {
+		self.within(stmt.loc, false, |p| p.stmt_kind(&stmt.kind));
+	}
+
+	fn stmt_kind(&mut self, kind: &StmtKind) {
+		match kind {
 			StmtKind::Expr(e) => {
 				// A statement can't start with `{`, which would open a block.
 				let prec = match starts_with_object(e) {
@@ -960,7 +989,11 @@ impl Printer<'_> {
 			Expr::Unary(op, arg) => {
 				self.write(op);
 				// `- -x` and `!(-x)` read better spaced or grouped.
-				let nested = matches!(&**arg, Expr::Unary(..)) || matches!(&**arg, Expr::Lit(t) if t.starts_with('-'));
+				let nested = match arg.unlocated() {
+					Expr::Unary(..) => true,
+					Expr::Lit(t) => t.starts_with('-'),
+					_ => false,
+				};
 				match nested {
 					true => {
 						self.write("(");
@@ -977,15 +1010,14 @@ impl Printer<'_> {
 			Expr::Binary(l, op, r) => {
 				let p = binary_prec(op);
 				// The type after `as` would read on into `&`, `|`, or `<` as its own.
-				let left = match &**l {
+				let left = match l.unlocated() {
 					Expr::As(..) => 21,
-					Expr::Located(_, e) if matches!(&**e, Expr::As(..)) => 21,
 					_ => p,
 				};
 				self.operand(l, op, left);
 				self.write(&format!(" {op} "));
 				// `&&` and `||` are associative, so a chain reads without groups.
-				let right = match is_logical(op) && matches!(&**r, Expr::Binary(_, inner, _) if inner == op) {
+				let right = match is_logical(op) && matches!(r.unlocated(), Expr::Binary(_, inner, _) if inner == op) {
 					true => p,
 					false => p + 1,
 				};
@@ -1035,10 +1067,8 @@ impl Printer<'_> {
 				let tys: Vec<String> = tys.iter().map(|ty| self.ty(ty)).collect();
 				self.write(&format!("<{}>", tys.join(", ")));
 			}
-			Expr::Located(loc, inner) => {
-				self.mark(Some(*loc));
-				self.expr(inner, min.max(prec));
-			}
+			// Grouped above, if it binds looser than `min`.
+			Expr::Located(loc, inner) => self.within(Some(*loc), true, |p| p.expr(inner, min.min(prec))),
 		}
 		if parens {
 			self.write(")");
@@ -1061,11 +1091,7 @@ impl Printer<'_> {
 	/// An operand of `op`: grouped where JS precedence holds but a reader would have to
 	/// look it up, such as bitwise operators mixed with each other.
 	fn operand(&mut self, e: &Expr, op: &str, min: u8) {
-		let inner = match e {
-			Expr::Located(_, e) => &**e,
-			e => e,
-		};
-		let confusing = match inner {
+		let confusing = match e.unlocated() {
 			Expr::Binary(_, inner, _) => {
 				inner != &op && (is_bitwise(op) || is_bitwise(inner) || (is_logical(op) && is_logical(inner)))
 			}

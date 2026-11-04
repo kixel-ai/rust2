@@ -5,11 +5,12 @@
 //! writes them, op 7 decodes frame headers as they arrive a few bytes at a time, op 8
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
-//! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, and op 14 keeps
-//! a `HashMap`.
+//! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, and op 16 formats log lines.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
+use std::fmt::Write;
 
 use crate::coding::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, Form, varint};
 use crate::harness::{decode_error, encode_error, form, lite_version, put_u64, put_usize, take_u64};
@@ -40,6 +41,8 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		12 => order(selector, data, &mut out),
 		13 => push(selector, data, &mut out),
 		14 => hashed(selector, data, &mut out),
+		15 => packets(selector, data, &mut out),
+		16 => format(data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -279,7 +282,8 @@ fn order(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// `count` integers pushed onto a `Vec`, or a `VecDeque` if `selector` is 1: its length
-/// and middle item.
+/// and middle item. With `selector` 2, a `Vec` as a stack, popped after every fourth push
+/// and then emptied: its length and the sum of what it popped.
 fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	let (count, _) = take_u64(data);
 	let count = count.min(1 << 16) as u32;
@@ -291,6 +295,20 @@ fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			(q.len(), q.get(q.len() / 2).copied())
 		}
+		2 => {
+			let mut v = Vec::new();
+			let mut sum = 0u32;
+			for i in 0..count {
+				v.push(i);
+				if i % 4 == 3 {
+					sum = sum.wrapping_add(v.pop().unwrap_or(0));
+				}
+			}
+			while let Some(x) = v.pop() {
+				sum = sum.wrapping_add(x);
+			}
+			(v.len(), Some(sum))
+		}
 		_ => {
 			let mut v = Vec::new();
 			for i in 0..count {
@@ -301,6 +319,60 @@ fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	};
 	put_usize(out, len);
 	put_u64(out, middle.map_or(0, u64::from));
+}
+
+/// `count` lines written into one `String` with padded, `Debug`, and fixed-precision
+/// placeholders: its length and the sum of its bytes.
+fn format(data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let count = count.min(1 << 16) as i64;
+	let mut s = String::new();
+	for i in 0..count {
+		let point = Point { x: i, y: -i };
+		let _ = writeln!(s, "{i:>6}|{point:?}|{:.2}|{}", i as f64 / 3.0, -i);
+	}
+	put_usize(out, s.len());
+	put_u64(out, s.bytes().map(u64::from).sum());
+}
+
+/// A pair `format` writes with its derived `Debug`.
+#[derive(Debug)]
+struct Point {
+	x: i64,
+	y: i64,
+}
+
+/// `count` TS packets of 188 bytes, each written by element through `as_chunks_mut`, then
+/// numbered by continuity counter as moq-mux's `container/ts/export.rs` numbers them; with
+/// `selector` 1, each packet is read by value first, a copy of its bytes. The sum of the
+/// counters and of each copy's last byte.
+fn packets(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let count = count.min(1 << 12) as usize;
+	let mut packets = vec![0u8; count * 188];
+	for (i, packet) in packets.as_chunks_mut::<188>().0.iter_mut().enumerate() {
+		packet[0] = 0x47;
+		packet[2] = (i % 3) as u8;
+		packet[3] = if i % 5 == 0 { 0x20 } else { 0x10 };
+		packet[187] = i as u8;
+	}
+	let mut counters = [0u8; 3];
+	let mut sum = 0u64;
+	for packet in packets.as_chunks_mut::<188>().0 {
+		if selector == 1 {
+			let copy = *packet;
+			sum += u64::from(copy[187]);
+		}
+		let pid = usize::from(packet[1] & 0x1f) << 8 | usize::from(packet[2]);
+		let next = &mut counters[pid % 3];
+		let cc = match packet[3] & 0x10 != 0 {
+			true => std::mem::replace(next, (*next + 1) & 0x0f),
+			false => next.wrapping_sub(1) & 0x0f,
+		};
+		packet[3] = (packet[3] & 0xf0) | cc;
+		sum += u64::from(cc);
+	}
+	put_u64(out, sum);
 }
 
 /// One iterator chain over every byte, picked by `chain`, with closures that cost little
@@ -327,6 +399,15 @@ fn iterate(chain: u8, data: &[u8], out: &mut Vec<u8>) {
 				.zip(data)
 				.rev()
 				.filter(|&(i, &b)| (i as u8) < b)
+				.count(),
+		),
+		// By index from the front, each side mapped, which may have side effects.
+		8 => put_usize(
+			out,
+			data.iter()
+				.map(|&b| b >> 1)
+				.zip(data.iter().map(|&b| b ^ 3))
+				.filter(|(a, b)| a < b)
 				.count(),
 		),
 		_ => {

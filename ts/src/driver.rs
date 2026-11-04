@@ -11,8 +11,14 @@ use rustc_middle::ty::TyCtxt;
 use crate::config::{self, Config};
 use crate::{check, cli, lower, program};
 
+/// The wrapped rustc's path, which names the commit its std's prebuilt files remap to.
+pub static RUSTC: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
+	if let Some(rustc) = args.get(1) {
+		let _ = RUSTC.set(rustc.clone());
+	}
 	rust2_driver::rustc::run("rust2-ts", args, |args| {
 		let sysroot = cli::sysroot()?;
 		// Cargo's query of the compiler, whose answer it hashes into every unit's fingerprint

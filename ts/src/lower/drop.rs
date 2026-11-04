@@ -31,11 +31,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let drops = match ty.kind() {
 			ty::Adt(adt, _) if let Some(drops) = self.bound_drops(adt.did()) => drops,
 			ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
-				// A guard unlocks its mutex or ends its borrow, a `Weak` uncounts itself, and a
-				// `PeekMut` sifts what it lent.
-				Some(Std::Arc | Std::Weak | Std::Waker | Std::MutexGuard | Std::Ref | Std::RefMut | Std::PeekMut) => {
-					true
-				}
+				// A guard unlocks its mutex or ends its borrow, a `Weak` uncounts itself, a
+				// `PeekMut` sifts what it lent, and a `Bytes` or a `BytesMut` uncounts its
+				// storage, which `bytes` reclaims once the last handle of it dropped.
+				Some(
+					Std::Arc
+					| Std::Weak
+					| Std::Waker
+					| Std::MutexGuard
+					| Std::Ref
+					| Std::RefMut
+					| Std::PeekMut
+					| Std::Bytes
+					| Std::BytesMut,
+				) => true,
 				Some(
 					Std::Option
 					| Std::Result
@@ -53,6 +62,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Poll
 					| Std::Pin
 					| Std::PollFn
+					| Std::Ready
 					| Std::HashMap
 					| Std::HashSet
 					| Std::HashTable
@@ -64,6 +74,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Bound
 					| Std::TryLockError
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating
 					| Std::Range
@@ -76,11 +87,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Entry) => args.types().next().is_some_and(|k| self.drops(k)),
 				// The items of the `Vec` it owns.
 				Some(Std::Cow) => library::cow_slice(tcx, ty).is_some_and(|elem| self.drops(elem)),
-				// A `Vec`'s drain moves the vector's tail back as it drops, and a `String`'s takes
-				// the drained text out of it.
+				// A `Vec`'s drain, splice, and `extract_if` move the vector's tail back as they
+				// drop, a deque's drain joins the items before and after the range, and a
+				// `String`'s takes the drained text out of it.
 				None if {
 					let path = library::std_path(tcx, adt.did());
-					path == ["vec", "drain", "Drain"] || path == ["string", "Drain"]
+					path == ["vec", "drain", "Drain"]
+						|| path == ["vec", "splice", "Splice"]
+						|| path == ["vec", "extract_if", "ExtractIf"]
+						|| path == ["collections", "vec_deque", "drain", "Drain"]
+						|| path == ["string", "Drain"]
 				} =>
 				{
 					true
@@ -88,6 +104,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => match adt.has_dtor(tcx) {
 					// What owns its items, an `IntoIter` or a `Drain`, drops those it still holds.
 					true => args.types().any(|t| self.drops(t)),
+					// A `str` search's holds its pattern inside std's searcher, and a `RepeatN` its
+					// element inside a struct of its own, which no `rt.Iter` stands for.
+					false
+						if super::iter::holds_closure(tcx, adt.did())
+							|| library::std_path(tcx, adt.did()) == ["iter", "sources", "repeat_n", "RepeatN"] =>
+					{
+						args.types().any(|t| self.drops(t))
+					}
 					false => self.fields_drop(*adt, args, true),
 				},
 				Some(_) => false,
@@ -145,8 +169,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether whatever holds a `ty` can drop it without knowing its type, through the
 	/// `[Symbol.dispose]` its JS value has, as an `Arc` and a generic class's glue do. A
-	/// class whose glue that needs is given it.
-	fn disposable(&mut self, ty: Ty<'tcx>, span: Span) -> bool {
+	/// class whose glue that needs is given it there, at `glue`; `None` only asks.
+	fn disposable(&mut self, ty: Ty<'tcx>, glue: Option<Span>) -> bool {
 		if !self.drops(ty) {
 			return self.inert(ty);
 		}
@@ -154,8 +178,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			// Its binding's `[Symbol.dispose]`.
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				// Each drops by what it was given, or a `Weak` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Weak) => true,
+				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
+				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -168,19 +192,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Box
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
-				) => self.disposable(args.type_at(0), span),
+				) => self.disposable(args.type_at(0), glue),
 				// An `rt.Iter` drops what it was given to.
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
-				// A generic `Drop` impl has an instance per type, which one class's glue can't call.
-				None if adt.is_struct() && !self.generic_dtor(*adt) => {
-					if !args.types().all(|t| self.disposable(t, span)) {
+				None if self.shared_glue(*adt) => {
+					if !args.types().all(|t| self.disposable(t, glue)) {
 						return false;
 					}
-					let info = self.adt(*adt, span);
-					self.glue(*adt, &info, span);
+					if let Some(span) = glue {
+						let info = self.adt(*adt, span);
+						self.glue(*adt, &info, span);
+					}
 					true
 				}
 				None => false,
@@ -202,19 +228,27 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		match Std::of(self.tcx, adt.did()) {
 			_ if self.bound_drops(adt.did()).is_some() => true,
-			Some(Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError) => {
-				self.always_disposes(args.type_at(0))
-			}
+			Some(
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError,
+			) => self.always_disposes(args.type_at(0)),
 			Some(
 				Std::Waker
 				| Std::PollFn
+				| Std::Ready
 				| Std::Weak
 				| Std::Arc
 				| Std::Mutex
 				| Std::RefCell
 				| Std::Cell
 				| Std::OnceCell
-				| Std::OnceLock,
+				| Std::OnceLock
+				| Std::BytesMut,
 			) => true,
 			Some(_) => false,
 			// An `rt.Iter` has one only if it was given what drops.
@@ -225,21 +259,101 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether each closure that drops in `ty`, one of std's iterators, is one an adaptor's
-	/// `rt.Iter` drops, as `iter::holds_closure` says.
+	/// `rt.Iter` drops, as `iter::holds_closure` says. A box of a closure is the closure.
 	fn closures_held(&mut self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return true;
 		};
 		let holds = super::iter::holds_closure(self.tcx, adt.did());
-		args.types().all(|t| match t.kind() {
+		args.types().all(|t| match self.unboxed(t).kind() {
 			ty::Closure(..) | ty::CoroutineClosure(..) => holds || !self.drops(t),
 			_ => self.closures_held(t),
 		})
 	}
 
-	/// Whether `adt` is generic and implements `Drop`.
-	fn generic_dtor(&self, adt: AdtDef<'tcx>) -> bool {
-		adt.has_dtor(self.tcx) && self.tcx.generics_of(adt.did()).requires_monomorphization(self.tcx)
+	/// Whether one class's glue drops every instance of `adt`: a struct each of whose
+	/// fields drops alike in every instance, without a generic `Drop` impl, which has an
+	/// instance per type. Each instance of another drops by its own glue, rustc's.
+	fn shared_glue(&mut self, adt: AdtDef<'tcx>) -> bool {
+		let tcx = self.tcx;
+		if !adt.is_struct() || adt.has_dtor(tcx) && tcx.generics_of(adt.did()).requires_monomorphization(tcx) {
+			return false;
+		}
+		if let Some(&shared) = self.shared_glues.get(&adt.did()) {
+			return shared;
+		}
+		// A struct that holds itself drops alike through that field if through the rest.
+		if !self.shared_open.insert(adt.did()) {
+			return true;
+		}
+		let shared = adt.all_fields().all(|field| {
+			let ty = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
+			self.uniform(tcx.erase_and_anonymize_regions(ty))
+		});
+		self.shared_open.remove(&adt.did());
+		// A `true` that read a struct still being decided holds only once that one is.
+		if !shared || self.shared_open.is_empty() {
+			self.shared_glues.insert(adt.did(), shared);
+		}
+		shared
+	}
+
+	/// Whether [`Self::drop_value`] drops a `ty` over type parameters, as a generic class's
+	/// glue holds one, alike in every instance: not where only an instance's glue can, as
+	/// for an enum, or a type with a generic `Drop` impl.
+	fn uniform(&mut self, ty: Ty<'tcx>) -> bool {
+		if !(ty.has_param() || ty.has_aliases()) || !self.drops(ty) {
+			return true;
+		}
+		if let Some((elem, _)) = self.elements(ty) {
+			return self.uniform(elem);
+		}
+		if self.disposable(ty, None) {
+			return true;
+		}
+		let (adt, args) = match ty.kind() {
+			ty::Adt(adt, args) => (*adt, *args),
+			// Each element in order.
+			ty::Tuple(tys) => return tys.iter().all(|t| self.uniform(t)),
+			_ => return false,
+		};
+		// What the runtime is given to drop each key, value, or item, or what it holds.
+		let held = |t: &mut Self, n: usize| args.types().take(n).all(|arg| t.uniform(arg));
+		match Std::of(self.tcx, adt.did()) {
+			Some(Std::MutexGuard | Std::Ref | Std::RefMut | Std::PeekMut) => true,
+			Some(Std::Entry) if self.tcx.item_name(adt.did()).as_str() == "OccupiedEntry" => true,
+			Some(Std::OnceCell | Std::OnceLock) => self.uniform(Ty::new_option(self.tcx, args.type_at(0))),
+			Some(Std::Cow) => library::cow_slice(self.tcx, ty).is_none_or(|elem| self.uniform(elem)),
+			// A hash map's and set's own `BuildHasher` too.
+			Some(Std::HashMap) => held(self, 3),
+			Some(Std::HashSet) => held(self, 2),
+			Some(Std::LazyCell | Std::LazyLock | Std::BTreeMap) => held(self, 2),
+			Some(
+				Std::Arc
+				| Std::Mutex
+				| Std::RefCell
+				| Std::Cell
+				| Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError
+				| Std::HashTable
+				| Std::BTreeSet
+				| Std::VecDeque
+				| Std::LinkedList
+				| Std::BinaryHeap
+				| Std::Range
+				| Std::RangeInclusive
+				| Std::RangeFrom
+				| Std::RangeTo
+				| Std::RangeToInclusive
+				| Std::Entry,
+			) => held(self, 1),
+			_ => false,
+		}
 	}
 
 	/// Whether dropping a `ty` through its JS value's `[Symbol.dispose]` does nothing. A
@@ -257,6 +371,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// Each is its contents in JS.
 				Some(
 					Std::Option
+					| Std::ManuallyDrop
 					| Std::Box
 					| Std::Mutex
 					| Std::RefCell
@@ -267,6 +382,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Poll
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => args.types().all(|t| self.inert(t)),
@@ -290,14 +406,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return None;
 		}
 		// An array or `Vec`, or one in an `Option` or a box, which is it or `undefined`.
-		if let Some(elem) = self.elements(ty) {
+		if let Some((elem, vec)) = self.elements(ty) {
 			let mut args = vec![value];
-			if !self.disposable(elem, span) {
+			if !self.disposable(elem, Some(span)) {
 				args.push(self.drop_fn(elem, span)?);
 			}
-			return Some(Expr::rt("dropAll", args));
+			return Some(Expr::rt(if vec { "dropVec" } else { "dropAll" }, args));
 		}
-		if self.disposable(ty, span) {
+		if self.disposable(ty, Some(span)) {
 			return Some(match self.always_disposes(ty) {
 				true => value.index(Expr::ident("Symbol").member("dispose")).call(Vec::new()),
 				false => Expr::rt("drop", vec![value]),
@@ -314,6 +430,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				false => Some(Expr::undefined()),
 			};
 			let (name, args) = match std {
+				// Not by a `[Symbol.dispose]`: the `&[u8]` it derefs to is the same object,
+				// which glue may give `rt.drop`.
+				Std::Bytes => ("bytesDrop", vec![value]),
 				Std::Arc => ("arcDrop", vec![value, each(self, 0)?]),
 				Std::Mutex => return self.drop_value(value.member("value"), args.type_at(0), span),
 				Std::MutexGuard => ("mutexUnlock", vec![value]),
@@ -325,14 +444,24 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let option = Ty::new_option(self.tcx, args.type_at(0));
 					return self.drop_value(value.member("v"), option, span);
 				}
-				Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating | Std::PoisonError => {
+				Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating
+				| Std::PoisonError => {
 					return self.drop_value(value, args.type_at(0), span);
 				}
 				// Its value, or the function that never made one.
 				Std::LazyCell | Std::LazyLock => ("lazyDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?]),
+				// Its own `BuildHasher` last, which the runtime drops first, as hashbrown's field.
+				Std::HashMap => ("hashDrop", vec![value, each(self, 0)?, each(self, 1)?, each(self, 2)?]),
 				Std::BTreeMap => ("btreeDrop", vec![value, each(self, 0)?, each(self, 1)?]),
-				Std::HashSet => ("hashDrop", vec![value, each(self, 0)?]),
+				Std::HashSet => (
+					"hashDrop",
+					vec![value, each(self, 0)?, Expr::undefined(), each(self, 1)?],
+				),
 				// Its items are the values of a map whose keys are nothing.
 				Std::HashTable => ("hashDrop", vec![value, Expr::undefined(), each(self, 0)?]),
 				Std::BTreeSet => ("btreeDrop", vec![value, each(self, 0)?]),
@@ -344,7 +473,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Std::Cow => {
 					let elem = library::cow_slice(self.tcx, ty)?;
 					let mut args = vec![value];
-					if !self.disposable(elem, span) {
+					if !self.disposable(elem, Some(span)) {
 						args.push(self.drop_fn(elem, span)?);
 					}
 					("cowDrop", args)
@@ -357,7 +486,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					};
 					let bounds = Expr::Array(vec![value.clone().member(lo), value.member(hi)]);
 					let mut args = vec![bounds];
-					if !self.disposable(arg(0), span) {
+					if !self.disposable(arg(0), Some(span)) {
 						args.push(self.drop_fn(arg(0), span)?);
 					}
 					("dropAll", args)
@@ -417,8 +546,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if !self.drops(ty) {
 			return None;
 		}
-		if self.disposable(ty, span) {
+		if self.disposable(ty, Some(span)) {
 			return Some(Expr::Rt("drop".into()));
+		}
+		if self.std_of(ty) == Some(Std::Bytes) {
+			return Some(Expr::Rt("bytesDrop".into()));
 		}
 		// A tuple over type parameters, as a generic class's glue holds, has no glue of
 		// rustc's until an instance: each element in order, as that glue drops them.
@@ -477,16 +609,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The elements of an array, slice, or `Vec` that `ty` is, or holds in an `Option` or a box,
-	/// whose JS value is the array or `undefined`.
-	fn elements(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	/// whose JS value is the array or `rt.Vec`, as the second says, or `undefined`.
+	fn elements(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => Some(*elem),
+			ty::Array(elem, _) | ty::Slice(elem) => Some((*elem, false)),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did())? {
-				Std::Vec => Some(args.type_at(0)),
+				Std::Vec => Some((args.type_at(0), true)),
 				Std::Option if self.erases_to(args.type_at(0)).undefined => None,
-				Std::Option | Std::Box | Std::Pin | Std::Reverse | Std::Wrapping | Std::Saturating => {
-					self.elements(args.type_at(0))
-				}
+				Std::Option
+				| Std::Box
+				| Std::Pin
+				| Std::Reverse
+				| Std::AssertUnwindSafe
+				| Std::Wrapping
+				| Std::Saturating => self.elements(args.type_at(0)),
 				_ => None,
 			},
 			_ => None,
@@ -520,19 +656,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The `[Symbol.dispose]` of a class: its `Drop` impl, then each field that drops.
 	fn glue(&mut self, adt: AdtDef<'tcx>, info: &Adt, span: Span) {
 		let tcx = self.tcx;
-		if !self.glued.insert(adt.did()) {
-			return;
-		}
-		// An enum drops by rustc's glue, which switches on its variant, and a generic `Drop`
-		// impl has an instance per type: each instance drops by glue of its own.
+		// An enum drops by rustc's glue, which switches on its variant, as does each instance
+		// of a struct that drops alike in none.
 		let AdtRepr::Struct { fields, .. } = &info.repr else {
 			return;
 		};
-		if self.generic_dtor(adt) {
+		if !self.shared_glue(adt) || !self.glued.insert(adt.did()) {
 			return;
 		}
 		let mut steps = Vec::new();
 		if let Some(dtor) = adt.destructor(tcx) {
+			super::caller::refuse_std_call(self, Instance::mono(tcx, dtor.did));
 			let sym = self.instance(Instance::mono(tcx, dtor.did));
 			steps.push(StmtKind::Expr(Expr::Sym(sym).call(vec![Expr::This])).at(None));
 		}

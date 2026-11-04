@@ -8,7 +8,7 @@ use rustc_abi::{BackendRepr, FieldIdx, Size, VariantIdx};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, DefIndex};
-use rustc_middle::mir::interpret::{AllocId, GlobalAlloc, GlobalId, Scalar, alloc_range};
+use rustc_middle::mir::interpret::{AllocId, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
 use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{self, ConstValue, Local, Operand, Place, PlaceTy, ProjectionElem};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
@@ -62,6 +62,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The JS expression of `place`, read without a copy.
 	pub fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
+		if let Some(why) = self.alloc_bytes(place) {
+			return self.err(span, why);
+		}
 		// A local held as its parts reads them, as far as they go.
 		if self.scalars.contains_key(&place.local) {
 			let (e, n) = self.scalar_place(place, span);
@@ -70,6 +73,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				pty = pty.projection_ty(tcx, *elem);
 			}
 			return self.project(e, pty, place, n, span, out);
+		}
+		// Drop glue's pointer read whole, which a `&mut` to a value JS copies is: the place of
+		// the value it drops, which its parameter is.
+		if self.glue_pointer(place.local)
+			&& place.projection.is_empty()
+			&& self.b.t.place_pointee(self.mir.local_decls[place.local].ty).is_some()
+		{
+			let value = self.local_expr(place.local, span);
+			return self.place_of(value, None);
 		}
 		let decls = &self.mir.local_decls;
 		let mut pty = PlaceTy::from_ty(decls[place.local].ty);
@@ -201,11 +213,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Deref => {
 					// Drop glue's pointer is the value it drops.
-					let glue =
-						matches!(self.env, Env::Shim) && place.local.as_u32() == 1 && pty.ty == decls[place.local].ty;
+					let glue = self.glue_pointer(place.local) && pty.ty == decls[place.local].ty;
 					// A box's pointer is the box, which is its contents.
-					if self.b.t.place_pointee(ty).is_some() && !glue && !self.box_pointer(place.local) {
+					let boxed = self.box_pointer(place.local);
+					if self.b.t.place_pointee(ty).is_some() && !glue && !boxed {
 						e = e.member("v");
+					}
+					// A raw pointer to a slice is where it starts, read through as the slice.
+					if let ty::RawPtr(pointee, _) = ty.kind()
+						&& !glue
+						&& !boxed
+						&& self.b.t.pointee(*pointee) == crate::lower::pointer::Pointee::Slice
+					{
+						e = match crate::lower::pointer::slice_of_bytes(*pointee) {
+							true => e.member("derefBytes").call(vec![Expr::lit("false")]),
+							false => e.member("deref").call(Vec::new()),
+						};
 					}
 				}
 				ProjectionElem::Field(field, _) => {
@@ -300,7 +323,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => return self.err(span, format!("a subslice of `{ty}`")),
 					};
 					let method = match elem_ty.kind() {
-						ty::Uint(ty::UintTy::U8) => "subarray",
+						_ if crate::lower::byte(elem_ty) => "subarray",
 						_ => "slice",
 					};
 					let base = self.path(e, "slice", out);
@@ -422,7 +445,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ProjectionElem::Subslice { from, to, from_end } => {
 				let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
 				match ty.kind() {
-					ty::Array(elem, _) | ty::Slice(elem) if !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
+					ty::Array(elem, _) | ty::Slice(elem) if !crate::lower::byte(*elem) => {
 						Some((base, ty, from, to, from_end))
 					}
 					_ => None,
@@ -572,6 +595,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					| Std::Box
 					| Std::Pin
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::NonZero
 					| Std::Wrapping
 					| Std::Saturating
@@ -599,18 +623,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// `TryFromIntError`'s `IntErrorKind`.
 				Some(Std::TryFromIntError) => base.member("kind"),
 				// The runtime's field of each of std's errors has its name.
-				Some(std) if std.error() => {
+				Some(std) if std.record() => {
 					base.member(crate::lower::camel(adt.non_enum_variant().fields[field].name.as_str()))
 				}
-				// Cast to its variant's class: the slice an `rt.Borrowed` wraps, or the `Vec`.
-				Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-					let bytes = matches!(elem.kind(), ty::Uint(ty::UintTy::U8));
+				// Cast to its variant's class: what an `rt.Borrowed` wraps, or what it owns.
+				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
+					// What an `rt.Borrowed` holds, and what it owns: an array and an `rt.Vec`, or text.
+					let (held, owns) = match borrowed.kind() {
+						ty::Slice(elem) => {
+							let elem = self.b.t.ty(*elem, span);
+							(
+								crate::ts::Type::Array(Box::new(elem.clone())),
+								crate::ts::Type::Rt("Vec", vec![elem]),
+							)
+						}
+						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
+					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
 						(true, true) => crate::ts::Type::Rt("ByteVec", Vec::new()),
-						(false, false) => crate::ts::Type::Rt("Borrowed", vec![self.b.t.ty(elem, span)]),
-						(false, true) => crate::ts::Type::Array(Box::new(self.b.t.ty(elem, span))),
+						(false, false) => crate::ts::Type::Rt("Borrowed", vec![held]),
+						(false, true) => owns,
 					};
 					let cast = Expr::As(Box::new(base), class);
 					match bytes || owned {
@@ -618,7 +653,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						false => cast.member("slice"),
 					}
 				}
-				Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
 				_ if transparent(self.b.t, ty) || crate::lower::library::wrapped(tcx, ty).is_some() => base,
 				None if self.b.t.own(adt.did()) => {
@@ -659,7 +693,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			// JS shares objects where Rust copies, so a `Copy` aggregate is copied where
 			// either side could change in place: into a local changed in place, or out of a
-			// place that could change.
+			// place that could change; or where pointers to it compare.
 			Operand::Copy(place) => {
 				let ty = place.ty(&self.mir.local_decls, self.tcx).ty;
 				// Optimized MIR also copies what isn't `Copy`, where it is a move: copy
@@ -668,7 +702,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return self.err(span, "a copy of a closure that changes what it captured");
 				}
 				let value = self.place_expr(*place, span, out);
-				match self.force_share || self.into_frozen && self.frozen(*place) {
+				let shared = self.force_share || self.into_frozen && self.frozen(*place);
+				match shared && !self.b.t.held_addressed(ty) {
 					true => value,
 					false => self.b.t.copied(value, ty, span),
 				}
@@ -708,6 +743,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
 		let mut out = Vec::new();
+		if let Some(why) = self.alloc_bytes(place) {
+			out.push(StmtKind::Expr(self.err(span, why)).at(None));
+			return out;
+		}
 		// A raw pointer to a value of no bytes may dangle, and a write through it writes nothing.
 		if let [.., ProjectionElem::Deref] = place.projection.as_slice()
 			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))
@@ -745,14 +784,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				true => Expr::rt("ptrWrite", vec![target, value]),
 				false => match self.b.t.write_in(pointee) {
 					Some(ObjectKind::Bytes) => target.member("set").call(vec![value]),
-					// A `Vec<u8>` is an `rt.ByteVec`, and any other a JS array, as a boxed slice
-					// is, whose length a write changes, unlike a tuple's or an array's.
-					Some(ObjectKind::Vec) if !byte_vec(self.b.t.erased(pointee)) => {
-						Expr::rt("vecAssign", vec![target, value])
-					}
+					// A boxed slice is a JS array, whose length a write changes, unlike a
+					// tuple's or an array's.
 					Some(ObjectKind::Array) if self.b.t.erased(pointee).is_slice() => {
-						Expr::rt("vecAssign", vec![target, value])
+						Expr::rt("arrayAssign", vec![target, value])
 					}
+					Some(_) if self.b.t.moves_private(pointee) => Expr::rt("ptrWrite", vec![target, value]),
 					Some(_) => Expr::ident("Object").member("assign").call(vec![target, value]),
 					None => self.err(span, format!("an assignment through a reference to `{pointee}`")),
 				},
@@ -870,7 +907,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			) {
 				break;
 			}
-			value = self.adt(adt.did(), *variant, args, vec![value], ty, span);
+			value = narrowed(self.adt(adt.did(), *variant, args, vec![value], ty, span));
 			(at, rebuilt) = (base, true);
 		}
 		match rebuilt {
@@ -1206,14 +1243,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Some(std @ (Std::Entry | Std::TableEntry)) => {
 						crate::lower::collections::entry_test(std, *adt, index, scrut.clone())
 					}
-					Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-						let borrows = crate::lower::library::cow_borrows(scrut.clone(), elem);
+					Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+						let borrows = crate::lower::library::cow_borrows(scrut.clone(), borrowed);
 						match index.index() {
 							0 => borrows,
 							_ => borrows.not(),
 						}
 					}
-					Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 					Some(Std::Ordering) => scrut
 						.clone()
 						.binary("===", crate::lower::collections::ordering_variant(index)),
@@ -1278,12 +1314,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// The `const` item of the thread-local `c` borrows, as `with`'s `&'static self` is: a
-	/// promoted borrow of the key.
+	/// The `const` item of the thread-local `c` is, or borrows, as `with`'s `&'static self`
+	/// is: a promoted borrow of the key. Each copy of a key names the same storage.
 	fn local_key_of(&self, c: &mir::ConstOperand<'tcx>) -> Option<DefId> {
 		let tcx = self.tcx;
-		let ty::Ref(_, key, _) = c.ty().kind() else {
-			return None;
+		let key = match c.ty().kind() {
+			ty::Ref(_, key, _) => *key,
+			_ => c.ty(),
 		};
 		let ty::Adt(adt, _) = key.kind() else {
 			return None;
@@ -1294,7 +1331,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mir::Const::Unevaluated(uv, _) = c.const_ else {
 			return None;
 		};
-		let promoted = &tcx.promoted_mir(uv.def)[uv.promoted?];
+		let Some(promoted) = uv.promoted else {
+			return (key == c.ty()).then_some(uv.def);
+		};
+		let promoted = &tcx.promoted_mir(uv.def)[promoted];
 		promoted
 			.basic_blocks
 			.iter()
@@ -1514,7 +1554,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::As(Box::new(Expr::Array(values)), ts_ty)
 				}
 				ty::Array(elem, _) => match elem.kind() {
-					ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+					_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 					_ => Expr::Array(values),
 				},
 				ty::Adt(adt, args) => self.adt(
@@ -1582,10 +1622,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 				};
 				let unnamed = format!("a constant of type `{ty}`, a pointer into memory translation can't name");
+				// A `Location`, as `Location::caller` gives a constant.
+				if self.b.t.std_of(*inner) == Some(Std::Location) {
+					return match self.location_const(alloc, offset, *inner) {
+						Some(location) => location,
+						None => self.err(span, unnamed),
+					};
+				}
 				let ty::Array(elem, len) = inner.kind() else {
 					return self.err(span, unnamed);
 				};
-				let (Some(len), ty::Uint(ty::UintTy::U8)) = (len.try_to_target_usize(tcx), elem.kind()) else {
+				let (Some(len), true) = (len.try_to_target_usize(tcx), crate::lower::byte(*elem)) else {
 					return self.err(span, unnamed);
 				};
 				let start = offset.bytes() as usize;
@@ -1604,7 +1651,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						Ok(s) => Expr::Str(s.to_string()),
 						Err(_) => self.err(span, "a string constant that is not UTF-8"),
 					},
-					ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => bytes_lit(bytes),
+					ty::Slice(elem) if crate::lower::byte(*elem) => bytes_lit(bytes),
 					_ => self.err(span, format!("a slice constant of type `{ty}`")),
 				}
 			}
@@ -1613,6 +1660,35 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				None => self.err(span, format!("a constant of type `{ty}` held in memory")),
 			},
 		}
+	}
+
+	/// The `Location` of type `ty` at `at` in `alloc`: its file, the `str` another
+	/// allocation holds, and its line and column.
+	fn location_const(&self, alloc: ConstAllocation<'tcx>, at: Size, ty: Ty<'tcx>) -> Option<Expr> {
+		let tcx = self.tcx;
+		let layout = tcx.layout_of(self.b.t.typing_env_pub().as_query_input(ty)).ok()?;
+		let field = |i: usize| at + layout.fields.offset(i);
+		let read = |at: Size, size: Size, ptr: bool| alloc.inner().read_scalar(&tcx, alloc_range(at, size), ptr).ok();
+		let size = tcx.data_layout.pointer_size();
+		let Scalar::Ptr(file, _) = read(field(0), size, true)? else {
+			return None;
+		};
+		let len = read(field(0) + size, size, false)?
+			.to_target_usize(&tcx)
+			.discard_err()?;
+		let u32_size = Size::from_bytes(4);
+		let line = read(field(1), u32_size, false)?.to_u32().discard_err()?;
+		let col = read(field(2), u32_size, false)?.to_u32().discard_err()?;
+		let (prov, start) = file.prov_and_relative_offset();
+		let GlobalAlloc::Memory(text) = tcx.global_alloc(prov.alloc_id()) else {
+			return None;
+		};
+		let start = start.bytes_usize();
+		let bytes = text
+			.inner()
+			.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len as usize);
+		let file = std::str::from_utf8(bytes).ok()?.to_string();
+		Some(crate::lower::caller::object(file, line, col))
 	}
 
 	/// The value a `ty` that is no aggregate holds at `offset` in `alloc_id`, as rustc would
@@ -1660,7 +1736,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.bare_closure(Ty::new_closure(tcx, def_id, instance.args), span)
 			}
 			ty::InstanceKind::Item(def_id) | ty::InstanceKind::Shim(ty::ShimKind::Reify(def_id, _)) => {
-				self.b.fn_value(def_id, instance.args, span)
+				let item = Instance::new_raw(def_id, instance.args);
+				match self.b.reified(item, span) {
+					Some(reified) => reified,
+					None => self.b.fn_value(def_id, instance.args, span),
+				}
 			}
 			// A closure coerced to a function pointer calls it once.
 			ty::InstanceKind::Shim(ty::ShimKind::ClosureOnce { .. }) => match instance.args.type_at(0).kind() {
@@ -1779,7 +1859,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 /// Whether `ty` is `[u8]`, which is an `rt.ByteSlice`.
 pub fn byte_slice(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	matches!(ty.kind(), ty::Slice(elem) if crate::lower::byte(*elem))
 }
 
 /// Byte `i` of `slice`, an `rt.ByteSlice` that reading twice reads the same.
@@ -1925,11 +2005,6 @@ fn written_captures(mir: &mir::Body<'_>) -> FxHashSet<FieldIdx> {
 	let mut written = Written(FxHashSet::default());
 	written.visit_body(mir);
 	written.0
-}
-
-/// Whether `ty` is a `Vec<u8>`, an `rt.ByteVec`.
-fn byte_vec(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Adt(_, args) if args.types().next().is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8))))
 }
 
 /// Whether `path` reads through the variable `name` first.
@@ -2118,9 +2193,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	) -> Option<String> {
 		let tcx = self.tcx;
 		let pointee = tcx.mk_place_deref(reference.place()?);
-		let cell = library::key(tcx, def_id).is_some_and(|(owner, _)| owner == "UnsafeCell");
+		let owner = library::key(tcx, def_id).map(|(owner, _)| owner);
+		let cell = matches!(owner.as_deref(), Some("UnsafeCell" | "Cell"));
 		let held = gargs.type_at(0);
 		let place = match cell && self.b.t.pointee(held) != crate::lower::pointer::Pointee::Place {
+			// A `Cell` holds its value in its `UnsafeCell`.
+			true if owner.as_deref() == Some("Cell")
+				&& let ty::Adt(adt, args) = pointee.ty(&self.mir.local_decls, tcx).ty.kind() =>
+			{
+				let unsafe_cell = adt.non_enum_variant().fields[FieldIdx::ZERO]
+					.ty(tcx, args)
+					.skip_norm_wip();
+				tcx.mk_place_field(
+					tcx.mk_place_field(pointee, FieldIdx::ZERO, unsafe_cell),
+					FieldIdx::ZERO,
+					held,
+				)
+			}
 			true => tcx.mk_place_field(pointee, FieldIdx::ZERO, held),
 			false => pointee,
 		};
@@ -2256,4 +2345,25 @@ fn bytes_lit(bytes: &[u8]) -> Expr {
 		"byteSliceFrom",
 		vec![Expr::ident("Uint8Array").member("of").call(items)],
 	)
+}
+
+/// `rt.Ok(value)` or `rt.Err(value)` as the object literal they make, which TS types as the
+/// variant the store's own test narrowed its `Result` to, so a later read of the payload
+/// type-checks. Any other value is as it is.
+fn narrowed(value: Expr) -> Expr {
+	let Expr::Call(f, args) = &value else {
+		return value;
+	};
+	let (ok, key) = match &**f {
+		Expr::Rt(name) if name == "Ok" => ("true", "value"),
+		Expr::Rt(name) if name == "Err" => ("false", "error"),
+		_ => return value,
+	};
+	let [payload] = args.as_slice() else {
+		return value;
+	};
+	Expr::Object(vec![
+		(crate::ts::Key::Name("ok".into()), Expr::lit(ok)),
+		(crate::ts::Key::Name(key.into()), payload.clone()),
+	])
 }

@@ -501,6 +501,23 @@ func script() {
 	}), "[]"))
 	// Each counter moves in, so Go closes it.
 	fmt.Printf("worth %d %d\n", must(api.Worth(&[]*api.Counter{counters[0]}, []*api.Counter{counters[1]})), must(api.Worth(nil, nil)))
+	held := api.NewCounter("h", 4)
+	fmt.Print("held")
+	for _, n := range []*uint64{must(api.HeldCount(&held)), must(api.HeldCount(nil))} {
+		if n == nil {
+			fmt.Print(" None")
+		} else {
+			fmt.Printf(" Some(%d)", *n)
+		}
+	}
+	fmt.Println()
+	b := "b"
+	unnamed := "None"
+	if s := must(api.BoxedName(nil)); s != nil {
+		unnamed = *s
+	}
+	fmt.Printf("boxed Some(%q) %s %t\n", *must(api.BoxedName(api.BoxedCounter(&b))), unnamed, api.BoxedCounter(nil) == nil)
+	fmt.Printf("less %d\n", api.Less(5, 2))
 	fmt.Printf("sums %s\n", list(api.Sums([][]uint32{{1, 2}, {}, {3}}), number))
 	sum := api.Summed([]api.Point{{X: 1, Y: 2}, {X: -4, Y: 6}})
 	none := api.Summed(nil)
@@ -764,30 +781,33 @@ func closed() {
 // bytes checks that Bytes Rust returns read Rust's buffer in place, kept alive by any view
 // or reader of it and freed by the GC once none is reachable.
 func bytes() {
-	// Under 2 KiB, copied and Rust's buffer freed at the call; from 2 KiB, lent.
+	budgeted()
+	// Under 512 B, copied and Rust's buffer freed at the call; from 512 B, lent.
 	before := api.Dropped()
-	small := api.TokenBytes(1, 2047)
-	check(api.Dropped() == before+1 && small.Len() == 2047 && small.At(2046) == 1, "bytes under 2 KiB are copied and Rust's freed")
+	small := api.TokenBytes(1, 511)
+	check(api.Dropped() == before+1 && small.Len() == 511 && small.At(510) == 1, "bytes under 512 B are copied and Rust's freed")
 	before++
-	b := api.TokenBytes(1, 2048)
-	check(api.Dropped() == before, "returned bytes from 2 KiB keep Rust's buffer")
-	want := strings.Repeat("\x01", 2048)
-	check(b.Len() == 2048 && b.At(2047) == 1 && string(b.Copy()) == want, "returned bytes read back")
-	dst := make([]byte, 3000)
-	check(b.CopyTo(dst) == 2048 && string(dst[:2048]) == want, "CopyTo copies them all")
-	sub := b.Slice(2023, 2048)
+	b := api.TokenBytes(1, 512)
+	check(api.Dropped() == before, "returned bytes from 512 B keep Rust's buffer")
+	want := strings.Repeat("\x01", 512)
+	check(b.Len() == 512 && b.At(511) == 1 && string(b.Copy()) == want, "returned bytes read back")
+	dst := make([]byte, 600)
+	check(b.CopyTo(dst) == 512 && string(dst[:512]) == want, "CopyTo copies them all")
+	sub := b.Slice(487, 512)
 	check(sub.Len() == 25 && string(sub.Slice(5, 10).Copy()) == "\x01\x01\x01\x01\x01", "a sub-view reads its range")
 	check(b.Slice(3, 3).Len() == 0, "an empty sub-view is empty")
 	var out strings.Builder
 	reader := b
 	n, err := reader.WriteTo(&out)
-	check(err == nil && n == 2048 && out.String() == want && reader.Len() == 0, "WriteTo writes and consumes them")
+	check(err == nil && n == 512 && out.String() == want && reader.Len() == 0, "WriteTo writes and consumes them")
 	reader = b
 	read, err := io.ReadAll(&reader)
-	check(err == nil && string(read) == want && b.Len() == 2048, "Read reads and consumes a copy of the view only")
+	check(err == nil && string(read) == want && b.Len() == 512, "Read reads and consumes a copy of the view only")
 	runtime.KeepAlive(b)
+	collected(before+1, "the GC frees lent bytes once nothing reaches them")
 
-	// Kept alive by a sub-view alone, then freed once nothing reaches it.
+	// Kept alive by a sub-view alone, then freed once nothing reaches it. 64 KiB are lent
+	// in a batch of their own, so nothing else lent keeps them.
 	view := subView(2)
 	uncollected(before+1, "a sub-view keeps Rust's buffer")
 	check(view.Len() == 10 && view.At(9) == 2, "a sub-view reads Rust's buffer after its parent is gone")
@@ -798,9 +818,22 @@ func bytes() {
 	r := bufferedReader(3)
 	uncollected(before+2, "a reader keeps Rust's buffer")
 	all, err := io.ReadAll(r)
-	check(err == nil && len(all) == 2048 && all[2047] == 3, "a reader reads Rust's buffer after the Bytes are gone")
+	check(err == nil && len(all) == 64<<10 && all[64<<10-1] == 3, "a reader reads Rust's buffer after the Bytes are gone")
 	r = nil
 	collected(before+3, "the GC frees bytes no reader reaches")
+
+	// Lent in batches, each freed once none of its Bytes is reachable.
+	kept := batched()
+	for range 5 {
+		runtime.GC()
+		runtime.Gosched()
+	}
+	check(api.Dropped() <= before+3+36, "the GC frees no batch whose Bytes are reachable")
+	for i, k := range kept {
+		check(k.Len() == 512 && k.At(511) == uint8(10*i), "kept bytes read Rust's buffer after their batch's others are gone")
+	}
+	kept = nil
+	collected(before+43, "the GC frees every batch once none of its Bytes is reachable")
 
 	// Bytes an object returns outlive its Close: no Bytes depends on an object.
 	body := strings.Repeat("b", 2048)
@@ -812,19 +845,59 @@ func bytes() {
 	fmt.Println("bytes ok")
 }
 
+// budgeted checks that at most 64 MiB of Rust's bytes are lent at once, freed or not, since
+// the GC sees none of them: past that, bytes are copied, Rust's freed at the call, until the
+// GC frees what was lent. First, so no bytes an earlier step lent count against it.
+func budgeted() {
+	before := api.Dropped()
+	lentToBudget(before)
+	collected(before+65, "the GC frees bytes lent up to the budget")
+	check(api.TokenBytes(3, 2048).At(2047) == 3 && api.Dropped() == before+65, "bytes are lent again once the GC frees them")
+	collected(before+66, "the GC frees bytes lent once the budget is free")
+}
+
+// lentToBudget lends 64 MiB in a frame of its own, so nothing keeps them reachable after.
+//
+//go:noinline
+func lentToBudget(before uint32) {
+	const mib = 1 << 20
+	held := make([]api.Bytes, 64)
+	for i := range held {
+		held[i] = api.TokenBytes(1, mib)
+	}
+	check(api.Dropped() == before, "64 MiB of Rust's bytes are lent")
+	copied := api.TokenBytes(2, mib)
+	check(api.Dropped() == before+1, "bytes past 64 MiB lent are copied, Rust's freed at the call")
+	check(copied.Len() == mib && copied.At(0) == 2 && copied.At(mib-1) == 2 && held[63].At(mib-1) == 1, "bytes past the budget read as lent ones do")
+}
+
 // subView is a sub-view of returned bytes, whose Bytes nothing else keeps.
 //
 //go:noinline
 func subView(id uint32) api.Bytes {
-	return api.TokenBytes(id, 2048).Slice(2038, 2048)
+	return api.TokenBytes(id, 64<<10).Slice(64<<10-10, 64<<10)
 }
 
 // bufferedReader is a reader of returned bytes, whose Bytes nothing else keeps.
 //
 //go:noinline
 func bufferedReader(id uint32) io.Reader {
-	b := api.TokenBytes(id, 2048)
+	b := api.TokenBytes(id, 64<<10)
 	return bufio.NewReader(&b)
+}
+
+// batched lends 40 Bytes, more than a batch holds, keeping only every tenth.
+//
+//go:noinline
+func batched() []api.Bytes {
+	var kept []api.Bytes
+	for i := range 40 {
+		b := api.TokenBytes(uint32(i), 512)
+		if i%10 == 0 {
+			kept = append(kept, b)
+		}
+	}
+	return kept
 }
 
 // broken breaks a contract, which must fail with a message naming it.

@@ -3,6 +3,7 @@
 import * as rt from "../rt.ts";
 import type * as Any from "../core/any.Any.ts";
 import type * as Part from "../drops/objects.Part.ts";
+import type * as Ranked from "../drops/orders.Ranked.ts";
 import type * as Key from "../drops.Key.ts";
 import * as Guard from "../model.Guard.ts";
 
@@ -72,6 +73,13 @@ export function map$0782hf5(self: Key.Key | undefined, f: (a0: Key.Key) => rt.u3
 	return f(self);
 }
 
+export function map$1t2fqxi(self: Ranked.Ranked | undefined, f: (a0: Ranked.Ranked) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1raha9y(self: Guard.Guard | undefined, f: (a0: Guard.Guard) => rt.u32): rt.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -101,6 +109,48 @@ export function map$06e51ml(self: rt.Arc<[Guard.Guard, Guard.Guard]> | undefined
 }
 
 export function map$01pvlgn(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => [rt.u32, rt.u32]): [rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$01vf10a(self: [Guard.Guard, Guard.Guard] | undefined, f: (a0: [Guard.Guard, Guard.Guard]) => rt.u32): rt.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0uom32p(self: [Guard.Guard, rt.u32] | undefined, f: (a0: [Guard.Guard, rt.u32]) => [rt.u32, rt.u32]): [rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$04djm2e(self: [[Guard.Guard, Guard.Guard], rt.u32] | undefined, f: (a0: [[Guard.Guard, Guard.Guard], rt.u32]) => [rt.u32, rt.u32, rt.u32]): [rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1s61o75(self: [[[Guard.Guard, Guard.Guard], rt.u32], rt.u32] | undefined, f: (a0: [[[Guard.Guard, Guard.Guard], rt.u32], rt.u32]) => [rt.u32, rt.u32, rt.u32, rt.u32]): [rt.u32, rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1uj27tb(self: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32] | undefined, f: (a0: [[[rt.usize, Guard.Guard], Guard.Guard], rt.u32]) => [rt.usize, rt.u32, rt.u32, rt.u32]): [rt.usize, rt.u32, rt.u32, rt.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1sprpgt(self: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32] | undefined, f: (a0: [[rt.usize, [Guard.Guard, Guard.Guard]], rt.i32]) => [rt.usize, rt.u32, rt.i32]): [rt.usize, rt.u32, rt.i32] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -164,7 +214,7 @@ export function map$1cf8u0y(self: rt.u64 | undefined, f: (a0: rt.u64) => rt.u64)
 	return f(self);
 }
 
-export function mapOr$0vxyhav(self: Guard.Guard[] | undefined, default_: rt.usize, f: (a0: Guard.Guard[]) => rt.usize): rt.usize {
+export function mapOr$184639r(self: rt.Vec<Guard.Guard> | undefined, default_: rt.usize, f: (a0: rt.Vec<Guard.Guard>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}

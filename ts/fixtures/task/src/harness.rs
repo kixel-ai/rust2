@@ -132,6 +132,9 @@ fn steps() -> Vec<(&'static str, Step)> {
 		("rfolded", |log, exec, _, arg| {
 			drops::rfolded(log, 1000 * exec.len() as u32, arg)
 		}),
+		("called", |log, exec, _, arg| {
+			drops::called(log, 1000 * exec.len() as u32, arg)
+		}),
 		("watch", |log, exec, channels, arg| {
 			if let Some(c) = pick(channels.len(), arg) {
 				let guard = Guard::new(exec.len() as u32, log.clone());
@@ -146,6 +149,18 @@ fn steps() -> Vec<(&'static str, Step)> {
 		}),
 		("inside", |log, exec, _, arg| {
 			drops::inside(log, 1000 * exec.len() as u32, arg)
+		}),
+		("released", |log, exec, _, arg| {
+			drops::released(log, 1000 * exec.len() as u32, arg)
+		}),
+		("flattened", |log, exec, _, arg| {
+			drops::flattened(log, 1000 * exec.len() as u32, arg)
+		}),
+		("indexed", |log, exec, _, arg| {
+			drops::indexed(log, 1000 * exec.len() as u32, arg)
+		}),
+		("orders", |log, exec, _, arg| {
+			drops::orders(log, 1000 * exec.len() as u32, arg)
 		}),
 		("compared", |log, exec, _, arg| {
 			drops::compared(log, 1000 * exec.len() as u32, arg)
@@ -164,6 +179,9 @@ fn steps() -> Vec<(&'static str, Step)> {
 				let guard = Guard::new(exec.len() as u32, log.clone());
 				exec.spawn(closures::closures(channels[c].consumer(), guard));
 			}
+		}),
+		("searched", |log, exec, _, arg| {
+			drops::searched(log, 1000 * exec.len() as u32, arg)
 		}),
 	]
 }

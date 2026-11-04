@@ -234,6 +234,9 @@ pub fn binary<'tcx>(
 		return match lty.kind() {
 			ty::Int(_) | ty::Uint(_) => Int::of(lty).unwrap().compare(js, l.expr, r.expr),
 			ty::Bool | ty::Char => l.expr.binary(js, r.expr),
+			// A function is its JS function, which Rust leaves free to compare as another's
+			// or apart from itself, and which has no address to order by.
+			ty::FnPtr(..) if matches!(op, BinOp::Eq | BinOp::Ne) => l.expr.binary(js, r.expr),
 			_ => b.err(span, format!("comparing `{lty}`")),
 		};
 	}

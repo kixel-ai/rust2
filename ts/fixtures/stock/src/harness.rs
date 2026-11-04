@@ -19,11 +19,22 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("buf::reads", crate::buf::reads),
 		("buf::writes", crate::buf::writes),
 		("buf::edits", crate::buf::edits),
-		("buf::reserves", crate::buf::reserves),
+		("buf::far", crate::buf::far),
+		("buf::dyns", crate::buf::dyns),
 		("maps::map", crate::maps::map),
 		("maps::table", crate::maps::table),
 		("maps::capacity", crate::maps::capacity),
 		("maps::linked", crate::maps::linked),
+		("maps::linked_iters", crate::maps::linked_iters),
+		("buf::chains", crate::buf::chains),
+		("maps::nested", crate::maps::nested),
+		("buf::late", crate::buf::late),
+		("maps::own_hasher", crate::maps::own_hasher),
+		("maps::own_from_iter", crate::maps::own_from_iter),
+		("maps::equal", crate::maps::equal),
+		("maps::default_hasher", crate::maps::default_hasher),
+		("buf::reclaims", crate::buf::reclaims),
+		("buf::vec_spares", crate::buf::vec_spares),
 	]
 }
 
@@ -107,7 +118,6 @@ fn made(data: &[u8], out: &mut Vec<u8>) {
 	let made = [
 		Bytes::from(rest.to_vec()),
 		Bytes::from_static(b"\0\t\r\n\\\"'~\x7f\x80\xff"),
-		Bytes::from(String::from("string")),
 		Bytes::from("text"),
 		Bytes::from(&b"static"[..]),
 		Bytes::default(),

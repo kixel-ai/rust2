@@ -453,6 +453,15 @@ impl Channel {
 		}
 	}
 
+	/// Sends from another thread, before it returns, so the wake lands from that thread, as
+	/// an async runtime's worker wakes a task: the one way Dart, whose isolates share no
+	/// object, has to wake from another thread.
+	pub fn send_from_thread(&self, payload: Bytes) {
+		std::thread::scope(|scope| {
+			scope.spawn(|| self.send(payload));
+		});
+	}
+
 	/// The next payload sent, waiting for it.
 	pub async fn recv(&self) -> Bytes {
 		std::future::poll_fn(|cx| {
@@ -599,6 +608,26 @@ pub fn emit(log: impl Log, lines: Vec<u8>) -> u32 {
 	lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32
 }
 
+/// [`emit`] on another thread, which the call waits on.
+pub fn emit_from_thread(log: impl Log, lines: Vec<u8>) -> u32 {
+	on_thread(&log, &lines)
+}
+
+/// [`emit_from_thread`] before it returns its future, and again once polled.
+pub fn emit_later(log: Box<dyn Log>, lines: Vec<u8>) -> impl Future<Output = u32> + use<> {
+	let eager = on_thread(&*log, &lines);
+	async move { eager + on_thread(&*log, &lines) }
+}
+
+fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
+	std::thread::scope(|scope| {
+		scope
+			.spawn(|| lines.iter().filter(|&&n| log.log(n, &format!("line {n}"))).count() as u32)
+			.join()
+			.expect("the thread finishes")
+	})
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
@@ -614,6 +643,20 @@ pub fn log_later(log: Box<dyn Log>) -> impl Future<Output = bool> + use<> {
 	async move { log.log(0, "later") }
 }
 
+/// Logs the count of `counter`, then of each of `more`, to `log` at `level`, returning how
+/// many it kept.
+pub fn log_counts(log: Box<dyn Log>, level: u8, counter: &Counter, more: Vec<Counter>) -> u32 {
+	let counts = std::iter::once(counter).chain(&more).map(Counter::get);
+	counts.filter(|n| log.log(level, &n.to_string())).count() as u32
+}
+
+/// Whether this runs on the thread its first call ran on.
+pub fn on_first_thread() -> bool {
+	static FIRST: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+	let here = std::thread::current().id();
+	*FIRST.get_or_init(|| here) == here
+}
+
 /// Holds a foreign implementation as a trait object, dropping it with itself.
 pub struct Logger {
 	sink: Box<dyn Log>,
@@ -626,6 +669,47 @@ impl Logger {
 
 	pub fn write(&self, line: &str) -> bool {
 		self.sink.log(0, line)
+	}
+
+	/// [`Logger::write`] on another thread, which the call waits on.
+	pub fn write_from_thread(&self, line: &str) -> bool {
+		std::thread::scope(|scope| scope.spawn(|| self.write(line)).join().expect("the thread finishes"))
+	}
+}
+
+/// A thread logging a line to a foreign implementation, which [`LogThread::join`] waits on.
+pub struct LogThread {
+	thread: std::thread::JoinHandle<bool>,
+}
+
+impl LogThread {
+	pub fn new(log: Box<dyn Log>, line: String) -> Self {
+		Self {
+			thread: std::thread::spawn(move || log.log(0, &line)),
+		}
+	}
+
+	/// Whether the line was kept.
+	pub fn join(self) -> bool {
+		self.thread.join().expect("the thread finishes")
+	}
+}
+
+/// A future that never finishes, whose drop logs a line to `log` on another thread it
+/// waits on.
+pub fn log_on_drop(log: Box<dyn Log>) -> impl Future<Output = ()> + use<> {
+	let guard = LogOnDrop(log);
+	async move {
+		let _guard = guard;
+		std::future::pending().await
+	}
+}
+
+struct LogOnDrop(Box<dyn Log>);
+
+impl Drop for LogOnDrop {
+	fn drop(&mut self) {
+		on_thread(&*self.0, &[0]);
 	}
 }
 
@@ -673,6 +757,73 @@ impl Tally {
 }
 
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
+/// tells apart from the original, so copies may share one handle.
+#[derive(Clone)]
+pub struct Gauge {
+	level: Arc<Level>,
+}
+
+/// What a gauge's clones share, whose drop counts in [`dropped`], as a token's does.
+struct Level(std::sync::atomic::AtomicU64);
+
+impl Drop for Level {
+	fn drop(&mut self) {
+		DROPPED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+	}
+}
+
+impl Gauge {
+	pub fn new(level: u64) -> Self {
+		Self {
+			level: Arc::new(Level(level.into())),
+		}
+	}
+
+	/// Set the level each clone reads.
+	pub fn set(&self, level: u64) {
+		self.level.0.store(level, std::sync::atomic::Ordering::Relaxed);
+	}
+
+	pub fn level(&self) -> u64 {
+		self.level.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// The level, moving this clone out, which leaves the others.
+	pub fn into_level(self) -> u64 {
+		self.level()
+	}
+
+	/// The level, read once [`yielded`] finishes: a future borrowing this clone meanwhile.
+	pub async fn later(&self) -> u64 {
+		yielded(0).await;
+		self.level()
+	}
+}
+
+/// The gauge lent shared to `watch` for the call.
+pub fn watch(gauge: &Gauge, watch: impl FnOnce(&Gauge) -> u64) -> u64 {
+	watch(gauge)
+}
+
+/// A value set once, through `&self`: its lock sits behind a `Box`, so the type is `Freeze`,
+/// yet each clone copies it into a lock of its own, which the clone then sets apart.
+#[derive(Clone, Default)]
+pub struct Latch {
+	value: Box<std::sync::OnceLock<u32>>,
+}
+
+impl Latch {
+	/// Set the value, unless it was set.
+	pub fn set(&self, value: u32) -> bool {
+		self.value.set(value).is_ok()
+	}
+
+	pub fn get(&self) -> Option<u32> {
+		self.value.get().copied()
+	}
+}
 
 /// A token: every field is `pub`, but its `Drop` must run when C frees it, so it is an
 /// object rather than a record.
@@ -1370,6 +1521,11 @@ pub fn visit_stray(visit: impl Fn(&std::path::Path)) {
 	visit(&stray());
 }
 
+/// The Unicode scalar after `c`, if any.
+pub fn next_char(c: char) -> Option<char> {
+	char::from_u32(c as u32 + 1)
+}
+
 /// `duration` plus `by`, unless past [`Duration::MAX`]: Rust's seconds are a `u64`.
 pub fn extended(duration: Duration, by: Duration) -> Option<Duration> {
 	duration.checked_add(by)
@@ -1407,6 +1563,28 @@ pub fn counters(names: Vec<String>) -> Vec<Counter> {
 /// `Box`.
 pub fn worth(some: Option<Vec<Counter>>, boxed: Box<Vec<Counter>>) -> u64 {
 	some.into_iter().flatten().chain(*boxed).map(|c| c.get()).sum()
+}
+
+/// The counter's value, unless none: an object's option in a tuple of one.
+pub fn held_count(held: Option<(Counter,)>) -> Option<u64> {
+	held.map(|(counter,)| counter.get())
+}
+
+/// A counter at 1 named `name`, unless none: options behind a `Box`, of text in and of an
+/// object out.
+pub fn boxed_counter(name: Box<Option<String>>) -> Box<Option<Counter>> {
+	Box::new(name.map(|name| Counter::new(&name, 1)))
+}
+
+/// The counter's name, unless none: options behind a `Box`, of an object in and of text out.
+pub fn boxed_name(boxed: Box<Option<Counter>>) -> Box<Option<String>> {
+	Box::new(boxed.map(|counter| counter.name))
+}
+
+/// `value` less `_value`, wrapping: two parameters whose names differ only in an
+/// underscore.
+pub fn less(value: u32, _value: u32) -> u32 {
+	value.wrapping_sub(_value)
 }
 
 /// Each row's sum.

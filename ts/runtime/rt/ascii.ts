@@ -4,7 +4,7 @@
 // A `u8` and a `char` share each function: std's char ones are its byte ones' for an ASCII
 // char, and past ASCII no test holds and no case map changes it, as for a byte past 0x7f.
 
-import { ByteSlice, ByteVec, byteSliceView, byteVecFrom, type FmtResult, type Formatter } from "../rt.ts";
+import { ByteSlice, ByteVec, byteSliceView, byteVecFrom, type FmtResult, type Formatter, OK } from "../rt.ts";
 import type { char, u8 } from "./int.ts";
 import { type Done, DONE, Iter, type SizeHint } from "./iter.ts";
 
@@ -235,9 +235,18 @@ class EscapeDefault extends Iter<u8> {
 		return it;
 	}
 
-	/** What `Display` writes: the bytes still alive. */
-	rest(): string {
-		return this.#text.slice(this.#front, this.#back);
+	/** `Display`: the bytes still alive, by one `write_str`. */
+	display(f: Formatter): FmtResult {
+		return f.out.writeStr(this.#text.slice(this.#front, this.#back));
+	}
+
+	/** Each byte still alive, a `write_char` apiece, as `EscapeAscii` writes its spent escapes. */
+	displayChars(f: Formatter): FmtResult {
+		for (let i = this.#front; i < this.#back; i++) {
+			const r = f.out.writeChar(this.#text.charCodeAt(i) as char);
+			if (!r.ok) return r;
+		}
+		return OK;
 	}
 }
 
@@ -309,15 +318,21 @@ class EscapeAscii extends Iter<u8> {
 		return it;
 	}
 
-	/** What `Display` writes: what its escapes hold, around the escape of each byte it has not reached. */
-	rest(): string {
-		let s = this.#front?.rest() ?? "";
-		for (let i = this.#start; i < this.#end; i++) s += escaped(this.#data[i] as number);
-		return s + (this.#back?.rest() ?? "");
+	/** `Display`: what its escapes hold, a `write_char` a byte, around the bytes it has not reached, each run left as is, empty or not, and each escape a `write_str` apiece. */
+	display(f: Formatter): FmtResult {
+		let r = this.#front?.displayChars(f) ?? OK;
+		const data = this.#data;
+		for (let i = this.#start; r.ok && i < this.#end; ) {
+			let run = "";
+			for (; i < this.#end && escaped(data[i] as number).length === 1; i++) run += String.fromCharCode(data[i] as number);
+			r = f.out.writeStr(run);
+			if (r.ok && i < this.#end) r = f.out.writeStr(escaped(data[i++] as number));
+		}
+		return r.ok ? (this.#back?.displayChars(f) ?? OK) : r;
 	}
 }
 
-/** `Display` of an `ascii::EscapeDefault` or a `slice::EscapeAscii`: what it has left, unpadded, as std writes it by `write_str` and `write_char`. */
+/** `Display` of an `ascii::EscapeDefault` or a `slice::EscapeAscii`: what it has left, unpadded. */
 export function fmtEscapeAscii(it: Iter<u8>, f: Formatter): FmtResult {
-	return f.out.writeStr((it as EscapeDefault | EscapeAscii).rest());
+	return (it as EscapeDefault | EscapeAscii).display(f);
 }

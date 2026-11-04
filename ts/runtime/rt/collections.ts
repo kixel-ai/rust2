@@ -15,30 +15,42 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, capShrink, Err, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { asSlice, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
-import { type Limbs, lt, type u64 } from "./int.ts";
+import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
 	type Clones,
 	DONE,
 	type Done,
 	exactHint,
+	Folded,
 	Iter,
 	iterChain,
 	iterEmpty,
 	iterFilter,
+	iterFold,
+	iterExtend,
+	iterExtendBytes,
+	iterForEach,
+	iterHeld,
 	iterMap,
+	iterToVec,
+	iterToByteVec,
 	iterOnce,
 	iterSlice,
 	type RangeInclusive,
 	rangeInclusiveEndBound,
 	rangeInclusiveStartBound,
 	type SizeHint,
+	satAdd,
 	type Take,
 	capNext,
 	trustedUpper,
+	vecIntoIter,
 } from "./iter.ts";
-import { type Arc, drop as dispose, dropAll, dropRange } from "./task.ts";
+import { type Arc, closure, drop as dispose, dropAll, dropRange } from "./task.ts";
+import type { Location } from "./location.ts";
 
 // Ordering
 
@@ -159,8 +171,10 @@ export function cmpReverse<T, O>(cmp: (a: T, b: T) => O): (a: T, b: T) => O {
  * `Ord::cmp` of slices, or `PartialOrd::partial_cmp`, by their elements' in order, then
  * by length.
  */
-export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (a: ArrayLike<T>, b: ArrayLike<T>) => O {
-	return (a, b) => {
+export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => O {
+	return (x, y) => {
+		const a = asSlice(x);
+		const b = asSlice(y);
 		const n = Math.min(a.length, b.length);
 		for (let i = 0; i < n; i++) {
 			const c = cmp(a[i], b[i]);
@@ -175,7 +189,7 @@ export function cmpDeque<T, O extends Ordering | undefined>(cmp: (a: T, b: T) =>
 	return (a, b) => {
 		const n = Math.min(a.n, b.n);
 		for (let i = 0; i < n; i++) {
-			const c = cmp(a.b[at(a, i)] as T, b.b[at(b, i)] as T);
+			const c = cmp(a.b[phys(a, i)] as T, b.b[phys(b, i)] as T);
 			if (c !== 0) return c;
 		}
 		return (a.n < b.n ? -1 : a.n > b.n ? 1 : 0) as O;
@@ -251,9 +265,8 @@ export function ordClamp<T>(
 	le: (a: T, b: T) => boolean,
 	lt: (a: T, b: T) => boolean,
 	gt: (a: T, b: T) => boolean,
-	drop?: (value: T) => void,
-): T {
-	if (!le(min, max)) panic("assertion failed: min <= max");
+	drop?: (value: T) => void): T {
+	if (!le(min, max)) panic("assertion failed: min <= max", "ord_clamp");
 	const out = lt(a, min) ? 1 : gt(a, max) ? 2 : 0;
 	if (drop !== undefined) dropAll([max, min, a].filter((_, i) => 2 - i !== out), drop);
 	return out === 1 ? min : out === 2 ? max : a;
@@ -306,8 +319,10 @@ export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: neve
 }
 
 /** `PartialEq::eq` of slices: their lengths', then their elements' in order. */
-export function eqSlice<T>(eq: (a: T, b: T) => boolean): (a: ArrayLike<T>, b: ArrayLike<T>) => boolean {
-	return (a, b) => {
+export function eqSlice<T>(eq: (a: T, b: T) => boolean): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => boolean {
+	return (x, y) => {
+		const a = asSlice(x);
+		const b = asSlice(y);
 		if (a.length !== b.length) return false;
 		for (let i = 0; i < a.length; i++) if (!eq(a[i], b[i])) return false;
 		return true;
@@ -315,13 +330,14 @@ export function eqSlice<T>(eq: (a: T, b: T) => boolean): (a: ArrayLike<T>, b: Ar
 }
 
 /** A slice, an array, or a `Vec`, of bytes in any form, or a `VecDeque`. */
-type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | VecDeque<T>;
+type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | Vec<T> | VecDeque<T>;
 
 /** The length of `s` and what reads its element at an index. */
 function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof ByteSlice) return [s.length, (i) => s.data[s.start + i] as T];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
-	if (!("length" in s)) return [s.n, (i) => s.b[at(s, i)] as T];
+	if (s instanceof Vec) return [s.items.length, (i) => s.items[i] as T];
+	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
 	return [s.length, (i) => s[i] as T];
 }
 
@@ -358,26 +374,41 @@ export function eqArc<T>(eq: (a: T, b: T) => boolean, ident = false): (a: Arc<T>
 }
 
 /** A value as its own clone. */
-function itself<T>(value: T): T {
+export function itself<T>(value: T): T {
 	return value;
 }
 
-/** The place of index `i` of `a`. */
+/** The place of element `index` of `array`, which a raw pointer into it is too. */
 export class AtIndex<T> implements Place<T> {
-	private readonly a: { [i: number]: T };
-	private readonly i: number;
+	readonly array: { [i: number]: T };
+	readonly index: number;
 
-	constructor(a: { [i: number]: T }, i: number) {
-		this.a = a;
-		this.i = i;
+	constructor(array: { [i: number]: T }, index: number) {
+		this.array = array;
+		this.index = index;
 	}
 
 	get v(): T {
-		return this.a[this.i];
+		this.reach(1);
+		return this.array[this.index];
 	}
 
 	set v(value: T) {
-		this.a[this.i] = value;
+		this.reach(1);
+		this.array[this.index] = value;
+	}
+
+	/**
+	 * Fails where `n` elements from here run past either end of the array, which JS
+	 * doesn't keep Rust's memory around: a JS array grows by a write past its end, where a
+	 * `Vec`'s length stays until `set_len`, and a shared subslice is a copy, which a
+	 * pointer moved past it would read nothing of.
+	 */
+	reach(n: number): void {
+		const length = (this.array as ArrayLike<T>).length;
+		if (this.index < 0 || this.index + n > length) {
+			throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
+		}
 	}
 }
 
@@ -423,6 +454,11 @@ export interface HashMap<K, V> {
 	n: number;
 	/** How to find a key that is an object, or `undefined` if no key is one. */
 	readonly h: Hashing<K> | undefined;
+	/**
+	 * Its own `BuildHasher`, which `hasher` lends, or `undefined` for a `RandomState`. No
+	 * key goes through it: `h` finds them by the runtime's own hasher.
+	 */
+	readonly s: unknown;
 	/** The capacity an operation last set it to, if any, which `hashCapacity` reads. */
 	cap?: number;
 }
@@ -431,11 +467,12 @@ export interface HashMap<K, V> {
 export type HashSet<K> = HashMap<K, undefined>;
 
 /**
- * `HashMap::new` and `HashSet::new`, with how to find a key that is an object. The type
- * `K` is asserted, not inferred from `h`: a slice's hashing takes any `ArrayLike`.
+ * `HashMap::new` and `HashSet::new`, with how to find a key that is an object, and
+ * `with_hasher` of its own `BuildHasher` `s`. The type `K` is asserted, not inferred from
+ * `h`: a slice's hashing takes any `ArrayLike`.
  */
-export function hashNew<K, V>(h?: Hashing<NoInfer<K>>): HashMap<K, V> {
-	return { p: new Map(), o: undefined, n: 0, h };
+export function hashNew<K, V>(h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
+	return { p: new Map(), o: undefined, n: 0, h, s };
 }
 
 /** Whether `key` goes by its hash rather than as its own JS map key. */
@@ -443,10 +480,13 @@ function hashed<K, V>(m: HashMap<K, V>, key: K): boolean {
 	return m.h !== undefined && (m.h.all || typeof key === "object");
 }
 
-/** The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given. */
+/**
+ * The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given, which
+ * compares by `key`'s `eq`, as std's lookups do.
+ */
 function slot<K, V>(m: HashMap<K, V>, key: K, hash?: number): Slot<K, V> | undefined {
 	const h = m.h as Hashing<K>;
-	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(s.k, key)) return s;
+	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(key, s.k)) return s;
 	return undefined;
 }
 
@@ -477,9 +517,9 @@ function hold<K, V>(m: HashMap<K, V>): void {
 }
 
 /** `with_capacity`, of at most `max` entries, past which it panics, as hashbrown's does. */
-export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>): HashMap<K, V> {
-	if (n > max) panic("Hash table capacity overflow");
-	const m = hashNew<K, V>(h);
+export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
+	if (n > max) panic("Hash table capacity overflow", "hash_capacity");
+	const m = hashNew<K, V>(h, s);
 	if (n > 0) m.cap = n;
 	return m;
 }
@@ -489,11 +529,17 @@ export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInf
  * entries. A `HashTable`'s takes its hasher, which it never calls, as it moves no item.
  */
 export function hashReserve<K, V>(m: HashMap<K, V>, additional: number, max: number, _hasher?: (item: V) => u64): void {
+	if (!hashTryReserve(m, additional, max).ok) panic("Hash table capacity overflow", "hash_capacity");
+}
+
+/** std's `try_reserve`: `reserve`'s room, or the error where it panics. */
+export function hashTryReserve<K, V>(m: HashMap<K, V>, additional: number, max: number): Result<undefined, TryReserveError> {
 	const n = hashLen(m);
 	const cap = hashCapacity(m);
-	if (additional <= cap - n) return;
-	if (n + additional > max) panic("Hash table capacity overflow");
+	if (additional <= cap - n) return OK;
+	if (n + additional > max) return CAPACITY_OVERFLOW;
 	m.cap = Math.min(Math.max(cap * 2, n + additional), max);
+	return OK;
 }
 
 /** `shrink_to`, and `shrink_to_fit` of 0: room for no fewer than `min` and what it holds. A table's hasher goes uncalled. */
@@ -539,8 +585,8 @@ export function hashContains<K, V>(m: HashMap<K, V>, key: K): boolean {
 }
 
 /** `HashMap::index`: `map[&key]`. */
-export function hashIndex<K, V>(m: HashMap<K, V>, key: K): V {
-	if (!hashContains(m, key)) panic("no entry found for key");
+export function hashIndex<K, V>(m: HashMap<K, V>, key: K, at?: Location): V {
+	if (!hashContains(m, key)) panic("no entry found for key", at, true);
 	return hashGet(m, key) as V;
 }
 
@@ -707,8 +753,12 @@ export function hashKey<K>(m: HashSet<K>, key: K, take = false, none?: None): K 
 	return key;
 }
 
-/** Drop `m`: each key by `k` and each value by `v`, of those that drop, entry by entry. */
-export function hashDrop<K, V>(m: HashMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
+/**
+ * Drop `m`: its own `BuildHasher` by `s`, as hashbrown's field before its table, then each
+ * key by `k` and each value by `v`, of those that drop, entry by entry.
+ */
+export function hashDrop<K, V>(m: HashMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void, s?: (state: never) => void): void {
+	s?.(m.s as never);
 	for (const [key, value] of m.p) dropPair(key, value, k, v);
 	for (const first of m.o?.values() ?? []) {
 		for (let s: Slot<K, V> | undefined = first; s !== undefined; s = s.next) dropPair(s.k, s.v, k, v);
@@ -758,6 +808,94 @@ function retainHash<K, V>(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => 
 			dropPair(s.k, s.v, k, v);
 		}
 	}
+}
+
+/**
+ * `extract_if`: each entry `f` returns true for, taken out as it is read, in `hashIter`'s
+ * order, as `[key, value]`, or of a set its key. `f` is given each key and value or, with
+ * `places`, the value's place, and drops with the iterator; what it has not read stays.
+ */
+class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
+	private readonly m: HashMap<K, V>;
+	private readonly p: Iterator<[K, V]>;
+	private readonly o: Iterator<[number, Slot<K, V>]> | undefined;
+	/** The chain it reads, by its hash, the slot it reads next, and the last it kept there. */
+	private hash = 0;
+	private at: Slot<K, V> | undefined;
+	private kept: Slot<K, V> | undefined;
+	private readonly f: (key: K, value: V | Place<V>) => boolean;
+	private readonly places: boolean;
+	private readonly keys: boolean;
+	/** How many it has left to read. */
+	private left: number;
+
+	constructor(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => boolean, places: boolean, keys: boolean) {
+		super();
+		hold(m);
+		this.m = m;
+		this.p = m.p.entries();
+		this.o = m.o?.entries();
+		this.f = f;
+		this.places = places;
+		this.keys = keys;
+		this.left = hashLen(m);
+	}
+
+	next(): T | Done {
+		const m = this.m;
+		for (; this.left > 0; this.left--) {
+			const entry = this.p.next();
+			if (!entry.done) {
+				const [key, value] = entry.value;
+				if (!this.f(key, this.places ? new AtKey(m.p, key) : value)) continue;
+				const now = this.places ? (m.p.get(key) as V) : value;
+				m.p.delete(key);
+				this.left--;
+				return (this.keys ? key : [key, now]) as T;
+			}
+			if (this.at === undefined) {
+				[this.hash, this.at] = (this.o as Iterator<[number, Slot<K, V>]>).next().value as [number, Slot<K, V>];
+				this.kept = undefined;
+			}
+			const s = this.at;
+			this.at = s.next;
+			if (!this.f(s.k, this.places ? s : s.v)) {
+				this.kept = s;
+				continue;
+			}
+			const o = m.o as Map<number, Slot<K, V>>;
+			if (this.kept !== undefined) this.kept.next = s.next;
+			else if (s.next !== undefined) o.set(this.hash, s.next);
+			else o.delete(this.hash);
+			m.n--;
+			this.left--;
+			return (this.keys ? s.k : [s.k, s.v]) as T;
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		return [0, this.left];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.f);
+	}
+}
+
+/** `extract_if` of a map, handing `f` each key and value. */
+export function hashExtractIf<K, V>(m: HashMap<K, V>, f: (key: K, value: V) => boolean): Iter<[K, V]> {
+	return new HashExtractIf(m, f as (key: K, value: V | Place<V>) => boolean, false, false);
+}
+
+/** `extract_if` of a map of values JS copies: `f` takes the place of each. */
+export function hashExtractIfMut<K, V>(m: HashMap<K, V>, f: (key: K, value: Place<V>) => boolean): Iter<[K, V]> {
+	return new HashExtractIf(m, f as (key: K, value: V | Place<V>) => boolean, true, false);
+}
+
+/** `extract_if` of a set, handing `f` each key. */
+export function hashExtractKeysIf<K>(m: HashSet<K>, f: (key: K) => boolean): Iter<K> {
+	return new HashExtractIf(m, f as (key: K) => boolean, false, true);
 }
 
 /**
@@ -909,19 +1047,23 @@ export class HashIter<K, V, T> extends Iter<T> implements Disposable {
 
 /**
  * `iter` and `iter_mut` of a map, and with what drops each key and value of those that
- * drop, `into_iter`: its entries, as `[key, value]`.
+ * drop, `into_iter`: its entries, as `[key, value]`. Each consuming one drops the map's own
+ * `BuildHasher` by `s` at once, as hashbrown's does.
  */
-export function hashIter<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): Iter<[K, V]> {
+export function hashIter<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void, s?: (state: never) => void): Iter<[K, V]> {
+	s?.(m.s as never);
 	return new HashIter<K, V, [K, V]>(m, ENTRIES, k, v);
 }
 
 /** `keys` of a map and `iter` of a set, and with what drops each key and value, `into_keys` and `into_iter`. */
-export function hashKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): Iter<K> {
+export function hashKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void, v?: (value: V) => void, s?: (state: never) => void): Iter<K> {
+	s?.(m.s as never);
 	return new HashIter<K, V, K>(m, KEYS, k, v);
 }
 
 /** `values` and `values_mut`, and with what drops each value and key, `into_values`. */
-export function hashValues<K, V>(m: HashMap<K, V>, v?: (value: V) => void, k?: (key: K) => void): Iter<V> {
+export function hashValues<K, V>(m: HashMap<K, V>, v?: (value: V) => void, k?: (key: K) => void, s?: (state: never) => void): Iter<V> {
+	s?.(m.s as never);
 	return new HashIter<K, V, V>(m, VALUES, k, v);
 }
 
@@ -948,7 +1090,7 @@ export function hashDrainKeys<K, V>(m: HashMap<K, V>, k?: (key: K) => void): Ite
 /** What `m` held, which it no longer does, with the room it had. */
 function taken<K, V>(m: HashMap<K, V>): HashMap<K, V> {
 	hold(m);
-	const out: HashMap<K, V> = { p: m.p, o: m.o, n: m.n, h: m.h };
+	const out: HashMap<K, V> = { p: m.p, o: m.o, n: m.n, h: m.h, s: undefined };
 	m.p = new Map();
 	hashClear(m);
 	return out;
@@ -956,7 +1098,7 @@ function taken<K, V>(m: HashMap<K, V>): HashMap<K, V> {
 
 /** Extend `c` by `add` of each of `items`, taken as `take` says, as std's `extend` takes the iterator. */
 function extending<C, T>(c: C, items: Iter<T>, add: (item: T) => void, take?: Take): C {
-	if (take === "fold") items.fold<void>(undefined, (_, item) => add(item));
+	if (take === "fold") iterForEach(items, add, true);
 	else {
 		// By `next` where std's reads by it, and else as its `for_each` folds.
 		const read = take === "next" ? items : items.folded(true);
@@ -967,24 +1109,23 @@ function extending<C, T>(c: C, items: Iter<T>, add: (item: T) => void, take?: Ta
 }
 
 /**
- * `extending` a `Vec` or `VecDeque` holding `len`, which with elements `size` bytes each
- * reserves as `iterExtend` does, into the capacity `at` holds: a `trusted` iterator up
- * front, and any other by `next`, a `deque`'s at its first item too.
+ * `extending` a `Vec` holding `len`, which with elements `size` bytes each reserves as
+ * `iterExtend` does, into the capacity `held` holds: a `trusted` iterator up front, and any
+ * other by `next`.
  */
-function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, at: object & Capped = {}, deque = false): C {
+function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) => void, take?: Take, size?: number, trusted = false, held: Vec<unknown> = new Vec()): C {
 	if (size === undefined) return extending(c, items, add, take);
-	let cap = capOf(len, at.cap, size);
+	let cap = vecCapacity(held, size);
 	if (trusted) {
-		capSet(at, len, capReserve(len, cap, trustedUpper(items), size), size);
+		vecHold(held, capReserve(len, cap, trustedUpper(items), size));
 		return extending(c, items, add, take);
 	}
 	for (let item = items.next(); item !== DONE; item = items.next()) {
-		if (deque || len === cap) cap = capNext(items, len, cap, size);
-		deque = false;
+		if (len === cap) cap = capNext(items, len, cap, size);
 		add(item);
 		len++;
 	}
-	capSet(at, len, cap, size);
+	vecHold(held, cap);
 	if (take !== undefined) dispose(items);
 	return c;
 }
@@ -997,7 +1138,7 @@ function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) =>
 function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number | undefined): void {
 	if (max === undefined) return;
 	const n = hashLen(m);
-	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow");
+	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow", "hash_capacity");
 }
 
 /**
@@ -1007,6 +1148,28 @@ function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number |
  */
 export function hashExtend<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take, max?: number): HashMap<K, V> {
 	extendReserve(m, items.sizeHint()[0], max);
+	return hashFill(m, items, k, v, take);
+}
+
+/**
+ * hashbrown's `from_iter` of a map, as `hashExtend` into what `make` makes, but which reads
+ * `items`' size hint first, as hashbrown's does before it makes its `BuildHasher`.
+ */
+export function hashFromIter<K, V>(
+	items: Iter<[K, V]>,
+	make: () => HashMap<K, V>,
+	k?: (key: K) => void,
+	v?: (value: V) => void,
+	take?: Take,
+	max?: number): HashMap<K, V> {
+	const n = items.sizeHint()[0];
+	const m = make();
+	extendReserve(m, n, max);
+	return hashFill(m, items, k, v, take);
+}
+
+/** Insert each of `items` into `m`, as `hashExtend` does once it has reserved. */
+function hashFill<K, V>(m: HashMap<K, V>, items: Iter<[K, V]>, k?: (key: K) => void, v?: (value: V) => void, take?: Take): HashMap<K, V> {
 	const add = (item: [K, V]) => {
 		const old = hashInsert(m, item[0], item[1], k);
 		if (old !== undefined) v?.(old);
@@ -1020,9 +1183,17 @@ export function hashExtendKeys<K>(m: HashSet<K>, keys: Iter<K>, k?: (key: K) => 
 	return extending(m, keys, (key) => hashAdd(m, key, k), take);
 }
 
-/** `clone`, with each key and value through its `Clone`, or as itself without one. */
-export function hashClone<K, V>(m: HashMap<K, V>, key: (k: K) => K = itself, value: (v: V) => V = itself): HashMap<K, V> {
-	const out = hashNew<K, V>(m.h);
+/**
+ * `clone`, with its own `BuildHasher` through `state`, first, as hashbrown's, then each key
+ * and value through its `Clone`, or each as itself without one.
+ */
+export function hashClone<K, V>(
+	m: HashMap<K, V>,
+	key: (k: K) => K = itself,
+	value: (v: V) => V = itself,
+	state?: (s: never) => unknown,
+): HashMap<K, V> {
+	const out = hashNew<K, V>(m.h, state === undefined ? m.s : state(m.s as never));
 	for (const [k, v] of m.p) out.p.set(key(k), value(v));
 	// Each clone keeps its original's hash, as hashbrown's copies its table without
 	// rehashing, and a table has no hasher to rehash by.
@@ -1030,6 +1201,22 @@ export function hashClone<K, V>(m: HashMap<K, V>, key: (k: K) => K = itself, val
 		for (let s: Slot<K, V> | undefined = first; s !== undefined; s = s.next) add(out, key(s.k), value(s.v), hash);
 	}
 	return out;
+}
+
+/**
+ * `PartialEq::eq` of hash maps, by their values' `eq`, or of sets, without one: as std's,
+ * equal lengths, then each entry of `a` found in `b`, by the key and then the value of
+ * `a`'s `eq`. The runtime's order decides which entries it compares before one differs.
+ */
+export function hashEq<V>(eq?: (a: V, b: V) => boolean): <K>(a: HashMap<K, V>, b: HashMap<K, V>) => boolean {
+	return <K>(a: HashMap<K, V>, b: HashMap<K, V>) => {
+		if (hashLen(a) !== hashLen(b)) return false;
+		for (const [key, value] of hashIter(a)) {
+			const found = hashGetKeyValue(b, key);
+			if (found === undefined || (eq !== undefined && !eq(value, found[1]))) return false;
+		}
+		return true;
+	};
 }
 
 // Set operations of hash sets, as std's: each walks one set's keys in the runtime's
@@ -1191,20 +1378,24 @@ export function tableOrInsert<T>(e: TableEntry<T>, item: T, f?: (item: T) => voi
 	return e;
 }
 
-/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant. */
-export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T): TableEntry<T> {
-	return e.o ? e : e.fill(make());
-}
-
-/** `Entry::and_modify`: `f` of its item, if occupied. */
-export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void): TableEntry<T> {
-	if (e.o) f(e.v);
+/** `Entry::or_insert_with`: `e`, holding `make()`'s item if it was vacant, or else `make` drops by `dropF` uncalled. */
+export function tableOrInsertWith<T>(e: TableEntry<T>, make: () => T, dropF?: (f: () => T) => void): TableEntry<T> {
+	if (!e.o) return e.fill(make());
+	dropF?.(make);
 	return e;
 }
 
-/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied. */
-export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void): TableEntry<T> {
+/** `Entry::and_modify`: `f` of its item, if occupied, or else `f` drops by `dropF` uncalled. */
+export function tableAndModify<T>(e: TableEntry<T>, f: (item: T) => void, dropF?: (f: (item: T) => void) => void): TableEntry<T> {
+	if (e.o) f(e.v);
+	else dropF?.(f);
+	return e;
+}
+
+/** `Entry::and_modify` of items JS copies: `f` of its item's place, if occupied, as `tableAndModify`. */
+export function tableAndModifyMut<T>(e: TableEntry<T>, f: (item: Place<T>) => void, dropF?: (f: (item: Place<T>) => void) => void): TableEntry<T> {
 	if (e.o) f(e);
+	else dropF?.(f);
 	return e;
 }
 
@@ -1393,10 +1584,10 @@ export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K): boolean {
 }
 
 /** `BTreeMap::index`: `map[&key]`. */
-export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K): V {
+export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K, at?: Location): V {
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
-	if (i < 0) panic("no entry found for key");
+	if (i < 0) panic("no entry found for key", at, true);
 	return l.v[i];
 }
 
@@ -1710,9 +1901,9 @@ export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K): BTreeMap<K, V> {
 	if (m.n === 0) return out;
 	const [keys, values] = flatten(m);
 	const i = search(keys, key, m.c);
-	const at = i < 0 ? ~i : i;
-	build(out, keys.slice(at), values.slice(at));
-	build(m, keys.slice(0, at), values.slice(0, at));
+	const phys = i < 0 ? ~i : i;
+	build(out, keys.slice(phys), values.slice(phys));
+	build(m, keys.slice(0, phys), values.slice(0, phys));
 	out.r = true;
 	return out;
 }
@@ -1914,7 +2105,7 @@ export function btreeValues<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (
 /**
  * A range of keys or indices, as its value is: `a..b`, `a..=b`, `a..` as `{ start }`, `..b`
  * as `{ end }`, `..` as `undefined`, and `(Bound<K>, Bound<K>)` as its pair. Any other
- * `RangeBounds` is a function returning its `start_bound` and `end_bound`, called where
+ * `RangeBounds` is a `BoundsOf`, whose `start_bound` and `end_bound` are called where
  * std's calls them.
  */
 export type Bounds<K> =
@@ -1923,22 +2114,33 @@ export type Bounds<K> =
 	| { readonly start: K }
 	| { readonly end: K; readonly inclusive?: true }
 	| BoundPair<K>
-	| (() => BoundPair<K>)
+	| BoundsOf<K>
 	| undefined;
 
 type BoundPair<K> = readonly [RangeBound<K>, RangeBound<K>];
 
+/** Another `RangeBounds`: its `start_bound` and `end_bound`, each read as it is called. */
+interface BoundsOf<K> {
+	readonly startBound: () => RangeBound<K>;
+	readonly endBound: () => RangeBound<K>;
+}
+
 const UNBOUNDED: RangeBound<never> = { tag: "Unbounded" };
 
-/** Another `RangeBounds`, `r`, as `Bounds` reads it: by `start` and then `end`, once read. */
-export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): () => BoundPair<K> {
-	return () => [start(r), end(r)];
+/** Another `RangeBounds`, `r`, as `Bounds` reads it, by `start` and `end`. */
+export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): BoundsOf<K> {
+	return { startBound: () => start(r), endBound: () => end(r) };
+}
+
+/** Whether `r` is a `BoundsOf`: a field test, as `inclusive`'s is. */
+function other<K>(r: Bounds<K>): r is BoundsOf<K> {
+	return typeof r === "object" && "endBound" in r;
 }
 
 /** `RangeBounds`: `start_bound`, then `end_bound`. */
 function bounds<K>(r: Bounds<K>): BoundPair<K> {
 	if (r === undefined) return [UNBOUNDED, UNBOUNDED];
-	if (typeof r === "function") return r();
+	if (other(r)) return [r.startBound(), r.endBound()];
 	if (Array.isArray(r)) return r as BoundPair<K>;
 	if (inclusive(r)) return [rangeInclusiveStartBound(r), rangeInclusiveEndBound(r)];
 	const start: RangeBound<K> = "start" in r ? { tag: "Included", _0: r.start } : UNBOUNDED;
@@ -1972,9 +2174,9 @@ function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: strin
 		const s = start._0;
 		const e = stop._0;
 		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? m.c(s, e) === 0 : eq(s, e))) {
-			panic(`range start and end are equal and excluded in ${name}`);
+			panic(`range start and end are equal and excluded in ${name}`, `btree_range_equal_${name}`);
 		}
-		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`);
+		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
 	}
 	const [fl, fi] = start.tag === "Unbounded" ? [end(m, false), 0] : edge(m, start._0, start.tag === "Excluded");
 	const last = end(m, true);
@@ -1987,6 +2189,135 @@ function edge<K, V>(m: BTreeMap<K, V>, key: K, past: boolean): [Leaf<K, V>, numb
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
 	return [l, i < 0 ? ~i : past ? i + 1 : i];
+}
+
+/**
+ * `extract_if` of a B-tree: from the first key `r` starts at, each entry `f` returns true
+ * for, taken out as it is read, in key order, as `[key, value]`, or of a set its key, up to
+ * the first key past `r`'s end, which `r` is read for at each key and found past by `le` and
+ * `lt`, a key of the crate's own's `PartialOrd`, or else by the map's order. `f` is given
+ * each key and value or, with `places`, the value's place, and drops with the iterator,
+ * then `r`, by `drop`; what it has not read stays.
+ */
+class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
+	private readonly m: BTreeMap<K, V>;
+	/** The leaf of the entry it reads next, and its index, until it stops, as std's cursor. */
+	l: Leaf<K, V> | undefined;
+	i = 0;
+	private readonly r: Bounds<K>;
+	private readonly f: (key: K, value: V | Place<V>) => boolean;
+	private readonly places: boolean;
+	private readonly keys: boolean;
+	private readonly le: Test<K> | undefined;
+	private readonly lt: Test<K> | undefined;
+	private readonly drop: (() => void) | undefined;
+
+	constructor(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V | Place<V>) => boolean, places: boolean, keys: boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void) {
+		super();
+		this.m = m;
+		this.r = r;
+		this.f = f;
+		this.places = places;
+		this.keys = keys;
+		this.le = le;
+		this.lt = lt;
+		this.drop = drop;
+		// std's reads the start only of a map with its root node.
+		if (!m.r) return;
+		const start = other(r) ? r.startBound() : bounds(r)[0];
+		if (start.tag === "Unbounded") this.at(end(m, false), 0);
+		else this.at(...edge(m, start._0, start.tag === "Excluded"));
+	}
+
+	/** Moves to index `i` of `l`, or to the next leaf's first where `i` is past `l`'s last. */
+	private at(l: Leaf<K, V>, i: number): void {
+		if (i === l.k.length && l.next !== undefined) {
+			l = l.next;
+			i = 0;
+		}
+		this.l = l;
+		this.i = i;
+	}
+
+	/** Whether `key` is within the end of `r`. */
+	private within(key: K): boolean {
+		const r = this.r;
+		const stop = other(r) ? r.endBound() : bounds(r)[1];
+		if (stop.tag === "Unbounded") return true;
+		if (stop.tag === "Included") return this.le !== undefined ? this.le(key, stop._0) : this.m.c(key, stop._0) <= 0;
+		return this.lt !== undefined ? this.lt(key, stop._0) : this.m.c(key, stop._0) < 0;
+	}
+
+	next(): T | Done {
+		const m = this.m;
+		for (let l = this.l; l !== undefined; l = this.l) {
+			let i = this.i;
+			// Stopped where it ends, past the end of `r`, or by a panic, as std's is.
+			this.l = undefined;
+			if (i === l.k.length) return DONE;
+			const key = l.k[i];
+			if (!this.within(key)) return DONE;
+			if (!this.f(key, this.places ? new AtIndex(l.v, i) : l.v[i])) {
+				this.at(l, i + 1);
+				continue;
+			}
+			const value = l.v[i];
+			// A leaf left too small evens out with a neighbor or merges with it. Only one that
+			// merges into the leaf before it or takes from it moves what is left of it.
+			const prev = l.prev;
+			const before = prev?.k.length ?? 0;
+			removeAt(m, l, i);
+			if (prev !== undefined && prev.next !== l) {
+				i += before;
+				l = prev;
+			} else if (prev !== undefined) {
+				i += before - prev.k.length;
+			}
+			this.at(l, i);
+			return (this.keys ? key : [key, value]) as T;
+		}
+		return DONE;
+	}
+
+	/** std's, which counts what it read and kept, too. */
+	override sizeHint(): SizeHint {
+		return [0, this.m.n];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.f);
+		this.drop?.();
+	}
+}
+
+/** `Debug` of a B-tree's `ExtractIf`: the entry it reads next, if any, or of a set, with no `value`, its key. */
+export function fmtBTreeExtractIf<K, V>(it: Iter<unknown>, f: Formatter, key: Debug<K>, value?: Debug<V>): FmtResult {
+	const { l, i } = it as BTreeExtractIf<K, V, unknown>;
+	let peek: Fmt = (f) => f.out.writeStr("None");
+	if (l !== undefined && i < l.k.length) {
+		const k: Fmt = (f) => key(l.k[i], f);
+		const kv: Fmt = value === undefined ? k : (f) => fmtTuple([k, (f) => value(l.v[i], f)], f);
+		peek = (f) => fmtDebugTupleFields(f, "Some", [kv]);
+	}
+	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
+}
+
+/**
+ * `BTreeMap::extract_if`, handing `f` each key and value, with what `BTreeExtractIf` takes:
+ * a key of the crate's own's `le` and `lt`, and what drops a range that drops.
+ */
+export function btreeExtractIf<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, false, false, le, lt, drop);
+}
+
+/** `BTreeMap::extract_if` of values JS copies: `f` takes the place of each. */
+export function btreeExtractIfMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: Place<V>) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, true, false, le, lt, drop);
+}
+
+/** `BTreeSet::extract_if`, handing `f` each key. */
+export function btreeExtractKeysIf<K>(m: BTreeSet<K>, r: Bounds<K>, f: (key: K) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<K> {
+	return new BTreeExtractIf(m, r, f as (key: K) => boolean, false, true, le, lt, drop);
 }
 
 /**
@@ -2004,8 +2335,7 @@ export function btreeExtend<K, V>(
 	v?: (value: V) => void,
 	take?: Take,
 	size?: number,
-	trusted = false,
-): BTreeMap<K, V> {
+	trusted = false): BTreeMap<K, V> {
 	const add = (item: [K, V]) => {
 		if (!last) {
 			const old = btreeInsert(m, item[0], item[1], k);
@@ -2040,14 +2370,14 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
 
 /**
  * `collect` and `from` into `m`, an empty map, of `entries`, which std's collects into a
- * `Vec` first. It sorts them stably by `Ord::cmp` of their keys if `sorts`, as std's sort
- * does all but zero-sized ones, and builds the tree of each but those whose key `same`,
+ * `Vec` first. It sorts them as std's stable sort does by `Ord::cmp` of their keys, of
+ * entries `size` bytes long on wasm32 and `Freeze` if `freeze`, and builds the tree of each but those whose key `same`,
  * `!ne`, finds equal to the next one's, which drop in order. Without `same`, the keys'
  * impls agree, so JS's sort and `Ord` alone build the same tree faster.
  */
-export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts = false, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
+export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else if (sorts) sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1);
+	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2068,17 +2398,18 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], sorts =
  * `collect` and `from` into `m`, an empty set, of `keys`, as `btreeCollect`, but sorted by
  * `less`, their `PartialOrd::lt`, or not at all if zero-sized.
  */
-export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
+export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, freeze: boolean, less?: Test<K>, same?: Test<K>, k?: (key: K) => void): BTreeSet<K> {
 	if (same === undefined) {
 		return btreeCollect(
 			m,
 			keys.map((key) => [key, undefined]),
-			true,
+			size,
+			freeze,
 			undefined,
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less);
+	if (less !== undefined) sliceSort(keys, less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
@@ -2118,12 +2449,12 @@ function ends<K>(m: BTreeSet<K>): [K, K] {
  * the greater of two that differ.
  */
 abstract class Merge<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 	/** The key held back, and whether it is `a`'s. */
-	private held: K | Done = DONE;
-	private heldA = false;
+	held: K | Done = DONE;
+	heldA = false;
 
 	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
 		super();
@@ -2199,29 +2530,57 @@ export function btreeSymmetricDifference<K>(a: BTreeSet<K>, b: BTreeSet<K>): Ite
 }
 
 /**
- * Each key of `a` that the other set lacks: looked up in it, or with no set to look in,
- * found by stepping through its keys by `b`, peeked a key ahead.
+ * A set operation that looks each key of `small` up in `large`: an intersection's, yielding
+ * those `large` holds if `holds`, or a difference's, those it lacks.
  */
+class Search<K> extends Iter<K> {
+	readonly small: Iter<K>;
+	readonly large: BTreeSet<K>;
+	private readonly holds: boolean;
+
+	constructor(small: Iter<K>, large: BTreeSet<K>, holds: boolean) {
+		super();
+		this.small = small;
+		this.large = large;
+		this.holds = holds;
+	}
+
+	override clone(): Iter<K> {
+		return new Search(this.small.clone(), this.large, this.holds);
+	}
+
+	next(): K | Done {
+		for (let x = this.small.next(); x !== DONE; x = this.small.next()) {
+			if (btreeContains(this.large, x) === this.holds) return x;
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		const n = this.small.len();
+		return [this.holds ? 0 : Math.max(n - this.large.n, 0), n];
+	}
+}
+
+/** Each key of `a` that the other set lacks, found by stepping through its keys by `b`, peeked a key ahead. */
 class Difference<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly set: BTreeSet<K> | undefined;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 	/** `b`'s next key, once `peeked` says it was read. */
-	private peek: K | Done = DONE;
-	private peeked = false;
+	peek: K | Done = DONE;
+	peeked = false;
 
-	constructor(a: Iter<K>, set: BTreeSet<K> | undefined, b: Iter<K>, c: (a: K, b: K) => Ordering) {
+	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
 		super();
 		this.a = a;
-		this.set = set;
 		this.b = b;
 		this.c = c;
 	}
 
 	/** std's: each of its iterators, and the key it peeked. */
 	override clone(): Iter<K> {
-		const it = new Difference(this.a.clone(), this.set, this.b.clone(), this.c);
+		const it = new Difference(this.a.clone(), this.b.clone(), this.c);
 		it.peek = this.peek;
 		it.peeked = this.peeked;
 		return it;
@@ -2230,13 +2589,6 @@ class Difference<K> extends Iter<K> {
 	next(): K | Done {
 		let x = this.a.next();
 		if (x === DONE) return DONE;
-		if (this.set !== undefined) {
-			while (btreeContains(this.set, x)) {
-				x = this.a.next();
-				if (x === DONE) return DONE;
-			}
-			return x;
-		}
 		for (;;) {
 			if (!this.peeked) {
 				this.peek = this.b.next();
@@ -2254,7 +2606,7 @@ class Difference<K> extends Iter<K> {
 
 	override sizeHint(): SizeHint {
 		const n = this.a.len();
-		const other = this.set !== undefined ? this.set.n : this.b.len() + (this.peeked && this.peek !== DONE ? 1 : 0);
+		const other = this.b.len() + (this.peeked && this.peek !== DONE ? 1 : 0);
 		return [Math.max(n - other, 0), n];
 	}
 }
@@ -2270,15 +2622,15 @@ export function btreeDifference<K>(a: BTreeSet<K>, b: BTreeSet<K>): Iter<K> {
 	if (low > 0 || high < 0) return keys;
 	if (low === 0) keys.next();
 	else if (high === 0) keys.nextBack();
-	else if (a.n <= Math.floor(b.n / TIPPING)) return new Difference(keys, b, iterEmpty(), b.c);
-	else return new Difference(keys, undefined, btreeKeys(b), b.c);
+	else if (a.n <= Math.floor(b.n / TIPPING)) return new Search(keys, b, false);
+	else return new Difference(keys, btreeKeys(b), b.c);
 	return keys;
 }
 
 /** An intersection that merges: each key of `a` that `b` holds. */
 class Intersection<K> extends Iter<K> {
-	private readonly a: Iter<K>;
-	private readonly b: Iter<K>;
+	readonly a: Iter<K>;
+	readonly b: Iter<K>;
 	private readonly c: (a: K, b: K) => Ordering;
 
 	constructor(a: Iter<K>, b: Iter<K>, c: (a: K, b: K) => Ordering) {
@@ -2324,9 +2676,52 @@ export function btreeIntersection<K>(a: BTreeSet<K>, b: BTreeSet<K>): Iter<K> {
 	if (low > 0 || high < 0) return iterEmpty();
 	if (low === 0) return iterOnce(aMin);
 	if (high === 0) return iterOnce(aMax);
-	if (a.n <= Math.floor(b.n / TIPPING)) return iterFilter(btreeKeys(a), (key) => btreeContains(b, key));
-	if (b.n <= Math.floor(a.n / TIPPING)) return iterFilter(btreeKeys(b), (key) => btreeContains(a, key));
+	if (a.n <= Math.floor(b.n / TIPPING)) return new Search(btreeKeys(a), b, true);
+	if (b.n <= Math.floor(a.n / TIPPING)) return new Search(btreeKeys(b), a, true);
 	return new Intersection(btreeKeys(a), btreeKeys(b), a.c);
+}
+
+/**
+ * `Debug` of a `BTreeSet`'s `Difference`, `Intersection`, `Union`, or
+ * `SymmetricDifference`, `name`, each key by `debug`: the way std picked to make it, by
+ * the iterators it reads, a set it looks keys up in, and the key it peeked or holds back.
+ */
+export function fmtBTreeSetOp<K>(it: Iter<unknown>, f: Formatter, debug: Debug<K>, name: string, at?: Location): FmtResult {
+	const keys =
+		(it: Iter<unknown>): Fmt =>
+		(f) =>
+			fmtIter(it, f, debug, ["Iter"], at);
+	const none: Fmt = (f) => f.out.writeStr("None");
+	const some =
+		(value: Fmt): Fmt =>
+		(f) =>
+			fmtDebugTupleFields(f, "Some", [value]);
+	const key =
+		(key: K): Fmt =>
+		(f) =>
+			debug(key, f);
+	let inner: Fmt;
+	if (it instanceof Merge) {
+		const held = it.held as K;
+		const peeked = it.held === DONE ? none : some((f) => fmtDebugTupleFields(f, it.heldA ? "A" : "B", [key(held)]));
+		inner = (f) => fmtDebugTupleFields(f, "MergeIterInner", [keys(it.a), keys(it.b), peeked]);
+	} else if (it instanceof Search) {
+		const set: Fmt = (f) => fmtSet(btreeKeys(it.large), f, debug);
+		const names = name === "Difference" ? ["self_iter", "other_iter"] : ["small_iter", "large_set"];
+		inner = (f) => fmtDebugStructFields(f, "Search", names, [keys(it.small), set]);
+	} else if (it instanceof Difference) {
+		const peeked = !it.peeked ? none : some(it.peek === DONE ? none : some(key(it.peek as K)));
+		const other: Fmt = (f) => fmtDebugStructFields(f, "Peekable", ["iter", "peeked"], [keys(it.b), peeked]);
+		inner = (f) => fmtDebugStructFields(f, "Stitch", ["self_iter", "other_iter"], [keys(it.a), other]);
+	} else if (it instanceof Intersection) {
+		inner = (f) => fmtDebugStructFields(f, "Stitch", ["a", "b"], [keys(it.a), keys(it.b)]);
+	} else if (name === "Difference") {
+		inner = (f) => fmtDebugTupleFields(f, "Iterate", [keys(it)]);
+	} else {
+		const left = [...it.remaining()] as K[];
+		inner = (f) => fmtDebugTupleFields(f, "Answer", [left.length === 0 ? none : some(key(left[0]))]);
+	}
+	return fmtDebugTupleFields(f, name, [inner]);
 }
 
 /** `BTreeSet::is_subset`: whether `b` holds each key of `a`. */
@@ -2466,9 +2861,13 @@ function isHash<K, V>(m: HashMap<K, V> | BTreeMap<K, V>): m is HashMap<K, V> {
 	return "p" in m;
 }
 
-/** `Entry::or_insert_with`: the value there, or else `f()`'s, inserted. */
-export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V): V {
-	if (e.o) return entryGet(e);
+/** `Entry::or_insert_with`: the value there, and `f` drops by `dropF` uncalled, or else `f()`'s, inserted. */
+export function entryOrInsertWith<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): V {
+	if (e.o) {
+		const value = entryGet(e);
+		dropF?.(f);
+		return value;
+	}
 	const value = f(e.k);
 	fill(e, value);
 	return value;
@@ -2489,15 +2888,17 @@ export function entryOccupied<K, V>(e: Entry<K, V>): boolean {
 	return e.o;
 }
 
-/** `Entry::and_modify` of a value JS copies: `f` of its place, if any. */
-export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void): Entry<K, V> {
+/** `Entry::and_modify` of a value JS copies: `f` of its place, if any, as `entryAndModify`. */
+export function entryAndModifyMut<K, V>(e: Entry<K, V>, f: (value: Place<V>) => void, dropF?: (f: (value: Place<V>) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGetMut(e));
+	else dropF?.(f);
 	return e;
 }
 
-/** `Entry::and_modify`: `f` of the value there, if any. */
-export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void): Entry<K, V> {
+/** `Entry::and_modify`: `f` of the value there, if any, or else `f` drops by `dropF` uncalled. */
+export function entryAndModify<K, V>(e: Entry<K, V>, f: (value: V) => void, dropF?: (f: (value: V) => void) => void): Entry<K, V> {
 	if (e.o) f(entryGet(e));
+	else dropF?.(f);
 	return e;
 }
 
@@ -2522,10 +2923,14 @@ export function entryGetMut<K, V>(e: Entry<K, V>): Place<V> {
 
 /**
  * `Entry::or_insert_with` and `or_insert_with_key` of a value JS copies, and
- * `or_default`: its place, after inserting `f`'s value if the map lacks the key.
+ * `or_default`: its place, after inserting `f`'s value if the map lacks the key, as
+ * `entryOrInsertWith`.
  */
-export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V): Place<V> {
-	return e.o ? entryGetMut(e) : fill(e, f(e.k));
+export function entryOrInsertWithMut<K, V>(e: Entry<K, V>, f: (key: K) => V, dropF?: (f: (key: K) => V) => void): Place<V> {
+	if (!e.o) return fill(e, f(e.k));
+	const place = entryGetMut(e);
+	dropF?.(f);
+	return place;
 }
 
 /** `Entry::or_insert` and `VacantEntry::insert` of a value JS copies: its place, and `value` drops if one was there. */
@@ -2572,79 +2977,173 @@ export function btreeFirstEntry<K, V>(m: BTreeMap<K, V>, last = false): Entry<K,
 
 // VecDeque
 
+/** `usize::MAX` on wasm32, the capacity of a deque of zero-sized items. */
+const USIZE_MAX = 0xffffffff;
+
 /**
- * `VecDeque<T>`: a ring buffer of `b.length` slots, a power of two, holding `n` items
- * from `h` on, wrapping past the end, and the capacity an operation set, as a `Vec`'s.
+ * `VecDeque<T>`: a ring buffer of `b.length` slots, std's capacity, holding `n` items of
+ * `s` bytes each from `h` on, wrapping past the end. Each step places them where std's
+ * does, which `as_slices` shows: a deque of bytes is a `Uint8Array`, which its slices view,
+ * and one of zero-sized items has `usize::MAX` slots, as std's.
  */
-export interface VecDeque<T> extends Capped {
+export interface VecDeque<T> {
 	b: (T | undefined)[];
 	h: number;
 	n: number;
+	s: number;
 }
 
-/** `VecDeque::new`. */
-export function dequeNew<T>(): VecDeque<T> {
-	return { b: [], h: 0, n: 0 };
+/** `cap` empty slots, bytes if `bytes`. */
+function slots<T>(cap: number, bytes: boolean): (T | undefined)[] {
+	return bytes ? (new Uint8Array(cap) as unknown as T[]) : new Array<T | undefined>(cap);
+}
+
+/** Whether `q` holds bytes in a `Uint8Array`. */
+function holdsBytes<T>(q: VecDeque<T>): boolean {
+	return q.b instanceof Uint8Array;
+}
+
+/** `VecDeque::new` of `size`-byte items, held as bytes if `bytes`. */
+export function dequeNew<T>(size: number, bytes = false): VecDeque<T> {
+	return { b: slots(size === 0 ? USIZE_MAX : 0, bytes), h: 0, n: 0, s: size };
 }
 
 /** `VecDeque::with_capacity` of `size`-byte items, which panics past what it may hold. */
-export function dequeWithCapacity<T>(n: number, size: number): VecDeque<T> {
-	if (n > vecMax(size)) panic("capacity overflow");
-	const q = dequeNew<T>();
-	capSet(q, 0, n, size);
+export function dequeWithCapacity<T>(n: number, size: number, bytes = false): VecDeque<T> {
+	if (n > vecMax(size)) panic("capacity overflow", "capacity");
+	const q = dequeNew<T>(size, bytes);
+	if (size !== 0) q.b = slots(n, bytes);
 	return q;
 }
 
 /** A deque of `v`'s items, with its capacity, as std's `From<Vec<T>>` keeps it. */
-export function dequeFromVec<T>(v: T[] & Capped): VecDeque<T> {
-	const q = dequeNew<T>();
-	for (const item of v) dequePushBack(q, item);
-	if (v.cap !== undefined) q.cap = v.cap;
+export function dequeFromVec<T>(v: Vec<T>, size: number, bytes = false): VecDeque<T> {
+	const q = dequeWithCapacity<T>(vecCapacity(v, size), size, bytes);
+	const d = v.items;
+	for (let i = 0; i < d.length; i++) q.b[i] = d[i];
+	q.n = d.length;
 	return q;
 }
 
-/** `VecDeque::capacity` of `size`-byte items. */
-export function dequeCapacity<T>(q: VecDeque<T>, size: number): number {
-	return capOf(q.n, q.cap, size);
+/** A deque of `a`'s items, with room for exactly them, as std's `From<[T; N]>` makes it. */
+export function dequeFromArray<T>(a: ArrayLike<T>, size: number, bytes = false): VecDeque<T> {
+	const q = dequeWithCapacity<T>(a.length, size, bytes);
+	for (let i = 0; i < a.length; i++) q.b[i] = a[i];
+	q.n = a.length;
+	return q;
 }
 
-/** `VecDeque::reserve` of `size`-byte items. */
-export function dequeReserve<T>(q: VecDeque<T>, additional: number, size: number): void {
-	capHold(q, capReserve(q.n, dequeCapacity(q, size), additional, size), size);
+/** `VecDeque::capacity`. */
+export function dequeCapacity<T>(q: VecDeque<T>): number {
+	return q.b.length;
 }
 
-/** `VecDeque::reserve_exact` of `size`-byte items. */
-export function dequeReserveExact<T>(q: VecDeque<T>, additional: number, size: number): void {
-	capHold(q, capReserveExact(q.n, dequeCapacity(q, size), additional, size), size);
+/** `VecDeque::reserve`. */
+export function dequeReserve<T>(q: VecDeque<T>, additional: number): void {
+	regrow(q, capReserve(q.n, q.b.length, additional, q.s));
 }
 
-/** `VecDeque::shrink_to` of `size`-byte items, and `shrink_to_fit` of 0. */
-export function dequeShrinkTo<T>(q: VecDeque<T>, min: number, size: number): void {
-	capSet(q, q.n, capShrink(q.n, dequeCapacity(q, size), min), size);
+/** `VecDeque::reserve_exact`. */
+export function dequeReserveExact<T>(q: VecDeque<T>, additional: number): void {
+	regrow(q, capReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/** `VecDeque::try_reserve`: `reserve`'s capacity, or the error where it panics or JS can't make a byte deque's. */
+export function dequeTryReserve<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserve(q.n, q.b.length, additional, q.s));
+}
+
+/** `VecDeque::try_reserve_exact`. */
+export function dequeTryReserveExact<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/** `q` regrown to `cap`, or the overflow `undefined` is, or the failure to allocate its bytes. */
+function dequeTried<T>(q: VecDeque<T>, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	try {
+		regrow(q, cap);
+	} catch (e) {
+		if (!holdsBytes(q)) throw e;
+		return allocError(e, cap);
+	}
+	return OK;
+}
+
+/**
+ * `VecDeque::shrink_to`, and `shrink_to_fit` of 0: the items moved within the slots kept
+ * as std's moves them, the head to the front if the tail is past them, or else the part
+ * past them to the front, or the wrapped head to their end.
+ */
+export function dequeShrinkTo<T>(q: VecDeque<T>, min: number): void {
+	const cap = q.b.length;
+	const target = Math.max(min, q.n);
+	if (q.s === 0 || cap <= target) return;
+	const end = q.h + q.n;
+	const tailOutside = end > target && end <= cap;
+	let h = q.h;
+	if (q.n === 0 || (q.h >= target && tailOutside)) h = 0;
+	else if (!tailOutside && q.h > cap - q.n) h = target - (cap - q.h);
+	place(q, target, h);
+}
+
+/**
+ * The slot `n` past slot `j`, as std's `wrap_index` of a `usize` sum: past `usize::MAX`,
+ * which only zero-sized items' `usize::MAX` slots reach, it wraps first.
+ */
+function wrap<T>(q: VecDeque<T>, j: number): number {
+	if (j < q.b.length) return j;
+	return j > USIZE_MAX ? j - USIZE_MAX - 1 : j - q.b.length;
 }
 
 /** The slot of item `i`. */
-function at<T>(q: VecDeque<T>, i: number): number {
-	return (q.h + i) & (q.b.length - 1);
+function phys<T>(q: VecDeque<T>, i: number): number {
+	return wrap(q, q.h + i);
 }
 
-/** Room for one more item. */
-function grow<T>(q: VecDeque<T>): void {
-	if (q.n < q.b.length) return;
-	const b = new Array(Math.max(4, q.b.length * 2));
-	for (let i = 0; i < q.n; i++) b[i] = q.b[at(q, i)];
+/** The slot before `q`'s head, as std's `wrap_sub` finds it. */
+function before<T>(q: VecDeque<T>): number {
+	return wrap(q, q.h - 1 + q.b.length);
+}
+
+/**
+ * `q` grown to `cap` slots, if more: the items moved as std's `handle_capacity_increase`
+ * moves them, the wrapped tail after the old end if it is shorter and fits, or else the
+ * head to the new end.
+ */
+function regrow<T>(q: VecDeque<T>, cap: number): void {
+	const old = q.b.length;
+	if (cap <= old) return;
+	let h = q.h;
+	if (h > old - q.n) {
+		const head = old - h;
+		const tail = q.n - head;
+		if (head <= tail || cap - old < tail) h = cap - head;
+	}
+	place(q, cap, h);
+}
+
+/** `q`'s items moved, in order, to `cap` new slots from `h` on. */
+function place<T>(q: VecDeque<T>, cap: number, h: number): void {
+	const b = slots<T>(cap, holdsBytes(q));
+	for (let i = 0, j = h; i < q.n; i++, j = j + 1 === cap ? 0 : j + 1) b[j] = q.b[phys(q, i)];
 	q.b = b;
-	q.h = 0;
+	q.h = h;
+}
+
+/** Room for one more item, grown as std's `grow_one`. */
+function grow<T>(q: VecDeque<T>): void {
+	if (q.n === q.b.length) regrow(q, capReserve(q.n, q.n, 1, q.s));
 }
 
 export function dequePushBack<T>(q: VecDeque<T>, item: T): void {
 	grow(q);
-	q.b[at(q, q.n++)] = item;
+	q.b[phys(q, q.n++)] = item;
 }
 
 export function dequePushFront<T>(q: VecDeque<T>, item: T): void {
 	grow(q);
-	q.h = (q.h - 1) & (q.b.length - 1);
+	q.h = before(q);
 	q.b[q.h] = item;
 	q.n++;
 }
@@ -2656,7 +3155,7 @@ export function dequePopFront<T>(q: VecDeque<T>, none?: None): T | None | undefi
 	if (q.n === 0) return none;
 	const item = q.b[q.h];
 	q.b[q.h] = undefined;
-	q.h = at(q, 1);
+	q.h = phys(q, 1);
 	q.n--;
 	return item;
 }
@@ -2666,7 +3165,7 @@ export function dequePopBack<T>(q: VecDeque<T>): T | undefined;
 export function dequePopBack<T>(q: VecDeque<T>, none: None): T | None;
 export function dequePopBack<T>(q: VecDeque<T>, none?: None): T | None | undefined {
 	if (q.n === 0) return none;
-	const i = at(q, --q.n);
+	const i = phys(q, --q.n);
 	const item = q.b[i];
 	q.b[i] = undefined;
 	return item;
@@ -2676,52 +3175,55 @@ export function dequePopBack<T>(q: VecDeque<T>, none?: None): T | None | undefin
 export function dequeGet<T>(q: VecDeque<T>, i: number): T | undefined;
 export function dequeGet<T>(q: VecDeque<T>, i: number, none: None): T | None;
 export function dequeGet<T>(q: VecDeque<T>, i: number, none?: None): T | None | undefined {
-	return i < q.n ? (q.b[at(q, i)] as T) : none;
+	return i < q.n ? (q.b[phys(q, i)] as T) : none;
 }
 
 /** `front`, and with `back`, `back`, or else `none`. */
 export function dequeEnd<T>(q: VecDeque<T>, back?: boolean): T | undefined;
 export function dequeEnd<T>(q: VecDeque<T>, back: boolean, none: None): T | None;
 export function dequeEnd<T>(q: VecDeque<T>, back = false, none?: None): T | None | undefined {
-	return q.n === 0 ? none : (q.b[at(q, back ? q.n - 1 : 0)] as T);
+	return q.n === 0 ? none : (q.b[phys(q, back ? q.n - 1 : 0)] as T);
 }
 
 /** `get_mut` of an item JS copies: its place, or `undefined` past the end. */
 export function dequeGetMut<T>(q: VecDeque<T>, i: number): Place<T> | undefined {
-	return i < q.n ? new AtIndex(q.b as T[], at(q, i)) : undefined;
+	return i < q.n ? new AtIndex(q.b as T[], phys(q, i)) : undefined;
 }
 
 /** `front_mut` of an item JS copies, and with `back`, `back_mut`. */
 export function dequeEndMut<T>(q: VecDeque<T>, back = false): Place<T> | undefined {
-	return q.n === 0 ? undefined : new AtIndex(q.b as T[], at(q, back ? q.n - 1 : 0));
+	return q.n === 0 ? undefined : new AtIndex(q.b as T[], phys(q, back ? q.n - 1 : 0));
 }
 
 /** `index` and `index_mut`: `q[i]`. */
-export function dequeIndex<T>(q: VecDeque<T>, i: number): T {
-	if (i >= q.n) panic("out of bounds access");
-	return q.b[at(q, i)] as T;
+export function dequeIndex<T>(q: VecDeque<T>, i: number, at?: Location): T {
+	if (i >= q.n) panic("out of bounds access", at, true);
+	return q.b[phys(q, i)] as T;
 }
 
 /** `q[i] = item`, through `index_mut`. */
-export function dequeSet<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i >= q.n) panic("out of bounds access");
-	q.b[at(q, i)] = item;
+export function dequeSet<T>(q: VecDeque<T>, i: number, item: T, at?: Location): void {
+	if (i >= q.n) panic("out of bounds access", at, true);
+	q.b[phys(q, i)] = item;
 }
 
 /** Drop `q`: each item by `f`, front to back. */
 export function dequeDrop<T>(q: VecDeque<T>, f: (item: T) => void): void {
 	const items: T[] = [];
-	for (let i = 0; i < q.n; i++) items.push(q.b[at(q, i)] as T);
+	for (let i = 0; i < q.n; i++) items.push(q.b[phys(q, i)] as T);
 	dropAll(items, f);
 }
 
-/** `clear`, which leaves the deque empty and then drops each item, front to back. */
+/** `clear`, which leaves the deque empty, its head at the front, and then drops each item, front to back. */
 export function dequeClear<T>(q: VecDeque<T>, f?: (item: T) => void): void {
-	const old: VecDeque<T> = { b: q.b, h: q.h, n: q.n };
-	q.b = [];
+	const items: T[] = [];
+	for (let i = 0; i < q.n; i++) {
+		items.push(q.b[phys(q, i)] as T);
+		q.b[phys(q, i)] = undefined;
+	}
 	q.h = 0;
 	q.n = 0;
-	if (f !== undefined) dequeDrop(old, f);
+	if (f !== undefined) dropAll(items, f);
 }
 
 /** `truncate`: the first `len` items, if there are more, and then each other drops in order. */
@@ -2731,7 +3233,7 @@ export function dequeTruncate<T>(q: VecDeque<T>, len: number, f?: (item: T) => v
 		return;
 	}
 	const cut: T[] = [];
-	for (let i = len; i < q.n; i++) cut.push(q.b[at(q, i)] as T);
+	for (let i = len; i < q.n; i++) cut.push(q.b[phys(q, i)] as T);
 	while (q.n > len) dequePopBack(q);
 	dropAll(cut, f);
 }
@@ -2753,18 +3255,18 @@ export function dequeRetainMut<T>(q: VecDeque<T>, f: (item: Place<T>) => boolean
 function retainDeque<T>(q: VecDeque<T>, f: (item: T | Place<T>) => boolean, lend: boolean, drop?: (item: T) => void): void {
 	let kept = 0;
 	for (let i = 0; i < q.n; i++) {
-		const keep = f(lend ? new AtIndex(q.b as T[], at(q, i)) : (q.b[at(q, i)] as T));
-		const item = q.b[at(q, i)] as T;
+		const keep = f(lend ? new AtIndex(q.b as T[], phys(q, i)) : (q.b[phys(q, i)] as T));
+		const item = q.b[phys(q, i)] as T;
 		if (!keep) continue;
-		q.b[at(q, i)] = q.b[at(q, kept)];
-		q.b[at(q, kept++)] = item;
+		q.b[phys(q, i)] = q.b[phys(q, kept)];
+		q.b[phys(q, kept++)] = item;
 	}
 	dequeTruncate(q, kept, drop);
 }
 
 /** `contains`, by `eq`. */
 export function dequeContains<T>(q: VecDeque<T>, item: T, eq: (a: T, b: T) => boolean): boolean {
-	for (let i = 0; i < q.n; i++) if (eq(q.b[at(q, i)] as T, item)) return true;
+	for (let i = 0; i < q.n; i++) if (eq(q.b[phys(q, i)] as T, item)) return true;
 	return false;
 }
 
@@ -2776,161 +3278,499 @@ export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back?: boolean): T
 export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back: boolean, none: None): T | None;
 export function dequeSwapRemove<T>(q: VecDeque<T>, i: number, back = false, none?: None): T | None | undefined {
 	if (i >= q.n) return none;
-	const [j, end] = [at(q, i), at(q, back ? q.n - 1 : 0)];
+	const [j, end] = [phys(q, i), phys(q, back ? q.n - 1 : 0)];
 	[q.b[j], q.b[end]] = [q.b[end], q.b[j]];
 	return (back ? dequePopBack(q) : dequePopFront(q)) as T;
 }
 
-/** `remove`: the item at `i`, with those after it moved up, or else `none`. */
+/** `remove`: the item at `i`, with the shorter side moved over its slot, as std's, or else `none`. */
 export function dequeRemove<T>(q: VecDeque<T>, i: number): T | undefined;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none: None): T | None;
 export function dequeRemove<T>(q: VecDeque<T>, i: number, none?: None): T | None | undefined {
 	if (i >= q.n) return none;
-	const item = q.b[at(q, i)] as T;
-	for (let j = i; j + 1 < q.n; j++) q.b[at(q, j)] = q.b[at(q, j + 1)];
-	dequePopBack(q);
+	const item = q.b[phys(q, i)] as T;
+	if (q.n - i - 1 < i) {
+		for (let j = i; j + 1 < q.n; j++) q.b[phys(q, j)] = q.b[phys(q, j + 1)];
+		q.b[phys(q, q.n - 1)] = undefined;
+	} else {
+		for (let j = i; j > 0; j--) q.b[phys(q, j)] = q.b[phys(q, j - 1)];
+		q.b[q.h] = undefined;
+		q.h = phys(q, 1);
+	}
+	q.n--;
 	return item;
 }
 
-/** `insert`: `item` at `i`, with those from `i` on moved down. */
+/** `insert`: `item` at `i`, with the shorter side moved to make room, as std's. */
 export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i > q.n) panic("index out of bounds");
-	dequePushBack(q, item);
-	for (let j = q.n - 1; j > i; j--) q.b[at(q, j)] = q.b[at(q, j - 1)];
-	q.b[at(q, i)] = item;
+	if (i > q.n) panic("index out of bounds", "deque_insert");
+	grow(q);
+	if (q.n - i < i) {
+		for (let j = q.n; j > i; j--) q.b[phys(q, j)] = q.b[phys(q, j - 1)];
+	} else {
+		q.h = before(q);
+		for (let j = 0; j < i; j++) q.b[phys(q, j)] = q.b[phys(q, j + 1)];
+	}
+	q.b[phys(q, i)] = item;
+	q.n++;
+}
+
+/** `swap` of items `i` and `j`, each checked as std's asserts. */
+export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
+	if (i >= q.n) panic("assertion failed: i < self.len()", "deque_swap_i");
+	if (j >= q.n) panic("assertion failed: j < self.len()", "deque_swap_j");
+	const a = phys(q, i);
+	const b = phys(q, j);
+	const item = q.b[a];
+	q.b[a] = q.b[b];
+	q.b[b] = item;
 }
 
 /**
- * An iterator of a deque's items from index `front` up to `back`, which drops those it
- * still holds by `drop` as it drops, if it owns them, as a `drain` does.
+ * `rotate_left` of `n`, or with `right`, `rotate_right`: as std's, the shorter side moved
+ * around the end of its slots, the first items past the last or the last before the first.
  */
-class DequeIter<T> extends Iter<T> implements Disposable {
-	private readonly q: VecDeque<T>;
-	private front: number;
-	private back: number;
-	private readonly drop: ((item: T) => void) | undefined;
+export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
+	if (n > q.n) panic("assertion failed: n <= self.len()", right ? "deque_rotate_right" : "deque_rotate_left");
+	const k = q.n - n;
+	if ((n <= k) !== right) rotateLeft(q, right ? k : n);
+	else rotateRight(q, right ? n : k);
+}
 
-	constructor(q: VecDeque<T>, front: number, back: number, drop?: (item: T) => void) {
+/** The first `mid` items moved past the last, as std's `rotate_left_inner`. */
+function rotateLeft<T>(q: VecDeque<T>, mid: number): void {
+	// Each slot written is free or one already read.
+	const end = phys(q, q.n);
+	for (let i = 0; i < mid; i++) {
+		const from = phys(q, i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, end + i)] = item;
+	}
+	q.h = phys(q, mid);
+}
+
+/**
+ * The last `k` items moved before the first, as std's `rotate_right_inner`, whose head
+ * steps back by `wrap_sub` even of none, which moves zero-sized items' `usize::MAX` slots'.
+ */
+function rotateRight<T>(q: VecDeque<T>, k: number): void {
+	const h = wrap(q, q.h - k + q.b.length);
+	// Back to front, so each slot written is free or one already read.
+	for (let i = k - 1; i >= 0; i--) {
+		const from = phys(q, q.n - k + i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, h + i)] = item;
+	}
+	q.h = h;
+}
+
+/**
+ * The head `make_contiguous` leaves: where it was if the items do not wrap, else the
+ * front if the free slots hold the head's part, after the tail's part if they hold that,
+ * and else after the free slots or at the front, by which part is shorter, as std's.
+ * Zero-sized items' is the front.
+ */
+function contiguous<T>(q: VecDeque<T>): number {
+	const cap = q.b.length;
+	if (q.s === 0) return 0;
+	if (q.h <= cap - q.n) return q.h;
+	const free = cap - q.n;
+	const head = cap - q.h;
+	const tail = q.n - head;
+	if (free >= head) return 0;
+	if (free >= tail) return tail;
+	return head > tail ? free : 0;
+}
+
+/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return sliceView(q.b as T[], q.h, q.h + q.n);
+}
+
+/** `make_contiguous` of bytes, viewing the deque's. */
+export function dequeByteMakeContiguous(q: VecDeque<number>): ByteSlice {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return new ByteSlice(q.b as unknown as Uint8Array, q.h, q.n);
+}
+
+/**
+ * `binary_search_by`: by `f` of the second slice's first item, std's search of that slice
+ * if it is less, or else of the first slice, as `as_slices` splits them.
+ */
+export function dequeBinarySearchBy<T>(q: VecDeque<T>, f: (item: T) => Ordering): Result<usize, usize> {
+	const front = firstEnd(q, 0, q.n);
+	const order = front < q.n ? f(q.b[0] as T) : 1;
+	if (order === 0) return Ok(front);
+	if (order === 1) return searchBy(q.b as T[], phys(q, 0), front, f);
+	const found = searchBy(q.b as T[], 0, q.n - front, f);
+	return found.ok ? Ok(found.value + front) : Err(found.error + front);
+}
+
+/** `binary_search`: by `cmp` of each item it probes with `x`. */
+export function dequeBinarySearch<T>(q: VecDeque<T>, x: T, cmp: (a: T, b: T) => Ordering): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => cmp(item, x));
+}
+
+/** `binary_search_by_key`: by `cmp` of the key `f` makes of each item it probes with `b`, dropping the key after. */
+export function dequeBinarySearchByKey<T, K>(q: VecDeque<T>, b: K, f: (item: T) => K, cmp: (a: K, b: K) => Ordering, drop?: (key: K) => void): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => {
+		const key = f(item);
+		const order = cmp(key, b);
+		drop?.(key);
+		return order;
+	});
+}
+
+/** `partition_point`: where the items `pred` holds for end, by std's search. */
+export function dequePartitionPoint<T>(q: VecDeque<T>, pred: (item: T) => boolean): usize {
+	const found = dequeBinarySearchBy(q, (item) => (pred(item) ? -1 : 1));
+	return found.ok ? found.value : found.error;
+}
+
+/**
+ * Where the first of the two slices of `q`'s items `start..end` ends, as std's
+ * `slice_ranges` splits them at the end of its slots.
+ */
+function firstEnd<T>(q: VecDeque<T>, start: number, end: number): number {
+	return start === end ? end : Math.min(end, start + q.b.length - phys(q, start));
+}
+
+/**
+ * A deque's `Iter`, or `IterMut` lending each item's place if `lend`: the items at `f1..e1`,
+ * then `f2..e2`, the two slices std's walks, which it swaps as one ends, as std's does.
+ */
+class DequeIter<T> extends Iter<T | Place<T>> {
+	private readonly q: VecDeque<T>;
+	private readonly lend: boolean;
+	private f1: number;
+	private e1: number;
+	private f2: number;
+	private e2: number;
+
+	constructor(q: VecDeque<T>, lend: boolean, f1: number, e1: number, f2: number, e2: number) {
 		super();
 		this.q = q;
-		this.front = front;
-		this.back = back;
-		this.drop = drop;
+		this.lend = lend;
+		this.f1 = f1;
+		this.e1 = e1;
+		this.f2 = f2;
+		this.e2 = e2;
 	}
 
-	next(): T | Done {
-		return this.front < this.back ? (this.q.b[at(this.q, this.front++)] as T) : DONE;
+	/** Item `i`, or its place. */
+	private item(i: number): T | Place<T> {
+		return this.lend ? new AtIndex(this.q.b as T[], phys(this.q, i)) : (this.q.b[phys(this.q, i)] as T);
+	}
+
+	/** The two slices, swapped, as std's once the one it reads from ends. */
+	private swap(): void {
+		[this.f1, this.e1, this.f2, this.e2] = [this.f2, this.e2, this.f1, this.e1];
+	}
+
+	/** The items each slice has left, as `as_slices` gives them. */
+	slices(): [T[], T[]] {
+		const items = (f: number, e: number) => {
+			const out: T[] = [];
+			for (let i = f; i < e; i++) out.push(this.q.b[phys(this.q, i)] as T);
+			return out;
+		};
+		return [items(this.f1, this.e1), items(this.f2, this.e2)];
+	}
+
+	next(): T | Place<T> | Done {
+		if (this.f1 === this.e1) this.swap();
+		return this.f1 < this.e1 ? this.item(this.f1++) : DONE;
+	}
+
+	override nextBack(): T | Place<T> | Done {
+		if (this.f2 === this.e2) this.swap();
+		return this.f2 < this.e2 ? this.item(--this.e2) : DONE;
+	}
+
+	override advanceBy(n: number): number {
+		const k = Math.min(n, this.e1 - this.f1);
+		this.f1 += k;
+		if (k === n) return 0;
+		this.swap();
+		const rest = Math.min(n - k, this.e1 - this.f1);
+		this.f1 += rest;
+		return n - k - rest;
+	}
+
+	override advanceBackBy(n: number): number {
+		const k = Math.min(n, this.e2 - this.f2);
+		this.e2 -= k;
+		if (k === n) return 0;
+		this.swap();
+		const rest = Math.min(n - k, this.e2 - this.f2);
+		this.e2 -= rest;
+		return n - k - rest;
+	}
+
+	/** std's `try_fold`, which reads the first slice and then the second, swapping neither, and `try_rfold` the second and then the first. */
+	override folded(): Iter<T | Place<T>> {
+		return new Folded(
+			() => (this.f1 < this.e1 ? this.item(this.f1++) : this.f2 < this.e2 ? this.item(this.f2++) : DONE),
+			() => (this.f2 < this.e2 ? this.item(--this.e2) : this.f1 < this.e1 ? this.item(--this.e1) : DONE),
+		);
 	}
 
 	override remaining(): Iterable<T> {
-		return new DequeIter(this.q, this.front, this.back);
+		const [a, b] = this.slices();
+		return a.concat(b);
 	}
 
-	/** std's: where it is, or of `into_iter`, what it has left, each cloned in order by `h.v`. */
-	override clone(h?: Clones): Iter<T> {
-		if (h?.v === undefined) return new DequeIter(this.q, this.front, this.back, this.drop);
-		const clone = h.v as (item: T) => T;
-		const items: T[] = [];
-		for (let i = this.front; i < this.back; i++) items.push(clone(this.q.b[at(this.q, i)] as T));
-		return iterSlice(items, this.drop);
-	}
-
-	override nextBack(): T | Done {
-		return this.front < this.back ? (this.q.b[at(this.q, --this.back)] as T) : DONE;
+	override clone(): Iter<T | Place<T>> {
+		return new DequeIter(this.q, this.lend, this.f1, this.e1, this.f2, this.e2);
 	}
 
 	override len(): number {
-		return this.back - this.front;
+		return this.e1 - this.f1 + (this.e2 - this.f2);
 	}
 
 	override sizeHint(): SizeHint {
 		return exactHint(this.len());
 	}
-
-	[Symbol.dispose](): void {
-		if (this.drop === undefined) return;
-		const items: T[] = [];
-		while (this.front < this.back) items.push(this.q.b[at(this.q, this.front++)] as T);
-		dropAll(items, this.drop);
-	}
 }
 
-/**
- * `iter` and `iter_mut`, and with what drops each item, `into_iter`, whose `last`,
- * `count`, and skips are a `Vec`'s.
- */
-export function dequeIter<T>(q: VecDeque<T>, drop?: (item: T) => void): Iter<T> {
-	if (drop === undefined) return new DequeIter(q, 0, q.n);
-	const items: T[] = [];
-	for (let i = 0; i < q.n; i++) items.push(q.b[at(q, i)] as T);
-	return iterSlice(items, drop);
+/** A deque's `Iter` over its items `start..end`, split where `as_slices` splits them, or with `lend`, its `IterMut`. */
+function dequeSlices<T>(q: VecDeque<T>, lend: boolean, start: number, end: number): DequeIter<T> {
+	const mid = firstEnd(q, start, end);
+	return new DequeIter(q, lend, start, mid, mid, end);
+}
+
+/** `iter` and `iter_mut`. */
+export function dequeIter<T>(q: VecDeque<T>): Iter<T> {
+	return dequeSlices(q, false, 0, q.n) as Iter<T>;
+}
+
+/** `range`: `iter` of the items within `r`, split as std's `slice_ranges` splits them, which panics as std's does past the length. */
+export function dequeRange<T>(q: VecDeque<T>, r: Bounds<number>, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, q.n, at);
+	return dequeSlices(q, false, start, end) as Iter<T>;
+}
+
+/** `range_mut` of items JS copies: the place of each within `r`, as `range` reads them. */
+export function dequeRangeMut<T>(q: VecDeque<T>, r: Bounds<number>, at?: Location): Iter<Place<T>> {
+	const [start, end] = boundsRange(r, q.n, at);
+	return dequeSlices(q, true, start, end) as Iter<Place<T>>;
 }
 
 /** `iter_mut` of items JS copies: the place of each. */
 export function dequeIterMut<T>(q: VecDeque<T>): Iter<Place<T>> {
-	return new DequePlaces(q);
+	return dequeSlices(q, true, 0, q.n) as Iter<Place<T>>;
 }
 
-/** A deque's `iter_mut` of items JS copies, which lends each as its place. */
-class DequePlaces<T> extends Iter<Place<T>> {
-	private readonly q: VecDeque<T>;
-	private front = 0;
-	private back: number;
+/** `Debug` of a deque's `Iter` or `IterMut`, `name`: the two slices it has left. */
+export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>, name: string): FmtResult {
+	const [a, b] = (it as DequeIter<T>).slices();
+	return fmtDebugTupleFields(f, name, [(f) => fmtList(a, f, debug), (f) => fmtList(b, f, debug)]);
+}
 
-	constructor(q: VecDeque<T>) {
+/** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
+export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
+	const p = phys(q, 0);
+	const n = firstEnd(q, 0, q.n);
+	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
+	return [part(p, p + n), part(0, q.n - n)];
+}
+
+/** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */
+export function dequeByteSlices(q: VecDeque<number>): [ByteSlice, ByteSlice] {
+	const n = firstEnd(q, 0, q.n);
+	const b = q.b as unknown as Uint8Array;
+	return [new ByteSlice(b, phys(q, 0), n), new ByteSlice(b, 0, q.n - n)];
+}
+
+/**
+ * `into_iter`: the deque itself, popping each item from either end, which drops those it
+ * still holds by `drop` as it drops, and which `collect` into a deque gives back as it is.
+ */
+class DequeIntoIter<T> extends Iter<T> implements Disposable {
+	readonly q: VecDeque<T>;
+	private readonly drop: ((item: T) => void) | undefined;
+
+	constructor(q: VecDeque<T>, drop?: (item: T) => void) {
 		super();
 		this.q = q;
-		this.back = q.n;
+		this.drop = drop;
 	}
 
-	next(): Place<T> | Done {
-		return this.front < this.back ? new AtIndex(this.q.b as T[], at(this.q, this.front++)) : DONE;
+	next(): T | Done {
+		return this.q.n === 0 ? DONE : (dequePopFront(this.q) as T);
 	}
 
-	override nextBack(): Place<T> | Done {
-		return this.front < this.back ? new AtIndex(this.q.b as T[], at(this.q, --this.back)) : DONE;
+	override nextBack(): T | Done {
+		return this.q.n === 0 ? DONE : (dequePopBack(this.q) as T);
+	}
+
+	/** std's: the first `n` drained, or all cleared, either of which drops them in order. */
+	override advanceBy(n: number): number {
+		const len = this.q.n;
+		if (len < n) dequeClear(this.q, this.drop);
+		else new DequeDrain(this.q, 0, n, this.drop)[Symbol.dispose]();
+		return Math.max(n - len, 0);
+	}
+
+	/** std's: the last `n` truncated, or all cleared. */
+	override advanceBackBy(n: number): number {
+		const len = this.q.n;
+		if (len < n) dequeClear(this.q, this.drop);
+		else dequeTruncate(this.q, len - n, this.drop);
+		return Math.max(n - len, 0);
+	}
+
+	override remaining(): Iterable<T> {
+		return dequeIter(this.q) as Iterable<T>;
+	}
+
+	/** std's: a clone of the deque, each item cloned in order by `h.v`. */
+	override clone(h?: Clones): Iter<T> {
+		return new DequeIntoIter(dequeClone(this.q, h?.v as ((item: T) => T) | undefined), this.drop);
 	}
 
 	override len(): number {
-		return this.back - this.front;
+		return this.q.n;
 	}
 
 	override sizeHint(): SizeHint {
-		return exactHint(this.len());
+		return exactHint(this.q.n);
+	}
+
+	[Symbol.dispose](): void {
+		if (this.drop !== undefined) dequeClear(this.q, this.drop);
 	}
 }
 
-/** `drain`: the items within `r`, taken out at once, which drop by `drop` as `dequeIter`'s. */
-export function dequeDrain<T>(q: VecDeque<T>, r: Bounds<number>, drop?: (item: T) => void): Iter<T> {
-	const [start, end] = boundsRange(r, q.n);
-	const taken: VecDeque<T> = { b: [], h: 0, n: 0 };
-	for (let i = start; i < end; i++) dequePushBack(taken, q.b[at(q, i)] as T);
-	for (let i = end; i < q.n; i++) q.b[at(q, i - (end - start))] = q.b[at(q, i)];
-	dequeTruncate(q, q.n - (end - start));
-	return new DequeIter(taken, 0, taken.n, drop);
+/** `into_iter`, whose items drop by `drop` with it. */
+export function dequeIntoIter<T>(q: VecDeque<T>, drop?: (item: T) => void): Iter<T> {
+	return new DequeIntoIter(q, drop);
+}
+
+/**
+ * `collect` into a deque of `size`-byte items, of bytes if `bytes`, from `it`, a deque's
+ * `into_iter` or a `Vec`'s, which std's gives the buffer of as it is: a deque's, or a
+ * `Vec`'s with its head where its front was read to.
+ */
+export function dequeFromIntoIter<T>(it: Iter<T>, size: number, bytes = false): VecDeque<T> {
+	if (it instanceof DequeIntoIter) return it.q;
+	const v = it as unknown as { s: ArrayLike<T>; v: Vec<T> | undefined; front: number; back: number };
+	const q = dequeWithCapacity<T>(v.v === undefined ? v.s.length : vecCapacity(v.v, size), size, bytes);
+	q.n = v.back - v.front;
+	q.h = size === 0 || q.n === 0 ? 0 : v.front;
+	for (let i = 0; i < q.n; i++) q.b[q.h + i] = v.s[v.front + i];
+	return q;
+}
+
+/**
+ * `drain`: the items within `r`, which the deque gives up its length past the start of as
+ * std's does, so one never dropped leaks the rest. Those it still holds as it drops each
+ * drop by `drop`, front to back, and then the shorter of the items before and after the
+ * range moves next to the other.
+ */
+export function dequeDrain<T>(q: VecDeque<T>, r: Bounds<number>, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, q.n, at);
+	return new DequeDrain(q, start, end - start, drop);
+}
+
+/** A deque's drain, with std's counts: `idx` the next item's index, and `rest` of the range left, std's `remaining`. */
+class DequeDrain<T> extends Iter<T> implements Disposable {
+	private readonly q: VecDeque<T>;
+	readonly drainLen: number;
+	idx: number;
+	readonly tailLen: number;
+	rest: number;
+	private readonly drop: ((item: T) => void) | undefined;
+	private joined = false;
+
+	constructor(q: VecDeque<T>, start: number, drainLen: number, drop?: (item: T) => void) {
+		super();
+		this.q = q;
+		this.drainLen = drainLen;
+		this.idx = start;
+		this.tailLen = q.n - start - drainLen;
+		this.rest = drainLen;
+		this.drop = drop;
+		q.n = start;
+	}
+
+	next(): T | Done {
+		if (this.rest === 0) return DONE;
+		this.rest--;
+		return this.q.b[phys(this.q, this.idx++)] as T;
+	}
+
+	override nextBack(): T | Done {
+		if (this.rest === 0) return DONE;
+		return this.q.b[phys(this.q, this.idx + --this.rest)] as T;
+	}
+
+	override len(): number {
+		return this.rest;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.rest);
+	}
+
+	[Symbol.dispose](): void {
+		if (this.joined) return;
+		this.joined = true;
+		const q = this.q;
+		const items: T[] = [];
+		for (; this.rest > 0; this.rest--) items.push(q.b[phys(q, this.idx++)] as T);
+		if (this.drop !== undefined) dropAll(items, this.drop);
+		const head = q.n;
+		const tail = this.tailLen;
+		const gap = this.drainLen;
+		q.n = head + tail;
+		if (q.s === 0) return;
+		// The shorter side moves next to the other, and the slots it leaves are cleared.
+		if (head < tail) {
+			for (let i = head - 1; i >= 0; i--) q.b[phys(q, i + gap)] = q.b[phys(q, i)];
+			for (let i = 0; i < gap; i++) q.b[phys(q, i)] = undefined;
+		} else {
+			for (let i = 0; i < tail; i++) q.b[phys(q, head + i)] = q.b[phys(q, head + gap + i)];
+			for (let i = 0; i < gap; i++) q.b[phys(q, q.n + i)] = undefined;
+		}
+		if (q.n === 0) q.h = 0;
+		else if (head < tail) q.h = phys(q, gap);
+	}
+}
+
+/** `Debug` of a deque's `Drain`: its counts, each by `debug`, as std's tuple of them. */
+export function fmtDequeDrain(it: Iter<unknown>, f: Formatter, debug: Debug<usize>): FmtResult {
+	const d = it as unknown as DequeDrain<unknown>;
+	const counts = [d.drainLen, d.idx, d.tailLen, d.rest];
+	return fmtDebugTupleFields(f, "Drain", counts.map((n) => (f: Formatter) => debug(n, f)));
 }
 
 /** `slice::range`: the start and end of `r` within `n` elements, panicking as std's does. */
-export function boundsRange(r: Bounds<number>, n: number): [number, number] {
+export function boundsRange(r: Bounds<number>, n: number, at?: Location): [number, number] {
 	const [lo, hi] = bounds(r);
 	let end = n;
 	if (hi.tag !== "Unbounded") {
 		end = hi._0;
-		if (hi.tag === "Included" ? end >= n : end > n) sliceIndexFail(0, end, n);
+		if (hi.tag === "Included" ? end >= n : end > n) sliceIndexFail(0, end, n, at);
 		if (hi.tag === "Included") end++;
 	}
 	let start = 0;
 	if (lo.tag !== "Unbounded") {
 		start = lo._0;
-		if (lo.tag === "Excluded" ? start >= end : start > end) sliceIndexFail(start, end, n);
+		if (lo.tag === "Excluded" ? start >= end : start > end) sliceIndexFail(start, end, n, at);
 		if (lo.tag === "Excluded") start++;
 	}
 	return [start, end];
 }
 
 /** `slice::range` itself: `r` within `n` elements, as `{ start, end }`, panicking as std's does. */
-export function boundsChecked(r: Bounds<number>, n: number): { start: number; end: number } {
-	const [start, end] = boundsRange(r, n);
+export function boundsChecked(r: Bounds<number>, n: number, at?: Location): { start: number; end: number } {
+	const [start, end] = boundsRange(r, n, at);
 	return { start, end };
 }
 
@@ -2938,12 +3778,12 @@ export function boundsChecked(r: Bounds<number>, n: number): { start: number; en
  * A slice's index `r` other than `a..b`, `a..`, `..b`, and `..`, as the start and end of
  * the part it reads within `n` elements, panicking as std's `index` does.
  */
-export function sliceIndexBounds(r: Bounds<number>, n: number): [number, number] {
-	if (!inclusive(r)) return boundsRange(r, n);
+export function sliceIndexBounds(r: Bounds<number>, n: number, at?: Location): [number, number] {
+	if (!inclusive(r)) return boundsRange(r, n, at);
 	// std checks `a..=b` by its own fields, not by the bounds it gives.
-	if (r.hi >= n) sliceIndexFail(r.lo, r.hi, n);
+	if (r.hi >= n) sliceIndexFail(r.lo, r.hi, n, at);
 	const bounds = sliceGetBounds(r, n);
-	if (bounds[0] > bounds[1]) sliceIndexFail(bounds[0], bounds[1], n);
+	if (bounds[0] > bounds[1]) sliceIndexFail(bounds[0], bounds[1], n, at);
 	return bounds;
 }
 
@@ -2966,9 +3806,9 @@ function inclusive<K>(r: Bounds<K>): r is RangeInclusive<K> {
 }
 
 /** std's `slice_index_fail`, which names the end where neither bound is out of order. */
-function sliceIndexFail(start: number, end: number, n: number): never {
-	rangeCheck(n, start, end);
-	return panic(`range end index ${end} out of range for slice of length ${n}`);
+function sliceIndexFail(start: number, end: number, n: number, at?: Location): never {
+	rangeCheck(n, start, end, at);
+	return panic(`range end index ${end} out of range for slice of length ${n}`, at, true);
 }
 
 // `Vec::drain`, which leaves the vector only what comes before the range until the drain
@@ -2979,19 +3819,20 @@ function sliceIndexFail(start: number, end: number, n: number): never {
  * `Vec::drain`: the elements within `r`. Those it still holds as it drops each drop by
  * `drop`, front to back, before the tail moves back.
  */
-export function vecDrain<T>(v: T[], r: Bounds<number>, drop?: (item: T) => void): Iter<T> {
-	const [start, end] = boundsRange(r, v.length);
-	return new VecDrain(v, v.splice(start), end - start, drop);
+export function vecDrain<T>(v: Vec<T>, r: Bounds<number>, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, v.items.length, at);
+	vecKeep(v);
+	return new VecDrain(v.items, v.items.splice(start), end - start, drop);
 }
 
-/** A `Vec`'s drain: of `rest`, what followed the range's start, the range, then the tail. */
+/** A `Vec`'s drain, of its items `v`: of `rest`, what followed the range's start, the range, then the tail. */
 class VecDrain<T> extends Iter<T> implements Disposable {
-	private readonly v: T[];
-	private readonly rest: T[];
+	protected readonly v: T[];
+	protected readonly rest: T[];
 	private front = 0;
 	private back: number;
 	/** Where the tail starts in `rest`. */
-	private readonly tail: number;
+	protected readonly tail: number;
 	private readonly drop: ((item: T) => void) | undefined;
 
 	constructor(v: T[], rest: T[], tail: number, drop?: (item: T) => void) {
@@ -3024,17 +3865,241 @@ class VecDrain<T> extends Iter<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		const from = this.front;
-		this.front = this.back;
-		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+		this.dropRest();
 		for (let i = this.tail; i < this.rest.length; i++) this.v.push(this.rest[i]);
 		this.rest.length = this.tail;
 	}
+
+	/** Drop what it has not yielded, as std's `Drain` drops it before the tail moves back. */
+	protected dropRest(): void {
+		const from = this.front;
+		this.front = this.back;
+		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+	}
+}
+
+/**
+ * `Vec::splice` of `size`-byte elements: a drain of `r` that, once dropped, drops what it
+ * has not yielded and fills the gap from the `items` `spliceFrom` gave it, as std's: after
+ * a drain to the end, by `extend`, which reserves for a `trusted`, `TrustedLen`, iterator
+ * as it does; else by each item until the gap is full, then the tail moved past room for
+ * `items`' lower bound, reserved for the whole vector, and then past room for the rest,
+ * collected as std's collects them. The tail moves back to the last item, and `items`
+ * drops last if it `drops`.
+ */
+export function vecSplice<T>(v: Vec<T>, r: Bounds<number>, size: number, drop?: (item: T) => void, at?: Location): Iter<T> {
+	const [start, end] = boundsRange(r, v.items.length, at);
+	// Held by the vector, which keeps it if the splice is leaked.
+	vecKeep(v);
+	return new VecSplice(v, v.items.splice(start), end - start, drop, size);
+}
+
+/**
+ * A splice, of `vecSplice` or `byteVecSplice`, given the `items` it fills from, which std's
+ * makes once it has made the drain, and whether they are `trusted` and `drops`.
+ */
+export function spliceFrom<T>(s: Iter<T>, items: Iter<T>, trusted = false, drops = false): Iter<T> {
+	const splice = s as unknown as { items: Iter<T>; trusted: boolean; drops: boolean };
+	splice.items = items;
+	splice.trusted = trusted;
+	splice.drops = drops;
+	return s;
+}
+
+class VecSplice<T> extends VecDrain<T> {
+	items: Iter<T> = iterEmpty();
+	private readonly vec: Vec<T>;
+	private readonly size: number;
+	/** The vector's capacity, which its length, cut to the drain's start, no longer gives. */
+	private cap: number;
+	trusted = false;
+	drops = false;
+
+	constructor(vec: Vec<T>, rest: T[], tail: number, drop: ((item: T) => void) | undefined, size: number) {
+		super(vec.items, rest, tail, drop);
+		this.vec = vec;
+		this.size = size;
+		this.cap = vecCapacity(vec, size);
+	}
+
+	override [Symbol.dispose](): void {
+		this.dropRest();
+		const v = this.v;
+		const tailLen = this.rest.length - this.tail;
+		if (tailLen === 0) {
+			vecHold(this.vec, this.cap);
+			iterExtend(this.vec, this.items, undefined, this.size, this.trusted);
+		} else {
+			this.splice(tailLen);
+			for (let i = this.tail; i < this.rest.length; i++) v.push(this.rest[i]);
+			vecHold(this.vec, this.cap);
+		}
+		this.rest.length = this.tail;
+		if (this.drops) dispose(this.items);
+	}
+
+	/** Each item of `items` pushed into the gap before the tail of `tailLen`, which moves as std's `move_tail` moves it. */
+	private splice(tailLen: number): void {
+		const v = this.v;
+		let tailStart = v.length + this.tail;
+		const fill = (from: Iter<T>) => {
+			while (v.length < tailStart) {
+				const item = from.next();
+				if (item === DONE) return false;
+				v.push(item);
+			}
+			return true;
+		};
+		const moveTail = (additional: number) => {
+			this.cap = capReserve(tailStart + tailLen, this.cap, additional, this.size);
+			tailStart += additional;
+		};
+		if (!fill(this.items)) return;
+		const lower = this.items.sizeHint()[0];
+		if (lower > 0) {
+			moveTail(lower);
+			if (!fill(this.items)) return;
+		}
+		const collected = iterToVec(this.items, undefined, this.size, this.trusted).items;
+		if (collected.length === 0) return;
+		moveTail(collected.length);
+		fill(iterSlice(collected));
+	}
+}
+
+/** `Debug` of a `Vec`'s `Splice`, as std's derives: its drain, of what it has not yielded, each by `debug`, and the iterator it fills from by `items`. */
+export function fmtVecSplice<T, I>(it: Iter<T>, f: Formatter, debug: Debug<T>, items: Debug<I>): FmtResult {
+	const drain = (f: Formatter) => fmtDebugTupleFields(f, "Drain", [(f) => fmtList(it.remaining() as Iterable<T>, f, debug)]);
+	const held = iterHeld<I>((it as unknown as { items: Iter<unknown> }).items);
+	return fmtDebugStructFields(f, "Splice", ["drain", "replace_with"], [drain, (f) => items(held, f)]);
+}
+
+/**
+ * `Vec::extract_if`: each element of `start..end` that `f` returns true for, taken out as
+ * it is read, front to back, with each it keeps moved back over the gaps, as std's; once
+ * dropped, those after the last it read moved back too, `put` gives the vector back the
+ * `len` it keeps of `a`, and `f` drops. `f` is given each element or, with `places`, its
+ * place. The vector holds none meanwhile, as std's, so one leaked leaves it empty.
+ */
+class VecExtractIf<T> extends Iter<T> implements Disposable {
+	private readonly put: (len: number) => void;
+	private readonly a: T[];
+	private idx: number;
+	private readonly end: number;
+	private del = 0;
+	/** The vector's length before, or -1 once given back. */
+	private old: number;
+	private readonly f: (item: T | Place<T>) => boolean;
+	private readonly places: boolean;
+
+	constructor(a: T[], old: number, [idx, end]: [number, number], f: (item: T | Place<T>) => boolean, places: boolean, put: (len: number) => void) {
+		super();
+		this.put = put;
+		this.a = a;
+		this.old = old;
+		this.idx = idx;
+		this.end = end;
+		this.f = f;
+		this.places = places;
+	}
+
+	next(): T | Done {
+		while (this.idx < this.end) {
+			const i = this.idx;
+			const taken = this.f(this.places ? new AtIndex(this.a, i) : this.a[i]);
+			this.idx++;
+			if (taken) {
+				this.del++;
+				return this.a[i];
+			}
+			if (this.del > 0) this.a[i - this.del] = this.a[i];
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		return [0, this.end - this.idx];
+	}
+
+	/** What `Debug` writes of it: those it kept, those it has left to read, and those past its range. */
+	parts(): [Iterable<T>, Iterable<T>, Iterable<T>] {
+		const part = (start: number, end: number) => (this.a instanceof Uint8Array ? this.a.subarray(start, end) : this.a.slice(start, end)) as Iterable<T>;
+		return [part(0, this.idx - this.del), part(this.idx, this.end), part(this.end, this.old)];
+	}
+
+	[Symbol.dispose](): void {
+		if (this.old < 0) return;
+		if (this.del > 0) for (let i = this.idx; i < this.old; i++) this.a[i - this.del] = this.a[i];
+		this.put(this.old - this.del);
+		this.old = -1;
+		dispose(this.f);
+	}
+}
+
+/**
+ * `Vec::extract_if` of the elements within `r`, handing `f` each, or with `places`, its
+ * place, panicking at `at` if `r` is out of bounds.
+ */
+function extractIf<T>(v: Vec<T>, r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean, at?: Location): Iter<T> {
+	const d = v.items;
+	const old = d.length;
+	const range = boundsRange(r, old, at);
+	vecKeep(v);
+	const a = d.splice(0);
+	return new VecExtractIf(a, old, range, f, places, (len) => {
+		for (let i = 0; i < len; i++) d.push(a[i]);
+	});
+}
+
+/** `Vec::extract_if` of the elements within `r`, handing `f` each. */
+export function vecExtractIf<T>(v: Vec<T>, r: Bounds<number>, f: (item: T) => boolean, at?: Location): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, false, at);
+}
+
+/** `vecExtractIf` of elements JS copies: `f` takes the place of each. */
+export function vecExtractIfMut<T>(v: Vec<T>, r: Bounds<number>, f: (item: Place<T>) => boolean, at?: Location): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, true, at);
+}
+
+/** `Vec::extract_if` of bytes, whose places `f` takes in the vector's storage. */
+export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean, at?: Location): Iter<number> {
+	const old = v.length;
+	const range = boundsRange(r, old, at);
+	v.length = 0;
+	return new VecExtractIf(v.data as unknown as number[], old, range, f as (item: number | Place<number>) => boolean, true, (len) => {
+		v.length = len;
+	});
+}
+
+/** `Debug` of a `Vec`'s `ExtractIf`, its parts each by `debug`, as std's. */
+export function fmtVecExtractIf<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const parts = (it as VecExtractIf<T>).parts();
+	let b = fmtDebugStruct(f, "ExtractIf");
+	["retained", "remainder", "skipped_tail"].forEach((name, i) => {
+		b = debugStructField(b, name, (f) => fmtList(parts[i], f, debug));
+	});
+	return debugStructFinishNonExhaustive(b);
+}
+
+/** `Vec::extend_from_within` of `size`-byte elements: room reserved for those within `r`, then a clone of each by `clone` pushed in order. */
+export function vecExtendFromWithin<T>(v: Vec<T>, r: Bounds<number>, size: number, clone?: (item: T) => T, at?: Location): void {
+	const d = v.items;
+	const [start, end] = boundsRange(r, d.length, at);
+	vecReserve(v, end - start, size);
+	for (let i = start; i < end; i++) d.push(clone === undefined ? d[i] : clone(d[i]));
+}
+
+/** `Vec::extend_from_within` of bytes. */
+export function byteVecExtendFromWithin(v: ByteVec, r: Bounds<number>, at?: Location): void {
+	const [start, end] = boundsRange(r, v.length, at);
+	byteVecReserve(v, end - start);
+	v.data.copyWithin(v.length, start, end);
+	v.length += end - start;
 }
 
 /** `Vec::drain` of bytes. */
-export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
-	const [start, end] = boundsRange(r, v.length);
+export function byteVecDrain(v: ByteVec, r: Bounds<number>, at?: Location): Iter<number> {
+	const [start, end] = boundsRange(r, v.length, at);
 	const length = v.length;
 	v.length = start;
 	return new ByteVecDrain(v, start, end, length);
@@ -3042,13 +4107,13 @@ export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
 
 /** A `Vec<u8>`'s drain, which reads the range from the vector's storage in place. */
 class ByteVecDrain extends Iter<number> implements Disposable {
-	private readonly v: ByteVec;
+	protected readonly v: ByteVec;
 	private readonly start: number;
-	private front: number;
-	private back: number;
-	private readonly end: number;
+	protected front: number;
+	protected back: number;
+	protected readonly end: number;
 	/** The vector's length before the drain, or -1 once the tail moved back. */
-	private length: number;
+	protected length: number;
 
 	constructor(v: ByteVec, start: number, end: number, length: number) {
 		super();
@@ -3088,20 +4153,160 @@ class ByteVecDrain extends Iter<number> implements Disposable {
 	}
 }
 
+/** `Vec::splice` of bytes, as `vecSplice`, given its items by `spliceFrom`. */
+export function byteVecSplice(v: ByteVec, r: Bounds<number>, at?: Location): Iter<number> {
+	const [start, end] = boundsRange(r, v.length, at);
+	const length = v.length;
+	v.length = start;
+	return new ByteVecSplice(v, start, end, length);
+}
+
+class ByteVecSplice extends ByteVecDrain {
+	items: Iter<number> = iterEmpty();
+	trusted = false;
+	drops = false;
+
+	override [Symbol.dispose](): void {
+		if (this.length < 0) return;
+		this.front = this.back;
+		const v = this.v;
+		const tailLen = this.length - this.end;
+		this.length = -1;
+		if (tailLen === 0) iterExtendBytes(v, this.items, undefined, this.trusted);
+		else {
+			let tailStart = this.end;
+			const fill = (from: Iter<number>) => {
+				while (v.length < tailStart) {
+					const byte = from.next();
+					if (byte === DONE) return false;
+					v.data[v.length++] = byte;
+				}
+				return true;
+			};
+			// Room reserved for the whole vector, its tail included, as std's `move_tail`.
+			const moveTail = (additional: number) => {
+				const filled = v.length;
+				v.length = tailStart + tailLen;
+				byteVecReserve(v, additional);
+				v.length = filled;
+				v.data.copyWithin(tailStart + additional, tailStart, tailStart + tailLen);
+				tailStart += additional;
+			};
+			const spliced = () => {
+				if (!fill(this.items)) return;
+				const lower = this.items.sizeHint()[0];
+				if (lower > 0) {
+					moveTail(lower);
+					if (!fill(this.items)) return;
+				}
+				const collected = iterToByteVec(this.items, undefined, this.trusted);
+				if (collected.length === 0) return;
+				moveTail(collected.length);
+				fill(iterSlice(collected.data.subarray(0, collected.length)));
+			};
+			spliced();
+			v.data.copyWithin(v.length, tailStart, tailStart + tailLen);
+			v.length += tailLen;
+		}
+		if (this.drops) dispose(this.items);
+	}
+}
+
 /**
  * `extend`, and `collect` into a deque through `dequeNew`, which takes `items` as `take`
  * says and reserves as `iterExtend` does.
  */
-export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, size?: number, trusted = false): VecDeque<T> {
-	return vecExtending(q, q.n, items, (item) => dequePushBack(q, item), take, size, trusted, q, true);
+export function dequeExtend<T>(q: VecDeque<T>, items: Iter<T>, take?: Take, trusted = false): VecDeque<T> {
+	if (trusted) {
+		dequeReserve(q, trustedUpper(items));
+		return extending(q, items, (item) => dequePushBack(q, item), take);
+	}
+	// std's reserves for the lower bound past each item it reads into a full deque, and the first.
+	for (let item = items.next(), first = true; item !== DONE; item = items.next(), first = false) {
+		if (first || q.n === q.b.length) dequeReserve(q, satAdd(items.sizeHint()[0], 1));
+		q.b[phys(q, q.n++)] = item;
+	}
+	if (take !== undefined) dispose(items);
+	return q;
 }
 
-/** `clone` of `size`-byte items, with each through its `Clone`, or as itself without one, with room for exactly them. */
-export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself, size: number): VecDeque<T> {
-	const out = dequeNew<T>();
-	for (let i = 0; i < q.n; i++) dequePushBack(out, item(q.b[at(q, i)] as T));
-	capSet(out, out.n, out.n, size);
+/** `clone`, with each item through its `Clone`, or as itself without one, with room for exactly them. */
+export function dequeClone<T>(q: VecDeque<T>, item: (value: T) => T = itself): VecDeque<T> {
+	const out = dequeWithCapacity<T>(q.n, q.s, holdsBytes(q));
+	for (let i = 0; i < q.n; i++) out.b[i] = item(q.b[phys(q, i)] as T);
+	out.n = q.n;
 	return out;
+}
+
+/**
+ * `clone_from`: `q` cleared, which drops its items in order, then a clone of each of `src`'s
+ * in its room, as std's `extend` reserves for them.
+ */
+export function dequeCloneFrom<T>(q: VecDeque<T>, src: VecDeque<T>, item: (value: T) => T = itself, drop?: (item: T) => void): VecDeque<T> {
+	dequeClear(q, drop);
+	dequeReserve(q, src.n);
+	for (let i = 0; i < src.n; i++) q.b[phys(q, q.n++)] = item(src.b[phys(src, i)] as T);
+	return q;
+}
+
+/** `dequeCloneFrom` as a `CloneFrom`. */
+export function dequeCloneFromFn<T>(item?: (value: T) => T, drop?: (item: T) => void): CloneFrom<VecDeque<T>> {
+	return (old, src) => dequeCloneFrom(old, src, item, drop);
+}
+
+/** `append`: room reserved for `other`'s items, which then move over in order, leaving it empty with its head at the front. */
+export function dequeAppend<T>(q: VecDeque<T>, other: VecDeque<T>): void {
+	dequeReserve(q, other.n);
+	for (let i = 0; i < other.n; i++) {
+		q.b[phys(q, q.n + i)] = other.b[phys(other, i)];
+		other.b[phys(other, i)] = undefined;
+	}
+	q.n += other.n;
+	other.n = 0;
+	other.h = 0;
+}
+
+/**
+ * `resize` to `len`: past its length, room reserved for the rest, then `len - 1` clones of
+ * `value` by `clone` and `value` itself; else truncated, each item cut dropping in order,
+ * and then `value`.
+ */
+export function dequeResize<T>(q: VecDeque<T>, len: number, value: T, clone: ((value: T) => T) | undefined, drop?: (item: T) => void): void {
+	if (len <= q.n) {
+		dequeTruncate(q, len, drop);
+		drop?.(value);
+		return;
+	}
+	dequeReserve(q, len - q.n);
+	while (q.n < len - 1) q.b[phys(q, q.n++)] = clone === undefined ? value : clone(value);
+	q.b[phys(q, q.n++)] = value;
+}
+
+/** `resize_with` to `len`: past its length, room reserved for the rest, then each `f` makes in order; else truncated. */
+export function dequeResizeWith<T>(q: VecDeque<T>, len: number, f: () => T, drop?: (item: T) => void): void {
+	if (len <= q.n) return dequeTruncate(q, len, drop);
+	dequeReserve(q, len - q.n);
+	while (q.n < len) q.b[phys(q, q.n++)] = f();
+}
+
+/** `split_off`: the items from `i` on, moved to a new deque with room for exactly them. */
+export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
+	if (i > q.n) panic("`at` out of bounds", "deque_split_off");
+	const other = dequeWithCapacity<T>(q.n - i, q.s, holdsBytes(q));
+	for (let j = i; j < q.n; j++) {
+		other.b[j - i] = q.b[phys(q, j)];
+		q.b[phys(q, j)] = undefined;
+	}
+	other.n = q.n - i;
+	q.n = i;
+	return other;
+}
+
+/** `Vec::from` of a deque: its items in order, with its capacity, as std's makes its buffer contiguous and keeps it, however the length then drops. */
+export function dequeToVec<T>(q: VecDeque<T>): Vec<T> {
+	const d: T[] = [];
+	for (let i = 0; i < q.n; i++) d.push(q.b[phys(q, i)] as T);
+	return new Vec(d, q.b.length);
 }
 
 // LinkedList
@@ -3226,28 +4431,28 @@ export function listAppend<T>(l: LinkedList<T>, other: LinkedList<T>): void {
  * `split_off`: the nodes from `at` on, unlinked from `l`, found from whichever end is
  * nearer, as std's does. Past the end, it panics as std's does.
  */
-export function listSplitOff<T>(l: LinkedList<T>, at: number): LinkedList<T> {
-	if (at > l.n) panic("Cannot split off at a nonexistent index");
+export function listSplitOff<T>(l: LinkedList<T>, phys: number): LinkedList<T> {
+	if (phys > l.n) panic("Cannot split off at a nonexistent index", "list_split_off");
 	const out = listNew<T>();
-	if (at === l.n) return out;
-	if (at === 0) {
+	if (phys === l.n) return out;
+	if (phys === 0) {
 		listAppend(out, l);
 		return out;
 	}
 	// The last node `l` keeps.
 	let last = l.h as ListNode<T>;
-	if (at - 1 <= l.n - at) for (let i = 1; i < at; i++) last = last.x as ListNode<T>;
+	if (phys - 1 <= l.n - phys) for (let i = 1; i < phys; i++) last = last.x as ListNode<T>;
 	else {
 		last = l.t as ListNode<T>;
-		for (let i = l.n; i > at; i--) last = last.p as ListNode<T>;
+		for (let i = l.n; i > phys; i--) last = last.p as ListNode<T>;
 	}
 	out.h = last.x as ListNode<T>;
 	out.h.p = undefined;
 	out.t = l.t;
-	out.n = l.n - at;
+	out.n = l.n - phys;
 	last.x = undefined;
 	l.t = last;
-	l.n = at;
+	l.n = phys;
 	return out;
 }
 
@@ -3332,7 +4537,7 @@ export function listIterMut<T>(l: LinkedList<T>): Iter<Place<T>> {
  */
 class ListExtractIf<T> extends Iter<T> implements Disposable {
 	private readonly l: LinkedList<T>;
-	private node: ListNode<T> | undefined;
+	node: ListNode<T> | undefined;
 	private readonly f: (item: T | Place<T>) => boolean;
 	private readonly places: boolean;
 	/** How many it has left to read. */
@@ -3371,6 +4576,13 @@ class ListExtractIf<T> extends Iter<T> implements Disposable {
 	}
 }
 
+/** `Debug` of a list's `ExtractIf`: the item it reads next, if any. */
+export function fmtListExtractIf<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>): FmtResult {
+	const node = (it as ListExtractIf<T>).node;
+	const peek: Fmt = (f) => (node === undefined ? f.out.writeStr("None") : fmtDebugTupleFields(f, "Some", [(f) => debug(node.v, f)]));
+	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
+}
+
 /** `extract_if`, handing `f` each item. */
 export function listExtractIf<T>(l: LinkedList<T>, f: (item: T) => boolean): Iter<T> {
 	return new ListExtractIf(l, f as (item: T | Place<T>) => boolean, false);
@@ -3396,13 +4608,18 @@ export function listClone<T>(l: LinkedList<T>, item: (value: T) => T = itself): 
 
 /**
  * `clone_from`: `l`'s items, front to back, each the clone of `source`'s beside it, which
- * drops by `f` what it replaces, as `*elem = source.clone()` does; then those past
+ * drops by `f` what it replaces, as `*elem = source.clone()` does, or else `source`'s
+ * cloned over it by `over`, its own `clone_from`; then those past
  * `source`'s length popped from the back, each dropped as it is; then clones of the rest
  * of `source`'s pushed.
  */
-export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void): void {
+export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: (value: T) => T = itself, f?: (item: T) => void, over?: CloneFrom<T>): LinkedList<T> {
 	let [node, from]: (ListNode<T> | undefined)[] = [l.h, source.h];
 	for (; node !== undefined && from !== undefined; node = node.x, from = from.x) {
+		if (over !== undefined) {
+			node.v = over(node.v, from.v);
+			continue;
+		}
 		const old = node.v;
 		node.v = item(from.v);
 		f?.(old);
@@ -3412,6 +4629,12 @@ export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: 
 		f?.(old);
 	}
 	for (; from !== undefined; from = from.x) listPushBack(l, item(from.v));
+	return l;
+}
+
+/** `listCloneFrom` as a `CloneFrom`. */
+export function listCloneFromFn<T>(item?: (value: T) => T, f?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<LinkedList<T>> {
+	return (old, src) => listCloneFrom(old, src, item, f, over);
 }
 
 // `BinaryHeap`: std's max-heap in an array, sifted as std's sifts it, so equal elements
@@ -3422,44 +4645,53 @@ export function listCloneFrom<T>(l: LinkedList<T>, source: LinkedList<T>, item: 
 /** A `PartialOrd` test. */
 type Test<T> = (a: T, b: T) => boolean;
 
-/** `BinaryHeap<T>`: its elements in `d`, in std's order. */
-export interface BinaryHeap<T> {
-	d: T[];
-}
+/** `BinaryHeap<T>`: the `Vec` of its elements, in std's order. */
+export type BinaryHeap<T> = Vec<T>;
 
 /** `BinaryHeap::new` and `default`. */
 export function heapNew<T>(): BinaryHeap<T> {
-	return { d: [] };
+	return new Vec();
 }
 
 /** `BinaryHeap::with_capacity` of `size`-byte elements: its `Vec`'s. */
 export function heapWithCapacity<T>(n: number, size: number): BinaryHeap<T> {
-	return { d: vecWithCapacity(n, size) };
+	return vecWithCapacity(n, size);
 }
 
-/** `From<Vec<T>>`: the vector's elements, rebuilt into a heap in place, as std's are. */
-export function heapFrom<T>(d: T[], le: Test<T>, ge: Test<T>, lt: Test<T>): BinaryHeap<T> {
-	rebuild(d, le, ge, lt);
-	return { d };
+/** `From<Vec<T>>`: the vector, its elements rebuilt into a heap in place, as std's are. */
+export function heapFrom<T>(v: Vec<T>, le: Test<T>, ge: Test<T>, lt: Test<T>): BinaryHeap<T> {
+	rebuild(v.items, le, ge, lt);
+	return v;
+}
+
+/** `clone_from`: its vector's, of `size`-byte elements, which keeps its buffer. */
+export function heapCloneFrom<T>(h: BinaryHeap<T>, src: BinaryHeap<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): BinaryHeap<T> {
+	return vecCloneFrom(h, src.items, size, clone, drop, over);
+}
+
+/** `heapCloneFrom` as a `CloneFrom`. */
+export function heapCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<BinaryHeap<T>> {
+	return (old, src) => heapCloneFrom(old, src, size, clone, drop, over);
 }
 
 /** `push`: `item` sifted up from the end. */
 export function heapPush<T>(h: BinaryHeap<T>, item: T, le: Test<T>): void {
-	h.d.push(item);
-	siftUp(h.d, 0, h.d.length - 1, le);
+	h.items.push(item);
+	siftUp(h.items, 0, h.items.length - 1, le);
 }
 
 /** `peek` of an element that can be `undefined`: the greatest element, or `none` if empty. */
 export function heapPeek<T>(h: BinaryHeap<T>, none: None): T | None {
-	return h.d.length === 0 ? none : h.d[0];
+	return h.items.length === 0 ? none : h.items[0];
 }
 
 /** `pop`: the greatest element, or `none` if empty, the last element sifted into its place to the bottom and back up. */
 export function heapPop<T>(h: BinaryHeap<T>, le: Test<T>): T | undefined;
 export function heapPop<T>(h: BinaryHeap<T>, le: Test<T>, none: None): T | None;
 export function heapPop<T>(h: BinaryHeap<T>, le: Test<T>, none?: None): T | None | undefined {
-	const d = h.d;
+	const d = h.items;
 	if (d.length === 0) return none;
+	vecKeep(h);
 	let item = d.pop() as T;
 	if (d.length > 0) {
 		[item, d[0]] = [d[0], item];
@@ -3469,22 +4701,29 @@ export function heapPop<T>(h: BinaryHeap<T>, le: Test<T>, none?: None): T | None
 }
 
 /** `into_sorted_vec`: the elements in ascending order, each greatest swapped to the end and the rest sifted. */
-export function heapIntoSortedVec<T>(h: BinaryHeap<T>, le: Test<T>, ge: Test<T>, lt: Test<T>): T[] {
-	const d = h.d;
+export function heapIntoSortedVec<T>(h: BinaryHeap<T>, le: Test<T>, ge: Test<T>, lt: Test<T>): Vec<T> {
+	const d = h.items;
 	for (let end = d.length - 1; end > 0; end--) {
 		[d[0], d[end]] = [d[end], d[0]];
 		siftDownRange(d, 0, end, le, ge, lt);
 	}
-	return d;
+	return h;
 }
 
-/** `append`: `other`'s elements added to the larger of the two, which `h` then holds, and `other` left empty, keeping its capacity. */
-export function heapAppend<T>(h: BinaryHeap<T>, other: BinaryHeap<T>, le: Test<T>, ge: Test<T>, lt: Test<T>): void {
-	if (h.d.length < other.d.length) [h.d, other.d] = [other.d, h.d];
-	const start = h.d.length;
-	for (const item of other.d) h.d.push(item);
-	other.d.length = 0;
-	rebuildTail(h.d, start, le, ge, lt);
+/**
+ * `append` of `size`-byte elements: `other`'s elements appended to the larger of the two,
+ * as `Vec::append` reserves for them, which `h` then holds, and `other` left empty,
+ * keeping its capacity.
+ */
+export function heapAppend<T>(h: BinaryHeap<T>, other: BinaryHeap<T>, le: Test<T>, ge: Test<T>, lt: Test<T>, size: number): void {
+	if (h.items.length < other.items.length) {
+		[h.items, other.items] = [other.items, h.items];
+		[h.cap, other.cap] = [other.cap, h.cap];
+		[h.peak, other.peak] = [other.peak, h.peak];
+	}
+	const start = h.items.length;
+	vecAppend(h, other, size);
+	rebuildTail(h.items, start, le, ge, lt);
 }
 
 /**
@@ -3492,9 +4731,9 @@ export function heapAppend<T>(h: BinaryHeap<T>, other: BinaryHeap<T>, le: Test<T
  * and then the heap rebuilt past what it held.
  */
 export function heapExtend<T>(h: BinaryHeap<T>, items: Iter<T>, le: Test<T>, ge: Test<T>, lt: Test<T>, take?: Take, size?: number, trusted = false): BinaryHeap<T> {
-	const start = h.d.length;
-	vecExtending(h, start, items, (item) => h.d.push(item), take, size, trusted, h.d);
-	rebuildTail(h.d, start, le, ge, lt);
+	const start = h.items.length;
+	vecExtending(h, start, items, (item) => h.items.push(item), take, size, trusted, h);
+	rebuildTail(h.items, start, le, ge, lt);
 	return h;
 }
 
@@ -3503,7 +4742,7 @@ export function heapExtend<T>(h: BinaryHeap<T>, items: Iter<T>, le: Test<T>, ge:
  * it, and then the heap rebuilt from the first it rejected.
  */
 export function heapRetain<T>(h: BinaryHeap<T>, f: (item: T) => boolean, le: Test<T>, ge: Test<T>, lt: Test<T>, drop?: (item: T) => void): void {
-	const d = h.d;
+	const d = h.items;
 	const n = d.length;
 	let from = n;
 	let kept = 0;
@@ -3515,33 +4754,36 @@ export function heapRetain<T>(h: BinaryHeap<T>, f: (item: T) => boolean, le: Tes
 			drop?.(item);
 		}
 	}
+	vecKeep(h);
 	d.length = kept;
 	rebuildTail(d, from, le, ge, lt);
 }
 
 /** `clear`, which leaves the heap empty, keeping its capacity, and then drops each element in order. */
 export function heapClear<T>(h: BinaryHeap<T>, drop?: (item: T) => void): void {
-	dropAll(h.d.splice(0), drop);
+	vecKeep(h);
+	dropAll(h.items.splice(0), drop);
 }
 
 /** `drain`: an iterator of the elements in order, which leaves the heap empty, keeping its capacity, and drops those it still holds by `drop`. */
 export function heapDrain<T>(h: BinaryHeap<T>, drop?: (item: T) => void): Iter<T> {
-	return iterSlice(h.d.splice(0), drop);
+	vecKeep(h);
+	return iterSlice(h.items.splice(0), drop);
 }
 
-/** `iter` and `into_iter`: the elements in order, any not read dropped by `drop` as the iterator drops. */
+/** `iter` and `into_iter`: the elements in order, any not read dropped by `drop` as the iterator drops, over its `Vec`'s buffer. */
 export function heapIter<T>(h: BinaryHeap<T>, drop?: (item: T) => void): Iter<T> {
-	return iterSlice(h.d, drop);
+	return vecIntoIter(h, drop);
 }
 
 /** The heap's drop: each element in order. */
 export function heapDrop<T>(h: BinaryHeap<T>, drop: (item: T) => void): void {
-	dropAll(h.d, drop);
+	dropAll(h.items, drop);
 }
 
-/** `clone` of `size`-byte elements, with each through its `Clone`, or as itself without one, as its `Vec`'s. */
-export function heapClone<T>(h: BinaryHeap<T>, item: (value: T) => T = itself, size: number): BinaryHeap<T> {
-	return { d: vecExact(h.d.map((value) => item(value)), size) };
+/** `clone`, with each element through its `Clone`, or as itself without one, as its `Vec`'s. */
+export function heapClone<T>(h: BinaryHeap<T>, item: (value: T) => T = itself): BinaryHeap<T> {
+	return vecFrom(h.items.map((value) => item(value)));
 }
 
 /**
@@ -3564,25 +4806,26 @@ export class PeekMut<T> implements Place<T> {
 	}
 
 	get v(): T {
-		return this.h.d[0];
+		return this.h.items[0];
 	}
 
 	set v(value: T) {
-		this.h.d[0] = value;
+		this.h.items[0] = value;
 	}
 }
 
 /** `peek_mut`: the greatest element lent, or `undefined` if empty. */
 export function heapPeekMut<T>(h: BinaryHeap<T>, le: Test<T>, ge: Test<T>, lt: Test<T>): PeekMut<T> | undefined {
-	return h.d.length === 0 ? undefined : new PeekMut(h, le, ge, lt);
+	return h.items.length === 0 ? undefined : new PeekMut(h, le, ge, lt);
 }
 
 /** `PeekMut`'s `DerefMut`, which hides the rest of a heap of more than the one element until the guard drops. */
 export function peekMutDerefMut<T>(p: PeekMut<T>): void {
-	const d = p.h.d;
+	const d = p.h.items;
 	if (d.length > 1) {
+		vecKeep(p.h);
 		p.t = d;
-		p.h.d = [d[0]];
+		p.h.items = [d[0]];
 	}
 }
 
@@ -3590,15 +4833,15 @@ export function peekMutDerefMut<T>(p: PeekMut<T>): void {
 function peekMutRestore<T>(p: PeekMut<T>): boolean {
 	const t = p.t;
 	if (t === undefined) return false;
-	t[0] = p.h.d[0];
-	p.h.d = t;
+	t[0] = p.h.items[0];
+	p.h.items = t;
 	p.t = undefined;
 	return true;
 }
 
 /** `PeekMut`'s drop: the element sifted down from the top, if `DerefMut` lent it. */
 export function peekMutDrop<T>(p: PeekMut<T>): void {
-	if (peekMutRestore(p)) siftDownRange(p.h.d, 0, p.h.d.length, p.le, p.ge, p.lt);
+	if (peekMutRestore(p)) siftDownRange(p.h.items, 0, p.h.items.length, p.le, p.ge, p.lt);
 }
 
 /** `PeekMut::pop`: the heap's `pop`, which leaves the drop nothing to sift. */
@@ -3694,6 +4937,20 @@ export interface Part<C, T> {
 }
 
 /**
+ * `Iterator::partition` into `sides`, the collection's two defaults: each item `f` tests
+ * true into the first, and the rest into the second, by `part`'s `extend_one`, through
+ * `fold`, which drops `f` as it ends if it `owns` it.
+ */
+export function iterPartition<T, C>(it: Iter<T>, f: (item: T) => boolean, sides: [C, C], part: Part<C, T>, drops = false, owns = false): [C, C] {
+	const g = (_: undefined, item: T): undefined => {
+		const i = f(item) ? 0 : 1;
+		sides[i] = part.one(sides[i], item);
+	};
+	iterFold(it, undefined, owns ? closure(g, () => dispose(f)) : g, drops, owns);
+	return sides;
+}
+
+/**
  * `Extend::extend` of `t`, a tuple of collections, by `items`, and `collect` into the
  * tuple of their defaults: each reserves the lower bound of the size hint, if any, in
  * order, and then each item's fields extend them in order, by `for_each` as `take` says.
@@ -3748,9 +5005,11 @@ function vectorPart<C, T>(push: (c: C, item: T) => void, reserve?: (c: C, additi
 }
 
 /** A `Vec` of `size`-byte elements, which pushes each. */
-export function vecPart<T>(size?: number): Part<T[], T> {
+export function vecPart<T>(size?: number): Part<Vec<T>, T> {
 	return vectorPart(
-		(v, item) => v.push(item),
+		(v, item) => {
+			v.items.push(item);
+		},
 		size === undefined ? undefined : (v, additional) => vecReserve(v, additional, size),
 	);
 }
@@ -3760,9 +5019,9 @@ export function byteVecPart(): Part<ByteVec, number> {
 	return vectorPart(byteVecPush, byteVecReserve);
 }
 
-/** A `VecDeque` of `size`-byte elements, which pushes each at the back. */
-export function dequePart<T>(size?: number): Part<VecDeque<T>, T> {
-	return vectorPart(dequePushBack, size === undefined ? undefined : (q, additional) => dequeReserve(q, additional, size));
+/** A `VecDeque`, which pushes each at the back. */
+export function dequePart<T>(): Part<VecDeque<T>, T> {
+	return vectorPart(dequePushBack, dequeReserve);
 }
 
 /** A `LinkedList`, which pushes each at the back, and never reserves. */
@@ -3779,7 +5038,7 @@ export function listPart<T>(): Part<LinkedList<T>, T> {
 export function heapPart<T>(le: Test<T>, size?: number): Part<BinaryHeap<T>, T> {
 	return vectorPart(
 		(h, item) => heapPush(h, item, le),
-		size === undefined ? undefined : (h, additional) => vecReserve(h.d, additional, size),
+		size === undefined ? undefined : (h, additional) => vecReserve(h, additional, size),
 	);
 }
 

@@ -6,9 +6,8 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
-[features]
-# `Countdown` runs from either end.
-rev = []
+[dependencies]
+bytes = "1.12.1"
 
 [lints]
 workspace = true

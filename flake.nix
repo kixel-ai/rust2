@@ -298,10 +298,12 @@
               bun
               esbuild
               # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run its
-              # generated Python, and build its generated Go through cgo.
+              # generated Python and Dart, and build its generated Go through cgo.
               kotlin
               python3
+              # rust2-go's tests build and run its output against native Rust.
               go
+              dart
             ];
             # ... and its generated Swift, where nixpkgs builds Swift: not on aarch64-linux.
             nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.meta.broken) pkgs.swift;

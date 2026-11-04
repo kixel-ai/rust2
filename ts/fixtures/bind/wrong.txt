@@ -1,15 +1,15 @@
-the binding of `blob::Blob::len` in wrong/blob.ts doesn't type-check: error TS2322: Type '(self: ByteSlice) => string' is not assignable to type '(a0: ByteSlice) => usize'.
+fixtures/bind/blob/src/lib.rs:impl Blob+21:2: the binding of `blob::Blob::len` in wrong/blob.ts doesn't type-check: error TS2322: Type '(self: ByteSlice) => string' is not assignable to type '(a0: ByteSlice) => usize'.
          Type 'string' is not assignable to type 'usize'.
-           Type 'string' is not assignable to type 'number'. at fixtures/bind/blob/src/lib.rs:38:2
-the binding of `blob::Blob::slice::<std::ops::RangeTo<usize>>` in wrong/blob.ts doesn't type-check: error TS2339: Property 'slice' does not exist on type 'typeof import("wrong/blob")'. at fixtures/bind/blob/src/lib.rs:48:2
-the binding of `<blob::Blob as std::cmp::PartialEq>::eq` in wrong/blob.ts doesn't type-check: error TS2322: Type '(self: ByteSlice, other: string) => boolean' is not assignable to type '(a0: ByteSlice, a1: ByteSlice) => boolean'.
+           Type 'string' is not assignable to type 'number'.
+fixtures/bind/blob/src/lib.rs:impl Blob+31:2: the binding of `blob::Blob::slice::<std::ops::RangeTo<usize>>` in wrong/blob.ts doesn't type-check: error TS2339: Property 'slice' does not exist on type 'typeof import("wrong/blob")'.
+fixtures/bind/blob/src/lib.rs:impl Hash for Blob+1:2: the binding of `<blob::Blob as std::hash::Hash>::hash::<std::hash::DefaultHasher>` in wrong/blob.ts doesn't type-check: error TS2339: Property 'hash$Hash' does not exist on type 'typeof import("wrong/blob")'.
+fixtures/bind/blob/src/lib.rs:impl Ord for Blob+1:2: the binding of `<blob::Blob as std::cmp::Ord>::cmp` in wrong/blob.ts doesn't type-check: error TS2339: Property 'cmp$cmp_Ord' does not exist on type 'typeof import("wrong/blob")'.
+fixtures/bind/blob/src/lib.rs:impl PartialEq for Blob+1:2: the binding of `<blob::Blob as std::cmp::PartialEq>::eq` in wrong/blob.ts doesn't type-check: error TS2322: Type '(self: ByteSlice, other: string) => boolean' is not assignable to type '(a0: ByteSlice, a1: ByteSlice) => boolean'.
          Types of parameters 'other' and 'a1' are incompatible.
-           Type 'ByteSlice' is not assignable to type 'string'. at fixtures/bind/blob/src/lib.rs:94:2
-the binding of `raw::skip` in wrong/skip.ts doesn't type-check: error TS2322: Type '(bytes: ByteSlice, at: Place<usize>) => usize' is not assignable to type '(a0: ByteSlice, a1: Place<usize>) => undefined'.
-         Type 'usize' is not assignable to type 'undefined'. at fixtures/bind/src/raw.rs:26:1
-the binding of `raw::Tally` in wrong/tally.ts doesn't type-check: error TS2322: Type 'Tally' is not assignable to type '"a bound value that drops must have a [Symbol.dispose]"'. at fixtures/bind/src/raw.rs:35:1
-the binding of `raw::Held<std::option::Option<u8>>` in wrong/held.ts doesn't type-check: error TS2322: Type 'u8 | undefined' is not assignable to type '"a bound value can't be undefined, which None is"'.
-         Type 'undefined' is not assignable to type '"a bound value can't be undefined, which None is"'. at fixtures/bind/src/raw.rs:70:1
-the binding of `<blob::Blob as std::hash::Hash>::hash::<std::hash::DefaultHasher>` in wrong/blob.ts doesn't type-check: error TS2339: Property 'hash$Hash' does not exist on type 'typeof import("wrong/blob")'. at fixtures/bind/blob/src/lib.rs:102:2
-the binding of `<blob::Blob as std::cmp::Ord>::cmp` in wrong/blob.ts doesn't type-check: error TS2339: Property 'cmp$cmp_Ord' does not exist on type 'typeof import("wrong/blob")'. at fixtures/bind/blob/src/lib.rs:114:2
-the binding of `<blob::Blob as std::cmp::PartialOrd>::partial_cmp` in wrong/blob.ts doesn't type-check: error TS2339: Property 'partialCmp$cmp_PartialOrd' does not exist on type 'typeof import("wrong/blob")'. at fixtures/bind/blob/src/lib.rs:108:2
+           Type 'ByteSlice' is not assignable to type 'string'.
+fixtures/bind/blob/src/lib.rs:impl PartialOrd for Blob+1:2: the binding of `<blob::Blob as std::cmp::PartialOrd>::partial_cmp` in wrong/blob.ts doesn't type-check: error TS2339: Property 'partialCmp$cmp_PartialOrd' does not exist on type 'typeof import("wrong/blob")'.
+fixtures/bind/src/raw.rs:Held+0:1: the binding of `raw::Held<std::option::Option<u8>>` in wrong/held.ts doesn't type-check: error TS2322: Type 'u8 | undefined' is not assignable to type '"a bound value can't be undefined, which None is"'.
+         Type 'undefined' is not assignable to type '"a bound value can't be undefined, which None is"'.
+fixtures/bind/src/raw.rs:Tally+0:1: the binding of `raw::Tally` in wrong/tally.ts doesn't type-check: error TS2322: Type 'Tally' is not assignable to type '"a bound value that drops must have a [Symbol.dispose]"'.
+fixtures/bind/src/raw.rs:skip+0:1: the binding of `raw::skip` in wrong/skip.ts doesn't type-check: error TS2322: Type '(bytes: ByteSlice, at: Place<usize>) => usize' is not assignable to type '(a0: ByteSlice, a1: Place<usize>) => undefined'.
+         Type 'usize' is not assignable to type 'undefined'.

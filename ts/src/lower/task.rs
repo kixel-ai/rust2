@@ -10,7 +10,7 @@ use super::Translator;
 use super::body::Body;
 use super::library::{self, Call, Std};
 use super::num::{self, Int, Operand};
-use crate::ts::{Expr, Param, Stmt};
+use crate::ts::{Expr, Key, Param, Stmt};
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// `Future::Output` of `ty`, if it is a `dyn Future`, whose JS value is an `rt.Future`.
@@ -71,7 +71,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `value`, a `from` that is a future, as an `rt.Future`: itself if it is one already,
 	/// and else an `rt.DynFuture` over its `Future` impl, which drops it with itself unless
 	/// `borrowed`. A borrowed one that is `dropped` must not drop what it borrows.
-	fn future_object(&mut self, from: Ty<'tcx>, value: Expr, borrowed: bool, dropped: bool, span: Span) -> Expr {
+	pub fn future_object(&mut self, from: Ty<'tcx>, value: Expr, borrowed: bool, dropped: bool, span: Span) -> Expr {
 		let tcx = self.t.tcx;
 		let object = match from.kind() {
 			ty::Dynamic(..) | ty::Coroutine(..) => true,
@@ -81,7 +81,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 				return self.future_object(*inner, value, true, dropped, span);
 			}
 			ty::Adt(adt, args) => match Std::of(tcx, adt.did()) {
-				Some(Std::PollFn | Std::Pending) => true,
+				Some(Std::PollFn | Std::Pending | Std::Ready) => true,
 				Some(Std::Box | Std::Pin) => {
 					return self.future_object(args.type_at(0), value, borrowed, dropped, span);
 				}
@@ -141,43 +141,79 @@ pub fn call<'tcx>(
 		("Arc" | "Rc", "new_cyclic") => Expr::rt("arcNewCyclic", args),
 		// JS erases the pin.
 		("Arc" | "Rc", "pin") => Expr::New(Box::new(Expr::Rt("Arc".into())), args),
+		// The object of one of a trait object, which every pointer to it shares. A `dyn Any`'s
+		// may hold a copy of a value JS copies, which `Arc::downcast` would not see written.
+		("Arc" | "Rc", "get_mut")
+			if call.args.type_at(0).is_trait() && !super::dynamic::is_any_object(tcx, call.args.type_at(0)) =>
+		{
+			Expr::rt("arcGetMut", args)
+		}
 		// A `&mut` to the value, which is where it is for one JS copies. `make_mut` takes the
-		// `Arc`'s place, which it may point at a new `Arc`.
-		("Arc" | "Rc", "get_mut" | "make_mut") if call.args.type_at(0).is_sized(tcx, b.t.typing_env_pub()) => {
+		// `Arc`'s place, which it may point at a new `Arc` of a clone, cloned as a box of a
+		// slice or text is.
+		("Arc" | "Rc", "get_mut" | "make_mut")
+			if call.args.type_at(0).is_sized(tcx, b.t.typing_env_pub())
+				|| shared_box(tcx, call.args.type_at(0)).is_some() =>
+		{
 			let value = call.args.type_at(0);
 			let place = if b.t.needs_place(value) { "Place" } else { "" };
 			match name {
 				"get_mut" => Expr::rt(format!("arcGetMut{place}"), args),
 				_ => {
-					let clone = super::collections::clone_fn(b, value, call.span);
+					let cloned = shared_box(tcx, value).unwrap_or(value);
+					let clone = super::collections::clone_fn(b, cloned, call.span);
 					let arc = b.t.sig(call.def_id, call.args).inputs()[0].peel_refs();
 					let Some(droppers) = b.t.droppers([arc], call.span) else {
 						return Ok(Some(Expr::undefined()));
 					};
-					let values = args.into_iter().chain([clone]).chain(droppers).collect();
+					// What moves the value to a new allocation, as std's does when only `Weak`s
+					// share it: a new object where pointers to it compare.
+					let moved = b.t.held_addressed(value).then(|| b.t.shim(value, call.span)).flatten();
+					let values = args.into_iter().chain([clone]).chain(droppers).chain(moved).collect();
 					Expr::rt(format!("arcMakeMut{place}"), values)
 				}
 			}
 		}
-		// An `Arc<str>` of a string, which JS shares as it is.
+		// An `Arc<[u8]>` of an `Arc<str>`'s bytes, which shares its count, as std's shares its
+		// allocation.
+		("From", "from")
+			if let [to, from] = call.args.as_slice()
+				&& let (ty::Adt(_, to), ty::Adt(_, from)) = (to.expect_ty().kind(), from.expect_ty().kind())
+				&& self_std == Some(Std::Arc)
+				&& std_of(call.args.type_at(1)) == Some(Std::Arc)
+				&& matches!(to.type_at(0).kind(), ty::Slice(e) if matches!(e.kind(), ty::Uint(ty::UintTy::U8)))
+				&& from.type_at(0).is_str() =>
+		{
+			Expr::rt("arcStrBytes", args)
+		}
+		// An `Arc` of a slice or text, of the box `From` makes of the same value, but for the
+		// `Arc` itself.
 		("From", "from")
 			if let [arc, from] = call.args.as_slice()
-				&& let ty::Adt(_, arc) = arc.expect_ty().kind()
 				&& self_std == Some(Std::Arc)
-				&& arc.type_at(0).is_str()
-				&& library::string(tcx, from.expect_ty().peel_refs()) =>
+				&& std_of(from.expect_ty()) != Some(Std::Arc)
+				&& let ty::Adt(_, arc) = arc.expect_ty().kind()
+				&& let Some(boxed) = shared_box(tcx, arc.type_at(0)) =>
 		{
-			Expr::New(Box::new(Expr::Rt("Arc".into())), args)
+			let value = b.convert(first(args), from.expect_ty(), boxed, call.span, out);
+			Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value])
 		}
-		// A waker over the crate's `Wake` impl.
+		// A waker, or its raw parts, over the crate's `Wake` impl.
 		("From", "from")
 			if let [_, from] = call.args.as_slice()
-				&& self_std == Some(Std::Waker)
+				&& let Some(to @ (Std::Waker | Std::RawWaker)) = self_std
 				&& std_of(from.expect_ty()) == Some(Std::Arc) =>
 		{
-			arc_waker(b, from.expect_ty(), first(args), call.span)
+			arc_waker(b, from.expect_ty(), first(args), to == Std::RawWaker, call.span)
 		}
 		("Waker", "noop") => Expr::Rt("NOOP_WAKER".into()),
+		("Waker", "new") => Expr::New(Box::new(Expr::Rt("VTableWaker".into())), args),
+		("Waker", "from_raw") => Expr::rt("wakerFromRaw", args),
+		("RawWaker", "new") => {
+			let [data, vtable] = two(args);
+			raw_waker(data, vtable)
+		}
+		("RawWakerVTable", "new") => Expr::rt("wakerVTable", args),
 		("AsRef", "as_ref") if self_std == Some(Std::Arc) => first(args).member("value"),
 		("Arc" | "Rc", "downgrade") | ("Weak", "new") => Expr::New(Box::new(Expr::Rt("Weak".into())), args),
 		// The value of the last strong one, which its count says, and else its `None`.
@@ -187,8 +223,11 @@ pub fn call<'tcx>(
 		}
 		("Arc" | "Rc", "strong_count") => first(args).member("strong"),
 		("Arc" | "Rc", "weak_count") => first(args).member("weak"),
-		// Two `Arc`s of trait objects are views of the `Arc`s they were made from.
-		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(Ty::is_trait) => Expr::rt("arcPtrEq", args),
+		// Two `Arc`s of trait objects, or of structs of them, are views of the `Arc`s they
+		// were made from.
+		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+			Expr::rt("arcPtrEq", args)
+		}
 		("Arc" | "Rc", "ptr_eq") => {
 			let [l, r] = two(args);
 			l.binary("===", r)
@@ -196,7 +235,7 @@ pub fn call<'tcx>(
 		("Weak", "upgrade") => Expr::rt("weakUpgrade", args),
 		("Weak", "strong_count") => first(args).member("arc").member("strong"),
 		("Weak", "weak_count") => Expr::rt("weakWeakCount", args),
-		("Weak", "ptr_eq") if self_ty.is_some_and(Ty::is_trait) => {
+		("Weak", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
 			let [l, r] = two(args);
 			Expr::rt("arcPtrEq", vec![l.member("arc"), r.member("arc")])
 		}
@@ -218,6 +257,13 @@ pub fn call<'tcx>(
 				}
 			}
 		}
+		// A `Ready`'s clones its value, if it still holds it, and every `Pending` is one.
+		("Clone", "clone") if owned_std == Some(Std::Ready) => {
+			let clone = super::collections::clone_fn(b, held(self_ty), call.span);
+			let clone = (clone != Expr::undefined()).then_some(clone);
+			first(args).member("clone").call(clone.into_iter().collect())
+		}
+		("Clone", "clone") if owned_std == Some(Std::Pending) => Expr::Rt("NEVER".into()),
 		// A waker is the executor's, whose `clone` is its own.
 		("Clone", "clone") if owned_std == Some(Std::Waker) => first(args).member("clone").call(vec![]),
 		// A reference is the object it points at, which its own `Deref` gives: read out of a
@@ -273,6 +319,14 @@ pub fn call<'tcx>(
 		("MutexGuard" | "MappedMutexGuard", "map" | "filter_map") => guard_map(b, call, name, "mutex", args, out),
 		("Ref", "clone") => Expr::rt("refClone", args),
 		("RefCell", "replace") => Expr::rt("refCellReplace", args),
+		// With the value's place where JS would copy it.
+		("RefCell", "replace_with") => {
+			let copied = b.t.needs_place(call.args.type_at(0));
+			Expr::rt(
+				"refCellReplaceWith",
+				super::iter::tail(args, vec![Expr::lit(copied.to_string())]),
+			)
+		}
 		("RefCell", "take") => {
 			let ty = call.args.type_at(0);
 			let f = super::collections::trait_fn(tcx, "Default", "default");
@@ -314,6 +368,7 @@ pub fn call<'tcx>(
 		}
 		("Atomic", _) => return atomic(b, call, name, args),
 		("LazyCell" | "LazyLock", "force") => first(args).member("force").call(vec![]),
+		("LazyCell" | "LazyLock", "new") => Expr::New(Box::new(Expr::Rt(owner.into())), args),
 		("OnceCell" | "OnceLock", _) => return once(b, call, name, args),
 		// A `OnceLock` of `true`, which nothing poisons, as a panic aborts.
 		("Once", "new") => once_unrun(),
@@ -331,13 +386,16 @@ pub fn call<'tcx>(
 			Expr::New(Box::new(Expr::Rt(once_class(b, cell).into())), args)
 		}
 		("atomic", "fence" | "compiler_fence") => Expr::rt("fence", args),
-		// A panic aborts, so no thread is ever unwinding from one.
+		// A panic aborts, so a thread is panicking only while its hook runs.
 		(_, "panicking")
 			if library::std_path(tcx, call.def_id)
 				.first()
 				.is_some_and(|m| m == "thread") =>
 		{
-			Expr::lit("false")
+			match b.t.hooked {
+				true => Expr::rt("panicking", Vec::new()),
+				false => Expr::lit("false"),
+			}
 		}
 		("Waker", "wake_by_ref") => first(args).member("wakeByRef").call(vec![]),
 		("Waker", "wake") => first(args).member("wake").call(vec![]),
@@ -357,6 +415,15 @@ pub fn call<'tcx>(
 			)
 		}
 		("pending", "pending") => Expr::Rt("NEVER".into()),
+		// With what drops its value, unless a poll takes it first.
+		("ready", "ready") => {
+			let dropper = b.t.drop_fn(call.args.type_at(0), call.span);
+			Expr::New(
+				Box::new(Expr::Rt("Ready".into())),
+				args.into_iter().chain(dropper).collect(),
+			)
+		}
+		("Ready", "into_inner") => first(args).member("intoInner").call(vec![]),
 		// A box's JS value is what it holds.
 		("Box", "pin") => first(args),
 		("Future", "poll") => match self_ty.map(Ty::kind) {
@@ -367,14 +434,20 @@ pub fn call<'tcx>(
 				b.call_def(call.def_id, tcx.mk_args(&[(*inner).into()]), args, call.span, out)
 			}
 			// std's futures and a `dyn Future` are `rt.Future`s, which poll themselves.
-			_ if matches!(self_std, Some(Std::PollFn | Std::Pending))
+			_ if matches!(self_std, Some(Std::PollFn | Std::Pending | Std::Ready))
 				|| self_ty.is_some_and(|ty| b.t.dyn_future(ty).is_some()) =>
 			{
 				let [future, cx] = two(args);
 				future.member("poll").call(vec![cx])
 			}
-			// A pinned pointer or a box polls what it points at, which its JS value is.
-			Some(ty::Adt(adt, adt_args)) if matches!(Std::of(tcx, adt.did()), Some(Std::Pin | Std::Box)) => {
+			// A pinned pointer, a box, or an `AssertUnwindSafe` polls what it points at or holds,
+			// which its JS value is.
+			Some(ty::Adt(adt, adt_args))
+				if matches!(
+					Std::of(tcx, adt.did()),
+					Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+				) =>
+			{
 				let inner = match Std::of(tcx, adt.did()) {
 					Some(Std::Pin) => adt_args.type_at(0).builtin_deref(true),
 					_ => Some(adt_args.type_at(0)),
@@ -512,7 +585,10 @@ fn cell<'tcx>(
 		"new" => Expr::New(Box::new(Expr::Rt("Cell".into())), args),
 		"get" => b.t.copied(first(args).member("v"), ty, call.span),
 		"into_inner" => first(args).member("v"),
+		// As its `UnsafeCell`'s `get` and `get_mut`, the same `rt.Cell`.
+		"as_ptr" | "get_mut" => return Err(args),
 		"replace" => Expr::rt("cellReplace", args),
+		"update" => Expr::rt("cellUpdate", args),
 		// With what drops the value it replaces.
 		"set" => {
 			let Some(droppers) = b.t.droppers([ty], call.span) else {
@@ -572,6 +648,11 @@ fn once<'tcx>(
 		_ => return Ok(None),
 	};
 	Ok(Some(e))
+}
+
+/// A `Box<pointee>`, if `pointee` is a slice or text, whose value an `rt.Arc` of it holds.
+pub fn shared_box<'tcx>(tcx: ty::TyCtxt<'tcx>, pointee: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	matches!(pointee.kind(), ty::Slice(_) | ty::Str).then(|| Ty::new_box(tcx, pointee))
 }
 
 /// The type a cell or lock of type `ty` holds.
@@ -727,9 +808,10 @@ pub fn atomic_ordering(index: VariantIdx) -> Expr {
 	Expr::lit(index.as_u32().to_string())
 }
 
-/// `Waker::from(arc)`, an `Arc<W>`: an `rt.ArcWaker` over `W`'s `Wake::wake`, what drops
-/// the `Arc`, and `W`'s own `wake_by_ref` if it overrides the default.
-fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+/// `Waker::from(arc)`, or `RawWaker::from` if `raw`, of an `Arc<W>`: over `W`'s
+/// `Wake::wake`, what drops the `Arc`, and `W`'s own `wake_by_ref` if it overrides the
+/// default.
+fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, raw: bool, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	let ty::Adt(_, arc_args) = arc.kind() else {
 		unreachable!("an Arc is a struct")
@@ -760,7 +842,15 @@ fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, span:
 	{
 		args.push(b.fn_value(by_ref, w, span));
 	}
-	Expr::New(Box::new(Expr::Rt("ArcWaker".into())), args)
+	Expr::rt(if raw { "arcRawWaker" } else { "arcWaker" }, args)
+}
+
+/// A `RawWaker` of `data` and `vtable`: an `rt.RawWaker`, under std's names.
+pub fn raw_waker(data: Expr, vtable: Expr) -> Expr {
+	Expr::Object(vec![
+		(Key::Name("data".into()), data),
+		(Key::Name("vtable".into()), vtable),
+	])
 }
 
 fn first(args: Vec<Expr>) -> Expr {

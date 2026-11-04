@@ -1,0 +1,2 @@
+package = "lang-pointers-fixture"
+roots = ["harness::run", "harness::op"]

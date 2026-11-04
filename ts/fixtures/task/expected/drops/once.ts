@@ -152,18 +152,18 @@ export function run(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part6, f)];
 		Log.note(log, rt.fmtFormat(["swept ", args22[0]]));
 		other2[Symbol.dispose]();
-		const v: rt.OnceCell<Guard.Guard>[] = [];
+		const v: rt.Vec<rt.OnceCell<Guard.Guard>> = new rt.Vec();
 		const _274: rt.OnceCell<Guard.Guard> = new rt.OnceCell(guard(63));
-		v.push(_274);
+		v.items.push(_274);
 		const _280: rt.OnceCell<Guard.Guard> = new rt.OnceCell(undefined);
-		v.push(_280);
+		v.items.push(_280);
 		const _283: rt.OnceCell<Guard.Guard> = new rt.OnceCell(guard(64));
-		v.push(_283);
-		const cells: rt.OnceCell<Guard.Guard>[] = v;
-		const part7 = cells.length;
+		v.items.push(_283);
+		const cells: rt.Vec<rt.OnceCell<Guard.Guard>> = v;
+		const part7 = cells.items.length;
 		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part7, f)];
 		Log.note(log, rt.fmtFormat(["cells ", args24[0]]));
-		rt.dropAll(cells);
+		rt.dropVec(cells);
 		rt.drop(new rt.OnceLock(guard(65)));
 	} else {
 		const cell5: rt.OnceCell<Guard.Guard | undefined, rt.None> = new rt.OnceCell(rt.None);

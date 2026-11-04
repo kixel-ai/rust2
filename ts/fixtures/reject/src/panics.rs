@@ -1,0 +1,59 @@
+//! `std::panic` that needs where a call is in std's source: a `#[track_caller]` function
+//! that std's code calls, through its `Fn` impls.
+
+use std::panic::Location;
+
+type Here = &'static Location<'static>;
+
+#[track_caller]
+fn here() -> Here {
+	Location::caller()
+}
+
+#[track_caller]
+fn at(_: u8) -> Here {
+	Location::caller()
+}
+
+fn call(f: impl Fn() -> Here) -> Here {
+	f()
+}
+
+/// A `#[track_caller]` function std's code calls, which natively passes a location in
+/// std's source.
+pub fn caller(data: &[u8]) -> u32 {
+	let mapped = data.first().copied().map(at).map_or(0, Location::line);
+	let iterated = data.iter().copied().map(at).count() as u32;
+	mapped + iterated + call(here).column()
+}
+
+/// `Location::caller` as a pointer, whose shim passes its location in std's source, and a
+/// file as a C string, which has no JS value.
+pub fn pointed() -> usize {
+	let f: fn() -> Here = Location::caller;
+	f().file_as_c_str().count_bytes()
+}
+
+/// An iterator whose `next` std's adaptors call, and a value whose `drop` std's glue calls.
+struct Counted(u8);
+
+impl Iterator for Counted {
+	type Item = u8;
+
+	#[track_caller]
+	fn next(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(Location::caller().line() as u8)
+	}
+}
+
+impl Drop for Counted {
+	#[track_caller]
+	fn drop(&mut self) {
+		self.0 = Location::caller().column() as u8;
+	}
+}
+
+pub fn iterated(n: u8) -> u32 {
+	Counted(n).map(u32::from).sum()
+}

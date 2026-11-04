@@ -2,18 +2,16 @@ binding `blob::Blob`: no such item, or more than one, in the crate or a crate it
 binding `buf::Source`: a binding is of a function or a type, not Trait
 binding `buf::empty`: ../blob.ts must be relative to ts.toml, inside its directory
 binding `nowhere::Thing`: no such item, or more than one, in the crate or a crate it depends on
-binding `raw`: a binding is of a function or a type, not Mod
 binding `raw::Held::new`: RT/held.ts would replace the runtime, rt.ts and rt/
-binding `raw::Tally`: bind/blob.ts binds another type
 binding `raw::Tally::get`: only a type's value drops
 binding `raw::Tally::new`: rt/tally.ts would replace the runtime, rt.ts and rt/
+binding `raw::Tally`: bind/blob.ts binds another type
 binding `raw::checksum`: `checksum` binds the same item
+binding `raw`: a binding is of a function or a type, not Mod
 binding `std::vec::Vec`: the type has a representation of its own
-reading bind/missing.ts: No such file or directory (os error 2) at fixtures/bind/src/harness.rs:28:12
-`raw::Held` binds without drop, so it would never drop its `raw::Tally` at fixtures/bind/src/harness.rs:121:13
-a binding of `raw::value`, whose `N` one export for every instance can't recover from its arguments at fixtures/bind/src/raw.rs:65:1
-a binding of `raw::zero`, whose `T` one export for every instance can't recover from its arguments at fixtures/bind/src/raw.rs:60:1
-`raw::Held` binds without drop, so it would never drop its `raw::Tally` at fixtures/bind/src/harness.rs:121:6
-unsupported call to `std::sync::Arc::<u32>::from_raw` at fixtures/bind/src/raw.rs:55:17
-unsupported call to `std::sync::Arc::<u32>::into_raw` at fixtures/bind/src/raw.rs:42:11
-an assignment through a reference to `blob::Blob` at fixtures/bind/src/harness.rs:128:2
+fixtures/bind/src/harness.rs:refused+3:6: `raw::Held` binds without drop, so it would never drop its `raw::Tally`
+fixtures/bind/src/harness.rs:refused+3:13: `raw::Held` binds without drop, so it would never drop its `raw::Tally`
+fixtures/bind/src/harness.rs:replace+1:2: an assignment through a reference to `blob::Blob`
+fixtures/bind/src/harness.rs:run+14:12: reading bind/missing.ts: No such file or directory (os error 2)
+fixtures/bind/src/raw.rs:value+0:1: a binding of `raw::value`, whose `N` one export for every instance can't recover from its arguments
+fixtures/bind/src/raw.rs:zero+0:1: a binding of `raw::zero`, whose `T` one export for every instance can't recover from its arguments

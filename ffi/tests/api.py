@@ -2,12 +2,14 @@
 # natively, through the generated Python. tests/fixtures.rs compares the transcripts.
 #
 # With an argument, it instead checks the futures' semantics, what frees what nobody
-# closed, or the values only Python's types bound, or breaks a contract, which must fail.
+# closed, the values only Python's types bound, or how Python calls into the extension,
+# or breaks a contract, which must fail.
 
 import asyncio
 import datetime
 import gc
 import os
+import select
 import sys
 import threading
 
@@ -125,9 +127,9 @@ def script():
 	c.rename("d")
 	print(f"name {c.name()}")
 	print(f"is d {flag(c.is_('d'))}")
-	with c.clone() as copy:
-		copy.add(1)
-		print(f"clone {copy.get()} original {c.get()}")
+	copy = c.clone()
+	copy.add(1)
+	print(f"clone {copy.get()} original {c.get()}")
 	print(f"debug {c!r}")
 	label = c.into_label(p)
 	print(f"label {label!r}")
@@ -154,9 +156,9 @@ def script():
 	stat_rows = api.rows([api.Point(1, 2), api.Point(3, 3)])
 	print("rows " + ", ".join(f"{name} {shape!r} {p.x} {p.y}" for name, shape, p in stat_rows))
 	# Each handle in a tuple moves in, as one taken by value does.
-	with api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))]) as board:
-		ranked = board.ranked()
-		print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
+	ranked = board.ranked()
+	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
 	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
 	lower_half, upper_half = api.halves(span)
 	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
@@ -273,8 +275,9 @@ def script():
 	print(f"stamp {flag(message.stamp is not None)}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
-	with api.Logger.new(PrintLog()) as logger:
-		print(f"write {flag(logger.write('hi'))}")
+	logger = api.Logger.new(PrintLog())
+	print(f"write {flag(logger.write('hi'))}")
+	del logger
 	print("dropped")
 	# Rust calls it on another thread, before the call returns.
 	threshold = 2
@@ -391,10 +394,10 @@ def script():
 	print(f"wrapped {api.kept_wrap_u32(api.WrapU32(4))}")
 	print(f"keeps {api.keeps(PrintLog()).value}")
 
-	# Its Drop runs when Python closes it, not before.
+	# Its Drop runs when its last reference goes, not before.
 	token = api.Token.new(7)
 	print(f"token {token.id} dropped {api.dropped()}")
-	token.close()
+	del token
 	print(f"dropped {api.dropped()}")
 
 	# A field and the method of its name, each its own member.
@@ -411,10 +414,10 @@ def script():
 	host = api.host(base)
 	host = "None" if host is None else f'Some("{host}")'
 	print(f"url {base} host {host}")
-	with api.resolve(base.clone(), "c?d") as url:
-		print(f"resolve {url} {flag(url == base)}")
+	url = api.resolve(base.clone(), "c?d")
+	print(f"resolve {url} {flag(url == base)}")
 	try:
-		api.Url.parse("no scheme").close()
+		api.Url.parse("no scheme")
 	except api.StringException as e:
 		print(f"parse err {e.error}")
 	v4 = ("127.0.0.1", 8080)
@@ -440,6 +443,10 @@ def script():
 			check(False, "a counter moved in is closed")
 		except ValueError:
 			pass
+	held = [api.held_count((api.Counter.new("h", 4),)), api.held_count(None)]
+	print("held " + " ".join("None" if n is None else f"Some({n})" for n in held))
+	print(f'boxed Some("{api.boxed_name(api.boxed_counter("b"))}") {api.boxed_name(None)} {str(api.boxed_counter(None) is None).lower()}')
+	print(f"less {api.less(5, 2)}")
 	print(f"sums {api.sums([[1, 2], [], [3]])}")
 	summed = api.summed([api.Point(1, 2), api.Point(-4, 6)])
 	none_summed = api.summed([])
@@ -448,23 +455,22 @@ def script():
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
 	print(f"timed text {api.timed_text(doc)}")
-	with api.tagged(doc, "t") as tagged:
-		print(f"tagged {tagged.to_text()}")
+	tagged = api.tagged(doc, "t")
+	print(f"tagged {tagged.to_text()}")
 	try:
-		api.Json.parse('{"a":').close()
+		api.Json.parse('{"a":')
 	except api.StringException as e:
 		print(f"json parse err {e.error}")
 	site = api.Site.new(base)
-	with site.home as a, site.home as b:
-		print(f"site {a} {b}")
+	print(f"site {site.home} {site.home}")
 
 	# Slices, passed in and returned as clones, and the socket address of each family.
 	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
-	with api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"]) as trail:
-		print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
-		# Returned iterators, each collected at the call: drained labels are gone after.
-		print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
-		print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
+	trail = api.Trail.new([api.Point(1, 2), api.Point(3, 4)], ["a", "b"])
+	print(f"trail {debugs(trail.points())} {debugs(trail.labels())}")
+	# Returned iterators, each collected at the call: drained labels are gone after.
+	print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
+	print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
 	numbered = api.numbered(["p", "q"])
 	print("numbered " + ", ".join(f"{c.name()} {c.get()}" for c in numbered))
 	next4, next6 = api.nexts(v4, v6)
@@ -525,22 +531,16 @@ def futures():
 	payload = loop.run_until_complete(asyncio.wait_for(channel.recv(), 5))
 	check(text(payload) == "kept", "a cancelled receive loses nothing")
 
-	# A handle closed while a call awaits on it is freed once the call ends.
+	# An object whose last reference goes while a call awaits on it is freed once the
+	# call ends.
 	other = api.Channel.new()
-	got = None
-
-	async def held():
-		nonlocal got
-		got = text(await other.recv())
-
-	task = loop.create_task(held())
-	step(loop)
 	sender = other.clone()
-	other.close()
+	task = loop.create_task(other.recv())
+	step(loop)
+	del other
 	sender.send(b"held")
-	loop.run_until_complete(asyncio.wait_for(task, 5))
-	check(got == "held", "a closed object stays held by the call awaiting on it")
-	sender.close()
+	got = loop.run_until_complete(asyncio.wait_for(task, 5))
+	check(text(got) == "held", "the call awaiting on an object holds it")
 
 	# An awaitable from Rust is awaited once, as a coroutine is.
 	later = channel.send_later(b"once")
@@ -563,7 +563,7 @@ def futures():
 
 		def close(self):
 			try:
-				later.poll(api._n.Queue())
+				later.poll(api._n.Queue(loop))
 				check(False, "a future polled while it is freed raises")
 			except ValueError:
 				pass
@@ -581,14 +581,98 @@ def futures():
 	sender.join()
 	until(loop, lambda: wakes)
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
+	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
 	loop.close()
 	print("futures ok")
 
 
+async def on_loop():
+	"""Wakes during a call on the running loop's own thread, which write no byte to its
+	socket and dispatch once the call returns, beside wakes from other threads, which do."""
+	channel = api.Channel.new()
+	got = []
+
+	async def recv():
+		got.append(text(await channel.recv()))
+
+	async def parked():
+		task = asyncio.ensure_future(recv())
+		await asyncio.sleep(0)
+		return task
+
+	def signaled():
+		return bool(select.select([wakeup.queue.fileno()], [], [], 0)[0])
+
+	async def settle():
+		for _ in range(4):
+			await asyncio.sleep(0)
+
+	task = await parked()
+	wakeup = api._wakeups[asyncio.get_running_loop()]
+	channel.send(b"near")
+	check(not got, "a wake on the loop's thread never resumes inside the call")
+	check(not signaled(), "a wake on the loop's thread writes no byte")
+	await task
+	check(got == ["near"], "a wake on the loop's thread resumes the receive")
+
+	task = await parked()
+	sender = threading.Thread(target=lambda: channel.send(b"far"))
+	sender.start()
+	sender.join()
+	check(signaled(), "a wake from another thread writes a byte")
+	await task
+	check(got == ["near", "far"], "a wake from another thread resumes the receive")
+
+	# Before the first await, the call's poll with no waker leaves nothing to wake.
+	early = channel.recv()
+	channel.send(b"early")
+	check(text(await early) == "early", "a send before the first await is received")
+
+	# Cancelled after its wake, or before it, in the same step, a receive never resumes and
+	# leaves the payload.
+	for send_first in (True, False):
+		task = await parked()
+		if send_first:
+			channel.send(b"kept")
+			task.cancel()
+		else:
+			task.cancel()
+			channel.send(b"kept")
+		await settle()
+		check(task.cancelled() and len(got) == 2, "a cancelled receive never resumes")
+		check(text(await channel.recv()) == "kept", "a cancelled receive loses nothing")
+	check(not signaled(), "wakes on the loop's thread wrote no byte")
+
+	# Wakes that land before the loop gets to them call the waker once.
+	wakes = []
+	waker = api.Waker(lambda: wakes.append(1))
+	for _ in range(2):
+		channel.notify(waker)
+		channel.send(b"rung")
+	check(not wakes, "a waker is never called inside the call")
+	check(not signaled(), "a waker's wakes on the loop's thread, with nothing parked, write no byte")
+	await settle()
+	check(wakes == [1], "wakes on the loop's thread call the waker once")
+	await channel.recv()
+
+	# Many receives, each woken once from the loop's thread or another, while both wake.
+	channels = [api.Channel.new() for _ in range(64)]
+	for _ in range(20):
+		tasks = [asyncio.ensure_future(c.recv()) for c in channels]
+		await asyncio.sleep(0)
+		sender = threading.Thread(target=lambda: [c.send(b"far") for c in channels[1::2]])
+		sender.start()
+		for c in channels[::2]:
+			c.send(b"near")
+		payloads = await asyncio.gather(*tasks)
+		sender.join()
+		expected = ["near", "far"] * (len(channels) // 2)
+		check([text(p) for p in payloads] == expected, "every receive resumes once with its payload")
+
+
 def owned():
-	"""What frees an object or bytes nobody closed: its last reference going, or the
-	cycle collector, and only what closing did not free already. Rust's bytes cross lent,
-	until released."""
+	"""What frees an object or bytes: its last reference going, or the cycle collector.
+	Rust's bytes cross lent, until they and every view of them are released."""
 	for n in range(1023, 1026):
 		payload = bytes(i % 256 for i in range(n))
 		packet = api.next_packet(api.Packet(1, payload))
@@ -610,22 +694,27 @@ def owned():
 			pass
 
 	before = api.dropped()
-	api.Token.new(1).close()
-	api.token_bytes(2, 1025).release()
-	check(api.dropped() == before + 2, "closing frees at once")
-	unclosed()
-	check(api.dropped() == before + 4, "the last reference going frees what nobody closed")
+	api.Token.new(3)
+	api.token_bytes(4, 1025)
+	check(api.dropped() == before + 2, "the last reference going frees at once")
+
+	# A view kept past what it was read from keeps Rust's buffer.
+	part = api.token_bytes(7, 1025)[1:]
+	packet = api.next_packet(api.Packet(1, bytes(range(256)) * 5))
+	payload = packet.payload
+	del packet
+	check(api.dropped() == before + 2, "a view keeps Rust's buffer")
+	check(bytes(part) == bytes([7]) * 1024, "a slice outlives the bytes it was cut from")
+	check(bytes(payload) == bytes(range(256)) * 5, "bytes outlive their record")
+	del part
+	check(api.dropped() == before + 3, "the last view going frees Rust's buffer")
+
 	cycle = [api.Token.new(5), api.token_bytes(6, 1)]
 	cycle.append(cycle)
 	del cycle
 	gc.collect()
-	check(api.dropped() == before + 6, "the cycle collector frees what a cycle held")
+	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
 	print("owned ok")
-
-
-def unclosed():
-	api.Token.new(3)
-	api.token_bytes(4, 1025)
 
 
 def values():
@@ -662,6 +751,70 @@ def values():
 	print("values ok")
 
 
+def calls():
+	"""Calls Python makes straight into the extension, with no Python frame between, as a
+	`def` of the same signature takes them: by position or keyword, raising its errors,
+	with its docstring and the signature `inspect` reads."""
+	import inspect
+
+	def raises(f, message):
+		try:
+			f()
+			check(False, message)
+		except TypeError as e:
+			check(str(e) == message, f"{e!r} is {message!r}")
+
+	kinds = {
+		(api.Counter, "get"): "method_descriptor",
+		(api.Counter, "new"): "staticmethod",
+		(api.Counter, "__repr__"): "method_descriptor",
+		(api.Registry, "first"): "getset_descriptor",
+		(api.Point, "offset"): "method_descriptor",
+		(api.Channel, "send_later"): "method_descriptor",
+		# An `async def` stays a coroutine function.
+		(api.Gauge, "later"): "function",
+	}
+	for (cls, name), kind in kinds.items():
+		got = type(inspect.getattr_static(cls, name)).__name__
+		check(got == kind, f"{cls.__name__}.{name} is a {got}")
+	check(type(api.has_text).__name__ == "builtin_function_or_method", "a function is the extension's")
+
+	c = api.Counter.new(start=2, name="c")
+	check(c.add(n=3) == 5 and c.sub(1) == 4, "a method takes its arguments by keyword")
+	check(api.Point(1, 2).offset(dy=3, dx=4) == api.Point(5, 5), "a record's method takes keywords")
+	check(api.has_text(note=api.Note.default()) is False, "a function takes keywords")
+	check(api.Registry.new(first=c).edit(edit=lambda counter: True), "a closure passes by keyword")
+	loop = asyncio.new_event_loop()
+	check(loop.run_until_complete(api.halved(n=4)) == 2, "an async def takes keywords")
+	channel = api.Channel.new()
+	loop.run_until_complete(channel.send_later(payload=b"kw"))
+	check(bytes(loop.run_until_complete(channel.recv())) == b"kw", "an eager future takes keywords")
+	loop.close()
+
+	# C callers may pass no argument array at all for no arguments.
+	import ctypes
+
+	no_args = ctypes.pythonapi.PyObject_CallNoArgs
+	no_args.restype, no_args.argtypes = ctypes.py_object, [ctypes.py_object]
+	check(no_args(api.Note.default) == api.Note.default(), "a call with no argument array")
+
+	raises(lambda: c.add(), "Counter.add() missing 1 required positional argument: 'n'")
+	raises(lambda: c.add(1, 2), "Counter.add() takes 2 positional arguments but 3 were given")
+	raises(lambda: c.add(1, n=2), "Counter.add() got multiple values for argument 'n'")
+	raises(lambda: c.add(m=1), "Counter.add() got an unexpected keyword argument 'm'")
+	raises(lambda: c.get(1), "Counter.get() takes 1 positional argument but 2 were given")
+	raises(lambda: api.Counter.new(), "Counter.new() missing 2 required positional arguments: 'name' and 'start'")
+	raises(lambda: api.has_text(1, 2), "has_text() takes 1 positional argument but 2 were given")
+
+	check(str(inspect.signature(c.add)) == "(n)", "a bound method's signature")
+	check(str(inspect.signature(api.Counter.new)) == "(name, start)", "a static method's signature")
+	check(api.has_text.__doc__ == "Whether `note` has text, even empty.", "a function's docstring")
+	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
+	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
+	check(api.Registry.first.__doc__ is None, "a property without docs has no docstring")
+	print("calls ok")
+
+
 def broken(which):
 	"""Each breaks a contract, which must fail with a message naming it."""
 	match which:
@@ -679,6 +832,26 @@ def broken(which):
 			kept = []
 			api.Registry.new(api.Counter.new("c", 0)).edit(lambda counter: kept.append(counter) or False)
 			kept[0].get()
+		# A thread holds the lent counter while converting an argument, which waits, the GIL
+		# released, until the lend has ended; the call would then reach a freed handle.
+		case "lent held":
+			converting, ended = threading.Event(), threading.Event()
+
+			class Slow:
+				def __index__(self):
+					converting.set()
+					ended.wait()
+					return 1
+
+			def edit(counter):
+				edit.thread = threading.Thread(target=counter.add, args=(Slow(),))
+				edit.thread.start()
+				converting.wait()
+				return False
+
+			api.Registry.new(api.Counter.new("c", 0)).edit(edit)
+			ended.set()
+			edit.thread.join()
 		# An IPv6 address where Rust takes `SocketAddrV4`.
 		case "family":
 			api.nexts(("::", 1, 0, 0), ("::", 1, 0, 0))
@@ -702,5 +875,7 @@ match sys.argv[1:]:
 		owned()
 	case ["values"]:
 		values()
+	case ["calls"]:
+		calls()
 	case [which]:
 		broken(which)
