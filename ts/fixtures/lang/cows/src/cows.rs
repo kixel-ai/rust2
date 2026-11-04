@@ -6,8 +6,9 @@
 use std::borrow::{Borrow, Cow};
 use std::cell::Cell;
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::ops::Bound;
 use std::sync::Arc;
 
 use crate::harness::{put, text};
@@ -180,6 +181,188 @@ pub fn cows(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let c = cow(&s, owned);
 			put(out, &format!("[{c}|{c:>6}|{c:<5}|{c:^7}|{c:*^3}|{c:?}]"));
 			put(out, &format!("{:?}", Some(cow(first, owned))));
+		}
+	}
+}
+
+/// Whether `c` borrows, as a match tells.
+fn borrows(c: &Cow<'_, str>) -> u8 {
+	match c {
+		Cow::Borrowed(_) => 1,
+		Cow::Owned(_) => 0,
+	}
+}
+
+/// Point `s` at `to`, through the `&mut` a caller passes.
+fn repoint_str<'a>(s: &mut &'a str, to: &'a str) {
+	*s = to;
+}
+
+/// A clone of `t`, through a generic.
+fn cloned<T: Clone>(t: &T) -> T {
+	t.clone()
+}
+
+/// A `Cow<str>`'s variant, as std decides it: kept or changed by what makes, converts,
+/// clones, joins, and changes one, matched on by reference, in place, and by value, and
+/// held in collections and fields.
+pub fn variants(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let s = text(data);
+	let owned = kind & 0x80 != 0;
+	let first = s.split('/').next().unwrap_or("");
+	let rest = s.split('/').next_back().unwrap_or("");
+	match kind % 3 {
+		0 => {
+			// What makes one, converts one, and clones one.
+			let c = cow(&s, owned);
+			let made: [Cow<'_, str>; 9] = [
+				c.clone(),
+				cloned(&c),
+				Cow::from(first),
+				Cow::from(s.clone()),
+				Cow::from(&s),
+				first.into(),
+				Default::default(),
+				FALLBACK,
+				first.chars().rev().collect(),
+			];
+			for m in &made {
+				out.push(borrows(m));
+				put(out, m);
+			}
+			// `to_mut` owns, even unchanged, and `into_owned` gives the text either way.
+			let mut m = cow(first, owned);
+			let _ = m.to_mut();
+			out.push(borrows(&m));
+			put(out, &cow(rest, owned).into_owned());
+			// `+` and `+=` take the right side when the left is empty, keep the left when the
+			// right is, and else own what they join.
+			for (l, r) in [("", rest), (first, ""), (first, rest), ("", "")] {
+				for (lo, ro) in [(false, false), (false, true), (true, false), (true, true)] {
+					let joined = cow(l, lo) + cow(r, ro);
+					out.push(borrows(&joined));
+					put(out, &joined);
+					let mut j = cow(l, lo);
+					j += r;
+					out.push(borrows(&j));
+					let k = cow(l, lo) + r;
+					out.push(borrows(&k));
+				}
+			}
+		}
+		1 => {
+			// Matched on, by reference, in place, and by value.
+			let mut c = cow(&s, owned);
+			match &c {
+				Cow::Borrowed(b) => put(out, b),
+				Cow::Owned(o) => {
+					out.push(0xee);
+					put(out, o);
+				}
+			}
+			if let Cow::Owned(o) = &mut c {
+				o.push('!');
+			}
+			put(out, &c);
+			// A payload replaced whole, which leaves a clone as it was.
+			let kept = c.clone();
+			if let Cow::Borrowed(b) = &mut c {
+				*b = first;
+			}
+			if let Cow::Owned(o) = &mut c {
+				*o = first.chars().rev().collect();
+			}
+			put(out, &c);
+			put(out, &kept);
+			out.push(borrows(&kept));
+			// A payload passed on as a `&mut`, then replaced and read through the same borrow.
+			let mut e = cow(&s, !owned);
+			let kept = e.clone();
+			match &mut e {
+				Cow::Borrowed(b) => {
+					repoint_str(b, rest);
+					put(out, b);
+					*b = first;
+				}
+				Cow::Owned(o) => {
+					o.truncate(o.chars().next().map_or(0, char::len_utf8));
+					o.push('?');
+				}
+			}
+			put(out, &e);
+			put(out, &kept);
+			let made: String = match c {
+				Cow::Borrowed(b) => b.to_uppercase(),
+				Cow::Owned(o) => o,
+			};
+			put(out, &made);
+			let mut d = cow(first, !owned);
+			d = match d {
+				Cow::Borrowed(b) if !b.is_empty() => Cow::Owned(b.chars().skip(1).collect()),
+				d => d,
+			};
+			out.push(borrows(&d));
+			put(out, &d);
+			if let Some(Cow::Borrowed(b)) = Some(cow(rest, owned)) {
+				put(out, b);
+			}
+		}
+		_ => {
+			// Held in a `Vec`, an `Option`, a field, and a B-tree, which keeps the key it had.
+			let parts: Vec<Cow<'_, str>> = s
+				.split('/')
+				.enumerate()
+				.map(|(i, p)| cow(p, (i % 2 == 1) == owned))
+				.collect();
+			for p in &parts {
+				out.push(borrows(p));
+			}
+			put(out, &parts.join("+"));
+			put(out, &parts.concat());
+			let collected: String = parts.iter().rev().cloned().collect();
+			let mut extended = String::from(rest);
+			extended.extend(parts.iter().cloned());
+			let (texts, lens): (String, Vec<usize>) = parts.iter().map(|p| (p.clone(), p.len())).unzip();
+			put(out, &format!("{collected}|{extended}|{texts}|{lens:?}"));
+			let mut counts: BTreeMap<Cow<'_, str>, u8> = BTreeMap::new();
+			for p in parts.iter().rev() {
+				*counts.entry(p.clone()).or_insert(0) += 1;
+			}
+			for (k, n) in &counts {
+				out.push(borrows(k));
+				out.push(*n);
+			}
+			if let Some((k, _)) = counts.get_key_value(first) {
+				out.push(borrows(k));
+			}
+			// Ranges and lookups by what the keys borrow.
+			for (k, n) in counts.range::<str, _>((Bound::Included(first), Bound::Unbounded)) {
+				put(out, k);
+				out.push(*n);
+			}
+			for (_, n) in counts.range_mut::<str, _>((Bound::Excluded(rest), Bound::Unbounded)) {
+				*n += 1;
+			}
+			let keys: BTreeSet<Cow<'_, str>> = counts.keys().cloned().collect();
+			out.extend(
+				keys.range::<str, _>((Bound::Unbounded, Bound::Included(rest)))
+					.map(borrows),
+			);
+			let hashed: HashMap<Cow<'_, str>, u8> = counts.into_iter().collect();
+			out.push(hashed.get(first).copied().unwrap_or(0xff));
+			out.push(hashed.contains_key(rest) as u8);
+			// Equal keys of either variant are one key.
+			let mut both: HashSet<Cow<'_, str>> = HashSet::new();
+			both.insert(cow(first, owned));
+			out.push(both.insert(cow(first, !owned)) as u8);
+			out.push(both.len() as u8);
+			let mut named = Named::new(first, kind);
+			out.push(borrows(&named.name));
+			named.tag('x');
+			out.push(borrows(&named.name));
+			let o: Option<Cow<'_, str>> = parts.into_iter().nth(1);
+			out.push(o.as_ref().map_or(2, borrows));
+			out.push(o.map(Cow::into_owned).map_or(0, |t| t.len() as u8));
 		}
 	}
 }

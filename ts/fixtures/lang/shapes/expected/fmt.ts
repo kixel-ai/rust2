@@ -3,7 +3,7 @@
 import * as rt from "./rt.ts";
 import { copy$array_tuple2_u8_u8, copy$array_u8, copy$tuple2_u8_u8, of$u8 } from "./lib.ts";
 import { thenSome$1ou04rm, thenSome$0n2gkz4, thenSome$0d5am30, then$0uwf92a } from "./core/bool.ts";
-import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0phsnvg as option_map$0phsnvg, andThen$1bd14ex as option_andThen$1bd14ex } from "./core/option.ts";
+import { unwrapOr$0k15iai as option_unwrapOr$0k15iai, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, unwrapOrDefault$0301ewp as option_unwrapOrDefault$0301ewp, map$0phsnvg as option_map$0phsnvg, andThen$1bd14ex as option_andThen$1bd14ex } from "./core/option.ts";
 import * as Bare from "./fmt.Bare.ts";
 import * as Braced from "./fmt.Braced.ts";
 import * as Capped from "./fmt.Capped.ts";
@@ -4828,6 +4828,569 @@ export function cells(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	setter.log.text = setter.log.text + String.fromCodePoint(_48);
 	put(out, setter.log.text);
+}
+
+/**
+ * A `str` search's `Debug`, its searcher's state in UTF-8 bytes, of each pattern: fresh,
+ * read from either end, and past the end, plain, pretty, and in hex. A `&str`'s two-way
+ * search keeps what it last compared, which a search that finds nothing leaves.
+ */
+export function searches(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const at: (a0: rt.usize) => rt.u8 = (i: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), 0);
+	};
+	const _6: [rt.usize, rt.usize] = [rt.u8Rem(at(0), 6) as rt.usize, rt.u8Rem(at(1), 4) as rt.usize];
+	const front: rt.usize = _6[0];
+	const back: rt.usize = _6[1];
+	const rest: rt.ByteSlice = option_unwrapOrDefault$0301ewp(rt.byteSliceGetRange(data, 4));
+	const text2: string = rt.stringExtendChars("", rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(rest)), 10), (_2: rt.u8): rt.char => {
+		const _5: rt.usize = rt.u8Rem(_2, 9) as rt.usize;
+		if (!(_5 < 9)) {
+			rt.panic("index out of bounds: the len is " + 9 + " but the index is " + _5);
+		}
+		return [97, 98, 233, 129408, 32, 10, 13, 12288, 9][_5];
+	}));
+	const _30: rt.usize = rt.u8Rem(at(2), 4) as rt.usize;
+	if (!(_30 < 4)) {
+		rt.panic("index out of bounds: the len is " + 4 + " but the index is " + _30);
+	}
+	const c: rt.char = [97, 233, 129408, 32][_30];
+	const part = ends$searches_str_Split_char(rt.strSplit(text2, String.fromCodePoint(c)), front, back);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part, f, "Split", "CharSearcher")];
+	put(out, rt.fmtFormat([args2[0], "|", rt.fmtSpec({ alternate: true }, args2[0]), "|", rt.fmtSpec({ debugHex: "x" }, args2[0])]));
+	const part2 = ends$searches_str_RSplit_char(rt.strRsplit(text2, String.fromCodePoint(c)), front, back);
+	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part2, f, "RSplit", "CharSearcher")];
+	put(out, rt.fmtFormat([args4[0]]));
+	const part3 = ends$searches_str_SplitTerminator_char(rt.strSplitTerminator(text2, String.fromCodePoint(c)), front, back);
+	const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part3, f, "SplitTerminator", "CharSearcher")];
+	put(out, rt.fmtFormat([args6[0]]));
+	const part4 = ends$searches_str_RSplitTerminator_char(rt.strRsplitTerminator(text2, String.fromCodePoint(c)), front, back);
+	const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part4, f, "RSplitTerminator", "CharSearcher")];
+	put(out, rt.fmtFormat([args8[0]]));
+	const part5 = fronts$searches_str_SplitN_char(rt.strSplitn(text2, rt.u8Rem(at(3), 4) as rt.usize, String.fromCodePoint(c)), front);
+	const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part5, f, "SplitN", "CharSearcher")];
+	put(out, rt.fmtFormat([args10[0]]));
+	const part6 = fronts$searches_str_RSplitN_char(rt.strRsplitn(text2, 2, String.fromCodePoint(c)), front);
+	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part6, f, "RSplitN", "CharSearcher")];
+	put(out, rt.fmtFormat([rt.fmtSpec({ alternate: true }, args12[0])]));
+	const part7 = ends$searches_str_SplitInclusive_char(rt.strSplitInclusive(text2, String.fromCodePoint(c)), front, back);
+	const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part7, f, "SplitInclusive", "CharSearcher")];
+	put(out, rt.fmtFormat([args14[0]]));
+	const part8 = ends$searches_str_Matches_char(rt.strMatches(text2, String.fromCodePoint(c)), front, back);
+	const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part8, f, "Matches", "CharSearcher")];
+	put(out, rt.fmtFormat([args16[0]]));
+	const part9 = ends$searches_str_RMatches_char(rt.strRmatches(text2, String.fromCodePoint(c)), front, back);
+	const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part9, f, "RMatches", "CharSearcher")];
+	put(out, rt.fmtFormat([args18[0]]));
+	const part10 = ends$searches_str_MatchIndices_char(rt.strMatchIndices(text2, String.fromCodePoint(c)), front, back);
+	const args20: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part10, f, "MatchIndices", "CharSearcher")];
+	put(out, rt.fmtFormat([rt.fmtSpec({ debugHex: "x" }, args20[0])]));
+	const part11 = ends$searches_str_RMatchIndices_char(rt.strRmatchIndices(text2, String.fromCodePoint(c)), front, back);
+	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part11, f, "RMatchIndices", "CharSearcher")];
+	put(out, rt.fmtFormat([args22[0]]));
+	const set: rt.char[] = [c, 98];
+	const part12 = ends$searches_str_Split_array2_char(rt.strSplit(text2, rt.patternChars(set)), front, back);
+	const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part12, f, "Split", "CharArraySearcher")];
+	put(out, rt.fmtFormat([args24[0]]));
+	const part13 = ends$searches_str_Matches_ref_array2_char(rt.strMatches(text2, rt.patternChars(set)), front, back);
+	const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part13, f, "Matches", "CharArrayRefSearcher")];
+	put(out, rt.fmtFormat([rt.fmtSpec({ alternate: true }, args26[0])]));
+	const part14 = ends$searches_str_RSplit_ref_slice_char(rt.strRsplit(text2, rt.patternChars(rt.sliceRange(set, 0, 1))), front, back);
+	const args28: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part14, f, "RSplit", "CharSliceSearcher")];
+	put(out, rt.fmtFormat([args28[0]]));
+	const part15 = ends$searches_str_Split_fmt_searches_closure3(rt.strSplit(text2, (x: rt.char): boolean => {
+		return x === c;
+	}), front, back);
+	const args30: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part15, f, "Split", "CharPredicateSearcher")];
+	put(out, rt.fmtFormat([args30[0]]));
+	const part16 = ends$searches_str_MatchIndices_char_is_whitespace(rt.strMatchIndices(text2, (a0: rt.char): boolean => {
+		return rt.charIsWhitespace(a0);
+	}), front, back);
+	const args32: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part16, f, "MatchIndices", "CharPredicateSearcher")];
+	put(out, rt.fmtFormat([rt.fmtSpec({ alternate: true }, args32[0])]));
+	const few2: string = rt.stringExtendChars("", rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(rest)), 16), (_22: rt.u8): rt.char => {
+		const _53: rt.usize = rt.u8Rem(_22, 3) as rt.usize;
+		if (!(_53 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _53);
+		}
+		return [97, 98, 233][_53];
+	}));
+	const _291: rt.usize = rt.u8Rem(at(2), 10) as rt.usize;
+	if (!(_291 < 10)) {
+		rt.panic("index out of bounds: the len is " + 10 + " but the index is " + _291);
+	}
+	const _281: string[] = ["", "a", "aa", "ab", "aab", "aba", "abab", "bé", "aaba", "éaé"];
+	const part17 = fronts$searches_str_Split_ref_str(rt.strSplit(few2, _281[_291]), front);
+	const args34: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part17, f, "Split", "StrSearcher")];
+	put(out, rt.fmtFormat([args34[0], "|", rt.fmtSpec({ alternate: true }, args34[0]), "|", rt.fmtSpec({ debugHex: "x" }, args34[0])]));
+	const part18 = fronts$searches_str_RSplit_ref_str(rt.strRsplit(few2, _281[_291]), front);
+	const args36: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part18, f, "RSplit", "StrSearcher")];
+	put(out, rt.fmtFormat([args36[0]]));
+	const part19 = fronts$searches_str_SplitTerminator_ref_str(rt.strSplitTerminator(few2, _281[_291]), front);
+	const args38: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part19, f, "SplitTerminator", "StrSearcher")];
+	put(out, rt.fmtFormat([args38[0]]));
+	const part20 = fronts$searches_str_SplitN_ref_str(rt.strSplitn(few2, rt.u8Rem(at(3), 4) as rt.usize, _281[_291]), front);
+	const args40: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part20, f, "SplitN", "StrSearcher")];
+	put(out, rt.fmtFormat([args40[0]]));
+	const part21 = fronts$searches_str_RSplitN_ref_str(rt.strRsplitn(few2, rt.u8Rem(at(3), 4) as rt.usize, _281[_291]), front);
+	const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part21, f, "RSplitN", "StrSearcher")];
+	put(out, rt.fmtFormat([args42[0]]));
+	const part22 = fronts$searches_str_SplitInclusive_ref_str(rt.strSplitInclusive(few2, _281[_291]), front);
+	const args44: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part22, f, "SplitInclusive", "StrSearcher")];
+	put(out, rt.fmtFormat([args44[0]]));
+	const part23 = fronts$searches_str_Matches_ref_str(rt.strMatches(few2, _281[_291]), rt.usizeMul(front, 2));
+	const args46: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part23, f, "Matches", "StrSearcher")];
+	put(out, rt.fmtFormat([args46[0]]));
+	const part24 = fronts$searches_str_RMatches_ref_str(rt.strRmatches(few2, _281[_291]), rt.usizeMul(front, 2));
+	const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part24, f, "RMatches", "StrSearcher")];
+	put(out, rt.fmtFormat([args48[0]]));
+	const part25 = fronts$searches_str_MatchIndices_ref_str(rt.strMatchIndices(few2, _281[_291]), front);
+	const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part25, f, "MatchIndices", "StrSearcher")];
+	put(out, rt.fmtFormat([args50[0]]));
+	const part26 = fronts$searches_str_RMatchIndices_ref_str(rt.strRmatchIndices(few2, _281[_291]), front);
+	const args52: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part26, f, "RMatchIndices", "StrSearcher")];
+	put(out, rt.fmtFormat([rt.fmtSpec({ debugHex: "x" }, args52[0])]));
+	const part27 = fronts$searches_str_Split_ref_String(rt.strSplit(text2, _281[_291]), front);
+	const args54: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part27, f, "Split", "StrSearcher")];
+	put(out, rt.fmtFormat([args54[0]]));
+	const it3: rt.Iter<string> = rt.strMatches(few2, _281[_291]);
+	while (rt.iterToOption(it3.next()) !== undefined) {
+	}
+	const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(it3, f, "Matches", "StrSearcher")];
+	put(out, rt.fmtFormat([args56[0]]));
+	it3.next();
+	const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(it3, f, "Matches", "StrSearcher")];
+	put(out, rt.fmtFormat([args58[0]]));
+	const it4: rt.Iter<[rt.usize, string]> = rt.strRmatchIndices(few2, _281[_291]);
+	while (rt.iterToOption(it4.next()) !== undefined) {
+	}
+	const args60: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(it4, f, "RMatchIndices", "StrSearcher")];
+	put(out, rt.fmtFormat([args60[0]]));
+	const part28 = ends$searches_str_Lines(rt.strLines(text2), front, back);
+	const args62: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part28, f, "Lines")];
+	put(out, rt.fmtFormat([args62[0], "|", rt.fmtSpec({ alternate: true }, args62[0])]));
+	const part29 = ends$searches_str_SplitWhitespace(rt.strSplitWhitespace(text2), front, back);
+	const args64: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(part29, f, "SplitWhitespace")];
+	put(out, rt.fmtFormat([args64[0], "|", rt.fmtSpec({ alternate: true }, args64[0])]));
+	const it7: rt.Iter<string> = ends$searches_str_SplitAsciiWhitespace(rt.strSplitAsciiWhitespace(text2), front, back);
+	const _556: [rt.usize, rt.usize | undefined] = it7.sizeHint();
+	const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtStrSearch(it7, f, "SplitAsciiWhitespace"), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(_556[0], f), (f: rt.Formatter) => rt.fmtOption(_556[1], f, rt.usizeDebug)], f)];
+	put(out, rt.fmtFormat([args66[0], "|", rt.fmtSpec({ alternate: true }, args66[0]), "|", rt.fmtSpec({ debugHex: "x" }, args66[0]), "|", args66[1]]));
+}
+
+export function ends$searches_str_Lines(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_MatchIndices_char(it: rt.Iter<[rt.usize, string]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, string]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_MatchIndices_char_is_whitespace(it: rt.Iter<[rt.usize, string]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, string]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_Matches_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_Matches_ref_array2_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_RMatchIndices_char(it: rt.Iter<[rt.usize, string]>, front: rt.usize, back: rt.usize): rt.Iter<[rt.usize, string]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_RMatches_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_RSplitTerminator_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_RSplit_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_RSplit_ref_slice_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_SplitAsciiWhitespace(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_SplitInclusive_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_SplitTerminator_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_SplitWhitespace(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_Split_array2_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_Split_char(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function ends$searches_str_Split_fmt_searches_closure3(it: rt.Iter<string>, front: rt.usize, back: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (iterStart++ < iterEnd) {
+		rt.iterToOption(it.next());
+	}
+	let iterStart2: rt.usize = 0;
+	const iterEnd2: rt.usize = back;
+	while (true) {
+		if (!(iterStart2++ < iterEnd2)) {
+			return it;
+		}
+		rt.iterToOption(it.nextBack());
+	}
+}
+
+export function fronts$searches_str_MatchIndices_ref_str(it: rt.Iter<[rt.usize, string]>, front: rt.usize): rt.Iter<[rt.usize, string]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_Matches_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_RMatchIndices_ref_str(it: rt.Iter<[rt.usize, string]>, front: rt.usize): rt.Iter<[rt.usize, string]> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_RMatches_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_RSplitN_char(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_RSplitN_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_RSplit_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_SplitInclusive_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_SplitN_char(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_SplitN_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_SplitTerminator_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_Split_ref_String(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
+}
+
+export function fronts$searches_str_Split_ref_str(it: rt.Iter<string>, front: rt.usize): rt.Iter<string> {
+	let iterStart: rt.usize = 0;
+	const iterEnd: rt.usize = front;
+	while (true) {
+		if (!(iterStart++ < iterEnd)) {
+			return it;
+		}
+		rt.iterToOption(it.next());
+	}
 }
 
 //# sourceMappingURL=fmt.ts.map

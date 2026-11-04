@@ -213,10 +213,15 @@ pub fn call<'tcx>(
 		&& !same_key(b, key, by)
 		&& !alike(b, key, by)
 	{
-		// An `Arc`'s `Hash`, `Eq`, and `Ord` are its value's, so the value it is looked up by
-		// stands in as an `Arc` of it, which the collection only compares.
-		let arc = arc_of(b, peel(b, key)).is_some_and(|inner| same_key(b, inner, by));
+		// A `Cow`'s `Hash`, `Eq`, and `Ord` are what it borrows', so what it is looked up by,
+		// or a range's bounds, stands in as it is, as JS reads it as an owned `Cow`. An `Arc`'s
+		// are its value's, so the value it is looked up by stands in as an `Arc` of it, which
+		// the collection only compares.
+		let key = peel(b, key);
+		let cow = cow_of(b, key).is_some_and(|borrowed| same_key(b, borrowed, by));
+		let arc = arc_of(b, key).is_some_and(|inner| same_key(b, inner, by));
 		match args.get_mut(1) {
+			_ if cow => {}
 			Some(key) if arc && !matches!(name, "range" | "range_mut") => {
 				let value = std::mem::replace(key, Expr::undefined());
 				*key = Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]);
@@ -1028,8 +1033,9 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	};
 	let mut values = vec![hash_fn(b, key, hasher, span), eq_fn(b, key, span)];
 	// A fieldless enum is a JS string, and a bound value may be any primitive, which its
-	// own `Eq` may tell apart where JS can't, as is the `Some` of an `Option` of one, and a
-	// `Reverse`, a `Wrapping`, or a `Saturating` of one.
+	// own `Eq` may tell apart where JS can't, and an owned `Cow<str>` is a string its
+	// borrowed one equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
+	// `Wrapping`, or a `Saturating` of one.
 	let mut held = peeled;
 	while let Some(inner) = option_of(b, held)
 		.or_else(|| reverse_of(b, held))
@@ -1037,7 +1043,9 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	{
 		held = peel(b, inner);
 	}
-	if matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some()) {
+	if library::cow_str(b.t.tcx, held)
+		|| matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some())
+	{
 		values.push(Expr::lit("true"));
 	}
 	Some(Some(Expr::rt("hashing", values)))
@@ -1074,14 +1082,17 @@ fn own_ne<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 
 /// Whether `ty`'s `PartialOrd::{test}`, `lt` or another of its tests, reaches the crate's
 /// own `test` of a type it holds, which `partial_cmp` stands for only while that is the
-/// default: through a tuple's last element, `Arc`s, `Reverse`s, and cells.
+/// default: through a tuple's last element, `Arc`s, `Reverse`s, and cells. In a program
+/// with a panic hook, a `RefCell`'s own too, which borrows elsewhere than its `partial_cmp`.
 fn own_test<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str) -> bool {
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, true);
 	match ty.kind() {
 		ty::Tuple(tys) => tys.last().is_some_and(|&t| own_test(b, t, test)),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty).or_else(|| reverse_of(b, ty)) => own_test(b, inner, test),
-		ty::Adt(..) if let Some((inner, _)) = cell_of(b, ty) => own_test(b, inner, test),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			(by == "refCellBy" && b.t.hooked) || own_test(b, inner, test)
+		}
 		_ if by_own(b, ty) => {
 			let f = trait_fn(tcx, "PartialOrd", test);
 			Instance::try_resolve(tcx, b.t.typing_env_pub(), f, tcx.mk_args(&[ty.into(), ty.into()]))
@@ -1123,7 +1134,10 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
 			Expr::rt("cmpReverse", vec![test_fn(b, inner, test, span)])
 		}
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![test_fn(b, inner, test, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let f = test_fn(b, inner, test, span);
+			cell_by(b, by, f, test)
+		}
 		_ => {
 			let f = trait_fn(tcx, "PartialOrd", test);
 			b.fn_value(f, tcx.mk_args(&[ty.into(), ty.into()]), span)
@@ -2190,8 +2204,12 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 		));
 	};
 	if std == Std::String {
-		let chars = !super::iter::text_items(b.t, item)?;
-		return Some(Expr::Rt(if chars { "STRING_CHARS_PART" } else { "STRING_PART" }.into()));
+		let part = match super::iter::text_items(b.t, item)? {
+			false => "STRING_CHARS_PART",
+			true if library::cow_str(b.t.tcx, item.peel_refs()) => "STRING_COW_PART",
+			true => "STRING_PART",
+		};
+		return Some(Expr::Rt(part.into()));
 	}
 	let size = |b: &mut Body<'_, '_, 'tcx>| vec![super::iter::size_of(b, arg(coll, 0), span)];
 	let part = match std {
@@ -2652,22 +2670,22 @@ fn overflowing_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>
 	b.t.std_of(ty).and_then(Std::overflow).map(|_| arg(ty, 0))
 }
 
-/// What `ty` holds if it is a `Cow<[T]>` other than of bytes, `T`, which compares, orders,
-/// and hashes as its slice. A `Cow<[u8]>` is bytes already.
+/// What `ty` borrows if it is a `Cow` other than of bytes, a `[T]` or a `str`, which it
+/// compares, orders, and hashes as. A `Cow<[u8]>` is bytes already.
 fn cow_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
-	library::cow_slice(b.t.tcx, ty).filter(|elem| !super::byte(*elem))
+	library::cow_borrowed(b.t.tcx, ty).filter(|t| !bytes(b, *t))
 }
 
-/// `ty`, the type of `args[n]`, as the slice it derefs to if it is a `Cow<[T]>` other than
-/// of bytes, whose value in `args` becomes that slice.
+/// `ty`, the type of `args[n]`, as what it derefs to if it is a `Cow` other than of bytes,
+/// whose value in `args` becomes that.
 fn cow_deref<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &mut [Expr], n: usize) -> Ty<'tcx> {
-	let Some(elem) = cow_of(b, peel(b, ty)) else {
+	let Some(borrowed) = cow_of(b, peel(b, ty)) else {
 		return ty;
 	};
 	if let Some(at) = args.get_mut(n) {
-		*at = library::cow_deref(std::mem::replace(at, Expr::undefined()), elem);
+		*at = library::cow_deref(std::mem::replace(at, Expr::undefined()), borrowed);
 	}
-	Ty::new_slice(b.t.tcx, elem)
+	borrowed
 }
 
 /// The elements of `ty` if it is a `Vec`, a slice, or an array that is a JS array: of any
@@ -2828,6 +2846,16 @@ fn cell_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'st
 	}
 }
 
+/// The runtime's `by` of `f`, as [`cell_of`] says a cell compares, for its `method`: given
+/// where a `RefCell`'s borrows, in a program with a panic hook.
+fn cell_by(b: &Body<'_, '_, '_>, by: &str, f: Expr, method: &str) -> Expr {
+	let mut values = vec![f];
+	if by == "refCellBy" && b.t.hooked {
+		values.extend(super::caller::cell_sites(b.t.tcx, method));
+	}
+	Expr::rt(by, values)
+}
+
 /// `Ord::cmp` of `ty` as a function, or `PartialOrd::partial_cmp` if `partial`: the
 /// runtime's for a std type, which calls the same of what it holds, or the crate's, of its
 /// type or a reference to it.
@@ -2861,7 +2889,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 			Expr::rt("cmpOption", [cmp].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![cmp_fn(b, inner, partial, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let cmp = cmp_fn(b, inner, partial, span);
+			cell_by(b, by, cmp, if partial { "partial_cmp" } else { "cmp" })
+		}
 		// An `rt.Place` compares by its value, as std's impl on `&mut` does by what it points at.
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
 			Expr::rt("cellBy", vec![cmp_fn(b, inner, partial, span)])
@@ -2870,8 +2901,8 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 			Expr::rt("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
 		}
 		ty::Adt(..) if let Some(inner) = overflowing_of(b, ty) => cmp_fn(b, inner, partial, span),
-		ty::Adt(..) if let Some(elem) = cow_of(b, ty) => {
-			Expr::rt("cowBy", vec![cmp_fn(b, Ty::new_slice(tcx, elem), partial, span)])
+		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => {
+			Expr::rt("cowBy", vec![cmp_fn(b, borrowed, partial, span)])
 		}
 		_ if let Some(elem) = elements_of(b, ty) => Expr::rt("cmpSlice", vec![cmp_fn(b, elem, partial, span)]),
 		// A deque's is its iterator's, which compares each item by its own impls, as a slice's does.
@@ -2935,9 +2966,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			eq => Expr::rt("eqOption", [eq].into_iter().chain(b.t.none_arg(inner)).collect()),
 		},
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => eq_fn(b, inner, span),
-		ty::Adt(..) if let Some(elem) = cow_of(b, ty) => {
-			Expr::rt("cowBy", vec![eq_fn(b, Ty::new_slice(tcx, elem), span)])
-		}
+		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rt("cowBy", vec![eq_fn(b, borrowed, span)]),
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => Expr::rt("rangeEq", vec![eq_fn(b, bound, span)]),
 		// A slice compares its elements by `!=`, as a deque does each of its halves.
 		_ if let Some(elem) = elements_of(b, ty) => Expr::rt("eqSlice", vec![not_ne_fn(b, elem, span)]),
@@ -2953,7 +2982,10 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			arc_eq(b, inner, eq)
 		}
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
-		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => Expr::rt(by, vec![eq_fn(b, inner, span)]),
+		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
+			let eq = eq_fn(b, inner, span);
+			cell_by(b, by, eq, "eq")
+		}
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
@@ -3170,8 +3202,8 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => {
 			hash_fn(b, inner, hasher, span)
 		}
-		ty::Adt(..) if let Some(elem) = cow_of(b, ty) => {
-			Expr::rt("hashCow", vec![hash_fn(b, Ty::new_slice(tcx, elem), hasher, span)])
+		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => {
+			Expr::rt("hashCow", vec![hash_fn(b, borrowed, hasher, span)])
 		}
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => {
 			Expr::rt("rangeHash", vec![hash_fn(b, bound, hasher, span)])

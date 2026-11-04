@@ -2068,3 +2068,107 @@ pub fn cells(data: &[u8], out: &mut Vec<u8>) {
 	setter.log.text.push(if r.is_ok() { '+' } else { '-' });
 	put(out, &setter.log.text);
 }
+
+/// A `str` search's `Debug`, its searcher's state in UTF-8 bytes, of each pattern: fresh,
+/// read from either end, and past the end, plain, pretty, and in hex. A `&str`'s two-way
+/// search keeps what it last compared, which a search that finds nothing leaves.
+pub fn searches(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let (front, back) = (usize::from(at(0) % 6), usize::from(at(1) % 4));
+	fn ends<I: DoubleEndedIterator>(mut it: I, front: usize, back: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		for _ in 0..back {
+			it.next_back();
+		}
+		it
+	}
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let rest = data.get(4..).unwrap_or_default();
+	let text: String = (rest.iter().take(10))
+		.map(|&b| ['a', 'b', 'é', '🦀', ' ', '\n', '\r', '\u{3000}', '\t'][usize::from(b % 9)])
+		.collect();
+	let text = text.as_str();
+	let c = ['a', 'é', '🦀', ' '][usize::from(at(2) % 4)];
+
+	// A `char`'s.
+	let it = ends(text.split(c), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(out, &format!("{:?}", ends(text.rsplit(c), front, back)));
+	put(out, &format!("{:?}", ends(text.split_terminator(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rsplit_terminator(c), front, back)));
+	put(
+		out,
+		&format!("{:?}", fronts(text.splitn(usize::from(at(3) % 4), c), front)),
+	);
+	put(out, &format!("{:#?}", fronts(text.rsplitn(2, c), front)));
+	put(out, &format!("{:?}", ends(text.split_inclusive(c), front, back)));
+	put(out, &format!("{:?}", ends(text.matches(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rmatches(c), front, back)));
+	put(out, &format!("{:x?}", ends(text.match_indices(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rmatch_indices(c), front, back)));
+
+	// Chars, by an array, a reference to one, a slice, a closure, and a function.
+	let set = [c, 'b'];
+	put(out, &format!("{:?}", ends(text.split(set), front, back)));
+	put(out, &format!("{:#?}", ends(text.matches(&set), front, back)));
+	put(out, &format!("{:?}", ends(text.rsplit(&set[..1]), front, back)));
+	put(out, &format!("{:?}", ends(text.split(|x: char| x == c), front, back)));
+	put(
+		out,
+		&format!("{:#?}", ends(text.match_indices(char::is_whitespace), front, back)),
+	);
+
+	// A `&str`'s, read from the end it searches from, in text of few chars so that its
+	// needle often nearly matches. A needle of one char's period is short, as `aa`'s, and
+	// `ab`'s long.
+	let few: String = rest
+		.iter()
+		.take(16)
+		.map(|&b| ['a', 'b', 'é'][usize::from(b % 3)])
+		.collect();
+	let few = few.as_str();
+	let needle = ["", "a", "aa", "ab", "aab", "aba", "abab", "bé", "aaba", "éaé"][usize::from(at(2) % 10)];
+	let it = fronts(few.split(needle), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(out, &format!("{:?}", fronts(few.rsplit(needle), front)));
+	put(out, &format!("{:?}", fronts(few.split_terminator(needle), front)));
+	put(
+		out,
+		&format!("{:?}", fronts(few.splitn(usize::from(at(3) % 4), needle), front)),
+	);
+	put(
+		out,
+		&format!("{:?}", fronts(few.rsplitn(usize::from(at(3) % 4), needle), front)),
+	);
+	put(out, &format!("{:?}", fronts(few.split_inclusive(needle), front)));
+	put(out, &format!("{:?}", fronts(few.matches(needle), front * 2)));
+	put(out, &format!("{:?}", fronts(few.rmatches(needle), front * 2)));
+	put(out, &format!("{:?}", fronts(few.match_indices(needle), front)));
+	put(out, &format!("{:x?}", fronts(few.rmatch_indices(needle), front)));
+	let owned = needle.to_string();
+	put(out, &format!("{:?}", fronts(text.split(&owned), front)));
+	// Each match, past the last, and once more.
+	let mut it = few.matches(needle);
+	while it.next().is_some() {}
+	put(out, &format!("{it:?}"));
+	it.next();
+	put(out, &format!("{it:?}"));
+	let mut it = few.rmatch_indices(needle);
+	while it.next().is_some() {}
+	put(out, &format!("{it:?}"));
+
+	// Lines, and the parts between whitespace, Unicode's and ASCII's.
+	let it = ends(text.lines(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(text.split_whitespace(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(text.split_ascii_whitespace(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}|{:?}", it.size_hint()));
+}
