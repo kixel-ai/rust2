@@ -56,7 +56,13 @@ Decided with the maintainer on 2026-11-02
 arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
 `ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
 
+Decided with the maintainer on 2026-11-04: the exporter is configless, with opinionated
+names and defaults, and fails the export on a public item it cannot export.
+
 ## Required
 
+- [C names and crates with no config](/quest/m1/ffi-export/names.md) - a collision-free naming rule, a facade crate, and the prefix from Cargo, leaving only `exclude` in `ffi.toml`
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
 - [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
+- [Generated Python type-checks](/quest/m1/ffi-export/python-types.md) - mypy and pyright pass on the generated Python
+- [Every public item exports](/quest/m1/ffi-export/refusals.md) - the census is empty and `ffi.toml` is deleted, so the exporter reads no config
