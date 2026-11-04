@@ -43,6 +43,10 @@ export function partialCmp$cmp_PartialOrd(self: Logged, other: Logged): rs.Order
 	return cmp$cmp_Ord(self, other);
 }
 
+export function eq$cmp_PartialEq(self: Logged, other: Logged): boolean {
+	return self.id === other.id;
+}
+
 /** The value `data` makes from `at`. */
 export function make$conversions_Value(data: rs.ByteSlice, at: rs.usize): Logged {
 	return new Logged(byte(data, at) & 127, ((a0: rs.Arc<rs.RefCell<rs.ByteVec>>): rs.Arc<rs.RefCell<rs.ByteVec>> => {
