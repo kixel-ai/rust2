@@ -35,7 +35,10 @@ pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 const STD_DEPS: &str = "/cargo/registry/25cdd57fae9f0462";
 
 /// The name of `file` as the session names it, or for std's own source, as the toolchain's
-/// prebuilt std does, which the native build links: by the commit it was built from.
+/// prebuilt std does, which the native build links: by the commit it was built from. The
+/// native build names std's code it compiles into the crate, as a generic or inlined
+/// function, by the sysroot's copy of the source instead, where the toolchain has one: a
+/// path of the machine that built it, which this doesn't follow.
 fn file(tcx: TyCtxt<'_>, file: &SourceFile) -> String {
 	let name = file
 		.name
@@ -315,12 +318,34 @@ fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)>
 			let rest = &text[at + keyword.len()..];
 			let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_'))?;
 			let (name, rest) = rest.split_at(end);
-			let params = &rest[rest.find('(')? + 1..];
-			let params = split(params);
+			// A const's type or value, then any type parameters, opens the list.
+			let rest = rest.trim_start_matches([':', '=', ' ']);
+			let rest = match rest.strip_prefix('<') {
+				Some(generic) => &generic[closing(generic)? + 1..],
+				None => rest,
+			};
+			let params = split(rest.strip_prefix('(')?);
 			let last = params.last()?;
 			(last.trim() == "at?: Location").then_some((name, params.len() - 1))
 		})
 	})
+}
+
+/// Where the `>` that closes the type parameters `text` starts with is.
+fn closing(text: &str) -> Option<usize> {
+	let (mut depth, mut prev) = (0usize, ' ');
+	for (i, c) in text.char_indices() {
+		match c {
+			'<' => depth += 1,
+			// The `>` of an arrow type's `=>` closes nothing.
+			'>' if prev == '=' => {}
+			'>' if depth == 0 => return Some(i),
+			'>' => depth -= 1,
+			_ => {}
+		}
+		prev = c;
+	}
+	None
 }
 
 /// The parameters of the list `text` starts, up to its closing parenthesis.

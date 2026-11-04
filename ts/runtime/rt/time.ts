@@ -287,13 +287,13 @@ export function durationDivDurationF32(a: Duration, b: Duration): f32 {
 export const durationTryFromSecsF32: (secs: f32) => Result<Duration, TryFromFloatSecsError> = durationTryFromSecsF64 as never;
 
 /** `Duration::from_secs_f32`, with `from_secs_f64`'s panic. */
-export const durationFromSecsF32: (secs: f32) => Duration = durationFromSecsF64 as never;
+export const durationFromSecsF32: (secs: f32, at?: Location) => Duration = durationFromSecsF64 as never;
 
 /** `Duration::mul_f32`, which std computes as `mul_f64`. */
-export const durationMulF32: (d: Duration, rhs: f32) => Duration = durationMulF64 as never;
+export const durationMulF32: (d: Duration, rhs: f32, at?: Location) => Duration = durationMulF64 as never;
 
 /** `Duration::div_f32`, which std computes as `div_f64`. */
-export const durationDivF32: (d: Duration, rhs: f32) => Duration = durationDivF64 as never;
+export const durationDivF32: (d: Duration, rhs: f32, at?: Location) => Duration = durationDivF64 as never;
 
 function tryFromFloatSecsErrorText(e: TryFromFloatSecsError): string {
 	const why = e.kind === "Negative" ? "value is negative" : "value is either too big or NaN";

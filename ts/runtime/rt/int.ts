@@ -728,19 +728,19 @@ export {
 	display as isizeDisplay,
 };
 /** `usize`'s `a + b`, panicking on overflow. */
-export const usizeAdd: (a: usize, b: usize) => usize = u32Add as never;
+export const usizeAdd: (a: usize, b: usize, at?: Location) => usize = u32Add as never;
 /** `usize`'s `a - b`, panicking on overflow. */
-export const usizeSub: (a: usize, b: usize) => usize = u32Sub as never;
+export const usizeSub: (a: usize, b: usize, at?: Location) => usize = u32Sub as never;
 /** `usize`'s `a * b`, panicking on overflow. */
-export const usizeMul: (a: usize, b: usize) => usize = u32Mul as never;
+export const usizeMul: (a: usize, b: usize, at?: Location) => usize = u32Mul as never;
 /** `usize`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const usizeDiv: (a: usize, b: usize) => usize = u32Div as never;
+export const usizeDiv: (a: usize, b: usize, at?: Location) => usize = u32Div as never;
 /** `usize`'s `a % b`, panicking on a zero divisor or overflow. */
-export const usizeRem: (a: usize, b: usize) => usize = u32Rem as never;
+export const usizeRem: (a: usize, b: usize, at?: Location) => usize = u32Rem as never;
 /** `usize`'s `a << b`, panicking on a shift by the width or more. */
-export const usizeShl: (a: usize, b: number | Limbs) => usize = u32Shl as never;
+export const usizeShl: (a: usize, b: number | Limbs, at?: Location) => usize = u32Shl as never;
 /** `usize`'s `a >> b`, panicking on a shift by the width or more. */
-export const usizeShr: (a: usize, b: number | Limbs) => usize = u32Shr as never;
+export const usizeShr: (a: usize, b: number | Limbs, at?: Location) => usize = u32Shr as never;
 /** `usize`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const usizeCheckedAdd: (a: usize, b: usize) => usize | undefined = u32CheckedAdd as never;
 /** `usize`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -760,7 +760,7 @@ export const usizeSaturatingMul: (a: usize, b: usize) => usize = u32SaturatingMu
 /** `usize`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const usizeWrappingMul: (a: usize, b: usize) => usize = u32WrappingMul as never;
 /** `usize`'s `div_ceil`: `a / b`, rounded up, panicking on a zero divisor. */
-export const usizeDivCeil: (a: usize, b: usize) => usize = u32DivCeil as never;
+export const usizeDivCeil: (a: usize, b: usize, at?: Location) => usize = u32DivCeil as never;
 /** `usize`'s `is_multiple_of`: whether `b` divides `a`; of 0, only 0 is a multiple. */
 export const usizeIsMultipleOf: (a: usize, b: usize) => boolean = u32IsMultipleOf as never;
 /** `usize`'s `leading_ones`: the count of leading one bits. */
@@ -792,21 +792,21 @@ export const usizeUpperExp: (a: usize, f: Formatter) => FmtResult = u32UpperExp 
 /** `usize`'s `Step`, which ranges step by: `n` moved by `by`, and whether that overflowed. */
 export const usizeStep: Step<usize> = u32Step as never;
 /** `isize`'s `a + b`, panicking on overflow. */
-export const isizeAdd: (a: isize, b: isize) => isize = i32Add as never;
+export const isizeAdd: (a: isize, b: isize, at?: Location) => isize = i32Add as never;
 /** `isize`'s `a - b`, panicking on overflow. */
-export const isizeSub: (a: isize, b: isize) => isize = i32Sub as never;
+export const isizeSub: (a: isize, b: isize, at?: Location) => isize = i32Sub as never;
 /** `isize`'s `a * b`, panicking on overflow. */
-export const isizeMul: (a: isize, b: isize) => isize = i32Mul as never;
+export const isizeMul: (a: isize, b: isize, at?: Location) => isize = i32Mul as never;
 /** `isize`'s `-a`, panicking on overflow. */
-export const isizeNeg: (a: isize) => isize = i32Neg as never;
+export const isizeNeg: (a: isize, at?: Location) => isize = i32Neg as never;
 /** `isize`'s `a / b`, truncated, panicking on a zero divisor or overflow. */
-export const isizeDiv: (a: isize, b: isize) => isize = i32Div as never;
+export const isizeDiv: (a: isize, b: isize, at?: Location) => isize = i32Div as never;
 /** `isize`'s `a % b`, panicking on a zero divisor or overflow. */
-export const isizeRem: (a: isize, b: isize) => isize = i32Rem as never;
+export const isizeRem: (a: isize, b: isize, at?: Location) => isize = i32Rem as never;
 /** `isize`'s `a << b`, panicking on a shift by the width or more. */
-export const isizeShl: (a: isize, b: number | Limbs) => isize = i32Shl as never;
+export const isizeShl: (a: isize, b: number | Limbs, at?: Location) => isize = i32Shl as never;
 /** `isize`'s `a >> b`, panicking on a shift by the width or more. */
-export const isizeShr: (a: isize, b: number | Limbs) => isize = i32Shr as never;
+export const isizeShr: (a: isize, b: number | Limbs, at?: Location) => isize = i32Shr as never;
 /** `isize`'s `checked_add`: `a + b`, or `undefined` on overflow. */
 export const isizeCheckedAdd: (a: isize, b: isize) => isize | undefined = i32CheckedAdd as never;
 /** `isize`'s `checked_sub`: `a - b`, or `undefined` on overflow. */
@@ -826,11 +826,11 @@ export const isizeSaturatingMul: (a: isize, b: isize) => isize = i32SaturatingMu
 /** `isize`'s `wrapping_mul`: `a * b`, wrapped into the type's range. */
 export const isizeWrappingMul: (a: isize, b: isize) => isize = i32WrappingMul as never;
 /** `isize`'s `wrapping_div`: `a / b`, truncated and wrapped into the type's range, panicking on a zero divisor. */
-export const isizeWrappingDiv: (a: isize, b: isize) => isize = i32WrappingDiv as never;
+export const isizeWrappingDiv: (a: isize, b: isize, at?: Location) => isize = i32WrappingDiv as never;
 /** `isize`'s `wrapping_rem`: `a % b`, 0 where it would overflow, panicking on a zero divisor. */
-export const isizeWrappingRem: (a: isize, b: isize) => isize = i32WrappingRem as never;
+export const isizeWrappingRem: (a: isize, b: isize, at?: Location) => isize = i32WrappingRem as never;
 /** `isize`'s `saturating_div`: `a / b`, truncated and clamped to the type's range, panicking on a zero divisor. */
-export const isizeSaturatingDiv: (a: isize, b: isize) => isize = i32SaturatingDiv as never;
+export const isizeSaturatingDiv: (a: isize, b: isize, at?: Location) => isize = i32SaturatingDiv as never;
 /** `isize`'s `leading_ones`: the count of leading one bits. */
 export const isizeLeadingOnes: (a: isize) => number = i32LeadingOnes as never;
 /** `isize`'s `leading_zeros`: the count of leading zero bits. */
