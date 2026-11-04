@@ -2107,9 +2107,11 @@ fn mapping<'tcx>(
 			}
 		}
 		// A part is a slice of the same storage, shared or mutable alike.
-		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => {
-			rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(name.strip_suffix("_mut")?))
-		}
+		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => rt2(
+			args,
+			slice_of_elem(targ(gargs, 0)),
+			&super::camel(name.strip_suffix("_mut")?),
+		),
 		(
 			"slice",
 			"split"
@@ -2128,9 +2130,11 @@ fn mapping<'tcx>(
 			&super::camel(name.strip_suffix("_mut").unwrap_or(&name)),
 		),
 		("Split", "as_slice") => Expr::rt("splitAsSlice", args),
-		("slice", "split_at_mut" | "split_at_mut_checked") => {
-			rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(&name.replace("_mut", "")))
-		}
+		("slice", "split_at_mut" | "split_at_mut_checked") => rt2(
+			args,
+			slice_of_elem(targ(gargs, 0)),
+			&super::camel(&name.replace("_mut", "")),
+		),
 		// The element is lent as `first_mut` lends it.
 		("slice", "split_first_mut" | "split_last_mut") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
@@ -2193,7 +2197,10 @@ fn mapping<'tcx>(
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
 			if targ(gargs, 0).is_array() && targ(gargs, 1).is_slice() =>
 		{
-			slice_of(args.pop()?, Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, targ(gargs, 0)))
+			slice_of(
+				args.pop()?,
+				Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, targ(gargs, 0)),
+			)
 		}
 		// A `Vec` as its slice, as `as_slice` has it, or as itself.
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
@@ -3107,7 +3114,10 @@ fn mapping<'tcx>(
 				"debug_struct_fields_finish" => "fmtDebugStructFields",
 				_ => "fmtDebugTupleFields",
 			};
-			Expr::rt(finish, [f, type_name].into_iter().chain(values.map(slice_items)).collect())
+			Expr::rt(
+				finish,
+				[f, type_name].into_iter().chain(values.map(slice_items)).collect(),
+			)
 		}
 		("Formatter", n) if n.starts_with("debug_struct_field") || n.starts_with("debug_tuple_field") => {
 			let mut values = args.into_iter();
@@ -3984,7 +3994,9 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 /// an array is the array.
 pub fn slice_items(s: Expr) -> Expr {
 	match s {
-		Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(n) if n == "sliceFrom") && args.len() == 1 => args.pop().unwrap(),
+		Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(n) if n == "sliceFrom") && args.len() == 1 => {
+			args.pop().unwrap()
+		}
 		s => Expr::rt("sliceItems", vec![s]),
 	}
 }

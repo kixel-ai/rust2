@@ -284,7 +284,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
-						e = Expr::New(Box::new(Expr::Rt(slice_class(*elem_ty).into())), vec![data.clone(), start, len]);
+						e = Expr::New(
+							Box::new(Expr::Rt(slice_class(*elem_ty).into())),
+							vec![data.clone(), start, len],
+						);
 					} else {
 						let mut values = vec![base.clone(), Expr::lit(from.to_string())];
 						if to != 0 {
