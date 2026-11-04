@@ -1,6 +1,6 @@
 // moq.c's script through the generated Swift: a broadcast's track, published and
 // subscribed to in one process, with every read an async func, and an origin, with
-// moq-pattern, moq-clock, moq-tokio, hang, and moq-mux exported into the same library,
+// moq-pattern, kio, moq-tokio, hang, and moq-mux exported into the same library,
 // and the catalog lent to Swift for a call.
 //
 // The local reads need no runtime: each read that must wait resumes on an executor the
@@ -124,7 +124,7 @@ func origin(_ waiter: Waiter, _ wakes: Cell<Int>) throws -> (OriginDriver, Int) 
 		do {
 			_ = try Path.new("/cam/")
 			expect(false, "a path with an empty segment is an error")
-		} catch let e as PathInvalid {
+		} catch let e as PathError {
 			expect(e == .emptySegment, "an empty segment is its own error")
 		}
 		let cam = try Path.new("cam")
@@ -136,7 +136,7 @@ func origin(_ waiter: Waiter, _ wakes: Cell<Int>) throws -> (OriginDriver, Int) 
 		expect(try joined.resolve(Relative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
 	}
 
-	_ = try driver.poll(now(), waiter)
+	_ = try driver.poll(clockNow(), waiter)
 	// A client publishes the origin through moq-net's generic `with_publisher`, at each
 	// type that implements its bound, by reference, so Swift keeps its handle.
 	_ = Client.new().withPublisherProducer(origin)
@@ -182,8 +182,8 @@ func script() throws {
 	let hello = frame.value!
 	expect(text(hello.payload) == "hello", "a frame has its payload")
 	expect(hello.timestamp == nil, "an untimed frame has no timestamp")
-	// When it arrived: moq-clock's `Instant`, from moq-clock's own export.
-	expect(now().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
+	// When it arrived: kio's clock's `Instant`, from kio's own export.
+	expect(clockNow().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
 
 	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
 	// untimed, so a timestamped frame is refused.
@@ -215,7 +215,7 @@ func script() throws {
 	let (driver, before) = try origin(waiter, wakes)
 	expect(wakes.value > before, "the last owner's release wakes the driver")
 	do {
-		_ = try driver.poll(now(), waiter)
+		_ = try driver.poll(clockNow(), waiter)
 		expect(false, "a driver whose origin is gone finishes")
 	} catch let e as Moq.Error {
 		expect("\(e)" == "closed", "a finished driver's error is Rust's")
@@ -263,13 +263,13 @@ func script() throws {
 	// a JSON document, and a section Swift parses from text, set in the lent catalog and
 	// read back as text.
 	let status = try catalog.jsonSnapshotConfig(
-		try publisher.createTrack("status", nil), JsonConfig.default(), JsonOptions.default())
+		try publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), JsonConfig.default(), JsonOptions.default())
 	expect(status.name() == "status", "a JSON snapshot has its track's name")
 	expect(catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Swift parses is published as the track's latest, which a subscriber reads
 	// back as JSON text.
 	let on = try Json.parse(#"{"on": true}"#)
-	try status.update(on)
+	try status.update(on, Timestamp.now())
 	try block {
 		let frame = try await status.consume().recvGroup()?.readFrame()
 		expect(text(frame?.payload) == #"{"on":true}"#, "a subscriber reads the latest value")
@@ -385,7 +385,7 @@ func script() throws {
 		expect(connection != nil, "a client with a URL dials it")
 		let established = try await connection!.established()
 
-		let subscriber = try await remote.requestBroadcast("live", nil).track("video").subscribe(nil)
+		let subscriber = try await remote.request("live", nil).track("video").subscribe(nil)
 		let frame = try await subscriber.recvGroup()?.readFrame()
 		expect(text(frame?.payload) == "hello", "a session reads the frame the server serves")
 

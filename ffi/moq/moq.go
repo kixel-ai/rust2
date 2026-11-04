@@ -1,6 +1,6 @@
 // moq.c's script through the generated Go: a broadcast's track, published and subscribed
 // to in one process, with every read a blocking call taking a context, and an origin, with
-// moq-pattern, moq-clock, moq-tokio, hang, and moq-mux exported into the same library, and
+// moq-pattern, kio, moq-tokio, hang, and moq-mux exported into the same library, and
 // the catalog lent to Go for a call.
 //
 // The local reads need no runtime: each read that must wait blocks its goroutine until the
@@ -99,14 +99,14 @@ func drive(driver *moq.OriginDriver) <-chan error {
 		defer driver.Close()
 		defer waiter.Close()
 		for {
-			next, err := driver.Poll(moq.Now(), waiter)
+			next, err := driver.Poll(moq.ClockNow(), waiter)
 			if err != nil {
 				finished <- err
 				return
 			}
 			var deadline <-chan time.Time
 			if next != nil {
-				deadline = time.After(must(next.SaturatingDurationSince(moq.Now())))
+				deadline = time.After(must(next.SaturatingDurationSince(moq.ClockNow())))
 				next.Close()
 			}
 			select {
@@ -148,8 +148,8 @@ func script() {
 	hello := within(frame, "a frame's arrival wakes the read")
 	expect(string(must(hello.Payload()).Copy()) == "hello", "a frame has its payload")
 	expect(must(hello.Timestamp()) == nil, "an untimed frame has no timestamp")
-	// When it arrived: moq-clock's `Instant`, from moq-clock's own export.
-	expect(must(moq.Now().CheckedDurationSince(must(hello.Arrived()))) != nil, "a frame arrived before now")
+	// When it arrived: kio's clock's `Instant`, from kio's own export.
+	expect(must(moq.ClockNow().CheckedDurationSince(must(hello.Arrived()))) != nil, "a frame arrived before now")
 
 	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
 	// untimed, so a timestamped frame is refused.
@@ -200,8 +200,8 @@ func script() {
 
 	// Paths own their segments, so Go builds them, and relative ones, from a string.
 	_, err = moq.NewPath("/cam/")
-	var invalid moq.PathInvalid
-	expect(errors.As(err, &invalid) && invalid == moq.PathInvalidEmptySegment, "an empty segment is its own error")
+	var pathErr moq.PathError
+	expect(errors.As(err, &pathErr) && pathErr == moq.PathErrorEmptySegment, "an empty segment is its own error")
 	cam := must(moq.NewPath("cam"))
 	expect(must(cam.AsStr()) == "cam", "a path builds from its segments")
 	joined := must(path.Join(cam))
@@ -266,13 +266,13 @@ func script() {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Go parses from text, set in the lent catalog and read
 	// back as text.
-	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", nil)), moq.JsonConfigDefault(), moq.JsonOptionsDefault()))
+	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", must(moq.TrackInfoDefault().WithTimescale(moq.TimescaleMILLI())))), moq.JsonConfigDefault(), moq.JsonOptionsDefault()))
 	expect(must(status.Name()) == "status", "a JSON snapshot has its track's name")
 	expect(must(catalog.IsClaimedJsonConfig("status")), "the JSON snapshot claims its name")
 	// A value Go parses is published as the track's latest, which a subscriber reads back
 	// as JSON text.
 	on := must(moq.JsonParse(`{"on": true}`))
-	expect(status.Update(on) == nil, "a JSON snapshot updates")
+	expect(status.Update(on, moq.TimestampNow()) == nil, "a JSON snapshot updates")
 	on.Close()
 	latest := must(must(must(status.Consume()).RecvGroup(ctx)).ReadFrame(ctx))
 	expect(latest != nil && string(must(latest.Payload()).Copy()) == `{"on":true}`, "a subscriber reads the latest value")
@@ -397,7 +397,7 @@ func session() {
 	expect(connection != nil, "a client with a URL dials it")
 	established := must(connection.Established(ctx))
 
-	subscriber := must(must(must(remote.RequestBroadcast(ctx, "live", nil)).Track("video")).Subscribe(ctx, nil))
+	subscriber := must(must(must(remote.Request(ctx, "live", nil)).Track("video")).Subscribe(ctx, nil))
 	frame := must(must(subscriber.RecvGroup(ctx)).ReadFrame(ctx))
 	expect(frame != nil && string(must(frame.Payload()).Copy()) == "hello", "a session reads the frame the server serves")
 

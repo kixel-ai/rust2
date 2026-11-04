@@ -230,6 +230,8 @@ fixtures/reject/src/pointers.rs:pointers_apart+10:26: `offset_from` between a po
 fixtures/reject/src/pointers.rs:pointers_apart+11:24: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+12:23: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
+fixtures/reject/src/pointers.rs:pointers_ordered+2:2: comparing pointers to `u32`, each a place JS makes of its own
+fixtures/reject/src/pointers.rs:pointers_ordered+2:2: ordering `*const u32` by its address, which JS has no counterpart of, in `std::cmp::max`
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `pointers::Window`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
