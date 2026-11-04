@@ -14,7 +14,6 @@ hook program:
 
 - An integer range's `Step::forward` overflow, in `step_integer_impls!` (iters).
 - A slice's `join` and `concat` whose length overflows (joins).
-- `Vec::extract_if` with a range out of bounds (edits).
 - `RefCell`'s comparisons of one already mutably borrowed (collections).
 - `Bytes` and `BytesMut`'s, at a path under the native build's cargo registry.
 

@@ -335,6 +335,12 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 		"slice::range(",
 	),
 	(
+		"vec::extract_if",
+		"alloc/src/vec/extract_if.rs",
+		"pub(super) fn new<R",
+		"slice::range(",
+	),
+	(
 		"iter::traits::iterator::Iterator::step_by",
 		"core/src/iter/adapters/step_by.rs",
 		"fn new(",

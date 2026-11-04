@@ -3984,12 +3984,13 @@ class VecExtractIf<T> extends Iter<T> implements Disposable {
 	private readonly f: (item: T | Place<T>) => boolean;
 	private readonly places: boolean;
 
-	constructor(a: T[], old: number, r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean, put: (len: number) => void) {
+	constructor(a: T[], old: number, [idx, end]: [number, number], f: (item: T | Place<T>) => boolean, places: boolean, put: (len: number) => void) {
 		super();
 		this.put = put;
 		this.a = a;
 		this.old = old;
-		[this.idx, this.end] = boundsRange(r, old);
+		this.idx = idx;
+		this.end = end;
 		this.f = f;
 		this.places = places;
 	}
@@ -4027,30 +4028,35 @@ class VecExtractIf<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/** `Vec::extract_if` of the elements within `r`, handing `f` each, or with `places`, its place. */
-function extractIf<T>(v: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean): Iter<T> {
+/**
+ * `Vec::extract_if` of the elements within `r`, handing `f` each, or with `places`, its
+ * place, panicking at `at` if `r` is out of bounds.
+ */
+function extractIf<T>(v: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean, at?: Location): Iter<T> {
 	const old = v.length;
+	const range = boundsRange(r, old, at);
 	const a = v.splice(0);
-	return new VecExtractIf(a, old, r, f, places, (len) => {
+	return new VecExtractIf(a, old, range, f, places, (len) => {
 		for (let i = 0; i < len; i++) v.push(a[i]);
 	});
 }
 
 /** `Vec::extract_if` of the elements within `r`, handing `f` each. */
-export function vecExtractIf<T>(v: T[], r: Bounds<number>, f: (item: T) => boolean): Iter<T> {
-	return extractIf(v, r, f as (item: T | Place<T>) => boolean, false);
+export function vecExtractIf<T>(v: T[], r: Bounds<number>, f: (item: T) => boolean, at?: Location): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, false, at);
 }
 
 /** `vecExtractIf` of elements JS copies: `f` takes the place of each. */
-export function vecExtractIfMut<T>(v: T[], r: Bounds<number>, f: (item: Place<T>) => boolean): Iter<T> {
-	return extractIf(v, r, f as (item: T | Place<T>) => boolean, true);
+export function vecExtractIfMut<T>(v: T[], r: Bounds<number>, f: (item: Place<T>) => boolean, at?: Location): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, true, at);
 }
 
 /** `Vec::extract_if` of bytes, whose places `f` takes in the vector's storage. */
-export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean): Iter<number> {
+export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean, at?: Location): Iter<number> {
 	const old = v.length;
+	const range = boundsRange(r, old, at);
 	v.length = 0;
-	return new VecExtractIf(v.data as unknown as number[], old, r, f as (item: number | Place<number>) => boolean, true, (len) => {
+	return new VecExtractIf(v.data as unknown as number[], old, range, f as (item: number | Place<number>) => boolean, true, (len) => {
 		v.length = len;
 	});
 }
