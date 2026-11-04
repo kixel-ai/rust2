@@ -9,7 +9,7 @@ export function unwrapOr$0r2bmpr(self: rt.u8 | undefined, default_: rt.u8): rt.u
 	return self;
 }
 
-export function map$1mp7tga(self: rt.i64[] | undefined, f: (a0: rt.i64[]) => rt.usize): rt.usize | undefined {
+export function map$13980cl(self: rt.Vec<rt.i64> | undefined, f: (a0: rt.Vec<rt.i64>) => rt.usize): rt.usize | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

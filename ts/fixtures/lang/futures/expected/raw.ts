@@ -145,7 +145,7 @@ export function waker(byte: rt.u8): rt.Waker {
  */
 export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _39: boolean = false;
-	const kept: rt.Waker[] = [];
+	const kept: rt.Vec<rt.Waker> = new rt.Vec();
 	for (const byte of rt.byteSliceView(data)) {
 		const w: rt.Waker = waker(byte);
 		_39 = true;
@@ -158,7 +158,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			w.wake();
 		} else if (_17 === 2) {
 			const _24: rt.Waker = w.clone();
-			kept.push(_24);
+			kept.items.push(_24);
 		} else if (_17 === 3) {
 			_39 = false;
 		} else if (_17 === 4) {
@@ -171,7 +171,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 		_39 = false;
 	}
 	while (true) {
-		const _32: rt.Waker | undefined = kept.pop();
+		const _32: rt.Waker | undefined = rt.vecPop(kept);
 		if (_32 !== undefined) {
 			const w2: rt.Waker = _32;
 			w2.wakeByRef();
@@ -180,7 +180,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 	}
-	rt.dropAll(kept);
+	rt.dropVec(kept);
 }
 
 /**
@@ -560,7 +560,7 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _47: rt.Waker = new rt.VTableWaker(rt.ptrErase(kept, "raw::Note", 2), BORROWED);
 	rt.byteVecPush(out, rt.willWake(first, _47) ? 1 : 0);
 	_47[Symbol.dispose]();
-	const wakers: rt.Waker[] = [];
+	const wakers: rt.Vec<rt.Waker> = new rt.Vec();
 	for (const byte of rt.byteSliceView(data)) {
 		const id: rt.u8 = byte & 63;
 		const _60: rt.u8 = byte >> 6;
@@ -578,19 +578,19 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 			w.wakeByRef();
 		} else if (_80 === 1) {
 			const _84: rt.Waker = w.clone();
-			wakers.push(_84);
+			wakers.items.push(_84);
 		}
 		if (rt.u8Rem(byte, 4) === 0) {
 			w.wake();
 		} else {
-			wakers.push(w);
+			wakers.items.push(w);
 		}
-		rt.byteVecPush(out, noteOf(option_mapOr$13g654t(rt.sliceLast(wakers), shared, (a0: rt.Waker): rt.Place<undefined> => {
+		rt.byteVecPush(out, noteOf(option_mapOr$13g654t(rt.sliceLast(wakers.items), shared, (a0: rt.Waker): rt.Place<undefined> => {
 			return a0.data as rt.Place<undefined>;
 		})).id);
 	}
 	while (true) {
-		const _99: rt.Waker | undefined = wakers.pop();
+		const _99: rt.Waker | undefined = rt.vecPop(wakers);
 		if (_99 !== undefined) {
 			const w2: rt.Waker = _99;
 			w2.wakeByRef();
@@ -624,7 +624,7 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([a === _174[1], a === rt.DANGLING, a === rt.NULL], (a04: boolean): rt.u8 => {
 		return a04 ? 1 : 0;
 	})), undefined, true);
-	rt.dropAll(wakers);
+	rt.dropVec(wakers);
 }
 
 /** The `Task` a waker's data is the `Arc` of, borrowed, which a wake notes, and its count. */
@@ -673,39 +673,39 @@ export function taskWaker(task: rt.Arc<Task.Task>): rt.Waker {
 export function tasks(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _101!: rt.Poll<rt.u8>;
 	const task: rt.Arc<Task.Task> = new rt.Arc(new Task.Task(1, new rt.Cell(0)));
-	const wakers: rt.Waker[] = [taskWaker(rt.arcClone(task))];
+	const wakers: rt.Vec<rt.Waker> = rt.vecFrom([taskWaker(rt.arcClone(task))]);
 	for (const byte of rt.byteSliceView(data)) {
 		b2: {
 			const _18: rt.u8 = rt.u8Rem(byte, 5);
 			if (_18 === 0) {
-				const _21: rt.Waker = wakers[rt.idx(wakers, rt.usizeRem(byte as rt.usize, wakers.length))].clone();
-				wakers.push(_21);
+				const _21: rt.Waker = wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))].clone();
+				wakers.items.push(_21);
 				break b2;
 			}
 			if (_18 === 1) {
-				if (wakers.length > 1) {
-					rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.length)).wake();
+				if (wakers.items.length > 1) {
+					rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.items.length)).wake();
 					break b2;
 				}
 			} else {
 				if (_18 === 2) {
-					wakers[rt.idx(wakers, rt.usizeRem(byte as rt.usize, wakers.length))].wakeByRef();
+					wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))].wakeByRef();
 					break b2;
 				}
 				if (_18 === 3) {
-					if (wakers.length > 1) {
-						rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.length))[Symbol.dispose]();
+					if (wakers.items.length > 1) {
+						rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.items.length))[Symbol.dispose]();
 						break b2;
 					}
 				}
 			}
-			rt.byteVecPush(out, rt.willWake(wakers[rt.idx(wakers, 0)], wakers[rt.idx(wakers, rt.usizeRem(byte as rt.usize, wakers.length))]) ? 1 : 0);
+			rt.byteVecPush(out, rt.willWake(wakers.items[rt.idx(wakers.items, 0)], wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))]) ? 1 : 0);
 		}
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(task.strong & 0xff, wakers.length & 0xff, task.value.wakes.v)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(task.strong & 0xff, wakers.items.length & 0xff, task.value.wakes.v)), undefined, true);
 	}
 	task[Symbol.dispose]();
 	while (true) {
-		const _80: rt.Waker | undefined = wakers.pop();
+		const _80: rt.Waker | undefined = rt.vecPop(wakers);
 		if (_80 !== undefined) {
 			_80.wake();
 		} else {
@@ -728,7 +728,7 @@ export function tasks(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_101, task2.value.wakes.v, task2.strong & 0xff)), undefined, true);
 	drop$tuple2_task_Waker_sync_Arc_raw_Task([waker, task2] as [rt.Waker, rt.Arc<Task.Task>]);
 	rt.drop(pinned);
-	rt.dropAll(wakers);
+	rt.dropVec(wakers);
 }
 
 export class tasksFuture$closure1 {

@@ -2,21 +2,21 @@
 
 import * as rt from "../rt.ts";
 
-export function unwrapOrElse$1ponm77(self: rt.Result<rt.u64[][], rt.u64[][]>, op: (a0: rt.u64[][]) => rt.u64[][]): rt.u64[][] {
+export function unwrapOrElse$1q4qcpp(self: rt.Result<rt.Vec<rt.u64[]>, rt.Vec<rt.u64[]>>, op: (a0: rt.Vec<rt.u64[]>) => rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$0crgrec(self: rt.Result<[rt.u64, rt.u8][], [rt.u64, rt.u8][]>, op: (a0: [rt.u64, rt.u8][]) => [rt.u64, rt.u8][]): [rt.u64, rt.u8][] {
+export function unwrapOrElse$17cj159(self: rt.Result<rt.Vec<[rt.u64, rt.u8]>, rt.Vec<[rt.u64, rt.u8]>>, op: (a0: rt.Vec<[rt.u64, rt.u8]>) => rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> {
 	if (self.ok) {
 		return self.value;
 	}
 	return op(self.error);
 }
 
-export function unwrapOrElse$0oufox0(self: rt.Result<rt.u16[], rt.u16[]>, op: (a0: rt.u16[]) => rt.u16[]): rt.u16[] {
+export function unwrapOrElse$1urqnv6(self: rt.Result<rt.Vec<rt.u16>, rt.Vec<rt.u16>>, op: (a0: rt.Vec<rt.u16>) => rt.Vec<rt.u16>): rt.Vec<rt.u16> {
 	if (self.ok) {
 		return self.value;
 	}
@@ -30,7 +30,7 @@ export function unwrapOrElse$1bt75f9(self: rt.Result<rt.ByteVec, rt.ByteVec>, op
 	return op(self.error);
 }
 
-export function unwrapOrElse$0n31gou(self: rt.Result<undefined[], undefined[]>, op: (a0: undefined[]) => undefined[]): undefined[] {
+export function unwrapOrElse$1341i4f(self: rt.Result<rt.Vec<undefined>, rt.Vec<undefined>>, op: (a0: rt.Vec<undefined>) => rt.Vec<undefined>): rt.Vec<undefined> {
 	if (self.ok) {
 		return self.value;
 	}

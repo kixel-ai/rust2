@@ -32,11 +32,11 @@ export function thenSome$0d5am30(self: boolean, t: rt.u8): rt.u8 | undefined {
 	return t;
 }
 
-export function then$0h950d8(self: boolean, _: () => rt.u16[]): rt.u16[] | undefined {
+export function then$1he9dd4(self: boolean, _: () => rt.Vec<rt.u16>): rt.Vec<rt.u16> | undefined {
 	if (!self) {
 		return undefined;
 	}
-	return [];
+	return new rt.Vec();
 }
 
 export function then$1i9qaz4(self: boolean, _: () => rt.ByteVec): rt.ByteVec | undefined {

@@ -127,7 +127,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _18: [rt.usize, rt.usize] = [rt.usizeRem(a as rt.usize, reach), rt.usizeRem(b as rt.usize, reach)];
 		const i: rt.usize = _18[0];
 		const j: rt.usize = _18[1];
-		const items: Item.Item[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 4))), (_2: rt.u8): Item.Item => {
+		const items: rt.Vec<Item.Item> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 4))), (_2: rt.u8): Item.Item => {
 			return new Item.Item(_2);
 		}), undefined, 1, true);
 		const _28: rt.u8 = rt.u8Rem(kind, 6);
@@ -149,7 +149,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _49: [rt.RangeBound<rt.usize>, rt.RangeBound<rt.usize>] = [bound$ref_usize(s, i), bound$ref_usize(e, j)];
 			rt.iterExtendBytes(out, rt.iterRev(rt.byteVecDrain(bytes, _49)), "fold", true);
 			rt.iterExtendBytes(out, rt.iterSlice(rt.byteVecView(bytes)), undefined, true);
-			const words: rt.u32[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 4))), (_216: rt.u8): rt.u32 => {
+			const words: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 4))), (_216: rt.u8): rt.u32 => {
 				return rt.u32Add(_216 as rt.u32, 1000);
 			}), undefined, 4, true);
 			const drain: rt.Iter<rt.u32> = rt.vecDrain(words, range);
@@ -158,7 +158,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			})), undefined, true);
 			rt.byteVecPush(out, drain.len() & 0xff);
 			rt.drop(drain);
-			rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(words), (_217: rt.u32): rt.u8 => {
+			rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(words.items), (_217: rt.u32): rt.u8 => {
 				return _217 & 0xff;
 			}), undefined, true);
 		} else if (_28 === 1) {
@@ -312,10 +312,10 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			flush(out);
 		}
 		flush(out);
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(items), (x6: Item.Item): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(items.items), (x6: Item.Item): rt.u8 => {
 			return x6.tag;
 		}), undefined, true);
-		rt.dropAll(items);
+		rt.dropVec(items);
 		flush(out);
 	}
 }

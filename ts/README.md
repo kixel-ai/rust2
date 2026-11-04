@@ -104,7 +104,8 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Option<T>` | `T \| undefined`; `T \| rt.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some` |
 | `Result<T, E>` | `rt.Result<T, E>`: `{ ok: true, value }` or `{ ok: false, error }`; `rt.OK` or `rt.ERR` where the payload is `undefined`, as in `Ok(())` |
 | `ControlFlow<B, C>` | `rt.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
-| tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
+| tuple, `[T; N]`, `&[T]`, `Box<[T]>` | an array; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>` |
+| `Vec<T>` | `rt.Vec<T>`: its items, the array `items`, and the capacity std's holds; `rt.vecFrom(items)` makes one of an array with room for exactly them. `rt.ByteVec` of bytes |
 | `Cow<[T]>`, `Cow<str>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice`; `rt.StrCow` for text, the string it owns or an `rt.Borrowed` holding the one it borrows, which `rt.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rt.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rt.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
@@ -483,7 +484,7 @@ std's mappings take a `&mut` parameter as what it points at. So is a `&mut` to a
 A `&mut` to any other object is the object. A whole write through it, `*r = v` or std's
 `mem::replace`, `mem::take`, or `mem::swap`, assigns the place it borrows where that is
 known, as a local, a field, an element, or a `MutexGuard`'s value, and otherwise writes
-into the object in place: a `Vec`'s items, or the fields of a struct, a collection, or a
+into the object in place: the fields of a `Vec` of a struct, a collection, or a
 `Weak`, with what it held moved out into an object of its own. A guard, a context, a
 pinned reference, or a binding's value, whose object is shared or opaque, is refused there.
 A write of a value of no bytes, through a `&mut` or a pointer, reads and writes nothing.
@@ -972,18 +973,18 @@ they need.
   doubles it from 3 while short of the length. `VecDeque` is a ring buffer over an array
   whose length is std's capacity, a `Uint8Array` of bytes, and each step places its items
   where std's does, so `as_slices` splits them as std's; one made from a `Vec` takes the
-  capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold what std
-  guarantees of their capacity: at least their length and what `with_capacity`,
-  `reserve`, and `reserve_exact` ask for, and std's exactly where its doubling fixes it,
-  as through pushes, a `clone_from` that keeps its own, through any container whose `clone_from` reaches it, and a `collect` that
-  reuses its source's buffer, in place or from a boxed slice, whose capacity is its
-  length. One holds a capacity, as `cap`, only where `with_capacity`, `reserve`,
-  `shrink_to`, a `clone`, or a `collect` or `extend` set it, so a push never reads or
-  writes one. Reading it doubles it while short of the length, from the least std's
-  `RawVec` allocates for the element size, which a run of pushes grows std's to. A
-  `Vec<u8>`'s is its buffer's length, so its `spare_capacity_mut` is an `rt.ByteSlice` of
-  the buffer past its length, which `set_len` takes in, panicking past the capacity as
-  std's check does, which can't unwind; any other `Vec`'s is refused, as its length is a capacity the runtime holds only as std guarantees it. Their `try_reserve` and `try_reserve_exact`, and a
+  capacity held for the `Vec`, and a `Vec` made from one takes its. A `Vec` and `BinaryHeap` hold std's
+  capacity exactly: an `rt.Vec` holds the capacity, as `cap`, that the last step that
+  fixes it set, as `with_capacity`, `reserve`, `shrink_to`, a `clone`, or a `collect`
+  does, and, as `peak`, the most it held before a step that shortened it, so a push never
+  reads or writes either. Reading it doubles `cap` while short of the longer of its length
+  and `peak`, from the least std's `RawVec` allocates for the element size, as a run of
+  pushes grows std's. Holding the capacity on each push instead took up to 1.7x as long on
+  `push/vec`, and tracking it on each pop up to 2.8x on `push/stack` (decided with the
+  maintainer on 2026-11-03). A `Vec<u8>`'s is its buffer's length, so its
+  `spare_capacity_mut` is an `rt.ByteSlice` of the buffer past its length, which `set_len`
+  takes in, panicking past the capacity as std's check does, which can't unwind; any other `Vec`'s is refused,
+  as no JS array holds room past its length. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
@@ -1001,7 +1002,7 @@ they need.
   comparing it, and each engine orders its comparisons differently. A byte slice's sorts
   by its own `Ord` are its typed array's, whose order nothing observes. `sort_by_cached_key`
   sorts its keys paired with their indexes by that `sort_unstable`.
-- A `BinaryHeap` is std's heap in an array, with std's sifts ported to the runtime: std's
+- A `BinaryHeap` is std's heap in an `rt.Vec`, with std's sifts ported to the runtime: std's
   move elements through raw pointers into its `Vec`, which no body of std's lowers
   through, and the sifts decide which `PartialOrd` tests run and which of equal elements
   leaves first. `Vec::drain`, `splice`, and `extract_if`, and `VecDeque`'s rotations

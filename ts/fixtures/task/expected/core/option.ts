@@ -214,7 +214,7 @@ export function map$1cf8u0y(self: rt.u64 | undefined, f: (a0: rt.u64) => rt.u64)
 	return f(self);
 }
 
-export function mapOr$0vxyhav(self: Guard.Guard[] | undefined, default_: rt.usize, f: (a0: Guard.Guard[]) => rt.usize): rt.usize {
+export function mapOr$184639r(self: rt.Vec<Guard.Guard> | undefined, default_: rt.usize, f: (a0: rt.Vec<Guard.Guard>) => rt.usize): rt.usize {
 	if (self === undefined) {
 		return default_;
 	}

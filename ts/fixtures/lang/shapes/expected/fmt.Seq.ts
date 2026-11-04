@@ -4,12 +4,12 @@ import * as rt from "./rt.ts";
 import * as Pair from "./fmt.Pair.ts";
 
 export interface Seq {
-	_0: Pair.Pair[];
+	_0: rt.Vec<Pair.Pair>;
 }
 
 export function fmt$fmt_Debug(self: Seq, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _5: rt.DebugList = rt.fmtDebugList(f);
-	const _6: rt.Iter<Pair.Pair> = rt.iterSlice(self._0);
+	const _6: rt.Iter<Pair.Pair> = rt.iterSlice(self._0.items);
 	return rt.debugListFinish(rt.debugListEntries(_5, _6, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f)));
 }
 

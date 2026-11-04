@@ -2,21 +2,21 @@
 
 import * as rt from "../rt.ts";
 
-export function then$0f7s20e(self: boolean, f: () => rt.u64[][]): rt.u64[][] | undefined {
+export function then$060nyee(self: boolean, f: () => rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$1sofofk(self: boolean, f: () => [rt.u64, rt.u8][]): [rt.u64, rt.u8][] | undefined {
+export function then$15ykizu(self: boolean, f: () => rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return f();
 }
 
-export function then$0l07w38(self: boolean, f: () => rt.u16[]): rt.u16[] | undefined {
+export function then$06am279(self: boolean, f: () => rt.Vec<rt.u16>): rt.Vec<rt.u16> | undefined {
 	if (!self) {
 		return undefined;
 	}
@@ -30,7 +30,7 @@ export function then$0ozmvid(self: boolean, f: () => rt.ByteVec): rt.ByteVec | u
 	return f();
 }
 
-export function then$0mc78m9(self: boolean, f: () => undefined[]): undefined[] | undefined {
+export function then$1svdnnn(self: boolean, f: () => rt.Vec<undefined>): rt.Vec<undefined> | undefined {
 	if (!self) {
 		return undefined;
 	}
