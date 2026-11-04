@@ -7,8 +7,8 @@ import type * as Logged from "./clones.Logged.ts";
 import type * as Pair from "./clones.Pair.ts";
 import type * as Slot from "./clones.Slot.ts";
 
-export function drop$Vec_clones_Logged(value: Logged.Logged[]): void {
-	rt.dropAll(value);
+export function drop$Vec_clones_Logged(value: rt.Vec<Logged.Logged>): void {
+	rt.dropVec(value);
 }
 
 export function drop$array1_clones_Logged(value: Logged.Logged[]): void {
@@ -29,24 +29,24 @@ export function drop$clones_Slot(_1: Slot.Slot): void {
 	}
 }
 
-export function drop$tuple2_Option_Vec_clones_Logged_Option_Vec_clones_Logged(_1: [Logged.Logged[] | undefined, Logged.Logged[] | undefined]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
+export function drop$tuple2_Option_Vec_clones_Logged_Option_Vec_clones_Logged(_1: [rt.Vec<Logged.Logged> | undefined, rt.Vec<Logged.Logged> | undefined]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
 }
 
-export function drop$tuple2_Vec_array2_clones_Logged_array2_array2_clones_Logged(_1: [Logged.Logged[][], Logged.Logged[][]]): void {
-	rt.dropAll(_1[0], drop$array2_clones_Logged);
+export function drop$tuple2_Vec_array2_clones_Logged_array2_array2_clones_Logged(_1: [rt.Vec<Logged.Logged[]>, Logged.Logged[][]]): void {
+	rt.dropVec(_1[0], drop$array2_clones_Logged);
 	rt.dropAll(_1[1], drop$array2_clones_Logged);
 }
 
-export function drop$tuple2_Vec_clones_Logged_Vec_Vec_clones_Logged(_1: [Logged.Logged[], Logged.Logged[][]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1], drop$Vec_clones_Logged);
+export function drop$tuple2_Vec_clones_Logged_Vec_Vec_clones_Logged(_1: [rt.Vec<Logged.Logged>, rt.Vec<rt.Vec<Logged.Logged>>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1], drop$Vec_clones_Logged);
 }
 
-export function drop$tuple2_Vec_clones_Logged_Vec_clones_Logged(_1: [Logged.Logged[], Logged.Logged[]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
+export function drop$tuple2_Vec_clones_Logged_Vec_clones_Logged(_1: [rt.Vec<Logged.Logged>, rt.Vec<Logged.Logged>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
 }
 
 export function drop$tuple2_array2_array2_clones_Logged_array2_array2_clones_Logged(_1: [Logged.Logged[][], Logged.Logged[][]]): void {
@@ -69,28 +69,28 @@ export function drop$tuple3_Option_array2_clones_Logged_Option_array2_clones_Log
 	rt.dropAll(_1[2]);
 }
 
-export function drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String(_1: [Array<Logged.Logged | undefined>, Array<Logged.Logged | undefined>, [Logged.Logged, string][]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
-	rt.dropAll(_1[2], drop$tuple2_clones_Logged_String);
+export function drop$tuple3_Vec_Option_clones_Logged_Vec_Option_clones_Logged_Vec_tuple2_clones_Logged_String(_1: [rt.Vec<Logged.Logged | undefined>, rt.Vec<Logged.Logged | undefined>, rt.Vec<[Logged.Logged, string]>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
+	rt.dropVec(_1[2], drop$tuple2_clones_Logged_String);
 }
 
-export function drop$tuple3_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged(_1: [Logged.Logged[][], Logged.Logged[][], Logged.Logged[][]]): void {
-	rt.dropAll(_1[0], drop$Vec_clones_Logged);
-	rt.dropAll(_1[1], drop$Vec_clones_Logged);
-	rt.dropAll(_1[2], drop$Vec_clones_Logged);
+export function drop$tuple3_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged_Vec_Vec_clones_Logged(_1: [rt.Vec<rt.Vec<Logged.Logged>>, rt.Vec<rt.Vec<Logged.Logged>>, rt.Vec<rt.Vec<Logged.Logged>>]): void {
+	rt.dropVec(_1[0], drop$Vec_clones_Logged);
+	rt.dropVec(_1[1], drop$Vec_clones_Logged);
+	rt.dropVec(_1[2], drop$Vec_clones_Logged);
 }
 
-export function drop$tuple3_Vec_array2_clones_Logged_Vec_array2_clones_Logged_array2_clones_Logged(_1: [Logged.Logged[][], Logged.Logged[][], Logged.Logged[]]): void {
-	rt.dropAll(_1[0], drop$array2_clones_Logged);
-	rt.dropAll(_1[1], drop$array2_clones_Logged);
+export function drop$tuple3_Vec_array2_clones_Logged_Vec_array2_clones_Logged_array2_clones_Logged(_1: [rt.Vec<Logged.Logged[]>, rt.Vec<Logged.Logged[]>, Logged.Logged[]]): void {
+	rt.dropVec(_1[0], drop$array2_clones_Logged);
+	rt.dropVec(_1[1], drop$array2_clones_Logged);
 	rt.dropAll(_1[2]);
 }
 
-export function drop$tuple3_Vec_clones_Logged_Vec_clones_Logged_Vec_clones_Logged(_1: [Logged.Logged[], Logged.Logged[], Logged.Logged[]]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
-	rt.dropAll(_1[2]);
+export function drop$tuple3_Vec_clones_Logged_Vec_clones_Logged_Vec_clones_Logged(_1: [rt.Vec<Logged.Logged>, rt.Vec<Logged.Logged>, rt.Vec<Logged.Logged>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
+	rt.dropVec(_1[2]);
 }
 
 export function drop$tuple3_array0_clones_Logged_array0_clones_Logged_array3_clones_Logged(_1: [Logged.Logged[], Logged.Logged[], Logged.Logged[]]): void {
@@ -115,9 +115,9 @@ export function drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones
 	rt.dropAll(_1[3], drop$array1_clones_Logged);
 }
 
-export function drop$tuple7_Vec_clones_Kept_Vec_clones_Kept_array1_array2_clones_Kept_Option_clones_Kept_array2_clones_Slot_collections_LinkedList_clones_Kept_collections_LinkedList_clones_Kept(_1: [Kept.Kept[], Kept.Kept[], Kept.Kept[][], Kept.Kept | undefined, Slot.Slot[], rt.LinkedList<Kept.Kept>, rt.LinkedList<Kept.Kept>]): void {
-	rt.dropAll(_1[0]);
-	rt.dropAll(_1[1]);
+export function drop$tuple7_Vec_clones_Kept_Vec_clones_Kept_array1_array2_clones_Kept_Option_clones_Kept_array2_clones_Slot_collections_LinkedList_clones_Kept_collections_LinkedList_clones_Kept(_1: [rt.Vec<Kept.Kept>, rt.Vec<Kept.Kept>, Kept.Kept[][], Kept.Kept | undefined, Slot.Slot[], rt.LinkedList<Kept.Kept>, rt.LinkedList<Kept.Kept>]): void {
+	rt.dropVec(_1[0]);
+	rt.dropVec(_1[1]);
 	rt.dropAll(_1[2], drop$array2_clones_Kept);
 	rt.drop(_1[3]);
 	rt.dropAll(_1[4], drop$clones_Slot);
@@ -129,8 +129,8 @@ export function drop$tuple7_Vec_clones_Kept_Vec_clones_Kept_array1_array2_clones
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["clones::iters", iters as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::arrays", arrays as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::clone_froms", cloneFroms as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::repeats", repeats as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::sources", sources as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["clones::iters", iters as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::arrays", arrays as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::clone_froms", cloneFroms as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::repeats", repeats as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["clones::sources", sources as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

@@ -650,14 +650,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let to = self.operand(target, span, out);
 				let to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
-				let source_ty = source.ty(&self.mir.local_decls, tcx);
-				let mut source = self.operand(source, span, out);
-				// A `Vec`'s reads a slice's elements.
-				if let ty::Slice(elem) = source_ty.peel_refs().kind()
-					&& !crate::lower::byte(*elem)
-				{
-					source = library::elements(source, source_ty);
-				}
+				let source = self.operand(source, span, out);
 				done(library::clone_from(self.b, to, source, ty, span), true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
@@ -1946,7 +1939,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let base = self.operand(&args[0].node, span, out);
 		match Int::of(index_ty) {
 			Some(_) => {
-				// A `Vec`'s element is its storage's, a byte vector's in `data`.
+				// A `Vec`'s element is its storage's: its `items`, or a byte vector's `data`.
+				let base = match container.kind() {
+					ty::Adt(..) if !bytes => base.member("items"),
+					_ => base,
+				};
 				let base = self.path(base, "slice", out);
 				let i = self.operand(&args[1].node, span, out);
 				let i = self.path(i, "index", out);

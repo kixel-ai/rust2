@@ -18,19 +18,19 @@ fixtures/reject/src/spans.rs:early+4:2: spans.ts:13:26 doesn't type-check, which
 fixtures/reject/src/spans.rs:early+4:2: spans.ts:13:3 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
 fixtures/reject/src/spans.rs:early+4:4: spans.ts:13:29 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 32
 fixtures/reject/src/spans.rs:early+4:4: spans.ts:13:33 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, false
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads[rt.idx(self.reads, at)]
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:19 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items[rt.idx(self.reads.items, at)]
 fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:37 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:49 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, at
-fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:55 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, by
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:43 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, self.reads.items
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:61 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, at
+fixtures/reject/src/spans.rs:impl Meter+2:3: spans.Meter.ts:10:67 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, by
 fixtures/reject/src/spans.rs:method+1:2: spans.ts:19:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
 fixtures/reject/src/spans.rs:method+1:2: spans.ts:19:22 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, m
 fixtures/reject/src/spans.rs:method+1:11: spans.ts:19:43 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, a
 fixtures/reject/src/spans.rs:method+1:13: spans.ts:19:25 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rt.u32WrappingAdd(a, 1)
 fixtures/reject/src/spans.rs:method+1:13: spans.ts:19:46 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 1
-fixtures/reject/src/spans.rs:method+1:30: spans.ts:19:50 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rt.usizeSub(m.reads.length, 1)
-fixtures/reject/src/spans.rs:method+1:30: spans.ts:19:78 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 1
-fixtures/reject/src/spans.rs:method+1:38: spans.ts:19:62 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, m.reads.length
+fixtures/reject/src/spans.rs:method+1:30: spans.ts:19:50 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rt.usizeSub(m.reads.items.length, 1)
+fixtures/reject/src/spans.rs:method+1:30: spans.ts:19:84 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 1
+fixtures/reject/src/spans.rs:method+1:38: spans.ts:19:62 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, m.reads.items.length
 fixtures/reject/src/spans.rs:operators+1:2: spans.ts:29:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
 fixtures/reject/src/spans.rs:operators+1:2: spans.ts:29:22 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, m
 fixtures/reject/src/spans.rs:operators+1:11: spans.ts:29:25 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, (a ^ 7) >>> 0

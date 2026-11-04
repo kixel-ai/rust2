@@ -6,8 +6,8 @@ import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
 /** The guards of `ids`, in order. */
-export function guards(log: Log.Log, id: rt.u32, ids: rt.Range<rt.u32>): Guard.Guard[] {
-	return rt.iterToArray(rt.iterMap(ids, (n: rt.u32): Guard.Guard => {
+export function guards(log: Log.Log, id: rt.u32, ids: rt.Range<rt.u32>): rt.Vec<Guard.Guard> {
+	return rt.iterToVec(rt.iterMap(ids, (n: rt.u32): Guard.Guard => {
 		return Guard.new(rt.u32Add(id, n), Log.clone$Clone(log));
 	}), undefined, 8, true);
 }
@@ -26,7 +26,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	const _6: rt.u8 = rt.u8Rem(arg, 7);
 	if (_6 === 0) {
 		const a: Guard.Guard = guard(10);
-		const _12: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
+		const _12: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
 		const captured26 = a;
 		const part28 = option_map$1raha9y(rt.iterReduce(_12, rt.closure((x4: Guard.Guard, y4: Guard.Guard): Guard.Guard => {
 			let _029!: Guard.Guard;
@@ -63,7 +63,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part28, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["reduced ", args2[0]]));
 		const b: Guard.Guard = guard(11);
-		const _32: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(5, 7)), rt.drop), 0, rt.drop);
+		const _32: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(5, 7)), rt.drop), 0, rt.drop);
 		const captured27 = b;
 		const none: Guard.Guard | undefined = rt.iterReduce(_32, rt.closure((x5: Guard.Guard, _339: Guard.Guard): Guard.Guard => {
 			Guard.note(captured27, "never");
@@ -116,7 +116,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured29[Symbol.dispose]();
 		});
-		const part31 = option_map$1raha9y(rt.iterReduce(rt.iterSlice(guards(log, id, new rt.Range(17, 20)), rt.drop), first, true), (g20: Guard.Guard): rt.u32 => {
+		const part31 = option_map$1raha9y(rt.iterReduce(rt.vecIntoIter(guards(log, id, new rt.Range(17, 20)), rt.drop), first, true), (g20: Guard.Guard): rt.u32 => {
 			const _035: rt.u32 = Guard.id(g20);
 			g20[Symbol.dispose]();
 			return _035;
@@ -127,7 +127,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(none);
 	} else if (_6 === 1) {
 		const a2: Guard.Guard = guard(10);
-		const _93: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
+		const _93: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
 		const captured23 = a2;
 		const part24 = option_map$1raha9y(rt.iterMaxBy(_93, rt.closure((x: Guard.Guard, y: Guard.Guard): rt.Ordering => {
 			return rt.cmp(rt.u32Add(rt.u32Div(Guard.id(x), 2), Guard.id(captured23)), rt.u32Add(rt.u32Div(Guard.id(y), 2), Guard.id(captured23)));
@@ -141,7 +141,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part24, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["max ", args10[0]]));
 		const b2: Guard.Guard = guard(11);
-		const _113: rt.Iter<Guard.Guard> = rt.iterSlice(guards(log, id, new rt.Range(5, 8)), rt.drop);
+		const _113: rt.Iter<Guard.Guard> = rt.vecIntoIter(guards(log, id, new rt.Range(5, 8)), rt.drop);
 		const captured24 = b2;
 		const part25 = option_map$1raha9y(rt.iterMinBy(_113, rt.closure((x2: Guard.Guard, y2: Guard.Guard): rt.Ordering => {
 			return rt.cmp(rt.u32Add(rt.u32Div(Guard.id(x2), 2), Guard.id(captured24)), rt.u32Add(rt.u32Div(Guard.id(y2), 2), Guard.id(captured24)));
@@ -155,7 +155,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part25, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["min ", args12[0]]));
 		const c2: Guard.Guard = guard(12);
-		const _132: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
+		const _132: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
 		const captured25 = c2;
 		const none2: Guard.Guard | undefined = rt.iterMaxBy(_132, rt.closure((x3: Guard.Guard, y3: Guard.Guard): rt.Ordering => {
 			return rt.cmp(Guard.id(x3), rt.u32Add(Guard.id(y3), Guard.id(captured25)));
@@ -168,7 +168,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(none2);
 	} else if (_6 === 2) {
 		const a3: Guard.Guard = guard(10);
-		const _153: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
+		const _153: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(1, 5)), rt.drop), 3, rt.drop);
 		const captured19 = a3;
 		const part20 = option_map$1raha9y(rt.iterMaxByKey(_153, rt.closure((g9: Guard.Guard): rt.u32 => {
 			return rt.u32Add(rt.u32Div(Guard.id(g9), 2), Guard.id(captured19));
@@ -182,7 +182,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part20, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["max ", args16[0]]));
 		const b3: Guard.Guard = guard(11);
-		const _173: rt.Iter<Guard.Guard> = rt.iterSlice(guards(log, id, new rt.Range(5, 8)), rt.drop);
+		const _173: rt.Iter<Guard.Guard> = rt.vecIntoIter(guards(log, id, new rt.Range(5, 8)), rt.drop);
 		const captured20 = b3;
 		const part21 = option_map$1raha9y(rt.iterMinByKey(_173, rt.closure((g11: Guard.Guard): rt.u32 => {
 			return rt.u32Add(rt.u32Div(Guard.id(g11), 2), Guard.id(captured20));
@@ -196,7 +196,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part21, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["min ", args18[0]]));
 		const c3: Guard.Guard = guard(12);
-		const _192: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
+		const _192: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
 		const captured21 = c3;
 		const none3: Guard.Guard | undefined = rt.iterMinByKey(_192, rt.closure((g13: Guard.Guard): rt.u32 => {
 			return rt.u32Add(Guard.id(g13), Guard.id(captured21));
@@ -212,7 +212,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured22[Symbol.dispose]();
 		});
-		const part23 = option_map$1raha9y(rt.iterMaxByKey(rt.iterSlice(guards(log, id, new rt.Range(16, 18)), rt.drop), key, rt.lt, true, rt.drop), (g15: Guard.Guard): rt.u32 => {
+		const part23 = option_map$1raha9y(rt.iterMaxByKey(rt.vecIntoIter(guards(log, id, new rt.Range(16, 18)), rt.drop), key, rt.lt, true, rt.drop), (g15: Guard.Guard): rt.u32 => {
 			const _023: rt.u32 = Guard.id(g15);
 			g15[Symbol.dispose]();
 			return _023;
@@ -223,7 +223,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(none3);
 	} else if (_6 === 3) {
 		const a4: Guard.Guard = guard(10);
-		const _235: rt.Iter<Guard.Guard> = rt.iterSlice(guards(log, id, new rt.Range(1, 4)), rt.drop);
+		const _235: rt.Iter<Guard.Guard> = rt.vecIntoIter(guards(log, id, new rt.Range(1, 4)), rt.drop);
 		const captured15 = a4;
 		const part16 = rt.iterIsSortedBy(rt.iterMap(_235, rt.closure((g6: Guard.Guard): rt.u32 => {
 			const part15 = Guard.id(captured15);
@@ -239,7 +239,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part16, f)];
 		Log.note(log, rt.fmtFormat(["sorted ", args24[0]]));
 		const b4: Guard.Guard = guard(11);
-		const _253: rt.Iter<Guard.Guard> = rt.iterSlice(guards(log, id, new rt.Range(4, 8)), rt.drop);
+		const _253: rt.Iter<Guard.Guard> = rt.vecIntoIter(guards(log, id, new rt.Range(4, 8)), rt.drop);
 		const captured16 = b4;
 		const part17 = rt.iterIsSortedBy(rt.iterMap(_253, rt.closure((g7: Guard.Guard): rt.u32 => {
 			const _014: rt.u32 = rt.u32Rem(rt.u32Add(Guard.id(g7), Guard.id(captured16)), 3);
@@ -251,7 +251,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtBool(part17, f)];
 		Log.note(log, rt.fmtFormat(["unsorted ", args26[0]]));
 		const c4: Guard.Guard = guard(12);
-		const _271: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
+		const _271: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(guards(log, id, new rt.Range(13, 15)), rt.drop), 0, rt.drop);
 		const captured17 = c4;
 		const part18 = rt.iterIsSortedBy(rt.iterMap(_271, rt.closure((g8: Guard.Guard): rt.u32 => {
 			const _015: rt.u32 = rt.u32Add(Guard.id(g8), Guard.id(captured17));
@@ -430,7 +430,7 @@ export function released(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.btreeDrop(map2, undefined, rt.drop);
 	} else {
 		const a7: Guard.Guard = guard(10);
-		const _576: rt.Iter<Guard.Guard> = rt.iterSlice(guards(log, id, new rt.Range(1, 4)), rt.drop);
+		const _576: rt.Iter<Guard.Guard> = rt.vecIntoIter(guards(log, id, new rt.Range(1, 4)), rt.drop);
 		const captured = id;
 		const captured2 = a7;
 		rt.drop(rt.iterMaxByKey(_576, rt.closure((g: Guard.Guard): rt.u32 => {

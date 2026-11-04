@@ -1080,7 +1080,7 @@ export function flush(log: rt.Mutex<rt.ByteVec>, out: rt.ByteVec): void {
 export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let text!: string;
 	const number: rt.RefCell<rt.u32> = new rt.RefCell(0);
-	const nested: rt.RefCell<rt.RefCell<rt.u8 | undefined>[]> = new rt.RefCell([new rt.RefCell(0)]);
+	const nested: rt.RefCell<rt.Vec<rt.RefCell<rt.u8 | undefined>>> = new rt.RefCell(rt.vecFrom([new rt.RefCell(0)]));
 	const pair: rt.Cell<[rt.u8, rt.char]> = new rt.Cell([0, 97] as [rt.u8, rt.char]);
 	const shown: Shown.Shown = { cell: new rt.Cell(0), refcell: new rt.RefCell(new rt.ByteVec()) };
 	for (const op of rt.byteSliceView(data)) {
@@ -1103,16 +1103,16 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 			text = rt.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", rt.fmtSpec({ alternate: true }, args6[2]), " ", rt.fmtSpec({ align: ">", width: 16 }, args6[2]), " ", args6[3]]);
 			rt.refMutRelease(_held);
 		} else if (_25 === 1) {
-			const _75: rt.RefCell<rt.RefCell<rt.u8 | undefined>[]> = rt.refCellBorrowMut(nested);
+			const _75: rt.RefCell<rt.Vec<rt.RefCell<rt.u8 | undefined>>> = rt.refCellBorrowMut(nested);
 			const _77: rt.RefCell<rt.u8 | undefined> = new rt.RefCell(thenSome$0d5am30(rt.u8Rem(v, 3) !== 0, v));
-			_75.value.push(_77);
+			_75.value.items.push(_77);
 			rt.refMutRelease(_75);
-			const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(nested, f, (value: rt.RefCell<rt.u8 | undefined>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.RefCell<rt.u8 | undefined>, f: rt.Formatter) => rt.refCellDebug(value, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))))];
+			const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(nested, f, (value: rt.Vec<rt.RefCell<rt.u8 | undefined>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.RefCell<rt.u8 | undefined>, f: rt.Formatter) => rt.refCellDebug(value, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))))];
 			const free2: string = rt.fmtFormat([args8[0], " ", rt.fmtSpec({ alternate: true }, args8[0])]);
-			const cells: rt.RefCell<rt.RefCell<rt.u8 | undefined>[]> = rt.refCellBorrow(nested);
-			const _95: rt.RefCell<rt.u8 | undefined>[] = cells.value;
-			const _inner: rt.RefCell<rt.u8 | undefined> = rt.refCellBorrowMut(_95[rt.idx(_95, rt.usizeSub(cells.value.length, 1))]);
-			const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free2), (f: rt.Formatter) => rt.refCellDebug(nested, f, (value: rt.RefCell<rt.u8 | undefined>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.RefCell<rt.u8 | undefined>, f: rt.Formatter) => rt.refCellDebug(value, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))))];
+			const cells: rt.RefCell<rt.Vec<rt.RefCell<rt.u8 | undefined>>> = rt.refCellBorrow(nested);
+			const _95: rt.Vec<rt.RefCell<rt.u8 | undefined>> = cells.value;
+			const _inner: rt.RefCell<rt.u8 | undefined> = rt.refCellBorrowMut(_95.items[rt.idx(_95.items, rt.usizeSub(cells.value.items.length, 1))]);
+			const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free2), (f: rt.Formatter) => rt.refCellDebug(nested, f, (value: rt.Vec<rt.RefCell<rt.u8 | undefined>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.RefCell<rt.u8 | undefined>, f: rt.Formatter) => rt.refCellDebug(value, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))))];
 			text = rt.fmtFormat([args10[0], " ", args10[1], " ", rt.fmtSpec({ alternate: true }, args10[1])]);
 			rt.refMutRelease(_inner);
 			rt.refRelease(cells);
@@ -1127,9 +1127,9 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.refCellDebug(exclusive.value, f, rt.u8Debug), (f: rt.Formatter) => rt.refCellDebug(outer, f, (value: rt.RefCell<rt.u8>, f: rt.Formatter) => rt.refCellDebug(value, f, rt.u8Debug)), (f: rt.Formatter) => rt.u8Debug(inner.value, f)];
 			const held: string = rt.fmtFormat([args14[0], " ", rt.fmtSpec({ alternate: true }, args14[0]), " ", args14[1], " ", args14[2]]);
 			rt.refMutRelease(inner);
-			const _146: rt.RefCell<rt.RefCell<rt.u8 | undefined>[]> = rt.refCellBorrow(nested);
-			const last: rt.RefCell<rt.RefCell<rt.u8 | undefined>> = rt.refMap(_146, ((n: rt.RefCell<rt.u8 | undefined>[]): rt.RefCell<rt.u8 | undefined> => {
-				return n[rt.idx(n, 0)];
+			const _146: rt.RefCell<rt.Vec<rt.RefCell<rt.u8 | undefined>>> = rt.refCellBorrow(nested);
+			const last: rt.RefCell<rt.RefCell<rt.u8 | undefined>> = rt.refMap(_146, ((n: rt.Vec<rt.RefCell<rt.u8 | undefined>>): rt.RefCell<rt.u8 | undefined> => {
+				return n.items[rt.idx(n.items, 0)];
 			})(_146.value));
 			const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free3), (f: rt.Formatter) => rt.fmtPad(f, held), (f: rt.Formatter) => rt.refCellDebug(exclusive.value, f, rt.u8Debug), (f: rt.Formatter) => rt.refCellDebug(last.value, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug))];
 			text = rt.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " ", args16[3]]);

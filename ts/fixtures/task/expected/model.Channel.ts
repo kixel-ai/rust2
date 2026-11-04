@@ -6,16 +6,16 @@ import * as Producer from "./kio.Producer.ts";
 
 /** A channel's open producers, and a consumer to clone for each task. */
 export class Channel {
-	producers: Producer.Producer[];
+	producers: rt.Vec<Producer.Producer>;
 	consumer: Consumer.Consumer;
 
-	constructor(producers: Producer.Producer[], consumer: Consumer.Consumer) {
+	constructor(producers: rt.Vec<Producer.Producer>, consumer: Consumer.Consumer) {
 		this.producers = producers;
 		this.consumer = consumer;
 	}
 
 	[Symbol.dispose](): void {
-		rt.dropAll(this.producers);
+		rt.dropVec(this.producers);
 		this.consumer[Symbol.dispose]();
 	}
 }
@@ -23,8 +23,8 @@ export class Channel {
 export function open(): Channel {
 	const producer: Producer.Producer = Producer.new();
 	const consumer: Consumer.Consumer = Producer.consume(producer);
-	const producers: Producer.Producer[] = [];
-	producers.push(producer);
+	const producers: rt.Vec<Producer.Producer> = new rt.Vec();
+	producers.items.push(producer);
 	return new Channel(producers, consumer);
 }
 
@@ -35,7 +35,7 @@ export function consumer(self: Channel): Consumer.Consumer {
 
 /** Send `value` through the first producer, if one is open. */
 export function send(self: Channel, value: rt.u64): boolean {
-	const _3: Producer.Producer | undefined = rt.sliceFirst(rt.sliceFrom(self.producers));
+	const _3: Producer.Producer | undefined = rt.sliceFirst(rt.sliceFrom(self.producers.items));
 	if (_3 === undefined) {
 		return false;
 	}
@@ -45,7 +45,7 @@ export function send(self: Channel, value: rt.u64): boolean {
 
 /** Drop the last producer, if one is open: the last closes the channel. */
 export function close(self: Channel): boolean {
-	const _2: Producer.Producer | undefined = self.producers.pop();
+	const _2: Producer.Producer | undefined = rt.vecPop(self.producers);
 	if (_2 === undefined) {
 		return false;
 	}
@@ -55,12 +55,12 @@ export function close(self: Channel): boolean {
 
 /** Open another producer, if one is open to clone. */
 export function cloneProducer(self: Channel): boolean {
-	const _3: Producer.Producer | undefined = rt.sliceFirst(rt.sliceFrom(self.producers));
+	const _3: Producer.Producer | undefined = rt.sliceFirst(rt.sliceFrom(self.producers.items));
 	if (_3 === undefined) {
 		return false;
 	}
 	const clone: Producer.Producer = Producer.clone$Clone(_3);
-	self.producers.push(clone);
+	self.producers.items.push(clone);
 	return true;
 }
 

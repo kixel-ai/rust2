@@ -9,8 +9,8 @@ import { map as maps_map, table, capacity, linked, linkedIters, nested, ownHashe
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
  * case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] {
-	return [["slices", (a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["slices", (a0: rt.ByteSlice, a1: rt.ByteVec): undefined => {
 		slices(a0.data, a0.start, a0.length, a1);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["made", (a02: rt.ByteSlice, a12: rt.ByteVec): undefined => {
 		made(a02.data, a02.start, a02.length, a12);
@@ -36,7 +36,7 @@ export function cases(): [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefine
 		nested(a012.data, a012.start, a012.length, a112);
 	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::late", late as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_hasher", ownHasher as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::own_from_iter", ownFromIter as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::equal", equal as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["maps::default_hasher", defaultHasher as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::reclaims", (a013: rt.ByteSlice, a113: rt.ByteVec): undefined => {
 		reclaims(a013.data, a013.start, a013.length, a113);
-	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::vec_spares", vecSpares as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined], ["buf::vec_spares", vecSpares as (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined] as [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]]);
 }
 
 /** Run one case. */
@@ -44,8 +44,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	const out: rt.ByteVec = new rt.ByteVec();
 	if (input.length !== 0) {
 		const op: rt.u8 = input.data[input.start];
-		const cases_: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined][] = cases();
-		cases_[rt.idx(cases_, rt.usizeRem(op as rt.usize, cases_.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
+		const cases_: rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> = cases();
+		cases_.items[rt.idx(cases_.items, rt.usizeRem(op as rt.usize, cases_.items.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
 		return out;
 	}
 	return out;
@@ -53,7 +53,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rt.u8 {
-	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cases()))), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
+	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cases().items))), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
 		return _22[0] === name;
 	});
 	if (_2 === undefined) {

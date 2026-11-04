@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -363,9 +363,16 @@ export function iterFromOption<T>(option: T | undefined | None, none?: None): T 
 
 // Where std's iterators come from.
 
-/** `slice::Iter`, and with what drops each item, what iterating a `Vec` or array by value makes. */
+/** `slice::Iter`, and with what drops each item, what iterating an array by value makes. */
 export function iterSlice<T>(s: ArrayLike<T>, drop?: Drop<T>): Iter<T> {
 	return new SliceIter(s, drop);
+}
+
+/** `Vec::into_iter`, with what drops each item: over its items, keeping its buffer, which a `collect` in place or into a deque takes. */
+export function vecIntoIter<T>(v: Vec<T>, drop?: Drop<T>): Iter<T> {
+	const it = new SliceIter(v.items, drop);
+	it.v = v;
+	return it;
 }
 
 /** `Vec<u8>::into_iter`: over the vector's whole buffer, whose length is its capacity, which a deque collected from it keeps. */
@@ -654,7 +661,7 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: Slice<V>, size: number, sep?: Slice<T>, slice?: (item: V) => Slice<T>, clone?: (item: T) => T): T[] {
+export function slicesJoin<V, T>(items: Slice<V>, size: number, sep?: Slice<T>, slice?: (item: V) => Slice<T>, clone?: (item: T) => T): Vec<T> {
 	const all = sliceItems(items);
 	const parts = slice === undefined ? (all as unknown as readonly Slice<T>[]) : all.map(slice);
 	// std's makes one with room for exactly them.
@@ -703,24 +710,25 @@ function joinedLength(parts: readonly { length: number }[], sep: { length: numbe
  * `size` bytes each, reserves as std's does for a `trusted`, `TrustedLen`, iterator or any
  * other.
  */
-export function iterExtend<T>(v: T[] & Capped, items: Iter<T>, take?: Take, size?: number, trusted = false): T[] {
+export function iterExtend<T>(v: Vec<T>, items: Iter<T>, take?: Take, size?: number, trusted = false): Vec<T> {
+	const d = v.items;
 	if (size !== undefined && !trusted) {
 		let cap = vecCapacity(v, size);
 		for (let item = items.next(); item !== DONE; item = items.next()) {
-			if (v.length === cap) cap = capNext(items, v.length, cap, size);
-			v.push(item);
+			if (d.length === cap) cap = capNext(items, d.length, cap, size);
+			d.push(item);
 		}
-		capSet(v, v.length, cap, size);
+		vecHold(v, cap);
 		if (take !== undefined) dispose(items);
 		return v;
 	}
-	if (size !== undefined) capSet(v, v.length, capReserve(v.length, vecCapacity(v, size), trustedUpper(items), size), size);
+	if (size !== undefined) vecHold(v, capReserve(d.length, vecCapacity(v, size), trustedUpper(items), size));
 	if (take === undefined) {
 		const folded = items.folded(trusted);
-		for (let item = folded.next(); item !== DONE; item = folded.next()) v.push(item);
+		for (let item = folded.next(); item !== DONE; item = folded.next()) d.push(item);
 		return v;
 	}
-	each(items, (item) => v.push(item), take);
+	each(items, (item) => d.push(item), take);
 	return v;
 }
 
@@ -1610,46 +1618,45 @@ function keptCapacity(it: Iter<unknown>, src: number, size: number): number | un
 		from = wraps.inner ?? wraps.a ?? wraps.outer;
 	}
 	if (from === undefined) return undefined;
-	const s = from.s as ArrayLike<unknown> & Capped;
-	const cap = s instanceof Uint8Array ? s.length : vecCapacity(s as unknown[] & Capped, src);
+	const cap = from.v === undefined ? from.s.length : vecCapacity(from.v, src);
 	if (from !== it) return Math.floor((cap * src) / size);
 	const left = from.back - from.front;
 	return from.front === 0 || left >= Math.floor(cap / 2) ? cap : capReserve(0, 0, left, size);
 }
 
 /** `collect` into a `Vec`, as `iterExtend` of an empty one, in place of a `Vec` of `src`-byte elements if given. */
-export function iterToArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false, src?: number): T[] {
+export function iterToVec<T>(it: Iter<T>, take?: Take, size?: number, trusted = false, src?: number): Vec<T> {
 	const kept = src === undefined || size === undefined ? undefined : keptCapacity(it, src, size);
 	const out = toArray(it, take, size, trusted);
-	if (kept !== undefined) capHold(out, kept, size!);
+	if (kept !== undefined) vecHold(out, kept);
 	return out;
 }
 
-function toArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): T[] {
+function toArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): Vec<T> {
 	if (size !== undefined && !trusted) {
-		const out: T[] = [];
+		const d: T[] = [];
 		// std's reads the size hint once it has the first item, zero-sized ones' included,
 		// whose capacity is then `usize::MAX`.
 		let cap = 0;
 		for (let item = it.next(); item !== DONE; item = it.next()) {
-			if (out.length === cap && size === 0) {
+			if (d.length === cap && size === 0) {
 				it.sizeHint();
 				cap = USIZE_MAX;
-			} else if (out.length === cap) cap = capNext(it, out.length, cap, size);
-			out.push(item);
+			} else if (d.length === cap) cap = capNext(it, d.length, cap, size);
+			d.push(item);
 		}
-		capSet(out, out.length, cap, size);
 		if (take !== undefined) dispose(it);
-		return out;
+		return new Vec(d, cap);
 	}
 	// std's makes one with room for exactly the upper bound.
-	const out = size === undefined ? [] : vecWithCapacity<T>(trustedUpper(it), size);
+	const out = size === undefined ? new Vec<T>() : vecWithCapacity<T>(trustedUpper(it), size);
+	const d = out.items;
 	if (take === undefined) {
 		const folded = it.folded(trusted);
-		for (let item = folded.next(); item !== DONE; item = folded.next()) out.push(item);
+		for (let item = folded.next(); item !== DONE; item = folded.next()) d.push(item);
 		return out;
 	}
-	each(it, (item) => out.push(item), take);
+	each(it, (item) => d.push(item), take);
 	return out;
 }
 
@@ -1912,6 +1919,8 @@ function flattenFold<T, V, A>(it: FlattenIter<T, V>, back: boolean, acc: A, g: (
 
 class SliceIter<T> extends Iter<T> implements Disposable {
 	readonly s: ArrayLike<T>;
+	/** The `Vec` whose items `s` is, as its `into_iter`, whose capacity a `collect` in place keeps. */
+	v: Vec<T> | undefined;
 	front = 0;
 	back: number;
 	/** What drops each item it still holds, if it owns them. */
@@ -1947,10 +1956,9 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 	/** std's: what it has left, each cloned in order by `h.v` into storage of its own, of exactly their capacity, or else shared. */
 	override clone(h?: Clones): Iter<T> {
 		if (h?.v !== undefined) {
-			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[] & Capped;
+			const items = Array.prototype.slice.call(this.s, this.front, this.back) as T[];
 			for (let i = 0; i < items.length; i++) items[i] = cloned(items[i], h.v);
-			items.cap = items.length;
-			return new SliceIter(items, this.drop);
+			return vecIntoIter(vecFrom(items), this.drop);
 		}
 		const it = new SliceIter(this.s, this.drop);
 		it.front = this.front;

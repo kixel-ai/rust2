@@ -525,7 +525,7 @@ fn api_python() {
 		api.transcript,
 		"the Python transcript differs from the native one"
 	);
-	for case in ["futures", "owned", "values"] {
+	for case in ["futures", "owned", "values", "calls"] {
 		run(&mut python(&dir, &[case]));
 	}
 	for (case, message) in [

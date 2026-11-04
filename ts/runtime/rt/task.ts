@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -19,6 +19,11 @@ export function drop(value: unknown): void {
 export function dropAll<T>(values: ArrayLike<T> | Slice<T> | undefined, f: (value: T) => void = drop, from = 0): void {
 	if (values instanceof Slice) dropRange(values.data, f, values.start + from, values.start + values.length);
 	else if (values !== undefined) dropRange(values, f, from, values.length);
+}
+
+/** Drop every item of `v` in order, as `dropAll` does. */
+export function dropVec<T>(v: Vec<T> | undefined, f: (value: T) => void = drop): void {
+	if (v !== undefined) dropRange(v.items, f, 0, v.items.length);
 }
 
 /** Drop `values[from..to]` as `dropAll` does. */
@@ -756,7 +761,7 @@ export function partPlace<T extends object>(part: T): Place<T> {
 	return place(
 		() => part,
 		(value) => {
-			if (Array.isArray(part)) vecAssign(part, value as unknown[]);
+			if (Array.isArray(part)) arrayAssign(part, value as unknown[]);
 			else ptrWrite(part, value);
 		},
 	);

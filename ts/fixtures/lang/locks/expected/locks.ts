@@ -866,7 +866,7 @@ export function held$u32(lock: rt.RefCell<rt.u32>): rt.u8 {
 export function shown(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let text!: string;
 	const mutex: rt.Arc<rt.Mutex<rt.u8>> = new rt.Arc(new rt.Mutex(0));
-	const lock: rt.RefCell<rt.Mutex<rt.char>[]> = new rt.RefCell([new rt.Mutex(97)]);
+	const lock: rt.RefCell<rt.Vec<rt.Mutex<rt.char>>> = new rt.RefCell(rt.vecFrom([new rt.Mutex(97)]));
 	for (const op of rt.byteSliceView(data)) {
 		const v: rt.u8 = rt.u8Div(op, 5);
 		const _18: rt.u8 = rt.u8Rem(op, 5);
@@ -881,24 +881,24 @@ export function shown(data: rt.ByteSlice, out: rt.ByteVec): void {
 			text = rt.fmtFormat([args4[0], " ", args4[1], " ", rt.fmtSpec({ alternate: true }, args4[1]), " ", rt.fmtSpec({ align: ">", width: 12 }, args4[1])]);
 			rt.mutexUnlock(_held);
 		} else if (_18 === 1) {
-			const _52: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockWrite(lock);
+			const _52: rt.RefCell<rt.Vec<rt.Mutex<rt.char>>> = rt.rwLockWrite(lock);
 			const _55: rt.Mutex<rt.char> = new rt.Mutex(rt.u8Add(97, rt.u8Rem(v, 26)) as rt.char);
-			_52.value.push(_55);
+			_52.value.items.push(_55);
 			rt.refMutRelease(_52);
-			const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
+			const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Vec<rt.Mutex<rt.char>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			const free2: string = rt.fmtFormat([args6[0], " ", rt.fmtSpec({ alternate: true }, args6[0])]);
-			const read: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockRead(lock);
-			const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
+			const read: rt.RefCell<rt.Vec<rt.Mutex<rt.char>>> = rt.rwLockRead(lock);
+			const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Vec<rt.Mutex<rt.char>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			const shared: string = rt.fmtFormat([args8[0]]);
-			const _85: rt.Mutex<rt.char>[] = read.value;
-			const _held2: rt.Mutex<rt.char> = rt.mutexLock(_85[rt.idx(_85, 0)]);
-			const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free2), (f: rt.Formatter) => rt.fmtPad(f, shared), (f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
+			const _85: rt.Vec<rt.Mutex<rt.char>> = read.value;
+			const _held2: rt.Mutex<rt.char> = rt.mutexLock(_85.items[rt.idx(_85.items, 0)]);
+			const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, free2), (f: rt.Formatter) => rt.fmtPad(f, shared), (f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Vec<rt.Mutex<rt.char>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			text = rt.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", rt.fmtSpec({ alternate: true }, args10[2])]);
 			rt.mutexUnlock(_held2);
 			rt.refRelease(read);
 		} else if (_18 === 2) {
-			const _held3: rt.RefCell<rt.Mutex<rt.char>[]> = rt.rwLockWrite(lock);
-			const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Mutex<rt.char>[], f: rt.Formatter) => rt.fmtList(value, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
+			const _held3: rt.RefCell<rt.Vec<rt.Mutex<rt.char>>> = rt.rwLockWrite(lock);
+			const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.rwLockDebug(lock, f, (value: rt.Vec<rt.Mutex<rt.char>>, f: rt.Formatter) => rt.fmtList(value.items, f, (value: rt.Mutex<rt.char>, f: rt.Formatter) => rt.mutexDebug(value, f, rt.fmtCharDebug)))];
 			text = rt.fmtFormat([args12[0], " ", rt.fmtSpec({ alternate: true }, args12[0]), " ", rt.fmtSpec({ align: ">", width: 12 }, args12[0])]);
 			rt.refMutRelease(_held3);
 		} else if (_18 === 3) {

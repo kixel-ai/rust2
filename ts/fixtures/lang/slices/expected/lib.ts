@@ -37,16 +37,16 @@ export function copy$slices_Pair(v: Pair.Pair): Pair.Pair {
 	return { a: v.a, b: v.b };
 }
 
-export function drop$tuple2_Vec_slices_Noisy_Vec_u8(_1: [Noisy.Noisy[], rt.ByteVec]): void {
-	rt.dropAll(_1[0]);
+export function drop$tuple2_Vec_slices_Noisy_Vec_u8(_1: [rt.Vec<Noisy.Noisy>, rt.ByteVec]): void {
+	rt.dropVec(_1[0]);
 }
 
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["slices::parts", parts as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::drains", drains as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::chunked", chunked as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::subslices", subslices as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::ranges", ranges as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::edits", edits as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::arrays", arrays as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::arrays_mut", arraysMut as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["slices::parts", parts as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::drains", drains as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::chunked", chunked as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::subslices", subslices as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::ranges", ranges as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::edits", edits as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::arrays", arrays as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["slices::arrays_mut", arraysMut as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

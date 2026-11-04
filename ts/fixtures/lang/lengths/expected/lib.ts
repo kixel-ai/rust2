@@ -290,8 +290,8 @@ export function copy$tuple2_u8_u8(v: [rt.u8, rt.u8]): [rt.u8, rt.u8] {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["lengths::lengths", lengths as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["lengths::lengths", lengths as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

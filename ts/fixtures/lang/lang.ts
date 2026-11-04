@@ -15,7 +15,7 @@ export function op(name: string): number[] {
 }
 
 /** Each case's name and the bytes that pick it, through `op`, which panics for one past what two bytes pick. */
-export const ops = new Map(cases().map(([name]): [string, Uint8Array] => [name, Uint8Array.from(op(name))]));
+export const ops = new Map(cases().items.map(([name]): [string, Uint8Array] => [name, Uint8Array.from(op(name))]));
 
 /** Which case the first two bytes of `input` pick. */
 export function picked(input: Uint8Array): number {

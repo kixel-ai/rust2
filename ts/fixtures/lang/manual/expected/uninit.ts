@@ -44,7 +44,7 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteVecSlice(vec))), (b3: rt.u8): rt.u8 => {
 		return b3;
 	}), undefined, true);
-	const wide: rt.u16[] = rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data, 2), (c: rt.ByteSlice): rt.u16 => {
+	const wide: rt.Vec<rt.u16> = rt.iterToVec(rt.iterMap(rt.byteSliceChunks(data, 2), (c: rt.ByteSlice): rt.u16 => {
 		return rt.iterFold(rt.iterSlice(rt.byteSliceView(c)), 0, (w: rt.u16, _311: rt.u8): rt.u16 => {
 			return ((w << 8) & 0xffff) | _311 as rt.u16;
 		});
@@ -53,9 +53,9 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const words: rt.u16[] = Array.from({ length: 4 }, (): rt.u16 => {
 		return _79;
 	});
-	const k: rt.usize = rt.min(wide.length, rt.sliceFrom(words).length);
+	const k: rt.usize = rt.min(wide.items.length, rt.sliceFrom(words).length);
 	const _88: rt.Slice<rt.u16> = rt.sliceRange(rt.sliceFrom(words), 0, k);
-	const slice2 = rt.sliceFrom(wide);
+	const slice2 = rt.sliceFrom(wide.items);
 	const dst2 = _88;
 	rt.sliceCopyFromSlice(dst2, rt.sliceRange(slice2, 0, k));
 	const _86: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(dst2);
@@ -91,7 +91,7 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 			dst5;
 		} else if (_155 === 255) {
 			const _164: rt.Slice<rt.u16> = rt.sliceRange(rt.sliceFrom(words), 0, 1);
-			const slice5 = rt.sliceFrom(wide);
+			const slice5 = rt.sliceFrom(wide.items);
 			const dst4 = _164;
 			rt.sliceCopyFromSlice(dst4, rt.sliceRange(slice5, 0, 0));
 			dst4;

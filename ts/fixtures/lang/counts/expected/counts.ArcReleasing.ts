@@ -9,10 +9,10 @@ import { drop$cell_RefCell_Vec_sync_Arc_counts_ArcReleasing } from "./lib.ts";
  */
 export class ArcReleasing {
 	id: rt.u8;
-	others: rt.Arc<rt.RefCell<rt.Arc<ArcReleasing>[]>>;
+	others: rt.Arc<rt.RefCell<rt.Vec<rt.Arc<ArcReleasing>>>>;
 	log: rt.Arc<rt.RefCell<rt.ByteVec>>;
 
-	constructor(id: rt.u8, others: rt.Arc<rt.RefCell<rt.Arc<ArcReleasing>[]>>, log: rt.Arc<rt.RefCell<rt.ByteVec>>) {
+	constructor(id: rt.u8, others: rt.Arc<rt.RefCell<rt.Vec<rt.Arc<ArcReleasing>>>>, log: rt.Arc<rt.RefCell<rt.ByteVec>>) {
 		this.id = id;
 		this.others = others;
 		this.log = log;
@@ -26,7 +26,7 @@ export class ArcReleasing {
 }
 
 export function clone$Clone(self: ArcReleasing): ArcReleasing {
-	const _5: rt.RefCell<rt.Arc<ArcReleasing>[]> = rt.refCellBorrowMut(self.others.value);
+	const _5: rt.RefCell<rt.Vec<rt.Arc<ArcReleasing>>> = rt.refCellBorrowMut(self.others.value);
 	rt.vecTruncate(_5.value, 0, rt.drop);
 	rt.refMutRelease(_5);
 	return new ArcReleasing(rt.u8WrappingAdd(self.id, 1), rt.arcClone(self.others), rt.arcClone(self.log));

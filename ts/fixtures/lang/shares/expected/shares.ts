@@ -344,16 +344,16 @@ export function bytes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 
 /** `u16`s, each way, written, compared, and counted. */
 export function wides(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
-	const wide: rt.u16[] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 0, rt.usizeRem(kind >> 3 as rt.usize, rt.usizeAdd(data.length, 1))))), (_2: rt.u8): rt.u16 => {
+	const wide: rt.Vec<rt.u16> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(rt.byteSliceRange(data, 0, rt.usizeRem(kind >> 3 as rt.usize, rt.usizeAdd(data.length, 1))))), (_2: rt.u8): rt.u16 => {
 		return rt.u16Mul(_2 as rt.u16, 257);
 	}), undefined, 2, true);
-	const fromRef: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.sliceToArray(rt.sliceFrom(wide))));
-	const fromVec: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.vecExact(wide.slice(), 2)));
-	const fromBox: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.vecExact(wide.slice(), 2)));
+	const fromRef: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.sliceToArray(rt.sliceFrom(wide.items))));
+	const fromVec: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.vecFrom(wide.items.slice()).items));
+	const fromBox: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.vecFrom(wide.items.slice()).items));
 	const fromArray: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom([1, 2, 768]));
-	const collected: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(wide))), (_23: rt.u16): rt.u16 => {
+	const collected: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(wide.items))), (_23: rt.u16): rt.u16 => {
 		return rt.intRotateLeft(_23, 3, 16, false);
-	}), undefined, 2, true)));
+	}), undefined, 2, true).items));
 	const empty: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom([]));
 	const iter: rt.Iter<rt.Arc<rt.Slice<rt.u16>>> = rt.iterSlice([fromRef, fromBox, fromArray, collected]);
 	while (true) {
@@ -413,15 +413,15 @@ export function wides(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
  */
 export function copies(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const data2: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeRem(kind >> 3 as rt.usize, rt.usizeAdd(data.length, 1)));
-	const source: [rt.u8, rt.u16][] = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): [rt.u8, rt.u16] => {
+	const source: rt.Vec<[rt.u8, rt.u16]> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): [rt.u8, rt.u16] => {
 		const b: rt.u8 = _2;
 		return [b, ((b as rt.u16) << 4) & 0xffff] as [rt.u8, rt.u16];
 	}), undefined, 4, true);
-	const fromRef: rt.Arc<rt.Slice<[rt.u8, rt.u16]>> = new rt.Arc(rt.sliceFrom(rt.sliceItems(rt.sliceFrom(source)).map(copy$tuple2_u8_u16)));
-	const fromVec: rt.Arc<rt.Slice<[rt.u8, rt.u16]>> = new rt.Arc(rt.sliceFrom(rt.vecExact(source.map(copy$tuple2_u8_u16), 4)));
+	const fromRef: rt.Arc<rt.Slice<[rt.u8, rt.u16]>> = new rt.Arc(rt.sliceFrom(rt.sliceItems(rt.sliceFrom(source.items)).map(copy$tuple2_u8_u16)));
+	const fromVec: rt.Arc<rt.Slice<[rt.u8, rt.u16]>> = new rt.Arc(rt.sliceFrom(rt.vecFrom(source.items.map(copy$tuple2_u8_u16)).items));
 	const p: [rt.u8, rt.u16] = [option_unwrapOr$0r2bmpr(rt.byteSliceFirst(data2), 5), 6];
 	const twins: rt.Arc<rt.Slice<[rt.u8, rt.u16]>> = new rt.Arc(rt.sliceFrom([copy$tuple2_u8_u16(p), copy$tuple2_u8_u16(p)]));
-	const iter: rt.Iter<[rt.u8, rt.u16]> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(source)));
+	const iter: rt.Iter<[rt.u8, rt.u16]> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(source.items)));
 	while (true) {
 		const _35: [rt.u8, rt.u16] | rt.Done = iter.next();
 		if (_35 === rt.DONE) {
@@ -432,7 +432,7 @@ export function copies(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _39: rt.Slice<[rt.u8, rt.u16]> = rt.optionExpect(rt.arcGetMut(twins), "alone");
 	rt.idx(_39, 0);
 	_39.data[_39.start][0] = _39.data[_39.start][0] ^ 1;
-	pairs(rt.sliceFrom(source), out);
+	pairs(rt.sliceFrom(source.items), out);
 	pairs(fromRef.value, out);
 	pairs(fromVec.value, out);
 	pairs(twins.value, out);
@@ -446,12 +446,12 @@ export function copies(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	pairs(shared.value, out);
 	pairs(fromRef.value, out);
-	const quads: rt.Arc<rt.Slice<Uint8Array>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.byteSliceChunksExact(data2, 2), (c: rt.ByteSlice): Uint8Array => {
+	const quads: rt.Arc<rt.Slice<Uint8Array>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.byteSliceChunksExact(data2, 2), (c: rt.ByteSlice): Uint8Array => {
 		rt.idx(c, 0);
 		const _3: rt.u8 = c.data[c.start];
 		rt.idx(c, 1);
 		return Uint8Array.of(_3, c.data[c.start + 1]);
-	}), undefined, 2, true)));
+	}), undefined, 2, true).items));
 	let copy: rt.Arc<rt.Slice<Uint8Array>> = rt.arcClone(quads);
 	const _79: rt.ByteSlice | undefined = rt.optionMap(rt.sliceFirst(rt.arcMakeMut(rt.place(() => copy, (value2) => copy = value2), (a02: rt.Slice<Uint8Array>): rt.Slice<Uint8Array> => {
 		return rt.sliceFrom(rt.sliceItems(a02).map(copy$array_u8));
@@ -487,9 +487,9 @@ export function drops(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const logged: (a0: rt.u8) => Logged.Logged = (id: rt.u8): Logged.Logged => {
 		return new Logged.Logged(id, rt.arcClone(log));
 	};
-	const shared: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): Logged.Logged => {
+	const shared: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): Logged.Logged => {
 		return logged(_2 & 126);
-	}), undefined, 8, true)));
+	}), undefined, 8, true).items));
 	ids(shared.value, out);
 	flush(log.value, out);
 	const twin: rt.Arc<rt.Slice<Logged.Logged>> = rt.arcClone(shared);
@@ -506,13 +506,13 @@ export function drops(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	drop$Option_Rc_slice_shares_Logged(_58);
 	weak[Symbol.dispose]();
 	flush(log.value, out);
-	const collected: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_24: rt.u8): Logged.Logged => {
+	const collected: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_24: rt.u8): Logged.Logged => {
 		return logged(_24 | 1);
-	}), undefined, 8, true)));
+	}), undefined, 8, true).items));
 	ids(collected.value, out);
 	const fromBox: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom([logged(16), logged(18)]));
 	const fromArray: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom([logged(20)]));
-	const cow: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.cowIntoOwned(new rt.Borrowed(fromRef.value), 8, Logged.clone$Clone)));
+	const cow: rt.Arc<rt.Slice<Logged.Logged>> = new rt.Arc(rt.sliceFrom(rt.cowIntoOwned(new rt.Borrowed(fromRef.value), Logged.clone$Clone).items));
 	flush(log.value, out);
 	rt.arcDrop(fromArray, drop$slice_shares_Logged);
 	rt.arcDrop(collected, drop$slice_shares_Logged);
@@ -658,7 +658,7 @@ export function generics(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const logged: (a0: rt.u8) => Logged.Logged = (id: rt.u8): Logged.Logged => {
 		return new Logged.Logged(id, rt.arcClone(log));
 	};
-	const items: Shared.Shared<Logged.Logged> = Shared.new$shares_Logged(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_23: rt.u8): Logged.Logged => {
+	const items: Shared.Shared<Logged.Logged> = Shared.new$shares_Logged(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_23: rt.u8): Logged.Logged => {
 		return logged(_23 & 126);
 	}), undefined, 8, true));
 	const kept: Shared.Shared<Logged.Logged> = Shared.clone$Clone_shares_Logged(items);
@@ -687,13 +687,13 @@ export function generics(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
  */
 export function keys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const data2: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.usizeRem(kind >> 3 as rt.usize, rt.usizeAdd(data.length, 1)));
-	const words: string[] = rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data2, 2), text), undefined, 12, true);
-	const _19: rt.Iter<rt.Arc<string>> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words))), (w: string): rt.Arc<string> => {
+	const words: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.byteSliceChunks(data2, 2), text), undefined, 12, true);
+	const _19: rt.Iter<rt.Arc<string>> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words.items))), (w: string): rt.Arc<string> => {
 		return new rt.Arc(w);
 	});
 	const interned: rt.HashSet<rt.Arc<string>> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashArc(rt.hashStr), rt.eqArc(rt.same, true))) as rt.HashSet<rt.Arc<string>>, _19, rt.drop, undefined, 117440512);
 	rt.byteVecPush(out, rt.hashLen(interned) & 0xff);
-	for (const _30 of words) {
+	for (const _30 of words.items) {
 		rt.byteVecPush(out, rt.hashContains(interned, new rt.Arc(_30)) ? 1 : 0);
 		rt.byteVecPush(out, option_mapOr$03siheh(rt.hashKey(interned, new rt.Arc(_30)), 0, (k: rt.Arc<string>): rt.u8 => {
 			return k.strong & 0xff;
@@ -721,12 +721,12 @@ export function keys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		rt.byteVecPush(out, option_unwrapOr$0r2bmpr(rt.hashGet(counted, new rt.Arc(_65)), 0));
 	}
-	const fromIter: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): rt.u16 => {
+	const fromIter: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data2)), (_2: rt.u8): rt.u16 => {
 		return rt.u16Add(_2 as rt.u16, 1);
-	}), undefined, 2, true)));
+	}), undefined, 2, true).items));
 	putWides(fromIter.value, out);
 	putWides(fromIter.value, out);
-	const text_: rt.Arc<string> = new rt.Arc(rt.strsJoin(rt.sliceItems(rt.sliceFrom(words)), ""));
+	const text_: rt.Arc<string> = new rt.Arc(rt.strsJoin(rt.sliceItems(rt.sliceFrom(words.items)), ""));
 	put(out, text_.value);
 	put(out, text_.value);
 	let slot: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data2)));
@@ -751,9 +751,9 @@ export function keys(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 export function addresses(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _48!: boolean;
 	let _52: boolean = false;
-	let wide: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToArray(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u16 => {
+	let wide: rt.Arc<rt.Slice<rt.u16>> = new rt.Arc(rt.sliceFrom(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u16 => {
 		return ((_2 as rt.u16) << 4) & 0xffff;
-	}), undefined, 2, true)));
+	}), undefined, 2, true).items));
 	let bytes: rt.Arc<rt.ByteSlice> = new rt.Arc(rt.byteSliceFrom(rt.byteSliceToArray(data)));
 	const other: [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>] | undefined = then$19c383r(rt.u8Rem(kind, 3) === 1, (): [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>] => {
 		return [rt.arcClone(wide), rt.arcClone(bytes)] as [rt.Arc<rt.Slice<rt.u16>>, rt.Arc<rt.ByteSlice>];

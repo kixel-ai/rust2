@@ -305,7 +305,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if !(ty.has_param() || ty.has_aliases()) || !self.drops(ty) {
 			return true;
 		}
-		if let Some(elem) = self.elements(ty) {
+		if let Some((elem, _)) = self.elements(ty) {
 			return self.uniform(elem);
 		}
 		if self.disposable(ty, None) {
@@ -406,12 +406,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return None;
 		}
 		// An array or `Vec`, or one in an `Option` or a box, which is it or `undefined`.
-		if let Some(elem) = self.elements(ty) {
+		if let Some((elem, vec)) = self.elements(ty) {
 			let mut args = vec![value];
 			if !self.disposable(elem, Some(span)) {
 				args.push(self.drop_fn(elem, span)?);
 			}
-			return Some(Expr::rt("dropAll", args));
+			return Some(Expr::rt(if vec { "dropVec" } else { "dropAll" }, args));
 		}
 		if self.disposable(ty, Some(span)) {
 			return Some(match self.always_disposes(ty) {
@@ -609,12 +609,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The elements of an array, slice, or `Vec` that `ty` is, or holds in an `Option` or a box,
-	/// whose JS value is the array or `undefined`.
-	fn elements(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	/// whose JS value is the array or `rt.Vec`, as the second says, or `undefined`.
+	fn elements(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => Some(*elem),
+			ty::Array(elem, _) | ty::Slice(elem) => Some((*elem, false)),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did())? {
-				Std::Vec => Some(args.type_at(0)),
+				Std::Vec => Some((args.type_at(0), true)),
 				Std::Option if self.erases_to(args.type_at(0)).undefined => None,
 				Std::Option
 				| Std::Box

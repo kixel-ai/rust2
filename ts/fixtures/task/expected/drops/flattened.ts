@@ -8,31 +8,31 @@ import * as Log from "../log.Log.ts";
 import * as Guard from "../model.Guard.ts";
 
 /** Three `Vec`s of guards, of 3, 2, and 3, numbered from `n`. */
-export function nested(log: Log.Log, id: rt.u32, n: rt.u32): Guard.Guard[][] {
-	const guards: (a0: rt.u32, a1: rt.u32) => Guard.Guard[] = (from: rt.u32, to: rt.u32): Guard.Guard[] => {
-		return rt.iterToArray(rt.iterMap(new rt.Range(from, to), (k: rt.u32): Guard.Guard => {
+export function nested(log: Log.Log, id: rt.u32, n: rt.u32): rt.Vec<rt.Vec<Guard.Guard>> {
+	const guards: (a0: rt.u32, a1: rt.u32) => rt.Vec<Guard.Guard> = (from: rt.u32, to: rt.u32): rt.Vec<Guard.Guard> => {
+		return rt.iterToVec(rt.iterMap(new rt.Range(from, to), (k: rt.u32): Guard.Guard => {
 			return Guard.new(rt.u32Add(id, k), Log.clone$Clone(log));
 		}), undefined, 8, true);
 	};
-	const all: Guard.Guard[][] = [];
-	const _9: Guard.Guard[] = guards(n, rt.u32Add(n, 3));
-	all.push(_9);
-	const _16: Guard.Guard[] = guards(rt.u32Add(n, 3), rt.u32Add(n, 5));
-	all.push(_16);
-	const _25: Guard.Guard[] = guards(rt.u32Add(n, 5), rt.u32Add(n, 8));
-	all.push(_25);
+	const all: rt.Vec<rt.Vec<Guard.Guard>> = new rt.Vec();
+	const _9: rt.Vec<Guard.Guard> = guards(n, rt.u32Add(n, 3));
+	all.items.push(_9);
+	const _16: rt.Vec<Guard.Guard> = guards(rt.u32Add(n, 3), rt.u32Add(n, 5));
+	all.items.push(_16);
+	const _25: rt.Vec<Guard.Guard> = guards(rt.u32Add(n, 5), rt.u32Add(n, 8));
+	all.items.push(_25);
 	return all;
 }
 
 /** A flatten of the first of each of `nested`'s from `n`, which logs each it makes. */
 export function firsts(log: Log.Log, id: rt.u32, n: rt.u32): rt.Iter<Guard.Guard> {
-	const _5: rt.Iter<Guard.Guard[]> = rt.iterSlice(nested(log, id, n), lib_drop$Vec_model_Guard);
+	const _5: rt.Iter<rt.Vec<Guard.Guard>> = rt.vecIntoIter(nested(log, id, n), lib_drop$Vec_model_Guard);
 	const captured = id;
-	return rt.iterFlatten(rt.iterMap(_5, (v: Guard.Guard[]): rt.Iter<Guard.Guard> => {
-		const part = rt.u32Sub(Guard.id(v[rt.idx(v, 0)]), captured);
+	return rt.iterFlatten(rt.iterMap(_5, (v: rt.Vec<Guard.Guard>): rt.Iter<Guard.Guard> => {
+		const part = rt.u32Sub(Guard.id(v.items[rt.idx(v.items, 0)]), captured);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part, f)];
 		Log.note(log, rt.fmtFormat(["inner ", args2[0]]));
-		return rt.iterTake(rt.iterSlice(v, rt.drop), 1, rt.drop);
+		return rt.iterTake(rt.vecIntoIter(v, rt.drop), 1, rt.drop);
 	}), undefined, true);
 }
 
@@ -217,9 +217,9 @@ export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part32, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["rev filter ", args48[0]]));
 		rt.drop(it13);
-		const _439: Guard.Guard[][] = nested(log, id, 80);
-		const it14: rt.Iter<Guard.Guard> = rt.iterTake(rt.iterSlice(rt.vecSwapRemove(_439, 0), rt.drop), 1, rt.drop);
-		rt.dropAll(_439, lib_drop$Vec_model_Guard);
+		const _439: rt.Vec<rt.Vec<Guard.Guard>> = nested(log, id, 80);
+		const it14: rt.Iter<Guard.Guard> = rt.iterTake(rt.vecIntoIter(rt.vecSwapRemove(_439, 0), rt.drop), 1, rt.drop);
+		rt.dropVec(_439, lib_drop$Vec_model_Guard);
 		const part33 = rt.iterRfind(it14, (_28: Guard.Guard): boolean => {
 			return true;
 		}, rt.drop);
@@ -268,8 +268,8 @@ export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["chain ", args58[0]]));
 		rt.drop(it17);
 	} else if (_6 === 7) {
-		const it18: rt.Iter<Guard.Guard> = rt.iterFlatMap(rt.iterSlice(nested(log, id, 1), lib_drop$Vec_model_Guard), (v: Guard.Guard[]): rt.Iter<Guard.Guard> => {
-			return rt.iterTake(rt.iterSlice(v, rt.drop), 1, rt.drop);
+		const it18: rt.Iter<Guard.Guard> = rt.iterFlatMap(rt.vecIntoIter(nested(log, id, 1), lib_drop$Vec_model_Guard), (v: rt.Vec<Guard.Guard>): rt.Iter<Guard.Guard> => {
+			return rt.iterTake(rt.vecIntoIter(v, rt.drop), 1, rt.drop);
 		}, undefined, true);
 		const part9 = rt.iterFind(it18, (g9: Guard.Guard): boolean => {
 			return Guard.id(g9) === rt.u32Add(id, 4);
@@ -296,11 +296,11 @@ export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["peek find ", args66[0]]));
 		rt.drop(it19);
 	} else if (_6 === 8) {
-		const all: Guard.Guard[] = rt.iterToArray(firsts(log, id, 1), "next", 8);
-		const part5 = all.length;
+		const all: rt.Vec<Guard.Guard> = rt.iterToVec(firsts(log, id, 1), "next", 8);
+		const part5 = all.items.length;
 		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part5, f)];
 		Log.note(log, rt.fmtFormat(["collect ", args68[0]]));
-		rt.dropAll(all);
+		rt.dropVec(all);
 		const part6 = rt.iterMaxByKey(firsts(log, id, 20), (g7: Guard.Guard): rt.u32 => {
 			return rt.u32Rem(Guard.id(g7), 3);
 		}, rt.lt, true, rt.drop);

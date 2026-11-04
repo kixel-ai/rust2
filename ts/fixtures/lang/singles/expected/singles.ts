@@ -411,7 +411,7 @@ export function formats(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			const c: rt.f32 = take(_72[1])[0];
 			putF32(out, rt.f32Clamp(a, b, c));
 		} else if (_13 === 3) {
-			const _78: rt.f32[] = [Math.fround(a * 0.5), -0.0, 9.999999747378752e-5, 1.0000000272564224e16, NaN];
+			const _78: rt.Vec<rt.f32> = rt.vecFrom([Math.fround(a * 0.5), -0.0, 9.999999747378752e-5, 1.0000000272564224e16, NaN]);
 			const part = { level: a, history: _78 };
 			const args8: rt.Fmt[] = [(f: rt.Formatter) => Reading.fmt$fmt_Debug(part, f)];
 			put(out, rt.fmtFormat([args8[0], "|", rt.fmtSpec({ precision: 2 }, args8[0]), "|", rt.fmtSpec({ plus: true, zero: true, width: 12 }, args8[0])]));

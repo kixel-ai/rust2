@@ -403,7 +403,7 @@ export function formats(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			putF64(out, rt.f64Clamp(a, b, c));
 		} else if (_13 === 3) {
 			const _78: rt.f64 | undefined = a * 0.5;
-			const _80: rt.f64[] = [a, -0.0, 1e-7, 1e16, NaN];
+			const _80: rt.Vec<rt.f64> = rt.vecFrom([a, -0.0, 1e-7, 1e16, NaN]);
 			const part = { level: a, peak: _78, history: _80 };
 			const args8: rt.Fmt[] = [(f: rt.Formatter) => Reading.fmt$fmt_Debug(part, f)];
 			put(out, rt.fmtFormat([args8[0], "|", rt.fmtSpec({ alternate: true }, args8[0]), "|", rt.fmtSpec({ precision: 2 }, args8[0]), "|", rt.fmtSpec({ plus: true, zero: true, width: 12 }, args8[0])]));

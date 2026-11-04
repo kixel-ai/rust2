@@ -21,23 +21,23 @@ export function awaits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _13: rt.u8 = rt.u8Rem(kind, 11);
 	if (_13 === 0) {
 		run$awaits_each_closure0_Vec_awaits_Noted_awaits_awaits_closure1((): rt.Future<rt.u8> => {
-			return new eachFuture$Vec_awaits_Noted(rt.iterToArray(items(), undefined, 8, true));
+			return new eachFuture$Vec_awaits_Noted(rt.iterToVec(items(), undefined, 8, true));
 		}, log.value, out);
 	} else if (_13 === 1) {
 		run$awaits_each_closure0_collections_VecDeque_awaits_Noted_awaits_awaits_closure2((): rt.Future<rt.u8> => {
-			return new eachFuture$collections_VecDeque_awaits_Noted(rt.dequeFromVec(rt.iterToArray(items(), undefined, 8, true), 8) as rt.VecDeque<Noted.Noted>);
+			return new eachFuture$collections_VecDeque_awaits_Noted(rt.dequeFromVec(rt.iterToVec(items(), undefined, 8, true), 8) as rt.VecDeque<Noted.Noted>);
 		}, log.value, out);
 	} else if (_13 === 2) {
 		run$awaits_each_closure0_collections_btree_set_IntoIter_awaits_Noted_awaits_awaits_closure3((): rt.Future<rt.u8> => {
 			const _413: rt.Iter<Noted.Noted> = items();
-			return new eachFuture$collections_btree_set_IntoIter_awaits_Noted(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(Noted.cmp$cmp_Ord) as rt.BTreeSet<Noted.Noted>, rt.iterToArray(_413, undefined, 8, true), 8, true, rt.cmpLt(Noted.partialCmp$cmp_PartialOrd), Noted.eq$cmp_PartialEq, rt.drop), rt.drop));
+			return new eachFuture$collections_btree_set_IntoIter_awaits_Noted(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(Noted.cmp$cmp_Ord) as rt.BTreeSet<Noted.Noted>, rt.iterToVec(_413, undefined, 8, true).items, 8, true, rt.cmpLt(Noted.partialCmp$cmp_PartialOrd), Noted.eq$cmp_PartialEq, rt.drop), rt.drop));
 		}, log.value, out);
 	} else if (_13 === 3) {
 		run$awaits_each_closure0_collections_btree_map_IntoValues_u8_awaits_Noted_awaits_awaits_closure4((): rt.Future<rt.u8> => {
 			const _412: rt.Iter<[rt.u8, Noted.Noted]> = rt.iterMap(items(), (l2: Noted.Noted): [rt.u8, Noted.Noted] => {
 				return [l2._0, l2] as [rt.u8, Noted.Noted];
 			});
-			return new eachFuture$collections_btree_map_IntoValues_u8_awaits_Noted(rt.btreeValues(rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, Noted.Noted>, rt.iterToArray(_412, undefined, 12, true), 12, true, undefined, undefined, rt.drop), undefined, rt.drop));
+			return new eachFuture$collections_btree_map_IntoValues_u8_awaits_Noted(rt.btreeValues(rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, Noted.Noted>, rt.iterToVec(_412, undefined, 12, true).items, 12, true, undefined, undefined, rt.drop), undefined, rt.drop));
 		}, log.value, out);
 	} else if (_13 === 4) {
 		run$awaits_each_closure0_awaits_Countdown_awaits_awaits_closure5((): rt.Future<rt.u8> => {
@@ -45,17 +45,17 @@ export function awaits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, log.value, out);
 	} else if (_13 === 5) {
 		run$awaits_each_closure0_iter_StepBy_iter_Skip_iter_Rev_vec_IntoIter_awaits_Noted_awaits_awaits_closure6((): rt.Future<rt.u8> => {
-			return new eachFuture$iter_StepBy_iter_Skip_iter_Rev_vec_IntoIter_awaits_Noted(rt.iterStepBy(rt.iterSkip(rt.iterRev(rt.iterSlice(rt.iterToArray(items(), undefined, 8, true), rt.drop)), 1, rt.drop), 2, rt.drop));
+			return new eachFuture$iter_StepBy_iter_Skip_iter_Rev_vec_IntoIter_awaits_Noted(rt.iterStepBy(rt.iterSkip(rt.iterRev(rt.vecIntoIter(rt.iterToVec(items(), undefined, 8, true), rt.drop)), 1, rt.drop), 2, rt.drop));
 		}, log.value, out);
 	} else if (_13 === 6) {
 		run$awaits_each_closure0_iter_Chain_iter_Filter_vec_IntoIter_awaits_Noted_awaits_awaits_closure7_closure0_collections_vec_deque_IntoIter_awaits_Noted_awaits_awaits_closure7((): rt.Future<rt.u8> => {
-			return new eachFuture$iter_Chain_iter_Filter_vec_IntoIter_awaits_Noted_awaits_awaits_closure7_closure0_collections_vec_deque_IntoIter_awaits_Noted(rt.iterChain(rt.iterFilter(rt.iterSlice(rt.iterToArray(items(), undefined, 8, true), rt.drop), (l: Noted.Noted): boolean => {
+			return new eachFuture$iter_Chain_iter_Filter_vec_IntoIter_awaits_Noted_awaits_awaits_closure7_closure0_collections_vec_deque_IntoIter_awaits_Noted(rt.iterChain(rt.iterFilter(rt.vecIntoIter(rt.iterToVec(items(), undefined, 8, true), rt.drop), (l: Noted.Noted): boolean => {
 				return rt.u8Rem(l._0, 3) !== 0;
-			}, rt.drop), rt.dequeIntoIter(rt.dequeFromVec(rt.iterToArray(items(), undefined, 8, true), 8) as rt.VecDeque<Noted.Noted>, rt.drop)));
+			}, rt.drop), rt.dequeIntoIter(rt.dequeFromVec(rt.iterToVec(items(), undefined, 8, true), 8) as rt.VecDeque<Noted.Noted>, rt.drop)));
 		}, log.value, out);
 	} else if (_13 === 7) {
 		run$awaits_drain_closure0_awaits_awaits_closure8((): rt.Future<rt.u8> => {
-			return new drainFuture(rt.iterToArray(items(), undefined, 8, true), rt.usizeDiv(data2.length, 2));
+			return new drainFuture(rt.iterToVec(items(), undefined, 8, true), rt.usizeDiv(data2.length, 2));
 		}, log.value, out);
 	} else if (_13 === 8) {
 		run$awaits_inline_closure0_awaits_awaits_closure9((): rt.Future<rt.u8> => {
@@ -63,7 +63,7 @@ export function awaits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}, log.value, out);
 	} else if (_13 === 9) {
 		run$awaits_borrowed_closure0_awaits_awaits_closure10((): rt.Future<rt.u8> => {
-			return new borrowedFuture(rt.iterToArray(items(), undefined, 8, true));
+			return new borrowedFuture(rt.iterToVec(items(), undefined, 8, true));
 		}, log.value, out);
 	} else {
 		run$awaits_hashed_closure0_awaits_awaits_closure11((): rt.Future<rt.u8> => {
@@ -439,19 +439,19 @@ export function run$awaits_inline_closure0_awaits_awaits_closure9(make: () => rt
 
 export class eachFuture$Vec_awaits_Noted {
 	#state: number = 0;
-	#items: Noted.Noted[];
+	#items: rt.Vec<Noted.Noted>;
 	#sum!: rt.u8;
 	#iter!: rt.Iter<Noted.Noted>;
 	#item!: Noted.Noted;
 	#awaitee!: Yield.Yield;
 
-	constructor(items: Noted.Noted[]) {
+	constructor(items: rt.Vec<Noted.Noted>) {
 		this.#items = items;
 	}
 
 	[Symbol.dispose](): void {
 		if (this.#state === 0) {
-			rt.dropAll(this.#items);
+			rt.dropVec(this.#items);
 		} else if (this.#state === 3) {
 			this.#item[Symbol.dispose]();
 			rt.drop(this.#iter);
@@ -464,9 +464,9 @@ export class eachFuture$Vec_awaits_Noted {
 			switch (bb0) {
 				case 0:
 					if (this.#state === 0) {
-						const items: Noted.Noted[] = this.#items;
+						const items: rt.Vec<Noted.Noted> = this.#items;
 						this.#sum = 0;
-						this.#iter = rt.iterSlice(items, rt.drop);
+						this.#iter = rt.vecIntoIter(items, rt.drop);
 						bb0 = 2;
 						continue;
 					}
@@ -894,25 +894,25 @@ export class eachFuture$iter_StepBy_iter_Skip_iter_Rev_vec_IntoIter_awaits_Noted
 
 export class drainFuture {
 	#state: number = 0;
-	#v: Noted.Noted[];
+	#v: rt.Vec<Noted.Noted>;
 	#from: rt.usize;
 	#sum!: rt.u8;
 	#iter!: rt.Iter<Noted.Noted>;
 	#item!: Noted.Noted;
 	#awaitee!: Yield.Yield;
 
-	constructor(v: Noted.Noted[], from: rt.usize) {
+	constructor(v: rt.Vec<Noted.Noted>, from: rt.usize) {
 		this.#v = v;
 		this.#from = from;
 	}
 
 	[Symbol.dispose](): void {
 		if (this.#state === 0) {
-			rt.dropAll(this.#v);
+			rt.dropVec(this.#v);
 		} else if (this.#state === 3) {
 			this.#item[Symbol.dispose]();
 			rt.drop(this.#iter);
-			rt.dropAll(this.#v);
+			rt.dropVec(this.#v);
 		}
 	}
 
@@ -938,8 +938,8 @@ export class drainFuture {
 					const _8: Noted.Noted | rt.Done = this.#iter.next();
 					if (_8 === rt.DONE) {
 						rt.drop(this.#iter);
-						const _28: rt.u8 = rt.u8WrappingAdd(this.#sum, this.#v.length & 0xff);
-						rt.dropAll(this.#v);
+						const _28: rt.u8 = rt.u8WrappingAdd(this.#sum, this.#v.items.length & 0xff);
+						rt.dropVec(this.#v);
 						this.#state = 1;
 						return _28;
 					}
@@ -1070,21 +1070,21 @@ export class inlineFuture$closure0 {
 
 export class borrowedFuture {
 	#state: number = 0;
-	#v: Noted.Noted[];
+	#v: rt.Vec<Noted.Noted>;
 	#sum!: rt.u8;
 	#iter!: rt.Iter<Noted.Noted>;
 	#item!: Noted.Noted;
 	#awaitee!: Yield.Yield;
 
-	constructor(v: Noted.Noted[]) {
+	constructor(v: rt.Vec<Noted.Noted>) {
 		this.#v = v;
 	}
 
 	[Symbol.dispose](): void {
 		if (this.#state === 0) {
-			rt.dropAll(this.#v);
+			rt.dropVec(this.#v);
 		} else if (this.#state === 3 || this.#state === 4 || this.#state === 5) {
-			rt.dropAll(this.#v);
+			rt.dropVec(this.#v);
 		}
 	}
 
@@ -1095,7 +1095,7 @@ export class borrowedFuture {
 				case 0:
 					if (this.#state === 0) {
 						this.#sum = 0;
-						this.#iter = rt.iterSlice(this.#v);
+						this.#iter = rt.iterSlice(this.#v.items);
 						bb0 = 2;
 						continue;
 					}
@@ -1116,7 +1116,7 @@ export class borrowedFuture {
 				case 2:
 					const _5: Noted.Noted | rt.Done = this.#iter.next();
 					if (_5 === rt.DONE) {
-						this.#iter = rt.iterSlice(this.#v);
+						this.#iter = rt.iterSlice(this.#v.items);
 						bb0 = 15;
 						continue;
 					}
@@ -1136,7 +1136,7 @@ export class borrowedFuture {
 				case 15:
 					const _22: Noted.Noted | rt.Done = this.#iter.next();
 					if (_22 === rt.DONE) {
-						this.#iter = rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(this.#v))));
+						this.#iter = rt.iterRev(rt.iterSlice(rt.sliceItems(rt.sliceFrom(this.#v.items))));
 						bb0 = 30;
 						continue;
 					}
@@ -1156,7 +1156,7 @@ export class borrowedFuture {
 					const _43: Noted.Noted | rt.Done = this.#iter.next();
 					if (_43 === rt.DONE) {
 						const _60: rt.u8 = this.#sum;
-						rt.dropAll(this.#v);
+						rt.dropVec(this.#v);
 						this.#state = 1;
 						return _60;
 					}

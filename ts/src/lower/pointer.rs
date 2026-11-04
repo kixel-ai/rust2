@@ -819,7 +819,7 @@ pub fn call<'tcx>(
 				("slice", true) => Expr::rt("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rt("byteVecAsPtr", vec![s]),
 				("slice", false) => Expr::rt("sliceAsPtr", vec![s]),
-				_ => Expr::rt("arrayAsPtr", vec![s]),
+				_ => Expr::rt("arrayAsPtr", vec![s.member("items")]),
 			}
 		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {

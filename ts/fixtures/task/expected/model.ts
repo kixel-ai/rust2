@@ -312,7 +312,7 @@ export class frontFuture {
 	#rx: Consumer.Consumer;
 	#guard: Guard.Guard;
 	#listing!: Listing.Listing | undefined;
-	#inFlight!: rt.u64[];
+	#inFlight!: rt.Vec<rt.u64>;
 	#awaitee!: rt.Future<rt.u64 | undefined>;
 	#awaitee$2!: Pending.Pending<(a0: Waiter.Waiter) => rt.Poll<rt.usize>>;
 
@@ -346,7 +346,7 @@ export class frontFuture {
 				case 0:
 					if (this.#state === 0) {
 						this.#listing = undefined as Listing.Listing | undefined;
-						this.#inFlight = [];
+						this.#inFlight = new rt.Vec();
 						bb0 = 1;
 						continue;
 					}
@@ -376,8 +376,8 @@ export class frontFuture {
 									this.#listing = Listing.default$Default();
 								}
 								(this.#listing as Listing.Listing).last = value;
-								(this.#listing as Listing.Listing).listed.push(value);
-								this.#inFlight.push(value);
+								(this.#listing as Listing.Listing).listed.items.push(value);
+								this.#inFlight.items.push(value);
 								if (!(rt.u64Rem(value, 3) === 2)) {
 									bb0 = 1;
 									continue;
@@ -405,21 +405,21 @@ export class frontFuture {
 							if (_42 !== rt.Pending) {
 								const next: rt.u64 | undefined = _42;
 								if (next === undefined) {
-									return this.#inFlight.length;
+									return this.#inFlight.items.length;
 								}
-								this.#inFlight.push(next);
+								this.#inFlight.items.push(next);
 							} else {
 								break;
 							}
 						}
 						const taken = this.#inFlight;
-						this.#inFlight = [];
-						for (const _15 of taken) {
+						this.#inFlight = new rt.Vec();
+						for (const _15 of taken.items) {
 							const half: rt.u64 = rt.u64Div(_15, 2);
 							if (half === 0) {
 								Guard.note(this.#guard, "released");
 							} else {
-								this.#inFlight.push(half);
+								this.#inFlight.items.push(half);
 							}
 						}
 						return rt.Pending;
@@ -433,10 +433,10 @@ export class frontFuture {
 						this.#awaitee$2[Symbol.dispose]();
 						const _69: rt.Fmt = (f: rt.Formatter) => rt.usizeDisplay(closed, f);
 						const arg2 = this.#inFlight;
-						const args4: rt.Fmt[] = [_69, (f: rt.Formatter) => rt.fmtList(arg2, f, rt.u64Debug)];
+						const args4: rt.Fmt[] = [_69, (f: rt.Formatter) => rt.fmtList(arg2.items, f, rt.u64Debug)];
 						const _60: string = rt.fmtFormat(["closed with ", args4[0], " in flight ", args4[1]]);
 						Guard.note(this.#guard, _60);
-						const _79: rt.u64 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(this.#inFlight))), rt.u64Add, 0);
+						const _79: rt.u64 = rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(this.#inFlight.items))), rt.u64Add, 0);
 						this.#guard[Symbol.dispose]();
 						this.#rx[Symbol.dispose]();
 						this.#state = 1;

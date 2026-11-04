@@ -2,33 +2,33 @@
 
 import * as rt from "./rt.ts";
 import { copy$array_u16, copy$array_u8 } from "./lib.ts";
-import { clone$0hmts8n as option_clone$0hmts8n, clone$1grnave as option_clone$1grnave } from "./core/option.ts";
+import { clone$11qe8jq as option_clone$11qe8jq, clone$1grnave as option_clone$1grnave } from "./core/option.ts";
 import type * as Run from "./generics.Run.ts";
 
 export function clone$Clone_u16(self: Runs<rt.u16>): Runs<rt.u16> {
-	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecExact((self.list as rt.u16[]).slice(), 2), self.view as rt.Slice<rt.u16>, rt.sliceFrom(rt.sliceToArray(self.boxed as rt.Slice<rt.u16>)), rt.cowClone(self.cow as rt.Cow<rt.u16>, 2), rt.vecExact((self.pairs as rt.u16[][]).map(copy$array_u16), 4), option_clone$0hmts8n(self.maybe as rt.u16[] | undefined));
+	return new Runs(copy$array_u16(copy$array_u16(self.array as rt.u16[])), rt.vecFrom((self.list as rt.Vec<rt.u16>).items.slice()), self.view as rt.Slice<rt.u16>, rt.sliceFrom(rt.sliceToArray(self.boxed as rt.Slice<rt.u16>)), rt.cowClone(self.cow as rt.Cow<rt.u16>), rt.vecFrom((self.pairs as rt.Vec<rt.u16[]>).items.map(copy$array_u16)), option_clone$11qe8jq(self.maybe as rt.Vec<rt.u16> | undefined));
 }
 
 export function clone$Clone_u8(self: Runs<rt.u8>): Runs<rt.u8> {
-	return new Runs(copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(self.array as Uint8Array))), rt.byteVecFrom(rt.byteVecView(self.list as rt.ByteVec)), self.view as rt.ByteSlice, rt.byteSliceFrom(rt.byteSliceToArray(self.boxed as rt.ByteSlice)), rt.byteCowClone(self.cow as rt.ByteCow), rt.vecExact((self.pairs as Uint8Array[]).map(copy$array_u8), 2), option_clone$1grnave(self.maybe as rt.ByteVec | undefined));
+	return new Runs(copy$array_u8(rt.byteSliceToArray(rt.byteSliceFrom(self.array as Uint8Array))), rt.byteVecFrom(rt.byteVecView(self.list as rt.ByteVec)), self.view as rt.ByteSlice, rt.byteSliceFrom(rt.byteSliceToArray(self.boxed as rt.ByteSlice)), rt.byteCowClone(self.cow as rt.ByteCow), rt.vecFrom((self.pairs as rt.Vec<Uint8Array>).items.map(copy$array_u8)), option_clone$1grnave(self.maybe as rt.ByteVec | undefined));
 }
 
 export function fmt$fmt_Debug_u16(self: Runs<rt.u16>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const arg = self.array as rt.u16[];
 	const _7: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg, f, rt.u16Debug);
-	const arg2 = self.list as rt.u16[];
-	const _9: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2, f, rt.u16Debug);
+	const arg2 = self.list as rt.Vec<rt.u16>;
+	const _9: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2.items, f, rt.u16Debug);
 	const arg3 = self.view as rt.Slice<rt.u16>;
 	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(arg3), f, rt.u16Debug);
 	const arg4 = self.boxed as rt.Slice<rt.u16>;
 	const _13: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(arg4), f, rt.u16Debug);
 	const arg5 = self.cow as rt.Cow<rt.u16>;
 	const _15: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.sliceItems(rt.cowSlice(arg5)), f, rt.u16Debug);
-	const arg6 = self.pairs as rt.u16[][];
-	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg6, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug));
-	const arg7 = self.maybe as rt.u16[] | undefined;
+	const arg6 = self.pairs as rt.Vec<rt.u16[]>;
+	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg6.items, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug));
+	const arg7 = self.maybe as rt.Vec<rt.u16> | undefined;
 	const names: string[] = ["array", "list", "view", "boxed", "cow", "pairs", "maybe"];
-	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.u16[], f: rt.Formatter) => rt.fmtList(value, f, rt.u16Debug))]);
+	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([_7, _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg7, f, (value: rt.Vec<rt.u16>, f: rt.Formatter) => rt.fmtList(value.items, f, rt.u16Debug))]);
 	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
 }
 
@@ -43,8 +43,8 @@ export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<
 	const _13: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(arg3), f, rt.u8Debug);
 	const arg4 = self.cow as rt.ByteCow;
 	const _15: rt.Fmt = (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(rt.byteCowSlice(arg4)), f, rt.u8Debug);
-	const arg5 = self.pairs as Uint8Array[];
-	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg5, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug));
+	const arg5 = self.pairs as rt.Vec<Uint8Array>;
+	const _17: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg5.items, f, (value: Uint8Array, f: rt.Formatter) => rt.fmtList(value, f, rt.u8Debug));
 	const arg6 = self.maybe as rt.ByteVec | undefined;
 	const values: rt.Slice<rt.Fmt> = rt.sliceFrom([(f: rt.Formatter) => rt.fmtList(rt.byteSliceView(_8), f, rt.u8Debug), _9, _11, _13, _15, _17, (f: rt.Formatter) => rt.fmtOption(arg6, f, (value: rt.ByteVec, f: rt.Formatter) => rt.fmtList(rt.byteVecView(value), f, rt.u8Debug))]);
 	return rt.fmtDebugStructFields(f, "Runs", rt.sliceItems(rt.sliceFrom(names)), rt.sliceItems(values));
@@ -52,12 +52,12 @@ export function fmt$fmt_Debug_u8(self: Runs<rt.u8>, f: rt.Formatter): rt.Result<
 
 export function eq$cmp_PartialEq_u16(self: Runs<rt.u16>, other: Runs<rt.u16>): boolean {
 	if (rt.eqSlice(rt.same)(self.array as rt.u16[], other.array as rt.u16[])) {
-		if (rt.eqSlice(rt.same)(self.list as rt.u16[], other.list as rt.u16[])) {
+		if (rt.eqSlice(rt.same)(self.list as rt.Vec<rt.u16>, other.list as rt.Vec<rt.u16>)) {
 			if (rt.eqSlice(rt.same)(self.view as rt.Slice<rt.u16>, other.view as rt.Slice<rt.u16>)) {
 				if (rt.eqSlice(rt.same)(self.boxed as rt.Slice<rt.u16>, other.boxed as rt.Slice<rt.u16>)) {
 					if (rt.eqSlice(rt.same)(rt.cowSlice(self.cow as rt.Cow<rt.u16>), rt.cowSlice(other.cow as rt.Cow<rt.u16>))) {
-						if (rt.eqSlice(rt.eqSlice(rt.same))(self.pairs as rt.u16[][], other.pairs as rt.u16[][])) {
-							return rt.eqOption(rt.eqSlice(rt.same))(self.maybe as rt.u16[] | undefined, other.maybe as rt.u16[] | undefined);
+						if (rt.eqSlice(rt.eqSlice(rt.same))(self.pairs as rt.Vec<rt.u16[]>, other.pairs as rt.Vec<rt.u16[]>)) {
+							return rt.eqOption(rt.eqSlice(rt.same))(self.maybe as rt.Vec<rt.u16> | undefined, other.maybe as rt.Vec<rt.u16> | undefined);
 						}
 					}
 				}
@@ -73,7 +73,7 @@ export function eq$cmp_PartialEq_u8(self: Runs<rt.u8>, other: Runs<rt.u8>): bool
 			if (rt.byteSliceEq(self.view as rt.ByteSlice, other.view as rt.ByteSlice)) {
 				if (rt.eqBytes(self.boxed as rt.ByteSlice, other.boxed as rt.ByteSlice)) {
 					if (rt.eqBytes(self.cow as rt.ByteCow, other.cow as rt.ByteCow)) {
-						if (rt.eqSlice(rt.eqBytes)(self.pairs as Uint8Array[], other.pairs as Uint8Array[])) {
+						if (rt.eqSlice(rt.eqBytes)(self.pairs as rt.Vec<Uint8Array>, other.pairs as rt.Vec<Uint8Array>)) {
 							return rt.eqOption(rt.eqBytes)(self.maybe as rt.ByteVec | undefined, other.maybe as rt.ByteVec | undefined);
 						}
 					}
@@ -94,10 +94,10 @@ export class Runs<T> {
 	view: rt.SliceOf<T>;
 	boxed: rt.SliceOf<T>;
 	cow: rt.CowOf<T>;
-	pairs: rt.ArrayOf<T>[];
+	pairs: rt.Vec<rt.ArrayOf<T>>;
 	maybe: rt.VecOf<T> | undefined;
 
-	constructor(array: rt.ArrayOf<T>, list: rt.VecOf<T>, view: rt.SliceOf<T>, boxed: rt.SliceOf<T>, cow: rt.CowOf<T>, pairs: rt.ArrayOf<T>[], maybe: rt.VecOf<T> | undefined) {
+	constructor(array: rt.ArrayOf<T>, list: rt.VecOf<T>, view: rt.SliceOf<T>, boxed: rt.SliceOf<T>, cow: rt.CowOf<T>, pairs: rt.Vec<rt.ArrayOf<T>>, maybe: rt.VecOf<T> | undefined) {
 		this.array = array;
 		this.list = list;
 		this.view = view;
@@ -109,28 +109,28 @@ export class Runs<T> {
 
 	[Symbol.dispose](): void {
 		rt.dropAll(this.array as T[]);
-		rt.dropAll(this.list as T[]);
+		rt.dropVec(this.list as rt.Vec<T>);
 		rt.dropAll(this.boxed as rt.Slice<T>);
 		rt.cowDrop(this.cow as rt.Cow<T>);
-		rt.dropAll(this.pairs as T[][], (value: T[]) => rt.dropAll(value));
-		rt.dropAll(this.maybe as T[] | undefined);
+		rt.dropVec(this.pairs as rt.Vec<T[]>, (value: T[]) => rt.dropAll(value));
+		rt.dropVec(this.maybe as rt.Vec<T> | undefined);
 	}
 }
 
 export function total$u16(self: Runs<rt.u16>): rt.usize {
-	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.sliceFrom(self.array as rt.u16[]).length, (self.list as rt.u16[]).length), (self.view as rt.Slice<rt.u16>).length), (self.boxed as rt.Slice<rt.u16>).length), rt.cowSlice(self.cow as rt.Cow<rt.u16>).length), (self.pairs as rt.u16[][]).length);
+	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.sliceFrom(self.array as rt.u16[]).length, (self.list as rt.Vec<rt.u16>).items.length), (self.view as rt.Slice<rt.u16>).length), (self.boxed as rt.Slice<rt.u16>).length), rt.cowSlice(self.cow as rt.Cow<rt.u16>).length), (self.pairs as rt.Vec<rt.u16[]>).items.length);
 }
 
 export function total$u8(self: Runs<rt.u8>): rt.usize {
-	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.byteSliceFrom(self.array as Uint8Array).length, (self.list as rt.ByteVec).length), (self.view as rt.ByteSlice).length), (self.boxed as rt.ByteSlice).length), rt.byteCowSlice(self.cow as rt.ByteCow).length), (self.pairs as Uint8Array[]).length);
+	return rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.usizeAdd(rt.byteSliceFrom(self.array as Uint8Array).length, (self.list as rt.ByteVec).length), (self.view as rt.ByteSlice).length), (self.boxed as rt.ByteSlice).length), rt.byteCowSlice(self.cow as rt.ByteCow).length), (self.pairs as rt.Vec<Uint8Array>).items.length);
 }
 
 export function push$u16(self: Runs<rt.u16>, item: rt.u16): void {
-	(self.list as rt.u16[]).push(item);
-	const owned = rt.cowIntoOwned(self.cow as rt.Cow<rt.u16>, 2);
+	(self.list as rt.Vec<rt.u16>).items.push(item);
+	const owned = rt.cowIntoOwned(self.cow as rt.Cow<rt.u16>);
 	(self.cow as rt.Cow<rt.u16>) = owned;
-	owned.push(item);
-	(self.pairs as rt.u16[][]).push(Array.from({ length: 2 }, (): rt.u16 => {
+	owned.items.push(item);
+	(self.pairs as rt.Vec<rt.u16[]>).items.push(Array.from({ length: 2 }, (): rt.u16 => {
 		return item;
 	}));
 	rt.sliceRotateLeft(rt.sliceFrom(self.array as rt.u16[]), 1);
@@ -138,8 +138,8 @@ export function push$u16(self: Runs<rt.u16>, item: rt.u16): void {
 	rt.idx(self.boxed as rt.Slice<rt.u16>, 0);
 	const _24: rt.Slice<rt.u16> = self.boxed as rt.Slice<rt.u16>;
 	_24.data[_24.start] = item;
-	if ((self.maybe as rt.u16[] | undefined) !== undefined) {
-		((self.maybe as rt.u16[] | undefined) as rt.u16[]).push(item);
+	if ((self.maybe as rt.Vec<rt.u16> | undefined) !== undefined) {
+		((self.maybe as rt.Vec<rt.u16> | undefined) as rt.Vec<rt.u16>).items.push(item);
 	}
 }
 
@@ -148,7 +148,7 @@ export function push$u8(self: Runs<rt.u8>, item: rt.u8): void {
 	const owned = rt.byteCowIntoOwned(self.cow as rt.ByteCow);
 	(self.cow as rt.ByteCow) = owned;
 	rt.byteVecPush(owned, item);
-	(self.pairs as Uint8Array[]).push(rt.bytes(2).fill(item));
+	(self.pairs as rt.Vec<Uint8Array>).items.push(rt.bytes(2).fill(item));
 	rt.byteSliceRotateLeft(rt.byteSliceFrom(self.array as Uint8Array), 1);
 	(self.array as Uint8Array)[2] = item;
 	rt.idx(self.boxed as rt.ByteSlice, 0);
@@ -160,9 +160,9 @@ export function push$u8(self: Runs<rt.u8>, item: rt.u8): void {
 }
 
 export function run$u16(self: Runs<rt.u16>): Run.Run<rt.u16> {
-	const _2: rt.usize = rt.usizeRem((self.list as rt.u16[]).length, 3);
+	const _2: rt.usize = rt.usizeRem((self.list as rt.Vec<rt.u16>).items.length, 3);
 	if (_2 === 0) {
-		return { tag: "Listed", _0: rt.vecExact((self.list as rt.u16[]).slice(), 2) } as Run.Run<rt.u16>;
+		return { tag: "Listed", _0: rt.vecFrom((self.list as rt.Vec<rt.u16>).items.slice()) } as Run.Run<rt.u16>;
 	}
 	if (_2 === 1) {
 		return { tag: "Fixed", array: [(self.array as rt.u16[])[0], (self.array as rt.u16[])[2]] } as Run.Run<rt.u16>;
