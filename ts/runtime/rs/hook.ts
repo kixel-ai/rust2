@@ -1,7 +1,7 @@
 // `std::panic`'s hook, for rust2-ts output: only a program that sets one reaches this
-// module, so a bundler drops all of it from one that doesn't. `rt.ts` re-exports all of it.
+// module, so a bundler drops all of it from one that doesn't. `rs.ts` re-exports all of it.
 
-import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtWriteString, Panic, panic } from "../rt.ts";
+import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtWriteString, Panic, panic } from "../rs.ts";
 import { fmtLocationDisplay, type Location } from "./location.ts";
 import { drop } from "./task.ts";
 

@@ -143,7 +143,7 @@ fn owned(data: &[u8], out: &mut Vec<u8>) {
 	flush(&log, out);
 }
 
-/// Of `()`, which JS holds as `undefined`, so an `Option` of one is `rt.None`.
+/// Of `()`, which JS holds as `undefined`, so an `Option` of one is `rs.None`.
 fn units(data: &[u8], out: &mut Vec<u8>) {
 	let mut results: Vec<Result<(), u8>> = data.iter().map(|&b| split(b).map(|_| ())).collect();
 	out.push(results.iter().flatten().count() as u8);
@@ -296,7 +296,7 @@ pub fn option_slices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.extend(words.into_iter().flatten());
 		}
 		_ => {
-			// Of `()`, whose `Option`'s `None` is `rt.None`.
+			// Of `()`, whose `Option`'s `None` is `rs.None`.
 			let mut units: Option<()> = some(0).map(|_| ());
 			out.push(units.as_slice().len() as u8);
 			out.push(units.as_mut_slice().len() as u8);

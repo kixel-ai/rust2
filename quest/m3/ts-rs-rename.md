@@ -2,10 +2,10 @@
 
 ## Goal
 
-[rust2-ts](/ts/README.md)'s runtime is imported and named `rs` rather than `rt`, in the
+[rust2-ts](/ts/README.md)'s runtime is imported and named `rs` rather than `rs`, in the
 translator's output, the runtime's own files, the fixtures and their snapshots, the tests,
 and the README, so a translated Rust type reads as `rs.Vec`, `rs.HashMap`, `rs.u64`.
-Nothing named `rt` is left.
+Nothing named `rs` is left.
 
 ## Plan
 

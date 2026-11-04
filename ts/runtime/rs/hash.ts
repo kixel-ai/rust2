@@ -1,11 +1,11 @@
 // Hashing, for rust2-ts output: `DefaultHasher`, which is std's SipHash-1-3 byte for byte,
 // `RandomState`, which keys it, the crate's own `Hasher`, and the `Hash` of std's types,
-// which call the `Hasher` methods std's call. `rt.ts` re-exports all of it.
+// which call the `Hasher` methods std's call. `rs.ts` re-exports all of it.
 //
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rt.ts";
+import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rs.ts";
 import {
 	type i8,
 	type i16,

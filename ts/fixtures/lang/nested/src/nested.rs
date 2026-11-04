@@ -1,5 +1,5 @@
 //! Options of values that can already be `undefined`, `Option<Option<u8>>` and
-//! `Option<()>`, whose `None` is `rt.None` apart from each `Some`.
+//! `Option<()>`, whose `None` is `rs.None` apart from each `Some`.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
@@ -197,7 +197,7 @@ fn consumers(data: &[u8], out: &mut Vec<u8>) {
 	let key = |o: &Option<u8>| o.map(|b| b % 4);
 	out.push(code(it().max_by_key(key)));
 	out.push(code(it().min_by_key(key)));
-	// By a key whose `None` is `rt.None` too.
+	// By a key whose `None` is `rs.None` too.
 	let nested = |o: &Option<u8>| o.map(|b| (b % 4 != 0).then_some(b % 3));
 	out.push(code(it().max_by_key(nested)));
 	out.push(code(it().min_by_key(nested)));

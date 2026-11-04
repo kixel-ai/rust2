@@ -13,7 +13,7 @@ static SLOT: std::sync::atomic::AtomicPtr<u32> = std::sync::atomic::AtomicPtr::n
 
 pub fn pointer_statics(p: *mut u32) -> u32 {
 	use std::sync::atomic::Ordering::Relaxed;
-	// Two `rt.Place`s of one place are two objects, which `===` can't tell are one.
+	// Two `rs.Place`s of one place are two objects, which `===` can't tell are one.
 	let _ = SLOT.compare_exchange(p, std::ptr::null_mut(), Relaxed, Relaxed);
 	*NAMED
 }

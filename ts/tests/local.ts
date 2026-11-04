@@ -6,28 +6,28 @@
 
 import { strict as assert } from "node:assert";
 
-import * as rt from "../runtime/rt.ts";
+import * as rs from "../runtime/rs.ts";
 
 // `set`, as std's calls it: what the key had no value for becomes its value, else sets it.
-const set = (key: rt.LocalKey<rt.Cell<number>>, v: number) =>
-	rt.localKeyInitializeWith(key, new rt.Cell(v), (init, cell) => {
-		if (init !== undefined) rt.cellSet(cell, init.v);
+const set = (key: rs.LocalKey<rs.Cell<number>>, v: number) =>
+	rs.localKeyInitializeWith(key, new rs.Cell(v), (init, cell) => {
+		if (init !== undefined) rs.cellSet(cell, init.v);
 	});
 
 // A lazy key's `set` before its first use doesn't run its expression; a `const` one's
 // value is always there.
 const made: string[] = [];
-const lazy = new rt.LocalKey(() => {
+const lazy = new rs.LocalKey(() => {
 	made.push("lazy");
-	return new rt.Cell(1);
+	return new rs.Cell(1);
 }, true);
 set(lazy, 2);
 assert.equal(lazy.get().v, 2);
 set(lazy, 3);
 assert.equal(lazy.get().v, 3);
-const eager = new rt.LocalKey(() => {
+const eager = new rs.LocalKey(() => {
 	made.push("eager");
-	return new rt.Cell(1);
+	return new rs.Cell(1);
 }, false);
 set(eager, 4);
 assert.equal(eager.get().v, 4);
@@ -37,7 +37,7 @@ assert.deepEqual(made, ["eager"]);
 // replaces, dropping it.
 const dropped: number[] = [];
 let count = 0;
-const nested: rt.LocalKey<number> = new rt.LocalKey(
+const nested: rs.LocalKey<number> = new rs.LocalKey(
 	() => {
 		const n = ++count;
 		if (n === 1) assert.equal(nested.get(), 2);
@@ -52,7 +52,7 @@ assert.deepEqual(dropped, [2]);
 
 // A use while that drop runs aborts, which here panics.
 let calls = 0;
-const dying: rt.LocalKey<number> = new rt.LocalKey(
+const dying: rs.LocalKey<number> = new rs.LocalKey(
 	() => {
 		const n = ++calls;
 		if (n === 1) dying.get();
@@ -62,7 +62,7 @@ const dying: rt.LocalKey<number> = new rt.LocalKey(
 	() =>
 		assert.throws(
 			() => dying.get(),
-			(e: Error) => e instanceof rt.Panic && e.message === "Attempted to initialize thread-local while it is being dropped",
+			(e: Error) => e instanceof rs.Panic && e.message === "Attempted to initialize thread-local while it is being dropped",
 		),
 );
 assert.equal(dying.get(), 1);

@@ -371,7 +371,7 @@ pub fn edits(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// [`edits`]'s methods of bytes, which are an `rt.ByteVec` or `rt.ByteSlice` rather than an
+/// [`edits`]'s methods of bytes, which are an `rs.ByteVec` or `rs.ByteSlice` rather than an
 /// array, on every short prefix of the input and on a slice that starts past its storage's,
 /// and those that lend a closure another element JS copies, as its place.
 pub fn bytes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
@@ -726,7 +726,7 @@ fn wrap<T>(q: &mut VecDeque<T>, n: u8) {
 /// `extend_from_within`: which values clone, in order, and when each removed one drops,
 /// against a closure that owns one; whether a value written after it is shared with
 /// another, of objects and of arrays and tuples JS holds by reference; bytes, which are an
-/// `rt.ByteVec`; `Vec::from` of a deque; and a deque's `range_mut` of items JS copies. Each
+/// `rs.ByteVec`; `Vec::from` of a deque; and a deque's `range_mut` of items JS copies. Each
 /// panics with std's message past the end.
 pub fn resizes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(0);

@@ -258,7 +258,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if !ty.has_param() && self.bindings.values.insert(ty) {
 			let value = Type::Sym(sym, args.types().map(|t| self.ty(t, span)).collect());
 			let flag = |b: bool| Type::Builtin(if b { "true" } else { "false" });
-			let ret = Type::Rt("Bound", vec![value.clone(), flag(self.is_copy(ty)), flag(drop)]);
+			let ret = Type::Rs("Bound", vec![value.clone(), flag(self.is_copy(ty)), flag(drop)]);
 			let value = Param {
 				name: "value".into(),
 				ty: Some(value),
@@ -444,7 +444,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 /// The module `tsc` checks the bindings in, which no Rust module or binding can be: the
 /// runtime's directory holds only the runtime.
 pub fn check_module() -> ModPath {
-	vec!["rt".into(), "bind".into()]
+	vec!["rs".into(), "bind".into()]
 }
 
 /// The export standing in for the function `def_id`: its name, then the trait it
@@ -525,8 +525,8 @@ fn module_of(file: &Path) -> Result<ModPath, String> {
 			}
 		}
 	}
-	if module.first().is_some_and(|first| first.eq_ignore_ascii_case("rt")) {
-		return Err(format!("{} would replace the runtime, rt.ts and rt/", file.display()));
+	if module.first().is_some_and(|first| first.eq_ignore_ascii_case("rs")) {
+		return Err(format!("{} would replace the runtime, rs.ts and rs/", file.display()));
 	}
 	Ok(module)
 }

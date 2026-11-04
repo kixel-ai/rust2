@@ -1,7 +1,7 @@
 // std's slice sorts, for rust2-ts output: the stable driftsort and the unstable ipnsort,
 // as `core::slice::sort` reads at the pinned toolchain on wasm32, so each calls `less` in
 // the order and number std's does and leaves the slice as std's would, whatever `less`
-// answers. `rt.ts` re-exports all of it.
+// answers. `rs.ts` re-exports all of it.
 //
 // std picks its small sorts, partitions, and scratch by the element type's size, and by
 // whether it is `Freeze` and `Copy`, which translation knows and passes. std's
@@ -9,7 +9,7 @@
 // plain loops here. A panic in `less` leaves the slice as it is, which wasm32, where a
 // panic aborts, never shows.
 
-import { byValue, panic, type SliceLike } from "../rt.ts";
+import { byValue, panic, type SliceLike } from "../rs.ts";
 import { drop as dispose } from "./task.ts";
 
 type Items<T> = { [i: number]: T; length: number };

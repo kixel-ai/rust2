@@ -1,5 +1,5 @@
 // Iterators, for rust2-ts output: std's `Iterator`, its adaptors, and `Range`, lazy as
-// Rust's are. `rt.ts` re-exports all of it.
+// Rust's are. `rs.ts` re-exports all of it.
 //
 // `next` returns an item or `DONE`, never `undefined`, so an iterator of `Option<T>` keeps
 // its `None` items apart from its end. Each adaptor calls what it wraps, and the closures
@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -761,7 +761,7 @@ export function iterMap<T, U>(it: Iter<T>, f: (item: T) => U): Iter<U> {
 
 /**
  * `it` with each item lent by `f` as translated code reads it, as a `&[u8; N]` of a
- * `Uint8Array` is lent as an `rt.ByteSlice`.
+ * `Uint8Array` is lent as an `rs.ByteSlice`.
  */
 export function iterLend<T, U>(it: Iter<T>, f: (item: T) => U): Iter<U> {
 	return new LendIter(it, f);
@@ -1255,7 +1255,7 @@ export function iterRfold<T, A>(it: Iter<T>, init: A, f: (acc: A, item: T) => A,
 
 /**
  * `Iterator::try_fold`, as `try_fold` steps it, until `f` breaks: by an `Option`'s `None`,
- * `none` where that is `rt.None`, if `option`, and else by an `rt.Result`'s `Err`, as a
+ * `none` where that is `rs.None`, if `option`, and else by an `rs.Result`'s `Err`, as a
  * `Result` or a `ControlFlow` breaks. It returns what broke, or the accumulator as the type
  * continues with it. If it `owns` `f`, `f` drops as it returns.
  */
@@ -1706,7 +1706,7 @@ export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values
 /**
  * `collect` of `Option`s: `None` at the first `None`, or every value collected by `into`,
  * as `iterCollectResult`. An item's `None` is `itemNone`, and the result's `none`, each
- * `rt.None` where `undefined` is a value.
+ * `rs.None` where `undefined` is a value.
  */
 export function iterCollectOption<U, C>(it: Iter<U | undefined>, into: (values: Iter<U>) => C, drop?: Drop<C>): C | undefined;
 export function iterCollectOption<U, C>(it: Iter<U | None>, into: (values: Iter<U>) => C, drop: Drop<C> | undefined, itemNone: None): C | undefined;
@@ -1915,7 +1915,7 @@ function flattenFold<T, V, A>(it: FlattenIter<T, V>, back: boolean, acc: A, g: (
 }
 
 // Iterators. One has `[Symbol.dispose]` if it owns items or wraps an iterator: what holds
-// it drops it by `rt.drop`, not knowing its kind.
+// it drops it by `rs.drop`, not knowing its kind.
 
 class SliceIter<T> extends Iter<T> implements Disposable {
 	readonly s: ArrayLike<T>;
@@ -5010,8 +5010,8 @@ function stepsBetween<T>(a: T, b: T, int: Step<T> | undefined): SizeHint {
 
 /**
  * `ops::Range`: `start..end`, which iterates its integers by moving `start`. A 64- or
- * 128-bit range takes its type's `Step`, `rt.u64Step`, to step past 2^53, and a range
- * of `char`s `rt.charStep`, to step past the surrogates.
+ * 128-bit range takes its type's `Step`, `rs.u64Step`, to step past 2^53, and a range
+ * of `char`s `rs.charStep`, to step past the surrogates.
  */
 export class Range<T> extends Iter<T> {
 	start: T;
@@ -5101,7 +5101,7 @@ export function rangeContains<T>(r: Range<T>, item: T): boolean {
 
 /**
  * `ops::RangeFrom`: `start..`, which iterates by moving `start` and never ends. It takes
- * its type's `Step`, `rt.u8Step` or `rt.charStep`, past whose last value it panics, as
+ * its type's `Step`, `rs.u8Step` or `rs.charStep`, past whose last value it panics, as
  * std's does in a debug build.
  */
 export class RangeFrom<T> extends Iter<T> {

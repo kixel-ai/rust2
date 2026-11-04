@@ -1,6 +1,6 @@
 // The iterator workloads' hand-written route: each chain in the codec fixture's
 // `bench.rs` op 6, written with ES iterator helpers (`Iterator.prototype.map` and the
-// rest), as TypeScript would write it without the translation's `rt.Iter`. Helpers
+// rest), as TypeScript would write it without the translation's `rs.Iter`. Helpers
 // without an ES counterpart, `enumerate` and `zip` here, are a `for ... of` with a counter.
 
 /** Run one chain, as `bench::run`'s op 6 does, over `data`. */

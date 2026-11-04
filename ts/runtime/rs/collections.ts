@@ -1,6 +1,6 @@
 // Collections, for rust2-ts output: std's `HashMap`, `HashSet`, `BTreeMap`, `BTreeSet`,
 // `VecDeque`, `LinkedList`, and `BinaryHeap`, hashbrown's `HashTable`, which std's maps are
-// built on, and `Ordering`, which their keys need. `rt.ts`
+// built on, and `Ordering`, which their keys need. `rs.ts`
 // re-exports all of it. Each collection is one type whose functions are free functions
 // here, so a bundler keeps only those a caller reaches.
 //
@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -92,7 +92,7 @@ export function cmpNothing(_a: undefined, _b: undefined): Ordering {
 /**
  * `Ord::cmp` of tuples of type `T`, or `PartialOrd::partial_cmp`, from each field's: the
  * first that is not `Equal`, as `None` is not. A caller passes `T` and `O`, which `tsc`
- * infers from neither a generic field, such as a slice's of `rt.cmp`, nor only total ones.
+ * infers from neither a generic field, such as a slice's of `rs.cmp`, nor only total ones.
  */
 export function cmpTuple<T extends readonly unknown[], O extends Ordering | undefined>(fields: { readonly [I in keyof T]: (a: T[I], b: T[I]) => O }): (a: T, b: T) => O {
 	return (a, b) => {
@@ -5090,7 +5090,7 @@ export function btreeKeysPart<K>(k?: (key: K) => void): Part<BTreeSet<K>, K> {
 
 /**
  * `Extend::extend` of `c`, the crate's own collection, by `items`, through `extend`, which
- * takes an `rt.Place` of it if `place`, giving it back.
+ * takes an `rs.Place` of it if `place`, giving it back.
  */
 export function ownExtend<C, I>(c: C, items: I, extend: (c: C, items: I) => void): C;
 export function ownExtend<C, I>(c: C, items: I, extend: (c: Place<C>, items: I) => void, place: true): C;

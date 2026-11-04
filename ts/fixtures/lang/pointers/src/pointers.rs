@@ -1089,7 +1089,7 @@ pub fn iterated_runs(data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A struct JS keeps as an object, holding an `rt.Cell`.
+/// A struct JS keeps as an object, holding an `rs.Cell`.
 struct Stable(UnsafeCell<u8>);
 
 fn first_set<T>(pair: &mut (T, Stable), value: T) {

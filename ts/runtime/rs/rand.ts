@@ -1,9 +1,9 @@
 // `rand`'s thread-local generator, for rust2-ts output: each value comes from the
 // platform's cryptographic source, `crypto.getRandomValues`, as `rand::rng()` seeds from
 // the OS's. The values are uniform as `rand`'s are, but not its stream: no seed reproduces
-// them on either side. `rt.ts` re-exports all of it.
+// them on either side. `rs.ts` re-exports all of it.
 
-import { panic, type RangeInclusive } from "../rt.ts";
+import { panic, type RangeInclusive } from "../rs.ts";
 import { intFromBig, intToBig, type Limbs } from "./int.ts";
 import type { Location } from "./location.ts";
 

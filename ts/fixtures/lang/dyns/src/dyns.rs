@@ -46,7 +46,7 @@ pub(crate) trait Shape {
 	fn larger<'a: 'b, 'b>(&'a self, other: &'b u32) -> u32 {
 		self.area().max(*other)
 	}
-	/// Writes through a `&mut` to a number, which is an `rt.Place`.
+	/// Writes through a `&mut` to a number, which is an `rs.Place`.
 	fn tally(&self, sum: &mut u32) {
 		*sum = sum.wrapping_add(self.area());
 	}
@@ -402,7 +402,7 @@ pub fn anys(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put(out, &format!("{m} "));
 
-	// Of types that can be `undefined`, whose `None` is `rt.None`.
+	// Of types that can be `undefined`, whose `None` is `rs.None`.
 	let unit: &dyn Any = &();
 	put(
 		out,

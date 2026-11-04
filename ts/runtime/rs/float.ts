@@ -4,14 +4,14 @@
 // double holds the exact sum, product, or quotient of two singles closely enough that
 // rounding it again gives the single nearest the exact value. These are their methods
 // where JS differs from std or has none, each its own function, `f64Round`, so a bundler
-// drops every one translated code never calls. `rt.ts` re-exports all of it.
+// drops every one translated code never calls. `rs.ts` re-exports all of it.
 //
 // JS doesn't specify which NaN an operation makes, so a NaN's payload and sign are the
 // engine's: `to_bits` reads what it keeps. An `f32` NaN is the double NaN with its sign
 // and its payload at the top, which a signaling one keeps, where JS's conversion from a
 // single would quiet it.
 
-import { Err, type FmtPart, type FmtResult, type Formatter, fmtPadFormatted, fmtToString, Ok, panic, type Result } from "../rt.ts";
+import { Err, type FmtPart, type FmtResult, type Formatter, fmtPadFormatted, fmtToString, Ok, panic, type Result } from "../rs.ts";
 import type { Ordering } from "./collections.ts";
 import { type f32, type f64, type u32, type u64, u64FromHalves } from "./int.ts";
 

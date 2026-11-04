@@ -29,7 +29,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		};
 		match ty.kind() {
 			ty::RawPtr(..) => match leaf(valtree) {
-				Some(scalar) if scalar.is_null() => Expr::Rt("NULL".into()),
+				Some(scalar) if scalar.is_null() => Expr::Rs("NULL".into()),
 				_ => self.err(span, format!("a constant of type `{ty}` made from an integer")),
 			},
 			ty::Bool => Expr::lit((leaf(valtree).is_some_and(|l| l.to_bits_unchecked() != 0)).to_string()),
@@ -70,14 +70,14 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						.map(|(t, v)| self.value(t, v, span))
 						.collect();
 					match elem.kind() {
-						_ if super::byte(*elem) => Expr::rt(
+						_ if super::byte(*elem) => Expr::rs(
 							"byteSliceFrom",
 							vec![Expr::ident("Uint8Array").member("of").call(items)],
 						),
-						_ => Expr::rt("sliceFrom", vec![Expr::Array(items)]),
+						_ => Expr::rs("sliceFrom", vec![Expr::Array(items)]),
 					}
 				}
-				_ if super::byte_array(*inner) => Expr::rt("byteSliceFrom", vec![self.value(*inner, valtree, span)]),
+				_ if super::byte_array(*inner) => Expr::rs("byteSliceFrom", vec![self.value(*inner, valtree, span)]),
 				_ => self.value(*inner, valtree, span),
 			},
 			ty::Array(elem, _) => {
@@ -153,7 +153,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						{
 							values.pop();
 							values.extend(super::library::range_step(tcx, args.type_at(0), true));
-							Expr::New(Box::new(Expr::Rt("RangeInclusive".into())), values)
+							Expr::New(Box::new(Expr::Rs("RangeInclusive".into())), values)
 						}
 						(Std::Ordering, _) => super::collections::ordering_variant(variant),
 						(Std::AtomicOrdering, _) => super::task::atomic_ordering(variant),
@@ -166,14 +166,14 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						}
 						(Std::RangeFrom, _) => {
 							values.extend(super::library::range_step(tcx, args.type_at(0), true));
-							Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
+							Expr::New(Box::new(Expr::Rs("RangeFrom".into())), values)
 						}
 						(Std::Range, _) => {
 							values.extend(super::library::range_step(tcx, args.type_at(0), false));
-							Expr::New(Box::new(Expr::Rt("Range".into())), values)
+							Expr::New(Box::new(Expr::Rs("Range".into())), values)
 						}
 						(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
-						(Std::Pending, _) => Expr::Rt("NEVER".into()),
+						(Std::Pending, _) => Expr::Rs("NEVER".into()),
 						(Std::ParseIntError, _) => {
 							Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())])
 						}

@@ -105,7 +105,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					// What owns its items, an `IntoIter` or a `Drain`, drops those it still holds.
 					true => args.types().any(|t| self.drops(t)),
 					// A `str` search's holds its pattern inside std's searcher, and a `RepeatN` its
-					// element inside a struct of its own, which no `rt.Iter` stands for.
+					// element inside a struct of its own, which no `rs.Iter` stands for.
 					false
 						if super::iter::holds_closure(tcx, adt.did())
 							|| library::std_path(tcx, adt.did()) == ["iter", "sources", "repeat_n", "RepeatN"] =>
@@ -140,7 +140,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		drops
 	}
 
-	/// Whether `ty` is one of std's iterators, or a type they are built of, which an `rt.Iter`
+	/// Whether `ty` is one of std's iterators, or a type they are built of, which an `rs.Iter`
 	/// stands for: it drops what it owns, of its fields or, with a `Drop` impl, its items.
 	pub(super) fn std_iter(&self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(adt, _) = ty.kind() else {
@@ -196,7 +196,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Wrapping
 					| Std::Saturating,
 				) => self.disposable(args.type_at(0), glue),
-				// An `rt.Iter` drops what it was given to.
+				// An `rs.Iter` drops what it was given to.
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
@@ -220,7 +220,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Whether every JS value of `ty`, a type that drops and is [`Self::disposable`], is an
 	/// object with `[Symbol.dispose]`, which a drop calls directly rather than through
-	/// `rt.drop`'s one megamorphic site. An `Option` may be `None`, and a type parameter, a
+	/// `rs.drop`'s one megamorphic site. An `Option` may be `None`, and a type parameter, a
 	/// trait object, a closure, or a future may be any value.
 	fn always_disposes(&self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(adt, args) = ty.kind() else {
@@ -251,7 +251,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::BytesMut,
 			) => true,
 			Some(_) => false,
-			// An `rt.Iter` has one only if it was given what drops.
+			// An `rs.Iter` has one only if it was given what drops.
 			None if self.std_iter(ty) => false,
 			// The class its glue made.
 			None => adt.is_struct(),
@@ -259,7 +259,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether each closure that drops in `ty`, one of std's iterators, is one an adaptor's
-	/// `rt.Iter` drops, as `iter::holds_closure` says. A box of a closure is the closure.
+	/// `rs.Iter` drops, as `iter::holds_closure` says. A box of a closure is the closure.
 	fn closures_held(&mut self, ty: Ty<'tcx>) -> bool {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return true;
@@ -411,12 +411,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			if !self.disposable(elem, Some(span)) {
 				args.push(self.drop_fn(elem, span)?);
 			}
-			return Some(Expr::rt(if vec { "dropVec" } else { "dropAll" }, args));
+			return Some(Expr::rs(if vec { "dropVec" } else { "dropAll" }, args));
 		}
 		if self.disposable(ty, Some(span)) {
 			return Some(match self.always_disposes(ty) {
 				true => value.index(Expr::ident("Symbol").member("dispose")).call(Vec::new()),
-				false => Expr::rt("drop", vec![value]),
+				false => Expr::rs("drop", vec![value]),
 			});
 		}
 		if let ty::Adt(adt, args) = ty.kind()
@@ -431,7 +431,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			};
 			let (name, args) = match std {
 				// Not by a `[Symbol.dispose]`: the `&[u8]` it derefs to is the same object,
-				// which glue may give `rt.drop`.
+				// which glue may give `rs.drop`.
 				Std::Bytes => ("bytesDrop", vec![value]),
 				Std::Arc => ("arcDrop", vec![value, each(self, 0)?]),
 				Std::Mutex => return self.drop_value(value.member("value"), args.type_at(0), span),
@@ -478,7 +478,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					}
 					("cowDrop", args)
 				}
-				// Its bounds, in the order std's fields are, `rt.RangeInclusive`'s by its own names.
+				// Its bounds, in the order std's fields are, `rs.RangeInclusive`'s by its own names.
 				Std::Range | Std::RangeInclusive => {
 					let (lo, hi) = match std {
 						Std::Range => ("start", "end"),
@@ -507,7 +507,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				while args.len() > 1 && matches!(args.last(), Some(Expr::Lit(l)) if l == "undefined") {
 					args.pop();
 				}
-				return Some(Expr::rt(name, args));
+				return Some(Expr::rs(name, args));
 			}
 			return self.drop_glue_call(args.into_iter().next()?, ty, span);
 		}
@@ -533,24 +533,24 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// A census lowers a generic function over its type parameters, where only an
 		// instance can say what the glue is.
 		if rustc && self.census && (ty.has_param() || ty.has_aliases()) {
-			return Some(Expr::rt("drop", vec![value]));
+			return Some(Expr::rs("drop", vec![value]));
 		}
 		self.err(span, format!("dropping `{ty}`, which is not supported yet"));
 		None
 	}
 
 	/// A function dropping a `ty`, or `None` if JS would see nothing drop or translation
-	/// refused it: `rt.drop` for a value with `[Symbol.dispose]`, or else its glue.
+	/// refused it: `rs.drop` for a value with `[Symbol.dispose]`, or else its glue.
 	pub fn drop_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		let ty = self.tcx.erase_and_anonymize_regions(ty);
 		if !self.drops(ty) {
 			return None;
 		}
 		if self.disposable(ty, Some(span)) {
-			return Some(Expr::Rt("drop".into()));
+			return Some(Expr::Rs("drop".into()));
 		}
 		if self.std_of(ty) == Some(Std::Bytes) {
-			return Some(Expr::Rt("bytesDrop".into()));
+			return Some(Expr::Rs("bytesDrop".into()));
 		}
 		// A tuple over type parameters, as a generic class's glue holds, has no glue of
 		// rustc's until an instance: each element in order, as that glue drops them.
@@ -609,7 +609,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The elements of an array, slice, or `Vec` that `ty` is, or holds in an `Option` or a box,
-	/// whose JS value is the array or `rt.Vec`, as the second says, or `undefined`.
+	/// whose JS value is the array or `rs.Vec`, as the second says, or `undefined`.
 	fn elements(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
 		match ty.kind() {
 			ty::Array(elem, _) | ty::Slice(elem) => Some((*elem, false)),

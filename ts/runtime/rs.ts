@@ -5,39 +5,39 @@
 // left only where a call dispatches on its receiver: an iterator's `next`, a writer's
 // `writeStr` and `writeChar`, a future's `poll`, a waker's, and `[Symbol.dispose]`.
 
-import type { Shared } from "./rt/bytes.ts";
-import type { Ordering } from "./rt/collections.ts";
-import type { ParseFloatError } from "./rt/float.ts";
-import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
-import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
-import type { Location } from "./rt/location.ts";
-import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
+import type { Shared } from "./rs/bytes.ts";
+import type { Ordering } from "./rs/collections.ts";
+import type { ParseFloatError } from "./rs/float.ts";
+import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rs/int.ts";
+import type { Iter, Range, RangeInclusive } from "./rs/iter.ts";
+import type { Location } from "./rs/location.ts";
+import { drop as dispose, dropAll, partPlace, type Pending } from "./rs/task.ts";
 
-import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rt/alloc.ts";
-import { AtIndex } from "./rt/collections.ts";
-import { escapeDebug } from "./rt/char.ts";
-import { strFromUtf8Unchecked } from "./rt/str.ts";
-export * from "./rt/alloc.ts";
-export * from "./rt/ascii.ts";
-export * from "./rt/bytes.ts";
-export * from "./rt/char.ts";
-export * from "./rt/collections.ts";
-export * from "./rt/float.ts";
-export * from "./rt/hash.ts";
-export * from "./rt/hook.ts";
-export * from "./rt/int.ts";
-export * from "./rt/iter.ts";
-export * from "./rt/location.ts";
-export * from "./rt/rand.ts";
-export * from "./rt/sort.ts";
-export * from "./rt/str.ts";
-export * from "./rt/task.ts";
-export * from "./rt/time.ts";
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
+import { AtIndex } from "./rs/collections.ts";
+import { escapeDebug } from "./rs/char.ts";
+import { strFromUtf8Unchecked } from "./rs/str.ts";
+export * from "./rs/alloc.ts";
+export * from "./rs/ascii.ts";
+export * from "./rs/bytes.ts";
+export * from "./rs/char.ts";
+export * from "./rs/collections.ts";
+export * from "./rs/float.ts";
+export * from "./rs/hash.ts";
+export * from "./rs/hook.ts";
+export * from "./rs/int.ts";
+export * from "./rs/iter.ts";
+export * from "./rs/location.ts";
+export * from "./rs/rand.ts";
+export * from "./rs/sort.ts";
+export * from "./rs/str.ts";
+export * from "./rs/task.ts";
+export * from "./rs/time.ts";
 
 /** A Rust panic. */
 export class Panic extends Error {
 	/**
-	 * What `panic` runs before it throws, once a program sets a hook: `rt/hook.ts`'s, which
+	 * What `panic` runs before it throws, once a program sets a hook: `rs/hook.ts`'s, which
 	 * gives the text it formatted, if any.
 	 */
 	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean) => string | undefined;
@@ -1203,8 +1203,8 @@ export function sliceSplitLastMut<T>(s: Slice<T>, place: boolean): [Place<T> | T
 }
 
 /**
- * What a function reads or writes of a slice of any element, an `rt.Slice`'s or an
- * `rt.ByteSlice`'s: `length` elements of `data` from `start`.
+ * What a function reads or writes of a slice of any element, an `rs.Slice`'s or an
+ * `rs.ByteSlice`'s: `length` elements of `data` from `start`.
  */
 export interface SliceLike<T> {
 	readonly data: { [i: number]: T; readonly length: number };
@@ -1359,7 +1359,7 @@ export function cloneFromFn<T>(f: (old: T, src: T) => void): CloneFrom<T> {
 	};
 }
 
-/** A crate's own `clone_from` of a value a `&mut` lends as an `rt.Place`, `f`. */
+/** A crate's own `clone_from` of a value a `&mut` lends as an `rs.Place`, `f`. */
 export function cloneFromPlaceFn<T>(f: (old: Place<T>, src: T) => void): CloneFrom<T> {
 	return (old, src) => {
 		f(place(() => old, (value) => (old = value)), src);
@@ -1820,7 +1820,7 @@ export class ByteSlice {
 /**
  * A `bytes::Bytes` that is one of the handles counted of `shared`, its storage. A `Bytes`
  * that is a plain `ByteSlice` is static: it holds no storage, as `Bytes::new` makes. It is
- * here, not in `rt/bytes.ts`, as that module runs before this one defines `ByteSlice`.
+ * here, not in `rs/bytes.ts`, as that module runs before this one defines `ByteSlice`.
  */
 export class CountedBytes extends ByteSlice {
 	readonly shared: Shared;
@@ -2269,7 +2269,7 @@ export function byteVecDedupByKeyMut<K>(v: ByteVec, key: (byte: Place<number>) =
 // `peak`, the most it held since, where a step shortened it, so a push reads and writes
 // neither. Reading one doubles `cap` while short of the length or the peak, from the
 // least `RawVec` allocates, as std's pushes grow it. A `VecDeque`'s is its buffer's
-// length, and so is an `rt.ByteVec`'s.
+// length, and so is an `rs.ByteVec`'s.
 
 /** wasm32's `isize::MAX`, the most bytes std's `Layout` describes. */
 const ISIZE_MAX = 0x7fffffff;
@@ -2526,8 +2526,8 @@ export function byteVecShrinkTo(v: ByteVec, min: number): void {
 }
 
 // Cows. An owned one is what it owns and a borrowed one what it borrows, told apart by
-// class: a `Cow<[u8]>` is an `rt.ByteVec` or an `rt.ByteSlice`, and any other is the
-// `rt.Vec` or string it owns or the `rt.Borrowed` wrapping the slice it borrows.
+// class: a `Cow<[u8]>` is an `rs.ByteVec` or an `rs.ByteSlice`, and any other is the
+// `rs.Vec` or string it owns or the `rs.Borrowed` wrapping the slice it borrows.
 
 /**
  * The slice a `Cow<[T]>` or a `Cow<str>` borrows, which it clones before it changes. A

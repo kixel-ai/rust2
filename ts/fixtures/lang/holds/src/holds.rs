@@ -1,5 +1,5 @@
 //! Values translation holds back rather than reads once: a borrow read as its place, a
-//! place lent as an `rt.Place`, a copy of a reference, an aggregate read by its parts, a
+//! place lent as an `rs.Place`, a copy of a reference, an aggregate read by its parts, a
 //! closure's captures, and a temporary folded into its read. Each case assigns a variable
 //! the held value names between the hold and the read, in a loop and across its
 //! iterations, and the read must see what Rust read when the value was made.
@@ -30,7 +30,7 @@ pub fn holds(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A `&mut` through nested indexes lent as an `rt.Place`, each index assigned again while
+/// A `&mut` through nested indexes lent as an `rs.Place`, each index assigned again while
 /// it lives, and one through a reference assigned another.
 fn places(a: u8, b: u8, data: &[u8], out: &mut Vec<u8>) {
 	let mut grid = [[0u8; 4]; 4];

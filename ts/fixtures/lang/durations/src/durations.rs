@@ -60,7 +60,7 @@ impl std::ops::AddAssign<Twice> for Duration {
 	}
 }
 
-/// `-=` through a `&mut`, which is an `rt.Place`.
+/// `-=` through a `&mut`, which is an `rs.Place`.
 fn shrink(d: &mut Duration, by: Duration) {
 	*d -= by;
 }
