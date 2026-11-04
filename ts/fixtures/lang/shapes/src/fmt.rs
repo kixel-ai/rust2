@@ -1375,7 +1375,10 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	result(out, capped.write_char(c));
 	result(out, write!(capped, "z"));
 	// Placeholders, whose fills and signs std's `write_char` writes through `write_str`.
-	result(out, write!(capped, "{:>4}|{}|{c:^5}|{:?}", at(10), -i16::from(at(11)), "q\"b"));
+	result(
+		out,
+		write!(capped, "{:>4}|{}|{c:^5}|{:?}", at(10), -i16::from(at(11)), "q\"b"),
+	);
 	result(out, literals(&mut &mut capped, 'é'));
 	out.push(capped.calls);
 	put(out, &capped.text);
@@ -1873,7 +1876,14 @@ pub fn calls(data: &[u8], out: &mut Vec<u8>) {
 	);
 	let w = u64::from_be_bytes([at(6), at(7), at(8), at(9), at(1), at(2), at(3), at(4)]);
 	let n = i128::from(v) * -(1 << 70);
-	logged!(out, budget, "{w:>24}|{w:#x}|{n}|{n:+045}|{n:e}|{:>5}|{:#06x}|{:.45E}", at(6), at(7) as i8, v);
+	logged!(
+		out,
+		budget,
+		"{w:>24}|{w:#x}|{n}|{n:+045}|{n:e}|{:>5}|{:#06x}|{:.45E}",
+		at(6),
+		at(7) as i8,
+		v
+	);
 	let x = match at(10) % 9 {
 		0 => f64::NAN,
 		1 => -0.0,
@@ -1891,7 +1901,11 @@ pub fn calls(data: &[u8], out: &mut Vec<u8>) {
 		"{x}|{x:?}|{x:10.3}|{x:<+12}|{x:^012.1}|{x:e}|{x:.2e}|{x:.30}|{x:#?}|{x:+.0}|{x:>9?}|{x:E}|{x:08}|{x:+09.3e}|{x:.0e}"
 	);
 	let y = x as f32;
-	logged!(out, budget, "{x:.70}|{x:.330}|{x:.20e}|{y}|{y:?}|{y:.3}|{y:e}|{y:.12e}|{y:.50}");
+	logged!(
+		out,
+		budget,
+		"{x:.70}|{x:.330}|{x:.20e}|{y}|{y:?}|{y:.3}|{y:e}|{y:.12e}|{y:.50}"
+	);
 	let s = STRINGS[usize::from(at(11)) % STRINGS.len()];
 	let c = char::from_u32(u32::from(at(12)) * 0x101).unwrap_or('?');
 	let flag = at(13) % 2 == 0;
@@ -1963,7 +1977,11 @@ pub fn calls(data: &[u8], out: &mut Vec<u8>) {
 		u64::from(at(23) % 3) * u64::from(at(24)),
 		u32::from_be_bytes([0, at(25), at(26), at(27)]) % 1_000_000_000,
 	);
-	logged!(out, budget, "{d:?}|{d:>12?}|{d:.2?}|{d:+?}|{d:^15.11?}|{d:<4.0?}|{d:*>20.3?}");
+	logged!(
+		out,
+		budget,
+		"{d:?}|{d:>12?}|{d:.2?}|{d:+?}|{d:^15.11?}|{d:<4.0?}|{d:*>20.3?}"
+	);
 	match std::str::from_utf8(data) {
 		Ok(_) => logged!(out, budget, "{:?}", data.utf8_chunks()),
 		Err(e) => logged!(out, budget, "{e}|{e:?}|{:?}", data.utf8_chunks()),
@@ -1987,7 +2005,14 @@ pub fn calls(data: &[u8], out: &mut Vec<u8>) {
 		"ab".encode_utf16(),
 		std::iter::repeat_with(|| 1)
 	);
-	logged!(out, budget, "{}|{:>6}|{}", Lettered(c), Lettered('é'), format_args!("a{}b{v:>3}", at(30)));
+	logged!(
+		out,
+		budget,
+		"{}|{:>6}|{}",
+		Lettered(c),
+		Lettered('é'),
+		format_args!("a{}b{v:>3}", at(30))
+	);
 	passed(out, budget, format_args!("{v:+}|{:?}|{s:?}", Pair(at(31), 1)));
 	passed(out, budget, format_args!("lit"));
 	passed(out, budget, format_args!(""));
@@ -2036,7 +2061,10 @@ pub fn cells(data: &[u8], out: &mut Vec<u8>) {
 		lock: &lock,
 		forced: &forced,
 	};
-	let r = write!(setter, "{cell:?}|{once:?}|{lazy:?}|{lock:?}|{forced:?}|{cell:?}|{once:?}");
+	let r = write!(
+		setter,
+		"{cell:?}|{once:?}|{lazy:?}|{lock:?}|{forced:?}|{cell:?}|{once:?}"
+	);
 	setter.log.text.push(if r.is_ok() { '+' } else { '-' });
 	put(out, &setter.log.text);
 }

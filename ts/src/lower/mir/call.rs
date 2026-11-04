@@ -1544,17 +1544,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let receiver = self.path(receiver, "w", out);
 				let write_char = crate::lower::collections::trait_fn(tcx, "FmtWrite", "write_char");
 				let (s, c) = (self.b.fresh("s"), self.b.fresh("c"));
+				let (s_arg, c_arg) = (Expr::ident(&s), Expr::ident(&c));
 				let mut pre = Vec::new();
-				let str_call = self.b.call_def(write_str, wargs, vec![receiver.clone(), Expr::ident(&s)], span, &mut pre);
+				let str_call = self
+					.b
+					.call_def(write_str, wargs, vec![receiver.clone(), s_arg], span, &mut pre);
 				// std's provided `write_char` writes the char's UTF-8 through `write_str`.
 				let char_call = match self.b.t.translated(write_char, wargs) {
-					true => self.b.call_def(write_char, wargs, vec![receiver, Expr::ident(&c)], span, &mut pre),
-					false => self.b.call_def(write_str, wargs, vec![receiver, library::char_text(Expr::ident(&c))], span, &mut pre),
+					true => self
+						.b
+						.call_def(write_char, wargs, vec![receiver, c_arg], span, &mut pre),
+					false => self.b.call_def(
+						write_str,
+						wargs,
+						vec![receiver, library::char_text(c_arg)],
+						span,
+						&mut pre,
+					),
 				};
 				if !pre.is_empty() {
 					return done(self.err(span, format!("`write_str` of `{w}` needs statements")), true);
 				}
-				let lambda = |name: String, body: Expr| Expr::Lambda(vec![crate::ts::Param { name, ty: None }], Box::new(body));
+				let lambda =
+					|name: String, body: Expr| Expr::Lambda(vec![crate::ts::Param { name, ty: None }], Box::new(body));
 				let write = Expr::rt("fmtWrite", vec![lambda(s, str_call), lambda(c, char_call), arg]);
 				return done(write, true);
 			}
