@@ -39,6 +39,3 @@ costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
 
 Public API: the translator's output and what a hand-written caller passes for a
 reference to an array.
-
-## Related
-
