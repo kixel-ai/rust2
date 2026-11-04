@@ -25,4 +25,3 @@ generic std gap is planned here even when moq never calls it.
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [The chunk a BufMut lends](/quest/m3/ts-chunk-mut.md) - `BufMut::chunk_mut` and its `UninitSlice`'s writes translate, reaching the buffer's storage
 - [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
-- [Python calls skip the loop lookup](/quest/m3/ffi-python-loop-lookup.md) - a call while an asyncio loop runs costs what one outside does unless something waits
