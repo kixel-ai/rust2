@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
+  it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - A `dyn Error`'s or `dyn Buf`'s type and classes hold only the methods some call through
   one dispatches to: a TS caller can call no other, such as `getU16Le$Buf` where no Rust
   call reads one through a `dyn Buf`.
