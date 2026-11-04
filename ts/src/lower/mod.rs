@@ -252,6 +252,11 @@ pub struct Translator<'a, 'tcx> {
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
+	/// `rt.Location` its hook reads.
+	pub hooked: bool,
+	/// Whether this run did.
+	hooking: bool,
 	/// The trait of each trait object, by its principal trait.
 	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object<'tcx>>,
 	/// The class wrapping each type, held each way, as every trait object.
@@ -318,7 +323,7 @@ impl<'tcx> Crates<'tcx> {
 
 /// Whether `krate` is std or a crate std is built from: `-Zbuild-std` compiles those, and
 /// only those, with stability on every item.
-fn of_std(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+pub(crate) fn of_std(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 	tcx.lookup_stability(krate.as_def_id()).is_some()
 }
 
@@ -408,6 +413,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// judge by. A closure's clone may come before or after the closure is made, which
 	/// makes it as its clones need, so it runs again too when it reaches a new one, and a
 	/// comparison of pointers may come before or after the borrows and copies it decides.
+	/// Once it reaches a `panic::set_hook`, it runs again with every panic located.
 	fn settle<R>(
 		tcx: TyCtxt<'tcx>,
 		config: &'a Config,
@@ -417,8 +423,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let mut read = rustc_data_structures::fx::FxHashSet::default();
 		let mut cloned = rustc_data_structures::fx::FxHashSet::default();
 		let mut compared = rustc_data_structures::fx::FxHashSet::default();
+		let mut hooked = false;
 		loop {
-			let mut t = Self::new(tcx, config, census, read, cloned, compared)?;
+			let mut t = Self::new(tcx, config, census, read, cloned, compared, hooked)?;
 			t.bind();
 			let out = reach(&mut t);
 			let reached: Vec<Instance<'tcx>> = t
@@ -428,7 +435,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				.copied()
 				.filter(|&instance| t.crates.translates(instance.def_id()) && t.writes.unread(instance))
 				.collect();
-			if reached.is_empty() && t.cloning.is_subset(&t.cloned) && t.comparing.is_subset(&t.compared) {
+			if reached.is_empty()
+				&& t.cloning.is_subset(&t.cloned)
+				&& t.comparing.is_subset(&t.compared)
+				&& (t.hooked || !t.hooking)
+			{
 				t.refuse_capacity_reads();
 				return Some((t, out));
 			}
@@ -438,7 +449,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloned.extend(t.cloning.drain());
 			compared = std::mem::take(&mut t.compared);
 			compared.extend(t.comparing.drain());
+			hooked |= t.hooking;
 		}
+	}
+
+	/// Note a `panic::set_hook`, after which every panic carries its location.
+	pub fn hook(&mut self) {
+		self.hooking = true;
 	}
 
 	/// Note a clone of the closure `def_id` that can't share it.
@@ -459,6 +476,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		read: rustc_data_structures::fx::FxHashSet<Instance<'tcx>>,
 		cloned: rustc_data_structures::fx::FxHashSet<DefId>,
 		compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+		hooked: bool,
 	) -> Option<Self> {
 		if tcx.data_layout.pointer_size().bits() != 32 {
 			tcx.dcx().err(
@@ -505,6 +523,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloning: Default::default(),
 			compared,
 			comparing: Default::default(),
+			hooked,
+			hooking: false,
 			held: false,
 			glue: false,
 			sites: Default::default(),

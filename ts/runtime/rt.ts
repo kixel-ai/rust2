@@ -10,6 +10,7 @@ import type { Ordering } from "./rt/collections.ts";
 import type { ParseFloatError } from "./rt/float.ts";
 import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
+import type { Location } from "./rt/location.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
 
 import { AtIndex } from "./rt/collections.ts";
@@ -30,9 +31,11 @@ export * from "./rt/str.ts";
 export * from "./rt/task.ts";
 export * from "./rt/time.ts";
 
-/** A Rust panic. */
+/** A Rust panic, and in a program that sets a panic hook, where it panicked. */
 export class Panic extends Error {
 	override name = "Panic";
+	/** Where it panicked, as its hook reads it: in a program that sets one, once it has. */
+	location: Location | undefined = undefined;
 }
 
 /** An abort that runs no panic hook, as std's `rtabort!`: a `Panic`, so catching one catches both. */
@@ -40,9 +43,88 @@ export class Abort extends Panic {
 	override name = "Abort";
 }
 
-/** Panic with `message`. */
-export function panic(message: string): never {
-	throw new Panic(message);
+/** `std::panic::PanicHookInfo`: what a panic hook is given. */
+export interface PanicHookInfo {
+	/** `payload_as_str`: the payload, if it is a `&str` or a `String`. */
+	readonly text: string | undefined;
+	/** Whether that text is a `String`, as a message `panic!` formats is, rather than a `&'static str`. */
+	readonly owned: boolean;
+	/** Any other payload, as the `dyn Any` object `panic_any` made of it. */
+	readonly payload: object | undefined;
+	readonly location: Location;
+}
+
+/** A panic hook, as `set_hook` takes it. */
+export type Hook = (info: PanicHookInfo) => void;
+
+/** The default hook, which writes to the standard error wasm32 has none of. */
+function defaultHook(_info: PanicHookInfo): void {}
+
+let hook: Hook = defaultHook;
+/** Whether a hook is running: a panic then aborts, and `thread::panicking` is true. */
+let hooking = false;
+/** Where std's own code panics outside a `#[track_caller]` function, which `setHook` is given. */
+let sites: Sites | undefined;
+
+/** Where std's code panics, for each of its panics the runtime makes, as the native build names it. */
+export interface Sites {
+	readonly [site: string]: Location;
+}
+
+/** `panic::set_hook`, given where std's own code panics, which its hooks read. */
+export function setHook(f: Hook, at: Sites): void {
+	if (hooking) throw new Abort("cannot modify the panic hook from a panicking thread");
+	const old = hook;
+	hook = f;
+	sites = at;
+	dispose(old);
+}
+
+/** `panic::take_hook`: the hook, which the default replaces. */
+export function takeHook(): Hook {
+	if (hooking) throw new Abort("cannot modify the panic hook from a panicking thread");
+	const old = hook;
+	hook = defaultHook;
+	return old;
+}
+
+/** `thread::panicking`, which is true while a hook runs, as a panic aborts once it has. */
+export function panicking(): boolean {
+	return hooking;
+}
+
+/** Where std's code panics at `site`, once a hook can read it. */
+export function site(site: string): Location | undefined {
+	return sites?.[site];
+}
+
+/**
+ * Throw `err`, a panic at `at` whose payload is `text` or else `payload`, once the hook
+ * has seen it. A panic while the hook runs aborts, as std's does, without running it again.
+ */
+function raise(err: Panic, at: Location | undefined, text: string | undefined, owned: boolean, payload: object | undefined): never {
+	if (hooking) throw new Abort(`${err.message}\nthread panicked while processing panic. aborting.`);
+	err.location = at;
+	if (hook !== defaultHook) {
+		if (at === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${err.message}`);
+		hooking = true;
+		try {
+			hook({ text, owned, payload, location: at });
+		} finally {
+			hooking = false;
+		}
+	}
+	throw err;
+}
+
+/** Panic at `at` with `message`, a `String` if `owned` and else a `&'static str`. */
+export function panic(message: string, at?: Location, owned = false): never {
+	raise(new Panic(message), at, message, owned, undefined);
+}
+
+/** `panic_any` of a payload that is no text: the `dyn Any` object made of it. */
+export function panicAny(payload: object, at?: Location): never {
+	raise(new Panic("Box<dyn Any>"), at, undefined, false, payload);
 }
 
 /** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
@@ -51,13 +133,13 @@ export function resumeUnwind(): never {
 }
 
 /**
- * Panic with a formatted message, which keeps what was written before a value failed to
- * format, as std's does.
+ * Panic at `at` with a formatted message, a `String`, which keeps what was written before
+ * a value failed to format, as std's does.
  */
-export function panicFmt(message: Arguments): never {
+export function panicFmt(message: Arguments, at?: Location): never {
 	const out = new StringWriter();
 	write(out, message);
-	throw new Panic(out.s);
+	panic(out.s, at, true);
 }
 
 /** A `match` without arms, on a value Rust proved can't exist, such as a `(Void, u8)`. */
@@ -66,9 +148,9 @@ export function unreachable(_value: unknown): never {
 }
 
 /** `assert_eq!` or `assert_ne!` failing: `op` is `==` or `!=`. */
-export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments): never {
+export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments, at?: Location): never {
 	const failed: Arguments = args === undefined ? [" failed"] : [" failed: ", (f) => fmtWriteFmt(f, args)];
-	panicFmt(["assertion `left ", op, " right`", ...failed, "\n  left: ", left, "\n right: ", right]);
+	panicFmt(["assertion `left ", op, " right`", ...failed, "\n  left: ", left, "\n right: ", right], at);
 }
 
 // Places
@@ -599,22 +681,22 @@ export const OK: Result<undefined, never> = /* @__PURE__ */ Object.freeze({ ok: 
 export const ERR: Result<never, undefined> = /* @__PURE__ */ Object.freeze({ ok: false, error: undefined });
 
 /** Panic with `message` and `value`'s `Debug`. */
-function unwrapFailed<T>(message: string, value: T, debug: Debug<T>): never {
-	panicFmt([message, ": ", (f) => debug(value, f)]);
+function unwrapFailed<T>(message: string, value: T, debug: Debug<T>, at?: Location): never {
+	panicFmt([message, ": ", (f) => debug(value, f)], at);
 }
 
 // A function that may drop an operand std's would, rather than return it, takes what
 // drops it, and drops it where std's does: as it returns, or after any closure it calls.
 
 /** `unwrap`, which shows the error with `debug`. */
-export function resultUnwrap<T, E>(r: Result<T, E>, debug: Debug<E>): T {
-	if (!r.ok) unwrapFailed("called `Result::unwrap()` on an `Err` value", r.error, debug);
+export function resultUnwrap<T, E>(r: Result<T, E>, debug: Debug<E>, at?: Location): T {
+	if (!r.ok) unwrapFailed("called `Result::unwrap()` on an `Err` value", r.error, debug, at);
 	return r.value;
 }
 
 /** `Result::expect`: the value, or a panic with `message` and the error's `Debug`. */
-export function resultExpect<T, E>(r: Result<T, E>, message: string, debug: Debug<E>): T {
-	if (!r.ok) unwrapFailed(message, r.error, debug);
+export function resultExpect<T, E>(r: Result<T, E>, message: string, debug: Debug<E>, at?: Location): T {
+	if (!r.ok) unwrapFailed(message, r.error, debug, at);
 	return r.value;
 }
 
@@ -624,8 +706,8 @@ export function resultUnwrapOrElse<T, E>(r: Result<T, E>, f: (error: E) => T): T
 }
 
 /** `Result::unwrap_err`: the error, or a panic with the value's `Debug`. */
-export function resultUnwrapErr<T, E>(r: Result<T, E>, debug: Debug<T>): E {
-	if (r.ok) unwrapFailed("called `Result::unwrap_err()` on an `Ok` value", r.value, debug);
+export function resultUnwrapErr<T, E>(r: Result<T, E>, debug: Debug<T>, at?: Location): E {
+	if (r.ok) unwrapFailed("called `Result::unwrap_err()` on an `Ok` value", r.value, debug, at);
 	return r.error;
 }
 
@@ -644,44 +726,44 @@ export function optionMap<T, U>(o: T | undefined, f: (value: T) => U): U | undef
 }
 
 /** `Option::unwrap`: the value, or a panic. */
-export function optionUnwrap<T>(o: T | undefined): T;
-export function optionUnwrap<T>(o: T | None, none: None): T;
-export function optionUnwrap<T>(o: T | undefined | None, none?: None): T {
-	if (o === none) panic("called `Option::unwrap()` on a `None` value");
+export function optionUnwrap<T>(o: T | undefined, at?: Location): T;
+export function optionUnwrap<T>(o: T | None, none: None, at?: Location): T;
+export function optionUnwrap<T>(o: T | undefined | None, none?: None, at?: Location): T {
+	if (o === none) panic("called `Option::unwrap()` on a `None` value", at);
 	return o as T;
 }
 
 /** `Option::expect`: the value, or a panic with `message`. */
-export function optionExpect<T>(o: T | undefined, message: string): T;
-export function optionExpect<T>(o: T | None, message: string, none: None): T;
-export function optionExpect<T>(o: T | undefined | None, message: string, none?: None): T {
-	if (o === none) panic(message);
+export function optionExpect<T>(o: T | undefined, message: string, at?: Location): T;
+export function optionExpect<T>(o: T | None, message: string, none: None, at?: Location): T;
+export function optionExpect<T>(o: T | undefined | None, message: string, none?: None, at?: Location): T {
+	if (o === none) panic(message, at);
 	return o as T;
 }
 
 // Slices: arrays, but for bytes, which are `ByteSlice`s.
 
 /** A bounds-checked index into a slice. */
-export function idx(slice: { readonly length: number }, index: number): number {
-	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`);
+export function idx(slice: { readonly length: number }, index: number, at?: Location): number {
+	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`, at);
 	return index;
 }
 
 /** A bounds-checked read of a slice. */
-export function at<T>(slice: ArrayLike<T>, index: number): T {
-	return slice[idx(slice, index)];
+export function at<T>(slice: ArrayLike<T>, index: number, at?: Location): T {
+	return slice[idx(slice, index, at)];
 }
 
 /** Panic unless `start..end` is in a slice of `length`, as std's range checks do. */
-export function rangeCheck(length: number, start: number, end: number): void {
-	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`);
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`);
-	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`);
+export function rangeCheck(length: number, start: number, end: number, at?: Location): void {
+	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`, at);
+	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at);
+	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`, at);
 }
 
 /** `&s[start..end]`, with `end` defaulting to the length. */
-export function sliceRange<T>(s: T[], start: number, end: number = s.length): T[] {
-	rangeCheck(s.length, start, end);
+export function sliceRange<T>(s: T[], start: number, end: number = s.length, at?: Location): T[] {
+	rangeCheck(s.length, start, end, at);
 	return slicePart(s, start, end);
 }
 
@@ -979,8 +1061,8 @@ function byteRuns(s: object): boolean {
 }
 
 /** `&mut s[start..end]`: the runtime's view of it, checked as `sliceRange` checks it. */
-export function sliceRangeMut<T>(s: T[], start: number, end: number = s.length): T[] {
-	rangeCheck(s.length, start, end);
+export function sliceRangeMut<T>(s: T[], start: number, end: number = s.length, at?: Location): T[] {
+	rangeCheck(s.length, start, end, at);
 	return sliceView(s, start, end);
 }
 
@@ -1015,27 +1097,27 @@ export function sliceSplitLastChunkMut<T>(s: T[], n: number): [T[], T[]] | undef
 }
 
 /** `as_chunks`: copies of each run of `n` elements from the front, and the rest, panicking at a size of 0. */
-export function sliceAsChunks<T>(s: T[], n: number): [T[][], T[]] {
-	const count = chunkCount(s.length, n);
+export function sliceAsChunks<T>(s: T[], n: number, at?: Location): [T[][], T[]] {
+	const count = chunkCount(s.length, n, at);
 	return [runs(count, n, (start, end) => s.slice(start, end)), slicePart(s, count * n)];
 }
 
 /** `as_rchunks`: the rest, and copies of each run of `n` elements up to the back, panicking at a size of 0. */
-export function sliceAsRchunks<T>(s: T[], n: number): [T[], T[][]] {
-	const count = chunkCount(s.length, n);
+export function sliceAsRchunks<T>(s: T[], n: number, at?: Location): [T[], T[][]] {
+	const count = chunkCount(s.length, n, at);
 	const rest = s.length - count * n;
 	return [slicePart(s, 0, rest), runs(count, n, (start, end) => s.slice(rest + start, rest + end))];
 }
 
 /** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
-export function sliceAsChunksMut<T>(s: T[], n: number): [T[][], T[]] {
-	const count = chunkCount(s.length, n);
+export function sliceAsChunksMut<T>(s: T[], n: number, at?: Location): [T[][], T[]] {
+	const count = chunkCount(s.length, n, at);
 	return [runsOf(s, 0, n, count), sliceView(s, count * n, s.length)];
 }
 
 /** `as_rchunks_mut`: the rest, and each run of `n` elements up to the back as an array, written where the slice holds it, panicking at a size of 0. */
-export function sliceAsRchunksMut<T>(s: T[], n: number): [T[], T[][]] {
-	const count = chunkCount(s.length, n);
+export function sliceAsRchunksMut<T>(s: T[], n: number, at?: Location): [T[], T[][]] {
+	const count = chunkCount(s.length, n, at);
 	const rest = s.length - count * n;
 	return [sliceView(s, 0, rest), runsOf(s, rest, n, count)];
 }
@@ -1046,8 +1128,8 @@ function runsOf<T>(s: T[], at: number, n: number, count: number): T[][] {
 }
 
 /** How many runs of `n` elements fit in `length`, panicking at a size of 0, as `as_chunks` does. */
-function chunkCount(length: number, n: number): number {
-	if (n === 0) panic("chunk size must be non-zero");
+function chunkCount(length: number, n: number, at?: Location): number {
+	if (n === 0) panic("chunk size must be non-zero", at);
 	return Math.floor(length / n);
 }
 
@@ -1064,8 +1146,8 @@ export function sliceSplitFirst<T>(s: T[]): [T, T[]] | undefined {
 }
 
 /** `split_at`, panicking past the length. */
-export function sliceSplitAt<T>(s: T[], n: number): [T[], T[]] {
-	if (n > s.length) panic("mid > len");
+export function sliceSplitAt<T>(s: T[], n: number, at?: Location): [T[], T[]] {
+	if (n > s.length) panic("mid > len", at);
 	return [slicePart(s, 0, n), slicePart(s, n)];
 }
 
@@ -1075,8 +1157,8 @@ export function sliceSplitAtChecked<T>(s: T[], n: number): [T[], T[]] | undefine
 }
 
 /** `split_at_mut`: views of either half, panicking past the length. */
-export function sliceSplitAtMut<T>(s: T[], n: number): [T[], T[]] {
-	if (n > s.length) panic("mid > len");
+export function sliceSplitAtMut<T>(s: T[], n: number, at?: Location): [T[], T[]] {
+	if (n > s.length) panic("mid > len", at);
 	return [sliceView(s, 0, n), sliceView(s, n, s.length)];
 }
 
@@ -1207,9 +1289,9 @@ export function slicePartitionPoint<T>(s: ArrayLike<T>, pred: (item: T) => boole
 }
 
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
-export function sliceSwap<T>(s: T[], a: number, b: number): void {
-	const x = held(s, s[idx(s, a)]);
-	s[a] = s[idx(s, b)];
+export function sliceSwap<T>(s: T[], a: number, b: number, at?: Location): void {
+	const x = held(s, s[idx(s, a, at)]);
+	s[a] = s[idx(s, b, at)];
 	s[b] = x;
 }
 
@@ -1287,8 +1369,8 @@ function rotate<T>(s: T[], mid: number): void {
 }
 
 /** `copy_within`: `s[start..end]` copied to index `dest`, panicking out of bounds; `copy` is `undefined` where a copy is the value. */
-export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: number, copy?: (value: T) => T): void {
-	copyWithinCheck(s.length, start, end, dest);
+export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: number, copy?: (value: T) => T, at?: Location): void {
+	copyWithinCheck(s.length, start, end, dest, at);
 	if (copy === undefined) {
 		s.copyWithin(dest, start, end);
 		return;
@@ -1299,22 +1381,22 @@ export function sliceCopyWithin<T>(s: T[], start: number, end: number, dest: num
 }
 
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
-function copyWithinCheck(length: number, start: number, end: number, dest: number): void {
+function copyWithinCheck(length: number, start: number, end: number, dest: number, at?: Location): void {
 	// `slice::range` checks the end first, then `range` reports the rest.
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`);
-	rangeCheck(length, start, end);
-	if (dest > length - (end - start)) panic("dest is out of bounds");
+	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at);
+	rangeCheck(length, start, end, at);
+	if (dest > length - (end - start)) panic("dest is out of bounds", at);
 }
 
 /** `copy_from_slice`, and `clone_from_slice` of a `TrivialClone`, panicking if the lengths differ; `copy` as `sliceCopyWithin`'s. */
-export function sliceCopyFromSlice<T>(dst: T[], src: ArrayLike<T>, copy?: (value: T) => T): void {
-	if (dst.length !== src.length) copyLengthFail(dst.length, src.length);
+export function sliceCopyFromSlice<T>(dst: T[], src: ArrayLike<T>, copy?: (value: T) => T, at?: Location): void {
+	if (dst.length !== src.length) copyLengthFail(dst.length, src.length, at);
 	for (let i = 0; i < src.length; i++) dst[i] = copy === undefined ? src[i] : copy(src[i]);
 }
 
 /** `clone_from_slice`: each element cloned over its slot's in order by `cloneOver`, panicking first if the lengths differ. */
-export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>): T[] {
-	if (dst.length !== src.length) panic("destination and source slices have different lengths");
+export function sliceCloneFromSlice<T>(dst: T[], src: ArrayLike<T>, clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): T[] {
+	if (dst.length !== src.length) panic("destination and source slices have different lengths", at);
 	for (let i = 0; i < src.length; i++) dst[i] = cloneOver(dst[i], src[i], clone, drop, over);
 	return dst;
 }
@@ -1404,8 +1486,8 @@ export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice): ByteSlice
 	return dst;
 }
 
-function copyLengthFail(dst: number, src: number): never {
-	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`);
+function copyLengthFail(dst: number, src: number, at?: Location): never {
+	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`, at);
 }
 
 /**
@@ -1493,8 +1575,8 @@ export function vecAssign<T>(v: T[] & Capped, value: T[] & Capped): void {
 }
 
 /** `Vec::insert`: `item` at `i`, with those from `i` on moved up. */
-export function vecInsert<T>(v: T[], i: number, item: T): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`);
+export function vecInsert<T>(v: T[], i: number, item: T, at?: Location): void {
+	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at);
 	v.splice(i, 0, item);
 }
 
@@ -1539,8 +1621,8 @@ export function vecPopIfMut<T>(
 }
 
 /** `Vec::remove`: the element at `i`, with those after it moved down. */
-export function vecRemove<T>(v: T[], i: number): T {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`);
+export function vecRemove<T>(v: T[], i: number, at?: Location): T {
+	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at);
 	return v.splice(i, 1)[0];
 }
 
@@ -1618,10 +1700,10 @@ export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size:
 	while (v.length < len) v.push(f());
 }
 
-/** `Vec::split_off` of `size`-byte elements: those from `at` on, moved to a new vector with room for exactly them. */
-export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
-	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
-	return vecExact(v.splice(at), size);
+/** `Vec::split_off` of `size`-byte elements: those from `mid` on, moved to a new vector with room for exactly them. */
+export function vecSplitOff<T>(v: T[], mid: number, size: number, at?: Location): T[] {
+	if (mid > v.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.length})`, at, true);
+	return vecExact(v.splice(mid), size);
 }
 
 /** `Clone` of a tuple, by `clone` of each field in order, `undefined` for one whose value is itself. */
@@ -1682,8 +1764,8 @@ export function byteSliceView(s: ByteSlice): Uint8Array {
 }
 
 /** `&s[start..end]`, with `end` defaulting to the length. */
-export function byteSliceRange(s: ByteSlice, start: number, end: number = s.length): ByteSlice {
-	rangeCheck(s.length, start, end);
+export function byteSliceRange(s: ByteSlice, start: number, end: number = s.length, at?: Location): ByteSlice {
+	rangeCheck(s.length, start, end, at);
 	return new ByteSlice(s.data, s.start + start, end - start);
 }
 
@@ -1738,8 +1820,8 @@ export function byteSliceToArray(s: ByteSlice): Uint8Array {
 }
 
 /** `split_at`, panicking past the length. */
-export function byteSliceSplitAt(s: ByteSlice, n: number): [ByteSlice, ByteSlice] {
-	if (n > s.length) panic("mid > len");
+export function byteSliceSplitAt(s: ByteSlice, n: number, at?: Location): [ByteSlice, ByteSlice] {
+	if (n > s.length) panic("mid > len", at);
 	return [new ByteSlice(s.data, s.start, n), new ByteSlice(s.data, s.start + n, s.length - n)];
 }
 
@@ -1750,28 +1832,28 @@ export function byteSliceSplitAtChecked(s: ByteSlice, n: number): [ByteSlice, By
 }
 
 /** `as_chunks` of bytes: views of each run of `n` from the front, and the rest, panicking at a size of 0. */
-export function byteSliceAsChunks(s: ByteSlice, n: number): [Uint8Array[], ByteSlice] {
-	const count = chunkCount(s.length, n);
+export function byteSliceAsChunks(s: ByteSlice, n: number, at?: Location): [Uint8Array[], ByteSlice] {
+	const count = chunkCount(s.length, n, at);
 	const at = s.start;
 	return [runs(count, n, (start, end) => s.data.subarray(at + start, at + end)), new ByteSlice(s.data, at + count * n, s.length - count * n)];
 }
 
 /** `as_rchunks` of bytes: the rest, and views of each run of `n` up to the back, panicking at a size of 0. */
-export function byteSliceAsRchunks(s: ByteSlice, n: number): [ByteSlice, Uint8Array[]] {
-	const count = chunkCount(s.length, n);
+export function byteSliceAsRchunks(s: ByteSlice, n: number, at?: Location): [ByteSlice, Uint8Array[]] {
+	const count = chunkCount(s.length, n, at);
 	const at = s.start + s.length - count * n;
 	return [new ByteSlice(s.data, s.start, s.length - count * n), runs(count, n, (start, end) => s.data.subarray(at + start, at + end))];
 }
 
 /** `as_chunks_mut` of bytes: each run of `n` from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
-export function byteSliceAsChunksMut(s: ByteSlice, n: number): [Uint8Array[], ByteSlice] {
-	const count = chunkCount(s.length, n);
+export function byteSliceAsChunksMut(s: ByteSlice, n: number, at?: Location): [Uint8Array[], ByteSlice] {
+	const count = chunkCount(s.length, n, at);
 	return [byteRunsOf(s.data, s.start, n, count), new ByteSlice(s.data, s.start + count * n, s.length - count * n)];
 }
 
 /** `as_rchunks_mut` of bytes: the rest, and each run of `n` up to the back as an array, written where the slice holds it, panicking at a size of 0. */
-export function byteSliceAsRchunksMut(s: ByteSlice, n: number): [ByteSlice, Uint8Array[]] {
-	const count = chunkCount(s.length, n);
+export function byteSliceAsRchunksMut(s: ByteSlice, n: number, at?: Location): [ByteSlice, Uint8Array[]] {
+	const count = chunkCount(s.length, n, at);
 	const rest = s.length - count * n;
 	return [new ByteSlice(s.data, s.start, rest), byteRunsOf(s.data, s.start + rest, n, count)];
 }
@@ -1792,9 +1874,9 @@ export function byteSliceLast(s: ByteSlice): number | undefined {
 }
 
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
-export function byteSliceSwap(s: ByteSlice, a: number, b: number): void {
-	const x = s.data[s.start + idx(s, a)];
-	s.data[s.start + a] = s.data[s.start + idx(s, b)];
+export function byteSliceSwap(s: ByteSlice, a: number, b: number, at?: Location): void {
+	const x = s.data[s.start + idx(s, a, at)];
+	s.data[s.start + a] = s.data[s.start + idx(s, b, at)];
 	s.data[s.start + b] = x;
 }
 
@@ -1820,14 +1902,14 @@ export function copyBytes(dst: Uint8Array, at: number, src: Uint8Array, start: n
 }
 
 /** `copy_from_slice`, panicking if the lengths differ. */
-export function byteSliceCopyFromSlice(dst: ByteSlice, src: ByteSlice): void {
-	if (dst.length !== src.length) copyLengthFail(dst.length, src.length);
+export function byteSliceCopyFromSlice(dst: ByteSlice, src: ByteSlice, at?: Location): void {
+	if (dst.length !== src.length) copyLengthFail(dst.length, src.length, at);
 	copyBytes(dst.data, dst.start, src.data, src.start, src.length);
 }
 
 /** `copy_within`: `s[start..end]` copied to index `dest`, panicking out of bounds. */
-export function byteSliceCopyWithin(s: ByteSlice, start: number, end: number, dest: number): void {
-	copyWithinCheck(s.length, start, end, dest);
+export function byteSliceCopyWithin(s: ByteSlice, start: number, end: number, dest: number, at?: Location): void {
+	copyWithinCheck(s.length, start, end, dest, at);
 	s.data.copyWithin(s.start + dest, s.start + start, s.start + end);
 }
 
@@ -2031,8 +2113,8 @@ export function byteVecClear(v: ByteVec): void {
 }
 
 /** `Vec::insert`: `byte` at `i`, with those from `i` on moved up. */
-export function byteVecInsert(v: ByteVec, i: number, byte: number): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`);
+export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location): void {
+	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at);
 	reserve(v, 1);
 	v.data.copyWithin(i + 1, i, v.length);
 	v.data[i] = byte;
@@ -2040,8 +2122,8 @@ export function byteVecInsert(v: ByteVec, i: number, byte: number): void {
 }
 
 /** `Vec::remove`: the byte at `i`, with those after it moved down. */
-export function byteVecRemove(v: ByteVec, i: number): number {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`);
+export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
+	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at);
 	const byte = v.data[i];
 	v.data.copyWithin(i, i + 1, v.length);
 	v.length--;
@@ -2268,12 +2350,12 @@ export function byteVecResizeWith(v: ByteVec, len: number, f: () => number): voi
 }
 
 /** `Vec::split_off` of bytes. */
-export function byteVecSplitOff(v: ByteVec, at: number): ByteVec {
-	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
-	const other = new ByteVec(v.length - at);
-	copyBytes(other.data, 0, v.data, at, v.length - at);
-	other.length = v.length - at;
-	v.length = at;
+export function byteVecSplitOff(v: ByteVec, mid: number, at?: Location): ByteVec {
+	if (mid > v.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.length})`, at, true);
+	const other = new ByteVec(v.length - mid);
+	copyBytes(other.data, 0, v.data, mid, v.length - mid);
+	other.length = v.length - mid;
+	v.length = mid;
 	return other;
 }
 
@@ -2527,8 +2609,8 @@ export interface Count extends Fmt {
 }
 
 /** `Argument::from_usize`: `n` as a width or precision, panicking past what one holds. */
-export function fmtCount(n: number): Count {
-	if (n > 0xffff) panic("Formatting argument out of range");
+export function fmtCount(n: number, at?: Location): Count {
+	if (n > 0xffff) panic("Formatting argument out of range", at);
 	const unreachable = (): never => {
 		throw new Error("rust2-ts: a width or precision written as a placeholder");
 	};

@@ -6,27 +6,64 @@
 //! does. A call through std's code passes a location in std's source, which translation
 //! can't name, so it is refused.
 
+use std::sync::OnceLock;
+
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
-use rustc_span::{RemapPathScopeComponents, Span};
+use rustc_span::{RemapPathScopeComponents, SourceFile, Span};
 
 use super::Translator;
 use super::body::Body;
 use super::library::{self, Std};
-use crate::ts::{Expr, Key, Param, StmtKind, Type};
+use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// The `rt.Location` rustc gives a call at `span`: where the outermost macro call it came
-/// from is, in the file as the session names it, by line and column from 1.
+/// from is, in the file as the native build names it, by line and column from 1.
 pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
 	let pos = tcx.sess.source_map().lookup_char_pos(topmost.lo());
-	let file = pos
-		.file
+	object(file(tcx, &pos.file), pos.line, pos.col_display + 1)
+}
+
+/// Where the toolchain's prebuilt std remaps the crates.io crates it is built from, as
+/// `hashbrown`: a directory the toolchain's build picked, which nothing else names.
+const STD_DEPS: &str = "/cargo/registry/25cdd57fae9f0462";
+
+/// The name of `file` as the session names it, or for std's own source, as the toolchain's
+/// prebuilt std does, which the native build links: by the commit it was built from.
+fn file(tcx: TyCtxt<'_>, file: &SourceFile) -> String {
+	let name = file
 		.name
 		.display(RemapPathScopeComponents::MACRO)
 		.to_string_lossy()
 		.into_owned();
-	object(file, pos.line, pos.col_display + 1)
+	if !super::of_std(tcx, file.cnum) {
+		return name;
+	}
+	let Some((_, rest)) = name.split_once("/library/") else {
+		return name;
+	};
+	match rest.strip_prefix("vendor/") {
+		Some(dep) => format!("{STD_DEPS}/{dep}"),
+		None => format!("/rustc/{}/library/{rest}", commit(tcx)),
+	}
+}
+
+/// The commit the wrapped rustc was built from, as `rustc -vV` says.
+fn commit(tcx: TyCtxt<'_>) -> &'static str {
+	static COMMIT: OnceLock<Option<String>> = OnceLock::new();
+	let commit = COMMIT.get_or_init(|| {
+		let rustc = crate::driver::RUSTC.get()?;
+		let out = std::process::Command::new(rustc).arg("-vV").output().ok()?;
+		let text = String::from_utf8(out.stdout).ok()?;
+		text.lines()
+			.find_map(|line| line.strip_prefix("commit-hash: "))
+			.map(str::to_string)
+	});
+	match commit {
+		Some(commit) => commit,
+		None => tcx.dcx().fatal("rust2-ts: the wrapped rustc's `-vV` names no commit, which std's files are named by"),
+	}
 }
 
 /// The `rt.Location` of `file`, `line`, and `col`.
@@ -118,4 +155,161 @@ pub fn refuse_std_call<'tcx>(t: &mut Translator<'_, 'tcx>, instance: Instance<'t
 /// The type of the parameter a `#[track_caller]` function takes its caller's location by.
 pub fn param_ty() -> Type {
 	Type::Rt("Location", Vec::new())
+}
+
+/// Each runtime function that takes where a panic it makes is, as an `at?: Location` last
+/// parameter, by how many parameters come before it.
+fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usize> {
+	static LOCATED: OnceLock<rustc_data_structures::fx::FxHashMap<&'static str, usize>> = OnceLock::new();
+	LOCATED.get_or_init(|| {
+		(crate::program::RUNTIME.iter())
+			.flat_map(|&(_, text)| signatures(text))
+			.collect()
+	})
+}
+
+/// The functions `text` exports whose last parameter is `at?: Location`, and its index.
+fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)> {
+	["export function ", "export const "].into_iter().flat_map(move |keyword| {
+		text.match_indices(keyword).filter_map(move |(at, _)| {
+			let rest = &text[at + keyword.len()..];
+			let end = rest.find(|c: char| !(c.is_alphanumeric() || c == '_'))?;
+			let (name, rest) = rest.split_at(end);
+			let params = &rest[rest.find('(')? + 1..];
+			let params = split(params);
+			let last = params.last()?;
+			(last.trim() == "at?: Location").then_some((name, params.len() - 1))
+		})
+	})
+}
+
+/// The parameters of the list `text` starts, up to its closing parenthesis.
+fn split(text: &str) -> Vec<&str> {
+	let mut params = Vec::new();
+	let (mut depth, mut start, mut prev) = (0usize, 0, ' ');
+	for (i, c) in text.char_indices() {
+		match c {
+			'(' | '[' | '{' | '<' => depth += 1,
+			// The `>` of an arrow type's `=>` closes nothing.
+			'>' if prev == '=' => {}
+			')' | ']' | '}' | '>' if depth > 0 => depth -= 1,
+			')' => {
+				if !text[start..i].trim().is_empty() {
+					params.push(&text[start..i]);
+				}
+				return params;
+			}
+			',' if depth == 0 => {
+				params.push(&text[start..i]);
+				start = i + 1;
+			}
+			_ => {}
+		}
+		prev = c;
+	}
+	params
+}
+
+/// Pass `at` to each call in `stmts` of a runtime function that takes where it panics,
+/// which was given nowhere yet.
+pub fn locate(stmts: &mut [Stmt], at: &Expr) {
+	for stmt in stmts {
+		stmt_exprs(stmt, &mut |e| locate_expr(e, at));
+	}
+}
+
+/// Pass `at` as [`locate`] does, within `e`.
+pub fn locate_expr(e: &mut Expr, at: &Expr) {
+	walk(e, &mut |e| {
+		if let Some((args, index)) = unlocated(e) {
+			args.resize_with(index, Expr::undefined);
+			args.push(at.clone());
+		}
+	});
+}
+
+/// Whether `stmts` call a runtime function that takes where it panics without saying where.
+pub fn unlocated_in(stmts: &mut [Stmt]) -> bool {
+	let mut found = false;
+	for stmt in stmts {
+		stmt_exprs(stmt, &mut |e| walk(e, &mut |e| found |= unlocated(e).is_some()));
+	}
+	found
+}
+
+/// The arguments of `e` if it calls a runtime function that takes where it panics and is
+/// given none, and where that goes among them.
+fn unlocated(e: &mut Expr) -> Option<(&mut Vec<Expr>, usize)> {
+	let Expr::Call(callee, args) = e else {
+		return None;
+	};
+	let name = match &**callee {
+		Expr::Rt(name) => name,
+		Expr::Instantiate(f, _) if let Expr::Rt(name) = &**f => name,
+		_ => return None,
+	};
+	let index = *located().get(name.as_str())?;
+	(args.len() <= index).then_some((args, index))
+}
+
+/// Call `f` on each expression `stmt` holds directly, and in its blocks.
+fn stmt_exprs(stmt: &mut Stmt, f: &mut dyn FnMut(&mut Expr)) {
+	match &mut stmt.kind {
+		StmtKind::Expr(e) | StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => f(e),
+		StmtKind::If { cond, then, els } => {
+			f(cond);
+			then.iter_mut().chain(els).for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::While { cond: e, body, .. } | StmtKind::ForOf { iter: e, body, .. } => {
+			f(e);
+			body.iter_mut().for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::Block { body, .. } => body.iter_mut().for_each(|s| stmt_exprs(s, f)),
+		StmtKind::Switch {
+			disc, cases, default, ..
+		} => {
+			f(disc);
+			for (value, body) in cases {
+				f(value);
+				body.iter_mut().for_each(|s| stmt_exprs(s, f));
+			}
+			default.iter_mut().for_each(|s| stmt_exprs(s, f));
+		}
+		StmtKind::Return(None)
+		| StmtKind::Decl { init: None, .. }
+		| StmtKind::Declare { .. }
+		| StmtKind::Break(_)
+		| StmtKind::Continue(_) => {}
+	}
+}
+
+/// Call `f` on `e` and every expression within it, arrow bodies included, innermost first.
+fn walk(e: &mut Expr, f: &mut dyn FnMut(&mut Expr)) {
+	match e {
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::Array(items) => items.iter_mut().for_each(|e| walk(e, f)),
+		Expr::Object(props) => props.iter_mut().for_each(|(_, e)| walk(e, f)),
+		Expr::Member(e, _)
+		| Expr::Unary(_, e)
+		| Expr::Located(_, e)
+		| Expr::As(e, _)
+		| Expr::Instantiate(e, _)
+		| Expr::Lambda(_, e)
+		| Expr::Postfix(e, _) => walk(e, f),
+		Expr::Index(a, b) | Expr::Binary(a, _, b) | Expr::Assign(a, b) => {
+			walk(a, f);
+			walk(b, f);
+		}
+		Expr::Call(callee, args) | Expr::New(callee, args) => {
+			walk(callee, f);
+			args.iter_mut().for_each(|e| walk(e, f));
+		}
+		Expr::Cond(c, a, b) => {
+			walk(c, f);
+			walk(a, f);
+			walk(b, f);
+		}
+		Expr::Arrow(_, _, body) => body.iter_mut().for_each(|s| stmt_exprs(s, &mut |e| walk(e, f))),
+	}
+	f(e);
 }
