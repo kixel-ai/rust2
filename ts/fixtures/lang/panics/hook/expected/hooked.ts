@@ -243,7 +243,7 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _19: rt.u16[] = [n as rt.u16];
 	const set: rt.BTreeSet<rt.u16> = rt.btreeExtendKeys(rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u16>, rt.iterSlice(_19), true, undefined, undefined, 2, true);
 	b0: {
-		const _21: rt.u8 = rt.u8Rem(kind, 44, { file: "fixtures/lang/panics/src/hooked.rs", line: 181, col: 11 });
+		const _21: rt.u8 = rt.u8Rem(kind, 48, { file: "fixtures/lang/panics/src/hooked.rs", line: 181, col: 11 });
 		if (_21 === 0) {
 			rt.byteVecPush(out, rt.byteVecWithCapacity(rt.usizeSub(4294967295, at, { file: "fixtures/lang/panics/src/hooked.rs", line: 182, col: 48 })).length & 0xff);
 		} else if (_21 === 1) {
@@ -418,6 +418,14 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationMulF64(rt.durationFromSecs(1), -1.0 - (n as rt.f64), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1050, col: 23 })) & 0xff);
 			} else if (_21 === 42) {
 				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationDivF32(rt.durationFromSecs(1), Math.fround(-1.0 - Math.fround(n)), { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1050, col: 23 })) & 0xff);
+			} else if (_21 === 43) {
+				rt.byteVecPush(out, rt.iterSum(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(Uint8Array.of(rt.max(n, 1), 255)))), (a: rt.u8, b: rt.u8) => rt.u8Add(a, b, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/traits/accum.rs", line: 206, col: 1 }), 0));
+			} else if (_21 === 44) {
+				rt.byteVecPush(out, rt.iterProduct(rt.iterSlice([rt.max(n, 2) as rt.u16, 65535]), (a: rt.u16, b: rt.u16) => rt.u16Mul(a, b, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/traits/accum.rs", line: 206, col: 1 }), 1) & 0xff);
+			} else if (_21 === 45) {
+				rt.byteVecPush(out, rt.u64Low(rt.durationAsSecs(rt.durationSum(rt.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationFromSecs(rt.max(n, 1) as rt.u64)]), undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1461, col: 9 }))) & 0xff);
+			} else if (_21 === 46) {
+				rt.byteVecPush(out, rt.u64Low(rt.durationAsSecs(rt.durationSum(rt.iterSlice([{ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationNew(rt.u64Add(n as rt.u64, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 278, col: 54 }), 0)]), undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/time.rs", line: 1468, col: 9 }))) & 0xff);
 			} else {
 				rt.byteVecPush(out, rt.iterFrom({ _0: n }, Lying.next$iter_Iterator, undefined, { hint: Lying.sizeHint$iter_Iterator }).len() & 0xff);
 			}

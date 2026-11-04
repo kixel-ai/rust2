@@ -178,7 +178,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 44 {
+	match kind % 48 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -272,6 +272,20 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		40 => out.push(Duration::from_secs_f32(-1.0 - f32::from(n)).subsec_nanos() as u8),
 		41 => out.push(Duration::from_secs(1).mul_f64(-1.0 - f64::from(n)).subsec_nanos() as u8),
 		42 => out.push(Duration::from_secs(1).div_f32(-1.0 - f32::from(n)).subsec_nanos() as u8),
+		43 => out.push([n.max(1), u8::MAX].iter().sum::<u8>()),
+		44 => out.push([u16::from(n.max(2)), u16::MAX].into_iter().product::<u16>() as u8),
+		45 => out.push(
+			[Duration::MAX, Duration::from_secs(u64::from(n.max(1)))]
+				.into_iter()
+				.sum::<Duration>()
+				.as_secs() as u8,
+		),
+		46 => out.push(
+			[Duration::MAX, Duration::new(u64::from(n) + 1, 0)]
+				.iter()
+				.sum::<Duration>()
+				.as_secs() as u8,
+		),
 		_ => out.push(Lying(n).len() as u8),
 	}
 }

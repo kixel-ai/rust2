@@ -432,8 +432,29 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
 	let path = library::std_path(tcx, def_id).join("::");
 	let &(_, file, after, needle) = CALLEES.iter().find(|(callee, ..)| *callee == path)?;
+	Some(found(tcx, file, after, needle))
+}
+
+/// Where std's `Sum` of `Duration`s panics, or of `&Duration`s if `by_ref`, or else an
+/// integer's `Sum` or `Product`: the call of the macro its impl is, as a macro's panic is
+/// where it is called. `Iterator::sum` reaches each, so no one place in [`CALLEES`] holds.
+pub fn sum_site(tcx: TyCtxt<'_>, duration: Option<bool>) -> Expr {
+	match duration {
+		Some(false) => found(tcx, "core/src/time.rs", "impl Sum for Duration", "sum_durations!("),
+		Some(true) => found(tcx, "core/src/time.rs", "impl<'a> Sum<&'a Duration>", "sum_durations!("),
+		None => found(
+			tcx,
+			"core/src/iter/traits/accum.rs",
+			"macro_rules! float_sum_product",
+			"integer_sum_product! {",
+		),
+	}
+}
+
+/// [`find`], which std's source always has.
+fn found(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Expr {
 	match find(tcx, file, after, needle) {
-		Some(at) => Some(at),
+		Some(at) => at,
 		None => tcx.dcx().fatal(format!(
 			"rust2-ts: std's source has no `{needle}` in `{file}` after `{after}`, where it panics"
 		)),

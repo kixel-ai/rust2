@@ -345,18 +345,18 @@ export function durationSum(it: Iter<Duration>, drops = false, at?: Location): D
 		it,
 		undefined,
 		(_, d) => {
-			secs = u64CheckedAdd(secs, d.secs) ?? panic(overflow, at);
+			secs = u64CheckedAdd(secs, d.secs) ?? panic(overflow, at, true);
 			const sum = u64CheckedAdd(nanos, d.nanos as u64);
 			if (sum !== undefined) {
 				nanos = sum;
 			} else {
-				secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at);
+				secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at, true);
 				nanos = (u64Rem(nanos, NANOS_PER_SEC, at) as number) + d.nanos;
 			}
 		},
 		drops,
 	);
-	secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at);
+	secs = u64CheckedAdd(secs, u64Div(nanos, NANOS_PER_SEC, at)) ?? panic(overflow, at, true);
 	return { secs, nanos: u64Rem(nanos, NANOS_PER_SEC, at) as number };
 }
 
