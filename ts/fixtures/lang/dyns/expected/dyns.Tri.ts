@@ -69,4 +69,27 @@ export function asAnyMut$dyns_Erased(self: rs.Place<Tri>): Any.Any {
 	return new ofPlace$dyns_Tri(self);
 }
 
+export function scale$dyns_Scaled_String(self: Tri, by: string): string {
+	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, by), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
+	return rs.fmtFormat([args2[0], args2[1]]);
+}
+
+/** Writes through a `&mut` to the argument, an `rs.Place` for a number. */
+export function bump$dyns_Scaled_String(self: Tri, at: rs.Place<string>): void {
+	const _8: rs.u32 = area$dyns_Shape(self);
+	const _4: string = rs.fmtToString((f: rs.Formatter) => rs.u32Display(_8, f));
+	at.v = at.v + _4;
+}
+
+/**
+ * Takes and returns references to the argument, which the trait's type has in each
+ * form a reference may be.
+ */
+export function pick$dyns_Scaled_String(_self: Tri, a: string, b: string): string {
+	if (!(rs.stringLen(a) >= rs.stringLen(b))) {
+		return b;
+	}
+	return a;
+}
+
 //# sourceMappingURL=dyns.Tri.ts.map

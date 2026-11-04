@@ -2,15 +2,19 @@
 
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
-import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests } from "./dyns.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
+import * as By from "./dyns.By.ts";
+import * as Drained from "./dyns.Drained.ts";
 import * as Guarded from "./dyns.Guarded.ts";
 import * as Held from "./dyns.Held.ts";
 import * as Hits from "./dyns.Hits.ts";
 import * as Lease from "./dyns.Lease.ts";
 import * as Looped from "./dyns.Looped.ts";
+import * as Many from "./dyns.Many.ts";
 import * as Noisy from "./dyns.Noisy.ts";
 import type * as Shape from "./dyns.Shape.ts";
 import * as Square from "./dyns.Square.ts";
+import * as Steps from "./dyns.Steps.ts";
 import type * as Tagged from "./dyns.Tagged.ts";
 import * as Tri from "./dyns.Tri.ts";
 
@@ -166,6 +170,46 @@ export class of$Option_u8 {
 	}
 }
 
+export class of$dyns_By {
+	v: By.By;
+
+	constructor(v: By.By) {
+		this.v = v;
+	}
+
+	bump$Scaled(a: rs.Ptr<rs.u8>): void {
+		return By.bump$dyns_Scaled_u8(this.v, a as rs.Place<rs.u8>);
+	}
+
+	pick$Scaled(a: rs.Ptr<rs.u8>, a2: rs.Ptr<rs.u8>): rs.u8 {
+		return By.pick$dyns_Scaled_u8(this.v, a as rs.u8, a2 as rs.u8);
+	}
+
+	scale$Scaled(a: rs.u8): rs.u8 {
+		return By.scale$dyns_Scaled_u8(this.v, a);
+	}
+}
+
+export class of$dyns_Drained {
+	v: Drained.Drained;
+
+	constructor(v: Drained.Drained) {
+		this.v = v;
+	}
+
+	[Symbol.dispose](): void {
+		this.v[Symbol.dispose]();
+	}
+
+	left$Source(): rs.usize {
+		return Drained.left$dyns_Source(this.v);
+	}
+
+	take$Source(): Noisy.Noisy | undefined {
+		return Drained.take$dyns_Source(this.v);
+	}
+}
+
 export class of$dyns_Hits {
 	v: Hits.Hits;
 
@@ -243,6 +287,30 @@ export class of$dyns_Looped {
 
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Looped.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Many {
+	v: Many.Many;
+
+	constructor(v: Many.Many) {
+		this.v = v;
+	}
+
+	bump$Scaled(a: rs.VecOf<rs.u8>): void {
+		return Many.bump$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec);
+	}
+
+	pair$Paired(a: rs.u8): [rs.u8, rs.u8] {
+		return Many.pair$dyns_Paired_u8(this.v, a);
+	}
+
+	pick$Scaled(a: rs.VecOf<rs.u8>, a2: rs.VecOf<rs.u8>): rs.ByteVec {
+		return Many.pick$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec, a2 as rs.ByteVec);
+	}
+
+	scale$Scaled(a: rs.VecOf<rs.u8>): rs.ByteVec {
+		return Many.scale$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec);
 	}
 }
 
@@ -334,6 +402,26 @@ export class of$dyns_Square {
 	}
 }
 
+export class of$dyns_Steps {
+	v: Steps.Steps;
+
+	constructor(v: Steps.Steps) {
+		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return Steps.left$dyns_Source(this.v);
+	}
+
+	take$Source(): rs.u32 | undefined {
+		return Steps.take$dyns_Source(this.v);
+	}
+
+	total$Counted(): rs.u32 {
+		return Steps.total$dyns_Counted(this.v);
+	}
+}
+
 export class of$dyns_Tri {
 	v: Tri.Tri;
 
@@ -351,6 +439,10 @@ export class of$dyns_Tri {
 
 	asAnyMut$Erased(): Any.Any {
 		return Tri.asAnyMut$dyns_Erased(this);
+	}
+
+	bump$Scaled(a: rs.Ptr<string>): void {
+		return Tri.bump$dyns_Scaled_String(this.v, a as rs.Place<string>);
 	}
 
 	fmt$Debug(a: rs.Formatter): rs.Result<undefined, rs.FmtError> {
@@ -371,6 +463,14 @@ export class of$dyns_Tri {
 
 	larger$Shape(a: rs.u32): rs.u32 {
 		return Tri.larger$dyns_Shape(this.v, a);
+	}
+
+	pick$Scaled(a: rs.Ptr<string>, a2: rs.Ptr<string>): string {
+		return Tri.pick$dyns_Scaled_String(this.v, a as string, a2 as string);
+	}
+
+	scale$Scaled(a: string): string {
+		return Tri.scale$dyns_Scaled_String(this.v, a);
 	}
 
 	sides$Shape(): rs.u8 {
@@ -395,6 +495,26 @@ export class of$tuple2_u8_u8 {
 
 	constructor(v: [rs.u8, rs.u8]) {
 		this.v = v;
+	}
+}
+
+export class of$u16 {
+	v: rs.u16;
+
+	constructor(v: rs.u16) {
+		this.v = v;
+	}
+
+	bump$Scaled(a: rs.Ptr<rs.u16>): void {
+		return bump$dyns_Scaled_u16_u16(this.v, a as rs.Place<rs.u16>);
+	}
+
+	pick$Scaled(a: rs.Ptr<rs.u16>, a2: rs.Ptr<rs.u16>): rs.u16 {
+		return pick$dyns_Scaled_u16_u16(this.v, a as rs.u16, a2 as rs.u16);
+	}
+
+	scale$Scaled(a: rs.u16): rs.u16 {
+		return scale$dyns_Scaled_u16_u16(this.v, a);
 	}
 }
 
@@ -447,6 +567,14 @@ export class of$u8 {
 
 	constructor(v: rs.u8) {
 		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return left$dyns_Source_u8(this.v);
+	}
+
+	take$Source(): string | undefined {
+		return dyns_take$dyns_Source_u8(this);
 	}
 }
 
@@ -592,6 +720,14 @@ export class ofPlace$u8 {
 	constructor(v: rs.Place<rs.u8>) {
 		this.v = v;
 	}
+
+	left$Source(): rs.usize {
+		return left$dyns_Source_u8(this.v.v);
+	}
+
+	take$Source(): string | undefined {
+		return dyns_take$dyns_Source_u8(this.v);
+	}
 }
 
 export class ofPlace$unit {
@@ -625,6 +761,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		tails(data8, out8);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::rests", (_218: rs.u8, data9: rs.ByteSlice, out9: rs.ByteVec): undefined => {
 		rests(data9.data, data9.start, data9.length, out9);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::generics", (_219: rs.u8, data10: rs.ByteSlice, out10: rs.ByteVec): undefined => {
+		generics(data10, out10);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

@@ -15,7 +15,9 @@
 //! value it was made from, a future there polled in place and dropped once. A
 //! `ManuallyDrop` of one drops only by its own `drop`, and a raw pointer unsized to one, or
 //! to a struct of one, reads and writes what it points at, drops it as the box made of it,
-//! or stays null.
+//! or stays null. An object of a generic trait, or of one with an associated type, calls
+//! the impl at its arguments, through a supertrait at others too, held in a generic struct
+//! too, and drops what its methods give out where Rust drops it.
 
 use std::any::Any;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -1782,4 +1784,249 @@ pub fn rests(data: &[u8], out: &mut Vec<u8>) {
 	let shown: *const dyn Debug = &raw const side;
 	let null: *const dyn Shape = std::ptr::null::<Square>();
 	put(out, &format!("{:?} {}", unsafe { &*shown }, null.is_null()));
+}
+
+/// A generic trait.
+trait Scaled<T> {
+	fn scale(&self, by: T) -> T;
+	/// Writes through a `&mut` to the argument, an `rs.Place` for a number.
+	fn bump(&self, at: &mut T);
+	/// Takes and returns references to the argument, which the trait's type has in each
+	/// form a reference may be.
+	fn pick<'a>(&self, a: &'a T, b: &'a T) -> &'a T;
+}
+
+/// A generic trait over its supertrait at another argument.
+trait Paired<T>: Scaled<Vec<T>> {
+	fn pair(&self, x: T) -> (T, T);
+}
+
+/// A trait with an associated type.
+trait Source {
+	type Item;
+	fn take(&mut self) -> Option<Self::Item>;
+	fn left(&self) -> usize;
+}
+
+/// A trait whose supertrait binds an associated type.
+trait Counted: Source<Item = u32> {
+	fn total(&self) -> u32;
+}
+
+struct By(u8);
+
+impl Scaled<u8> for By {
+	fn scale(&self, by: u8) -> u8 {
+		self.0.wrapping_mul(by)
+	}
+	fn bump(&self, at: &mut u8) {
+		*at = at.wrapping_add(self.0);
+	}
+	fn pick<'a>(&self, a: &'a u8, b: &'a u8) -> &'a u8 {
+		if self.0 % 2 == 0 { a } else { b }
+	}
+}
+
+/// A number, which JS copies.
+impl Scaled<u16> for u16 {
+	fn scale(&self, by: u16) -> u16 {
+		self.wrapping_mul(by).wrapping_add(1)
+	}
+	fn bump(&self, at: &mut u16) {
+		*at = at.wrapping_sub(*self);
+	}
+	fn pick<'a>(&self, a: &'a u16, b: &'a u16) -> &'a u16 {
+		if a > b { a } else { b }
+	}
+}
+
+impl Scaled<String> for Tri {
+	fn scale(&self, by: String) -> String {
+		format!("{by}{self:?}")
+	}
+	fn bump(&self, at: &mut String) {
+		at.push_str(&self.area().to_string());
+	}
+	fn pick<'a>(&self, a: &'a String, b: &'a String) -> &'a String {
+		if a.len() >= b.len() { a } else { b }
+	}
+}
+
+/// Bytes, which JS keeps apart from other vectors.
+struct Many(u8);
+
+impl Scaled<Vec<u8>> for Many {
+	fn scale(&self, by: Vec<u8>) -> Vec<u8> {
+		by.iter().map(|x| x.wrapping_add(self.0)).collect()
+	}
+	fn bump(&self, at: &mut Vec<u8>) {
+		at.push(self.0);
+	}
+	fn pick<'a>(&self, a: &'a Vec<u8>, b: &'a Vec<u8>) -> &'a Vec<u8> {
+		if a.len() < b.len() { a } else { b }
+	}
+}
+
+impl Paired<u8> for Many {
+	fn pair(&self, x: u8) -> (u8, u8) {
+		(x, x.wrapping_add(self.0))
+	}
+}
+
+/// Owns what it gives out, each dropped where Rust drops it.
+struct Drained(Vec<Noisy>);
+
+impl Source for Drained {
+	type Item = Noisy;
+	fn take(&mut self) -> Option<Noisy> {
+		self.0.pop()
+	}
+	fn left(&self) -> usize {
+		self.0.len()
+	}
+}
+
+struct Steps(u32, u32);
+
+impl Source for Steps {
+	type Item = u32;
+	fn take(&mut self) -> Option<u32> {
+		self.0.checked_sub(1).map(|n| {
+			self.0 = n;
+			self.1 = self.1.wrapping_add(n);
+			n
+		})
+	}
+	fn left(&self) -> usize {
+		self.0 as usize
+	}
+}
+
+impl Counted for Steps {
+	fn total(&self) -> u32 {
+		self.1
+	}
+}
+
+/// A copied value, which `&mut self` reaches through a place, giving strings.
+impl Source for u8 {
+	type Item = String;
+	fn take(&mut self) -> Option<String> {
+		*self = self.checked_sub(1)?;
+		Some(format!("<{self}>"))
+	}
+	fn left(&self) -> usize {
+		usize::from(*self)
+	}
+}
+
+fn taken<I: Debug>(s: &mut dyn Source<Item = I>) -> String {
+	let mut taken = Vec::new();
+	while let Some(x) = s.take() {
+		taken.push(format!("{x:?}"));
+	}
+	taken.join(",")
+}
+
+impl Debug for Noisy {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "N{}", self.0)
+	}
+}
+
+/// A generic struct of trait objects of its parameter, which its type has as its own.
+struct Over<T> {
+	scale: Box<dyn Scaled<T>>,
+	source: Box<dyn Source<Item = T>>,
+}
+
+impl<T: Clone> Over<T> {
+	fn run(&mut self) -> Option<T> {
+		let next = self.source.take()?;
+		let other = self.scale.scale(next.clone());
+		Some(self.scale.pick(&next, &other).clone())
+	}
+}
+
+pub fn generics(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, c, rest @ ..] = data else {
+		return;
+	};
+	let (a, b, c) = (*a, *b, *c);
+	let log = Rc::new(RefCell::new(Vec::new()));
+
+	// Objects of a generic trait at three arguments, each of another type.
+	let by = By(a);
+	let narrow: &dyn Scaled<u8> = &by;
+	let wide: Box<dyn Scaled<u16> + Send> = Box::new(u16::from(b) * 7);
+	let tri = if c % 2 == 0 { Tri::Flat } else { Tri::Tall(c) };
+	let named: &dyn Scaled<String> = &tri;
+	let (mut n, mut w, mut s) = (b, u16::from(c) << 8, String::from("s"));
+	narrow.bump(&mut n);
+	wide.bump(&mut w);
+	named.bump(&mut s);
+	put(
+		out,
+		&format!(
+			"{} {} {} {n} {w} {s} ",
+			narrow.scale(b),
+			wide.scale(u16::from(c) * 300),
+			named.scale(format!("{a}"))
+		),
+	);
+	let (x, y) = (String::from("ab"), format!("{c}"));
+	put(
+		out,
+		&format!(
+			"{} {} {} ",
+			narrow.pick(&b, &c),
+			wide.pick(&u16::from(a), &w),
+			named.pick(&x, &y)
+		),
+	);
+
+	// A subtrait at one argument, its supertrait at another, through the subtrait and
+	// upcast to the supertrait.
+	let many = Many(b);
+	let paired: &dyn Paired<u8> = &many;
+	let up: &dyn Scaled<Vec<u8>> = paired;
+	let mut v = rest.to_vec();
+	paired.bump(&mut v);
+	let picked = up.pick(&v, &[a].to_vec()).clone();
+	put(
+		out,
+		&format!("{:?} {:?} {v:?} {picked:?} ", paired.pair(c), up.scale(rest.to_vec())),
+	);
+
+	// Associated types: owned items each dropped as Rust drops them, numbers, and strings
+	// from a copied value changed in place.
+	let items = rest.iter().map(|&x| Noisy(x, log.clone())).collect();
+	let mut owned: Box<dyn Source<Item = Noisy>> = Box::new(Drained(items));
+	let first = owned.take();
+	put(out, &format!("{} {first:?} {:?} ", owned.left(), log.borrow()));
+	drop(first);
+	put(out, &format!("{:?} ", log.borrow()));
+	if a % 2 == 0 {
+		owned.take();
+	}
+	drop(owned);
+	put(out, &format!("{:?} ", log.borrow()));
+	let mut steps = Steps(u32::from(a % 6), u32::from(b));
+	let counted: &mut dyn Counted = &mut steps;
+	let next = counted.take();
+	put(out, &format!("{next:?} {} {} ", counted.left(), counted.total()));
+	put(out, &format!("{} {} ", taken(counted), steps.1));
+	let mut left = c % 5;
+	put(out, &format!("{} {left} ", taken(&mut left)));
+
+	// Held in a generic struct, whose type names the objects' arguments.
+	let mut over = Over {
+		scale: Box::new(tri),
+		source: Box::new(a % 4),
+	};
+	let mut runs = Vec::new();
+	while let Some(x) = over.run() {
+		runs.push(x);
+	}
+	put(out, &format!("{runs:?} {}", over.source.left()));
 }
