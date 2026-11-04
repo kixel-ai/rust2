@@ -634,7 +634,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
 							let elem = self.b.t.ty(*elem, span);
-							(crate::ts::Type::Array(Box::new(elem.clone())), crate::ts::Type::Rt("Vec", vec![elem]))
+							(
+								crate::ts::Type::Array(Box::new(elem.clone())),
+								crate::ts::Type::Rt("Vec", vec![elem]),
+							)
 						}
 						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
 					};
