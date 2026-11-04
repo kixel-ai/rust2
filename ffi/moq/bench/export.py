@@ -52,15 +52,6 @@ def round(loop):
 			closed += 1
 	call = per_frame(start)
 
-	# The same inside a running event loop, with nothing waiting on it.
-	async def looped():
-		start = time.perf_counter_ns()
-		for _ in range(GROUPS * FRAMES):
-			track.is_closed()
-		return per_frame(start)
-
-	in_loop = loop.run_until_complete(looped())
-
 	# A u64 getter, timed as bench/ffi/README.md timed BoltFFI's `group.sequence()`: a bound
 	# method called in a loop. BoltFFI holds the GIL through the call, where the export
 	# releases it so Rust may call Python back from another thread, at about 40 ns a call.
@@ -110,6 +101,15 @@ def round(loop):
 		return per_frame(start) * 10
 
 	wake = loop.run_until_complete(woken())
+
+	# A handle call inside the loop the woken reads ran on, once nothing waits on it.
+	async def looped():
+		start = time.perf_counter_ns()
+		for _ in range(GROUPS * FRAMES):
+			track.is_closed()
+		return per_frame(start)
+
+	in_loop = loop.run_until_complete(looped())
 
 	# Payload reads: the last frame's 100 bytes, lent without a copy, then released.
 	start = time.perf_counter_ns()
