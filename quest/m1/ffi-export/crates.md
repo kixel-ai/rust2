@@ -11,8 +11,7 @@ moq's `main`.
 
 ## Plan
 
-Then bump the moq pin and export `kio::clock` in moq-clock's place, in
-[the config](/ffi/moq/ffi.toml) and `just ffi standin`, so the rule names its items
-`moq_clock_*` and moq-clock's renames go.
+Then bump the moq pin and re-export `kio::clock` in moq-clock's place in `just ffi
+standin`, so the naming rule names its items `moq_clock_*`.
 
 Public API: the C names moq's export emits.
