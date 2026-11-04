@@ -5,7 +5,7 @@
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rs.ts";
+import { addr, ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rs.ts";
 import {
 	type i8,
 	type i16,
@@ -637,6 +637,11 @@ export function hash128(value: number | Limbs, s: Hasher): void {
 /** `Hash::hash` of a `usize`. */
 export function hashUsize(value: number, s: Hasher): void {
 	s.usize(value);
+}
+
+/** `Hash::hash` of a raw pointer to a value of `size` bytes aligned to `align`, which hashes its address. */
+export function hashAddr(size: number, align: number): (p: object, s: Hasher) => void {
+	return (p, s) => s.usize(addr(p, size, align));
 }
 
 /** `Hash::hash` of an `i8`, or of a discriminant of `Ordering`, whose `repr` it is. */

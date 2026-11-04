@@ -209,6 +209,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => same.not(),
 					});
 				}
+				// Ordered by their addresses.
+				if let ty::RawPtr(pointee, _) = lty.kind()
+					&& let Some(js) = match op {
+						BinOp::Lt => Some("<"),
+						BinOp::Le => Some("<="),
+						BinOp::Gt => Some(">"),
+						BinOp::Ge => Some(">="),
+						BinOp::Cmp => Some("cmp"),
+						_ => None,
+					} {
+					let x = self.operand(l, span, out);
+					let x = crate::lower::address::address(self.b, x, *pointee, span);
+					let y = self.operand(r, span, out);
+					let y = crate::lower::address::address(self.b, y, *pointee, span);
+					return Some(match js {
+						"cmp" => Expr::rs("cmp", vec![x, y]),
+						_ => x.binary(js, y),
+					});
+				}
 				if matches!(op, BinOp::Cmp | BinOp::Offset) {
 					return Some(self.err(span, format!("`{op:?}` is not supported")));
 				}
@@ -477,6 +496,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				span,
 				format!("a cast from `{from}` to `{to}`, which reads the bytes of one type as another"),
 			),
+			CastKind::PointerExposeProvenance if let ty::RawPtr(pointee, _) = from.kind() => {
+				let p = self.operand(op, span, out);
+				crate::lower::address::address(self.b, p, *pointee, span)
+			}
 			CastKind::PointerExposeProvenance | CastKind::PointerWithExposedProvenance => self.err(
 				span,
 				format!("a cast from `{from}` to `{to}`, between a pointer and an integer"),

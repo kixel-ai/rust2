@@ -2,11 +2,19 @@
 
 import * as rs from "../rs.ts";
 import { copy$pointers_Pair, copy$pointers_Spot } from "../lib.ts";
+import type * as Keyed from "../pointers.Keyed.ts";
 import type * as Loaded from "../pointers.Loaded.ts";
 import type * as Pair from "../pointers.Pair.ts";
 import type * as Spot from "../pointers.Spot.ts";
 
 export function isSomeAnd$1s2u5lz(self: rs.u8 | undefined, f: (a0: rs.u8) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
+export function isSomeAnd$0fp5rqa(self: rs.Arc<Keyed.Keyed> | undefined, f: (a0: rs.Arc<Keyed.Keyed>) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}

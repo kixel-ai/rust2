@@ -10,6 +10,7 @@
 //! raw pointers of an `Arc` and an `Rc`, counted and taken back.
 
 use std::cell::{Cell, UnsafeCell};
+use std::collections::BTreeMap;
 use std::mem::{self, MaybeUninit};
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
@@ -2271,3 +2272,104 @@ pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 
 /// What holds an `Arc` a reference to it borrows through.
 struct Shelf(Arc<u32>);
+
+/// A value keyed by its address in a registry it leaves as it drops, as a cache keys
+/// what it tracks: by `Arc::as_ptr` as it is made, and by `ptr::from_ref` and a cast of
+/// `self` as it drops, which must be the same address.
+struct Keyed {
+	id: u8,
+	registry: Rc<std::cell::RefCell<BTreeMap<(u8, usize), u8>>>,
+	left: Rc<Cell<u8>>,
+}
+
+impl Drop for Keyed {
+	fn drop(&mut self) {
+		let address = ptr::from_ref::<Self>(self) as usize;
+		let removed = self.registry.borrow_mut().remove(&(self.id % 4, address));
+		let same = self as *const Self as usize == address;
+		if removed == Some(self.id) && same {
+			self.left.set(self.left.get().wrapping_add(1));
+		}
+	}
+}
+
+/// Addresses read as integers, as `addr`, and as a raw pointer's `Hash` and `Ord` read
+/// them: made `Arc`s and dropped ones keyed by address in a B-tree, a hash map, and sets of
+/// pointers, which must stay unique and aligned among those alive, order pointers as their
+/// addresses, and stay a `Weak`'s once its value drops. Only what Rust fixes is written:
+/// equality, counts, alignment, and the order's agreement, never an address itself.
+pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
+	use std::collections::{BTreeSet, HashMap, HashSet};
+	use std::sync::Weak;
+	let registry = Rc::new(std::cell::RefCell::new(BTreeMap::new()));
+	let left = Rc::new(Cell::new(0u8));
+	let align = align_of::<Keyed>();
+	let mut by_address: HashMap<usize, u8> = HashMap::new();
+	let mut live: Vec<Arc<Keyed>> = Vec::new();
+	let mut weaks: Vec<(Weak<Keyed>, usize)> = Vec::new();
+	let mut ordered: BTreeSet<*const Keyed> = BTreeSet::new();
+	let mut hashed: HashSet<*const Keyed> = HashSet::new();
+	let dangling = Weak::<Keyed>::new().as_ptr();
+	out.extend(
+		[
+			dangling as usize == usize::MAX,
+			ptr::null::<Keyed>() as usize == 0,
+			NonNull::<Keyed>::dangling().as_ptr().addr() == align,
+		]
+		.map(u8::from),
+	);
+	for (i, &byte) in data.iter().enumerate() {
+		match byte % 4 {
+			0 => {
+				let keyed = Arc::new(Keyed {
+					id: i as u8,
+					registry: Rc::clone(&registry),
+					left: Rc::clone(&left),
+				});
+				let p = Arc::as_ptr(&keyed);
+				let address = p as usize;
+				out.push(u8::from(address % align == 0 && address != 0 && p.addr() == address));
+				out.push(u8::from(by_address.insert(address, keyed.id).is_none()));
+				registry.borrow_mut().insert((keyed.id % 4, p.expose_provenance()), keyed.id);
+				out.push(u8::from(ordered.insert(p) && hashed.insert(p)));
+				weaks.push((Arc::downgrade(&keyed), address));
+				live.push(keyed);
+			}
+			1 if !live.is_empty() => {
+				let keyed = live.remove(usize::from(byte / 4) % live.len());
+				let p = Arc::as_ptr(&keyed);
+				out.push(u8::from(by_address.remove(&(p as usize)) == Some(keyed.id)));
+				out.push(u8::from(ordered.remove(&p) && hashed.remove(&p)));
+			}
+			// A `Weak` keeps its address once its value drops, as it keeps the allocation.
+			2 => {
+				for (weak, address) in &weaks {
+					let at = weak.as_ptr() as usize;
+					let alive = weak.upgrade().is_some_and(|keyed| Arc::as_ptr(&keyed) as usize == at);
+					out.push(u8::from(at == *address) + 2 * u8::from(alive));
+					out.push(u8::from(by_address.contains_key(&at) == alive));
+				}
+			}
+			_ => {
+				let addresses: Vec<usize> = ordered.iter().map(|&p| p as usize).collect();
+				out.push(u8::from(addresses.is_sorted() && addresses.len() == live.len()));
+				for (a, b) in live.iter().zip(live.iter().skip(1)) {
+					let (p, q) = (Arc::as_ptr(a), Arc::as_ptr(b));
+					let agree = (p < q) == ((p as usize) < (q as usize))
+						&& (p >= q) == ((p as usize) >= (q as usize))
+						&& p.cmp(&q) == (p as usize).cmp(&(q as usize))
+						&& p != q;
+					out.push(u8::from(agree));
+				}
+				let registry = registry.borrow();
+				for group in 0..4u8 {
+					out.push(registry.range((group, 0)..(group + 1, 0)).count() as u8);
+				}
+				out.push(u8::from(registry.values().all(|id| by_address.values().any(|live| live == id))));
+			}
+		}
+	}
+	out.extend([left.get(), weaks.iter().filter(|(weak, _)| weak.upgrade().is_some()).count() as u8]);
+	drop(live);
+	out.extend([left.get(), u8::from(registry.borrow().is_empty())]);
+}

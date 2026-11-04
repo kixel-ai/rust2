@@ -437,6 +437,9 @@ pub struct Writes<'tcx> {
 	/// The arguments of each body's instances that translation reached, without type
 	/// parameters.
 	reached: FxHashMap<DefId, Vec<ty::GenericArgsRef<'tcx>>>,
+	/// The type of each local of each body read, by that body: every allocation the
+	/// crate's code makes is one, or what one points at.
+	locals: FxIndexSet<(DefId, Ty<'tcx>)>,
 }
 
 /// Types, each without type parameters or over those of the body naming it.
@@ -481,6 +484,9 @@ impl<'tcx> Writes<'tcx> {
 				// One without MIR, such as an import, is refused where it is reached.
 				_ => continue,
 			};
+			for local in body.local_decls.iter() {
+				writes.locals.insert((def_id, tcx.erase_and_anonymize_regions(local.ty)));
+			}
 			// Another crate lists none of its closures' bodies.
 			for local in body.local_decls.iter() {
 				queue.extend(local.ty.walk().filter_map(|arg| match *arg.as_type()?.kind() {
@@ -521,6 +527,24 @@ impl<'tcx> Writes<'tcx> {
 				.reached
 				.get(&def_id)
 				.is_some_and(|args| args.contains(&instance.args))
+	}
+
+	/// The type of each local of the bodies read, one over type parameters for each
+	/// instance translation reached of its body.
+	pub fn locals(&self, tcx: TyCtxt<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+		let env = ty::TypingEnv::fully_monomorphized();
+		self.locals.iter().flat_map(move |&(def_id, ty)| {
+			let instances: Vec<Ty<'tcx>> = match ty.has_param() {
+				false => vec![ty],
+				true => (self.reached.get(&def_id).into_iter().flatten())
+					.filter_map(|&args| {
+						tcx.try_instantiate_and_normalize_erasing_regions(args, env, EarlyBinder::bind(tcx, ty))
+							.ok()
+					})
+					.collect(),
+			};
+			instances
+		})
 	}
 
 	/// Whether `ty` is one of `types`, or with `held`, a type one of them holds by value.
@@ -568,7 +592,7 @@ impl<'tcx> Types<'tcx> {
 
 /// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` or `ManuallyDrop` as what
 /// it holds, and an array as a slice of its element.
-fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
+pub(super) fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	let mut ty = tcx.erase_and_anonymize_regions(ty);
 	while let ty::Adt(adt, args) = ty.kind()
 		&& matches!(Std::of(tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
@@ -584,7 +608,7 @@ fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 /// `ty` and each type it holds by value, at any depth: in a field, an element, or a
 /// payload. An array of no elements holds none, and a type parameter, or a type `env`
 /// can't normalize, stands for what it holds.
-fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+pub(super) fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
 	let mut held = FxIndexSet::default();
 	let mut stack = vec![ty];
 	while let Some(ty) = stack.pop() {

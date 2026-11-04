@@ -94,39 +94,35 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// no bytes is unspecified, but a pointer to `()` is an identity. Notes the comparison of
 	/// those that do, for [`Self::taken`].
 	pub fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
+		self.unidentified(ty).map(|why| format!("comparing pointers to `{ty}`, {why}"))
+	}
+
+	/// Why pointers to `ty` that are not null aren't identities JS keeps, as
+	/// [`Self::incomparable`] says, noting the comparison of those that are.
+	pub fn unidentified(&mut self, ty: Ty<'tcx>) -> Option<&'static str> {
 		if self.identity_pointee(ty) {
 			return None;
 		}
 		if self.zero_sized(ty) {
-			return Some(format!(
-				"comparing pointers to `{ty}`, which has no bytes and so no address of its own"
-			));
+			return Some("which has no bytes and so no address of its own");
 		}
 		// A slice lends a run of other values as an array of its own, by `first_chunk` or
 		// `as_chunks`, so where one points says nothing of where the slice holds it.
 		if let ty::Array(..) = self.uninit_inner(ty).kind()
 			&& self.pointee(ty) == Pointee::Object
 		{
-			return Some(format!(
-				"comparing pointers to `{ty}`, which a slice lends as a copy of its own"
-			));
+			return Some("which a slice lends as a copy of its own");
 		}
 		if ty.is_trait() {
-			return Some(format!(
-				"comparing pointers to `{ty}`, each an object JS makes of its own as it unsizes"
-			));
+			return Some("each an object JS makes of its own as it unsizes");
 		}
 		match self.pointee(ty) {
 			Pointee::Object | Pointee::Bytes => {
 				self.compare(ty);
 				None
 			}
-			Pointee::Place => Some(format!(
-				"comparing pointers to `{ty}`, each a place JS makes of its own"
-			)),
-			Pointee::Slice => Some(format!(
-				"comparing pointers to `{ty}`, whose element pointers are places JS makes of their own"
-			)),
+			Pointee::Place => Some("each a place JS makes of its own"),
+			Pointee::Slice => Some("whose element pointers are places JS makes of their own"),
 		}
 	}
 
@@ -540,8 +536,9 @@ pub fn call<'tcx>(
 			let p = arg();
 			cast(b, p, pointee(), targ(gargs, 1), span)
 		}
-		("ptr" | "NonNull", "addr" | "expose_provenance" | "with_addr" | "map_addr" | "without_provenance") => {
-			b.err(span, "a pointer's address, which JS has no counterpart of")
+		("ptr" | "NonNull", "addr" | "expose_provenance") => super::address::address(b, arg(), pointee(), span),
+		("ptr" | "NonNull", "with_addr" | "map_addr" | "without_provenance") => {
+			b.err(span, "a pointer made of an address, which JS has no memory at")
 		}
 		// A raw pointer to a slice is null where its first element's is.
 		("ptr", "is_null") if kind(b, pointee()) == Some(Pointee::Slice) => {
@@ -668,6 +665,20 @@ pub fn call<'tcx>(
 			};
 			Expr::rs("arcRaw", vec![arc, p, Expr::Str(owner.into())])
 		}
+		// The object a `Weak` points at, there still once the last `Arc` drops it, as its
+		// allocation is.
+		("Weak", "as_ptr")
+			if kind(b, pointee()) == Some(Pointee::Object)
+				&& !pointee().is_trait()
+				&& !super::dynamic::unsized_object(b.t.tcx, pointee()) =>
+		{
+			b.t.weak_pointer(pointee(), span);
+			Expr::rs("weakAsPtr", vec![arg()])
+		}
+		("Weak", "as_ptr") => b.err(
+			span,
+			format!("a raw pointer to the `{}` a `Weak` holds, which JS keeps no object of", pointee()),
+		),
 		("Arc" | "Rc", "from_raw") => Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]),
 		("Arc" | "Rc", "increment_strong_count") => {
 			let arc = Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]);

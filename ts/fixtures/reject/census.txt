@@ -1,4 +1,22 @@
-fixtures/reject/src/alloc.rs:addressed+1:17: a pointer's address, which JS has no counterpart of
+fixtures/reject/src/addresses.rs:cyclic+3:10: `Weak::as_ptr` of a `Weak<addresses::Cyclic>`, which `Arc::new_cyclic` makes and JS has no value of until its closure returns
+fixtures/reject/src/addresses.rs:elements+1:19: the address of a pointer to `addresses::Element`, which `[addresses::Element]` holds many of in one allocation, as far apart as Rust fixes and JS can't show
+fixtures/reject/src/addresses.rs:made+1:5: a pointer made of an address, which JS has no memory at
+fixtures/reject/src/addresses.rs:made+1:20: a pointer made of an address, which JS has no memory at
+fixtures/reject/src/addresses.rs:made+1:54: a cast from `usize` to `*const addresses::Element`, between a pointer and an integer
+fixtures/reject/src/addresses.rs:parts+1:34: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds beside another value whose address is read, in one allocation, as far apart as Rust fixes and JS can't show
+fixtures/reject/src/addresses.rs:parts+1:76: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds beside another value whose address is read, in one allocation, as far apart as Rust fixes and JS can't show
+fixtures/reject/src/addresses.rs:place_keys+1:13: the address of a pointer to `u32`, each a place JS makes of its own
+fixtures/reject/src/addresses.rs:place_keys+1:47: a raw pointer to `u32` behind a reference, which is the object and not where it is kept
+fixtures/reject/src/addresses.rs:place_keys+2:15: comparing pointers to `u32`, each a place JS makes of its own
+fixtures/reject/src/addresses.rs:place_keys+2:15: the address of a pointer to `u32`, each a place JS makes of its own
+fixtures/reject/src/addresses.rs:place_keys+2:48: a raw pointer to `u32` behind a reference, which is the object and not where it is kept
+fixtures/reject/src/addresses.rs:place_keys+3:32: a raw pointer to `u32` behind a reference, which is the object and not where it is kept
+fixtures/reject/src/addresses.rs:place_keys+3:32: the address of a pointer to `u32`, each a place JS makes of its own
+fixtures/reject/src/addresses.rs:place_keys+3:50: a raw pointer to `u32` behind a reference, which is the object and not where it is kept
+fixtures/reject/src/addresses.rs:places+1:2: the address of a pointer to `u32`, each a place JS makes of its own
+fixtures/reject/src/addresses.rs:places+1:35: a raw pointer to a place of `()`, which has no address of its own
+fixtures/reject/src/addresses.rs:places+1:35: the address of a pointer to `()`, which has no bytes and so no address of its own
+fixtures/reject/src/alloc.rs:addressed+1:17: the address of a pointer to `u32`, each a place JS makes of its own
 fixtures/reject/src/alloc.rs:alloc_retyped+4:7: memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+5:11: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+7:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
@@ -174,10 +192,10 @@ fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+6:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
-fixtures/reject/src/pointers.rs:byte_pointer_ops+7:14: comparing `*mut [u8; 4]`
+fixtures/reject/src/pointers.rs:byte_pointer_ops+7:14: the address of a pointer to `[u8; 4]`, a view JS makes of its own of bytes that may be in a larger array
 fixtures/reject/src/pointers.rs:byte_pointer_ops+8:56: an offset of a pointer to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+8:73: an offset of a pointer to `[u8; 4]`, which JS keeps as an object that knows no array it is in
-fixtures/reject/src/pointers.rs:byte_pointer_ops+11:5: hashing `*const [u8; 4]` by its address, which JS has no counterpart of
+fixtures/reject/src/pointers.rs:byte_pointer_ops+11:5: the address of a pointer to `[u8; 4]`, a view JS makes of its own of bytes that may be in a larger array
 fixtures/reject/src/pointers.rs:byte_pointer_parts+3:15: a raw pointer to `[u8; 3]` in an element, a payload, or a union field, which is not supported yet
 fixtures/reject/src/pointers.rs:byte_pointer_parts+3:18: a raw pointer to `[u8; 3]` in an element, a payload, or a union field, which is not supported yet
 fixtures/reject/src/pointers.rs:byte_pointer_parts+3:37: a raw pointer to `[u8; 2]` in an element, a payload, or a union field, which is not supported yet

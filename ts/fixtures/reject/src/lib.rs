@@ -4,6 +4,7 @@
 #![allow(dead_code, reason = "each item is a translation root, not called from Rust")]
 #![feature(cow_is_borrowed, extend_one, f16, is_ascii_octdigit, linked_list_retain)]
 
+mod addresses;
 mod alloc;
 mod buffers;
 mod clones;

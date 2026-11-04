@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, addressAt, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -398,6 +398,11 @@ export class Weak<T> implements Disposable {
 	[Symbol.dispose](): void {
 		this.arc.weak--;
 	}
+}
+
+/** `Weak::as_ptr`, to an object: the object, or `Weak::new`'s address, `usize::MAX`. */
+export function weakAsPtr<T>(weak: Weak<T>): T {
+	return (weak.arc === DANGLING ? addressAt(0xffffffff) : weak.arc.value) as T;
 }
 
 /** `weak`, a `Weak<T>`, unsized to a `Weak<dyn Trait>` of what `view` makes of its `Arc`. */

@@ -3028,10 +3028,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 			let cmp = trait_fn(tcx, "Ord", "cmp");
 			b.fn_value(cmp, tcx.mk_args(&[ty.into()]), span)
 		}
-		_ if raw_pointee(tcx, ty).is_some() => b.err(
-			span,
-			format!("ordering `{ty}` by its address, which JS has no counterpart of"),
-		),
+		_ if let Some(pointee) = raw_pointee(tcx, ty) => match super::address::read(b, pointee, span) {
+			Ok(layout) => Expr::rs("cmpAddr", layout.into()),
+			Err(refused) => refused,
+		},
 		// Each instance decides what its type parameters are.
 		_ if b.t.deferred(ty) => Expr::undefined(),
 		_ => b.err(span, format!("ordering `{ty}`, which is not supported yet")),
@@ -3343,10 +3343,10 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 				false => f,
 			}
 		}
-		_ if raw_pointee(tcx, ty).is_some() => b.err(
-			span,
-			format!("hashing `{ty}` by its address, which JS has no counterpart of"),
-		),
+		_ if let Some(pointee) = raw_pointee(tcx, ty) => match super::address::read(b, pointee, span) {
+			Ok(layout) => Expr::rs("hashAddr", layout.into()),
+			Err(refused) => refused,
+		},
 		_ if b.t.deferred(ty) => Expr::undefined(),
 		_ => b.err(span, format!("hashing `{ty}` as a key, which is not supported yet")),
 	}

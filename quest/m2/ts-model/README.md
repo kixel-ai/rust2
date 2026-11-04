@@ -21,6 +21,10 @@ The codec's differential harness is the pattern to repeat. The shared npm runtim
 (for checked integer ops and the rest of `rs.ts`) is published only once two
 generated packages need it.
 
+✅ Decided with the maintainer on 2026-11-04, for any crate: a pointer's address read as an
+integer is an id unique among live objects, a multiple of the type's alignment, and whatever
+has no exact answer, such as a pointer made back from an address, is refused at translation.
+
 Decided with the maintainer on 2026-10-23, for the subset: `u128` stays, on the
 [wide-integer](/ts/README.md#design) representation.
 
@@ -61,6 +65,5 @@ there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 - [std's impls through a reference](/quest/m2/ts-model/reference-impls.md) - `<&[u8] as AsRef<[u8]>>::as_ref`
 - [Bytes from an owner that drops](/quest/m2/ts-model/bytes-owner.md) - `Bytes::from_owner` of a frame's segment
 - [rangemap](/quest/m2/ts-model/rangemap.md) - B-tree ranges by a borrowed key, and std's iterators in a crate's fields
-- [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
 
 Public API: the translator's output for moq-net's model.

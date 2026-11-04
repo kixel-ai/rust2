@@ -1,5 +1,11 @@
 package = "reject-fixture"
 roots = [
+    "addresses::cyclic",
+    "addresses::elements",
+    "addresses::made",
+    "addresses::parts",
+    "addresses::place_keys",
+    "addresses::places",
     "alloc::addressed",
     "alloc::alloc_retyped",
     "alloc::allocated",

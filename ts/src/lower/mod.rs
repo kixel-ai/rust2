@@ -5,6 +5,7 @@
 //! call is always a direct call. Types are translated once, generically, and a function of
 //! a type is a module-level one taking `self` first, so a bundler drops what goes unused.
 
+pub mod address;
 mod alloc;
 mod bind;
 pub use bind::check_module;
@@ -216,6 +217,14 @@ pub struct Translator<'a, 'tcx> {
 	capacity_reads: Vec<(Span, String)>,
 	/// Whether a crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes, whose capacity JS keeps none of.
 	string_bytes: bool,
+	/// Each read of an address, of a pointer to its type, refused once translation settles
+	/// if an allocation holds that type beside another read, as [`address`] says.
+	addresses: Vec<(Ty<'tcx>, Span, String)>,
+	/// The types `Arc::new_cyclic` makes.
+	cyclic: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// Each `Weak::as_ptr`, by the type it points at, refused once translation settles if
+	/// `Arc::new_cyclic` makes one.
+	weak_pointers: Vec<(Ty<'tcx>, Span, String)>,
 	/// Whether each type's drop does something JS can see, as [`Self::drops`] found.
 	drops: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
 	/// The types [`Self::drops`] is still deciding, and whether the query open now read one.
@@ -444,6 +453,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				&& (t.hooked || !t.hooking)
 			{
 				t.refuse_capacity_reads();
+				t.refuse_addresses();
 				return Some((t, out));
 			}
 			read = std::mem::take(&mut t.read);
@@ -503,6 +513,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			refusals: Some(Vec::new()),
 			capacity_reads: Vec::new(),
 			string_bytes: false,
+			addresses: Vec::new(),
+			cyclic: Default::default(),
+			weak_pointers: Vec::new(),
 			drops: Default::default(),
 			drops_open: Default::default(),
 			drops_cycle: false,
