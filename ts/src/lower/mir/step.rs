@@ -1,6 +1,6 @@
 //! Iterators stepped in place: a slice's or a `Vec`'s iterator, or a range of numbers,
 //! that only `next` reads, as a `for` loop's is, is two variables, of the array and an
-//! index or of the bounds, rather than an `rt.Iter`, which a bundler can't shake its
+//! index or of the bounds, rather than an `rs.Iter`, which a bundler can't shake its
 //! adaptors from. Variables, not an object of both: V8 took up to 1.25x as long over a
 //! `BTreeMap` stepping an object's fields.
 
@@ -49,7 +49,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			.filter(|&l| !self.is_arg(l) && l != mir::RETURN_PLACE && self.defs[l] == 1)
 			.filter(|&l| {
 				let ty = mir.local_decls[l].ty;
-				// An element JS copies is lent as its place, which `rt.iterSliceMut` makes.
+				// An element JS copies is lent as its place, which `rs.iterSliceMut` makes.
 				let places = || self.b.t.iter_item(ty).is_some_and(|item| self.b.t.has_place(item));
 				array_iter(tcx, ty).is_some() && !places() || super::small_range(tcx, ty)
 			})
@@ -78,7 +78,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						}
 					}
 					// A move into a field, such as a coroutine's for a local held across an
-					// `.await`, needs the `rt.Iter` the field's type says, so it isn't counted.
+					// `.await`, needs the `rs.Iter` the field's type says, so it isn't counted.
 					Rvalue::Use(Operand::Move(from), _)
 						if let Some(from) = from.as_local()
 							&& let Some(to) = place.as_local() =>
@@ -271,28 +271,28 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
-	/// An iterator stepped in place, from the `rt.Iter` its mapping makes: `{ s, i: 0 }`
-	/// from `rt.iterSlice(s)`, or `rt.iterSlice(s, drop)` of items it owns, which its drop
-	/// drops again, `{ s: v.items, i: 0 }` from `rt.vecIntoIter(v, drop)`, the view of `v`'s bytes from `rt.byteVecIntoIter(v)`, and
-	/// `{ start, end }` from `new rt.Range(start, end)`. A moved one is already made.
+	/// An iterator stepped in place, from the `rs.Iter` its mapping makes: `{ s, i: 0 }`
+	/// from `rs.iterSlice(s)`, or `rs.iterSlice(s, drop)` of items it owns, which its drop
+	/// drops again, `{ s: v.items, i: 0 }` from `rs.vecIntoIter(v, drop)`, the view of `v`'s bytes from `rs.byteVecIntoIter(v)`, and
+	/// `{ start, end }` from `new rs.Range(start, end)`. A moved one is already made.
 	pub(super) fn stepped_make(&mut self, value: Expr, span: rustc_span::Span) -> Expr {
-		let rt = |f: &Expr, name: &str| matches!(f, Expr::Rt(n) if n == name);
+		let rs = |f: &Expr, name: &str| matches!(f, Expr::Rs(n) if n == name);
 		let object = |fields: [(&str, Expr); 2]| {
 			Expr::Object(fields.into_iter().map(|(k, v)| (Key::Name(k.into()), v)).collect())
 		};
 		match value {
-			Expr::Call(f, mut args) if rt(&f, "iterSlice") && matches!(args.len(), 1 | 2) => {
+			Expr::Call(f, mut args) if rs(&f, "iterSlice") && matches!(args.len(), 1 | 2) => {
 				args.truncate(1);
 				object([("s", args.pop().unwrap()), ("i", Expr::lit("0"))])
 			}
-			Expr::Call(f, mut args) if rt(&f, "vecIntoIter") && matches!(args.len(), 1 | 2) => {
+			Expr::Call(f, mut args) if rs(&f, "vecIntoIter") && matches!(args.len(), 1 | 2) => {
 				args.truncate(1);
 				object([("s", args.pop().unwrap().member("items")), ("i", Expr::lit("0"))])
 			}
-			Expr::Call(f, args) if rt(&f, "byteVecIntoIter") && args.len() == 1 => {
-				object([("s", Expr::rt("byteVecView", args)), ("i", Expr::lit("0"))])
+			Expr::Call(f, args) if rs(&f, "byteVecIntoIter") && args.len() == 1 => {
+				object([("s", Expr::rs("byteVecView", args)), ("i", Expr::lit("0"))])
 			}
-			Expr::New(f, args) if rt(&f, "Range") && args.len() == 2 => {
+			Expr::New(f, args) if rs(&f, "Range") && args.len() == 2 => {
 				let [start, end] = <[Expr; 2]>::try_from(args).expect("checked above");
 				object([("start", start), ("end", end)])
 			}
@@ -303,14 +303,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
-	/// The next item of `it`, stepped in place, or `rt.DONE`.
+	/// The next item of `it`, stepped in place, or `rs.DONE`.
 	pub(super) fn stepped_next(&self, it: &Expr) -> Expr {
 		let s = stepped_field(it, "s");
 		let i = stepped_field(it, "i");
 		Expr::Cond(
 			Box::new(i.clone().binary("<", s.clone().member("length"))),
 			Box::new(s.index(Expr::Postfix(Box::new(i), "++"))),
-			Box::new(Expr::Rt("DONE".into())),
+			Box::new(Expr::Rs("DONE".into())),
 		)
 	}
 
@@ -319,7 +319,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn stepped_drop(&mut self, it: &Expr, ty: Ty<'tcx>, span: rustc_span::Span) -> Option<Expr> {
 		let item = array_iter(self.tcx, ty)?;
 		let dropper = self.b.t.drop_fn(item, span)?;
-		Some(Expr::rt(
+		Some(Expr::rs(
 			"dropAll",
 			vec![stepped_field(it, "s"), dropper, stepped_field(it, "i")],
 		))
@@ -364,8 +364,8 @@ pub(super) fn stepped_field(it: &Expr, key: &str) -> Expr {
 
 /// Each loop over an array iterator stepped in place that only the loop steps, as
 /// `for (const item of array)`: a `while (true)` whose first statements take the next
-/// item and leave on `rt.DONE`. Nothing else names the index, so nothing sees where it
-/// stopped, but for the `rt.dropAll` of a `Vec`'s items it owns right after the loop,
+/// item and leave on `rs.DONE`. Nothing else names the index, so nothing sees where it
+/// stopped, but for the `rs.dropAll` of a `Vec`'s items it owns right after the loop,
 /// which drops nothing when the loop can only leave at the end.
 pub(super) fn for_of(stmts: &mut Vec<Stmt>) {
 	let mut names: FxHashMap<String, usize> = FxHashMap::default();
@@ -485,7 +485,7 @@ fn loops(
 	}
 }
 
-/// The array and index of `rt.dropAll(array, f, index)`, which drops what a loop over a
+/// The array and index of `rs.dropAll(array, f, index)`, which drops what a loop over a
 /// `Vec` it owns left.
 fn drop_rest(stmt: &Stmt) -> Option<(String, String)> {
 	let StmtKind::Expr(call) = &stmt.kind else {
@@ -495,7 +495,7 @@ fn drop_rest(stmt: &Stmt) -> Option<(String, String)> {
 		return None;
 	};
 	match (peel(f), args.as_slice()) {
-		(Expr::Rt(name), [array, _, index]) if name == "dropAll" => match (peel(array), peel(index)) {
+		(Expr::Rs(name), [array, _, index]) if name == "dropAll" => match (peel(array), peel(index)) {
 			(Expr::Ident(array), Expr::Ident(index)) => Some((array.clone(), index.clone())),
 			_ => None,
 		},
@@ -542,7 +542,7 @@ fn within(own: &Option<String>, inner: &mut Vec<String>, f: impl FnOnce(&mut Vec
 }
 
 /// The item, array, and index of a loop that starts `const item = i < s.length ?
-/// s[i++] : rt.DONE; if (item === rt.DONE) break;`, the `break` leaving it.
+/// s[i++] : rs.DONE; if (item === rs.DONE) break;`, the `break` leaving it.
 fn header(body: &[Stmt], label: Option<&str>) -> Option<(String, String, String)> {
 	let [next, test, ..] = body else {
 		return None;
@@ -559,7 +559,7 @@ fn header(body: &[Stmt], label: Option<&str>) -> Option<(String, String, String)
 	let Expr::Cond(c, a, b) = peel(init) else {
 		return None;
 	};
-	let (Expr::Binary(i, "<", len), Expr::Index(s, at), Expr::Rt(done)) = (peel(c), peel(a), peel(b)) else {
+	let (Expr::Binary(i, "<", len), Expr::Index(s, at), Expr::Rs(done)) = (peel(c), peel(a), peel(b)) else {
 		return None;
 	};
 	let (Expr::Ident(index), Expr::Member(s2, Key::Name(length)), Expr::Ident(array), Expr::Postfix(i2, "++")) =
@@ -577,7 +577,7 @@ fn header(body: &[Stmt], label: Option<&str>) -> Option<(String, String, String)
 	let leaves = matches!(then.as_slice(), [Stmt { kind: StmtKind::Break(target), .. }]
 		if target.is_none() || target.as_deref() == label);
 	let tests = matches!(peel(cond), Expr::Binary(l, "===", r)
-		if same(l, item) && matches!(peel(r), Expr::Rt(d) if d == "DONE"));
+		if same(l, item) && matches!(peel(r), Expr::Rs(d) if d == "DONE"));
 	(leaves && tests && els.is_empty()).then(|| (item.clone(), array.clone(), index.clone()))
 }
 

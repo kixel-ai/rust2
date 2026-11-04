@@ -4,26 +4,26 @@
 
 import * as Fault from "./fmt.Fault.ts";
 import { be, edges, op, ops as picks, run as harness } from "./lang.ts";
-import * as rt from "./rt.ts";
+import * as rs from "./rs.ts";
 
 /** The bytes that pick each case, and a `Fault`'s first byte. */
 export const ops = new Map<string, Uint8Array>([...picks, ["fmt::Fault", Uint8Array.of(0xff)]]);
 
-export function run(input: rt.ByteSlice): rt.ByteVec {
-	if (rt.byteSliceFirst(input) !== 0xff) return harness(input);
-	const fault = Fault.new(rt.byteSliceRange(input, 1));
-	const display: rt.Fmt = (f) => Fault.fmt$fmt_Display(fault, f);
-	const debug: rt.Fmt = (f) => Fault.fmt$fmt_Debug(fault, f);
-	const text = rt.fmtFormat([
+export function run(input: rs.ByteSlice): rs.ByteVec {
+	if (rs.byteSliceFirst(input) !== 0xff) return harness(input);
+	const fault = Fault.new(rs.byteSliceRange(input, 1));
+	const display: rs.Fmt = (f) => Fault.fmt$fmt_Display(fault, f);
+	const debug: rs.Fmt = (f) => Fault.fmt$fmt_Debug(fault, f);
+	const text = rs.fmtFormat([
 		display,
 		"|",
-		rt.fmtSpec({ align: ">", width: 16 }, display),
+		rs.fmtSpec({ align: ">", width: 16 }, display),
 		"|",
 		debug,
 		"|",
-		rt.fmtSpec({ alternate: true }, debug),
+		rs.fmtSpec({ alternate: true }, debug),
 	]);
-	return rt.byteVecFrom(new TextEncoder().encode(text));
+	return rs.byteVecFrom(new TextEncoder().encode(text));
 }
 
 /** `shapes::loops` with each first byte that one of its cases of `!` takes, with one more byte and without. */

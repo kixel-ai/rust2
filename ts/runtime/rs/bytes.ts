@@ -1,10 +1,10 @@
 // `bytes`, for rust2-ts output. A `Bytes` is immutable bytes that its clones and slices
-// share, as a `&[u8]` shares them, so it is an `rt.ByteSlice`: an `rt.CountedBytes` where
+// share, as a `&[u8]` shares them, so it is an `rs.ByteSlice`: an `rs.CountedBytes` where
 // it holds storage, which counts its handles as `bytes` does, and a plain one where it is
 // static. A `BytesMut` is a window of a vector of its own, or of storage that the handles
 // `split_to` makes and the `Bytes` that `freeze` makes share without overlapping. Whether
 // a handle is the last of its storage decides `bytes`' capacities, so every handle drops.
-// `rt.ts` re-exports all of it.
+// `rs.ts` re-exports all of it.
 
 import {
 	ByteSlice,
@@ -26,7 +26,7 @@ import {
 	type Result,
 	Err,
 	Ok,
-} from "../rt.ts";
+} from "../rs.ts";
 import { type char, type u8, u8LowerHex, type usize } from "./int.ts";
 import type { Location } from "./location.ts";
 

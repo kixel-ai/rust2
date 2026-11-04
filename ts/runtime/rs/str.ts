@@ -1,4 +1,4 @@
-// `str`'s slices, iterators, and searches, for rust2-ts output. `rt.ts` re-exports all of
+// `str`'s slices, iterators, and searches, for rust2-ts output. `rs.ts` re-exports all of
 // it.
 //
 // A JS string is UTF-16 where a `str` is UTF-8: these step by code point, and an offset
@@ -31,7 +31,7 @@ import {
 	strCowStr,
 	stringLen,
 	utf8Check,
-} from "../rt.ts";
+} from "../rs.ts";
 import { CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import { isAsciiWhitespace } from "./ascii.ts";
 import { escapeDebug } from "./char.ts";

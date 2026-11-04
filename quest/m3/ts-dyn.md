@@ -14,8 +14,8 @@ config, so trait objects move from never to not yet.
 
 - `dyn Debug` and `dyn Display` translate as functions writing their value, behind `&`,
   `&mut`, `Box`, `Arc`, and `Rc`, `dyn Future`
-  as an `rt.Future`, `dyn Any` as the class a downcast checks for, `dyn Fn*` as the
-  closure itself, `dyn Iterator` and its subtraits as an `rt.Iter`, behind `&`, `&mut`,
+  as an `rs.Future`, `dyn Any` as the class a downcast checks for, `dyn Fn*` as the
+  closure itself, `dyn Iterator` and its subtraits as an `rs.Iter`, behind `&`, `&mut`,
   `Box`, `Arc`, and `Rc`, and the translated
   crates' traits as an object with the trait's methods. Build the rest on those.
 - `dyn Error` translates as an object of `source`, `Debug`, and `Display`, whose downcasts

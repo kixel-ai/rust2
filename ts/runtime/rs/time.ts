@@ -1,11 +1,11 @@
 // `core::time::Duration`, for rust2-ts output: std's whole seconds and nanoseconds, with
 // each method its own function, `durationAdd`, so a bundler drops every one translated
-// code never calls. `rt.ts` re-exports all of it.
+// code never calls. `rs.ts` re-exports all of it.
 //
 // A `Duration` never changes once made, so values share it. Its arithmetic is std's: a
 // sum past `u64::MAX` seconds is `None`, saturates, or panics with std's message.
 
-import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtPadding, Ok, panic, type Result } from "../rt.ts";
+import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtPadding, Ok, panic, type Result } from "../rs.ts";
 import { cmp, type Ordering } from "./collections.ts";
 import { type Hasher, hash32, hash64 } from "./hash.ts";
 import { f64ToBits } from "./float.ts";

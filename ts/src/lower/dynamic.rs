@@ -5,9 +5,9 @@
 //! trait's type, which a TS caller can implement. A coercion to one wraps the value in a
 //! class of its type's own, shared by every trait object of the type, whose methods call
 //! that type's impls and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
-//! drops the value. An `Arc<dyn Trait>` is an `rt.ArcDyn` around the one a box would be. A
+//! drops the value. An `Arc<dyn Trait>` is an `rs.ArcDyn` around the one a box would be. A
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
-//! `rt.tailDyn` view of the struct it was made from, whose last field is that field's
+//! `rs.tailDyn` view of the struct it was made from, whose last field is that field's
 //! object. A raw pointer unsizes as a `&mut` to what it points at does. A
 //! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
 //! class of the type it names. A `dyn Fn`,
@@ -65,9 +65,9 @@ pub struct DynFn<'tcx> {
 /// How a wrapper class holds the value a pointer to it was unsized from.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Held {
-	/// Its value, from `&T` or `Box<T>`: the class is an `rt.Place` of it, as a `v`.
+	/// Its value, from `&T` or `Box<T>`: the class is an `rs.Place` of it, as a `v`.
 	Value,
-	/// The `rt.Place` a `&mut T` to a value JS copies is.
+	/// The `rs.Place` a `&mut T` to a value JS copies is.
 	Place,
 }
 
@@ -254,8 +254,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Whether `instance` is a call through a trait object's method, whose wrapper takes
 	/// its arguments as the crate's functions do. A `&dyn Debug` or `&dyn Display` is a
-	/// function writing its value instead, a `dyn Future` an `rt.Future`, and a
-	/// `dyn Iterator` an `rt.Iter`.
+	/// function writing its value instead, a `dyn Future` an `rs.Future`, and a
+	/// `dyn Iterator` an `rs.Iter`.
 	pub fn dispatches(&self, instance: Instance<'tcx>) -> bool {
 		let ty::InstanceKind::Virtual(..) = instance.def else {
 			return false;
@@ -404,7 +404,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let ty = self.ty(from, span);
 		let field_ty = match held {
 			Held::Value => ty,
-			Held::Place => Type::Rt("Place", vec![ty]),
+			Held::Place => Type::Rs("Place", vec![ty]),
 		};
 		self.program.items.push(Item::Struct {
 			sym,
@@ -603,7 +603,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			let view = self.tail_object(value, pointee, object, from.is_box(), span);
 			return view.unwrap_or_else(|| unsupported(self));
 		}
-		// A box holds one as a `Uint8Array` and a reference as an `rt.ByteSlice`, which one
+		// A box holds one as a `Uint8Array` and a reference as an `rs.ByteSlice`, which one
 		// class's methods can't both take.
 		if super::byte_array(pointee) {
 			return self.err(
@@ -626,7 +626,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 						.into_iter()
 						.chain(self.t.drop_fn(pointee, span))
 						.collect();
-					Expr::rt("fmtOwned", args)
+					Expr::rs("fmtOwned", args)
 				}
 			};
 		}
@@ -671,7 +671,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 	/// `p`, a `from` raw pointer, unsized to `to`, unless it is null or dangling, which stays
 	/// itself: what a box of the object it points at unsizes to, which drops it as the box
 	/// `Box::from_raw` makes of it does, or else what a `&mut` to its place unsizes to. One
-	/// that is the `rt.Place` of a library value, such as a cell, unsizes to the place of
+	/// that is the `rs.Place` of a library value, such as a cell, unsizes to the place of
 	/// what a box of the value there unsizes to as each read finds it, since it may be
 	/// uninitialized or replaced until then.
 	pub fn raw_object(&mut self, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
@@ -709,13 +709,13 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			}
 		};
 		match read {
-			true => Expr::rt("rawUnsizePlace", vec![p, make]),
-			false => Expr::rt("rawUnsize", vec![p, make]),
+			true => Expr::rs("rawUnsizePlace", vec![p, make]),
+			false => Expr::rs("rawUnsize", vec![p, make]),
 		}
 	}
 
 	/// `value`, a `from`, a struct whose last field unsizes, as the struct `to` of the trait
-	/// object: an `rt.tailDyn` view of it, whose last field is the object a `&mut` to that
+	/// object: an `rs.tailDyn` view of it, whose last field is the object a `&mut` to that
 	/// field would unsize to, made wherever it is read, so it reads and changes the field in
 	/// place, and whose other fields, a cell's borrows, and a mutex's lock are `value`'s own.
 	/// A box of it drops as one of `value` does. `None` if the struct is none it can view.
@@ -730,13 +730,13 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let name = self.fresh("value");
 		let v = Expr::ident(&name);
 		let (key, read, lent, held) = match Std::of(tcx, adt.did()) {
-			// `rt.RefCell` holds a `RefCell` or an `RwLock`.
+			// `rs.RefCell` holds a `RefCell` or an `RwLock`.
 			Some(Std::RefCell | Std::Mutex) => {
 				let held = (from_args.type_at(0), to_args.type_at(0));
-				let place = Expr::rt("valuePlace", vec![v.clone()]);
+				let place = Expr::rs("valuePlace", vec![v.clone()]);
 				(Key::Name("value".into()), v.clone().member("value"), place, held)
 			}
-			// `rt.Cell`, a `Cell`'s or an `UnsafeCell`'s, is the place of what it holds.
+			// `rs.Cell`, a `Cell`'s or an `UnsafeCell`'s, is the place of what it holds.
 			Some(Std::Cell) => {
 				let held = (from_args.type_at(0), to_args.type_at(0));
 				(Key::Name("v".into()), v.clone().member("v"), v.clone(), held)
@@ -766,7 +766,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 					}],
 					Box::new(at.assign(Expr::ident(value))),
 				);
-				let place = Expr::rt("place", vec![Expr::Lambda(Vec::new(), Box::new(read.clone())), set]);
+				let place = Expr::rs("place", vec![Expr::Lambda(Vec::new(), Box::new(read.clone())), set]);
 				(Key::Field(id), read, place, held)
 			}
 			_ => return None,
@@ -803,14 +803,14 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			.into_iter()
 			.chain(owned.then(|| self.t.drop_fn(from, span)).flatten())
 			.collect();
-		Some(Expr::rt("tailDyn", args))
+		Some(Expr::rs("tailDyn", args))
 	}
 
 	/// `value`, a `from` pointing at a function, as a `dyn Fn*` of `kind`: the function
 	/// itself, through the references and boxes it is behind. A box owning one that an
-	/// `FnOnce` call consumes but that `Fn` or `FnMut` calls is `rt.once` of it, which drops
+	/// `FnOnce` call consumes but that `Fn` or `FnMut` calls is `rs.once` of it, which drops
 	/// it after the call, as rustc's shim does, where an `FnOnce` closure's body drops what
-	/// it owns; a box of a reference to one that drops is `rt.lent` of it, which never does.
+	/// it owns; a box of a reference to one that drops is `rs.lent` of it, which never does.
 	fn fn_object(&mut self, mut value: Expr, from: Ty<'tcx>, kind: ty::ClosureKind) -> Expr {
 		let tcx = self.t.tcx;
 		let (mut ty, mut owned) = (from, from.is_box());
@@ -832,11 +832,11 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			return value;
 		}
 		match owned {
-			false => Expr::rt("lent", vec![value]),
+			false => Expr::rs("lent", vec![value]),
 			true if kind == ty::ClosureKind::FnOnce
 				&& self.t.owned_fn(from).is_some_and(|c| c != ty::ClosureKind::FnOnce) =>
 			{
-				Expr::rt("once", vec![value])
+				Expr::rs("once", vec![value])
 			}
 			true => value,
 		}
@@ -917,7 +917,7 @@ pub fn call<'tcx>(
 				ty: None,
 			};
 			let held = Expr::Lambda(vec![held], Box::new(Expr::ident("object").field(value.v)));
-			Expr::rt("arcDowncast", vec![o, Expr::Sym(value.sym), held])
+			Expr::rs("arcDowncast", vec![o, Expr::Sym(value.sym), held])
 		}
 	};
 	Ok(Some(e))
