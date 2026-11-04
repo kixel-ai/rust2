@@ -9,17 +9,19 @@ rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.to
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, on the host, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). Once
-rustc has checked the configured library, it walks every `pub` item reachable from the
-crate root and exports it by fixed rules, or refuses it with a compile error at its span.
-It walks each other package the config lists the same way, from the metadata of the
-crate the library uses through its dependency on that package, so one library holds them
-all and an export names another's types across crates. `--out` writes a crate of `extern "C"` functions over the
-libraries, its runtime beside it, and the header in `include/<prefix>.h`; `cargo build`
-on that crate makes a static and a shared library. That crate enables each export's
-features as the check did, including `--features <export>/<feature>`; such a feature on a
-dependency that is no export is an error. It resolves them as the check did, wherever it
-is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
+package is the facade: once rustc has checked its library, it walks every `pub` item
+reachable from the crate root, following `pub use` re-exports of other crates' items and
+modules, and exports it by fixed rules, or refuses it with a compile error at its span.
+So a facade such as moq-ffi exports several crates into one library by re-exporting what
+it ships, and a type no path from its root reaches is refused. The prefix of every C name
+is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
+snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
+beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
+static and a shared library. That crate enables the facade's features as the check did;
+a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
+the facade enables what its dependencies build with. It resolves them as the check did,
+wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
 to what the library builds with on any platform, read off cargo's resolution, wherever
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
@@ -35,30 +37,18 @@ ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI throu
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-package = "moq-net"
-# The prefix of every C name, the package's name in snake case by default.
-prefix = "moq"
-# Paths from the crate root left out: a module, an item, or one method or field. Each
+# Paths from the facade's root left out: a module, an item, or one method or field. Each
 # must name something exported. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
 exclude = ["track::Producer::poll_closed"]
-
-# C names, without the prefix, for paths whose names the naming rule makes clash.
-[rename]
-"session::Stats" = "session_stats_snapshot"
-
-# Another package exported into the same library, which the package builds with: its
-# own `exclude` and `rename`, by paths from its crate root.
-[crates.moq-pattern]
-exclude = ["Pattern::new"]
 ```
 
 ## Rules
 
-Every `pub` item reachable from an exported crate's root, by its shortest path, is
-exported or refused. `#[doc(hidden)]` items are no part of the API and are left out; type
-aliases export nothing of their own. A re-export of another export's item names that
-export's, and adds nothing; another crate's type is refused.
+Every `pub` item reachable from the facade's root, by its shortest path, is exported or
+refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
+export nothing of their own. A re-export of the standard library's item is refused, since
+its types map by role; a type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -158,34 +148,34 @@ refused, and the census counts why.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
-- **Names** are the prefix, then the item's path from its crate's root, each segment in
-  snake case, joined by `_`: `track::Producer::append_group` is
-  `moq_track_producer_append_group`, and moq-pattern's `Patterns` is `moq_patterns`.
-  Joining loses where segments split, and every export shares the prefix, so every C
-  name is registered, and two items claiming one is a compile error at both spans, fixed
-  by a `rename`: moq-net's `session::Stats` and `Session::stats` are both
-  `moq_session_stats`. So are a field and the method of its name, as moq-tokio's
-  `Backoff::initial`; `field@Backoff::initial` names the field. A field's setter is
-  named as its getter, with `set_` after its type's name: `moq_connect_config_set_tls`,
-  and `moq_backoff_set_initial_setting` once renamed.
+- **Names** are the prefix, then the item's path from the facade's root, each segment in
+  Rust's case, joined by `_`: `track::Producer::append_group` is
+  `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
+  are `moq_session_Stats` and `moq_Session_stats`. Items of other crates are named by
+  where the facade re-exports them, so two of one name need two paths. A field's getter
+  and setter add `_get` and `_set` to its path, as SWIG's do, so they stay apart from a
+  method of the field's name and from a `set_` method, which Rust names verb first:
+  moq-tokio's `Backoff::initial` field is `moq_Backoff_initial_get` and
+  `moq_Backoff_initial_set` beside the method `moq_Backoff_initial`. An enum variant's
+  payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
+  Joining still loses where segments split, and the runtime shares the prefix, so every C
+  name is registered, and two items claiming one, which only names Rust's conventions
+  leave apart can, is a compile error at both spans: `audio_encoder::finish` and
+  `audio::encoder_finish` are both `moq_audio_encoder_finish`.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the
-  item. Each argument takes the last segment of its C name, such as `extra` for moq-mux's
+  item. Each argument takes the last segment of its C name, such as `Extra` for moq-mux's
   `catalog::hang::Extra`, so `catalog::Producer<catalog::hang::Extra>` is
-  `moq_catalog_producer_extra`. Where two instances of one item would still share a name,
+  `moq_catalog_Producer_Extra`. Where two instances of one item would still share a name,
   each argument that tells them apart takes one more segment at a time, until they
-  differ: the api fixture's `Counter::seeded` is `api_counter_seeded_point` at its
-  `Point`, and `api_counter_seeded_polar_point` at `polar::Point`. The names depend on
+  differ: the api fixture's `Counter::seeded` is `api_Counter_seeded_Point` at its
+  `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
   by the generic type's path leaves it out of every instance, and by the instance's path
-  (`"catalog::Producer<moq_mux::catalog::hang::Extra>::stats"`) out of that one. A
-  `rename` matches paths as `exclude` does: by the generic item's path it renames each of
-  its instances, and by an instance's path (`"catalog::Producer<moq_mux::catalog::hang::Extra>"`)
-  that one alone, whose arguments then add nothing to its name, while the others keep
-  theirs. The longer path wins, and at one length, the instance's.
+  (`"catalog::Producer<moq::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++
 
@@ -578,8 +568,7 @@ Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
 
 ## Census
 
-`--census dir` exports nothing. It writes `<package>.md` for each exported package,
-which counts what exports and ranks every refusal by construct and by the type it names,
+`--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, and ends with the `exclude` list that exports the
 rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
@@ -596,7 +585,7 @@ nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R
 nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
 ```
 
-The `api` fixture covers each rule once, and names the `dep` fixture's types, which
+The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`

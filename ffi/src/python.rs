@@ -25,9 +25,9 @@ use std::hash::Hasher;
 
 use rustc_data_structures::stable_hash::StableHasher;
 
-use crate::abi::{self, Abi, Ty};
+use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Traits, Type};
-use crate::kotlin::{indent_by, pascal, rust_c, strip_refs};
+use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
@@ -298,11 +298,11 @@ impl<'a> Gen<'a> {
 		if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			let clash = match first.as_str() {
 				"the runtime" => format!(
-					"{what} is `{}.{name}` in Python, which its runtime names: rename it in the config",
+					"{what} is `{}.{name}` in Python, which its runtime names: rename it in the source or exclude it in the config",
 					self.abi.prefix
 				),
 				_ => format!(
-					"{first} and {what} are both `{}.{name}` in Python: rename one in the config",
+					"{first} and {what} are both `{}.{name}` in Python: rename one in the source or exclude it in the config",
 					self.abi.prefix
 				),
 			};
@@ -815,7 +815,7 @@ impl<'a> Gen<'a> {
 		for name in data.iter().cloned().chain(codes.filter_map(|code| member_name(code))) {
 			if !seen.insert(name.clone()) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Python: rename one in the config"
+					"two members of `{rust}` are both `{name}` in Python: rename one in the source or exclude it in the config"
 				));
 			}
 		}
@@ -913,7 +913,7 @@ impl<'a> Gen<'a> {
 			return;
 		}
 		// Each variant's class, and its fields, which on an instance hide the enum's members.
-		let mut data: Vec<String> = e.variants.iter().map(|v| pascal(&abi::snake(&v.name))).collect();
+		let mut data: Vec<String> = e.variants.iter().map(|v| pascal(&v.name)).collect();
 		let fields: BTreeSet<String> = e
 			.variants
 			.iter()
@@ -935,9 +935,9 @@ impl<'a> Gen<'a> {
 		let mut reads = Vec::new();
 		let mut writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = pascal(&abi::snake(&variant.name));
+			let vname = pascal(&variant.name);
 			let class = format!("_{name}_{vname}");
-			let key = format!("{c}_{}", abi::snake(&variant.name));
+			let key = abi::payload(&c, &variant.name);
 			let tv = self.register(&key, class.clone());
 			let fields: String = variant
 				.fields
@@ -960,7 +960,7 @@ impl<'a> Gen<'a> {
 					writes.push(format!("\t\t{n} => rt::record({tv}, vec![]),"));
 				}
 				false => {
-					let payload = format!("{c}_{}", abi::snake(&variant.name));
+					let payload = abi::payload(&c, &variant.name);
 					let mut binds = Vec::new();
 					let mut fields = Vec::new();
 					let mut lowers = Vec::new();
@@ -1223,7 +1223,7 @@ impl<'a> Gen<'a> {
 		};
 		let reserved = owner_ty.map_or(&[][..], |(_, r)| r);
 		let snake = own.unwrap_or(&bare);
-		let member = member(snake, reserved);
+		let member = member(&abi::snake(snake), reserved);
 
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();

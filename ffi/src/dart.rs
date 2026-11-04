@@ -25,7 +25,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Sig, Ty};
+use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
 use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
 use crate::kotlin::strip_refs;
@@ -363,7 +363,7 @@ impl<'a> Gen<'a> {
 		for (name, what) in names {
 			if name.starts_with(&space) || name == abi.rt("dart") && what != "the runtime" {
 				self.errors.push(format!(
-					"{what} is `{name}` in C, which Dart's glue names: rename it in the config"
+					"{what} is `{name}` in C, which Dart's glue names: rename it in the source or exclude it in the config"
 				));
 			}
 		}
@@ -373,11 +373,11 @@ impl<'a> Gen<'a> {
 	fn claim(&mut self, name: &str, what: String) {
 		if TAKEN.contains(&name) {
 			self.errors.push(format!(
-				"{what} is `{name}` in Dart, which its runtime names: rename it in the config"
+				"{what} is `{name}` in Dart, which its runtime names: rename it in the source or exclude it in the config"
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Dart: rename one in the config"
+				"{first} and {what} are both `{name}` in Dart: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -402,7 +402,7 @@ impl<'a> Gen<'a> {
 		}
 		for name in clashes {
 			self.errors.push(format!(
-				"two members of `{rust}` are both `{name}` in Dart: rename one in the config"
+				"two members of `{rust}` are both `{name}` in Dart: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -551,7 +551,7 @@ impl<'a> Gen<'a> {
 			let union = format!("_{name}_u");
 			let mut members = Vec::new();
 			for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
-				let payload = format!("{name}_{}", abi::snake(&variant.name));
+				let payload = abi::payload(&name, &variant.name);
 				let mut decls = Vec::new();
 				for field in &variant.fields {
 					let ty = abi.ty(&field.ty);
@@ -2021,20 +2021,6 @@ fn int_literal(v: i128) -> String {
 		true => format!("0x{:x}", v as u64),
 		false => v.to_string(),
 	}
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// A snake-case name in camel case: `into_label` is `intoLabel`, and `0` is `$0`.

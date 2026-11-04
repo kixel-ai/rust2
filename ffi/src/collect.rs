@@ -1,8 +1,8 @@
-//! The `pub` API of each exported crate, as rustc checked it, to the [IR](crate::ir).
+//! The `pub` API of the facade, as rustc checked it, to the [IR](crate::ir).
 //!
-//! Every `pub` item reachable from an exported crate's root is exported by fixed rules, or
-//! refused with its span. An export names another's types across crates; another crate's
-//! type is refused. Nothing is opted in by attribute and nothing is skipped silently: the
+//! Every `pub` item reachable from the facade's root, through its re-exports into other
+//! crates too, is exported by fixed rules, or refused with its span. A type it does not
+//! reach is refused. Nothing is opted in by attribute and nothing is skipped silently: the
 //! config's `exclude` is the only way to leave an item out, and `#[doc(hidden)]` items,
 //! which are no part of the documented API, are listed in the census. A generic type
 //! exports at the instances it infers, before any type is mapped: its defaults, each
@@ -12,7 +12,7 @@
 use std::collections::VecDeque;
 
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{CrateNum, DefId};
+use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::util::elaborate;
 use rustc_infer::traits::{Obligation, ObligationCause};
@@ -69,13 +69,11 @@ pub struct Refusal {
 /// What collection found.
 pub struct Collected {
 	pub api: Api,
-	/// Each export's, in the order given.
-	pub reports: Vec<Report>,
+	pub report: Report,
 }
 
-/// An exported crate.
-pub struct Crate<'a> {
-	pub krate: CrateNum,
+/// The facade, the local crate.
+pub struct Facade<'a> {
 	/// The first segment of its items' paths in the IR.
 	pub root: String,
 	pub package: &'a str,
@@ -83,11 +81,11 @@ pub struct Crate<'a> {
 	pub exclude: &'a [String],
 }
 
-/// What collection found in one exported crate, by paths from its root.
+/// What collection found in the facade, by paths from its root.
 pub struct Report {
 	pub package: String,
-	/// Its crate's root, the first segment of its items' paths in the IR.
-	pub krate: String,
+	/// The facade's root, the first segment of its items' paths in the IR.
+	pub root: String,
 	pub refusals: Vec<Refusal>,
 	/// Records and enums exported as objects, since a field does not map: the first.
 	pub opaque: Vec<(String, Why)>,
@@ -99,8 +97,6 @@ pub struct Report {
 	pub excluded: Vec<(String, usize)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
-	/// Re-exports of another export's items, which name that export's.
-	pub reexports: Vec<String>,
 }
 
 /// How an exported crate's type is exported, once decided.
@@ -159,9 +155,9 @@ struct Collector<'tcx> {
 	/// Whether instances are still being inferred, before any type is declared: each type
 	/// then counts as mapping, so inference takes every choice typing could.
 	inferring: bool,
-	/// The exported crates, the configured one first, and what collection found in each.
+	/// The crates of the items the walk reached, the facade's first.
 	crates: Vec<CrateNum>,
-	reports: Vec<Report>,
+	report: Report,
 	/// Items the walk left out, and why: `excluded` or `doc(hidden)`.
 	left_out: rustc_data_structures::fx::FxHashMap<DefId, &'static str>,
 	/// The type parameters of the function being mapped that take a foreign
@@ -179,8 +175,8 @@ struct Collector<'tcx> {
 	api: Api,
 }
 
-/// Collect the exported crates' API, leaving out what each one's `exclude` names.
-pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
+/// Collect the facade's API, leaving out what its `exclude` names.
+pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	// A type at a crate's root, by the crate's name and its own.
 	let root = |krate: &str, name: &str| {
 		let krate = *tcx.crates(()).iter().find(|&&k| tcx.crate_name(k).as_str() == krate)?;
@@ -191,7 +187,6 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 	let bytes = root("bytes", "Bytes");
 	let foreign: Vec<DefId> = (FOREIGN.iter())
 		.filter_map(|&(krate, name)| root(krate, name))
-		.filter(|ty| !crates.iter().any(|c| c.krate == ty.krate))
 		.collect();
 	let range_bounds = tcx.get_diagnostic_item(rustc_span::Symbol::intern("RangeBounds"));
 	// `RangeBounds::start_bound` returns a `Bound`, which has no diagnostic item of its own.
@@ -210,28 +205,24 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 			tcx,
 			items: Vec::new(),
 			decls: Default::default(),
-			crates: crates.iter().map(|c| c.krate).collect(),
-			reports: crates
-				.iter()
-				.map(|c| Report {
-					package: c.package.to_string(),
-					krate: c.root.clone(),
-					refusals: Vec::new(),
-					opaque: Vec::new(),
-					twins: Vec::new(),
-					hidden: Vec::new(),
-					excluded: c.exclude.iter().map(|path| (path.clone(), 0)).collect(),
-					aliases: Vec::new(),
-					reexports: Vec::new(),
-				})
-				.collect(),
+			crates: vec![LOCAL_CRATE],
+			report: Report {
+				package: facade.package.to_string(),
+				root: facade.root.clone(),
+				refusals: Vec::new(),
+				opaque: Vec::new(),
+				twins: Vec::new(),
+				hidden: Vec::new(),
+				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
+				aliases: Vec::new(),
+			},
 			instances: Vec::new(),
 			rejected: Default::default(),
 			inferring: true,
 			left_out: Default::default(),
 			impls: Default::default(),
 			bytes,
-			foreign: foreign.iter().map(|&ty| (ty, 0)).collect(),
+			foreign: Vec::new(),
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
@@ -245,6 +236,11 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 			},
 		};
 		c.walk();
+		// A foreign type the facade reaches is its own export.
+		c.foreign = (foreign.iter())
+			.filter(|ty| !c.exported(ty.krate))
+			.map(|&ty| (ty, 0))
+			.collect();
 		c.infer();
 		c.declare();
 		c.define();
@@ -261,7 +257,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 		if more.is_empty() {
 			return Collected {
 				api: c.api,
-				reports: c.reports,
+				report: c.report,
 			};
 		}
 		orphans.extend(more);
@@ -269,15 +265,12 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 }
 
 impl<'tcx> Collector<'tcx> {
-	/// What collection found in the crate `path` starts with, and the rest of `path`.
+	/// What collection found, and `path` without the facade's root.
 	fn report(&mut self, path: &[String]) -> (&mut Report, String) {
-		let report = (self.reports.iter_mut())
-			.find(|r| r.krate == path[0])
-			.expect("a path starts with its exported crate");
-		(report, path[1..].join("::"))
+		(&mut self.report, path[1..].join("::"))
 	}
 
-	/// Whether `krate` is exported.
+	/// Whether the walk reached an item of `krate`.
 	fn exported(&self, krate: CrateNum) -> bool {
 		self.crates.contains(&krate)
 	}
@@ -285,7 +278,7 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
 	/// is left out by its instance's path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
-		let (report, _) = self.report(path);
+		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
 				*count += 1;
@@ -696,82 +689,71 @@ impl<'tcx> Collector<'tcx> {
 		report.refusals.push(Refusal { path, kind, span, why });
 	}
 
-	/// Every `pub` item reachable from each exported crate's root, breadth first so each
-	/// keeps its shortest path, which starts with its crate's root.
+	/// Every `pub` item reachable from the facade's root, through re-exports of other
+	/// crates' items and modules too, breadth first so each keeps its shortest path, which
+	/// starts with the facade's root.
 	fn walk(&mut self) {
 		let tcx = self.tcx;
-		for (i, krate) in self.crates.clone().into_iter().enumerate() {
-			// Per export: two may re-export one item, and each refuses or excludes it.
-			let mut seen = rustc_data_structures::fx::FxHashSet::default();
-			let mut queue = VecDeque::from([(krate.as_def_id(), vec![self.reports[i].krate.clone()])]);
-			while let Some((module, path)) = queue.pop_front() {
-				let children = match module.as_local() {
-					Some(local) => tcx.module_children_local(local),
-					None => tcx.module_children(module),
+		let mut seen = rustc_data_structures::fx::FxHashSet::default();
+		let mut queue = VecDeque::from([(LOCAL_CRATE.as_def_id(), vec![self.report.root.clone()])]);
+		while let Some((module, path)) = queue.pop_front() {
+			let children = match module.as_local() {
+				Some(local) => tcx.module_children_local(local),
+				None => tcx.module_children(module),
+			};
+			for child in children {
+				if !child.vis.is_public() || child.ident.name == rustc_span::kw::Underscore {
+					continue;
+				}
+				let Res::Def(kind, def_id) = child.res else {
+					continue;
 				};
-				for child in children {
-					if !child.vis.is_public() || child.ident.name == rustc_span::kw::Underscore {
-						continue;
-					}
-					let Res::Def(kind, def_id) = child.res else {
-						continue;
-					};
-					// Variants and constructors come along with their type.
-					if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
-						continue;
-					}
-					let mut path = path.clone();
-					path.push(child.ident.to_string());
-					// Another export's item, which that export walks from its own root.
-					if def_id.krate != krate && self.exported(def_id.krate) {
+				// Variants and constructors come along with their type.
+				if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
+					continue;
+				}
+				if !seen.insert(def_id) {
+					continue;
+				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				if self.exclude(&path) {
+					self.left_out.insert(def_id, "excluded type");
+					continue;
+				}
+				if tcx.is_doc_hidden(def_id) {
+					let (report, rest) = self.report(&path);
+					report.hidden.push(rest);
+					self.left_out.insert(def_id, "doc(hidden) type");
+					continue;
+				}
+				let span = child
+					.reexport_chain
+					.first()
+					.and_then(|reexport| reexport.id())
+					.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
+				// Its types map by role, not as items of the facade's.
+				let krate = tcx.crate_name(def_id.krate);
+				if matches!(krate.as_str(), "std" | "core" | "alloc") {
+					let why = why("re-export of the standard library's item", krate.to_string());
+					self.refuse(&path, "use", span, vec![why]);
+					continue;
+				}
+				match kind {
+					DefKind::Mod => queue.push_back((def_id, path)),
+					DefKind::TyAlias => {
 						let (report, rest) = self.report(&path);
-						report.reexports.push(rest);
-						continue;
+						report.aliases.push(rest);
 					}
-					if !seen.insert(def_id) {
-						continue;
-					}
-					if self.exclude(&path) {
-						self.left_out.insert(def_id, "excluded type");
-						continue;
-					}
-					if tcx.is_doc_hidden(def_id) {
-						let (report, rest) = self.report(&path);
-						report.hidden.push(rest);
-						self.left_out.insert(def_id, "doc(hidden) type");
-						continue;
-					}
-					let span = child
-						.reexport_chain
-						.first()
-						.and_then(|reexport| reexport.id())
-						.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
-					if def_id.krate != krate {
-						let other = tcx.crate_name(def_id.krate);
-						self.refuse(
-							&path,
-							"use",
-							span,
-							vec![why("re-export of another crate's item", other.to_string())],
-						);
-						continue;
-					}
-					match kind {
-						DefKind::Mod => queue.push_back((def_id, path)),
-						DefKind::TyAlias => {
-							let (report, rest) = self.report(&path);
-							report.aliases.push(rest);
+					DefKind::Macro(_) => self.refuse(&path, "macro", span, vec![why("macro", "")]),
+					DefKind::Static { .. } => self.refuse(&path, "static", span, vec![why("static", "")]),
+					DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait | DefKind::Fn | DefKind::Const => {
+						if !self.crates.contains(&def_id.krate) {
+							self.crates.push(def_id.krate);
 						}
-						DefKind::Macro(_) => self.refuse(&path, "macro", span, vec![why("macro", "")]),
-						DefKind::Static { .. } => self.refuse(&path, "static", span, vec![why("static", "")]),
-						DefKind::Struct
-						| DefKind::Enum
-						| DefKind::Union
-						| DefKind::Trait
-						| DefKind::Fn
-						| DefKind::Const => self.items.push((def_id, path)),
-						_ => self.refuse(&path, "item", span, vec![why("item kind", format!("{kind:?}"))]),
+						self.items.push((def_id, path))
 					}
+					_ => self.refuse(&path, "item", span, vec![why("item kind", format!("{kind:?}"))]),
 				}
 			}
 		}

@@ -242,9 +242,9 @@ func script() {
 	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
 	fmt.Printf("last %t\n", must(registry.Last()) != nil)
 	ok(registry.Push(api.NewCounter("last", 2)))
-	first := must(registry.First())
+	first := must(registry.FirstGet())
 	must(first.Add(10))
-	fmt.Printf("first %d lent %d\n", must(must(registry.First()).Get()), must(first.Get()))
+	fmt.Printf("first %d lent %d\n", must(must(registry.FirstGet()).Get()), must(first.Get()))
 	last := must(registry.Last())
 	must(last.Add(10))
 	fmt.Printf("last %d lent %d\n", must(must(registry.Last()).Get()), must(last.Get()))
@@ -254,10 +254,10 @@ func script() {
 		must(counter.Add(by))
 		return must(counter.Edited()) && must(counter.Get()) == 6
 	}))
-	fmt.Printf("edit %t %d\n", edited, must(must(registry.First()).Get()))
+	fmt.Printf("edit %t %d\n", edited, must(must(registry.FirstGet()).Get()))
 	// A setter moves an object in, as assignment does, closing its handle.
-	ok(registry.SetFirst(api.NewCounter("second", 3)))
-	fmt.Printf("set first %d %s\n", must(must(registry.First()).Get()), must(must(registry.First()).Name()))
+	ok(registry.FirstSet(api.NewCounter("second", 3)))
+	fmt.Printf("set first %d %s\n", must(must(registry.FirstGet()).Get()), must(must(registry.FirstGet()).Name()))
 	fmt.Printf("walk %d\n", api.Walk(3, func(cursor *api.Cursor) uint64 { return must(cursor.At()) * 2 }))
 	fmt.Printf("each %d\n", api.Each(2, func(at uint32) { fmt.Printf("visit %d\n", at) }))
 	fmt.Printf("offset %d\n", api.Offset(func() uint32 { return 7 }, 3))
@@ -325,18 +325,18 @@ func script() {
 	fmt.Printf("later %t\n", must(api.StampFromMillis(3000).Later(stamp)))
 	fmt.Printf("secs %d\n", must(stamp.Secs()))
 	message := must(api.NewMessage(stamp, []byte("body")))
-	fmt.Printf("payload %s\n", must(message.Payload()).Copy())
-	fmt.Printf("stamp %s\n", must(message.Stamp()).GoString())
+	fmt.Printf("payload %s\n", must(message.PayloadGet()).Copy())
+	fmt.Printf("stamp %s\n", must(message.StampGet()).GoString())
 	fmt.Printf("sent %t\n", must(message.Sent()))
 	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	reset := api.StampFromMillis(4000)
-	ok(message.SetStamp(reset))
-	ok(message.SetPayload([]byte("edited")))
-	fmt.Printf("payload %s\n", must(message.Payload()).Copy())
-	fmt.Printf("stamp %s\n", must(message.Stamp()).GoString())
+	ok(message.StampSet(reset))
+	ok(message.PayloadSet([]byte("edited")))
+	fmt.Printf("payload %s\n", must(message.PayloadGet()).Copy())
+	fmt.Printf("stamp %s\n", must(message.StampGet()).GoString())
 	fmt.Printf("secs %d\n", must(reset.Secs()))
-	ok(message.SetStamp(nil))
-	fmt.Printf("stamp %t\n", must(message.Stamp()) != nil)
+	ok(message.StampSet(nil))
+	fmt.Printf("stamp %t\n", must(message.StampGet()) != nil)
 
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, []byte{1, 2, 3, 4}))
@@ -417,7 +417,7 @@ func script() {
 	// Generic functions and methods, at each implementation of the trait bounding them, by
 	// reference, which leaves Go its handle.
 	fromPoint := api.CounterSeededPoint("p", api.Point{X: -3, Y: 4})
-	fromSize := api.CounterFromSize("s", api.Size{Width: 5, Height: 6})
+	fromSize := api.CounterSeededSize("s", api.Size{Width: 5, Height: 6})
 	fromCounter := must(api.CounterSeededCounter("c", fromPoint))
 	fromPolar := api.CounterSeededPolarPoint("q", api.PolarPoint{Turns: 1, Distance: 2})
 	fmt.Printf("seeded %d %d %d %d past %d seeds %d\n", must(fromPoint.Get()), must(fromSize.Get()), must(fromCounter.Get()), must(fromPolar.Get()),
@@ -441,20 +441,20 @@ func script() {
 
 	// Its Drop runs when Go closes the handle, not before.
 	token := api.NewToken(7)
-	fmt.Printf("token %d dropped %d\n", must(token.Id()), api.Dropped())
+	fmt.Printf("token %d dropped %d\n", must(token.IdGet()), api.Dropped())
 	token.Close()
 	fmt.Printf("dropped %d\n", api.Dropped())
 
 	// A field and the method of its name, each its own member.
 	retry := api.NewRetry(ptr[uint32](5))
-	limit := must(retry.LimitSetting())
+	limit := must(retry.LimitGet())
 	isSome := 0
 	if limit != nil {
 		isSome = 1
 	}
 	fmt.Printf("retry %d %d %d %d\n", isSome, *limit, must(retry.Limit()), must(retry.Delay()))
 	// The renamed field's setter, named as its getter.
-	ok(retry.SetLimitSetting(nil))
+	ok(retry.LimitSet(nil))
 	fmt.Printf("retry %d\n", must(retry.Limit()))
 	fmt.Printf("slot %d\n", must(api.NewSlotU8(200).Value()))
 
@@ -533,7 +533,7 @@ func script() {
 	check(errors.As(err, &parse), "parse returns its message")
 	fmt.Printf("json parse err %s\n", err)
 	site := must(api.NewSite(base))
-	fmt.Printf("site %s %s\n", must(site.Home()), must(site.Home()))
+	fmt.Printf("site %s %s\n", must(site.HomeGet()), must(site.HomeGet()))
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	fmt.Printf("shapes %s greetings %s\n", list(api.ShapeALL(), func(s api.Shape) string { return shapes[s] }), list(api.GREETINGS(), quoted))
@@ -700,11 +700,11 @@ func closed() {
 	isClosed(err, "Tally", "Equal with a closed object")
 	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
 	registry.Close()
-	_, err = registry.First()
+	_, err = registry.FirstGet()
 	isClosed(err, "Registry", "a field's getter of a closed object")
 	// A call that fails moves nothing in.
 	second := api.NewCounter("second", 2)
-	isClosed(registry.SetFirst(second), "Registry", "a field's setter of a closed object")
+	isClosed(registry.FirstSet(second), "Registry", "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
 	// A record's method, whose receiver holds an object.
@@ -758,7 +758,7 @@ func closed() {
 		go func() {
 			defer wg.Done()
 			for {
-				id, err := token.Id()
+				id, err := token.IdGet()
 				if err != nil {
 					isClosed(err, "Token", "a call racing Close")
 					failed.Add(1)
@@ -838,7 +838,7 @@ func bytes() {
 	// Bytes an object returns outlive its Close: no Bytes depends on an object.
 	body := strings.Repeat("b", 2048)
 	message := must(api.NewMessage(api.StampFromMillis(1), []byte(body)))
-	payload := must(message.Payload())
+	payload := must(message.PayloadGet())
 	message.Close()
 	runtime.GC()
 	check(string(payload.Copy()) == body, "bytes an object returned outlive its Close")

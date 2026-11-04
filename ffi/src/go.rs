@@ -25,7 +25,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Ty};
+use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
@@ -190,11 +190,11 @@ impl<'a> Gen<'a> {
 			.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
 		if tuple || TAKEN.contains(&name) {
 			self.errors.push(format!(
-				"{what} is `{name}` in Go, which its runtime names: rename it in the config"
+				"{what} is `{name}` in Go, which its runtime names: rename it in the source or exclude it in the config"
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Go: rename one in the config"
+				"{first} and {what} are both `{name}` in Go: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -205,7 +205,7 @@ impl<'a> Gen<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go: rename one in the config"
+					"two members of `{rust}` are both `{member}` in Go: rename one in the source or exclude it in the config"
 				));
 			}
 		}
@@ -965,7 +965,7 @@ impl<'a> Gen<'a> {
 		if e.plain() {
 			let consts: String = (e.variants.iter())
 				.map(|v| {
-					let variant = format!("{name}{}", pascal(&abi::snake(&v.name)));
+					let variant = format!("{name}{}", pascal(&v.name));
 					self.claim(&variant, format!("variant `{rust}::{}`", v.name));
 					format!("\t{variant} {name} = {}\n", v.discriminant)
 				})
@@ -1046,7 +1046,7 @@ impl<'a> Gen<'a> {
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
 		for (n, (variant, snake, vname, fields)) in variants.iter().enumerate() {
-			let payload = format!("{c}_{snake}");
+			let payload = abi::payload(&c, &variant.name);
 			if variant.fields.is_empty() {
 				lifts.push(format!("\tcase {n}:\n\t\treturn {vname}{{}}\n"));
 				lowers.push(format!("\tcase {vname}:\n\t\tc.tag = {n}\n"));
@@ -1130,7 +1130,7 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
 		for method in &callback.methods {
-			let member = pascal(&abi::snake(method.name()));
+			let member = pascal(method.name());
 			members.push(member.clone());
 			let names = locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
@@ -1684,20 +1684,6 @@ fn c_int(int: Int) -> &'static str {
 		Int::I64 => "int64_t",
 		Int::Isize => "ptrdiff_t",
 	}
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.

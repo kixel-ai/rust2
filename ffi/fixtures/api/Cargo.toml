@@ -6,9 +6,9 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 publish = false
 
-# Named apart from the package, which the export must follow.
+# Named apart from the package: the export's prefix, which the export must follow.
 [lib]
-name = "api_lib"
+name = "api"
 
 [dependencies]
 bytes = "1.11.1"
@@ -16,6 +16,10 @@ dep-fixture = { path = "../dep" }
 serde = "1.0.229"
 serde_json = "1.0.154"
 url = "2.5.8"
+
+[features]
+# Doubles each area's size in dep-fixture, which the export must build as the check did.
+doubled = ["dep-fixture/doubled"]
 
 [lints]
 workspace = true

@@ -1,10 +1,12 @@
 //! The C ABI the IR becomes: every C name, and every function's C signature, decided
 //! once so the header and the Rust side agree.
 //!
-//! Names follow one rule: the prefix, then the item's path from its crate's root, each
-//! segment in snake case, joined by `_`; a method's path goes through its type's. Joining
-//! loses where segments split (`audio_encoder::finish` and `audio::encoder_finish` are both
-//! `moq_audio_encoder_finish`), and every export shares the prefix, so every name is
+//! Names follow one rule: the prefix, then the item's path from the facade's root, each
+//! segment in Rust's case, joined by `_`; a method's path goes through its type's, and a
+//! field's getter and setter add `_get` and `_set` to it. Case keeps a type apart from a
+//! function or module of its name, and Rust's verb-first names keep a method apart from a
+//! field's accessors. Joining still loses where segments split (`audio_encoder::finish`
+//! and `audio::encoder_finish` are both `moq_audio_encoder_finish`), so every name is
 //! registered, and a second item claiming one is a compile error at both spans rather
 //! than a silent clash.
 
@@ -12,7 +14,6 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::config;
 use crate::ir::{Access, Api, Dyn, Function, Int, Receiver, Type};
 
 /// A C name claimed twice: the name, then what claimed it first and second.
@@ -92,11 +93,6 @@ type Suffixes = HashMap<Vec<Type>, String>;
 pub struct Abi<'a> {
 	pub api: &'a Api,
 	pub prefix: String,
-	/// C names for Rust paths, each starting with its crate's name, in place of the
-	/// rule's: an item's, and its methods' through it, or an instance's alone.
-	rename: &'a BTreeMap<String, String>,
-	/// The renamed paths some name went through.
-	renamed: std::cell::RefCell<std::collections::BTreeSet<String>>,
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
 	suffixes: std::cell::RefCell<HashMap<(bool, String), Suffixes>>,
@@ -115,12 +111,10 @@ pub struct Abi<'a> {
 }
 
 impl<'a> Abi<'a> {
-	pub fn new(api: &'a Api, prefix: &str, rename: &'a BTreeMap<String, String>) -> Self {
+	pub fn new(api: &'a Api, prefix: &str) -> Self {
 		let mut abi = Self {
 			api,
 			prefix: prefix.to_string(),
-			rename,
-			renamed: Default::default(),
 			suffixes: Default::default(),
 			options: BTreeMap::new(),
 			ranges: BTreeMap::new(),
@@ -133,63 +127,23 @@ impl<'a> Abi<'a> {
 		abi
 	}
 
-	/// The C name for a Rust path, which starts with its crate's name.
+	/// The C name for a Rust path, which starts with the facade's root.
 	pub fn name(&self, path: &[String]) -> String {
-		self.named(path).0
+		std::iter::once(self.prefix.clone())
+			.chain(self.segments(path))
+			.collect::<Vec<_>>()
+			.join("_")
 	}
 
-	/// The C name for the item at `shown`, its path with its instances' arguments, and
-	/// whether a rename named the instance it is alone, which no suffix then names.
-	fn named(&self, shown: &[String]) -> (String, bool) {
-		let (segments, alone) = self.segments(shown);
-		let name = std::iter::once(self.prefix.clone()).chain(segments).collect::<Vec<_>>();
-		(name.join("_"), alone)
-	}
-
-	/// The segments of the C name of the item at `shown` after the prefix: the longest
-	/// renamed part, as `exclude` matches it, as one, then each segment past it in snake
-	/// case; and whether the rename named the instance it is alone.
-	fn segments(&self, shown: &[String]) -> (Vec<String>, bool) {
-		let mut segments = Vec::new();
-		let mut rest = &shown[1..];
-		let mut alone = false;
-		for (len, key) in config::keys(shown).take_while(|&(len, _)| len >= 2) {
-			if let Some(renamed) = self.rename.get(&key) {
-				alone = len == shown.len() && key.ends_with('>');
-				self.renamed.borrow_mut().insert(key);
-				segments.push(renamed.clone());
-				rest = &shown[len..];
-				break;
-			}
-			// No config names a foreign type, which is named by its role instead.
-			if key == "serde_json::Value" {
-				segments.push("json".to_string());
-				rest = &shown[len..];
-				break;
-			}
+	/// The segments of the C name of the item at `shown` after the prefix: each of its
+	/// path's after the root, without an instance's arguments.
+	fn segments(&self, shown: &[String]) -> Vec<String> {
+		// A foreign type, which no facade path names, is named by its role.
+		if shown == ["serde_json", "Value"] {
+			return vec!["Json".to_string()];
 		}
-		segments.extend(
-			rest.iter()
-				.map(|segment| snake(segment.split('<').next().unwrap_or(segment))),
-		);
-		(segments, alone)
-	}
-
-	/// The key, with `prefix` before it, of the rename naming the item at `shown` itself
-	/// rather than a module or type it is in.
-	fn renames(&self, shown: &[String], prefix: &str) -> Option<String> {
-		(config::keys(shown).take_while(|&(len, _)| len == shown.len()))
-			.map(|(_, key)| format!("{prefix}{key}"))
-			.find(|key| self.rename.contains_key(key))
-	}
-
-	/// The config's renames that name nothing exported.
-	pub fn unused_renames(&self) -> Vec<&str> {
-		let renamed = self.renamed.borrow();
-		self.rename
-			.keys()
-			.filter(|key| !renamed.contains(*key))
-			.map(String::as_str)
+		(shown[1..].iter())
+			.map(|segment| segment.split('<').next().unwrap_or(segment).to_string())
 			.collect()
 	}
 
@@ -217,11 +171,7 @@ impl<'a> Abi<'a> {
 	/// the type's every instance, whichever kind each is.
 	fn type_instance(&self, path: &[String], shown: &[String], args: &[Type]) -> String {
 		let api = self.api;
-		let (name, alone) = self.named(shown);
-		if alone {
-			return name;
-		}
-		self.instance(false, name, args, || {
+		self.instance(false, self.name(shown), args, || {
 			let records = api.records.iter().map(|r| (&r.path, &r.args));
 			let enums = api.enums.iter().map(|e| (&e.path, &e.args));
 			let objects = api.objects.iter().map(|o| (&o.path, &o.args));
@@ -265,10 +215,7 @@ impl<'a> Abi<'a> {
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
 			ty => return vec![self.key(ty)],
 		};
-		let (segments, alone) = self.segments(shown);
-		if alone {
-			return segments;
-		}
+		let segments = self.segments(shown);
 		let nested: Vec<Vec<String>> = args.iter().map(|arg| self.arg_forms(arg)).collect();
 		let steps = nested.iter().map(Vec::len).max().unwrap_or(1);
 		let form = |len: usize, step: usize| {
@@ -283,47 +230,23 @@ impl<'a> Abi<'a> {
 		forms
 	}
 
-	/// A function's C name: a method's through its type's, unless renamed itself, then
-	/// each argument of the instance it is. A field is renamed by `field@` and its path,
-	/// or by its path unless a method or constant takes it, and its setter is named as it
-	/// is, with `set_` after its type's name.
+	/// A function's C name: a method's through its type's, then each argument of the
+	/// instance it is. A field's getter adds `_get`, and its setter `_set`.
 	fn function_name(&self, function: &Function, owner: Option<&Ty>) -> String {
-		let owner_name = match owner {
+		let owner = match owner {
 			Some(Ty::Struct(owner) | Ty::Enum(owner) | Ty::Handle { name: owner, .. }) => Some(owner.as_str()),
 			_ => None,
 		};
-		let Access::Field { shared, set } = function.access else {
-			return self.method_name(function, owner_name, false);
+		let name = match owner {
+			Some(owner) => format!("{owner}_{}", function.name()),
+			None => self.name(&function.shown),
 		};
-		let name = match self.renames(&function.shown, "field@") {
-			Some(key) => {
-				let renamed = format!("{}_{}", self.prefix, self.rename[&key]);
-				self.renamed.borrow_mut().insert(key);
-				renamed
-			}
-			None => self.method_name(function, owner_name, shared),
-		};
-		if !set {
-			return name;
+		match function.access {
+			Access::Field { set: false, .. } => return format!("{name}_get"),
+			Access::Field { set: true, .. } => return format!("{name}_set"),
+			_ => {}
 		}
-		// A rename need not start with the type's name, but always with the prefix.
-		let at = owner_name
-			.filter(|owner| name.starts_with(&format!("{owner}_")))
-			.unwrap_or(&self.prefix);
-		format!("{at}_set_{}", &name[at.len() + 1..])
-	}
-
-	/// A function's C name through its type's, unless renamed by its path and no method
-	/// or constant `shared` its name, then each argument of the instance it is, unless
-	/// renamed alone.
-	fn method_name(&self, function: &Function, owner: Option<&str>, shared: bool) -> String {
-		let (name, alone) = match owner {
-			Some(owner) if shared || self.renames(&function.shown, "").is_none() => {
-				(format!("{owner}_{}", snake(function.name())), false)
-			}
-			_ => self.named(&function.shown),
-		};
-		let Some(instance) = function.instance.as_ref().filter(|_| !alone) else {
+		let Some(instance) = function.instance.as_ref() else {
 			return name;
 		};
 		self.instance(true, name, &instance.named, || {
@@ -658,7 +581,7 @@ impl<'a> Abi<'a> {
 				self.claim(format!("{name}_tag"), what.clone(), e.span);
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
-					self.claim(format!("{name}_{}", snake(&variant.name)), what.clone(), e.span);
+					self.claim(payload(&name, &variant.name), what.clone(), e.span);
 				}
 			}
 			self.claim_traits(&name, &what, e.span, e.traits, !plain);
@@ -863,6 +786,28 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 			lens[a][j] += 1;
 		}
 	}
+}
+
+/// A name in Pascal case, word by word as [`snake`] splits it: `track_Producer` and
+/// `TrackProducer` are `TrackProducer`, and `BOXED` is `Boxed`.
+pub fn pascal(name: &str) -> String {
+	snake(name)
+		.split('_')
+		.filter(|s| !s.is_empty())
+		.map(|s| {
+			let mut chars = s.chars();
+			match chars.next() {
+				Some(first) => first.to_uppercase().chain(chars).collect(),
+				None => String::new(),
+			}
+		})
+		.collect()
+}
+
+/// The C name of the struct of an enum's variant's fields: its own in Rust's case, after
+/// the enum's.
+pub fn payload(name: &str, variant: &str) -> String {
+	format!("{name}_{variant}")
 }
 
 /// A Rust identifier in snake case: `TrackProducer` is `track_producer`, and a name

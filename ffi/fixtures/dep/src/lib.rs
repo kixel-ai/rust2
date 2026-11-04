@@ -1,13 +1,13 @@
-//! Another export, exported into the api fixture's library, which names its types.
+//! Another crate, whose types the api fixture re-exports and names.
 
-/// A size: a record of this export, which another's signatures name.
+/// A size: a record of this crate, which the api fixture's signatures name.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Size {
 	pub width: u32,
 	pub height: u32,
 }
 
-/// An area: an object of this export, which another's signatures take and return.
+/// An area: an object of this crate, which the api fixture's signatures take and return.
 #[derive(Clone, Debug)]
 pub struct Area {
 	size: Size,
@@ -33,7 +33,3 @@ impl Area {
 		u64::from(self.size.width) * u64::from(self.size.height)
 	}
 }
-
-/// Another crate's item that is no export, which each export re-exporting it refuses or
-/// excludes on its own.
-pub use std::collections::HashSet;

@@ -1,4 +1,4 @@
-//! The census: what an exported crate's `pub` API exports, and every item the export
+//! The census: what the facade's `pub` API exports, and every item the export
 //! refuses, ranked by why, so the next mapping to build is picked from numbers.
 
 use std::collections::BTreeMap;
@@ -10,10 +10,10 @@ use crate::abi::Clash;
 use crate::collect::{Refusal, Report};
 use crate::ir::{Access, Api, Function};
 
-/// The census of one export as Markdown, `[crates.<package>]` in the config unless it is
-/// the configured package; `at` locates a span.
-pub fn render(api: &Api, collected: &Report, top: bool, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
-	let ours = |path: &[String]| path[0] == collected.krate;
+/// The census of the facade as Markdown; `at` locates a span.
+pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
+	// Not a foreign type's.
+	let ours = |path: &[String]| path[0] == collected.root;
 	let records: Vec<_> = api.records.iter().filter(|r| ours(&r.path)).collect();
 	let enums: Vec<_> = api.enums.iter().filter(|e| ours(&e.path)).collect();
 	let objects: Vec<_> = api.objects.iter().filter(|o| ours(&o.path)).collect();
@@ -140,11 +140,7 @@ pub fn render(api: &Api, collected: &Report, top: bool, clashes: &[Clash], at: &
 
 	if !collected.refusals.is_empty() {
 		let _ = writeln!(out, "\n## The config that exports what maps\n");
-		let table = match top {
-			true => String::new(),
-			false => format!("[crates.{}]\n", collected.package),
-		};
-		let _ = writeln!(out, "```toml\n{table}exclude = [");
+		let _ = writeln!(out, "```toml\nexclude = [");
 		let mut paths: Vec<&str> = collected.refusals.iter().map(|r| r.path.as_str()).collect();
 		paths.sort();
 		paths.dedup();
@@ -153,11 +149,6 @@ pub fn render(api: &Api, collected: &Report, top: bool, clashes: &[Clash], at: &
 		}
 		let _ = writeln!(out, "]\n```");
 	}
-	// A clash names each claimant by its Rust path, which starts with its crate's name.
-	let claims = |what: &str| what.contains(&format!("`{}::", collected.krate));
-	let clashes: Vec<_> = (clashes.iter())
-		.filter(|(_, (first, _), (second, _))| claims(first) || claims(second))
-		.collect();
 	if !clashes.is_empty() {
 		let _ = writeln!(out, "\n## C names claimed twice\n");
 		for (name, (first, _), (second, span)) in clashes {
@@ -194,15 +185,6 @@ pub fn render(api: &Api, collected: &Report, top: bool, clashes: &[Clash], at: &
 	if !collected.aliases.is_empty() {
 		let _ = writeln!(out, "\n## Type aliases, which export nothing of their own\n");
 		for path in &collected.aliases {
-			let _ = writeln!(out, "- `{path}`");
-		}
-	}
-	if !collected.reexports.is_empty() {
-		let _ = writeln!(
-			out,
-			"\n## Re-exports of another export's items, which name that export's\n"
-		);
-		for path in &collected.reexports {
 			let _ = writeln!(out, "- `{path}`");
 		}
 	}

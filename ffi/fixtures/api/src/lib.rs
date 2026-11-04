@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another export's type, which this names rather than exports again.
-pub use dep::Size;
+// Another crate's types, which the export follows this re-export to.
+pub use dep::{Area, Size};
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -878,7 +878,8 @@ pub fn next_packet(packet: Packet) -> Packet {
 }
 
 /// Retry settings: each field is unset until C sets it, and the method of its name
-/// resolves it, as Rust's accessors do. Not exhaustive, so an object with getters.
+/// resolves it, as Rust's accessors do, and `set_limit` sets it, as Rust's setters do: C
+/// names each apart from the field's accessors. Not exhaustive, so an object with getters.
 #[non_exhaustive]
 pub struct Retry {
 	pub limit: Option<u32>,
@@ -896,6 +897,10 @@ impl Retry {
 
 	pub fn delay(&self) -> u32 {
 		self.delay.unwrap_or(100)
+	}
+
+	pub fn set_limit(&mut self, limit: u32) {
+		self.limit = Some(limit);
 	}
 }
 
@@ -1191,7 +1196,7 @@ impl Pair<u32> {
 	}
 
 	/// The left value as a byte, beside `right`: the one instance that names the result
-	/// fills the type parameter, with `dep_fixture::Size`, and names this instance.
+	/// fills the type parameter, with `Size`, and names this instance.
 	pub fn beside<T: Copy>(&self, right: T) -> Pair<u8, T> {
 		Pair {
 			left: self.left as u8,
@@ -1426,9 +1431,9 @@ pub fn seeds<T: Seed<u64> + Default>(from: impl Seed<u64>) -> u64 {
 }
 
 /// An area grown by `by` on each side: another export's types, across crates.
-pub fn grow(area: &dep::Area, by: u32) -> dep::Area {
+pub fn grow(area: &Area, by: u32) -> Area {
 	let size = area.size();
-	dep::Area::new(Size {
+	Area::new(Size {
 		width: size.width + by,
 		height: size.height + by,
 	})

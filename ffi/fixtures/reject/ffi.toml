@@ -1,12 +1,2 @@
-package = "reject-fixture"
-prefix = "reject"
 # An exclusion leaves an item or an instance out, so nothing refuses it.
 exclude = ["Called", "Caller", "Cell<u16>", "Excluded", "Grows", "Held", "Holder", "Lender", "Outlived", "Paired", "Pinned", "Pinner"]
-
-# A field that is none: `min` names nothing of `Limit`. An instance the config leaves out.
-[rename]
-"Cell<u16>" = "short_cell"
-"field@Limit::min" = "limit_min"
-
-# Another export, whose `Size` claims the same C name as this one's.
-[crates.dep-fixture]
