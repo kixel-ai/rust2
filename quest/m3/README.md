@@ -27,4 +27,3 @@ generic std gap is planned here even when moq never calls it.
 - [Every panic of a hooked program has its location](/quest/m3/ts-panic-sites.md) - no panic in a program that sets a hook lacks the location native code gives it
 - [The chunk a BufMut lends](/quest/m3/ts-chunk-mut.md) - `BufMut::chunk_mut` and its `UninitSlice`'s writes translate, reaching the buffer's storage
 - [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
-- [Python calls skip the loop lookup](/quest/m3/ffi-python-loop-lookup.md) - a call while an asyncio loop runs costs what one outside does unless something waits
