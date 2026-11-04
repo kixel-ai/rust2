@@ -161,7 +161,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let target = self.stable_target(*place, target, span, out);
 							match target.unlocated() {
 								Expr::Index(array, index) => {
-									Expr::rt("sliceAsPtr", vec![*array.clone(), *index.clone()])
+									Expr::rt("arrayAsPtr", vec![*array.clone(), *index.clone()])
 								}
 								_ => self.place_of(target, None),
 							}

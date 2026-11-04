@@ -379,15 +379,15 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		return rt.u32Rem(rt.u32Mul(i, 40503), 1 << 16);
 	}), undefined, 4, true);
 	if (selector === 0) {
-		rt.sliceSort(v, rt.lt, 4, true);
+		rt.sliceSort(rt.sliceFrom(v), rt.lt, 4, true);
 	} else if (selector === 1) {
-		rt.sliceSort(v, rt.keyLt((_212: rt.u32): rt.u32 => {
+		rt.sliceSort(rt.sliceFrom(v), rt.keyLt((_212: rt.u32): rt.u32 => {
 			return rt.u32Rem(_212, 1024);
 		}, rt.lt), 4, true);
 	} else if (selector === 2) {
-		v = [rt.optionUnwrap(rt.iterMax(rt.iterSlice(v), rt.lt)), rt.optionUnwrap(rt.iterMin(rt.iterSlice(v), rt.lt))];
+		v = [rt.optionUnwrap(rt.iterMax(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v))), rt.lt)), rt.optionUnwrap(rt.iterMin(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v))), rt.lt))];
 	} else if (selector === 3) {
-		const _35: [rt.u32, rt.u32] = rt.iterFold(rt.iterSlice(v), [0, 4294967295] as [rt.u32, rt.u32], (_211: [rt.u32, rt.u32], _33: rt.u32): [rt.u32, rt.u32] => {
+		const _35: [rt.u32, rt.u32] = rt.iterFold(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v))), [0, 4294967295] as [rt.u32, rt.u32], (_211: [rt.u32, rt.u32], _33: rt.u32): [rt.u32, rt.u32] => {
 			const hi2: rt.u32 = _211[0];
 			const lo2: rt.u32 = _211[1];
 			const x6: rt.u32 = _33;
@@ -395,14 +395,14 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 		});
 		v = [_35[0], _35[1]];
 	} else if (selector === 5) {
-		const _43: rt.Iter<[rt.u32, rt.u32]> = rt.iterMap(rt.iterSlice(v), (_210: rt.u32): [rt.u32, rt.u32] => {
+		const _43: rt.Iter<[rt.u32, rt.u32]> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v))), (_210: rt.u32): [rt.u32, rt.u32] => {
 			const x5: rt.u32 = _210;
 			return [rt.u32Rem(x5, 512), x5] as [rt.u32, rt.u32];
 		});
 		const map: rt.BTreeMap<rt.u32, rt.u32> = rt.btreeExtend(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, rt.u32>, _43, true, undefined, undefined, undefined, 8, true);
 		v = [rt.optionUnwrap(rt.iterToOption(rt.btreeKeys(map).next())), rt.btreeLen(map) as rt.u32, rt.optionUnwrap(rt.iterToOption(rt.btreeValues(map).nextBack()))];
 	} else if (selector === 6) {
-		const _65: rt.Iter<rt.u32> = rt.iterMap(rt.iterSlice(v), (_2: rt.u32): rt.u32 => {
+		const _65: rt.Iter<rt.u32> = rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v))), (_2: rt.u32): rt.u32 => {
 			return rt.u32Rem(_2, 512);
 		});
 		const set: rt.BTreeSet<rt.u32> = rt.btreeExtendKeys(rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.u32>, _65, true, undefined, undefined, 4, true);
@@ -460,7 +460,7 @@ export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		while ((_37 = iterStart2++) < iterEnd2) {
 			v.push(_37);
 		}
-		_13 = [v.length, rt.sliceGet(v, rt.usizeDiv(v.length, 2))] as [rt.usize, rt.u32 | undefined];
+		_13 = [v.length, rt.sliceGet(rt.sliceFrom(v), rt.usizeDiv(v.length, 2))] as [rt.usize, rt.u32 | undefined];
 	}
 	const len: rt.usize = _13[0];
 	const middle: rt.u32 | undefined = _13[1];
@@ -506,7 +506,7 @@ export function packets(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): v
 	let _32!: rt.u8;
 	let cc!: rt.u8;
 	const packets: rt.ByteVec = rt.byteVecOf(0, rt.usizeMul(rt.u64Low(rt.u64Min(takeU64(data)[0], 4096)), 188));
-	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0]), rt.byteSliceFrom));
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0])), rt.byteSliceFrom));
 	while (true) {
 		const _21: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
 		if (_21 === rt.DONE) {
@@ -525,7 +525,7 @@ export function packets(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): v
 	}
 	const counters: Uint8Array = rt.bytes(3);
 	let sum: rt.u64 = 0;
-	const iter2: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0]), rt.byteSliceFrom);
+	const iter2: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(rt.sliceItems(rt.byteSliceAsChunksMut(rt.byteVecSlice(packets), 188)[0])), rt.byteSliceFrom);
 	while (true) {
 		const _48: rt.ByteSlice | rt.Done = iter2.next();
 		if (_48 === rt.DONE) {

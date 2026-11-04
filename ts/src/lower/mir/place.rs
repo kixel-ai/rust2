@@ -632,14 +632,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					let held = match borrowed.kind() {
-						ty::Slice(elem) => crate::ts::Type::Array(Box::new(self.b.t.ty(*elem, span))),
-						_ => crate::ts::Type::Builtin("string"),
+					let (lent, held) = match borrowed.kind() {
+						ty::Slice(elem) => {
+							let elem = self.b.t.ty(*elem, span);
+							(crate::ts::Type::Rt("Slice", vec![elem.clone()]), crate::ts::Type::Array(Box::new(elem)))
+						}
+						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
 					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
 						(true, true) => crate::ts::Type::Rt("ByteVec", Vec::new()),
-						(false, false) => crate::ts::Type::Rt("Borrowed", vec![held]),
+						(false, false) => crate::ts::Type::Rt("Borrowed", vec![lent]),
 						(false, true) => held,
 					};
 					let cast = Expr::As(Box::new(base), class);

@@ -209,9 +209,9 @@ export function durations(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 	} else if (_24 === 13) {
 		const _346: rt.Duration = rt.durationNew(0, rt.u32Rem(n, 1000000000));
 		const parts: rt.Duration[] = [a, b, _346];
-		putDuration(out, rt.durationSum(rt.iterSlice(parts)));
+		putDuration(out, rt.durationSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts)))));
 		putDuration(out, rt.durationSum(rt.iterSlice([b, a])));
-		putDuration(out, rt.durationSum(rt.iterFilter(rt.iterSlice(parts), (d7: rt.Duration): boolean => {
+		putDuration(out, rt.durationSum(rt.iterFilter(rt.iterSlice(rt.sliceItems(rt.sliceFrom(parts))), (d7: rt.Duration): boolean => {
 			return !rt.durationIsZero(d7);
 		})));
 	} else {

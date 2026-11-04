@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, Slice, sliceFrom, sliceSort, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, Slice, sliceData, sliceFrom, sliceSort, sliceStart, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -170,14 +170,14 @@ export function cmpReverse<T, O>(cmp: (a: T, b: T) => O): (a: T, b: T) => O {
  * `Ord::cmp` of slices, or `PartialOrd::partial_cmp`, by their elements' in order, then
  * by length.
  */
-export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (a: ArrayLike<T>, b: ArrayLike<T>) => O {
-	return (a, b) => {
-		const n = Math.min(a.length, b.length);
-		for (let i = 0; i < n; i++) {
-			const c = cmp(a[i], b[i]);
+export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (a: ArrayLike<T> | Slice<T>, b: ArrayLike<T> | Slice<T>) => O {
+	return (x, y) => {
+		const [a, i, m, b, j, n] = [sliceData(x), sliceStart(x), x.length, sliceData(y), sliceStart(y), y.length];
+		for (let k = 0; k < Math.min(m, n); k++) {
+			const c = cmp(a[i + k], b[j + k]);
 			if (c !== 0) return c;
 		}
-		return (a.length < b.length ? -1 : a.length > b.length ? 1 : 0) as O;
+		return (m < n ? -1 : m > n ? 1 : 0) as O;
 	};
 }
 
@@ -316,20 +316,22 @@ export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: neve
 }
 
 /** `PartialEq::eq` of slices: their lengths', then their elements' in order. */
-export function eqSlice<T>(eq: (a: T, b: T) => boolean): (a: ArrayLike<T>, b: ArrayLike<T>) => boolean {
-	return (a, b) => {
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i++) if (!eq(a[i], b[i])) return false;
+export function eqSlice<T>(eq: (a: T, b: T) => boolean): (a: ArrayLike<T> | Slice<T>, b: ArrayLike<T> | Slice<T>) => boolean {
+	return (x, y) => {
+		if (x.length !== y.length) return false;
+		const [a, i, b, j] = [sliceData(x), sliceStart(x), sliceData(y), sliceStart(y)];
+		for (let k = 0; k < x.length; k++) if (!eq(a[i + k], b[j + k])) return false;
 		return true;
 	};
 }
 
 /** A slice, an array, or a `Vec`, of bytes in any form, or a `VecDeque`. */
-type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | VecDeque<T>;
+type Seq<T> = ArrayLike<T> | Slice<T> | ByteSlice | ByteVec | VecDeque<T>;
 
 /** The length of `s` and what reads its element at an index. */
 function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof ByteSlice) return [s.length, (i) => s.data[s.start + i] as T];
+	if (s instanceof Slice) return [s.length, (i) => s.data[s.start + i]];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
 	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
 	return [s.length, (i) => s[i] as T];
@@ -2146,19 +2148,25 @@ function bounds<K>(r: Bounds<K>): BoundPair<K> {
  * `BTreeMap::range` and `range_mut`: the entries within `r`. A key of the crate's own gives
  * its `PartialEq::eq` and `PartialOrd::gt`, which std checks the ends by.
  */
-export function btreeRange<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
-	return range(m, r, ENTRIES, "BTreeMap", eq, gt);
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
+	return range(m, r as Bounds<K>, ENTRIES, "BTreeMap", eq, gt);
 }
 
 /** `range_mut` of values JS copies: each key within `r` and the place of its value. */
-export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
-	return range(m, r, PLACES, "BTreeMap", eq, gt);
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
+	return range(m, r as Bounds<K>, PLACES, "BTreeMap", eq, gt);
 }
 
 /** `BTreeSet::range`: the keys within `r`. */
-export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
-	return range(m, r, KEYS, "BTreeSet", eq, gt);
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
+	return range(m, r as Bounds<K>, KEYS, "BTreeSet", eq, gt);
 }
+
+/**
+ * What a range of keys `K` is bounded by: a key, or for an array's or a `Vec`'s, a `Slice`,
+ * which `cmpSlice` orders alike.
+ */
+type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never);
 
 /** The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by `m`'s order. */
 function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: string, eq?: Test<K>, gt?: Test<K>): Iter<T> {

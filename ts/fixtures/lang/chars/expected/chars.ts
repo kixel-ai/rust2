@@ -11,7 +11,7 @@ import { put, text } from "./harness.ts";
 
 /** The scalars to try: the edges, then each big-endian `u32` in `data`, zero-padded. */
 export function scalars(data: rt.ByteSlice): rt.u32[] {
-	const all: rt.u32[] = rt.vecExact([0, 127, 128, 255, 256, 2047, 2048, 55295, 55296, 56319, 56320, 57343, 57344, 65533, 65535, 65536, 1114109, 1114111, 1114112, 4294967295].slice(), 4);
+	const all: rt.u32[] = rt.vecExact(rt.sliceToArray(rt.sliceFrom([0, 127, 128, 255, 256, 2047, 2048, 55295, 55296, 56319, 56320, 57343, 57344, 65533, 65535, 65536, 1114109, 1114111, 1114112, 4294967295])), 4);
 	let rest: rt.ByteSlice = data;
 	while (true) {
 		if (!(rest.length === 0)) {
@@ -102,7 +102,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rt.BTreeSet<rt.char> = rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.char>;
 		const seen: rt.HashSet<rt.char> = rt.hashNew() as rt.HashSet<rt.char>;
-		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(cs));
+		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(cs))));
 		while (true) {
 			const _88: [rt.usize, rt.char] | rt.Done = iter3.next();
 			if (_88 === rt.DONE) {
@@ -175,7 +175,7 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		if (rt.u8Rem(kind, 2) === 0) {
 			flags = (rt.charIsAlphabetic(c) ? 1 : 0) | (((rt.charIsLowercase(c) ? 1 : 0) << 1) & 0xff) | (((rt.charIsUppercase(c) ? 1 : 0) << 2) & 0xff) | (((rt.charIsAlphanumeric(c) ? 1 : 0) << 3) & 0xff) | (((rt.charIsControl(c) ? 1 : 0) << 4) & 0xff) | (((rt.charIsNumeric(c) ? 1 : 0) << 5) & 0xff) | (((isDigit$0mzngr5(c, 36) ? 1 : 0) << 6) & 0xff);
 		} else {
-			flags = rt.iterFold(rt.iterEnumerate(rt.iterSlice(classes)), 0, (flags2: rt.u8, _3: [rt.usize, (a0: rt.char) => boolean]): rt.u8 => {
+			flags = rt.iterFold(rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rt.sliceFrom(classes)))), 0, (flags2: rt.u8, _3: [rt.usize, (a0: rt.char) => boolean]): rt.u8 => {
 				const i: rt.usize = _3[0];
 				return flags2 | rt.u8Shl(_3[1](c) ? 1 : 0, i);
 			});
@@ -381,10 +381,10 @@ export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			const units: rt.u16[] = Array.from({ length: 2 }, (): rt.u16 => {
 				return 43690;
 			});
-			const u: rt.u16[] = rt.charEncodeUtf16(c, units);
+			const u: rt.Slice<rt.u16> = rt.charEncodeUtf16(c, rt.sliceFrom(units));
 			rt.byteVecPush(out, u.length & 0xff);
 			rt.idx(u, 0);
-			u[0] = u[0] ^ 1;
+			u.data[u.start] = u.data[u.start] ^ 1;
 			const iter2: rt.Iter<rt.u16> = rt.iterSlice(units);
 			while (true) {
 				const _62: rt.u16 | rt.Done = iter2.next();
@@ -398,7 +398,7 @@ export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			rt.byteVecPush(out, rt.stringLen(rt.charEncodeUtf8(c, rt.byteSliceRange(rt.byteSliceFrom(bytes2), 2)).v) & 0xff);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes2));
 			const units2: rt.u16[] = rt.vecFromElem(7, 4, undefined);
-			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.sliceRangeMut(units2, 1)).length & 0xff);
+			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.sliceRange(rt.sliceFrom(units2), 1)).length & 0xff);
 			for (const _94 of units2) {
 				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(_94)));
 			}
@@ -407,7 +407,7 @@ export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				return rt.u8Rem(_2, 5) as rt.usize;
 			});
 			put(out, rt.charEncodeUtf8(c, rt.byteVecSlice(rt.byteVecOf(0, n2))).v);
-			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.vecFromElem(0, rt.usizeRem(n2, 3), undefined)).length & 0xff);
+			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.sliceFrom(rt.vecFromElem(0, rt.usizeRem(n2, 3), undefined))).length & 0xff);
 		}
 	}
 }
@@ -424,9 +424,9 @@ export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		return (p.data[p.start] << 8) | option_unwrapOr$0r2bmpr(rt.byteSliceGet(p, 1), 0);
 	}), undefined, 2, true);
 	if (rt.u8Rem(kind, 2) === 0) {
-		it = rt.charDecodeUtf16(rt.iterSlice(units));
+		it = rt.charDecodeUtf16(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units))));
 	} else {
-		it = rt.charDecodeUtf16(rt.iterSlice(units));
+		it = rt.charDecodeUtf16(rt.iterSlice(rt.sliceItems(rt.sliceFrom(units))));
 	}
 	let last: rt.DecodeUtf16Error | undefined = undefined;
 	while (true) {

@@ -130,7 +130,7 @@ export function andThen$0qni7te(self: rt.u8 | undefined | rt.None, f: (a0: rt.u8
 	return f(self);
 }
 
-export function andThen$0ocv8av(self: Array<rt.u8 | undefined> | undefined, f: (a0: Array<rt.u8 | undefined>) => rt.u8 | undefined | rt.None): rt.u8 | undefined | rt.None {
+export function andThen$05aqrgx(self: rt.Slice<rt.u8 | undefined> | undefined, f: (a0: rt.Slice<rt.u8 | undefined>) => rt.u8 | undefined | rt.None): rt.u8 | undefined | rt.None {
 	if (self === undefined) {
 		return rt.None;
 	}

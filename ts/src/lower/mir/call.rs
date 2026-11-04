@@ -650,7 +650,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let to = self.operand(target, span, out);
 				let to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
-				let source = self.operand(source, span, out);
+				let source_ty = source.ty(&self.mir.local_decls, tcx);
+				let mut source = self.operand(source, span, out);
+				// A `Vec`'s reads a slice's elements.
+				if let ty::Slice(elem) = source_ty.peel_refs().kind()
+					&& !crate::lower::byte(*elem)
+				{
+					source = library::elements(source, source_ty);
+				}
 				done(library::clone_from(self.b, to, source, ty, span), true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and

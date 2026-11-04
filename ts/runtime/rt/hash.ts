@@ -5,7 +5,7 @@
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { ByteSlice, type ByteVec, type None } from "../rt.ts";
+import { ByteSlice, type ByteVec, type None, Slice, sliceData, sliceItems, sliceStart } from "../rt.ts";
 import {
 	type i8,
 	type i16,
@@ -695,10 +695,11 @@ export function hashTuple<T extends readonly unknown[]>(fields: readonly ((value
 }
 
 /** `Hash::hash` of a slice: its length as a `usize`, then its elements' in order. */
-export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (value: ArrayLike<T>, s: Hasher) => void {
+export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (value: ArrayLike<T> | Slice<T>, s: Hasher) => void {
 	return (value, s) => {
+		const [a, i] = [sliceData(value), sliceStart(value)];
 		s.prefix(value.length);
-		for (let i = 0; i < value.length; i++) hash(value[i], s);
+		for (let k = 0; k < value.length; k++) hash(a[i + k], s);
 	};
 }
 
@@ -706,10 +707,10 @@ export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (value: Array
  * `Hash::hash` of a slice of integers `size` bytes wide: its length as a `usize`, then
  * their bytes in one `write`, as their `hash_slice` writes them.
  */
-export function hashInts(size: 1 | 2 | 4 | 8 | 16): (value: ArrayLike<number | Limbs>, s: Hasher) => void {
+export function hashInts(size: 1 | 2 | 4 | 8 | 16): (value: ArrayLike<number | Limbs> | Slice<number | Limbs>, s: Hasher) => void {
 	return (value, s) => {
 		s.prefix(value.length);
-		s.ints(value, size);
+		s.ints(value instanceof Slice ? sliceItems(value) : value, size);
 	};
 }
 

@@ -158,7 +158,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			})), undefined, true);
 			rt.byteVecPush(out, drain.len() & 0xff);
 			rt.drop(drain);
-			rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(words), (_217: rt.u32): rt.u8 => {
+			rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(words))), (_217: rt.u32): rt.u8 => {
 				return _217 & 0xff;
 			}), undefined, true);
 		} else if (_28 === 1) {
@@ -312,7 +312,7 @@ export function bounds(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			flush(out);
 		}
 		flush(out);
-		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(items), (x6: Item.Item): rt.u8 => {
+		rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(items))), (x6: Item.Item): rt.u8 => {
 			return x6.tag;
 		}), undefined, true);
 		rt.dropAll(items);

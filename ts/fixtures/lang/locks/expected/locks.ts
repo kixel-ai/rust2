@@ -361,7 +361,7 @@ export function mapped(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_13 === 2) {
 			const _70: rt.RefCell<Tally.Tally> = rt.rwLockWrite(lock);
 			const _69: rt.Result<rt.RefCell<rt.u8>, rt.RefCell<Tally.Tally>> = rt.refMutFilterMap(_70, ((t3: Tally.Tally): rt.Place<rt.u8> | undefined => {
-				return rt.sliceLastMut(rt.byteSliceView(rt.byteVecSlice(t3.seen)));
+				return rt.sliceLastMut(rt.byteVecSlice(t3.seen));
 			})(_70.value));
 			if (_69.ok) {
 				const last2: rt.RefCell<rt.u8> = _69.value;
@@ -537,7 +537,7 @@ export function mutexMapped(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_15 === 2) {
 			const _128: rt.Mutex<Tally.Tally> = rt.mutexLock(mutex);
 			const _127: rt.Result<rt.Mutex<rt.u8>, rt.Mutex<Tally.Tally>> = rt.mutexFilterMap(_128, ((t3: Tally.Tally): rt.Place<rt.u8> | undefined => {
-				return rt.sliceLastMut(rt.byteSliceView(rt.byteVecSlice(t3.seen)));
+				return rt.sliceLastMut(rt.byteVecSlice(t3.seen));
 			})(_128.value));
 			if (_127.ok) {
 				const last: rt.Mutex<rt.u8> = _127.value;

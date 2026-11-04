@@ -2765,7 +2765,7 @@ export function digits(n: rt.u128, radix: rt.u32): string {
 /** The digits of one more than `s`, in `radix`. */
 export function succ(s: string, radix: rt.u32): string {
 	const out: rt.ByteVec = rt.byteSliceToByteVec(rt.stringAsBytes(s));
-	const iter: rt.Iter<rt.Place<rt.u8>> = rt.iterRev(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(out))));
+	const iter: rt.Iter<rt.Place<rt.u8>> = rt.iterRev(rt.iterSliceMut(rt.byteVecSlice(out)));
 	while (true) {
 		const _11: rt.Place<rt.u8> | rt.Done = iter.next();
 		if (_11 === rt.DONE) {

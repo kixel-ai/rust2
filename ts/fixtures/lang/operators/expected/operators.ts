@@ -2492,7 +2492,7 @@ export function u8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u8 = (at: rt.usize): rt.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -2964,7 +2964,7 @@ export function u16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u16 = (at: rt.usize): rt.u16 => {
 		const buf: Uint8Array = rt.bytes(2);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -3436,7 +3436,7 @@ export function u32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u32 = (at: rt.usize): rt.u32 => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -3908,7 +3908,7 @@ export function u64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u64 = (at: rt.usize): rt.u64 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -4380,7 +4380,7 @@ export function u128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.u128 = (at: rt.usize): rt.u128 => {
 		const buf: Uint8Array = rt.bytes(16);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -4852,7 +4852,7 @@ export function usizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.usize = (at: rt.usize): rt.usize => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -5325,7 +5325,7 @@ export function i8s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i8 = (at: rt.usize): rt.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -5825,7 +5825,7 @@ export function i16s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i16 = (at: rt.usize): rt.i16 => {
 		const buf: Uint8Array = rt.bytes(2);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -6325,7 +6325,7 @@ export function i32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i32 = (at: rt.usize): rt.i32 => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -6825,7 +6825,7 @@ export function i64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i64 = (at: rt.usize): rt.i64 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -7325,7 +7325,7 @@ export function i128s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.i128 = (at: rt.usize): rt.i128 => {
 		const buf: Uint8Array = rt.bytes(16);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -7825,7 +7825,7 @@ export function isizes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const take: (a0: rt.usize) => rt.isize = (at: rt.usize): rt.isize => {
 		const buf: Uint8Array = rt.bytes(4);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _102: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_102 === rt.DONE) {
@@ -8322,7 +8322,7 @@ export function f64s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let v2!: rt.f64;
 	const take: (a0: rt.usize) => rt.f64 = (at: rt.usize): rt.f64 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _103: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_103 === rt.DONE) {
@@ -8577,7 +8577,7 @@ export function f32s(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let v2!: rt.f32;
 	const take: (a0: rt.usize) => rt.f32 = (at: rt.usize): rt.f32 => {
 		const buf: Uint8Array = rt.bytes(8);
-		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceFrom(buf))));
+		const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceFrom(buf)));
 		while (true) {
 			const _103: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 			if (_103 === rt.DONE) {

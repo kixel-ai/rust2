@@ -760,7 +760,8 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 	let (ty, value) = match library::box_slice(tcx, ty) {
 		Some(elem) if !super::byte(elem) => {
 			let size = size_of(b, elem, span);
-			(Ty::new_slice(tcx, elem), Expr::rt("vecExact", vec![value, size]))
+			let items = Expr::rt("vecExact", vec![Expr::rt("sliceItems", vec![value]), size]);
+			(Ty::new_slice(tcx, elem), Expr::rt("sliceFrom", vec![items]))
 		}
 		Some(elem) => (Ty::new_slice(tcx, elem), value),
 		None => (ty, value),

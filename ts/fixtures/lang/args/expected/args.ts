@@ -158,7 +158,7 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, sum(data.data, data.start, data.length));
 		rt.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rt.byteVecPush(out, byRef(data) & 0xff);
-		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind)), (s: rt.ByteSlice): rt.u8 => {
+		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(kept(data, kind)))), (s: rt.ByteSlice): rt.u8 => {
 			return opaque(s);
 		}), 0, (a03: rt.u8, a1: rt.u8): rt.u8 => {
 			return rt.u8WrappingAdd(a03, a1);
@@ -222,7 +222,7 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.panic("mid > len");
 		}
 		const halves: rt.ByteSlice[] = [new rt.ByteSlice(data.data, data.start, mid), new rt.ByteSlice(data.data, data.start + mid2, data.length - mid2)];
-		const iter2: rt.Iter<rt.ByteSlice> = rt.iterSlice(halves);
+		const iter2: rt.Iter<rt.ByteSlice> = rt.iterSlice(rt.sliceItems(rt.sliceFrom(halves)));
 		while (true) {
 			const _111: rt.ByteSlice | rt.Done = iter2.next();
 			if (_111 === rt.DONE) {

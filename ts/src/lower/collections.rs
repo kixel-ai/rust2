@@ -205,6 +205,17 @@ pub fn call<'tcx>(
 			*at = Expr::rt("byteSliceView", vec![std::mem::replace(at, Expr::undefined())]);
 		}
 	}
+	// An array or a `Vec` key is a JS array, so the elements of an `rt.Slice` stand in.
+	if let Some(by) = by
+		&& !matches!(name, "range" | "range_mut")
+		&& let ty::Slice(elem) = by.kind()
+		&& !super::byte(*elem)
+		&& let key = peel(b, arg(coll, 0))
+		&& (key.is_array() || b.t.std_of(key) == Some(Std::Vec))
+		&& let Some(at) = args.get_mut(1)
+	{
+		*at = Expr::rt("sliceItems", vec![std::mem::replace(at, Expr::undefined())]);
+	}
 	// Elements of any form, an array, a slice, or a `Vec`, hash and compare alike, so each
 	// finds the others. A reference key finds what it points at by that value's own impls,
 	// whatever `alike` makes of its `PartialEq` against a reference.

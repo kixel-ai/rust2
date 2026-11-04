@@ -243,10 +243,10 @@ export function floats(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(rt.f64ToBits(rt.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rt.u64)))));
 		rt.byteVecPush(out, rt.f64IsSignNegative(rt.f64FromBits({ hi: 0xfff80000, lo: 0x123 } as rt.u64)) ? 1 : 0);
 		const v2: rt.f64[] = [a, b, 0.5];
-		putF64(out, rt.iterSum(rt.iterSlice(v2), rt.f64Add, -0.0));
+		putF64(out, rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(v2))), rt.f64Add, -0.0));
 		putF64(out, rt.iterProduct(rt.iterSlice(v2), rt.f64Mul, 1.0));
 		const _403: rt.f64[] = [];
-		putF64(out, rt.iterSum(rt.iterSlice(_403), rt.f64Add, -0.0));
+		putF64(out, rt.iterSum(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_403))), rt.f64Add, -0.0));
 		putF64(out, rt.iterSum(rt.iterSlice([-0.0, -0.0]), rt.f64Add, -0.0));
 		putF64(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };

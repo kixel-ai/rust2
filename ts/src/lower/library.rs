@@ -1592,9 +1592,9 @@ fn mapping<'tcx>(
 			// A `Vec` is owned, and a reference to a slice, an array, or a `Vec` borrows its slice.
 			if let Some(elem) = cow_slice(tcx, to) {
 				let owned = b.t.std_of(targ(gargs, 1)) == Some(Std::Vec);
-				let value = match b.t.std_of(from) == Some(Std::Vec) && !owned {
-					true => vec_view(value, elem),
-					false => value,
+				let value = match owned {
+					true => value,
+					false => slice_of(value, targ(gargs, 1)),
 				};
 				return Some(cow_made(
 					Ty::new_slice(tcx, elem),
@@ -1722,11 +1722,8 @@ fn mapping<'tcx>(
 					Some(Std::Vec) => vec_boxed(from_value.clone(), *elem),
 					_ => from_value.clone(),
 				};
-				// The bytes keep their buffer, as std keeps the allocation.
-				let array = match byte(*elem) {
-					true => Expr::rt("byteSliceView", vec![boxed]),
-					false => boxed,
-				};
+				// The elements keep their buffer, as std keeps the allocation.
+				let array = elements(boxed, Ty::new_slice(tcx, *elem));
 				return Some(Expr::Cond(
 					Box::new(
 						from_value
@@ -2197,7 +2194,7 @@ fn mapping<'tcx>(
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
 			if targ(gargs, 0).is_array() && targ(gargs, 1).is_slice() =>
 		{
-			slice_of(args.pop()?, targ(gargs, 0))
+			slice_of(args.pop()?, Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, targ(gargs, 0)))
 		}
 		// A `Vec` as its slice, as `as_slice` has it, or as itself.
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
@@ -2819,6 +2816,7 @@ fn mapping<'tcx>(
 			if textual(tcx, targ(gargs, 0).peel_refs()) && targ(gargs, 1).peel_refs().is_str() =>
 		{
 			let mut values = args;
+			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, targ(gargs, 0)));
 			if cow_str(tcx, targ(gargs, 0).peel_refs()) {
 				values[0] = values[0].clone().member("map").call(vec![Expr::Rt("strCowStr".into())]);
 			}
@@ -3004,8 +3002,11 @@ fn mapping<'tcx>(
 			}
 		}
 		// A reference to an array of bytes is an `rt.ByteSlice` already, and to one of other
-		// values its JS array, so each is its own slice, and writes through it land in it.
-		("array", "as_slice" | "as_mut_slice") => slice_of(args.pop()?, targ(gargs, 0)),
+		// values its JS array, which an `rt.Slice` of all of it reads and writes.
+		("array", "as_slice" | "as_mut_slice") => match byte(targ(gargs, 0)) {
+			true => args.pop()?,
+			false => Expr::rt("sliceFrom", vec![args.pop()?]),
+		},
 		("array", "from_fn") => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let f = match targ(gargs, 0).kind() {
@@ -3025,7 +3026,11 @@ fn mapping<'tcx>(
 		// array of bytes as its view, and an object as itself.
 		("array", "each_ref" | "each_mut") => {
 			let elem = targ(gargs, 0);
-			let a = elements(args.pop()?, Ty::new_slice(tcx, elem));
+			// A reference to an array of bytes is its `rt.ByteSlice`, and to one of others the array.
+			let a = match byte(elem) {
+				true => Expr::rt("byteSliceView", vec![args.pop()?]),
+				false => args.pop()?,
+			};
 			match () {
 				_ if name == "each_mut" && b.t.needs_place(elem) => Expr::rt("arrayPlaces", vec![a]),
 				_ if super::byte_array(elem) => Expr::rt("arrayMap", vec![a, Expr::Rt("byteSliceFrom".into())]),
@@ -3256,7 +3261,7 @@ fn std_clone_from<'tcx>(
 ) -> Result<(&'static str, Vec<Expr>), Expr> {
 	let own = unboxed(b.t, ty);
 	if let ty::Array(elem, _) = own.kind() {
-		return Ok(("sliceCloneFromSlice", clone_from_fns(b, *elem, span)));
+		return Ok(("arrayCloneFrom", clone_from_fns(b, *elem, span)));
 	}
 	if let Some(elem) = box_slice(b.t.tcx, own) {
 		return Ok(("boxSliceCloneFrom", clone_from_fns(b, elem, span)));
@@ -3408,15 +3413,15 @@ fn slices_join<'tcx>(
 			"byteSliceFrom",
 			vec![Expr::ident("Uint8Array").member("of").call(vec![sep])],
 		),
-		(true, false) => Expr::Array(vec![sep]),
+		(true, false) => Expr::rt("sliceFrom", vec![Expr::Array(vec![sep])]),
 		(false, _) => sep,
 	};
 	let items = args.pop()?;
 	// What reads an item as its slice, unless it is one.
 	let slice = match item.kind() {
-		ty::Array(..) => bytes.then_some("byteSliceFrom"),
+		ty::Array(..) => Some(if bytes { "byteSliceFrom" } else { "sliceFrom" }),
 		ty::Ref(_, s, _) if s.is_slice() => None,
-		_ if b.t.std_of(item) == Some(Std::Vec) => bytes.then_some("byteVecSlice"),
+		_ if b.t.std_of(item) == Some(Std::Vec) => Some(if bytes { "byteVecSlice" } else { "sliceFrom" }),
 		_ if cow_slice(b.t.tcx, item).is_some() => Some(if bytes { "byteCowSlice" } else { "cowSlice" }),
 		_ if box_slice(b.t.tcx, item).is_some() => None,
 		_ => return None,
@@ -3566,9 +3571,9 @@ fn pattern<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, p: Expr) -> Option<Expr
 		}
 		ty::Ref(..) if is_text(t, ty) => Some(p),
 		// Any of the chars of an array or slice.
-		ty::Array(c, _) | ty::Slice(c) if c.is_char() => Some(Expr::rt("patternChars", vec![p])),
+		ty::Array(c, _) | ty::Slice(c) if c.is_char() => Some(Expr::rt("patternChars", vec![elements(p, ty)])),
 		ty::Ref(_, inner, _) if matches!(inner.kind(), ty::Array(c, _) | ty::Slice(c) if c.is_char()) => {
-			Some(Expr::rt("patternChars", vec![p]))
+			Some(Expr::rt("patternChars", vec![elements(p, ty)]))
 		}
 		_ => None,
 	}
@@ -3951,7 +3956,11 @@ pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
 		ty::Slice(elem) if byte(*elem) => Expr::rt("byteSliceView", vec![v]),
-		ty::Slice(_) => Expr::rt("sliceItems", vec![v]),
+		// All of an array is the array.
+		ty::Slice(_) => match v {
+			Expr::Call(f, mut args) if matches!(&*f, Expr::Rt(n) if n == "sliceFrom") && args.len() == 1 => args.pop().unwrap(),
+			v => Expr::rt("sliceItems", vec![v]),
+		},
 		_ if super::bytes_ref(ty) => Expr::rt("byteSliceView", vec![v]),
 		ty::Adt(_, args) if args.types().next().is_some_and(byte) => Expr::rt("byteVecView", vec![v]),
 		_ => v,
@@ -4028,7 +4037,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 				"byteSliceFrom",
 				vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])],
 			),
-			ty::Slice(_) => Expr::Array(Vec::new()),
+			ty::Slice(_) => Expr::rt("sliceFrom", vec![Expr::Array(Vec::new())]),
 			ty::Str => Expr::Str(String::new()),
 			_ => return None,
 		},

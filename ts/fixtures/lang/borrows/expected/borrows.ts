@@ -490,11 +490,11 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _315: [rt.RefCell<rt.ByteSlice>, rt.RefCell<rt.ByteSlice>] = rt.refMutMapSplit(_316, [rt.partPlace(parts3[0]), rt.partPlace(parts3[1])]);
 			const low: rt.RefCell<rt.ByteSlice> = _315[0];
 			const high: rt.RefCell<rt.ByteSlice> = _315[1];
-			const _318: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(low.value));
+			const _318: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(low.value);
 			if (_318 !== undefined) {
 				_318.v = rt.u8WrappingAdd(_318.v, op);
 			}
-			const _325: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(high.value));
+			const _325: rt.Place<rt.u8> | undefined = rt.sliceLastMut(high.value);
 			if (_325 !== undefined) {
 				_325.v = _325.v ^ 255;
 			}

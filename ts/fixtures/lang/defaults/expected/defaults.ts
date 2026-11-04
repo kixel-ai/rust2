@@ -71,7 +71,7 @@ export function defaults(data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			rt.atomicStore(counts[_45], op as rt.u64, 0);
 			rt.atomicFetch(counts[0], rt.u64WrappingAdd, 1, 0);
-			const part2 = rt.iterToArray(rt.iterMap(rt.iterSlice(counts), (c: rt.Atomic<rt.u64>): rt.u64 => {
+			const part2 = rt.iterToArray(rt.iterMap(rt.iterSlice(rt.sliceItems(rt.sliceFrom(counts))), (c: rt.Atomic<rt.u64>): rt.u64 => {
 				return rt.atomicLoad(c, 0);
 			}), undefined, 8, true);
 			const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2, f, rt.u64Debug)];

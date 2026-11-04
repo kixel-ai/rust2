@@ -40,7 +40,7 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 0, true);
-	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
@@ -49,8 +49,8 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 	joined$0(data, copy$array_array0_u8([rt.bytes(0).fill(165), rt.bytesFromFn(0, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8), out);
-	retagged$0(rows, out);
-	recloned$u32_0(wide, out);
+	retagged$0(rt.sliceFrom(rows), out);
+	recloned$u32_0(rt.sliceFrom(wide), out);
 	filled$u8_0(data, rt.bytesFromFn(0, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -65,8 +65,8 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_0(data, rt.arrayFromFn(0, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_0(data, rows, out);
-	swapped$u32_0(data, wide, out);
+	swapped$u8_0(data, rt.sliceFrom(rows), out);
+	swapped$u32_0(data, rt.sliceFrom(wide), out);
 }
 
 export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -75,7 +75,7 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 1, true);
-	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
@@ -84,8 +84,8 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 	joined$1(data, copy$array_array1_u8([rt.bytes(1).fill(165), rt.bytesFromFn(1, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8), out);
-	retagged$1(rows, out);
-	recloned$u32_1(wide, out);
+	retagged$1(rt.sliceFrom(rows), out);
+	recloned$u32_1(rt.sliceFrom(wide), out);
 	filled$u8_1(data, rt.bytesFromFn(1, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -100,8 +100,8 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_1(data, rt.arrayFromFn(1, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_1(data, rows, out);
-	swapped$u32_1(data, wide, out);
+	swapped$u8_1(data, rt.sliceFrom(rows), out);
+	swapped$u32_1(data, rt.sliceFrom(wide), out);
 }
 
 export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -110,7 +110,7 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 17, true);
-	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
@@ -119,8 +119,8 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 	joined$17(data, copy$array_array17_u8([rt.bytes(17).fill(165), rt.bytesFromFn(17, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8), out);
-	retagged$17(rows, out);
-	recloned$u32_17(wide, out);
+	retagged$17(rt.sliceFrom(rows), out);
+	recloned$u32_17(rt.sliceFrom(wide), out);
 	filled$u8_17(data, rt.bytesFromFn(17, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -135,8 +135,8 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_17(data, rt.arrayFromFn(17, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_17(data, rows, out);
-	swapped$u32_17(data, wide, out);
+	swapped$u8_17(data, rt.sliceFrom(rows), out);
+	swapped$u32_17(data, rt.sliceFrom(wide), out);
 }
 
 export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -145,7 +145,7 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 3, true);
-	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.u32[][] = rt.iterToArray(rt.iterMap(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
@@ -154,8 +154,8 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 	joined$3(data, copy$array_array3_u8([rt.bytes(3).fill(165), rt.bytesFromFn(3, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8), out);
-	retagged$3(rows, out);
-	recloned$u32_3(wide, out);
+	retagged$3(rt.sliceFrom(rows), out);
+	recloned$u32_3(rt.sliceFrom(wide), out);
 	filled$u8_3(data, rt.bytesFromFn(3, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -170,36 +170,36 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_3(data, rt.arrayFromFn(3, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_3(data, rows, out);
-	swapped$u32_3(data, wide, out);
+	swapped$u8_3(data, rt.sliceFrom(rows), out);
+	swapped$u32_3(data, rt.sliceFrom(wide), out);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), undefined, true);
 }
 
 /**
  * Each row cloned out of an `Option` kept in a pair and written back whole, after which
  * the pair and the copy each change apart.
  */
-export function retagged$0(rows: Uint8Array[], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom));
+export function retagged$0(rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.sliceItems(rows)), rt.byteSliceFrom));
 	while (true) {
 		const _7: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -228,8 +228,8 @@ export function retagged$0(rows: Uint8Array[], out: rt.ByteVec): void {
  * Each row cloned out of an `Option` kept in a pair and written back whole, after which
  * the pair and the copy each change apart.
  */
-export function retagged$1(rows: Uint8Array[], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom));
+export function retagged$1(rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.sliceItems(rows)), rt.byteSliceFrom));
 	while (true) {
 		const _7: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -258,8 +258,8 @@ export function retagged$1(rows: Uint8Array[], out: rt.ByteVec): void {
  * Each row cloned out of an `Option` kept in a pair and written back whole, after which
  * the pair and the copy each change apart.
  */
-export function retagged$17(rows: Uint8Array[], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom));
+export function retagged$17(rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.sliceItems(rows)), rt.byteSliceFrom));
 	while (true) {
 		const _7: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -288,8 +288,8 @@ export function retagged$17(rows: Uint8Array[], out: rt.ByteVec): void {
  * Each row cloned out of an `Option` kept in a pair and written back whole, after which
  * the pair and the copy each change apart.
  */
-export function retagged$3(rows: Uint8Array[], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rows), rt.byteSliceFrom));
+export function retagged$3(rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.iterLend(rt.iterSlice(rt.sliceItems(rows)), rt.byteSliceFrom));
 	while (true) {
 		const _7: [rt.usize, rt.ByteSlice] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -315,8 +315,8 @@ export function retagged$3(rows: Uint8Array[], out: rt.ByteVec): void {
 }
 
 /** [`retagged`] of a type parameter's values. */
-export function recloned$u32_0(rows: rt.u32[][], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rows));
+export function recloned$u32_0(rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rows)));
 	while (true) {
 		const _7: [rt.usize, rt.u32[]] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -330,10 +330,10 @@ export function recloned$u32_0(rows: rt.u32[][], out: rt.ByteVec): void {
 		const part2 = rt.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				part.v._0.reverse();
+				rt.sliceReverse(rt.sliceFrom(part.v._0));
 				part2.v._1 = part2.v._1 ^ 255;
 				rt.byteVecPush(out, part2.v._1);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(part.v._0), rt.iterSlice(part2.v._0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(part.v._0))), rt.iterSlice(rt.sliceItems(rt.sliceFrom(part2.v._0)))), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -342,8 +342,8 @@ export function recloned$u32_0(rows: rt.u32[][], out: rt.ByteVec): void {
 }
 
 /** [`retagged`] of a type parameter's values. */
-export function recloned$u32_1(rows: rt.u32[][], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rows));
+export function recloned$u32_1(rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rows)));
 	while (true) {
 		const _7: [rt.usize, rt.u32[]] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -357,10 +357,10 @@ export function recloned$u32_1(rows: rt.u32[][], out: rt.ByteVec): void {
 		const part2 = rt.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				part.v._0.reverse();
+				rt.sliceReverse(rt.sliceFrom(part.v._0));
 				part2.v._1 = part2.v._1 ^ 255;
 				rt.byteVecPush(out, part2.v._1);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(part.v._0), rt.iterSlice(part2.v._0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(part.v._0))), rt.iterSlice(rt.sliceItems(rt.sliceFrom(part2.v._0)))), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -369,8 +369,8 @@ export function recloned$u32_1(rows: rt.u32[][], out: rt.ByteVec): void {
 }
 
 /** [`retagged`] of a type parameter's values. */
-export function recloned$u32_17(rows: rt.u32[][], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rows));
+export function recloned$u32_17(rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rows)));
 	while (true) {
 		const _7: [rt.usize, rt.u32[]] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -384,10 +384,10 @@ export function recloned$u32_17(rows: rt.u32[][], out: rt.ByteVec): void {
 		const part2 = rt.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				part.v._0.reverse();
+				rt.sliceReverse(rt.sliceFrom(part.v._0));
 				part2.v._1 = part2.v._1 ^ 255;
 				rt.byteVecPush(out, part2.v._1);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(part.v._0), rt.iterSlice(part2.v._0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(part.v._0))), rt.iterSlice(rt.sliceItems(rt.sliceFrom(part2.v._0)))), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -396,8 +396,8 @@ export function recloned$u32_17(rows: rt.u32[][], out: rt.ByteVec): void {
 }
 
 /** [`retagged`] of a type parameter's values. */
-export function recloned$u32_3(rows: rt.u32[][], out: rt.ByteVec): void {
-	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rows));
+export function recloned$u32_3(rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const iter: rt.Iter<[rt.usize, rt.u32[]]> = rt.iterEnumerate(rt.iterSlice(rt.sliceItems(rows)));
 	while (true) {
 		const _7: [rt.usize, rt.u32[]] | rt.Done = iter.next();
 		if (_7 === rt.DONE) {
@@ -411,10 +411,10 @@ export function recloned$u32_3(rows: rt.u32[][], out: rt.ByteVec): void {
 		const part2 = rt.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				part.v._0.reverse();
+				rt.sliceReverse(rt.sliceFrom(part.v._0));
 				part2.v._1 = part2.v._1 ^ 255;
 				rt.byteVecPush(out, part2.v._1);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(part.v._0), rt.iterSlice(part2.v._0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(part.v._0))), rt.iterSlice(rt.sliceItems(rt.sliceFrom(part2.v._0)))), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -437,7 +437,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	const slots: [Uint8Array[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array0_array0_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -457,7 +457,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -477,7 +477,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		uninit2;
 	}
 	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array0_u8(fill), rt.usizeRem(data.length, 4), copy$array_array0_u8);
-	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -487,7 +487,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit3, [copy$array_array0_u8(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -506,7 +506,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -514,7 +514,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+		rt.iterForEach(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
 			put$lengths_Put_array0_u8(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -536,7 +536,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 	const slots: [Uint8Array[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array17_array17_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -556,7 +556,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -576,7 +576,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		uninit2;
 	}
 	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array17_u8(fill), rt.usizeRem(data.length, 4), copy$array_array17_u8);
-	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -586,7 +586,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		rt.ptrWrite(uninit3, [copy$array_array17_u8(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -605,7 +605,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -613,7 +613,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+		rt.iterForEach(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
 			put$lengths_Put_array17_u8(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -635,7 +635,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	const slots: [Uint8Array[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array1_array1_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -655,7 +655,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -675,7 +675,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		uninit2;
 	}
 	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array1_u8(fill), rt.usizeRem(data.length, 4), copy$array_array1_u8);
-	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -685,7 +685,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit3, [copy$array_array1_u8(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -704,7 +704,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -712,7 +712,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+		rt.iterForEach(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
 			put$lengths_Put_array1_u8(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -734,7 +734,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	const slots: [Uint8Array[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_array3_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -754,7 +754,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		}
 		picks.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
-	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -774,7 +774,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		uninit2;
 	}
 	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array3_u8(fill), rt.usizeRem(data.length, 4), copy$array_array3_u8);
-	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -784,7 +784,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit3, [copy$array_array3_u8(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -803,7 +803,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -811,7 +811,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 	}
 	for (const _124 of slots) {
 		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+		rt.iterForEach(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
 			put$lengths_Put_array3_u8(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -833,7 +833,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 	const slots: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array0_lengths_Tagged_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -848,7 +848,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -868,7 +868,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 		uninit2;
 	}
 	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
-	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -878,7 +878,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -897,7 +897,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -905,7 +905,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: Tagged.Tagged<rt.u32>): undefined => {
 			Tagged.put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -927,7 +927,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 	const slots: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array1_lengths_Tagged_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -942,7 +942,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -962,7 +962,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 		uninit2;
 	}
 	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
-	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -972,7 +972,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -991,7 +991,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -999,7 +999,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: Tagged.Tagged<rt.u32>): undefined => {
 			Tagged.put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1021,7 +1021,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 	const slots: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array17_lengths_Tagged_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1036,7 +1036,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1056,7 +1056,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 		uninit2;
 	}
 	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
-	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1066,7 +1066,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1085,7 +1085,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1093,7 +1093,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: Tagged.Tagged<rt.u32>): undefined => {
 			Tagged.put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1115,7 +1115,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 	const slots: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_lengths_Tagged_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1130,7 +1130,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1150,7 +1150,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 		uninit2;
 	}
 	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
-	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1160,7 +1160,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1179,7 +1179,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1187,7 +1187,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	for (const _124 of slots) {
 		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: Tagged.Tagged<rt.u32>): undefined => {
 			Tagged.put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1207,7 +1207,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	const slots: [rt.u32[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [rt.u32[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array0_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[rt.u32[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1222,7 +1222,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1242,7 +1242,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		uninit2;
 	}
 	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
-	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1252,7 +1252,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1271,7 +1271,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1279,7 +1279,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: rt.u32): undefined => {
 			put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1299,7 +1299,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	const slots: [rt.u32[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [rt.u32[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array1_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[rt.u32[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1314,7 +1314,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1334,7 +1334,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		uninit2;
 	}
 	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
-	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1344,7 +1344,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1363,7 +1363,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1371,7 +1371,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: rt.u32): undefined => {
 			put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1391,7 +1391,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 	const slots: [rt.u32[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [rt.u32[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array17_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[rt.u32[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1406,7 +1406,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1426,7 +1426,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 		uninit2;
 	}
 	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
-	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1436,7 +1436,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1455,7 +1455,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1463,7 +1463,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 	}
 	for (const _124 of slots) {
 		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: rt.u32): undefined => {
 			put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1483,7 +1483,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	const slots: [rt.u32[], [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [rt.u32[], [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_u32_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[rt.u32[], [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1498,7 +1498,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	for (const _26 of fill) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1518,7 +1518,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		uninit2;
 	}
 	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
-	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1528,7 +1528,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.sliceItems(rt.sliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1547,7 +1547,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
 		}
 		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
-		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
+		rt.sliceRotateLeft(rt.sliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
@@ -1555,7 +1555,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	for (const _124 of slots) {
 		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
-		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+		rt.iterForEach(rt.iterSlice(rt.sliceItems(rt.sliceFrom(_131[0]))), (v4: rt.u32): undefined => {
 			put$lengths_Put_u32(v4, out);
 		});
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
@@ -1575,7 +1575,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array0_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1590,7 +1590,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1607,7 +1607,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		uninit2;
 	}
 	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
-	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1617,7 +1617,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1662,7 +1662,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array1_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1677,7 +1677,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1694,7 +1694,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		uninit2;
 	}
 	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
-	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1704,7 +1704,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1749,7 +1749,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array17_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1764,7 +1764,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1781,7 +1781,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 		uninit2;
 	}
 	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
-	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1791,7 +1791,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1836,7 +1836,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(slots), new rt.RangeFrom(0, rt.u8Step), "len");
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), new rt.RangeFrom(0, rt.u8Step), "len");
 	while (true) {
 		const _12: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter.next();
 		if (_12 === rt.DONE) {
@@ -1851,7 +1851,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
 		picks.push(_26);
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.iterSlice(picks), "index");
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1), rt.iterSlice(picks), "index");
 	while (true) {
 		const _41: [[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined] | rt.Done = iter3.next();
 		if (_41 === rt.DONE) {
@@ -1868,7 +1868,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		uninit2;
 	}
 	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
-	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
 		if (_65 === rt.DONE) {
@@ -1878,7 +1878,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit3;
 	}
-	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
 	while (true) {
 		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
 		if (_85 === rt.DONE) {
@@ -1938,8 +1938,8 @@ export function put$lengths_Put_array3_u8(self: rt.ByteSlice, out: rt.ByteVec): 
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u32_0(data: rt.ByteSlice, rows: rt.u32[][], out: rt.ByteVec): void {
-	const _6: [rt.u32[], rt.u32[][]] | undefined = rt.sliceSplitFirst(rows);
+export function swapped$u32_0(data: rt.ByteSlice, rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const _6: [rt.u32[], rt.Slice<rt.u32[]>] | undefined = rt.sliceSplitFirst(rows);
 	b0: {
 		if (_6 !== undefined) {
 			const item = copy$array_u32(copy$array_u32(_6[0]));
@@ -1968,16 +1968,16 @@ export function swapped$u32_0(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(grid[_35]);
+				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(rt.sliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rows[_42])];
+				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rt.sliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 0)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(row))), rt.iterFlatten(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), (value: rt.u32[]) => rt.iterSlice(value), true, 0)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1989,8 +1989,8 @@ export function swapped$u32_0(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u32_1(data: rt.ByteSlice, rows: rt.u32[][], out: rt.ByteVec): void {
-	const _6: [rt.u32[], rt.u32[][]] | undefined = rt.sliceSplitFirst(rows);
+export function swapped$u32_1(data: rt.ByteSlice, rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const _6: [rt.u32[], rt.Slice<rt.u32[]>] | undefined = rt.sliceSplitFirst(rows);
 	b0: {
 		if (_6 !== undefined) {
 			const item = copy$array_u32(copy$array_u32(_6[0]));
@@ -2019,16 +2019,16 @@ export function swapped$u32_1(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(grid[_35]);
+				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(rt.sliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rows[_42])];
+				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rt.sliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 1)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(row))), rt.iterFlatten(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), (value: rt.u32[]) => rt.iterSlice(value), true, 1)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -2040,8 +2040,8 @@ export function swapped$u32_1(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u32_17(data: rt.ByteSlice, rows: rt.u32[][], out: rt.ByteVec): void {
-	const _6: [rt.u32[], rt.u32[][]] | undefined = rt.sliceSplitFirst(rows);
+export function swapped$u32_17(data: rt.ByteSlice, rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const _6: [rt.u32[], rt.Slice<rt.u32[]>] | undefined = rt.sliceSplitFirst(rows);
 	b0: {
 		if (_6 !== undefined) {
 			const item = copy$array_u32(copy$array_u32(_6[0]));
@@ -2070,16 +2070,16 @@ export function swapped$u32_17(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byt
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(grid[_35]);
+				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(rt.sliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rows[_42])];
+				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rt.sliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 17)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(row))), rt.iterFlatten(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), (value: rt.u32[]) => rt.iterSlice(value), true, 17)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -2091,8 +2091,8 @@ export function swapped$u32_17(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byt
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u32_3(data: rt.ByteSlice, rows: rt.u32[][], out: rt.ByteVec): void {
-	const _6: [rt.u32[], rt.u32[][]] | undefined = rt.sliceSplitFirst(rows);
+export function swapped$u32_3(data: rt.ByteSlice, rows: rt.Slice<rt.u32[]>, out: rt.ByteVec): void {
+	const _6: [rt.u32[], rt.Slice<rt.u32[]>] | undefined = rt.sliceSplitFirst(rows);
 	b0: {
 		if (_6 !== undefined) {
 			const item = copy$array_u32(copy$array_u32(_6[0]));
@@ -2121,16 +2121,16 @@ export function swapped$u32_3(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(grid[_35]);
+				const _32: rt.Place<rt.u32> | undefined = rt.sliceFirstMut(rt.sliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rows[_42])];
+				const _31: [rt.Place<rt.u32> | undefined, rt.u32 | undefined] = [_32, rt.sliceLast(rt.sliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(row), rt.iterFlatten(rt.iterSlice(grid), (value: rt.u32[]) => rt.iterSlice(value), true, 3)), (_2: rt.u32): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.sliceItems(rt.sliceFrom(row))), rt.iterFlatten(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), (value: rt.u32[]) => rt.iterSlice(value), true, 3)), (_2: rt.u32): rt.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -2142,8 +2142,8 @@ export function swapped$u32_3(data: rt.ByteSlice, rows: rt.u32[][], out: rt.Byte
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u8_0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	const _6: [rt.ByteSlice, Uint8Array[]] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, Uint8Array[]] => {
+export function swapped$u8_0(data: rt.ByteSlice, rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const _6: [rt.ByteSlice, rt.Slice<Uint8Array>] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, rt.Slice<Uint8Array>] => {
 		return [rt.byteSliceFrom(held[0]), held[1]];
 	});
 	b0: {
@@ -2174,16 +2174,16 @@ export function swapped$u8_0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.byteSliceFrom(grid[_35])));
+				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows[_42]))];
+				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), (_2: rt.u8): rt.u8 => {
 					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
@@ -2195,8 +2195,8 @@ export function swapped$u8_0(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u8_1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	const _6: [rt.ByteSlice, Uint8Array[]] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, Uint8Array[]] => {
+export function swapped$u8_1(data: rt.ByteSlice, rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const _6: [rt.ByteSlice, rt.Slice<Uint8Array>] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, rt.Slice<Uint8Array>] => {
 		return [rt.byteSliceFrom(held[0]), held[1]];
 	});
 	b0: {
@@ -2227,16 +2227,16 @@ export function swapped$u8_1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.byteSliceFrom(grid[_35])));
+				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows[_42]))];
+				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), (_2: rt.u8): rt.u8 => {
 					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
@@ -2248,8 +2248,8 @@ export function swapped$u8_1(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u8_17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	const _6: [rt.ByteSlice, Uint8Array[]] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, Uint8Array[]] => {
+export function swapped$u8_17(data: rt.ByteSlice, rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const _6: [rt.ByteSlice, rt.Slice<Uint8Array>] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, rt.Slice<Uint8Array>] => {
 		return [rt.byteSliceFrom(held[0]), held[1]];
 	});
 	b0: {
@@ -2280,16 +2280,16 @@ export function swapped$u8_17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.By
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.byteSliceFrom(grid[_35])));
+				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows[_42]))];
+				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), (_2: rt.u8): rt.u8 => {
 					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
@@ -2301,8 +2301,8 @@ export function swapped$u8_17(data: rt.ByteSlice, rows: Uint8Array[], out: rt.By
  * Rows of a grid swapped whole, each copy kept apart from the row it was read from as
  * either changes.
  */
-export function swapped$u8_3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.ByteVec): void {
-	const _6: [rt.ByteSlice, Uint8Array[]] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, Uint8Array[]] => {
+export function swapped$u8_3(data: rt.ByteSlice, rows: rt.Slice<Uint8Array>, out: rt.ByteVec): void {
+	const _6: [rt.ByteSlice, rt.Slice<Uint8Array>] | undefined = rt.optionMap(rt.sliceSplitFirst(rows), (held): [rt.ByteSlice, rt.Slice<Uint8Array>] => {
 		return [rt.byteSliceFrom(held[0]), held[1]];
 	});
 	b0: {
@@ -2333,16 +2333,16 @@ export function swapped$u8_3(data: rt.ByteSlice, rows: Uint8Array[], out: rt.Byt
 				if (!(_35 < 2)) {
 					rt.panic("index out of bounds: the len is " + 2 + " but the index is " + _35);
 				}
-				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.byteSliceFrom(grid[_35])));
+				const _32: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceFrom(grid[_35]));
 				const _42: rt.usize = rt.usizeRem(byte as rt.usize, rows.length);
 				rt.idx(rows, _42);
-				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows[_42]))];
+				const _31: [rt.Place<rt.u8> | undefined, rt.u8 | undefined] = [_32, rt.byteSliceLast(rt.byteSliceFrom(rows.data[rows.start + _42]))];
 				if (_32 !== undefined) {
 					if (_31[1] !== undefined) {
 						_32.v = _31[1];
 					}
 				}
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(grid), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), (_2: rt.u8): rt.u8 => {
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(row))), rt.iterFlatten(rt.iterLend(rt.iterSlice(rt.sliceItems(rt.sliceFrom(grid))), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), (_2: rt.u8): rt.u8 => {
 					return (_2 as rt.u32) & 0xff;
 				}), undefined, true);
 			}
@@ -2363,15 +2363,15 @@ export function CLONES$init(): rt.RefCell<rt.ByteVec> {
  */
 export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number, dataLen: number, x: Loud.Loud, y: Loud.Loud, out: rt.ByteVec): void {
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row(y, [1, 2] as [rt.u8, rt.u8]), new Row.Row(x, [3, 4] as [rt.u8, rt.u8])];
-	const copies: Row.Row<Loud.Loud>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
+	const copies: Row.Row<Loud.Loud>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), copy$lengths_Row_lengths_Loud), undefined, 4, true);
 	rt.byteVecPush(out, copies.length & 0xff);
-	const _19: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies);
+	const _19: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(rt.sliceFrom(copies));
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _27: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies, 1);
+	const _27: Row.Row<Loud.Loud> | undefined = rt.sliceGet(rt.sliceFrom(copies), 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
@@ -2384,13 +2384,13 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
 	}
 	const repeats: Row.Row<Loud.Loud>[] = rt.vecFromElem(new Row.Row(x, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(dataLen, 3)), Row.clone$Clone_lengths_Loud);
 	rt.byteVecPush(out, repeats.length & 0xff);
-	const _57: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats);
+	const _57: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(rt.sliceFrom(repeats));
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _65: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats, 1);
+	const _65: Row.Row<Loud.Loud> | undefined = rt.sliceGet(rt.sliceFrom(repeats), 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
@@ -2422,15 +2422,15 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
  */
 export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: number, x: rt.u8, y: rt.u8, out: rt.ByteVec): void {
 	const rows: Row.Row<rt.u8>[] = [new Row.Row(y, [1, 2] as [rt.u8, rt.u8]), new Row.Row(x, [3, 4] as [rt.u8, rt.u8])];
-	const copies: Row.Row<rt.u8>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_u8), undefined, 3, true);
+	const copies: Row.Row<rt.u8>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), copy$lengths_Row_u8), undefined, 3, true);
 	rt.byteVecPush(out, copies.length & 0xff);
-	const _19: Row.Row<rt.u8> | undefined = rt.sliceFirst(copies);
+	const _19: Row.Row<rt.u8> | undefined = rt.sliceFirst(rt.sliceFrom(copies));
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _27: Row.Row<rt.u8> | undefined = rt.sliceGet(copies, 1);
+	const _27: Row.Row<rt.u8> | undefined = rt.sliceGet(rt.sliceFrom(copies), 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
@@ -2443,13 +2443,13 @@ export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: 
 	}
 	const repeats: Row.Row<rt.u8>[] = rt.vecFromElem(new Row.Row(x, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(dataLen, 3)), copy$lengths_Row_u8);
 	rt.byteVecPush(out, repeats.length & 0xff);
-	const _57: Row.Row<rt.u8> | undefined = rt.sliceFirst(repeats);
+	const _57: Row.Row<rt.u8> | undefined = rt.sliceFirst(rt.sliceFrom(repeats));
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _65: Row.Row<rt.u8> | undefined = rt.sliceGet(repeats, 1);
+	const _65: Row.Row<rt.u8> | undefined = rt.sliceGet(rt.sliceFrom(repeats), 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
@@ -2480,15 +2480,15 @@ export function loud(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, at), 0) as rt.u16;
 	};
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row({ _0: byte(0) }, [1, 2] as [rt.u8, rt.u8]), new Row.Row({ _0: byte(2) }, [3, 4] as [rt.u8, rt.u8])];
-	const copies: Row.Row<Loud.Loud>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
+	const copies: Row.Row<Loud.Loud>[] = rt.iterToArray(rt.iterCopied(rt.iterSlice(rt.sliceItems(rt.sliceFrom(rows))), copy$lengths_Row_lengths_Loud), undefined, 4, true);
 	rt.byteVecPush(out, copies.length & 0xff);
-	const _26: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies);
+	const _26: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(rt.sliceFrom(copies));
 	if (_26 !== undefined) {
 		Object.assign(_26, new Row.Row({ _0: byte(2) }, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _26._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _38: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies, 1);
+	const _38: Row.Row<Loud.Loud> | undefined = rt.sliceGet(rt.sliceFrom(copies), 1);
 	if (_38 !== undefined) {
 		_38._1[1] = _38._1[1] ^ 32;
 	}
@@ -2501,13 +2501,13 @@ export function loud(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const repeats: Row.Row<Loud.Loud>[] = rt.vecFromElem(new Row.Row({ _0: byte(2) }, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(data.length, 3)), Row.clone$Clone_lengths_Loud);
 	rt.byteVecPush(out, repeats.length & 0xff);
-	const _72: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats);
+	const _72: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(rt.sliceFrom(repeats));
 	if (_72 !== undefined) {
 		Object.assign(_72, new Row.Row({ _0: byte(2) }, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _72._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _84: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats, 1);
+	const _84: Row.Row<Loud.Loud> | undefined = rt.sliceGet(rt.sliceFrom(repeats), 1);
 	if (_84 !== undefined) {
 		_84._1[1] = _84._1[1] ^ 32;
 	}
@@ -2551,7 +2551,7 @@ export function zipped(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
 		return copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8(item);
 	});
-	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), rt.iterSlice(rows), "index");
 	while (true) {
 		const _18: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter.next();
 		if (_18 === rt.DONE) {
@@ -2561,7 +2561,7 @@ export function zipped(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.ptrWrite(uninit, [copy$array_u8(_18[1]), [51, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit;
 	}
-	const _28: rt.Iter<[Uint8Array, [rt.u8, rt.u8]]> = rt.iterSkip(rt.iterSlice(slots), 1);
+	const _28: rt.Iter<[Uint8Array, [rt.u8, rt.u8]]> = rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 1);
 	const _33: rt.usize = rt.usizeRem(data.length, 3);
 	const iter2: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(_28, rt.iterSlice(rt.vecFromElem(copy$array_u8(fill), _33, copy$array_u8)), "index");
 	while (true) {
@@ -2573,7 +2573,7 @@ export function zipped(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.ptrWrite(uninit2, [copy$array_u8(_37[1]), [68, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(rt.sliceItems(rt.sliceFrom(slots))), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
 	while (true) {
 		const _56: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter3.next();
 		if (_56 === rt.DONE) {

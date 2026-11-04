@@ -13,7 +13,7 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const dst = rt.byteSliceRange(rt.byteSliceFrom(array), 0, n);
 	rt.byteSliceCopyFromSlice(dst, rt.byteSliceRange(data, 0, n));
 	rt.byteSliceView(dst).sort();
-	const _17: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(rt.byteSliceRange(rt.byteSliceFrom(array), 0, n)));
+	const _17: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceRange(rt.byteSliceFrom(array), 0, n));
 	if (_17 !== undefined) {
 		const uninit = _17;
 		uninit.v = 238;
@@ -28,7 +28,7 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return _2;
 	}), undefined, true);
 	rt.byteVecPush(vec, 7);
-	const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteVecSlice(vec))));
+	const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteVecSlice(vec)));
 	while (true) {
 		const _52: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
 		if (_52 === rt.DONE) {
@@ -53,14 +53,16 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const words: rt.u16[] = Array.from({ length: 4 }, (): rt.u16 => {
 		return _79;
 	});
-	const k: rt.usize = rt.min(wide.length, words.length);
-	const dst2 = rt.sliceRangeMut(words, 0, k);
-	rt.sliceCopyFromSlice(dst2, rt.sliceRange(wide, 0, k));
+	const k: rt.usize = rt.min(wide.length, rt.sliceFrom(words).length);
+	const _88: rt.Slice<rt.u16> = rt.sliceRange(rt.sliceFrom(words), 0, k);
+	const slice2 = rt.sliceFrom(wide);
+	const dst2 = _88;
+	rt.sliceCopyFromSlice(dst2, rt.sliceRange(slice2, 0, k));
 	const _86: rt.Place<rt.u16> | undefined = rt.sliceFirstMut(dst2);
 	if (_86 !== undefined) {
 		_86.v = _86.v ^ 257;
 	}
-	for (const _102 of rt.sliceRange(words, 0, k)) {
+	for (const _102 of rt.sliceItems(rt.sliceRange(rt.sliceFrom(words), 0, k))) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(_102).reverse()));
 	}
 	const fresh: Uint8Array = rt.bytes(2).fill((0 as unknown) as rt.u8);
@@ -88,8 +90,10 @@ export function uninits(data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteSliceCopyFromSlice(dst5, rt.byteSliceRange(data, 0, 0));
 			dst5;
 		} else if (_155 === 255) {
-			const dst4 = rt.sliceRangeMut(words, 0, 1);
-			rt.sliceCopyFromSlice(dst4, rt.sliceRange(wide, 0, 0));
+			const _164: rt.Slice<rt.u16> = rt.sliceRange(rt.sliceFrom(words), 0, 1);
+			const slice5 = rt.sliceFrom(wide);
+			const dst4 = _164;
+			rt.sliceCopyFromSlice(dst4, rt.sliceRange(slice5, 0, 0));
 			dst4;
 		}
 	}

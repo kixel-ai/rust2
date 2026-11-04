@@ -223,8 +223,8 @@ export type Ptr<T> = T | Place<T> | ByteSlice;
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
 
-/** A generic type's `[T]`, as behind a reference: the array, or the `ByteSlice` of a `[u8]`. */
-export type SliceOf<T> = T[] | ByteSlice;
+/** A generic type's `[T]`, as behind a reference: the `Slice`, or the `ByteSlice` of a `[u8]`. */
+export type SliceOf<T> = Slice<T> | ByteSlice;
 
 /** A generic type's `Vec<T>`: the array, or the `ByteVec` of a `Vec<u8>`. */
 export type VecOf<T> = T[] | ByteVec;
@@ -713,6 +713,16 @@ export function sliceFrom<T>(items: T[]): Slice<T> {
  */
 export function sliceItems<T>(s: Slice<T>): T[] {
 	return s.start === 0 && s.length === s.data.length ? s.data : s.data.slice(s.start, s.start + s.length);
+}
+
+/** The array `s`'s elements are in: a slice's storage, or the JS array of a `[T; N]` or a `Vec`. */
+export function sliceData<T>(s: ArrayLike<T> | Slice<T>): ArrayLike<T> {
+	return s instanceof Slice ? s.data : s;
+}
+
+/** Where `s`'s elements start in `sliceData(s)`. */
+export function sliceStart(s: ArrayLike<unknown> | Slice<unknown>): number {
+	return s instanceof Slice ? s.start : 0;
 }
 
 /** A copy of the elements of `s`, as an array of its own, as `to_vec` of what JS copies makes one. */
@@ -1409,12 +1419,15 @@ export function sliceCloneFromSlice<T>(dst: Slice<T>, src: Slice<T>, clone: ((va
 	return dst;
 }
 
-/** `clone_from` of an array, `old`, by `sliceCloneFromSlice`, as a `CloneFrom`. */
-export function sliceCloneFromSliceFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<T[]> {
-	return (old, src) => {
-		sliceCloneFromSlice(sliceFrom(old), sliceFrom(src), clone, drop, over, at);
-		return old;
-	};
+/** `clone_from` of an array, `old`, by `sliceCloneFromSlice`: `old` itself. */
+export function arrayCloneFrom<T>(old: T[], src: T[], clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): T[] {
+	sliceCloneFromSlice(sliceFrom(old), sliceFrom(src), clone, drop, over, at);
+	return old;
+}
+
+/** `arrayCloneFrom`, as a `CloneFrom`. */
+export function arrayCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<T[]> {
+	return (old, src) => arrayCloneFrom(old, src, clone, drop, over, at);
 }
 
 /** `Clone::clone_from` of a `Box<[T]>`, `dst`: itself, by `clone_from_slice`, where the lengths match, or else a clone of `src`, made before `dst`'s elements drop in order. */
@@ -1655,9 +1668,10 @@ export function vecSwapRemove<T>(v: T[], i: number): T {
 }
 
 /** `Vec::extend_from_slice` of `size`-byte elements: room reserved for `s`, then a clone of each of its elements pushed in order, as far as they clone. */
-export function vecExtendFromSlice<T>(v: T[], s: ArrayLike<T>, size: number, clone?: (item: T) => T): void {
+export function vecExtendFromSlice<T>(v: T[], s: Slice<T>, size: number, clone?: (item: T) => T): void {
 	vecReserve(v, s.length, size);
-	for (let i = 0; i < s.length; i++) v.push(clone === undefined ? s[i] : clone(s[i]));
+	const end = s.start + s.length;
+	for (let i = s.start; i < end; i++) v.push(clone === undefined ? s.data[i] : clone(s.data[i]));
 }
 
 /**
@@ -2481,15 +2495,15 @@ export class Borrowed<S> {
 }
 
 /** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows. */
-export type Cow<T> = T[] | Borrowed<T[]>;
+export type Cow<T> = T[] | Borrowed<Slice<T>>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 /** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
 export type StrCow = string | Borrowed<string>;
 
 /** `Deref` of a `Cow<[T]>`: its slice. */
-export function cowSlice<T>(c: Cow<T>): T[] {
-	return c instanceof Borrowed ? c.slice : c;
+export function cowSlice<T>(c: Cow<T>): Slice<T> {
+	return c instanceof Borrowed ? c.slice : sliceFrom(c);
 }
 
 /** `Deref` of a `Cow<[u8]>`: its bytes. */
@@ -2503,7 +2517,7 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
  */
 export function cowIntoOwned<T>(c: Cow<T>, size: number, clone?: (item: T) => T): T[] {
 	if (!(c instanceof Borrowed)) return c;
-	return vecExact(clone === undefined ? c.slice.slice() : c.slice.map(clone), size);
+	return vecExact(clone === undefined ? sliceToArray(c.slice) : sliceItems(c.slice).map(clone), size);
 }
 
 /** `Cow::into_owned` of a `Cow<[u8]>`. */

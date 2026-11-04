@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, type Slice, type SliceLike, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -654,8 +654,9 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): T[] {
-	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
+export function slicesJoin<V, T>(items: Slice<V>, size: number, sep?: Slice<T>, slice?: (item: V) => Slice<T>, clone?: (item: T) => T): T[] {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly Slice<T>[]) : all.map(slice);
 	// std's makes one with room for exactly them.
 	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
 	for (let i = 0; i < parts.length; i++) {
@@ -670,8 +671,9 @@ export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayL
  * read from it by `slice` unless it is the slice, with `sep` between them, into a
  * `Vec<u8>` of the capacity std's has, their exact length.
  */
-export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
-	const parts = slice === undefined ? (items as unknown as readonly ByteSlice[]) : items.map(slice);
+export function byteSlicesJoin<V>(items: Slice<V>, sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly ByteSlice[]) : all.map(slice);
 	const v = new ByteVec(joinedLength(parts, sep, 1));
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) byteVecExtendFromSlice(v, sep);
