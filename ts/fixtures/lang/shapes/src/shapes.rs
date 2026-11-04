@@ -447,7 +447,7 @@ fn shares(data: &[u8], out: &mut Vec<u8>) {
 fn write_at(live: &mut [u8], at: usize, b: u8) -> u8 {
 	live[at] = b;
 	live[0] ^= live[at].wrapping_add(1);
-	// Reassigned, so its bounds checks read its length apart from `rt.idx`.
+	// Reassigned, so its bounds checks read its length apart from `rs.idx`.
 	let mut rest = &mut *live;
 	if b % 2 == 0 {
 		rest = &mut rest[1..];

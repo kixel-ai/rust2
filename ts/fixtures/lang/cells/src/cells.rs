@@ -1,5 +1,5 @@
 //! One-time cells, `OnceCell` and `OnceLock`, of values that are numbers, wide integers,
-//! `Option`s whose `None` is `rt.None`, `()`, strings, and vectors: read, set, initialized, taken,
+//! `Option`s whose `None` is `rs.None`, `()`, strings, and vectors: read, set, initialized, taken,
 //! cloned, debugged, written through `get_mut`, initialized by a function that may fail,
 //! and initialized again from within their own initialization, which panics.
 

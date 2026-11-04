@@ -34,7 +34,7 @@ impl First for [u8; 4] {
 }
 
 /// A trait object of a byte array, which a box holds as a `Uint8Array` and a reference as
-/// an `rt.ByteSlice`.
+/// an `rs.ByteSlice`.
 pub fn first_of(n: u8) -> u8 {
 	let b: Box<dyn First> = Box::new([n, 8, 9, 10]);
 	b.first()

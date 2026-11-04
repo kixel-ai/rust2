@@ -60,8 +60,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// a `MaybeUninit` of them through a raw pointer is a view of the pointer's bytes.
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match (byte_array(pointee), self.in_bytes(*place)) {
-					(true, false) => Expr::rt("byteSliceFrom", vec![value]),
-					(false, true) => Expr::rt("byteSliceView", vec![value]),
+					(true, false) => Expr::rs("byteSliceFrom", vec![value]),
+					(false, true) => Expr::rs("byteSliceView", vec![value]),
 					_ => value,
 				}
 			}
@@ -95,8 +95,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => {
 							let value = self.place_expr(*place, span, out);
 							match crate::lower::pointer::slice_of_bytes(pointee) {
-								true => Expr::rt("rawByteSliceOf", vec![value]),
-								false => Expr::rt("rawSliceOf", vec![value]),
+								true => Expr::rs("rawByteSliceOf", vec![value]),
+								false => Expr::rs("rawSliceOf", vec![value]),
 							}
 						}
 					},
@@ -105,11 +105,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						let value = self.place_expr(*place, span, out);
 						match self.in_bytes(*place) {
 							true => value,
-							false => Expr::rt("byteSliceFrom", vec![value]),
+							false => Expr::rs("byteSliceFrom", vec![value]),
 						}
 					}
 					// `&raw mut *p` is `p`. A pointer to `()` is an identity, which only another
-					// pointer is: not the `rt.Place` of a place or of a `&mut`, each borrow's own.
+					// pointer is: not the `rs.Place` of a place or of a `&mut`, each borrow's own.
 					Pointee::Place => match place.projection.as_slice() {
 						[rest @ .., mir::ProjectionElem::Deref]
 							if !self.box_pointer(place.local) && {
@@ -161,7 +161,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let target = self.stable_target(*place, target, span, out);
 							match target.unlocated() {
 								Expr::Index(array, index) => {
-									Expr::rt("sliceAsPtr", vec![*array.clone(), *index.clone()])
+									Expr::rs("sliceAsPtr", vec![*array.clone(), *index.clone()])
 								}
 								_ => self.place_of(target, None),
 							}
@@ -183,7 +183,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				let hi = self.half(hi, span, out);
 				let lo = self.half(lo, span, out);
-				Expr::rt("u64FromHalves", vec![hi, lo])
+				Expr::rs("u64FromHalves", vec![hi, lo])
 			}
 			Rvalue::BinaryOp(op, ops) => {
 				let (l, r) = &**ops;
@@ -234,7 +234,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				match op {
 					UnOp::Not | UnOp::Neg => num::unary(self.b, *op, value, aty, span),
 					UnOp::PtrMetadata => match aty.builtin_deref(true).map(|t| t.kind()) {
-						Some(ty::Str) => Expr::rt("stringLen", vec![value]),
+						Some(ty::Str) => Expr::rs("stringLen", vec![value]),
 						Some(ty::Slice(_)) => super::place::slice_member(value, "length"),
 						_ => self.err(span, format!("the metadata of `{aty}`")),
 					},
@@ -286,7 +286,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		};
 		let first = crate::lower::pointer::cast(self.b, p, array, elem, span);
 		Expr::New(
-			Box::new(Expr::Rt("RawSlice".into())),
+			Box::new(Expr::Rs("RawSlice".into())),
 			vec![first, Expr::lit(len.to_string())],
 		)
 	}
@@ -333,7 +333,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let v = self.operand(op, span, out);
 		match elem_ty.kind() {
 			_ if crate::lower::byte(elem_ty) => {
-				let array = Expr::rt("bytes", vec![Expr::lit(n.to_string())]);
+				let array = Expr::rs("bytes", vec![Expr::lit(n.to_string())]);
 				match &v {
 					Expr::Lit(text) if text == "0" => array,
 					_ => array.member("fill").call(vec![v]),
@@ -394,14 +394,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.b.object_of(value, from, to, span)
 				}
-				// A future, as the `rt.Future` a `dyn Future` is.
+				// A future, as the `rs.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
 					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_future(part).is_some()) =>
 				{
 					let value = self.operand(op, span, out);
 					self.b.dyn_future(from, to, value, span)
 				}
-				// An iterator, as the `rt.Iter` a `dyn Iterator` is.
+				// An iterator, as the `rs.Iter` a `dyn Iterator` is.
 				PointerCoercion::Unsize
 					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_iter(part).is_some()) =>
 				{
@@ -420,7 +420,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							match crate::lower::bytes_ref(from) {
 								true => value,
 								false if from.is_raw_ptr() => self.raw_unsize(value, from, span),
-								false => Expr::rt("byteSliceFrom", vec![value]),
+								false => Expr::rs("byteSliceFrom", vec![value]),
 							}
 						}
 						_ => self.err(span, format!("a coercion to `{to}`")),
@@ -485,15 +485,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
-	/// of one: an `rt.ArcDyn` sharing its count, over what a box of its value unsizes to, or
+	/// of one: an `rs.ArcDyn` sharing its count, over what a box of its value unsizes to, or
 	/// the same `Arc` upcast.
 	fn arc_object(&mut self, arc: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
-		// An upcast of a function is the same `rt.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
+		// An upcast of a function is the same `rs.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
 		if pointee.is_trait() && self.b.t.dyn_fn(object).is_some() {
 			return arc;
 		}
-		// An upcast is of an `rt.ArcDyn` already, whose object has the supertraits' methods.
+		// An upcast is of an `rs.ArcDyn` already, whose object has the supertraits' methods.
 		let (arc, value) = match pointee.is_trait() {
 			true => (None, arc),
 			false => {
@@ -510,12 +510,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.b.object_of(value, from, to, span)
 		};
 		match arc {
-			Some(arc) => Expr::New(Box::new(Expr::Rt("ArcDyn".into())), vec![arc, value]),
+			Some(arc) => Expr::New(Box::new(Expr::Rs("ArcDyn".into())), vec![arc, value]),
 			None => value,
 		}
 	}
 
-	/// `weak`, a `Weak` of `pointee` unsized to one of `object`, as `arc_object`: `rt.weakDyn`
+	/// `weak`, a `Weak` of `pointee` unsized to one of `object`, as `arc_object`: `rs.weakDyn`
 	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
 	/// upcast, which `arc_object` checks.
 	fn weak_object(
@@ -535,10 +535,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		body.push(StmtKind::Return(Some(arc)).at(None));
 		let param = crate::ts::Param {
 			name,
-			ty: Some(crate::ts::Type::Rt("Arc", vec![self.b.t.ty(pointee, span)])),
+			ty: Some(crate::ts::Type::Rs("Arc", vec![self.b.t.ty(pointee, span)])),
 		};
-		let ret = crate::ts::Type::Rt("Arc", vec![self.b.t.ty(object, span)]);
-		Expr::rt("weakDyn", vec![weak, Expr::Arrow(vec![param], ret, body)])
+		let ret = crate::ts::Type::Rs("Arc", vec![self.b.t.ty(object, span)]);
+		Expr::rs("weakDyn", vec![weak, Expr::Arrow(vec![param], ret, body)])
 	}
 
 	/// A discriminant as its number, of a whole `next` result if `next`.
@@ -639,7 +639,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let op_ty = op.ty(&self.mir.local_decls, self.tcx);
 			let is_ref = op_ty.is_ref();
 			// Shared references to what holds nothing are `undefined` wherever they point, unlike
-			// a `&mut`, which may be an `rt.Place`.
+			// a `&mut`, which may be an `rs.Place`.
 			let mut pointee = op_ty;
 			while let ty::Ref(_, inner, rustc_ast::Mutability::Not) = pointee.kind() {
 				pointee = *inner;
@@ -693,7 +693,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// The `Result` a variant of one is rebuilt from, if it takes what that same variant of
 	/// another held, as `map_err` returns its `Ok`: that one's object, since a write into
-	/// an `rt.Result`'s payload replaces the result, so none changes in place. The payload,
+	/// an `rs.Result`'s payload replaces the result, so none changes in place. The payload,
 	/// held back for this one read, goes unread.
 	fn rebuilt_result(
 		&mut self,
@@ -786,7 +786,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					crate::lower::library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
-				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rt("FmtError".into())), Vec::new()),
+				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rs("FmtError".into())), Vec::new()),
 				(
 					std @ (Std::ParseBoolError
 					| Std::BorrowError
@@ -794,7 +794,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					| Std::CharTryFromError
 					| Std::TryFromCharError),
 					_,
-				) => Expr::New(Box::new(Expr::Rt(format!("{std:?}"))), Vec::new()),
+				) => Expr::New(Box::new(Expr::Rs(format!("{std:?}"))), Vec::new()),
 				// `ResumeTy`, an async body's context.
 				(Std::Context, _) => values.pop().unwrap_or_else(Expr::undefined),
 				(Std::RangeTo | Std::RangeToInclusive, _) => {
@@ -807,16 +807,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				(Std::RangeFrom, _) => {
 					values.extend(crate::lower::library::range_step(tcx, args.type_at(0), true));
-					Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
+					Expr::New(Box::new(Expr::Rs("RangeFrom".into())), values)
 				}
 				(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
-				(Std::Pending, _) => Expr::Rt("NEVER".into()),
-				(Std::WakerVTable, _) => Expr::rt("wakerVTable", values),
+				(Std::Pending, _) => Expr::Rs("NEVER".into()),
+				(Std::WakerVTable, _) => Expr::rs("wakerVTable", values),
 				(Std::RawWaker, _) => {
 					let [data, vtable] = <[Expr; 2]>::try_from(values).expect("a raw waker's two fields");
 					crate::lower::task::raw_waker(data, vtable)
 				}
-				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
+				(Std::LayoutError, _) => Expr::Rs("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),
 				(Std::Ordering, _) => crate::lower::collections::ordering_variant(variant),
@@ -824,7 +824,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::ControlFlow, _) => super::call::control_flow(self, ty, variant, values),
 				(Std::Range, _) => {
 					values.extend(crate::lower::library::range_step(tcx, args.type_at(0), false));
-					Expr::New(Box::new(Expr::Rt("Range".into())), values)
+					Expr::New(Box::new(Expr::Rs("Range".into())), values)
 				}
 				(Std::AssertKind, _) => match def.name.as_str() {
 					"Eq" => Expr::Str("==".into()),
@@ -1028,7 +1028,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let body = inner.lower();
 		let mut f = Expr::Arrow(inputs, ret, body);
 		if let Some(once) = by_move {
-			f = Expr::rt("byMove", vec![f, once]);
+			f = Expr::rs("byMove", vec![f, once]);
 		}
 		let make = made.then(|| self.b.fresh("make"));
 		if let Some(make) = &make {
@@ -1044,11 +1044,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				})
 				.collect();
 			let again = Expr::Lambda(Vec::new(), Box::new(Expr::ident(make).call(clones)));
-			f = Expr::rt("cloning", vec![f, again]);
+			f = Expr::rs("cloning", vec![f, again]);
 		}
 		// One that owns what drops carries the glue that drops it.
 		if let Some(glue) = glue {
-			f = Expr::rt("closure", vec![f, Expr::Arrow(Vec::new(), Type::Builtin("void"), glue)]);
+			f = Expr::rs("closure", vec![f, Expr::Arrow(Vec::new(), Type::Builtin("void"), glue)]);
 		}
 		let Some(make) = make else {
 			return f;

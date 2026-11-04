@@ -1,4 +1,4 @@
-//! `std::alloc`, as `rt/alloc.ts` gives it: a `Layout` is its size and alignment, never
+//! `std::alloc`, as `rs/alloc.ts` gives it: a `Layout` is its size and alignment, never
 //! changed once made, and memory from `alloc` is untyped until a cast of its pointer to one
 //! to `T`, which [`crate::lower::mir`] allows only where the body shows the pointer came
 //! from `alloc` or `realloc`, makes it a JS array of `T`s. A pointer to it as bytes is
@@ -28,22 +28,22 @@ pub fn call<'tcx>(
 			Err(e) => e,
 		},
 		("Layout", "array") => match layout(b) {
-			Ok((size, align)) => Expr::rt(
+			Ok((size, align)) => Expr::rs(
 				"layoutArray",
 				vec![arg(), Expr::lit(size.to_string()), Expr::lit(align.to_string())],
 			),
 			Err(e) => e,
 		},
-		("Layout", "from_size_align") => Expr::rt("layoutFromSizeAlign", vec![arg(), arg()]),
+		("Layout", "from_size_align") => Expr::rs("layoutFromSizeAlign", vec![arg(), arg()]),
 		("Layout", "from_size_align_unchecked") => object(arg(), arg()),
 		("Layout", "size" | "align") => arg().member(name),
-		("alloc", "alloc") => Expr::rt("alloc", vec![arg()]),
-		("alloc", "dealloc") => Expr::rt("dealloc", vec![arg()]),
+		("alloc", "alloc") => Expr::rs("alloc", vec![arg()]),
+		("alloc", "dealloc") => Expr::rs("dealloc", vec![arg()]),
 		("alloc", "realloc") => {
 			let (p, _, size) = (arg(), arg(), arg());
-			Expr::rt("realloc", vec![p, size])
+			Expr::rs("realloc", vec![p, size])
 		}
-		("alloc", "handle_alloc_error") => Expr::rt("handleAllocError", vec![arg()]),
+		("alloc", "handle_alloc_error") => Expr::rs("handleAllocError", vec![arg()]),
 		_ => return Err(args.collect()),
 	};
 	Ok(Some(e))

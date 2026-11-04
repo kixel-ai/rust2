@@ -413,8 +413,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Expr::Ident(_) => arc,
 			_ => self.b.spill(arc, "arc", out),
 		};
-		let p = Expr::rt("arcPlace", vec![arc.clone()]);
-		Some(Expr::rt("arcRaw", vec![arc, p, Expr::Str(owner)]))
+		let p = Expr::rs("arcPlace", vec![arc.clone()]);
+		Some(Expr::rs("arcRaw", vec![arc, p, Expr::Str(owner)]))
 	}
 
 	/// Whether the raw pointer `op` to a value JS copies is an `Arc`'s or `Rc`'s, as

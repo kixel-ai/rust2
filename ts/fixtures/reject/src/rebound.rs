@@ -4,7 +4,7 @@ fn cell_of(c: &std::cell::UnsafeCell<u64>) -> *mut u64 {
 	c.get()
 }
 
-/// The pointer `UnsafeCell::get` gives a callee, the `rt.Cell` itself, which the caller's
+/// The pointer `UnsafeCell::get` gives a callee, the `rs.Cell` itself, which the caller's
 /// assignment of the variable replaces.
 pub fn cell_rebound(n: u64) -> u64 {
 	let mut cell = std::cell::UnsafeCell::new(n);

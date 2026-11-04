@@ -2,7 +2,7 @@
 
 use crate::rebound::part_cell;
 
-/// Structs JS keeps as objects, each holding an `rt.Cell`, one for each kind of whole
+/// Structs JS keeps as objects, each holding an `rs.Cell`, one for each kind of whole
 /// write of a value that holds one, which gives it another cell, while a pointer to the
 /// cell, taken through a reference to the struct, may still be read.
 pub struct InArray(pub std::cell::UnsafeCell<u16>);

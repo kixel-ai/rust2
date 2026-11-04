@@ -1,10 +1,10 @@
 // `char`'s Unicode classes, case maps, escapes, and encodings, for rust2-ts output, and the
-// iterators they make, and `str`'s case maps and escapes. `rt.ts` re-exports all of it.
+// iterators they make, and `str`'s case maps and escapes. `rs.ts` re-exports all of it.
 //
-// Each reads std's own Unicode tables, which `rt/unicode.ts` holds, rather than the
+// Each reads std's own Unicode tables, which `rs/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, sliceView } from "../rs.ts";
 import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
 import { strChars } from "./str.ts";
@@ -12,7 +12,7 @@ import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 import type { Location } from "./location.ts";
 
-/** A class of chars, as runs from one of `rt/unicode.ts`'s tables, decoded once one is looked up. */
+/** A class of chars, as runs from one of `rs/unicode.ts`'s tables, decoded once one is looked up. */
 class Runs {
 	readonly #table: readonly number[];
 	// Where each run starts and ends, in order.
@@ -84,7 +84,7 @@ export function charIsControl(c: char): boolean {
 	return c <= 0x1f || (c >= 0x7f && c <= 0x9f);
 }
 
-/** A case map, from one of `rt/unicode.ts`'s tables of runs and of chars that map to more than one, decoded once one is looked up. */
+/** A case map, from one of `rs/unicode.ts`'s tables of runs and of chars that map to more than one, decoded once one is looked up. */
 class CaseMap {
 	readonly #table: readonly number[];
 	readonly #multi: readonly number[];

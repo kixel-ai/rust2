@@ -12,5 +12,5 @@
 		"verbatimModuleSyntax": true,
 		"erasableSyntaxOnly": true
 	},
-	"files": ["rt.ts", "rt/bytes.ts", "rt/collections.ts", "rt/int.ts", "rt/iter.ts", "rt/rand.ts", "rt/sort.ts", "rt/str.ts", "rt/task.ts", "rt/time.ts"]
+	"files": ["rs.ts", "rs/bytes.ts", "rs/collections.ts", "rs/int.ts", "rs/iter.ts", "rs/rand.ts", "rs/sort.ts", "rs/str.ts", "rs/task.ts", "rs/time.ts"]
 }
