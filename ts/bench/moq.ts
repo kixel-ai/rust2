@@ -202,7 +202,7 @@ function decodeSplit(data: Uint8Array, version: Version): Uint8Array {
 }
 
 function encodeGroup(data: Uint8Array, version: Version): Promise<Uint8Array> {
-	const group = new Group({ subscribe: u64(data, 0), sequence: Number(u64(data, 1)) });
+	const group = new Group({ subscribe: u64(data, 0), sequence: u64(data, 1) });
 	return Writer.collect(version, (w) => group.encode(w, version));
 }
 
