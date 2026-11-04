@@ -651,6 +651,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let to = self.operand(target, span, out);
 				let to = self.b.t.pointee_value(target.ty(&self.mir.local_decls, tcx), to);
 				let source = self.operand(source, span, out);
+				// A reference to an array is a slice of it, cloned over element by element.
+				if let ty::Array(elem, _) = ty.kind() {
+					let fns = library::clone_from_fns(self.b, *elem, span);
+					return done(Expr::rs("sliceCloneFromSlice", [vec![to, source], fns].concat()), true);
+				}
 				done(library::clone_from(self.b, to, source, ty, span), true)
 			}
 			// `*self = source.clone()`, as std's `Clone` for a `T: Clone` has `clone_from` and
@@ -1429,7 +1434,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			let target = target.clone();
 			let target = self.stable_target(deref, target, span, out);
-			return Some(of(self.place_of(target, None)));
+			let element = self.elements.contains(&place.local) || super::place::element(self.through_aliases(deref));
+			let made = match element.then(|| super::place::at_index(&target)).flatten() {
+				Some(at) => at,
+				None => self.place_of(target, None),
+			};
+			return Some(of(made));
 		}
 		if self.b.t.needs_place(ty) {
 			let made = self.operand(op, span, out);
@@ -1708,6 +1718,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			out.push(StmtKind::If { cond, then, els }.at(None));
 		}
 		let read = Expr::As(Box::new(target.clone()), self.b.t.ty(payload_ty, span));
+		// A reference to an array is a slice of it.
+		if payload_ty.is_array() {
+			return Some(Some((self.b.t.array_rs(payload_ty, "From").call(vec![read]), true)));
+		}
 		if let Some(local) = dest.as_local()
 			&& self.defs[local] == 1
 			&& matches!(self.slots[local], Slot::Var(_))
@@ -1977,11 +1991,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& matches!(self.slots[local], Slot::Var(_))
 				{
 					self.slots[local] = Slot::Alias(Some(place));
+					self.elements.insert(local);
 					return Some(None);
 				}
 				if name == "index_mut" && self.b.t.needs_place(elem_ty) {
 					let target = self.stable_path(place, false, span, out);
-					return Some(Some((self.place_of(target, None), true)));
+					let made = super::place::at_index(&target).unwrap_or_else(|| self.place_of(target, None));
+					return Some(Some((made, true)));
 				}
 				Some(Some((place, true)))
 			}
@@ -2245,3 +2261,4 @@ fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
 		_ => {}
 	}
 }
+

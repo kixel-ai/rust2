@@ -75,7 +75,8 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 				("mem", "swap" | "replace" | "take")
 				| ("Clone", "clone_from")
 				| ("ToOwned", "clone_into")
-				| ("raw" | "array" | "Cell" | "ptr", "from_mut") => true,
+				| ("raw" | "array" | "Cell" | "ptr", "from_mut")
+				| ("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => true,
 				// `Clone::clone`, which takes the slice, and an array as a slice, which it is.
 				("ToOwned", "to_owned") => true,
 				("AsRef" | "AsMut" | "Borrow" | "BorrowMut", _) => {
@@ -134,7 +135,7 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 		}
 		match lends(t, generic, ty) {
 			Some(false) => {}
-			Some(true) if reads => {}
+			Some(true) if reads && reads_either(ty) => {}
 			Some(true) if gives(t, generic, ty) => lent.given.push((i, (generic, ty))),
 			_ => return Plan::Refused,
 		}
@@ -169,11 +170,18 @@ fn collection<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRe
 	t.std_of(coll).is_some_and(super::collections::lending)
 }
 
+/// Whether every `&[T; N]` `ty` holds is of bytes, which a collection's runtime reads in
+/// either form.
+fn reads_either(ty: Ty<'_>) -> bool {
+	ty.walk().all(|arg| arg.as_type().and_then(super::array_ref).is_none_or(super::byte))
+}
+
 /// Whether `ty` holds a `[T; N]` other than behind a reference or in a closure, which std
-/// only calls.
+/// only calls, or one a closure returns, which std may hold as an iterator's item.
 fn owns_array(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Array(..) => true,
+		ty::Closure(_, args) => owns_array(args.as_closure().sig().skip_binder().output()),
 		ty::Slice(elem) => owns_array(*elem),
 		ty::Tuple(tys) => tys.iter().any(owns_array),
 		ty::Adt(_, args) | ty::Alias(_, ty::AliasTy { args, .. }) => args.types().any(owns_array),

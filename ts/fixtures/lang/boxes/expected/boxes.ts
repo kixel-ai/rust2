@@ -220,8 +220,8 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.byteSliceView(a).includes(0) ? 1 : 0);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceFirst(a), 170));
 		const _261: rs.ByteSlice = rs.byteSliceFrom(new Uint8Array(0));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_261), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2]]));
+		const args9 = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_261), f, rs.u8Debug)];
+		put(out, rs.fmtFormat([args9[0], "|", args9[1], "|", args9[2]]));
 	} else if (_15 === 2) {
 		const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_24: rs.u8): rs.u16 => {
 			return rs.u16Mul(_24 as rs.u16, 257);
@@ -261,8 +261,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(collected2, cloned2) ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(collected2, cloned2) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_slice_u16(collected2), hash$slice_u16(collected2)) ? 1 : 0);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)];
-		put(out, rs.fmtFormat([args4[0]]));
+		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)][0]]));
 		const v3: rs.Vec<rs.u16> = rs.vecFrom(rs.sliceItems(fromVec2));
 		v3.items.push(5);
 		wides(rs.sliceFrom(v3.items), out);
@@ -424,8 +423,8 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, fromRef4 === into2 ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpStr(collected4, fromRef4) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_str(fromRef4), hash$str(s)) ? 1 : 0);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, fromRef4), (f: rs.Formatter) => rs.fmtStr(collected4, f)];
-		put(out, rs.fmtFormat([args6[0], "|", args6[1]]));
+		const args7 = [(f: rs.Formatter) => rs.fmtPad(f, fromRef4), (f: rs.Formatter) => rs.fmtStr(collected4, f)];
+		put(out, rs.fmtFormat([args7[0], "|", args7[1]]));
 		let back2: string = into2;
 		back2 = back2 + "!";
 		put(out, back2);

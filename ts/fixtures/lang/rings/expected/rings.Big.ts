@@ -27,8 +27,8 @@ export interface Big {
 export function fmt$fmt_Debug(self: Big, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const part = self.pad[1099];
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(part, f)];
-	return rs.fmtWriteFmt(f, ["B", args2[0], ".", args2[1]]);
+	const args3 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.u8Display(part, f)];
+	return rs.fmtWriteFmt(f, ["B", args3[0], ".", args3[1]]);
 }
 
 export function make$rings_Item(b: rs.u8): Big {

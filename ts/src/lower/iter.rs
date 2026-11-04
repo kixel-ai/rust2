@@ -1342,7 +1342,17 @@ pub fn call<'tcx>(
 				true => super::collections::eq_fn(b, item, span),
 				false => {
 					let by = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, expected);
-					super::collections::impl_eq(b, "eq", item, expected, [item, by], span)
+					let eq = super::collections::impl_eq(b, "eq", item, expected, [item, by], span);
+					// The mapping is given the array, where the impl's `eq` takes a slice of it.
+					match expected.is_array() {
+						true => {
+							let param = |name: &str| crate::ts::Param { name: name.into(), ty: None };
+							let slice = super::array_fn(expected, "From").call(vec![Expr::ident("b")]);
+							let call = eq.call(vec![Expr::ident("a"), slice]);
+							Expr::Lambda(vec![param("a"), param("b")], Box::new(call))
+						}
+						false => eq,
+					}
 				}
 			};
 			method(&camel, [rest, vec![eq], none.into_iter().collect()].concat())

@@ -60,7 +60,7 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const at: rs.Place<rs.u16> = rs.arrayAsPtr(a, i);
 		at.v = 99;
-		const whole: rs.Place<rs.u16> = rs.arrayAsPtr(a);
+		const whole: rs.Place<rs.u16> = rs.sliceAsPtr(rs.sliceFrom(a));
 		const _18: rs.Place<rs.u16> = rs.ptrAdd(whole, rs.usizeAdd(i, 1));
 		_18.v = rs.u16Add(_18.v, 10);
 		const _22: rs.u16 = n as rs.u16;
@@ -275,7 +275,7 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			_200 = rs.Ok([x, 1] as [rs.u32, rs.u32]);
 		}
-		const uninit = rs.place(() => dst[1], (value6) => dst[1] = value6);
+		const uninit = rs.arrayAsPtr(dst, 1);
 		uninit.v = _200;
 		uninit;
 		const _207: rs.Result<[rs.u32, rs.u32], rs.u8> = dst[1];
@@ -307,15 +307,15 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const wide2: rs.Slice<rs.u16> = rs.ptrSlice(rs.DANGLING, 0);
 		rs.byteVecPush(out, rs.ptrWrappingAdd(rs.sliceAsPtr(rs.sliceRange(wide2, 0, 0)), -1, 2, 2) === rs.NULL ? 1 : 0);
 		rs.byteVecPush(out, rs.ptrWrappingAdd(rs.sliceAsPtr(rs.optionUnwrap(rs.sliceGetRange(wide2, 0, 0))), -1, 2, 2) === rs.NULL ? 1 : 0);
-		rs.byteVecPush(out, new rs.RawSlice(rs.arrayAsPtr(rs.NULL), 3).ptr === rs.NULL ? 1 : 0);
+		rs.byteVecPush(out, new rs.RawSlice(rs.sliceAsPtr(rs.NULL), 3).ptr === rs.NULL ? 1 : 0);
 		const row: rs.u32[] = [n as rs.u32, 9, 10];
-		const unsizedLanes: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.arrayAsPtr(row), 3);
+		const unsizedLanes: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.sliceAsPtr(rs.sliceFrom(row)), 3);
 		rs.byteVecPush(out, unsizedLanes.ptr === rs.NULL ? 1 : 0);
 		rs.byteVecPush(out, rs.ptrAdd(unsizedLanes.ptr, 2).v & 0xff);
 		rs.byteVecPush(out, rs.ptrWrappingAdd(new rs.RawSlice(rs.ptrWrappingAdd(rs.NULL, rs.usizeAdd(rs.u8Rem(n, 3) as rs.usize, 1), 4, 4), 0).ptr, -rs.usizeAdd(rs.u8Rem(n, 3) as rs.usize, 1), 4, 4) === rs.NULL ? 1 : 0);
-		rs.byteVecPush(out, rs.arrayAsPtr(rs.NULL) === rs.NULL ? 1 : 0);
+		rs.byteVecPush(out, rs.sliceAsPtr(rs.NULL) === rs.NULL ? 1 : 0);
 		rs.byteVecPush(out, rs.ptrWrappingAdd(rs.byteSliceAsPtr(rs.NULL), n as rs.usize, 1, 1) === rs.NULL ? 1 : 0);
-		rs.byteVecPush(out, rs.ptrWrappingAdd(rs.arrayAsPtr(rs.DANGLING), -1, 2, 2) === rs.NULL ? 1 : 0);
+		rs.byteVecPush(out, rs.ptrWrappingAdd(rs.sliceAsPtr(rs.DANGLING), -1, 2, 2) === rs.NULL ? 1 : 0);
 	}
 	const bytes2: Uint8Array = Uint8Array.of(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 1, 2, 3, 4, 5);
 	const s: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(bytes2), 1);
@@ -417,7 +417,7 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slice11 = raw.deref();
 	slice11.data[slice11.start + 2] = 8;
 	emit(raw.deref(), out);
-	const whole2: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.arrayAsPtr(short), 2);
+	const whole2: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.sliceAsPtr(rs.sliceFrom(short)), 2);
 	const ofRef: rs.RawSlice<rs.u32> = rs.rawSliceOf(rs.sliceRange(rs.sliceFrom(v.items), 1, 3));
 	rs.byteVecPush(out, rs.usizeAdd(whole2.length, ofRef.length) & 0xff);
 	rs.idx(ofRef, 1);
@@ -477,9 +477,9 @@ export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), (part11: rs.Slice<rs.u16>): rs.u8 => {
 			return null_(rs.sliceAsPtr(part11));
 		}), "next");
-		const part13 = rs.sliceAsPtr(rs.sliceFrom(rs.optionUnwrap(rs.sliceFirstChunk(_23[0], 0))));
+		const part13 = rs.sliceAsPtr(rs.optionUnwrap(rs.sliceGetRange(_23[0], 0, 0)));
 		rs.byteVecPush(out, null_(part13));
-		const part14 = rs.sliceAsPtr(rs.sliceFrom(rs.optionUnwrap(rs.sliceLastChunk(_23[0], 0))));
+		const part14 = rs.sliceAsPtr(rs.optionUnwrap(rs.sliceLastChunk(_23[0], 0)));
 		rs.byteVecPush(out, null_(part14));
 		const part15 = rs.sliceAsPtr(rs.optionUnwrap(_23[0]));
 		rs.byteVecPush(out, null_(part15));

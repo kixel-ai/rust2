@@ -33,10 +33,9 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const nested: Wrap.Wrap<Wrap.Wrap<Pair.Pair>> = Wrap.new$generics_Wrap_fmt_Pair(Wrap.new$fmt_Pair({ _0: at(2), _1: -3 }));
 	const meters: Wrap.Wrap<Meters.Meters> = new Wrap.Wrap({ _0: at(3) as rs.u64 }, at(4));
 	const shape: Wrap.Wrap<Shape.Shape> = Wrap.new$shapes_Shape({ tag: "Rect", corner: Wrap.intoInner$shapes_Point(point), width: at(5) as rs.u16, height: 3 } as Shape.Shape);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	const args13 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
+	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]));
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f)][0])]));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(Wrap.double$u8(byte))));
 	rs.byteVecPush(out, Wrap.get$u8(byte));
 	rs.byteVecPush(out, Wrap.get$fmt_Pair(Wrap.get$generics_Wrap_fmt_Pair(nested))._0);
@@ -49,8 +48,8 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	const _119: Wrap.Wrap<Pair.Pair> = Wrap.new$fmt_Pair({ _0: at(1), _1: 0 });
 	const _116: boolean = Wrap.eq$cmp_PartialEq_fmt_Pair(mapped, _119);
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_fmt_Pair(mapped, f), (f: rs.Formatter) => rs.fmtBool(_116, f)];
-	put(out, rs.fmtFormat([args6[0], " ", args6[1]]));
+	const args15 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_fmt_Pair(mapped, f), (f: rs.Formatter) => rs.fmtBool(_116, f)];
+	put(out, rs.fmtFormat([args15[0], " ", args15[1]]));
 	const iter: rs.Iter<Either.Either<rs.u8, Point.Point>> = rs.iterSlice(copy$array_generics_Either_u8_shapes_Point([{ tag: "Left", _0: at(7) } as Either.Either<rs.u8, Point.Point>, { tag: "Right", value: Point.new(1, -1) } as Either.Either<rs.u8, Point.Point>, { tag: "Neither" } as Either.Either<rs.u8, Point.Point>]));
 	while (true) {
 		const _140: Either.Either<rs.u8, Point.Point> | rs.Done = iter.next();
@@ -61,8 +60,8 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const flipped: Either.Either<Point.Point, rs.u8> = Either.flip$u8_shapes_Point(either);
 		const _153: rs.u8 | undefined = Either.left$u8_shapes_Point(either);
 		const _156: Point.Point | undefined = Either.left$shapes_Point_u8(flipped);
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_shapes_Point(either, f), (f: rs.Formatter) => Either.fmt$fmt_Debug_shapes_Point_u8(flipped, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_156, f, (value: Point.Point, f: rs.Formatter) => Point.fmt$fmt_Debug(value, f))];
-		put(out, rs.fmtFormat([args8[0], " ", rs.fmtSpec({ alternate: true }, args8[1]), " ", args8[2], " ", args8[3]]));
+		const args16 = [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_shapes_Point(either, f), (f: rs.Formatter) => Either.fmt$fmt_Debug_shapes_Point_u8(flipped, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_156, f, (value: Point.Point, f: rs.Formatter) => Point.fmt$fmt_Debug(value, f))];
+		put(out, rs.fmtFormat([args16[0], " ", rs.fmtSpec({ alternate: true }, args16[1]), " ", args16[2], " ", args16[3]]));
 	}
 	const list: Wrap.Wrap<rs.Vec<rs.u16>> = new Wrap.Wrap(new rs.Vec(), 1);
 	const _171: rs.u16 = at(10) as rs.u16;
@@ -72,12 +71,12 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const some: Wrap.Wrap<rs.u8 | undefined> = Wrap.new$Option_u8(rs.byteSliceGet(data, 11));
 	const err: Wrap.Wrap<rs.Result<rs.u8, Shape.Shape>> = new Wrap.Wrap(rs.Err({ tag: "Dot" } as Shape.Shape), 2);
 	const _193: rs.u8 = option_unwrapOr$1fr498u(Wrap.get$Option_u8(none), some.count);
-	const args10: rs.Fmt[] = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rs.Formatter) => rs.u8Debug(_193, f)];
-	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " ", args10[4]]));
+	const args17 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rs.Formatter) => rs.u8Debug(_193, f)];
+	put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4]]));
 	const tagged: Tagged.Tagged<Either.Either<rs.u8, rs.u16>, rs.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rs.u8, rs.u16>, Wrap.new$i16(rs.i16Sub(at(8) as rs.i16, 100)), rs.vecFrom([Wrap.new$i16(-1), Wrap.new$i16(at(9) as rs.i16)].slice()));
 	const _237: Wrap.Wrap<rs.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
-	const args12: rs.Fmt[] = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_237, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
-	put(out, rs.fmtFormat([args12[0], " ", args12[1]]));
+	const args18 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_237, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
+	put(out, rs.fmtFormat([args18[0], " ", args18[1]]));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(tagged.inner.value)));
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(Either.left$u8_u16(tagged.key), 0));
 }
@@ -193,8 +192,8 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _88: rs.usize = Runs.total$u8(runs);
 	const _91: boolean = Runs.eq$cmp_PartialEq_u8(runs, before);
 	const _95: rs.u8 | undefined = Run.first$u8(run);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_88, f), (f: rs.Formatter) => rs.fmtBool(_91, f), (f: rs.Formatter) => rs.fmtOption(_95, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9], " ", args2[10]]));
+	const args5 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_88, f), (f: rs.Formatter) => rs.fmtBool(_91, f), (f: rs.Formatter) => rs.fmtOption(_95, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7], " ", args5[8], " ", args5[9], " ", args5[10]]));
 	const data3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
 		return _22 as rs.u16;
 	}), undefined, 2, true);
@@ -213,9 +212,9 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		Runs.push$u16(runs2, _154);
 	}
-	const _160: rs.u16[] | undefined = rs.sliceFirst(rs.sliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items));
+	const _160: rs.Slice<rs.u16> | undefined = rs.optionMap(rs.sliceFirst(rs.sliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items)), rs.sliceFrom);
 	if (_160 !== undefined) {
-		fill$u16(rs.sliceFrom(_160), n2);
+		fill$u16(_160, n2);
 	}
 	fill$u16(rs.sliceRange(rs.sliceFrom(runs2.array as rs.u16[]), 1), 7 as rs.u16);
 	const taken4 = runs2.list as rs.Vec<rs.u16>;
@@ -239,8 +238,8 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _204: rs.usize = Runs.total$u16(runs2);
 	const _207: boolean = Runs.eq$cmp_PartialEq_u16(runs2, before2);
 	const _211: rs.u16 | undefined = Run.first$u16(run2);
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rs.Formatter) => rs.fmtList(taken2.items, f, rs.u16Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rs.Formatter) => rs.usizeDisplay(_204, f), (f: rs.Formatter) => rs.fmtBool(_207, f), (f: rs.Formatter) => rs.fmtOption(_211, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtOption(last2, f, rs.u16Debug)];
-	put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " ", args4[6], " ", args4[7], " ", args4[8], " ", args4[9], " ", args4[10]]));
+	const args6 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rs.Formatter) => rs.fmtList(taken2.items, f, rs.u16Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rs.Formatter) => rs.usizeDisplay(_204, f), (f: rs.Formatter) => rs.fmtBool(_207, f), (f: rs.Formatter) => rs.fmtOption(_211, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtOption(last2, f, rs.u16Debug)];
+	put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", args6[6], " ", args6[7], " ", args6[8], " ", args6[9], " ", args6[10]]));
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));

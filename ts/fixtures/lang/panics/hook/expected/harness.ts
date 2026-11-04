@@ -29,11 +29,9 @@ export function op(name: string): rs.u16 {
 				return _20.value;
 			}
 		}
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, name)];
-		rs.panicFmt(["case ", args4[0], " is past what two bytes pick"], { file: "fixtures/lang/panics/src/../../harness.rs", line: 28, col: 14 });
+		rs.panicFmt(["case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0], " is past what two bytes pick"], { file: "fixtures/lang/panics/src/../../harness.rs", line: 28, col: 14 });
 	} else {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, name)];
-		rs.panicFmt(["no case ", args2[0]], { file: "fixtures/lang/panics/src/../../harness.rs", line: 23, col: 9 });
+		rs.panicFmt(["no case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0]], { file: "fixtures/lang/panics/src/../../harness.rs", line: 23, col: 9 });
 	}
 }
 

@@ -315,11 +315,6 @@ pub fn byte_pointer_parts(a: [u8; 4], b: [[u8; 2]; 3]) -> bool {
 	std::ptr::eq(x, y) || std::ptr::eq(&b[0], &b[1])
 }
 
-/// Pointers to arrays of other values than bytes, which a slice lends as copies, compared.
-pub fn array_pointers(a: [u16; 2], s: &[u16]) -> bool {
-	s.first_chunk::<2>().is_some_and(|c| std::ptr::eq(c, &a))
-}
-
 /// Pointers to an array of bytes in a variable assigned again while they point there,
 /// made of a reference and as a raw borrow.
 pub fn byte_pointer_rebound(n: u8) -> u8 {

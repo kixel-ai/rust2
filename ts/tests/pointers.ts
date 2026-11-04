@@ -17,6 +17,15 @@ const a = rs.place(() => x, (v) => (x = v));
 const b = rs.place(() => x, (v) => (x = v));
 unsure(() => rs.ptrOffsetFrom(a, b));
 assert.equal(rs.ptrOffsetFrom(rs.ptrAdd(a, 1), a), 1);
+// Compared, which only the one place, or arithmetic back to it, tells apart.
+unsure(() => rs.placeSame(a, b));
+unsure(() => rs.placeSame(rs.ptrAdd(a, 1), rs.ptrAdd(b, 1)));
+assert.ok(rs.placeSame(rs.ptrAdd(rs.ptrAdd(a, 1), -1), a));
+assert.ok(!rs.placeSame(a, rs.NULL));
+// Elements of different arrays, which are apart, and of a byte buffer's views at one offset.
+assert.ok(!rs.placeSame(rs.arrayAsPtr([1], 0), rs.arrayAsPtr([1], 0)));
+const buffer = Uint8Array.of(1, 2, 3);
+assert.ok(rs.placeSame(rs.arrayAsPtr(buffer, 2), rs.arrayAsPtr(buffer.subarray(1), 1)));
 
 // A `repr(C)` struct's fields, each a value in no array: reached from the other, and as a slice of both.
 const pair = { low: 1, high: 2 };

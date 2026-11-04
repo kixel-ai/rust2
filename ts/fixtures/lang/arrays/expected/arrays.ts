@@ -1394,7 +1394,7 @@ export function flattenedN$0(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(sums.items), (x: rs.u16): Uint8Array => {
 		return rs.u16ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(options.items[rs.idx(options.items, 3)]), rs.byteSliceFrom));
+	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(rs.arrayAsPtr(options.items, rs.idx(options.items, 3)).v), rs.byteSliceFrom));
 	while (true) {
 		const _249: rs.ByteSlice | rs.Done = iter14.next();
 		if (_249 === rs.DONE) {
@@ -1643,7 +1643,7 @@ export function flattenedN$1(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(sums.items), (x: rs.u16): Uint8Array => {
 		return rs.u16ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(options.items[rs.idx(options.items, 3)]), rs.byteSliceFrom));
+	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(rs.arrayAsPtr(options.items, rs.idx(options.items, 3)).v), rs.byteSliceFrom));
 	while (true) {
 		const _249: rs.ByteSlice | rs.Done = iter14.next();
 		if (_249 === rs.DONE) {
@@ -1892,7 +1892,7 @@ export function flattenedN$5(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(sums.items), (x: rs.u16): Uint8Array => {
 		return rs.u16ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(options.items[rs.idx(options.items, 3)]), rs.byteSliceFrom));
+	const iter14: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterOption(other), rs.byteSliceFrom), rs.iterLend(rs.iterOption(rs.arrayAsPtr(options.items, rs.idx(options.items, 3)).v), rs.byteSliceFrom));
 	while (true) {
 		const _249: rs.ByteSlice | rs.Done = iter14.next();
 		if (_249 === rs.DONE) {

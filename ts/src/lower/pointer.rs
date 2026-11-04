@@ -97,10 +97,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.uninit_inner(ty).is_unit()
 	}
 
-	/// Why pointers to `ty` that are not null don't compare as their JS values, if they
-	/// don't. Two `rs.Place`s of one place are two objects, and Rust leaves where a value of
-	/// no bytes is unspecified, but a pointer to `()` is an identity. Notes the comparison of
-	/// those that do, for [`Self::taken`].
+	/// Why pointers to `ty` that are not null can't compare, if they can't: Rust leaves
+	/// where a value of no bytes is unspecified, but a pointer to `()` is an identity. Notes
+	/// the comparison of objects, for [`Self::taken`].
 	pub fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
 		if self.identity_pointee(ty) {
 			return None;
@@ -120,12 +119,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				self.compare(ty);
 				None
 			}
-			Pointee::Place => Some(format!(
-				"comparing pointers to `{ty}`, each a place JS makes of its own"
-			)),
+			Pointee::Place => None,
 			Pointee::Slice => Some(format!(
 				"comparing pointers to `{ty}`, whose element pointers are places JS makes of their own"
 			)),
+		}
+	}
+
+	/// What tells whether two pointers to `ty` point at the same place where `===` can't:
+	/// `rs.placeSame` of `rs.Place`s, and the slices' of an array.
+	pub fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
+		match self.pointee(ty) {
+			_ if self.identity_pointee(ty) => None,
+			Pointee::Place => Some(Expr::Rs("placeSame".into())),
+			Pointee::Array => Some(self.array_rs(ty, "Same")),
+			Pointee::Object | Pointee::Slice => None,
 		}
 	}
 
@@ -1119,7 +1127,7 @@ pub fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>,
 	let null = |e: &Expr| matches!(e, Expr::Rs(n) if n == "NULL");
 	match b.t.incomparable(ty) {
 		Some(why) if !null(&x) && !null(&y) => b.err(span, why),
-		_ if b.t.pointee(ty) == Pointee::Array && !null(&x) && !null(&y) => b.t.array_rs(ty, "Same").call(vec![x, y]),
+		_ if !null(&x) && !null(&y) && let Some(same) = b.t.same_fn(ty) => same.call(vec![x, y]),
 		// Each is a view of the struct it was made from.
 		_ if !ty.is_trait() && super::dynamic::unsized_object(b.t.tcx, ty) => Expr::rs("tailSame", vec![x, y]),
 		_ => x.binary("===", y),

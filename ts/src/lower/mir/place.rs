@@ -47,10 +47,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// Passed on or kept, a `&mut` to a borrowed place JS copies is its `rs.Place`.
 			Slot::Alias(Some(target)) if self.points_at_place(local) => {
 				let target = target.clone();
-				let payload = match self.def_rvalue(local) {
-					Some(mir::Rvalue::Ref(_, _, p)) => self.payload_ty(*p, span),
+				let borrowed = match self.def_rvalue(local) {
+					Some(mir::Rvalue::Ref(_, _, p)) => Some(*p),
 					_ => None,
 				};
+				if (self.elements.contains(&local) || borrowed.is_some_and(element))
+					&& let Some(at) = at_index(&target)
+				{
+					return at;
+				}
+				let payload = borrowed.and_then(|p| self.payload_ty(p, span));
 				self.place_of(target, payload)
 			}
 			Slot::Alias(Some(target)) => target.clone(),
@@ -990,6 +996,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The `rs.Place` of `target`, the JS path of the borrowed `place`, fixed where it is now.
 	pub(super) fn make_place(&mut self, place: Place<'tcx>, target: Expr, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let target = self.stable_target(place, target, span, out);
+		if element(place)
+			&& let Some(at) = at_index(&target)
+		{
+			return at;
+		}
 		let payload = self.payload_ty(place, span);
 		self.place_of(target, payload)
 	}
@@ -2403,4 +2414,18 @@ fn narrowed(value: Expr) -> Expr {
 		(crate::ts::Key::Name("ok".into()), Expr::lit(ok)),
 		(crate::ts::Key::Name(key.into()), payload.clone()),
 	])
+}
+
+/// Whether `place` is an element of an array or a slice.
+pub(super) fn element(place: Place<'_>) -> bool {
+	matches!(place.projection.last(), Some(ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. }))
+}
+
+/// The `rs.AtIndex` of an element at `target`, its path in its array, where it is in that
+/// array, as a raw pointer to it is, so pointers made of either compare where they point.
+pub(super) fn at_index(target: &Expr) -> Option<Expr> {
+	match target.unlocated() {
+		Expr::Index(array, index) => Some(Expr::rs("arrayAsPtr", vec![*array.clone(), *index.clone()])),
+		_ => None,
+	}
 }

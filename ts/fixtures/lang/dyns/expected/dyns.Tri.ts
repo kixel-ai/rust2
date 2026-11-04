@@ -57,8 +57,7 @@ export function intoArea$dyns_Shape(self: Tri): rs.u32 {
 }
 
 export function label$dyns_Named(self: Tri): string {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => fmt$fmt_Debug(self, f)];
-	return rs.fmtFormat(["tri ", args2[0]]);
+	return rs.fmtFormat(["tri ", [(f: rs.Formatter) => fmt$fmt_Debug(self, f)][0]]);
 }
 
 export function asAny$dyns_Erased(self: Tri): Any.Any {

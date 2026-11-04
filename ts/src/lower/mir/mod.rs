@@ -421,6 +421,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
+	/// References to elements an index call returns, each the element's path in its array.
+	elements: FxHashSet<Local>,
 	/// The two variables each holds its fields in, by `step`.
 	stepped_vars: FxHashMap<Local, [String; 2]>,
 	/// Those moved into another, which shares its variables.
@@ -526,6 +528,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			stepped: FxHashSet::default(),
 			stepped_borrows: FxHashMap::default(),
 			reborrows: FxHashMap::default(),
+			elements: FxHashSet::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
 			noops: FxHashSet::default(),

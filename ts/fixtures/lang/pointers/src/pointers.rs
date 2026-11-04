@@ -4,7 +4,8 @@
 //! and compared; pointers to the parts of a struct kept as objects; the pointers
 //! `UnsafeCell::get` gives; slots of fresh memory written whole before any pointer
 //! into them is taken, by index or through std's iterators over them; pointers into
-//! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays of bytes; a
+//! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays and to their
+//! elements, compared where they point; a
 //! pointer into a cell that other functions write whole through a `&mut` to it;
 //! pointers a generic type holds to its parameter, at each form a pointer takes; and the
 //! raw pointers of an `Arc` and an `Rc`, counted and taken back.
@@ -2271,3 +2272,78 @@ pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 
 /// What holds an `Arc` a reference to it borrows through.
 struct Shelf(Arc<u32>);
+
+/// Pointers to arrays of other values than bytes and to their elements, made of the array,
+/// of references to it and its parts, by `first_chunk`, `split_first_chunk`, a subslice
+/// pattern, `array::from_mut`, raw borrows, and `as_ptr` with arithmetic, in an array, a
+/// `Vec`, and an `AtomicPtr`: compared where they point, and written through.
+pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
+	for &n in data {
+		let w = u32::from(n) * 257;
+		let mut a = [w, w ^ 1, w ^ 2, w ^ 3];
+		let b = a;
+		let p: *const [u32; 4] = &a;
+		let s: &[u32] = &a;
+		let first: *const [u32; 2] = s.first_chunk().unwrap();
+		let again: *const [u32; 2] = a[..3].first_chunk().unwrap();
+		let (head, rest) = a.split_first_chunk::<1>().unwrap();
+		let middle: *const [u32; 2] = rest.first_chunk().unwrap();
+		let (e0, e1) = (&raw const a[0], &raw const a[1]);
+		out.extend([
+			u8::from(ptr::eq(p, &a)),
+			u8::from(ptr::eq(p, &b)),
+			u8::from(ptr::eq(first, again)),
+			u8::from(ptr::eq(first, middle)),
+			u8::from(ptr::eq(e0, head.as_ptr())),
+			u8::from(ptr::eq(e0, e1)),
+			u8::from(ptr::eq(e1, rest.as_ptr())),
+			u8::from(ptr::eq(e1, s.as_ptr().wrapping_add(1))),
+			u8::from(ptr::eq(e1, unsafe { e0.add(1) })),
+			u8::from(ptr::eq(e0, &raw const b[0])),
+			u8::from(ptr::eq(e0, ptr::null())),
+			u8::from([e0, e1].contains(&&raw const a[1])),
+			u8::from(Some(e1) == NonNull::new(e1.cast_mut()).map(NonNull::as_ptr).map(<*mut u32>::cast_const)),
+		]);
+		let chunk = a.first_chunk_mut::<2>().unwrap();
+		chunk[1] ^= 0x8000;
+		let made: *const [u32; 2] = chunk;
+		out.push(u8::from(ptr::eq(made, first)) | u8::from(ptr::eq(made.cast::<u32>(), e0)) << 1);
+		if let [x, .., y] = &mut a {
+			*x ^= 1;
+			mem::swap(x, y);
+			let (x, y): (*const u32, *const u32) = (x, y);
+			out.push(u8::from(ptr::eq(x, e0)) | u8::from(ptr::eq(y, x.wrapping_add(3))) << 1);
+		}
+		let one = std::array::from_mut(&mut a[2]);
+		one[0] ^= 0x10;
+		let one: *const [u32; 1] = one;
+		out.push(u8::from(ptr::eq(one.cast::<u32>(), &raw const a[2])) | u8::from(ptr::eq(one.cast(), e1)) << 1);
+		let whole: &mut [u32; 4] = &mut a;
+		let r: *const [u32; 4] = whole;
+		out.push(u8::from(ptr::eq(r, p)));
+		out.extend(a.iter().map(|&x| (x ^ x >> 8) as u8));
+		out.extend(runs(n));
+	}
+}
+
+/// Pointers to arrays in a `Vec`, and to elements of one, compared where they point, and
+/// swapped in and out of an `AtomicPtr`.
+fn runs(n: u8) -> [u8; 6] {
+	let mut v = vec![[n, n ^ 1].map(|b| char::from(b).to_string()), [String::new(), String::from("x")]];
+	let first: *const [String; 2] = &v[0];
+	let last: *const [String; 2] = v.last().unwrap();
+	let words: Vec<u32> = vec![u32::from(n); 3];
+	let at = AtomicPtr::new(words.as_ptr().cast_mut());
+	let next = words.as_ptr().wrapping_add(1).cast_mut();
+	let swapped = at.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst).is_ok();
+	let again = at.compare_exchange(words.as_ptr().cast_mut(), next, SeqCst, SeqCst).is_ok();
+	v[1][0].push('y');
+	[
+		u8::from(ptr::eq(first, &v[0])),
+		u8::from(ptr::eq(first, last)),
+		u8::from(ptr::eq(last, &v[1])),
+		u8::from(swapped) | u8::from(again) << 1,
+		u8::from(ptr::eq(at.load(SeqCst), next)),
+		v[1][0].len() as u8,
+	]
+}

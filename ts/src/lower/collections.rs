@@ -2996,8 +2996,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		_ if let Some(pointee) = raw_pointee(tcx, ty) => match b.t.incomparable(pointee) {
 			Some(why) => b.err(span, why),
-			None if b.t.pointee(pointee) == super::pointer::Pointee::Array => b.t.array_rs(pointee, "Same"),
-			None => Expr::Rs("same".into()),
+			None => b.t.same_fn(pointee).unwrap_or_else(|| Expr::Rs("same".into())),
 		},
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => match eq_fn(b, inner, span) {
 			// `None` is no value of `inner`, so `===` tells it from each.
@@ -3311,6 +3310,16 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 	if let ty::Closure(def_id, _) | ty::CoroutineClosure(def_id, _) = ty.kind() {
 		b.t.clone_closure(*def_id);
 		return Expr::Rs("closureClone".into());
+	}
+	// The runtime holds an array as its items, where its `clone` takes a slice of them.
+	if let ty::Array(elem, _) = ty.kind() {
+		let items = Expr::ident("a");
+		let made = match clone_fn(b, *elem, span) {
+			Expr::Lit(l) if l == "undefined" => items.member("slice").call(Vec::new()),
+			clone => items.member("map").call(vec![clone]),
+		};
+		let param = crate::ts::Param { name: "a".into(), ty: Some(b.t.ty(ty, span)) };
+		return Expr::Lambda(vec![param], Box::new(made));
 	}
 	let clone = trait_fn(tcx, "Clone", "clone");
 	b.fn_value(clone, tcx.mk_args(&[ty.into()]), span)

@@ -64,8 +64,7 @@ export function addressedArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else if (_32 === 4) {
 				const arc8 = strong.items[rs.idx(strong.items, pick)];
 				const before: [rs.u8, rs.u8] = rs.arcRaw(arc8, arc8.value, "Arc");
-				const at3 = rs.idx(strong.items, pick);
-				const _57: [rs.u8, rs.u8] = rs.arcMakeMut(rs.place(() => strong.items[at3], (value5) => strong.items[at3] = value5), copy$tuple2_u8_u8, rs.drop, copy$tuple2_u8_u8);
+				const _57: [rs.u8, rs.u8] = rs.arcMakeMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)), copy$tuple2_u8_u8, rs.drop, copy$tuple2_u8_u8);
 				_57[1] = _57[1] ^ op;
 				const arc9 = strong.items[rs.idx(strong.items, pick)];
 				const after: [rs.u8, rs.u8] = rs.arcRaw(arc9, arc9.value, "Arc");
@@ -255,7 +254,7 @@ export function arcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else if (_19 === 10) {
 				if (!(strong.items.length === 0)) {
 					const at = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-					const noisy2: Noisy.Noisy = rs.arcMakeMut(rs.place(() => strong.items[at], (value) => strong.items[at] = value), Noisy.clone$Clone, rs.drop);
+					const noisy2: Noisy.Noisy = rs.arcMakeMut(rs.arrayAsPtr(strong.items, at), Noisy.clone$Clone, rs.drop);
 					noisy2.id = noisy2.id ^ 32;
 					rs.byteVecPush(out, noisy2.id);
 					rs.byteVecPush(out, strong.items[at].strong & 0xff);
@@ -604,8 +603,7 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else if (_24 === 4) {
 				if (!((op & 128) === 0)) {
-					const at5 = rs.idx(strong.items, pick);
-					_52 = getMut(rs.place(() => strong.items[at5], (value5) => strong.items[at5] = value5));
+					_52 = getMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)));
 				} else {
 					_52 = rs.arcGetMutPlace(strong.items[rs.idx(strong.items, pick)]);
 				}
@@ -618,11 +616,9 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else if (_24 === 5) {
 				if (!((op & 128) === 0)) {
-					const at3 = rs.idx(strong.items, pick);
-					value2 = makeMut(rs.place(() => strong.items[at3], (value4) => strong.items[at3] = value4));
+					value2 = makeMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)));
 				} else {
-					const at2 = rs.idx(strong.items, pick);
-					value2 = rs.arcMakeMutPlace(rs.place(() => strong.items[at2], (value3) => strong.items[at2] = value3), undefined, rs.drop);
+					value2 = rs.arcMakeMutPlace(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)), undefined, rs.drop);
 				}
 				value2.v = value2.v ^ op;
 				rs.byteVecPush(out, value2.v);
@@ -661,7 +657,7 @@ export function uniqueArcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	rs.iterExtend(_147.value, _150, undefined, 4, true);
 	rs.refMutRelease(_147);
-	const _154: ArcReleasing.ArcReleasing = rs.arcMakeMut(rs.place(() => first, (value6) => first = value6), ArcReleasing.clone$Clone, rs.drop);
+	const _154: ArcReleasing.ArcReleasing = rs.arcMakeMut(rs.place(() => first, (value3) => first = value3), ArcReleasing.clone$Clone, rs.drop);
 	_154.id = _154.id ^ 64;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(first.value.id, first.strong & 0xff)));
 	const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
@@ -716,8 +712,7 @@ export function addressedRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else if (_32 === 4) {
 				const arc8 = strong.items[rs.idx(strong.items, pick)];
 				const before: [rs.u8, rs.u8] = rs.arcRaw(arc8, arc8.value, "Rc");
-				const at3 = rs.idx(strong.items, pick);
-				const _57: [rs.u8, rs.u8] = rs.arcMakeMut(rs.place(() => strong.items[at3], (value5) => strong.items[at3] = value5), copy$tuple2_u8_u8, rs.drop, copy$tuple2_u8_u8);
+				const _57: [rs.u8, rs.u8] = rs.arcMakeMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)), copy$tuple2_u8_u8, rs.drop, copy$tuple2_u8_u8);
 				_57[1] = _57[1] ^ op;
 				const arc9 = strong.items[rs.idx(strong.items, pick)];
 				const after: [rs.u8, rs.u8] = rs.arcRaw(arc9, arc9.value, "Rc");
@@ -1141,7 +1136,7 @@ export function rcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			} else if (_19 === 10) {
 				if (!(strong.items.length === 0)) {
 					const at = rs.idx(strong.items, rs.usizeRem(pick, strong.items.length));
-					const noisy2: Noisy.Noisy = rs.arcMakeMut(rs.place(() => strong.items[at], (value) => strong.items[at] = value), Noisy.clone$Clone, rs.drop);
+					const noisy2: Noisy.Noisy = rs.arcMakeMut(rs.arrayAsPtr(strong.items, at), Noisy.clone$Clone, rs.drop);
 					noisy2.id = noisy2.id ^ 32;
 					rs.byteVecPush(out, noisy2.id);
 					rs.byteVecPush(out, strong.items[at].strong & 0xff);
@@ -1256,8 +1251,7 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else if (_24 === 4) {
 				if (!((op & 128) === 0)) {
-					const at5 = rs.idx(strong.items, pick);
-					_52 = getMut(rs.place(() => strong.items[at5], (value5) => strong.items[at5] = value5));
+					_52 = getMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)));
 				} else {
 					_52 = rs.arcGetMutPlace(strong.items[rs.idx(strong.items, pick)]);
 				}
@@ -1270,11 +1264,9 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 			} else if (_24 === 5) {
 				if (!((op & 128) === 0)) {
-					const at3 = rs.idx(strong.items, pick);
-					value2 = makeMut(rs.place(() => strong.items[at3], (value4) => strong.items[at3] = value4));
+					value2 = makeMut(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)));
 				} else {
-					const at2 = rs.idx(strong.items, pick);
-					value2 = rs.arcMakeMutPlace(rs.place(() => strong.items[at2], (value3) => strong.items[at2] = value3), undefined, rs.drop);
+					value2 = rs.arcMakeMutPlace(rs.arrayAsPtr(strong.items, rs.idx(strong.items, pick)), undefined, rs.drop);
 				}
 				value2.v = value2.v ^ op;
 				rs.byteVecPush(out, value2.v);
@@ -1313,7 +1305,7 @@ export function uniqueRcs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	rs.iterExtend(_147.value, _150, undefined, 4, true);
 	rs.refMutRelease(_147);
-	const _154: RcReleasing.RcReleasing = rs.arcMakeMut(rs.place(() => first, (value6) => first = value6), RcReleasing.clone$Clone, rs.drop);
+	const _154: RcReleasing.RcReleasing = rs.arcMakeMut(rs.place(() => first, (value3) => first = value3), RcReleasing.clone$Clone, rs.drop);
 	_154.id = _154.id ^ 64;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(first.value.id, first.strong & 0xff)));
 	const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);

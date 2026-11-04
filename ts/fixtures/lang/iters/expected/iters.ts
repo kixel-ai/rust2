@@ -506,12 +506,11 @@ export function peekedOthers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.eqSlice(rs.same)(a013, a19);
 	});
 	rs.byteVecPush(out, _158(part14));
-	const part15 = rs.peekableNextIfEq(it7, [512, 512], (a014: rs.Vec<rs.u16>, a110: rs.u16[]): boolean => {
+	const part15 = rs.peekableNextIfEq(it7, [512, 512], (a, b) => ((a014: rs.Vec<rs.u16>, a110: rs.Slice<rs.u16>): boolean => {
 		return rs.eqSlice(rs.same)(a014, a110);
-	});
+	})(a, rs.sliceFrom(b)));
 	rs.byteVecPush(out, _158(part15));
-	const _189: rs.u16[] = [];
-	const _188: rs.Slice<rs.u16> = rs.sliceFrom(_189);
+	const _188: rs.Slice<rs.u16> = rs.sliceFrom([]);
 	const part16 = rs.peekableNextIfEq(it7, _188, (a015: rs.Vec<rs.u16>, a111: rs.Slice<rs.u16>): boolean => {
 		return rs.eqSlice(rs.same)(a015, a111);
 	});
@@ -1737,8 +1736,8 @@ export function values(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _34: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.min(data.length, 2));
 	const _31: Doubled.Doubled = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	const _33: Doubled.Doubled = { _0Data: _34.data, _0Start: _34.start, _0Len: _34.length };
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => Doubled.fmt$fmt_Debug(_31, f), (f: rs.Formatter) => Doubled.fmt$fmt_Debug(_33, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1])])));
+	const args3 = [(f: rs.Formatter) => Doubled.fmt$fmt_Debug(_31, f), (f: rs.Formatter) => Doubled.fmt$fmt_Debug(_33, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1])])));
 	const tags: rs.Vec<Tag.Tag> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Tag.Tag => {
 		const b3: rs.u8 = _2;
 		return { bytes: rs.byteSliceToByteVec(rs.byteSliceFrom(Uint8Array.of(b3, ~b3 & 0xff))) };
@@ -6755,15 +6754,14 @@ export function bounded$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.B
 	const _109: { end: rs.char; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.char, rs.char] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtCharDebug(_111[0], f), (f: rs.Formatter) => rs.fmtCharDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtCharDebug(_113[0], f), (f: rs.Formatter) => rs.fmtCharDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtCharDebug(_111[0], f), (f: rs.Formatter) => rs.fmtCharDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtCharDebug(_113[0], f), (f: rs.Formatter) => rs.fmtCharDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.char>, { end: rs.char }, { end: rs.char; inclusive: true }] = [new rs.RangeFrom(a, rs.charStep), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.char> = _137[0];
 	const to: { end: rs.char } = _137[1];
 	const through: { end: rs.char; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.char>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.char>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.char>, { tag: "Unbounded" } as rs.RangeBound<rs.char>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.char>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.char>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.char>, f: rs.Formatter) => rs.fmtBound(value, f, rs.fmtCharDebug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.char>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.char>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.char>, { tag: "Unbounded" } as rs.RangeBound<rs.char>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.char>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.char>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.char>, f: rs.Formatter) => rs.fmtBound(value, f, rs.fmtCharDebug))][0]])), undefined, true);
 	return [a, b] as [rs.char, rs.char];
 }
 
@@ -6825,15 +6823,14 @@ export function bounded$f32(table: rs.Slice<rs.f32>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.f32; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.f32, rs.f32] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f32Debug(_111[0], f), (f: rs.Formatter) => rs.f32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f32Debug(_113[0], f), (f: rs.Formatter) => rs.f32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.f32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f32Debug(_111[0], f), (f: rs.Formatter) => rs.f32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f32Debug(_113[0], f), (f: rs.Formatter) => rs.f32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.f32>, { end: rs.f32 }, { end: rs.f32; inclusive: true }] = [new rs.RangeFrom(a), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.f32> = _137[0];
 	const to: { end: rs.f32 } = _137[1];
 	const through: { end: rs.f32; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f32>, { tag: "Unbounded" } as rs.RangeBound<rs.f32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f32>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.f32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f32Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f32>, { tag: "Unbounded" } as rs.RangeBound<rs.f32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f32>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f32Debug))][0]])), undefined, true);
 	return [a, b] as [rs.f32, rs.f32];
 }
 
@@ -6895,15 +6892,14 @@ export function bounded$f64(table: rs.Slice<rs.f64>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.f64; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.f64, rs.f64] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f64Debug(_111[0], f), (f: rs.Formatter) => rs.f64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f64Debug(_113[0], f), (f: rs.Formatter) => rs.f64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.f64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f64Debug(_111[0], f), (f: rs.Formatter) => rs.f64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.f64Debug(_113[0], f), (f: rs.Formatter) => rs.f64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.f64>, { end: rs.f64 }, { end: rs.f64; inclusive: true }] = [new rs.RangeFrom(a), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.f64> = _137[0];
 	const to: { end: rs.f64 } = _137[1];
 	const through: { end: rs.f64; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f64>, { tag: "Unbounded" } as rs.RangeBound<rs.f64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f64>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.f64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f64Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f64>, { tag: "Unbounded" } as rs.RangeBound<rs.f64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f64>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f64Debug))][0]])), undefined, true);
 	return [a, b] as [rs.f64, rs.f64];
 }
 
@@ -6965,15 +6961,14 @@ export function bounded$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.B
 	const _109: { end: rs.i128; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.i128, rs.i128] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i128Debug(_111[0], f), (f: rs.Formatter) => rs.i128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i128Debug(_113[0], f), (f: rs.Formatter) => rs.i128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i128Debug(_111[0], f), (f: rs.Formatter) => rs.i128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i128Debug(_113[0], f), (f: rs.Formatter) => rs.i128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.i128>, { end: rs.i128 }, { end: rs.i128; inclusive: true }] = [new rs.RangeFrom(a, rs.i128Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.i128> = _137[0];
 	const to: { end: rs.i128 } = _137[1];
 	const through: { end: rs.i128; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i128>, { tag: "Unbounded" } as rs.RangeBound<rs.i128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i128>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.i128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i128Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i128>, { tag: "Unbounded" } as rs.RangeBound<rs.i128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i128>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i128Debug))][0]])), undefined, true);
 	return [a, b] as [rs.i128, rs.i128];
 }
 
@@ -7035,15 +7030,14 @@ export function bounded$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.i16; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.i16, rs.i16] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i16Debug(_111[0], f), (f: rs.Formatter) => rs.i16Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i16Debug(_113[0], f), (f: rs.Formatter) => rs.i16Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i16Debug(_111[0], f), (f: rs.Formatter) => rs.i16Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i16Debug(_113[0], f), (f: rs.Formatter) => rs.i16Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.i16>, { end: rs.i16 }, { end: rs.i16; inclusive: true }] = [new rs.RangeFrom(a, rs.i16Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.i16> = _137[0];
 	const to: { end: rs.i16 } = _137[1];
 	const through: { end: rs.i16; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i16>, { tag: "Unbounded" } as rs.RangeBound<rs.i16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i16>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.i16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i16Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i16>, { tag: "Unbounded" } as rs.RangeBound<rs.i16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i16>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i16Debug))][0]])), undefined, true);
 	return [a, b] as [rs.i16, rs.i16];
 }
 
@@ -7105,15 +7099,14 @@ export function bounded$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.i32; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.i32, rs.i32] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i32Debug(_111[0], f), (f: rs.Formatter) => rs.i32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i32Debug(_113[0], f), (f: rs.Formatter) => rs.i32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i32Debug(_111[0], f), (f: rs.Formatter) => rs.i32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i32Debug(_113[0], f), (f: rs.Formatter) => rs.i32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.i32>, { end: rs.i32 }, { end: rs.i32; inclusive: true }] = [new rs.RangeFrom(a, rs.i32Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.i32> = _137[0];
 	const to: { end: rs.i32 } = _137[1];
 	const through: { end: rs.i32; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i32>, { tag: "Unbounded" } as rs.RangeBound<rs.i32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i32>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.i32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i32Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i32>, { tag: "Unbounded" } as rs.RangeBound<rs.i32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i32>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i32Debug))][0]])), undefined, true);
 	return [a, b] as [rs.i32, rs.i32];
 }
 
@@ -7175,15 +7168,14 @@ export function bounded$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.i64; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.i64, rs.i64] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(_111[0], f), (f: rs.Formatter) => rs.i64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(_113[0], f), (f: rs.Formatter) => rs.i64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(_111[0], f), (f: rs.Formatter) => rs.i64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(_113[0], f), (f: rs.Formatter) => rs.i64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.i64>, { end: rs.i64 }, { end: rs.i64; inclusive: true }] = [new rs.RangeFrom(a, rs.i64Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.i64> = _137[0];
 	const to: { end: rs.i64 } = _137[1];
 	const through: { end: rs.i64; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i64>, { tag: "Unbounded" } as rs.RangeBound<rs.i64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i64>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.i64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i64Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i64>, { tag: "Unbounded" } as rs.RangeBound<rs.i64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i64>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i64Debug))][0]])), undefined, true);
 	return [a, b] as [rs.i64, rs.i64];
 }
 
@@ -7245,15 +7237,14 @@ export function bounded$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteV
 	const _109: { end: rs.i8; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.i8, rs.i8] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i8Debug(_111[0], f), (f: rs.Formatter) => rs.i8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i8Debug(_113[0], f), (f: rs.Formatter) => rs.i8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i8Debug(_111[0], f), (f: rs.Formatter) => rs.i8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i8Debug(_113[0], f), (f: rs.Formatter) => rs.i8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.i8>, { end: rs.i8 }, { end: rs.i8; inclusive: true }] = [new rs.RangeFrom(a, rs.i8Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.i8> = _137[0];
 	const to: { end: rs.i8 } = _137[1];
 	const through: { end: rs.i8; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i8>, { tag: "Unbounded" } as rs.RangeBound<rs.i8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i8>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.i8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i8Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i8>, { tag: "Unbounded" } as rs.RangeBound<rs.i8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i8>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i8Debug))][0]])), undefined, true);
 	return [a, b] as [rs.i8, rs.i8];
 }
 
@@ -7315,15 +7306,14 @@ export function bounded$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs
 	const _109: { end: rs.isize; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.isize, rs.isize] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.isizeDebug(_111[0], f), (f: rs.Formatter) => rs.isizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.isizeDebug(_113[0], f), (f: rs.Formatter) => rs.isizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.isizeDebug(_111[0], f), (f: rs.Formatter) => rs.isizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.isizeDebug(_113[0], f), (f: rs.Formatter) => rs.isizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.isize>, { end: rs.isize }, { end: rs.isize; inclusive: true }] = [new rs.RangeFrom(a, rs.isizeStep), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.isize> = _137[0];
 	const to: { end: rs.isize } = _137[1];
 	const through: { end: rs.isize; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.isize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.isize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.isize>, { tag: "Unbounded" } as rs.RangeBound<rs.isize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.isize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.isize>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.isize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.isizeDebug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.isize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.isize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.isize>, { tag: "Unbounded" } as rs.RangeBound<rs.isize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.isize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.isize>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.isize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.isizeDebug))][0]])), undefined, true);
 	return [a, b] as [rs.isize, rs.isize];
 }
 
@@ -7385,15 +7375,14 @@ export function bounded$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[
 	const _109: { end: rs.u128; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u128, rs.u128] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_111[0], f), (f: rs.Formatter) => rs.u128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_113[0], f), (f: rs.Formatter) => rs.u128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_111[0], f), (f: rs.Formatter) => rs.u128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_113[0], f), (f: rs.Formatter) => rs.u128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u128>, { end: rs.u128 }, { end: rs.u128; inclusive: true }] = [new rs.RangeFrom(a, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128)), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u128> = _137[0];
 	const to: { end: rs.u128 } = _137[1];
 	const through: { end: rs.u128; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u128, rs.u128];
 }
 
@@ -7455,15 +7444,14 @@ export function bounded$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[],
 	const _109: { end: rs.u64; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u64, rs.u64] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_111[0], f), (f: rs.Formatter) => rs.u64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_113[0], f), (f: rs.Formatter) => rs.u64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_111[0], f), (f: rs.Formatter) => rs.u64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_113[0], f), (f: rs.Formatter) => rs.u64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u64>, { end: rs.u64 }, { end: rs.u64; inclusive: true }] = [new rs.RangeFrom(a, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64)), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u64> = _137[0];
 	const to: { end: rs.u64 } = _137[1];
 	const through: { end: rs.u64; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u64, rs.u64];
 }
 
@@ -7525,15 +7513,14 @@ export function bounded$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], o
 	const _109: { end: rs.u8; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u8, rs.u8] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_111[0], f), (f: rs.Formatter) => rs.u8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_113[0], f), (f: rs.Formatter) => rs.u8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_111[0], f), (f: rs.Formatter) => rs.u8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_113[0], f), (f: rs.Formatter) => rs.u8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u8>, { end: rs.u8 }, { end: rs.u8; inclusive: true }] = [new rs.RangeFrom(a, rs.nonZeroStep(rs.u8Step, 255)), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u8> = _137[0];
 	const to: { end: rs.u8 } = _137[1];
 	const through: { end: rs.u8; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u8, rs.u8];
 }
 
@@ -7595,15 +7582,14 @@ export function bounded$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usiz
 	const _109: { end: rs.usize; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.usize, rs.usize] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_111[0], f), (f: rs.Formatter) => rs.usizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_113[0], f), (f: rs.Formatter) => rs.usizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_111[0], f), (f: rs.Formatter) => rs.usizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_113[0], f), (f: rs.Formatter) => rs.usizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.usize>, { end: rs.usize }, { end: rs.usize; inclusive: true }] = [new rs.RangeFrom(a, rs.nonZeroStep(rs.usizeStep, 4294967295)), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.usize> = _137[0];
 	const to: { end: rs.usize } = _137[1];
 	const through: { end: rs.usize; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))][0]])), undefined, true);
 	return [a, b] as [rs.usize, rs.usize];
 }
 
@@ -7665,15 +7651,14 @@ export function bounded$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.B
 	const _109: { end: rs.u128; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u128, rs.u128] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_111[0], f), (f: rs.Formatter) => rs.u128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_113[0], f), (f: rs.Formatter) => rs.u128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_111[0], f), (f: rs.Formatter) => rs.u128Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u128Debug(_113[0], f), (f: rs.Formatter) => rs.u128Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u128>, { end: rs.u128 }, { end: rs.u128; inclusive: true }] = [new rs.RangeFrom(a, rs.u128Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u128> = _137[0];
 	const to: { end: rs.u128 } = _137[1];
 	const through: { end: rs.u128; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u128, rs.u128];
 }
 
@@ -7735,15 +7720,14 @@ export function bounded$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.u16; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u16, rs.u16] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(_111[0], f), (f: rs.Formatter) => rs.u16Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(_113[0], f), (f: rs.Formatter) => rs.u16Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(_111[0], f), (f: rs.Formatter) => rs.u16Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(_113[0], f), (f: rs.Formatter) => rs.u16Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u16>, { end: rs.u16 }, { end: rs.u16; inclusive: true }] = [new rs.RangeFrom(a, rs.u16Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u16> = _137[0];
 	const to: { end: rs.u16 } = _137[1];
 	const through: { end: rs.u16; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u16>, { tag: "Unbounded" } as rs.RangeBound<rs.u16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u16>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u16Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u16>, { tag: "Unbounded" } as rs.RangeBound<rs.u16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u16>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u16Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u16, rs.u16];
 }
 
@@ -7805,15 +7789,14 @@ export function bounded$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.u32; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u32, rs.u32] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(_111[0], f), (f: rs.Formatter) => rs.u32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(_113[0], f), (f: rs.Formatter) => rs.u32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(_111[0], f), (f: rs.Formatter) => rs.u32Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(_113[0], f), (f: rs.Formatter) => rs.u32Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u32>, { end: rs.u32 }, { end: rs.u32; inclusive: true }] = [new rs.RangeFrom(a, rs.u32Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u32> = _137[0];
 	const to: { end: rs.u32 } = _137[1];
 	const through: { end: rs.u32; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u32>, { tag: "Unbounded" } as rs.RangeBound<rs.u32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u32>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u32Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u32>, { tag: "Unbounded" } as rs.RangeBound<rs.u32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u32>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u32Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u32, rs.u32];
 }
 
@@ -7875,15 +7858,14 @@ export function bounded$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.Byt
 	const _109: { end: rs.u64; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u64, rs.u64] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_111[0], f), (f: rs.Formatter) => rs.u64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_113[0], f), (f: rs.Formatter) => rs.u64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_111[0], f), (f: rs.Formatter) => rs.u64Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u64Debug(_113[0], f), (f: rs.Formatter) => rs.u64Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u64>, { end: rs.u64 }, { end: rs.u64; inclusive: true }] = [new rs.RangeFrom(a, rs.u64Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u64> = _137[0];
 	const to: { end: rs.u64 } = _137[1];
 	const through: { end: rs.u64; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u64, rs.u64];
 }
 
@@ -7945,15 +7927,14 @@ export function bounded$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec)
 	const _109: { end: rs.u8; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.u8, rs.u8] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_111[0], f), (f: rs.Formatter) => rs.u8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_113[0], f), (f: rs.Formatter) => rs.u8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_111[0], f), (f: rs.Formatter) => rs.u8Debug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_113[0], f), (f: rs.Formatter) => rs.u8Debug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.u8>, { end: rs.u8 }, { end: rs.u8; inclusive: true }] = [new rs.RangeFrom(a, rs.u8Step), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.u8> = _137[0];
 	const to: { end: rs.u8 } = _137[1];
 	const through: { end: rs.u8; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))][0]])), undefined, true);
 	return [a, b] as [rs.u8, rs.u8];
 }
 
@@ -8015,15 +7996,14 @@ export function bounded$usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs
 	const _109: { end: rs.usize; inclusive: true } = { end: b, inclusive: true };
 	const _111: [rs.usize, rs.usize] = [start, end];
 	const _118: [undefined, [undefined, rs.Range<rs.i32>]] = [undefined, [undefined, new rs.Range(1, 2)]];
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_111[0], f), (f: rs.Formatter) => rs.usizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_113[0], f), (f: rs.Formatter) => rs.usizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7]])), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtRange(_102, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(inclusive, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeFrom(_105, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeTo(_107, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_109, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_111[0], f), (f: rs.Formatter) => rs.usizeDebug(_111[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_113[0], f), (f: rs.Formatter) => rs.usizeDebug(_113[1], f)], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[0], f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtRangeFull(_118[1][0], f), (f: rs.Formatter) => rs.fmtRange(_118[1][1], f, rs.i32Debug)], f)], f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7]])), undefined, true);
 	const _137: [rs.RangeFrom<rs.usize>, { end: rs.usize }, { end: rs.usize; inclusive: true }] = [new rs.RangeFrom(a, rs.usizeStep), { end: b }, { end: b, inclusive: true }];
 	const from: rs.RangeFrom<rs.usize> = _137[0];
 	const to: { end: rs.usize } = _137[1];
 	const through: { end: rs.usize; inclusive: true } = _137[2];
-	const part = [rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>];
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part, f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>]);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))][0]])), undefined, true);
 	return [a, b] as [rs.usize, rs.usize];
 }
 
@@ -8661,12 +8641,12 @@ export function stepped$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.B
 		const end: rs.char = _54[1];
 		const _62: rs.RangeInclusive<rs.char>[] = [new rs.RangeInclusive(a, b, rs.charStep), new rs.RangeInclusive(start, end, rs.charStep), new rs.RangeInclusive(start, end, rs.charStep)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash32), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.char>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.char> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.char>;
 		const _99: rs.RangeBound<rs.char> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.char>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.fmtCharDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.fmtCharDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.fmtCharDebug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.char> = new rs.RangeInclusive(a, b, rs.charStep);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -8686,8 +8666,8 @@ export function stepped$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.B
 		const _140: [rs.char, rs.char] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.char = _140[0];
 		const end2: rs.char = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtCharDebug(start2, f), (f: rs.Formatter) => rs.fmtCharDebug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.fmtCharDebug(start2, f), (f: rs.Formatter) => rs.fmtCharDebug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -8755,12 +8735,12 @@ export function stepped$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.B
 		const end: rs.i128 = _54[1];
 		const _62: rs.RangeInclusive<rs.i128>[] = [new rs.RangeInclusive(a, b, rs.i128Step), new rs.RangeInclusive(start, end, rs.i128Step), new rs.RangeInclusive(start, end, rs.i128Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashI128), rs.rangeEq(rs.i128Eq))) as rs.HashSet<rs.RangeInclusive<rs.i128>>, rs.iterSlice(_62), undefined, undefined, 29360128));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.i128> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.i128>;
 		const _99: rs.RangeBound<rs.i128> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.i128>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i128Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i128Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.i128> = new rs.RangeInclusive(a, b, rs.i128Step);
 		const _111: boolean = rs.rangeEq(rs.i128Eq)(r, _114);
@@ -8780,8 +8760,8 @@ export function stepped$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.B
 		const _140: [rs.i128, rs.i128] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.i128 = _140[0];
 		const end2: rs.i128 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.i128Debug(start2, f), (f: rs.Formatter) => rs.i128Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.i128Debug(start2, f), (f: rs.Formatter) => rs.i128Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -8849,12 +8829,12 @@ export function stepped$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.Byt
 		const end: rs.i16 = _54[1];
 		const _62: rs.RangeInclusive<rs.i16>[] = [new rs.RangeInclusive(a, b, rs.i16Step), new rs.RangeInclusive(start, end, rs.i16Step), new rs.RangeInclusive(start, end, rs.i16Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashI16), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.i16>>, rs.iterSlice(_62), undefined, undefined, 234881024));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i16Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i16Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.i16> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.i16>;
 		const _99: rs.RangeBound<rs.i16> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.i16>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i16Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i16Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i16Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.i16> = new rs.RangeInclusive(a, b, rs.i16Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -8874,8 +8854,8 @@ export function stepped$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.i16, rs.i16] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.i16 = _140[0];
 		const end2: rs.i16 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.i16Debug(start2, f), (f: rs.Formatter) => rs.i16Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.i16Debug(start2, f), (f: rs.Formatter) => rs.i16Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -8943,12 +8923,12 @@ export function stepped$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.Byt
 		const end: rs.i32 = _54[1];
 		const _62: rs.RangeInclusive<rs.i32>[] = [new rs.RangeInclusive(a, b, rs.i32Step), new rs.RangeInclusive(start, end, rs.i32Step), new rs.RangeInclusive(start, end, rs.i32Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashI32), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.i32>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i32Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i32Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.i32> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.i32>;
 		const _99: rs.RangeBound<rs.i32> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.i32>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i32Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i32Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.i32> = new rs.RangeInclusive(a, b, rs.i32Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -8968,8 +8948,8 @@ export function stepped$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.i32, rs.i32] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.i32 = _140[0];
 		const end2: rs.i32 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.i32Debug(start2, f), (f: rs.Formatter) => rs.i32Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.i32Debug(start2, f), (f: rs.Formatter) => rs.i32Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9037,12 +9017,12 @@ export function stepped$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.Byt
 		const end: rs.i64 = _54[1];
 		const _62: rs.RangeInclusive<rs.i64>[] = [new rs.RangeInclusive(a, b, rs.i64Step), new rs.RangeInclusive(start, end, rs.i64Step), new rs.RangeInclusive(start, end, rs.i64Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashI64), rs.rangeEq(rs.i64Eq))) as rs.HashSet<rs.RangeInclusive<rs.i64>>, rs.iterSlice(_62), undefined, undefined, 58720256));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.i64> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.i64>;
 		const _99: rs.RangeBound<rs.i64> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.i64>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i64Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i64Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.i64> = new rs.RangeInclusive(a, b, rs.i64Step);
 		const _111: boolean = rs.rangeEq(rs.i64Eq)(r, _114);
@@ -9062,8 +9042,8 @@ export function stepped$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.i64, rs.i64] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.i64 = _140[0];
 		const end2: rs.i64 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Debug(start2, f), (f: rs.Formatter) => rs.i64Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.i64Debug(start2, f), (f: rs.Formatter) => rs.i64Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9131,12 +9111,12 @@ export function stepped$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteV
 		const end: rs.i8 = _54[1];
 		const _62: rs.RangeInclusive<rs.i8>[] = [new rs.RangeInclusive(a, b, rs.i8Step), new rs.RangeInclusive(start, end, rs.i8Step), new rs.RangeInclusive(start, end, rs.i8Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashI8), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.i8>>, rs.iterSlice(_62), undefined, undefined, 234881024));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.i8> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.i8>;
 		const _99: rs.RangeBound<rs.i8> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.i8>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i8Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.i8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.i8Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.i8> = new rs.RangeInclusive(a, b, rs.i8Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9156,8 +9136,8 @@ export function stepped$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteV
 		const _140: [rs.i8, rs.i8] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.i8 = _140[0];
 		const end2: rs.i8 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Debug(start2, f), (f: rs.Formatter) => rs.i8Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.i8Debug(start2, f), (f: rs.Formatter) => rs.i8Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9225,12 +9205,12 @@ export function stepped$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs
 		const end: rs.isize = _54[1];
 		const _62: rs.RangeInclusive<rs.isize>[] = [new rs.RangeInclusive(a, b, rs.isizeStep), new rs.RangeInclusive(start, end, rs.isizeStep), new rs.RangeInclusive(start, end, rs.isizeStep)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashIsize), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.isize>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.isizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.isizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.isize> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.isize>;
 		const _99: rs.RangeBound<rs.isize> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.isize>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.isizeDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.isizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.isizeDebug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.isize> = new rs.RangeInclusive(a, b, rs.isizeStep);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9250,8 +9230,8 @@ export function stepped$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs
 		const _140: [rs.isize, rs.isize] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.isize = _140[0];
 		const end2: rs.isize = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.isizeDebug(start2, f), (f: rs.Formatter) => rs.isizeDebug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.isizeDebug(start2, f), (f: rs.Formatter) => rs.isizeDebug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9319,12 +9299,12 @@ export function stepped$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[
 		const end: rs.u128 = _54[1];
 		const _62: rs.RangeInclusive<rs.u128>[] = [new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128))];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash128), rs.rangeEq(rs.u128Eq))) as rs.HashSet<rs.RangeInclusive<rs.u128>>, rs.iterSlice(_62), undefined, undefined, 29360128));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u128> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u128>;
 		const _99: rs.RangeBound<rs.u128> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u128>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u128Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u128Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u128> = new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u128Step, { hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rs.u128));
 		const _111: boolean = rs.rangeEq(rs.u128Eq)(r, _114);
@@ -9344,8 +9324,8 @@ export function stepped$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[
 		const _140: [rs.u128, rs.u128] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u128 = _140[0];
 		const end2: rs.u128 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Debug(start2, f), (f: rs.Formatter) => rs.u128Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u128Debug(start2, f), (f: rs.Formatter) => rs.u128Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9413,12 +9393,12 @@ export function stepped$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[],
 		const end: rs.u64 = _54[1];
 		const _62: rs.RangeInclusive<rs.u64>[] = [new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64))];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash64), rs.rangeEq(rs.u64Eq))) as rs.HashSet<rs.RangeInclusive<rs.u64>>, rs.iterSlice(_62), undefined, undefined, 58720256));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u64> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u64>;
 		const _99: rs.RangeBound<rs.u64> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u64>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u64Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u64Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u64Step, { hi: 0xffffffff, lo: 0xffffffff } as rs.u64));
 		const _111: boolean = rs.rangeEq(rs.u64Eq)(r, _114);
@@ -9438,8 +9418,8 @@ export function stepped$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[],
 		const _140: [rs.u64, rs.u64] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u64 = _140[0];
 		const end2: rs.u64 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Debug(start2, f), (f: rs.Formatter) => rs.u64Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u64Debug(start2, f), (f: rs.Formatter) => rs.u64Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9507,12 +9487,12 @@ export function stepped$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], o
 		const end: rs.u8 = _54[1];
 		const _62: rs.RangeInclusive<rs.u8>[] = [new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u8Step, 255)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u8Step, 255)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.u8Step, 255))];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash8), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.u8>>, rs.iterSlice(_62), undefined, undefined, 234881024));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u8> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u8>;
 		const _99: rs.RangeBound<rs.u8> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u8>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u8Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u8Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.u8Step, 255));
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9532,8 +9512,8 @@ export function stepped$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], o
 		const _140: [rs.u8, rs.u8] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u8 = _140[0];
 		const end2: rs.u8 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Debug(start2, f), (f: rs.Formatter) => rs.u8Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u8Debug(start2, f), (f: rs.Formatter) => rs.u8Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9601,12 +9581,12 @@ export function stepped$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usiz
 		const end: rs.usize = _54[1];
 		const _62: rs.RangeInclusive<rs.usize>[] = [new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.usizeStep, 4294967295)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.usizeStep, 4294967295)), new rs.RangeInclusive(start, end, rs.nonZeroStep(rs.usizeStep, 4294967295))];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashUsize), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.usize>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.usizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.usizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.usize> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.usize>;
 		const _99: rs.RangeBound<rs.usize> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.usize>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.usizeDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.usizeDebug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, b, rs.nonZeroStep(rs.usizeStep, 4294967295));
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9626,8 +9606,8 @@ export function stepped$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usiz
 		const _140: [rs.usize, rs.usize] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.usize = _140[0];
 		const end2: rs.usize = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDebug(start2, f), (f: rs.Formatter) => rs.usizeDebug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.usizeDebug(start2, f), (f: rs.Formatter) => rs.usizeDebug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9695,12 +9675,12 @@ export function stepped$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.B
 		const end: rs.u128 = _54[1];
 		const _62: rs.RangeInclusive<rs.u128>[] = [new rs.RangeInclusive(a, b, rs.u128Step), new rs.RangeInclusive(start, end, rs.u128Step), new rs.RangeInclusive(start, end, rs.u128Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash128), rs.rangeEq(rs.u128Eq))) as rs.HashSet<rs.RangeInclusive<rs.u128>>, rs.iterSlice(_62), undefined, undefined, 29360128));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u128Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u128> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u128>;
 		const _99: rs.RangeBound<rs.u128> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u128>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u128Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u128Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u128Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u128> = new rs.RangeInclusive(a, b, rs.u128Step);
 		const _111: boolean = rs.rangeEq(rs.u128Eq)(r, _114);
@@ -9720,8 +9700,8 @@ export function stepped$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.B
 		const _140: [rs.u128, rs.u128] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u128 = _140[0];
 		const end2: rs.u128 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Debug(start2, f), (f: rs.Formatter) => rs.u128Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u128Debug(start2, f), (f: rs.Formatter) => rs.u128Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9789,12 +9769,12 @@ export function stepped$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.Byt
 		const end: rs.u16 = _54[1];
 		const _62: rs.RangeInclusive<rs.u16>[] = [new rs.RangeInclusive(a, b, rs.u16Step), new rs.RangeInclusive(start, end, rs.u16Step), new rs.RangeInclusive(start, end, rs.u16Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash16), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.u16>>, rs.iterSlice(_62), undefined, undefined, 234881024));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u16Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u16Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u16> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u16>;
 		const _99: rs.RangeBound<rs.u16> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u16>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u16Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u16Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u16> = new rs.RangeInclusive(a, b, rs.u16Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9814,8 +9794,8 @@ export function stepped$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.u16, rs.u16] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u16 = _140[0];
 		const end2: rs.u16 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Debug(start2, f), (f: rs.Formatter) => rs.u16Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u16Debug(start2, f), (f: rs.Formatter) => rs.u16Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9883,12 +9863,12 @@ export function stepped$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.Byt
 		const end: rs.u32 = _54[1];
 		const _62: rs.RangeInclusive<rs.u32>[] = [new rs.RangeInclusive(a, b, rs.u32Step), new rs.RangeInclusive(start, end, rs.u32Step), new rs.RangeInclusive(start, end, rs.u32Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash32), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.u32>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u32Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u32> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u32>;
 		const _99: rs.RangeBound<rs.u32> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u32>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u32Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u32Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u32> = new rs.RangeInclusive(a, b, rs.u32Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -9908,8 +9888,8 @@ export function stepped$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.u32, rs.u32] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u32 = _140[0];
 		const end2: rs.u32 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Debug(start2, f), (f: rs.Formatter) => rs.u32Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u32Debug(start2, f), (f: rs.Formatter) => rs.u32Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -9977,12 +9957,12 @@ export function stepped$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.Byt
 		const end: rs.u64 = _54[1];
 		const _62: rs.RangeInclusive<rs.u64>[] = [new rs.RangeInclusive(a, b, rs.u64Step), new rs.RangeInclusive(start, end, rs.u64Step), new rs.RangeInclusive(start, end, rs.u64Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash64), rs.rangeEq(rs.u64Eq))) as rs.HashSet<rs.RangeInclusive<rs.u64>>, rs.iterSlice(_62), undefined, undefined, 58720256));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u64Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u64> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u64>;
 		const _99: rs.RangeBound<rs.u64> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u64>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u64Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u64Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u64Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u64> = new rs.RangeInclusive(a, b, rs.u64Step);
 		const _111: boolean = rs.rangeEq(rs.u64Eq)(r, _114);
@@ -10002,8 +9982,8 @@ export function stepped$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.Byt
 		const _140: [rs.u64, rs.u64] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u64 = _140[0];
 		const end2: rs.u64 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Debug(start2, f), (f: rs.Formatter) => rs.u64Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u64Debug(start2, f), (f: rs.Formatter) => rs.u64Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -10071,12 +10051,12 @@ export function stepped$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec)
 		const end: rs.u8 = _54[1];
 		const _62: rs.RangeInclusive<rs.u8>[] = [new rs.RangeInclusive(a, b, rs.u8Step), new rs.RangeInclusive(start, end, rs.u8Step), new rs.RangeInclusive(start, end, rs.u8Step)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hash8), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.u8>>, rs.iterSlice(_62), undefined, undefined, 234881024));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.u8> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.u8>;
 		const _99: rs.RangeBound<rs.u8> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.u8>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u8Debug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.u8Debug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(a, b, rs.u8Step);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -10096,8 +10076,8 @@ export function stepped$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec)
 		const _140: [rs.u8, rs.u8] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.u8 = _140[0];
 		const end2: rs.u8 = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Debug(start2, f), (f: rs.Formatter) => rs.u8Debug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.u8Debug(start2, f), (f: rs.Formatter) => rs.u8Debug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 
@@ -10165,12 +10145,12 @@ export function stepped$usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs
 		const end: rs.usize = _54[1];
 		const _62: rs.RangeInclusive<rs.usize>[] = [new rs.RangeInclusive(a, b, rs.usizeStep), new rs.RangeInclusive(start, end, rs.usizeStep), new rs.RangeInclusive(start, end, rs.usizeStep)];
 		const _77: rs.usize = rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.rangeHash(rs.hashUsize), rs.rangeEq(rs.same))) as rs.HashSet<rs.RangeInclusive<rs.usize>>, rs.iterSlice(_62), undefined, undefined, 117440512));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.usizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]])), undefined, true);
+		const args7 = [(f: rs.Formatter) => rs.fmtOption(read, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.usizeDebug), (f: rs.Formatter) => rs.usizeDisplay(_77, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]])), undefined, true);
 		const _96: rs.RangeBound<rs.usize> = rs.rangeInclusiveStartBound(r) as rs.RangeBound<rs.usize>;
 		const _99: rs.RangeBound<rs.usize> = rs.rangeInclusiveEndBound(r) as rs.RangeBound<rs.usize>;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.usizeDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1]])), undefined, true);
+		const args8 = [(f: rs.Formatter) => rs.fmtBound(_96, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBound(_99, f, rs.usizeDebug)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0], " ", args8[1]])), undefined, true);
 		const _109: boolean = rs.rangeInclusiveIsEmpty(r);
 		const _114: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(a, b, rs.usizeStep);
 		const _111: boolean = rs.rangeEq(rs.same)(r, _114);
@@ -10190,8 +10170,8 @@ export function stepped$usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs
 		const _140: [rs.usize, rs.usize] = rs.rangeInclusiveIntoInner(r);
 		const start2: rs.usize = _140[0];
 		const end2: rs.usize = _140[1];
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDebug(start2, f), (f: rs.Formatter) => rs.usizeDebug(end2, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+		const args9 = [(f: rs.Formatter) => rs.usizeDebug(start2, f), (f: rs.Formatter) => rs.usizeDebug(end2, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args9[0], " ", args9[1]])), undefined, true);
 	}
 }
 

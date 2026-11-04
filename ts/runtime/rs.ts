@@ -427,6 +427,29 @@ export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 }
 
 /**
+ * Whether pointers `a` and `b` to a value JS copies point at the same place: the same
+ * `rs.Place`, or elements of one array at one index, through any view of runs. Elements
+ * of different arrays, null, and dangling pointers are apart. Fails for any other two
+ * places, of which JS may make two of one, such as two borrows of a variable.
+ */
+export function placeSame<T>(a: Place<T>, b: Place<T>): boolean {
+	[a, b] = [ptrHome(a), ptrHome(b)];
+	if (a === b) return true;
+	if (a instanceof AtIndex && b instanceof AtIndex) {
+		const [x, y] = [elemOf(a), elemOf(b)];
+		if (x.array === y.array) return x.index === y.index;
+		if (x.array instanceof Uint8Array && y.array instanceof Uint8Array) {
+			return x.array.buffer === y.array.buffer && x.array.byteOffset + x.index === y.array.byteOffset + y.index;
+		}
+		// An array of one a pointer to a value in no array points into is one of its own.
+		const lone = (e: AtIndex<T>) => (e.array as { [LONE_OF]?: unknown })[LONE_OF] !== undefined;
+		if (!lone(x) && !lone(y)) return false;
+	}
+	if (a === NULL || b === NULL || a === DANGLING || b === DANGLING || a instanceof Address || b instanceof Address) return false;
+	throw new Error("rust2-ts: comparing pointers to places JS made each of its own, such as two borrows of one variable");
+}
+
+/**
  * `ptr::copy` and `copy_nonoverlapping` of `n` elements from `src` to `dst`, as if through
  * a buffer between, each made a value of its own by `copy` where the crate writes into its parts.
  */
@@ -548,11 +571,14 @@ export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 /**
  * A copy of the object `p`, one object deep: its fields, its bytes, or its items for a JS
  * array. Its items, and theirs to `depth` levels of arrays, are objects
- * a write may land in, as a `sliceIn`'s, which a view of one copies too.
+ * a write may land in, as a `sliceIn`'s, which a view of one copies too, as are runs a
+ * view of runs holds.
  */
 export function objectCopy<T extends object>(p: T, depth = 0): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
+		const view = (p as { [VIEW]?: View<unknown> })[VIEW];
+		if (isRuns(p) || (view !== undefined && isRuns(view.s))) return Array.from(p, copyRun) as T;
 		const old: unknown[] = p.slice();
 		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;

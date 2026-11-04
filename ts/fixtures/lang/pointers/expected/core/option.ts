@@ -48,6 +48,13 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
+export function map$004487o(self: rs.Place<rs.u32> | undefined, _: (a0: rs.Place<rs.u32>) => rs.Place<rs.u32>): rs.Place<rs.u32> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return self;
+}
+
 export function map$1cfrse5(self: Loaded.Loaded | undefined, f: (a0: Loaded.Loaded) => Loaded.Loaded): Loaded.Loaded | undefined {
 	if (self === undefined) {
 		return undefined;

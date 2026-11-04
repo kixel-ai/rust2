@@ -57,8 +57,7 @@ export function op(name: string): rs.u8 {
 		return _22[0] === name;
 	});
 	if (_2 === undefined) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, name)];
-		rs.panicFmt(["no case ", args2[0]]);
+		rs.panicFmt(["no case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0]]);
 	} else {
 		return _2 & 0xff;
 	}
@@ -143,8 +142,7 @@ export function made(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const copied: rs.ByteSlice = rs.bytesCopyFromSlice(rs.byteVecSlice(source));
 		rs.byteVecClear(source);
 		rs.byteVecPush(source, 0);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(copied, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.bytesDebug(copied, f)][0]])));
 		const iter: rs.Iter<rs.ByteSlice> = rs.iterSlice(made, rs.bytesDrop);
 		while (true) {
 			const _44: rs.ByteSlice | rs.Done = iter.next();
@@ -153,8 +151,8 @@ export function made(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 			const bytes: rs.ByteSlice = _44;
 			const _56: rs.usize = bytes.length;
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.usizeDisplay(_56, f)];
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1], "\n"])));
+			const args6 = [(f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.usizeDisplay(_56, f)];
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], "\n"])));
 			rs.bytesDrop(bytes);
 		}
 		rs.drop(iter);

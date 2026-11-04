@@ -34,8 +34,7 @@ export function sizeHint$iter_Iterator(self: Pile): [rs.usize, rs.usize | undefi
 }
 
 export function nth$iter_Iterator(self: Pile, n: rs.usize): Guard.Guard | undefined {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n, f)];
-	const _5: string = rs.fmtFormat(["pile nth ", args2[0]]);
+	const _5: string = rs.fmtFormat(["pile nth ", [(f: rs.Formatter) => rs.usizeDisplay(n, f)][0]]);
 	Log.note(self.log, _5);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;
@@ -65,8 +64,7 @@ export function fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Opt
 
 export function count$iter_Iterator(self: Pile): rs.usize {
 	const part = self.held.items.length;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-	const _4: string = rs.fmtFormat(["pile count ", args2[0]]);
+	const _4: string = rs.fmtFormat(["pile count ", [(f: rs.Formatter) => rs.usizeDisplay(part, f)][0]]);
 	Log.note(self.log, _4);
 	const _0: rs.usize = self.held.items.length;
 	self[Symbol.dispose]();
@@ -89,8 +87,7 @@ export function nextBack$iter_DoubleEndedIterator(self: Pile): Guard.Guard | und
 }
 
 export function nthBack$iter_DoubleEndedIterator(self: Pile, n: rs.usize): Guard.Guard | undefined {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n, f)];
-	const _5: string = rs.fmtFormat(["pile nth_back ", args2[0]]);
+	const _5: string = rs.fmtFormat(["pile nth_back ", [(f: rs.Formatter) => rs.usizeDisplay(n, f)][0]]);
 	Log.note(self.log, _5);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;

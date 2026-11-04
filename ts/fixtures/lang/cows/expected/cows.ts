@@ -100,16 +100,16 @@ export function cows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const n: Named.Named = Named.new(first, kind);
 		const m2: Named.Named = Named.clone$Clone(n);
 		Named.tag(n, 120);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Named.fmt$fmt_Debug(n, f), (f: rs.Formatter) => Named.fmt$fmt_Debug(m2, f)];
-		put(out, rs.fmtFormat([args2[0], " ", args2[1]]));
+		const args11 = [(f: rs.Formatter) => Named.fmt$fmt_Debug(n, f), (f: rs.Formatter) => Named.fmt$fmt_Debug(m2, f)];
+		put(out, rs.fmtFormat([args11[0], " ", args11[1]]));
 		rs.byteVecPush(out, Named.eq$cmp_PartialEq(n, m2) ? 1 : 0);
 		rs.byteVecPush(out, Named.cmp$cmp_Ord(n, m2) > 0 ? 1 : 0);
 		rs.byteVecPush(out, Named.partialCmp$cmp_PartialOrd(n, m2) === -1 ? 1 : 0);
 		put(out, rs.strCowStr(Named.intoOwned(n).name));
 		const _270: Named.Named = Named.default$Default();
 		const _272: Named.Named = Named.new("", kind);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Named.fmt$fmt_Debug(_270, f), (f: rs.Formatter) => Named.fmt$fmt_Debug(_272, f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1]]));
+		const args12 = [(f: rs.Formatter) => Named.fmt$fmt_Debug(_270, f), (f: rs.Formatter) => Named.fmt$fmt_Debug(_272, f)];
+		put(out, rs.fmtFormat([args12[0], " ", args12[1]]));
 	} else if (_14 === 4) {
 		const counts: rs.BTreeMap<rs.StrCow, rs.u8> = rs.btreeNew(rs.cowBy(rs.cmpStr)) as rs.BTreeMap<rs.StrCow, rs.u8>;
 		const iter3: rs.Iter<[rs.usize, string]> = rs.iterEnumerate(rs.strSplit(s, "/"));
@@ -147,11 +147,10 @@ export function cows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(names, _339) ? 1 : 0);
 	} else {
 		const c4: rs.StrCow = cow(s, owned);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, rs.strCowStr(c4)), (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(c4), f)];
-		put(out, rs.fmtFormat(["[", args6[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args6[0]), "|", rs.fmtSpec({ align: "<", width: 5 }, args6[0]), "|", rs.fmtSpec({ align: "^", width: 7 }, args6[0]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 3 }, args6[0]), "|", args6[1], "]"]));
+		const args9 = [(f: rs.Formatter) => rs.fmtPad(f, rs.strCowStr(c4)), (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(c4), f)];
+		put(out, rs.fmtFormat(["[", args9[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args9[0]), "|", rs.fmtSpec({ align: "<", width: 5 }, args9[0]), "|", rs.fmtSpec({ align: "^", width: 7 }, args9[0]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 3 }, args9[0]), "|", args9[1], "]"]));
 		const part2 = cow(first, owned);
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.StrCow, f: rs.Formatter) => rs.fmtStr(rs.strCowStr(value), f))];
-		put(out, rs.fmtFormat([args8[0]]));
+		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.StrCow, f: rs.Formatter) => rs.fmtStr(rs.strCowStr(value), f))][0]]));
 	}
 }
 
@@ -315,8 +314,8 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _250: [string, rs.Vec<rs.usize>] = rs.tupleExtend(["", new rs.Vec()] as [string, rs.Vec<rs.usize>], _251, [rs.STRING_COW_PART, rs.vecPart(4)]);
 		const texts: string = _250[0];
 		const lens: rs.Vec<rs.usize> = _250[1];
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, collected), (f: rs.Formatter) => rs.fmtPad(f, extended), (f: rs.Formatter) => rs.fmtPad(f, texts), (f: rs.Formatter) => rs.fmtList(lens.items, f, rs.usizeDebug)];
-		put(out, rs.fmtFormat([args2[0], "|", args2[1], "|", args2[2], "|", args2[3]]));
+		const args3 = [(f: rs.Formatter) => rs.fmtPad(f, collected), (f: rs.Formatter) => rs.fmtPad(f, extended), (f: rs.Formatter) => rs.fmtPad(f, texts), (f: rs.Formatter) => rs.fmtList(lens.items, f, rs.usizeDebug)];
+		put(out, rs.fmtFormat([args3[0], "|", args3[1], "|", args3[2], "|", args3[3]]));
 		const counts: rs.BTreeMap<rs.StrCow, rs.u8> = rs.btreeNew(rs.cowBy(rs.cmpStr)) as rs.BTreeMap<rs.StrCow, rs.u8>;
 		const iter5: rs.Iter<rs.StrCow> = rs.iterRev(rs.iterSlice(parts.items));
 		while (true) {
@@ -462,8 +461,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putWords(out, rs.cowSlice(c));
 		putWords(out, rs.cowSlice(c));
 		putWords(out, rs.cowSlice(rs.cowClone(c)));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(c)), f, rs.u16Debug)];
-		put(out, rs.fmtFormat([args2[0]]));
+		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(c)), f, rs.u16Debug)][0]]));
 		putWords(out, rs.sliceFrom(rs.cowIntoOwned(c).items));
 		putWords(out, rs.cowSlice(new rs.Vec()));
 		const iter: rs.Iter<rs.Cow<rs.u16>> = rs.iterSlice([new rs.Borrowed(half), rs.vecFrom(v.items.slice()), new rs.Borrowed(rs.sliceFrom(v.items)), new rs.Borrowed(rs.sliceFrom([3, 1, 4])), rs.iterToVec(rs.iterRev(rs.iterSlice(v.items)), undefined, 2, true)]);
@@ -501,8 +499,8 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const run: Run.Run = { words: cowOf(half, owned) };
 		const before: Run.Run = Run.clone$Clone(run);
 		Run.bump(run);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Run.fmt$fmt_Debug(run, f), (f: rs.Formatter) => Run.fmt$fmt_Debug(before, f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1]]));
+		const args8 = [(f: rs.Formatter) => Run.fmt$fmt_Debug(run, f), (f: rs.Formatter) => Run.fmt$fmt_Debug(before, f)];
+		put(out, rs.fmtFormat([args8[0], " ", args8[1]]));
 		putWords(out, half);
 		putWords(out, rs.sliceFrom(rs.cowIntoOwned(c2).items));
 	} else if (_15 === 2) {
@@ -525,10 +523,10 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _219: rs.Slice<rs.u16> = rs.sliceFrom(v.items);
 		const _216: boolean = !rs.eqSlice(rs.same)(_219, rs.cowSlice(a));
 		const _223: rs.Slice<rs.u16> = rs.cowSlice(a);
-		const _222: boolean = rs.eqSlice(rs.same)(_223, array);
+		const _225: rs.Slice<rs.u16> = rs.sliceFrom(array);
+		const _222: boolean = rs.eqSlice(rs.same)(_223, _225);
 		const _227: rs.Slice<rs.u16> = rs.cowSlice(b);
-		const part6 = rs.min(half.length, 2);
-		const _229: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(array), 0, part6);
+		const _229: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(array), 0, rs.min(half.length, 2));
 		const _226: boolean = rs.eqSlice(rs.same)(_227, _229);
 		const _234: boolean = rs.cowBy(rs.cmpSlice(rs.cmp))(a, b) < 0;
 		const _238: boolean = rs.cowBy(rs.cmpSlice(rs.cmp))(a, b) === 1;
@@ -641,8 +639,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _435: Run.Run = { words: cowOf(rs.sliceRange(rs.sliceFrom(v.items), 0, part3), !owned) };
 		rs.byteVecPush(out, rs.hashContains(runs, _435) ? 1 : 0);
 		const part4 = Run.default$Default();
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => Run.fmt$fmt_Debug(part4, f)];
-		put(out, rs.fmtFormat([args6[0]]));
+		put(out, rs.fmtFormat([[(f: rs.Formatter) => Run.fmt$fmt_Debug(part4, f)][0]]));
 	} else {
 		const log: rs.Cell<rs.u32> = new rs.Cell(0);
 		const items: rs.Vec<Tally.Tally> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): Tally.Tally => {
@@ -727,8 +724,8 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.byteCowSlice(c).length & 0xff);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceRange(rs.byteCowSlice(c), 0, rs.min(rs.byteCowSlice(c).length, 3)));
 	const _35: rs.ByteCow = made(half, !owned);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(rs.byteCowSlice(c)), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(rs.byteCowSlice(_35)), f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(rs.byteCowSlice(c)), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(rs.byteCowSlice(_35)), f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1]]));
 	const _47: rs.ByteCow = made(half, !owned);
 	const _44: boolean = rs.eqBytes(c, _47);
 	const _49: boolean = rs.eqBytes(c, data);
@@ -918,8 +915,7 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			return rs.byteVecOf(b2, rs.u8Rem(b2, 3) as rs.usize);
 		}), undefined, 12, true);
 		if (!intoOwned) {
-			const _153: rs.ByteVec[] = [];
-			c4 = new rs.Borrowed(rs.sliceFrom(_153));
+			c4 = new rs.Borrowed(rs.sliceFrom([]));
 		} else {
 			c4 = nested;
 		}

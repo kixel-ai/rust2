@@ -12,8 +12,8 @@ export function fmt$fmt_Display(self: Pair, f: rs.Formatter): rs.Result<undefine
 	const arg = self._0;
 	const _8: rs.Fmt = (f: rs.Formatter) => rs.u8Display(arg, f);
 	const arg2 = self._1;
-	const args2: rs.Fmt[] = [_8, (f: rs.Formatter) => rs.u8Display(arg2, f)];
-	return rs.fmtWriteFmt(f, [args2[0], "-", args2[1]]);
+	const args3 = [_8, (f: rs.Formatter) => rs.u8Display(arg2, f)];
+	return rs.fmtWriteFmt(f, [args3[0], "-", args3[1]]);
 }
 
 //# sourceMappingURL=wrap.Pair.ts.map
