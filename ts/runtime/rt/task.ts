@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 
 // Drops
@@ -327,11 +327,12 @@ export function arcRaw<P extends object>(arc: Arc<unknown>, p: P, of: "Arc" | "R
 
 /**
  * `Arc::from_raw`, of an `Arc` or an `Rc` as `of` says: the one `p` points into, which
- * `into_raw` or `as_ptr` gave and a count of which it takes, as std's does. Any other
- * pointer, or one to a value already dropped, fails, as JS keeps no count beside it.
+ * `into_raw` or `as_ptr` gave, or arithmetic moved back to, and a count of which it takes,
+ * as std's does. Any other pointer, or one to a value already dropped, fails, as JS keeps
+ * no count beside it.
  */
 export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
-	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(p);
+	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(ptrHome(p));
 	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
 	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
 	return arc as Arc<T>;

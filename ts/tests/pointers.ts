@@ -130,3 +130,7 @@ unsure(() => rt.arcFromRaw({ id: 1 }, "Arc"));
 unsure(() => rt.arcFromRaw(raw, "Rc"));
 task[Symbol.dispose]();
 assert.throws(() => rt.arcFromRaw(raw, "Arc"), /`Arc::from_raw` of a pointer to a value already dropped/);
+// Moved off its place by arithmetic and back, which is the same address.
+const counted = new rt.Arc(7);
+const at = rt.arcRaw(counted, rt.arcPlace(counted), "Rc");
+assert.equal(rt.arcFromRaw(rt.ptrAdd(rt.ptrAdd(at, 1), -1), "Rc"), counted);

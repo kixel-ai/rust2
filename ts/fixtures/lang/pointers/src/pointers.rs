@@ -2069,9 +2069,13 @@ pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
 	);
 	for &byte in data {
 		match byte % 6 {
-			0 => unsafe { Arc::increment_strong_count(num_raw) },
+			// Moved off and back, which is the same address.
+			0 => unsafe { Arc::increment_strong_count(num_raw.add(1).sub(1)) },
 			// Never the count `num` and `num_raw` hold.
-			1 if Arc::strong_count(&num) > 2 => unsafe { Arc::decrement_strong_count(num_at) },
+			1 if Arc::strong_count(&num) > 2 => {
+				let back = usize::from(byte >> 3);
+				unsafe { Arc::decrement_strong_count(num_at.wrapping_add(back).wrapping_sub(back)) }
+			}
 			2 => unsafe { Rc::increment_strong_count(duo_raw) },
 			// Through `*const ()`, as a waker's data is.
 			3 if dropped.get() == 0 => unsafe { Rc::increment_strong_count(held_raw.cast::<()>().cast::<Counted>()) },

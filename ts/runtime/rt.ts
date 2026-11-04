@@ -292,6 +292,19 @@ function nowhere(): never {
 /** The array of one element that a pointer to a value in no array points into, by its place. */
 const LONE = /* @__PURE__ */ new WeakMap<Place<unknown>, unknown[]>();
 
+/** What an array of one element `elemOf` made reads as the pointer it was made of. */
+const LONE_OF: unique symbol = /* @__PURE__ */ Symbol("loneOf");
+
+/**
+ * The pointer `p` was moved from, if `p` is element 0 of the array of one that a pointer
+ * to a value in no array points into, as arithmetic moving back to it gives: Rust's same
+ * address, which a table keyed by the pointer finds. Otherwise `p`.
+ */
+export function ptrHome<P extends object>(p: P): P {
+	if (!(p instanceof AtIndex) || p.index !== 0) return p;
+	return ((p.array as { [LONE_OF]?: P })[LONE_OF] ?? p) as P;
+}
+
 /** The traps of an array of one element, the value at `p`. */
 class Lone<T> implements ProxyHandler<T[]> {
 	readonly p: Place<T>;
@@ -301,6 +314,7 @@ class Lone<T> implements ProxyHandler<T[]> {
 	}
 
 	get(target: T[], key: string | symbol): unknown {
+		if (key === LONE_OF) return this.p;
 		return key === "0" ? this.p.v : Reflect.get(target, key);
 	}
 

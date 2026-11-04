@@ -2605,14 +2605,15 @@ export function rawArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([_42, _46 === rt.ptrErase(rt.arcRaw(arc8, arc8.value, "Rc"), "pointers::Duo", 1)], (a02: boolean): rt.u8 => {
 		return a02 ? 1 : 0;
 	})), undefined, true);
-	for (const _52 of rt.byteSliceView(data)) {
-		const _57: rt.u8 = rt.u8Rem(_52, 6);
+	for (const byte of rt.byteSliceView(data)) {
+		const _57: rt.u8 = rt.u8Rem(byte, 6);
 		if (_57 === 0) {
-			rt.arcClone(rt.arcFromRaw(numRaw, "Arc"));
+			rt.arcClone(rt.arcFromRaw(rt.ptrAdd(rt.ptrAdd(numRaw, 1), -1), "Arc"));
 			undefined;
 		} else if (_57 === 1) {
 			if (num.strong > 2) {
-				rt.arcFromRaw(numAt, "Arc")[Symbol.dispose]();
+				const back: rt.usize = byte >> 3 as rt.usize;
+				rt.arcFromRaw(rt.ptrWrappingAdd(rt.ptrWrappingAdd(numAt, back, 4, 4), -back, 4, 4), "Arc")[Symbol.dispose]();
 			}
 		} else if (_57 === 2) {
 			rt.arcClone(rt.arcFromRaw(duoRaw, "Rc"));
