@@ -9,6 +9,8 @@ interface Exports {
 	output(): number;
 	message(): number;
 	message_len(): number;
+	note?(): number;
+	note_len?(): number;
 }
 
 /**
@@ -20,6 +22,8 @@ export type Outcome = Uint8Array | { panic: string } | "abort";
 export class Wasm {
 	#module: WebAssembly.Module;
 	#exports: Exports;
+	/** What a fixture's panic hooks wrote before the last call trapped, if it exports `note`. */
+	note = "";
 
 	constructor(module: WebAssembly.Module) {
 		this.#module = module;
@@ -44,14 +48,16 @@ export class Wasm {
 
 	/** All three, or how the entry trapped. */
 	call(input: Uint8Array): Outcome {
+		this.note = "";
 		try {
 			this.input(input);
 			return this.output(this.run());
 		} catch (err) {
 			if (!(err instanceof WebAssembly.RuntimeError)) throw err;
 			const ptr = this.#exports.message();
-			const panic = () => new TextDecoder().decode(new Uint8Array(this.#exports.memory.buffer, ptr, this.#exports.message_len()));
-			const outcome: Outcome = ptr === 0 ? "abort" : { panic: panic() };
+			const text = (ptr: number, len: number) => new TextDecoder().decode(new Uint8Array(this.#exports.memory.buffer, ptr, len));
+			const outcome: Outcome = ptr === 0 ? "abort" : { panic: text(ptr, this.#exports.message_len()) };
+			if (this.#exports.note && this.#exports.note_len) this.note = text(this.#exports.note(), this.#exports.note_len());
 			// A trap leaves the instance mid-call: start a fresh one.
 			this.#exports = new WebAssembly.Instance(this.#module, {}).exports as unknown as Exports;
 			return outcome;

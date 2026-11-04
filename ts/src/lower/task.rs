@@ -386,13 +386,16 @@ pub fn call<'tcx>(
 			Expr::New(Box::new(Expr::Rt(once_class(b, cell).into())), args)
 		}
 		("atomic", "fence" | "compiler_fence") => Expr::rt("fence", args),
-		// A panic aborts, so no thread is ever unwinding from one.
+		// A panic aborts, so a thread is panicking only while its hook runs.
 		(_, "panicking")
 			if library::std_path(tcx, call.def_id)
 				.first()
 				.is_some_and(|m| m == "thread") =>
 		{
-			Expr::lit("false")
+			match b.t.hooked {
+				true => Expr::rt("panicking", Vec::new()),
+				false => Expr::lit("false"),
+			}
 		}
 		("Waker", "wake_by_ref") => first(args).member("wakeByRef").call(vec![]),
 		("Waker", "wake") => first(args).member("wake").call(vec![]),

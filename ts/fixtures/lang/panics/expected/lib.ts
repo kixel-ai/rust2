@@ -86,4 +86,19 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 	return [["panics::wrapped", wrapped as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::called", panics_called as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["panics::raised", raised as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::called", located_called as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::read", read as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["located::panicked", panicked as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
+export const NOTE: rt.LocalKey<rt.RefCell<string>> = /* @__PURE__ */ new rt.LocalKey(NOTE$init, false);
+
+export function NOTE$init(): rt.RefCell<string> {
+	return new rt.RefCell("");
+}
+
+/** Take what the hooks wrote since the last call. */
+export function note(): string {
+	return rt.localKeyWithBorrowMutPlace(NOTE, (a0: rt.Place<string>): string => {
+		const taken = a0.v;
+		a0.v = "";
+		return taken;
+	});
+}
+
 //# sourceMappingURL=lib.ts.map

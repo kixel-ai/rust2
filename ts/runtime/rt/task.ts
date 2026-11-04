@@ -4,8 +4,9 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
+import type { Location } from "./location.ts";
 
 // Drops
 
@@ -305,9 +306,9 @@ const places = new WeakMap<Arc<unknown>, Place<unknown>>();
  * `Arc` is, as its address is.
  */
 export function arcPlace<T>(arc: Arc<T>): Place<T> {
-	let at = places.get(arc);
-	if (at === undefined) places.set(arc, (at = valuePlace(arc)));
-	return at as Place<T>;
+	let pos = places.get(arc);
+	if (pos === undefined) places.set(arc, (pos = valuePlace(arc)));
+	return pos as Place<T>;
 }
 
 /** The `Arc` each raw pointer `Arc::into_raw` or `as_ptr` gave points into, by that pointer, which is its identity. */
@@ -336,6 +337,20 @@ export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
 	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
 	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
 	return arc as Arc<T>;
+}
+
+/**
+ * `p as *const ()`, as `ptrErase` casts it, of a pointer to a value JS copies: the place
+ * of an `Arc`'s or `Rc`'s value that `into_raw` or `as_ptr` gave, or arithmetic moved back
+ * to, which is its one place as its address is, or one at no memory. Any other place is a
+ * borrow's own, which no other pointer to the value would compare as, so it fails.
+ */
+export function arcErase(p: object, type: string, align: number): Place<undefined> {
+	const home = ptrHome(p);
+	if (!RAW_ARCS.has(home) && !RAW_RCS.has(home) && !ptrNowhere(home)) {
+		throw new Error(`rust2-ts: a pointer to \`${type}\` cast to one to \`()\`, which only an \`Arc\`'s or \`Rc\`'s raw pointer keeps the place of`);
+	}
+	return ptrErase(home, type, align);
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */
@@ -493,7 +508,7 @@ const WOULD_BLOCK: Result<never, TryLockError<never>> = /* @__PURE__ */ Err({ ta
 
 /** `Mutex::lock`: its guard, which is the mutex. Locking it again while held panics, as wasm32's does. */
 export function mutexLock<T>(mutex: Mutex<T>): Mutex<T> {
-	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false");
+	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false", "mutex_lock", true);
 	mutex.locked = true;
 	return mutex;
 }
@@ -512,8 +527,8 @@ export function mutexTryLock<T>(mutex: Mutex<T>): Result<Mutex<T>, TryLockError<
 abstract class Mapped<T> implements Disposable {
 	readonly at: Place<T>;
 
-	constructor(at: Place<T>) {
-		this.at = at;
+	constructor(pos: Place<T>) {
+		this.at = pos;
 	}
 
 	get value(): T {
@@ -532,8 +547,8 @@ abstract class Mapped<T> implements Disposable {
 export class MutexMap<T> extends Mapped<T> implements Mutex<T> {
 	readonly mutex: Mutex<unknown>;
 
-	constructor(at: Place<T>, mutex: Mutex<unknown>) {
-		super(at);
+	constructor(pos: Place<T>, mutex: Mutex<unknown>) {
+		super(pos);
 		this.mutex = mutex;
 	}
 
@@ -553,13 +568,13 @@ export function mutexUnlock<T>(guard: Mutex<T>): void {
 }
 
 /** `MutexGuard::map`: a `MappedMutexGuard` of the part of `guard`'s value at `at`, which takes over its lock. */
-export function mutexMap<U>(guard: Mutex<unknown>, at: Place<U>): Mutex<U> {
-	return new MutexMap(at, guard);
+export function mutexMap<U>(guard: Mutex<unknown>, pos: Place<U>): Mutex<U> {
+	return new MutexMap(pos, guard);
 }
 
 /** `MutexGuard::filter_map`: `mutexMap` of the part at `at`, or `guard` back if there is none. */
-export function mutexFilterMap<T, U>(guard: Mutex<T>, at: Place<U> | undefined): Result<Mutex<U>, Mutex<T>> {
-	return at === undefined ? Err(guard) : Ok(new MutexMap(at, guard));
+export function mutexFilterMap<T, U>(guard: Mutex<T>, pos: Place<U> | undefined): Result<Mutex<U>, Mutex<T>> {
+	return pos === undefined ? Err(guard) : Ok(new MutexMap(pos, guard));
 }
 
 /**
@@ -582,22 +597,22 @@ export class RefCell<T> implements Disposable {
 }
 
 /** `RefCell::borrow`: a shared borrow, which panics while an exclusive one is held. */
-export function refCellBorrow<T>(cell: RefCell<T>): RefCell<T> {
-	if (cell.borrows < 0) panic("RefCell already mutably borrowed");
+export function refCellBorrow<T>(cell: RefCell<T>, at?: Location): RefCell<T> {
+	if (cell.borrows < 0) panic("RefCell already mutably borrowed", at, true);
 	cell.borrows++;
 	return cell;
 }
 
 /** `RefCell::borrow_mut`: an exclusive borrow, which panics while any other is held. */
-export function refCellBorrowMut<T>(cell: RefCell<T>): RefCell<T> {
-	if (cell.borrows !== 0) panic("RefCell already borrowed");
+export function refCellBorrowMut<T>(cell: RefCell<T>, at?: Location): RefCell<T> {
+	if (cell.borrows !== 0) panic("RefCell already borrowed", at, true);
 	cell.borrows = -1;
 	return cell;
 }
 
 /** `RefCell::replace`: its value, which `value` replaces, as an exclusive borrow would. */
-export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
-	if (cell.borrows !== 0) panic("RefCell already borrowed");
+export function refCellReplace<T>(cell: RefCell<T>, value: T, at?: Location): T {
+	if (cell.borrows !== 0) panic("RefCell already borrowed", at, true);
 	const old = cell.value;
 	cell.value = value;
 	return old;
@@ -607,9 +622,9 @@ export function refCellReplace<T>(cell: RefCell<T>, value: T): T {
  * `RefCell::replace_with`: its value, which what `f` returns of it, or of its place if
  * `copied`, where JS copies it, replaces, exclusively borrowed until then.
  */
-export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, copied = false): T {
-	refCellBorrowMut(cell);
-	const at = copied
+export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, copied = false, at?: Location): T {
+	refCellBorrowMut(cell, at);
+	const pos = copied
 		? place(
 				() => cell.value,
 				(v) => {
@@ -617,7 +632,7 @@ export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, 
 				},
 			)
 		: cell.value;
-	const replacement = f(at as never);
+	const replacement = f(pos as never);
 	const old = cell.value;
 	cell.value = replacement;
 	refMutRelease(cell);
@@ -625,11 +640,11 @@ export function refCellReplaceWith<T>(cell: RefCell<T>, f: (value: never) => T, 
 }
 
 /** `Debug` of a `RefCell`: its value, borrowed while it is written, or `<borrowed>` unpadded while borrowed exclusively. */
-export function refCellDebug<T>(cell: RefCell<T>, f: Formatter, debug: Debug<T>): FmtResult {
+export function refCellDebug<T>(cell: RefCell<T>, f: Formatter, debug: Debug<T>, at?: Location): FmtResult {
 	const b = fmtDebugStruct(f, "RefCell");
 	if (cell.borrows < 0) debugStructField(b, "value", (f) => f.out.writeStr("<borrowed>"));
 	else {
-		refCellBorrow(cell);
+		refCellBorrow(cell, at);
 		debugStructField(b, "value", (f) => debug(cell.value, f));
 		refRelease(cell);
 	}
@@ -688,8 +703,8 @@ export class RefMap<T> extends Mapped<T> implements RefCell<T> {
 	borrows = 0;
 	readonly cell: RefCell<unknown>;
 
-	constructor(at: Place<T>, cell: RefCell<unknown>) {
-		super(at);
+	constructor(pos: Place<T>, cell: RefCell<unknown>) {
+		super(pos);
 		this.cell = cell;
 	}
 }
@@ -747,18 +762,18 @@ export function partPlace<T extends object>(part: T): Place<T> {
 }
 
 /** `RefMut::map`: a `RefMut` of the part of `r`'s value at `at`, which takes over `r`'s borrow. */
-export function refMutMap<U>(r: RefCell<unknown>, at: Place<U>): RefCell<U> {
-	return new RefMap(at, refCellOf(r));
+export function refMutMap<U>(r: RefCell<unknown>, pos: Place<U>): RefCell<U> {
+	return new RefMap(pos, refCellOf(r));
 }
 
 /** `RefMut::filter_map`: `refMutMap` of the part at `at`, or `r` back if there is none. */
-export function refMutFilterMap<T, U>(r: RefCell<T>, at: Place<U> | undefined): Result<RefCell<U>, RefCell<T>> {
-	return at === undefined ? Err(r) : Ok(new RefMap(at, refCellOf(r)));
+export function refMutFilterMap<T, U>(r: RefCell<T>, pos: Place<U> | undefined): Result<RefCell<U>, RefCell<T>> {
+	return pos === undefined ? Err(r) : Ok(new RefMap(pos, refCellOf(r)));
 }
 
 /** `RefMut::try_map`: `refMutMap` of the part at where `f` gave, or `r` back beside its error. */
-export function refMutTryMap<T, U, E>(r: RefCell<T>, at: Result<Place<U>, E>): Result<RefCell<U>, [RefCell<T>, E]> {
-	return at.ok ? Ok(new RefMap(at.value, refCellOf(r))) : Err([r, at.error]);
+export function refMutTryMap<T, U, E>(r: RefCell<T>, pos: Result<Place<U>, E>): Result<RefCell<U>, [RefCell<T>, E]> {
+	return pos.ok ? Ok(new RefMap(pos.value, refCellOf(r))) : Err([r, pos.error]);
 }
 
 /** `RefMut::map_split`: `RefMut`s of the parts of `r`'s value at `a` and `b`, which share `r`'s borrow. */
@@ -821,8 +836,8 @@ export function borrowMutErrorDisplay(_: BorrowMutError, f: Formatter): FmtResul
  * `Clone` of a `RefCell`: one of its value's clone by `clone`, or the value itself if
  * that is undefined, made while borrowing it, which panics while it is mutably borrowed.
  */
-export function refCellClone<T>(cell: RefCell<T>, clone?: (value: T) => T): RefCell<T> {
-	refCellBorrow(cell);
+export function refCellClone<T>(cell: RefCell<T>, clone?: (value: T) => T, at?: Location): RefCell<T> {
+	refCellBorrow(cell, at);
 	const value = clone ? clone(cell.value) : cell.value;
 	refRelease(cell);
 	return new RefCell(value);
@@ -832,16 +847,16 @@ export function refCellClone<T>(cell: RefCell<T>, clone?: (value: T) => T): RefC
  * `clone_from` of a `RefCell`: `src`'s value cloned over its own, as `cloneOver` clones
  * it, while borrowing `src`, which panics while it is mutably borrowed.
  */
-export function refCellCloneFrom<T>(cell: RefCell<T>, src: RefCell<T>, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): RefCell<T> {
-	refCellBorrow(src);
+export function refCellCloneFrom<T>(cell: RefCell<T>, src: RefCell<T>, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): RefCell<T> {
+	refCellBorrow(src, at);
 	cell.value = cloneOver(cell.value, src.value, clone, drop, over);
 	refRelease(src);
 	return cell;
 }
 
 /** `refCellCloneFrom` as a `CloneFrom`. */
-export function refCellCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<RefCell<T>> {
-	return (old, src) => refCellCloneFrom(old, src, clone, drop, over);
+export function refCellCloneFromFn<T>(clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<RefCell<T>> {
+	return (old, src) => refCellCloneFrom(old, src, clone, drop, over, at);
 }
 
 /** A `RefMut`'s or an `RwLockWriteGuard`'s drop. */
@@ -853,10 +868,10 @@ export function refMutRelease<T>(r: RefCell<T>): void {
  * `PartialEq`, `PartialOrd`, or `Ord` of `RefCell`s, by `f` of their values: each borrowed
  * in turn, which panics while it is mutably borrowed, and released the other way.
  */
-export function refCellBy<T, R>(f: (a: T, b: T) => R): (a: RefCell<T>, b: RefCell<T>) => R {
+export function refCellBy<T, R>(f: (a: T, b: T) => R, at?: Location): (a: RefCell<T>, b: RefCell<T>) => R {
 	return (a, b) => {
-		refCellBorrow(a);
-		refCellBorrow(b);
+		refCellBorrow(a, at);
+		refCellBorrow(b, at);
 		const r = f(a.value, b.value);
 		refRelease(b);
 		refRelease(a);
@@ -963,7 +978,7 @@ export class LocalKey<T> {
 			this.#drop?.(this.#value as T);
 			this.#state = 0;
 		}
-		if (this.#state === 2) panic("Attempted to initialize thread-local while it is being dropped");
+		if (this.#state === 2) throw new Abort("Attempted to initialize thread-local while it is being dropped");
 		this.#value = value;
 		this.#state = 1;
 		return value;
@@ -994,25 +1009,25 @@ export function localKeyInitializeWith<T, R>(
  * `LocalKey::set` of a `RefCell` key: `value` becomes a lazy key's first value, or else
  * replaces its value as an exclusive borrow would, after `dropOld` drops the old one.
  */
-export function localKeyRefCellSet<T>(key: LocalKey<RefCell<T>>, value: T, dropOld?: (old: T) => void): void {
+export function localKeyRefCellSet<T>(key: LocalKey<RefCell<T>>, value: T, dropOld?: (old: T) => void, at?: Location): void {
 	if (key.install(new RefCell(value))) return;
-	const cell = refCellBorrowMut(key.get());
+	const cell = refCellBorrowMut(key.get(), at);
 	dropOld?.(cell.value);
 	cell.value = value;
 	refMutRelease(cell);
 }
 
 /** `LocalKey::with_borrow_mut`: `f` of its value, exclusively borrowed while `f` runs. */
-export function localKeyWithBorrowMut<T, R>(key: LocalKey<RefCell<T>>, f: (value: T) => R): R {
-	const cell = refCellBorrowMut(key.get());
+export function localKeyWithBorrowMut<T, R>(key: LocalKey<RefCell<T>>, f: (value: T) => R, at?: Location): R {
+	const cell = refCellBorrowMut(key.get(), at);
 	const out = f(cell.value);
 	refMutRelease(cell);
 	return out;
 }
 
 /** `localKeyWithBorrowMut` of a value JS copies, which `f` gets the place of. */
-export function localKeyWithBorrowMutPlace<T, R>(key: LocalKey<RefCell<T>>, f: (value: Place<T>) => R): R {
-	const cell = refCellBorrowMut(key.get());
+export function localKeyWithBorrowMutPlace<T, R>(key: LocalKey<RefCell<T>>, f: (value: Place<T>) => R, at?: Location): R {
+	const cell = refCellBorrowMut(key.get(), at);
 	const out = f(
 		place(
 			() => cell.value,
@@ -1041,16 +1056,16 @@ export class Atomic<T> implements Place<T> {
 }
 
 /** `Atomic::load`. */
-export function atomicLoad<T>(atomic: Atomic<T>, order: AtomicOrdering): T {
-	if (order === 1) panic("there is no such thing as a release load");
-	if (order === 3) panic("there is no such thing as an acquire-release load");
+export function atomicLoad<T>(atomic: Atomic<T>, order: AtomicOrdering, at?: Location): T {
+	if (order === 1) panic("there is no such thing as a release load", at);
+	if (order === 3) panic("there is no such thing as an acquire-release load", at);
 	return atomic.v;
 }
 
 /** `Atomic::store`. */
-export function atomicStore<T>(atomic: Atomic<T>, value: T, order: AtomicOrdering): void {
-	if (order === 2) panic("there is no such thing as an acquire store");
-	if (order === 3) panic("there is no such thing as an acquire-release store");
+export function atomicStore<T>(atomic: Atomic<T>, value: T, order: AtomicOrdering, at?: Location): void {
+	if (order === 2) panic("there is no such thing as an acquire store", at);
+	if (order === 3) panic("there is no such thing as an acquire-release store", at);
 	atomic.v = value;
 }
 
@@ -1079,9 +1094,10 @@ export function atomicCompareExchange<T>(
 	_success: AtomicOrdering,
 	failure: AtomicOrdering,
 	eq?: (a: T, b: T) => boolean,
+	at?: Location,
 ): Result<T, T> {
-	if (failure === 3) panic("there is no such thing as an acquire-release failure ordering");
-	if (failure === 1) panic("there is no such thing as a release failure ordering");
+	if (failure === 3) panic("there is no such thing as an acquire-release failure ordering", at);
+	if (failure === 1) panic("there is no such thing as a release failure ordering", at);
 	const old = atomic.v;
 	if (eq === undefined ? old !== current : !eq(old, current)) return Err(old);
 	atomic.v = next;
@@ -1098,10 +1114,11 @@ export function atomicTryUpdate<T>(
 	fetch: AtomicOrdering,
 	f: (value: T) => T | undefined,
 	eq?: (a: T, b: T) => boolean,
+	at?: Location,
 ): Result<T, T> {
-	let prev = atomicLoad(atomic, fetch);
+	let prev = atomicLoad(atomic, fetch, at);
 	for (let next = f(prev); next !== undefined; next = f(prev)) {
-		const result = atomicCompareExchange(atomic, prev, next, set, fetch, eq);
+		const result = atomicCompareExchange(atomic, prev, next, set, fetch, eq, at);
 		if (result.ok) return result;
 		prev = result.error;
 	}
@@ -1109,18 +1126,18 @@ export function atomicTryUpdate<T>(
 }
 
 /** `Atomic::update`: `f` of the value it loads, compare-exchanged until it holds. */
-export function atomicUpdate<T>(atomic: Atomic<T>, set: AtomicOrdering, fetch: AtomicOrdering, f: (value: T) => T, eq?: (a: T, b: T) => boolean): T {
-	let prev = atomicLoad(atomic, fetch);
+export function atomicUpdate<T>(atomic: Atomic<T>, set: AtomicOrdering, fetch: AtomicOrdering, f: (value: T) => T, eq?: (a: T, b: T) => boolean, at?: Location): T {
+	let prev = atomicLoad(atomic, fetch, at);
 	for (;;) {
-		const result = atomicCompareExchange(atomic, prev, f(prev), set, fetch, eq);
+		const result = atomicCompareExchange(atomic, prev, f(prev), set, fetch, eq, at);
 		if (result.ok) return result.value;
 		prev = result.error;
 	}
 }
 
 /** `atomic::fence` and `compiler_fence`, which order nothing on one thread. */
-export function fence(order: AtomicOrdering): void {
-	if (order === 0) panic("there is no such thing as a relaxed fence");
+export function fence(order: AtomicOrdering, at?: Location): void {
+	if (order === 0) panic("there is no such thing as a relaxed fence", at);
 }
 
 // One-time cells
@@ -1151,8 +1168,8 @@ export class OnceLock<T, N extends None | undefined = undefined> extends OnceCel
 }
 
 /** A `OnceLock` initialized from within its own initialization panics, as wasm32's `Once` does. */
-function recursive(cell: OnceCell<unknown, None | undefined>): void {
-	if (cell instanceof OnceLock && cell.running) panic("one-time initialization may not be performed recursively");
+function recursive(cell: OnceCell<unknown, None | undefined>, caller?: Location): void {
+	if (cell instanceof OnceLock && cell.running) panic("one-time initialization may not be performed recursively", caller ?? "once_force");
 }
 
 /** `OnceCell::set`: `Err(value)` back if it holds one already. */
@@ -1177,22 +1194,22 @@ export function onceTake<T>(cell: OnceCell<T, None | undefined>, none?: None): T
 /**
  * `OnceCell::get_or_init`: what it holds, which `f` makes first if it holds nothing,
  * dropping `f` by `dropF` if not. A `OnceLock` initialized again from within `f` panics
- * as `recursive` does, and a `OnceCell` that `f` sets itself panics, as std's do. `f` of
- * a `()` returns `void`.
+ * as `recursive` does, at `caller` for `Once::call_once`, which passes its caller's, and a
+ * `OnceCell` that `f` sets itself panics, as std's do. `f` of a `()` returns `void`.
  */
-export function onceGetOrInit<T>(cell: OnceCell<T>, f: () => T | void, dropF?: (f: () => T | void) => void): T;
-export function onceGetOrInit<T>(cell: OnceCell<T, None>, f: () => T | void, dropF: ((f: () => T | void) => void) | undefined, none: None): T;
-export function onceGetOrInit<T>(cell: OnceCell<T, None | undefined>, f: () => T | void, dropF?: (f: () => T | void) => void, none?: None): T {
+export function onceGetOrInit<T>(cell: OnceCell<T>, f: () => T | void, dropF?: (f: () => T | void) => void, none?: undefined, caller?: Location): T;
+export function onceGetOrInit<T>(cell: OnceCell<T, None>, f: () => T | void, dropF: ((f: () => T | void) => void) | undefined, none: None, caller?: Location): T;
+export function onceGetOrInit<T>(cell: OnceCell<T, None | undefined>, f: () => T | void, dropF?: (f: () => T | void) => void, none?: None, caller?: Location): T {
 	if (cell.v !== none) {
 		dropF?.(f);
 		return cell.v as T;
 	}
-	recursive(cell);
+	recursive(cell, caller);
 	const lock = cell instanceof OnceLock;
 	if (lock) cell.running = true;
 	const value = f() as T;
 	if (lock) cell.running = false;
-	else if (cell.v !== none) panic("reentrant init");
+	else if (cell.v !== none) panic("reentrant init", "reentrant_init");
 	cell.v = value;
 	return value;
 }
@@ -1214,7 +1231,7 @@ export function onceGetOrTryInit<T, E>(cell: OnceCell<T, None | undefined>, f: (
 	const result = f();
 	if (lock) cell.running = false;
 	if (!result.ok) return result;
-	if (!lock && cell.v !== none) panic("reentrant init");
+	if (!lock && cell.v !== none) panic("reentrant init", "reentrant_init");
 	cell.v = result.value;
 	return result;
 }
@@ -1259,9 +1276,9 @@ export type OnceState = Once;
  * `Once::call_once` and `call_once_force`: runs `f` if `once` has not run one, or else
  * drops it by `dropF`. Run again from within `f`, it panics as `recursive` does.
  */
-export function onceCall(once: Once, f: (state: OnceState) => void, dropF?: (f: (state: OnceState) => void) => void): void {
+export function onceCall(once: Once, f: (state: OnceState) => void, dropF?: (f: (state: OnceState) => void) => void, at?: Location): void {
 	if (once.v) dropF?.(f);
-	else onceGetOrInit(once, () => (f(once), true));
+	else onceGetOrInit(once, () => (f(once), true), undefined, undefined, at);
 }
 
 /** `OnceState::is_poisoned`: never, as a panic aborts rather than poison a `Once`. */
@@ -1305,7 +1322,7 @@ export class LazyCell<T> {
 
 	/** Panics as a `force` from within the function does. */
 	protected recursive(): never {
-		panic("LazyCell instance has previously been poisoned");
+		panic("LazyCell instance has previously been poisoned", "lazy_poisoned");
 	}
 
 	/** `Debug`, named `name`: its value, or `<uninit>` until `force` makes it, which this never runs. */
@@ -1323,7 +1340,7 @@ export class LazyCell<T> {
 /** `LazyLock<T>`, which panics as wasm32's `Once` does when forced from within its function. */
 export class LazyLock<T> extends LazyCell<T> {
 	protected override recursive(): never {
-		panic("one-time initialization may not be performed recursively");
+		panic("one-time initialization may not be performed recursively", "once_force");
 	}
 }
 
@@ -1622,16 +1639,16 @@ export class Ready<T> implements Future<T> {
 	}
 
 	poll(_cx: Context): Poll<T> {
-		return this.#take("`Ready` polled after completion");
+		return this.#take("`Ready` polled after completion", "ready_poll");
 	}
 
 	/** `into_inner`, which consumes it. */
 	intoInner(): T {
-		return this.#take("Called `into_inner()` on `Ready` after completion");
+		return this.#take("Called `into_inner()` on `Ready` after completion", "ready_into_inner");
 	}
 
-	#take(message: string): T {
-		if (this.#taken) panic(message);
+	#take(message: string, at: string): T {
+		if (this.#taken) panic(message, at, true);
 		const value = this.#value as T;
 		this.#taken = true;
 		this.#value = undefined;
@@ -1669,13 +1686,13 @@ class Never implements Future<never> {
 export const NEVER: Future<never> = /* @__PURE__ */ new Never();
 
 /** An `async fn` polled again after it returned. */
-export function asyncFnResumed(): never {
-	throw new Panic("`async fn` resumed after completion");
+export function asyncFnResumed(at?: Location): never {
+	panic("`async fn` resumed after completion", at);
 }
 
 /** An `async fn` polled again after it panicked. */
-export function asyncFnResumedPanic(): never {
-	throw new Panic("`async fn` resumed after panicking");
+export function asyncFnResumedPanic(at?: Location): never {
+	panic("`async fn` resumed after panicking", at);
 }
 
 // Executor
