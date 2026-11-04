@@ -344,7 +344,10 @@ impl cfg::Syntax for Stmt {
 	}
 
 	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>) {
-		let cases = cases.into_iter().map(|(node, body)| (Expr::lit(node.to_string()), body)).collect();
+		let cases = cases
+			.into_iter()
+			.map(|(node, body)| (Expr::lit(node.to_string()), body))
+			.collect();
 		out.push(StmtKind::decl(true, state, Some(Type::Builtin("number")), Some(Expr::lit("0"))).at(None));
 		out.push(
 			StmtKind::While {

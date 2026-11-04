@@ -7,6 +7,7 @@
 use std::collections::HashSet;
 use std::fmt::Write;
 
+use rust2_driver::cfg;
 use rustc_hir::def::DefKind;
 use rustc_middle::mir::visit::Visitor;
 use rustc_middle::mir::{
@@ -17,7 +18,6 @@ use rustc_middle::ty::adjustment::PointerCoercion;
 use rustc_middle::ty::util::IntTypeExt;
 use rustc_middle::ty::{self, EarlyBinder, Instance, InstanceKind, Ty, TyCtxt};
 use rustc_span::Span;
-use rust2_driver::cfg;
 
 use super::Translator;
 use super::fold::{self, Does, Effect, Held, Pending, Temps};

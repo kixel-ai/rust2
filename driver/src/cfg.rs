@@ -80,22 +80,11 @@ pub enum Jump {
 /// A statement as structuring sees it: its bodies `B`, condition `C`, and label `L`.
 pub enum Form<B, C, L> {
 	/// A block, which only a labeled `break` leaves.
-	Block {
-		label: L,
-		body: B,
-	},
+	Block { label: L, body: B },
 	/// A loop, with its condition if it is a `while`.
-	Loop {
-		label: L,
-		cond: Option<C>,
-		body: B,
-	},
+	Loop { label: L, cond: Option<C>, body: B },
 	/// An `if`, its `else` empty if it has none.
-	If {
-		cond: C,
-		then: B,
-		els: B,
-	},
+	If { cond: C, then: B, els: B },
 	/// A `switch`'s cases' bodies and its default's, which an unlabeled `break` leaves.
 	Switch(Vec<B>),
 	/// A `break`, and the label it names.
@@ -541,7 +530,9 @@ pub fn simplify<S: Syntax>(stmts: &mut Vec<S>) {
 			std::mem::swap(then, els);
 		}
 	}
-	stmts.retain(|s| !matches!(s.view(), Form::If { cond, then, els } if then.is_empty() && els.is_empty() && cond.pure()));
+	stmts.retain(
+		|s| !matches!(s.view(), Form::If { cond, then, els } if then.is_empty() && els.is_empty() && cond.pure()),
+	);
 }
 
 /// After a `then` that never falls through, the `else` is what follows the `if`. Every
@@ -642,9 +633,7 @@ fn rotate<S: Syntax>(stmts: &mut [S]) {
 			&& let Some(first) = body.first_mut()
 			&& let Form::If { cond: test, then, els } = first.view_mut()
 		{
-			let leaves = |stmts: &[S]| {
-				matches!(stmts, [s] if matches!(s.view(), Form::Break(target) if target.is_none() || target == label))
-			};
+			let leaves = |stmts: &[S]| matches!(stmts, [s] if matches!(s.view(), Form::Break(target) if target.is_none() || target == label));
 			let rotated = if els.is_empty() && leaves(then) {
 				std::mem::swap(cond, test);
 				cond.negate();

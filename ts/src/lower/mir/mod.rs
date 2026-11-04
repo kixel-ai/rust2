@@ -25,6 +25,7 @@ mod scalar;
 mod step;
 mod vec;
 
+use rust2_driver::cfg;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::DefKind;
 use rustc_index::IndexVec;
@@ -32,7 +33,6 @@ use rustc_middle::mir::{self, BasicBlock, Local, Operand, Place, Rvalue, Stateme
 use rustc_middle::ty::{self, EarlyBinder, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::{Span, Spanned};
 
-use rust2_driver::cfg;
 pub use self::place::{made_slice, slice_member, writes_captures};
 pub use self::scalar::Slotted;
 use super::Translator;
