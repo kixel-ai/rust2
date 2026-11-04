@@ -1934,6 +1934,24 @@ impl Debug for Noisy {
 	}
 }
 
+/// A generic trait whose method returns its argument, `()` too.
+trait Task<T> {
+	fn run(&mut self) -> T;
+}
+
+impl Task<()> for Steps {
+	fn run(&mut self) {
+		self.1 = self.1.wrapping_mul(3);
+	}
+}
+
+impl Task<u32> for Square {
+	fn run(&mut self) -> u32 {
+		self.side = self.side.wrapping_add(1);
+		self.area()
+	}
+}
+
 /// A generic struct of trait objects of its parameter, which its type has as its own.
 struct Over<T> {
 	scale: Box<dyn Scaled<T>>,
@@ -1997,6 +2015,12 @@ pub fn generics(data: &[u8], out: &mut Vec<u8>) {
 		out,
 		&format!("{:?} {:?} {v:?} {picked:?} ", paired.pair(c), up.scale(rest.to_vec())),
 	);
+	// Shared, upcast through the `Arc`, whose count both sides share.
+	let shared: Arc<dyn Paired<u8>> = Arc::new(Many(c));
+	let up: Arc<dyn Scaled<Vec<u8>>> = shared.clone();
+	let mut v = vec![a];
+	up.bump(&mut v);
+	put(out, &format!("{:?} {v:?} {} ", shared.pair(b), Arc::strong_count(&up)));
 
 	// Associated types: owned items each dropped as Rust drops them, numbers, and strings
 	// from a copied value changed in place.
@@ -2018,6 +2042,13 @@ pub fn generics(data: &[u8], out: &mut Vec<u8>) {
 	put(out, &format!("{} {} ", taken(counted), steps.1));
 	let mut left = c % 5;
 	put(out, &format!("{} {left} ", taken(&mut left)));
+
+	// A unit return, and a number's.
+	let mut tasks: Vec<Box<dyn Task<()>>> = vec![Box::new(Steps(1, u32::from(a)))];
+	let mut square: Box<dyn Task<u32>> = Box::new(Square { side: u16::from(c) });
+	tasks[0].run();
+	let ran = tasks.iter_mut().map(|t| t.run()).count();
+	put(out, &format!("{ran} {} ", square.run()));
 
 	// Held in a generic struct, whose type names the objects' arguments.
 	let mut over = Over {

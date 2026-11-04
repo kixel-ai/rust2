@@ -181,8 +181,8 @@ export class of$dyns_By {
 		return By.bump$dyns_Scaled_u8(this.v, a as rs.Place<rs.u8>);
 	}
 
-	pick$Scaled(a: rs.Ptr<rs.u8>, a2: rs.Ptr<rs.u8>): rs.u8 {
-		return By.pick$dyns_Scaled_u8(this.v, a as rs.u8, a2 as rs.u8);
+	pick$Scaled(a: rs.Ptr<rs.u8>, a2: rs.Ptr<rs.u8>): rs.Ptr<rs.u8> {
+		return By.pick$dyns_Scaled_u8(this.v, a as rs.u8, a2 as rs.u8) as rs.Ptr<rs.u8>;
 	}
 
 	scale$Scaled(a: rs.u8): rs.u8 {
@@ -305,12 +305,12 @@ export class of$dyns_Many {
 		return Many.pair$dyns_Paired_u8(this.v, a);
 	}
 
-	pick$Scaled(a: rs.VecOf<rs.u8>, a2: rs.VecOf<rs.u8>): rs.ByteVec {
-		return Many.pick$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec, a2 as rs.ByteVec);
+	pick$Scaled(a: rs.VecOf<rs.u8>, a2: rs.VecOf<rs.u8>): rs.VecOf<rs.u8> {
+		return Many.pick$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec, a2 as rs.ByteVec) as rs.VecOf<rs.u8>;
 	}
 
-	scale$Scaled(a: rs.VecOf<rs.u8>): rs.ByteVec {
-		return Many.scale$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec);
+	scale$Scaled(a: rs.VecOf<rs.u8>): rs.VecOf<rs.u8> {
+		return Many.scale$dyns_Scaled_Vec_u8(this.v, a as rs.ByteVec) as rs.VecOf<rs.u8>;
 	}
 }
 
@@ -393,6 +393,10 @@ export class of$dyns_Square {
 		return Square.larger$dyns_Shape(this.v, a);
 	}
 
+	run$Task(): rs.u32 {
+		return Square.run$dyns_Task_u32(this.v);
+	}
+
 	sides$Shape(): rs.u8 {
 		return Square.sides$dyns_Shape(this.v);
 	}
@@ -411,6 +415,10 @@ export class of$dyns_Steps {
 
 	left$Source(): rs.usize {
 		return Steps.left$dyns_Source(this.v);
+	}
+
+	run$Task(): undefined {
+		return Steps.run$dyns_Task_unit(this.v) as undefined;
 	}
 
 	take$Source(): rs.u32 | undefined {
@@ -465,8 +473,8 @@ export class of$dyns_Tri {
 		return Tri.larger$dyns_Shape(this.v, a);
 	}
 
-	pick$Scaled(a: rs.Ptr<string>, a2: rs.Ptr<string>): string {
-		return Tri.pick$dyns_Scaled_String(this.v, a as string, a2 as string);
+	pick$Scaled(a: rs.Ptr<string>, a2: rs.Ptr<string>): rs.Ptr<string> {
+		return Tri.pick$dyns_Scaled_String(this.v, a as string, a2 as string) as rs.Ptr<string>;
 	}
 
 	scale$Scaled(a: string): string {
@@ -509,8 +517,8 @@ export class of$u16 {
 		return bump$dyns_Scaled_u16_u16(this.v, a as rs.Place<rs.u16>);
 	}
 
-	pick$Scaled(a: rs.Ptr<rs.u16>, a2: rs.Ptr<rs.u16>): rs.u16 {
-		return pick$dyns_Scaled_u16_u16(this.v, a as rs.u16, a2 as rs.u16);
+	pick$Scaled(a: rs.Ptr<rs.u16>, a2: rs.Ptr<rs.u16>): rs.Ptr<rs.u16> {
+		return pick$dyns_Scaled_u16_u16(this.v, a as rs.u16, a2 as rs.u16) as rs.Ptr<rs.u16>;
 	}
 
 	scale$Scaled(a: rs.u16): rs.u16 {

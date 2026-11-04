@@ -506,6 +506,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.b.dyn_future(from, to, value, span)
 		} else if self.b.t.dyn_iter(object).is_some() {
 			self.b.dyn_iter(from, to, value, span)
+		} else if arc.is_none() && self.b.t.object(object, span).is_some() && self.b.t.upcast_retypes(pointee, object) {
+			let ty = crate::ts::Type::Rs("Arc", vec![self.b.t.ty(object, span)]);
+			Expr::As(Box::new(value), ty)
 		} else {
 			self.b.object_of(value, from, to, span)
 		};

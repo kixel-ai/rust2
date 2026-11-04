@@ -400,6 +400,14 @@ impl<'tcx> Translator<'_, 'tcx> {
 		}
 	}
 
+	/// Whether an upcast from the trait object `from` to `to`, a made object, is cast to
+	/// `to`'s type: a generic trait's, whose methods have a form only its arguments decide
+	/// where `from`'s have another.
+	pub fn upcast_retypes(&self, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {
+		let to = principal(to).expect("an object's trait");
+		principal(from) != Some(to) && !self.objects[&to].params.is_empty()
+	}
+
 	/// Whether `instance` is a call through a trait object's method, whose wrapper takes
 	/// its arguments as the crate's functions do. A `&dyn Debug` or `&dyn Display` is a
 	/// function writing its value instead, a `dyn Future` an `rs.Future`, and a
@@ -494,15 +502,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 			true => None,
 			false => {
 				let object_args = self.object_args(principal, object, span);
-				let Some(Type::Func(params, _)) = &method.ty else {
+				let Some(Type::Func(params, ret)) = &method.ty else {
 					unreachable!("a held method's type");
 				};
-				Some(
-					params
-						.iter()
-						.map(|t| t.subst(&|p| param(&object_args, p)))
-						.collect::<Vec<_>>(),
-				)
+				let params: Vec<Type> = params.iter().map(|t| t.subst(&|p| param(&object_args, p))).collect();
+				Some((params, ret.subst(&|p| param(&object_args, p))))
 			}
 		};
 		let Some(receiver) = self.receiver(sig.inputs()[0], from, held, Expr::This.field(v)) else {
@@ -521,7 +525,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			let name = b.fresh("a");
 			let ty = b.t.ty(*input, span);
 			let value = Expr::ident(&name);
-			let (ty, value) = match defined.as_ref().map(|d| d[i].clone()) {
+			let (ty, value) = match defined.as_ref().map(|(d, _)| d[i].clone()) {
 				Some(defined) if defined != ty => (defined, Expr::As(Box::new(value), ty)),
 				_ => (ty, value),
 			};
@@ -555,7 +559,13 @@ impl<'tcx> Translator<'_, 'tcx> {
 			&mut body,
 		);
 		let ret = self.ret_ty(sig.output(), span);
-		body.push(StmtKind::Return(Some(call.typed())).at(None));
+		// What the object's type returns, such as the `undefined` of a `T` that is `()`,
+		// where the impl's `()` is `void`.
+		let (ret, call) = match defined {
+			Some((_, defined)) if defined != ret => (defined.clone(), Expr::As(Box::new(call.typed()), defined)),
+			_ => (ret, call.typed()),
+		};
+		body.push(StmtKind::Return(Some(call)).at(None));
 		let method = self.method(sym, method.name);
 		self.program.methods.entry(sym).or_default().push(ts::Function {
 			sym: method,
@@ -798,6 +808,8 @@ fn fits(defined: &Type, called: &Type) -> bool {
 	let all = |a: &[Type], b: &[Type]| a.len() == b.len() && a.iter().zip(b).all(|(a, b)| fits(a, b));
 	match (defined, called) {
 		_ if defined == called || super::instanced(defined) => true,
+		// The `()` a declared method returns as `void`.
+		(Type::Builtin("undefined"), Type::Builtin("void")) => true,
 		(Type::Rs(a, x), Type::Rs(b, y)) => a == b && all(x, y),
 		(Type::Sym(a, x), Type::Sym(b, y)) => a == b && all(x, y),
 		(Type::Union(x), Type::Union(y)) | (Type::Tuple(x), Type::Tuple(y)) => all(x, y),
@@ -874,7 +886,9 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let Type::Func(_, called) = self.t.called_ty(principal, index, object, span) else {
 			unreachable!("a method's type");
 		};
-		match defined.subst(&|p| param(&object_args, p)) == *called {
+		let defined = defined.subst(&|p| param(&object_args, p));
+		// A `()` the object's type returns as `undefined` is the `void` the call is.
+		match defined == *called || (defined, &*called) == (Type::Builtin("undefined"), &Type::Builtin("void")) {
 			true => call,
 			false => Expr::As(Box::new(call), *called),
 		}
@@ -930,10 +944,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		// An upcast, from a trait object, which has its supertraits' methods already, and is
 		// of the class of its value's own type that a downcast checks for.
 		if pointee.is_trait() {
-			// To a generic trait's, whose type has a form only its arguments decide where the
-			// subtrait's has another.
-			let to_trait = principal(object).expect("an object's trait");
-			return match principal(pointee) != Some(to_trait) && !self.t.objects[&to_trait].params.is_empty() {
+			return match self.t.upcast_retypes(pointee, object) {
 				true => Expr::As(Box::new(value), self.t.ty(to, span)),
 				false => value,
 			};

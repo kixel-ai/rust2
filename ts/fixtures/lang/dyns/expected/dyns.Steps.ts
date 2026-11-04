@@ -24,4 +24,8 @@ export function total$dyns_Counted(self: Steps): rs.u32 {
 	return self._1;
 }
 
+export function run$dyns_Task_unit(self: Steps): void {
+	self._1 = rs.u32WrappingMul(self._1, 3);
+}
+
 //# sourceMappingURL=dyns.Steps.ts.map
