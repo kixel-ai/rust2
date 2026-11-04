@@ -5,11 +5,12 @@
 //! `UnsafeCell::get` gives; slots of fresh memory written whole before any pointer
 //! into them is taken, by index or through std's iterators over them; pointers into
 //! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays of bytes; a
-//! pointer into a cell that other functions write whole through a `&mut` to it; and
-//! pointers a generic type holds to its parameter, at each form a pointer takes.
+//! pointer into a cell that other functions write whole through a `&mut` to it;
+//! pointers a generic type holds to its parameter, at each form a pointer takes; and the
+//! raw pointers of an `Arc` and an `Rc`, counted and taken back.
 
 use std::cell::{Cell, UnsafeCell};
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -2025,4 +2026,76 @@ pub fn distinct(data: &[u8], out: &mut Vec<u8>) {
 			})),
 		]);
 	}
+}
+
+/// What an `Arc` or `Rc` holds through its raw pointer, which notes its drop in the
+/// `Cell` beside it.
+struct Counted<'a> {
+	id: u8,
+	dropped: &'a Cell<u8>,
+}
+
+impl Drop for Counted<'_> {
+	fn drop(&mut self) {
+		self.dropped.set(self.dropped.get().wrapping_add(self.id));
+	}
+}
+
+/// `Arc`s and `Rc`s of a number, a struct, `()`, and a value that drops, through the
+/// pointers `into_raw` and `as_ptr` give: counted up and down by `increment_strong_count`
+/// and `decrement_strong_count`, the value dropping with the last, taken back by
+/// `from_raw`, cast to `*const ()` and back first, and compared, as `strong_count` reads.
+pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
+	let dropped = Cell::new(0);
+	let num = Arc::new(7u32);
+	let duo = Rc::new(Duo(1, 2));
+	let unit = Arc::new(());
+	let other = Arc::new(());
+	let held = Rc::new(Counted {
+		id: 3,
+		dropped: &dropped,
+	});
+	let num_at = Arc::as_ptr(&num);
+	let (num_raw, duo_raw) = (Arc::into_raw(Arc::clone(&num)), Rc::into_raw(Rc::clone(&duo)));
+	let (unit_raw, other_raw) = (Arc::into_raw(Arc::clone(&unit)), Arc::into_raw(other));
+	let held_raw = Rc::into_raw(held);
+	out.extend([ptr::eq(duo_raw, &*duo), unit_raw == other_raw].map(u8::from));
+	out.extend([unit_raw == Arc::as_ptr(&unit), duo_raw.cast::<()>() == Rc::as_ptr(&duo).cast()].map(u8::from));
+	for &byte in data {
+		match byte % 6 {
+			0 => unsafe { Arc::increment_strong_count(num_raw) },
+			// Never the count `num` and `num_raw` hold.
+			1 if Arc::strong_count(&num) > 2 => unsafe { Arc::decrement_strong_count(num_at) },
+			2 => unsafe { Rc::increment_strong_count(duo_raw) },
+			// Through `*const ()`, as a waker's data is.
+			3 if dropped.get() == 0 => unsafe { Rc::increment_strong_count(held_raw.cast::<()>().cast::<Counted>()) },
+			4 if dropped.get() == 0 => unsafe { Rc::decrement_strong_count(held_raw as *const () as *const Counted) },
+			1 | 3 | 4 => {}
+			_ => {
+				let taken = unsafe { Rc::from_raw(duo_raw) };
+				out.push(Rc::strong_count(&taken) as u8);
+				mem::forget(taken);
+			}
+		}
+		// Each count as a borrowed `Arc` reads it, until the value drops.
+		if dropped.get() == 0 {
+			let held = mem::ManuallyDrop::new(unsafe { Rc::from_raw(held_raw) });
+			out.extend([Rc::strong_count(&held) as u8, held.id]);
+		}
+		out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&duo) as u8, dropped.get()]);
+	}
+	// Taken back, and dropped, as many times as they were counted.
+	let num_back = unsafe { Arc::from_raw(num_raw) };
+	let duo_back = unsafe { Rc::from_raw(duo_raw) };
+	let unit_back = unsafe { Arc::from_raw(unit_raw.cast::<()>()) };
+	out.extend([Arc::ptr_eq(&num_back, &num), Rc::ptr_eq(&duo_back, &duo), Arc::ptr_eq(&unit_back, &unit)].map(u8::from));
+	out.extend([*num_back as u8, duo_back.1, Arc::strong_count(&unit) as u8]);
+	drop((num_back, duo_back, unit_back));
+	out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&duo) as u8, Arc::strong_count(&unit) as u8]);
+	drop(unsafe { Arc::from_raw(other_raw) });
+	while dropped.get() == 0 {
+		unsafe { Rc::decrement_strong_count(held_raw) };
+		out.push(dropped.get());
+	}
+	out.push(dropped.get());
 }

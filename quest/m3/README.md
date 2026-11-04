@@ -22,7 +22,6 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Waiting: a slice of one byte behind any &mut](/quest/m3/ts-slice-of-one.md) - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate once a consumer calls them
-- [A raw waker's data through an Arc](/quest/m3/ts-raw-waker.md) - `Arc::into_raw`, `from_raw`, and the strong counts translate for a hand-built waker's data
 - [Waiting: a slice object for a mutable part of other values](/quest/m3/ts-slice-object.md) - waits on a moq profile showing the `Proxy` view's traps matter, then decides on an `rt.ByteSlice`-like form
 - [Port the workflow guard to kixelated/quest](/quest/m3/quest-workflow-guard.md) - quest's environment guard parses YAML as this repository's does
 - [Debug of a str's searches](/quest/m3/ts-iter-source-debug.md) - `Debug` of `str`'s `Split` and its forms, `Matches`, `Lines`, and `SplitWhitespace` writes their searcher's state as std's does

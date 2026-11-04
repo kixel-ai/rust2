@@ -975,6 +975,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("MaybeUninit", "new" | "write" | "assume_init")
 		| ("ManuallyDrop", "new" | "into_inner")
 		| ("Box", "into_raw" | "leak" | "from_raw")
+		| ("Arc" | "Rc", "into_raw")
 		| ("hint", "must_use")
 		| ("From", "from")
 		| ("Into", "into")

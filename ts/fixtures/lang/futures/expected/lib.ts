@@ -5,6 +5,7 @@ import { futures } from "./futures.ts";
 import type * as Held from "./futures.Held.ts";
 import type * as Logged from "./futures.Logged.ts";
 import { raw } from "./raw.ts";
+import type * as Task from "./raw.Task.ts";
 
 export function copy$task_RawWakerVTable(v: rt.WakerVTable): rt.WakerVTable {
 	return rt.wakerVTable(v.clone, v.wake, v.wakeByRef, v.drop);
@@ -19,6 +20,11 @@ export function drop$task_Poll_futures_Logged(_1: rt.Poll<Logged.Logged>): void 
 export function drop$tuple2_task_Waker_Option_task_Waker(_1: [rt.Waker, rt.Waker | undefined]): void {
 	_1[0][Symbol.dispose]();
 	rt.drop(_1[1]);
+}
+
+export function drop$tuple2_task_Waker_sync_Arc_raw_Task(_1: [rt.Waker, rt.Arc<Task.Task>]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
 }
 
 export function drop$tuple2_task_Waker_task_Waker(_1: [rt.Waker, rt.Waker]): void {
