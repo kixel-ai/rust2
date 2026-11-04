@@ -28,9 +28,9 @@ import * as Track from "./shapes.Track.ts";
 import * as Void from "./shapes.Void.ts";
 import type * as shapes_Wide from "./shapes.Wide.ts";
 
-export function total$shapes_Meters(items: Meters.Meters[], out: rs.ByteVec): rs.u64 {
+export function total$shapes_Meters(items: rs.Slice<Meters.Meters>, out: rs.ByteVec): rs.u64 {
 	let sum: rs.u64 = 0;
-	const iterS: Meters.Meters[] = items;
+	const iterS: Meters.Meters[] = rs.sliceItems(items);
 	let iterI: number = 0;
 	while (true) {
 		const _6: Meters.Meters | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
@@ -42,9 +42,9 @@ export function total$shapes_Meters(items: Meters.Meters[], out: rs.ByteVec): rs
 	}
 }
 
-export function total$shapes_Shape(items: Shape.Shape[], out: rs.ByteVec): rs.u64 {
+export function total$shapes_Shape(items: rs.Slice<Shape.Shape>, out: rs.ByteVec): rs.u64 {
 	let sum: rs.u64 = 0;
-	const iterS: Shape.Shape[] = items;
+	const iterS: Shape.Shape[] = rs.sliceItems(items);
 	let iterI: number = 0;
 	while (true) {
 		const _6: Shape.Shape | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
@@ -276,7 +276,7 @@ export function unwritten(_dataData: Uint8Array, _dataStart: number, dataLen: nu
 	const gauges: shapes_Gauge.Gauge[] = Array.from({ length: 2 }, (): shapes_Gauge.Gauge => {
 		return copy$shapes_Gauge(item);
 	});
-	generics_reset$shapes_Gauge(gauges);
+	generics_reset$shapes_Gauge(rs.sliceFrom(gauges));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(first.level, gauges[0].level, gauges[1].level)));
 	const start: Level.Level = { _0: n };
 	const boxed: Level.Level = copy$shapes_Level(start);
@@ -418,7 +418,7 @@ export function shares(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, writeAt(rs.byteSliceFrom(bytes), at, a));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
 	const points: rs.Vec<Point.Point> = rs.vecFromElem(copy$shapes_Point(Point.new(a as rs.i32, 0)), 2, copy$shapes_Point);
-	movedAt(points.items, at);
+	movedAt(rs.sliceFrom(points.items), at);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(points.items[rs.idx(points.items, 0)].x & 0xff, points.items[rs.idx(points.items, 1)].x & 0xff, points.items[rs.idx(points.items, 1)].y & 0xff)));
 	arc[Symbol.dispose]();
 }
@@ -456,13 +456,13 @@ export function writeAt(live: rs.ByteSlice, at: rs.usize, b: rs.u8): rs.u8 {
  * `live[at]` moved right by one, and its neighbor by its new `x`: an index past the end
  * panics as native Rust does.
  */
-export function movedAt(live: Point.Point[], at: rs.usize): void {
+export function movedAt(live: rs.Slice<Point.Point>, at: rs.usize): void {
 	rs.idx(live, at);
-	live[at].x = rs.i32Add(live[at].x, 1);
+	live.data[live.start + at].x = rs.i32Add(live.data[live.start + at].x, 1);
 	rs.idx(live, at);
-	const _7: rs.i32 = live[at].x;
+	const _7: rs.i32 = live.data[live.start + at].x;
 	rs.idx(live, 1);
-	live[1].y = _7;
+	live.data[live.start + 1].y = _7;
 }
 
 /** `at`, held. */
@@ -650,7 +650,7 @@ export function indexed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	if (mid > data.length) {
 		rs.panic("mid > len");
 	}
-	ends([new rs.ByteSlice(data.data, data.start, mid), new rs.ByteSlice(data.data, data.start + mid, data.length - mid)], out);
+	ends(rs.sliceFrom([new rs.ByteSlice(data.data, data.start, mid), new rs.ByteSlice(data.data, data.start + mid, data.length - mid)]), out);
 	if (rs.u8Rem(at(7), 4) === 0) {
 		const _106: [rs.u8, rs.u8, rs.u8] = [at(8), at(9), at(10)];
 		const x: rs.u8 = _106[0];
@@ -662,8 +662,8 @@ export function indexed(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 /** Each part's length and first byte. */
-export function ends(parts: rs.ByteSlice[], out: rs.ByteVec): void {
-	for (const _5 of parts) {
+export function ends(parts: rs.Slice<rs.ByteSlice>, out: rs.ByteVec): void {
+	for (const _5 of rs.sliceItems(parts)) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_5.length & 0xff, option_unwrapOr$1fr498u(rs.byteSliceFirst(_5), 0))));
 	}
 }
@@ -1394,7 +1394,7 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 1, 3);
 	slice.data[slice.start] = 9;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64Add(total$shapes_Shape([shape_, { tag: "Dot" } as Shape.Shape], out), total$shapes_Meters([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }], out)))));
+	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(rs.u64Add(total$shapes_Shape(rs.sliceFrom([shape_, { tag: "Dot" } as Shape.Shape]), out), total$shapes_Meters(rs.sliceFrom([{ _0: 3 }, { _0: { hi: 0xffffffff, lo: 0xffffffff } as rs.u64 }]), out)))));
 	const parsed: rs.Result<rs.u8, Void.Void> = rs.Ok(data.length & 0xff);
 	const a2: rs.u8 = (parsed as { ok: true; value: rs.u8 }).value;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a2, (parsed as { ok: true; value: rs.u8 }).value, (parsed as { ok: true; value: rs.u8 }).value, early(a2))));

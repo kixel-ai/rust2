@@ -120,7 +120,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					all.data[at] = rs.toAsciiLowercase(all.data[at]);
 				}
 			}
-			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteSliceView(rs.byteVecSlice(all))), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
+			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteVecSlice(all)), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
 			while (true) {
 				const _90: rs.Place<rs.u8> | rs.Done = iter4.next();
 				if (_90 === rs.DONE) {
@@ -254,7 +254,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_10 === 1) {
 			let s: string = "";
 			for (const _95 of rs.byteSliceView(data)) {
-				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, [0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].length);
+				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, rs.sliceFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111]).length);
 				if (!(_103 < 41)) {
 					rs.panic("index out of bounds: the len is " + 41 + " but the index is " + _103);
 				}
@@ -394,7 +394,7 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, array[1]);
 		put(out, array[0]);
 	} else if (_32 === 3) {
-		const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(v.items);
+		const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(rs.sliceFrom(v.items));
 		while (true) {
 			const _93: rs.Place<string> | rs.Done = iter.next();
 			if (_93 === rs.DONE) {

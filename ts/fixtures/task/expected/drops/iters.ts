@@ -692,16 +692,16 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rs.u32[]) => rs.Vec<Key.Key> = (ns: rs.u32[]): rs.Vec<Key.Key> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(ns), (_2: rs.u32): Key.Key => {
+	const keys: (a0: rs.Slice<rs.u32>) => rs.Vec<Key.Key> = (ns: rs.Slice<rs.u32>): rs.Vec<Key.Key> => {
+		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns)), (_2: rs.u32): Key.Key => {
 			return key(_2);
 		}), undefined, 12, true);
 	};
 	const guard: (a0: rs.u32) => Guard.Guard = (n3: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(id, n3), Log.clone$Clone(log));
 	};
-	const guards: (a0: rs.u32[]) => rs.Vec<Guard.Guard> = (ns2: rs.u32[]): rs.Vec<Guard.Guard> => {
-		return rs.iterToVec(rs.iterMap(rs.iterSlice(ns2), (_26: rs.u32): Guard.Guard => {
+	const guards: (a0: rs.Slice<rs.u32>) => rs.Vec<Guard.Guard> = (ns2: rs.Slice<rs.u32>): rs.Vec<Guard.Guard> => {
+		return rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(ns2)), (_26: rs.u32): Guard.Guard => {
 			return guard(_26);
 		}), undefined, 8, true);
 	};
@@ -709,33 +709,33 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	_283 = true;
 	const _16: rs.u8 = rs.u8Rem(arg, 9);
 	if (_16 === 0) {
-		const part8 = rs.iterEq(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 5, 6]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const part8 = rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 5, 6])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part8, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args2[0]]));
 	} else if (_16 === 1) {
-		const eq2: boolean = rs.iterEq(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
-		const ne: boolean = !rs.iterEq(rs.vecIntoIter(keys([4]), rs.drop), rs.vecIntoIter(keys([4, 5]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const eq2: boolean = rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
+		const ne: boolean = !rs.iterEq(rs.vecIntoIter(keys(rs.sliceFrom([4])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([4, 5])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), true, true, true, undefined, rs.drop, rs.drop);
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(eq2, f), (f: rs.Formatter) => rs.fmtBool(ne, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args4[0], " ", args4[1]]));
 	} else if (_16 === 2) {
-		const part7 = rs.iterEq(rs.iterFilter(rs.vecIntoIter(keys([1, 2, 3]), rs.drop), (_210: Key.Key): boolean => {
+		const part7 = rs.iterEq(rs.iterFilter(rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), (_210: Key.Key): boolean => {
 			return true;
-		}, rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), undefined, true, true, undefined, rs.drop, rs.drop);
+		}, rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.eq$cmp_PartialEq, rs.drop, rs.drop), undefined, true, true, undefined, rs.drop, rs.drop);
 		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part7, f)];
 		Log.note(log, rs.fmtFormat(["eq ", args6[0]]));
 	} else if (_16 === 3) {
-		const part6 = rs.iterCmp(rs.vecIntoIter(keys([1, 2]), rs.drop), rs.vecIntoIter(keys([1, 2, 4]), rs.drop), rs.consuming(Key.cmp$cmp_Ord, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
+		const part6 = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 4])), rs.drop), rs.consuming(Key.cmp$cmp_Ord, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part6, f)];
 		Log.note(log, rs.fmtFormat(["cmp ", args8[0]]));
 	} else if (_16 === 4) {
-		const cmp2: rs.Ordering | undefined = rs.iterCmp(rs.vecIntoIter(keys([1, 3, 5]), rs.drop), rs.vecIntoIter(keys([1, 2]), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
-		const lt: boolean = rs.iterCmp(rs.vecIntoIter(keys([6]), rs.drop), rs.vecIntoIter(keys([6]), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop) === -1;
+		const cmp2: rs.Ordering | undefined = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([1, 3, 5])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop);
+		const lt: boolean = rs.iterCmp(rs.vecIntoIter(keys(rs.sliceFrom([6])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([6])), rs.drop), rs.consuming(Key.partialCmp$cmp_PartialOrd, rs.drop, rs.drop), true, true, undefined, rs.drop, rs.drop) === -1;
 		const _153: rs.i8 = _12(cmp2);
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(_153, f), (f: rs.Formatter) => rs.fmtBool(lt, f)];
 		Log.note(log, rs.fmtFormat(["partial_cmp ", args10[0], " ", args10[1]]));
 	} else if (_16 === 5) {
-		const _163: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2]), rs.drop);
-		const _169: rs.Vec<Guard.Guard> = guards([1, 2, 5]);
+		const _163: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop);
+		const _169: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1, 2, 5]));
 		_283 = false;
 		const captured3 = c;
 		const part5 = rs.iterCmp(_163, rs.vecIntoIter(_169, rs.drop), rs.closure((x3: Key.Key, y3: Guard.Guard): rs.Ordering => {
@@ -751,8 +751,8 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part5, f)];
 		Log.note(log, rs.fmtFormat(["cmp_by ", args12[0]]));
 	} else if (_16 === 6) {
-		const _188: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2]), rs.drop);
-		const _194: rs.Vec<Guard.Guard> = guards([1]);
+		const _188: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2])), rs.drop);
+		const _194: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
 		_283 = false;
 		const captured2 = c;
 		const part4 = rs.iterEq(_188, rs.vecIntoIter(_194, rs.drop), rs.closure((x2: Key.Key, y2: Guard.Guard): boolean => {
@@ -767,8 +767,8 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part4, f)];
 		Log.note(log, rs.fmtFormat(["eq_by ", args14[0]]));
 	} else if (_16 === 7) {
-		const _211: rs.Iter<Key.Key> = rs.vecIntoIter(keys([1, 2, 3]), rs.drop);
-		const _217: rs.Vec<Guard.Guard> = guards([1]);
+		const _211: rs.Iter<Key.Key> = rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop);
+		const _217: rs.Vec<Guard.Guard> = guards(rs.sliceFrom([1]));
 		_283 = false;
 		const captured = c;
 		const part2 = rs.iterCmp(_211, rs.vecIntoIter(_217, rs.drop), rs.closure((x: Key.Key, y: Guard.Guard): rs.Ordering | undefined => {
@@ -785,7 +785,7 @@ export function compared(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(part3, f)];
 		Log.note(log, rs.fmtFormat(["partial_cmp_by ", args16[0]]));
 	} else {
-		const _238: [rs.Iter<Key.Key>, rs.Iter<Key.Key>] = [rs.vecIntoIter(keys([1, 2, 3]), rs.drop), rs.vecIntoIter(keys([1, 4, 5]), rs.drop)];
+		const _238: [rs.Iter<Key.Key>, rs.Iter<Key.Key>] = [rs.vecIntoIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop), rs.vecIntoIter(keys(rs.sliceFrom([1, 4, 5])), rs.drop)];
 		const a: rs.Iter<Key.Key> = _238[0];
 		const b: rs.Iter<Key.Key> = _238[1];
 		const _252: rs.Iter<Key.Key> = a;

@@ -35,6 +35,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("maps::default_hasher", crate::maps::default_hasher),
 		("buf::reclaims", crate::buf::reclaims),
 		("buf::vec_spares", crate::buf::vec_spares),
+		("buf::chunks", crate::buf::chunks),
 	]
 }
 

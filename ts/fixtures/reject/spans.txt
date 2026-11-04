@@ -1,11 +1,12 @@
 fixtures/reject/src/spans.rs:chained+1:2: spans.ts:23:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
-fixtures/reject/src/spans.rs:chained+1:2: spans.ts:23:68 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, v
-fixtures/reject/src/spans.rs:chained+1:4: spans.ts:23:55 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterSlice(v)
-fixtures/reject/src/spans.rs:chained+1:11: spans.ts:23:44 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterMap(rs.iterSlice(v), (x: rs.u32): rs.u32 => {
-fixtures/reject/src/spans.rs:chained+1:11: spans.ts:23:72 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, (x: rs.u32): rs.u32 => {
+fixtures/reject/src/spans.rs:chained+1:2: spans.ts:23:82 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, v
+fixtures/reject/src/spans.rs:chained+1:4: spans.ts:23:55 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterSlice(rs.sliceItems(v))
+fixtures/reject/src/spans.rs:chained+1:4: spans.ts:23:68 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.sliceItems(v)
+fixtures/reject/src/spans.rs:chained+1:11: spans.ts:23:44 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterMap(rs.iterSlice(rs.sliceItems(v)), (x: rs.u32): rs.u32 => {
+fixtures/reject/src/spans.rs:chained+1:11: spans.ts:23:87 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, (x: rs.u32): rs.u32 => {
 fixtures/reject/src/spans.rs:chained+1:19: spans.ts:24:29 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, x
 fixtures/reject/src/spans.rs:chained+1:19: spans.ts:24:3 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return
-fixtures/reject/src/spans.rs:chained+1:38: spans.ts:23:33 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterMax(rs.iterMap(rs.iterSlice(v), (x: rs.u32): rs.u32 => {
+fixtures/reject/src/spans.rs:chained+1:38: spans.ts:23:33 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.iterMax(rs.iterMap(rs.iterSlice(rs.sliceItems(v)), (x: rs.u32): rs.u32 => {
 fixtures/reject/src/spans.rs:chained+1:38: spans.ts:25:6 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, rs.lt
 fixtures/reject/src/spans.rs:chained+1:44: spans.ts:25:14 doesn't type-check, which is a bug in rust2-ts: error TS2345: an argument, 0
 fixtures/reject/src/spans.rs:early+2:10: spans.ts:15:2 doesn't type-check, which is a bug in rust2-ts: error TS2322: a return

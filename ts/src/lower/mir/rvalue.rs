@@ -161,7 +161,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let target = self.stable_target(*place, target, span, out);
 							match target.unlocated() {
 								Expr::Index(array, index) => {
-									Expr::rs("sliceAsPtr", vec![*array.clone(), *index.clone()])
+									Expr::rs("arrayAsPtr", vec![*array.clone(), *index.clone()])
 								}
 								_ => self.place_of(target, None),
 							}
@@ -379,7 +379,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				PointerCoercion::Unsize if let Some((pointee, object)) = arc_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
-					self.arc_object(value, pointee, object, span, out)
+					self.arc_object("Arc", value, pointee, object, span, out)
 				}
 				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
 					let value = self.operand(op, span, out);
@@ -431,6 +431,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				{
 					let value = self.operand(op, span, out);
 					self.raw_unsize(value, from, span)
+				}
+				// An array, as the slice of all of it. An `Arc`'s or `Rc`'s would need the slice made
+				// inside it, which every owner sharing its count would see.
+				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_slice()) => {
+					match to.builtin_deref(true) {
+						Some(pointee) if pointee.is_slice() => {
+							let value = self.operand(op, span, out);
+							Expr::rs("sliceFrom", vec![value])
+						}
+						_ => self.err(span, format!("a coercion to `{to}`")),
+					}
 				}
 				// A `#[track_caller]` function's pointer passes the function's own location.
 				PointerCoercion::ReifyFnPointer(_)
@@ -486,8 +497,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
 	/// of one: an `rs.ArcDyn` sharing its count, over what a box of its value unsizes to, or
-	/// the same `Arc` upcast.
-	fn arc_object(&mut self, arc: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	/// the same `Arc` upcast, or `Weak` that `ptr` names.
+	fn arc_object(
+		&mut self,
+		ptr: &'static str,
+		arc: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
 		let tcx = self.tcx;
 		// An upcast of a function is the same `rs.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
 		if pointee.is_trait() && self.b.t.dyn_fn(object).is_some() {
@@ -506,6 +525,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.b.dyn_future(from, to, value, span)
 		} else if self.b.t.dyn_iter(object).is_some() {
 			self.b.dyn_iter(from, to, value, span)
+		} else if arc.is_none() && self.b.t.object(object, span).is_some() && self.b.t.upcast_retypes(pointee, object) {
+			let ty = crate::ts::Type::Rs(ptr, vec![self.b.t.ty(object, span)]);
+			Expr::As(Box::new(value), ty)
 		} else {
 			self.b.object_of(value, from, to, span)
 		};
@@ -527,11 +549,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) -> Expr {
 		if pointee.is_trait() {
-			return self.arc_object(weak, pointee, object, span, out);
+			return self.arc_object("Weak", weak, pointee, object, span, out);
 		}
 		let name = self.b.fresh("arc");
 		let mut body = Vec::new();
-		let arc = self.arc_object(Expr::ident(name.clone()), pointee, object, span, &mut body);
+		let arc = self.arc_object("Arc", Expr::ident(name.clone()), pointee, object, span, &mut body);
 		body.push(StmtKind::Return(Some(arc)).at(None));
 		let param = crate::ts::Param {
 			name,

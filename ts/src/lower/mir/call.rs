@@ -700,7 +700,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("raw" | "array", "from_mut") | ("Cell", "from_mut")
 				if owner != "raw" || library::std_path(tcx, def_id) == ["slice", "raw", "from_mut"] =>
 			{
-				let made = self.one_of(owner == "Cell", targ(0)?, &args[0].node, span, out)?;
+				let made = self.one_of(owner == "Cell", owner == "array", targ(0)?, &args[0].node, span, out)?;
 				done(made, true)
 			}
 			// A range of numbers steps in place, with nothing between it and the loop.
@@ -1006,7 +1006,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					)
 				};
 				done(
-					Expr::Cond(Box::new(none), Box::new(Expr::Array(vec![])), Box::new(some)),
+					Expr::Cond(
+						Box::new(none),
+						Box::new(Expr::rs("sliceFrom", vec![Expr::Array(vec![])])),
+						Box::new(some),
+					),
 					true,
 				)
 			}
@@ -1036,7 +1040,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// A `&mut` to a value JS copies, such as through a `MutexGuard`, reads and writes
 			// the place it borrows, as an index does, and so does one to any value a guard or
 			// a `RefMut` holds, which is where its mutex or cell keeps it, or that an
-			// `rs.Place` lends, as one to a pinned box of an `Arc` does.
+			// `rs.Place` lends, as one to a pinned box of an `Arc` does. An impl that
+			// translates, such as a crate's own guard's, returns the `rs.Place` a `&mut` is.
 			("DerefMut", "deref_mut")
 				if let ty::Ref(_, pointee, _) = dest.ty(&self.mir.local_decls, tcx).ty.kind()
 					&& (self.b.t.object_kind(*pointee).is_none()
@@ -1044,6 +1049,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							matches!(self.b.t.std_of(t), Some(Std::MutexGuard | Std::RefMut))
 								|| self.b.t.needs_place(t) && self.b.t.needs_place(*pointee)
 						}))
+					&& self.b.t.mapped(def_id, gargs)
 					&& let Some(local) = dest.as_local()
 					&& self.defs[local] == 1
 					&& matches!(self.slots[local], Slot::Var(_)) =>
@@ -1382,6 +1388,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn one_of(
 		&mut self,
 		cell: bool,
+		array: bool,
 		ty: Ty<'tcx>,
 		op: &Operand<'tcx>,
 		span: Span,
@@ -1390,10 +1397,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let tcx = self.tcx;
 		let place = op.place().filter(|p| p.projection.is_empty())?;
 		let deref = tcx.mk_place_deref(place);
-		let of = |made: Expr| match cell {
-			true => Expr::rs("cellOfPlace", vec![made]),
-			false => Expr::rs("sliceOfPlace", vec![made]),
+		// `array::from_mut` makes a `[T; 1]`, an array of its own.
+		let (of_place, of_object) = match (cell, array) {
+			(true, _) => ("cellOfPlace", "cellIn"),
+			(false, true) => ("arrayOfPlace", "arrayIn"),
+			(false, false) => ("sliceOfPlace", "sliceIn"),
 		};
+		let of = |made: Expr| Expr::rs(of_place, vec![made]);
 		if !cell && crate::lower::byte(ty) {
 			return Some(self.err(
 				span,
@@ -1403,7 +1413,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if self.in_bytes(deref) {
 			let slice = self.place_expr(deref, span, out);
 			let view = Expr::rs("byteSliceView", vec![slice]);
-			return Some(Expr::rs(if cell { "cellIn" } else { "sliceIn" }, vec![view]));
+			return Some(Expr::rs(of_object, vec![view]));
 		}
 		// A cell of an object reads a copy wherever it is, as its place may be one a write
 		// lands in, such as an element of a slice of one.
@@ -1426,7 +1436,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		if self.b.t.write_in(ty).is_some() {
 			let object = self.operand(op, span, out);
-			return Some(Expr::rs("sliceIn", vec![object]));
+			return Some(Expr::rs(of_object, vec![object]));
 		}
 		Some(self.err(
 			span,
@@ -1464,10 +1474,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// A `fmt::Write` method of a `String`, a `Formatter`, or the crate's own writer, or of
-	/// std's impl for a `&mut W`, which calls `W`'s. A provided method of the crate's impl
-	/// writes through its `write_str`, and its `write_fmt` through the runtime's port of
-	/// `fmt::write`, which calls its `write_str` and `write_char` as std does. `None` for any
-	/// other writer.
+	/// std's impl for a `&mut W`, which calls `W`'s, as [`Body::fmt_write`] writes it. A
+	/// `String` a local holds gets its longer value where it is. `None` for any other writer.
 	fn fmt_write(
 		&mut self,
 		def_id: rustc_hir::def_id::DefId,
@@ -1507,25 +1515,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			_ => None,
 		};
-		// A JS string can't change in place, so what the `&mut` borrows gets a longer one.
 		if std == Some(Std::String) {
 			let place = match through {
 				Some(value) => (self.path(value, "w", out).member("v"), None),
 				None => self.borrowed_place(&args[0].node, span, out)?,
 			};
 			let [arg] = <[Expr; 1]>::try_from(self.operands(true, &[], &args[1..], result, span, out)).ok()?;
-			let ok = Expr::Rs("OK".into());
-			let read = place.0.clone();
-			let (value, result) = match (name, literal) {
-				("write_char", _) => (read.binary("+", library::char_text(arg)), ok),
-				("write_fmt", Some(s)) => (read.binary("+", Expr::Str(s)), ok),
-				// What a placeholder wrote before an error stays written.
-				("write_fmt", None) => {
-					let written = self.path(Expr::rs("fmtWriteString", vec![read, arg]), "written", out);
-					(written.clone().member("s"), written.member("result"))
-				}
-				_ => (read.binary("+", arg), ok),
-			};
+			let mut written = Vec::new();
+			let (value, result) = self.b.string_write(name, place.0.clone(), arg, literal, &mut written);
+			self.emit(written, false, out);
 			self.set_borrowed(&place, value, span, out);
 			return done(result, false);
 		}
@@ -1533,58 +1531,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			Some(value) => value,
 			None => self.operands(true, &[], &args[..1], result, span, out).pop()?,
 		};
-		let rest = self.operands(true, &[], &args[1..], result, span, out);
-		// The crate's impl writes this method itself.
-		if self.b.t.translated(def_id, wargs) {
-			let values = [vec![receiver], rest].concat();
-			return done(self.b.call_def(def_id, wargs, values, span, out), true);
-		}
-		let [arg] = <[Expr; 1]>::try_from(rest).ok()?;
-		if std == Some(Std::Formatter) {
-			let e = match (name, literal) {
-				("write_char", _) => Expr::rs("fmtWriteChar", vec![receiver, arg]),
-				("write_fmt", Some(s)) => Expr::rs("fmtWriteStr", vec![receiver, Expr::Str(s)]),
-				("write_fmt", None) => Expr::rs("fmtWriteFmt", vec![receiver, arg]),
-				_ => Expr::rs("fmtWriteStr", vec![receiver, arg]),
-			};
-			return done(e, true);
-		}
-		// The provided `write_fmt` writes a literal with one `write_str`, as std's does.
-		let text = match (name, literal) {
-			("write_char", _) => library::char_text(arg),
-			("write_fmt", Some(s)) => Expr::Str(s),
-			_ => {
-				let receiver = self.path(receiver, "w", out);
-				let write_char = crate::lower::collections::trait_fn(tcx, "FmtWrite", "write_char");
-				let (s, c) = (self.b.fresh("s"), self.b.fresh("c"));
-				let (s_arg, c_arg) = (Expr::ident(&s), Expr::ident(&c));
-				let mut pre = Vec::new();
-				let str_call = self
-					.b
-					.call_def(write_str, wargs, vec![receiver.clone(), s_arg], span, &mut pre);
-				// std's provided `write_char` writes the char's UTF-8 through `write_str`.
-				let char_call = match self.b.t.translated(write_char, wargs) {
-					true => self
-						.b
-						.call_def(write_char, wargs, vec![receiver, c_arg], span, &mut pre),
-					false => self.b.call_def(
-						write_str,
-						wargs,
-						vec![receiver, library::char_text(c_arg)],
-						span,
-						&mut pre,
-					),
-				};
-				if !pre.is_empty() {
-					return done(self.err(span, format!("`write_str` of `{w}` needs statements")), true);
-				}
-				let lambda =
-					|name: String, body: Expr| Expr::Lambda(vec![crate::ts::Param { name, ty: None }], Box::new(body));
-				let write = Expr::rs("fmtWrite", vec![lambda(s, str_call), lambda(c, char_call), arg]);
-				return done(write, true);
-			}
+		let [arg] = <[Expr; 1]>::try_from(self.operands(true, &[], &args[1..], result, span, out)).ok()?;
+		// The provided `write_fmt` reads it in each function it writes through.
+		let receiver = match self.b.t.translated(def_id, wargs) || std.is_some() {
+			true => receiver,
+			false => self.path(receiver, "w", out),
 		};
-		done(self.b.call_def(write_str, wargs, vec![receiver, text], span, out), true)
+		done(self.b.fmt_write(def_id, w, [receiver, arg], literal, span, out)?, true)
 	}
 
 	/// The one literal piece of a `fmt::Arguments` operand, held back where `format_args!`
@@ -1944,8 +1897,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let place = match container.kind() {
 					ty::Adt(..) if bytes => base.member("data").index(checked),
 					// An array's bytes come through a reference, which is a slice of them.
-					_ if super::place::byte_slice(container) || crate::lower::byte_array(container) => {
-						super::place::byte_at(base, checked)
+					_ if container.is_slice() || crate::lower::byte_array(container) => {
+						super::place::slice_at(base, checked)
 					}
 					_ => base.index(checked),
 				};
@@ -1969,7 +1922,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			None => {
 				let get = matches!(name, "get" | "get_mut");
-				let lent = matches!(name, "index_mut" | "get_mut");
 				// The range's bounds are taken apart before the slice is read, while they are
 				// still held back. Any other range, as an `rs.Bounds`, is checked by the
 				// runtime, as std checks its own fields, into a start and end.
@@ -1982,12 +1934,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let base = match container.kind() {
 					ty::Adt(..) => library::vec_view(base, elem_ty),
+					ty::Array(..) if !bytes => Expr::rs("sliceFrom", vec![base]),
 					_ => base,
 				};
-				// All of a mutable slice of other values is the slice itself.
+				// All of a slice of other values is the slice itself.
 				let full =
 					matches!(index_ty.kind(), ty::Adt(adt, _) if self.tcx.item_name(adt.did()).as_str() == "RangeFull");
-				if full && !bytes && lent {
+				if full && !bytes {
 					return Some(Some((base, true)));
 				}
 				let base = self.path(base, "slice", out);
@@ -2005,15 +1958,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				let mut values = vec![base, start];
 				values.extend(end);
-				// A range of bytes is a view already, and one of other values lent mutably the
-				// runtime's view, as a JS array has none of its own.
-				let range = match (bytes, lent, get) {
-					(true, _, false) => "byteSliceRange",
-					(true, _, true) => "byteSliceGetRange",
-					(false, true, false) => "sliceRangeMut",
-					(false, true, true) => "sliceGetRangeMut",
-					(false, false, false) => "sliceRange",
-					(false, false, true) => "sliceGetRange",
+				// A range is a slice of the same storage, shared or lent mutably alike.
+				let range = match (bytes, get) {
+					(true, false) => "byteSliceRange",
+					(true, true) => "byteSliceGetRange",
+					(false, false) => "sliceRange",
+					(false, true) => "sliceGetRange",
 				};
 				Some(Some((Expr::rs(range, values), true)))
 			}

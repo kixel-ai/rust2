@@ -10,7 +10,7 @@ export function isSomeAnd$136asov(self: rs.Arc<rs.ByteSlice> | undefined, f: (a0
 	return f(self);
 }
 
-export function isSomeAnd$0jg0wcy(self: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
+export function isSomeAnd$15uicdu(self: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}

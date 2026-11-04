@@ -6,9 +6,10 @@
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
 //! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
-//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, ops 17
-//! and 18 code strings as moq-net codes a path, op 19 joins and strips paths, and op 20
-//! keeps a `HashMap` keyed by `String`.
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, op 17
+//! writes through the mutable parts of a slice of integers, ops 18 and 19 code strings as
+//! moq-net codes a path, op 20 joins and strips paths, and op 21 keeps a `HashMap` keyed
+//! by `String`.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
@@ -45,10 +46,11 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		14 => hashed(selector, data, &mut out),
 		15 => packets(selector, data, &mut out),
 		16 => format(data, &mut out),
-		17 => encoded(encode_strings(selector, data, &mut out), &mut out),
-		18 => decoded(decode_strings(data, &mut out), &mut out),
-		19 => join(selector, data, &mut out),
-		20 => keyed(selector, data, &mut out),
+		17 => parts(selector, data, &mut out),
+		18 => encoded(encode_strings(selector, data, &mut out), &mut out),
+		19 => decoded(decode_strings(data, &mut out), &mut out),
+		20 => join(selector, data, &mut out),
+		21 => keyed(selector, data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -462,6 +464,52 @@ fn packets(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 		packet[3] = (packet[3] & 0xf0) | cc;
 		sum += u64::from(cc);
 	}
+	put_u64(out, sum);
+}
+
+/// `count` steps through mutable parts of a `Vec` of `size` integers, as `selector` picks:
+/// a min-heap of deadlines, as a timer wheel keeps them, whose root is pushed later and
+/// sifted down through the halves `split_at_mut` lends, or `parts[..k]` written, `k`
+/// cycling from 1 to `size`. Its first item and the sum of what each step read.
+fn parts(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, data) = take_u64(data);
+	let (size, _) = take_u64(data);
+	let size = size.clamp(1, 1 << 16) as usize;
+	let mut v: Vec<u64> = (0..size as u64).map(|i| i * 40503 % 65536).collect();
+	let mut sum = 0u64;
+	match selector {
+		0 => {
+			v.sort();
+			for step in 0..count {
+				v[0] += 1 + step % 64 * 1024;
+				let mut i = 0;
+				loop {
+					let l = 2 * i + 1;
+					if l >= size {
+						break;
+					}
+					let c = if l + 1 < size && v[l + 1] < v[l] { l + 1 } else { l };
+					let (parent, rest) = v.split_at_mut(c);
+					if parent[i] <= rest[0] {
+						break;
+					}
+					std::mem::swap(&mut parent[i], &mut rest[0]);
+					i = c;
+				}
+				sum = sum.wrapping_add(v[0]);
+			}
+		}
+		_ => {
+			for step in 0..count {
+				let part = &mut v[..step as usize % size + 1];
+				for x in part.iter_mut() {
+					*x = x.wrapping_add(1);
+				}
+				sum = sum.wrapping_add(part[part.len() - 1]);
+			}
+		}
+	}
+	put_u64(out, v[0]);
 	put_u64(out, sum);
 }
 

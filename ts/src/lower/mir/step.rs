@@ -330,11 +330,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let ty = self.mir.local_decls[local].ty;
 		let span = self.local_span(local);
 		match array_iter(self.tcx, ty) {
-			// What `library::elements` makes of the slice: a view of bytes.
+			// What `library::elements` makes of the slice: a view of bytes, or an array.
 			Some(item) => [
 				match item.kind() {
 					_ if crate::lower::byte(item) => Type::Builtin("Uint8Array"),
-					_ => self.b.t.held_ty(Ty::new_slice(self.tcx, item), span),
+					_ => Type::Array(Box::new(self.b.t.held_ty(item, span))),
 				},
 				Type::Builtin("number"),
 			],

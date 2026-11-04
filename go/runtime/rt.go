@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/bits"
+	"slices"
 )
 
 type tuple1[A any] struct{ F0 A }
@@ -293,6 +294,29 @@ func vecWithCapacity[T any](n uint, size uint64) []T {
 		panic(RustPanic{"capacity overflow"})
 	}
 	return make([]T, 0, n)
+}
+
+// vecPush is `Vec::push`.
+func vecPush[T any](v *[]T, x T) {
+	if len(*v) == cap(*v) {
+		vecGrow(v, 1)
+	}
+	*v = append(*v, x)
+}
+
+// vecExtend is `Vec::extend_from_slice`.
+func vecExtend[T any](v *[]T, xs []T) {
+	if len(xs) > cap(*v)-len(*v) {
+		vecGrow(v, len(xs))
+	}
+	*v = append(*v, xs...)
+}
+
+// vecGrow makes room for n more elements as std's `RawVec` does, to at least twice the
+// capacity, where `append` grows a slice past 256 elements by about 1.25x and so copies
+// a growing buffer several times as often.
+func vecGrow[T any](v *[]T, n int) {
+	*v = slices.Grow(*v, max(2*cap(*v), len(*v)+n)-len(*v))
 }
 
 func vecTruncate[T any](v *[]T, n uint) {

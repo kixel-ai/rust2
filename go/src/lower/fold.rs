@@ -344,6 +344,23 @@ impl Held {
 		self.folded = Does::default();
 	}
 
+	/// Whether the value held back for `local` does more than read.
+	pub fn effects(&self, local: Local) -> bool {
+		self.pending.iter().any(|p| p.local == local && p.does.effect)
+	}
+
+	/// Drop the value held back for `local`, which the statement being emitted no longer
+	/// reads, emitting it into `out` only if it does more than read.
+	pub fn discard(&mut self, local: Local, out: &mut String) {
+		self.folding.remove(&local);
+		if let Some(i) = self.pending.iter().position(|p| p.local == local) {
+			let p = self.pending.remove(i);
+			if p.does.effect {
+				writeln!(out, "\t_ = {}", p.expr).unwrap();
+			}
+		}
+	}
+
 	/// How the statement being emitted reads `local`: as its value, parenthesized unless
 	/// it is an operand already, if it folds it in. If `allowed` is false, where Go would
 	/// evaluate it twice, late, or not at all, it is emitted before the statement instead.
@@ -401,7 +418,7 @@ pub enum Take {
 /// Whether Go reads `expr` as one operand wherever it stands: a name, a call, a
 /// conversion, or a selector or index of one, with nothing outside brackets but names
 /// and dots. A composite literal is not, as it would end an `if`'s condition.
-fn operand(expr: &str) -> bool {
+pub fn operand(expr: &str) -> bool {
 	let mut depth = 0usize;
 	let mut chars = expr.chars();
 	while let Some(c) = chars.next() {

@@ -585,7 +585,7 @@ export function wakers(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return a0.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
 		const _53: rs.Waker[] = [w.clone(), source.clone()];
-		rs.sliceCloneFromSlice(pair, _53, (a02: rs.Waker): rs.Waker => {
+		rs.arrayCloneFrom(pair, _53, (a02: rs.Waker): rs.Waker => {
 			return a02.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
 		rs.dropAll(_53);

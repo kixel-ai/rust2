@@ -42,4 +42,19 @@ const rwlocks = [[6, 7, 0, 6, 2, 14, 15, 1]].map((bytes) => Uint8Array.of(...op(
 /** `locks::shown` scripts: each lock printed, free, read, held, and written, nested, and locked while it writes what it holds. */
 const shown = [[0, 6, 11, 2, 3, 8, 4, 125, 7]].map((bytes) => Uint8Array.of(...op("locks::shown"), 0, ...bytes));
 
-export const cases: Uint8Array[] = [...locks, ...mappedLocks, ...relocks, ...mutexMaps, ...printed, ...downgrades, ...rwlocks, ...shown];
+/** `locks::guarded` scripts: writes through a crate's own guards, held and temporary, and one that puts what it lends as it drops. */
+const guarded = [[1, 0, 1, 3, 2, 8, 9, 4, 10, 16, 22, 5, 11, 255, 5]].map((bytes) =>
+	Uint8Array.of(...op("locks::guarded"), 0, ...bytes),
+);
+
+export const cases: Uint8Array[] = [
+	...locks,
+	...mappedLocks,
+	...relocks,
+	...mutexMaps,
+	...printed,
+	...downgrades,
+	...rwlocks,
+	...shown,
+	...guarded,
+];

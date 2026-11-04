@@ -18,8 +18,8 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rs.u32[]) => rs.LinkedList<Key.Key> = (ns: rs.u32[]): rs.LinkedList<Key.Key> => {
-		const _32: rs.Iter<Key.Key> = rs.iterMap(rs.iterSlice(ns), (_2: rs.u32): Key.Key => {
+	const keys: (a0: rs.Slice<rs.u32>) => rs.LinkedList<Key.Key> = (ns: rs.Slice<rs.u32>): rs.LinkedList<Key.Key> => {
+		const _32: rs.Iter<Key.Key> = rs.iterMap(rs.iterSlice(rs.sliceItems(ns)), (_2: rs.u32): Key.Key => {
 			return key(_2);
 		});
 		return rs.listExtend(rs.listNew() as rs.LinkedList<Key.Key>, _32);
@@ -45,13 +45,13 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["left ", args2[0]]));
 		rs.listDrop(l, rs.drop);
 	} else if (_8 === 1) {
-		let l2: rs.LinkedList<Key.Key> = keys([1, 2, 3]);
+		let l2: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3]));
 		rs.listClear(l2, rs.drop);
 		const part9 = l2.n;
 		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part9, f)];
 		Log.note(log, rs.fmtFormat(["cleared ", args4[0]]));
 		rs.listPushBack(l2, key(4));
-		const _81: rs.LinkedList<Key.Key> = keys([5, 6]);
+		const _81: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([5, 6]));
 		rs.listDrop(l2, rs.drop);
 		l2 = _81;
 		const part10 = ids(id, l2);
@@ -59,7 +59,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["replaced ", args6[0]]));
 		rs.listDrop(l2, rs.drop);
 	} else if (_8 === 2) {
-		const it: rs.Iter<Key.Key> = rs.listIter(keys([1, 2, 3, 4, 5, 6]), rs.drop);
+		const it: rs.Iter<Key.Key> = rs.listIter(keys(rs.sliceFrom([1, 2, 3, 4, 5, 6])), rs.drop);
 		rs.drop(rs.iterToOption(it.nextBack()));
 		rs.drop(rs.iterToOption(it.next()));
 		rs.drop(rs.iterToOption(it.nextBack()));
@@ -75,7 +75,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["nth ", args10[0]]));
 		rs.drop(it);
 	} else if (_8 === 3) {
-		const l3: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4, 5]);
+		const l3: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4, 5]));
 		const back: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 3);
 		const none: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 3);
 		const all: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 0);
@@ -91,8 +91,8 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.listDrop(none, rs.drop);
 		rs.listDrop(l3, rs.drop);
 	} else if (_8 === 4) {
-		const l4: rs.LinkedList<Key.Key> = keys([1, 2]);
-		const other: rs.LinkedList<Key.Key> = keys([3, 4]);
+		const l4: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2]));
+		const other: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([3, 4]));
 		rs.listAppend(l4, other);
 		const _199: string = ids(id, l4);
 		const _202: rs.usize = other.n;
@@ -112,13 +112,13 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.listDrop(empty, rs.drop);
 		rs.listDrop(l4, rs.drop);
 	} else if (_8 === 5) {
-		const l5: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4]);
-		const source: rs.LinkedList<Key.Key> = keys([5, 6]);
+		const l5: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4]));
+		const source: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([5, 6]));
 		rs.listCloneFrom(l5, source, Key.clone$Clone, rs.drop);
 		const part5 = ids(id, l5);
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part5)];
 		Log.note(log, rs.fmtFormat(["cloned ", args18[0]]));
-		const longer: rs.LinkedList<Key.Key> = keys([7, 8, 9]);
+		const longer: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([7, 8, 9]));
 		rs.listCloneFrom(l5, longer, Key.clone$Clone, rs.drop);
 		const part6 = ids(id, l5);
 		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part6)];
@@ -127,7 +127,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.listDrop(source, rs.drop);
 		rs.listDrop(l5, rs.drop);
 	} else if (_8 === 6) {
-		const l6: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4, 5, 6]);
+		const l6: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4, 5, 6]));
 		const taken: rs.Vec<Key.Key> = rs.iterToVec(rs.listExtractIf(l6, (k2: Key.Key): boolean => {
 			return rs.u32Rem(rs.u32Sub(k2.id, id), 2) === 0;
 		}), "next", 12);
@@ -164,7 +164,7 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.drop(first);
 		rs.listDrop(l6, rs.drop);
 	} else {
-		const it3: rs.Iter<Key.Key> = rs.listIter(keys([1, 2, 3]), rs.drop);
+		const it3: rs.Iter<Key.Key> = rs.listIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop);
 		rs.drop(rs.iterToOption(it3.next()));
 		const copy: rs.Iter<Key.Key> = it3.clone({ v: Key.clone$Clone });
 		const part = rs.ownedCount(it3, rs.drop);
