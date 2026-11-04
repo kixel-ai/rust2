@@ -288,17 +288,29 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			const n2: rt.usize = [0, 2, 6, 17][_425];
 			const _431: rt.u8 = (arg >> 3) & 3;
 			if (_431 === 0) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 1280, true));
+				const _436: rt.u64[][] = v;
+				const _437: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _439: rt.Iter<rt.u64[]> = rt.iterMap(new rt.Range(0, n2 & 0xff), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_436, _437, 1280), _439, true));
 			} else if (_431 === 1) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+				const _443: rt.u64[][] = v;
+				const _444: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _446: rt.Iter<rt.u64[]> = rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
 					return rt.u8Rem(i3, 4) !== 1;
-				}), make), 1280));
+				}), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_443, _444, 1280), _446));
 			} else if (_431 === 2) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+				const _451: rt.u64[][] = v;
+				const _452: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _454: rt.Iter<rt.u64[]> = rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
 					return rt.u8Rem(i2, 2) === 0;
-				})), make), 1280));
+				})), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_451, _452, 1280), _454));
 			} else {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(copy$array_u64(make(arg)), n2, copy$array_u64)), 1280, true));
+				const _462: rt.u64[][] = v;
+				const _463: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _465: rt.u64[][] = rt.vecFromElem(copy$array_u64(make(arg)), n2, copy$array_u64);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_462, _463, 1280), rt.iterSlice(_465), true));
 			}
 		} else if (_42 === 36) {
 			const keep3: () => boolean = alternate();
@@ -323,7 +335,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			const flat: rt.u64[][] = rt.vecIntoFlattened(pairs, 2, 1280);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 1280));
 		} else if (_42 === 38) {
-			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 1280, true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), 1280), rt.iterSlice([]), true);
 		}
 		const _536: rt.usize = v.length;
 		const _538: rt.usize = rt.vecCapacity(v, 1280);
@@ -549,17 +561,29 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			const n2: rt.usize = [0, 2, 6, 17][_425];
 			const _431: rt.u8 = (arg >> 3) & 3;
 			if (_431 === 0) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 16, true));
+				const _436: [rt.u64, rt.u8][] = v;
+				const _437: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _439: rt.Iter<[rt.u64, rt.u8]> = rt.iterMap(new rt.Range(0, n2 & 0xff), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_436, _437, 16), _439, true));
 			} else if (_431 === 1) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+				const _443: [rt.u64, rt.u8][] = v;
+				const _444: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _446: rt.Iter<[rt.u64, rt.u8]> = rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
 					return rt.u8Rem(i3, 4) !== 1;
-				}), make), 16));
+				}), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_443, _444, 16), _446));
 			} else if (_431 === 2) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+				const _451: [rt.u64, rt.u8][] = v;
+				const _452: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _454: rt.Iter<[rt.u64, rt.u8]> = rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
 					return rt.u8Rem(i2, 2) === 0;
-				})), make), 16));
+				})), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_451, _452, 16), _454));
 			} else {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), n2, copy$tuple2_u64_u8)), 16, true));
+				const _462: [rt.u64, rt.u8][] = v;
+				const _463: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _465: [rt.u64, rt.u8][] = rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), n2, copy$tuple2_u64_u8);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_462, _463, 16), rt.iterSlice(_465), true));
 			}
 		} else if (_42 === 36) {
 			const keep3: () => boolean = alternate();
@@ -584,7 +608,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			const flat: [rt.u64, rt.u8][] = rt.vecIntoFlattened(pairs, 2, 16);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 16));
 		} else if (_42 === 38) {
-			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 16, true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), 16), rt.iterSlice([]), true);
 		}
 		const _536: rt.usize = v.length;
 		const _538: rt.usize = rt.vecCapacity(v, 16);
@@ -810,17 +834,29 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			const n2: rt.usize = [0, 2, 6, 17][_425];
 			const _431: rt.u8 = (arg >> 3) & 3;
 			if (_431 === 0) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 2, true));
+				const _436: rt.u16[] = v;
+				const _437: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _439: rt.Iter<rt.u16> = rt.iterMap(new rt.Range(0, n2 & 0xff), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_436, _437, 2), _439, true));
 			} else if (_431 === 1) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+				const _443: rt.u16[] = v;
+				const _444: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _446: rt.Iter<rt.u16> = rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
 					return rt.u8Rem(i3, 4) !== 1;
-				}), make), 2));
+				}), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_443, _444, 2), _446));
 			} else if (_431 === 2) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+				const _451: rt.u16[] = v;
+				const _452: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _454: rt.Iter<rt.u16> = rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
 					return rt.u8Rem(i2, 2) === 0;
-				})), make), 2));
+				})), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_451, _452, 2), _454));
 			} else {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(make(arg), n2, undefined)), 2, true));
+				const _462: rt.u16[] = v;
+				const _463: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _465: rt.u16[] = rt.vecFromElem(make(arg), n2, undefined);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_462, _463, 2), rt.iterSlice(_465), true));
 			}
 		} else if (_42 === 36) {
 			const keep3: () => boolean = alternate();
@@ -845,7 +881,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			const flat: rt.u16[] = rt.vecIntoFlattened(pairs, 2, 2);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 2));
 		} else if (_42 === 38) {
-			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 2, true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), 2), rt.iterSlice([]), true);
 		}
 		const _536: rt.usize = v.length;
 		const _538: rt.usize = rt.vecCapacity(v, 2);
@@ -1069,17 +1105,29 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			const n2: rt.usize = [0, 2, 6, 17][_425];
 			const _431: rt.u8 = (arg >> 3) & 3;
 			if (_431 === 0) {
-				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), true));
+				const _436: rt.ByteVec = v;
+				const _437: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _439: rt.Iter<rt.u8> = rt.iterMap(new rt.Range(0, n2 & 0xff), make);
+				rt.drop(rt.spliceFrom(rt.byteVecSplice(_436, _437), _439, true));
 			} else if (_431 === 1) {
-				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+				const _443: rt.ByteVec = v;
+				const _444: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _446: rt.Iter<rt.u8> = rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
 					return rt.u8Rem(i3, 4) !== 1;
-				}), make)));
+				}), make);
+				rt.drop(rt.spliceFrom(rt.byteVecSplice(_443, _444), _446));
 			} else if (_431 === 2) {
-				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+				const _451: rt.ByteVec = v;
+				const _452: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _454: rt.Iter<rt.u8> = rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
 					return rt.u8Rem(i2, 2) === 0;
-				})), make)));
+				})), make);
+				rt.drop(rt.spliceFrom(rt.byteVecSplice(_451, _452), _454));
 			} else {
-				rt.drop(rt.byteVecSplice(v, new rt.Range(start2, end), rt.byteVecIntoIter(rt.byteVecOf(make(arg), n2)), true));
+				const _462: rt.ByteVec = v;
+				const _463: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _465: rt.ByteVec = rt.byteVecOf(make(arg), n2);
+				rt.drop(rt.spliceFrom(rt.byteVecSplice(_462, _463), rt.byteVecIntoIter(_465), true));
 			}
 		} else if (_42 === 36) {
 			const keep3: () => boolean = alternate();
@@ -1104,7 +1152,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			const flat: rt.ByteVec = rt.byteVecIntoFlattened(pairs, 2);
 			Known.put(Known.new(0), out, flat.length, flat.data.length);
 		} else if (_42 === 38) {
-			rt.byteVecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice(Uint8Array.of()), true);
+			rt.spliceFrom(rt.byteVecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep)), rt.iterSlice(Uint8Array.of()), true);
 		}
 		Known.put(k, out, v.length, v.data.length);
 	}
@@ -1338,19 +1386,30 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			const n2: rt.usize = [0, 2, 6, 17][_425];
 			const _431: rt.u8 = (arg >> 3) & 3;
 			if (_431 === 0) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(new rt.Range(0, n2 & 0xff), make), 0, true));
+				const _436: undefined[] = v;
+				const _437: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _439: rt.Iter<undefined> = rt.iterMap(new rt.Range(0, n2 & 0xff), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_436, _437, 0), _439, true));
 			} else if (_431 === 1) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
+				const _443: undefined[] = v;
+				const _444: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _446: rt.Iter<undefined> = rt.iterMap(rt.iterFilter(new rt.Range(0, n2 & 0xff), (i3: rt.u8): boolean => {
 					return rt.u8Rem(i3, 4) !== 1;
-				}), make), 0));
+				}), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_443, _444, 0), _446));
 			} else if (_431 === 2) {
-				rt.drop(rt.vecSplice(v, new rt.Range(start2, end), rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
+				const _451: undefined[] = v;
+				const _452: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _454: rt.Iter<undefined> = rt.iterMap(rt.iterChain(new rt.Range(0, n2 & 0xff), rt.iterFilter(new rt.Range(0, n2 & 0xff), (i2: rt.u8): boolean => {
 					return rt.u8Rem(i2, 2) === 0;
-				})), make), 0));
+				})), make);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_451, _452, 0), _454));
 			} else {
 				const _462: undefined[] = v;
 				make(arg);
-				rt.drop(rt.vecSplice(_462, new rt.Range(start2, end), rt.iterSlice(rt.vecFromElem(undefined, n2, undefined)), 0, true));
+				const _463: rt.Range<rt.usize> = new rt.Range(start2, end);
+				const _465: undefined[] = rt.vecFromElem(undefined, n2, undefined);
+				rt.drop(rt.spliceFrom(rt.vecSplice(_462, _463, 0), rt.iterSlice(_465), true));
 			}
 		} else if (_42 === 36) {
 			const keep3: () => boolean = alternate();
@@ -1375,7 +1434,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			const flat: undefined[] = rt.vecIntoFlattened(pairs, 2, 0);
 			Known.put(Known.new(0), out, flat.length, rt.vecCapacity(flat, 0));
 		} else if (_42 === 38) {
-			rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), rt.iterSlice([]), 0, true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.length, 1)), rt.usizeStep), 0), rt.iterSlice([]), true);
 		}
 		const _536: rt.usize = v.length;
 		const _538: rt.usize = rt.vecCapacity(v, 0);
