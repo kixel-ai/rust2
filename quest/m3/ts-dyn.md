@@ -17,10 +17,12 @@ from never to not yet.
 downcast, but `TypeId::of` of a type no object holds has none, and a `&mut dyn Any` of a
 value JS copies is of a second class. Decided with the maintainer on 2026-11-04:
 
-- ✅ An `rs.u128` of rustc's `type_id_hash` of the type, which std's `TypeId` is at run
-  time, so equality, order, hash, and `Debug` reuse the `u128`'s; each object's class
-  returns its type's as a constant. Its value is native's only where the crate's metadata
-  hash is, so tests compare equality and order within a run, not `Debug`.
+- ✅ rustc's 128-bit `type_id_hash` of the type, which std's `TypeId` holds at run time;
+  each object's class returns its type's as a constant. Its traits are std's `TypeId`
+  impls, not `u128`'s: `Hash` writes one `u64`, `Debug` prints `TypeId(0x…)`, and `Ord`
+  is derived over its words, so a test logs a `Hasher`'s calls and checks order and
+  `Debug`'s shape. Its value is native's only where the crate's metadata hash is, so tests
+  compare within a run rather than the exact bits.
 - Rejected: the type's path as a string, whose order and `Debug` are not native's; the
   class itself, which still needs a value for order and hash, and a class for a type no
   object holds.

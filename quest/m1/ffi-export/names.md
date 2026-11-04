@@ -19,6 +19,12 @@ inline in source next to the item.
   never collides. A residual clash, possible only with unconventional names, fails the
   export with both spans. Rejected: snake case with `__` before members; mangled
   (`moq_7session5Stats`), which is provably free but unreadable in C.
+  Case alone does not separate a field's getter and setter from a method of the same
+  name, which conventional Rust allows: moq's `Backoff::initial` field and method, and
+  the reject fixture's `Limit::max` setter beside `set_max`. The rule must name field
+  accessors apart from methods too, with no rename.
+- Items of different crates are named by their path in the facade, so moq-tokio's
+  `Client` and moq-net's need the facade to re-export them under distinct paths.
 - Crate set: one facade crate. ✅ The exporter exports one crate's `pub` API, following
   its `pub use` re-exports, so moq-ffi re-exports what it ships, in moq's tree. Rejected:
   crates listed on the command line, which only moves the list into a script.
