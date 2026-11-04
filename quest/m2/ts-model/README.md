@@ -55,10 +55,21 @@ refuses for good, and smallvec's union over a type parameter and raw parts (10) 
 [unsafe](/quest/m3/ts-unsafe.md), so both need safe `cfg(rust2_ts)` twins or bindings
 there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 
+Decided with the maintainer on 2026-11-04, from a census at the bumped pin
+(moq-dev/rust2#390): the refusals no quest owned became the children below. ✅ arrayvec's
+`ArrayString` needs three of them (const generic types, `begin_panic`, `str::as_ptr`),
+kept separate since each lands alone; rejected: one quest for `ArrayString`.
+
 ## Required
 
 - [Iterators into a crate's own collections](/quest/m2/ts-model/from-iterator.md) - `collect`, `flat_map`, and `flatten` through moq-pattern's `Patterns`
 - [rangemap](/quest/m2/ts-model/rangemap.md) - B-tree ranges by a borrowed key, and std's iterators in a crate's fields
 - [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
+- [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
+- [Const generic types](/quest/m2/ts-model/const-generics.md) - `ArrayString<CAP>` and other types with const parameters
+- [panic! in a 2015 or 2018 crate](/quest/m2/ts-model/begin-panic.md) - the `begin_panic` mapping keyed by its defining module
+- [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
+- [Scheduler hints](/quest/m2/ts-model/scheduler-hints.md) - `thread::yield_now` and `hint::spin_loop` translate to nothing
+- [Slices not yet written](/quest/m2/ts-model/uninit-slices.md) - `Box::new_uninit_slice` of a frame's segment
 
 Public API: the translator's output for moq-net's model.
