@@ -173,16 +173,16 @@ export function strSplitAtMutChecked(p: Place<string>, mid: number): [Place<stri
  */
 function sliceFailed(s: string, start: number, end: number, at?: Location): never {
 	const len = stringLen(s);
-	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`, at);
-	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`, at);
-	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`, at);
+	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`, at, true);
+	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
+	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`, at, true);
 	// Neither inside a char: an inclusive end at the length, which is past the last byte.
 	const [which, pos] =
 		unitAt(s, 0, 0, start) < 0
 			? ["start", start]
 			: unitAt(s, 0, 0, end) < 0
 				? ["end", end]
-				: panic(`end byte index ${end} is out of bounds for string of length ${len}`, at);
+				: panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
 	// The char `at` is inside, and where its bytes start.
 	let floor = 0;
 	let c = 0;

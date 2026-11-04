@@ -260,7 +260,7 @@ function f64Bits(x: number): bigint {
 /** `Duration::from_secs_f64`, panicking where `try_from_secs_f64` errs. */
 export function durationFromSecsF64(secs: f64, at?: Location): Duration {
 	const r = durationTryFromSecsF64(secs);
-	return r.ok ? r.value : panic(tryFromFloatSecsErrorText(r.error), at);
+	return r.ok ? r.value : panic(tryFromFloatSecsErrorText(r.error), at, true);
 }
 
 /** `Duration::mul_f64`: through seconds as an `f64`, as std computes it. */

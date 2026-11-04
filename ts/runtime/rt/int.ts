@@ -177,7 +177,7 @@ export function min(a: number, b: number): number {
 
 /** `Ord::clamp` of integers in numbers: `a` within `[min, max]`, panicking unless `min <= max`. */
 export function clamp(a: number, min: number, max: number, at?: Location): number {
-	if (min > max) panic(`min > max. min = ${min}, max = ${max}`, at);
+	if (min > max) panic(`min > max. min = ${min}, max = ${max}`, at, true);
 	return a < min ? min : a > max ? max : a;
 }
 
@@ -1046,7 +1046,7 @@ function decimal(v: Wide): string {
 
 /** `Ord::clamp` of wide values: `a` within `[min, max]`, panicking unless `min <= max`. */
 function clampWide(a: Wide, min: Wide, max: Wide, at?: Location): Wide {
-	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`, at);
+	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`, at, true);
 	return lt(a, min) ? min : lt(max, a) ? max : a;
 }
 

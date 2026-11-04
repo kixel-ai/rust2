@@ -5,6 +5,11 @@
 //! method that only its impl tracks, passes the function's own location, as rustc's shim
 //! does. A call through std's code passes a location in std's source, which translation
 //! can't name, so it is refused.
+//!
+//! A program that reaches `panic::set_hook` passes where each panic is, which its hook
+//! reads: each statement's own, the caller's location to each std function that takes it,
+//! and the call of the macro that defines one, as an integer's methods. A panic in std's
+//! own code is where the toolchain's source has it, which `rt.setHook` is given.
 
 use std::sync::OnceLock;
 
@@ -40,9 +45,14 @@ fn file(tcx: TyCtxt<'_>, file: &SourceFile) -> String {
 	if !super::of_std(tcx, file.cnum) {
 		return name;
 	}
-	let Some((_, rest)) = name.split_once("/library/") else {
-		return name;
-	};
+	match name.split_once("/library/") {
+		Some((_, rest)) => std_file(tcx, rest),
+		None => name,
+	}
+}
+
+/// The name the toolchain's prebuilt std gives `rest`, a file under `library/`.
+fn std_file(tcx: TyCtxt<'_>, rest: &str) -> String {
 	match rest.strip_prefix("vendor/") {
 		Some(dep) => format!("{STD_DEPS}/{dep}"),
 		None => format!("/rustc/{}/library/{rest}", commit(tcx)),
@@ -53,9 +63,7 @@ fn file(tcx: TyCtxt<'_>, file: &SourceFile) -> String {
 fn commit(tcx: TyCtxt<'_>) -> &'static str {
 	static COMMIT: OnceLock<Option<String>> = OnceLock::new();
 	let commit = COMMIT.get_or_init(|| {
-		let rustc = crate::driver::RUSTC.get()?;
-		let out = std::process::Command::new(rustc).arg("-vV").output().ok()?;
-		let text = String::from_utf8(out.stdout).ok()?;
+		let text = rustc(&["-vV"])?;
 		text.lines()
 			.find_map(|line| line.strip_prefix("commit-hash: "))
 			.map(str::to_string)
@@ -64,6 +72,142 @@ fn commit(tcx: TyCtxt<'_>) -> &'static str {
 		Some(commit) => commit,
 		None => tcx.dcx().fatal("rust2-ts: the wrapped rustc's `-vV` names no commit, which std's files are named by"),
 	}
+}
+
+/// What the wrapped rustc prints given `args`.
+fn rustc(args: &[&str]) -> Option<String> {
+	let rustc = crate::driver::RUSTC.get()?;
+	let out = std::process::Command::new(rustc).args(args).output().ok()?;
+	String::from_utf8(out.stdout).ok()
+}
+
+/// Where std's code panics outside a `#[track_caller]` function, for each of its panics the
+/// runtime makes, by the key the runtime's `site` reads: a file under `library/`, `*`
+/// standing for a vendored crate's version, the text before it, and the text the call
+/// that panics starts with, as a method call's location starts at its name.
+const SITES: &[(&str, &str, &str, &str)] = &[
+	("capacity", "alloc/src/raw_vec/mod.rs", "fn capacity_overflow", "panic!("),
+	("trusted_capacity", "alloc/src/vec/spec_from_iter_nested.rs", "", "panic!(\"capacity overflow\")"),
+	("swap_remove", "alloc/src/vec/mod.rs", "pub fn swap_remove", "panic!("),
+	("into_flattened", "alloc/src/vec/mod.rs", "pub fn into_flattened", "expect("),
+	("rotate_left", "core/src/slice/mod.rs", "pub const fn rotate_left", "assert!("),
+	("rotate_right", "core/src/slice/mod.rs", "pub const fn rotate_right", "assert!("),
+	("ord_violation", "core/src/slice/sort/shared/smallsort.rs", "fn panic_on_ord_violation", "panic!("),
+	("ord_clamp", "core/src/cmp.rs", "fn clamp(self, min: Self, max: Self)", "assert!("),
+	("f32_clamp", "core/src/num/f32.rs", "pub const fn clamp(", "const_assert!("),
+	("f64_clamp", "core/src/num/f64.rs", "pub const fn clamp(", "const_assert!("),
+	("encode_utf8", "core/src/char/methods.rs", "pub const fn encode_utf8_raw", "const_panic!("),
+	("encode_utf16", "core/src/char/methods.rs", "pub const fn encode_utf16_raw", "const_panic!("),
+	("format", "alloc/src/fmt.rs", "fn format_inner", "expect("),
+	("to_string", "alloc/src/string.rs", "", "expect(\"a Display implementation"),
+	("debug_struct_fields", "core/src/fmt/mod.rs", "pub fn debug_struct_fields_finish", "assert_eq!("),
+	("join_len", "alloc/src/str.rs", "fn join_generic_copy", "expect("),
+	("hash_capacity", "vendor/hashbrown-*/src/raw.rs", "", "panic!(\"Hash table capacity overflow\")"),
+	("hash_index", "std/src/collections/hash/map.rs", "", "expect(\"no entry found for key\")"),
+	("btree_index", "alloc/src/collections/btree/map.rs", "", "expect(\"no entry found for key\")"),
+	("btree_range_equal_BTreeSet", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start and end are equal and excluded in BTreeSet\")"),
+	("btree_range_equal_BTreeMap", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start and end are equal and excluded in BTreeMap\")"),
+	("btree_range_order_BTreeSet", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start is greater than range end in BTreeSet\")"),
+	("btree_range_order_BTreeMap", "alloc/src/collections/btree/search.rs", "", "panic!(\"range start is greater than range end in BTreeMap\")"),
+	("deque_index", "alloc/src/collections/vec_deque/mod.rs", "fn index(&self", "expect("),
+	("deque_index_mut", "alloc/src/collections/vec_deque/mod.rs", "fn index_mut(&mut self", "expect("),
+	("deque_insert", "alloc/src/collections/vec_deque/mod.rs", "pub fn insert_mut(", "assert!("),
+	("deque_swap_i", "alloc/src/collections/vec_deque/mod.rs", "pub fn swap(&mut self, i: usize, j: usize)", "assert!(i"),
+	("deque_swap_j", "alloc/src/collections/vec_deque/mod.rs", "pub fn swap(&mut self, i: usize, j: usize)", "assert!(j"),
+	("deque_rotate_left", "alloc/src/collections/vec_deque/mod.rs", "pub fn rotate_left(", "assert!("),
+	("deque_rotate_right", "alloc/src/collections/vec_deque/mod.rs", "pub fn rotate_right(", "assert!("),
+	("deque_split_off", "alloc/src/collections/vec_deque/mod.rs", "pub fn split_off(", "assert!("),
+	("list_split_off", "alloc/src/collections/linked_list.rs", "pub fn split_off(", "assert!("),
+	("mutex_lock", "std/src/sys/sync/mutex/no_threads.rs", "pub fn lock(", "assert_eq!("),
+	("once_force", "std/src/sync/once.rs", "pub fn call_once_force<", "call(true"),
+	("reentrant_init", "core/src/cell/once.rs", "", "panic!(\"reentrant init\")"),
+	("lazy_poisoned", "core/src/cell/lazy.rs", "fn panic_poisoned", "panic!("),
+	("ready_poll", "core/src/future/ready.rs", "fn poll(", "expect("),
+	("ready_into_inner", "core/src/future/ready.rs", "pub fn into_inner(", "expect("),
+	("duration_new", "core/src/time.rs", "pub const fn new(", "expect("),
+	("duration_from_mins", "core/src/time.rs", "pub const fn from_mins(", "panic!("),
+	("duration_from_hours", "core/src/time.rs", "pub const fn from_hours(", "panic!("),
+	("duration_add", "core/src/time.rs", "", "expect(\"adding durations"),
+	("duration_sub", "core/src/time.rs", "", "expect(\"subtracting durations"),
+	("duration_mul", "core/src/time.rs", "", "expect(\"multiplying duration by scalar"),
+];
+
+/// Where each std function that neither takes its caller's location nor is defined by a
+/// macro panics, for those whose mapping makes a panic that takes its location, by the
+/// path [`library::std_path`] gives it: as [`SITES`] says.
+const CALLEES: &[(&str, &str, &str, &str)] = &[
+	("vec::drain", "alloc/src/vec/mod.rs", "pub fn drain<R>", "range("),
+	("vec::splice", "alloc/src/vec/mod.rs", "pub fn drain<R>", "range("),
+	("vec::extend_from_within", "alloc/src/vec/mod.rs", "pub fn extend_from_within<R>", "range("),
+	("collections::vec_deque::drain", "alloc/src/collections/vec_deque/mod.rs", "pub fn drain<R>", "range("),
+	("collections::vec_deque::range", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "range("),
+	("collections::vec_deque::range_mut", "alloc/src/collections/vec_deque/mod.rs", "fn slice_ranges<R>", "range("),
+	("iter::traits::iterator::Iterator::step_by", "core/src/iter/adapters/step_by.rs", "fn new(", "assert!("),
+	("cell::take", "core/src/cell.rs", "pub fn take(&self) -> T", "replace("),
+	("thread::local::with_borrow_mut", "std/src/thread/local.rs", "pub fn with_borrow_mut<F, R>", "borrow_mut("),
+	("thread::local::with_borrow", "std/src/thread/local.rs", "pub fn with_borrow<F, R>", "borrow("),
+];
+
+/// The `rt.Sites` of the toolchain's std, which `rt.setHook` takes: where each panic
+/// [`SITES`] names is, as the native build names it.
+pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
+	let tcx = t.tcx;
+	let mut props = Vec::new();
+	for &(key, file, after, needle) in SITES {
+		match find(tcx, file, after, needle) {
+			Some(at) => props.push((Key::Name(key.into()), at)),
+			None => {
+				t.err(span, format!("std's source has no `{needle}` in `{file}` after `{after}`, where it panics"));
+			}
+		}
+	}
+	Expr::Object(props)
+}
+
+/// Where std's `def_id` panics, if [`CALLEES`] names it.
+pub fn callee_site(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+	let path = library::std_path(tcx, def_id).join("::");
+	let &(_, file, after, needle) = CALLEES.iter().find(|(callee, ..)| *callee == path)?;
+	match find(tcx, file, after, needle) {
+		Some(at) => Some(at),
+		None => tcx.dcx().fatal(format!(
+			"rust2-ts: std's source has no `{needle}` in `{file}` after `{after}`, where it panics"
+		)),
+	}
+}
+
+/// The `rt.Location` of the first `needle` after `after` in `file`, a file under std's
+/// `library/` whose `*` stands for a vendored crate's version, in the toolchain's source.
+fn find(tcx: TyCtxt<'_>, file: &str, after: &str, needle: &str) -> Option<Expr> {
+	type Sources = rustc_data_structures::fx::FxHashMap<String, Option<(String, String)>>;
+	static SOURCES: std::sync::Mutex<Option<Sources>> = std::sync::Mutex::new(None);
+	static LIBRARY: OnceLock<Option<String>> = OnceLock::new();
+	let library = LIBRARY.get_or_init(|| {
+		let root = rustc(&["--print", "sysroot"])?;
+		Some(format!("{}/lib/rustlib/src/rust/library", root.trim()))
+	});
+	let mut sources = SOURCES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+	let source = sources.get_or_insert_default().entry(file.to_string()).or_insert_with(|| {
+		let dir = library.as_deref()?;
+		let path = match file.split_once('*') {
+			Some((prefix, suffix)) => {
+				let (parent, name) = prefix.rsplit_once('/')?;
+				let found = (std::fs::read_dir(format!("{dir}/{parent}")).ok()?)
+					.filter_map(Result::ok)
+					.find(|d| d.file_name().to_string_lossy().starts_with(name))?;
+				format!("{parent}/{}{suffix}", found.file_name().to_string_lossy())
+			}
+			None => file.to_string(),
+		};
+		Some((std::fs::read_to_string(format!("{dir}/{path}")).ok()?, path))
+	});
+	let (text, path) = source.as_ref()?;
+	let from = text.find(after)? + after.len();
+	let at = from + text[from..].find(needle)?;
+	let line_start = text[..at].rfind('\n').map_or(0, |i| i + 1);
+	let line = text[..at].matches('\n').count() + 1;
+	let col = text[line_start..at].chars().count() + 1;
+	Some(object(std_file(tcx, path), line, col))
 }
 
 /// The `rt.Location` of `file`, `line`, and `col`.
@@ -75,13 +219,10 @@ pub fn object(file: String, line: impl ToString, col: impl ToString) -> Expr {
 	])
 }
 
-/// Whether a call of `instance` passes its caller's location: the crate's own, and in a
-/// program with a panic hook, std's whose body translates. Std reads it only to say where
-/// it panics, which only a hook reads.
+/// Whether a call of `instance` passes its caller's location: the crate's own, as std's
+/// read it only to say where they panic, which the runtime's functions take instead.
 pub fn tracks<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> bool {
-	instance.def.requires_caller_location(t.tcx)
-		&& (t.crates.translates(instance.def_id())
-			|| t.hooked && library::from_mir(t, t.typing_env_pub(), instance))
+	t.crates.translates(instance.def_id()) && instance.def.requires_caller_location(t.tcx)
 }
 
 /// Whether `def_id` is `Location::caller`, which gives the location its call passes.
@@ -237,13 +378,6 @@ pub fn unlocated_in(stmts: &mut [Stmt]) -> bool {
 	for stmt in stmts {
 		stmt_exprs(stmt, &mut |e| walk(e, &mut |e| found |= unlocated(e).is_some()));
 	}
-	found
-}
-
-/// Whether `e` calls a runtime function that takes where it panics without saying where.
-pub fn unlocated_expr(e: &mut Expr) -> bool {
-	let mut found = false;
-	walk(e, &mut |e| found |= unlocated(e).is_some());
 	found
 }
 

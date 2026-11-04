@@ -25,6 +25,9 @@ pub struct Body<'b, 'a, 'tcx> {
 	/// The std function the call being lowered maps, in a program with a panic hook, and
 	/// where its panics are, if rustc says, until its mapping takes it.
 	pub std_site: Option<(Instance<'tcx>, Option<Expr>)>,
+	/// Where the std function whose mapping is being lowered panics, in a program with a
+	/// panic hook, if known.
+	pub panic_at: Option<Expr>,
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
@@ -36,6 +39,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			slotted: None,
 			site: None,
 			std_site: None,
+			panic_at: None,
 		}
 	}
 
@@ -168,9 +172,14 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			return call;
 		}
 		let start = out.len();
+		let outer = self.panic_at.clone();
+		if let Some(at) = &std_site {
+			self.panic_at = at.clone();
+		}
 		let mut call = self.library_call(def_id, gargs, instance, args, span, out);
+		self.panic_at = outer;
 		if let Some(at) = std_site {
-			self.locate_std(instance, at, &mut call, &mut out[start..], span);
+			Self::locate_std(at, &mut call, &mut out[start..]);
 		}
 		call
 	}
@@ -217,24 +226,12 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 
 	/// Pass `at`, where std's `instance` panics, to each runtime call its mapping made,
-	/// `call` and `stmts`, that panics there. A function std neither passes its caller's
-	/// location nor defines in a macro panics in its own source, which the runtime names
-	/// itself, so a runtime call left to say where is a mapping's mistake.
-	fn locate_std(&mut self, instance: Instance<'tcx>, at: Option<Expr>, call: &mut Expr, stmts: &mut [Stmt], span: Span) {
-		match at {
-			Some(at) => {
-				super::caller::locate_expr(call, &at);
-				super::caller::locate(stmts, &at);
-			}
-			None if super::caller::unlocated_expr(call) || super::caller::unlocated_in(stmts) => {
-				let path = self.t.tcx.def_path_str(instance.def_id());
-				self.err(
-					span,
-					format!("a panic of `{path}`, which takes no caller's location, at a location its mapping can't name"),
-				);
-			}
-			None => {}
-		}
+	/// `call` and `stmts`, that panics there. Without one, each passes `undefined`, so a
+	/// panic there finds no location for its hook, which the runtime throws on.
+	fn locate_std(at: Option<Expr>, call: &mut Expr, stmts: &mut [Stmt]) {
+		let at = at.unwrap_or_else(Expr::undefined);
+		super::caller::locate_expr(call, &at);
+		super::caller::locate(stmts, &at);
 	}
 
 	fn ctor(

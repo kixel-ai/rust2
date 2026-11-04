@@ -1849,6 +1849,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Duration => Type::Rt("Duration", vec![]),
 				library::Std::Layout => Type::Rt("Layout", vec![]),
 				library::Std::Location => Type::Rt("Location", vec![]),
+				library::Std::PanicHookInfo => Type::Rt("PanicHookInfo", vec![]),
 				library::Std::LayoutError => Type::Rt("LayoutError", vec![]),
 				library::Std::Bytes => Type::Rt("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rt("BytesMut", vec![]),

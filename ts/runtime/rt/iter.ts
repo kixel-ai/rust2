@@ -69,7 +69,7 @@ function hintLen(it: Iter<unknown>, at?: Location): number {
 	const [lower, upper] = it.sizeHint();
 	if (upper !== lower) {
 		const left = upper === undefined ? "None" : `Some(${upper})`;
-		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, at);
+		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, at, true);
 	}
 	return lower;
 }
@@ -382,7 +382,7 @@ export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Pla
 
 /** `slice::windows`: each run of `size` elements, panicking on a size of 0 as std's does. */
 export function sliceWindows<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	if (size === 0) panic("window size must be non-zero", at);
+	if (size === 0) panic("window size must be non-zero", at, true);
 	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, sliceCopy);
 }
 
@@ -428,7 +428,7 @@ export function sliceRchunksExactMut<T>(s: T[], size: number, at?: Location): It
 
 /** `slice::windows` of bytes. */
 export function byteSliceWindows(s: ByteSlice, size: number, at?: Location): Iter<ByteSlice> {
-	if (size === 0) panic("window size must be non-zero", at);
+	if (size === 0) panic("window size must be non-zero", at, true);
 	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, byteSlicePart);
 }
 

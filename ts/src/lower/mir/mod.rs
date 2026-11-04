@@ -1717,7 +1717,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		out.extend(entry);
 		out.extend(body);
-		if crate::lower::caller::unlocated_in(&mut out) {
+		if self.b.t.hooked && crate::lower::caller::unlocated_in(&mut out) {
 			self.err(self.span, "a panic of the runtime's whose location translation gave nowhere");
 		}
 		drop_self_assignments(&mut out);
@@ -2748,8 +2748,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The std function a call of `func` at `span` runs a mapping of, in a program with a
-	/// panic hook, and where its panics are, if rustc says: its caller's if it takes it, or
-	/// for one a macro defines, as an integer's methods are, that macro's call.
+	/// panic hook, and where its panics are: its caller's if it takes it, for one a macro
+	/// defines, as an integer's methods are, that macro's call, and else where std's source
+	/// has it, if known.
 	fn std_site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Option<Expr>)> {
 		if !self.b.t.hooked {
 			return None;
@@ -2769,7 +2770,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}),
 			false => {
 				let def = self.tcx.def_span(instance.def_id());
-				def.from_expansion().then(|| crate::lower::caller::location(self.tcx, def))
+				match def.from_expansion() {
+					true => Some(crate::lower::caller::location(self.tcx, def)),
+					false => crate::lower::caller::callee_site(self.tcx, instance.def_id()),
+				}
 			}
 		};
 		Some((instance, at))
@@ -3131,6 +3135,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match msg {
 			AssertKind::ResumedAfterReturn(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumed", Vec::new())),
 			AssertKind::ResumedAfterPanic(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumedPanic", Vec::new())),
+			// A hook reads a bounds check's message as the `String` std formats.
+			AssertKind::BoundsCheck { .. } if let Some(at) = self.panic_at() => {
+				let message = self.assert_message(msg, operands, span)?;
+				Some(Expr::rt("panic", vec![message, at, Expr::lit("true")]))
+			}
 			_ => {
 				let message = self.assert_message(msg, operands, span)?;
 				Some(Expr::rt("panic", vec![message]))

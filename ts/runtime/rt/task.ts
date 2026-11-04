@@ -556,21 +556,21 @@ export class RefCell<T> implements Disposable {
 
 /** `RefCell::borrow`: a shared borrow, which panics while an exclusive one is held. */
 export function refCellBorrow<T>(cell: RefCell<T>, at?: Location): RefCell<T> {
-	if (cell.borrows < 0) panic("RefCell already mutably borrowed", at);
+	if (cell.borrows < 0) panic("RefCell already mutably borrowed", at, true);
 	cell.borrows++;
 	return cell;
 }
 
 /** `RefCell::borrow_mut`: an exclusive borrow, which panics while any other is held. */
 export function refCellBorrowMut<T>(cell: RefCell<T>, at?: Location): RefCell<T> {
-	if (cell.borrows !== 0) panic("RefCell already borrowed", at);
+	if (cell.borrows !== 0) panic("RefCell already borrowed", at, true);
 	cell.borrows = -1;
 	return cell;
 }
 
 /** `RefCell::replace`: its value, which `value` replaces, as an exclusive borrow would. */
 export function refCellReplace<T>(cell: RefCell<T>, value: T, at?: Location): T {
-	if (cell.borrows !== 0) panic("RefCell already borrowed", at);
+	if (cell.borrows !== 0) panic("RefCell already borrowed", at, true);
 	const old = cell.value;
 	cell.value = value;
 	return old;

@@ -562,6 +562,7 @@ pub fn std_impl<'tcx>(
 			(Std::Layout, Trait::Debug) => rt("layoutDebug", vec![value, f]),
 			(Std::Location, Trait::Debug) => rt("locationDebug", vec![value, f]),
 			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
+			(Std::PanicHookInfo, Trait::Display) => rt("panicHookInfoDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
