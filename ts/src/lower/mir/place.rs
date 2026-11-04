@@ -626,15 +626,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(std) if std.record() => {
 					base.member(crate::lower::camel(adt.non_enum_variant().fields[field].name.as_str()))
 				}
-				// Cast to its variant's class: the slice an `rt.Borrowed` wraps, or the `Vec`.
-				Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-					let bytes = crate::lower::byte(elem);
+				// Cast to its variant's class: what an `rt.Borrowed` wraps, or what it owns.
+				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
+					// What an `rt.Borrowed` holds, and what it owns: an array and an `rt.Vec`, or text.
+					let (held, owns) = match borrowed.kind() {
+						ty::Slice(elem) => {
+							let elem = self.b.t.ty(*elem, span);
+							(crate::ts::Type::Array(Box::new(elem.clone())), crate::ts::Type::Rt("Vec", vec![elem]))
+						}
+						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
+					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
 						(true, true) => crate::ts::Type::Rt("ByteVec", Vec::new()),
-						(false, false) => crate::ts::Type::Rt("Borrowed", vec![self.b.t.ty(elem, span)]),
-						(false, true) => crate::ts::Type::Rt("Vec", vec![self.b.t.ty(elem, span)]),
+						(false, false) => crate::ts::Type::Rt("Borrowed", vec![held]),
+						(false, true) => owns,
 					};
 					let cast = Expr::As(Box::new(base), class);
 					match bytes || owned {
@@ -642,7 +650,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						false => cast.member("slice"),
 					}
 				}
-				Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
 				_ if transparent(self.b.t, ty) || crate::lower::library::wrapped(tcx, ty).is_some() => base,
 				None if self.b.t.own(adt.did()) => {
@@ -897,7 +904,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			) {
 				break;
 			}
-			value = self.adt(adt.did(), *variant, args, vec![value], ty, span);
+			value = narrowed(self.adt(adt.did(), *variant, args, vec![value], ty, span));
 			(at, rebuilt) = (base, true);
 		}
 		match rebuilt {
@@ -1233,14 +1240,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Some(std @ (Std::Entry | Std::TableEntry)) => {
 						crate::lower::collections::entry_test(std, *adt, index, scrut.clone())
 					}
-					Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-						let borrows = crate::lower::library::cow_borrows(scrut.clone(), elem);
+					Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+						let borrows = crate::lower::library::cow_borrows(scrut.clone(), borrowed);
 						match index.index() {
 							0 => borrows,
 							_ => borrows.not(),
 						}
 					}
-					Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 					Some(Std::Ordering) => scrut
 						.clone()
 						.binary("===", crate::lower::collections::ordering_variant(index)),
@@ -2336,4 +2342,25 @@ fn bytes_lit(bytes: &[u8]) -> Expr {
 		"byteSliceFrom",
 		vec![Expr::ident("Uint8Array").member("of").call(items)],
 	)
+}
+
+/// `rt.Ok(value)` or `rt.Err(value)` as the object literal they make, which TS types as the
+/// variant the store's own test narrowed its `Result` to, so a later read of the payload
+/// type-checks. Any other value is as it is.
+fn narrowed(value: Expr) -> Expr {
+	let Expr::Call(f, args) = &value else {
+		return value;
+	};
+	let (ok, key) = match &**f {
+		Expr::Rt(name) if name == "Ok" => ("true", "value"),
+		Expr::Rt(name) if name == "Err" => ("false", "error"),
+		_ => return value,
+	};
+	let [payload] = args.as_slice() else {
+		return value;
+	};
+	Expr::Object(vec![
+		(crate::ts::Key::Name("ok".into()), Expr::lit(ok)),
+		(crate::ts::Key::Name(key.into()), payload.clone()),
+	])
 }

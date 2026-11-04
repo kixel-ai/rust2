@@ -68,6 +68,13 @@ export function map$0xa8rra(self: rt.Vec<string> | undefined, f: (a0: rt.Vec<str
 	return f(self);
 }
 
+export function map$00b7lvf(self: rt.StrCow | undefined, _: (a0: rt.StrCow) => string): string | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return rt.strCowStr(self);
+}
+
 export function map$0of9gds(self: rt.u8 | undefined, f: (a0: rt.u8) => Badge.Badge): Badge.Badge | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -254,6 +261,12 @@ export function mapOr$02k4ito(self: rt.usize | undefined, default_: rt.u8, f: (a
 export function asDeref$0w8at8i(self: string | undefined): string | undefined {
 	return map$1uo1d4o(self, (a0: string): string => {
 		return a0;
+	});
+}
+
+export function asDeref$1qc2lbh(self: rt.StrCow | undefined): string | undefined {
+	return map$00b7lvf(self, (a0: rt.StrCow): string => {
+		return rt.strCowStr(a0);
 	});
 }
 

@@ -1431,29 +1431,29 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	let res: rt.Result<rt.u8, rt.u8> = part === undefined ? rt.Err(out$u8.err as rt.u8) : rt.Ok(part);
 	const before: rt.Result<rt.u8, rt.u8> = res;
 	if (!res.ok) {
-		res = rt.Err(rt.u8WrappingAdd(res.error, 1));
+		res = { ok: false, error: rt.u8WrappingAdd(res.error, 1) };
 	}
 	if (res.ok) {
-		res = rt.Ok(res.value ^ 85);
+		res = { ok: true, value: res.value ^ 85 };
 	}
 	let err: rt.Result<rt.u8, rt.u8> = rt.Err(n);
 	if (!err.ok) {
-		err = rt.Err(rt.u8WrappingAdd(err.error, 3));
+		err = { ok: false, error: rt.u8WrappingAdd(err.error, 3) };
 	}
 	let owned: rt.Result<rt.u8, rt.ByteVec> = rt.Ok(n);
 	if (owned.ok) {
-		owned = rt.Ok(rt.u8WrappingAdd(owned.value, 2));
+		owned = { ok: true, value: rt.u8WrappingAdd(owned.value, 2) };
 	}
 	const part2: rt.u8 | undefined = parity(rt.u8WrappingAdd(n, 1));
 	const err2: rt.u8 | undefined = part2 === undefined ? out$u8.err as rt.u8 : undefined;
 	const slot: Slot.Slot = { res: (err2 !== undefined ? rt.Err(err2 as rt.u8) : rt.Ok(part2 as rt.u8)) as rt.Result<rt.u8, rt.u8> };
 	if (!slot.res.ok) {
 		const _33: rt.u8 = rt.u8WrappingSub(slot.res.error, 4);
-		slot.res = rt.Err(_33);
+		slot.res = { ok: false, error: _33 };
 	}
 	let flow: rt.Result<rt.u8, rt.u8> = rt.Err(n);
 	if (!flow.ok) {
-		flow = rt.Err(rt.u8WrappingAdd(flow.error, 9));
+		flow = { ok: false, error: rt.u8WrappingAdd(flow.error, 9) };
 	}
 	let opt: rt.u8 | undefined = n;
 	if (opt !== undefined) {
@@ -1469,7 +1469,7 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	if (nested !== rt.Pending) {
 		if (nested !== undefined) {
 			if (!nested.ok) {
-				nested = rt.Err(rt.u8WrappingAdd(nested.error, 6));
+				nested = { ok: false, error: rt.u8WrappingAdd(nested.error, 6) };
 			}
 		}
 	}
@@ -1477,7 +1477,7 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	let caught: rt.Result<rt.u8, rt.u8> = part4 === undefined ? rt.Err(out$u8.err as rt.u8) : rt.Ok(part4);
 	const bump: () => undefined = (): undefined => {
 		if (!caught.ok) {
-			caught = rt.Err(rt.u8WrappingAdd(caught.error, 5));
+			caught = { ok: false, error: rt.u8WrappingAdd(caught.error, 5) };
 		}
 	};
 	bump();
@@ -1486,12 +1486,12 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	let replaced: rt.Result<rt.u8, rt.u8> = part5 === undefined ? rt.Err(out$u8.err as rt.u8) : rt.Ok(part5);
 	if (replaced.ok) {
 		const old = replaced.value;
-		replaced = rt.Ok(66);
+		replaced = { ok: true, value: 66 };
 		rt.byteVecPush(out, old);
 	}
 	let named: rt.Result<string, rt.u8> = rt.Ok("");
 	if (named.ok) {
-		named = rt.Ok(named.value + "r");
+		named = { ok: true, value: named.value + "r" };
 	}
 	if (named.ok) {
 		_86 = rt.stringLen(named.value) & 0xff;
@@ -2482,7 +2482,7 @@ export function flows(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const err = unset();
 	let set: rt.Result<rt.u8 | undefined, rt.u8> = err !== undefined ? rt.Err(err as rt.u8) : rt.Ok(out$Option_u8.p);
 	if (set.ok) {
-		set = rt.Ok(a);
+		set = { ok: true, value: a };
 	}
 	const _108: rt.Result<rt.u8 | undefined, rt.u8> = set;
 	const err2: rt.u8 | undefined = unset();

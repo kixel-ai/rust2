@@ -224,14 +224,14 @@ export function joins(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), undefined, 12, true);
 		wides(rt.slicesJoin(wide3.items, 2, undefined, rt.cowSlice), out);
 		wides(rt.slicesJoin(wide3.items, 2, [65535], rt.cowSlice), out);
-		const texts: rt.Vec<string> = rt.iterToVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(parts)), (_214: [rt.usize, rt.ByteSlice]): string => {
+		const texts: rt.Vec<rt.StrCow> = rt.iterToVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(parts)), (_214: [rt.usize, rt.ByteSlice]): rt.StrCow => {
 			if (rt.usizeRem(_214[0], 2) === 0) {
-				return "ab";
+				return new rt.Borrowed("ab");
 			}
 			return text(_214[1]);
 		}), undefined, 12, true);
-		put(out, rt.strsJoin(texts.items, ""));
-		put(out, rt.strsJoin(texts.items, "--"));
+		put(out, rt.strsJoin(texts.items.map(rt.strCowStr), ""));
+		put(out, rt.strsJoin(texts.items.map(rt.strCowStr), "--"));
 	} else {
 		const big: rt.ByteVec = rt.byteVecOf(1, 1 << 16);
 		const wide4: rt.Vec<rt.u16> = rt.vecFromElem(1, 1 << 16, undefined);

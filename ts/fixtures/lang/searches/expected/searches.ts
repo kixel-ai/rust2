@@ -2488,6 +2488,54 @@ export function both$ref_str_str_RSplit_searches_searches_closure1(it: rt.Iter<s
  * `it` read to its end, each step from the end the high bit of `data`'s byte picks, then
  * how many it gave, then a clone made after the first, read from the back.
  */
+export function both$ref_str_str_SplitAsciiWhitespace(it: rt.Iter<string>, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let back!: boolean;
+	let _15!: string | undefined;
+	let n: rt.usize = 0;
+	let copy = undefined as rt.Iter<string> | undefined;
+	while (true) {
+		const _7: rt.u8 | undefined = rt.byteSliceGet(data, n);
+		b1: {
+			if (_7 !== undefined) {
+				if ((_7 & 128) !== 0) {
+					back = true;
+					break b1;
+				}
+			}
+			back = false;
+		}
+		if (!back) {
+			_15 = rt.iterToOption(it.next());
+		} else {
+			_15 = rt.iterToOption(it.nextBack());
+		}
+		if (_15 !== undefined) {
+			put$searches_Item_ref_str(_15, out);
+			if (n === 0) {
+				copy = it.clone();
+			}
+			n = rt.usizeAdd(n, 1);
+		} else {
+			rt.byteVecPush(out, n & 0xff);
+			if (copy !== undefined) {
+				const iter: rt.Iter<string> = rt.iterRev(copy);
+				while (true) {
+					const _35: string | rt.Done = iter.next();
+					if (_35 === rt.DONE) {
+						break;
+					}
+					put$searches_Item_ref_str(_35, out);
+				}
+			}
+			return;
+		}
+	}
+}
+
+/**
+ * `it` read to its end, each step from the end the high bit of `data`'s byte picks, then
+ * how many it gave, then a clone made after the first, read from the back.
+ */
 export function both$ref_str_str_SplitInclusive_array2_char(it: rt.Iter<string>, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let back!: boolean;
 	let _15!: string | undefined;
@@ -3849,7 +3897,7 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 }
 
 /**
- * `str`'s text iterators and trims, `kind % 4` picking which, of text of `SPACES` by the
+ * `str`'s text iterators and trims, `kind % 5` picking which, of text of `SPACES` by the
  * low bits of each byte, read from the end each byte's high bit picks.
  */
 export function texts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -3860,21 +3908,23 @@ export function texts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		return [10, 13, 97, 32, 9, 11, 133, 160, 5760, 8202, 8203, 8232, 12288, 65279, 233, 128512][_52];
 	}));
-	const _7: rt.u8 = rt.u8Rem(kind, 4);
+	const _7: rt.u8 = rt.u8Rem(kind, 5);
 	if (_7 === 0) {
 		both$tuple2_usize_char_str_CharIndices(rt.strCharIndices(s), data, out);
 	} else if (_7 === 1) {
 		both$ref_str_str_Lines(rt.strLines(s), data, out);
 	} else if (_7 === 2) {
 		both$ref_str_str_SplitWhitespace(rt.strSplitWhitespace(s), data, out);
+	} else if (_7 === 3) {
+		both$ref_str_str_SplitAsciiWhitespace(rt.strSplitAsciiWhitespace(s), data, out);
 	} else {
 		harness_put(out, rt.strTrimMatches(s, rt.charIsWhitespace));
 		harness_put(out, rt.strTrimStartMatches(s, rt.charIsWhitespace));
 		harness_put(out, rt.strTrimEndMatches(s, rt.charIsWhitespace));
-		for (const _37 of rt.iterToVec(rt.iterMap(rt.strChars(s), (a0: rt.char): boolean => {
+		for (const _40 of rt.iterToVec(rt.iterMap(rt.strChars(s), (a0: rt.char): boolean => {
 			return rt.charIsWhitespace(a0);
 		}), "next", 1).items) {
-			rt.byteVecPush(out, _37 ? 1 : 0);
+			rt.byteVecPush(out, _40 ? 1 : 0);
 		}
 	}
 }

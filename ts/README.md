@@ -89,7 +89,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 
 | Rust | TypeScript |
 | --- | --- |
-| `bool`, `str`, `String`, `Box<str>`, `Cow<str>` | `boolean`, `string` |
+| `bool`, `str`, `String`, `Box<str>` | `boolean`, `string` |
 | `char` | `rt.char`: a `number` branded so, its Unicode scalar value |
 | `u8`-`u32`, `i8`-`i32`, `usize`, `isize` | `rt.u8` and so on: a `number` branded with its type, checked: overflow panics |
 | `u64`, `i64`, `u128`, `i128` | `rt.u64` and so on: a branded `number` while a safe integer, 32-bit limbs past 2^53, checked the same way |
@@ -106,7 +106,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `ControlFlow<B, C>` | `rt.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
 | tuple, `[T; N]`, `&[T]`, `Box<[T]>` | an array; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>` |
 | `Vec<T>` | `rt.Vec<T>`: its items, the array `items`, and the capacity std's holds; `rt.vecFrom(items)` makes one of an array with room for exactly them. `rt.ByteVec` of bytes |
-| `Cow<[T]>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice` |
+| `Cow<[T]>`, `Cow<str>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice`; `rt.StrCow` for text, the string it owns or an `rt.Borrowed` holding the one it borrows, which `rt.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rt.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rt.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, `0` for a byte, or an object whose parts kept as objects are there, holding `undefined` |
@@ -241,7 +241,7 @@ their lossy forms over bytes, decode as `char::decode_utf16` does: an unpaired s
 fails with `rt.FromUtf16Error`, `{ kind }`, its private `FromUtf16ErrorKind`'s name, or
 becomes U+FFFD, and so does an odd byte at the end.
 `String::from_utf8_lossy` is a `TextDecoder`'s, which writes one U+FFFD for each maximal
-invalid sequence, as std's does; its `Cow<str>` is the text either way. `utf8_chunks` splits
+invalid sequence, as std's does, and borrows the text of valid UTF-8, as std's does. `utf8_chunks` splits
 where `str::from_utf8` fails, so each `Utf8Chunk`'s `invalid` bytes are std's, and `Debug`
 of it writes what is left as std's does, each invalid byte as `\xNN`. `from_utf8_unchecked`,
 of a `str` or a `String`, decodes as `from_utf8_lossy` does the UTF-8 its contract promises.
@@ -317,10 +317,12 @@ splits, each writing what is left of its slice as std's does, emptied where std'
 the end empties a `Windows`; a hash set's operations write the list a clone yields, and a
 `BTreeSet`'s the way std picked to make each, by the iterators it reads, the set it looks
 keys up in, and the key it peeked or holds back. A list's and a B-tree's `ExtractIf` write
-the item or entry it reads next, until it stops, and a hash map's and set's nothing. A slice's `chunks_mut` and its forms are
-refused, as std writes their slice's address, and so are a `str`'s searches, `Split` and
-its forms, `Matches`, `MatchIndices`, `Lines`, and `SplitWhitespace`, as std writes its
-searcher's state in UTF-8 bytes. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
+the item or entry it reads next, until it stops, and a hash map's and set's nothing. A
+`str`'s searches, `Split` and its forms, `Matches`, `MatchIndices`, `Lines`,
+`SplitWhitespace`, and `SplitAsciiWhitespace`, write their searcher's state in UTF-8 bytes
+as std's does, a `&str`'s two-way search replayed to find what it last compared, which
+plain searches never keep. A slice's `chunks_mut` and its forms are refused, as std writes
+their slice's address. `Debug` of `Bound`, `Ordering`, `Reverse`, `AssertUnwindSafe`, and `ControlFlow` is
 their derived one, whichever way each is held, and a guard of a cell or a lock, mapped or
 not, writes what it lends by its own `Debug` and `Display`. `Debug` of a `Cell`, a
 `RefCell`, a `Mutex`, and an `RwLock` writes what each holds, or `<borrowed>` and
@@ -396,8 +398,8 @@ one `&s[a..b]` or `&s[a..=b]` takes, which reads the string up to it and panics 
 does inside a char, where `get` gives `None`. A JS string can't change in place, so `String`'s edits, `push_str`, `truncate`,
 `insert`, `retain`, `replace_range`, and the rest, assign the edited one to the local or
 field the `&mut` borrows, taking and checking byte offsets as std does, and `retain` then
-drops its closure. `+`, of a `String` or a `Cow<str>`, is JS's `+` of the moved text, as
-`+=` is. A `&mut str` is
+drops its closure. `+`, of a `String`, is JS's `+` of the moved text, as `+=` is, and of a
+`Cow<str>` takes either side whole when the other is empty, as std's does. A `&mut str` is
 the `rt.Place` of its `String` wherever that is, and a part of one, from `&mut s[a..b]`,
 `get_mut`, or `split_at_mut`, is `rt.strPart(p, a, b)`, a place of its own that writes the
 whole string anew, checking its offsets as `&s[a..b]` does. `as_bytes_mut`,
@@ -406,12 +408,13 @@ whole string anew, checking its offsets as `&s[a..b]` does. `as_bytes_mut`,
 size hint's lower bound, which panics past `isize::MAX`. A `drain` holds the `&mut`'s
 place and writes the string without the drained text as it drops, so one that
 `mem::forget` leaks leaves it as it was, as std's does. A `String` keeps no capacity:
-`with_capacity`, `reserve`, and `shrink_to_fit` do nothing, and `capacity` is refused. A `Cow<str>` is its text, borrowed or owned, so
-`to_mut` borrows the `Cow`'s own place, and code that tells its variants apart, a `match`
-on them or `Cow::is_borrowed`, is refused. A `Cow<[T]>` keeps its variant in its class,
-so a `match` reads it, and `to_mut` of a borrowed one stores a clone of its slice in the
-`Cow`'s place before lending it. Its `clone_from` of an owned one over an owned one clones
-into the `Vec` it owns, keeping its buffer, as std's does.
+`with_capacity`, `reserve`, and `shrink_to_fit` do nothing, and `capacity` is refused. A `Cow` keeps its
+variant in its class, so a `match` reads it, and `to_mut` of a borrowed one stores what it
+owns in the `Cow`'s place before lending it: a `Cow<[T]>`'s clone of its slice, or a
+`Cow<str>`'s text, which a `String` is, so the `&mut` borrows the `Cow`'s own place. A
+`Cow<[T]>`'s `clone_from` of an owned one over an owned one clones into the `Vec` it owns,
+keeping its buffer, as std's does. `Cow::is_borrowed` and `is_owned` are unstable, and
+refused.
 
 Functions and members are camelCase. Functions are monomorphized: each instance is its
 own function, suffixed after a `$` by the items it is nested in below its module, its

@@ -1695,7 +1695,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					false => Type::Rt("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
 				library::Std::String => Type::Builtin("string"),
-				library::Std::Cow if library::string(tcx, Ty::new_adt(tcx, adt, args)) => Type::Builtin("string"),
+				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rt("StrCow", vec![]),
 				library::Std::Cow if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, args)) => {
 					match elem.kind() {
 						_ if self.open_elem(elem) => Type::Rt("CowOf", vec![self.ty(elem, span)]),

@@ -53,6 +53,7 @@ export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 }
 
 export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _20!: boolean;
 	const bytes: rt.ByteVec = input(kind, data);
 	const iter: rt.RangeInclusive<rt.usize> = new rt.RangeInclusive(0, bytes.length, rt.usizeStep);
 	while (true) {
@@ -61,24 +62,30 @@ export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			break;
 		}
 		const rest: rt.ByteSlice = rt.byteSliceRange(rt.byteVecSlice(bytes), _10);
-		const text: string = rt.stringFromUtf8Lossy(rest);
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, text), (f: rt.Formatter) => rt.fmtStr(text, f)];
+		const text: rt.StrCow = rt.stringFromUtf8Lossy(rest);
+		if (text instanceof rt.Borrowed) {
+			_20 = true;
+		} else {
+			_20 = false;
+		}
+		rt.byteVecPush(out, _20 ? 1 : 0);
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, rt.strCowStr(text)), (f: rt.Formatter) => rt.fmtStr(rt.strCowStr(text), f)];
 		put(out, rt.fmtFormat([args2[0], "|", args2[1]]));
-		rt.byteVecPush(out, rt.stringLen(text) & 0xff);
-		const owned: string = text;
+		rt.byteVecPush(out, rt.stringLen(rt.strCowStr(text)) & 0xff);
+		const owned: string = rt.strCowStr(text);
 		put(out, owned);
-		put(out, rt.stringFromUtf8Lossy(rt.stringAsBytes(owned)));
+		put(out, rt.strFromUtf8Unchecked(rt.stringAsBytes(owned)));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.stringIntoBytes(owned)));
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(rt.stringIntoBytes(owned)));
-		put(out, rt.stringFromUtf8Lossy(rt.byteVecSlice(rt.stringIntoBytes(owned))));
+		put(out, rt.strFromUtf8Unchecked(rt.byteVecSlice(rt.stringIntoBytes(owned))));
 		const chunks: rt.Iter<rt.Utf8Chunk> = rt.byteSliceUtf8Chunks(rest);
 		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8Chunks(chunks, f)];
 		put(out, rt.fmtFormat([args4[0], "|", rt.fmtSpec({ alternate: true }, args4[0])]));
 		let last: rt.Utf8Chunk | undefined = undefined;
 		while (true) {
-			const _75: rt.Utf8Chunk | rt.Done = chunks.next();
-			if (_75 !== rt.DONE) {
-				const chunk: rt.Utf8Chunk = _75;
+			const _79: rt.Utf8Chunk | rt.Done = chunks.next();
+			if (_79 !== rt.DONE) {
+				const chunk: rt.Utf8Chunk = _79;
 				put(out, chunk.valid);
 				rt.byteVecExtendFromSlice(out, chunk.invalid);
 				rt.byteVecPush(out, chunk.invalid.length & 0xff);
@@ -88,9 +95,9 @@ export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				put(out, rt.fmtFormat([args8[0]]));
 				rt.byteVecPush(out, rt.iterCount(chunks.clone()) & 0xff);
 				rt.byteVecPush(out, lossy_eq$00vlkdw(chunk, chunk) ? 1 : 0);
-				const _130: rt.Utf8Chunk | undefined = last;
-				const _133: rt.Utf8Chunk | undefined = chunk;
-				rt.byteVecPush(out, rt.eqOption(lossy_eq$00vlkdw)(_130, _133) ? 1 : 0);
+				const _134: rt.Utf8Chunk | undefined = last;
+				const _137: rt.Utf8Chunk | undefined = chunk;
+				rt.byteVecPush(out, rt.eqOption(lossy_eq$00vlkdw)(_134, _137) ? 1 : 0);
 				last = chunk;
 			} else {
 				break;
@@ -99,11 +106,11 @@ export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8Chunks(chunks, f)];
 		put(out, rt.fmtFormat([args10[0]]));
 	}
-	const _148: rt.Result<string, rt.FromUtf8Error> = rt.stringFromUtf8(bytes);
-	if (_148.ok) {
-		put(out, _148.value);
+	const _152: rt.Result<string, rt.FromUtf8Error> = rt.stringFromUtf8(bytes);
+	if (_152.ok) {
+		put(out, _152.value);
 	} else {
-		const e: rt.FromUtf8Error = _148.error;
+		const e: rt.FromUtf8Error = _152.error;
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(e.bytes));
 		const u: rt.Utf8Error = e.error;
 		rt.byteVecPush(out, u.validUpTo & 0xff);
@@ -112,7 +119,7 @@ export function lossy(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}));
 		const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtUtf8ErrorDisplay(u, f)];
 		put(out, rt.fmtFormat([args12[0]]));
-		put(out, rt.stringFromUtf8Lossy(rt.byteVecSlice(e.bytes)));
+		put(out, rt.strCowStr(rt.stringFromUtf8Lossy(rt.byteVecSlice(e.bytes))));
 		rt.byteVecPush(out, string_eq$09knsz6(rt.fromUtf8ErrorClone(e), e) ? 1 : 0);
 		rt.byteVecExtendFromSlice(out, rt.byteVecSlice(e.bytes));
 	}

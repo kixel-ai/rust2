@@ -52,5 +52,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("fmt::adaptors", |_, data, out| fmt::adaptors(data, out)),
 		("fmt::sources", |_, data, out| fmt::sources(data, out)),
 		("fmt::sets", |_, data, out| fmt::sets(data, out)),
+		("fmt::searches", |_, data, out| fmt::searches(data, out)),
 	]
 }
