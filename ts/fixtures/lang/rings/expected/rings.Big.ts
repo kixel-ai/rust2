@@ -6,6 +6,18 @@ export function clone$Clone(self: Big): Big {
 	return { id: self.id, pad: rt.byteSliceToArray(rt.byteSliceFrom(self.pad)) };
 }
 
+export function partialCmp$cmp_PartialOrd(self: Big, other: Big): rt.Ordering | undefined {
+	return cmp$cmp_Ord(self, other);
+}
+
+export function cmp$cmp_Ord(self: Big, other: Big): rt.Ordering {
+	const cmp: rt.Ordering = rt.cmp(self.id, other.id);
+	if (cmp === 0) {
+		return rt.cmpBytes(rt.byteSliceFrom(self.pad), rt.byteSliceFrom(other.pad));
+	}
+	return cmp;
+}
+
 /** Past 1 KiB, which std's grows from one slot rather than four. */
 export interface Big {
 	id: rt.u8;

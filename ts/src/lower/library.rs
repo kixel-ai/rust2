@@ -195,6 +195,8 @@ pub enum Std {
 	Location,
 	/// `rt.LayoutError`.
 	LayoutError,
+	/// `rt.TryReserveError`: the layout whose allocation failed, if any, never changed once made.
+	TryReserveError,
 	/// `bytes::Bytes`: an `rt.ByteSlice`, as `&[u8]` is.
 	Bytes,
 	/// `bytes::BytesMut`: `rt.BytesMut`, a window of storage it shares with what it splits off.
@@ -328,6 +330,7 @@ impl Std {
 			["alloc", "layout", "Layout"] => Some(Self::Layout),
 			["panic", "location", "Location"] => Some(Self::Location),
 			["alloc", "layout", "LayoutError"] => Some(Self::LayoutError),
+			["collections", "TryReserveError"] => Some(Self::TryReserveError),
 			["num", "error", "ParseIntError"] => Some(Self::ParseIntError),
 			["num", "error", "IntErrorKind"]
 			| ["char", "convert", "CharErrorKind"]
@@ -967,7 +970,7 @@ pub struct Call<'tcx> {
 fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 	Some(match (owner, name) {
 		("Option", "unwrap" | "expect")
-		| ("Vec", "push" | "into_boxed_slice")
+		| ("Vec", "push" | "into_boxed_slice" | "into_flattened" | "leak")
 		| ("slice", "into_vec")
 		| ("Box", "new" | "pin")
 		| ("mem", "replace" | "take" | "swap" | "forget")
@@ -1809,7 +1812,12 @@ fn mapping<'tcx>(
 					Expr::rt("fromUtf8ErrorClone", vec![value])
 				}
 				// Never changed once made.
-				ty::Adt(adt, _) if matches!(Std::of(tcx, adt.did()), Some(Std::DecodeUtf16Error | Std::Utf8Chunk)) => {
+				ty::Adt(adt, _)
+					if matches!(
+						Std::of(tcx, adt.did()),
+						Some(Std::DecodeUtf16Error | Std::Utf8Chunk | Std::TryReserveError)
+					) =>
+				{
 					value
 				}
 				// Another that holds nothing.
@@ -2354,13 +2362,19 @@ fn mapping<'tcx>(
 		// grows it.
 		("Vec", "with_capacity") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecWithCapacity", args),
 		("Vec", "capacity") if is_u8(targ(gargs, 0)) => args.pop()?.member("data").member("length"),
-		("Vec", "reserve" | "reserve_exact" | "shrink_to") if is_u8(targ(gargs, 0)) => {
+		("Vec", "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to")
+			if is_u8(targ(gargs, 0)) =>
+		{
 			rt2(args, "byteVec", &super::camel(&name))
 		}
 		("Vec", "shrink_to_fit") if is_u8(targ(gargs, 0)) => {
 			Expr::rt("byteVecShrinkTo", vec![args.pop()?, Expr::lit("0")])
 		}
-		("Vec", "with_capacity" | "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			"Vec",
+			"with_capacity" | "capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact"
+			| "shrink_to" | "shrink_to_fit",
+		) => {
 			let mut values = args;
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
@@ -2493,6 +2507,92 @@ fn mapping<'tcx>(
 					Expr::rt("vecDrain", super::iter::tail(args, vec![dropper]))
 				}
 			}));
+		}
+		// A drain that fills its gap from the replacing items, which it drops last. std's
+		// makes the drain, dropping the range, before it makes the items an iterator.
+		("Vec", "splice") => {
+			// `Vec<T, A>::splice::<R, I>`.
+			let (elem, source) = (targ(gargs, 0), targ(gargs, 3));
+			let iter = super::iter::iter_of(b.t, source)?;
+			// std's reads the items through their own `by_ref`, which an override may give
+			// another iterator in place of.
+			let by_ref = super::collections::trait_fn(tcx, "Iterator", "by_ref");
+			if let Ok(Some(instance)) =
+				Instance::try_resolve(tcx, b.t.typing_env_pub(), by_ref, tcx.mk_args(&[iter.into()]))
+				&& instance.def_id() != by_ref
+			{
+				return Some(b.err(
+					span,
+					format!("`Vec::splice` of `{iter}`, whose own `by_ref` std's calls, which is not supported yet"),
+				));
+			}
+			let items = args.pop()?;
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.push(ranged.bounds.clone());
+			let drain = match is_u8(elem) {
+				true => Expr::rt("byteVecSplice", args),
+				false => {
+					args.push(super::iter::size_of(b, elem, span));
+					let dropper = b.t.dropper(elem, span);
+					Expr::rt("vecSplice", super::iter::tail(args, vec![dropper]))
+				}
+			};
+			let items = super::iter::into_iter(b, source, items, span)?;
+			// The drain, the first argument, which JS evaluates first.
+			let drain = ranged.after(drain);
+			let trusted = Expr::lit(super::iter::implements(b.t, iter, "TrustedLen").to_string());
+			let drops = super::iter::iter_drops(b, iter, span);
+			return Some(Expr::rt(
+				"spliceFrom",
+				super::iter::tail(vec![drain, items], vec![trusted, drops]),
+			));
+		}
+		// The closure, which it drops as it drops, takes the place of each element JS copies.
+		("Vec", "extract_if") => {
+			let elem = targ(gargs, 0);
+			let f = args.pop()?;
+			let ranged = super::collections::bounds(b, call, args.pop()?);
+			args.extend([ranged.bounds.clone(), f]);
+			let extract = match (is_u8(elem), b.t.needs_place(elem)) {
+				(true, _) => "byteVecExtractIf",
+				(false, true) => "vecExtractIfMut",
+				(false, false) => "vecExtractIf",
+			};
+			return Some(ranged.after(Expr::rt(extract, args)));
+		}
+		// Its elements' elements, with room for as many as its capacity held arrays.
+		// `Vec<[T; N], A>::into_flattened`.
+		("Vec", "into_flattened") => {
+			let elem = targ(gargs, 0);
+			let n = gargs.consts().next()?;
+			let Some(n) = n.try_to_target_usize(tcx) else {
+				return Some(b.err(
+					span,
+					format!("`Vec::into_flattened` of arrays of `{n}`, which is not known"),
+				));
+			};
+			let mut values = args;
+			values.push(Expr::lit(n.to_string()));
+			return Some(match is_u8(elem) {
+				true => Expr::rt("byteVecIntoFlattened", values),
+				false => {
+					values.push(super::iter::size_of(b, elem, span));
+					Expr::rt("vecIntoFlattened", values)
+				}
+			});
+		}
+		// The room past its length, whose size is a capacity the runtime holds only as std
+		// guarantees it.
+		("Vec", "spare_capacity_mut") => {
+			return Some(b.err(
+				span,
+				"`Vec::spare_capacity_mut`, whose length is a capacity the runtime holds only as std guarantees it, which is not supported",
+			));
+		}
+		// Its elements, which nothing drops.
+		("Vec", "leak") => {
+			let v = args.pop()?;
+			vec_view(v, targ(gargs, 0))
 		}
 		("Vec", "as_slice" | "as_mut_slice") => {
 			let v = args.pop()?;

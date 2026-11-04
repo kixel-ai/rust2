@@ -564,6 +564,8 @@ pub fn std_impl<'tcx>(
 			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
+			(Std::TryReserveError, Trait::Debug) => rt("tryReserveErrorDebug", vec![value, f]),
+			(Std::TryReserveError, Trait::Display) => rt("tryReserveErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rt("bytesDebug", vec![Expr::rt("bytesMutView", vec![value]), f]),
 			_ => return None,
@@ -746,6 +748,10 @@ fn iter_debug<'tcx>(
 			let call = vec![value.clone(), f.clone(), debug, Expr::Str((*name).into())];
 			return Some(Expr::rt("fmtDequeIter", call));
 		}
+		["vec", "extract_if", "ExtractIf"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(Expr::rt("fmtVecExtractIf", vec![value.clone(), f.clone(), debug]));
+		}
 		["collections", "vec_deque", "drain", "Drain"] => {
 			let len = b.fmt_fn(Trait::Debug, tcx.types.usize, span);
 			return Some(Expr::rt("fmtDequeDrain", vec![value.clone(), f.clone(), len]));
@@ -843,6 +849,11 @@ fn adaptor_debug<'tcx>(
 			call("fmtAdaptor", vec![name(adaptor), inner, name("it")])
 		}
 		["iter", "adapters", "enumerate", "Enumerate"] => call("fmtEnumerate", vec![wrapped(b, arg(0)?)]),
+		// Its drain, of what it has not yielded, and the iterator it fills the gap from.
+		["vec", "splice", "Splice"] => {
+			let debug = b.fmt_fn(Trait::Debug, b.t.iter_item(arg(0)?)?, span);
+			call("fmtVecSplice", vec![debug, wrapped(b, arg(0)?)])
+		}
 		["iter", "adapters", _, adaptor @ ("Skip" | "Take")] => {
 			call("fmtCounted", vec![name(adaptor), wrapped(b, arg(0)?)])
 		}

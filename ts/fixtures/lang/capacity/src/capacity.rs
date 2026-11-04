@@ -2,9 +2,11 @@
 //! grows, shrinks, remakes, or reads one, of elements of each size its growth tells apart:
 //! a byte, at most 1 KiB, past it, and none. A `Vec`'s and a `BinaryHeap`'s it checks
 //! exactly through steps that fix it from what they held, such as pushes, `with_capacity`,
-//! `reserve`, `shrink_to`, a clone, `clone_from`, and a `collect` in place, and past a
-//! step that shortens one only what std guarantees, as the runtime holds no more. A
-//! `VecDeque`'s it checks exactly past every step, as where its slices split depends on it. A `HashMap`'s and a `HashSet`'s it checks only by std's guarantees.
+//! `reserve` and `try_reserve`, `shrink_to`, a clone, `clone_from`, a splice, and a
+//! `collect` in place, and past a step that shortens one only what std guarantees, as the
+//! runtime holds no more. A `VecDeque`'s it checks exactly past every step, as where its
+//! slices split depends on it. A `HashMap`'s and a `HashSet`'s it checks only by std's
+//! guarantees.
 
 use std::cell::RefCell;
 use std::collections::{BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
@@ -109,7 +111,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 	put(out, v.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 35 {
+		match op % 41 {
 			0 | 1 => v.push(make(arg)),
 			2 => {
 				drop(v.pop());
@@ -117,7 +119,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			3 | 4 => {
 				let additional = amount(arg, v.len(), size);
-				match op % 35 {
+				match op % 41 {
 					3 => v.reserve(additional),
 					_ => v.reserve_exact(additional),
 				}
@@ -250,7 +252,7 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
 					_ => usize::from(arg % 24),
 				};
-				match op % 35 {
+				match op % 41 {
 					30 => v.resize(new_len, make(arg)),
 					_ => v.resize_with(new_len, || make(arg)),
 				}
@@ -273,6 +275,60 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 			}
 			// Through a deque, which keeps its buffer both ways.
 			34 => v = Vec::from(VecDeque::from(v)),
+			// Room for the tail past what fills the range, reserved for the whole vector:
+			// by a lower bound that is exact, short, or none, and by the rest once counted,
+			// or by `extend` of a range to the end.
+			35 => {
+				let len = v.len();
+				let start = usize::from(arg & 3) % (len + 1);
+				let end = match arg & 0x80 {
+					0 => start + usize::from(arg >> 2 & 1) % (len - start + 1),
+					_ => len,
+				};
+				let n = [0, 2, 6, 17][usize::from(arg >> 5 & 3)];
+				match arg >> 3 & 3 {
+					0 => drop(v.splice(start..end, (0..n as u8).map(make))),
+					1 => drop(v.splice(start..end, (0..n as u8).filter(|i| i % 4 != 1).map(make))),
+					2 => drop(v.splice(
+						start..end,
+						(0..n as u8).chain((0..n as u8).filter(|i| i % 2 == 0)).map(make),
+					)),
+					_ => drop(v.splice(start..end, vec![make(arg); n])),
+				}
+			}
+			36 => {
+				let mut keep = alternate();
+				let start = usize::from(arg) % (v.len() + 1);
+				let _ = v.extract_if(start.., |_| keep()).take(usize::from(arg % 5)).count();
+				k.loose();
+			}
+			// Pairs, flattened into room for twice as many as there was for pairs.
+			37 => {
+				let mut pairs: Vec<[T; 2]> = Vec::with_capacity(usize::from(arg % 6));
+				for c in v.chunks_exact(2) {
+					pairs.push([c[0].clone(), c[1].clone()]);
+				}
+				let flat = pairs.into_flattened();
+				Known::new(0).put(out, flat.len(), flat.capacity());
+			}
+			// A splice leaked before it drops keeps the vector's capacity.
+			38 => {
+				let start = usize::from(arg) % (v.len() + 1);
+				std::mem::forget(v.splice(start.., []));
+			}
+			// Room as `reserve` makes it, or the error where it panics, which leaves the
+			// capacity as it was.
+			39 | 40 => {
+				let additional = amount(arg, v.len(), size);
+				let tried = match op % 41 {
+					39 => v.try_reserve(additional),
+					_ => v.try_reserve_exact(additional),
+				};
+				out.extend(format!("{tried:?}").bytes());
+				if tried.is_ok() {
+					k.reserved(v.len(), additional);
+				}
+			}
 			_ => {}
 		}
 		k.put(out, v.len(), v.capacity());
@@ -403,13 +459,13 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 	put(out, q.capacity());
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 26 {
+		match op % 28 {
 			0 => q.push_back(make(arg)),
 			1 => q.push_front(make(arg)),
 			2 => drop(q.pop_front()),
 			3 | 4 => {
 				let additional = amount(arg, q.len(), size);
-				match op % 26 {
+				match op % 28 {
 					3 => q.reserve(additional),
 					_ => q.reserve_exact(additional),
 				}
@@ -458,7 +514,7 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 					6 if size > 0 => isize::MAX as usize / size + 1 + usize::from(arg & 7),
 					_ => usize::from(arg % 24),
 				};
-				match op % 26 {
+				match op % 28 {
 					22 => q.resize(new_len, make(arg)),
 					_ => q.resize_with(new_len, || make(arg)),
 				}
@@ -468,7 +524,15 @@ fn deque_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>
 				put(out, tail.len());
 				put(out, tail.capacity());
 			}
-			_ => q = VecDeque::from(Vec::from(q)),
+			25 => q = VecDeque::from(Vec::from(q)),
+			_ => {
+				let additional = amount(arg, q.len(), size);
+				let tried = match op % 28 {
+					26 => q.try_reserve(additional),
+					_ => q.try_reserve_exact(additional),
+				};
+				out.extend(format!("{tried:?}").bytes());
+			}
 		}
 		put(out, q.len());
 		put(out, q.capacity());
@@ -492,7 +556,7 @@ fn heap_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>)
 	let mut other = BinaryHeap::new();
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
-		match op % 13 {
+		match op % 15 {
 			0 | 1 => h.push(make(arg)),
 			2 => {
 				drop(h.pop());
@@ -500,7 +564,7 @@ fn heap_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>)
 			}
 			3 | 4 => {
 				let additional = amount(arg, h.len(), size);
-				match op % 13 {
+				match op % 15 {
 					3 => h.reserve(additional),
 					_ => h.reserve_exact(additional),
 				}
@@ -539,7 +603,18 @@ fn heap_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>)
 				}
 				k.remade(false);
 			}
-			_ => h = BinaryHeap::from(h.into_vec()),
+			12 => h = BinaryHeap::from(h.into_vec()),
+			_ => {
+				let additional = amount(arg, h.len(), size);
+				let tried = match op % 15 {
+					13 => h.try_reserve(additional),
+					_ => h.try_reserve_exact(additional),
+				};
+				out.extend(format!("{tried:?}").bytes());
+				if tried.is_ok() {
+					k.reserved(h.len(), additional);
+				}
+			}
 		}
 		k.put(out, h.len(), h.capacity());
 	}
@@ -623,7 +698,7 @@ pub fn collects(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 /// `data`'s bytes changes them: their lengths, and whether each holds at least its length,
 /// what `with_capacity` and `reserve` asked for, and no less past `shrink_to`, `clear`, or
 /// `drain` than it asked for of what there was. A `reserve` or `with_capacity` past what
-/// one may hold panics.
+/// one may hold panics, where `try_reserve` gives an error and keeps the capacity.
 pub fn maps(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let made = data.first().map_or(0, |&b| usize::from(b % 24));
 	let (mut m, mut s): (HashMap<u16, (u64, u8)>, HashSet<u8>) = match kind & 1 {
@@ -643,7 +718,7 @@ pub fn maps(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		let before = [m.capacity(), s.capacity()];
 		let lens = [m.len(), s.len()];
 		let mut floors = [0; 2];
-		match op % 10 {
+		match op % 11 {
 			0..=2 => {
 				m.insert(u16::from(arg), (u64::from(op), arg));
 				s.insert(arg);
@@ -684,10 +759,22 @@ pub fn maps(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				m = m.clone();
 				s = s.clone();
 			}
-			_ => {
+			9 => {
 				drop(m.drain());
 				drop(s.drain());
 				floors = before;
+			}
+			// Room as `reserve` makes it, or the error where it panics, which leaves the
+			// capacity as it was.
+			_ => {
+				let (a, b) = (
+					amount(arg, lens[0], size_of::<(u16, (u64, u8))>()),
+					amount(arg, lens[1], 1),
+				);
+				for (i, (tried, n)) in [(m.try_reserve(a), a), (s.try_reserve(b), b)].into_iter().enumerate() {
+					out.extend(format!("{tried:?}").bytes());
+					floors[i] = if tried.is_ok() { lens[i] + n } else { before[i] };
+				}
 			}
 		}
 		checks(out, [m.len(), s.len()], [m.capacity(), s.capacity()], floors);

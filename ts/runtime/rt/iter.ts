@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capOf, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -1671,9 +1671,14 @@ export function iterToArray<T>(it: Iter<T>, take?: Take, size?: number, trusted 
 function toArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): T[] {
 	if (size !== undefined && !trusted) {
 		const out: T[] = [];
-		let cap = capOf(0, undefined, size);
+		// std's reads the size hint once it has the first item, zero-sized ones' included,
+		// whose capacity is then `usize::MAX`.
+		let cap = 0;
 		for (let item = it.next(); item !== DONE; item = it.next()) {
-			if (out.length === cap) cap = capNext(it, out.length, cap, size);
+			if (out.length === cap && size === 0) {
+				it.sizeHint();
+				cap = USIZE_MAX;
+			} else if (out.length === cap) cap = capNext(it, out.length, cap, size);
 			out.push(item);
 		}
 		capSet(out, out.length, cap, size);

@@ -403,7 +403,7 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let name = tcx.item_name(call.def_id);
 	let coll = impl_self_ty(b, call);
 	let (methods, value): (&[&str], usize) = match std {
-		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if"], 0),
+		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if", "extract_if"], 0),
 		Std::VecDeque => (
 			&[
 				"get_mut",
@@ -664,6 +664,11 @@ fn hash<'tcx>(
 		}
 		(_, "capacity" | "reserve" | "shrink_to" | "shrink_to_fit" | "allocation_size") => {
 			sized(b, coll, name, values, span)
+		}
+		// hashbrown's returns its own error, an enum of its variants.
+		(_, "try_reserve") if !super::stock::as_std(b.t.tcx, call.def_id) => {
+			values.push(hash_max(b, coll, span));
+			Expr::rt("hashTryReserve", values)
 		}
 		("Index", "index") => Expr::rt("hashIndex", values),
 		("Clone", "clone") => {
@@ -1599,7 +1604,11 @@ fn deque<'tcx>(
 			values.extend(deque_items(b, item, span));
 			empty(b, Expr::rt("dequeWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
+		) => {
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
 			}
@@ -1607,6 +1616,8 @@ fn deque<'tcx>(
 				"capacity" => "dequeCapacity",
 				"reserve" => "dequeReserve",
 				"reserve_exact" => "dequeReserveExact",
+				"try_reserve" => "dequeTryReserve",
+				"try_reserve_exact" => "dequeTryReserveExact",
 				_ => "dequeShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -1635,6 +1646,26 @@ fn deque<'tcx>(
 			Expr::rt("dequeResize", values)
 		}
 		(_, "resize_with") => Expr::rt("dequeResizeWith", values),
+		(_, "swap") => Expr::rt("dequeSwap", values),
+		(_, "rotate_left") => Expr::rt("dequeRotate", values),
+		(_, "rotate_right") => Expr::rt("dequeRotate", flagged(values, true, false)),
+		(_, "make_contiguous") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
+			Expr::rt("dequeByteMakeContiguous", values)
+		}
+		(_, "make_contiguous") => Expr::rt("dequeMakeContiguous", values),
+		(_, "binary_search") => {
+			values.push(cmp_fn(b, item, false, span));
+			Expr::rt("dequeBinarySearch", values)
+		}
+		(_, "binary_search_by") => Expr::rt("dequeBinarySearchBy", values),
+		// `VecDeque<T, A>::binary_search_by_key::<B, F>`.
+		(_, "binary_search_by_key") => {
+			let key = library::targ(call.args, 2);
+			values.push(cmp_fn(b, key, false, span));
+			let drop = b.t.dropper(key, span);
+			Expr::rt("dequeBinarySearchByKey", super::iter::tail(values, vec![drop]))
+		}
+		(_, "partition_point") => Expr::rt("dequePartitionPoint", values),
 		(_, "retain_mut") if b.t.needs_place(item) => Expr::rt("dequeRetainMut", values),
 		(_, "retain" | "retain_mut") => Expr::rt("dequeRetain", values),
 		(_, "remove") => Expr::rt("dequeRemove", values),
@@ -1808,7 +1839,11 @@ fn heap<'tcx>(
 			values.push(super::iter::size_of(b, item, span));
 			empty(b, Expr::rt("heapWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
+		) => {
 			let h = values.remove(0);
 			values.insert(0, h.member("d"));
 			if name == "shrink_to_fit" {
@@ -1819,6 +1854,8 @@ fn heap<'tcx>(
 				"capacity" => "vecCapacity",
 				"reserve" => "vecReserve",
 				"reserve_exact" => "vecReserveExact",
+				"try_reserve" => "vecTryReserve",
+				"try_reserve_exact" => "vecTryReserveExact",
 				_ => "vecShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -2571,7 +2608,10 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => {
 			library::string(b.t.tcx, ty)
-				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration | Std::Location))
+				|| matches!(
+					b.t.std_of(ty),
+					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
+				)
 		}
 		_ => false,
 	}
@@ -2885,6 +2925,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rt("tryReserveErrorEq".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| eq_fn(b, t, span)).collect();
 			Expr::rt("eqTuple", vec![Expr::Array(fns)])
