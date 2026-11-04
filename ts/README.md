@@ -179,7 +179,13 @@ again. An abort without a panic, as std's for an `RwLock` locked again while hel
 throws `rt.Abort`, a `Panic` with std's abort message. So `catch_unwind` only ever returns
 `Ok`, `resume_unwind` throws `rt.Abort` without running the hook, and `panic_any` panics
 with its payload if that is text, or `Box<dyn Any>` as std's hook writes any other.
-Translated panics carry no `Location`, so `set_hook` and `take_hook` are refused.
+A program that reaches `set_hook` has each panic carry the `Location` native code gives
+it, std's own at the `/rustc/<commit>/library/...` path its build names, read from the
+toolchain's source, and runs its hook with a `PanicHookInfo` before throwing; a panic in
+the hook throws `rt.Abort`, as std aborts. The default hook writes nothing, as wasm32 has
+no stderr. A program without one passes no locations, and a bundler drops the hook's
+runtime, `rt/hook.ts`, from it; what stays is the location parameter of the runtime's
+panicking functions, which it leaves unset.
 
 `Location::caller` gives rustc's location: the file as the session names it, and line
 and column. A function rustc passes its caller's location to, such as a `#[track_caller]`

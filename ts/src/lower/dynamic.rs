@@ -499,6 +499,15 @@ fn is_buf(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 }
 
 /// Whether `ty` is a `dyn Any`.
+/// `dyn Any`, whose object's class a value of any type has.
+pub fn any_object(tcx: TyCtxt<'_>) -> Option<Ty<'_>> {
+	let any = tcx.get_diagnostic_item(rustc_span::Symbol::intern("Any"))?;
+	let preds = tcx.mk_poly_existential_predicates(&[ty::Binder::dummy(ty::ExistentialPredicate::Trait(
+		ty::ExistentialTraitRef::new(tcx, any, std::iter::empty::<ty::GenericArg<'_>>()),
+	))]);
+	Some(Ty::new_dynamic(tcx, preds, tcx.lifetimes.re_erased))
+}
+
 pub fn is_any_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_any(tcx, p))
 }

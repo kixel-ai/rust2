@@ -94,7 +94,6 @@ roots = [
     "objects::raw_dyn_iter",
     "objects::same_named",
     "panics::caller",
-    "panics::hooked",
     "panics::iterated",
     "panics::pointed",
     "parts::array_part_replaced",

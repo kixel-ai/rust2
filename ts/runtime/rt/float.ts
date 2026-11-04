@@ -311,16 +311,16 @@ function mulAddExact(a: number, b: number, c: number): number {
 }
 
 /** `clamp`, which panics with both bounds' `Debug` unless `min <= max`. */
-function clamp(x: number, min: number, max: number, debug: (x: number, f: Formatter) => FmtResult): number {
+function clamp(x: number, min: number, max: number, debug: (x: number, f: Formatter) => FmtResult, key: string): number {
 	if (!(min <= max)) {
 		const text = (v: number) => fmtToString((f) => debug(v, f));
-		panic(`min > max, or either was NaN. min = ${text(min)}, max = ${text(max)}`);
+		panic(`min > max, or either was NaN. min = ${text(min)}, max = ${text(max)}`, key, true);
 	}
 	return x < min ? min : x > max ? max : x;
 }
 
 /** `f64::clamp`. */
-export const f64Clamp = (x: f64, min: f64, max: f64): f64 => clamp(x, min, max, f64Debug);
+export const f64Clamp = (x: f64, min: f64, max: f64): f64 => clamp(x, min, max, f64Debug, "f64_clamp");
 
 // `f32`'s methods: an `f64`'s where they give the same single, else rounded as std's.
 
@@ -465,7 +465,7 @@ export function f32MulAdd(a: f32, b: f32, c: f32): f32 {
 }
 
 /** `f32::clamp`. */
-export const f32Clamp = (x: f32, min: f32, max: f32): f32 => clamp(x, min, max, f32Debug);
+export const f32Clamp = (x: f32, min: f32, max: f32): f32 => clamp(x, min, max, f32Debug, "f32_clamp");
 
 // Formatting, as `core::fmt::float` does it. A finite nonzero magnitude is digits and the
 // power of ten that `0.digits` scales by, as `flt2dec` makes them.
@@ -483,9 +483,9 @@ function shortest(x: number): [string, number] {
 	// past the point than they have decimal ones.
 	const places = digits.length - exp + 1;
 	if (places < 1 || fractionBits(x) !== places) return [digits, exp];
-	const [all, at] = exact(x);
+	const [all, pos] = exact(x);
 	// The greater ending in 0 would be shorter, so it can't read back as `x`.
-	if (all !== digits + "5" || at !== exp || digits.endsWith("9")) return [digits, exp];
+	if (all !== digits + "5" || pos !== exp || digits.endsWith("9")) return [digits, exp];
 	const up = digits.slice(0, -1) + String.fromCharCode(digits.charCodeAt(digits.length - 1) + 1);
 	return nearest(up, exp - up.length, F64) === x ? [up, exp] : [digits, exp];
 }
@@ -496,17 +496,17 @@ function shortest(x: number): [string, number] {
  * that does, or the closer of two, the greater if `x` is half a digit past the lesser.
  */
 function shortest32(x: number): [string, number] {
-	const [all, at] = exact(x);
+	const [all, pos] = exact(x);
 	for (let n = 1; n < all.length; n++) {
 		const down = all.slice(0, n);
 		const nines = end(down, "9");
-		const [up, upAt] = nines === 0 ? ["1", at + 1] : [down.slice(0, nines - 1) + String.fromCharCode(down.charCodeAt(nines - 1) + 1), at];
-		const fitsDown = nearest(down, at - n, F32) === x;
+		const [up, upAt] = nines === 0 ? ["1", pos + 1] : [down.slice(0, nines - 1) + String.fromCharCode(down.charCodeAt(nines - 1) + 1), pos];
+		const fitsDown = nearest(down, pos - n, F32) === x;
 		const fitsUp = nearest(up, upAt - up.length, F32) === x;
 		if (fitsUp && (!fitsDown || all[n] >= "5")) return [up, upAt];
-		if (fitsDown) return [down, at];
+		if (fitsDown) return [down, pos];
 	}
-	return [all, at];
+	return [all, pos];
 }
 
 /** How many binary digits `x`, finite and nonzero, has past the point. */
@@ -588,8 +588,8 @@ function shortestFixed(x: number, frac: number, shortest: Shortest): string {
 /** `to_exact_fixed_str`: rounded to `frac` digits past the point. */
 function exactFixed(x: number, frac: number): string {
 	if (x === 0) return zero(frac);
-	const [all, at] = exact(x);
-	const [digits, exp] = round(all, at, at + frac);
+	const [all, pos] = exact(x);
+	const [digits, exp] = round(all, pos, pos + frac);
 	return digits === "" ? zero(frac) : decimal(digits, exp, frac);
 }
 
@@ -600,8 +600,8 @@ function scientific(x: number, precision: number | undefined, e: "e" | "E", shor
 		const [digits, exp] = shortest(x);
 		return exponential(digits, exp, 0, e);
 	}
-	const [all, at] = exact(x);
-	const [digits, exp] = round(all, at, precision + 1);
+	const [all, pos] = exact(x);
+	const [digits, exp] = round(all, pos, precision + 1);
 	return exponential(digits, exp, precision, e);
 }
 

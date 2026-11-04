@@ -1,6 +1,5 @@
 //! `std::panic` that needs where a call is in std's source: a `#[track_caller]` function
-//! that std's code calls, through its `Fn` impls, and the hook that reads each panic's
-//! `Location`.
+//! that std's code calls, through its `Fn` impls.
 
 use std::panic::Location;
 
@@ -57,10 +56,4 @@ impl Drop for Counted {
 
 pub fn iterated(n: u8) -> u32 {
 	Counted(n).map(u32::from).sum()
-}
-
-/// A hook reads each panic's `Location`.
-pub fn hooked() {
-	let hook = std::panic::take_hook();
-	std::panic::set_hook(hook);
 }
