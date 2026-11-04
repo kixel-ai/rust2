@@ -1,6 +1,7 @@
 //! The dependency `crates-fixture` translates with: a type the package copies, which only
 //! this crate writes into, a generic function over the package's type, drops, an iterator,
-//! `unsafe` with a safe twin where it translates and without one, and a trait for objects.
+//! `unsafe` with a safe twin where it translates and without one, a trait for objects, and
+//! a `Bytes` of a `String`'s bytes.
 
 use std::sync::{Arc, Mutex};
 
@@ -169,4 +170,10 @@ pub fn tally(tallies: &mut [&mut dyn Tally], by: u8) -> u32 {
 		sum = sum.wrapping_add(t.count().wrapping_mul(t.scale()));
 	}
 	sum
+}
+
+/// A `String`'s bytes, in storage of its capacity, which JS keeps none of, so the package's
+/// reads of a `Bytes`' capacity are refused too.
+pub fn string_bytes(text: String) -> bytes::Bytes {
+	bytes::Bytes::from(text)
 }

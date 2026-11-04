@@ -4,6 +4,11 @@ import * as rt from "./rt.ts";
 import { futures } from "./futures.ts";
 import type * as Held from "./futures.Held.ts";
 import type * as Logged from "./futures.Logged.ts";
+import { raw } from "./raw.ts";
+
+export function copy$task_RawWakerVTable(v: rt.WakerVTable): rt.WakerVTable {
+	return rt.wakerVTable(v.clone, v.wake, v.wakeByRef, v.drop);
+}
 
 export function drop$task_Poll_futures_Logged(_1: rt.Poll<Logged.Logged>): void {
 	if (_1 !== rt.Pending) {
@@ -14,6 +19,11 @@ export function drop$task_Poll_futures_Logged(_1: rt.Poll<Logged.Logged>): void 
 export function drop$tuple2_task_Waker_Option_task_Waker(_1: [rt.Waker, rt.Waker | undefined]): void {
 	_1[0][Symbol.dispose]();
 	rt.drop(_1[1]);
+}
+
+export function drop$tuple2_task_Waker_task_Waker(_1: [rt.Waker, rt.Waker]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
 }
 
 export function drop$tuple3_futures_Held_Option_task_Waker_array2_task_Waker(_1: [Held.Held, rt.Waker | undefined, rt.Waker[]]): void {
@@ -27,7 +37,7 @@ export function drop$tuple3_futures_Held_Option_task_Waker_array2_task_Waker(_1:
  * their count, so a case added at the end moves no other.
  */
 export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["futures::futures", futures as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	return [["futures::futures", futures as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["raw::raw", raw as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
 }
 
 //# sourceMappingURL=lib.ts.map

@@ -10,7 +10,7 @@ use super::Translator;
 use super::body::Body;
 use super::library::{self, Call, Std};
 use super::num::{self, Int, Operand};
-use crate::ts::{Expr, Param, Stmt};
+use crate::ts::{Expr, Key, Param, Stmt};
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// `Future::Output` of `ty`, if it is a `dyn Future`, whose JS value is an `rt.Future`.
@@ -198,15 +198,22 @@ pub fn call<'tcx>(
 			let value = b.convert(first(args), from.expect_ty(), boxed, call.span, out);
 			Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value])
 		}
-		// A waker over the crate's `Wake` impl.
+		// A waker, or its raw parts, over the crate's `Wake` impl.
 		("From", "from")
 			if let [_, from] = call.args.as_slice()
-				&& self_std == Some(Std::Waker)
+				&& let Some(to @ (Std::Waker | Std::RawWaker)) = self_std
 				&& std_of(from.expect_ty()) == Some(Std::Arc) =>
 		{
-			arc_waker(b, from.expect_ty(), first(args), call.span)
+			arc_waker(b, from.expect_ty(), first(args), to == Std::RawWaker, call.span)
 		}
 		("Waker", "noop") => Expr::Rt("NOOP_WAKER".into()),
+		("Waker", "new") => Expr::New(Box::new(Expr::Rt("VTableWaker".into())), args),
+		("Waker", "from_raw") => Expr::rt("wakerFromRaw", args),
+		("RawWaker", "new") => {
+			let [data, vtable] = two(args);
+			raw_waker(data, vtable)
+		}
+		("RawWakerVTable", "new") => Expr::rt("wakerVTable", args),
 		("AsRef", "as_ref") if self_std == Some(Std::Arc) => first(args).member("value"),
 		("Arc" | "Rc", "downgrade") | ("Weak", "new") => Expr::New(Box::new(Expr::Rt("Weak".into())), args),
 		// The value of the last strong one, which its count says, and else its `None`.
@@ -798,9 +805,10 @@ pub fn atomic_ordering(index: VariantIdx) -> Expr {
 	Expr::lit(index.as_u32().to_string())
 }
 
-/// `Waker::from(arc)`, an `Arc<W>`: an `rt.ArcWaker` over `W`'s `Wake::wake`, what drops
-/// the `Arc`, and `W`'s own `wake_by_ref` if it overrides the default.
-fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, span: Span) -> Expr {
+/// `Waker::from(arc)`, or `RawWaker::from` if `raw`, of an `Arc<W>`: over `W`'s
+/// `Wake::wake`, what drops the `Arc`, and `W`'s own `wake_by_ref` if it overrides the
+/// default.
+fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, raw: bool, span: Span) -> Expr {
 	let tcx = b.t.tcx;
 	let ty::Adt(_, arc_args) = arc.kind() else {
 		unreachable!("an Arc is a struct")
@@ -831,7 +839,15 @@ fn arc_waker<'tcx>(b: &mut Body<'_, '_, 'tcx>, arc: Ty<'tcx>, value: Expr, span:
 	{
 		args.push(b.fn_value(by_ref, w, span));
 	}
-	Expr::New(Box::new(Expr::Rt("ArcWaker".into())), args)
+	Expr::rt(if raw { "arcRawWaker" } else { "arcWaker" }, args)
+}
+
+/// A `RawWaker` of `data` and `vtable`: an `rt.RawWaker`, under std's names.
+pub fn raw_waker(data: Expr, vtable: Expr) -> Expr {
+	Expr::Object(vec![
+		(Key::Name("data".into()), data),
+		(Key::Name("vtable".into()), vtable),
+	])
 }
 
 fn first(args: Vec<Expr>) -> Expr {

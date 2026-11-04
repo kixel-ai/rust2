@@ -561,16 +561,16 @@ export function wakers(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let from!: rt.Waker | undefined;
 	const a: rt.Arc<Count.Count> = new rt.Arc({ _0: new rt.Atomic(0) });
 	const b: rt.Arc<Count.Count> = new rt.Arc({ _0: new rt.Atomic(0) });
-	let w: rt.Waker = new rt.ArcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc: rt.Arc<Count.Count>) => arc[Symbol.dispose]());
+	let w: rt.Waker = rt.arcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc: rt.Arc<Count.Count>) => arc[Symbol.dispose]());
 	const held: Held.Held = new Held.Held(rt.NOOP_WAKER.clone());
 	let maybe = undefined as rt.Waker | undefined;
-	const pair: rt.Waker[] = [rt.NOOP_WAKER.clone(), new rt.ArcWaker(rt.arcClone(b), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc2: rt.Arc<Count.Count>) => arc2[Symbol.dispose]())];
+	const pair: rt.Waker[] = [rt.NOOP_WAKER.clone(), rt.arcWaker(rt.arcClone(b), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc2: rt.Arc<Count.Count>) => arc2[Symbol.dispose]())];
 	for (const byte of rt.byteSliceView(data)) {
 		const _29: rt.u8 = rt.u8Rem(byte, 3);
 		if (_29 === 0) {
-			source = new rt.ArcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc4: rt.Arc<Count.Count>) => arc4[Symbol.dispose]());
+			source = rt.arcWaker(rt.arcClone(a), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc4: rt.Arc<Count.Count>) => arc4[Symbol.dispose]());
 		} else if (_29 === 1) {
-			source = new rt.ArcWaker(rt.arcClone(b), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc3: rt.Arc<Count.Count>) => arc3[Symbol.dispose]());
+			source = rt.arcWaker(rt.arcClone(b), Count.wake$task_Wake as (a0: rt.Arc<Count.Count>) => undefined, (arc3: rt.Arc<Count.Count>) => arc3[Symbol.dispose]());
 		} else {
 			source = rt.NOOP_WAKER.clone();
 		}

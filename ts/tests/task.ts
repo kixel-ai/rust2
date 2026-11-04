@@ -95,8 +95,13 @@ class Wake {
 	}
 }
 
-/** The vtable of every task's waker. */
-const TASK_VTABLE = {};
+/** The vtable of every task's waker: what one of its data does, as `Waker::new` of a waker's parts calls it. */
+const TASK_VTABLE = {
+	clone: (data: Wake) => ({ data, vtable: new TaskWaker(data).clone().vtable }),
+	wake: (data: Wake) => new TaskWaker(data).wake(),
+	wakeByRef: (data: Wake) => new TaskWaker(data).wakeByRef(),
+	drop: (data: Wake) => new TaskWaker(data)[Symbol.dispose](),
+};
 
 class TaskWaker implements Waker {
 	readonly target: Wake;

@@ -107,7 +107,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | tuple, `[T; N]`, `&[T]`, `Box<[T]>`, `Vec<T>` | an array; for bytes, `Uint8Array` for `[u8; N]`, `rt.ByteSlice` for `&[u8]`, `&[u8; N]`, and `Box<[u8]>`, and `rt.ByteVec` for `Vec<u8>` |
 | `Cow<[T]>` | `rt.Cow<T>`: the `Vec` it owns, or an `rt.Borrowed` holding the slice it borrows; `rt.ByteCow` for bytes, an `rt.ByteVec` or an `rt.ByteSlice` |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rt.Place<T>`, which for what a box holds is the place holding the box |
-| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
+| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rt.ByteSlice` of a `[u8; N]`'s bytes, which compares by the buffer and offset they are at, or an `rt.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to an array of other values than bytes, which a slice lends as a copy of its own; `rt.NULL` for null and `rt.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rt.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rt.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; casting one JS reaches through a place or a view of bytes, a new one each borrow, or one of no fixed size, is refused. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rt` class such as `rt.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, or an object whose parts kept as objects are there, holding `undefined` |
 | `ManuallyDrop<T>` | `T`, which nothing drops but its own `drop`; its `Debug`, comparisons, and constants are refused |
 | `union` | an object of slots named by offset, `at0` and `at8`, each holding the field part kept there; fields must overlap in the same type, or in a non-null pointer and an `Option` of it |
@@ -142,7 +142,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `AtomicU32` and the others of `bool` and integers, `AtomicPtr<T>` | `rt.Atomic<T>`, the `rt.Place` of its value; an `atomic::Ordering` is its discriminant, and one an operation can't take panics as std's does. An `AtomicPtr` compares pointers only to what JS keeps as an object or bytes, as raw pointers do |
 | `async fn` | a function returning `rt.Future<T>`: a class of its own, its coroutine's state machine |
 | async closure | a closure returning the future of each call, with what makes the future of a call that consumes it if it owns a value that drops and `Fn` or `FnMut` call it |
-| `Poll<T>`, `Waker`, `Context` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read, and `clone_from` keeps where the waker it has `will_wake` the source |
+| `Poll<T>`, `Waker`, `Context`, `RawWaker`, `RawWakerVTable` | `T \| typeof rt.Pending`; `T \| rt.OuterPending` where `T` can already be pending, as `Poll<Poll<u8>>` can, so `Ready(Pending)` keeps apart from `Pending`; `rt.Waker`, which is also the context, and whose `data` and `vtable` are its identity, which `Waker::data`, `Waker::vtable`, and `will_wake` read, and `clone_from` keeps where the waker it has `will_wake` the source; `rt.RawWaker` and `rt.WakerVTable`, records of their fields under std's names, compared by their derived `==` |
 | `pin!(x)`, `poll_fn(f)`, `future::pending()`, `future::ready(v)` | `x`; `rt.PollFn`, which drops `f` with itself; `rt.NEVER`, which every `Pending` is; `rt.Ready`, whose first poll or `into_inner` takes `v` and a later one panics, and which drops `v` with itself unless one took it |
 | `Box::pin(x)`, `dyn Future<Output = T>` | `x`; `rt.Future<T>`: an `async` body or std's future as it is, and another future as an `rt.DynFuture` over its `poll`, which drops it with itself unless borrowed |
 | `bytes::Bytes` | `rt.ByteSlice`, as `&[u8]` is: its clones and slices share bytes that never change |
@@ -632,12 +632,15 @@ a `dyn FnOnce` call it.
 `rt.spawn(future, signal?)` runs one as a promise, polling woken tasks in a batch from a
 microtask and yielding to a macrotask after 128 polls. Aborting `signal` drops the future
 at once, or as the poll it aborts in returns pending, and rejects the promise with the
-signal's reason; a future ready in that poll resolves it. `Waker::from(arc)`, of an `Arc` of
-the crate's `Wake` impl, is an `rt.ArcWaker`, which holds a count of the `Arc` and wakes
-through the impl, and `Waker::noop()` is `rt.NOOP_WAKER`. A waker's identity is its `data`
-and `vtable`, as std's is: an `rt.ArcWaker`'s are its `Arc` and the impl's `wake`, so
-clones and wakers made apart from one `Arc` share them, and a caller's own waker gives its
-own, which each of its clones shares.
+signal's reason; a future ready in that poll resolves it. A waker's identity is its `data`
+and `vtable`, as std's is, and its vtable an `rt.WakerVTable` of the four functions std's
+`RawWakerVTable` holds, which `RawWakerVTable::new` and a `static` of one make, `==`
+compares, and `Waker::new`, `Waker::from_raw`'s `rt.VTableWaker`, calls on its data for
+each clone, wake, and drop, which a function casts back to what it points at. `Waker::from(arc)` and `RawWaker::from(arc)`, of an `Arc` of the
+crate's `Wake` impl, hold a count of the `Arc` and wake through the impl: their data is
+the `Arc`, and their vtable the impl's, so clones and wakers made apart from one `Arc`
+share them. `Waker::noop()` is `rt.NOOP_WAKER`, and a caller's own waker gives its own
+identity, which each of its clones shares, and a vtable of what it does.
 
 A file's items follow the Rust source, whatever
 order translation reaches them in, so adding a root moves nothing it does not reach.
@@ -660,11 +663,10 @@ of them:
   between it and `Vec<u8>`, `String`, `&'static [u8]`, and `&'static str` map to
   `rt/bytes.ts`, panicking as `bytes` does, and so do `split_to`, `split_off`,
   `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. A `String`'s
-  bytes are in storage of its capacity, which JS keeps none of, so a crate that makes a
-  `Bytes` or a `Vec<u8>` of them is refused what reads a `Bytes`' capacity: `is_unique`,
-  `try_into_mut`, `truncate`, `clear`, `From` into a `BytesMut` or a `Vec<u8>`, and `put`
-  of a `Buf` but a `BytesMut` or a slice into a `BytesMut`. Another crate reads them as a
-  vector's whose capacity is their length. `slice_ref` of
+  bytes are in storage of its capacity, which JS keeps none of, so where any crate makes a
+  `Bytes` or a `Vec<u8>` of them, every crate is refused what reads a `Bytes`' capacity:
+  `is_unique`, `try_into_mut`, `truncate`, `clear`, `From` into a `BytesMut` or a
+  `Vec<u8>`, and `put` of a `Buf` but a `BytesMut` or a slice into a `BytesMut`. `slice_ref` of
   bytes from other storage throws, since Rust may share what JS copied, as a `&'static
   str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
   reads its owner's bytes once, as `bytes` does, and is refused for an owner that drops,
@@ -1032,7 +1034,7 @@ method taking a closure tells it, or its accumulator or what it finds, apart fro
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
 drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
 its closure a reference to a `[u8; N]`,
-a pointer's address (`{:p}`) and `Debug` of a `Waker` or a `Context`, which writes addresses, `write!` with a placeholder into
+a pointer's address (`{:p}`) and `Debug` of a `Waker`, a `Context`, a `RawWaker`, or a `RawWakerVTable`, which writes addresses, `write!` with a placeholder into
 the crate's own `fmt::Write`, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
