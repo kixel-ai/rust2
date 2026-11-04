@@ -65,8 +65,8 @@ export function grow$dyns_Shape_u32(self: rs.Place<rs.u32>, by: rs.u8): void {
 	self.v = rs.u32WrappingMul(self.v, by as rs.u32);
 }
 
-export function total(shapes: Shape.Shape[]): rs.u32 {
-	return rs.iterFold(rs.iterSlice(shapes), 0, (sum: rs.u32, s: Shape.Shape): rs.u32 => {
+export function total(shapes: rs.Slice<Shape.Shape>): rs.u32 {
+	return rs.iterFold(rs.iterSlice(rs.sliceItems(shapes)), 0, (sum: rs.u32, s: Shape.Shape): rs.u32 => {
 		return rs.u32WrappingAdd(sum, s.area$Shape());
 	});
 }
@@ -118,7 +118,7 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			tri = { tag: "Flat" } as Tri.Tri;
 		}
 		let n: rs.u32 = c as rs.u32;
-		const part = total([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]);
+		const part = total(rs.sliceFrom([new of$dyns_Square(sq), new of$dyns_Tri(tri), new of$u32(n)]));
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
 		put(out, rs.fmtFormat([args2[0], " "]));
 		growTwice(new of$dyns_Square(sq), b);
@@ -180,29 +180,29 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 	}
 }
 
-export function counts$dyn_dyns_Named(arcs: rs.Arc<Named.Named>[]): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Named.Named>): string => {
+export function counts$dyn_dyns_Named(arcs: rs.Slice<rs.Arc<Named.Named>>): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Named.Named>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyn_dyns_Shape(arcs: rs.Arc<Shape.Shape>[]): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Shape.Shape>): string => {
+export function counts$dyn_dyns_Shape(arcs: rs.Slice<rs.Arc<Shape.Shape>>): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Shape.Shape>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Hits(arcs: rs.Arc<Hits.Hits>[]): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Hits.Hits>): string => {
+export function counts$dyns_Hits(arcs: rs.Slice<rs.Arc<Hits.Hits>>): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Hits.Hits>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
 }
 
-export function counts$dyns_Square(arcs: rs.Arc<Square.Square>[]): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(arcs), (a: rs.Arc<Square.Square>): string => {
+export function counts$dyns_Square(arcs: rs.Slice<rs.Arc<Square.Square>>): string {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.sliceItems(arcs)), (a: rs.Arc<Square.Square>): string => {
 		const _42: rs.usize = a.strong;
 		return rs.fmtToString((f: rs.Formatter) => rs.usizeDisplay(_42, f));
 	}), undefined, 12, true).items, ",");
@@ -217,7 +217,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const again: rs.Arc<Named.Named> = new rs.ArcDyn(_16, new of$dyns_Square(_16.value));
 		const shape: rs.Arc<Shape.Shape> = rs.arcClone(named);
 		const up: rs.Arc<Shape.Shape> = rs.arcClone(again);
-		const part = counts$dyns_Square([sq]);
+		const part = counts$dyns_Square(rs.sliceFrom([sq]));
 		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part)];
 		put(out, rs.fmtFormat([args2[0], " "]));
 		const _49: string = named.value.label$Named();
@@ -236,7 +236,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " "]));
 		sq[Symbol.dispose]();
 		named[Symbol.dispose]();
-		const _113: string = counts$dyn_dyns_Named([again]);
+		const _113: string = counts$dyn_dyns_Named(rs.sliceFrom([again]));
 		const _119: rs.usize = weak.arc.strong;
 		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _113), (f: rs.Formatter) => rs.usizeDisplay(_119, f)];
 		put(out, rs.fmtFormat([args8[0], " ", args8[1], " "]));
@@ -246,11 +246,11 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return _0;
 		});
 		again[Symbol.dispose]();
-		const part2 = counts$dyn_dyns_Shape([up]);
+		const part2 = counts$dyn_dyns_Shape(rs.sliceFrom([up]));
 		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2)];
 		put(out, rs.fmtFormat([args10[0], " "]));
 		up[Symbol.dispose]();
-		const _156: string = counts$dyn_dyns_Shape([shape]);
+		const _156: string = counts$dyn_dyns_Shape(rs.sliceFrom([shape]));
 		const _164: rs.Arc<Shape.Shape> | undefined = rs.weakUpgrade(weak);
 		const _162: boolean = _164 !== undefined;
 		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _156), (f: rs.Formatter) => rs.fmtBool(_162, f), (f: rs.Formatter) => rs.fmtOption(upgraded, f, rs.u32Debug)];
@@ -274,11 +274,11 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 			return rs.u32WrappingAdd(sum2, s2.value.area$Shape());
 		});
 		const _216: rs.u32 = rs.atomicLoad(hits.value._0, 0);
-		const _222: string = counts$dyns_Hits([hits]);
+		const _222: string = counts$dyns_Hits(rs.sliceFrom([hits]));
 		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f), (f: rs.Formatter) => rs.u32Display(_216, f), (f: rs.Formatter) => rs.fmtPad(f, _222)];
 		put(out, rs.fmtFormat([args16[0], " ", args16[1], " ", args16[2], " "]));
 		rs.dropVec(objects);
-		const part3 = counts$dyns_Hits([hits]);
+		const part3 = counts$dyns_Hits(rs.sliceFrom([hits]));
 		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part3)];
 		put(out, rs.fmtFormat([args18[0], " "]));
 		const _253: rs.Arc<rs.u32> = new rs.Arc(dataData[dataStart + 1] as rs.u32);
@@ -318,7 +318,7 @@ export function shared(dataData: Uint8Array, dataStart: number, dataLen: number,
 		for (const _322 of kept.items) {
 			_322.value.tally$Shape(rs.place(() => total, (value) => total = value));
 		}
-		const _337: string = counts$dyn_dyns_Named(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items);
+		const _337: string = counts$dyn_dyns_Named(rs.sliceFrom(rs.iterToVec(rs.iterSlice(kept.items), undefined, 4, true).items));
 		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(total, f), (f: rs.Formatter) => rs.fmtPad(f, _337)];
 		put(out, rs.fmtFormat([args24[0], " ", args24[1]]));
 		rs.dropVec(kept);
@@ -532,7 +532,7 @@ export function anys(dataData: Uint8Array, dataStart: number, dataLen: number, o
 			}
 		}
 		rs.drop(iter5);
-		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(kept.items));
+		const iter6: rs.Iter<rs.Place<Any.Any>> = rs.iterRev(rs.iterSliceMut(rs.sliceFrom(kept.items)));
 		while (true) {
 			const _316: rs.Place<Any.Any> | rs.Done = iter6.next();
 			if (_316 === rs.DONE) {
@@ -689,7 +689,8 @@ export function fns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.u8WrappingAdd(twice(halve, x3), captured);
 		};
 		fs.items.push(_94);
-		rs.sliceSwap(fs.items, 0, rs.usizeRem(b as rs.usize, fs.items.length));
+		const turn: rs.usize = rs.usizeRem(b as rs.usize, fs.items.length);
+		rs.sliceSwap(rs.sliceFrom(fs.items), 0, turn);
 		let captured2: rs.u8 = 0;
 		const hook: Hook.Hook = new Hook.Hook((x4: rs.u8): rs.u32 => {
 			captured2 = rs.u8WrappingAdd(captured2, x4);

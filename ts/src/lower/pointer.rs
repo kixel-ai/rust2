@@ -818,8 +818,8 @@ pub fn call<'tcx>(
 			match (owner, super::byte(elem)) {
 				("slice", true) => Expr::rs("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rs("byteVecAsPtr", vec![s]),
-				("Vec", false) => Expr::rs("sliceAsPtr", vec![s.member("items")]),
-				_ => Expr::rs("sliceAsPtr", vec![s]),
+				("slice", false) => Expr::rs("sliceAsPtr", vec![s]),
+				_ => Expr::rs("arrayAsPtr", vec![s.member("items")]),
 			}
 		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
@@ -1053,7 +1053,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	match b.t.pointee(inner) {
 		Pointee::Slice => p.member("ptr"),
 		Pointee::Bytes => Expr::rs("byteSliceAsPtr", vec![p]),
-		_ => Expr::rs("sliceAsPtr", vec![p]),
+		_ => Expr::rs("arrayAsPtr", vec![p]),
 	}
 }
 

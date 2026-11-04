@@ -389,7 +389,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return l.id;
 	}), undefined, true);
 	const held: rs.Vec<[rs.u8, Logged.Logged]> = rs.iterToVec(rs.hashIter(map, undefined, rs.drop), "next", 12);
-	rs.sliceSort(held.items, rs.keyLt((_24: [rs.u8, Logged.Logged]): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(held.items), rs.keyLt((_24: [rs.u8, Logged.Logged]): rs.u8 => {
 		return _24[0];
 	}, rs.lt), 12, true);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(held.items), (_25: [rs.u8, Logged.Logged]): rs.u8 => {
@@ -412,7 +412,7 @@ export function dropped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const keys: rs.HashSet<Logged.Logged> = _48[1];
 	flush(log.value, out);
 	const held2: rs.Vec<Logged.Logged> = rs.iterToVec(rs.hashKeys(keys), "next", 4);
-	rs.sliceSort(held2.items, rs.keyLt((l3: Logged.Logged): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(held2.items), rs.keyLt((l3: Logged.Logged): rs.u8 => {
 		return l3.key;
 	}, rs.lt), 4, true);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(held2.items), (l4: Logged.Logged): rs.u8 => {

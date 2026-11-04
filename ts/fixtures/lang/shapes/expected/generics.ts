@@ -95,8 +95,8 @@ export function advance(track: Track.Track): void {
  * Resets each of `xs`, writing into each one in place, which only an instance knows the
  * type of.
  */
-export function reset$shapes_Gauge(xs: shapes_Gauge.Gauge[]): void {
-	const iter: rs.Iter<shapes_Gauge.Gauge> = rs.iterSlice(xs);
+export function reset$shapes_Gauge(xs: rs.Slice<shapes_Gauge.Gauge>): void {
+	const iter: rs.Iter<shapes_Gauge.Gauge> = rs.iterSlice(rs.sliceItems(xs));
 	while (true) {
 		const _5: shapes_Gauge.Gauge | rs.Done = iter.next();
 		if (_5 === rs.DONE) {
@@ -109,7 +109,7 @@ export function reset$shapes_Gauge(xs: shapes_Gauge.Gauge[]): void {
 /** `fixed` with its pair swapped, in a copy of it. */
 export function swapped$u16(fixed: Fixed.Fixed<rs.u16>): Fixed.Fixed<rs.u16> {
 	const copy: Fixed.Fixed<rs.u16> = copy$generics_Fixed_u16(fixed);
-	rs.sliceSwap(copy.pair as rs.u16[], 0, 1);
+	rs.sliceSwap(rs.sliceFrom(copy.pair as rs.u16[]), 0, 1);
 	return copy$generics_Fixed_u16(copy);
 }
 
@@ -121,7 +121,7 @@ export function swapped$u8(fixed: Fixed.Fixed<rs.u8>): Fixed.Fixed<rs.u8> {
 }
 
 /** Writes `item` over each element of `run`, through a `&mut` to a field. */
-export function fill$u16(run: rs.u16[], item: rs.u16): void {
+export function fill$u16(run: rs.Slice<rs.u16>, item: rs.u16): void {
 	const iter: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(run);
 	while (true) {
 		const _5: rs.Place<rs.u16> | rs.Done = iter.next();
@@ -134,7 +134,7 @@ export function fill$u16(run: rs.u16[], item: rs.u16): void {
 
 /** Writes `item` over each element of `run`, through a `&mut` to a field. */
 export function fill$u8(run: rs.ByteSlice, item: rs.u8): void {
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteSliceView(run));
+	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(run);
 	while (true) {
 		const _5: rs.Place<rs.u8> | rs.Done = iter.next();
 		if (_5 === rs.DONE) {
@@ -167,7 +167,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		Runs.push$u8(runs, _38);
 	}
-	const _44: rs.ByteSlice | undefined = rs.optionMap(rs.sliceFirst((runs.pairs as rs.Vec<Uint8Array>).items), rs.byteSliceFrom);
+	const _44: rs.ByteSlice | undefined = rs.optionMap(rs.sliceFirst(rs.sliceFrom((runs.pairs as rs.Vec<Uint8Array>).items)), rs.byteSliceFrom);
 	if (_44 !== undefined) {
 		fill$u8(_44, n);
 	}
@@ -180,7 +180,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return rs.byteSliceLast(a0);
 	}) as (a0: rs.SliceOf<rs.u8>) => rs.Ptr<rs.u8> | undefined };
 	const last: rs.u8 | undefined = (lent.last as (a0: rs.ByteSlice) => rs.u8 | undefined)(runs.view as rs.ByteSlice);
-	const _65: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteSliceView(_59));
+	const _65: rs.Place<rs.u8> | undefined = rs.sliceLastMut(_59);
 	if (_65 !== undefined) {
 		_65.v = n;
 	}
@@ -198,10 +198,10 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const data3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
 		return _22 as rs.u16;
 	}), undefined, 2, true);
-	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(data3.items));
+	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(rs.sliceFrom(data3.items)));
 	const runs2: Runs.Runs<rs.u16> = new Runs.Runs(Array.from({ length: 3 }, (): rs.u16 => {
 		return n2;
-	}), rs.vecFrom(data3.items.slice()), data3.items, rs.vecFrom(data3.items.slice()).items, new rs.Borrowed(data3.items), new rs.Vec(), then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
+	}), rs.vecFrom(data3.items.slice()), rs.sliceFrom(data3.items), rs.sliceFrom(rs.vecFrom(data3.items.slice()).items), new rs.Borrowed(rs.sliceFrom(data3.items)), new rs.Vec(), then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
 		return new rs.Vec();
 	}));
 	const before2: Runs.Runs<rs.u16> = Runs.clone$Clone_u16(runs2);
@@ -213,19 +213,19 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		Runs.push$u16(runs2, _154);
 	}
-	const _160: rs.u16[] | undefined = rs.sliceFirst((runs2.pairs as rs.Vec<rs.u16[]>).items);
+	const _160: rs.u16[] | undefined = rs.sliceFirst(rs.sliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items));
 	if (_160 !== undefined) {
-		fill$u16(_160, n2);
+		fill$u16(rs.sliceFrom(_160), n2);
 	}
-	fill$u16(rs.sliceRangeMut(runs2.array as rs.u16[], 1), 7 as rs.u16);
+	fill$u16(rs.sliceRange(rs.sliceFrom(runs2.array as rs.u16[]), 1), 7 as rs.u16);
 	const taken4 = runs2.list as rs.Vec<rs.u16>;
 	(runs2.list as rs.Vec<rs.u16>) = new rs.Vec();
 	const taken2: rs.Vec<rs.u16> = taken4;
-	const _175: rs.u16[] = taken2.items;
-	const lent2: Lends.Lends<rs.u16> = { run: _175, last: ((a02: rs.u16[]): rs.u16 | undefined => {
+	const _175: rs.Slice<rs.u16> = rs.sliceFrom(taken2.items);
+	const lent2: Lends.Lends<rs.u16> = { run: _175, last: ((a02: rs.Slice<rs.u16>): rs.u16 | undefined => {
 		return rs.sliceLast(a02);
 	}) as (a0: rs.SliceOf<rs.u16>) => rs.Ptr<rs.u16> | undefined };
-	const last2: rs.u16 | undefined = (lent2.last as (a0: rs.u16[]) => rs.u16 | undefined)(runs2.view as rs.u16[]);
+	const last2: rs.u16 | undefined = (lent2.last as (a0: rs.Slice<rs.u16>) => rs.u16 | undefined)(runs2.view as rs.Slice<rs.u16>);
 	const _181: rs.Place<rs.u16> | undefined = rs.sliceLastMut(_175);
 	if (_181 !== undefined) {
 		_181.v = n2;
@@ -250,10 +250,10 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 8, true);
 	const _246: Ticked.Ticked[] = [tick(1), tick(2), tick(3)];
 	const _256: rs.Vec<Ticked.Ticked> = rs.vecFrom(ticks.items.map(Ticked.clone$Clone));
-	const _258: Ticked.Ticked[] = ticks.items;
-	const _260: Ticked.Ticked[] = [tick(4)];
+	const _258: rs.Slice<Ticked.Ticked> = rs.sliceFrom(ticks.items);
+	const _260: rs.Slice<Ticked.Ticked> = rs.sliceFrom([tick(4)]);
 	if (rs.usizeRem(data.length, 2) === 0) {
-		_266 = new rs.Borrowed(ticks.items);
+		_266 = new rs.Borrowed(rs.sliceFrom(ticks.items));
 	} else {
 		_266 = rs.vecFrom([tick(7)]);
 	}

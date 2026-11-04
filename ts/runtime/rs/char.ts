@@ -4,7 +4,7 @@
 // Each reads std's own Unicode tables, which `rs/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, sliceView } from "../rs.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, Slice } from "../rs.ts";
 import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
 import { strChars } from "./str.ts";
@@ -440,12 +440,12 @@ export function charEncodeUtf8(c: char, dst: ByteSlice): Place<string> {
 }
 
 /** `char::encode_utf16`: its UTF-16 written to the front of `dst`, and a view of that part of it. */
-export function charEncodeUtf16(c: char, dst: u16[]): u16[] {
+export function charEncodeUtf16(c: char, dst: Slice<u16>): Slice<u16> {
 	const len = charLenUtf16(c);
 	if (dst.length < len) tooShort("encode_utf16", c, len, dst.length);
 	const s = String.fromCodePoint(c);
-	for (let i = 0; i < len; i++) dst[i] = s.charCodeAt(i) as u16;
-	return sliceView(dst, 0, len);
+	for (let i = 0; i < len; i++) dst.data[dst.start + i] = s.charCodeAt(i) as u16;
+	return new Slice(dst.data, dst.start, len);
 }
 
 /** `char::DecodeUtf16Error`: the surrogate that had no pair. */

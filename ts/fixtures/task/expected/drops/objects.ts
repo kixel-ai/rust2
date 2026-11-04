@@ -35,7 +35,7 @@ export function boxed(log: Log.Log, id: rs.u32): void {
 	parts.items.push(_28);
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
 	parts.items.push(_36);
-	rs.sliceSwap(parts.items, 2, 3);
+	rs.sliceSwap(rs.sliceFrom(parts.items), 2, 3);
 	const part = rs.iterFold(rs.iterMap(rs.iterSlice(parts.items), (p: Part.Part): rs.u32 => {
 		return p.id$Part();
 	}), 0, (a0: rs.u32, a1: rs.u32): rs.u32 => {

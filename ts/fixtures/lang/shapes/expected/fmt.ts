@@ -189,7 +189,7 @@ export function ints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let flag!: boolean;
 	for (const _9 of rs.byteSliceView(rs.byteSliceRange(data, 0, rs.min(data.length, 3)))) {
-		const _15: rs.usize = rs.usizeRem(_9 as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+		const _15: rs.usize = rs.usizeRem(_9 as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 		if (!(_15 < 14)) {
 			rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _15);
 		}
@@ -246,7 +246,7 @@ export function nested(data: rs.ByteSlice): Nested.Nested {
 	const at: (a0: rs.usize) => rs.u8 = (i: rs.usize): rs.u8 => {
 		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i), 0);
 	};
-	const _5: rs.usize = rs.usizeRem(at(0) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _5: rs.usize = rs.usizeRem(at(0) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_5 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _5);
 	}
@@ -446,7 +446,7 @@ export function counts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.usize = rs.min(data2.length, rs.byteSliceFrom(buf).length);
 	rs.byteSliceCopyFromSlice(rs.byteSliceRange(rs.byteSliceFrom(buf), 0, n), rs.byteSliceRange(data2, 0, n));
 	const v: rs.i64 = rs.i64FromBeBytes(buf);
-	const _39: rs.usize = rs.usizeRem(at(3) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _39: rs.usize = rs.usizeRem(at(3) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_39 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _39);
 	}
@@ -637,12 +637,12 @@ export function wrapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _77: rs.Range<rs.i32> = new rs.Range(a, b);
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtRange(_60, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(_62, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeFrom(_64, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeTo(_66, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeToInclusive(_68, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRange(_70, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeInclusive(_72, f, rs.i32Debug), rs.fmtCount(w), (f: rs.Formatter) => rs.fmtRangeToInclusive(_74, f, rs.i32Debug), (f: rs.Formatter) => rs.fmtRangeFull(undefined, f), (f: rs.Formatter) => rs.fmtRange(_77, f, rs.i32Debug)];
 	put(out, rs.fmtFormat([rs.fmtSpec({ width: 5 }, args4[0]), "|", rs.fmtSpec({ align: "<", width: 4 }, args4[1]), "|", rs.fmtSpec({ plus: true }, args4[2]), "|", rs.fmtSpec({ zero: true, width: 5 }, args4[3]), "|", rs.fmtSpec({ debugHex: "x" }, args4[4]), "|", rs.fmtSpec({ alternate: true, debugHex: "X" }, args4[5]), "|", rs.fmtSpec({ width: rs.fmtCountOf(args4[7]) }, args4[6]), "|", rs.fmtSpec({ align: "^", width: rs.fmtCountOf(args4[7]) }, args4[8]), "|", rs.fmtSpec({ align: ">", width: 3 }, args4[9]), "|", rs.fmtSpec({ alternate: true }, args4[10])]));
-	const _96: rs.usize = rs.usizeRem(at(3) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _96: rs.usize = rs.usizeRem(at(3) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_96 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _96);
 	}
 	const lo: Clip.Clip = { _0: ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"][_96] };
-	const _109: rs.usize = rs.usizeRem(at(4) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _109: rs.usize = rs.usizeRem(at(4) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_109 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _109);
 	}
@@ -687,7 +687,7 @@ export function wrapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const nested: rs.Arc<rs.Arc<rs.i32>> = new rs.Arc(new rs.Arc(a));
 	const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.i32Display(nested.value.value, f), (f: rs.Formatter) => rs.i32Debug(nested.value.value, f), rs.fmtCount(w)];
 	put(out, rs.fmtFormat([args16[0], "|", rs.fmtSpec({ plus: true, zero: true, width: 5 }, args16[0]), "|", args16[1], "|", rs.fmtSpec({ debugHex: "x" }, args16[1]), "|", rs.fmtSpec({ alternate: true, debugHex: "X" }, args16[1]), "|", rs.fmtSpec({ align: "<", width: 6 }, args16[1]), "|", rs.fmtSpec({ align: "^", plus: true, width: rs.fmtCountOf(args16[2]) }, args16[0])]));
-	const _310: rs.usize = rs.usizeRem(at(3) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _310: rs.usize = rs.usizeRem(at(3) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_310 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _310);
 	}
@@ -706,7 +706,7 @@ export function wrapped(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: Shared.Shared = new Shared.Shared(new rs.Arc({ _0: at(7), _1: 5 }), new rs.Range(at(8) as rs.u16, 300), { end: at(9), inclusive: true });
 	const args24: rs.Fmt[] = [(f: rs.Formatter) => Shared.fmt$fmt_Debug(shared, f)];
 	put(out, rs.fmtFormat([args24[0], " ", rs.fmtSpec({ alternate: true }, args24[0])]));
-	const _405: rs.usize = rs.usizeRem(at(3) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _405: rs.usize = rs.usizeRem(at(3) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_405 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _405);
 	}
@@ -827,7 +827,7 @@ export function enums(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(n, f, rs.u8Debug), rs.fmtCount(w)];
 	put(out, rs.fmtFormat([args2[0], "|", rs.fmtSpec({ alternate: true }, args2[0]), "|", rs.fmtSpec({ debugHex: "x" }, args2[0]), "|", rs.fmtSpec({ alternate: true, debugHex: "X" }, args2[0]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args2[1]) }, args2[0]), "|", rs.fmtSpec({ fill: "_", align: "^", width: 7 }, args2[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 4 }, args2[0])]));
 	const _32: rs.u8 = at(3);
-	const _37: rs.usize = rs.usizeRem(at(4) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _37: rs.usize = rs.usizeRem(at(4) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_37 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _37);
 	}
@@ -844,7 +844,7 @@ export function enums(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBound(part4, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug))];
 	put(out, rs.fmtFormat([args10[0], "|", rs.fmtSpec({ alternate: true }, args10[0]), "|", rs.fmtSpec({ debugHex: "x" }, args10[0]), "|", rs.fmtSpec({ width: 3 }, args10[0])]));
 	const _128: rs.u8 = at(11);
-	const _134: rs.usize = rs.usizeRem(at(12) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _134: rs.usize = rs.usizeRem(at(12) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_134 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _134);
 	}
@@ -868,14 +868,14 @@ export function enums(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOrdering(ord, f), (f: rs.Formatter) => rs.fmtList(all, f, rs.fmtOrdering)];
 	put(out, rs.fmtFormat([args16[0], "|", rs.fmtSpec({ align: ">", width: 8 }, args16[0]), "|", rs.fmtSpec({ alternate: true }, args16[0]), "|", args16[1], "|", rs.fmtSpec({ alternate: true }, args16[1])]));
 	const rev: rs.u8 = at(1);
-	const _244: rs.usize = rs.usizeRem(at(4) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _244: rs.usize = rs.usizeRem(at(4) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_244 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _244);
 	}
 	const nested: string = ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"][_244];
 	const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "Reverse", [(f: rs.Formatter) => rs.u8Debug(rev, f)]), rs.fmtCount(w), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "Reverse", [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "Reverse", [(f: rs.Formatter) => rs.fmtStr(nested, f)])])];
 	put(out, rs.fmtFormat([args18[0], "|", rs.fmtSpec({ alternate: true }, args18[0]), "|", rs.fmtSpec({ debugHex: "x" }, args18[0]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args18[1]) }, args18[0]), "|", args18[2], "|", rs.fmtSpec({ alternate: true }, args18[2])]));
-	const _272: rs.usize = rs.usizeRem(at(4) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _272: rs.usize = rs.usizeRem(at(4) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_272 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _272);
 	}
@@ -999,7 +999,7 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part = ends$iters_slice_Iter_u8(rs.iterSlice(rs.byteSliceView(data)), front, back);
 	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtIter(part, f, rs.u8Debug, ["Iter"])];
 	put(out, rs.fmtFormat([args2[0], "|", rs.fmtSpec({ alternate: true }, args2[0]), "|", rs.fmtSpec({ debugHex: "x" }, args2[0]), "|", rs.fmtSpec({ align: ">", width: 3 }, args2[0])]));
-	const part2 = ends$iters_slice_IterMut_u8(rs.iterSliceMut(rs.byteSliceView(rs.byteVecSlice(rs.iterToByteVec(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 5), undefined, true)))), front, back);
+	const part2 = ends$iters_slice_IterMut_u8(rs.iterSliceMut(rs.byteVecSlice(rs.iterToByteVec(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 5), undefined, true))), front, back);
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtIter(part2, f, rs.u8Debug, ["IterMut"])];
 	put(out, rs.fmtFormat([args4[0], "|", rs.fmtSpec({ alternate: true }, args4[0])]));
 	const part3 = ends$iters_vec_IntoIter_fmt_Pair(rs.vecIntoIter(rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): Pair.Pair => {
@@ -3347,7 +3347,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _240: rs.Fmt = (f: rs.Formatter) => Dropper.fmt$fmt_Debug(owned, f);
 		const arg2 = rs.place(() => boxed, (value3) => boxed = value3);
 		const objects: rs.Vec<rs.Fmt> = rs.vecFrom([(f: rs.Formatter) => rs.u8Debug(_237.v, f), _238, _240, (f: rs.Formatter) => arg2.v(f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => fmt_Gauge.fmt$fmt_Debug(pair[0], f), (f: rs.Formatter) => rs.u8Debug(pair[1], f)], f)]);
-		const iter4: rs.Iter<rs.Place<rs.Fmt>> = rs.iterSliceMut(objects.items);
+		const iter4: rs.Iter<rs.Place<rs.Fmt>> = rs.iterSliceMut(rs.sliceFrom(objects.items));
 		while (true) {
 			const _251: rs.Place<rs.Fmt> | rs.Done = iter4.next();
 			if (_251 === rs.DONE) {
@@ -3568,20 +3568,20 @@ export function sources(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_213: rs.u8): rs.u16 => {
 		return rs.u16Mul(_213 as rs.u16, 257);
 	}), undefined, 2, true);
-	const part24 = ends$sources_slice_Windows_u16(rs.sliceWindows(wide.items, size), front, back);
-	const args68: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part24, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "Windows")];
+	const part24 = ends$sources_slice_Windows_u16(rs.sliceWindows(rs.sliceFrom(wide.items), size), front, back);
+	const args68: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part24, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "Windows")];
 	put(out, rs.fmtFormat([args68[0], "|", rs.fmtSpec({ alternate: true, debugHex: "x" }, args68[0])]));
 	const part25 = ends$sources_slice_Chunks_u8(rs.byteSliceChunks(bytes, size), front, back);
 	const args70: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part25, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "Chunks")];
 	put(out, rs.fmtFormat([args70[0], "|", rs.fmtSpec({ alternate: true }, args70[0])]));
-	const part26 = ends$sources_slice_ChunksExact_u16(rs.sliceChunksExact(wide.items, size), front, back);
-	const args72: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part26, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "ChunksExact")];
+	const part26 = ends$sources_slice_ChunksExact_u16(rs.sliceChunksExact(rs.sliceFrom(wide.items), size), front, back);
+	const args72: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part26, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "ChunksExact")];
 	put(out, rs.fmtFormat([args72[0], "|", rs.fmtSpec({ alternate: true }, args72[0])]));
 	const part27 = ends$sources_slice_ChunksExact_u8(rs.byteSliceChunksExact(bytes, size), front, back);
 	const args74: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part27, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "ChunksExact")];
 	put(out, rs.fmtFormat([args74[0]]));
-	const part28 = ends$sources_slice_RChunks_u16(rs.sliceRchunks(wide.items, size), front, back);
-	const args76: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part28, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "RChunks")];
+	const part28 = ends$sources_slice_RChunks_u16(rs.sliceRchunks(rs.sliceFrom(wide.items), size), front, back);
+	const args76: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part28, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "RChunks")];
 	put(out, rs.fmtFormat([args76[0]]));
 	const part29 = ends$sources_slice_RChunks_u8(rs.byteSliceRchunks(bytes, size), front, back);
 	const args78: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part29, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "RChunks")];
@@ -3589,10 +3589,10 @@ export function sources(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part30 = ends$sources_slice_RChunksExact_u8(rs.byteSliceRchunksExact(bytes, size), front, back);
 	const args80: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(part30, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "RChunksExact")];
 	put(out, rs.fmtFormat([args80[0]]));
-	const it27: rs.Iter<rs.u16[]> = rs.sliceRchunksExact(wide.items, size);
+	const it27: rs.Iter<rs.Slice<rs.u16>> = rs.sliceRchunksExact(rs.sliceFrom(wide.items), size);
 	const _743: rs.usize = rs.u8Rem(at(4), 4) as rs.usize;
 	rs.iterNth(it27, _743);
-	const args82: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(it27, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "RChunksExact")];
+	const args82: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParts(it27, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "RChunksExact")];
 	put(out, rs.fmtFormat([args82[0]]));
 	const part31 = ends$sources_slice_Split_u8_fmt_sources_closure9(rs.byteSliceSplit(bytes, (x5: rs.u8): boolean => {
 		return rs.u8Rem(x5, 3) === 0;
@@ -3619,15 +3619,15 @@ export function sources(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), front);
 	const args92: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part35, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "RSplit", false, "RSplitN")];
 	put(out, rs.fmtFormat([args92[0]]));
-	const part36 = ends$sources_slice_Split_u16_fmt_sources_closure10(rs.sliceSplit(wide.items, (x10: rs.u16): boolean => {
+	const part36 = ends$sources_slice_Split_u16_fmt_sources_closure10(rs.sliceSplit(rs.sliceFrom(wide.items), (x10: rs.u16): boolean => {
 		return rs.u16Rem(x10, 3) === 0;
 	}), front, back);
-	const args94: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part36, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "Split", false)];
+	const args94: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part36, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "Split", false)];
 	put(out, rs.fmtFormat([args94[0]]));
-	const part37 = fronts$sources_slice_SplitN_u16_fmt_sources_closure10(rs.sliceSplitn(wide.items, 2, (x11: rs.u16): boolean => {
+	const part37 = fronts$sources_slice_SplitN_u16_fmt_sources_closure10(rs.sliceSplitn(rs.sliceFrom(wide.items), 2, (x11: rs.u16): boolean => {
 		return rs.u16Rem(x11, 3) === 0;
 	}), front);
-	const args96: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part37, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "Split", false, "SplitN")];
+	const args96: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part37, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "Split", false, "SplitN")];
 	put(out, rs.fmtFormat([args96[0]]));
 	const owned: rs.ByteVec = rs.byteSliceToByteVec(bytes);
 	const part38 = ends$sources_slice_SplitMut_u8_fmt_sources_closure9(rs.byteSliceSplit(rs.byteVecSlice(owned), (x12: rs.u8): boolean => {
@@ -3655,10 +3655,10 @@ export function sources(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), front);
 	const args106: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part42, f, (value: rs.ByteSlice, f: rs.Formatter) => rs.fmtList(rs.byteSliceView(value), f, rs.u8Debug), "RSplitMut", true, "RSplitNMut")];
 	put(out, rs.fmtFormat([args106[0]]));
-	const part43 = ends$sources_slice_SplitMut_u16_fmt_sources_closure10(rs.sliceSplitMut(rs.vecFrom(wide.items.slice()).items, (x17: rs.u16): boolean => {
+	const part43 = ends$sources_slice_SplitMut_u16_fmt_sources_closure10(rs.sliceSplit(rs.sliceFrom(rs.vecFrom(wide.items.slice()).items), (x17: rs.u16): boolean => {
 		return rs.u16Rem(x17, 3) === 0;
 	}), front, back);
-	const args108: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part43, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug), "SplitMut", true)];
+	const args108: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtSplit(part43, f, (value: rs.Slice<rs.u16>, f: rs.Formatter) => rs.fmtList(rs.sliceItems(value), f, rs.u16Debug), "SplitMut", true)];
 	put(out, rs.fmtFormat([args108[0]]));
 	const _976: [rs.HashSet<rs.u8>, rs.HashSet<rs.u8>] = [rs.hashNew() as rs.HashSet<rs.u8>, rs.hashNew() as rs.HashSet<rs.u8>];
 	const one: rs.HashSet<rs.u8> = _976[0];
@@ -3757,7 +3757,7 @@ export function ends$sources_iter_Take_iter_Repeat_fmt_Pair(it: rs.Iter<Pair.Pai
 	}
 }
 
-export function ends$sources_slice_ChunksExact_u16(it: rs.Iter<rs.u16[]>, front: rs.usize, back: rs.usize): rs.Iter<rs.u16[]> {
+export function ends$sources_slice_ChunksExact_u16(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize, back: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -3821,7 +3821,7 @@ export function ends$sources_slice_RChunksExact_u8(it: rs.Iter<rs.ByteSlice>, fr
 	}
 }
 
-export function ends$sources_slice_RChunks_u16(it: rs.Iter<rs.u16[]>, front: rs.usize, back: rs.usize): rs.Iter<rs.u16[]> {
+export function ends$sources_slice_RChunks_u16(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize, back: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -3917,7 +3917,7 @@ export function ends$sources_slice_SplitInclusive_u8_fmt_sources_closure9(it: rs
 	}
 }
 
-export function ends$sources_slice_SplitMut_u16_fmt_sources_closure10(it: rs.Iter<rs.u16[]>, front: rs.usize, back: rs.usize): rs.Iter<rs.u16[]> {
+export function ends$sources_slice_SplitMut_u16_fmt_sources_closure10(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize, back: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -3949,7 +3949,7 @@ export function ends$sources_slice_SplitMut_u8_fmt_sources_closure9(it: rs.Iter<
 	}
 }
 
-export function ends$sources_slice_Split_u16_fmt_sources_closure10(it: rs.Iter<rs.u16[]>, front: rs.usize, back: rs.usize): rs.Iter<rs.u16[]> {
+export function ends$sources_slice_Split_u16_fmt_sources_closure10(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize, back: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -3981,7 +3981,7 @@ export function ends$sources_slice_Split_u8_fmt_sources_closure9(it: rs.Iter<rs.
 	}
 }
 
-export function ends$sources_slice_Windows_u16(it: rs.Iter<rs.u16[]>, front: rs.usize, back: rs.usize): rs.Iter<rs.u16[]> {
+export function ends$sources_slice_Windows_u16(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize, back: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (iterStart++ < iterEnd) {
@@ -4155,7 +4155,7 @@ export function fronts$sources_slice_SplitNMut_u8_fmt_sources_closure9(it: rs.It
 	}
 }
 
-export function fronts$sources_slice_SplitN_u16_fmt_sources_closure10(it: rs.Iter<rs.u16[]>, front: rs.usize): rs.Iter<rs.u16[]> {
+export function fronts$sources_slice_SplitN_u16_fmt_sources_closure10(it: rs.Iter<rs.Slice<rs.u16>>, front: rs.usize): rs.Iter<rs.Slice<rs.u16>> {
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = front;
 	while (true) {
@@ -4516,7 +4516,7 @@ export function calls(data: rs.ByteSlice, out: rs.ByteVec): void {
 		log4.text = log4.text + String.fromCodePoint(_198);
 		put(out, log4.text);
 	}
-	const _206: rs.usize = rs.usizeRem(at(11) as rs.usize, ["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"].length);
+	const _206: rs.usize = rs.usizeRem(at(11) as rs.usize, rs.sliceFrom(["", "a", "héllo", "日本語", "tab\tnew\nline\r", "quote\"back\\slash'", "\u0000\u0001\u001f", " ­", "é", "‍﻿ᅟ\u2028　", "͸􏿽𽀀𿱀", "😀 🇦", "ﾞﾟﾝ", "{}"]).length);
 	if (!(_206 < 14)) {
 		rs.panic("index out of bounds: the len is " + 14 + " but the index is " + _206);
 	}
@@ -4802,7 +4802,7 @@ export function calls(data: rs.ByteSlice, out: rs.ByteVec): void {
 /** `Debug` of cells that the writer sets as it is written, which shows when std reads each. */
 export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _48!: rs.char;
-	const _5: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, ["Cell", "OnceCell", "LazyCell", "OnceLock", "LazyLock", "(", " { "].length);
+	const _5: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.sliceFrom(["Cell", "OnceCell", "LazyCell", "OnceLock", "LazyLock", "(", " { "]).length);
 	if (!(_5 < 7)) {
 		rs.panic("index out of bounds: the len is " + 7 + " but the index is " + _5);
 	}
@@ -4893,7 +4893,7 @@ export function searches(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part13 = ends$searches_str_Matches_ref_array2_char(rs.strMatches(text2, rs.patternChars(set)), front, back);
 	const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStrSearch(part13, f, "Matches", "CharArrayRefSearcher")];
 	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args26[0])]));
-	const part14 = ends$searches_str_RSplit_ref_slice_char(rs.strRsplit(text2, rs.patternChars(rs.sliceRange(set, 0, 1))), front, back);
+	const part14 = ends$searches_str_RSplit_ref_slice_char(rs.strRsplit(text2, rs.patternChars(rs.sliceItems(rs.sliceRange(rs.sliceFrom(set), 0, 1)))), front, back);
 	const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtStrSearch(part14, f, "RSplit", "CharSliceSearcher")];
 	put(out, rs.fmtFormat([args28[0]]));
 	const part15 = ends$searches_str_Split_fmt_searches_closure3(rs.strSplit(text2, (x: rs.char): boolean => {

@@ -331,7 +331,7 @@ pub fn subslices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	for (x, &b) in array.iter_mut().zip(data) {
 		*x = b as u32 * 65599;
 	}
-	match kind % 8 {
+	match kind % 9 {
 		0 => {
 			poke_words(0, &mut words[a..b]);
 			poke_pairs(0, &mut pairs[a..b]);
@@ -446,6 +446,29 @@ pub fn subslices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			let [_, middle @ .., _] = &mut array;
 			middle.swap(0, 2);
+		}
+		// A part's pointers, which reach the rest of what it is a part of, as one
+		// allocation does.
+		7 => {
+			let n = words.len();
+			let (l, r) = (a.min(b).min(n), a.max(b).min(n));
+			let at = words[l..r].as_ptr();
+			out.push(unsafe { at.offset_from(words.as_ptr()) } as u8);
+			if l > 0 {
+				out.push(unsafe { *at.sub(1) } as u8);
+			}
+			let p = words[l..r].as_mut_ptr();
+			unsafe {
+				if l > 0 {
+					*p.sub(1) ^= 0x3c3c;
+				}
+				if r < n {
+					*p.add(r - l) = 0x9999;
+				}
+			}
+			let (front, back) = words.split_at_mut(l);
+			poke_words(14, back);
+			out.push(unsafe { back.as_ptr().offset_from(front.as_ptr()) } as u8);
 		}
 		_ => {
 			let (l, r) = bytes.split_at_mut(a);

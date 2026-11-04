@@ -19,7 +19,8 @@ generic std gap is planned here even when moq never calls it.
 - [Trait objects](/quest/m3/ts-dyn.md) - std's other traits, generic traits, traits with an associated type, and `Any::type_id` translate, so a consumer neither rewrites nor binds them
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [rs.Slice](/quest/m3/ts-slice-object.md) - slices and arrays of other values are a runtime type of array, start, and length, splitting in O(1) and comparing by where they point
+- [rs.Slice](/quest/m3/ts-slice-object.md) - references to arrays of other values are a runtime slice too, and pointers compare by where they point
+- [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
 - [rs.String](/quest/m3/ts-string-capacity.md) - `String`, `Box<str>`, and `&str` are a runtime type holding std's capacity
 - [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
 - [The chunk a BufMut lends](/quest/m3/ts-chunk-mut.md) - `BufMut::chunk_mut` and its `UninitSlice`'s writes translate, reaching the buffer's storage

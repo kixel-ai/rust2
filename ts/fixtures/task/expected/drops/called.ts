@@ -341,7 +341,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		Log.note(log, rs.fmtFormat(["flat ", args34[0]]));
 	} else if (_17 === 7) {
 		const v2: rs.Vec<Guard.Guard> = rs.iterToVec(rs.iterSlice(rs.arrayMap([3, 1, 4, 5, 2], guard), rs.drop), "fold", 8, true);
-		const _380: Guard.Guard[] = v2.items;
+		const _380: rs.Slice<Guard.Guard> = rs.sliceFrom(v2.items);
 		_679 = false;
 		const captured12 = c;
 		rs.sliceSortByCachedKey(_380, rs.closure((g8: Guard.Guard): Key.Key => {
@@ -357,7 +357,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part8.items, f, rs.u32Debug)];
 		Log.note(log, rs.fmtFormat(["sorted ", args36[0]]));
 		const w: rs.Vec<rs.u32> = rs.vecFrom([3, 1, 2]);
-		rs.sliceSortByCachedKey(w.items, (_210: rs.u32): rs.u32 => {
+		rs.sliceSortByCachedKey(rs.sliceFrom(w.items), (_210: rs.u32): rs.u32 => {
 			return rs.u32Add(_210, Guard.id(d));
 		}, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true);
 		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(w.items, f, rs.u32Debug)];
@@ -511,10 +511,10 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return _08;
 		}, true), "next", 4, false, 8);
 		const empty: rs.Vec<Guard.Guard> = new rs.Vec();
-		rs.sliceSortByCachedKey(empty.items, Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
+		rs.sliceSortByCachedKey(rs.sliceFrom(empty.items), Guard.id, rs.cmpLt(rs.cmpTuple<[rs.u32, rs.usize], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true, true);
 		const one: rs.Vec<Guard.Guard> = guards(1, 2);
 		const e5: Guard.Guard = guard(22);
-		const _603: Guard.Guard[] = one.items;
+		const _603: rs.Slice<Guard.Guard> = rs.sliceFrom(one.items);
 		const captured5 = e5;
 		rs.sliceSortByCachedKey(_603, rs.closure((g7: Guard.Guard): rs.u32 => {
 			return rs.u32Add(Guard.id(g7), Guard.id(captured5));

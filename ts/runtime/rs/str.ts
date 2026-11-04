@@ -8,6 +8,7 @@
 
 import {
 	ByteSlice,
+	type Slice,
 	byteSliceView,
 	Err,
 	type Fmt,
@@ -1336,13 +1337,13 @@ function fromUtf16(len: number, unit: (i: number) => number): Result<string, Fro
 }
 
 /** `String::from_utf16`. */
-export function stringFromUtf16(v: ArrayLike<u16>): Result<string, FromUtf16Error> {
-	return fromUtf16(v.length, (i) => v[i]);
+export function stringFromUtf16(v: Slice<u16>): Result<string, FromUtf16Error> {
+	return fromUtf16(v.length, (i) => v.data[v.start + i]);
 }
 
 /** `String::from_utf16_lossy`: U+FFFD for each surrogate without its pair. */
-export function stringFromUtf16Lossy(v: ArrayLike<u16>): string {
-	return fromUtf16Units(v.length, (i) => v[i], true) as string;
+export function stringFromUtf16Lossy(v: Slice<u16>): string {
+	return fromUtf16Units(v.length, (i) => v.data[v.start + i], true) as string;
 }
 
 /** The `i`th unit of `v`'s bytes, little-endian unless `big`. */

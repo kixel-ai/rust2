@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { asSlice, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -171,16 +171,14 @@ export function cmpReverse<T, O>(cmp: (a: T, b: T) => O): (a: T, b: T) => O {
  * `Ord::cmp` of slices, or `PartialOrd::partial_cmp`, by their elements' in order, then
  * by length.
  */
-export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => O {
+export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (x: Elements<T>, y: Elements<T>) => O {
 	return (x, y) => {
-		const a = asSlice(x);
-		const b = asSlice(y);
-		const n = Math.min(a.length, b.length);
-		for (let i = 0; i < n; i++) {
-			const c = cmp(a[i], b[i]);
+		const [a, i, m, b, j, n] = [sliceData(x), sliceStart(x), sliceLength(x), sliceData(y), sliceStart(y), sliceLength(y)];
+		for (let k = 0; k < Math.min(m, n); k++) {
+			const c = cmp(a[i + k], b[j + k]);
 			if (c !== 0) return c;
 		}
-		return (a.length < b.length ? -1 : a.length > b.length ? 1 : 0) as O;
+		return (m < n ? -1 : m > n ? 1 : 0) as O;
 	};
 }
 
@@ -319,22 +317,22 @@ export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: neve
 }
 
 /** `PartialEq::eq` of slices: their lengths', then their elements' in order. */
-export function eqSlice<T>(eq: (a: T, b: T) => boolean): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => boolean {
+export function eqSlice<T>(eq: (a: T, b: T) => boolean): (x: Elements<T>, y: Elements<T>) => boolean {
 	return (x, y) => {
-		const a = asSlice(x);
-		const b = asSlice(y);
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i++) if (!eq(a[i], b[i])) return false;
+		const [a, i, m, b, j, n] = [sliceData(x), sliceStart(x), sliceLength(x), sliceData(y), sliceStart(y), sliceLength(y)];
+		if (m !== n) return false;
+		for (let k = 0; k < m; k++) if (!eq(a[i + k], b[j + k])) return false;
 		return true;
 	};
 }
 
 /** A slice, an array, or a `Vec`, of bytes in any form, or a `VecDeque`. */
-type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | Vec<T> | VecDeque<T>;
+type Seq<T> = Elements<T> | ByteSlice | ByteVec | VecDeque<T>;
 
 /** The length of `s` and what reads its element at an index. */
 function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof ByteSlice) return [s.length, (i) => s.data[s.start + i] as T];
+	if (s instanceof Slice) return [s.length, (i) => s.data[s.start + i]];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
 	if (s instanceof Vec) return [s.items.length, (i) => s.items[i] as T];
 	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
@@ -2152,19 +2150,25 @@ function bounds<K>(r: Bounds<K>): BoundPair<K> {
  * `BTreeMap::range` and `range_mut`: the entries within `r`. A key of the crate's own gives
  * its `PartialEq::eq` and `PartialOrd::gt`, which std checks the ends by.
  */
-export function btreeRange<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
-	return range(m, r, ENTRIES, "BTreeMap", eq, gt);
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
+	return range(m, r as Bounds<K>, ENTRIES, "BTreeMap", eq, gt);
 }
 
 /** `range_mut` of values JS copies: each key within `r` and the place of its value. */
-export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
-	return range(m, r, PLACES, "BTreeMap", eq, gt);
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
+	return range(m, r as Bounds<K>, PLACES, "BTreeMap", eq, gt);
 }
 
 /** `BTreeSet::range`: the keys within `r`. */
-export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
-	return range(m, r, KEYS, "BTreeSet", eq, gt);
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
+	return range(m, r as Bounds<K>, KEYS, "BTreeSet", eq, gt);
 }
+
+/**
+ * What a range of keys `K` is bounded by: a key, or for an array's or a `Vec`'s, a `Slice`,
+ * which `cmpSlice` orders alike.
+ */
+type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never);
 
 /** The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by `m`'s order. */
 function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: string, eq?: Test<K>, gt?: Test<K>): Iter<T> {
@@ -2377,7 +2381,7 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
  */
 export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
+	else sliceSort(sliceFrom(entries), (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2409,7 +2413,7 @@ export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, fre
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less, size, freeze);
+	if (less !== undefined) sliceSort(sliceFrom(keys), less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
@@ -3384,11 +3388,11 @@ function contiguous<T>(q: VecDeque<T>): number {
 	return head > tail ? free : 0;
 }
 
-/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
-export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+/** `make_contiguous`: the items moved to one run of slots, as std's, and the slice of them. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): Slice<T> {
 	const h = contiguous(q);
 	if (h !== q.h) place(q, q.b.length, h);
-	return sliceView(q.b as T[], q.h, q.h + q.n);
+	return new Slice(q.b as T[], q.h, q.n);
 }
 
 /** `make_contiguous` of bytes, viewing the deque's. */
@@ -3572,12 +3576,10 @@ export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>
 	return fmtDebugTupleFields(f, name, [(f) => fmtList(a, f, debug), (f) => fmtList(b, f, debug)]);
 }
 
-/** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
-export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
-	const p = phys(q, 0);
+/** `as_slices` and `as_mut_slices`: the slices of the deque's slots. */
+export function dequeAsSlices<T>(q: VecDeque<T>): [Slice<T>, Slice<T>] {
 	const n = firstEnd(q, 0, q.n);
-	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
-	return [part(p, p + n), part(0, q.n - n)];
+	return [new Slice(q.b as T[], phys(q, 0), n), new Slice(q.b as T[], 0, q.n - n)];
 }
 
 /** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */
