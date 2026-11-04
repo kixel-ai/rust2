@@ -18,6 +18,7 @@ import * as Nibble from "./collections.Nibble.ts";
 import * as Odd from "./collections.Odd.ts";
 import * as Pair from "./collections.Pair.ts";
 import * as Picky from "./collections.Picky.ts";
+import * as Probe from "./collections.Probe.ts";
 import * as Quirky from "./collections.Quirky.ts";
 import * as Rank from "./collections.Rank.ts";
 import * as Right from "./collections.Right.ts";
@@ -25,7 +26,7 @@ import * as Tally from "./collections.Tally.ts";
 import * as Window from "./collections.Window.ts";
 import * as Wrap from "./collections.Wrap.ts";
 import { thenSome$0d5am30 } from "./core/bool.ts";
-import { unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0ltgf8p as option_map$0ltgf8p, map$1ajptuf as option_map$1ajptuf, map$0i8kclf as option_map$0i8kclf, map$09ua5et as option_map$09ua5et, map$0oc32h1 as option_map$0oc32h1, map$05nbzug as option_map$05nbzug, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$0q0ymkh as option_mapOr$0q0ymkh, mapOr$1ht002r as option_mapOr$1ht002r, mapOr$1xztl8h as option_mapOr$1xztl8h, mapOr$1w1gbwl as option_mapOr$1w1gbwl, mapOr$0bnr5nu as option_mapOr$0bnr5nu, mapOr$1nlkf9b as option_mapOr$1nlkf9b, mapOr$099335t as option_mapOr$099335t, mapOr$0z4mj8g as option_mapOr$0z4mj8g, mapOr$1surhce as option_mapOr$1surhce, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$02k4ito as option_mapOr$02k4ito, mapOr$1to2ul4 as option_mapOr$1to2ul4, mapOr$0mmpeqx as option_mapOr$0mmpeqx, clone$14nprly as option_clone$14nprly, flatten$1nwzx42 as option_flatten$1nwzx42 } from "./core/option.ts";
+import { unwrapOr$1j4op5y as option_unwrapOr$1j4op5y, unwrapOr$0r2bmpr as option_unwrapOr$0r2bmpr, map$0ltgf8p as option_map$0ltgf8p, map$1ajptuf as option_map$1ajptuf, map$0i8kclf as option_map$0i8kclf, map$09ua5et as option_map$09ua5et, map$0oc32h1 as option_map$0oc32h1, map$05nbzug as option_map$05nbzug, mapOr$1e4a1e0 as option_mapOr$1e4a1e0, mapOr$0q0ymkh as option_mapOr$0q0ymkh, mapOr$12a8ej4 as option_mapOr$12a8ej4, mapOr$1ht002r as option_mapOr$1ht002r, mapOr$1xztl8h as option_mapOr$1xztl8h, mapOr$1w1gbwl as option_mapOr$1w1gbwl, mapOr$0bnr5nu as option_mapOr$0bnr5nu, mapOr$1nlkf9b as option_mapOr$1nlkf9b, mapOr$1llunel as option_mapOr$1llunel, mapOr$099335t as option_mapOr$099335t, mapOr$0z4mj8g as option_mapOr$0z4mj8g, mapOr$1surhce as option_mapOr$1surhce, mapOr$1t0muvr as option_mapOr$1t0muvr, mapOr$02k4ito as option_mapOr$02k4ito, mapOr$17p2dvx as option_mapOr$17p2dvx, mapOr$1to2ul4 as option_mapOr$1to2ul4, mapOr$0mmpeqx as option_mapOr$0mmpeqx, clone$14nprly as option_clone$14nprly, flatten$1nwzx42 as option_flatten$1nwzx42 } from "./core/option.ts";
 import { eq$1dt73ez as result_eq$1dt73ez, eq$163neqy as result_eq$163neqy } from "./core/result.ts";
 import { put } from "./harness.ts";
 
@@ -5979,6 +5980,304 @@ export function btreeExtracts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec):
 		rt.iterExtendBytes(out, rt.iterFlatMap(rt.iterSlice(rt.refCellReplace(log, [])), (e: rt.u16): Uint8Array => {
 			return rt.u16ToBeBytes(e);
 		}, (value: Uint8Array) => rt.iterSlice(value), true, 2), undefined, true);
+	}
+}
+
+/**
+ * std's B-tree compares keys only as it searches its nodes, each from its first key on,
+ * which `Probe` logs: of maps and sets grown by inserts that split nodes at every height,
+ * then searched, removed from until nodes merge and take from their siblings, extended,
+ * entered, ranged, popped, split, cloned, extracted from, and retained, and of the set
+ * operations that search, of sets of sizes that make std look keys up rather than merge.
+ * Then of a set and map `collect` leaves out of `cmp`'s order, which std searches as is.
+ * Each answer is followed by the log.
+ */
+export function btreeSearches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _35!: rt.usize;
+	let _139!: [Probe.Probe, Probe.Probe];
+	let range!: rt.Iter<[Probe.Probe, rt.u16]>;
+	let _159!: [Probe.Probe, rt.u16] | undefined;
+	let _452!: [Probe.Probe, Probe.Probe];
+	const _28: (a0: rt.u16 | undefined) => rt.u16 = (v: rt.u16 | undefined): rt.u16 => {
+		return option_mapOr$1llunel(v, 65535, (v2: rt.u16): rt.u16 => {
+			return v2;
+		});
+	};
+	const log: rt.Cell<rt.u32> = new rt.Cell(0);
+	const at: (a0: rt.usize) => rt.u8 = (i3: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i3), 0);
+	};
+	const put: (a0: rt.ByteVec, a1: rt.u16) => undefined = (out2: rt.ByteVec, answer: rt.u16): undefined => {
+		rt.iterExtendBytes(out2, rt.iterSlice(rt.u16ToBeBytes(answer).reverse()), undefined, true);
+		rt.iterExtendBytes(out2, rt.iterSlice(rt.u32ToBeBytes(rt.cellReplace(log, 0)).reverse()), undefined, true);
+	};
+	const n: rt.usize = rt.usizeAdd(at(0) as rt.usize, 1);
+	const stride: rt.usize = rt.usizeAdd(rt.usizeMul(at(1) as rt.usize, 2), 1);
+	const key: (a0: rt.usize) => Probe.Probe = (i4: rt.usize): Probe.Probe => {
+		return { _0: rt.usizeAdd(rt.usizeMul(i4, stride), at(2) as rt.usize) & 0xffff & 1023, _1: log };
+	};
+	const probe: (a0: rt.u8) => Probe.Probe = (b7: rt.u8): Probe.Probe => {
+		return { _0: rt.u16Add(rt.u16Mul(b7 as rt.u16, 4), b7 >> 6 as rt.u16), _1: log };
+	};
+	b0: {
+		const _29: rt.u8 = rt.u8Rem(kind, 4);
+		if (_29 === 0) {
+			const map: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeMap<Probe.Probe, rt.u16>;
+			let iterStart: rt.usize = 0;
+			const iterEnd: rt.usize = n;
+			while ((_35 = iterStart++) < iterEnd) {
+				const i: rt.usize = _35;
+				const _41: Probe.Probe = key(i);
+				const part31 = option_unwrapOr$1j4op5y(rt.btreeInsert(map, _41, i & 0xffff), 65535);
+				put(out, part31);
+			}
+			for (const b of rt.byteSliceView(rt.byteSliceRange(data, rt.min(data.length, 3)))) {
+				const _68: Probe.Probe = probe(b);
+				const part33 = rt.btreeGet(map, _68);
+				const part34 = _28(part33);
+				put(out, part34);
+				const _78: Probe.Probe = key(b as rt.usize);
+				const part35 = rt.btreeContains(map, _78) ? 1 : 0;
+				put(out, part35);
+				const _89: Probe.Probe = key(rt.usizeMul(b as rt.usize, 3));
+				const part37 = option_unwrapOr$1j4op5y(rt.btreeRemove(map, _89), 65535);
+				put(out, part37);
+				const _98: Probe.Probe = probe(b);
+				const _95: rt.Place<rt.u16> = rt.entryOrInsertMut(rt.entry(map, _98), 7);
+				_95.v = rt.u16Add(_95.v, 1);
+				const part38 = rt.btreeLen(map) & 0xffff;
+				put(out, part38);
+			}
+			const _110: rt.Iter<[Probe.Probe, rt.u16]> = rt.iterMap(new rt.Range(0, rt.usizeDiv(n, 2)), (i5: rt.usize): [Probe.Probe, rt.u16] => {
+				return [key(rt.usizeMul(i5, 5)), i5 & 0xffff] as [Probe.Probe, rt.u16];
+			});
+			rt.btreeExtend(map, _110);
+			const part40 = rt.btreeLen(map) & 0xffff;
+			put(out, part40);
+			const part41 = at(3);
+			const _125: Probe.Probe = probe(part41);
+			const part42 = at(4);
+			const _124: [Probe.Probe, Probe.Probe] = [_125, probe(part42)];
+			const lo: Probe.Probe = _125;
+			const hi: Probe.Probe = _124[1];
+			if (!(Probe.low(lo) <= Probe.low(hi))) {
+				_139 = [hi, lo] as [Probe.Probe, Probe.Probe];
+			} else {
+				_139 = [lo, hi] as [Probe.Probe, Probe.Probe];
+			}
+			const lo2: Probe.Probe = _139[0];
+			const hi2: Probe.Probe = _139[1];
+			const _146: rt.u8 = rt.u8Rem(at(5), 3);
+			if (_146 === 0) {
+				range = rt.btreeRange(map, new rt.Range(lo2, hi2), Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+			} else if (_146 === 1) {
+				const _154: rt.RangeInclusive<Probe.Probe> = new rt.RangeInclusive(lo2, hi2);
+				range = rt.btreeRange(map, _154, Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+			} else {
+				range = rt.btreeRange(map, [{ tag: "Excluded", _0: lo2 } as rt.RangeBound<Probe.Probe>, { tag: "Unbounded" } as rt.RangeBound<Probe.Probe>] as [rt.RangeBound<Probe.Probe>, rt.RangeBound<Probe.Probe>], Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+			}
+			while (true) {
+				if (!(rt.u8Rem(at(6), 2) === 0)) {
+					_159 = rt.iterToOption(range.nextBack());
+				} else {
+					_159 = rt.iterToOption(range.next());
+				}
+				if (_159 !== undefined) {
+					put(out, _159[0]._0);
+				} else {
+					const part43 = option_mapOr$17p2dvx(rt.btreePop(map), 65535, (_23: [Probe.Probe, rt.u16]): rt.u16 => {
+						return _23[0]._0;
+					});
+					put(out, part43);
+					const part44 = option_mapOr$17p2dvx(rt.btreePop(map, true), 65535, (_24: [Probe.Probe, rt.u16]): rt.u16 => {
+						return _24[0]._0;
+					});
+					put(out, part44);
+					const copy: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeClone(map, undefined, undefined);
+					const part45 = at(7);
+					const part46 = rt.btreeGet(copy, probe(part45));
+					const part47 = _28(part46);
+					put(out, part47);
+					const part48 = at(8);
+					const _206: Probe.Probe = probe(part48);
+					const right: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeSplitOff(map, _206);
+					const part49 = rt.usizeAdd(rt.usizeMul(rt.btreeLen(map), 1000), rt.btreeLen(right)) & 0xffff;
+					put(out, part49);
+					const part50 = at(9);
+					const _233: Probe.Probe = probe(part50);
+					const part51 = rt.btreeGet(right, _233);
+					const part52 = _28(part51);
+					put(out, part52);
+					const part53 = at(10);
+					const _243: Probe.Probe = probe(part53);
+					const part54 = at(11);
+					const _242: rt.Range<Probe.Probe> = new rt.Range(_243, probe(part54));
+					const part55 = rt.iterCount(rt.btreeExtractIfMut(right, _242, (k9: Probe.Probe, _38: rt.Place<rt.u16>): boolean => {
+						return rt.u16Rem(k9._0, 3) === 0;
+					}, Probe.le$cmp_PartialOrd, Probe.lt$cmp_PartialOrd)) & 0xffff;
+					put(out, part55);
+					rt.btreeRetainMut(map, (k10: Probe.Probe, _39: rt.Place<rt.u16>): boolean => {
+						return rt.u16Rem(k10._0, 4) !== 0;
+					});
+					const part56 = rt.btreeLen(map) & 0xffff;
+					put(out, part56);
+					const iter3: rt.Iter<rt.usize> = rt.iterStepBy(new rt.Range(0, n), 3, undefined, 4294967295);
+					while (true) {
+						const _271: rt.usize | rt.Done = iter3.next();
+						if (_271 === rt.DONE) {
+							break;
+						}
+						const _282: Probe.Probe = key(_271);
+						const part57 = option_unwrapOr$1j4op5y(rt.btreeRemove(map, _282), 65535);
+						put(out, part57);
+					}
+					const part58 = rt.btreeLen(map) & 0xffff;
+					put(out, part58);
+					break b0;
+				}
+			}
+		}
+		if (_29 === 1) {
+			const _292: rt.Iter<Probe.Probe> = rt.iterMap(new rt.Range(0, n), key);
+			const large: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_292, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a4: Probe.Probe, b13: Probe.Probe): boolean => {
+				return !Probe.ne$cmp_PartialEq(a4, b13);
+			});
+			const small: rt.BTreeSet<Probe.Probe> = rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>;
+			for (const _297 of rt.byteSliceView(data)) {
+				const _307: Probe.Probe = probe(_297);
+				const part21 = rt.btreeAdd(small, _307) ? 1 : 0;
+				put(out, part21);
+			}
+			const iter5: rt.Iter<[rt.BTreeSet<Probe.Probe>, rt.BTreeSet<Probe.Probe>]> = rt.iterSlice([[small, large] as [rt.BTreeSet<Probe.Probe>, rt.BTreeSet<Probe.Probe>], [large, small] as [rt.BTreeSet<Probe.Probe>, rt.BTreeSet<Probe.Probe>]]);
+			while (true) {
+				const _319: [rt.BTreeSet<Probe.Probe>, rt.BTreeSet<Probe.Probe>] | rt.Done = iter5.next();
+				if (_319 === rt.DONE) {
+					break;
+				}
+				const part22 = rt.iterCount(rt.btreeIntersection(_319[0], _319[1])) & 0xffff;
+				put(out, part22);
+				const part23 = rt.iterCount(rt.btreeDifference(_319[0], _319[1])) & 0xffff;
+				put(out, part23);
+				const part24 = rt.iterCount(rt.btreeUnion(_319[0], _319[1])) & 0xffff;
+				put(out, part24);
+				const part25 = rt.iterCount(rt.btreeSymmetricDifference(_319[0], _319[1])) & 0xffff;
+				put(out, part25);
+				const part26 = rt.btreeIsSubset(_319[0], _319[1]) ? 1 : 0;
+				put(out, part26);
+				const part27 = rt.btreeIsDisjoint(_319[0], _319[1]) ? 1 : 0;
+				put(out, part27);
+			}
+			const part28 = rt.btreeLen(rt.btreeFromSorted(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.btreeIntersection(small, large), (a5: Probe.Probe, b14: Probe.Probe): boolean => {
+				return !Probe.ne$cmp_PartialEq(a5, b14);
+			})) & 0xffff;
+			put(out, part28);
+			for (const b3 of rt.byteSliceView(data)) {
+				const _380: Probe.Probe = probe(b3);
+				const part29 = rt.btreeContains(large, _380) ? 1 : 0;
+				put(out, part29);
+				const _390: Probe.Probe = key(b3 as rt.usize);
+				const part30 = option_mapOr$12a8ej4(rt.btreeKey(large, _390), 65535, (k6: Probe.Probe): rt.u16 => {
+					return k6._0;
+				});
+				put(out, part30);
+			}
+		} else if (_29 === 2) {
+			const _395: rt.Iter<Probe.Probe> = rt.iterChain(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): Probe.Probe => {
+				return probe(_22);
+			}), rt.iterMap(new rt.Range(0, n), key));
+			const set: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_395, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a2: Probe.Probe, b11: Probe.Probe): boolean => {
+				return !Probe.ne$cmp_PartialEq(a2, b11);
+			});
+			const part6 = rt.btreeLen(set) & 0xffff;
+			put(out, part6);
+			for (const b4 of rt.byteSliceView(data)) {
+				const _421: Probe.Probe = probe(b4);
+				const part7 = rt.btreeContains(set, _421) ? 1 : 0;
+				put(out, part7);
+				const _431: Probe.Probe = key(b4 as rt.usize);
+				const part8 = option_mapOr$12a8ej4(rt.btreeKey(set, _431), 65535, (k2: Probe.Probe): rt.u16 => {
+					return k2._0;
+				});
+				put(out, part8);
+			}
+			const part9 = at(3);
+			const _438: Probe.Probe = probe(part9);
+			const part10 = at(4);
+			const _437: [Probe.Probe, Probe.Probe] = [_438, probe(part10)];
+			const lo3: Probe.Probe = _438;
+			const hi3: Probe.Probe = _437[1];
+			if (!(Probe.low(lo3) <= Probe.low(hi3))) {
+				_452 = [hi3, lo3] as [Probe.Probe, Probe.Probe];
+			} else {
+				_452 = [lo3, hi3] as [Probe.Probe, Probe.Probe];
+			}
+			const _461: rt.RangeInclusive<Probe.Probe> = new rt.RangeInclusive(_452[0], _452[1]);
+			const iter8: rt.Iter<Probe.Probe> = rt.btreeRangeKeys(set, _461, Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+			while (true) {
+				const _463: Probe.Probe | rt.Done = iter8.next();
+				if (_463 === rt.DONE) {
+					break;
+				}
+				put(out, _463._0);
+			}
+			const _472: rt.Iter<Probe.Probe> = rt.iterMap(new rt.Range(0, n), key);
+			const sorted: rt.BTreeSet<Probe.Probe> = rt.btreeCollectKeys(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeSet<Probe.Probe>, rt.iterToArray(_472, undefined, 8, true), 8, true, Probe.lt$cmp_PartialOrd, (a3: Probe.Probe, b12: Probe.Probe): boolean => {
+				return !Probe.ne$cmp_PartialEq(a3, b12);
+			});
+			const part11 = rt.iterCount(rt.btreeIntersection(set, sorted)) & 0xffff;
+			put(out, part11);
+			const part12 = rt.iterCount(rt.btreeDifference(set, sorted)) & 0xffff;
+			put(out, part12);
+			const part13 = rt.btreeIsSubset(set, sorted) ? 1 : 0;
+			put(out, part13);
+			for (const b5 of rt.byteSliceView(data)) {
+				const _509: Probe.Probe = probe(b5 ^ 85);
+				const part14 = rt.btreeAdd(set, _509) ? 1 : 0;
+				put(out, part14);
+				const _520: Probe.Probe = probe(b5);
+				const part15 = rt.btreeDelete(set, _520) ? 1 : 0;
+				put(out, part15);
+			}
+			const part16 = at(5);
+			const _529: Probe.Probe = probe(part16);
+			const part17 = option_mapOr$12a8ej4(rt.btreeReplace(set, _529), 65535, (k3: Probe.Probe): rt.u16 => {
+				return k3._0;
+			});
+			put(out, part17);
+			const part18 = at(6);
+			const _542: Probe.Probe = probe(part18);
+			const part19 = option_mapOr$12a8ej4(rt.btreeKey(set, _542, true), 65535, (k4: Probe.Probe): rt.u16 => {
+				return k4._0;
+			});
+			put(out, part19);
+			const part20 = rt.iterFold(rt.iterMap(rt.btreeKeys(set), (k5: Probe.Probe): rt.u16 => {
+				return k5._0;
+			}), 0, (a0: rt.u16, a1: rt.u16): rt.u16 => {
+				return rt.u16WrappingAdd(a0, a1);
+			});
+			put(out, part20);
+		} else {
+			const _556: rt.Iter<[Probe.Probe, rt.u16]> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): [Probe.Probe, rt.u16] => {
+				const b8: rt.u8 = _2;
+				return [{ _0: (((b8 as rt.u16) << 8) & 0xffff) | (b8 & 7) as rt.u16, _1: log }, b8 as rt.u16] as [Probe.Probe, rt.u16];
+			});
+			const map2: rt.BTreeMap<Probe.Probe, rt.u16> = rt.btreeCollect(rt.btreeNew(Probe.cmp$cmp_Ord) as rt.BTreeMap<Probe.Probe, rt.u16>, rt.iterToArray(_556, undefined, 12, true), 12, true, (a: Probe.Probe, b9: Probe.Probe): boolean => {
+				return !Probe.ne$cmp_PartialEq(a, b9);
+			});
+			const part = rt.btreeLen(map2) & 0xffff;
+			put(out, part);
+			for (const b6 of rt.byteSliceView(data)) {
+				const _581: Probe.Probe = { _0: (b6 & 7) as rt.u16, _1: log };
+				const part2 = rt.btreeGet(map2, _581);
+				const part3 = _28(part2);
+				put(out, part3);
+				const _592: Probe.Probe = { _0: (b6 as rt.u16) & 7, _1: log };
+				const part4 = option_unwrapOr$1j4op5y(rt.btreeRemove(map2, _592), 65535);
+				put(out, part4);
+			}
+			const part5 = rt.btreeLen(map2) & 0xffff;
+			put(out, part5);
+		}
 	}
 }
 

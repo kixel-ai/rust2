@@ -78,10 +78,43 @@ fn local_lazy() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
-/// The runtime's B-tree runs `btree.ts`'s script of random operations as std's does.
+/// The runtime's B-tree runs `btree.ts`'s script of random operations as std's does, calling
+/// `Ord::cmp` on the same keys in the same order.
 #[test]
 fn btree_script() {
+	use std::cell::Cell;
+	use std::cmp::Ordering;
 	use std::collections::BTreeMap;
+
+	thread_local! {
+		/// The calls of `Key::cmp` since the last line, and a hash of their keys.
+		static CALLS: Cell<(u32, u32)> = const { Cell::new((0, 0)) };
+	}
+	/// A key whose `cmp` counts and hashes each call, as `btree.ts`'s does.
+	#[derive(Clone, Copy, PartialEq, Eq)]
+	struct Key(u32);
+	impl Ord for Key {
+		fn cmp(&self, other: &Self) -> Ordering {
+			CALLS.with(|c| {
+				let (n, h) = c.get();
+				let h = h
+					.wrapping_mul(31)
+					.wrapping_add(self.0.wrapping_mul(65537))
+					.wrapping_add(other.0);
+				c.set((n + 1, h));
+			});
+			self.0.cmp(&other.0)
+		}
+	}
+	impl PartialOrd for Key {
+		fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+			Some(self.cmp(other))
+		}
+	}
+	let say = |want: &mut Vec<String>, line: String| {
+		let (n, h) = CALLS.with(|c| c.replace((0, 0)));
+		want.push(format!("{line} #{n} {h}"));
+	};
 
 	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("btree.ts");
 	let output = Command::new("node")
@@ -101,21 +134,21 @@ fn btree_script() {
 	};
 	fn walk<'a>(
 		rand: &mut impl FnMut() -> u32,
-		it: &mut impl DoubleEndedIterator<Item = (&'a u32, &'a u32)>,
+		it: &mut impl DoubleEndedIterator<Item = (&'a Key, &'a u32)>,
 	) -> String {
 		let mut seen = Vec::new();
 		for _ in 0..40 {
 			let item = if rand() & 1 == 1 { it.next() } else { it.next_back() };
 			let Some((k, _)) = item else { break };
-			seen.push(k.to_string());
+			seen.push(k.0.to_string());
 		}
 		seen.join(",")
 	}
 	let show = |v: Option<u32>| v.map_or("-".to_string(), |v| v.to_string());
-	let entry = |e: Option<(&u32, &u32)>| e.map_or("-".to_string(), |(k, v)| format!("{k} {v}"));
+	let entry = |e: Option<(&Key, &u32)>| e.map_or("-".to_string(), |(k, v)| format!("{} {v}", k.0));
 
 	let mut want = Vec::new();
-	let mut m: BTreeMap<u32, u32> = BTreeMap::new();
+	let mut m: BTreeMap<Key, u32> = BTreeMap::new();
 	let steps = 120_000;
 	for step in 0..steps {
 		let keys = 65_536;
@@ -124,70 +157,85 @@ fn btree_script() {
 		let k = rand() % keys;
 		if op < 5 {
 			if phase == 0 || (phase == 1 && k % 2 == 0) {
-				want.push(format!("insert {k} {}", show(m.insert(k, step))));
+				say(&mut want, format!("insert {k} {}", show(m.insert(Key(k), step))));
 			} else {
-				want.push(format!("remove {k} {}", show(m.remove(&k))));
+				say(&mut want, format!("remove {k} {}", show(m.remove(&Key(k)))));
 			}
 		} else if op == 5 {
-			want.push(format!("get {k} {}", show(m.get(&k).copied())));
+			say(&mut want, format!("get {k} {}", show(m.get(&Key(k)).copied())));
 		} else if op == 6 {
 			let j = rand() % keys;
 			let (lo, hi) = if k < j { (k, j) } else { (j, k) };
 			let inclusive = rand() & 1;
 			let seen = match inclusive {
-				1 => walk(&mut rand, &mut m.range(lo..=hi)),
-				_ => walk(&mut rand, &mut m.range(lo..hi)),
+				1 => walk(&mut rand, &mut m.range(Key(lo)..=Key(hi))),
+				_ => walk(&mut rand, &mut m.range(Key(lo)..Key(hi))),
 			};
-			want.push(format!("range {lo} {hi} {inclusive} {seen}"));
+			say(&mut want, format!("range {lo} {hi} {inclusive} {seen}"));
 		} else if op == 7 {
 			let last = rand() & 1 == 1;
 			let popped = if last { m.pop_last() } else { m.pop_first() };
-			want.push(format!(
-				"pop {last} {}",
-				popped.map_or("-".to_string(), |(k, v)| format!("{k} {v}"))
-			));
+			say(
+				&mut want,
+				format!(
+					"pop {last} {}",
+					popped.map_or("-".to_string(), |(k, v)| format!("{} {v}", k.0))
+				),
+			);
 		} else if op == 8 {
-			want.push(format!("remove {k} {}", show(m.remove(&k))));
+			say(&mut want, format!("remove {k} {}", show(m.remove(&Key(k)))));
 		} else if step % 97 == 0 {
 			let mut it = m.iter();
 			let seen = walk(&mut rand, &mut it);
-			want.push(format!("iter {} {} {seen}", m.len(), it.len()));
+			say(&mut want, format!("iter {} {} {seen}", m.len(), it.len()));
 		} else if step % 1009 == 0 {
 			let copy = m.clone();
-			m.retain(|key, _| key % 7 != k % 7);
-			want.push(format!(
-				"retain {} {} {}",
-				m.len(),
-				entry(m.first_key_value()),
-				entry(m.last_key_value())
-			));
+			m.retain(|key, _| key.0 % 7 != k % 7);
+			say(
+				&mut want,
+				format!(
+					"retain {} {} {}",
+					m.len(),
+					entry(m.first_key_value()),
+					entry(m.last_key_value())
+				),
+			);
 			if rand() & 1 == 1 {
 				m = copy;
 			}
-			want.push(format!("kept {}", m.len()));
+			say(&mut want, format!("kept {}", m.len()));
+		} else if step % 1301 == 0 {
+			let right = m.split_off(&Key(k));
+			say(&mut want, format!("split {k} {} {}", m.len(), right.len()));
+			if rand() & 1 == 1 {
+				m = right;
+			}
+		} else if step % 2003 == 0 {
+			m = m.iter().map(|(k, v)| (*k, *v)).collect();
+			say(&mut want, format!("collect {}", m.len()));
 		} else if step % 211 == 0 {
 			let j = rand() % keys;
 			let (lo, hi) = if k < j { (k, j) } else { (j, k) };
 			let limit = rand() % 400;
 			let copy = m.clone();
-			let taken: Vec<String> = (m.extract_if(lo..hi, |key, value| (*key ^ *value) % 3 != 0))
+			let taken: Vec<String> = (m.extract_if(Key(lo)..Key(hi), |key, value| (key.0 ^ *value) % 3 != 0))
 				.take(limit as usize)
-				.map(|(k, _)| k.to_string())
+				.map(|(k, _)| k.0.to_string())
 				.collect();
-			want.push(format!("extract {lo} {hi} {} {}", m.len(), taken.join(",")));
+			say(&mut want, format!("extract {lo} {hi} {} {}", m.len(), taken.join(",")));
 			if rand() & 1 == 1 {
 				m = copy;
 			}
 		}
 	}
-	let keys: Vec<String> = m.keys().map(u32::to_string).collect();
-	want.push(format!("end {} {}", m.len(), keys.join(",")));
+	let keys: Vec<String> = m.keys().map(|k| k.0.to_string()).collect();
+	say(&mut want, format!("end {} {}", m.len(), keys.join(",")));
 	let mut drained = Vec::new();
 	while !m.is_empty() {
 		let popped = if rand() & 1 == 1 { m.pop_last() } else { m.pop_first() };
-		drained.push(popped.unwrap().0.to_string());
+		drained.push(popped.unwrap().0.0.to_string());
 	}
-	want.push(format!("drain {}", drained.join(",")));
+	say(&mut want, format!("drain {}", drained.join(",")));
 	for (got, want) in got.lines().zip(&want) {
 		assert_eq!(got, want);
 	}
