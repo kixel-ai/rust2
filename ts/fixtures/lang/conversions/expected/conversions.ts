@@ -47,7 +47,7 @@ export function put$conversions_Value_u64(self: rs.u64, out: rs.ByteVec): void {
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_String(data: rs.ByteSlice, at: rs.usize): string {
 	const part = rs.u8Rem(byte(data, at), 16);
-	return rs.fmtFormat(["s", [(f: rs.Formatter) => rs.u8Display(part, f)][0]]);
+	return rs.fmtFormat(["s", (f: rs.Formatter) => rs.u8Display(part, f)]);
 }
 
 /** Its bytes. */

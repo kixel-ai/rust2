@@ -1437,7 +1437,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return undefined;
 	});
 	rs.byteVecPush(out, rs.hashEq(rs.same)(keyed, _195) ? 1 : 0);
-	put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault")][0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, "BuildHasherDefault")]));
 	const _212: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
 		return rs.u8Rem(b2, 4);
 	});

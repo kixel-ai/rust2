@@ -525,7 +525,7 @@ export function defaulted(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPop((_31.v as Listing.Listing).listed);
 		}
 	}
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(listing, f, (value: Listing.Listing, f: rs.Formatter) => Listing.fmt$fmt_Debug(value, f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(listing, f, (value: Listing.Listing, f: rs.Formatter) => Listing.fmt$fmt_Debug(value, f))])));
 }
 
 export function list$defaulted(listing: rs.Place<Listing.Listing | undefined>, b: rs.u8): void {
@@ -577,7 +577,7 @@ export function taken(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return held.length === 0;
 	}) as rs.u32)));
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(held));
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(wide.items, f, rs.u32Debug)][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(wide.items, f, rs.u32Debug)])));
 	const pair: [rs.ByteVec, Listing.Listing] = [rs.byteSliceToByteVec(data), Listing.default$Default()];
 	const swap: (a0: rs.u8) => rs.ByteVec = (b5: rs.u8): rs.ByteVec => {
 		const _36: rs.ByteVec = rs.byteVecOf(b5, rs.u8Rem(b5, 4) as rs.usize);
@@ -607,7 +607,7 @@ export function taken(data: rs.ByteSlice, out: rs.ByteVec): void {
 	pair[1].stale = new rs.ByteVec();
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(taken3));
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(swapped));
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(pair[0]), f, rs.u8Debug), (f: rs.Formatter) => Listing.fmt$fmt_Debug(pair[1], f)], f)][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(pair[0]), f, rs.u8Debug), (f: rs.Formatter) => Listing.fmt$fmt_Debug(pair[1], f)], f)])));
 }
 
 export function poll$taken_refs_taken_closure1(data: rs.ByteSlice, f: (a0: rs.u8) => boolean): rs.usize {

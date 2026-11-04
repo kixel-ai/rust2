@@ -114,7 +114,7 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (!(x6 === stop)) {
 					return true;
 				}
-				rs.panicFmt(["retain stopped at ", [(f: rs.Formatter) => rs.u16Display(x6, f)][0]]);
+				rs.panicFmt(["retain stopped at ", (f: rs.Formatter) => rs.u16Display(x6, f)]);
 			});
 		}
 	} else if (_8 === 1) {
@@ -371,7 +371,7 @@ export function edits(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.idx(_764, 0);
 		rs.byteVecPush(out, _764.data[_764.start]);
 		const part6 = rs.fromUtf8ErrorClone(rs.resultUnwrapErr(rs.stringFromUtf8(rs.byteVecFrom(Uint8Array.of(97, 255, at(6)))), rs.fmtStr));
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(part6, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtFromUtf8ErrorDebug(part6, f)]));
 		rs.byteVecPush(out, 16 & 0xff);
 		rs.byteVecPush(out, 16 & 0xff);
 		rs.byteVecPush(out, 4 & 0xff);
@@ -1595,7 +1595,7 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		let iterStart2: rs.i32 = 0;
 		const iterEnd2: rs.i32 = 3;
 		while (iterStart2++ < iterEnd2) {
-			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtVecExtractIf(it2, f, rs.u16Debug)][0]])))), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtVecExtractIf(it2, f, rs.u16Debug)])))), undefined, true);
 			it2.next();
 		}
 		rs.drop(it2);
@@ -1746,7 +1746,7 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		});
 		const s2: rs.Iter<rs.u8> = rs.spliceFrom(rs.byteVecSplice(bytes2, r5), _409);
 		const back: rs.u8 | undefined = rs.iterToOption(s2.nextBack());
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtVecSplice(s2, f, rs.u8Debug, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Filter", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAround(value, f, "Copied", "it", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtCounted(value, f, "Take", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Rev", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"]))))))][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtVecSplice(s2, f, rs.u8Debug, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Filter", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAround(value, f, "Copied", "it", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtCounted(value, f, "Take", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtAdaptor(value, f, "Rev", (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"]))))))])))), undefined, true);
 		rs.drop(s2);
 		rs.iterExtendBytes(out, rs.iterOption(back), undefined, true);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes2));
@@ -1754,7 +1754,7 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _453: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeRem(at(10) as rs.usize, rs.usizeAdd(tail.length, 1)), rs.usizeStep);
 		const _454: Uint8Array = Uint8Array.of(170, 187);
 		const s3: rs.Iter<rs.u8> = rs.spliceFrom(rs.byteVecSplice(tail, _453), rs.iterSlice(_454), true);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtVecSplice(s3, f, rs.u8Debug, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["IntoIter"]))][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtVecSplice(s3, f, rs.u8Debug, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["IntoIter"]))])))), undefined, true);
 		rs.iterExtendBytes(out, rs.iterRev(s3), "next");
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(tail));
 		const hints: rs.RefCell<rs.ByteVec> = new rs.RefCell(new rs.ByteVec());
@@ -1869,9 +1869,9 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			return new Tracked.Tracked(t3.id, 9, t3.log);
 		}, Tracked.cmp$cmp_Ord, rs.drop);
 		mark(240);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(found, f, rs.usizeDebug, rs.usizeDebug)][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(found, f, rs.usizeDebug, rs.usizeDebug)])))), undefined, true);
 		const part3 = rs.dequeBinarySearch(q, probe, Tracked.cmp$cmp_Ord);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(part3, f, rs.usizeDebug, rs.usizeDebug)][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part3, f, rs.usizeDebug, rs.usizeDebug)])))), undefined, true);
 		rs.byteVecPush(out, rs.dequePartitionPoint(q, (t4: Tracked.Tracked): boolean => {
 			return t4.id < probe.id;
 		}) & 0xff);
@@ -1969,12 +1969,12 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const part = rs.dequeBinarySearchBy(named4, (n5: Named.Named): rs.Ordering => {
 			return rs.cmp(n5.id, probe2);
 		});
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(part, f, rs.usizeDebug, rs.usizeDebug)][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part, f, rs.usizeDebug, rs.usizeDebug)])))), undefined, true);
 		const _947: string = text(rs.byteSliceFrom(Uint8Array.of(at(3))));
 		const found4: rs.Result<rs.usize, rs.usize> = rs.dequeBinarySearchByKey(named4, _947, (n6: Named.Named): string => {
 			return n6.name;
 		}, rs.cmpStr);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(found4, f, rs.usizeDebug, rs.usizeDebug)][0]])))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(found4, f, rs.usizeDebug, rs.usizeDebug)])))), undefined, true);
 		rs.byteVecPush(out, rs.dequePartitionPoint(named4, (n7: Named.Named): boolean => {
 			return n7.id <= probe2;
 		}) & 0xff);

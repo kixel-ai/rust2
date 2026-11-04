@@ -104,13 +104,13 @@ export function takeU64(data: rs.ByteSlice): [rs.u64, rs.ByteSlice] {
 /** A decode error's code, then its text. */
 export function decodeFailed(out: rs.ByteVec, err: DecodeError.DecodeError): void {
 	decodeError(out, err);
-	putText(out, rs.fmtToString((f: rs.Formatter) => DecodeError.fmt$fmt_Display(err, f)), rs.fmtFormat([[(f: rs.Formatter) => DecodeError.fmt$fmt_Debug(err, f)][0]]));
+	putText(out, rs.fmtToString((f: rs.Formatter) => DecodeError.fmt$fmt_Display(err, f)), rs.fmtFormat([(f: rs.Formatter) => DecodeError.fmt$fmt_Debug(err, f)]));
 }
 
 /** An encode error's code, then its text. */
 export function encodeFailed(out: rs.ByteVec, err: EncodeError.EncodeError): void {
 	encodeError(out, err);
-	putText(out, rs.fmtToString((f: rs.Formatter) => EncodeError.fmt$fmt_Display(err, f)), rs.fmtFormat([[(f: rs.Formatter) => EncodeError.fmt$fmt_Debug(err, f)][0]]));
+	putText(out, rs.fmtToString((f: rs.Formatter) => EncodeError.fmt$fmt_Display(err, f)), rs.fmtFormat([(f: rs.Formatter) => EncodeError.fmt$fmt_Debug(err, f)]));
 }
 
 /** An error's thiserror `Display` and derived `Debug`, which callers see. */
@@ -594,7 +594,7 @@ export function errors(dataData: Uint8Array, dataStart: number, dataLen: number,
 				err = { tag: "MalformedAuthToken" } as DecodeError.DecodeError;
 			}
 			const args8 = [(f: rs.Formatter) => DecodeError.fmt$fmt_Display(err, f)];
-			putText(out, rs.fmtFormat([args8[0], " ", rs.fmtSpec({ align: ">", width: 30 }, args8[0]), "|"]), rs.fmtFormat([rs.fmtSpec({ alternate: true }, [(f: rs.Formatter) => DecodeError.fmt$fmt_Debug(err, f)][0])]));
+			putText(out, rs.fmtFormat([args8[0], " ", rs.fmtSpec({ align: ">", width: 30 }, args8[0]), "|"]), rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => DecodeError.fmt$fmt_Debug(err, f))]));
 			decodeFailed(out, err);
 		}
 	}

@@ -82,13 +82,13 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return k5[0] !== rs.u8Rem(arg, 4);
 			});
 		} else if (_35 === 6) {
-			const _88: string = rs.fmtFormat([[(f: rs.Formatter) => rs.u16Display(key, f)][0]]);
+			const _88: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashAdd(set, _88) ? 1 : 0);
 			const part = rs.u16Add(key, 1);
-			const _102: string = rs.fmtFormat([[(f: rs.Formatter) => rs.u16Display(part, f)][0]]);
+			const _102: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(part, f)]);
 			rs.byteVecPush(out, rs.hashContains(set, _102) ? 1 : 0);
 		} else if (_35 === 7) {
-			const _117: string = rs.fmtFormat([[(f: rs.Formatter) => rs.u16Display(key, f)][0]]);
+			const _117: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashDelete(set, _117) ? 1 : 0);
 		} else if (_35 === 8) {
 			put(out, option_mapOr$0o00yzv(rs.hashRemoveEntry(own, key), 256, (_26: [rs.u16, rs.u32]): rs.usize => {

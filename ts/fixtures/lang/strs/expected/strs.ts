@@ -771,7 +771,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed: rs.Result<boolean, rs.ParseBoolError> = _65;
 				if (parsed.ok) {
 					const arg26 = parsed.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtBool(arg26, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(arg26, f)]));
 				} else {
 					const part13 = new rs.ParseBoolError();
 					const args191 = [(f: rs.Formatter) => rs.fmtParseBoolErrorDisplay(part13, f), (f: rs.Formatter) => rs.fmtParseBoolErrorDebug(part13, f)];
@@ -789,7 +789,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed2: rs.Result<rs.char, rs.ParseCharError> = _105;
 				if (parsed2.ok) {
 					const arg25 = parsed2.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtCharDebug(arg25, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtCharDebug(arg25, f)]));
 				} else {
 					const e: rs.ParseCharError = parsed2.error;
 					const args189 = [(f: rs.Formatter) => rs.fmtParseCharErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseCharErrorDebug(e, f)];
@@ -808,7 +808,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed3: rs.Result<rs.u8, rs.ParseIntError> = _149;
 				if (parsed3.ok) {
 					const arg23 = parsed3.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u8Debug(arg23, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Debug(arg23, f)]));
 				} else {
 					const e2: rs.ParseIntError = parsed3.error;
 					const args184 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e2, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e2, f)];
@@ -818,12 +818,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _139: rs.Result<rs.u8, rs.ParseIntError> = parse$1y4njjc(_49);
 			if (!_139.ok) {
 				const part12 = _139.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part12)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part12)]));
 			}
 			const _195: rs.Result<rs.u8, rs.ParseIntError> = nonzero_fromStrRadix$1i96daa(_49, radix2);
 			if (_195.ok) {
 				const arg24 = _195.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u8Display(arg24, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg24, f)]));
 			} else {
 				const e4: rs.ParseIntError = _195.error;
 				const args187 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e4, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e4, f)];
@@ -840,7 +840,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed4: rs.Result<rs.u16, rs.ParseIntError> = _236;
 				if (parsed4.ok) {
 					const arg21 = parsed4.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u16Debug(arg21, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Debug(arg21, f)]));
 				} else {
 					const e5: rs.ParseIntError = parsed4.error;
 					const args179 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e5, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e5, f)];
@@ -850,12 +850,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _226: rs.Result<rs.u16, rs.ParseIntError> = parse$13tnb7e(_49);
 			if (!_226.ok) {
 				const part11 = _226.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part11)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part11)]));
 			}
 			const _282: rs.Result<rs.u16, rs.ParseIntError> = nonzero_fromStrRadix$0yk2yqd(_49, radix3);
 			if (_282.ok) {
 				const arg22 = _282.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u16Display(arg22, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(arg22, f)]));
 			} else {
 				const e7: rs.ParseIntError = _282.error;
 				const args182 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e7, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e7, f)];
@@ -872,7 +872,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed5: rs.Result<rs.u32, rs.ParseIntError> = _323;
 				if (parsed5.ok) {
 					const arg19 = parsed5.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u32Debug(arg19, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Debug(arg19, f)]));
 				} else {
 					const e8: rs.ParseIntError = parsed5.error;
 					const args174 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e8, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e8, f)];
@@ -882,12 +882,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _313: rs.Result<rs.u32, rs.ParseIntError> = parse$04z9euf(_49);
 			if (!_313.ok) {
 				const part10 = _313.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part10)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part10)]));
 			}
 			const _369: rs.Result<rs.u32, rs.ParseIntError> = nonzero_fromStrRadix$1y934te(_49, radix4);
 			if (_369.ok) {
 				const arg20 = _369.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u32Display(arg20, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(arg20, f)]));
 			} else {
 				const e10: rs.ParseIntError = _369.error;
 				const args177 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e10, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e10, f)];
@@ -904,7 +904,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed6: rs.Result<rs.u64, rs.ParseIntError> = _410;
 				if (parsed6.ok) {
 					const arg17 = parsed6.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u64Debug(arg17, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Debug(arg17, f)]));
 				} else {
 					const e11: rs.ParseIntError = parsed6.error;
 					const args169 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e11, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e11, f)];
@@ -914,12 +914,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _400: rs.Result<rs.u64, rs.ParseIntError> = parse$1fob3ck(_49);
 			if (!_400.ok) {
 				const part9 = _400.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part9)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part9)]));
 			}
 			const _456: rs.Result<rs.u64, rs.ParseIntError> = nonzero_fromStrRadix$11u1rq7(_49, radix5);
 			if (_456.ok) {
 				const arg18 = _456.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u64Display(arg18, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u64Display(arg18, f)]));
 			} else {
 				const e13: rs.ParseIntError = _456.error;
 				const args172 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e13, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e13, f)];
@@ -936,7 +936,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed7: rs.Result<rs.u128, rs.ParseIntError> = _497;
 				if (parsed7.ok) {
 					const arg15 = parsed7.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u128Debug(arg15, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Debug(arg15, f)]));
 				} else {
 					const e14: rs.ParseIntError = parsed7.error;
 					const args164 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e14, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e14, f)];
@@ -946,12 +946,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _487: rs.Result<rs.u128, rs.ParseIntError> = parse$0j8ztlu(_49);
 			if (!_487.ok) {
 				const part8 = _487.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part8)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part8)]));
 			}
 			const _543: rs.Result<rs.u128, rs.ParseIntError> = nonzero_fromStrRadix$1ejhcoz(_49, radix6);
 			if (_543.ok) {
 				const arg16 = _543.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u128Display(arg16, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u128Display(arg16, f)]));
 			} else {
 				const e16: rs.ParseIntError = _543.error;
 				const args167 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e16, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e16, f)];
@@ -968,7 +968,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed8: rs.Result<rs.usize, rs.ParseIntError> = _584;
 				if (parsed8.ok) {
 					const arg13 = parsed8.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.usizeDebug(arg13, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDebug(arg13, f)]));
 				} else {
 					const e17: rs.ParseIntError = parsed8.error;
 					const args159 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e17, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e17, f)];
@@ -978,12 +978,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _574: rs.Result<rs.usize, rs.ParseIntError> = parse$1acldxi(_49);
 			if (!_574.ok) {
 				const part7 = _574.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part7)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part7)]));
 			}
 			const _630: rs.Result<rs.usize, rs.ParseIntError> = nonzero_fromStrRadix$1dc88z1(_49, radix7);
 			if (_630.ok) {
 				const arg14 = _630.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.usizeDisplay(arg14, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg14, f)]));
 			} else {
 				const e19: rs.ParseIntError = _630.error;
 				const args162 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e19, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e19, f)];
@@ -1000,7 +1000,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed9: rs.Result<rs.i8, rs.ParseIntError> = _671;
 				if (parsed9.ok) {
 					const arg11 = parsed9.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i8Debug(arg11, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Debug(arg11, f)]));
 				} else {
 					const e20: rs.ParseIntError = parsed9.error;
 					const args154 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e20, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e20, f)];
@@ -1010,12 +1010,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _661: rs.Result<rs.i8, rs.ParseIntError> = parse$0jsh5gh(_49);
 			if (!_661.ok) {
 				const part6 = _661.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part6)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part6)]));
 			}
 			const _717: rs.Result<rs.i8, rs.ParseIntError> = nonzero_fromStrRadix$011a32r(_49, radix8);
 			if (_717.ok) {
 				const arg12 = _717.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i8Display(arg12, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i8Display(arg12, f)]));
 			} else {
 				const e22: rs.ParseIntError = _717.error;
 				const args157 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e22, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e22, f)];
@@ -1032,7 +1032,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed10: rs.Result<rs.i16, rs.ParseIntError> = _758;
 				if (parsed10.ok) {
 					const arg9 = parsed10.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i16Debug(arg9, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Debug(arg9, f)]));
 				} else {
 					const e23: rs.ParseIntError = parsed10.error;
 					const args149 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e23, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e23, f)];
@@ -1042,12 +1042,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _748: rs.Result<rs.i16, rs.ParseIntError> = parse$0wntisu(_49);
 			if (!_748.ok) {
 				const part5 = _748.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part5)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part5)]));
 			}
 			const _804: rs.Result<rs.i16, rs.ParseIntError> = nonzero_fromStrRadix$1u0zwz8(_49, radix9);
 			if (_804.ok) {
 				const arg10 = _804.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i16Display(arg10, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i16Display(arg10, f)]));
 			} else {
 				const e25: rs.ParseIntError = _804.error;
 				const args152 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e25, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e25, f)];
@@ -1064,7 +1064,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed11: rs.Result<rs.i32, rs.ParseIntError> = _845;
 				if (parsed11.ok) {
 					const arg7 = parsed11.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i32Debug(arg7, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Debug(arg7, f)]));
 				} else {
 					const e26: rs.ParseIntError = parsed11.error;
 					const args144 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e26, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e26, f)];
@@ -1074,12 +1074,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _835: rs.Result<rs.i32, rs.ParseIntError> = parse$18h4mna(_49);
 			if (!_835.ok) {
 				const part4 = _835.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part4)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part4)]));
 			}
 			const _891: rs.Result<rs.i32, rs.ParseIntError> = nonzero_fromStrRadix$1m6epfo(_49, radix10);
 			if (_891.ok) {
 				const arg8 = _891.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i32Display(arg8, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i32Display(arg8, f)]));
 			} else {
 				const e28: rs.ParseIntError = _891.error;
 				const args147 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e28, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e28, f)];
@@ -1096,7 +1096,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed12: rs.Result<rs.i64, rs.ParseIntError> = _932;
 				if (parsed12.ok) {
 					const arg5 = parsed12.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i64Debug(arg5, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Debug(arg5, f)]));
 				} else {
 					const e29: rs.ParseIntError = parsed12.error;
 					const args139 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e29, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e29, f)];
@@ -1106,12 +1106,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _922: rs.Result<rs.i64, rs.ParseIntError> = parse$1gh8p0t(_49);
 			if (!_922.ok) {
 				const part3 = _922.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part3)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part3)]));
 			}
 			const _978: rs.Result<rs.i64, rs.ParseIntError> = nonzero_fromStrRadix$15i0o2z(_49, radix11);
 			if (_978.ok) {
 				const arg6 = _978.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i64Display(arg6, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i64Display(arg6, f)]));
 			} else {
 				const e31: rs.ParseIntError = _978.error;
 				const args142 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e31, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e31, f)];
@@ -1128,7 +1128,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed13: rs.Result<rs.i128, rs.ParseIntError> = _1019;
 				if (parsed13.ok) {
 					const arg3 = parsed13.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i128Debug(arg3, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Debug(arg3, f)]));
 				} else {
 					const e32: rs.ParseIntError = parsed13.error;
 					const args134 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e32, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e32, f)];
@@ -1138,12 +1138,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _1009: rs.Result<rs.i128, rs.ParseIntError> = parse$1d17hvd(_49);
 			if (!_1009.ok) {
 				const part2 = _1009.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part2)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part2)]));
 			}
 			const _1065: rs.Result<rs.i128, rs.ParseIntError> = nonzero_fromStrRadix$09x3avk(_49, radix12);
 			if (_1065.ok) {
 				const arg4 = _1065.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.i128Display(arg4, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.i128Display(arg4, f)]));
 			} else {
 				const e34: rs.ParseIntError = _1065.error;
 				const args137 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e34, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e34, f)];
@@ -1160,7 +1160,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const parsed14: rs.Result<rs.isize, rs.ParseIntError> = _1106;
 				if (parsed14.ok) {
 					const arg = parsed14.value;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.isizeDebug(arg, f)][0]]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDebug(arg, f)]));
 				} else {
 					const e35: rs.ParseIntError = parsed14.error;
 					const args129 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e35, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e35, f)];
@@ -1170,12 +1170,12 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _1096: rs.Result<rs.isize, rs.ParseIntError> = parse$09069e1(_49);
 			if (!_1096.ok) {
 				const part = _1096.error.kind;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtWriteStr(f, part)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, part)]));
 			}
 			const _1152: rs.Result<rs.isize, rs.ParseIntError> = nonzero_fromStrRadix$1jg523s(_49, radix13);
 			if (_1152.ok) {
 				const arg2 = _1152.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.isizeDisplay(arg2, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.isizeDisplay(arg2, f)]));
 			} else {
 				const e37: rs.ParseIntError = _1152.error;
 				const args132 = [(f: rs.Formatter) => rs.fmtParseIntErrorDisplay(e37, f), (f: rs.Formatter) => rs.fmtParseIntErrorDebug(e37, f)];
@@ -1247,7 +1247,7 @@ export function iters(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _179: rs.Iter<string> = rs.strSplit(s, "/");
 		t2 = rs.stringExtend(t2, _179);
 		const _184: rs.Iter<string> = rs.iterMap(rs.iterSlice(parts.items), (p: string): string => {
-			return rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, p)][0], "é"]);
+			return rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, p), "é"]);
 		});
 		t2 = rs.stringExtend(t2, _184);
 		const _190: rs.Iter<string> = rs.iterRev(rs.iterSlice(parts.items));
@@ -1890,7 +1890,7 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}), (e: rs.Iter<rs.char>): string => {
 			return rs.fmtToString((f: rs.Formatter) => rs.fmtStrEscapeDisplay(e, f));
 		}), undefined, 12, true);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.fmtStr)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.fmtStr)]));
 	} else if (_11 === 3) {
 		escaped$str_EscapeUnicode(out, rs.strEscapeUnicode(s));
 		const part = rs.iterToVec(rs.iterMap(rs.iterMap(rs.iterSlice(words.items), (a04: string): rs.Iter<rs.char> => {
@@ -1898,7 +1898,7 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		}), (a05: rs.Iter<rs.char>): rs.usize => {
 			return rs.iterCount(a05);
 		}), undefined, 4, true);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part.items, f, rs.usizeDebug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part.items, f, rs.usizeDebug)]));
 	} else {
 		const it: rs.Iter<rs.u16> = rs.strEncodeUtf16(s);
 		const args13 = [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "EncodeUtf16"))];
@@ -1924,7 +1924,7 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 export function putUtf16(out: rs.ByteVec, r: rs.Result<string, rs.FromUtf16Error>): void {
 	if (r.ok) {
 		const part = r.value;
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtStr(part, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtStr(part, f)]));
 	} else {
 		const e: rs.FromUtf16Error = r.error;
 		const _24: rs.usize = rs.stringLen(rs.fmtToString((f: rs.Formatter) => rs.fmtFromUtf16ErrorDisplay(e, f)));
@@ -1957,9 +1957,9 @@ export function utf16(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	putUtf16(out, rs.stringFromUtf16(rs.sliceFrom(units.items)));
 	const part3 = rs.stringFromUtf16Lossy(rs.sliceFrom(units.items));
-	put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtStr(part3, f)][0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtStr(part3, f)]));
 	const part4 = rs.stringFromUtf16(rs.sliceFrom(units.items));
-	put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(part4, f, rs.fmtStr, rs.fmtFromUtf16ErrorDebug)][0]]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part4, f, rs.fmtStr, rs.fmtFromUtf16ErrorDebug)]));
 	const le: rs.ByteVec = rs.iterToByteVec(rs.iterFlatMap(rs.iterSlice(units.items), (u: rs.u16): Uint8Array => {
 		return rs.u16ToBeBytes(u).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);

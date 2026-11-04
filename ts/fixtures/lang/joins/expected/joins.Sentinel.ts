@@ -9,7 +9,7 @@ export interface Sentinel {
 
 export function clone$Clone(self: Sentinel): Sentinel {
 	const arg = self._0;
-	rs.panicFmt(["clone sentinel ", [(f: rs.Formatter) => rs.u8Display(arg, f)][0]]);
+	rs.panicFmt(["clone sentinel ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 //# sourceMappingURL=joins.Sentinel.ts.map

@@ -80,7 +80,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const part2 = rs.iterToVec(rs.iterMap(rs.iterSlice(counts), (c: rs.Atomic<rs.u64>): rs.u64 => {
 				return rs.atomicLoad(c, 0);
 			}), undefined, 8, true);
-			s = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u64Debug)][0]]);
+			s = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u64Debug)]);
 		} else if (_10 === 3) {
 			const boxed: Made.Made = Made.default$Default();
 			const shared: rs.Arc<Made.Made> = made$sync_Arc_defaults_Made();
@@ -95,7 +95,7 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const part = option_unwrapOrDefault$0ddgm4x(then$0t24p36(rs.u8Rem(op, 3) === 0, (): [rs.u64 | undefined, Made.Made] => {
 				return [op as rs.u64, Made.default$Default()] as [rs.u64 | undefined, Made.Made];
 			}));
-			s = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part[0], f, rs.u64Debug), (f: rs.Formatter) => Made.fmt$fmt_Debug(part[1], f)], f)][0]]);
+			s = rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(part[0], f, rs.u64Debug), (f: rs.Formatter) => Made.fmt$fmt_Debug(part[1], f)], f)]);
 		} else if (_10 === 5) {
 			const empty: rs.Weak<Made.Made> = new rs.Weak();
 			const default_: rs.Weak<Made.Made> = made$sync_Weak_defaults_Made();

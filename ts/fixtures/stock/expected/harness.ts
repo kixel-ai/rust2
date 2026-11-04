@@ -59,7 +59,7 @@ export function op(name: string): rs.u8 {
 		return _22[0] === name;
 	});
 	if (_2 === undefined) {
-		rs.panicFmt(["no case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0]]);
+		rs.panicFmt(["no case ", (f: rs.Formatter) => rs.fmtPad(f, name)]);
 	} else {
 		return _2 & 0xff;
 	}
@@ -144,7 +144,7 @@ export function made(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const copied: rs.ByteSlice = rs.bytesCopyFromSlice(rs.byteVecSlice(source));
 		rs.byteVecClear(source);
 		rs.byteVecPush(source, 0);
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.bytesDebug(copied, f)][0]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(copied, f)])));
 		const iter: rs.Iter<rs.ByteSlice> = rs.iterSlice(made, rs.bytesDrop);
 		while (true) {
 			const _44: rs.ByteSlice | rs.Done = iter.next();

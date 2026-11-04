@@ -762,11 +762,11 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.refMutRelease(bytes2);
 			const pair: rs.RefCell<[rs.u8, string]> = new rs.RefCell([op, "pair"] as [rs.u8, string]);
 			const _256: rs.RefCell<[rs.u8, string]> = rs.refCellBorrow(pair);
-			const _252: string = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_256.value[0], f), (f: rs.Formatter) => rs.fmtStr(_256.value[1], f)], f)][0], " "]);
+			const _252: string = rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_256.value[0], f), (f: rs.Formatter) => rs.fmtStr(_256.value[1], f)], f), " "]);
 			rs.refRelease(_256);
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_252));
 			const _270: rs.RefCell<[rs.u8, string]> = rs.refCellBorrowMut(pair);
-			const _266: string = rs.fmtFormat([rs.fmtSpec({ alternate: true }, [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_270.value[0], f), (f: rs.Formatter) => rs.fmtStr(_270.value[1], f)], f)][0])]);
+			const _266: string = rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_270.value[0], f), (f: rs.Formatter) => rs.fmtStr(_270.value[1], f)], f))]);
 			rs.refMutRelease(_270);
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_266));
 			const _277: rs.RefCell<[rs.u8, string]> = rs.refCellBorrow(pair);
@@ -776,7 +776,7 @@ export function tries(data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				return rs.Ok(p7[1]);
 			})(_277.value));
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried4, f, (value: rs.RefCell<string>, f: rs.Formatter) => rs.fmtStr(value.value, f), (value: [rs.RefCell<[rs.u8, string]>, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0].value[0], f), (f: rs.Formatter) => rs.fmtStr(value[0].value[1], f)], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))][0]])));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried4, f, (value: rs.RefCell<string>, f: rs.Formatter) => rs.fmtStr(value.value, f), (value: [rs.RefCell<[rs.u8, string]>, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0].value[0], f), (f: rs.Formatter) => rs.fmtStr(value[0].value[1], f)], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f))])));
 			drop$Result_cell_Ref_ref_str_tuple2_cell_Ref_tuple2_u8_ref_str_u8(tried4);
 		} else {
 			const _291: rs.u8 = op >> 4;
@@ -1091,7 +1091,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const args40 = [(f: rs.Formatter) => rs.refCellDebug(number, f, rs.u32Debug)];
 			const free: string = rs.fmtFormat([args40[0], " ", rs.fmtSpec({ alternate: true }, args40[0]), " ", rs.fmtSpec({ align: ">", width: 4 }, args40[0])]);
 			const shared: rs.RefCell<rs.u32> = rs.refCellBorrow(number);
-			const read: string = rs.fmtFormat([[(f: rs.Formatter) => rs.refCellDebug(number, f, rs.u32Debug)][0]]);
+			const read: string = rs.fmtFormat([(f: rs.Formatter) => rs.refCellDebug(number, f, rs.u32Debug)]);
 			rs.refRelease(shared);
 			const _held: rs.RefCell<rs.u32> = rs.refCellBorrowMut(number);
 			const dynamic: rs.Fmt = (f: rs.Formatter) => rs.refCellDebug(number, f, rs.u32Debug);

@@ -65,7 +65,7 @@ export function unbox(self: Guard, event: string): rs.u32 {
 
 export function drop$ops_Drop(self: Guard): void {
 	const arg = self.id;
-	const _4: string = rs.fmtFormat(["g", [(f: rs.Formatter) => rs.u32Display(arg, f)][0], " drop"]);
+	const _4: string = rs.fmtFormat(["g", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 

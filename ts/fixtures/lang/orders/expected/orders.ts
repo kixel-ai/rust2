@@ -383,7 +383,7 @@ export function values(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.heapPush(bytes, data.length & 0xff, rs.le);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(Uint8Array.from(bytes.items)))), undefined, true);
 	rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.byteVecFromVec(rs.heapIntoSortedVec(rs.heapClone(bytes, undefined), rs.le, rs.ge, rs.lt))), undefined, true);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(bytes.items, f, rs.u8Debug)][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(bytes.items, f, rs.u8Debug)])), undefined, true);
 	rs.iterExtendBytes(out, rs.byteVecIntoIter(rs.byteVecFromVec(bytes)), undefined, true);
 	const least: rs.BinaryHeap<rs.u8> = rs.heapFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 => {
 		return _2;

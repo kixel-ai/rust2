@@ -56,7 +56,7 @@ function new_(s: string, id: rs.u8): Named {
 	if (!(trimmed.length === 0)) {
 		name = new rs.Borrowed(trimmed);
 	} else {
-		name = rs.fmtFormat(["#", [(f: rs.Formatter) => rs.u8Display(id, f)][0]]);
+		name = rs.fmtFormat(["#", (f: rs.Formatter) => rs.u8Display(id, f)]);
 	}
 	return { name, id };
 }

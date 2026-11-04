@@ -1201,14 +1201,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 					return done(Expr::undefined(), false);
 				};
-				let values = self.operand(&args[1].node, span, out);
+				// A reference to the arguments array, which is a slice of all of it.
+				let values = library::slice_items(self.operand(&args[1].node, span, out));
 				// The arguments array made once in place: each piece its function.
 				let made: Option<Vec<Expr>> = match &values {
 					Expr::Ident(name) => self.local_named(name).and_then(|l| self.var_parts.get(&l).cloned()),
 					_ => None,
 				};
-				// A reference to the array, which is a slice of it.
-				let values = self.path(library::slice_items(values), "args", out);
+				let values = self.path(values, "args", out);
 				let pieces = match fmt::decode(&template) {
 					Ok(pieces) => pieces,
 					Err(msg) => {

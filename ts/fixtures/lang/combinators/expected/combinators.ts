@@ -224,11 +224,11 @@ export function panics(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8,
 		if (!(x === limit)) {
 			return b;
 		}
-		rs.panicFmt(["closure saw ", [(f: rs.Formatter) => rs.u8Display(x, f)][0]]);
+		rs.panicFmt(["closure saw ", (f: rs.Formatter) => rs.u8Display(x, f)]);
 	}), 1));
 	rs.byteVecPush(out, result_unwrapOrElse$1iet7cd(option_okOr$1j8owgb(b, limit), (e: rs.u8): rs.u8 => {
 		if (rs.u8Rem(e, 4) === 0) {
-			rs.panicFmt(["error ", [(f: rs.Formatter) => rs.u8Display(e, f)][0]]);
+			rs.panicFmt(["error ", (f: rs.Formatter) => rs.u8Display(e, f)]);
 		} else {
 			return e;
 		}

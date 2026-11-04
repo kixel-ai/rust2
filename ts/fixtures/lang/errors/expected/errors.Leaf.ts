@@ -26,7 +26,7 @@ export class Leaf {
 
 export function fmt$fmt_Display(self: Leaf, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self.code;
-	return rs.fmtWriteFmt(f, ["leaf ", [(f: rs.Formatter) => rs.u8Display(arg, f)][0]]);
+	return rs.fmtWriteFmt(f, ["leaf ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 export function drop$ops_Drop(self: Leaf): void {

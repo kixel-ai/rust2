@@ -26,7 +26,7 @@ export class Ranked {
 
 export function drop$ops_Drop(self: Ranked): void {
 	const arg = self.id;
-	const _4: string = rs.fmtFormat(["k", [(f: rs.Formatter) => rs.u32Display(arg, f)][0], " drop"]);
+	const _4: string = rs.fmtFormat(["k", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 

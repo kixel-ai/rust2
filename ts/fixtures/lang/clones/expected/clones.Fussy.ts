@@ -12,7 +12,7 @@ export function clone$Clone(self: Fussy): Fussy {
 		return { _0: self._0 };
 	}
 	const arg = self._0;
-	rs.panicFmt(["cloning ", [(f: rs.Formatter) => rs.u8Display(arg, f)][0]]);
+	rs.panicFmt(["cloning ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 //# sourceMappingURL=clones.Fussy.ts.map

@@ -72,9 +72,9 @@ export function locks(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _107: rs.Mutex<rs.u32> = rs.mutexLock(lock._0);
 			_107.value = rs.u32Add(_107.value, _104);
 			rs.mutexUnlock(_107);
-			const free: string = rs.fmtFormat([[(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)][0]]);
+			const free: string = rs.fmtFormat([(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)]);
 			const guard: rs.Result<rs.Mutex<rs.u32>, rs.TryLockError<rs.Mutex<rs.u32>>> = rs.mutexTryLock(lock._0);
-			const held3: string = rs.fmtFormat([[(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)][0]]);
+			const held3: string = rs.fmtFormat([(f: rs.Formatter) => Lock.fmt$fmt_Debug(lock, f)]);
 			const _139: boolean = guard.ok;
 			const args9 = [(f: rs.Formatter) => rs.fmtPad(f, free), (f: rs.Formatter) => rs.fmtPad(f, held3), (f: rs.Formatter) => rs.fmtBool(_139, f)];
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2]])));
@@ -625,7 +625,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n2: rs.Mutex<rs.u8> = rs.mutexMap(n, ((n3: rs.Place<rs.u8>): rs.Place<rs.u8> => {
 		return n3;
 	})(rs.valuePlace(n)));
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat(["[", rs.fmtSpec({ align: "<", width: 3 }, [(f: rs.Formatter) => rs.u8Display(n2.value, f)][0]), "]"])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat(["[", rs.fmtSpec({ align: "<", width: 3 }, (f: rs.Formatter) => rs.u8Display(n2.value, f)), "]"])));
 	rs.mutexUnlock(n2);
 	const _58: rs.Mutex<[rs.u8, string]> = rs.mutexLock(mutex);
 	const text2: rs.Mutex<string> = rs.mutexMap(_58, ((t2: [rs.u8, string]): rs.Place<string> => {
@@ -635,7 +635,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args24[0], " ", args24[1], " [", rs.fmtSpec({ align: "^", width: 9 }, args24[0]), "]"])));
 	rs.mutexUnlock(text2);
 	const read: rs.RefCell<[rs.ByteVec, string]> = rs.rwLockRead(lock);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(read.value[0]), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtStr(read.value[1], f)], f)][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(read.value[0]), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtStr(read.value[1], f)], f)])));
 	const bytes: rs.RefCell<rs.ByteVec> = rs.refMap(read, ((t3: [rs.ByteVec, string]): rs.ByteVec => {
 		return t3[0];
 	})(read.value));
@@ -653,7 +653,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.refRelease(first);
 	rs.refRelease(bytes);
 	const write: rs.RefCell<[rs.ByteVec, string]> = rs.rwLockWrite(lock);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(write.value[0]), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtStr(write.value[1], f)], f)][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(write.value[0]), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtStr(write.value[1], f)], f)])));
 	const text4: rs.RefCell<string> = rs.refMutMap(write, ((t6: [rs.ByteVec, string]): rs.Place<string> => {
 		return rs.place(() => t6[1], (value3) => t6[1] = value3);
 	})(write.value));
@@ -664,7 +664,7 @@ export function printed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const text5: rs.RefCell<string> = rs.refMutMap(_154, ((t7: rs.Place<string>): rs.Place<string> => {
 		return t7;
 	})(rs.valuePlace(_154)));
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([rs.fmtSpec({ align: ">", width: 12 }, [(f: rs.Formatter) => rs.fmtPad(f, text5.value)][0])])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([rs.fmtSpec({ align: ">", width: 12 }, (f: rs.Formatter) => rs.fmtPad(f, text5.value))])));
 	rs.refMutRelease(text5);
 }
 
@@ -882,7 +882,7 @@ export function shown(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const args23 = [(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
 			const free2: string = rs.fmtFormat([args23[0], " ", rs.fmtSpec({ alternate: true }, args23[0])]);
 			const read: rs.RefCell<rs.Vec<rs.Mutex<rs.char>>> = rs.rwLockRead(lock);
-			const shared: string = rs.fmtFormat([[(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))][0]]);
+			const shared: string = rs.fmtFormat([(f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))]);
 			const _85: rs.Vec<rs.Mutex<rs.char>> = read.value;
 			const _held2: rs.Mutex<rs.char> = rs.mutexLock(_85.items[rs.idx(_85.items, 0)]);
 			const args25 = [(f: rs.Formatter) => rs.fmtPad(f, free2), (f: rs.Formatter) => rs.fmtPad(f, shared), (f: rs.Formatter) => rs.rwLockDebug(lock, f, (value: rs.Vec<rs.Mutex<rs.char>>, f: rs.Formatter) => rs.fmtList(value.items, f, (value: rs.Mutex<rs.char>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtCharDebug)))];
@@ -912,7 +912,7 @@ export function shown(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 		} else {
 			const part = new rs.RefCell(new rs.Mutex("s"));
-			text = rs.fmtFormat([[(f: rs.Formatter) => rs.rwLockDebug(part, f, (value: rs.Mutex<string>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtStr))][0]]);
+			text = rs.fmtFormat([(f: rs.Formatter) => rs.rwLockDebug(part, f, (value: rs.Mutex<string>, f: rs.Formatter) => rs.mutexDebug(value, f, rs.fmtStr))]);
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(text));
 	}

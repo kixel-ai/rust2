@@ -261,7 +261,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(collected2, cloned2) ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(collected2, cloned2) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_slice_u16(collected2), hash$slice_u16(collected2)) ? 1 : 0);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)]));
 		const v3: rs.Vec<rs.u16> = rs.vecFrom(rs.sliceItems(fromVec2));
 		v3.items.push(5);
 		wides(rs.sliceFrom(v3.items), out);

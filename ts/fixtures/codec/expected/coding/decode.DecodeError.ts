@@ -17,7 +17,7 @@ export function fmt$fmt_Display(self: DecodeError, __formatter: rs.Formatter): r
 	}
 	if (self.tag === "InvalidMessage") {
 		const arg = self._0;
-		return rs.fmtWriteFmt(__formatter, ["invalid message: ", [(f: rs.Formatter) => rs.u64Debug(arg, f)][0]]);
+		return rs.fmtWriteFmt(__formatter, ["invalid message: ", (f: rs.Formatter) => rs.u64Debug(arg, f)]);
 	}
 	if (self.tag === "InvalidSubscribeLocation") {
 		return rs.fmtWriteStr(__formatter, "invalid subscribe location");

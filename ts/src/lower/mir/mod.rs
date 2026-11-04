@@ -3643,7 +3643,24 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		Expr::Index(base, index) => subst(base, name, value) || subst(index, name, value),
+		Expr::Index(base, index) => {
+			if !(subst(base, name, value) || subst(index, name, value)) {
+				return false;
+			}
+			// An element of an array made in place, as `format_args!`'s are, of items that
+			// do nothing as they are made.
+			if let Expr::Index(base, index) = &*e
+				&& let (Expr::Array(items), Expr::Lit(at)) = (base.unlocated(), index.unlocated())
+				&& let Ok(at) = at.parse::<usize>()
+				&& at < items.len()
+				&& items
+					.iter()
+					.all(|e| e.is_path() || matches!(e.unlocated(), Expr::Arrow(..) | Expr::Lambda(..)))
+			{
+				*e = items[at].clone();
+			}
+			true
+		}
 		Expr::Call(f, args) | Expr::New(f, args) => {
 			if !(subst(f, name, value) || args.iter_mut().any(|e| subst(e, name, value))) {
 				return false;

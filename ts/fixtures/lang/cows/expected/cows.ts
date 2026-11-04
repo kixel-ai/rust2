@@ -150,7 +150,7 @@ export function cows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const args9 = [(f: rs.Formatter) => rs.fmtPad(f, rs.strCowStr(c4)), (f: rs.Formatter) => rs.fmtStr(rs.strCowStr(c4), f)];
 		put(out, rs.fmtFormat(["[", args9[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args9[0]), "|", rs.fmtSpec({ align: "<", width: 5 }, args9[0]), "|", rs.fmtSpec({ align: "^", width: 7 }, args9[0]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 3 }, args9[0]), "|", args9[1], "]"]));
 		const part2 = cow(first, owned);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.StrCow, f: rs.Formatter) => rs.fmtStr(rs.strCowStr(value), f))][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.StrCow, f: rs.Formatter) => rs.fmtStr(rs.strCowStr(value), f))]));
 	}
 }
 
@@ -461,7 +461,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		putWords(out, rs.cowSlice(c));
 		putWords(out, rs.cowSlice(c));
 		putWords(out, rs.cowSlice(rs.cowClone(c)));
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(c)), f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(c)), f, rs.u16Debug)]));
 		putWords(out, rs.sliceFrom(rs.cowIntoOwned(c).items));
 		putWords(out, rs.cowSlice(new rs.Vec()));
 		const iter: rs.Iter<rs.Cow<rs.u16>> = rs.iterSlice([new rs.Borrowed(half), rs.vecFrom(v.items.slice()), new rs.Borrowed(rs.sliceFrom(v.items)), new rs.Borrowed(rs.sliceFrom([3, 1, 4])), rs.iterToVec(rs.iterRev(rs.iterSlice(v.items)), undefined, 2, true)]);
@@ -639,7 +639,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _435: Run.Run = { words: cowOf(rs.sliceRange(rs.sliceFrom(v.items), 0, part3), !owned) };
 		rs.byteVecPush(out, rs.hashContains(runs, _435) ? 1 : 0);
 		const part4 = Run.default$Default();
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => Run.fmt$fmt_Debug(part4, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => Run.fmt$fmt_Debug(part4, f)]));
 	} else {
 		const log: rs.Cell<rs.u32> = new rs.Cell(0);
 		const items: rs.Vec<Tally.Tally> = rs.iterToVec(rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): Tally.Tally => {

@@ -1105,7 +1105,7 @@ export function dequeRanges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		it = rs.dequeRange(q, new rs.Range(a, a));
 	}
 	rs.byteVecPush(out, it.len() & 0xff);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")])));
 	let i2: rs.i32 = 0;
 	while (true) {
 		if ((rs.u8Shr(kind, rs.i32Add(5, rs.i32Rem(i2, 3))) & 1) === 1) {
@@ -1115,7 +1115,7 @@ export function dequeRanges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		}
 		if (item !== undefined) {
 			rs.byteVecPush(out, item);
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")][0]])));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")])));
 			if (i2 === 1) {
 				rs.iterExtendBytes(out, rs.iterRev(it.clone()), undefined, true);
 			}
@@ -1483,13 +1483,13 @@ export function optional$Option_String_collections_HashMap_u8_Option_String(map:
 		if (_14 === 0) {
 			const _24: string | undefined = value(b);
 			const part3 = insert$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k, _24);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
 		} else {
 			const _49: rs.Place<string | undefined> | undefined = getMut$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
 			if (_49 === undefined) {
@@ -1498,13 +1498,13 @@ export function optional$Option_String_collections_HashMap_u8_Option_String(map:
 				const v: rs.Place<string | undefined> = _49;
 				const _53: string | undefined = value(rs.u8Div(b, 2));
 				v.v = _53;
-				read = rs.fmtFormat(["=", [(f: rs.Formatter) => rs.fmtOption(v.v, f, rs.fmtStr)][0], " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.fmtStr), " "]);
 			}
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
 	}
 	const part4 = sorted$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, string | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.fmtStr)], f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, string | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.fmtStr)], f))])));
 }
 
 /**
@@ -1519,13 +1519,13 @@ export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTr
 		if (_14 === 0) {
 			const _24: rs.u8 | undefined = value(b);
 			const part3 = insert$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map, k, _24);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else {
 			const _49: rs.Place<rs.u8 | undefined> | undefined = getMut$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map, k);
 			if (_49 === undefined) {
@@ -1534,13 +1534,13 @@ export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTr
 				const v: rs.Place<rs.u8 | undefined> = _49;
 				const _53: rs.u8 | undefined = value(rs.u8Div(b, 2));
 				v.v = _53;
-				read = rs.fmtFormat(["=", [(f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug)][0], " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug), " "]);
 			}
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
 	}
 	const part4 = sorted$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
 }
 
 /**
@@ -1555,13 +1555,13 @@ export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.Hash
 		if (_14 === 0) {
 			const _24: rs.u8 | undefined = value(b);
 			const part3 = insert$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map, k, _24);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), " "]);
 		} else {
 			const _49: rs.Place<rs.u8 | undefined> | undefined = getMut$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map, k);
 			if (_49 === undefined) {
@@ -1570,13 +1570,13 @@ export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.Hash
 				const v: rs.Place<rs.u8 | undefined> = _49;
 				const _53: rs.u8 | undefined = value(rs.u8Div(b, 2));
 				v.v = _53;
-				read = rs.fmtFormat(["=", [(f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug)][0], " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug), " "]);
 			}
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
 	}
 	const part4 = sorted$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
 }
 
 /**
@@ -1591,13 +1591,13 @@ export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u
 		if (_14 === 0) {
 			value(b);
 			const part3 = insert$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map, k, undefined);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtUnit, rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, rs.fmtUnit, rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, rs.fmtUnit, rs.None), " "]);
 		} else {
 			const _49: rs.Place<undefined> | undefined = getMut$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map, k);
 			if (_49 === undefined) {
@@ -1606,13 +1606,13 @@ export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u
 				const v: rs.Place<undefined> = _49;
 				value(rs.u8Div(b, 2));
 				v.v = undefined;
-				read = rs.fmtFormat(["=", [(f: rs.Formatter) => rs.fmtUnit(v.v, f)][0], " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtUnit(v.v, f), " "]);
 			}
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
 	}
 	const part4 = sorted$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))])));
 }
 
 /**
@@ -1627,13 +1627,13 @@ export function optional$unit_collections_HashMap_u8_unit(map: rs.HashMap<rs.u8,
 		if (_14 === 0) {
 			value(b);
 			const part3 = insert$collections_OptionMap_unit_collections_HashMap_u8_unit(map, k, undefined);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtUnit, rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_unit_collections_HashMap_u8_unit(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, rs.fmtUnit, rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_unit_collections_HashMap_u8_unit(map, k);
-			read = rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, rs.fmtUnit, rs.None)][0], " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, rs.fmtUnit, rs.None), " "]);
 		} else {
 			const _49: rs.Place<undefined> | undefined = getMut$collections_OptionMap_unit_collections_HashMap_u8_unit(map, k);
 			if (_49 === undefined) {
@@ -1642,13 +1642,13 @@ export function optional$unit_collections_HashMap_u8_unit(map: rs.HashMap<rs.u8,
 				const v: rs.Place<undefined> = _49;
 				value(rs.u8Div(b, 2));
 				v.v = undefined;
-				read = rs.fmtFormat(["=", [(f: rs.Formatter) => rs.fmtUnit(v.v, f)][0], " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtUnit(v.v, f), " "]);
 			}
 		}
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
 	}
 	const part4 = sorted$collections_OptionMap_unit_collections_HashMap_u8_unit(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))][0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))])));
 }
 
 /** `b`, unless a multiple of 3. */
@@ -1710,7 +1710,7 @@ export function optionals(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		}
 		const all: rs.Vec<[[rs.u8, boolean], rs.u8 | undefined]> = rs.iterToVec(rs.hashIter(map), "next", 4);
 		rs.sliceSort(rs.sliceFrom(all.items), rs.cmpLt(rs.cmpTuple<[[rs.u8, boolean], rs.u8 | undefined], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, boolean], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmpOption(rs.cmp)])), 4, true);
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [[rs.u8, boolean], rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0][0], f), (f: rs.Formatter) => rs.fmtBool(value[0][1], f)], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))][0]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [[rs.u8, boolean], rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0][0], f), (f: rs.Formatter) => rs.fmtBool(value[0][1], f)], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
 	}
 }
 
@@ -5873,23 +5873,23 @@ export function btreeExtracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const it2: rs.Iter<rs.u16> = rs.btreeExtractKeysIf(set, range, (k6: rs.u16): boolean => {
 			return rs.u16Rem(k6, every) !== 0;
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug)]));
 		const _174: rs.Iter<rs.u16> = it2;
 		const _176: rs.usize = limit as rs.usize;
 		const taken3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterTake(rs.iterBorrow(_174), _176), "next", 2);
 		const _185: [rs.usize, rs.usize | undefined] = it2.sizeHint();
 		const args22 = [(f: rs.Formatter) => rs.fmtList(taken3.items, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_185[0], f), (f: rs.Formatter) => rs.fmtOption(_185[1], f, rs.usizeDebug)], f)];
 		put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2]]));
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtSet(rs.btreeKeys(set), f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtSet(rs.btreeKeys(set), f, rs.u16Debug)]));
 		const part3 = rs.btreeExtractKeysIf(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, range, (_212: rs.u16): boolean => {
 			return true;
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtBTreeExtractIf(part3, f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part3, f, rs.u16Debug)]));
 		rs.btreeClear(set);
 		const part4 = rs.btreeExtractKeysIf(set, undefined, (_216: rs.u16): boolean => {
 			return true;
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtBTreeExtractIf(part4, f, rs.u16Debug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part4, f, rs.u16Debug)]));
 	} else {
 		const log: rs.RefCell<rs.Vec<rs.u16>> = new rs.RefCell(new rs.Vec());
 		const _243: rs.Iter<[Logged.Logged, Logged.Logged]> = rs.iterMap(new rs.Range(0, rs.u16Div(n, 2)), (k: rs.u16): [Logged.Logged, Logged.Logged] => {

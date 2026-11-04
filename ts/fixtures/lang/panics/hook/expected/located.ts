@@ -72,7 +72,7 @@ export function generic$u8(t: rs.u8): rs.Location {
 /** Each location's `Display`, a line each. */
 export function lines(out: rs.ByteVec, at: rs.Slice<rs.Location>): void {
 	for (const _5 of rs.sliceItems(at)) {
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtLocationDisplay(_5, f)][0], "\n"])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtLocationDisplay(_5, f), "\n"])));
 	}
 }
 
@@ -217,7 +217,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 
 export function check$panicked(ok: boolean, caller: rs.Location): void {
 	if (!ok) {
-		rs.panicFmt(["failed at ", [(f: rs.Formatter) => rs.fmtLocationDisplay(caller, f)][0]], caller);
+		rs.panicFmt(["failed at ", (f: rs.Formatter) => rs.fmtLocationDisplay(caller, f)], caller);
 	}
 }
 

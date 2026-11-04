@@ -501,7 +501,7 @@ export function writes(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyCell<Dropped.Dropped>, out: rs.ByteVec): void {
 	const _18: (a0: rs.LazyCell<Dropped.Dropped>) => string = (l: rs.LazyCell<Dropped.Dropped>): string => {
-		return rs.fmtFormat([[(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f))][0], "|"]);
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
 	};
 	let _103: boolean = false;
 	let a: rs.LazyCell<Dropped.Dropped> = make(1);
@@ -567,7 +567,7 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 
 export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyLock<Dropped.Dropped>, out: rs.ByteVec): void {
 	const _18: (a0: rs.LazyLock<Dropped.Dropped>) => string = (l: rs.LazyLock<Dropped.Dropped>): string => {
-		return rs.fmtFormat([[(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f))][0], "|"]);
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
 	};
 	let _103: boolean = false;
 	let a: rs.LazyLock<Dropped.Dropped> = make(1);

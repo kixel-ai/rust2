@@ -55,7 +55,7 @@ export function drop$ops_Drop(self: Noisy): void {
 
 export function fmt$fmt_Debug(self: Noisy, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self._0;
-	return rs.fmtWriteFmt(f, ["N", [(f: rs.Formatter) => rs.u8Display(arg, f)][0]]);
+	return rs.fmtWriteFmt(f, ["N", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 }
 
 //# sourceMappingURL=dyns.Noisy.ts.map

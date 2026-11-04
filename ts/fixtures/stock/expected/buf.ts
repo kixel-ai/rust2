@@ -3216,7 +3216,7 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 				break b1;
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => UninitSlice.fmt$fmt_Debug(chunk, f)][0]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => UninitSlice.fmt$fmt_Debug(chunk, f)])));
 		return 0;
 	}
 	return k;

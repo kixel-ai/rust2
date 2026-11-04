@@ -7727,7 +7727,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part18 = at(4);
 		const _200: Logged.Logged[] = [_201, logged(part18)];
 		const part19 = at(5);
-		const pair: Pair.Pair = new Pair.Pair(_200, rs.fmtFormat([[(f: rs.Formatter) => rs.u8Display(part19, f)][0]]));
+		const pair: Pair.Pair = new Pair.Pair(_200, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(part19, f)]));
 		const other: Pair.Pair = Pair.clone$Clone(pair);
 		flush(log.value, out);
 		const part20 = rs.sliceFrom(other.left);

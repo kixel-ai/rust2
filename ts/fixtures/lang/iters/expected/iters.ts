@@ -6761,7 +6761,7 @@ export function bounded$char(table: rs.Slice<rs.char>, at: rs.usize[], out: rs.B
 	const to: { end: rs.char } = _137[1];
 	const through: { end: rs.char; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.char>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.char>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.char>, { tag: "Unbounded" } as rs.RangeBound<rs.char>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.char>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.char>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.char>, f: rs.Formatter) => rs.fmtBound(value, f, rs.fmtCharDebug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.char>, f: rs.Formatter) => rs.fmtBound(value, f, rs.fmtCharDebug))])), undefined, true);
 	return [a, b] as [rs.char, rs.char];
 }
 
@@ -6830,7 +6830,7 @@ export function bounded$f32(table: rs.Slice<rs.f32>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.f32 } = _137[1];
 	const through: { end: rs.f32; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f32>, { tag: "Unbounded" } as rs.RangeBound<rs.f32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f32>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f32Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f32Debug))])), undefined, true);
 	return [a, b] as [rs.f32, rs.f32];
 }
 
@@ -6899,7 +6899,7 @@ export function bounded$f64(table: rs.Slice<rs.f64>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.f64 } = _137[1];
 	const through: { end: rs.f64; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.f64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.f64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.f64>, { tag: "Unbounded" } as rs.RangeBound<rs.f64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.f64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.f64>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f64Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.f64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.f64Debug))])), undefined, true);
 	return [a, b] as [rs.f64, rs.f64];
 }
 
@@ -6968,7 +6968,7 @@ export function bounded$i128(table: rs.Slice<rs.i128>, at: rs.usize[], out: rs.B
 	const to: { end: rs.i128 } = _137[1];
 	const through: { end: rs.i128; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i128>, { tag: "Unbounded" } as rs.RangeBound<rs.i128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i128>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i128Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i128Debug))])), undefined, true);
 	return [a, b] as [rs.i128, rs.i128];
 }
 
@@ -7037,7 +7037,7 @@ export function bounded$i16(table: rs.Slice<rs.i16>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.i16 } = _137[1];
 	const through: { end: rs.i16; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i16>, { tag: "Unbounded" } as rs.RangeBound<rs.i16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i16>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i16Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i16Debug))])), undefined, true);
 	return [a, b] as [rs.i16, rs.i16];
 }
 
@@ -7106,7 +7106,7 @@ export function bounded$i32(table: rs.Slice<rs.i32>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.i32 } = _137[1];
 	const through: { end: rs.i32; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i32>, { tag: "Unbounded" } as rs.RangeBound<rs.i32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i32>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i32Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i32Debug))])), undefined, true);
 	return [a, b] as [rs.i32, rs.i32];
 }
 
@@ -7175,7 +7175,7 @@ export function bounded$i64(table: rs.Slice<rs.i64>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.i64 } = _137[1];
 	const through: { end: rs.i64; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i64>, { tag: "Unbounded" } as rs.RangeBound<rs.i64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i64>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i64Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i64Debug))])), undefined, true);
 	return [a, b] as [rs.i64, rs.i64];
 }
 
@@ -7244,7 +7244,7 @@ export function bounded$i8(table: rs.Slice<rs.i8>, at: rs.usize[], out: rs.ByteV
 	const to: { end: rs.i8 } = _137[1];
 	const through: { end: rs.i8; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.i8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.i8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.i8>, { tag: "Unbounded" } as rs.RangeBound<rs.i8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.i8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.i8>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i8Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.i8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.i8Debug))])), undefined, true);
 	return [a, b] as [rs.i8, rs.i8];
 }
 
@@ -7313,7 +7313,7 @@ export function bounded$isize(table: rs.Slice<rs.isize>, at: rs.usize[], out: rs
 	const to: { end: rs.isize } = _137[1];
 	const through: { end: rs.isize; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.isize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.isize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.isize>, { tag: "Unbounded" } as rs.RangeBound<rs.isize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.isize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.isize>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.isize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.isizeDebug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.isize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.isizeDebug))])), undefined, true);
 	return [a, b] as [rs.isize, rs.isize];
 }
 
@@ -7382,7 +7382,7 @@ export function bounded$num_NonZero_u128(table: rs.Slice<rs.u128>, at: rs.usize[
 	const to: { end: rs.u128 } = _137[1];
 	const through: { end: rs.u128; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))])), undefined, true);
 	return [a, b] as [rs.u128, rs.u128];
 }
 
@@ -7451,7 +7451,7 @@ export function bounded$num_NonZero_u64(table: rs.Slice<rs.u64>, at: rs.usize[],
 	const to: { end: rs.u64 } = _137[1];
 	const through: { end: rs.u64; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))])), undefined, true);
 	return [a, b] as [rs.u64, rs.u64];
 }
 
@@ -7520,7 +7520,7 @@ export function bounded$num_NonZero_u8(table: rs.Slice<rs.u8>, at: rs.usize[], o
 	const to: { end: rs.u8 } = _137[1];
 	const through: { end: rs.u8; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))])), undefined, true);
 	return [a, b] as [rs.u8, rs.u8];
 }
 
@@ -7589,7 +7589,7 @@ export function bounded$num_NonZero_usize(table: rs.Slice<rs.usize>, at: rs.usiz
 	const to: { end: rs.usize } = _137[1];
 	const through: { end: rs.usize; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))])), undefined, true);
 	return [a, b] as [rs.usize, rs.usize];
 }
 
@@ -7658,7 +7658,7 @@ export function bounded$u128(table: rs.Slice<rs.u128>, at: rs.usize[], out: rs.B
 	const to: { end: rs.u128 } = _137[1];
 	const through: { end: rs.u128; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u128>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u128>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u128>, { tag: "Unbounded" } as rs.RangeBound<rs.u128>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u128>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u128>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u128>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u128Debug))])), undefined, true);
 	return [a, b] as [rs.u128, rs.u128];
 }
 
@@ -7727,7 +7727,7 @@ export function bounded$u16(table: rs.Slice<rs.u16>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.u16 } = _137[1];
 	const through: { end: rs.u16; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u16>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u16>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u16>, { tag: "Unbounded" } as rs.RangeBound<rs.u16>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u16>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u16>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u16Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u16>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u16Debug))])), undefined, true);
 	return [a, b] as [rs.u16, rs.u16];
 }
 
@@ -7796,7 +7796,7 @@ export function bounded$u32(table: rs.Slice<rs.u32>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.u32 } = _137[1];
 	const through: { end: rs.u32; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u32>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u32>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u32>, { tag: "Unbounded" } as rs.RangeBound<rs.u32>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u32>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u32>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u32Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u32>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u32Debug))])), undefined, true);
 	return [a, b] as [rs.u32, rs.u32];
 }
 
@@ -7865,7 +7865,7 @@ export function bounded$u64(table: rs.Slice<rs.u64>, at: rs.usize[], out: rs.Byt
 	const to: { end: rs.u64 } = _137[1];
 	const through: { end: rs.u64; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u64>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u64>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u64>, { tag: "Unbounded" } as rs.RangeBound<rs.u64>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u64>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u64>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u64>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u64Debug))])), undefined, true);
 	return [a, b] as [rs.u64, rs.u64];
 }
 
@@ -7934,7 +7934,7 @@ export function bounded$u8(table: rs.ByteSlice, at: rs.usize[], out: rs.ByteVec)
 	const to: { end: rs.u8 } = _137[1];
 	const through: { end: rs.u8; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.u8>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.u8>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.u8>, { tag: "Unbounded" } as rs.RangeBound<rs.u8>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.u8>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.u8>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.u8>, f: rs.Formatter) => rs.fmtBound(value, f, rs.u8Debug))])), undefined, true);
 	return [a, b] as [rs.u8, rs.u8];
 }
 
@@ -8003,7 +8003,7 @@ export function bounded$usize(table: rs.Slice<rs.usize>, at: rs.usize[], out: rs
 	const to: { end: rs.usize } = _137[1];
 	const through: { end: rs.usize; inclusive: true } = _137[2];
 	const part = rs.sliceFrom([rs.rangeInclusiveStartBound(inclusive) as rs.RangeBound<rs.usize>, rs.rangeInclusiveEndBound(inclusive) as rs.RangeBound<rs.usize>, { tag: "Included", _0: from.start } as rs.RangeBound<rs.usize>, { tag: "Unbounded" } as rs.RangeBound<rs.usize>, { tag: "Excluded", _0: to.end } as rs.RangeBound<rs.usize>, { tag: "Included", _0: through.end } as rs.RangeBound<rs.usize>]);
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))][0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(part), f, (value: rs.RangeBound<rs.usize>, f: rs.Formatter) => rs.fmtBound(value, f, rs.usizeDebug))])), undefined, true);
 	return [a, b] as [rs.usize, rs.usize];
 }
 

@@ -95,7 +95,7 @@ export function remainingMut$bytes_BufMut(self: Fixed): rs.usize {
 export function advanceMut$bytes_BufMut(self: Fixed, cnt: rs.usize): void {
 	const _4: rs.usize = remainingMut$bytes_BufMut_mut(self);
 	if (!(cnt <= _4)) {
-		rs.panicFmt(["advanced ", [(f: rs.Formatter) => rs.usizeDisplay(cnt, f)][0], " past the array"]);
+		rs.panicFmt(["advanced ", (f: rs.Formatter) => rs.usizeDisplay(cnt, f), " past the array"]);
 	} else {
 		self.len = rs.usizeAdd(self.len, cnt);
 	}

@@ -484,7 +484,7 @@ export function converts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 				break;
 			}
 			const part3 = rs.charFromDigit(_11, radix);
-			put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtCharDebug)][0]]));
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, rs.fmtCharDebug)]));
 		}
 	} else if (_6 === 1) {
 		const iter2: rs.Iter<rs.char> = rs.iterSlice([48, 57, 97, 122, 65, 90, 47, 58, 64, 91, 96, 123, 1635, 65345]);
@@ -498,7 +498,7 @@ export function converts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else {
 		for (const n2 of scalars(data).items) {
 			const r: rs.Result<rs.char, rs.CharTryFromError> = rs.charTryFrom(n2);
-			put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(r, f, rs.fmtCharDebug, rs.fmtCharTryFromErrorDebug)][0]]));
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(r, f, rs.fmtCharDebug, rs.fmtCharTryFromErrorDebug)]));
 			if (!r.ok) {
 				const part = new rs.CharTryFromError();
 				const args12 = [(f: rs.Formatter) => rs.fmtCharTryFromErrorDisplay(part, f), (f: rs.Formatter) => rs.fmtCharTryFromErrorDebug(part, f)];
@@ -552,11 +552,11 @@ export function values(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const part = rs.strFind(s2, (a013: rs.char): boolean => {
 			return rs.charIsUppercase(a013);
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part, f, rs.usizeDebug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, rs.usizeDebug)]));
 		const part2 = rs.strRfind(s2, (a014: rs.char): boolean => {
 			return rs.charIsControl(a014);
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtOption(part2, f, rs.usizeDebug)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, rs.usizeDebug)]));
 	} else if (_9 === 1) {
 		const lens: rs.usize = rs.iterSum(rs.iterMap(rs.strChars(s2), (a07: rs.char): rs.usize => {
 			return rs.charLenUtf8(a07);

@@ -470,7 +470,7 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const p: rs.usize = rs.u32Add(rs.u32Rem(step(rs.place(() => state, (value2) => state = value2)), 30), 8) as rs.usize;
 				const args7 = [(f: rs.Formatter) => rs.f64LowerExp(half, f), rs.fmtCount(p)];
 				one(rs.fmtFormat([rs.fmtSpec({ precision: rs.fmtCountOf(args7[1]) }, args7[0])]), out);
-				one(rs.fmtFormat([[(f: rs.Formatter) => rs.f64LowerExp(half, f)][0]]), out);
+				one(rs.fmtFormat([(f: rs.Formatter) => rs.f64LowerExp(half, f)]), out);
 			}
 			let iterStart2: rs.i32 = 0;
 			const iterEnd2: rs.i32 = 16;
@@ -505,7 +505,7 @@ export function one(s: string, out: rs.ByteVec): void {
 	if (_4.ok) {
 		const v: rs.f32 = _4.value;
 		putF32(out, v);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.f32Debug(v, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.f32Debug(v, f)]));
 	} else {
 		const e: rs.ParseFloatError = _4.error;
 		const args5 = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];

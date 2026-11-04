@@ -8,7 +8,7 @@ export function fmt$fmt_Display(self: SessionError, __formatter: rs.Formatter): 
 		return rs.fmtWriteStr(__formatter, "protocol violation");
 	}
 	const arg = asDisplay$thiserror___private21_AsDisplay_ref_u16(self._0);
-	return rs.fmtWriteFmt(__formatter, ["app code=", [(f: rs.Formatter) => rs.u16Display(arg, f)][0]]);
+	return rs.fmtWriteFmt(__formatter, ["app code=", (f: rs.Formatter) => rs.u16Display(arg, f)]);
 }
 
 export function fmt$fmt_Debug(self: SessionError, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {

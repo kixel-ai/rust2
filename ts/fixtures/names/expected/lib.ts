@@ -24,7 +24,7 @@ export function run(data: rs.ByteSlice): rs.ByteVec {
 	});
 	rs.byteVecPush(out, _15);
 	const part = Wrap.new$wrap_Pair(pair);
-	const _22: rs.ByteSlice = rs.stringAsBytes(rs.fmtFormat([[(f: rs.Formatter) => Wrap.fmt$fmt_Display_wrap_Pair(part, f)][0]]));
+	const _22: rs.ByteSlice = rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Wrap.fmt$fmt_Display_wrap_Pair(part, f)]));
 	rs.byteVecExtendFromSlice(out, _22);
 	if (!(first === 0)) {
 		shape = "Line" as shapes_Shape.Shape;

@@ -23,7 +23,7 @@ export function record(info: rs.PanicHookInfo): void {
 		if (!(payload instanceof of$String || payload instanceof ofPlace$String)) {
 			const _8: rs.u32 | undefined = payload instanceof of$u32 ? payload.v : payload instanceof ofPlace$u32 ? payload.v.v : undefined;
 			if (_8 !== undefined) {
-				kind = rs.fmtFormat(["u32 ", [(f: rs.Formatter) => rs.u32Display(_8, f)][0]]);
+				kind = rs.fmtFormat(["u32 ", (f: rs.Formatter) => rs.u32Display(_8, f)]);
 			} else {
 				kind = "other";
 			}
@@ -63,7 +63,7 @@ export function stdNamed(file: string): string {
 				}
 			}
 			const part = _2[1];
-			return rs.fmtFormat(["<std>/library/", [(f: rs.Formatter) => rs.fmtPad(f, part)][0]]);
+			return rs.fmtFormat(["<std>/library/", (f: rs.Formatter) => rs.fmtPad(f, part)]);
 		}
 	}
 	return file;
@@ -81,7 +81,7 @@ export function hook(): void {
 }
 
 export function tracked(n: rs.u8, caller: rs.Location): rs.u8 {
-	rs.panicFmt(["tracked ", [(f: rs.Formatter) => rs.u8Display(n, f)][0]], caller);
+	rs.panicFmt(["tracked ", (f: rs.Formatter) => rs.u8Display(n, f)], caller);
 }
 
 /** One panic, by `kind`, with a hook set. `data`'s first byte varies its operands. */
@@ -93,7 +93,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	if (_10 === 0) {
 		rs.panicFmt(["literal"], { file: "fixtures/lang/panics/src/hooked.rs", line: 85, col: 14 });
 	} else if (_10 === 1) {
-		rs.panicFmt(["formatted ", [(f: rs.Formatter) => rs.u8Display(n, f)][0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 14 });
+		rs.panicFmt(["formatted ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 86, col: 14 });
 	} else if (_10 === 2) {
 		rs.byteVecPush(out, v.data[rs.idx(v, rs.usizeAdd(n as rs.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 25 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 24 })]);
 	} else if (_10 === 3) {
@@ -133,7 +133,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (_10 === 15) {
 		rs.panicAny(new of$u32(n as rs.u32), { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 15 });
 	} else if (_10 === 16) {
-		rs.panic(rs.fmtFormat(["any ", [(f: rs.Formatter) => rs.u8Display(n, f)][0]]), { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 15 }, true);
+		rs.panic(rs.fmtFormat(["any ", (f: rs.Formatter) => rs.u8Display(n, f)]), { file: "fixtures/lang/panics/src/hooked.rs", line: 105, col: 15 }, true);
 	} else if (_10 === 17) {
 		const _104: rs.u8 = rs.u8WrappingAdd(n, 1);
 		if (!(n === _104)) {
@@ -173,7 +173,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.assertFailed("!=", (f: rs.Formatter) => rs.u8Debug(n, f), (f: rs.Formatter) => rs.u8Debug(n, f), undefined as rs.Arguments | undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 119, col: 15 });
 		}
 	} else if (_10 === 31) {
-		rs.panicFmt(["not implemented: not ", [(f: rs.Formatter) => rs.u8Display(n, f)][0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 120, col: 15 });
+		rs.panicFmt(["not implemented: not ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 120, col: 15 });
 	} else {
 		rs.byteVecPush(out, rs.hashLen(rs.hashWithCapacity(4294967295, 469762048) as rs.HashMap<rs.u8, rs.u8>) & 0xff);
 	}
@@ -208,7 +208,7 @@ export function aborted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const args6 = [(f: rs.Formatter) => rs.u8Display(n, f), (f: rs.Formatter) => Shown.fmt$fmt_Display(_19, f)];
 		rs.panicFmt(["first ", args6[0], " ", args6[1]], { file: "fixtures/lang/panics/src/hooked.rs", line: 160, col: 18 });
 	} else {
-		rs.panicFmt(["first ", [(f: rs.Formatter) => rs.u8Display(n, f)][0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 14 });
+		rs.panicFmt(["first ", (f: rs.Formatter) => rs.u8Display(n, f)], { file: "fixtures/lang/panics/src/hooked.rs", line: 161, col: 14 });
 	}
 }
 

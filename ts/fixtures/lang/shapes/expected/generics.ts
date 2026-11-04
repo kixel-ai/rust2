@@ -35,7 +35,7 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shape: Wrap.Wrap<Shape.Shape> = Wrap.new$shapes_Shape({ tag: "Rect", corner: Wrap.intoInner$shapes_Point(point), width: at(5) as rs.u16, height: 3 } as Shape.Shape);
 	const args13 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
 	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]));
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f)][0])]));
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f))]));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(Wrap.double$u8(byte))));
 	rs.byteVecPush(out, Wrap.get$u8(byte));
 	rs.byteVecPush(out, Wrap.get$fmt_Pair(Wrap.get$generics_Wrap_fmt_Pair(nested))._0);

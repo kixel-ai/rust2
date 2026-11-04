@@ -29,9 +29,9 @@ export function op(name: string): rs.u16 {
 				return _20.value;
 			}
 		}
-		rs.panicFmt(["case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0], " is past what two bytes pick"]);
+		rs.panicFmt(["case ", (f: rs.Formatter) => rs.fmtPad(f, name), " is past what two bytes pick"]);
 	} else {
-		rs.panicFmt(["no case ", [(f: rs.Formatter) => rs.fmtPad(f, name)][0]]);
+		rs.panicFmt(["no case ", (f: rs.Formatter) => rs.fmtPad(f, name)]);
 	}
 }
 

@@ -31,7 +31,7 @@ export function decodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const _14: rs.Result<string, rs.Utf8Error> = rs.strFromUtf8(rs.byteSliceRange(rs.byteVecSlice(bytes), _10));
 		if (_14.ok) {
 			const s: string = _14.value;
-			put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtStr(s, f)][0]]));
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtStr(s, f)]));
 			rs.byteVecPush(out, rs.stringLen(s) & 0xff);
 		} else {
 			const e: rs.Utf8Error = _14.error;
@@ -90,7 +90,7 @@ export function lossy(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				rs.byteVecPush(out, chunk.invalid.length & 0xff);
 				const args15 = [(f: rs.Formatter) => rs.fmtUtf8ChunkDebug(chunk, f)];
 				put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ alternate: true }, args15[0])]));
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)][0]]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)]));
 				rs.byteVecPush(out, rs.iterCount(chunks.clone()) & 0xff);
 				rs.byteVecPush(out, lossy_eq$1kzzmg3(chunk, chunk) ? 1 : 0);
 				const _134: rs.Utf8Chunk | undefined = last;
@@ -101,7 +101,7 @@ export function lossy(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 		}
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUtf8Chunks(chunks, f)]));
 	}
 	const _152: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(bytes);
 	if (_152.ok) {
@@ -114,7 +114,7 @@ export function lossy(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, option_mapOr$188iunt(u.errorLen, 255, (n: rs.usize): rs.u8 => {
 			return n & 0xff;
 		}));
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtUtf8ErrorDisplay(u, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtUtf8ErrorDisplay(u, f)]));
 		put(out, rs.strCowStr(rs.stringFromUtf8Lossy(rs.byteVecSlice(e.bytes))));
 		rs.byteVecPush(out, string_eq$1enuhj8(rs.fromUtf8ErrorClone(e), e) ? 1 : 0);
 		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(e.bytes));

@@ -30,7 +30,7 @@ export function firsts(log: Log.Log, id: rs.u32, n: rs.u32): rs.Iter<Guard.Guard
 	const captured = id;
 	return rs.iterFlatten(rs.iterMap(_5, (v: rs.Vec<Guard.Guard>): rs.Iter<Guard.Guard> => {
 		const part = rs.u32Sub(Guard.id(v.items[rs.idx(v.items, 0)]), captured);
-		Log.note(log, rs.fmtFormat(["inner ", [(f: rs.Formatter) => rs.u32Display(part, f)][0]]));
+		Log.note(log, rs.fmtFormat(["inner ", (f: rs.Formatter) => rs.u32Display(part, f)]));
 		return rs.iterTake(rs.vecIntoIter(v, rs.drop), 1, rs.drop);
 	}), undefined, true);
 }
@@ -49,10 +49,10 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const it: rs.Iter<Guard.Guard> = firsts(log, id, 1);
 		const part62 = rs.iterToOption(it.next());
 		const part63 = idOf(part62);
-		Log.note(log, rs.fmtFormat(["next ", [(f: rs.Formatter) => rs.fmtOption(part63, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["next ", (f: rs.Formatter) => rs.fmtOption(part63, f, rs.u32Debug)]));
 		const part64 = rs.iterToOption(it.next());
 		const part65 = idOf(part64);
-		Log.note(log, rs.fmtFormat(["next ", [(f: rs.Formatter) => rs.fmtOption(part65, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["next ", (f: rs.Formatter) => rs.fmtOption(part65, f, rs.u32Debug)]));
 		rs.drop(it);
 		const iter: rs.Iter<Guard.Guard> = firsts(log, id, 20);
 		while (true) {
@@ -62,31 +62,31 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			}
 			const g: Guard.Guard = _44;
 			const part66 = rs.u32Sub(Guard.id(g), id);
-			Log.note(log, rs.fmtFormat(["for ", [(f: rs.Formatter) => rs.u32Display(part66, f)][0]]));
+			Log.note(log, rs.fmtFormat(["for ", (f: rs.Formatter) => rs.u32Display(part66, f)]));
 			g[Symbol.dispose]();
 		}
 		rs.drop(iter);
 	} else if (_6 === 1) {
 		rs.iterForEach(firsts(log, id, 1), (g26: Guard.Guard): undefined => {
 			const part58 = rs.u32Sub(Guard.id(g26), id);
-			Log.note(log, rs.fmtFormat(["each ", [(f: rs.Formatter) => rs.u32Display(part58, f)][0]]));
+			Log.note(log, rs.fmtFormat(["each ", (f: rs.Formatter) => rs.u32Display(part58, f)]));
 			g26[Symbol.dispose]();
 		}, true);
 		const part59 = rs.ownedCount(firsts(log, id, 20), rs.drop);
-		Log.note(log, rs.fmtFormat(["count ", [(f: rs.Formatter) => rs.usizeDisplay(part59, f)][0]]));
+		Log.note(log, rs.fmtFormat(["count ", (f: rs.Formatter) => rs.usizeDisplay(part59, f)]));
 		const part60 = rs.ownedLast(firsts(log, id, 40), rs.drop);
 		const part61 = idOf(part60);
-		Log.note(log, rs.fmtFormat(["last ", [(f: rs.Formatter) => rs.fmtOption(part61, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["last ", (f: rs.Formatter) => rs.fmtOption(part61, f, rs.u32Debug)]));
 	} else if (_6 === 2) {
 		const it2: rs.Iter<Guard.Guard> = firsts(log, id, 1);
 		const part51 = rs.iterFind(it2, (g22: Guard.Guard): boolean => {
 			return Guard.id(g22) === rs.u32Add(id, 4);
 		}, rs.drop);
 		const part52 = idOf(part51);
-		Log.note(log, rs.fmtFormat(["find ", [(f: rs.Formatter) => rs.fmtOption(part52, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["find ", (f: rs.Formatter) => rs.fmtOption(part52, f, rs.u32Debug)]));
 		const part53 = rs.iterToOption(it2.next());
 		const part54 = idOf(part53);
-		Log.note(log, rs.fmtFormat(["then ", [(f: rs.Formatter) => rs.fmtOption(part54, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["then ", (f: rs.Formatter) => rs.fmtOption(part54, f, rs.u32Debug)]));
 		rs.drop(it2);
 		const it3: rs.Iter<Guard.Guard> = firsts(log, id, 20);
 		const part55 = rs.iterAny(it3, (g23: Guard.Guard): boolean => {
@@ -94,7 +94,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g23[Symbol.dispose]();
 			return _025;
 		});
-		Log.note(log, rs.fmtFormat(["any ", [(f: rs.Formatter) => rs.fmtBool(part55, f)][0]]));
+		Log.note(log, rs.fmtFormat(["any ", (f: rs.Formatter) => rs.fmtBool(part55, f)]));
 		rs.drop(it3);
 		const _153: rs.Iter<Guard.Guard> = firsts(log, id, 40);
 		const part56 = rs.iterAll(_153, (g24: Guard.Guard): boolean => {
@@ -102,7 +102,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g24[Symbol.dispose]();
 			return _026;
 		});
-		const _147: string = rs.fmtFormat(["all ", [(f: rs.Formatter) => rs.fmtBool(part56, f)][0]]);
+		const _147: string = rs.fmtFormat(["all ", (f: rs.Formatter) => rs.fmtBool(part56, f)]);
 		rs.drop(_153);
 		Log.note(log, _147);
 		const _168: rs.Iter<Guard.Guard> = firsts(log, id, 60);
@@ -111,7 +111,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g25[Symbol.dispose]();
 			return _027;
 		});
-		const _162: string = rs.fmtFormat(["position ", [(f: rs.Formatter) => rs.fmtOption(part57, f, rs.usizeDebug)][0]]);
+		const _162: string = rs.fmtFormat(["position ", (f: rs.Formatter) => rs.fmtOption(part57, f, rs.usizeDebug)]);
 		rs.drop(_168);
 		Log.note(log, _162);
 	} else if (_6 === 3) {
@@ -120,76 +120,76 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, rs.drop);
 		const part43 = rs.iterToOption(it4.next());
 		const part44 = idOf(part43);
-		Log.note(log, rs.fmtFormat(["filter ", [(f: rs.Formatter) => rs.fmtOption(part44, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["filter ", (f: rs.Formatter) => rs.fmtOption(part44, f, rs.u32Debug)]));
 		const part45 = rs.iterToOption(it4.next());
 		const part46 = idOf(part45);
-		Log.note(log, rs.fmtFormat(["filter ", [(f: rs.Formatter) => rs.fmtOption(part46, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["filter ", (f: rs.Formatter) => rs.fmtOption(part46, f, rs.u32Debug)]));
 		rs.drop(it4);
 		const it5: rs.Iter<Guard.Guard> = rs.iterFilterMap(firsts(log, id, 20), (g20: Guard.Guard): Guard.Guard | undefined => {
 			return thenSome$0zvoczk(Guard.id(g20) !== rs.u32Add(id, 20), g20);
 		});
 		const part47 = rs.iterToOption(it5.next());
 		const part48 = idOf(part47);
-		Log.note(log, rs.fmtFormat(["filter_map ", [(f: rs.Formatter) => rs.fmtOption(part48, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["filter_map ", (f: rs.Formatter) => rs.fmtOption(part48, f, rs.u32Debug)]));
 		rs.drop(it5);
 		const it6: rs.Iter<Guard.Guard> = rs.iterSkipWhile(firsts(log, id, 40), (g21: Guard.Guard): boolean => {
 			return Guard.id(g21) < rs.u32Add(id, 44);
 		}, rs.drop);
 		const part49 = rs.iterToOption(it6.next());
 		const part50 = idOf(part49);
-		Log.note(log, rs.fmtFormat(["skip_while ", [(f: rs.Formatter) => rs.fmtOption(part50, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["skip_while ", (f: rs.Formatter) => rs.fmtOption(part50, f, rs.u32Debug)]));
 		rs.drop(it6);
 	} else if (_6 === 4) {
 		const it7: rs.Iter<Guard.Guard> = firsts(log, id, 1);
 		const part35 = rs.iterNth(it7, 1, rs.drop);
 		const part36 = idOf(part35);
-		Log.note(log, rs.fmtFormat(["nth ", [(f: rs.Formatter) => rs.fmtOption(part36, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["nth ", (f: rs.Formatter) => rs.fmtOption(part36, f, rs.u32Debug)]));
 		rs.drop(it7);
 		const it8: rs.Iter<Guard.Guard> = rs.iterSkip(firsts(log, id, 20), 1, rs.drop);
 		const part37 = rs.iterToOption(it8.next());
 		const part38 = idOf(part37);
-		Log.note(log, rs.fmtFormat(["skip ", [(f: rs.Formatter) => rs.fmtOption(part38, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["skip ", (f: rs.Formatter) => rs.fmtOption(part38, f, rs.u32Debug)]));
 		rs.drop(it8);
 		const it9: rs.Iter<Guard.Guard> = rs.iterStepBy(firsts(log, id, 40), 2, rs.drop);
 		const part39 = rs.iterToOption(it9.next());
 		const part40 = idOf(part39);
-		Log.note(log, rs.fmtFormat(["step ", [(f: rs.Formatter) => rs.fmtOption(part40, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["step ", (f: rs.Formatter) => rs.fmtOption(part40, f, rs.u32Debug)]));
 		const part41 = rs.iterToOption(it9.next());
 		const part42 = idOf(part41);
-		Log.note(log, rs.fmtFormat(["step ", [(f: rs.Formatter) => rs.fmtOption(part42, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["step ", (f: rs.Formatter) => rs.fmtOption(part42, f, rs.u32Debug)]));
 		rs.drop(it9);
 	} else if (_6 === 5) {
 		const it10: rs.Iter<Guard.Guard> = firsts(log, id, 1);
 		const part21 = rs.iterToOption(it10.nextBack());
 		const part22 = idOf(part21);
-		Log.note(log, rs.fmtFormat(["back ", [(f: rs.Formatter) => rs.fmtOption(part22, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part22, f, rs.u32Debug)]));
 		const part23 = rs.iterToOption(it10.next());
 		const part24 = idOf(part23);
-		Log.note(log, rs.fmtFormat(["front ", [(f: rs.Formatter) => rs.fmtOption(part24, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["front ", (f: rs.Formatter) => rs.fmtOption(part24, f, rs.u32Debug)]));
 		rs.drop(it10);
 		const it11: rs.Iter<Guard.Guard> = firsts(log, id, 20);
 		const part25 = rs.iterRfind(it11, (g16: Guard.Guard): boolean => {
 			return Guard.id(g16) === rs.u32Add(id, 20);
 		}, rs.drop);
 		const part26 = idOf(part25);
-		Log.note(log, rs.fmtFormat(["rfind ", [(f: rs.Formatter) => rs.fmtOption(part26, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["rfind ", (f: rs.Formatter) => rs.fmtOption(part26, f, rs.u32Debug)]));
 		rs.drop(it11);
 		const it12: rs.Iter<Guard.Guard> = rs.iterRev(firsts(log, id, 40));
 		const part27 = rs.iterFind(it12, (g17: Guard.Guard): boolean => {
 			return Guard.id(g17) === rs.u32Add(id, 43);
 		}, rs.drop);
 		const part28 = idOf(part27);
-		Log.note(log, rs.fmtFormat(["rev find ", [(f: rs.Formatter) => rs.fmtOption(part28, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["rev find ", (f: rs.Formatter) => rs.fmtOption(part28, f, rs.u32Debug)]));
 		const part29 = rs.iterToOption(it12.next());
 		const part30 = idOf(part29);
-		Log.note(log, rs.fmtFormat(["rev next ", [(f: rs.Formatter) => rs.fmtOption(part30, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["rev next ", (f: rs.Formatter) => rs.fmtOption(part30, f, rs.u32Debug)]));
 		rs.drop(it12);
 		const it13: rs.Iter<Guard.Guard> = rs.iterFilter(rs.iterRev(firsts(log, id, 60)), (g18: Guard.Guard): boolean => {
 			return Guard.id(g18) !== rs.u32Add(id, 65);
 		}, rs.drop);
 		const part31 = rs.iterToOption(it13.next());
 		const part32 = idOf(part31);
-		Log.note(log, rs.fmtFormat(["rev filter ", [(f: rs.Formatter) => rs.fmtOption(part32, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["rev filter ", (f: rs.Formatter) => rs.fmtOption(part32, f, rs.u32Debug)]));
 		rs.drop(it13);
 		const _439: rs.Vec<rs.Vec<Guard.Guard>> = nested(log, id, 80);
 		const it14: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(rs.vecSwapRemove(_439, 0), rs.drop), 1, rs.drop);
@@ -198,7 +198,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return true;
 		}, rs.drop);
 		const part34 = idOf(part33);
-		Log.note(log, rs.fmtFormat(["take rfind ", [(f: rs.Formatter) => rs.fmtOption(part34, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["take rfind ", (f: rs.Formatter) => rs.fmtOption(part34, f, rs.u32Debug)]));
 		rs.drop(it14);
 	} else if (_6 === 6) {
 		const it15: rs.Iter<rs.u32> = rs.iterMap(firsts(log, id, 1), (g12: Guard.Guard): rs.u32 => {
@@ -209,7 +209,7 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const part16 = rs.iterFind(it15, (_2: rs.u32): boolean => {
 			return _2 === 4;
 		});
-		Log.note(log, rs.fmtFormat(["map find ", [(f: rs.Formatter) => rs.fmtOption(part16, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["map find ", (f: rs.Formatter) => rs.fmtOption(part16, f, rs.u32Debug)]));
 		rs.drop(it15);
 		const it16: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(firsts(log, id, 20));
 		const part17 = option_map$1389p4b(rs.iterFind(it16, (_24: [rs.usize, Guard.Guard]): boolean => {
@@ -221,20 +221,20 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g13[Symbol.dispose]();
 			return _015;
 		});
-		Log.note(log, rs.fmtFormat(["enumerate ", [(f: rs.Formatter) => rs.fmtOption(part17, f, (value: [rs.usize, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))][0]]));
+		Log.note(log, rs.fmtFormat(["enumerate ", (f: rs.Formatter) => rs.fmtOption(part17, f, (value: [rs.usize, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		rs.drop(it16);
 		const part18 = rs.iterFold(rs.iterTake(firsts(log, id, 40), 2, rs.drop), 0, (n3: rs.u32, g14: Guard.Guard): rs.u32 => {
 			const _016: rs.u32 = rs.u32Sub(rs.u32Add(n3, Guard.id(g14)), id);
 			g14[Symbol.dispose]();
 			return _016;
 		}, true);
-		Log.note(log, rs.fmtFormat(["take ", [(f: rs.Formatter) => rs.u32Display(part18, f)][0]]));
+		Log.note(log, rs.fmtFormat(["take ", (f: rs.Formatter) => rs.u32Display(part18, f)]));
 		const it17: rs.Iter<Guard.Guard> = rs.iterChain(firsts(log, id, 60), firsts(log, id, 80));
 		const part19 = rs.iterFind(it17, (g15: Guard.Guard): boolean => {
 			return Guard.id(g15) === rs.u32Add(id, 81);
 		}, rs.drop);
 		const part20 = idOf(part19);
-		Log.note(log, rs.fmtFormat(["chain ", [(f: rs.Formatter) => rs.fmtOption(part20, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["chain ", (f: rs.Formatter) => rs.fmtOption(part20, f, rs.u32Debug)]));
 		rs.drop(it17);
 	} else if (_6 === 7) {
 		const it18: rs.Iter<Guard.Guard> = rs.iterFlatMap(rs.vecIntoIter(nested(log, id, 1), lib_drop$Vec_model_Guard), (v: rs.Vec<Guard.Guard>): rs.Iter<Guard.Guard> => {
@@ -244,38 +244,38 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			return Guard.id(g9) === rs.u32Add(id, 4);
 		}, rs.drop);
 		const part10 = idOf(part9);
-		Log.note(log, rs.fmtFormat(["flat_map ", [(f: rs.Formatter) => rs.fmtOption(part10, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["flat_map ", (f: rs.Formatter) => rs.fmtOption(part10, f, rs.u32Debug)]));
 		const part11 = rs.iterToOption(it18.next());
 		const part12 = idOf(part11);
-		Log.note(log, rs.fmtFormat(["flat_map ", [(f: rs.Formatter) => rs.fmtOption(part12, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["flat_map ", (f: rs.Formatter) => rs.fmtOption(part12, f, rs.u32Debug)]));
 		rs.drop(it18);
 		const it19: rs.Peekable<Guard.Guard> = rs.iterPeekable(firsts(log, id, 20), rs.drop);
 		const part13 = option_map$06w9waf(rs.peekablePeek(it19), (g10: Guard.Guard): rs.u32 => {
 			return rs.u32Sub(Guard.id(g10), id);
 		});
-		Log.note(log, rs.fmtFormat(["peek ", [(f: rs.Formatter) => rs.fmtOption(part13, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["peek ", (f: rs.Formatter) => rs.fmtOption(part13, f, rs.u32Debug)]));
 		const part14 = rs.iterFind(it19, (g11: Guard.Guard): boolean => {
 			return Guard.id(g11) === rs.u32Add(id, 23);
 		}, rs.drop);
 		const part15 = idOf(part14);
-		Log.note(log, rs.fmtFormat(["peek find ", [(f: rs.Formatter) => rs.fmtOption(part15, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["peek find ", (f: rs.Formatter) => rs.fmtOption(part15, f, rs.u32Debug)]));
 		rs.drop(it19);
 	} else if (_6 === 8) {
 		const all: rs.Vec<Guard.Guard> = rs.iterToVec(firsts(log, id, 1), "next", 8);
 		const part5 = all.items.length;
-		Log.note(log, rs.fmtFormat(["collect ", [(f: rs.Formatter) => rs.usizeDisplay(part5, f)][0]]));
+		Log.note(log, rs.fmtFormat(["collect ", (f: rs.Formatter) => rs.usizeDisplay(part5, f)]));
 		rs.dropVec(all);
 		const part6 = rs.iterMaxByKey(firsts(log, id, 20), (g7: Guard.Guard): rs.u32 => {
 			return rs.u32Rem(Guard.id(g7), 3);
 		}, rs.lt, true, rs.drop);
 		const part7 = idOf(part6);
-		Log.note(log, rs.fmtFormat(["max ", [(f: rs.Formatter) => rs.fmtOption(part7, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["max ", (f: rs.Formatter) => rs.fmtOption(part7, f, rs.u32Debug)]));
 		const part8 = rs.iterSum(rs.iterMap(firsts(log, id, 40), (g8: Guard.Guard): rs.u32 => {
 			const _07: rs.u32 = rs.u32Sub(Guard.id(g8), id);
 			g8[Symbol.dispose]();
 			return _07;
 		}), rs.u32Add, 0, true);
-		Log.note(log, rs.fmtFormat(["sum ", [(f: rs.Formatter) => rs.u32Display(part8, f)][0]]));
+		Log.note(log, rs.fmtFormat(["sum ", (f: rs.Formatter) => rs.u32Display(part8, f)]));
 	} else {
 		const it20: rs.Iter<Guard.Guard> = firsts(log, id, 1);
 		const part = rs.iterAny(it20, (g4: Guard.Guard): boolean => {
@@ -283,22 +283,22 @@ export function flattened(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g4[Symbol.dispose]();
 			return _03;
 		});
-		Log.note(log, rs.fmtFormat(["any ", [(f: rs.Formatter) => rs.fmtBool(part, f)][0]]));
+		Log.note(log, rs.fmtFormat(["any ", (f: rs.Formatter) => rs.fmtBool(part, f)]));
 		const part2 = rs.iterFold(it20, 0, (n: rs.u32, g5: Guard.Guard): rs.u32 => {
 			const _04: rs.u32 = rs.u32Sub(rs.u32Add(rs.u32Mul(n, 100), Guard.id(g5)), id);
 			g5[Symbol.dispose]();
 			return _04;
 		}, true);
-		Log.note(log, rs.fmtFormat(["rest ", [(f: rs.Formatter) => rs.u32Display(part2, f)][0]]));
+		Log.note(log, rs.fmtFormat(["rest ", (f: rs.Formatter) => rs.u32Display(part2, f)]));
 		const it21: rs.Iter<Guard.Guard> = firsts(log, id, 20);
 		const part3 = rs.iterAny(it21, (g6: Guard.Guard): boolean => {
 			const _05: boolean = Guard.id(g6) === rs.u32Add(id, 23);
 			g6[Symbol.dispose]();
 			return _05;
 		});
-		Log.note(log, rs.fmtFormat(["any ", [(f: rs.Formatter) => rs.fmtBool(part3, f)][0]]));
+		Log.note(log, rs.fmtFormat(["any ", (f: rs.Formatter) => rs.fmtBool(part3, f)]));
 		const part4 = rs.ownedCount(it21, rs.drop);
-		Log.note(log, rs.fmtFormat(["count ", [(f: rs.Formatter) => rs.usizeDisplay(part4, f)][0]]));
+		Log.note(log, rs.fmtFormat(["count ", (f: rs.Formatter) => rs.usizeDisplay(part4, f)]));
 	}
 }
 

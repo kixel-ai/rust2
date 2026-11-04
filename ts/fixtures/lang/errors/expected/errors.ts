@@ -670,7 +670,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		drop$errors_Failure(_24);
 		put(out, _17);
 		const part = chain(new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug)));
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, part)][0], " | "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part), " | "]));
 		const reserved: Error.Error = rs.resultUnwrapErr(reserve(a), rs.fmtUnit);
 		const _63: string = chain(reserved);
 		const _66: boolean = reserved instanceof of$collections_TryReserveError || reserved instanceof ofPlace$collections_TryReserveError;
@@ -699,33 +699,33 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		for (const _149 of results.items) {
 			if (_149.ok) {
 				const arg = _149.value;
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u8Display(arg, f)][0], " "]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg, f), " "]));
 			} else {
 				const part2 = chain(_149.error);
-				put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, part2)][0], " "]));
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part2), " "]));
 			}
 		}
 		rs.dropVec(results, drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send);
 		const part3 = get$0q7640n(DROPPED);
-		put(out, rs.fmtFormat(["| ", [(f: rs.Formatter) => rs.u32Display(part3, f)][0], " "]));
+		put(out, rs.fmtFormat(["| ", (f: rs.Formatter) => rs.u32Display(part3, f), " "]));
 		set$1ljkjlf(DROPPED, 0);
 		const leaf: Leaf.Leaf = new Leaf.Leaf(b);
 		const borrowed: Error.Error = new of$ref_errors_Leaf(leaf);
 		const part4 = chain(borrowed);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, part4)][0], " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part4), " "]));
 		rs.drop(borrowed);
 		const part5 = get$0q7640n(DROPPED);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u32Display(part5, f)][0], " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part5, f), " "]));
 		leaf[Symbol.dispose]();
 		const part6 = get$0q7640n(DROPPED);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u32Display(part6, f)][0], " | "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part6, f), " | "]));
 		const coded2: Coded.Coded = new of$errors_Failure(failure(a, b));
 		const part7 = downcast(coded2);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, part7)][0], " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part7), " "]));
 		const errors: rs.Vec<Error.Error> = rs.vecFrom([coded2, new of$errors_Leaf(new Leaf.Leaf(a)), new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug))]);
 		for (const _277 of errors.items) {
 			const part8 = downcast(_277);
-			put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtPad(f, part8)][0], " "]));
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part8), " "]));
 		}
 		const leaf2: Leaf.Leaf = new Leaf.Leaf(a);
 		const e: Error.Error = new of$errors_Leaf(leaf2);
@@ -734,7 +734,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 			_298.code = rs.u8WrappingAdd(_298.code, b);
 		}
 		const arg2 = leaf2.code;
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u8Display(arg2, f)][0], " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg2, f), " "]));
 		set$1ljkjlf(DROPPED, 0);
 		for (const e2 of errors.items) {
 			const _324: rs.Result<Failure.Failure, Error.Error> = e2 instanceof of$errors_Failure ? rs.Ok(e2.v) : rs.Err(e2);
@@ -757,13 +757,13 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 					l[Symbol.dispose]();
 				} else {
 					const e4: Error.Error = _345.error;
-					put(out, rs.fmtFormat([[(f: rs.Formatter) => e4.fmt$Display(f)][0], " "]));
+					put(out, rs.fmtFormat([(f: rs.Formatter) => e4.fmt$Display(f), " "]));
 					rs.drop(e4);
 				}
 			}
 		}
 		const part9 = get$0q7640n(DROPPED);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.u32Display(part9, f)][0], " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part9, f), " "]));
 		const part10 = result_mapErr$1scmdah(result_mapErr$0ka0di9(checked(b, rs.u8WrappingMul(a, 4)), (e5: Error.Error): rs.Result<rs.u8, Error.Error> => {
 			return result_map$18dk705(e5 instanceof of$errors_Failure ? rs.Ok(e5.v) : rs.Err(e5), (f2: Failure.Failure): rs.u8 => {
 				const _03: rs.u8 = Failure.code$errors_Coded(f2);
@@ -777,7 +777,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 				return _05;
 			});
 		});
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, string>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, rs.fmtStr))][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, string>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, rs.fmtStr))]));
 		leaf2[Symbol.dispose]();
 		boxed[Symbol.dispose]();
 		drop$errors_Failure(held);

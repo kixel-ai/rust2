@@ -231,7 +231,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
 		})));
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(caught$String_panics_called_closure6((): string => {
-			return rs.fmtFormat([[(f: rs.Formatter) => rs.u8Display(first, f)][0]]);
+			return rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(first, f)]);
 		})));
 	} else if (_10 === 3) {
 		rs.byteVecPush(out, caught$u8_ref_panics_called_closure7((): rs.u8 => {
@@ -293,7 +293,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return first;
 			}
 			const part = owned3._0;
-			rs.panicFmt(["caught ", [(f: rs.Formatter) => rs.u8Display(part, f)][0]]);
+			rs.panicFmt(["caught ", (f: rs.Formatter) => rs.u8Display(part, f)]);
 		})());
 		owned3[Symbol.dispose]();
 		const _147: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(_8);

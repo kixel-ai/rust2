@@ -487,7 +487,7 @@ export function one(s: string, out: rs.ByteVec): void {
 	if (_4.ok) {
 		const v: rs.f64 = _4.value;
 		putF64(out, v);
-		put(out, rs.fmtFormat([[(f: rs.Formatter) => rs.f64Debug(v, f)][0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.f64Debug(v, f)]));
 	} else {
 		const e: rs.ParseFloatError = _4.error;
 		const args5 = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];

@@ -44,7 +44,7 @@ export function grow$dyns_Shape(self: Square, by: rs.u8): void {
 
 export function label$dyns_Named(self: Square): string {
 	const arg = self.side;
-	return rs.fmtFormat(["square ", [(f: rs.Formatter) => rs.u16Display(arg, f)][0]]);
+	return rs.fmtFormat(["square ", (f: rs.Formatter) => rs.u16Display(arg, f)]);
 }
 
 export function asAny$dyns_Erased(self: Square): Any.Any {

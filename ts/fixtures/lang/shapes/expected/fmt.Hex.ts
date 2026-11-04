@@ -13,7 +13,7 @@ export function fmt$fmt_Binary(self: Hex, f: rs.Formatter): rs.Result<undefined,
 
 export function fmt$fmt_Octal(self: Hex, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self._0;
-	return rs.fmtWriteFmt(f, [[(f: rs.Formatter) => rs.u32Octal(arg, f)][0]]);
+	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u32Octal(arg, f)]);
 }
 
 export function fmt$fmt_LowerExp(self: Hex, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
@@ -27,10 +27,10 @@ export function fmt$fmt_UpperExp(self: Hex, f: rs.Formatter): rs.Result<undefine
 export function fmt$fmt_Display(self: Hex, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (!rs.fmtAlternate(f)) {
 		const arg2 = self._0;
-		return rs.fmtWriteFmt(f, [[(f: rs.Formatter) => rs.u32LowerHex(arg2, f)][0]]);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u32LowerHex(arg2, f)]);
 	}
 	const arg = self._0;
-	return rs.fmtWriteFmt(f, [rs.fmtSpec({ alternate: true }, [(f: rs.Formatter) => rs.u32LowerHex(arg, f)][0])]);
+	return rs.fmtWriteFmt(f, [rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.u32LowerHex(arg, f))]);
 }
 
 export function fmt$fmt_Debug(self: Hex, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {

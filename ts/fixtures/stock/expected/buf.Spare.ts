@@ -98,7 +98,7 @@ export function remainingMut$bytes_BufMut(self: Spare): rs.usize {
 export function advanceMut$bytes_BufMut(self: Spare, cnt: rs.usize): void {
 	const _4: rs.usize = remainingMut$bytes_BufMut_mut(self);
 	if (!(cnt <= _4)) {
-		rs.panicFmt(["advanced ", [(f: rs.Formatter) => rs.usizeDisplay(cnt, f)][0], " past the capacity"]);
+		rs.panicFmt(["advanced ", (f: rs.Formatter) => rs.usizeDisplay(cnt, f), " past the capacity"]);
 	} else {
 		rs.byteVecSetLen(self._0, rs.usizeAdd(self._0.length, cnt));
 	}

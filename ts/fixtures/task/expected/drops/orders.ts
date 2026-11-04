@@ -50,7 +50,7 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _24: rs.Iter<Ranked.Ranked> = rs.vecIntoIter(keys(part29), rs.drop);
 		const set: rs.BTreeSet<Ranked.Ranked> = rs.btreeCollectKeys(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeSet<Ranked.Ranked>, rs.iterToVec(_24, "next", 12, true, 12).items, 12, true, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), Ranked.eq$cmp_PartialEq, rs.drop);
 		const part31 = setIds(set);
-		Log.note(log, rs.fmtFormat(["set ", [(f: rs.Formatter) => rs.fmtPad(f, part31)][0]]));
+		Log.note(log, rs.fmtFormat(["set ", (f: rs.Formatter) => rs.fmtPad(f, part31)]));
 		rs.btreeDrop(set, rs.drop);
 		const _46: rs.Iter<Ranked.Ranked> = rs.vecIntoIter(keys(rs.byteSliceFrom(Uint8Array.of())), rs.drop);
 		const none: rs.BTreeSet<Ranked.Ranked> = rs.btreeCollectKeys(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeSet<Ranked.Ranked>, rs.iterToVec(_46, "next", 12, true, 12).items, 12, true, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), Ranked.eq$cmp_PartialEq, rs.drop);
@@ -67,17 +67,17 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _78: rs.Iter<[Ranked.Ranked, Guard.Guard]> = rs.vecIntoIter(entries(part26), lib_drop$tuple2_drops_orders_Ranked_model_Guard);
 		const map: rs.BTreeMap<Ranked.Ranked, Guard.Guard> = rs.btreeCollect(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeMap<Ranked.Ranked, Guard.Guard>, rs.iterToVec(_78, "next", 20, true, 20).items, 20, true, Ranked.eq$cmp_PartialEq, rs.drop, rs.drop);
 		const part28 = mapIds(map);
-		Log.note(log, rs.fmtFormat(["map ", [(f: rs.Formatter) => rs.fmtPad(f, part28)][0]]));
+		Log.note(log, rs.fmtFormat(["map ", (f: rs.Formatter) => rs.fmtPad(f, part28)]));
 		rs.btreeDrop(map, rs.drop, rs.drop);
 	} else if (_21 === 2) {
 		const _99: Ranked.Ranked[] = [key(1, 4), key(2, 2), key(3, 4), key(4, 1), key(5, 2)];
 		const set2: rs.BTreeSet<Ranked.Ranked> = rs.btreeCollectKeys(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeSet<Ranked.Ranked>, rs.iterToVec(rs.iterSlice(_99, rs.drop), "fold", 12, true).items, 12, true, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), Ranked.eq$cmp_PartialEq, rs.drop);
 		const part23 = setIds(set2);
-		Log.note(log, rs.fmtFormat(["set ", [(f: rs.Formatter) => rs.fmtPad(f, part23)][0]]));
+		Log.note(log, rs.fmtFormat(["set ", (f: rs.Formatter) => rs.fmtPad(f, part23)]));
 		const _130: [Ranked.Ranked, Guard.Guard][] = [entry(1, 4), entry(2, 2), entry(3, 4), entry(4, 1), entry(5, 2)];
 		const map2: rs.BTreeMap<Ranked.Ranked, Guard.Guard> = rs.btreeCollect(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeMap<Ranked.Ranked, Guard.Guard>, rs.iterToVec(rs.iterSlice(_130, lib_drop$tuple2_drops_orders_Ranked_model_Guard), "fold", 20, true).items, 20, true, Ranked.eq$cmp_PartialEq, rs.drop, rs.drop);
 		const part25 = mapIds(map2);
-		Log.note(log, rs.fmtFormat(["map ", [(f: rs.Formatter) => rs.fmtPad(f, part25)][0]]));
+		Log.note(log, rs.fmtFormat(["map ", (f: rs.Formatter) => rs.fmtPad(f, part25)]));
 		rs.btreeDrop(map2, rs.drop, rs.drop);
 		rs.btreeDrop(set2, rs.drop);
 	} else if (_21 === 3) {
@@ -85,7 +85,7 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _161: rs.Iter<Ranked.Ranked> = rs.vecIntoIter(keys(part16), rs.drop);
 		const set3: rs.BTreeSet<Ranked.Ranked> = rs.btreeCollectKeys(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeSet<Ranked.Ranked>, rs.iterToVec(_161, "next", 12, true, 12).items, 12, true, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), Ranked.eq$cmp_PartialEq, rs.drop);
 		const part18 = setIds(set3);
-		Log.note(log, rs.fmtFormat(["set ", [(f: rs.Formatter) => rs.fmtPad(f, part18)][0]]));
+		Log.note(log, rs.fmtFormat(["set ", (f: rs.Formatter) => rs.fmtPad(f, part18)]));
 		rs.iterForEach(rs.btreeKeys(set3, rs.drop), (a0: Ranked.Ranked): undefined => {
 			a0[Symbol.dispose]();
 		}, true);
@@ -93,7 +93,7 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _184: rs.Iter<[Ranked.Ranked, Guard.Guard]> = rs.vecIntoIter(entries(part19), lib_drop$tuple2_drops_orders_Ranked_model_Guard);
 		const map3: rs.BTreeMap<Ranked.Ranked, Guard.Guard> = rs.btreeCollect(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeMap<Ranked.Ranked, Guard.Guard>, rs.iterToVec(_184, "next", 20, true, 20).items, 20, true, Ranked.eq$cmp_PartialEq, rs.drop, rs.drop);
 		const part21 = mapIds(map3);
-		Log.note(log, rs.fmtFormat(["map ", [(f: rs.Formatter) => rs.fmtPad(f, part21)][0]]));
+		Log.note(log, rs.fmtFormat(["map ", (f: rs.Formatter) => rs.fmtPad(f, part21)]));
 		rs.iterForEach(rs.btreeIter(map3, rs.drop, rs.drop), (a02: [Ranked.Ranked, Guard.Guard]): undefined => {
 			lib_drop$tuple2_drops_orders_Ranked_model_Guard(a02);
 		}, true);
@@ -111,12 +111,12 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			const args46 = [(f: rs.Formatter) => rs.u8Display(arg2, f), (f: rs.Formatter) => rs.u32Display(_1111, f)];
 			return rs.fmtFormat([args46[0], ":", args46[1]]);
 		}), undefined, 12, true).items, ",");
-		Log.note(log, rs.fmtFormat(["cells ", [(f: rs.Formatter) => rs.fmtPad(f, part15)][0]]));
+		Log.note(log, rs.fmtFormat(["cells ", (f: rs.Formatter) => rs.fmtPad(f, part15)]));
 		rs.btreeDrop(map4, undefined, rs.drop);
 	} else if (_21 === 5) {
 		const by: (a0: Guard.Guard) => Ranked.Ranked = (g: Guard.Guard): Ranked.Ranked => {
 			const n7: rs.u32 = rs.u32Sub(Guard.id(g), id);
-			Log.note(log, rs.fmtFormat(["key ", [(f: rs.Formatter) => rs.u32Display(n7, f)][0]]));
+			Log.note(log, rs.fmtFormat(["key ", (f: rs.Formatter) => rs.u32Display(n7, f)]));
 			return key(rs.u32Add(n7, 50), rs.u8Mul(rs.u32Rem(n7, 3) & 0xff, 2));
 		};
 		const guards: (a0: rs.u32, a1: rs.u32) => rs.Vec<Guard.Guard> = (from: rs.u32, to: rs.u32): rs.Vec<Guard.Guard> => {
@@ -129,13 +129,13 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g2[Symbol.dispose]();
 			return _018;
 		});
-		Log.note(log, rs.fmtFormat(["max ", [(f: rs.Formatter) => rs.fmtOption(part13, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["max ", (f: rs.Formatter) => rs.fmtOption(part13, f, rs.u32Debug)]));
 		const part14 = option_map$06w9waf(rs.iterMinByKey(rs.vecIntoIter(guards(6, 11), rs.drop), by, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), true, rs.drop, undefined, rs.drop), (g3: Guard.Guard): rs.u32 => {
 			const _019: rs.u32 = rs.u32Sub(Guard.id(g3), id);
 			g3[Symbol.dispose]();
 			return _019;
 		});
-		Log.note(log, rs.fmtFormat(["min ", [(f: rs.Formatter) => rs.fmtOption(part14, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["min ", (f: rs.Formatter) => rs.fmtOption(part14, f, rs.u32Debug)]));
 		const one2: Guard.Guard | undefined = rs.iterMaxByKey(rs.vecIntoIter(guards(11, 12), rs.drop), by, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), true, rs.drop, undefined, rs.drop);
 		const none2: Guard.Guard | undefined = rs.iterMinByKey(rs.vecIntoIter(guards(12, 12), rs.drop), by, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), true, rs.drop, undefined, rs.drop);
 		const _292: rs.u32 | undefined = option_map$06w9waf(one2, (g4: Guard.Guard): rs.u32 => {
@@ -155,7 +155,7 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			k2[Symbol.dispose]();
 			return _012;
 		});
-		Log.note(log, rs.fmtFormat(["max ", [(f: rs.Formatter) => rs.fmtOption(part6, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["max ", (f: rs.Formatter) => rs.fmtOption(part6, f, rs.u32Debug)]));
 		const part7 = rs.byteSliceFrom(short);
 		const _326: rs.Iter<[Ranked.Ranked, Guard.Guard]> = rs.vecIntoIter(entries(part7), lib_drop$tuple2_drops_orders_Ranked_model_Guard);
 		const part8 = option_map$16oph0b(rs.ownedEnd(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeMap<Ranked.Ranked, Guard.Guard>, rs.iterToVec(_326, "next", 20, true, 20).items, 20, true, Ranked.eq$cmp_PartialEq, rs.drop, rs.drop), rs.drop, rs.drop, true), false), (k3: Ranked.Ranked): rs.u32 => {
@@ -163,14 +163,14 @@ export function orders(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			k3[Symbol.dispose]();
 			return _013;
 		});
-		Log.note(log, rs.fmtFormat(["min ", [(f: rs.Formatter) => rs.fmtOption(part8, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["min ", (f: rs.Formatter) => rs.fmtOption(part8, f, rs.u32Debug)]));
 		const _348: rs.Iter<[rs.u32, Guard.Guard]> = rs.iterMap(new rs.Range(1, 5), (n6: rs.u32): [rs.u32, Guard.Guard] => {
 			return [n6, Guard.new(rs.u32Add(rs.u32Add(id, n6), 200), Log.clone$Clone(log))] as [rs.u32, Guard.Guard];
 		});
 		const part9 = rs.ownedEnd(rs.btreeKeys(rs.btreeCollect(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, Guard.Guard>, rs.iterToVec(_348, undefined, 12, true).items, 12, true, undefined, undefined, rs.drop), undefined, rs.drop, true), true);
-		Log.note(log, rs.fmtFormat(["plain ", [(f: rs.Formatter) => rs.fmtOption(part9, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["plain ", (f: rs.Formatter) => rs.fmtOption(part9, f, rs.u32Debug)]));
 		const part10 = rs.ownedEnd(rs.btreeKeys(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u32, Guard.Guard>, undefined, rs.drop, true), false);
-		Log.note(log, rs.fmtFormat(["empty ", [(f: rs.Formatter) => rs.fmtOption(part10, f, rs.u32Debug)][0]]));
+		Log.note(log, rs.fmtFormat(["empty ", (f: rs.Formatter) => rs.fmtOption(part10, f, rs.u32Debug)]));
 	} else {
 		const _378: rs.Iter<Ranked.Ranked> = rs.vecIntoIter(keys(rs.byteSliceFrom(Uint8Array.of(2, 1, 99, 3))), rs.drop);
 		rs.btreeDrop(rs.btreeCollectKeys(rs.btreeNew(Ranked.cmp$cmp_Ord) as rs.BTreeSet<Ranked.Ranked>, rs.iterToVec(_378, "next", 12, true, 12).items, 12, true, rs.cmpLt(Ranked.partialCmp$cmp_PartialOrd), Ranked.eq$cmp_PartialEq, rs.drop), rs.drop);

@@ -314,7 +314,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			} else {
 				tried = rs.vecTryReserveExact(v, additional2, 1280);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, v.items.length, rs.vecCapacity(v, 1280));
 	}
@@ -555,7 +555,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			} else {
 				tried = rs.vecTryReserveExact(v, additional2, 16);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, v.items.length, rs.vecCapacity(v, 16));
 	}
@@ -796,7 +796,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			} else {
 				tried = rs.vecTryReserveExact(v, additional2, 2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, v.items.length, rs.vecCapacity(v, 2));
 	}
@@ -1035,7 +1035,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 			} else {
 				tried = rs.byteVecTryReserveExact(v, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, v.length, v.data.length);
 	}
@@ -1285,7 +1285,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			} else {
 				tried = rs.vecTryReserveExact(v, additional2, 0);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, v.items.length, rs.vecCapacity(v, 0));
 	}
@@ -2466,7 +2466,7 @@ export function dequeSteps$array160_u64(dataData: Uint8Array, dataStart: number,
 			} else {
 				tried = rs.dequeTryReserveExact(q, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
@@ -2600,7 +2600,7 @@ export function dequeSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number
 			} else {
 				tried = rs.dequeTryReserveExact(q, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
@@ -2734,7 +2734,7 @@ export function dequeSteps$u16(dataData: Uint8Array, dataStart: number, dataLen:
 			} else {
 				tried = rs.dequeTryReserveExact(q, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
@@ -2868,7 +2868,7 @@ export function dequeSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: 
 			} else {
 				tried = rs.dequeTryReserveExact(q, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
@@ -3014,7 +3014,7 @@ export function dequeSteps$unit(dataData: Uint8Array, dataStart: number, dataLen
 			} else {
 				tried = rs.dequeTryReserveExact(q, additional2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		put(out, q.n);
 		put(out, rs.dequeCapacity(q));
@@ -3120,7 +3120,7 @@ export function heapSteps$array160_u64(dataData: Uint8Array, dataStart: number, 
 			} else {
 				tried = rs.vecTryReserveExact(h, additional2, 1280);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, h.items.length, rs.vecCapacity(h, 1280));
 	}
@@ -3202,7 +3202,7 @@ export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number,
 			} else {
 				tried = rs.vecTryReserveExact(h, additional2, 16);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, h.items.length, rs.vecCapacity(h, 16));
 	}
@@ -3284,7 +3284,7 @@ export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: 
 			} else {
 				tried = rs.vecTryReserveExact(h, additional2, 2);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, h.items.length, rs.vecCapacity(h, 2));
 	}
@@ -3366,7 +3366,7 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 			} else {
 				tried = rs.vecTryReserveExact(h, additional2, 1);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, h.items.length, rs.vecCapacity(h, 1));
 	}
@@ -3450,7 +3450,7 @@ export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen:
 			} else {
 				tried = rs.vecTryReserveExact(h, additional2, 0);
 			}
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 		}
 		sized(out, h.items.length, rs.vecCapacity(h, 0));
 	}
@@ -3666,7 +3666,7 @@ export function maps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					const i: rs.usize = _180[0];
 					const tried: rs.Result<undefined, rs.TryReserveError> = _180[1][0];
 					const n: rs.usize = _180[1][1];
-					rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([[(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)][0]])), undefined, true);
+					rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(tried, f, rs.fmtUnit, rs.fmtTryReserveErrorDebug)])), undefined, true);
 					if (!tried.ok) {
 						if (!(i < 2)) {
 							rs.panic("index out of bounds: the len is " + 2 + " but the index is " + i);
