@@ -3960,7 +3960,7 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
  * the order the handles drop, and a handle of one is never unique, so taking it back copies.
  */
 export function owners(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
-	let noted!: rs.u8 | undefined;
+	let noted!: rs.ByteVec;
 	if (dataLen >= 1) {
 		const mid: number = rs.usizeDiv(dataLen - 1, 2);
 		if (mid > dataLen - 1) {
@@ -3991,90 +3991,91 @@ export function owners(dataData: Uint8Array, dataStart: number, dataLen: number,
 			if (_70 === 0) {
 				const clone: rs.ByteSlice = rs.bytesClone(handles.items[rs.idx(handles.items, i)]);
 				handles.items.push(clone);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 1) {
 				const part: rs.ByteSlice = rs.bytesSlice(handles.items[rs.idx(handles.items, i)], at);
 				handles.items.push(part);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 2) {
 				const at12 = rs.idx(handles.items, i);
 				const part2: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at12], (value6) => handles.items[at12] = value6), at);
 				handles.items.push(part2);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 3) {
 				const at11 = rs.idx(handles.items, i);
 				const part3: rs.ByteSlice = rs.bytesSplitOff(rs.place(() => handles.items[at11], (value5) => handles.items[at11] = value5), at);
 				handles.items.push(part3);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 4) {
 				const at10 = rs.idx(handles.items, i);
 				rs.bytesTruncate(rs.place(() => handles.items[at10], (value4) => handles.items[at10] = value4), at);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 5) {
 				const at9 = rs.idx(handles.items, i);
 				rs.bytesTruncate(rs.place(() => handles.items[at9], (value3) => handles.items[at9] = value3), 0);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 6) {
-				noted = rs.bytesIsUnique(handles.items[rs.idx(handles.items, i)]) ? 1 : 0;
+				noted = rs.byteVecFrom(Uint8Array.of(rs.bytesIsUnique(handles.items[rs.idx(handles.items, i)]) ? 1 : 0));
 			} else if (_70 === 7) {
-				const _103: rs.Result<rs.BytesMut, rs.ByteSlice> = rs.bytesTryIntoMut(rs.vecRemove(handles, i));
-				if (_103.ok) {
-					const _110: rs.ByteSlice = rs.bytesMutFreeze(_103.value);
-					handles.items.push(_110);
-					noted = 1;
+				const _104: rs.Result<rs.BytesMut, rs.ByteSlice> = rs.bytesTryIntoMut(rs.vecRemove(handles, i));
+				if (_104.ok) {
+					const _111: rs.ByteSlice = rs.bytesMutFreeze(_104.value);
+					handles.items.push(_111);
+					noted = rs.byteVecFrom(Uint8Array.of(1));
 				} else {
-					rs.vecInsert(handles, i, _103.error);
-					noted = 0;
+					rs.vecInsert(handles, i, _104.error);
+					noted = rs.byteVecFrom(Uint8Array.of(0));
 				}
 			} else if (_70 === 8) {
-				noted = rs.bytesToByteVec(rs.vecRemove(handles, i)).length & 0xff;
+				noted = rs.bytesToByteVec(rs.vecRemove(handles, i));
 			} else if (_70 === 9) {
-				const _123: rs.BytesMut = rs.bytesMutFromBytes(rs.vecRemove(handles, i));
-				noted = _123.length & 0xff;
-				_123[Symbol.dispose]();
+				const _121: rs.BytesMut = rs.bytesMutFromBytes(rs.vecRemove(handles, i));
+				noted = rs.byteSliceToByteVec(rs.bytesMutView(_121));
+				_121[Symbol.dispose]();
 			} else if (_70 === 10) {
 				rs.bytesDrop(rs.vecRemove(handles, i));
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 11) {
 				const at7 = rs.idx(handles.items, i);
 				rs.bytesAdvance(rs.place(() => handles.items[at7], (value2) => handles.items[at7] = value2), at);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 12) {
 				const at6 = rs.idx(handles.items, i);
 				const part4: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at6], (value) => handles.items[at6] = value), at);
 				handles.items.push(part4);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 13) {
 				const sub: rs.ByteSlice = rs.byteSliceRange(handles.items[rs.idx(handles.items, i)], at);
 				const part5: rs.ByteSlice = rs.bytesSliceRef(handles.items[rs.idx(handles.items, i)], sub);
 				handles.items.push(part5);
-				noted = undefined;
+				noted = new rs.ByteVec();
 			} else if (_70 === 14) {
 				const buf: rs.BytesMut = rs.bytesMutWithCapacity(0);
-				const _150: rs.ByteSlice = rs.vecRemove(handles, i);
-				rs.bytesMutPutStorage(buf, _150);
-				noted = buf.length & 0xff;
+				const _148: rs.ByteSlice = rs.vecRemove(handles, i);
+				rs.bytesMutPutStorage(buf, _148);
+				noted = rs.byteSliceToByteVec(rs.bytesMutView(buf));
 				buf[Symbol.dispose]();
 			} else {
-				const _155: rs.ByteSlice = rs.bytesNew();
+				const _152: rs.ByteSlice = rs.bytesNew();
 				const at3 = rs.idx(handles.items, i);
 				rs.bytesDrop(handles.items[at3]);
-				handles.items[at3] = _155;
-				noted = undefined;
+				handles.items[at3] = _152;
+				noted = new rs.ByteVec();
 			}
 			const log2: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
 			rs.byteVecPush(log2.value, op);
-			rs.iterExtendBytes(log2.value, rs.iterOption(noted), undefined, true);
+			const _165: rs.ByteSlice = rs.byteVecSlice(noted);
+			rs.byteVecExtendFromSlice(log2.value, _165);
 			rs.mutexUnlock(log2);
 		}
-		for (const _172 of handles.items) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(_172, f)];
+		for (const _170 of handles.items) {
+			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(_170, f)];
 			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
 		}
 		rs.dropVec(handles, rs.bytesDrop);
-		const _194: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_194.value));
-		rs.mutexUnlock(_194);
+		const _192: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_192.value));
+		rs.mutexUnlock(_192);
 		log[Symbol.dispose]();
 	}
 }

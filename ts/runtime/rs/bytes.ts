@@ -131,8 +131,9 @@ export function bytesFromVec(v: ByteVec): Bytes {
 /** `From<Bytes> for Vec<u8>`: its storage's vector, if it is the one handle of it, and else a copy. */
 export function bytesToByteVec(b: Bytes): ByteVec {
 	if (!bytesIsUnique(b)) {
+		const copy = byteSliceToByteVec(b);
 		bytesDrop(b);
-		return byteSliceToByteVec(b);
+		return copy;
 	}
 	const s = (b as CountedBytes).shared;
 	s.refs--;
@@ -510,8 +511,9 @@ export function bytesMutFrom(s: ByteSlice): BytesMut {
  */
 export function bytesMutFromBytes(s: Bytes): BytesMut {
 	if (!bytesIsUnique(s)) {
+		const copy = bytesMutFrom(s);
 		bytesDrop(s);
-		return bytesMutFrom(s);
+		return copy;
 	}
 	const shared = (s as CountedBytes).shared;
 	const cap = shared.data.length - s.start;

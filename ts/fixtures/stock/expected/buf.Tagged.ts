@@ -2,7 +2,10 @@
 
 import * as rs from "./rs.ts";
 
-/** An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it drops. */
+/**
+ * An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it
+ * drops and zeroes the bytes, so a copy made after it dropped would show.
+ */
 export class Tagged {
 	data: rs.Arc<rs.ByteVec>;
 	tag: rs.u8;
@@ -29,6 +32,10 @@ export function drop$ops_Drop(self: Tagged): void {
 	const _5: rs.Mutex<rs.ByteVec> = rs.mutexLock(self.log.value);
 	rs.byteVecPush(_5.value, self.tag);
 	rs.mutexUnlock(_5);
+	const _10: rs.ByteVec | undefined = rs.arcGetMut(self.data);
+	if (_10 !== undefined) {
+		rs.byteSliceFill(rs.byteVecSlice(_10), 0);
+	}
 }
 
 //# sourceMappingURL=buf.Tagged.ts.map

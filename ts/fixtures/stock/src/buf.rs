@@ -911,7 +911,8 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(format!("{part:?} {bytes:?} {} {}", part.is_unique(), bytes.is_unique()).as_bytes());
 }
 
-/// An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it drops.
+/// An owner of bytes in an `Arc`, as moq's frames hold theirs, which logs its tag when it
+/// drops and zeroes the bytes, so a copy made after it dropped would show.
 struct Tagged {
 	data: Arc<Vec<u8>>,
 	tag: u8,
@@ -927,6 +928,9 @@ impl AsRef<[u8]> for Tagged {
 impl Drop for Tagged {
 	fn drop(&mut self) {
 		self.log.lock().unwrap().push(self.tag);
+		if let Some(data) = Arc::get_mut(&mut self.data) {
+			data.fill(0);
+		}
 	}
 }
 
@@ -958,76 +962,76 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 			0 => {
 				let clone = handles[i].clone();
 				handles.push(clone);
-				None
+				vec![]
 			}
 			1 => {
 				let part = handles[i].slice(at..);
 				handles.push(part);
-				None
+				vec![]
 			}
 			2 => {
 				let part = handles[i].split_to(at);
 				handles.push(part);
-				None
+				vec![]
 			}
 			3 => {
 				let part = handles[i].split_off(at);
 				handles.push(part);
-				None
+				vec![]
 			}
 			4 => {
 				handles[i].truncate(at);
-				None
+				vec![]
 			}
 			5 => {
 				handles[i].clear();
-				None
+				vec![]
 			}
-			6 => Some(handles[i].is_unique() as u8),
+			6 => vec![handles[i].is_unique() as u8],
 			7 => match handles.remove(i).try_into_mut() {
 				Ok(taken) => {
 					handles.push(taken.freeze());
-					Some(1)
+					vec![1]
 				}
 				Err(back) => {
 					handles.insert(i, back);
-					Some(0)
+					vec![0]
 				}
 			},
-			8 => Some(Vec::from(handles.remove(i)).len() as u8),
-			9 => Some(BytesMut::from(handles.remove(i)).len() as u8),
+			8 => Vec::from(handles.remove(i)),
+			9 => BytesMut::from(handles.remove(i)).to_vec(),
 			10 => {
 				drop(handles.remove(i));
-				None
+				vec![]
 			}
 			11 => {
 				handles[i].advance(at);
-				None
+				vec![]
 			}
 			12 => {
 				let part = handles[i].copy_to_bytes(at);
 				handles.push(part);
-				None
+				vec![]
 			}
 			13 => {
 				let sub = &handles[i][at..];
 				let part = handles[i].slice_ref(sub);
 				handles.push(part);
-				None
+				vec![]
 			}
 			14 => {
 				let mut buf = BytesMut::new();
 				buf.put(handles.remove(i));
-				Some(buf.len() as u8)
+				buf.to_vec()
 			}
 			_ => {
 				handles[i] = Bytes::new();
-				None
+				vec![]
 			}
 		};
 		let mut log = log.lock().unwrap();
 		log.push(op);
-		log.extend(noted);
+		log.extend_from_slice(&noted);
 	}
 	for handle in &handles {
 		out.extend_from_slice(format!("{handle:?}").as_bytes());
