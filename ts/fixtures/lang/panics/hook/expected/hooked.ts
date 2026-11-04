@@ -94,7 +94,7 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u8Display(n, f)];
 		rt.panicFmt(["formatted ", args2[0]], { file: "fixtures/lang/panics/src/hooked.rs", line: 82, col: 14 });
 	} else if (_10 === 2) {
-		rt.byteVecPush(out, v.data[rt.idx(v, rt.usizeAdd(n as rt.usize, 2), { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 24 })]);
+		rt.byteVecPush(out, v.data[rt.idx(v, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 25 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 83, col: 24 })]);
 	} else if (_10 === 3) {
 		rt.byteVecPush(out, rt.u8Add(rt.max(n, 200), rt.max(n, 100), { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 23 }));
 	} else if (_10 === 4) {
@@ -108,7 +108,7 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			return false;
 		}), "expected", undefined, { file: "fixtures/lang/panics/src/hooked.rs", line: 87, col: 49 }));
 	} else if (_10 === 7) {
-		const part2 = rt.usizeAdd(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 51 }) as rt.usize, 2);
+		const part2 = rt.usizeAdd(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 51 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 39 });
 		rt.byteVecExtendFromSlice(out, rt.byteSliceRange(rt.byteVecSlice(v), part2, 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 88, col: 38 }));
 	} else if (_10 === 8) {
 		const cell: rt.RefCell<rt.u8> = new rt.RefCell(n);
@@ -122,11 +122,11 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	} else if (_10 === 10) {
 		rt.byteVecPush(out, rt.u8Div(100, rt.u8WrappingMul(n, 0), { file: "fixtures/lang/panics/src/hooked.rs", line: 95, col: 24 }));
 	} else if (_10 === 11) {
-		rt.byteVecPush(out, rt.byteVecRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2), { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 34 }));
+		rt.byteVecPush(out, rt.byteVecRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 96, col: 34 }));
 	} else if (_10 === 12) {
-		rt.byteVecPush(out, rt.byteVecSwapRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2)));
+		rt.byteVecPush(out, rt.byteVecSwapRemove(rt.byteVecFrom(rt.byteVecView(v)), rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 97, col: 46 })));
 	} else if (_10 === 13) {
-		rt.byteSliceRotateLeft(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(n as rt.usize, 3));
+		rt.byteSliceRotateLeft(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 98, col: 37 }));
 	} else if (_10 === 14) {
 		rt.byteVecPush(out, rt.hashIndex(rt.hashNew() as rt.HashMap<rt.u8, rt.u8>, n, { file: "fixtures/lang/panics/src/hooked.rs", line: 99, col: 48 }));
 	} else if (_10 === 15) {
@@ -142,16 +142,16 @@ export function panicked(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	} else if (_10 === 18) {
 		rt.byteVecPush(out, tracked(n, { file: "fixtures/lang/panics/src/hooked.rs", line: 103, col: 24 }));
 	} else if (_10 === 19) {
-		rt.byteVecPush(out, rt.dequeIndex(rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(v))), 1, true) as rt.VecDeque<rt.u8>, rt.usizeAdd(n as rt.usize, 2), { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 49 }));
+		rt.byteVecPush(out, rt.dequeIndex(rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(v))), 1, true) as rt.VecDeque<rt.u8>, rt.usizeAdd(n as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 50 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 104, col: 49 }));
 	} else if (_10 === 20) {
 		rt.byteVecPush(out, result_unwrapOr$02rbyvl(rt.u8TryFrom(rt.durationAsSecs(rt.durationAdd({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.durationFromSecs(rt.max(n, 1) as rt.u64)))), 0));
 	} else if (_10 === 21) {
-		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strSlice("éé", 0, rt.usizeAdd(rt.usizeMul(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 56 }) as rt.usize, 2), 1), { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 41 })));
+		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.strSlice("éé", 0, rt.usizeAdd(rt.usizeMul(rt.u8Rem(n, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 56 }) as rt.usize, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 44 }), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 44 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 106, col: 41 })));
 	} else if (_10 === 22) {
-		rt.iterExtendBytes(out, rt.iterStepBy(new rt.Range(0, n), rt.usizeMul(n as rt.usize, 0), undefined, 255, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/adapters/step_by.rs", line: 36, col: 9 }), undefined, true);
+		rt.iterExtendBytes(out, rt.iterStepBy(new rt.Range(0, n), rt.usizeMul(n as rt.usize, 0, { file: "fixtures/lang/panics/src/hooked.rs", line: 107, col: 41 }), undefined, 255, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/core/src/iter/adapters/step_by.rs", line: 36, col: 9 }), undefined, true);
 	} else if (_10 === 23) {
 		const _150: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-		const _152: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(n as rt.usize, 3), rt.usizeStep);
+		const _152: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(n as rt.usize, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 108, col: 42 }), rt.usizeStep);
 		rt.iterExtendBytes(out, rt.byteVecDrain(_150, _152, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3007, col: 36 }), "fold", true);
 	} else if (_10 === 24) {
 		rt.panic("any", { file: "fixtures/lang/panics/src/hooked.rs", line: 109, col: 15 }, false);
@@ -216,9 +216,9 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	b0: {
 		const _21: rt.u8 = rt.u8Rem(kind, 36, { file: "fixtures/lang/panics/src/hooked.rs", line: 152, col: 11 });
 		if (_21 === 0) {
-			rt.byteVecPush(out, rt.byteVecWithCapacity(rt.usizeSub(4294967295, at)).length & 0xff);
+			rt.byteVecPush(out, rt.byteVecWithCapacity(rt.usizeSub(4294967295, at, { file: "fixtures/lang/panics/src/hooked.rs", line: 153, col: 48 })).length & 0xff);
 		} else if (_21 === 1) {
-			rt.byteSliceRotateRight(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(at, 3));
+			rt.byteSliceRotateRight(rt.byteVecSlice(rt.byteVecFrom(rt.byteVecView(v))), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 154, col: 37 }));
 		} else if (_21 === 2) {
 			rt.byteVecPush(out, rt.clamp(n, rt.max(n, 1), rt.u8Sub(rt.max(n, 1), 1, { file: "fixtures/lang/panics/src/hooked.rs", line: 155, col: 41 }), { file: "fixtures/lang/panics/src/hooked.rs", line: 155, col: 25 }));
 		} else if (_21 === 3) {
@@ -252,20 +252,20 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				return _221 & 0xff;
 			}), "next");
 		} else if (_21 === 11) {
-			rt.dequeInsert(rt.dequeClone(deque), rt.usizeAdd(at, 3), n);
+			rt.dequeInsert(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 164, col: 36 }), n);
 		} else if (_21 === 12) {
-			rt.dequeSwap(rt.dequeClone(deque), rt.usizeAdd(at, 2), 0);
+			rt.dequeSwap(rt.dequeClone(deque), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 165, col: 34 }), 0);
 		} else if (_21 === 13) {
-			rt.dequeSwap(rt.dequeClone(deque), 0, rt.usizeAdd(at, 2));
+			rt.dequeSwap(rt.dequeClone(deque), 0, rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 166, col: 37 }));
 		} else if (_21 === 14) {
-			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3));
+			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 167, col: 41 }));
 		} else if (_21 === 15) {
-			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3), true);
+			rt.dequeRotate(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 168, col: 42 }), true);
 		} else if (_21 === 16) {
-			rt.iterExtendBytes(out, rt.dequeIntoIter(rt.dequeSplitOff(rt.dequeClone(deque), rt.usizeAdd(at, 3))), undefined, true);
+			rt.iterExtendBytes(out, rt.dequeIntoIter(rt.dequeSplitOff(rt.dequeClone(deque), rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 169, col: 50 }))), undefined, true);
 		} else if (_21 === 17) {
 			const _132: Uint8Array = Uint8Array.of(n);
-			rt.iterExtendBytes(out, rt.listIter(rt.listSplitOff(rt.listExtend(rt.listNew() as rt.LinkedList<rt.u8>, rt.iterSlice(_132)), rt.usizeAdd(at, 2))), undefined, true);
+			rt.iterExtendBytes(out, rt.listIter(rt.listSplitOff(rt.listExtend(rt.listNew() as rt.LinkedList<rt.u8>, rt.iterSlice(_132)), rt.usizeAdd(at, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 170, col: 58 }))), undefined, true);
 		} else if (_21 === 18) {
 			const mutex: rt.Mutex<rt.u8> = new rt.Mutex(n);
 			const _held: rt.Result<rt.Mutex<rt.u8>, rt.Mutex<rt.u8>> = rt.Ok(rt.mutexLock(mutex));
@@ -322,18 +322,18 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.durationSubsecNanos(rt.durationMul({ secs: { hi: 0xffffffff, lo: 0xffffffff } as rt.u64, nanos: 999999999 }, rt.u32Add(n as rt.u32, 2, { file: "fixtures/lang/panics/src/hooked.rs", line: 205, col: 41 }))) & 0xff);
 			} else if (_21 === 28) {
 				const _227: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-				const _229: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3), rt.usizeStep);
+				const _229: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 206, col: 44 }), rt.usizeStep);
 				rt.byteVecExtendFromWithin(_227, _229, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3614, col: 21 });
 			} else if (_21 === 29) {
 				const _234: rt.VecDeque<rt.u8> = rt.dequeClone(deque);
-				const _236: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3), rt.usizeStep);
+				const _236: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 207, col: 46 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.dequeDrain(_234, _236, undefined, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1998, col: 36 }), "next");
 			} else if (_21 === 30) {
-				const _241: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3), rt.usizeStep);
+				const _241: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 208, col: 38 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.dequeRange(deque, _241, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1845, col: 36 }), undefined, true);
 			} else if (_21 === 31) {
 				const _247: rt.VecDeque<rt.u8> = rt.dequeClone(deque);
-				const _249: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3), rt.usizeStep);
+				const _249: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 209, col: 50 }), rt.usizeStep);
 				rt.iterExtendBytes(out, rt.iterMap(rt.dequeRangeMut(_247, _249, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/collections/vec_deque/mod.rs", line: 1845, col: 36 }), (v4: rt.Place<rt.u8>): rt.u8 => {
 					return v4.v;
 				}), undefined, true);
@@ -360,7 +360,7 @@ export function sited(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 				});
 			} else {
 				const _273: rt.ByteVec = rt.byteVecFrom(rt.byteVecView(v));
-				const _275: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3), rt.usizeStep);
+				const _275: rt.RangeFrom<rt.usize> = new rt.RangeFrom(rt.usizeAdd(at, 3, { file: "fixtures/lang/panics/src/hooked.rs", line: 223, col: 42 }), rt.usizeStep);
 				const _278: Uint8Array = Uint8Array.of(n);
 				rt.iterExtendBytes(out, rt.spliceFrom(rt.byteVecSplice(_273, _275, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/alloc/src/vec/mod.rs", line: 3007, col: 36 }), rt.iterSlice(_278), true), "next");
 			}

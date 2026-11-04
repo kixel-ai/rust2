@@ -10,7 +10,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		return out;
 	}
 	const cases_: [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] = cases();
-	cases_[rt.idx(cases_, rt.usizeRem(((input.data[input.start] << 8) | input.data[input.start + 1]) as rt.usize, cases_.length), { file: "fixtures/lang/panics/src/../../harness.rs", line: 14, col: 26 })][1](input.data[input.start + 2], new rt.ByteSlice(input.data, input.start + 3, input.length - 3), out);
+	cases_[rt.idx(cases_, rt.usizeRem(((input.data[input.start] << 8) | input.data[input.start + 1]) as rt.usize, cases_.length, { file: "fixtures/lang/panics/src/../../harness.rs", line: 14, col: 27 }), { file: "fixtures/lang/panics/src/../../harness.rs", line: 14, col: 26 })][1](input.data[input.start + 2], new rt.ByteSlice(input.data, input.start + 3, input.length - 3), out);
 	return out;
 }
 

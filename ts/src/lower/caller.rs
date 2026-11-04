@@ -85,7 +85,7 @@ fn rustc(args: &[&str]) -> Option<String> {
 }
 
 /// Where std's code panics outside a `#[track_caller]` function, for each of its panics the
-/// runtime makes, by the key the runtime's `site` reads: a file under `library/`, `*`
+/// runtime makes, by the key it passes in place of a location: a file under `library/`, `*`
 /// standing for a vendored crate's version, the text before it, and the text the call
 /// that panics starts with, as a method call's location starts at its name.
 const SITES: &[(&str, &str, &str, &str)] = &[
@@ -311,7 +311,8 @@ fn located() -> &'static rustc_data_structures::fx::FxHashMap<&'static str, usiz
 	})
 }
 
-/// The functions `text` exports whose last parameter is `at?: Location`, and its index.
+/// The functions `text` exports whose last parameter is `at?: Location`, or one that also
+/// takes a key of `rt.Sites`, and its index.
 fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)> {
 	["export function ", "export const "].into_iter().flat_map(move |keyword| {
 		text.match_indices(keyword).filter_map(move |(at, _)| {
@@ -326,7 +327,7 @@ fn signatures(text: &'static str) -> impl Iterator<Item = (&'static str, usize)>
 			};
 			let params = split(rest.strip_prefix('(')?);
 			let last = params.last()?;
-			(last.trim() == "at?: Location").then_some((name, params.len() - 1))
+			matches!(last.trim(), "at?: Location" | "at?: Location | string").then_some((name, params.len() - 1))
 		})
 	})
 }

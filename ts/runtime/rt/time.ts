@@ -5,7 +5,7 @@
 // A `Duration` never changes once made, so values share it. Its arithmetic is std's: a
 // sum past `u64::MAX` seconds is `None`, saturates, or panics with std's message.
 
-import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, Ok, panic, type Result, site } from "../rt.ts";
+import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, Ok, panic, type Result } from "../rt.ts";
 import { cmp, type Ordering } from "./collections.ts";
 import { type Hasher, hash32, hash64 } from "./hash.ts";
 import { f64ToBits } from "./float.ts";
@@ -31,7 +31,7 @@ function max(): Duration {
 export function durationNew(secs: u64, nanos: u32): Duration {
 	if (nanos < NANOS_PER_SEC) return { secs, nanos };
 	const carried = u64CheckedAdd(secs, Math.floor(nanos / NANOS_PER_SEC));
-	if (carried === undefined) panic("adding carry-over seconds from nanoseconds should not exceed u64::MAX", site("duration_new"), true);
+	if (carried === undefined) panic("adding carry-over seconds from nanoseconds should not exceed u64::MAX", "duration_new", true);
 	return { secs: carried, nanos: nanos % NANOS_PER_SEC };
 }
 
@@ -57,12 +57,12 @@ export function durationFromNanos(nanos: u64, at?: Location): Duration {
 
 /** `Duration::from_mins`, panicking past `u64::MAX` seconds. */
 export function durationFromMins(mins: u64): Duration {
-	return { secs: u64CheckedMul(mins, 60 as u64) ?? panic("overflow in Duration::from_mins", site("duration_from_mins")), nanos: 0 };
+	return { secs: u64CheckedMul(mins, 60 as u64) ?? panic("overflow in Duration::from_mins", "duration_from_mins"), nanos: 0 };
 }
 
 /** `Duration::from_hours`, panicking past `u64::MAX` seconds. */
 export function durationFromHours(hours: u64): Duration {
-	return { secs: u64CheckedMul(hours, 3600 as u64) ?? panic("overflow in Duration::from_hours", site("duration_from_hours")), nanos: 0 };
+	return { secs: u64CheckedMul(hours, 3600 as u64) ?? panic("overflow in Duration::from_hours", "duration_from_hours"), nanos: 0 };
 }
 
 /** `Duration::from_nanos_u128`, panicking past `u64::MAX` seconds. */
@@ -309,17 +309,17 @@ export const fmtTryFromFloatSecsErrorDebug = (e: TryFromFloatSecsError, f: Forma
 
 /** `a + b`, panicking past `u64::MAX` seconds. */
 export function durationAdd(a: Duration, b: Duration): Duration {
-	return durationCheckedAdd(a, b) ?? panic("adding durations should not exceed u64::MAX", site("duration_add"), true);
+	return durationCheckedAdd(a, b) ?? panic("adding durations should not exceed u64::MAX", "duration_add", true);
 }
 
 /** `a - b`, panicking below zero. */
 export function durationSub(a: Duration, b: Duration): Duration {
-	return durationCheckedSub(a, b) ?? panic("subtracting durations should not be negative", site("duration_sub"), true);
+	return durationCheckedSub(a, b) ?? panic("subtracting durations should not be negative", "duration_sub", true);
 }
 
 /** `d * n` by a `u32`, panicking past `u64::MAX` seconds. */
 export function durationMul(d: Duration, n: u32): Duration {
-	return durationCheckedMul(d, n) ?? panic("multiplying duration by scalar should not exceed u64::MAX", site("duration_mul"), true);
+	return durationCheckedMul(d, n) ?? panic("multiplying duration by scalar should not exceed u64::MAX", "duration_mul", true);
 }
 
 /** `n * d`, which std computes as `d * n`. */

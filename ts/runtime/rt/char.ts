@@ -4,7 +4,7 @@
 // Each reads std's own Unicode tables, which `rt/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, OK, Ok, type Place, panic, type Result, site, sliceView } from "../rt.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, OK, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
 import { type char, type u8, type u16, u16Debug, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
 import { strChars } from "./str.ts";
@@ -396,7 +396,7 @@ export function charLenUtf16(c: char): usize {
 /** std's panic for a buffer too short to encode `c` into, by `encode_utf8` or `encode_utf16`. */
 function tooShort(encoding: string, c: char, len: number, has: number): never {
 	const code = c.toString(16).toUpperCase().padStart(4, "0");
-	panic(`${encoding}: need ${len} bytes to encode U+${code} but buffer has just ${has}`, site(encoding), true);
+	panic(`${encoding}: need ${len} bytes to encode U+${code} but buffer has just ${has}`, encoding, true);
 }
 
 /** The `&mut str` `encode_utf8` returns: the bytes it wrote, which a write changes in place. */

@@ -10,7 +10,7 @@ import type { Ordering } from "./rt/collections.ts";
 import type { ParseFloatError } from "./rt/float.ts";
 import { type char, type ParseCharError, type ParseIntError, type TryFromIntError, type u32, type usize, u8Debug, usizeDebug, usizeDisplay } from "./rt/int.ts";
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
-import { fmtLocationDisplay, type Location } from "./rt/location.ts";
+import type { Location } from "./rt/location.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
 
 import { AtIndex } from "./rt/collections.ts";
@@ -22,6 +22,7 @@ export * from "./rt/char.ts";
 export * from "./rt/collections.ts";
 export * from "./rt/float.ts";
 export * from "./rt/hash.ts";
+export * from "./rt/hook.ts";
 export * from "./rt/int.ts";
 export * from "./rt/iter.ts";
 export * from "./rt/location.ts";
@@ -33,6 +34,8 @@ export * from "./rt/time.ts";
 
 /** A Rust panic. */
 export class Panic extends Error {
+	/** What `panic` runs before it throws, once a program sets a hook: `rt/hook.ts`'s. */
+	declare static hooked?: (text: string, at: Location | string | undefined, owned: boolean | Arguments | undefined) => void;
 	override name = "Panic";
 }
 
@@ -41,104 +44,13 @@ export class Abort extends Panic {
 	override name = "Abort";
 }
 
-/** `std::panic::PanicHookInfo`: what a panic hook is given. */
-export interface PanicHookInfo {
-	/** `payload_as_str`: the payload, if it is a `&str` or a `String`. */
-	readonly text: string | undefined;
-	/** Whether that text is a `String`, as a message `panic!` formats is, rather than a `&'static str`. */
-	readonly owned: boolean;
-	/** Any other payload, as the `dyn Any` object `panic_any` made of it. */
-	readonly payload: object | undefined;
-	/** Where it panicked. */
-	readonly location: Location;
-}
-
-/** A panic hook, as `set_hook` takes it. */
-export type Hook = (info: PanicHookInfo) => undefined;
-
-/** The default hook, which writes to the standard error wasm32 has none of. */
-function defaultHook(_info: PanicHookInfo): undefined {}
-
-let hook: Hook = defaultHook;
-/** Whether a hook is running: a panic then aborts, and `thread::panicking` is true. */
-let hooking = false;
-/** Where std's own code panics outside a `#[track_caller]` function, which `setHook` is given. */
-let sites: Sites | undefined;
-
-/** Where std's code panics, for each of its panics the runtime makes, as the native build names it. */
-export interface Sites {
-	readonly [site: string]: Location;
-}
-
-/** `panic::set_hook`, given where std's own code panics, which its hooks read. */
-export function setHook(f: Hook, table: Sites): void {
-	// Within a hook, which a panic there aborts.
-	if (hooking) panic("cannot modify the panic hook from a panicking thread");
-	const old = hook;
-	hook = f;
-	sites = table;
-	dispose(old);
-}
-
-/** `panic::take_hook`: the hook, which the default replaces. */
-export function takeHook(): Hook {
-	if (hooking) panic("cannot modify the panic hook from a panicking thread");
-	const old = hook;
-	hook = defaultHook;
-	return old;
-}
-
-/** `thread::panicking`, which is true while a hook runs, as a panic aborts once it has. */
-export function panicking(): boolean {
-	return hooking;
-}
-
-/** Where std's code panics at `site`, once a hook can read it. */
-export function site(site: string): Location | undefined {
-	return sites?.[site];
-}
-
 /**
- * Throw `err`, a panic at `at` whose payload is `text` or else `payload`, once the hook
- * has seen it. A panic while the hook runs aborts, as std's does, without running it again.
+ * Panic with `message`, at `at`, or at the key of std's site the hook finds it at, whose
+ * text is a `String` if `owned` says so, as `Panic.hooked` reads it.
  */
-function raise(err: Panic, at: Location | undefined, text: string | undefined, owned: boolean, payload: object | undefined): never {
-	if (hooking) throw new Abort(`${err.message}\nthread panicked while processing panic. aborting.`);
-	if (hook !== defaultHook) {
-		if (at === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${err.message}`);
-		hooking = true;
-		try {
-			hook({ text, owned, payload, location: at });
-		} finally {
-			hooking = false;
-		}
-	}
-	throw err;
-}
-
-/** Panic at `at` with `message`, a `String` if `owned` and else a `&'static str`. */
-export function panic(message: string, at?: Location, owned = false): never {
-	raise(new Panic(message), at, message, owned, undefined);
-}
-
-/**
- * `PanicHookInfo::payload`: what `panic_any` was given, or else the text, as a `str` or a
- * `String` object, whose classes translation makes.
- */
-export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: string) => object): object {
-	return info.payload ?? new (info.owned ? string : str)(info.text ?? "");
-}
-
-/** `PanicHookInfo`'s `Display`: where it panicked, then any text, as the default hook's first lines. */
-export function fmtPanicHookInfoDisplay(info: PanicHookInfo, f: Formatter): FmtResult {
-	const r = fmtWriteFmt(f, ["panicked at ", (f) => fmtLocationDisplay(info.location, f)]);
-	if (!r.ok || info.text === undefined) return r;
-	return fmtWriteFmt(f, [":\n", info.text]);
-}
-
-/** `panic_any` of a payload that is no text: the `dyn Any` object made of it. */
-export function panicAny(payload: object, at?: Location): never {
-	raise(new Panic("Box<dyn Any>"), at, undefined, false, payload);
+export function panic(message: string, at?: Location | string, owned?: boolean | Arguments): never {
+	Panic.hooked?.(message, at, owned);
+	throw new Panic(message);
 }
 
 /** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
@@ -147,14 +59,13 @@ export function resumeUnwind(): never {
 }
 
 /**
- * Panic at `at` with a formatted message, a `String` unless it has no placeholders, which keeps what was written before
- * a value failed to format, as std's does.
+ * Panic at `at` with a formatted message, which keeps what was written before a value failed
+ * to format, as std's does.
  */
-export function panicFmt(message: Arguments, at?: Location): never {
+export function panicFmt(message: Arguments, at?: Location | string): never {
 	const out = new StringWriter();
 	write(out, message);
-	// As `Arguments::as_str`, a message without placeholders is its `&'static str`.
-	panic(out.s, at, message.length > 1 || message.some((part) => typeof part !== "string"));
+	panic(out.s, at, message);
 }
 
 /** A `match` without arms, on a value Rust proved can't exist, such as a `(Void, u8)`. */
@@ -163,7 +74,7 @@ export function unreachable(_value: unknown): never {
 }
 
 /** `assert_eq!` or `assert_ne!` failing: `op` is `==` or `!=`. */
-export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments, at?: Location): never {
+export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments, at?: Location | string): never {
 	const failed: Arguments = args === undefined ? [" failed"] : [" failed: ", (f) => fmtWriteFmt(f, args)];
 	panicFmt(["assertion `left ", op, " right`", ...failed, "\n  left: ", left, "\n right: ", right], at);
 }
@@ -1367,13 +1278,13 @@ export function sliceFillWith<T>(s: T[], f: () => T, drop?: (item: T) => void): 
 
 /** `rotate_left`, panicking past the length. */
 export function sliceRotateLeft<T>(s: T[], mid: number): void {
-	if (mid > s.length) panic("assertion failed: mid <= self.len()", site("rotate_left"));
+	if (mid > s.length) panic("assertion failed: mid <= self.len()", "rotate_left");
 	rotate(s, mid);
 }
 
 /** `rotate_right`, panicking past the length. */
 export function sliceRotateRight<T>(s: T[], k: number): void {
-	if (k > s.length) panic("assertion failed: k <= self.len()", site("rotate_right"));
+	if (k > s.length) panic("assertion failed: k <= self.len()", "rotate_right");
 	rotate(s, s.length - k);
 }
 
@@ -1654,7 +1565,7 @@ export function vecTruncate<T>(v: T[], len: number, drop?: (item: T) => void): v
 
 /** `Vec::swap_remove`: the element at `i`, with the last moved into its place. */
 export function vecSwapRemove<T>(v: T[], i: number): T {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, site("swap_remove"), true);
+	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, "swap_remove", true);
 	const item = v[i];
 	v[i] = v[v.length - 1];
 	v.pop();
@@ -1730,7 +1641,7 @@ export function vecSplitOff<T>(v: T[], mid: number, size: number, at?: Location)
  * with room for `n` times as many as it had room for arrays, as std's keeps its buffer.
  */
 export function vecIntoFlattened<T>(v: (T[] & Capped)[] & Capped, n: number, size: number): T[] {
-	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow", site("into_flattened"), true);
+	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow", "into_flattened", true);
 	const out: T[] & Capped = v.flat() as T[];
 	capSet(out, out.length, vecCapacity(v, size * n) * n, size);
 	return out;
@@ -1965,13 +1876,13 @@ export function byteSliceFillWith(s: ByteSlice, f: () => number): void {
 
 /** `rotate_left` of bytes, panicking past the length. */
 export function byteSliceRotateLeft(s: ByteSlice, mid: number): void {
-	if (mid > s.length) panic("assertion failed: mid <= self.len()", site("rotate_left"));
+	if (mid > s.length) panic("assertion failed: mid <= self.len()", "rotate_left");
 	byteRotate(s, mid);
 }
 
 /** `rotate_right` of bytes, panicking past the length. */
 export function byteSliceRotateRight(s: ByteSlice, k: number): void {
-	if (k > s.length) panic("assertion failed: k <= self.len()", site("rotate_right"));
+	if (k > s.length) panic("assertion failed: k <= self.len()", "rotate_right");
 	byteRotate(s, s.length - k);
 }
 
@@ -2172,7 +2083,7 @@ export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
 
 /** `Vec::swap_remove`: the byte at `i`, with the last moved into its place. */
 export function byteVecSwapRemove(v: ByteVec, i: number): number {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, site("swap_remove"), true);
+	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, "swap_remove", true);
 	const byte = v.data[i];
 	v.data[i] = v.data[--v.length];
 	return byte;
@@ -2250,14 +2161,14 @@ export function capHold(c: object & Capped, cap: number, size: number): void {
 export function capReserve(len: number, cap: number, additional: number, size: number): number {
 	if (additional <= cap - len) return cap;
 	const grown = Math.max(cap * 2, len + additional, size === 1 ? 8 : size <= 1024 ? 4 : 1);
-	if (grown > vecMax(size)) panic("capacity overflow", site("capacity"));
+	if (grown > vecMax(size)) panic("capacity overflow", "capacity");
 	return grown;
 }
 
 /** The capacity `cap`, holding `len`, once `reserve_exact` made room for `additional` more. */
 export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
 	if (additional <= cap - len) return cap;
-	if (len + additional > vecMax(size)) panic("capacity overflow", site("capacity"));
+	if (len + additional > vecMax(size)) panic("capacity overflow", "capacity");
 	return len + additional;
 }
 
@@ -2268,7 +2179,7 @@ export function capShrink(len: number, cap: number, min: number): number {
 
 /** `Vec::with_capacity` of `size`-byte elements, which panics past what it may hold. */
 export function vecWithCapacity<T>(n: number, size: number): T[] {
-	if (n > vecMax(size)) panic("capacity overflow", site("capacity"));
+	if (n > vecMax(size)) panic("capacity overflow", "capacity");
 	const v: T[] & Capped = [];
 	capSet(v, 0, n, size);
 	return v;
@@ -2344,7 +2255,7 @@ export function byteVecFromVec(v: number[] & Capped): ByteVec {
 
 /** `Vec::with_capacity` of bytes, which panics past what it may hold. */
 export function byteVecWithCapacity(n: number): ByteVec {
-	if (n > ISIZE_MAX) panic("capacity overflow", site("capacity"));
+	if (n > ISIZE_MAX) panic("capacity overflow", "capacity");
 	return new ByteVec(n);
 }
 
@@ -2817,7 +2728,7 @@ export function fmtDebugStructFields(f: Formatter, name: string, names: readonly
 			(f) => usizeDisplay(names.length, f),
 			(f) => usizeDisplay(values.length, f),
 			undefined,
-			site("debug_struct_fields"),
+			"debug_struct_fields",
 		);
 	}
 	const builder = fmtDebugStruct(f, name);
@@ -2980,7 +2891,7 @@ function closePretty(f: Formatter, close: string): FmtResult {
 export function fmtFormat(args: Arguments): string {
 	const out = new StringWriter();
 	if (!write(out, args).ok) {
-		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", site("format"), true);
+		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", "format", true);
 	}
 	return out.s;
 }
@@ -2988,7 +2899,7 @@ export function fmtFormat(args: Arguments): string {
 /** `ToString::to_string` of a `Display` value. */
 export function fmtToString(value: Fmt): string {
 	const out = new StringWriter();
-	if (!value({ out, spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", site("to_string"), true);
+	if (!value({ out, spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", "to_string", true);
 	return out.s;
 }
 

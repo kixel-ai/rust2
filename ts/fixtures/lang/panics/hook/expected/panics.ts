@@ -101,11 +101,11 @@ export function wrapped(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		a[Symbol.dispose]();
 	} else if (_7 === 0) {
 		let w: rt.usize = data.length;
-		w = rt.usizeAdd(w, 1);
+		w = rt.usizeAdd(w, 1, { file: "fixtures/lang/panics/src/panics.rs", line: 66, col: 13 });
 		rt.byteVecPush(out, w & 0xff);
 		w = rt.usizeWrappingMul(w, 3);
 		rt.byteVecPush(out, w & 0xff);
-		w = rt.usizeAdd(w, first as rt.usize);
+		w = rt.usizeAdd(w, first as rt.usize, { file: "fixtures/lang/panics/src/panics.rs", line: 71, col: 13 });
 		rt.byteVecPush(out, w & 0xff);
 	} else if (_7 === 1) {
 		const v2: rt.ByteVec = rt.byteSliceToByteVec(data);

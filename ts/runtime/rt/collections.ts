@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, site, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, fmtTuple, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -262,7 +262,7 @@ export function ordClamp<T>(
 	lt: (a: T, b: T) => boolean,
 	gt: (a: T, b: T) => boolean,
 	drop?: (value: T) => void): T {
-	if (!le(min, max)) panic("assertion failed: min <= max", site("ord_clamp"));
+	if (!le(min, max)) panic("assertion failed: min <= max", "ord_clamp");
 	const out = lt(a, min) ? 1 : gt(a, max) ? 2 : 0;
 	if (drop !== undefined) dropAll([max, min, a].filter((_, i) => 2 - i !== out), drop);
 	return out === 1 ? min : out === 2 ? max : a;
@@ -511,7 +511,7 @@ function hold<K, V>(m: HashMap<K, V>): void {
 
 /** `with_capacity`, of at most `max` entries, past which it panics, as hashbrown's does. */
 export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInfer<K>>, s?: unknown): HashMap<K, V> {
-	if (n > max) panic("Hash table capacity overflow", site("hash_capacity"));
+	if (n > max) panic("Hash table capacity overflow", "hash_capacity");
 	const m = hashNew<K, V>(h, s);
 	if (n > 0) m.cap = n;
 	return m;
@@ -525,7 +525,7 @@ export function hashReserve<K, V>(m: HashMap<K, V>, additional: number, max: num
 	const n = hashLen(m);
 	const cap = hashCapacity(m);
 	if (additional <= cap - n) return;
-	if (n + additional > max) panic("Hash table capacity overflow", site("hash_capacity"));
+	if (n + additional > max) panic("Hash table capacity overflow", "hash_capacity");
 	m.cap = Math.min(Math.max(cap * 2, n + additional), max);
 }
 
@@ -1125,7 +1125,7 @@ function vecExtending<C, T>(c: C, len: number, items: Iter<T>, add: (item: T) =>
 function extendReserve<K, V>(m: HashMap<K, V>, additional: number, max: number | undefined): void {
 	if (max === undefined) return;
 	const n = hashLen(m);
-	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow", site("hash_capacity"));
+	if (n + (n === 0 ? additional : Math.ceil(additional / 2)) > max) panic("Hash table capacity overflow", "hash_capacity");
 }
 
 /**
@@ -2161,9 +2161,9 @@ function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: strin
 		const s = start._0;
 		const e = stop._0;
 		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? m.c(s, e) === 0 : eq(s, e))) {
-			panic(`range start and end are equal and excluded in ${name}`, site(`btree_range_equal_${name}`));
+			panic(`range start and end are equal and excluded in ${name}`, `btree_range_equal_${name}`);
 		}
-		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, site(`btree_range_order_${name}`));
+		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
 	}
 	const [fl, fi] = start.tag === "Unbounded" ? [end(m, false), 0] : edge(m, start._0, start.tag === "Excluded");
 	const last = end(m, true);
@@ -2997,7 +2997,7 @@ export function dequeNew<T>(size: number, bytes = false): VecDeque<T> {
 
 /** `VecDeque::with_capacity` of `size`-byte items, which panics past what it may hold. */
 export function dequeWithCapacity<T>(n: number, size: number, bytes = false): VecDeque<T> {
-	if (n > vecMax(size)) panic("capacity overflow", site("capacity"));
+	if (n > vecMax(size)) panic("capacity overflow", "capacity");
 	const q = dequeNew<T>(size, bytes);
 	if (size !== 0) q.b = slots(n, bytes);
 	return q;
@@ -3267,7 +3267,7 @@ export function dequeRemove<T>(q: VecDeque<T>, i: number, none?: None): T | None
 
 /** `insert`: `item` at `i`, with the shorter side moved to make room, as std's. */
 export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
-	if (i > q.n) panic("index out of bounds", site("deque_insert"));
+	if (i > q.n) panic("index out of bounds", "deque_insert");
 	grow(q);
 	if (q.n - i < i) {
 		for (let j = q.n; j > i; j--) q.b[phys(q, j)] = q.b[phys(q, j - 1)];
@@ -3281,8 +3281,8 @@ export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
 
 /** `swap` of items `i` and `j`, each checked as std's asserts. */
 export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
-	if (i >= q.n) panic("assertion failed: i < self.len()", site("deque_swap_i"));
-	if (j >= q.n) panic("assertion failed: j < self.len()", site("deque_swap_j"));
+	if (i >= q.n) panic("assertion failed: i < self.len()", "deque_swap_i");
+	if (j >= q.n) panic("assertion failed: j < self.len()", "deque_swap_j");
 	const a = phys(q, i);
 	const b = phys(q, j);
 	const item = q.b[a];
@@ -3295,7 +3295,7 @@ export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
  * around the end of its slots, the first items past the last or the last before the first.
  */
 export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
-	if (n > q.n) panic("assertion failed: n <= self.len()", site(right ? "deque_rotate_right" : "deque_rotate_left"));
+	if (n > q.n) panic("assertion failed: n <= self.len()", right ? "deque_rotate_right" : "deque_rotate_left");
 	const k = q.n - n;
 	if ((n <= k) !== right) rotateLeft(q, right ? k : n);
 	else rotateRight(q, right ? n : k);
@@ -4245,7 +4245,7 @@ export function dequeResizeWith<T>(q: VecDeque<T>, len: number, f: () => T, drop
 
 /** `split_off`: the items from `i` on, moved to a new deque with room for exactly them. */
 export function dequeSplitOff<T>(q: VecDeque<T>, i: number): VecDeque<T> {
-	if (i > q.n) panic("`at` out of bounds", site("deque_split_off"));
+	if (i > q.n) panic("`at` out of bounds", "deque_split_off");
 	const other = dequeWithCapacity<T>(q.n - i, q.s, holdsBytes(q));
 	for (let j = i; j < q.n; j++) {
 		other.b[j - i] = q.b[phys(q, j)];
@@ -4387,7 +4387,7 @@ export function listAppend<T>(l: LinkedList<T>, other: LinkedList<T>): void {
  * nearer, as std's does. Past the end, it panics as std's does.
  */
 export function listSplitOff<T>(l: LinkedList<T>, phys: number): LinkedList<T> {
-	if (phys > l.n) panic("Cannot split off at a nonexistent index", site("list_split_off"));
+	if (phys > l.n) panic("Cannot split off at a nonexistent index", "list_split_off");
 	const out = listNew<T>();
 	if (phys === l.n) return out;
 	if (phys === 0) {

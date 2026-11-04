@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, site, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -466,7 +466,7 @@ const WOULD_BLOCK: Result<never, TryLockError<never>> = /* @__PURE__ */ Err({ ta
 
 /** `Mutex::lock`: its guard, which is the mutex. Locking it again while held panics, as wasm32's does. */
 export function mutexLock<T>(mutex: Mutex<T>): Mutex<T> {
-	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false", site("mutex_lock"), true);
+	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false", "mutex_lock", true);
 	mutex.locked = true;
 	return mutex;
 }
@@ -1127,7 +1127,7 @@ export class OnceLock<T, N extends None | undefined = undefined> extends OnceCel
 
 /** A `OnceLock` initialized from within its own initialization panics, as wasm32's `Once` does. */
 function recursive(cell: OnceCell<unknown, None | undefined>, caller?: Location): void {
-	if (cell instanceof OnceLock && cell.running) panic("one-time initialization may not be performed recursively", caller ?? site("once_force"));
+	if (cell instanceof OnceLock && cell.running) panic("one-time initialization may not be performed recursively", caller ?? "once_force");
 }
 
 /** `OnceCell::set`: `Err(value)` back if it holds one already. */
@@ -1167,7 +1167,7 @@ export function onceGetOrInit<T>(cell: OnceCell<T, None | undefined>, f: () => T
 	if (lock) cell.running = true;
 	const value = f() as T;
 	if (lock) cell.running = false;
-	else if (cell.v !== none) panic("reentrant init", site("reentrant_init"));
+	else if (cell.v !== none) panic("reentrant init", "reentrant_init");
 	cell.v = value;
 	return value;
 }
@@ -1189,7 +1189,7 @@ export function onceGetOrTryInit<T, E>(cell: OnceCell<T, None | undefined>, f: (
 	const result = f();
 	if (lock) cell.running = false;
 	if (!result.ok) return result;
-	if (!lock && cell.v !== none) panic("reentrant init", site("reentrant_init"));
+	if (!lock && cell.v !== none) panic("reentrant init", "reentrant_init");
 	cell.v = result.value;
 	return result;
 }
@@ -1280,7 +1280,7 @@ export class LazyCell<T> {
 
 	/** Panics as a `force` from within the function does. */
 	protected recursive(): never {
-		panic("LazyCell instance has previously been poisoned", site("lazy_poisoned"));
+		panic("LazyCell instance has previously been poisoned", "lazy_poisoned");
 	}
 
 	/** `Debug`, named `name`: its value, or `<uninit>` until `force` makes it, which this never runs. */
@@ -1298,7 +1298,7 @@ export class LazyCell<T> {
 /** `LazyLock<T>`, which panics as wasm32's `Once` does when forced from within its function. */
 export class LazyLock<T> extends LazyCell<T> {
 	protected override recursive(): never {
-		panic("one-time initialization may not be performed recursively", site("once_force"));
+		panic("one-time initialization may not be performed recursively", "once_force");
 	}
 }
 
@@ -1606,7 +1606,7 @@ export class Ready<T> implements Future<T> {
 	}
 
 	#take(message: string, at: string): T {
-		if (this.#taken) panic(message, site(at), true);
+		if (this.#taken) panic(message, at, true);
 		const value = this.#value as T;
 		this.#taken = true;
 		this.#value = undefined;

@@ -24,7 +24,6 @@ import {
 	panic,
 	panicFmt,
 	type Result,
-	site,
 	stringLen,
 	utf8Check,
 } from "../rt.ts";
@@ -916,8 +915,8 @@ export function strsJoin(parts: readonly string[], sep: string): string {
 		};
 		let len = count(sep) * seps;
 		for (const part of parts) len += count(part);
-		if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX", site("join_len"), true);
-		if (len > ISIZE_MAX) panic("capacity overflow", site("capacity"));
+		if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX", "join_len", true);
+		if (len > ISIZE_MAX) panic("capacity overflow", "capacity");
 	}
 	return parts.join(sep);
 }
@@ -1007,7 +1006,7 @@ export function fmtFromUtf16ErrorDisplay(e: FromUtf16Error, f: Formatter): FmtRe
 
 /** `String::with_capacity`: the empty string, which keeps no capacity. */
 export function stringWithCapacity(capacity: usize): string {
-	if (capacity > ISIZE_MAX) panic("capacity overflow", site("capacity"));
+	if (capacity > ISIZE_MAX) panic("capacity overflow", "capacity");
 	return "";
 }
 
@@ -1015,7 +1014,7 @@ export function stringWithCapacity(capacity: usize): string {
 export function stringReserve(s: string, additional: usize): void {
 	// A code unit is at most three bytes, so only a large `additional` needs the length.
 	if (additional > ISIZE_MAX - 3 * s.length && additional > ISIZE_MAX - utf8Len(s, 0, s.length)) {
-		panic("capacity overflow", site("capacity"));
+		panic("capacity overflow", "capacity");
 	}
 }
 
