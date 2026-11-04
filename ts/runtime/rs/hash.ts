@@ -639,9 +639,9 @@ export function hashUsize(value: number, s: Hasher): void {
 	s.usize(value);
 }
 
-/** `Hash::hash` of a raw pointer to a value of `size` bytes aligned to `align`, which hashes its address. */
-export function hashAddr(size: number, align: number): (p: object, s: Hasher) => void {
-	return (p, s) => s.usize(addr(p, size, align));
+/** `Hash::hash` of a raw pointer to a value of `size` bytes aligned to `align` and kept where `kept` aligns it, which hashes its address. */
+export function hashAddr(size: number, align: number, kept: number): (p: object, s: Hasher) => void {
+	return (p, s) => s.usize(addr(p, size, align, kept));
 }
 
 /** `Hash::hash` of an `i8`, or of a discriminant of `Ordering`, whose `repr` it is. */

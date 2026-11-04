@@ -329,22 +329,23 @@ const UNADDRESSED = /* @__PURE__ */ new FinalizationRegistry<[string, number]>((
 let brk = 0x10000;
 
 /**
- * `p as usize`, of a pointer to a value of `size` bytes aligned to `align`: null's 0, a
- * dangling pointer's `align`, an address no memory is at, or else the object's own,
- * as an allocator places each allocation: a multiple of `align`, in a block no other
- * object JS keeps overlaps, with room before it for an `Arc`'s counts. Running out of
- * wasm32's addresses aborts, as a failed allocation does.
+ * `p as usize`, of a pointer to a value of `size` bytes aligned to `align`, which the
+ * program keeps where `kept` aligns it: null's 0, a dangling pointer's `align`, an
+ * address no memory is at, or else the object's own, as an allocator places each
+ * allocation: a multiple of `kept`, in a block no other object JS keeps overlaps, with
+ * room before it for an `Arc`'s counts. Running out of wasm32's addresses aborts, as a
+ * failed allocation does.
  */
-export function addr(p: object, size: number, align: number): number {
+export function addr(p: object, size: number, align: number, kept: number): number {
 	if (p === NULL) return 0;
 	if (p === DANGLING) return align;
 	if (p instanceof Address) return p.addr;
 	let at = ADDRESSED.get(p);
 	if (at !== undefined) return at;
-	const block = `${size}:${align}`;
+	const block = `${size}:${kept}`;
 	at = FREED.get(block)?.pop();
 	if (at === undefined) {
-		at = Math.ceil((brk + Math.max(16, align)) / align) * align;
+		at = Math.ceil((brk + Math.max(16, kept)) / kept) * kept;
 		if (at + size > 2 ** 32) throw new Abort(`memory allocation of ${size} bytes failed`);
 		brk = at + size;
 	}

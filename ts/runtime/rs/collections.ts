@@ -64,9 +64,9 @@ export function cmp<T extends number | boolean | Limbs>(a: T, b: T): Ordering {
 	return lt(x, y) ? -1 : lt(y, x) ? 1 : 0;
 }
 
-/** `Ord::cmp` of raw pointers to values of `size` bytes aligned to `align`, which compares their addresses. */
-export function cmpAddr(size: number, align: number): (a: object, b: object) => Ordering {
-	return (a, b) => cmp(addr(a, size, align), addr(b, size, align));
+/** `Ord::cmp` of raw pointers to values of `size` bytes aligned to `align` and kept where `kept` aligns them, which compares their addresses. */
+export function cmpAddr(size: number, align: number, kept: number): (a: object, b: object) => Ordering {
+	return (a, b) => cmp(addr(a, size, align, kept), addr(b, size, align, kept));
 }
 
 /**

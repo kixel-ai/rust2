@@ -26,12 +26,12 @@ export class Keyed {
 }
 
 export function drop$ops_Drop(self: Keyed): void {
-	const address: rs.usize = rs.addr(self, 12, 4);
+	const address: rs.usize = rs.addr(self, 12, 4, 4);
 	const _8: rs.RefCell<rs.BTreeMap<[rs.u8, rs.usize], rs.u8>> = rs.refCellBorrowMut(self.registry.value);
 	const _12: [rs.u8, rs.usize] = [rs.u8Rem(self.id, 4), address];
 	const removed: rs.u8 | undefined = rs.btreeRemove(_8.value, _12);
 	rs.refMutRelease(_8);
-	const same: boolean = rs.addr(self, 12, 4) === address;
+	const same: boolean = rs.addr(self, 12, 4, 4) === address;
 	if (removed === self.id) {
 		if (same) {
 			rs.cellSet(self.left.value, rs.u8WrappingAdd(self.left.value.v, 1));

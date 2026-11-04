@@ -25,14 +25,15 @@ use crate::ts::Expr;
 /// The address of `p`, a pointer to `ty`, as a `usize`.
 pub fn address<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	match read(b, ty, span) {
-		Ok([size, align]) => Expr::rs("addr", vec![p, size, align]),
+		Ok(layout) => Expr::rs("addr", [p].into_iter().chain(layout).collect()),
 		Err(refused) => refused,
 	}
 }
 
-/// The size and alignment `rs.addr` reads the address of a pointer to `ty` by, or the
+/// The size and alignment `rs.addr` reads the address of a pointer to `ty` by, with the
+/// alignment of where the program keeps one, or the
 /// refusal of a type whose address JS has no counterpart of.
-pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Result<[Expr; 2], Expr> {
+pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Result<[Expr; 3], Expr> {
 	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	// Only an instance decides what a parameter is, and is refused on its own.
 	if !(b.t.polymorphic() && ty.has_param()) {
@@ -50,8 +51,9 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 		b.t.addresses.push((ty, read.0, read.1));
 		let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 		let size = layout.map_or(0, |l| l.size.bytes());
+		let own = layout.map_or(1, |l| l.align.abi.bytes());
 		return match b.t.alignment(ty) {
-			Ok(align) => Ok([Expr::lit(size.to_string()), Expr::lit(align.to_string())]),
+			Ok(kept) => Ok([size, own, kept].map(|n| Expr::lit(n.to_string()))),
 			Err(holder) => Err(b.err(
 				span,
 				format!(
@@ -63,7 +65,7 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 	let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 	let size = layout.map_or(0, |l| l.size.bytes());
 	let align = layout.map_or(1, |l| l.align.abi.bytes());
-	Ok([Expr::lit(size.to_string()), Expr::lit(align.to_string())])
+	Ok([size, align, align].map(|n| Expr::lit(n.to_string())))
 }
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {

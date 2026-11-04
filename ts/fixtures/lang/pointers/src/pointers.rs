@@ -2381,6 +2381,9 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	let second = Aligned(Small(7, 8));
 	for (arc, holder) in small.iter().zip([&first, &second]) {
 		let (shared, held) = (Arc::as_ptr(arc).addr(), ptr::from_ref(&holder.0).addr());
+		out.push(u8::from(
+			NonNull::<Small>::dangling().as_ptr().addr() == align_of::<Small>(),
+		));
 		out.extend([
 			u8::from(shared % align_of::<usize>() == 0),
 			u8::from(held % 64 == 0),
