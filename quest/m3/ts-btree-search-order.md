@@ -4,7 +4,8 @@
 
 [rust2-ts](/ts/README.md)'s `BTreeMap` and `BTreeSet` call a key's own `Ord::cmp` in the
 order and number std's do in `insert`, `get`, `remove`, `extend`, `range`, and the set
-operators that search, and answer the same where the tree is out of `Ord`'s order, as a
+operators that search, and none where std's call none, as `pop_first`, `pop_last`, and
+`extract_if` remove and rebalance, and answer the same where the tree is out of `Ord`'s order, as a
 `collect` sorted by a disagreeing `PartialOrd::lt` leaves it, proven by differential tests
 against native Rust with a logging `Ord`.
 

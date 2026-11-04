@@ -478,7 +478,7 @@ pub fn std_impl<'tcx>(
 				let pending = b.t.pending_arg(args.type_at(0));
 				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
 			}
-			(Std::Waker | Std::Context | Std::WakerVTable, Trait::Debug) => b.err(
+			(Std::Waker | Std::Context | Std::WakerVTable | Std::RawWaker, Trait::Debug) => b.err(
 				span,
 				format!("`Debug` of `{ty}`, which writes addresses, which JS has no counterpart of"),
 			),
@@ -649,6 +649,16 @@ fn iter_debug<'tcx>(
 		["collections", "linked_list", "ExtractIf"] => {
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			return Some(call("fmtListExtractIf", vec![debug]));
+		}
+		// The entry it reads next, of a set its key.
+		["collections", "btree", map @ ("map" | "set"), "ExtractIf"] => {
+			let mut types = args.types();
+			let debug = b.fmt_fn(Trait::Debug, types.next()?, span);
+			let value = match *map == "map" {
+				true => vec![b.fmt_fn(Trait::Debug, types.next()?, span)],
+				false => Vec::new(),
+			};
+			return Some(call("fmtBTreeExtractIf", [vec![debug], value].concat()));
 		}
 		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
 		["iter", "sources", "once_with", "OnceWith"] => return Some(call("fmtOnceWith", Vec::new())),

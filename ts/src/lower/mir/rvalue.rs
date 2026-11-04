@@ -804,6 +804,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
 				(Std::Pending, _) => Expr::Rt("NEVER".into()),
+				(Std::WakerVTable, _) => Expr::rt("wakerVTable", values),
+				(Std::RawWaker, _) => {
+					let [data, vtable] = <[Expr; 2]>::try_from(values).expect("a raw waker's two fields");
+					crate::lower::task::raw_waker(data, vtable)
+				}
 				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),
