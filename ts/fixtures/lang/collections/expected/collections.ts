@@ -12,6 +12,7 @@ import * as Dir from "./collections.Dir.ts";
 import * as Fussy from "./collections.Fussy.ts";
 import type * as Holder from "./collections.Holder.ts";
 import * as Left from "./collections.Left.ts";
+import * as Lent from "./collections.Lent.ts";
 import * as Logged from "./collections.Logged.ts";
 import * as Mixed from "./collections.Mixed.ts";
 import * as Nibble from "./collections.Nibble.ts";
@@ -26,7 +27,7 @@ import * as Tally from "./collections.Tally.ts";
 import * as Window from "./collections.Window.ts";
 import * as Wrap from "./collections.Wrap.ts";
 import { thenSome$0quywni } from "./core/bool.ts";
-import { unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1pdxnel as option_map$1pdxnel, map$093awy8 as option_map$093awy8, map$0aug5m6 as option_map$0aug5m6, map$16w3l9s as option_map$16w3l9s, map$1y26nmr as option_map$1y26nmr, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$0f7cus0 as option_mapOr$0f7cus0, mapOr$0vkblkh as option_mapOr$0vkblkh, mapOr$07jk2xl as option_mapOr$07jk2xl, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1lwzqm5 as option_mapOr$1lwzqm5, mapOr$0pgapuk as option_mapOr$0pgapuk, mapOr$13kt6x8 as option_mapOr$13kt6x8, mapOr$1wei0sy as option_mapOr$1wei0sy, mapOr$031uhqp as option_mapOr$031uhqp, mapOr$18dcmgz as option_mapOr$18dcmgz, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$188iunt as option_mapOr$188iunt, mapOr$05q90i2 as option_mapOr$05q90i2, mapOr$0955beb as option_mapOr$0955beb, mapOr$1h9hu6n as option_mapOr$1h9hu6n, clone$14nprly as option_clone$14nprly, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
+import { unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1pdxnel as option_map$1pdxnel, map$093awy8 as option_map$093awy8, map$0aug5m6 as option_map$0aug5m6, map$16w3l9s as option_map$16w3l9s, map$1y26nmr as option_map$1y26nmr, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$0tj0y3q as option_mapOr$0tj0y3q, mapOr$0f7cus0 as option_mapOr$0f7cus0, mapOr$0vkblkh as option_mapOr$0vkblkh, mapOr$07jk2xl as option_mapOr$07jk2xl, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1lwzqm5 as option_mapOr$1lwzqm5, mapOr$0pgapuk as option_mapOr$0pgapuk, mapOr$13kt6x8 as option_mapOr$13kt6x8, mapOr$1wei0sy as option_mapOr$1wei0sy, mapOr$031uhqp as option_mapOr$031uhqp, mapOr$18dcmgz as option_mapOr$18dcmgz, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$188iunt as option_mapOr$188iunt, mapOr$1f8lrju as option_mapOr$1f8lrju, mapOr$05q90i2 as option_mapOr$05q90i2, mapOr$0955beb as option_mapOr$0955beb, mapOr$1h9hu6n as option_mapOr$1h9hu6n, clone$14nprly as option_clone$14nprly, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
 import { eq$1a91ieh as result_eq$1a91ieh, eq$122baxc as result_eq$122baxc } from "./core/result.ts";
 import { put } from "./harness.ts";
 
@@ -6282,6 +6283,195 @@ export function btreeSearches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 			put(out, part5);
 		}
 	}
+}
+
+/**
+ * std's B-tree searched by a form its keys lend by the crate's own `Borrow`, which it
+ * orders by that form's `Ord` against what each key lends, as `Probe` logs: of a map and a
+ * set whose keys' ends and ids rise with their starts, or of odd `kind`s fall, so a search
+ * by one disagrees with the tree's order. Each answer is followed by the log.
+ */
+export function btreeBorrows(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _29!: rs.usize;
+	let _199!: [rs.u8, rs.u8];
+	const _22: (a0: rs.u8) => rs.u16 = (b2: rs.u8): rs.u16 => {
+		return rs.u16Mul(b2 as rs.u16, 4) ^ 256;
+	};
+	const _23: (a0: rs.u16 | undefined) => rs.u16 = (v: rs.u16 | undefined): rs.u16 => {
+		return option_mapOr$1wei0sy(v, 65535, (v2: rs.u16): rs.u16 => {
+			return v2;
+		});
+	};
+	const log: rs.Cell<rs.u32> = new rs.Cell(0);
+	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), 0);
+	};
+	const put: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, answer: rs.u16): undefined => {
+		rs.iterExtendBytes(out2, rs.iterSlice(rs.u16ToBeBytes(answer).reverse()), undefined, true);
+		rs.iterExtendBytes(out2, rs.iterSlice(rs.u32ToBeBytes(rs.cellReplace(log, 0)).reverse()), undefined, true);
+	};
+	const n: rs.usize = rs.usizeAdd(at(0) as rs.usize, 1);
+	const falls: boolean = rs.u8Rem(kind, 2) === 1;
+	const lent: (a0: rs.usize) => Lent.Lent = (i3: rs.usize): Lent.Lent => {
+		let end!: rs.u16;
+		const start: rs.u16 = rs.usizeMul(i3, 7) & 0xffff & 1023;
+		if (!falls) {
+			end = rs.u16Add(start, 3);
+		} else {
+			end = rs.u16Sub(1023, start);
+		}
+		return { start: { _0: start, _1: log }, end: { _0: end, _1: log }, id: end ^ 256 };
+	};
+	const probe: (a0: rs.u8) => Probe.Probe = (b3: rs.u8): Probe.Probe => {
+		return { _0: rs.u16Add(rs.u16Mul(b3 as rs.u16, 4), b3 >> 6 as rs.u16), _1: log };
+	};
+	const map: rs.BTreeMap<Lent.Lent, rs.u16> = rs.btreeNew(Lent.cmp$cmp_Ord) as rs.BTreeMap<Lent.Lent, rs.u16>;
+	const set: rs.BTreeSet<Lent.Lent> = rs.btreeNew(Lent.cmp$cmp_Ord) as rs.BTreeSet<Lent.Lent>;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = n;
+	while ((_29 = iterStart++) < iterEnd) {
+		const i: rs.usize = _29;
+		const _35: Lent.Lent = lent(i);
+		rs.btreeInsert(map, _35, i & 0xffff);
+		const _41: Lent.Lent = lent(rs.usizeMul(i, 2));
+		rs.btreeAdd(set, _41);
+	}
+	const part2 = rs.btreeLen(map) & 0xffff;
+	put(out, part2);
+	for (const b of rs.byteSliceView(rs.byteSliceRange(data, rs.min(data.length, 4)))) {
+		const _72: Probe.Probe = probe(b);
+		const part4 = rs.btreeGet(map, rs.by(_72, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe));
+		const part5 = _23(part4);
+		put(out, part5);
+		const _84: rs.u16 = _22(b);
+		const part6 = rs.btreeGet(map, rs.by(_84, rs.cmp, Lent.borrow$Borrow_u16));
+		const part7 = _23(part6);
+		put(out, part7);
+		const _90: Probe.Probe = probe(b ^ 1);
+		const _87: rs.Place<rs.u16> | undefined = rs.btreeGetMut(map, rs.by(_90, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe));
+		if (_87 !== undefined) {
+			_87.v = rs.u16Add(_87.v, 1);
+		}
+		const _104: Probe.Probe = probe(b);
+		const part8 = option_mapOr$1f8lrju(rs.btreeGetKeyValue(map, rs.by(_104, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe)), 65535, (_2: [Lent.Lent, rs.u16]): rs.u16 => {
+			return _2[0].start._0 ^ _2[1];
+		});
+		put(out, part8);
+		const _114: rs.u16 = _22(b ^ 2);
+		const part9 = rs.btreeContains(map, rs.by(_114, rs.cmp, Lent.borrow$Borrow_u16)) ? 1 : 0;
+		put(out, part9);
+		const _121: Probe.Probe = probe(b);
+		if (rs.btreeContains(map, rs.by(_121, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe))) {
+			const _131: Probe.Probe = probe(b);
+			const part10 = rs.btreeIndex(map, rs.by(_131, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe));
+			put(out, part10);
+		}
+		const _141: Probe.Probe = probe(b);
+		const part11 = rs.btreeContains(set, rs.by(_141, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe)) ? 1 : 0;
+		put(out, part11);
+		const _151: rs.u16 = _22(b);
+		const part12 = option_mapOr$0tj0y3q(rs.btreeKey(set, rs.by(_151, rs.cmp, Lent.borrow$Borrow_u16)), 65535, (k: Lent.Lent): rs.u16 => {
+			return k.start._0;
+		});
+		put(out, part12);
+		const _154: rs.u8 = rs.u8Rem(b, 5);
+		if (_154 === 0) {
+			const _162: Probe.Probe = probe(b);
+			const part17 = option_unwrapOr$1szdyfq(rs.btreeRemove(map, rs.by(_162, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe)), 65535);
+			put(out, part17);
+		} else if (_154 === 1) {
+			const _171: rs.u16 = _22(b);
+			const part16 = option_mapOr$1f8lrju(rs.btreeRemoveEntry(map, rs.by(_171, rs.cmp, Lent.borrow$Borrow_u16)), 65535, (_24: [Lent.Lent, rs.u16]): rs.u16 => {
+				return _24[0].id ^ _24[1];
+			});
+			put(out, part16);
+		} else if (_154 === 2) {
+			const _180: Probe.Probe = probe(b);
+			const part15 = rs.btreeDelete(set, rs.by(_180, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe)) ? 1 : 0;
+			put(out, part15);
+		} else if (_154 === 3) {
+			const _189: rs.u16 = _22(b);
+			const part14 = option_mapOr$0tj0y3q(rs.btreeKey(set, rs.by(_189, rs.cmp, Lent.borrow$Borrow_u16), true), 65535, (k2: Lent.Lent): rs.u16 => {
+				return k2.id;
+			});
+			put(out, part14);
+		} else {
+			const part13 = rs.btreeLen(map) & 0xffff;
+			put(out, part13);
+		}
+	}
+	if (!(rs.u8Rem(kind, 4) < 2)) {
+		_199 = [at(1), at(2)] as [rs.u8, rs.u8];
+	} else {
+		_199 = [rs.min(at(1), at(2)), rs.max(at(1), at(2))] as [rs.u8, rs.u8];
+	}
+	const lo: rs.u8 = _199[0];
+	const hi: rs.u8 = _199[1];
+	const iter3: rs.Iter<[rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>]> = rs.iterSlice([[{ tag: "Excluded", _0: probe(lo) } as rs.RangeBound<Probe.Probe>, { tag: "Unbounded" } as rs.RangeBound<Probe.Probe>] as [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>], [{ tag: "Included", _0: probe(lo) } as rs.RangeBound<Probe.Probe>, { tag: "Excluded", _0: probe(hi) } as rs.RangeBound<Probe.Probe>] as [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>], [{ tag: "Unbounded" } as rs.RangeBound<Probe.Probe>, { tag: "Included", _0: probe(hi) } as rs.RangeBound<Probe.Probe>] as [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>], [{ tag: "Excluded", _0: probe(lo) } as rs.RangeBound<Probe.Probe>, { tag: "Included", _0: probe(hi) } as rs.RangeBound<Probe.Probe>] as [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>]]);
+	l8: while (true) {
+		const _256: [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>] | rs.Done = iter3.next();
+		if (_256 === rs.DONE) {
+			break;
+		}
+		const iter4: rs.Iter<[Lent.Lent, rs.u16]> = rs.btreeRange(map, rs.by(_256, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe), Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+		while (true) {
+			const _264: [Lent.Lent, rs.u16] | rs.Done = iter4.next();
+			if (_264 === rs.DONE) {
+				continue l8;
+			}
+			put(out, _264[0].start._0 ^ _264[1]);
+		}
+	}
+	const _280: [rs.RangeBound<Probe.Probe>, rs.RangeBound<Probe.Probe>] = [{ tag: "Excluded", _0: probe(lo) } as rs.RangeBound<Probe.Probe>, { tag: "Unbounded" } as rs.RangeBound<Probe.Probe>];
+	const iter5: rs.Iter<[Lent.Lent, rs.u16]> = rs.btreeRange(map, rs.by(_280, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe), Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd);
+	while (true) {
+		const _285: [Lent.Lent, rs.u16] | rs.Done = iter5.next();
+		if (_285 === rs.DONE) {
+			break;
+		}
+		put(out, _285[0].start._0 ^ _285[1]);
+	}
+	const _298: rs.RangeInclusive<rs.u16> = new rs.RangeInclusive(_22(lo), _22(hi), rs.u16Step);
+	const iter6: rs.Iter<[Lent.Lent, rs.Place<rs.u16>]> = rs.btreeRangeMut(map, rs.by(_298, rs.cmp, Lent.borrow$Borrow_u16));
+	while (true) {
+		const _306: [Lent.Lent, rs.Place<rs.u16>] | rs.Done = iter6.next();
+		if (_306 === rs.DONE) {
+			break;
+		}
+		_306[1].v = _306[1].v ^ 85;
+	}
+	const _313: rs.Range<rs.u16> = new rs.Range(_22(lo), _22(hi));
+	const iter7: rs.Iter<Lent.Lent> = rs.btreeRangeKeys(set, rs.by(_313, rs.cmp, Lent.borrow$Borrow_u16));
+	while (true) {
+		const _321: Lent.Lent | rs.Done = iter7.next();
+		if (_321 === rs.DONE) {
+			break;
+		}
+		put(out, _321.id);
+	}
+	const _333: { end: Probe.Probe } = { end: probe(hi) };
+	const iter8: rs.Iter<Lent.Lent> = rs.iterRev(rs.btreeRangeKeys(set, rs.by(_333, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe), Probe.eq$cmp_PartialEq, Probe.gt$cmp_PartialOrd));
+	while (true) {
+		const _338: Lent.Lent | rs.Done = iter8.next();
+		if (_338 === rs.DONE) {
+			break;
+		}
+		put(out, _338.start._0);
+	}
+	const part21 = at(3);
+	const _349: Probe.Probe = probe(part21);
+	const right: rs.BTreeMap<Lent.Lent, rs.u16> = rs.btreeSplitOff(map, rs.by(_349, Probe.cmp$cmp_Ord, Lent.borrow$Borrow_collections_Probe));
+	const part22 = rs.usizeAdd(rs.usizeMul(rs.btreeLen(map), 1000), rs.btreeLen(right)) & 0xffff;
+	put(out, part22);
+	const part23 = at(3);
+	const _370: rs.u16 = _22(part23);
+	const high: rs.BTreeSet<Lent.Lent> = rs.btreeSplitOff(set, rs.by(_370, rs.cmp, Lent.borrow$Borrow_u16));
+	const part24 = rs.usizeAdd(rs.usizeMul(rs.btreeLen(set), 1000), rs.btreeLen(high)) & 0xffff;
+	put(out, part24);
+	const part25 = rs.iterFold(rs.btreeValues(right), 0, (a: rs.u16, v4: rs.u16): rs.u16 => {
+		return a ^ v4;
+	});
+	put(out, part25);
 }
 
 //# sourceMappingURL=collections.ts.map

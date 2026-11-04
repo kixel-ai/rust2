@@ -546,6 +546,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
+name = "rangemap"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a611d15b50743feb4c76b7d03edcb0e64f399c26961e4efe6975bc398be6aa3d"
+
+[[package]]
 name = "reject-fixture"
 version = "0.0.0"
 dependencies = [
@@ -641,6 +647,7 @@ dependencies = [
  "hashbrown",
  "hashlink",
  "rand",
+ "rangemap",
  "tracing",
 ]
 
