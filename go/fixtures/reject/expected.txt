@@ -1,5 +1,7 @@
 no item `missing` in the crate
 a root must not be generic at fixtures/reject/src/lib.rs:6:1
+`Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:96:1
+`Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:92:7
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:11:1
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:12:2
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:12:14

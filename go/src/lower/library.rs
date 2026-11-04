@@ -126,10 +126,12 @@ fn refused_in<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>, seen:
 	}
 }
 
-/// What a bound call is in Go: an expression assigned to the call's destination, or a
+/// What a bound call is in Go: an expression assigned to the call's destination, or the
+/// parts of a destination Go holds split, as an expression of as many values, or a
 /// statement.
 pub enum Bound {
 	Expr(String),
+	Parts(String),
 	Stmt(String),
 }
 
@@ -269,11 +271,17 @@ pub fn call_with<'tcx>(
 		"<[T]>::split_first_chunk" | "<[T]>::split_first_chunk_mut" => {
 			let n = instance.args.consts().next().and_then(|c| c.try_to_target_usize(tcx))?;
 			let elem = fx.ty(targ(0), span);
-			let d = dest(fx);
-			expr(format!(
-				"func() {d} {{ if len({0}) < {n} {{ return {d}{{}} }}; return {d}{{tag: 1, Some: struct{{ F0 tuple2[*[{n}]{elem}, []{elem}] }}{{tuple2[*[{n}]{elem}, []{elem}]{{(*[{n}]{elem})({0}[:{n}]), {0}[{n}:]}}}}}} }}()",
+			let some = format!(
+				"tuple2[*[{n}]{elem}, []{elem}]{{(*[{n}]{elem})({0}[:{n}]), {0}[{n}:]}}",
 				a[0]
-			))
+			);
+			let none = fx.variant(dest_ty, 0, &[], span);
+			let some = fx.variant(dest_ty, 1, &[some], span);
+			fx.returning(
+				dest_ty,
+				format!("if len({}) < {n} {{ return {none} }}; return {some}", a[0]),
+				span,
+			)
 		}
 		"<core::fmt::Formatter>::debug_lower_hex" => expr(format!("{}.flags&flagDebugLowerHex != 0", a[0])),
 		"<core::fmt::Formatter>::debug_upper_hex" => expr(format!("{}.flags&flagDebugUpperHex != 0", a[0])),
@@ -324,13 +332,18 @@ pub fn call_with<'tcx>(
 		}
 
 		"core::str::converts::from_utf8" => {
-			let r = dest(fx);
 			let ty::Adt(_, rargs) = dest_ty.kind() else { return None };
 			let e = fx.ty(rargs.type_at(1), span);
-			expr(format!(
-				"func() {r} {{ if n, l, ok := utf8Check({0}); !ok {{ return {r}{{tag: 1, Err: struct{{ F0 {e} }}{{{e}{{valid_up_to: n, error_len: l}}}}}} }}; return {r}{{tag: 0, Ok: struct{{ F0 []uint8 }}{{{0}}}}} }}()",
-				a[0]
-			))
+			let err = fx.variant(dest_ty, 1, &[format!("{e}{{valid_up_to: n, error_len: l}}")], span);
+			let ok = fx.variant(dest_ty, 0, &[a[0].clone()], span);
+			fx.returning(
+				dest_ty,
+				format!(
+					"if n, l, ok := utf8Check({}); !ok {{ return {err} }}; return {ok}",
+					a[0]
+				),
+				span,
+			)
 		}
 
 		"<core::fmt::Arguments>::new" => expr(format!("Arguments{{template: {}[:], args: {}[:]}}", a[0], a[1])),
@@ -496,7 +509,7 @@ pub fn fmt_call<'tcx>(fx: &mut Fx<'_, 'tcx>, name: &str, ty: Ty<'tcx>, value: &s
 		span,
 	) {
 		Some(Bound::Expr(e)) => e,
-		Some(Bound::Stmt(_)) => return None,
+		Some(Bound::Parts(_) | Bound::Stmt(_)) => return None,
 		None => format!("{}({value}, f)", fx.t.func(instance, span)),
 	};
 	Some(format!("func(f *Formatter) fmtResult {{ return {body} }}"))
@@ -621,6 +634,14 @@ fn intrinsic<'tcx>(
 					return None;
 				}
 			};
+			// Called with its arguments and result whole.
+			if tys.iter().chain([dest_ty]).any(|t| fx.t.split(t, span).is_some()) {
+				fx.err(
+					span,
+					"`const_eval_select` of a function taking or returning an enum of over four words",
+				);
+				return None;
+			}
 			let name = fx.t.func(instance, span);
 			let fields: Vec<String> = (0..tys.len()).map(|i| format!("{}.F{i}", a[0])).collect();
 			let call = format!("{name}({})", fields.join(", "));
