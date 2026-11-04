@@ -1577,7 +1577,7 @@ fn deque_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Ex
 /// arguments: their size, by which std's grows it, and whether they are bytes, which it
 /// holds in a `Uint8Array` its slices view.
 fn deque_items<'tcx>(b: &mut Body<'_, '_, 'tcx>, item: Ty<'tcx>, span: Span) -> Vec<Expr> {
-	let bytes = matches!(item.kind(), ty::Uint(ty::UintTy::U8));
+	let bytes = super::byte(item);
 	super::iter::tail(
 		vec![super::iter::size_of(b, item, span)],
 		vec![Expr::lit(bytes.to_string())],
@@ -1649,9 +1649,7 @@ fn deque<'tcx>(
 		(_, "swap") => Expr::rt("dequeSwap", values),
 		(_, "rotate_left") => Expr::rt("dequeRotate", values),
 		(_, "rotate_right") => Expr::rt("dequeRotate", flagged(values, true, false)),
-		(_, "make_contiguous") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
-			Expr::rt("dequeByteMakeContiguous", values)
-		}
+		(_, "make_contiguous") if super::byte(item) => Expr::rt("dequeByteMakeContiguous", values),
 		(_, "make_contiguous") => Expr::rt("dequeMakeContiguous", values),
 		(_, "binary_search") => {
 			values.push(cmp_fn(b, item, false, span));
@@ -1687,9 +1685,7 @@ fn deque<'tcx>(
 		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
-		(_, "as_slices" | "as_mut_slices") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
-			Expr::rt("dequeByteSlices", values)
-		}
+		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rt("dequeByteSlices", values),
 		(_, "as_slices") => Expr::rt("dequeAsSlices", values),
 		(_, "as_mut_slices") => Expr::rt("dequeAsSlices", flagged(values, true, false)),
 		(_, "drain") => {
@@ -1715,7 +1711,7 @@ fn deque<'tcx>(
 		// `From<Vec<T>>` keeps the vector's capacity, and `From<[T; N]>` holds exactly `N`.
 		("From", "from") if b.t.std_of(library::targ(call.args, 1)) == Some(Std::Vec) => {
 			let v = values.pop()?;
-			let v = match matches!(item.kind(), ty::Uint(ty::UintTy::U8)) {
+			let v = match super::byte(item) {
 				true => Expr::rt("byteVecToVec", vec![v]),
 				false => v,
 			};
@@ -1830,7 +1826,7 @@ fn heap<'tcx>(
 ) -> Option<Expr> {
 	let span = call.span;
 	let item = arg(coll, 0);
-	let bytes = matches!(item.kind(), ty::Uint(ty::UintTy::U8));
+	let bytes = super::byte(item);
 	let mut values = args;
 	let e = match (owner, name) {
 		(_, "new") | ("Default", "default") => empty(b, Expr::rt("heapNew", vec![]), coll, span),
@@ -2012,7 +2008,7 @@ pub fn extend<'tcx>(
 		]
 	};
 	Some(match std {
-		Std::Vec if matches!(arg(coll, 0).kind(), ty::Uint(ty::UintTy::U8)) => {
+		Std::Vec if super::byte(arg(coll, 0)) => {
 			let take = super::iter::iter_take(b, iter, trusted, span);
 			Expr::rt(
 				"iterExtendBytes",
@@ -2199,7 +2195,7 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 	}
 	let size = |b: &mut Body<'_, '_, 'tcx>| vec![super::iter::size_of(b, arg(coll, 0), span)];
 	let part = match std {
-		Std::Vec if matches!(arg(coll, 0).kind(), ty::Uint(ty::UintTy::U8)) => Expr::rt("byteVecPart", Vec::new()),
+		Std::Vec if super::byte(arg(coll, 0)) => Expr::rt("byteVecPart", Vec::new()),
 		Std::Vec => Expr::rt("vecPart", super::iter::tail(Vec::new(), size(b))),
 		Std::VecDeque => Expr::rt("dequePart", Vec::new()),
 		Std::LinkedList => Expr::rt("listPart", Vec::new()),
@@ -2316,9 +2312,7 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 	};
 	Some(match std {
 		Std::String => Expr::Str(String::new()),
-		Std::Vec if matches!(arg(coll, 0).kind(), ty::Uint(ty::UintTy::U8)) => {
-			Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new())
-		}
+		Std::Vec if super::byte(arg(coll, 0)) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
 		Std::Vec => Expr::Array(Vec::new()),
 		Std::VecDeque => deque_new(b, coll, span),
 		Std::LinkedList => list_new(b, coll, span),
@@ -2661,7 +2655,7 @@ fn overflowing_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>
 /// What `ty` holds if it is a `Cow<[T]>` other than of bytes, `T`, which compares, orders,
 /// and hashes as its slice. A `Cow<[u8]>` is bytes already.
 fn cow_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
-	library::cow_slice(b.t.tcx, ty).filter(|elem| !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	library::cow_slice(b.t.tcx, ty).filter(|elem| !super::byte(*elem))
 }
 
 /// `ty`, the type of `args[n]`, as the slice it derefs to if it is a `Cow<[T]>` other than
@@ -2684,7 +2678,7 @@ fn elements_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Vec) => arg(ty, 0),
 		_ => return None,
 	};
-	(!matches!(elem.kind(), ty::Uint(ty::UintTy::U8))).then_some(elem)
+	(!super::byte(elem)).then_some(elem)
 }
 
 /// Whether `ty` is a `Vec`, a slice, an array, or a `Cow` of bytes: a typed array, an
@@ -2696,7 +2690,7 @@ fn bytes<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		_ if let Some(elem) = library::cow_slice(b.t.tcx, ty) => elem,
 		_ => return false,
 	};
-	matches!(elem.kind(), ty::Uint(ty::UintTy::U8))
+	super::byte(elem)
 }
 
 /// What `bounds` makes of the range a call takes: what an `rt.Bounds` reads, and, for a

@@ -769,12 +769,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}),
 			_ => false,
 		};
-		let bytes = || {
-			gargs
-				.types()
-				.next()
-				.is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8)))
-		};
+		let bytes = || gargs.types().next().is_some_and(crate::lower::byte);
 		match (owner.as_str(), name.as_str()) {
 			("slice", "split_first") if bytes() => Some(Producer::SplitFirst),
 			("slice", "split_first_chunk") if bytes() => {

@@ -2065,6 +2065,21 @@ export function byteVecTruncate(v: ByteVec, length: number): void {
 	if (length < v.length) v.length = length;
 }
 
+/** `Vec::spare_capacity_mut`: the room past the bytes, a slice of the storage that a write through reaches. */
+export function byteVecSpare(v: ByteVec): ByteSlice {
+	return new ByteSlice(v.data, v.length, v.data.length - v.length);
+}
+
+/** `Vec::set_len`, which aborts past the capacity, as std's check of its precondition does. */
+export function byteVecSetLen(v: ByteVec, length: number): void {
+	if (length > v.data.length) {
+		throw new Abort(
+			"unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.",
+		);
+	}
+	v.length = length;
+}
+
 /** `Vec::clear`. */
 export function byteVecClear(v: ByteVec): void {
 	v.length = 0;

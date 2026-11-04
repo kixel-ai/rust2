@@ -9,13 +9,9 @@ use rustc_middle::ty::{self, Ty};
 use rustc_span::{Span, Spanned};
 
 use super::Fx;
-use crate::lower::library;
 use crate::lower::pointer::Pointee;
+use crate::lower::{byte, library};
 use crate::ts::{Expr, Stmt};
-
-fn byte(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Uint(ty::UintTy::U8))
-}
 
 /// Why the bytes of memory from `alloc` are refused.
 pub(super) const BYTES: &str =
@@ -134,9 +130,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let ty::RawPtr(pointee, _) = self.mir.local_decls[place.local].ty.kind() else {
 			return None;
 		};
-		(matches!(pointee.kind(), ty::Uint(ty::UintTy::U8))
-			&& self.allocated(&Operand::Copy(mir::Place::from(place.local))))
-		.then_some(BYTES)
+		(byte(*pointee) && self.allocated(&Operand::Copy(mir::Place::from(place.local)))).then_some(BYTES)
 	}
 
 	/// Whether the pointer `op` is one `alloc` or `realloc` returned, as the body shows.

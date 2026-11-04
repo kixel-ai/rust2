@@ -73,7 +73,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		// Only a cast types memory from `alloc`, which has no bytes before or after.
-		if matches!(pointee.kind(), ty::Uint(ty::UintTy::U8))
+		if crate::lower::byte(pointee)
 			&& matches!(owner.as_str(), "ptr" | "NonNull" | "raw")
 			&& !matches!(name.as_str(), "cast" | "as_ptr" | "new" | "new_unchecked" | "is_null")
 			&& args.iter().any(|a| self.allocated(&a.node))
@@ -109,7 +109,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
 				let o = self.origin(arg(0)?)?;
-				let byte = matches!(pointee.kind(), ty::Uint(ty::UintTy::U8));
+				let byte = crate::lower::byte(pointee);
 				let none = self.const_int(arg(1)?) == Some(0);
 				if byte && name != "from_raw_parts" && !none && matches!(o.array, Array::Lone(_)) {
 					return Some("a raw or mutable slice of a byte in no array of bytes".into());
@@ -263,7 +263,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		let mut types = gargs.types();
 		let container = types.next()?.peel_refs();
-		let byte = |ty: ty::Ty<'tcx>| matches!(ty.kind(), ty::Uint(ty::UintTy::U8));
+		let byte = crate::lower::byte;
 		let copy = |len| {
 			Some(Origin {
 				array: Array::Copy(self.def_block(local)?, len),
