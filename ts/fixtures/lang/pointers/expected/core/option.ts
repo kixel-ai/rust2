@@ -6,6 +6,13 @@ import type * as Loaded from "../pointers.Loaded.ts";
 import type * as Pair from "../pointers.Pair.ts";
 import type * as Spot from "../pointers.Spot.ts";
 
+export function isSomeAnd$09tpccf(self: rt.u8 | undefined, f: (a0: rt.u8) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
 export function isSomeAnd$0h2dqit(self: [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>] | undefined, f: (a0: [rt.Arc<[rt.u16, rt.u8] | undefined>, rt.Arc<Spot.Spot>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
