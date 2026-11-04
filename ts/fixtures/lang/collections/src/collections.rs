@@ -2466,7 +2466,11 @@ pub fn btree_searches(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				1 => map.range(lo..=hi),
 				_ => map.range((Bound::Excluded(lo), Bound::Unbounded)),
 			};
-			while let Some((k, _)) = if at(6) % 2 == 0 { range.next() } else { range.next_back() } {
+			while let Some((k, _)) = if at(6) % 2 == 0 {
+				range.next()
+			} else {
+				range.next_back()
+			} {
 				put(out, k.0);
 			}
 			put(out, map.pop_first().map_or(0xffff, |(k, _)| k.0));
@@ -2476,7 +2480,9 @@ pub fn btree_searches(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let mut right = map.split_off(&probe(at(8)));
 			put(out, (map.len() * 1000 + right.len()) as u16);
 			put(out, some(right.get(&probe(at(9)))));
-			let taken = right.extract_if(probe(at(10))..probe(at(11)), |k, _| k.0 % 3 == 0).count();
+			let taken = right
+				.extract_if(probe(at(10))..probe(at(11)), |k, _| k.0 % 3 == 0)
+				.count();
 			put(out, taken as u16);
 			map.retain(|k, _| k.0 % 4 != 0);
 			put(out, map.len() as u16);
@@ -2533,8 +2539,10 @@ pub fn btree_searches(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 		_ => {
 			// Sorted by `cmp`, but keys it finds equal stay where `ne` tells them apart.
-			let mut map: BTreeMap<Probe, u16> =
-				data.iter().map(|&b| (Probe(u16::from(b) << 8 | u16::from(b & 7), &log), u16::from(b))).collect();
+			let mut map: BTreeMap<Probe, u16> = data
+				.iter()
+				.map(|&b| (Probe(u16::from(b) << 8 | u16::from(b & 7), &log), u16::from(b)))
+				.collect();
 			put(out, map.len() as u16);
 			for &b in data {
 				put(out, some(map.get(&Probe(u16::from(b & 7), &log))));
